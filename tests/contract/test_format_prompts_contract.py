@@ -58,7 +58,7 @@ def _card_section(card, heading):
     for i, line in enumerate(lines):
         if fenced[i]:
             continue
-        if line.startswith("## ") and not line.startswith("### "):
+        if line.startswith("## "):
             head = line[3:]
             if head == name or (
                 head.startswith(name)
@@ -75,7 +75,7 @@ def _card_section(card, heading):
     start = matches[0]
     end = len(lines)
     for j in range(start + 1, len(lines)):
-        if not fenced[j] and lines[j].startswith("## ") and not lines[j].startswith("### "):
+        if not fenced[j] and lines[j].startswith("## "):
             end = j
             break
     return "\n".join(lines[start:end])

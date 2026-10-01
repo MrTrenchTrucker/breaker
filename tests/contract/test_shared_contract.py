@@ -7,9 +7,9 @@ module's own code. It also pins the shared card's second invariant: the
 contract and registry files live only in their own module folders, so a stray
 OpenAPI spec or model registry data file anywhere else is a repo error.
 """
-import os
 import unittest
 
+import contract_strays
 import contract_support
 
 
@@ -21,34 +21,15 @@ class SharedContractTest(contract_support.ModuleContractTest):
         registry data file outside shared/modules/model-registry, is a repo
         error — the shared card's Invariants say both live only here.
 
-        The walk excludes .git, build/, .gradle/ and .kotlin/ (version control
-        and build state, never repo source). Nothing in the tree today is
-        named like an offender: the only y*ml files are the .github issue
-        templates and workflow, which match neither pattern.
+        The rule itself lives in contract_strays.find_contract_strays (a
+        small function the unit tests can call on a temp tree); this method
+        applies it to the real root. The walk excludes .git, build/, .gradle/
+        and .kotlin/ (version control and build state, never repo source).
+        Nothing in the tree today is named like an offender: the only y*ml
+        files are the .github issue templates and workflow, which match
+        neither pattern.
         """
-        offenders = []
-        for root, dirs, files in os.walk(contract_support.ROOT):
-            dirs[:] = [
-                d for d in dirs
-                if d not in (".git", "build", ".gradle", ".kotlin")
-            ]
-            for name in files:
-                rel = os.path.relpath(os.path.join(root, name),
-                                      contract_support.ROOT)
-                if name.startswith("openapi") and (
-                    name.endswith(".yml") or name.endswith(".yaml")
-                ):
-                    if not rel.startswith("shared/modules/api-contracts/"):
-                        offenders.append(
-                            f"{rel} — an OpenAPI spec belongs in "
-                            f"shared/modules/api-contracts"
-                        )
-                elif name == "models.yaml":
-                    if not rel.startswith("shared/modules/model-registry/"):
-                        offenders.append(
-                            f"{rel} — the model registry data file belongs in "
-                            f"shared/modules/model-registry"
-                        )
+        offenders = contract_strays.find_contract_strays(contract_support.ROOT)
         assert not offenders, (
             "contract and registry files live only in their own module "
             "folders; found outside them:"

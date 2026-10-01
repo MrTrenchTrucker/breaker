@@ -109,3 +109,8 @@ agents, not required: an outside contributor may write the code themselves
   generated from it. Its catalog is one JSON file per model; ours is the single
   `models.yaml`. Do not copy its download path: it records no per-file checksum,
   and its download URLs follow a moving branch.
+- The Gradle boundary check does not require a consumer to name the
+  `project(":shared:modules:model-registry")` edge while this module
+  publishes no artifact; the moment it gains code (applies an artifact
+  plugin) the edge becomes required, and the bijection check will then
+  demand it.

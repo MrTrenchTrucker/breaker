@@ -16,11 +16,13 @@ runs one way passes vacuously when the thing it protects is absent:
 
 * the Gradle boundary is a BIJECTION against the registry's `depends_on` — a
   build file may not name a project the registry forbids, and may not omit one
-  the registry requires. There is ONE exemption in the "may not omit" half: a
-  target that applies only the `base` plugin publishes no artifact, so a code
-  module's build file may omit the `project(":…")` edge to it. Which targets
-  are base-only is decided from the build file by `_applies_artifact_plugin`;
-  the exemption is the plugin-based skip, not a blanket one;
+  the registry requires. There are TWO exemptions in the "may not omit" half,
+  and both are structure-based, not a blanket one: a target that applies only
+  the `base` plugin publishes no artifact, so a code module's build file may
+  omit the `project(":…")` edge to it — which targets are base-only is decided
+  from the build file by `_applies_artifact_plugin`; and a target that only
+  groups other registered modules is a container (`_is_container`), which
+  likewise publishes no artifact of its own;
 * `settings.gradle.kts` includes exactly the registered modules, no more and no
   fewer, so the include list genuinely derives from `modules.toml`;
 * `tests/contract/` holds exactly one contract test per registered module and
@@ -81,7 +83,7 @@ def _heading_indexes(card):
         if line.lstrip().startswith("```"):
             in_fence = not in_fence
             continue
-        if not in_fence and line.startswith("## ") and not line.startswith("### "):
+        if not in_fence and line.startswith("## "):
             headings.append(i)
     return headings
 
