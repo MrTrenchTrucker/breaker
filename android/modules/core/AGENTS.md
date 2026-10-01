@@ -6,6 +6,8 @@ The pure-Kotlin domain core: the models, the ports (interfaces) that feature
 modules implement, and the use cases that run a dictation.
 **No Android imports, no I/O** — testable with plain JUnit.
 
+**Build phase:** Phase 1 (built, on `main`). Needs first: nothing; every feature module depends on it.
+
 **Ports (interfaces) feature modules implement** (`port/`):
 - `SttEngine` — `transcribe(SttRequest): SttResult` (blocking; callers handle threading)
 - `AudioSource` — `start(AudioListener)`, `stop()` — streams 16 kHz mono float PCM;
@@ -119,7 +121,8 @@ Domain models, ports, use cases
 ## Test Locations
 - Unit: `src/test/kotlin/dev/breaker/dictation/core/` — plain JUnit 4, run with
   `./gradlew :android:modules:core:test`
-- Contract: `tests/contract/test_core_contract.py`
+- Contract: `tests/contract/test_core_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_core_contract.py`
+- Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
 ## Test Requirement
 Every test added or touched for this module must be proven to fail loudly:

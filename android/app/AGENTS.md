@@ -3,6 +3,8 @@
 ## Purpose
 Android entry point, dependency injection wiring, Gradle build.
 
+**Build phase:** Phase 1. Needs first: `core` (on `main`); it wires each other module in as that module lands.
+
 ## Public Interface
 app-level composition of all modules.
 
@@ -22,8 +24,9 @@ app launches to the settings screen; DI wiring composes all modules.
 - Domain logic (core)
 
 ## Test Locations
-- Unit: `tests/unit/android/app/`
-- Contract: `tests/contract/test_app_contract.py`
+- Unit (Kotlin): `android/app/src/test/kotlin/`, created with the module's first test. Run: `./gradlew :android:app:test`
+- Contract: `tests/contract/test_app_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_app_contract.py`
+- Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
 ## Test Requirement
 Every test added or touched for this module must be proven to fail loudly:
