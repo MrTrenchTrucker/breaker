@@ -11,6 +11,13 @@ package dev.breaker.dictation.core.model
 enum class SttMode { AUTO, LOCAL, SERVER }
 
 /**
+ * The user's theme preference, as the domain sees it.
+ *
+ * `SYSTEM` follows the phone's dark mode; `LIGHT` and `DARK` override it.
+ */
+enum class ThemeMode { SYSTEM, LIGHT, DARK }
+
+/**
  * Where the floating tile sits, as fractions of the screen (0f..1f on each
  * axis). Fractions rather than pixels so a saved position survives a change of
  * display size or density.
@@ -36,7 +43,8 @@ data class TilePosition(val x: Float, val y: Float) {
  *
  * Defaults match the documented behaviour: server-primary routing, the small
  * on-device model, the model preloaded so a wake phrase can start a dictation
- * within a second, formatting on, and the tile centred.
+ * within a second, formatting on, the theme following the phone
+ * ([ThemeMode.SYSTEM]), and the tile centred.
  */
 data class AppSettings(
     val mode: SttMode = SttMode.AUTO,
@@ -48,6 +56,7 @@ data class AppSettings(
     val language: String = "en",
     val preloadModel: Boolean = true,
     val formattingEnabled: Boolean = true,
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
 ) {
     init {
         require(modelSize.isNotBlank()) { "modelSize cannot be blank" }
