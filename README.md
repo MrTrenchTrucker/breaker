@@ -106,6 +106,19 @@ Want to help build Breaker, yourself or with an AI agent? Start with
 and opening a pull request. [`.github/GITHUB-WORKFLOW.md`](.github/GITHUB-WORKFLOW.md) has the
 issue and branch mechanics.
 
+## Related projects
+
+Open-source dictation and speech-to-text projects we learned from. No code is
+copied from them; if that ever changes, the copied code is credited in `NOTICE`.
+- [Handy](https://github.com/cjpais/Handy) (MIT): a desktop dictation app. Its
+  model catalog, where every file carries a pinned revision and a checksum,
+  informed the model-registry and on-device speech cards.
+- [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) (MIT): a
+  speech-to-text library. Its model catalog (hand-edited, validated in CI,
+  everything else generated from it) informed model-registry's checks.
+- [SuperMouseAI](https://github.com/SurajSSingh/SuperMouseAI): a smaller desktop
+  dictation app built on whisper.cpp.
+
 ## References
 
 Citation markers used throughout these docs:

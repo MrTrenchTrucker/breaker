@@ -24,6 +24,8 @@ sherpa-onnx local transcription (fallback engine), model lifecycle, checksum ver
 - Models from `shared/model-registry` (sizes + SHA-256 + per-model license terms).
 - Download once → app data dir → **verify against upstream checksum.txt + our
   SHA-256 before load** (N3, T1, T21) [2].
+- A file that fails either check is deleted at once, never loaded or kept. The
+  user sees why, and the next attempt downloads it fresh.
 - Load at startup (or lazy per setting); preload on idle to meet N1 (< 1 s start).
 
 **Security Review's sherpa-onnx audit [2]:** safe to use with three mitigations — clean
@@ -39,7 +41,8 @@ reasonable window [2].
 
 ## Invariants
 - Offline dictation E2E: tap → speak → send → text (F1).
-- Tamper test: corrupt model file → load refused (T1, T21).
+- Tamper test: corrupt model file → load refused and the file deleted, so a retry
+  downloads it fresh (T1, T21).
 - Start latency < 1 s with preload (N1).
 - **No model installed + local mode → clear "No model installed" error** (fix #1).
 

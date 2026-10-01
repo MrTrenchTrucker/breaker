@@ -20,10 +20,19 @@ upstream already publishes** — not just our own recorded SHA-256 [2].
 **Server (Whisper X container, CPU):** whatever the existing pipeline already
 serves — document it here for parity.
 
-**Format:** `models.yaml` — id, family (sherpa-onnx|whisper), params, size_mb,
-url, sha256, **license** (e.g., MIT for Whisper weights; check sherpa-onnx model
-cards), notes. `models.yaml` is the hand-edited source of record; it is not
-shipped to the phone and never parsed at runtime (ADR-016).
+**Format:** `models.yaml` — one entry per model: id, family (sherpa-onnx|whisper),
+params, size_mb, url, sha256, **license** (the SPDX id when the license has one,
+e.g. `MIT` for Whisper weights; check sherpa-onnx model cards), `license_name` and
+`license_link` (required when the license has no SPDX id, such as a custom or
+non-commercial model license), `upstream_commit` (the upstream source revision the
+model file was built or converted from, recorded separately from `url`),
+`tamper_verified` (true only after the tamper test has been run against this entry
+and watched refusing a corrupted copy), hosted, notes. Required in every entry:
+id, family, params, size_mb, url, sha256, upstream_commit, tamper_verified, hosted,
+and either `license` or both `license_name` and `license_link`; only `notes` is
+optional. The generated `licence` constant (ADR-016) carries the SPDX id, or
+`license_name` when there is none. `models.yaml` is the hand-edited source of
+record; it is not shipped to the phone and never parsed at runtime (ADR-016).
 
 **Hosting (F30, D25):** if licensing permits, the model is also served from the
 Breaker container (web-fe) with checksums, so the phone downloads from the
@@ -38,6 +47,12 @@ the license check result (R26).
 - URLs pinned to specific releases (no floating "latest").
 - Registry versioned; app refuses unknown model ids.
 - **Every entry verifies against upstream's checksum.txt** (T21) [2].
+- The generator checks every entry before it writes anything, and fails on a
+  missing required field, an unknown field, a sha256 that is not 64 hex
+  characters, a url that is neither a release-asset id URL
+  (`.../releases/assets/<numeric id>`) nor a URL naming a full 40-character commit,
+  or a license with neither an SPDX id nor a `license_name` and `license_link`.
+  CI runs it, so a bad entry never reaches the app.
 
 ## Owns
 Model sizes, immutable release-asset URLs, upstream checksum.txt, licenses, hosted flag.
@@ -84,8 +99,13 @@ agents, not required: an outside contributor may write the code themselves
 (`.github/CONTRIBUTING.md`).
 
 ## Known Gotchas
-- Not in the tree yet: `models.yaml` and `tools/gen_model_registry.py` are created when this module is built (ADR-016). Until then, this card describes them; nothing can import them.
+- Not in the tree yet: `models.yaml`, `tools/gen_model_registry.py` and the CI step that runs its entry check are created when this module is built (ADR-016). Until then, this card describes them; nothing can import them.
 - URLs pin to immutable release-asset ids; verify upstream checksum.txt [2].
 - The generated Kotlin file is never hand-edited: edit `models.yaml`, rerun the
   generator, commit both. A contract test fails if they drift (ADR-016).
 - Do not add a runtime YAML or JSON reader here or in a consumer (ADR-016).
+- What we borrow from transcribe.cpp's model catalog (see "Related projects" in
+  the root README): a hand-edited catalog, validated in CI, with everything else
+  generated from it. Its catalog is one JSON file per model; ours is the single
+  `models.yaml`. Do not copy its download path: it records no per-file checksum,
+  and its download URLs follow a moving branch.
