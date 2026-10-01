@@ -39,7 +39,7 @@ path = "android/modules/audio"
 owns = "Mic capture, VAD, noise suppression, WAV encode (16 kHz mono PCM)."
 does_not_own = "Transcription (stt-*); phrase matching (phrases)."
 depends_on = ["android", "android_core"]
-public = "AudioCapture, Vad, WavEncoder"
+public = "MicCapture, Pcm16WavEncoder, MicSource, MicSourceException, NoiseSuppressor, PassThroughNoiseSuppressor, AdaptiveGateSuppressor, RecordingIndicator"
 card = "android/modules/audio/AGENTS.md"
 
 [module.android_stt_ondevice]
