@@ -1,0 +1,284 @@
+package dev.breaker.dictation.core.usecase
+
+import dev.breaker.dictation.core.model.AppSettings
+import dev.breaker.dictation.core.model.AudioFormat
+import dev.breaker.dictation.core.model.DictationResult
+import dev.breaker.dictation.core.model.DictationSession
+import dev.breaker.dictation.core.model.DictationState
+import dev.breaker.dictation.core.model.SttError
+import dev.breaker.dictation.core.model.SttMode
+import dev.breaker.dictation.core.model.SttRequest
+import dev.breaker.dictation.core.model.SttResult
+import dev.breaker.dictation.core.model.Transcription
+import dev.breaker.dictation.core.model.TranscriptionSource
+import dev.breaker.dictation.core.port.AudioListener
+import dev.breaker.dictation.core.port.AudioSource
+import dev.breaker.dictation.core.port.Clock
+import dev.breaker.dictation.core.port.ConnectivityProbe
+import dev.breaker.dictation.core.port.Formatter
+import dev.breaker.dictation.core.port.IdSource
+import dev.breaker.dictation.core.port.SettingsStore
+import dev.breaker.dictation.core.port.SttEngine
+import dev.breaker.dictation.core.port.WavEncoder
+
+/**
+ * Runs one dictation from audio to text.
+ *
+ * The use case owns the state machine ([DictationSession]) and the routing
+ * decision. Everything it touches is a port, so the whole flow runs in a plain
+ * unit test with no device, no network and no clock.
+ *
+ * ### Routing
+ *
+ * The engine is chosen from the user's mode:
+ * - `AUTO` — ask [ConnectivityProbe]. Server when it answers, on-device when it
+ *   does not. This is the default.
+ * - `LOCAL` — always on-device, without probing.
+ * - `SERVER` — always the server, without probing, and it fails loudly rather
+ *   than quietly dropping to the phone.
+ *
+ * ### The rule that matters
+ *
+ * When the on-device engine reports [SttError.LOCAL_MODEL_MISSING], the attempt
+ * ends there. The use case does **not** try the server, does not retry, and
+ * does not reach for any other path — a phone that was told to work locally has
+ * no model, and the honest answer is "no model is installed". A dictation that
+ * quietly leaves the device is a privacy failure, so the failure is surfaced
+ * instead. A server failure is surfaced the same way rather than retried: the
+ * fallback decision belongs to the probe, made once, before the attempt.
+ *
+ * ### Formatting
+ *
+ * The transcript is formatted after it is transcribed, and which formatter
+ * sees it follows the route the dictation actually took ([LocalModeEgress]):
+ * - server route, formatting on: [serverFormatter], which may be a cloud service.
+ * - on-device route, formatting on: [localFormatter], which must stay on the
+ *   phone. The [serverFormatter] is never called for a phone transcript,
+ *   including when automatic routing fell back to the phone and including when
+ *   formatting was switched on before the user moved to the phone.
+ * - either route, formatting off: the text as dictated.
+ *
+ * Both formatters are required, with no default, so a caller has to decide what
+ * runs on the phone; a pass-through leaves the text as dictated.
+ *
+ * Deciding this adds no probe and no settings read: it uses the route and the
+ * settings already loaded for the attempt.
+ *
+ * Not thread-safe: drive one dictation from one thread. The audio callback is
+ * synchronised with the buffer it fills.
+ */
+class DictateUseCase(
+    private val settings: SettingsStore,
+    private val probe: ConnectivityProbe,
+    private val localEngine: SttEngine,
+    private val serverEngine: SttEngine,
+    private val serverFormatter: Formatter,
+    private val wavEncoder: WavEncoder,
+    private val clock: Clock,
+    private val ids: IdSource,
+    private val localFormatter: Formatter,
+) {
+    private val captured = mutableListOf<FloatArray>()
+    private val captureLock = Any()
+
+    private val captureListener = AudioListener { samples ->
+        synchronized(captureLock) { captured += samples.copyOf() }
+    }
+
+    /**
+     * Start capturing audio for a dictation. [session] must already be in the
+     * RECORDING state and comes back unchanged; [audioSource] starts delivering
+     * audio into this use case, and any audio an earlier capture left buffered
+     * is discarded.
+     */
+    fun startCapture(session: DictationSession, audioSource: AudioSource): DictationSession {
+        check(session.state == DictationState.RECORDING) {
+            "Recording can only start from the RECORDING state, not ${session.state.name}"
+        }
+        synchronized(captureLock) { captured.clear() }
+        audioSource.start(captureListener)
+        return session
+    }
+
+    /**
+     * End the dictation: the buffered audio is transcribed, formatted and
+     * returned as a [Transcription], and the session moves to sending.
+     *
+     * [trimBeforeMs] is where the send phrase began. Everything from that point
+     * on is the phrase, so it is dropped and the speech before it is kept — that
+     * is what keeps the phrase out of the transcript. A null value keeps
+     * everything. A negative value is a caller bug: it is refused with
+     * [IllegalArgumentException] before the source is stopped or any audio is
+     * discarded, so the caller can try again with a good offset.
+     */
+    fun stopCapture(
+        session: DictationSession,
+        audioSource: AudioSource,
+        trimBeforeMs: Long? = null,
+    ): DictationResult {
+        require(trimBeforeMs == null || trimBeforeMs >= 0) {
+            "trimBeforeMs cannot be negative: $trimBeforeMs"
+        }
+        audioSource.stop()
+        // dictate() owns the empty-audio case, and it does so from the
+        // TRANSCRIBING state, which is the only state an error may be raised
+        // from. Failing here on the raw RECORDING session would throw instead
+        // of reporting the failure the caller asked about.
+        return dictate(session, takeCapturedAudio(trimBeforeMs))
+    }
+
+    /**
+     * Stop the source and throw the buffered audio away. The returned session is
+     * IDLE, with no error and no transcription; arm it again to record again.
+     */
+    fun cancel(session: DictationSession, audioSource: AudioSource): DictationSession {
+        audioSource.stop()
+        synchronized(captureLock) { captured.clear() }
+        return session.cancel()
+    }
+
+    /**
+     * Transcribe and format [audio], advancing [session].
+     *
+     * Exposed on its own so a caller that captured audio elsewhere — a replay,
+     * a test — can run the same path.
+     *
+     * A move the state machine refuses is a wiring bug and throws. Anything an
+     * adapter throws after that point — the settings store, the probe, the WAV
+     * encoder, an engine, a formatter, the id source, the clock, checked exceptions
+     * included — is reported as a [DictationResult.Failure] with [SttError.OTHER]
+     * instead of escaping, and the detail names the exception's class, never its
+     * message, which can carry the dictated text. An interruption also leaves the
+     * thread's interrupt flag set. An [Error] is not an adapter failure and propagates.
+     */
+    fun dictate(session: DictationSession, audio: FloatArray): DictationResult {
+        val transcribing = session.transitionTo(DictationState.TRANSCRIBING)
+        if (audio.isEmpty()) {
+            return fail(transcribing, SttError.OTHER, "No audio was captured")
+        }
+        return try {
+            transcribe(transcribing, audio)
+        } catch (e: Exception) {
+            if (e is InterruptedException) Thread.currentThread().interrupt()
+            fail(transcribing, SttError.OTHER, e::class.simpleName ?: "Dictation failed")
+        }
+    }
+
+    /** The part of [dictate] that talks to adapters. */
+    private fun transcribe(transcribing: DictationSession, audio: FloatArray): DictationResult {
+        val config = settings.load()
+        val route = route(config.mode)
+        val request = SttRequest(
+            pcm = audio,
+            wavBytes = wavEncoder.encode(audio),
+            model = config.modelSize,
+            language = config.language,
+        )
+
+        val result = try {
+            route.engine.transcribe(request)
+        } catch (e: RuntimeException) {
+            // An adapter that throws instead of returning a failure would take
+            // the whole flow down. Report it the same way as any other error
+            // and let the caller carry on.
+            SttResult.failure(SttError.OTHER, e::class.simpleName ?: "Engine failed")
+        }
+
+        return when (result) {
+            is SttResult.Failure -> fail(transcribing, result.error, result.detail)
+            is SttResult.Success -> {
+                val text = formatted(result.text, route, config)
+                val transcription = Transcription(
+                    id = ids.newId(),
+                    text = text,
+                    source = route.source,
+                    model = config.modelSize,
+                    durationMs = request.durationMs,
+                    createdAt = clock.nowEpochMillis(),
+                )
+                DictationResult.Success(transcribing.withTranscription(transcription), transcription)
+            }
+        }
+    }
+
+    /**
+     * Pick the engine for [mode]. In [SttMode.AUTO] the probe decides; in the
+     * other two modes the choice is the user's and no probe is made.
+     */
+    private fun route(mode: SttMode): Route =
+        when (mode) {
+            SttMode.LOCAL -> Route(localEngine, TranscriptionSource.LOCAL)
+            SttMode.SERVER -> Route(serverEngine, TranscriptionSource.SERVER)
+            SttMode.AUTO ->
+                if (probe.isServerReachable()) {
+                    Route(serverEngine, TranscriptionSource.SERVER)
+                } else {
+                    Route(localEngine, TranscriptionSource.LOCAL)
+                }
+        }
+
+    /**
+     * [rawText] after formatting. The [serverFormatter] is reached only on the
+     * server route; an on-device transcript goes to [localFormatter], and nothing
+     * is formatted when the user has switched formatting off.
+     */
+    private fun formatted(rawText: String, route: Route, config: AppSettings): String {
+        val onDevice = route.source == TranscriptionSource.LOCAL
+        return when {
+            LocalModeEgress.mayCleanUpTranscript(onDevice, config.formattingEnabled) -> serverFormatter.format(rawText)
+            config.formattingEnabled -> localFormatter.format(rawText)
+            else -> rawText
+        }
+    }
+
+    private fun fail(
+        session: DictationSession,
+        error: SttError,
+        detail: String?,
+    ): DictationResult = DictationResult.Failure(session.withError(error), error, detail)
+
+    /**
+     * The buffered audio, flattened and trimmed. Empties the buffer.
+     *
+     * [trimBeforeMs] is where the send phrase began: the speech before that
+     * point is kept and the phrase from that point on is dropped. The parameter
+     * is the start of the phrase, not the start of the speech, so a trim point
+     * past the end of the capture keeps the whole capture — there was no phrase
+     * in it to remove. That holds for any offset, however large: the offset is
+     * compared with the capture's length before it is multiplied by the sample
+     * rate, so it cannot wrap around.
+     */
+    private fun takeCapturedAudio(trimBeforeMs: Long?): FloatArray {
+        val frames = synchronized(captureLock) {
+            val snapshot = captured.toList()
+            captured.clear()
+            snapshot
+        }
+        val total = frames.sumOf { it.size }
+        val flat = FloatArray(total)
+        var offset = 0
+        frames.forEach { frame ->
+            frame.copyInto(flat, offset)
+            offset += frame.size
+        }
+        val keepSamples = trimBeforeMs?.let { keptSamples(it, total) } ?: total
+        return flat.copyOfRange(0, keepSamples)
+    }
+
+    /**
+     * How many of [total] samples come before an offset of [trimBeforeMs], which is
+     * not negative. An offset that reaches [total] samples or more keeps them all;
+     * anything smaller is at most [total] samples and cannot overflow the multiplication.
+     */
+    private fun keptSamples(trimBeforeMs: Long, total: Int): Int {
+        val firstOffsetPastTheEndMs = total.toLong() * 1000L / AudioFormat.SAMPLE_RATE_HZ + 1
+        return if (trimBeforeMs >= firstOffsetPastTheEndMs) {
+            total
+        } else {
+            (trimBeforeMs * AudioFormat.SAMPLE_RATE_HZ / 1000L).coerceIn(0L, total.toLong()).toInt()
+        }
+    }
+
+    /** An engine plus the source its transcripts are recorded as. */
+    private data class Route(val engine: SttEngine, val source: TranscriptionSource)
+}

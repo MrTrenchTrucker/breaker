@@ -1,0 +1,34 @@
+Breaker
+Copyright (C) 2026 The Breaker Authors
+
+This product includes software developed by third parties. This NOTICE is
+provided in accordance with the Apache License, Version 2.0, Section 4.
+
+Vendored code and dependencies:
+
+1. sherpa-onnx
+   - Vendored from XIAOMI CORPORATION (upstream: k2-fsa/sherpa-onnx),
+     Apache License 2.0.
+   - This distribution includes modified files from the original sherpa-onnx
+     sources. Modifications are limited to integration with Breaker.
+   - Security note: the pinned sherpa-onnx tree carries an open upstream
+     decoder bug (GitHub issue #3983, transducer greedy-search OOB write).
+     Breaker mitigates per the Security Review audit: models are pinned to immutable release-asset ids and verified against upstream checksum.txt, and sherpa-onnx
+     is kept off the server's network-exposed path [2].
+
+2. OpenWhispr Android fork (base application)
+   - Derived from the OpenWhispr Android project (com.edib.openwhispr),
+     Apache License 2.0. The app package ID has been changed; the in-app
+     updater has been removed [1].
+
+3. Runtime ASR models
+   - Downloaded models carry their own upstream license terms, outside this
+     distribution's license. See shared/modules/model-registry for per-model
+     license records [1][2].
+
+4. Agent skills (agent-skills/)
+   - The six SKILL.md files under agent-skills/ are copied unchanged from the
+     project owner's module SOP and Parrot Protocol skill sets and remain
+     under the MIT License. See agent-skills/LICENSE.
+
+This product is distributed under the Apache License, Version 2.0. See LICENSE.

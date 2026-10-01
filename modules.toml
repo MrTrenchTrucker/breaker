@@ -1,0 +1,259 @@
+# modules.toml — machine-checkable module registry
+# One entry per module and sub-module at every depth. The tree must match this
+# exactly; tools/check_repo.py validates it.
+
+[module.android]
+path = "android"
+owns = "The phone client: Kotlin/native Android app shell, DI wiring, screens."
+does_not_own = "Server-side logic (server/*); shared contracts (shared/*)."
+depends_on = ["shared"]
+public = "App entry, Gradle build, app-level wiring"
+card = "android/AGENTS.md"
+
+[module.android_app]
+path = "android/app"
+owns = "Android entry point, dependency injection wiring, Gradle build."
+does_not_own = "Screen implementations (ui); domain logic (core)."
+depends_on = ["android", "android_core", "android_ui"]
+public = "App entry, DI container"
+card = "android/app/AGENTS.md"
+
+[module.android_ui]
+path = "android/ui"
+owns = "Screens: dictation, history, settings, auth, training. Consumes ui-tokens."
+does_not_own = "Business logic (core); platform adapters (modules/*)."
+depends_on = ["android", "android_core", "shared_ui_tokens"]
+public = "Screen components"
+card = "android/ui/AGENTS.md"
+
+[module.android_core]
+path = "android/modules/core"
+owns = "Domain models, ports, use cases. No Android imports."
+does_not_own = "Android platform code; adapters."
+depends_on = ["android"]
+public = "Domain models, ports, use cases"
+card = "android/modules/core/AGENTS.md"
+
+[module.android_audio]
+path = "android/modules/audio"
+owns = "Mic capture, VAD, noise suppression, WAV encode (16 kHz mono PCM)."
+does_not_own = "Transcription (stt-*); phrase matching (phrases)."
+depends_on = ["android", "android_core"]
+public = "AudioCapture, Vad, WavEncoder"
+card = "android/modules/audio/AGENTS.md"
+
+[module.android_stt_ondevice]
+path = "android/modules/stt-ondevice"
+owns = "sherpa-onnx local transcription (fallback engine), model lifecycle, checksum verify."
+does_not_own = "Server transcription (stt-server); model catalog (shared/model-registry)."
+depends_on = ["android", "android_core", "shared_model_registry"]
+public = "SttEngine (local path)"
+card = "android/modules/stt-ondevice/AGENTS.md"
+
+[module.android_stt_server]
+path = "android/modules/stt-server"
+owns = "Client for Breaker's own whisper-server job queue (primary path)."
+does_not_own = "Local transcription (stt-ondevice); queue (server/whisper-server)."
+depends_on = ["android", "android_core", "shared_api_contracts"]
+public = "SttEngine (server path)"
+card = "android/modules/stt-server/AGENTS.md"
+
+[module.android_transport]
+path = "android/modules/transport"
+owns = "Whether the Local Server is reachable (TCP connect, 1.5 s timeout, 30 s TTL cache); it probes only the configured Local Server, so there is no cloud path to fall through to."
+does_not_own = "The engines themselves (stt-*); sync (sync); routing between engines (core.DictateUseCase)."
+depends_on = ["android", "android_core"]
+public = "ConnectivityProbe"
+card = "android/modules/transport/AGENTS.md"
+
+[module.android_format]
+path = "android/modules/format"
+owns = "Whisper Flow-style formatting: server LLM + rule-based local formatter."
+does_not_own = "The LLM itself (server); prompts live in shared/format-prompts."
+depends_on = ["android", "android_core", "shared_format_prompts"]
+public = "Formatter"
+card = "android/modules/format/AGENTS.md"
+
+[module.android_phrases]
+path = "android/modules/phrases"
+owns = "Voice phrases: 'Breaker Breaker' wake + 'And I'm Gone' send detection, reporting where the send phrase began."
+does_not_own = "Gesture (gesture); overlay (overlay); training (training-client)."
+depends_on = ["android", "android_core"]
+public = "PhraseDetector"
+card = "android/modules/phrases/AGENTS.md"
+
+[module.android_gesture]
+path = "android/modules/gesture"
+owns = "Shake-to-wake (accelerometer)."
+does_not_own = "Voice wake (phrases); tile (overlay)."
+depends_on = ["android", "android_core"]
+public = "ShakeDetector"
+card = "android/modules/gesture/AGENTS.md"
+
+[module.android_overlay]
+path = "android/modules/overlay"
+owns = "Floating tile = CB mic glyph + LED bar meter (WindowManager overlay, F36)."
+does_not_own = "Dictation UI (ui); gesture/voice triggers."
+depends_on = ["android", "android_core", "shared_ui_tokens"]
+public = "FloatingTile"
+card = "android/modules/overlay/AGENTS.md"
+
+[module.android_commit]
+path = "android/modules/commit"
+owns = "CommitService: IME text commit + clipboard fallback + toast."
+does_not_own = "Formatting (format); history storage (history)."
+depends_on = ["android", "android_core"]
+public = "CommitService"
+card = "android/modules/commit/AGENTS.md"
+
+[module.android_history]
+path = "android/modules/history"
+owns = "SQLite transcription history, 3-month TTL cleanup, tombstones."
+does_not_own = "Sync transport (sync); encryption (crypto)."
+depends_on = ["android", "android_core"]
+public = "HistoryStore"
+card = "android/modules/history/AGENTS.md"
+
+[module.android_settings]
+path = "android/modules/settings"
+owns = "Settings persistence + model registry access."
+does_not_own = "Server URL auth (auth-client); model catalog (shared/model-registry)."
+depends_on = ["android", "android_core", "shared_model_registry"]
+public = "SettingsStore"
+card = "android/modules/settings/AGENTS.md"
+
+[module.android_sync]
+path = "android/modules/sync"
+owns = "Offline-first sync queue, idempotent push (F13, N12), and delivery of pending sealed agent-token results (ADR-018)."
+does_not_own = "Encryption (crypto); auth (auth-client); history storage (history)."
+depends_on = ["android", "android_core"]
+public = "SyncService"
+card = "android/modules/sync/AGENTS.md"
+
+[module.android_auth_client]
+path = "android/modules/auth-client"
+owns = "Login/register, token storage (Android Keystore), roles/scopes."
+does_not_own = "Key derivation/crypto (crypto); server auth logic (server/sync-api)."
+depends_on = ["android", "android_core"]
+public = "AuthService"
+card = "android/modules/auth-client/AGENTS.md"
+
+[module.android_training_client]
+path = "android/modules/training-client"
+owns = "Record phrase samples, upload, download trained model + checksum verify."
+does_not_own = "Training itself (server/training); phrase detection (phrases)."
+depends_on = ["android", "android_core"]
+public = "PhraseTraining"
+card = "android/modules/training-client/AGENTS.md"
+
+[module.android_updater]
+path = "android/modules/updater"
+owns = "Daily update check + admin force-check, signed APK verify, rollback."
+does_not_own = "Update endpoint (server/sync-api); APK signing (server/deploy)."
+depends_on = ["android", "android_core"]
+public = "UpdateChecker"
+card = "android/modules/updater/AGENTS.md"
+
+[module.android_crypto]
+path = "android/modules/crypto"
+owns = "Client-side key derivation (Argon2id + HKDF), DEK generation/wrap/unwrap, AES-256-GCM, X25519 box keypair generation, sealed-box unsealing (ADR-006, ADR-018)."
+does_not_own = "Key wrapping of any kind server-side — the server never wraps or unwraps a key (server/sync-api); token storage (auth-client); sealing a job result to the owner's key, which happens server-side in whisper-server (ADR-018)."
+depends_on = ["android", "android_core"]
+public = "CryptoService"
+card = "android/modules/crypto/AGENTS.md"
+
+[module.server]
+path = "server"
+owns = "Local Server services: transcription, sync, web, training, deploy."
+does_not_own = "Phone client (android/*); shared contracts (shared/*)."
+depends_on = ["shared"]
+public = "Server entry, container wiring"
+card = "server/AGENTS.md"
+
+[module.server_whisper]
+path = "server/modules/whisper-server"
+owns = "/v1/audio/transcriptions + FIFO queue worker + job API, forwarding to the admin-configured service, and (for agent-token jobs whose owner has a box public key) sealing a copy of the completed result to that key and forwarding it to sync-api's pending-sealed store (ADR-018)."
+does_not_own = "The configured transcription service itself; auth (sync-api)."
+depends_on = ["server", "shared_api_contracts", "server_sync_api"]
+public = "TranscriptionApi, QueueWorker"
+card = "server/modules/whisper-server/AGENTS.md"
+
+[module.server_sync_api]
+path = "server/modules/sync-api"
+owns = "Auth (users, roles, agent tokens), sync, updates, retention, store clear, log policy."
+does_not_own = "Transcription (whisper-server); UI (web-fe)."
+depends_on = ["server", "shared_api_contracts"]
+public = "AuthApi, SyncApi, AdminApi"
+card = "server/modules/sync-api/AGENTS.md"
+
+[module.server_web_fe]
+path = "server/modules/web-fe"
+owns = "Debian container website (client-side decrypt, Trucking UI), APK/cert/model hosting, admin panel."
+does_not_own = "API logic (sync-api); design tokens (shared/ui-tokens)."
+depends_on = ["server", "server_sync_api", "shared_ui_tokens"]
+public = "WebApp"
+card = "server/modules/web-fe/AGENTS.md"
+
+[module.server_training]
+path = "server/modules/training"
+owns = "Per-user voice phrase model training (CPU; GPU via Local Inference)."
+does_not_own = "Sample recording (android/training-client); model hosting (web-fe)."
+depends_on = ["server"]
+public = "TrainingApi"
+card = "server/modules/training/AGENTS.md"
+
+[module.server_deploy]
+path = "server/modules/deploy"
+owns = "Git-pull deploy, docker-compose, certs, APK signing, ZT bind, volumes, NOTICE."
+does_not_own = "Application logic of other server modules."
+depends_on = ["server"]
+public = "DeployScripts"
+card = "server/modules/deploy/AGENTS.md"
+
+[module.shared]
+path = "shared"
+owns = "Contracts + registry shared by app and server."
+does_not_own = "Implementation of either side."
+depends_on = []
+public = "Contracts, registries"
+card = "shared/AGENTS.md"
+
+[module.shared_api_contracts]
+path = "shared/modules/api-contracts"
+owns = "OpenAPI spec: auth, sync, jobs, updates, admin, training."
+does_not_own = "Server implementation (server/*); client implementation (android/*)."
+depends_on = ["shared"]
+public = "OpenAPI spec (openapi.yaml); Kotlin request and response types"
+card = "shared/modules/api-contracts/AGENTS.md"
+
+[module.shared_model_registry]
+path = "shared/modules/model-registry"
+owns = "Model sizes, immutable release-asset URLs, upstream checksum.txt, licenses, hosted flag."
+does_not_own = "Download/verify logic (android/stt-ondevice)."
+depends_on = ["shared"]
+public = "Generated Kotlin model registry (ADR-016)"
+card = "shared/modules/model-registry/AGENTS.md"
+
+[module.shared_format_prompts]
+path = "shared/modules/format-prompts"
+owns = "Strict non-destructive formatting prompts for the server LLM."
+does_not_own = "The formatter logic (android/format); the LLM (server)."
+depends_on = ["shared"]
+public = "prompts/*; FormatPrompt, PromptCatalog, PromptParameters"
+card = "shared/modules/format-prompts/AGENTS.md"
+
+[module.shared_ui_tokens]
+path = "shared/modules/ui-tokens"
+owns = "Trucking design tokens: colors (light/dark), type, spacing, breakpoints, CB mic + LED bar spec."
+does_not_own = "Screen implementations (android/ui, server/web-fe)."
+depends_on = ["shared"]
+public = "tokens.css, tokens.kt"
+card = "shared/modules/ui-tokens/AGENTS.md"
+
+[module.agent_skills]
+path = "agent-skills"
+owns = "Working rules and readback skills for AI agents, one pair per rank (project leader, IT manager, worker); their pinned hashes and install guide."
+does_not_own = "The project's own rules (ARCHITECTURE.md, module cards, ADRs); the contributing guide; any code."
+depends_on = []
+public = "Six SKILL.md files, agent-skills/README.md"
+card = "agent-skills/AGENTS.md"

@@ -1,0 +1,39 @@
+name: Bug report
+description: Something in Breaker does not work the way its docs say.
+title: "bug: <module>: <what goes wrong>"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Security problems do not go here. Report them privately: see SECURITY.md.
+        Never paste a password, API key, token or transcription text into an issue.
+  - type: input
+    id: module
+    attributes:
+      label: Module
+      description: The module folder, e.g. android/modules/audio. Say "not sure" if you don't know.
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens, and what should happen
+      description: Quote the card, ADR or doc line that says what should happen, if there is one.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: Exact steps or commands, and the output you got.
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: Commit
+      description: The commit you tested (git rev-parse --short HEAD).
+    validations:
+      required: true

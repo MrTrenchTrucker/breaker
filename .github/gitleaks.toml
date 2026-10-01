@@ -1,0 +1,13 @@
+# Secret-scan settings for the CI "Secret scan" job (gitleaks).
+# Uses gitleaks' default rules. The one allowlist entry covers the three
+# published NIST CAVP AES-256-GCM known-answer keys in core's CipherTextTest:
+# public test vectors, not secrets. It matches those three exact values only,
+# so any other key, in that file or anywhere else, is still reported.
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "NIST CAVP AES-256-GCM known-answer keys (published test vectors)"
+regexTarget = "match"
+regexes = ['''key = "(b52c505a37d78eda5dd34f20c22540ea1b58963cf8e5bf8ffa85f9f2492505b4|78dc4e0aaf52d935c3c01eea57428f00ca1fd475f5da86a49c8dd73d68c8e223|886cff5f3e6b8d0e1ad0a38fcdb26de97e8acbe79f6bed66959a598fa5047d65)"''']

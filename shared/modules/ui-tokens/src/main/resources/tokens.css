@@ -1,0 +1,81 @@
+/*
+ * Trucking design tokens.
+ *
+ * Light values live in :root. The dark set is declared twice with identical
+ * values: once for the system dark preference (unless the light theme is
+ * forced with data-theme="light" on the root element, <html>) and once for an
+ * explicit data-theme="dark" on the root element. The selectors match :root
+ * only, so the attribute does nothing on any other element.
+ *
+ * Custom properties cannot be used inside @media conditions, so a stylesheet
+ * that switches layout at the breakpoints below must repeat 640px and 1024px
+ * literally in its media queries.
+ */
+
+:root {
+  /* palette, light */
+  --color-bg: #FFFFFF;
+  --color-surface: #F4F6F4;
+  --color-text: #111417;
+  --color-text-muted: #5A6368;
+  --color-primary: #1E7A46;
+  --color-primary-hover: #16603A;
+  --color-accent: #257F49;
+  --color-danger: #C0392B;
+  --color-trim: #000000;
+
+  /* state colors, light */
+  --color-sent: #1E7A46;
+  --color-warning: #A55713;
+
+  /* type */
+  --font-display: "Anton", "Oswald", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  /* metrics */
+  --radius: 4px;
+  --touch-target-min: 48px;
+  --breakpoint-mobile: 640px;
+  --breakpoint-tablet: 1024px;
+
+  /* LED bar meter segment range */
+  --led-segments-min: 12;
+  --led-segments-max: 16;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    /* palette, dark */
+    --color-bg: #0E1113;
+    --color-surface: #161B1E;
+    --color-text: #F2F5F2;
+    --color-text-muted: #9AA5A0;
+    --color-primary: #2E9E5B;
+    --color-primary-hover: #3BBE6E;
+    --color-accent: #34A853;
+    --color-danger: #E74C3C;
+    --color-trim: #FFFFFF;
+
+    /* state colors, dark */
+    --color-sent: #2E9E5B;
+    --color-warning: #F39C12;
+  }
+}
+
+:root[data-theme="dark"] {
+  /* palette, dark */
+  --color-bg: #0E1113;
+  --color-surface: #161B1E;
+  --color-text: #F2F5F2;
+  --color-text-muted: #9AA5A0;
+  --color-primary: #2E9E5B;
+  --color-primary-hover: #3BBE6E;
+  --color-accent: #34A853;
+  --color-danger: #E74C3C;
+  --color-trim: #FFFFFF;
+
+  /* state colors, dark */
+  --color-sent: #2E9E5B;
+  --color-warning: #F39C12;
+}

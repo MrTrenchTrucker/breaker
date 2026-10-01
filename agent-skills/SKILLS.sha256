@@ -1,0 +1,8 @@
+# sha256 of each skill file. The contract test fails if a copy drifts.
+# Update this file in the same PR that replaces a skill from its source.
+06d94184e52b5e7fcf7628a48971ee7f9a0d69ee773575c2b04f6e283e235aad  it-manager/module-sop-itm/SKILL.md
+3f977d58b688f3496a1ba7647a92f4525f204573ec5bdbc83446024f38e08dc5  it-manager/parrot-protocol-itm/SKILL.md
+315673830abbf647337fb9cc20de4ba9fbe6f0fd99e27e30b3d90160e12a3a91  project-leader/module-sop-project-leader/SKILL.md
+f85c4c01bf7ce0a76342b44652a46ee1b76af63f0e5a7102e6b215819996c886  project-leader/parrot-protocol-project-leader/SKILL.md
+4d07cbba1c364501dffa517a7381d704fd6571013d1da2bb2bd6978bb0ebfeef  worker/module-sop-worker/SKILL.md
+9dd01ffcec4f9de348bcdc3ca6879badc11b453e40f1709f63b059de67e12688  worker/parrot-protocol-worker/SKILL.md

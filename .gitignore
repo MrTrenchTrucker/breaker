@@ -1,0 +1,50 @@
+# Build artifacts
+*.class
+*.jar
+# ...except the Gradle wrapper jar. It is NOT a build artifact: it is the checked-in launcher
+# that verifies the distribution checksum, and `gradlew` cannot run without it, so ignoring it
+# breaks a fresh clone. (Found when a review built the committed tree rather than the working
+# tree: the jar was on disk but never tracked, so the commit built on the author's machine and
+# nowhere else.)
+!gradle/wrapper/gradle-wrapper.jar
+*.apk
+*.aab
+build/
+out/
+.gradle/
+android/.gradle/
+android/build/
+android/app/build/
+
+# Models (downloaded, verified via checksums — never commit)
+*.onnx
+*.ort
+models/
+
+# Secrets & keys
+*.pem
+*.key
+*.crt
+*.p12
+secrets/
+.env
+
+# Local state
+*.db
+*.sqlite
+*.sqlite3
+node_modules/
+__pycache__/
+*.pyc
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/
+*.swp
+
+# Test and tool output
+*.log

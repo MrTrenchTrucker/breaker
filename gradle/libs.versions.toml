@@ -1,0 +1,21 @@
+# Breaker — toolchain versions.
+#
+# Single source of truth for the Android/Kotlin build. Changing a version here
+# changes it for every module; no module build file pins a version itself.
+
+[versions]
+agp = "8.13.0"
+kotlin = "2.0.21"
+compileSdk = "35"
+targetSdk = "35"
+minSdk = "30"
+junit = "4.13.2"
+
+[libraries]
+junit = { module = "junit:junit", version.ref = "junit" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+android-library = { id = "com.android.library", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

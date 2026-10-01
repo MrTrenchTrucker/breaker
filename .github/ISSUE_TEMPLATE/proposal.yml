@@ -1,0 +1,41 @@
+name: Design proposal
+description: Propose a new module, a public-interface change, a new dependency, or a change to a settled decision.
+title: "proposal: <what you want to change>"
+labels: ["proposal"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        These changes need a maintainer's OK before anyone builds them, and most end in an
+        Architecture Decision Record. Read decisions/README.md first.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of change
+      options:
+        - A new module, or a new boundary between modules
+        - A change to a module's public interface
+        - A new dependency (a library in gradle/libs.versions.toml)
+        - A change to ARCHITECTURE.md or to an existing ADR
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: The problem it solves
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you propose
+      description: Name the modules, files or endpoints it touches.
+    validations:
+      required: true
+  - type: textarea
+    id: adrs
+    attributes:
+      label: ADRs it touches
+      description: Cite each ADR by number and name, and say why it should change. Write "none" if it touches none.
+    validations:
+      required: true

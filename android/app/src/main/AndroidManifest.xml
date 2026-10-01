@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Card: android/app/AGENTS.md   Registry: modules.toml [module.android_app]
+
+  The Android application plugin requires a main manifest to exist before it can
+  process, package or lint this module, so the module ships one from the moment
+  the build system exists. The identity of the app is set in build.gradle.kts
+  (namespace, applicationId, minSdk, targetSdk); this file adds nothing that is
+  declared anywhere else.
+
+  Deliberately absent: activities, services, receivers, providers, permissions,
+  the application class, icon, label and theme. The app shell — entry point and
+  the DI wiring that composes the modules — belongs to the rest of Phase 1 and
+  depends on module interfaces that do not exist yet. Naming an entry point here
+  would hard-code a design that nothing supports yet, and would also claim the
+  "app launches to the settings screen" invariant on a module that cannot
+  launch anything.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" />
