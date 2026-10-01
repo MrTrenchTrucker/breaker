@@ -76,7 +76,7 @@ are **unverified**. Phase 0 includes a build + smoke-test gate.
 
 ## Verification checklist (Bug Hunt lane — Phase 9 gate; each item tagged with the phase(s) that deliver and hold it)
 
-Items tagged **[Phase 0–8]** are what the Phase 9 gate blocks on — they must all be signed off before Phase 10 (or any later phase) starts, per AGENTS.md:31-33. A single-phase tag (e.g. **[Phase 3]**) means the item is delivered once and does not change again before Phase 9. A phase-RANGE tag (e.g. **[Phase 4–8]**) means the item first becomes checkable at the range's start and must still hold, unregressed, when Phase 9 signs off — it is not a box ticked early and forgotten. Items tagged with a phase after 9 are listed here as the cumulative Bug Hunt record; they sign off when that phase's own exit criteria (docs/04-build-order.md) are met, not at Phase 9.
+Items tagged **[Phase 0–8]** are what the Phase 9 gate blocks on — they must all be signed off before anything is released to users, per root `AGENTS.md` rule 6 (gate status: `docs/04-build-order.md`, "Gates and releases"). A single-phase tag (e.g. **[Phase 3]**) means the item is delivered once and does not change again before Phase 9. A phase-RANGE tag (e.g. **[Phase 4–8]**) means the item first becomes checkable at the range's start and must still hold, unregressed, when Phase 9 signs off — it is not a box ticked early and forgotten. Items tagged with a phase after 9 are listed here as the cumulative Bug Hunt record; they sign off when that phase's own exit criteria (docs/04-build-order.md) are met, not at Phase 9.
 
 - [ ] Security Review's 4 fixes verified applied (updater gone, package id changed,
       Gradle pinned, no cloud fallthrough) **[Phase 0]**
@@ -91,6 +91,7 @@ Items tagged **[Phase 0–8]** are what the Phase 9 gate blocks on — they must
 - [ ] Update path verified: signed APK + SHA-256 check; signing key NOT in git **[Phase 16]**
 - [ ] Admin bootstrap verified: first account is admin; role assignment works; no self-promotion **[Phase 17]**
 - [ ] Multi-user isolation tested (user A cannot read user B's data) **[Phase 11]**
+- [ ] Sync stays development-only until encryption ships: no release build turns sync on, and no real user's data is synced, before Phase 19 **[Phase 11–19]**
 - [ ] Encryption verified: ciphertext at rest; server cannot decrypt without user password (F24) **[Phase 19]**
 - [ ] Queue verified: concurrent requests serialize FIFO; restart-safe (F23) **[Phase 4]**
 - [ ] Service config verified: connectivity test works; misconfigured URL fails clearly (F26) **[Phase 20]**

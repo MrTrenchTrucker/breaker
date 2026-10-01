@@ -1,7 +1,8 @@
 # 04 — Build Order for Agents
 
-Phases are sequential; each ends with a shippable, testable increment. Agents
-build from `AGENTS.md` files in each module.
+Phases are sequential; each ends with a testable increment. What may be
+released to users is set by the gates below ("Gates and releases"), not by the
+phase number. Agents build from `AGENTS.md` files in each module.
 
 | Phase | Deliverable | Lane(s) | Exit criteria |
 |-------|-------------|---------|---------------|
@@ -28,6 +29,24 @@ build from `AGENTS.md` files in each module.
 | 20 | **Admin config** — transcription service endpoint + connectivity test (web FE + sync-api) + agent tokens + the owner's sealed copy of agent-token results (ADR-018: `whisper-server` seals, `sync-api` stores it and serves `GET /v1/sync/pending-sealed`, Android `sync` and the web FE convert it at login) + admin account reset (F31, ADR-018: `POST /v1/admin/reset-account`, `POST /v1/auth/complete-reset`) | Coding + Bug Hunt | Admin configures service; test reports reachable; agent token transcribes via queue; the owner's next login turns a sealed result into an ordinary transcription; a reset account logs in with its one-time code and gets fresh keys at that login, same as any keyless account (F26, F27, F31) |
 | 21 | **Data lifecycle** — retention TTL (3 months), audio delete-on-success, 3× retry @10 s, store clear (per-user/all), log policy | Coding + Bug Hunt | Old transcriptions purge; audio never persists; retries succeed; logs have no plaintext (F28, F29, F32) |
 | 22 | **UI/UX** — Trucking theme (white/black/green, light/dark), responsive FE (landscape/portrait), CB mic motif + LED bar state colors, account management + user transcription delete screens | Coding | FE + app share tokens; light/dark toggle; mobile layout on phones; state colors green/orange/red; delete-account rules hold (F25, F33–F36) |
+
+## Gates and releases
+
+Building is open before the gates: modules are built, reviewed and merged in
+phase order. The gates decide what reaches users. When a gate's status
+changes, update its row here and link the pull request or issue that holds the
+evidence.
+
+| Gate | What it requires | What it blocks | Status |
+|------|------------------|----------------|--------|
+| Phase 0 | The forked base app on `main` with Security Review's 4 fixes; NOTICE accurate; the base app built and smoke-tested | Any release (published APK or server image) | **Not passed.** NOTICE is in place; the forked base app is not on `main` yet. |
+| Phase 9 | Every `docs/03-security-threat-model.md` checklist item tagged Phase 0–8 signed off; E2E, bench and security review done | Any release | **Not started.** |
+| Phase 19 | Encryption by default (the Phase 19 row's exit criteria) | Releasing sync | **Not started.** |
+
+**Sync is development-only until Phase 19.** Phases 11–18 build sync, but no
+release build turns it on and no real user's data is synced before encryption
+by default ships. The Phase 11–18 plaintext migration (ADR-006) therefore only
+ever meets development data.
 
 ## Parallelization notes
 - Phase 4 (whisper-server queue) is independent of the app — start immediately
@@ -59,7 +78,8 @@ build from `AGENTS.md` files in each module.
   account is old or brand new) — **and** the one-time migration of that
   account's own plaintext rows to ciphertext as part of the same login, with
   the server deleting each plaintext row once its encrypted replacement
-  lands (see ADR-006).
+  lands (see ADR-006). Because sync is development-only until Phase 19
+  ("Gates and releases"), that migration only ever meets development data.
 - Phase 20 (agent tokens) depends on Phase 19 delivering the ADR-018
   owner-keypair / sealed-box primitive, not only the DEK/AES-256-GCM
   primitive — an agent-token result cannot be sealed to an owner who has no

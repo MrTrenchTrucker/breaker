@@ -29,9 +29,13 @@ this repo without being told by a person first.
    folder with `AGENTS.md` + `README.md`; every parent README names its
    sub-modules. Run `tools/check_repo.py` after any structural change.
 6. **Security gates are load-bearing.** The forked base app is not on `main`
-   yet and has not passed its build and smoke test [1][2]. Phase 0 (build +
-   smoke test) and Phase 9 (E2E + bench + security review) are mandatory
-   gates — no phase after them starts without their sign-off.
+   yet and has not passed its build and smoke test [1][2]. Modules may be
+   built, reviewed and merged before the gates are signed off; the gates
+   decide what reaches users. Nothing is released (no published APK or server
+   image) until Phase 0 (build + smoke test) and Phase 9 (E2E + bench +
+   security review) are signed off, and sync is not released until Phase 19
+   (encryption by default). Gate status and evidence: `docs/04-build-order.md`,
+   "Gates and releases".
 7. **Models are untrusted.** Every `.onnx` is pinned to immutable release-asset ids and verified against upstream checksum.txt before use [2].
 8. **No plaintext transcriptions in logs, ever** (F32). Events only, per-user.
 

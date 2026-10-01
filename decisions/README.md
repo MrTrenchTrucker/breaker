@@ -56,7 +56,7 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-003](ADR-003-sherpa-onnx.md) | On-device engine = sherpa-onnx (pinned + verified) | accepted |
 | [ADR-004](ADR-004-two-phrases.md) | Voice control = two phrases ("Breaker Breaker" / "And I'm Gone") | accepted |
 | [ADR-005](ADR-005-ime-commit.md) | Text commit = IME-first with clipboard fallback | accepted |
-| [ADR-006](ADR-006-encryption.md) | Encryption by default — per-user DEK, password-wrapped | accepted, amended 2026-09-30 |
+| [ADR-006](ADR-006-encryption.md) | Encryption by default — per-user DEK, password-wrapped | accepted, amended 2026-09-30 and 2026-10-01 |
 | [ADR-007](ADR-007-fifo-queue.md) | FIFO transcription queue | accepted |
 | [ADR-008](ADR-008-configurable-service.md) | Admin-configurable transcription service | accepted |
 | [ADR-009](ADR-009-roles-tokens.md) | Roles + agent tokens (first-account-is-admin) | accepted |

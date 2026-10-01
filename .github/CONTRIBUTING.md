@@ -38,6 +38,8 @@ file.
   app shell is a stub. Every other module is a card, a README and a build
   file, waiting for code. Next in the build order is **Phase 2** (audio,
   settings, history) — see `docs/04-build-order.md` for what can be built now.
+  Building is open now; releasing waits for the gates in that file ("Gates and
+  releases").
 - Claim a module by commenting on its issue. One module per PR, so claim one
   at a time.
 
@@ -166,7 +168,9 @@ work is not finished — keep it local until it is.
       and license review.
 - [ ] Tests ship in the PR, with the fail-first proof in the description.
 - [ ] The module's README is updated in the same PR. Card changes are
-      proposed in the PR description, not edited.
+      proposed in the PR description first; once a maintainer approves them in
+      review, make them in the same PR before it merges, so the card is
+      accurate when the PR lands.
 - [ ] `python3 tools/check_repo.py` prints `REPO CONSISTENT`.
 - [ ] `./gradlew --no-daemon --no-build-cache --rerun-tasks build` passes.
 - [ ] PR description links the module's issue: `Closes #NNN` on the module's
@@ -184,6 +188,11 @@ work is not finished — keep it local until it is.
 pass, and a maintainer approves. Opening a PR fills in the description
 template (`.github/pull_request_template.md`); the issue forms for bug reports
 and design proposals are in `.github/ISSUE_TEMPLATE/`.
+
+Changes outside a module (docs, `tools/`, CI, `modules.toml`) go in their own
+pull request into `main`, never mixed into a module PR. Open an issue first for
+anything beyond a typo, so a maintainer can agree to it before you start. The
+same checks and review apply; the PR description says what was checked.
 
 ### Issue and PR conventions
 
