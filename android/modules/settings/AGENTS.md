@@ -66,3 +66,7 @@ agents, not required: an outside contributor may write the code themselves
 
 ## Known Gotchas
 - Server URL is a first-run setting — never hardcode.
+- The Gradle boundary check does not require the
+  `project(":shared:modules:model-registry")` edge here while
+  `shared_model_registry` is base-only (it publishes no artifact); the
+  moment it gains an artifact plugin the edge becomes required.

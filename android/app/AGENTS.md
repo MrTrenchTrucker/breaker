@@ -1,18 +1,21 @@
 # AGENTS.md — android/app/
 
-## Purpose Android entry point, dependency injection wiring, Gradle build.
+## Purpose
+Android entry point, dependency injection wiring, Gradle build.
 
-## Public Interface app-level composition of all modules.
+## Public Interface
+app-level composition of all modules.
 
-## Owns app entry, DI container, Gradle build.
+## Owns
+app entry, DI container, Gradle build.
+
 ## Depends On
 - android (registered in modules.toml)
 - android_core (registered in modules.toml)
 - android_ui (registered in modules.toml)
 
-## Does Not Own screen implementations (ui); domain logic (core).
-
-## Invariants app launches to the settings screen; DI wiring composes all modules.
+## Invariants
+app launches to the settings screen; DI wiring composes all modules.
 
 ## Does Not Own
 - Screen implementations (ui)

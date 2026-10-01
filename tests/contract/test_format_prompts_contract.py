@@ -20,14 +20,65 @@ def _norm(text):
     return " ".join(text.split()).lower()
 
 
+def _fence_lines(card):
+    """True for each line that sits inside a fenced code block.
+
+    A card may show a section layout in a fenced example; that example is
+    content, not a declaration, so a `## ` line inside a ``` fence is not a
+    heading. Mirrors the shared reader's fence rule, kept local on purpose.
+    """
+    lines = card.splitlines()
+    inside = []
+    in_fence = False
+    for line in lines:
+        if line.lstrip().startswith("```"):
+            in_fence = not in_fence
+            inside.append(True)  # the fence line itself is not a heading
+            continue
+        inside.append(in_fence)
+    return inside
+
+
 def _card_section(card, heading):
-    """Body of a `## heading` section (mirrors the shared reader, kept local
-    on purpose: a second, independent reading of the same rule)."""
-    start = card.find(heading)
-    if start < 0:
+    """Body of a `## heading` section.
+
+    Mirrors the shared reader in contract_support, kept local on purpose: a
+    second, independent reading of the same rule. If both used one helper, a
+    bug in that helper would satisfy them both at once. Same rule as the
+    shared one: the heading must be the NAME at the start of a `## ` line (a
+    `### ` sub-heading is content; "## Ownership notes" is not the Owns
+    section), a `## ` line inside a fenced code block is an example and is
+    never counted, a repeated heading fails loudly, and an absent section
+    returns "".
+    """
+    name = heading[3:]  # strip the leading "## "
+    lines = card.splitlines()
+    fenced = _fence_lines(card)
+    matches = []
+    for i, line in enumerate(lines):
+        if fenced[i]:
+            continue
+        if line.startswith("## ") and not line.startswith("### "):
+            head = line[3:]
+            if head == name or (
+                head.startswith(name)
+                and not (head[len(name)].isalnum() or head[len(name)] == "_")
+            ):
+                matches.append(i)
+    if not matches:
         return ""
-    end = card.find("\n## ", start + len(heading))
-    return card[start:end if end >= 0 else len(card)]
+    if len(matches) != 1:
+        raise AssertionError(
+            f"{heading!r} opens {len(matches)} sections in this card — a "
+            "repeated heading is a broken card, not a first-wins read"
+        )
+    start = matches[0]
+    end = len(lines)
+    for j in range(start + 1, len(lines)):
+        if not fenced[j] and lines[j].startswith("## ") and not lines[j].startswith("### "):
+            end = j
+            break
+    return "\n".join(lines[start:end])
 
 
 def _fenced_block(text, open_fence):

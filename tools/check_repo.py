@@ -21,6 +21,22 @@ REQUIRED_CARD_SECTIONS = [
 
 errors = []
 
+def _sub_modules_named_in(readme_text):
+    """The elements of a parent README's `**Sub-modules:**` line, in order.
+
+    None when the line is absent. The line is the single line that starts
+    with the marker; its body is the comma-separated list up to (not
+    including) the " — " tail, e.g. " — each with its own AGENTS.md +
+    README.md".
+    """
+    for line in readme_text.splitlines():
+        line = line.strip()
+        if line.startswith("**Sub-modules:**"):
+            body = line[len("**Sub-modules:**"):].split(" — ")[0]
+            return [name.strip() for name in body.split(",") if name.strip()]
+    return None
+
+
 def main():
     with open(os.path.join(ROOT, "modules.toml"), "rb") as f:
         reg = tomllib.load(f)
@@ -78,18 +94,44 @@ def main():
             if rel != "." and not any(m["path"] == rel for m in modules.values()):
                 errors.append(f"unregistered module folder: {rel}")
 
-    # parent READMEs name their sub-modules
+    # parent READMEs name their sub-modules.
+    #
+    # A child is named only if it is an ELEMENT of the parent README's
+    # `**Sub-modules:**` list (the three parent READMEs all carry that one
+    # line: comma-separated, before the " — each with ..." tail). Prose
+    # anywhere else does not count: the android README's "Kotlin, native
+    # Android app ..." sentence names "app" without naming the module, and a
+    # substring test let an omitted list entry pass because of it. Direct
+    # children (android/app, android/ui) are elements like any other.
     for parent in ("android", "server", "shared"):
         readme = os.path.join(ROOT, parent, "README.md")
         if os.path.isfile(readme):
             with open(readme) as fh:
                 rt = fh.read()
-            for m in modules.values():
-                p = m["path"]
-                if p.startswith(parent + "/") and "/" in p[len(parent) + 1:]:
-                    child = p.split("/")[-1]
-                    if child not in rt:
-                        errors.append(f"{parent}/README.md does not name sub-module '{child}'")
+            expected = {
+                m["path"].split("/")[-1]
+                for m in modules.values()
+                if m["path"].startswith(parent + "/")
+            }
+            named = _sub_modules_named_in(rt)
+            if named is None:
+                errors.append(
+                    f"{parent}/README.md has no '**Sub-modules:**' line "
+                    f"naming its sub-modules"
+                )
+                continue
+            named_set = set(named)
+            for child in sorted(expected - named_set):
+                errors.append(
+                    f"{parent}/README.md does not name sub-module '{child}' "
+                    f"in its **Sub-modules:** list"
+                )
+            for stale in sorted(named_set - expected):
+                errors.append(
+                    f"{parent}/README.md names '{stale}' in its "
+                    f"**Sub-modules:** list, which is not a registered "
+                    f"sub-module of {parent}"
+                )
 
     # README doc references resolve
     with open(os.path.join(ROOT, "README.md")) as fh:
