@@ -4,6 +4,8 @@
 
 SQLite transcription history, 3-month TTL cleanup, tombstones. Persistent transcription history for easy re-copying.
 
+**Build phase:** Phase 2. Needs first: `core` (on `main`). The retention rules are finished in Phase 21 (data lifecycle).
+
 ## Owns
 SQLite transcription history, 3-month TTL cleanup, tombstones.
 
@@ -34,8 +36,9 @@ App-private storage; optional encryption at rest (T7).
 - Encryption (crypto)
 
 ## Test Locations
-- Unit: `tests/unit/android/history/`
-- Contract: `tests/contract/test_history_contract.py`
+- Unit (Kotlin): `android/modules/history/src/test/kotlin/`, created with the module's first code. Run: `./gradlew :android:modules:history:test`
+- Contract: `tests/contract/test_history_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_history_contract.py`
+- Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
 ## Test Requirement
 Every test added or touched for this module must be proven to fail loudly:

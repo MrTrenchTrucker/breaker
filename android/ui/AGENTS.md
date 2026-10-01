@@ -3,6 +3,8 @@
 ## Purpose
 Screens: dictation, history, settings, auth, training.
 
+**Build phase:** Phase 1 (the app shell's first screens). Each screen arrives with its feature's phase, and the Trucking theme with Phase 22. Needs first: `core` and `shared/ui-tokens` (both on `main`).
+
 ## Owns
 screen components; consumes `shared/ui-tokens` (Trucking theme).
 
@@ -22,8 +24,9 @@ screens render with ui-tokens; light/dark toggle persists (F25).
 - Platform adapters (modules/*)
 
 ## Test Locations
-- Unit: `tests/unit/android/ui/`
-- Contract: `tests/contract/test_ui_contract.py`
+- Unit (Kotlin): `android/ui/src/test/kotlin/`, created with the module's first code. Run: `./gradlew :android:ui:test`
+- Contract: `tests/contract/test_ui_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_ui_contract.py`
+- Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
 ## Test Requirement
 Every test added or touched for this module must be proven to fail loudly:

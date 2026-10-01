@@ -8,6 +8,8 @@ The on-device engine is sherpa-onnx, not whisper.cpp: see
 `android/modules/stt-ondevice/AGENTS.md`, which owns the sherpa-onnx local
 engine and the float32 PCM it consumes.
 
+**Build phase:** Phase 2 (built, on `main`). Needs first: `core`.
+
 ## Owns
 Mic capture, VAD, noise suppression, WAV encode (16 kHz mono PCM).
 
@@ -88,7 +90,8 @@ There is no executor in the module. Never block UI.
 ## Test Locations
 - Unit: `android/modules/audio/src/test/kotlin/dev/breaker/dictation/audio/`
   — plain JUnit 4, run with `./gradlew :android:modules:audio:test`
-- Contract: `tests/contract/test_audio_contract.py`
+- Contract: `tests/contract/test_audio_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_audio_contract.py`
+- Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
 ## Test Requirement
 Every test added or touched for this module must be proven to fail loudly:

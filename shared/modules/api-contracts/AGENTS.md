@@ -2,9 +2,11 @@
 
 ## Purpose
 
-OpenAPI spec: auth, sync, jobs, updates, admin, training. OpenAPI 3 spec for the transcription endpoint — the single contract
-both the Android client (`stt-server`) and the server (`whisper-server` add-on)
-implement.
+The OpenAPI 3 spec for every endpoint group (jobs, auth, sync, updates, admin, training), with its Kotlin
+request/response types (ADR-017): the single contract both the Android client (`stt-server`) and the server
+(`whisper-server`) implement.
+
+**Build phase:** in slices, each before the phase that needs it. First the transcription-job contract (`POST /v1/audio/transcriptions`, `GET /v1/jobs/{job_id}`, `GET /health`), needed by `whisper-server` (Phase 4) and `stt-server` (Phase 5); auth and sync before Phase 11 (`auth-client`, `sync`, `sync-api`); updates, admin and training with their phases; the encryption fields and test vectors with Phase 19. Needs first: `shared`.
 
 **Endpoints:**
 - `POST /v1/audio/transcriptions` — multipart form: `file`, `model`, `language`
@@ -128,8 +130,10 @@ OpenAPI spec (openapi.yaml); Kotlin request and response types
 - Client implementation (android/*)
 
 ## Test Locations
-- Unit: `tests/unit/shared/api-contracts/`
-- Contract: `tests/contract/test_api_contracts_contract.py`
+- Unit (Python, the spec and its conformance checks): `tests/unit/shared/api-contracts/`, created with the module's first slice. Run: `python3 -m unittest discover -s tests/unit/shared/api-contracts`
+- Kotlin types (ADR-017): their tests run with `./gradlew :shared:modules:api-contracts:test` once the module applies the Kotlin plugin with its first types.
+- Contract: `tests/contract/test_api_contracts_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_api_contracts_contract.py`
+- Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
 ## Test Requirement
 Every test added or touched for this module must be proven to fail loudly:
