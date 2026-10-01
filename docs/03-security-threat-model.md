@@ -27,12 +27,13 @@ are **unverified**. Phase 0 includes a build + smoke-test gate.
 ## Licensing
 
 - **Private use: zero obligations.**
-- **If public later:** (a) add a **NOTICE file** crediting **XIAOMI CORPORATION**
-  for the vendored sherpa-onnx code (that package has no license file of its own;
-  upstream verified Apache-2.0) and the upstream OpenWhispr authors; (b) state
-  that the files were modified; (c) keep the Apache-2.0 license — **you CANNOT
-  relicense an Apache-2.0 derivative closed.**
-- The repo currently has **NO NOTICE file — the main gap to close** (Phase 0).
+- **Public release (the repo is public):** (a) the root **NOTICE file** credits
+  **XIAOMI CORPORATION** for the vendored sherpa-onnx code (that package has no
+  license file of its own; upstream verified Apache-2.0) and the upstream
+  OpenWhispr authors; (b) it states that the files were modified; (c) keep the
+  Apache-2.0 license — **you CANNOT relicense an Apache-2.0 derivative closed.**
+- Keep `NOTICE` current: code copied from any other project adds its entry in the
+  same PR.
 - **ASR models:** runtime ASR models you download carry their own upstream terms,
   outside this audit — record per-model licenses in `shared/model-registry`.
 

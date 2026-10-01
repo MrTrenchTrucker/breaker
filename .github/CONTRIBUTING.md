@@ -172,7 +172,7 @@ work is not finished — keep it local until it is.
 - [ ] PR description links the module's issue: `Closes #NNN` on the module's
       main PR, `Refs #NNN` on a sub-PR (see "Issue and PR conventions" below).
 - [ ] PR description covers: what and why, which module, the test evidence,
-      and what was NOT verified.
+      what was NOT verified, and which AI tools were used (or "none").
 - [ ] First contribution? Add yourself to `CONTRIBUTORS.md` in this PR, in the
       format shown at the top of that file. Apart from the test paths your
       module's card names under Test Locations, it is the only file outside your

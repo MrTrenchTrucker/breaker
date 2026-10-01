@@ -19,6 +19,9 @@ passing after. A docs-only PR says what was checked instead.
 ## Not verified
 <!-- What you could not check, or "none". -->
 
+## AI tools used
+<!-- Which AI tools or agents helped with this PR, and roughly how much. "none" is fine. -->
+
 ## Checklist
 - [ ] Finished work only: built and tested locally before I opened this PR; nothing here is a draft or half-done.
 - [ ] One module, and I claimed its issue.
