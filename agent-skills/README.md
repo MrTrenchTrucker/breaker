@@ -50,10 +50,19 @@ its instructions.
   and the pull request that closes it.
 - **Readback**: before starting, the agent restates in its own words what it
   must not do and what the finished work will look like, then waits for an OK.
-- The skills also mention files such as `APPROVALS.md`, `SMOKE_TEST.md`,
-  `workorders/` and `.sop/function_index.json`. Breaker doesn't have them.
-  Where a skill names one, follow `ARCHITECTURE.md`, the module card and the
-  contributing guide instead.
+- The skills also name files Breaker doesn't have. Use these instead:
+
+  | The skills say | In Breaker |
+  |---|---|
+  | `workorders/WO-NNN.md` (a work order) | The module's GitHub issue and the pull request that closes it |
+  | `APPROVALS.md` (an approval record) | A maintainer's approving review or comment on the pull request |
+  | `SMOKE_TEST.md` (a smoke-test record) | The phase's exit criteria in `docs/04-build-order.md`, proven in the pull request's test evidence |
+  | `.sop/function_index.json` (a function index) | The module card's Public Interface and the module's `public` entry in `modules.toml`; search the code before adding a function |
+
+- When a skill and Breaker's own docs disagree, Breaker's docs win, in this
+  order: root `AGENTS.md`, then `.github/CONTRIBUTING.md`, then the module's
+  card. The skills describe how to work; Breaker's docs say what to build and
+  how it is reviewed.
 
 ## Where the skills come from
 

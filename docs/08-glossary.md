@@ -155,10 +155,12 @@ module's path and owning lane. Read it before any single card.
 
 **Phase (build order)** — One of the numbered stages, Phase 0 to Phase 22, in
 `docs/04-build-order.md` (mirrored in `ARCHITECTURE.md` §17): each phase ends
-in a shippable, testable increment, assigned to one or more lanes, with
-stated exit criteria. Phase 0 (fork, security fixes, build + smoke test) and
-Phase 9 (E2E, bench, security review) are hard gates nothing later starts without (root
-`AGENTS.md` rule 6). Phase 18 was absorbed into Phase 4 and kept only as an
+in a testable increment, assigned to one or more lanes, with stated exit
+criteria. Phase 0 (fork, security fixes, build + smoke test) and Phase 9 (E2E,
+bench, security review) are release gates: modules may be built before them,
+but nothing is released until both are signed off, and sync is not released
+until Phase 19 (root `AGENTS.md` rule 6; `docs/04-build-order.md`, "Gates and
+releases"). Phase 18 was absorbed into Phase 4 and kept only as an
 empty numbered slot so later phase numbers don't shift
 (`ADR-015-transcription-queue.md`).
 

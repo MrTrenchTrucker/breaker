@@ -1,6 +1,6 @@
 # sync — README
 
-Keeps every transcription in step with the server (F13). Dictation made offline waits in a queue and is sent when the server is reachable, even in local-only mode, and nothing is lost or sent twice (N12).
+Keeps every transcription in step with the server (F13). Dictation made offline waits in a queue and is sent when the server is reachable, even in local-only mode, and nothing is lost or sent twice (N12). Sync stays off in release builds until encryption by default ships (Phase 19).
 
 After each login it also collects agent-token results sealed to the owner
 (ADR-018): it fetches them, has the crypto module unseal and re-encrypt each

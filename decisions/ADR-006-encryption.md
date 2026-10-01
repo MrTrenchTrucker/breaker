@@ -1,7 +1,8 @@
 # ADR-006: Encryption by default — per-user DEK, password-wrapped
 
 **Status:** accepted, amended 2026-09-30 (client-side key derivation, the
-guarantee it actually gives, login, password change and account reset)
+guarantee it actually gives, login, password change and account reset),
+amended 2026-10-01 (sync is development-only until Phase 19)
 **Date:** 2026-09-29
 
 See ADR-018 for agent-token and queued-job results, which cannot go through
@@ -89,7 +90,11 @@ That covers the account's *keys*. Its *data* needs a separate, real
 migration: sync ships in Phase 11, four phases before the DEK exists in
 Phase 19, so every transcription a Phase-11–18 account pushed sat on the
 server as **plaintext** the whole time — "the server stores no plaintext"
-(below) was not true for those accounts until this bootstrap runs. That
+(below) was not true for those accounts until this bootstrap runs. (Amended
+2026-10-01: sync is development-only until Phase 19 — no release build turns
+it on and no real user's data is synced before encryption by default ships —
+so this window only ever holds development data; see
+`docs/04-build-order.md`, "Gates and releases".) That
 migration, and every later re-key (below), both need a record replaced, not
 merely re-sent, which is why every synced transcription now carries a
 **`key_version`**: `0` means plaintext (a row pushed in Phases 11–18, before

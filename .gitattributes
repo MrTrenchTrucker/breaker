@@ -1,0 +1,7 @@
+# Keep line endings as committed (LF) on every platform. The agent-skills
+# contract test hashes SKILL.md bytes, and scripts must run in WSL and
+# containers, so a Windows checkout must not convert them to CRLF.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.jar binary
+*.png binary
