@@ -95,6 +95,17 @@ agents, not required: an outside contributor may write the code themselves
 
 ## Known Gotchas
 - Probe TTL-cached 30 s — never block dictation on the server.
+- **A wedged name lookup is bounded, not cured.** `InetAddress.getAllByName` has
+  no timeout and ignores interrupts, so one hung DNS lookup (captive portal, VPN,
+  firewall dropping DNS) can pin a worker. `ProbeExecutor` caps that at
+  `MAX_WEDGED_PROBES` (2) and makes lookups for one name single-flight, so a
+  permanently hung host holds at most ONE slot. Two limits remain, both
+  deliberate: **two DIFFERENT hung hosts still fill the cap** and every later
+  probe is then refused; and a re-probe of a parked host answers "not reachable"
+  at once, so a host that is merely slow is indistinguishable from a permanently
+  wedged one for the duration of its lookup - the caller gets that answer with no
+  evidence a dial was attempted. That is the price of not spending a second slot;
+  the alternative is a cap overrun that silences healthy addresses too.
 - Speech engines: `core.SttEngine` instances are wired into
   `core.DictateUseCase` by `android/app` (ADR-001), not into this module. It
   never sees an `SttEngine` and never imports `stt-ondevice` or `stt-server`.

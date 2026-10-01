@@ -3,12 +3,9 @@ package dev.breaker.dictation.transport
 import dev.breaker.dictation.core.port.Clock
 import dev.breaker.dictation.core.port.ConnectivityProbe
 import java.net.InetAddress
-import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.CancellationException
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.FutureTask
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
@@ -31,8 +28,25 @@ import java.util.concurrent.TimeoutException
  * name to look up. Resolution is still not instant — a slow or blackholed
  * resolver can outlive the budget — so when the budget runs out the answer is
  * "not reachable" and the worker is interrupted, but the parked thread finishes
- * only when the platform gives up on its own. Until then, probes for that
- * address keep answering from this rule, not from a stale success.
+ * only when the platform gives up on its own.
+ *
+ * **A parked lookup's reach is the PROCESS, not the address.** The old KDoc here
+ * said probes for that address keep answering from this rule; that was false.
+ * An interrupt does not stop a name lookup, so a wedged resolution holds a
+ * worker, and what it affects is every other probe in the process: probes of a
+ * DIFFERENT address, and later probes of the same one, all go through the same
+ * bounded pool. One wedged lookup therefore (a) makes another address's probe
+ * wait for a worker rather than dial, and (b) if every worker is wedged,
+ * refuses probes outright so they answer "not reachable" without a connection
+ * attempt — a healthy server reported down, and the domain routes every
+ * dictation on-device. [ProbeExecutor] is what bounds that: each wedged worker
+ * is counted so a spare one is created for the next address, and the count
+ * comes back down when the lookup finally returns, so the pool recovers without
+ * a restart. A lookup that is still in flight also makes a LATER probe of the
+ * same host answer "not reachable" at once, with no second lookup: while the
+ * name is unresolved there is nothing to dial, and a merely slow host is
+ * indistinguishable from a wedged one for the duration - a deliberate price
+ * for keeping a slot free for other addresses.
  *
  * **Cache.** One answer is cached for [CACHE_TTL_MS], keyed on the address the
  * configuration resolved to, so editing the server address takes effect
@@ -98,11 +112,7 @@ class TcpConnectivityProbe internal constructor(
      * report a healthy server unreachable behind a false nobody can question.
      */
     override fun isServerReachable(): Boolean {
-        val target = try {
-            target()
-        } catch (_: RuntimeException) {
-            return false
-        } ?: return false
+        val target = target() ?: return false
         freshEntryFor(target)?.let { return it.reachable }
         return probeAndStore(target, allowFreshCache = true)
     }
@@ -120,11 +130,7 @@ class TcpConnectivityProbe internal constructor(
      * measured.
      */
     fun refresh(): Boolean {
-        val target = try {
-            target()
-        } catch (_: RuntimeException) {
-            return false
-        } ?: return false
+        val target = target() ?: return false
         return probeAndStore(target, allowFreshCache = false)
     }
 
@@ -193,14 +199,27 @@ class TcpConnectivityProbe internal constructor(
      * freeze in a test, and a frozen clock would make a stalled probe look
      * instant. Elapsed time is not a domain concept, so it uses the platform's
      * monotonic timer.
+     *
+     * If every worker in [ProbeExecutor] is wedged the task is never started:
+     * there is no waiting, and "not reachable" is answered at once. The same
+     * answer comes back, for the same reason and at the same cost, when a
+     * lookup for this host is ALREADY in flight: the host is the key, so a
+     * second probe of a wedged host neither starts a second lookup nor spends
+     * a second of the cap, leaving the remaining slots to other addresses. The
+     * task wraps its body in [ProbeExecutor.answering] so that mark ends when
+     * THIS answer is produced, not after the worker tidies up - otherwise the
+     * next back-to-back probe of a host just answered would be refused and
+     * report a healthy server down. The wait below therefore happens only for
+     * a task that really is running, and stays bounded by the same budget.
      */
     private fun runProbe(target: Target): Boolean {
         val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(CONNECT_TIMEOUT_MS)
-        val task = FutureTask { connect(target, deadline) }
-        try {
-            PROBE_EXECUTOR.execute(task)
-        } catch (_: RuntimeException) {
-            // The worker pool refused the task, so no connection was attempted.
+        val task = FutureTask { ProbeExecutor.answering(target.host) { connect(target, deadline) } }
+        if (!ProbeExecutor.execute(target.host, task)) {
+            // Either every worker is held by a lookup that has not returned, or
+            // this host's own lookup is still parked. In both cases no
+            // connection was attempted. Answering now is the honest answer and
+            // keeps the caller inside its budget.
             return false
         }
         val remainingNanos = deadline - System.nanoTime()
@@ -248,6 +267,22 @@ class TcpConnectivityProbe internal constructor(
      * Returns null for anything this probe must not turn into a connection:
      * a blank value, an unsupported scheme, and syntactically broken input all
      * answer "not reachable" without touching the network.
+     *
+     * **This method does not throw, and [isServerReachable]/[refresh] rely on
+     * that.** Both callers used to wrap this call in a catch for
+     * `RuntimeException` that could never fire, and both were deleted: of the
+     * statements here exactly one can throw — [serverUrlProvider] at the top —
+     * and that one is caught inside this method. Every parse helper is
+     * bounds-safe by construction, and the load-bearing case is
+     * [parsePort]'s `text.toIntOrNull()`, whose null-returning parse is what
+     * stops a [NumberFormatException] escaping. Replacing that with
+     * [Integer.parseInt], a regex, or a URI/IDN parse makes this method throw
+     * again — at which point a throw out of [isServerReachable] or [refresh] is
+     * a caller-visible crash on the dictation path, so either restore a catch
+     * at the caller or keep the parse null-returning. Note what must NOT be
+     * added here: [Clock.nowEpochMillis] is deliberately outside every catch,
+     * because a throwing clock is a caller defect that propagates rather than a
+     * healthy server being reported unreachable behind a false.
      */
     private fun target(): Target? {
         val raw = try {
@@ -385,40 +420,8 @@ class TcpConnectivityProbe internal constructor(
         private const val HTTP_PORT = 80
         private const val MIN_PORT = 1
         private const val MAX_PORT = 65_535
-
-        /**
-         * One daemon thread shared by every probe in the process, with a queue
-         * of one.
-         *
-         * It is a file-level singleton on purpose: an executor per probe
-         * instance would multiply threads — and file descriptors — by the number
-         * of probes built, and nothing ever tears a probe down, so a per-instance
-         * executor could only ever leak.
-         *
-         * When the thread and the queue are both busy the task is **discarded
-         * and the probe answers false**, rather than run on the calling thread.
-         * Running it inline would move an unbounded, uninterruptible connect
-         * onto a caller that is supposed to return within
-         * [CONNECT_TIMEOUT_MS], which is precisely the guarantee this class
-         * exists to keep. A saturated queue means a previous probe is still
-         * stuck on a dead network, so "not reachable" is the honest answer.
-         *
-         * Daemon threads so a live thread cannot hold up process exit; the
-         * executor is never shut down because nothing owns its lifetime.
-         */
-        private val PROBE_EXECUTOR: ExecutorService = ThreadPoolExecutor(
-            1,
-            1,
-            0L,
-            TimeUnit.MILLISECONDS,
-            ArrayBlockingQueue(1),
-            { runnable -> Thread(runnable, PROBE_THREAD_NAME).apply { isDaemon = true } },
-        )
     }
 }
-
-/** Daemon thread name for the shared probe worker; descriptive, never exposed. */
-private const val PROBE_THREAD_NAME = "dictation-reachability-probe"
 
 /** How many dotted groups a valid IPv4 literal has. */
 internal const val V4_GROUP_COUNT = 4
