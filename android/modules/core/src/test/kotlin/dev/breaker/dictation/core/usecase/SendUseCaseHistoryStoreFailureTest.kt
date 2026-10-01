@@ -10,6 +10,7 @@ import dev.breaker.dictation.core.testing.aTranscription
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 
 /**
@@ -43,6 +44,15 @@ class SendUseCaseHistoryStoreFailureTest {
     private class InterruptingHistoryStore : HistoryStore {
         override fun save(transcription: Transcription) =
             throw InterruptedException("the history write was interrupted")
+        override fun list(limit: Int): List<Transcription> = emptyList()
+        override fun delete(id: String): Boolean = false
+    }
+
+    /** Not a failed save: a fault in the runtime itself. */
+    private class Meltdown : Error("the runtime is gone")
+
+    private class MeltingHistoryStore : HistoryStore {
+        override fun save(transcription: Transcription) = throw Meltdown()
         override fun list(limit: Int): List<Transcription> = emptyList()
         override fun delete(id: String): Boolean = false
     }
@@ -173,4 +183,64 @@ class SendUseCaseHistoryStoreFailureTest {
         }
     }
 
+    @Test
+    fun `an error from the store is not a failed save and still propagates`() {
+        val committer = FakeTextCommitter(CommitOutcome.COMMITTED)
+        val useCase = SendUseCase(committer, MeltingHistoryStore())
+
+        try {
+            useCase.send(
+                sending(),
+                aTranscription(id = "gone-1", text = "words the runtime lost"),
+            )
+            fail("expected the Error to propagate")
+        } catch (expected: Meltdown) {
+            // propagated, as it should — an Error is not a failed save the
+            // code may contain.
+        }
+        // send() commits first and saves second: the commit had already
+        // happened when the store threw.
+        assertEquals(
+            "the text was committed before the store faulted",
+            listOf("words the runtime lost"),
+            committer.committed,
+        )
+    }
+
+    @Test
+    fun `an interrupted save after a failed commit keeps the failure and restores the interrupt flag`() {
+        try {
+            val committer = FakeTextCommitter(CommitOutcome.FAILED)
+            val useCase = SendUseCase(committer, InterruptingHistoryStore())
+
+            val result = useCase.send(
+                sending(),
+                aTranscription(id = "lost-2", text = "interrupted loss"),
+            )
+
+            // The commit failed, so the session is ERROR — the save's
+            // interruption does not change that.
+            assertEquals(CommitOutcome.FAILED, result.outcome.outcome)
+            assertEquals(DictationState.ERROR, result.session.state)
+            val detail = result.outcome.detail!!
+            assertFalse(
+                "the detail must not carry the exception message: $detail",
+                detail.contains("the history write was interrupted"),
+            )
+            assertFalse(
+                "the detail must not carry the dictated text: $detail",
+                detail.contains("interrupted loss"),
+            )
+            assertEquals(
+                "The text could not be sent and was not saved (InterruptedException)",
+                detail,
+            )
+            assertTrue(
+                "the interrupt flag was swallowed",
+                Thread.currentThread().isInterrupted,
+            )
+        } finally {
+            Thread.interrupted() // leave the test thread clean for the next test
+        }
+    }
 }
