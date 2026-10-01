@@ -24,10 +24,14 @@ parser.
 3. A Python contract test regenerates the file and fails if the committed copy
    differs, so `models.yaml` and the app cannot drift apart.
 4. The Python tier reads YAML through one small standard-library-only reader in
-   `tools/`: block mappings and sequences, plain and quoted scalars, block
-   scalars and whole-line comments. Anchors, aliases, tags and anything else
-   outside that subset are refused with the line number. The same reader serves
-   the api-contracts spec checks. No third-party YAML library is added.
+   `tools/`. It supports block and flow mappings and sequences (a flow
+   collection may nest inside another), plain and quoted scalars, block scalars
+   and whole-line comments. Every plain scalar is read as a string, with no
+   implicit numbers, booleans or dates; the only null is an empty value, and
+   callers convert types explicitly. Duplicate keys, anchors, aliases, tags and
+   anything else outside that subset are refused with the line number. The same
+   reader serves the api-contracts spec checks. No third-party YAML library is
+   added.
 5. App consumers (stt-ondevice, settings) use the generated constants; their
    YAML readers are deleted. A server-side consumer reads `models.yaml` through
    the same `tools/` reader or a generated equivalent, decided when that module
