@@ -13,7 +13,7 @@ Settings persistence + model registry access.
 
 **Keys:** mode, model_size, server_url, api_key (Android Keystore, encrypted at
 rest — T2), wake_gesture_enabled, tile_position, language, preload_model,
-formatting_enabled.
+formatting_enabled, theme_mode.
 
 **Model registry:** reads `shared/model-registry` (model list, sizes, URLs,
 SHA-256 pins) — used by `stt-ondevice` for download + verify.

@@ -47,6 +47,10 @@ data class SendResult(val outcome: CommitOutcomeResult, val session: DictationSe
  * throw an IOException or an InterruptedException); an interruption also leaves the
  * thread's interrupt flag set. An [Error] is not a failed commit and propagates.
  *
+ * A throwing `HistoryStore` is contained the same way: send() never throws
+ * after the commit; the outcome is the committer's, the detail says the
+ * dictation was not saved to history, and the session follows the commit.
+ *
  * This is text commit: it runs on the user's explicit send, into the field the
  * user focused, or into the clipboard when there is none.
  */
@@ -64,13 +68,43 @@ class SendUseCase(
             "Text can only be sent from the SENDING state, not ${session.state.name}"
         }
         val outcome = commitOutcomeOf(transcription.text)
-        history.save(transcription)
+        // The save is second, and a throwing store is contained the same way a
+        // throwing committer is: send() never throws after the commit. A
+        // caller that retries the send would commit the text a second time, so
+        // the failure is reported in the detail, not thrown.
+        val saveFailure = saveToHistory(transcription)
+        val detail = when {
+            saveFailure != null && outcome.isSuccess ->
+                "Sent, but not saved to history ($saveFailure)"
+            saveFailure != null ->
+                "The text could not be sent and was not saved ($saveFailure)"
+            else -> outcome.detail
+        }
+        // The session follows the COMMIT, not the history save: the outcome
+        // tells the truth about the text.
         val next = if (outcome.isSuccess) {
             session.cancel()
         } else {
             session.withError(SttError.OTHER)
         }
-        return SendResult(outcome, next)
+        return SendResult(CommitOutcomeResult(outcome.outcome, detail), next)
+    }
+
+    /**
+     * Save [transcription] to history, containing a throwing store the same
+     * way a throwing committer is contained. Returns the exception's class
+     * name when the save threw (the class, never its message — the same
+     * redaction rule as the committer's catch), or null when the save ran.
+     * An [Error] is not an adapter failure and propagates.
+     */
+    private fun saveToHistory(transcription: Transcription): String? {
+        return try {
+            history.save(transcription)
+            null
+        } catch (e: Exception) {
+            if (e is InterruptedException) Thread.currentThread().interrupt()
+            e::class.simpleName ?: "error"
+        }
     }
 
     /**

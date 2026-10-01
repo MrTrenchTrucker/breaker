@@ -39,8 +39,8 @@ modules implement, and the use cases that run a dictation.
 - `DictationSession(state, lastError, lastTranscription)` with `DictationState`
   (IDLE|ARMED|RECORDING|TRANSCRIBING|SENDING|ERROR), and `DictationResult` (Success|Failure)
 - `AppSettings(mode: AUTO|LOCAL|SERVER, modelSize, serverUrl, apiKeyRef,
-  wakeGestureEnabled, tilePosition, language, preloadModel, formattingEnabled)`,
-  `SttMode`, `TilePosition`
+  wakeGestureEnabled, tilePosition, language, preloadModel, formattingEnabled,
+  themeMode: SYSTEM|LIGHT|DARK)`, `SttMode`, `ThemeMode`, `TilePosition`
 - `SttRequest`, `SttResult`, `SttSegment`, `AudioFormat` (16 kHz, one channel), and
   `SttError(LOCAL_MODEL_MISSING, SERVER_UNREACHABLE, TIMEOUT, OTHER)`
 - `CommitRequest` (never empty) and `CommitOutcome(COMMITTED|COPIED|FAILED)`
@@ -73,7 +73,10 @@ modules implement, and the use cases that run a dictation.
 - `SendUseCase` — text → `TextCommitter` → history save (and `SendResult`).
   History is written on every outcome, including a failed commit, a committer that
   throws (checked exceptions included; an `Error` propagates), and a dictation whose
-  text is empty (which is never handed to the committer).
+  text is empty (which is never handed to the committer). A throwing HistoryStore is
+  contained the same way: send() never throws after the commit; the outcome is the
+  committer's, the detail says the dictation was not saved to history, and the
+  session follows the commit.
 - `LocalModeEgress` — the pure rule that keeps a phone transcript away from cloud
   formatting, used by `DictateUseCase`.
 

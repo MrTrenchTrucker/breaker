@@ -110,6 +110,10 @@ class DictateUseCase(
      * everything. A negative value is a caller bug: it is refused with
      * [IllegalArgumentException] before the source is stopped or any audio is
      * discarded, so the caller can try again with a good offset.
+     *
+     * A session the state machine refuses to move (not RECORDING) is a wiring
+     * bug and throws, with no side effects: the source keeps running and the
+     * capture is kept, so the caller can try again with the right session.
      */
     fun stopCapture(
         session: DictationSession,
@@ -119,22 +123,36 @@ class DictateUseCase(
         require(trimBeforeMs == null || trimBeforeMs >= 0) {
             "trimBeforeMs cannot be negative: $trimBeforeMs"
         }
+        // Validate the move BEFORE stopping the source or draining the
+        // buffer: a stop the state machine refuses is a wiring bug, and — like
+        // a refused startCapture — it must leave the source running and the
+        // capture intact, so the caller can try again with the right session.
+        val transcribing = session.transitionTo(DictationState.TRANSCRIBING)
         audioSource.stop()
-        // dictate() owns the empty-audio case, and it does so from the
-        // TRANSCRIBING state, which is the only state an error may be raised
-        // from. Failing here on the raw RECORDING session would throw instead
-        // of reporting the failure the caller asked about.
-        return dictate(session, takeCapturedAudio(trimBeforeMs))
+        // The empty-audio case is reported from the TRANSCRIBING state, which
+        // is the only state an error may be raised from. Failing on the raw
+        // RECORDING session would throw instead of reporting the failure the
+        // caller asked about.
+        return runFromTranscribing(transcribing, takeCapturedAudio(trimBeforeMs))
     }
 
     /**
      * Stop the source and throw the buffered audio away. The returned session is
      * IDLE, with no error and no transcription; arm it again to record again.
+     *
+     * A cancel the state machine refuses is a wiring bug and throws, with no
+     * side effects: the source is not stopped a second time and the buffer is
+     * not cleared, so a stale cancel cannot kill a live capture.
      */
     fun cancel(session: DictationSession, audioSource: AudioSource): DictationSession {
+        // Validate BEFORE stopping the source or clearing the buffer: a
+        // cancel the state machine refuses is a wiring bug, and — like a
+        // refused startCapture or stopCapture — it must have no side effects,
+        // so a stale cancel handed a fresh session cannot kill a live capture.
+        val idle = session.cancel()
         audioSource.stop()
         synchronized(captureLock) { captured.clear() }
-        return session.cancel()
+        return idle
     }
 
     /**
@@ -153,6 +171,11 @@ class DictateUseCase(
      */
     fun dictate(session: DictationSession, audio: FloatArray): DictationResult {
         val transcribing = session.transitionTo(DictationState.TRANSCRIBING)
+        return runFromTranscribing(transcribing, audio)
+    }
+
+    /** The body of [dictate] and [stopCapture], from a TRANSCRIBING session. */
+    private fun runFromTranscribing(transcribing: DictationSession, audio: FloatArray): DictationResult {
         if (audio.isEmpty()) {
             return fail(transcribing, SttError.OTHER, "No audio was captured")
         }
