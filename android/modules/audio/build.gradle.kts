@@ -1,4 +1,7 @@
-// android/modules/audio — AudioCapture, Vad, WavEncoder.
+// android/modules/audio — microphone capture, resampling, noise suppression,
+// ring buffer, WAV encode. Public: MicCapture, Pcm16WavEncoder, MicSource,
+// MicSourceException, NoiseSuppressor, PassThroughNoiseSuppressor,
+// AdaptiveGateSuppressor, RecordingIndicator.
 //
 // Card: android/modules/audio/AGENTS.md   Registry: modules.toml [module.android_audio]
 // Owns: Mic capture, VAD, noise suppression, WAV encode (16 kHz mono PCM).
