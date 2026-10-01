@@ -90,6 +90,63 @@ class Pcm16WavEncoderTest {
     }
 
     @Test
+    fun `a NaN sample is silence rather than the loss of the take`() {
+        // Clamping cannot rescue a NaN: it compares false against both rails,
+        // so coerceIn hands it straight through, and roundToInt refuses it. One
+        // NaN from one frame — a divide by zero in an upstream level estimate,
+        // an uninitialised filter tap — would throw out of the middle of the
+        // encode loop and take every sample either side of it with it. A whole
+        // take discarded over a value that is not a level at all.
+        //
+        // The samples AROUND the NaN are asserted as well, because "does not
+        // throw" alone is satisfied by a fix that zeroes the whole take, and
+        // this take is the user's dictation.
+        val pcm = AudioSignals.speech(400)
+        val nanIndex = 200
+        pcm[nanIndex] = Float.NaN
+
+        val bytes = encoder.encode(pcm)
+
+        assertEquals(
+            "a NaN must not change the length of the file, got ${bytes.size} " +
+                "bytes for ${pcm.size} samples",
+            Pcm16WavEncoder.HEADER_BYTES + pcm.size * 2,
+            bytes.size,
+        )
+        assertEquals(
+            "the NaN sample at index $nanIndex should encode as silence",
+            0,
+            readShort(bytes, Pcm16WavEncoder.HEADER_BYTES + nanIndex * 2),
+        )
+        for (index in listOf(0, nanIndex - 1, nanIndex + 1, pcm.size - 1)) {
+            val decoded = readShort(bytes, Pcm16WavEncoder.HEADER_BYTES + index * 2) / 32768f
+            assertTrue(
+                "sample $index was ${pcm[index]} and came back $decoded — the " +
+                    "NaN beside it changed audio that was not NaN",
+                kotlin.math.abs(pcm[index] - decoded) <= 2f / 32768f,
+            )
+        }
+    }
+
+    @Test
+    fun `infinite samples still clamp to the rails`() {
+        // The other side of the same decision, and deliberately unchanged: an
+        // infinity IS an out-of-range level, so it clamps rather than becoming
+        // silence. Only NaN maps to zero.
+        val bytes = encoder.encode(floatArrayOf(Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY))
+        assertEquals(
+            "positive infinity is over-range, so it clamps to the positive rail",
+            32_767,
+            readShort(bytes, Pcm16WavEncoder.HEADER_BYTES),
+        )
+        assertEquals(
+            "negative infinity is over-range, so it clamps to the negative rail",
+            -32_768,
+            readShort(bytes, Pcm16WavEncoder.HEADER_BYTES + 2),
+        )
+    }
+
+    @Test
     fun `a stereo encoder is refused at construction`() {
         try {
             Pcm16WavEncoder(channelCount = 2)

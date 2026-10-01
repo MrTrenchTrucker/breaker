@@ -35,8 +35,10 @@ the registry line, and not reachable from outside the module):
   default-priority capture thread
 - `MicSource` — public; the capture source seam the capture session is driven through
 - `MicSourceException` — public; raised when a source fails or stops producing audio
-- `NoiseSuppressor` — public; optional RNNoise (only if AAR built with it; else skip)
-- `PassThroughNoiseSuppressor` — public; the no-op `NoiseSuppressor` used when RNNoise is absent
+- `NoiseSuppressor` — public; an optional neural suppressor (none chosen yet);
+  skip if the AAR is not built with one
+- `PassThroughNoiseSuppressor` — public; the no-op `NoiseSuppressor` used when no neural
+  suppressor is present
 - `AdaptiveGateSuppressor` — public; gate-based suppression
 - `RecordingIndicator` — public; mic indicator surfaced in UI while recording
 - `Pcm16WavEncoder` — public; PCM → WAV (for server upload)
@@ -62,7 +64,10 @@ nothing raises it — and consumers are fed by a second, separate plain `Thread`
 There is no executor in the module. Never block UI.
 
 ## Invariants
-- Record → VAD trims leading/trailing silence → clean PCM/WAV.
+- Record → clean PCM/WAV. VAD trim is built and tested inside this module
+  but is NOT applied to a take today: `Vad` and `TrimResult` are `internal`,
+  and nothing outside the module calls them yet (the core port that will let
+  `DictateUseCase` call them does not exist yet). See the VAD trim gotcha.
 - A 60 second capture delivers every sample with no drop and no gap, proven
   on the JVM against a fake `MicSource` and NOT on a target device
   (`MicCaptureSustainedTest`): 960000 samples delivered in total,
@@ -167,3 +172,24 @@ code.
   ONE suppressor instance and the per-take pipeline does not close that: a
   straggler capture thread still inside `suppress()` is running the next take's
   suppressor state. Per-take pipelines isolate the resampler only.
+- **Found, not fixed.** The core `AudioSource` port carries no drop count and
+  no failure. `MicCapture` reports both (`droppedSamples`, `failure`), but only
+  on its own type, so code that holds a plain `AudioSource` sees no drops and
+  no failure even when samples were lost. The fix (drops and failure on the
+  port, or a small companion port) is a core interface change and comes with
+  the next core change.
+- `EnergyVad`'s floor rises 0.5 dB per 20 ms frame — about 25 dB/s —
+  against an 8 dB speech margin. Steady speech quieter than roughly
+  −17 dBFS therefore stops reading as speech after about half a second and
+  does not recover. Population today is zero (`Vad` is `internal` and
+  unwired), so nothing is broken now; it bites the day the core VAD port
+  lands. Fix when it does: raise the floor only on non-speech frames, or
+  at a far slower rate. Not fixed in this round.
+- `AudioResampler`'s exact output count, and samples identical chunked vs
+  whole, hold bit-for-bit only for rates whose ratio is exact in a double —
+  48k → 16k among them. At 44.1k → 16k, chunked processing of a whole 3 s
+  take in 40 ms chunks yields 48001 samples against 48000 for the same take
+  processed whole: ONE sample over the take, not per chunk. The output is
+  still the right length to within one sample, and the difference is
+  accumulated rounding at a rate that is not exactly representable, not a
+  leak.

@@ -125,11 +125,8 @@ class AdaptiveGateSuppressor(
             primed = true
             return floorLevel
         }
-        floorLevel = if (level < floorLevel) {
-            level + (floorLevel - level) * floorAttack
-        } else {
-            level + (floorLevel - level) * floorRelease
-        }
+        floorLevel += (level - floorLevel) *
+            if (level < floorLevel) floorAttack else floorRelease
         return floorLevel
     }
 
@@ -188,10 +185,16 @@ class AdaptiveGateSuppressor(
 
         fun dbToGain(db: Float): Float = exp(db * LN10_OVER_20).toFloat()
 
-        private fun dbToLinear(db: Float): Float = exp(db * LN10).toFloat()
+        /**
+         * [db] decibels of headroom as a linear factor, amplitude to amplitude.
+         *
+         * 10^(dB/20), the same conversion [dbToGain] uses. A decibel is ten times
+         * the base-10 logarithm of a POWER ratio, so an amplitude ratio — the
+         * square root of the power ratio — is 10^(dB/20), not 10^dB.
+         */
+        private fun dbToLinear(db: Float): Float = dbToGain(db)
 
-        private val LN10 = kotlin.math.ln(10.0)
-        private val LN10_OVER_20 = LN10 / 20.0
+        private val LN10_OVER_20 = kotlin.math.ln(10.0) / 20.0
 
         /** The one-pole coefficient for a high-pass corner at [hz]. */
         fun highPassCoefficient(sampleRateHz: Int, hz: Float): Float {

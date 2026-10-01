@@ -34,6 +34,15 @@ import kotlin.math.sin
  * capture, because carrying history across takes would smear one take's last
  * phoneme into the next take's first.
  *
+ * That promise is exact where the rate ratio is exact in a double — 48 kHz to
+ * 16 kHz, and a rate of one, both of which land every read point on the same
+ * double it would have landed on had the whole signal arrived at once. For
+ * other ratios, including 44.1 kHz to 16 kHz, the fractional read position is
+ * itself the thing being carried, and each call boundary adds its rounding to
+ * it: the chunked and whole-stream outputs still agree to within a sample of
+ * output count over a whole take, and their samples still agree closely, but
+ * they are not bit-identical the way they are at an exact ratio.
+ *
  * That promise has one edge to it, at the end of a take. A windowed sinc
  * reaches half its width ahead of the read point as well as behind it, so a
  * read point whose forward taps have not arrived cannot be interpolated yet.

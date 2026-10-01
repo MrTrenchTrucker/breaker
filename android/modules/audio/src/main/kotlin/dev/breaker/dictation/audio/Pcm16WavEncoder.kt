@@ -25,6 +25,13 @@ import kotlin.math.roundToInt
  * around to the opposite polarity — a wrapped sample is an audible crack, and
  * full scale is merely loud.
  *
+ * A NaN sample encodes as silence. It is the one value clamping cannot rescue:
+ * NaN compares false against both rails, so `coerceIn` passes it straight
+ * through, and rounding it is an error — so a single NaN from one frame would
+ * otherwise throw and lose every sample around it, a whole take discarded over
+ * a value that is not a level at all. Infinity is not NaN and keeps clamping
+ * to the rails.
+ *
  * An empty input is not an error: it encodes to a valid header with a
  * zero-length data chunk, which is what a recorder that captured nothing should
  * hand on rather than throwing at the end of a take.
@@ -68,7 +75,13 @@ class Pcm16WavEncoder(
         out.putInt(dataSizeBytes)
 
         pcm.forEach { sample ->
-            val clamped = sample.coerceIn(-1f, 1f)
+            // A NaN is silence, not a level. `coerceIn` does not clamp it —
+            // NaN compares false against both rails, so it passes through — and
+            // `roundToInt` refuses it outright, so without this one NaN from
+            // one frame of a take would throw and lose every sample around it.
+            // Infinity is NOT special-cased here: it clamps to the rails below
+            // exactly as it always has.
+            val clamped = if (sample.isNaN()) 0f else sample.coerceIn(-1f, 1f)
             // Asymmetric full scale: the negative rail is one code wider than
             // the positive one, so a full-scale negative sample uses all 16 bits
             // instead of losing the last one to rounding.
@@ -91,7 +104,6 @@ class Pcm16WavEncoder(
 
         private const val FORMAT_CHUNK_BYTES = 16
         private const val FORMAT_PCM = 1
-        private const val FULL_SCALE = 32767f
         private const val MAX_SAMPLE = 32767
         private const val MIN_SAMPLE = -32768
 

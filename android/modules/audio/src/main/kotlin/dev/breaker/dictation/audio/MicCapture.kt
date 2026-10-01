@@ -28,11 +28,17 @@ import java.util.concurrent.atomic.AtomicReference
  * [start] returns immediately and never calls the listener on the caller's
  * thread. [stop] is safe at any point in a capture's life — before [start],
  * while it is running, inside the device's open, and after a capture that ended
- * by itself — and it tears the session down: it closes the device, marks the
- * indicator dark, and joins both threads before it returns. A stop that lands
+ * by itself — and where there IS a session to tear down, it tears it down: it
+ * closes the device, marks the indicator dark, and joins both threads before it
+ * returns. With no session to tear down it closes no device and marks no
+ * indicator, because there is nothing of its own to release; a stop that lands
  * inside a start has no threads to join yet, so it is recorded instead, and
  * the start it raced acts on the record instead of coming up: it closes what
- * it opened, marks the indicator dark, and returns quietly. A caller that
+ * it opened, marks the indicator dark, and returns quietly. That close and that
+ * mark happen on the START thread, once the device's open has come back — so
+ * in that one window the indicator stays lit briefly after stop() has returned,
+ * which is the safe direction and is not something stop() can change: it
+ * returned before there was a device it was allowed to touch. A caller that
  * stops and then reads the take
  * is therefore not racing the capture that filled it, and its last frame is
  * the take's last frame rather than one still in flight. The take is whole:
@@ -234,8 +240,13 @@ class MicCapture(
      * had no session thread to take, so it had nothing to join and returned
      * early; it drops the session flag anyway, because a stop that has returned
      * has told the caller the capture is stopped and [isCapturing] is where the
-     * caller reads that. It also waits for the device gate first, so it does not
-     * return while this call is still inside [MicSource.open] holding it.
+     * caller reads that. It does NOT wait for the device gate, and it closes no
+     * device: [MicCapture.stop] never touches the gate, so it can return while
+     * this call is still inside [MicSource.open]. The close and the mark dark
+     * are this call's to make once the open comes back, and it makes them
+     * before it returns. A caller that needs the microphone provably shut when
+     * stop() returns therefore has no way to get it in this one window; what it
+     * has is [isCapturing] false, which is what a restart needs.
      *
      * A start issued after such a stop comes up as a full take of its own. It
      * does not wait for this call to unwind — it queues on the device gate, and
@@ -284,8 +295,9 @@ class MicCapture(
     /**
      * Close the microphone and wait for the session to finish.
      *
-     * This is where a session is torn down, and it is the only place the
-     * device is closed and the indicator is marked dark. The question it asks
+     * This is where a session is torn down, and it is the only place a device that
+     * a session owned is closed and the indicator that session raised is marked
+     * dark. The question it asks
      * is whether there is a session to tear down — a session thread that has
      * not yet been joined away — and not whether the capture is still reading,
      * because a capture that ended by itself (the device failed, or stopped

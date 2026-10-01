@@ -8,9 +8,13 @@ mono audio, in the form the downstream consumers need.
 - **Microphone capture.** `MicCapture` opens a `MicSource` and reads frames off
   the device on its own schedule, on a capture thread of its own. `start`
   returns immediately and never calls the listener on the caller's thread;
-  `stop` is safe at any point in a capture's life and tears the session down —
-  it closes the device, marks the indicator dark, and joins both threads before
-  it returns. `MicSource` is the port a real microphone adapts to, and
+  `stop` is safe at any point in a capture's life — and where there is a session
+  to tear down it tears it down: it closes the device, marks the indicator dark,
+  and joins both threads before it returns. A stop that lands while the device is
+  still opening has no session thread to join yet, so it returns having dropped
+  the session flag, and the `start` it raced closes what it opened and marks the
+  indicator dark once that open comes back. `MicSource` is the port a real
+  microphone adapts to, and
   `MicSourceException` is what a source that cannot be opened throws.
 - **Resampling.** `AudioResampler` converts the device's sample rate to the
   16 kHz mono the rest of the pipeline is specified in.
