@@ -64,4 +64,7 @@ agents, not required: an outside contributor may write the code themselves
 - Changes here require updating BOTH consumers (app + server).
 
 ## Invariants
-- See the acceptance criteria above — these are the invariants that must always hold.
+- One registry of record: `modules.toml` is the only module registry; a module folder with an AGENTS.md that is not in it, and a registry entry with no folder, are both repo errors (check_repo).
+- Contract and registry files live only here: an OpenAPI spec outside shared/modules/api-contracts, or a model registry data file outside shared/modules/model-registry, is a repo error.
+- Cards are the contract: every module's AGENTS.md carries the nine required sections exactly once; a repeated or renamed section is a failure, not a first-wins read.
+- The build follows the registry: a code module's build file names exactly the code modules its `depends_on` lists — nothing more (a boundary breach) and nothing less (a missing edge) — and a target that applies only the base plugin (a container, or a module with no code yet) is exempt from the "less" half because it publishes no artifact to link against.

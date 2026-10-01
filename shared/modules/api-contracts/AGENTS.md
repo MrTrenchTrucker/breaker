@@ -154,3 +154,8 @@ code.
 
 ## Known Gotchas
 - Client and server generate from THIS spec — no drift.
+- The Gradle boundary check does not require a consumer to name the
+  `project(":shared:modules:api-contracts")` edge while this module
+  publishes no artifact; the moment it gains code (applies an artifact
+  plugin) the edge becomes required, and the bijection check will then
+  demand it.

@@ -16,7 +16,13 @@ runs one way passes vacuously when the thing it protects is absent:
 
 * the Gradle boundary is a BIJECTION against the registry's `depends_on` — a
   build file may not name a project the registry forbids, and may not omit one
-  the registry requires;
+  the registry requires. There are TWO exemptions in the "may not omit" half,
+  and both are structure-based, not a blanket one: a target that applies only
+  the `base` plugin publishes no artifact, so a code module's build file may
+  omit the `project(":…")` edge to it — which targets are base-only is decided
+  from the build file by `_applies_artifact_plugin`; and a target that only
+  groups other registered modules is a container (`_is_container`), which
+  likewise publishes no artifact of its own;
 * `settings.gradle.kts` includes exactly the registered modules, no more and no
   fewer, so the include list genuinely derives from `modules.toml`;
 * `tests/contract/` holds exactly one contract test per registered module and
@@ -62,13 +68,84 @@ def _card_text(rel):
         return fh.read()
 
 
+def _heading_indexes(card):
+    """The indexes of the card's `## ` heading lines, in order.
+
+    A heading is a line that opens with `## ` — never a `### ` sub-heading —
+    and sits OUTSIDE a fenced code block: a card may show a section layout in
+    a fenced example, and that example is content, not a declaration. A fence
+    is a line that opens with ``` (the form every card uses); it closes at
+    the next such line.
+    """
+    headings = []
+    in_fence = False
+    for i, line in enumerate(card.splitlines()):
+        if line.lstrip().startswith("```"):
+            in_fence = not in_fence
+            continue
+        if not in_fence and line.startswith("## "):
+            headings.append(i)
+    return headings
+
+
+def _section_heading_count(card, heading):
+    """How many `## ` headings carry the NAME of `heading`.
+
+    Matches the NAME at the start of the heading text with a word boundary
+    (so "## Owns" is not "## Ownership notes"), never counts a `### `
+    sub-heading, and never counts a heading inside a fenced code block.
+    """
+    name = heading[3:]  # strip the leading "## "
+    lines = card.splitlines()
+    count = 0
+    for i in _heading_indexes(card):
+        head = lines[i][3:]
+        if head == name or (
+            head.startswith(name)
+            and not (head[len(name)].isalnum() or head[len(name)] == "_")
+        ):
+            count += 1
+    return count
+
+
 def _card_section(card, heading):
-    """Return the body of a `## heading` section, or '' when absent."""
-    start = card.find(heading)
-    if start < 0:
+    """Body of a `## heading` section (the heading line through the next `## `).
+
+    Line-anchored: the heading must be the NAME at the start of a `## ` line —
+    a `### ` sub-heading is content, not a section, and a prose mention is not
+    a heading — so "## Does Not Own business logic…" is the Does Not Own
+    section while "## Ownership notes" is not. A heading inside a fenced code
+    block is an example, not a section, and is never counted. A repeated
+    heading is a broken card, not a first-wins read: if the name opens more
+    than one `## ` line this fails loudly rather than silently returning the
+    first body. An absent section still returns "" (absence is the presence
+    check's job, not the reader's).
+    """
+    name = heading[3:]  # strip the leading "## "
+    lines = card.splitlines()
+    heading_lines = _heading_indexes(card)
+    matches = []
+    for i in heading_lines:
+        head = lines[i][3:]
+        if head == name or (
+            head.startswith(name)
+            and not (head[len(name)].isalnum() or head[len(name)] == "_")
+        ):
+            matches.append(i)
+    if not matches:
         return ""
-    end = card.find("\n## ", start + len(heading))
-    return card[start:end if end >= 0 else len(card)]
+    if len(matches) != 1:
+        raise AssertionError(
+            f"{heading!r} opens {len(matches)} sections in this card — a "
+            "repeated heading is a broken card, not a first-wins read"
+        )
+    start = matches[0]
+    end = len(lines)
+    for j in heading_lines:
+        if j > start:
+            end = j
+            break
+    return "\n".join(lines[start:end])
 
 
 def _gradle_path(path):
@@ -123,12 +200,12 @@ def _is_container(path, registry):
 def _applies_artifact_plugin(rel):
     """True when the build file applies a plugin that produces an artifact.
 
-    `base` and the bare `java-library`/`kotlin` markers do not count: `base`
-    configures lifecycle tasks only, so the project publishes nothing a
-    sibling could depend on. Anything else in the `plugins` block is treated
-    as artifact-producing, which is the safe direction — an unrecognised
-    plugin makes a module look like a code module, so an omission is caught
-    rather than waved through.
+    Only `base` does not count: it configures lifecycle tasks only, so the
+    project publishes nothing a sibling could link against. Everything else in
+    the `plugins` block — including the bare `java-library` and `kotlin`
+    markers — is treated as artifact-producing, which is the safe direction:
+    an unrecognised plugin makes a module look like a code module, so an
+    omission is caught rather than waved through.
     """
     if not os.path.isfile(os.path.join(ROOT, rel)):
         return False
@@ -184,6 +261,30 @@ class ModuleContractTest(unittest.TestCase):
         assert not missing, (
             f"{self.entry['card']} is missing required section(s): "
             + ", ".join(missing)
+        )
+
+    def test_card_carries_each_required_section_exactly_once(self):
+        """Each required section name appears exactly ONCE as a `## ` heading.
+
+        A repeated `## Invariants` / `## Does Not Own` (or a renamed section) is
+        a broken card, not a first-wins read: a repeated heading means the
+        reader would silently take the first and the second goes unread. This
+        matches the NAME at the START of the heading text (so
+        "## Does Not Own business logic…" counts as Does Not Own — the text on
+        the heading line does not change which section it is), with a word
+        boundary (so "## Owns" is not "## Ownership notes"), and never counts a
+        "### " sub-heading as a "## " section.
+        """
+        card = _card_text(self.entry["card"])
+        problems = []
+        for sec in REQUIRED_CARD_SECTIONS:
+            count = _section_heading_count(card, sec)
+            if count != 1:
+                problems.append(f"{sec[3:]} x{count}")
+        assert not problems, (
+            f"{self.entry['card']} does not carry each required section exactly "
+            f"once as a '## ' heading: " + ", ".join(problems)
+            + " — a required section is missing or repeated"
         )
 
     def test_card_does_not_own_what_it_declares_it_does_not_own(self):

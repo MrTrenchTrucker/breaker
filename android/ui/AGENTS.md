@@ -1,8 +1,11 @@
 # AGENTS.md — android/ui/
 
-## Purpose Screens: dictation, history, settings, auth, training.
+## Purpose
+Screens: dictation, history, settings, auth, training.
 
-## Owns screen components; consumes `shared/ui-tokens` (Trucking theme).
+## Owns
+screen components; consumes `shared/ui-tokens` (Trucking theme).
+
 ## Public Interface
 Screen components
 
@@ -11,9 +14,8 @@ Screen components
 - android_core (registered in modules.toml)
 - shared_ui_tokens (registered in modules.toml)
 
-## Does Not Own business logic (core); platform adapters (modules/*).
-
-## Invariants screens render with ui-tokens; light/dark toggle persists (F25).
+## Invariants
+screens render with ui-tokens; light/dark toggle persists (F25).
 
 ## Does Not Own
 - Business logic (core)

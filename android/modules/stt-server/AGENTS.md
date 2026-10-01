@@ -86,3 +86,7 @@ agents, not required: an outside contributor may write the code themselves
 
 ## Known Gotchas
 - OpenAI-compatible contract lives in shared/api-contracts — no drift.
+- The Gradle boundary check does not require the
+  `project(":shared:modules:api-contracts")` edge here while
+  `shared_api_contracts` is base-only (it publishes no artifact); the
+  moment it gains an artifact plugin the edge becomes required.

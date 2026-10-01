@@ -42,6 +42,13 @@ itself; it queues, shapes the contract, and proxies.
 - Two concurrent requests don't corrupt state (queue works).
 - Existing `/v1/chat/completions` behavior unchanged (regression).
 
+- two concurrent requests serialize
+- order preserved
+- worker restart resumes the queue
+- failures surface as `failed` with a clear error
+- retry 3× at 10 s verified
+- audio deleted on completion (F28).
+
 **FIFO transcription queue (F23):** the transcription service is CPU-bound —
 concurrent requests would contend. A queue serializes jobs:
 - `POST /v1/audio/transcriptions` → enqueue → `{ job_id, status: "queued" }`.
@@ -84,10 +91,6 @@ server-internal call, not part of the public API surface. Before Phase
 19/20 ship, no account has a box public key yet, so agent-token results are
 simply not sealed — that lands with the rest of ADR-018, not before, and the
 same no-key rule above is what covers it, not a separate phase check.
-
-## Invariants two concurrent requests serialize; order preserved;
-worker restart resumes the queue; failures surface as `failed` with a clear error;
-retry 3× at 10 s verified; audio deleted on completion (F28).
 
 ## Owns
 /v1/audio/transcriptions + FIFO queue worker + job API, forwarding to the admin-configured service, and (for agent-token jobs whose owner has a box public key) sealing a copy of the completed result to that key and forwarding it to sync-api's pending-sealed store (ADR-018).
