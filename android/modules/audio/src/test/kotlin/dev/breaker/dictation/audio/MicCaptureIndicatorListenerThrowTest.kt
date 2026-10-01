@@ -287,7 +287,7 @@ class MicCaptureIndicatorListenerThrowTest {
                 outerFailure.set(e)
             }
             outerReturned.countDown()
-        }, "r4-outer-stop").start()
+        }, "outer-stop").start()
 
         assertTrue(
             "the outer stop() never returned; a listener that calls stop() from " +
@@ -432,7 +432,7 @@ class MicCaptureIndicatorListenerThrowTest {
                 stopFailure.set(e)
             }
             returned.countDown()
-        }, "t2-stop").start()
+        }, "listener-stop").start()
 
         assertTrue(
             "stop() never returned; it is parked on a dispatcher this test has " +

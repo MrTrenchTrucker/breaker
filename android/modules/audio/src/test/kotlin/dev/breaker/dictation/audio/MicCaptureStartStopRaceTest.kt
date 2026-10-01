@@ -51,7 +51,7 @@ class MicCaptureStartStopRaceTest {
         val capture = MicCapture(source = source)
         val frames = CopyOnWriteArrayList<FloatArray>()
 
-        Thread({ capture.start(AudioListener { frames.add(it) }) }, "b5-starter").start()
+        Thread({ capture.start(AudioListener { frames.add(it) }) }, "race-starter").start()
 
         assertTrue(
             "the device was never reached by open(), so this test never got into " +
@@ -67,7 +67,7 @@ class MicCaptureStartStopRaceTest {
             capture.stop()
             capturingWhenStopReturned.set(capture.isCapturing)
             stopReturned.countDown()
-        }, "b5-stopper").start()
+        }, "race-stopper").start()
 
         assertTrue(
             "stop() never returned; the racing open() is holding the session",
@@ -76,7 +76,7 @@ class MicCaptureStartStopRaceTest {
         Thread({
             Thread.sleep(GATE_RELEASE_MS)
             source.releaseOpen.countDown()
-        }, "b5-gate").start()
+        }, "open-gate-release").start()
 
         // The claim, at the instant it is claimed. The value is read by the
         // stop thread itself and only published after it has been read, so the
@@ -107,7 +107,7 @@ class MicCaptureStartStopRaceTest {
             } catch (e: Throwable) {
                 startFailure.set(e)
             }
-        }, "b5-restart").start()
+        }, "race-restart").start()
 
         val deadline = System.currentTimeMillis() + WAIT_SECONDS * 1000
         while (frames.sumOf { it.size } < FULL_TAKE_SAMPLES &&
