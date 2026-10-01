@@ -111,13 +111,13 @@ issue and branch mechanics.
 Open-source dictation and speech-to-text projects we learned from. No code is
 copied from them; if that ever changes, the copied code is credited in `NOTICE`.
 - [Handy](https://github.com/cjpais/Handy) (MIT): a desktop dictation app. Its
-  model-download checks (a pinned revision and a required checksum for every
-  file) informed the model-registry and on-device speech cards.
+  model catalog, where every file carries a pinned revision and a checksum,
+  informed the model-registry and on-device speech cards.
 - [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) (MIT): a
-  speech-to-text library whose model catalog, one file per model checked in CI,
-  is the pattern model-registry follows.
-- [SuperMouseAI](https://github.com/SurajSSingh/SuperMouseAI) (MIT OR Apache-2.0):
-  a smaller desktop dictation app built on whisper.cpp.
+  speech-to-text library. Its model catalog (hand-edited, validated in CI,
+  everything else generated from it) informed model-registry's checks.
+- [SuperMouseAI](https://github.com/SurajSSingh/SuperMouseAI): a smaller desktop
+  dictation app built on whisper.cpp.
 
 ## References
 
