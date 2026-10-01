@@ -60,6 +60,9 @@ namespace server-side (N13).
   reconnect → counted in that call's `SyncReport`; nothing is dropped.
 - Retry storm after reconnect doesn't duplicate (N12 test).
 - No sync traffic except to Local Server (N2).
+- Sync is off in release builds until Phase 19 (encryption by default): no
+  release build turns it on and no real user's data is synced before then
+  (`docs/04-build-order.md`, "Gates and releases").
 
 ## Depends On
 - android (registered in modules.toml)

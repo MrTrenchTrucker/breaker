@@ -61,6 +61,13 @@ the module's main PR themselves once the whole module is finished
 description. The maintainer reviews; when the checks pass, it merges into
 `main`.
 
+### Changes outside a module
+
+Docs, `tools/`, CI and `modules.toml` changes are not part of any module flow.
+They go in their own pull request straight into `main`, never mixed into a
+module PR, and anything beyond a typo starts with an issue so a maintainer can
+agree to it first (`CONTRIBUTING.md` section 7).
+
 ## Contributing from a fork, step by step
 
 Outside contributors can't push to this repository; only the maintainers and
@@ -162,7 +169,8 @@ push to `module/<name>` directly (flow 1).
 - [ ] `python3 tools/check_repo.py` prints `REPO CONSISTENT`.
 - [ ] `./gradlew --no-daemon --no-build-cache --rerun-tasks build` passes.
 - [ ] Fail-first test evidence in the PR description.
-- [ ] Module README updated; card changes proposed in the description.
+- [ ] Module README updated; card changes proposed in the description and,
+      once a maintainer approves them, made in the PR.
 - [ ] No secrets, private hostnames or personal data anywhere.
 - [ ] Security gates preserved: the four fixes to the forked base app stay
       intact (no silent cloud fallthrough; the base app's own updater stays
