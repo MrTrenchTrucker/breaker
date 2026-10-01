@@ -63,7 +63,7 @@ path = "android/modules/transport"
 owns = "Whether the Local Server is reachable (TCP connect, 1.5 s timeout, 30 s TTL cache); it probes only the configured Local Server, so there is no cloud path to fall through to."
 does_not_own = "The engines themselves (stt-*); sync (sync); routing between engines (core.DictateUseCase)."
 depends_on = ["android", "android_core"]
-public = "ConnectivityProbe"
+public = "TcpConnectivityProbe"
 card = "android/modules/transport/AGENTS.md"
 
 [module.android_format]

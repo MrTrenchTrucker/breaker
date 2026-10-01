@@ -13,12 +13,23 @@ contacts any other host** (Security Review fix #1).
 Whether the Local Server is reachable (TCP connect, 1.5 s timeout, 30 s TTL cache); it probes only the configured Local Server, so there is no cloud path to fall through to.
 
 ## Public Interface
-`core.ConnectivityProbe` (`isServerReachable(): Boolean`), the only port this
-module implements. `android/app`'s DI wiring binds it into
-`core.DictateUseCase` (ADR-001), which makes the routing decision itself
-from the probe's answer: which engine runs, the `LOCAL_MODEL_MISSING`
-refusal, the server-primary fallback. This module never imports
-`DictateUseCase` or a sibling module.
+`TcpConnectivityProbe`, which implements `core.ConnectivityProbe`
+(`isServerReachable(): Boolean`), the only port this module implements.
+`android/app` constructs it as `TcpConnectivityProbe(serverUrlProvider, clock)`
+and its DI wiring binds it into `core.DictateUseCase` (ADR-001), which makes the
+routing decision itself from the probe's answer: which engine runs, the
+`LOCAL_MODEL_MISSING` refusal, the server-primary fallback. This module never
+imports `DictateUseCase` or a sibling module.
+
+`TcpConnectivityProbe` also has `refresh(): Boolean`: probe now, ignoring the
+30 s cache, and cache the fresh answer (for example right after the user edits
+the server address). It is not on the core port, so only the holder of the
+concrete probe (`android/app`) can call it.
+
+**Public types** — this list is the module's registry line, kept in the same
+order and spelling:
+
+- `TcpConnectivityProbe`
 
 **How core uses the answer (`AppSettings.mode`, a `core.SttMode`):**
 - `AUTO` (server-primary, the default): `DictateUseCase` asks this probe once,

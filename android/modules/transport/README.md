@@ -1,7 +1,5 @@
 # transport — README
 
-**Status:** in progress by the maintainers' team (issue #11). This branch is the module's main PR; it stays open until the module is complete.
-
 One question, one answer: is the configured Local Server reachable right now?
 A TCP connect that succeeds within 1.5 s means reachable; refused, timed out or no
 network all mean not reachable. The answer is cached for 30 s and can be
