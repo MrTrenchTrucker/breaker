@@ -1,0 +1,242 @@
+openapi: "3.0.3"
+info:
+  title: Breaker API — transcription-job contract (slice 1)
+  description: >-
+    The transcription-job contract: enqueue an audio transcription job, poll its
+    status and result, and check service health. This is the single contract both
+    the Android client (stt-server) and the server (whisper-server) implement.
+  version: "1.0.0"
+paths:
+  /v1/audio/transcriptions:
+    post:
+      summary: Enqueue a transcription job
+      description: >-
+        Accepts an audio file and enqueues a transcription job. The job is
+        processed asynchronously; poll GET /v1/jobs/{job_id} for the result.
+      operationId: createTranscriptionJob
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The audio file to transcribe (WAV, MP3, etc.)
+                model:
+                  type: string
+                  description: The model to use for transcription (optional)
+                language:
+                  type: string
+                  description: The language of the audio (optional, e.g. "en")
+            example:
+              file: "examples/golden.wav"
+              model: "whisper-large-v3"
+              language: "en"
+      responses:
+        "202":
+          description: Job accepted and queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobAccepted"
+              example:
+                job_id: "job-12345"
+                status: "queued"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing token"
+        "413":
+          description: Request entity too large
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "payload_too_large"
+                message: "File exceeds maximum allowed size"
+  /v1/jobs/{job_id}:
+    get:
+      summary: Get job status and result
+      description: >-
+        Returns the current status of a transcription job and, when done,
+        the transcription result.
+      operationId: getJobStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The job ID returned when the job was created
+      responses:
+        "200":
+          description: Job status and result (if done)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+              example:
+                status: "done"
+                result:
+                  text: "Hello, world!"
+                  segments:
+                    - start: 0.0
+                      end: 1.5
+                      text: "Hello,"
+                    - start: 1.5
+                      end: 3.0
+                      text: "world!"
+                  language: "en"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing token"
+        "404":
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "not_found"
+                message: "Job does not exist"
+  /health:
+    get:
+      summary: Health check
+      description: Returns the health status of the service.
+      operationId: healthCheck
+      security: []
+      responses:
+        "200":
+          description: Service health
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+              example:
+                status: "ok"
+                forwarding_to: "whisper-server:8080"
+                uptime: "1h23m45s"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    JobAccepted:
+      type: object
+      required:
+        - job_id
+        - status
+      properties:
+        job_id:
+          type: string
+          description: The unique identifier for the job
+        status:
+          type: string
+          enum:
+            - queued
+          description: The initial status of the job
+    Job:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - queued
+            - processing
+            - done
+            - failed
+          description: The current status of the job
+        result:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/TranscriptionResult"
+          description: The transcription result (null until status is "done")
+    TranscriptionResult:
+      type: object
+      required:
+        - text
+        - segments
+        - language
+      properties:
+        text:
+          type: string
+          description: The full transcribed text
+        segments:
+          type: array
+          items:
+            $ref: "#/components/schemas/Segment"
+          description: The individual segments of the transcription
+        language:
+          type: string
+          description: The detected or specified language
+    Segment:
+      type: object
+      required:
+        - start
+        - end
+        - text
+      properties:
+        start:
+          type: number
+          format: float
+          description: Start time in seconds
+        end:
+          type: number
+          format: float
+          description: End time in seconds
+        text:
+          type: string
+          description: The text of this segment
+    Health:
+      type: object
+      required:
+        - status
+        - forwarding_to
+        - uptime
+      properties:
+        status:
+          type: string
+          description: The health status ("ok", "degraded", etc.)
+        forwarding_to:
+          type: string
+          description: The upstream service being forwarded to
+        uptime:
+          type: string
+          description: How long the service has been running
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: The error code
+        message:
+          type: string
+          description: A human-readable error message

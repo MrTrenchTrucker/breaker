@@ -1,4 +1,4 @@
-// shared/modules/api-contracts — OpenAPI spec.
+// shared/modules/api-contracts — OpenAPI spec + Kotlin contract types.
 //
 // Card: shared/modules/api-contracts/AGENTS.md   Registry: modules.toml [module.shared_api_contracts]
 // Owns: OpenAPI spec: auth, sync, jobs, updates, admin, training.
@@ -8,10 +8,23 @@
 //
 // Toolchain versions come from gradle/libs.versions.toml.
 
-// This module ships configuration, specifications or container assets
-// rather than JVM code, so the build applies the base plugin. Its own
-// tooling is added here by the phase that implements it.
-
+// Pure Kotlin/JVM: this module must not gain Android imports.
 plugins {
-    base
+    alias(libs.plugins.kotlin.jvm)
+    `java-library`
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
+}
+
+dependencies {
+    testImplementation(libs.junit)
 }
