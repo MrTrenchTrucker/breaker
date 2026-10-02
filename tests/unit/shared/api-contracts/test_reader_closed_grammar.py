@@ -2,8 +2,8 @@
 
 Every test here runs the PRODUCTION reader (api_contracts_support.
 parse_kotlin_file) on a mutated copy of a real contract file (or a minimal
-Kotlin file for the construct shapes). On the e2704fee reader each of these
-was silently skipped or mis-scoped -- that is the RED the gate reproduces.
+Kotlin file for the construct shapes). On the earlier reader each of these
+was silently skipped or mis-scoped -- that is the RED these tests reproduce.
 On the closed reader the refusal names the file and the line, and the
 constructs the grammar recognises (trailing comments on parameters,
 ') {' as the constructor end, whole-line comments) are read or refused as
@@ -179,6 +179,9 @@ class ReaderClosedGrammarTest(unittest.TestCase):
             msg = str(ctx.exception)
             self.assertIn(".kt", msg, "refusal must name the file")
             self.assertRegex(msg, r":\d+:", "refusal must name the line")
+            self.assertIn(
+                "unrecognised line in constructor parameter region", msg,
+                "the generic constructor-line refusal must name its own message")
         finally:
             os.unlink(name)
 

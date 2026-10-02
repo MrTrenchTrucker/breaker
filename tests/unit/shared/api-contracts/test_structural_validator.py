@@ -80,7 +80,7 @@ class StructuralValidatorTest(unittest.TestCase):
 
     # ------------------------------------------------------------------
     # The checks the docstring used to claim without implementing.
-    # Each is RED on the e2704fee validator (which had none of them) and
+    # Each is RED on the earlier validator (which had none of them) and
     # green on the fixed validator.
     # ------------------------------------------------------------------
 
