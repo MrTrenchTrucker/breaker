@@ -31,7 +31,10 @@ Entry checks (all of them, before any write):
   a different file from the model asset;
 * sha256: 64 lowercase hex; upstream_commit: 40 lowercase hex;
 * tamper_verified and hosted: exactly true or false;
-* url: https only, host exactly github.com or api.github.com, and either a
+* url: https only, no port and no userinfo (a port sends the download off
+  the host every accepted route is served on, and userinfo is a credential
+  that reaches the generated Kotlin, the logs and anything that prints the
+  url), host exactly github.com or api.github.com, and either a
   path ending in /releases/assets/<digits> with nothing after it (no query,
   no fragment, no trailing segment) — and then the host must be
   api.github.com, because GitHub's web asset-id route returns 404 — or a URL
@@ -150,6 +153,26 @@ def _check_url(url, line, label=""):
         raise RegistryError(
             f"{label}line {line}: url must be https (got scheme "
             f"'{parts.scheme or 'none'}')")
+    if parts.username is not None or parts.password is not None:
+        # A credential in a url reaches the generated Kotlin, the logs and
+        # anything that prints the url. Naming WHICH part was present is
+        # diagnostic; naming its VALUE would copy the secret into every log
+        # that ever prints this refusal -- more exposure than the url itself.
+        which = "a username" if parts.password is None else "a username and password"
+        raise RegistryError(
+            f"{label}line {line}: url must not carry userinfo "
+            f"(got {which})")
+    try:
+        port = parts.port
+    except ValueError:
+        # a non-numeric port is a malformed authority, not a host we can serve
+        port = "not a number"
+    if port is not None:
+        # a port sends the download off the https default, away from the host
+        # every accepted route is served on
+        raise RegistryError(
+            f"{label}line {line}: url must not carry a port "
+            f"(got ':{port}')")
     if parts.hostname not in ("github.com", "api.github.com"):
         raise RegistryError(
             f"{label}line {line}: url host must be exactly github.com or "
@@ -299,9 +322,13 @@ def check_models(text, name="models.yaml"):
     for raw, span in zip(entries, spans):
         entry = _check_entry(raw, span, lines)
         if entry["id"] in seen:
+            # both halves name the line the id is ON: an entry need not open
+            # with `id:`, so the sequence marker is not the id line
+            id_line = _field_line(lines, span, "id")
             raise RegistryError(
-                f"entry '{entry['id']}' line {span[0]}: duplicate id '{entry['id']}' (first on line {seen[entry['id']]})")
-        seen[entry["id"]] = span[0]
+                f"entry '{entry['id']}' line {id_line}: duplicate id "
+                f"'{entry['id']}' (first on line {seen[entry['id']]})")
+        seen[entry["id"]] = _field_line(lines, span, "id")
         out.append(entry)
     return out
 

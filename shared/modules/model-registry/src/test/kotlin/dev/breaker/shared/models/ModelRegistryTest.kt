@@ -42,7 +42,11 @@ class ModelRegistryTest {
         return lines.drop(modelsAt + 1).mapNotNull { item.find(it)?.groupValues?.get(1) }
     }
 
-    private val ITEM_START = Regex("""^\s+-\s+""")
+    // `\s*`, not `\s+`: a sequence written at column 0 is legal YAML, and a
+    // `\s+` here made firstOrNull return null, i.e. a populated registry
+    // reported as having no entries at all. The anchor that keeps notes-body
+    // prose out is the indent of the first item, which yamlIds reads from here.
+    private val ITEM_START = Regex("""^\s*-\s+""")
 
     @Test
     fun byIdReturnsTheKnownModelWithItsPinnedFields() {
@@ -94,6 +98,26 @@ class ModelRegistryTest {
         assertEquals(
             "only the indented item under `models:` is an entry; notes text is not",
             listOf("small"),
+            yamlIds(yaml),
+        )
+    }
+
+    @Test
+    fun aSequenceItemAtColumnZeroIsStillAnEntry() {
+        // `models:` with its sequence at column 0 is legal YAML and is how a
+        // hand-written registry often reads. Reporting zero entries for it
+        // would make a populated registry look empty.
+        val yaml = listOf(
+            "models:",
+            "- id: small",
+            "  size_mb: 349",
+            "- id: tiny",
+            "  size_mb: 12",
+            "",
+        )
+        assertEquals(
+            "a sequence written at column 0 is still a sequence under `models:`",
+            listOf("small", "tiny"),
             yamlIds(yaml),
         )
     }
