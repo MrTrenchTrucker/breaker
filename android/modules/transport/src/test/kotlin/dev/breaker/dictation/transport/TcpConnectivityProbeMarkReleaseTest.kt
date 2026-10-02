@@ -191,7 +191,7 @@ class TcpConnectivityProbeMarkReleaseTest {
 
             assertTrue(
                 cardFailure(
-                    "the in-flight mark for $host must still be held: B's lookup of the same name is parked inside `answering` right now, so a probe of $upperSpelling MUST be refused rather than starting a second lookup into the same name. It was admitted, which means A's wrapper backstop ran `remove` on the name AFTER B had already claimed it - a set has no per-entry identity, so the backstop cleared B's mark while B's lookup was still outstanding, and a wedged name got two lookups and two slots. That is the single-flight defect this whole mechanism exists to prevent",
+                    "the in-flight mark for $host must still be held: B's lookup of the same name is parked inside `answering` right now, so a probe of $upperSpelling MUST be refused rather than starting a second lookup into the same name. It was admitted, which means A's wrapper backstop ran `remove` on the name AFTER B had already claimed it - the backstop removed that name UNCONDITIONALLY, so it cleared B's mark while B's lookup was still outstanding, and only removing the key AND the mark it wrote distinguishes one attempt from a later probe's attempt for the same name, and a wedged name got two lookups and two slots. That is the single-flight defect this whole mechanism exists to prevent",
                 ),
                 !ProbeExecutor.execute(upperSpelling, Runnable {}),
             )
@@ -294,7 +294,7 @@ class TcpConnectivityProbeMarkReleaseTest {
 
         assertEquals(
             cardFailure(
-                "a name already in flight must be ONE key however it was spelled, and the fold must be locale-independent: \"IIS.local\" under a $TURKISH default lowercases its \"I\" to a DOTLESS \"ı\", so \"$PARKED_SPELLING\" and \"$OTHER_SPELLING\" became two different keys - the second spelling was a stranger to the in-flight set, so a wedged name got a second lookup and a second slot out of the ${ProbeExecutor.MAX_WEDGED_PROBES} this process allows itself, and the join that exists to prevent exactly that never happened. Lookups of $OTHER_SPELLING: $joinedLookups (expected 0); lookups of $PARKED_SPELLING: ${latches.lookupsOf(PARKED_SPELLING)}. The key must be folded with Locale.ROOT, because the DEFAULT locale is what maps \"I\" to \"ı\" here",
+                "a name already in flight must be ONE key however it was spelled, and the fold must be locale-independent: \"IIS.local\" under a $TURKISH default lowercases its \"I\" to a DOTLESS \"ı\", so \"$PARKED_SPELLING\" and \"$OTHER_SPELLING\" became two different keys - the second spelling was a stranger to the in-flight map, so a wedged name got a second lookup and a second slot out of the ${ProbeExecutor.MAX_WEDGED_PROBES} this process allows itself, and the join that exists to prevent exactly that never happened. Lookups of $OTHER_SPELLING: $joinedLookups (expected 0); lookups of $PARKED_SPELLING: ${latches.lookupsOf(PARKED_SPELLING)}. The key must be folded with Locale.ROOT, because the DEFAULT locale is what maps \"I\" to \"ı\" here",
             ),
             0,
             joinedLookups,

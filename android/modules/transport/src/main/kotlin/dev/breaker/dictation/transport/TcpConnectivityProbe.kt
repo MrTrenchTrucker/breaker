@@ -110,9 +110,9 @@ class TcpConnectivityProbe internal constructor(
      * the whole purpose of a negative cache.
      *
      * **The cost of not caching [UNANSWERED].** A name whose resolution outlives
-     * the budget is re-probed on every question instead of once per
-     * [CACHE_TTL_MS] window; the routing answer is the same, and a connect that
-     * times out is a measured "not reachable" and IS cached.
+     * the budget is re-probed every question, not once per [CACHE_TTL_MS]
+     * window. A timed-out connect IS measured and cached, unless the caller's
+     * own budget wins that race first.
      */
     private enum class ProbeAttempt(val reachable: Boolean, val learned: Boolean) {
         /** A connection was accepted. */

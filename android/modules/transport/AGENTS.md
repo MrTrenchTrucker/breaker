@@ -56,7 +56,10 @@ and none is dropped. This module holds no audio. Never block the UI.
   normally settles inside the socket, just before the caller's budget runs out.
   NOT cached is only the probe that measured nothing: never dialled (no free
   slot, or this name's lookup still parked), or still running when the 1.5 s
-  budget ran out - in practice a name whose lookup has not returned.
+  budget ran out - in practice a name whose lookup has not returned. A connect
+  that timed out because its own socket timeout beat the caller's budget IS
+  measured and cached; only when the caller's budget wins that race is the
+  result not learned, and that is the case above.
 - The probe never contacts any host other than the configured Local Server.
 - Met and tested in core's `DictateUseCase`, listed so nobody rebuilds them
   here: server-primary picks the server when reachable and the phone when not
