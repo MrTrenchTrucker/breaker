@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Whether the Local Server is reachable (TCP connect, 1.5 s timeout, 30 s TTL cache); it probes only the configured Local Server, so there is no cloud path to fall through to.
+Whether the Local Server is reachable (TCP connect, 1.5 s timeout, and a 30 s cache that holds only a measured answer); it probes only the configured Local Server, so there is no cloud path to fall through to.
 Core's `DictateUseCase` asks this probe and picks the engine itself
 (**server-primary**); this module only answers the question and **never
 contacts any other host** (Security Review fix #1).
@@ -10,7 +10,7 @@ contacts any other host** (Security Review fix #1).
 **Build phase:** Phase 5, together with `stt-server`. Needs first: `core` (on main).
 
 ## Owns
-Whether the Local Server is reachable (TCP connect, 1.5 s timeout, 30 s TTL cache); it probes only the configured Local Server, so there is no cloud path to fall through to.
+Whether the Local Server is reachable (TCP connect, 1.5 s timeout, and a 30 s cache that holds only a measured answer); it probes only the configured Local Server, so there is no cloud path to fall through to.
 
 ## Public Interface
 `TcpConnectivityProbe`, which implements `core.ConnectivityProbe`
@@ -22,9 +22,11 @@ routing decision itself from the probe's answer: which engine runs, the
 imports `DictateUseCase` or a sibling module.
 
 `TcpConnectivityProbe` also has `refresh(): Boolean`: probe now, ignoring the
-30 s cache, and cache the fresh answer (for example right after the user edits
-the server address). It is not on the core port, so only the holder of the
-concrete probe (`android/app`) can call it.
+30 s cache, and store the fresh answer (for example right after the user edits
+the server address) - but only if that answer was measured, so a refresh that
+finds no free slot or a still-parked lookup caches nothing. It is not on the
+core port, so only the holder of the concrete probe (`android/app`) can call
+it.
 
 **Public types** — this list is the module's registry line, kept in the same
 order and spelling:
@@ -47,7 +49,14 @@ and none is dropped. This module holds no audio. Never block the UI.
 ## Invariants
 - Reachable only when the configured Local Server accepts a TCP connect within
   1.5 s; refused, timed out or no network all answer "not reachable".
-- The answer is cached for 30 s and can be refreshed on demand.
+- A measured answer is cached for 30 s and can be refreshed on demand. Measured
+  means the dial settled one way or another: a connection was accepted, or the
+  connect produced a definite negative - refused, no network, a name that does
+  not resolve, a body that threw, or a connect that ran out its own time, which
+  normally settles inside the socket, just before the caller's budget runs out.
+  NOT cached is only the probe that measured nothing: never dialled (no free
+  slot, or this name's lookup still parked), or still running when the 1.5 s
+  budget ran out - in practice a name whose lookup has not returned.
 - The probe never contacts any host other than the configured Local Server.
 - Met and tested in core's `DictateUseCase`, listed so nobody rebuilds them
   here: server-primary picks the server when reachable and the phone when not
@@ -94,7 +103,7 @@ agents, not required: an outside contributor may write the code themselves
 (`.github/CONTRIBUTING.md`).
 
 ## Known Gotchas
-- Probe TTL-cached 30 s — never block dictation on the server.
+- Probe TTL-cached 30 s, but only a measured answer is — never block dictation on the server.
 - **A wedged name lookup is bounded, not cured.** `InetAddress.getAllByName` has
   no timeout and ignores interrupts, so one hung DNS lookup (captive portal, VPN,
   firewall dropping DNS) can pin a worker. `ProbeExecutor` caps that at

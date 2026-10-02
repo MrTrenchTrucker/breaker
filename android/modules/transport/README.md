@@ -2,8 +2,11 @@
 
 One question, one answer: is the configured Local Server reachable right now?
 A TCP connect that succeeds within 1.5 s means reachable; refused, timed out or no
-network all mean not reachable. The answer is cached for 30 s and can be
-refreshed on demand, so a dictation never waits on the server.
+network all mean not reachable. A measured answer is cached for 30 s and
+refreshable on demand, and a timed-out connect is measured - it normally settles
+inside the socket, just before the caller's budget runs out. Only a probe that
+learned nothing is not cached: one that was never dialled, or that was still
+running when the 1.5 s budget ran out. So a dictation never waits on the server.
 
 The probe contacts the configured Local Server and nothing else, so there is no
 cloud path to fall through to.

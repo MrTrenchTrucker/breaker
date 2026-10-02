@@ -108,6 +108,11 @@ class TcpConnectivityProbe internal constructor(
      * failure — a real socket refused, a name that does not resolve, a body
      * that threw — is a measurement of this address and is cached, which is
      * the whole purpose of a negative cache.
+     *
+     * **The cost of not caching [UNANSWERED].** A name whose resolution outlives
+     * the budget is re-probed on every question instead of once per
+     * [CACHE_TTL_MS] window; the routing answer is the same, and a connect that
+     * times out is a measured "not reachable" and IS cached.
      */
     private enum class ProbeAttempt(val reachable: Boolean, val learned: Boolean) {
         /** A connection was accepted. */

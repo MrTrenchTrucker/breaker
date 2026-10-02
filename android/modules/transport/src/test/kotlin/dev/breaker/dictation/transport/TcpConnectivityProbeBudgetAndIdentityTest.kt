@@ -165,19 +165,18 @@ class TcpConnectivityProbeBudgetAndIdentityTest {
     }
 
     /**
-     * Waits, bounded, for the one shared probe worker to come back.
+     * Waits, bounded, for the shared probe pool to come back.
      *
-     * The worker in [TcpConnectivityProbe] is a process-wide singleton with a
-     * queue of one, so a worker still parked on a released latch turns every
-     * LATER test in this JVM into a discarded task and a false "not reachable".
-     * Proving it is drained here means the parking test cannot poison the rest
-     * of the suite: each attempt uses a FRESH probe with a fresh clock, so a
-     * cache hit is impossible and a `true` can only come from a dial that
-     * actually ran on the shared worker.
+     * [ProbeExecutor] is a process-wide singleton, so a worker still parked on a
+     * released latch turns every LATER test in this JVM into a refused task and
+     * a false "not reachable". Proving it is drained here means the parking test
+     * cannot poison the rest of the suite: each attempt uses a FRESH probe with
+     * a fresh clock, so a cache hit is impossible and a `true` can only come
+     * from a dial that actually ran on the shared worker.
      *
-     * Each attempt costs at most one budget while the worker is still busy, so
+     * Each attempt costs at most one budget while the pool is still busy, so
      * the bound is generous enough for the several attempts it can take and
-     * still fails loudly rather than hanging when the worker never comes back.
+     * still fails loudly rather than hanging when the pool never comes back.
      */
     private fun drainProbeExecutor() {
         val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(DRAIN_BOUND_MS)
@@ -193,7 +192,7 @@ class TcpConnectivityProbeBudgetAndIdentityTest {
             if (drain.isServerReachable()) return
         }
         throw AssertionError(
-            cardFailure("the shared probe worker was still busy ${DRAIN_BOUND_MS} ms after the parked dial was released, over $attempts attempts - the one thread in [TcpConnectivityProbe] serves every probe in this JVM, so a worker parked past this test answers false for everything that follows it"),
+            cardFailure("the shared probe worker was still busy ${DRAIN_BOUND_MS} ms after the parked dial was released, over $attempts attempts - the shared probe pool serves every probe in this JVM, so a worker parked past this test answers false for everything that follows it"),
         )
     }
 

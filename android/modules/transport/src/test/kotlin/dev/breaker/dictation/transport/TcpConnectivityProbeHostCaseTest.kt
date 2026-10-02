@@ -12,20 +12,22 @@ import java.util.concurrent.TimeUnit
 /**
  * That the single-flight name a host is filed under is a NAME, not a spelling.
  *
- * [ProbeExecutor] keeps a set of the names whose lookup is in flight, and a
- * later probe of a name already in that set is answered "not reachable" at once
- * instead of starting a second lookup. The key is the raw text of the host as
- * the configuration wrote it, and DNS names are case-insensitive: "Box.local"
- * and "box.local" are the same name to every resolver that has ever existed, and
- * to `InetAddress.getAllByName`, which folds case before it asks the platform.
+ * [ProbeExecutor] keeps a map of the names whose lookup is in flight, and a
+ * later probe of a name already in that map is answered "not reachable" at once
+ * instead of starting a second lookup. Keying that map on the raw text of the
+ * host as the configuration wrote it WOULD be wrong, and DNS names are
+ * case-insensitive: "Box.local" and "box.local" are the same name to every
+ * resolver that has ever existed, and to `InetAddress.getAllByName`, which
+ * folds case before it asks the platform. So [ProbeExecutor] case-folds the key
+ * (see its `keyFor`) and this test pins that it does.
  *
  * So keying on the raw text splits one wedged name in two. Both spellings take
  * a slot of [ProbeExecutor.MAX_WEDGED_PROBES] and each starts its own lookup
- * into the same blackholed resolver, which is the very cap overrun the set
+ * into the same blackholed resolver, which is the very cap overrun the map
  * exists to prevent: a host that is unreachable for one reason is now
  * unreachable for two, and the other addresses in the process lose half the
  * pool. And the joining never happens either - the second spelling is a
- * stranger to the set, so instead of being answered at once it is resolved and
+ * stranger to the map, so instead of being answered at once it is resolved and
  * dialled, and the caller is answered from a fresh connection attempt against a
  * name that was already known to be stuck.
  *

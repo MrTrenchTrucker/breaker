@@ -160,21 +160,32 @@ internal object ProbeExecutor {
      * take the whole cap a port at a time. The host is also case-folded, so
      * one wedged name is one key however it was spelled; see [keyFor].
      *
-     * **Why [ConcurrentHashMap]'s key set and not a synchronised [java.util.HashSet].**
-     * The set is written by whichever caller wins the mark, read by other
+     * **Why a [ConcurrentHashMap] and not a synchronised [java.util.HashSet].**
+     * The map is written by whichever caller wins the mark, read by other
      * callers deciding whether to answer at once, and mutated on worker threads
      * as lookups return. All three happen concurrently, and the decision that
-     * matters - `add` returning `false` for a name somebody already holds - has
-     * to be a SINGLE atomic step, or two callers could both see the name
-     * absent, both start a lookup, and both take a slot, which is the defect
-     * this map exists to prevent. Hand-rolled synchronisation around a plain
-     * set would have to be right at every one of those sites, and the failure
-     * mode of getting it wrong is a silent cap overrun.
+     * matters - the absent-to-present transition for a name - has to be a
+     * SINGLE atomic step, or two callers could both see the name absent, both
+     * start a lookup, and both take a slot, which is the defect this map exists
+     * to prevent. Hand-rolled synchronisation around a plain set would have to
+     * be right at every one of those sites, and the failure mode of getting it
+     * wrong is a silent cap overrun.
+     *
+     * **Why the value is a mark object and not a unit.** The name alone cannot
+     * identify who is allowed to clear it. Between [answering]'s removal and
+     * the keyed [execute]'s backstop, another probe of the SAME name can claim
+     * its own mark, and an unkeyed removal cannot tell the two apart - it would
+     * clear the LATER probe's mark while that probe's lookup was still parked,
+     * admitting a second lookup of a wedged name and two slots out of
+     * [MAX_WEDGED_PROBES]. So each admission puts a FRESH identity here, and
+     * both of [execute]'s removals are conditional on that exact identity
+     * ([ConcurrentHashMap.remove] with both key and value), which succeeds only
+     * while the very mark that put the entry there is still the one present.
      *
      * Deliberately NOT cleared by a caller that has given up waiting: see the
      * keyed [execute].
      */
-    private val inFlight: MutableSet<String> = ConcurrentHashMap.newKeySet<String>()
+    private val inFlight: ConcurrentHashMap<String, Any> = ConcurrentHashMap<String, Any>()
 
     /** Numbers the daemon threads so a wedged worker is identifiable in a dump. */
     private val started = AtomicInteger(0)
@@ -285,6 +296,20 @@ internal object ProbeExecutor {
      * [compute] simply has not returned and this `finally` has not run. The
      * mark therefore still covers exactly the window in which the lookup is
      * genuinely outstanding.
+     *
+     * **Precondition.** Call this only from inside the body of a task that the
+     * keyed [execute] started FOR THE SAME NAME. That is what makes the plain
+     * unkeyed removal below correct rather than merely convenient: [answering]
+     * runs INSIDE that task, on the worker holding the present mark, so the
+     * mark it removes is unambiguously its own. While that mark is present no
+     * other caller can put a mark for the same name into [inFlight] - the keyed
+     * [execute] admits a name only on an absent-to-present transition, and the
+     * entry is present for exactly as long as this call runs. So there is no
+     * window in which the removal below could discard somebody else's mark.
+     * Called for a name this task does not hold the mark for - a stray call, or
+     * a task started under one spelling and answered under another - it would
+     * instead evict an unrelated probe's live mark, which is the defect the
+     * keyed removals in [execute] exist to prevent.
      */
     fun <T> answering(host: String, compute: () -> T): T =
         try {
@@ -317,12 +342,18 @@ internal object ProbeExecutor {
      * here is the backstop for the paths where no value is ever produced -
      * cancelled before it started, or a body that never ran [answering] - and
      * on every path where the task never runs at all: a refused claim or a
-     * rejected submit removes it in this function. Both removals are of an
-     * absent-tolerant set, so the backstop cannot clear a mark that has just
-     * been handed to a later probe. Missing the submit-side removal is
-     * strictly worse than the defect this prevents, because the host would stay
-     * marked for the life of the process, never be probed again, and have every
-     * answer look like a legitimate "not reachable".
+     * rejected submit removes it in this function. Each of this function's two
+     * removals is CONDITIONAL on the mark this admission installed - it
+     * removes the name only while that exact mark is still the one present -
+     * so the backstop clears its OWN entry and never a mark that has since
+     * been handed to a later probe of the same name. An unkeyed removal there
+     * would clear exactly that: [answering] releases a name as soon as an
+     * answer exists, which is before this task body has returned, so the
+     * window between the two is one in which another probe of the same name is
+     * legitimately admitted and holds its own mark. Missing the submit-side
+     * removal is strictly worse than the defect this prevents, because the
+     * host would stay marked for the life of the process, never be probed
+     * again, and have every answer look like a legitimate "not reachable".
      *
      * **Where the mark is NOT cleared: the caller's timeout.** The caller
      * answers its own budget with `cancel(true)`, and cancel only INTERRUPTS -
@@ -338,16 +369,22 @@ internal object ProbeExecutor {
         // absent-to-present transition for this name, and a `false` here means
         // somebody else's lookup for this very name is still parked.
         val key = keyFor(host)
-        if (!inFlight.add(key)) return false
+        // A fresh identity per admission, so this task can later prove the mark
+        // it installed is still the one present before clearing it.
+        val mark = Any()
+        if (inFlight.putIfAbsent(key, mark) != null) return false
         val single = Runnable {
             try {
                 task.run()
             } finally {
-                inFlight.remove(key)
+                // Both key AND mark: unconditional removal here would clear a
+                // LATER probe's mark for this name, whose lookup is still
+                // parked, admitting a second lookup of a wedged name.
+                inFlight.remove(key, mark)
             }
         }
         val started = execute(single)
-        if (!started) inFlight.remove(key)
+        if (!started) inFlight.remove(key, mark)
         return started
     }
 
@@ -361,16 +398,16 @@ internal object ProbeExecutor {
      * text therefore gives ONE wedged name TWO slots and TWO lookups into the
      * same blackholed resolver - precisely the cap overrun [inFlight] exists to
      * prevent - and the join never happens either, because the second spelling
-     * is a stranger to the set and is resolved and dialled afresh against a
+     * is a stranger to the map and is resolved and dialled afresh against a
      * name already known to be stuck.
      *
-     * **Locale.ROOT, never a bare [String.lowercase].** Kotlin's no-argument
-     * `lowercase()` uses the DEFAULT locale, and under a Turkish default
-     * locale "I" lowercases to a dotless "ı": "IIS" would become "ııs" and
-     * would NOT equal the "iis" that the same name produces under any other
-     * locale - reintroducing the very split this function removes, invisibly,
-     * and only on the devices whose users would be least likely to explain it.
-     * ROOT is locale-independent, so every device computes the same key.
+     * **Locale.ROOT, spelled out.** Kotlin's no-argument `lowercase()` is
+     * already ROOT, so that spelling is not a bug either; naming the locale
+     * makes the independence something a reader checks, not something they
+     * must remember about the language. The hazard is a fold consulting the
+     * DEFAULT locale - the deprecated `toLowerCase()`, which looks like the
+     * modern spelling and is not, or `lowercase(Locale.getDefault())`: a
+     * Turkish default folds "IIS" to "ııs", not the "iis" it makes elsewhere.
      *
      * Deliberately inside this file, at the point of use, rather than at the
      * caller: [execute] and [answering] are separate entry points and the
