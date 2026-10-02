@@ -10,6 +10,8 @@ Two independent readers, plus one entry factory:
   (source, the full upstream file's size and sha256, the asset-id -> filename
   mapping, the fetch date) and the data lines are tab-separated
   filename <TAB> sha256, byte-exact copies of upstream;
+* assert_sha256_matches_fixture is the entry-vs-fixture comparison, shared by
+  the shipped fixture test and by the planted REDs so the two cannot drift;
 * a_planted_entry builds a temporary models.yaml from the committed one with
   exactly one mutation, so a refusal test cannot pass because the edit it
   meant to make was never there (the edit is asserted against the real file).
@@ -106,6 +108,32 @@ def fixture_data():
     if not lines:
         raise AssertionError("model_registry tests: the fixture carries no data line")
     return asset_map, lines
+
+
+def assert_sha256_matches_fixture(entries, asset_map, lines):
+    """The one comparison between a registry entry and the upstream fixture:
+    the entry's sha256 equals the single fixture line its asset id's filename
+    names.
+
+    Raises AssertionError naming the entry and the filename. The exactly-one
+    guard is part of the comparison, not a separate test of it: a fixture
+    carrying zero lines for the filename would make the check pass on nothing,
+    and two would make it ambiguous which upstream line is meant. The shipped
+    fixture test and the planted REDs both call this, so neither can drift
+    from the check the other proves.
+    """
+    for e in entries:
+        aid = asset_id_of(e["url"])
+        filename = asset_map[aid]
+        matches = [s for (f, s) in lines if f == filename]
+        if len(matches) != 1:
+            raise AssertionError(
+                f"entry {e['id']!r}: expected exactly one fixture line for "
+                f"{filename}, got {len(matches)}")
+        if e["sha256"] != matches[0]:
+            raise AssertionError(
+                f"entry {e['id']!r} sha256 {e['sha256']} drifts from "
+                f"upstream's published line for {filename}: {matches[0]}")
 
 
 def planted_file(mutate, name="planted_models.yaml"):

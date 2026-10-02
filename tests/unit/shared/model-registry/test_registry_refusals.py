@@ -46,18 +46,27 @@ class UnknownFieldTest(unittest.TestCase):
         self.assertIn("flavour", msg)
         self.assertIn("unknown field", msg)
         m = re.search(r"line (\d+):", msg)
-        self.assertEqual(int(m.group(1)), 14)  # the planted line, in the real file
+        self.assertIsNotNone(m)
+        # the planted line: the field itself, wherever the entry sits
+        planted_line = next(i + 1 for i, l in enumerate(planted.splitlines())
+                            if l.strip() == "flavour: vanilla")
+        self.assertEqual(int(m.group(1)), planted_line)
 
 
 class DuplicateIdTest(unittest.TestCase):
     def test_duplicate_id_is_refused_naming_both_lines(self):
         text = ts.models_text()
         second = text.split("models:\n", 1)[1]
-        planted = text + second  # a full second entry, marker at line 32
+        planted = text + second  # a full second entry, appended after the first
         msg = ts.refuses(planted)
         self.assertIn("duplicate id 'small'", msg)
-        self.assertIn("first on line 12", msg)
-        self.assertIn("line 32:", msg)  # the second entry, where the clash sits
+        # both markers, derived from the planted text: the first entry's own
+        # marker, and the appended copy's marker at len(text) + its offset
+        markers = [i + 1 for i, l in enumerate(planted.splitlines())
+                   if l.strip().startswith("- id:")]
+        self.assertEqual(len(markers), 2)
+        self.assertIn(f"first on line {markers[0]}", msg)
+        self.assertIn(f"line {markers[1]}:", msg)  # the clash
 
 
 class IdShapeTest(unittest.TestCase):
@@ -66,6 +75,18 @@ class IdShapeTest(unittest.TestCase):
                                "id: small", "id: Small")
         msg = ts.refuses(planted)
         self.assertIn("lowercase alphanumerics", msg)
+
+    def test_id_starting_with_a_digit_is_refused_naming_entry_and_line(self):
+        # the generated Kotlin would be `val 7SMALL`, an illegal identifier
+        text = ts.models_text()
+        planted = replace_once(text, "id: small", "id: 7small")
+        msg = ts.refuses(planted)
+        self.assertIn("entry '7small' line ", msg)
+        self.assertIn("starting with a letter", msg)
+        m = re.search(r"line (\d+):", msg)
+        entry_line = next(i + 1 for i, l in enumerate(text.splitlines())
+                          if l.strip().startswith("- id:"))
+        self.assertEqual(int(m.group(1)), entry_line)
 
 
 class FamilyTest(unittest.TestCase):
@@ -195,6 +216,22 @@ class UrlRuleTest(unittest.TestCase):
             "https://api.github.com/repos/k2-fsa/sherpa-onnx/releases/assets/191972150?x=1")
         self.assertIn("query or fragment", msg)
 
+    def test_web_host_asset_url_is_refused(self):
+        # GitHub's web asset-id route 404s; only the API host serves the bytes
+        msg = self._refused(
+            "https://github.com/k2-fsa/sherpa-onnx/releases/assets/191972150")
+        self.assertIn("api.github.com", msg)
+
+    def test_api_host_asset_url_is_accepted(self):
+        text = replace_once(
+            ts.models_text(), self.GOOD,
+            "url: https://api.github.com/repos/k2-fsa/sherpa-onnx/"
+            "releases/assets/4242")
+        entries = ts.check_models(text)
+        self.assertEqual(entries[0]["url"],
+                         "https://api.github.com/repos/k2-fsa/sherpa-onnx/"
+                         "releases/assets/4242")
+
     def test_commit_naming_url_is_accepted(self):
         # the card's other accepted shape: a URL naming a full 40-char commit
         text = replace_once(
@@ -266,6 +303,31 @@ class LicenseTest(unittest.TestCase):
         )
         entries = ts.check_models(text)
         self.assertEqual(entries[0]["licence"], "Custom ASR License")
+
+class NotesBlockBulletTest(unittest.TestCase):
+    def test_note_beginning_with_a_bullet_is_accepted(self):
+        # free text in a `notes: >-` body: "- the encoder was retrained" is a
+        # line of prose, not a second sequence item under `models:`
+        planted = replace_once(
+            ts.models_text(),
+            "      pruned_transducer_stateless7, k2-fsa/icefall PR 984). params 69,920,764 =",
+            "      - the encoder was retrained\n"
+            "      - the joiner is byte-identical\n"
+            "      pruned_transducer_stateless7, k2-fsa/icefall PR 984). params 69,920,764 =")
+        entries = ts.check_models(planted)
+        self.assertEqual(len(entries), 1)
+        self.assertEqual(entries[0]["id"], "small")
+
+    def test_a_real_span_and_entry_mismatch_is_still_refused(self):
+        # the count check is load-bearing: this file carries three "- " items
+        # where the reader parsed one entry, and spans are counted outside a
+        # block scalar, so the mismatch is still a refusal
+        planted = replace_once(
+            ts.models_text(), "    notes: >-",
+            "    aliases:\n      - a\n      - b\n    notes: >-")
+        msg = ts.refuses(planted)
+        self.assertIn("the reader found 1 entries but the file carries 3", msg)
+
 
 class EntryNamedTest(unittest.TestCase):
     def test_refusal_names_the_entry_and_line(self):
