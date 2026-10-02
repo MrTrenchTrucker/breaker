@@ -1,16 +1,26 @@
 """Refusal pin tests: every production refusal that a sweep can switch off
-without turning any test red gets a test here that plants the case and
+without turning any test red is pinned by a test that plants the case and
 asserts THAT refusal's own message (and, for the reader, the line number).
 
 Rule: for each production refusal, either a test pins its own message or
-the branch and its docstring claim are deleted. The sweep that found the
-gap left 20 refusals unpinned (reader 16, validator 3, comparator 1); the
-file-ends-unfinished refuse (one more, the sweep's last-line arithmetic)
-is pinned here too. All 22 are pinned, none deleted: each is reachable
-and its message is the documented behaviour.
+the branch and its docstring claim are deleted. None of the pinned
+refusals below are deleted: each is reachable and its message is the
+documented behaviour.
 
-Every test runs the PRODUCTION function (parse_kotlin_file / load_spec /
-get_schemas / validate_spec_structure / check_coverage /
+Where the pins live. The current refusal surface is 37 sites (reader 19,
+validator 10, comparator 8). This file carries 24 of the pins (reader 18:
+17 in ReaderRefusalPins plus the tree-vacuity guard; validator 3;
+comparator 3); the other 13 sit in the tests that own each area, so all
+37 are pinned by their own message:
+  - the generic constructor-line reader refusal is pinned by its message
+    in test_reader_closed_grammar.py;
+  - the seven remaining validator refusals are pinned in
+    test_structural_validator.py;
+  - the five remaining comparator refusals are pinned in
+    test_mismatch_classes.py and test_conformance.py.
+
+Every test here runs the PRODUCTION function (parse_kotlin_file /
+load_spec / get_schemas / validate_spec_structure / check_coverage /
 map_spec_type_to_kotlin / parse_all_kotlin) on a planted input and asserts
 the exact text of the refusal it pins.
 """

@@ -25,6 +25,7 @@ from api_contracts_support import (
     load_spec, get_schemas, get_schema_fields, get_enum_values,
     parse_all_kotlin, parse_kotlin_file, snake,
 )
+from api_comparator import compare_fields
 
 
 class Correction1RefusalTest(unittest.TestCase):
@@ -101,8 +102,12 @@ class Correction2QuoteFirewallTest(unittest.TestCase):
 
 
 class Correction3BothDirectionTest(unittest.TestCase):
-    """Correction 3: Both-direction set comparisons as two separate
-    ASYMMETRIC assertions (each direction its own set difference)."""
+    """Correction 3: both-direction set comparison, run through the
+    PRODUCTION comparator (api_comparator.compare_fields), not re-implemented
+    here. The Job field directions are covered by the mismatch classes A and
+    B, so this class plants the JobStatus enum drift in BOTH directions
+    through compare_fields: a value only in the spec copy, and a value only
+    in the Kotlin copy, each asserting the comparator's own refusal text."""
 
     @classmethod
     def setUpClass(cls):
@@ -110,37 +115,33 @@ class Correction3BothDirectionTest(unittest.TestCase):
         cls.schemas = get_schemas(cls.spec)
         cls.kotlin = parse_all_kotlin()
 
-    def test_job_fields_both_directions(self):
-        """Job fields: spec -> kotlin AND kotlin -> spec, each its own
-        assertion (an asymmetric set difference)."""
-        job_schema = self.schemas.get("Job", {})
-        spec_fields = {f[0] for f in get_schema_fields(job_schema)}
-        kotlin_fields = {f[0] for f in self.kotlin.get("Job", {}).get("fields", [])}
+    def test_job_status_enum_spec_only_value(self):
+        """A JobStatus value present only in the spec copy (not in the
+        Kotlin enum) is refused by the PRODUCTION comparator's enum-value
+        check, and the refusal is the comparator's own message."""
+        schemas = {k: v for k, v in self.schemas.items()}
+        schemas["JobStatus"] = dict(schemas["JobStatus"])
+        schemas["JobStatus"]["enum"] = list(schemas["JobStatus"]["enum"]) + ["ghost_spec"]
+        with self.assertRaises(AssertionError) as ctx:
+            compare_fields("Job", self.schemas["Job"], self.kotlin["Job"],
+                           self.kotlin, schemas)
+        self.assertIn("spec enum for JobStatus", str(ctx.exception))
+        self.assertIn("'ghost_spec'", str(ctx.exception))
+        self.assertIn("differs from Kotlin JobStatus", str(ctx.exception))
 
-        # Direction 1: spec -> kotlin
-        self.assertEqual(
-            spec_fields - kotlin_fields, set(),
-            "spec -> kotlin: Job fields present in spec but missing in kotlin")
-        # Direction 2: kotlin -> spec
-        self.assertEqual(
-            kotlin_fields - spec_fields, set(),
-            "kotlin -> spec: kotlin fields present in kotlin but missing in spec")
-
-    def test_job_status_enum_both_directions(self):
-        """JobStatus enum: spec -> kotlin AND kotlin -> spec, each its own
-        assertion (the named JobStatus schema's enum values)."""
-        js_schema = self.schemas.get("JobStatus", {})
-        spec_enum = set(js_schema.get("enum", []))
-        kotlin_enum = set(self.kotlin.get("JobStatus", {}).get("values", []))
-
-        # Direction 1: spec -> kotlin
-        self.assertEqual(
-            spec_enum - kotlin_enum, set(),
-            "spec -> kotlin: JobStatus values present in spec but missing in kotlin")
-        # Direction 2: kotlin -> spec
-        self.assertEqual(
-            kotlin_enum - spec_enum, set(),
-            "kotlin -> spec: kotlin values present in kotlin but missing in spec")
+    def test_job_status_enum_kotlin_only_value(self):
+        """A JobStatus value present only in the Kotlin enum (not in the
+        spec schema) is refused by the PRODUCTION comparator's enum-value
+        check, and the refusal is the comparator's own message."""
+        kotlin = {k: v for k, v in self.kotlin.items()}
+        kotlin["JobStatus"] = dict(kotlin["JobStatus"])
+        kotlin["JobStatus"]["values"] = list(kotlin["JobStatus"]["values"]) + ["ghost_kt"]
+        with self.assertRaises(AssertionError) as ctx:
+            compare_fields("Job", self.schemas["Job"], kotlin["Job"],
+                           kotlin, self.schemas)
+        self.assertIn("spec enum for JobStatus", str(ctx.exception))
+        self.assertIn("'ghost_kt'", str(ctx.exception))
+        self.assertIn("differs from Kotlin JobStatus", str(ctx.exception))
 
 
 class Correction4SnakeTest(unittest.TestCase):

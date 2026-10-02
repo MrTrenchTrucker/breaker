@@ -126,7 +126,8 @@ class ConformanceTest(unittest.TestCase):
         ja_rules = " ".join(self.kotlin["JobAccepted"].get("init_rules", []))
         self.assertIn("QUEUED", ja_rules,
                       "JobAccepted's init must carry the queued-only rule "
-                      f"(mutant M_B4a removes it and turns this RED); got: {ja_rules!r}")
+                      f"(without it the queued-only narrowing is not "
+                      f"enforced); got: {ja_rules!r}")
         string_side = copy.deepcopy(self.kotlin)
         string_side["JobAccepted"]["fields"] = [
             ("job_id", "String", False), ("status", "String", False)
