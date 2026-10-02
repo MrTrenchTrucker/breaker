@@ -3,10 +3,13 @@
 Each test proves a specific correction is enforced:
 1. Refusal naming file AND line (closed grammar)
 2. Quote firewall: declaration inside Kotlin string literal not read
-3. Both-direction set comparisons per field/required/type/enum
+3. Both-direction set comparisons per field/enum (two ASYMMETRIC set
+   differences -- each direction has its own assertion, so a drift on one
+   side fails exactly that direction's assertion)
 4. snake("jobId") -> job_id, snake("jobID") -> job_i_d
 5. Mutation helper asserting its anchor was present
-6. Exact path-set equality as separate assertion
+6. Exact path-set equality (the single canonical exact-set assertion for
+   the spec's paths; test_conformance.py does not duplicate it)
 """
 import unittest
 import sys
@@ -57,25 +60,27 @@ class Correction1RefusalTest(unittest.TestCase):
 class Correction2QuoteFirewallTest(unittest.TestCase):
     """Correction 2: Quote firewall - a declaration inside a string literal is not read.
 
-    The live case is a multi-line raw string literal (triple-quoted) inside the
-    constructor: the line-anchored parameter reader only ever sees a line that
-    starts a declaration, so the firewall's single-line coverage is vacuous on
-    one-line strings and the raw-string form is the case that falsifies it.
+    The live case is a multi-line raw string literal (triple-quoted) inside
+    the constructor: the line-anchored parameter reader only ever sees a
+    line that starts a declaration, so the firewall's single-line coverage
+    is vacuous on one-line strings and the raw-string form is the case that
+    falsifies it.
     """
 
     def test_quote_firewall_raw_string(self):
         """A declaration inside a multi-line raw string literal must not be read.
 
-        The declaration line sits on its own line inside a triple-quoted string
-        inside the constructor. Without the quote firewall (the
-        re.sub that blanks string literals in parse_kotlin_file), the
+        The declaration line sits on its own line inside a triple-quoted
+        string inside the constructor. Without the quote firewall (the
+        blanking of string literals in the reader's prepare step), the
         line-anchored parameter reader matches the inner line and 'hidden'
-        appears in the fields; with the firewall the literal is blanked first
-        and only the real parameters remain.
+        appears in the fields; with the firewall the literal is blanked
+        first and only the real parameters remain.
         """
         with tempfile.NamedTemporaryFile(mode='w', suffix='.kt', delete=False) as f:
             f.write(
-                'package test\n\ndata class Foo(\n'
+                'package test\n\n'
+                'data class Foo(\n'
                 '    val note: String = """\n'
                 '    val hidden: String,\n'
                 '    """,\n'
@@ -95,9 +100,9 @@ class Correction2QuoteFirewallTest(unittest.TestCase):
             os.unlink(fname)
 
 
-
 class Correction3BothDirectionTest(unittest.TestCase):
-    """Correction 3: Both-direction set comparisons."""
+    """Correction 3: Both-direction set comparisons as two separate
+    ASYMMETRIC assertions (each direction its own set difference)."""
 
     @classmethod
     def setUpClass(cls):
@@ -106,27 +111,36 @@ class Correction3BothDirectionTest(unittest.TestCase):
         cls.kotlin = parse_all_kotlin()
 
     def test_job_fields_both_directions(self):
-        """Job fields: spec -> kotlin AND kotlin -> spec as separate assertions."""
+        """Job fields: spec -> kotlin AND kotlin -> spec, each its own
+        assertion (an asymmetric set difference)."""
         job_schema = self.schemas.get("Job", {})
         spec_fields = {f[0] for f in get_schema_fields(job_schema)}
         kotlin_fields = {f[0] for f in self.kotlin.get("Job", {}).get("fields", [])}
 
         # Direction 1: spec -> kotlin
-        self.assertEqual(spec_fields, kotlin_fields, "spec -> kotlin: Job fields differ")
+        self.assertEqual(
+            spec_fields - kotlin_fields, set(),
+            "spec -> kotlin: Job fields present in spec but missing in kotlin")
         # Direction 2: kotlin -> spec
-        self.assertEqual(kotlin_fields, spec_fields, "kotlin -> spec: Job fields differ")
+        self.assertEqual(
+            kotlin_fields - spec_fields, set(),
+            "kotlin -> spec: kotlin fields present in kotlin but missing in spec")
 
     def test_job_status_enum_both_directions(self):
-        """JobStatus enum: spec -> kotlin AND kotlin -> spec as separate assertions."""
-        job_schema = self.schemas.get("Job", {})
-        status_prop = job_schema.get("properties", {}).get("status", {})
-        spec_enum = set(status_prop.get("enum", []))
+        """JobStatus enum: spec -> kotlin AND kotlin -> spec, each its own
+        assertion (the named JobStatus schema's enum values)."""
+        js_schema = self.schemas.get("JobStatus", {})
+        spec_enum = set(js_schema.get("enum", []))
         kotlin_enum = set(self.kotlin.get("JobStatus", {}).get("values", []))
 
         # Direction 1: spec -> kotlin
-        self.assertEqual(spec_enum, kotlin_enum, "spec -> kotlin: JobStatus enum differs")
+        self.assertEqual(
+            spec_enum - kotlin_enum, set(),
+            "spec -> kotlin: JobStatus values present in spec but missing in kotlin")
         # Direction 2: kotlin -> spec
-        self.assertEqual(kotlin_enum, spec_enum, "kotlin -> spec: JobStatus enum differs")
+        self.assertEqual(
+            kotlin_enum - spec_enum, set(),
+            "kotlin -> spec: kotlin values present in kotlin but missing in spec")
 
 
 class Correction4SnakeTest(unittest.TestCase):
@@ -165,7 +179,8 @@ class Correction5MutationHelperTest(unittest.TestCase):
 
 
 class Correction6PathSetEqualityTest(unittest.TestCase):
-    """Correction 6: Exact path-set equality as separate assertion."""
+    """Correction 6: Exact path-set equality -- the single canonical
+    exact-set assertion for the spec's three endpoints."""
 
     @classmethod
     def setUpClass(cls):
@@ -175,8 +190,8 @@ class Correction6PathSetEqualityTest(unittest.TestCase):
         """Paths in the spec are exactly the three endpoints (no more, no less)."""
         paths = self.spec.get("paths", {})
         expected_paths = {"/v1/audio/transcriptions", "/v1/jobs/{job_id}", "/health"}
-        # Exact set equality
-        self.assertEqual(set(paths.keys()), expected_paths, "Paths must be exactly the three endpoints")
+        self.assertEqual(set(paths.keys()), expected_paths,
+                         "Paths must be exactly the three endpoints")
 
 
 if __name__ == "__main__":

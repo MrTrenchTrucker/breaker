@@ -12,7 +12,9 @@ request/response types (ADR-017): the single contract both the Android client (`
 - `POST /v1/audio/transcriptions` — multipart form: `file`, `model`, `language`
   → 202 `{ job_id, status: "queued" }` | 401 unauth | 413 too large
 - `GET /v1/jobs/{job_id}` → `{ status: queued|processing|done|failed, result:
-  { text, segments[], language } | null }`
+  { text, segments[], language } | null, error: string | null }` — `error`
+  is the failure reason, set exactly when status is `failed` (enforced both
+  ways in the Kotlin type); `POST` 202 status is `queued` only
 - `GET /health` — `{ status, forwarding_to, uptime }`
 - (v1.1) `POST /v1/audio/transcriptions/stream` — SSE partial segments
 
@@ -158,11 +160,12 @@ code.
 
 ## Known Gotchas
 - Client and server generate from THIS spec — no drift.
-- The Gradle boundary check does not require a consumer to name the
-  `project(":shared:modules:api-contracts")` edge while this module
-  publishes no artifact; the moment it gains code (applies an artifact
-  plugin) the edge becomes required, and the bijection check will then
-  demand it. **No consumer names the edge yet** (as of slice 1).
+- The Gradle boundary edge is LIVE: this module applies the Kotlin/JVM
+  plugin and the artifact exists, and stt-server already names the edge —
+  `implementation(project(":shared:modules:api-contracts"))` in
+  android/modules/stt-server/build.gradle.kts, with `shared_api_contracts`
+  in stt-server's `depends_on` in modules.toml. The bijection check
+  demands the named edge; it is provided.
 - The `openapi-generator parses clean` invariant is **NOT VERIFIED** — the
   tool is not in the toolchain; a stdlib structural validator covers the
   slice's subset.

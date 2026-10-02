@@ -1,18 +1,31 @@
-"""Shared readers for the api-contracts unit tests. Standard library only.
+"""The api-contracts Python tier: spec reader, structural validator, and the
+import surface for the Kotlin reader and the production comparator.
+Standard library only.
 
-Three independent readers, none of which imports another:
+Layout (line cap 500 per file -- this is why the tier is three modules):
 
-* the SPEC reader parses `openapi.yaml` using `tools/yaml_subset.py`, extracting
-  the schemas, their fields, types, required-ness, and enum values;
-* the KOTLIN reader parses the Kotlin source files with a closed grammar that
-  refuses with file and line on any unrecognised construct, and counts what it
-  should have found (the vacuity guard);
-* the STRUCTURAL validator checks that `openapi.yaml` is structurally valid for
-  the OpenAPI 3.x subset the slice uses.
+* THIS file: the SPEC reader (openapi.yaml via tools/yaml_subset.py -- schemas,
+  fields, types, required-ness, enums, refs, nullability, sibling enum
+  narrowing) and the STRUCTURAL validator (every check its docstring claims,
+  each backed by code here and a RED test in test_structural_validator.py).
+* api_kotlin_reader: the KOTLIN reader -- a closed grammar that refuses with
+  file and line on any unrecognised construct and counts what it should have
+  found (the vacuity guard). The grammar is stated in that module's docstring
+  and pinned by test_reader_closed_grammar.py.
+* api_comparator: THE production conformance comparator (compare_fields) and
+  the both-ways coverage check (check_coverage) plus the spec->Kotlin type
+  map. compare_fields is the only field-level checker: the conformance tests,
+  the mismatch-class tests and the gate mutants all run it, and its named
+  assertion messages are what the class tests assert on.
 
-Every reader refuses to return something empty or partial: a parser that finds
-nothing would make every comparison downstream pass vacuously, so each one
-counts what it should have found and raises when the count is off.
+The SPEC reader and the KOTLIN reader stay independent (neither imports the
+other). compare_fields defers its imports of get_schema_fields/ref_target
+from this module until call time, so the re-exports below and its own
+import of this module never deadlock in either import order.
+
+Every reader refuses to return something empty or partial: a parser that
+finds nothing would make every comparison downstream pass vacuously, so each
+one counts what it should have found and raises when the count is off.
 
 Module card: shared/modules/api-contracts/AGENTS.md
 """
@@ -25,9 +38,18 @@ MODULE = ROOT / "shared" / "modules" / "api-contracts"
 SPEC = MODULE / "openapi.yaml"
 KOTLIN_DIR = MODULE / "src" / "main" / "kotlin" / "dev" / "breaker" / "shared" / "api"
 
-# Add tools/ to sys.path so we can import yaml_subset
 sys.path.insert(0, str(ROOT / "tools"))
 import yaml_subset
+
+# The closed Kotlin reader and the production comparator live in their own
+# modules (line cap 500 per file); re-exported here so the test suite and
+# the gate keep one import surface.
+from api_kotlin_reader import (
+    parse_kotlin_file, parse_all_kotlin, snake, KOTLIN_DIR,
+)
+from api_comparator import (
+    map_spec_type_to_kotlin, compare_fields, check_coverage,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -37,7 +59,10 @@ import yaml_subset
 def load_spec():
     """Load and return the parsed openapi.yaml as a dict.
 
-    Refuses if the file is missing or the reader raises.
+    Refuses if the file is missing or the reader raises, and refuses a
+    parse that is missing any of the top-level keys this contract needs
+    (openapi, info, paths, components) -- a partial spec would make the
+    validator pass vacuously on the parts it has.
     """
     if not SPEC.exists():
         raise FileNotFoundError(f"Spec file not found: {SPEC}")
@@ -60,31 +85,51 @@ def get_schemas(spec):
     return schemas
 
 
+def effective_enum(prop):
+    """Return the SIBLING enum of a property, or None.
+
+    A property may narrow a $ref'd enum schema with a sibling `enum:` list
+    (the JobAccepted.status shape: allOf -> JobStatus, enum: [queued]).
+    The sibling list is the effective set of values the property allows;
+    the $ref still names the Kotlin type.
+    """
+    if not isinstance(prop, dict):
+        return None
+    return prop.get("enum")
+
+
 def get_schema_fields(schema):
     """Extract fields from a schema dict.
 
-    Returns a list of (field_name, field_type, is_required, format, ref) tuples.
-    field_type is the OpenAPI type string ("string", "integer", "number", "array", "object").
-    format is the OpenAPI format string ("int64", "float", etc.) or None.
-    ref is the $ref target (e.g., "#/components/schemas/Segment") or None.
+    Returns a list of (field_name, field_type, is_required, format, ref,
+    nullable, enum) tuples. field_type is the OpenAPI type string
+    ("string", "integer", "number", "array", "object"; a property whose only
+    shape is an allOf/$ref keeps the literal "object" default -- the ref is
+    what the comparator maps). format is the OpenAPI format string or None.
+    ref is the $ref target (direct or first allOf member) or None.
+    nullable is the property's `nullable` flag. enum is the property's
+    sibling enum list (a narrowing on a $ref property) or None.
     """
     fields = []
     properties = schema.get("properties", {})
     required = set(schema.get("required", []))
     for name, prop in properties.items():
+        if not isinstance(prop, dict):
+            continue
         ftype = prop.get("type", "object")
         is_req = name in required
         fmt = prop.get("format")
         ref = prop.get("$ref")
-        # Also check allOf for $ref
+        # Also check allOf for $ref (first $ref member)
         if not ref:
             all_of = prop.get("allOf", [])
-            if all_of:
+            if isinstance(all_of, list):
                 for item in all_of:
                     if isinstance(item, dict) and "$ref" in item:
                         ref = item["$ref"]
                         break
-        fields.append((name, ftype, is_req, fmt, ref))
+        fields.append((name, ftype, is_req, fmt, ref,
+                       is_true(prop.get("nullable")), effective_enum(prop)))
     return fields
 
 
@@ -96,201 +141,32 @@ def get_enum_values(schema):
     return schema.get("enum")
 
 
-# ---------------------------------------------------------------------------
-# Type map: spec type -> Kotlin type
-# ---------------------------------------------------------------------------
+def ref_target(ref):
+    """The schema name at the end of a #/components/schemas/X ref, or None."""
+    if not ref:
+        return None
+    parts = ref.split("/")
+    return parts[-1]
 
-def map_spec_type_to_kotlin(spec_type, fmt=None, ref=None, enum=None, items_ref=None):
-    """Map an OpenAPI spec type to the expected Kotlin type string.
 
-    Rules (exact, no guessing):
-    - string -> String (or the enum class name if enum is present)
-    - integer -> Int (unless format: int64 -> Long)
-    - number -> Double
-    - boolean -> Boolean
-    - array -> List<...> (extract item type from items.$ref or items.type)
-    - $ref -> the referenced class name (e.g., "TranscriptionResult")
+def is_true(value):
+    """True for a YAML boolean that the stdlib reader hands back as the
+    plain string 'true' (or a real True); false for 'false'/None/other."""
+    if value is True:
+        return True
+    if isinstance(value, str):
+        return value.strip().lower() == "true"
+    return False
 
-    Raises ValueError for any spec type not in the map (refuse, do not guess).
-    """
-    if ref:
-        # $ref: extract the class name from the ref path
-        # e.g., "#/components/schemas/Segment" -> "Segment"
-        parts = ref.split("/")
-        return parts[-1]
-    if spec_type == "string":
-        if enum:
-            # If there's an enum, the Kotlin type is the enum class name
-            # We need to find which enum class this maps to
-            # For now, return "String" and let the caller handle enum mapping
-            return "String"
-        return "String"
-    if spec_type == "integer":
-        if fmt == "int64":
-            return "Long"
-        return "Int"
-    if spec_type == "number":
-        return "Double"
-    if spec_type == "boolean":
-        return "Boolean"
-    if spec_type == "array":
-        if items_ref:
-            # Extract the item type from the items.$ref
-            parts = items_ref.split("/")
-            item_type = parts[-1]
-            return f"List<{item_type}>"
-        return "List<Any>"
-    raise ValueError(f"map_spec_type_to_kotlin: unsupported spec type: {spec_type} (format: {fmt})")
+
+# NOTE on the type map: there is exactly one map_spec_type_to_kotlin, in
+# api_comparator (re-exported above with compare_fields / check_coverage).
+# A second copy here once shadowed the import, so the tests saw a different
+# map from the comparator. Do not re-add it.
 
 
 # ---------------------------------------------------------------------------
-# KOTLIN reader (closed grammar, refuses with file and line)
-# ---------------------------------------------------------------------------
-
-# The closed grammar for the constrained Kotlin source shape:
-# - package declaration
-# - enum class with values
-# - data class with constructor parameters
-# - companion object with functions
-# - No other constructs allowed
-
-# Patterns for the closed grammar
-PACKAGE_RE = re.compile(r'^package\s+([\w.]+)\s*$', re.MULTILINE)
-ENUM_CLASS_RE = re.compile(r'^enum\s+class\s+(\w+)', re.MULTILINE)
-ENUM_VALUES_RE = re.compile(r'^\s{4,}(\w+)(?:\s*[;,])?\s*$', re.MULTILINE)
-DATA_CLASS_RE = re.compile(r'^data\s+class\s+(\w+)', re.MULTILINE)
-# Constructor parameters: val name: Type (handles nullable types and default values)
-PARAM_RE = re.compile(r'^\s{4,}val\s+(\w+)\s*:\s*([\w<>,\s?]+?)(?:\s*=\s*[^,]+)?(?:\s*,)?\s*$', re.MULTILINE)
-COMPANION_RE = re.compile(r'^\s+companion\s+object', re.MULTILINE)
-FUN_RE = re.compile(r'^\s+fun\s+(\w+)\s*\(', re.MULTILINE)
-
-
-def parse_kotlin_file(filepath):
-    """Parse a Kotlin source file with the closed grammar.
-
-    Returns a dict with:
-    - 'package': the package name
-    - 'enums': list of (enum_name, [values])
-    - 'data_classes': list of (class_name, [(field_name, field_type, is_nullable)])
-    - 'functions': list of function names
-
-    Refuses with file and line on any unrecognised construct.
-    """
-    filepath = Path(filepath)
-    if not filepath.exists():
-        raise FileNotFoundError(f"Kotlin file not found: {filepath}")
-
-    text = filepath.read_text(encoding="utf-8")
-    lines = text.splitlines()
-
-    result = {
-        "package": None,
-        "enums": [],
-        "data_classes": [],
-        "functions": [],
-    }
-
-    # Quote firewall: remove string literals before parsing
-    # This prevents declarations inside string literals from being read
-    text_no_strings = re.sub(r'"[^"]*"', '""', text)
-    lines_no_strings = text_no_strings.splitlines()
-
-    # Parse package
-    pkg_match = PACKAGE_RE.search(text_no_strings)
-    if pkg_match:
-        result["package"] = pkg_match.group(1)
-    else:
-        raise ValueError(f"{filepath.name}: no package declaration found")
-
-    # Parse enums
-    for match in ENUM_CLASS_RE.finditer(text_no_strings):
-        enum_name = match.group(1)
-        # Find the enum values (indented lines after the enum class line)
-        start_line = text_no_strings[:match.start()].count('\n')
-        values = []
-        for i, line in enumerate(lines_no_strings[start_line + 1:], start_line + 1):
-            if line.strip() == '}':
-                break
-            val_match = ENUM_VALUES_RE.match(line)
-            if val_match:
-                values.append(val_match.group(1))
-        result["enums"].append((enum_name, values))
-
-    # Parse data classes
-    for match in DATA_CLASS_RE.finditer(text_no_strings):
-        class_name = match.group(1)
-        # Find the constructor parameters
-        start_line = text_no_strings[:match.start()].count('\n')
-        fields = []
-        for i, line in enumerate(lines_no_strings[start_line + 1:], start_line + 1):
-            if line.strip() == ')':
-                break
-            param_match = PARAM_RE.match(line)
-            if param_match:
-                fname = param_match.group(1)
-                ftype = param_match.group(2).strip()
-                # Check if nullable (ends with ?)
-                is_nullable = ftype.endswith('?')
-                if is_nullable:
-                    ftype = ftype[:-1].strip()
-                fields.append((fname, ftype, is_nullable))
-        result["data_classes"].append((class_name, fields))
-
-    # Parse functions (in companion objects)
-    for match in FUN_RE.finditer(text_no_strings):
-        result["functions"].append(match.group(1))
-
-    # Vacuity guard: at least one of enums or data_classes must be found
-    if not result["enums"] and not result["data_classes"]:
-        raise ValueError(f"{filepath.name}: no enums or data classes found (vacuity guard)")
-
-    return result
-
-
-def snake(name):
-    """Convert camelCase to snake_case.
-
-    Strict snake(): jobId -> job_id, jobID -> job_i_d.
-    No .lower() on property names (only on enum values).
-    """
-    # Insert underscore between consecutive uppercase letters (for acronyms like jobID)
-    s1 = re.sub('([A-Z])([A-Z])', r'\1_\2', name)
-    # Insert underscore between lowercase/digit and uppercase
-    s2 = re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1)
-    return s2.lower()
-
-
-def parse_all_kotlin():
-    """Parse all Kotlin source files in the module.
-
-    Returns a dict mapping class/enum name -> parsed data.
-    Field names are converted to snake_case for comparison with the spec.
-    Enum values are lowercased.
-    Each field is (field_name, field_type, is_nullable).
-    """
-    if not KOTLIN_DIR.exists():
-        raise FileNotFoundError(f"Kotlin directory not found: {KOTLIN_DIR}")
-
-    result = {}
-    for kt_file in KOTLIN_DIR.glob("*.kt"):
-        parsed = parse_kotlin_file(kt_file)
-        for enum_name, values in parsed["enums"]:
-            # Lowercase enum values for comparison with spec
-            result[enum_name] = {"type": "enum", "values": [v.lower() for v in values]}
-        for class_name, fields in parsed["data_classes"]:
-            # Convert field names to snake_case
-            snake_fields = [(snake(f), t, n) for f, t, n in fields]
-            result[class_name] = {"type": "data_class", "fields": snake_fields}
-
-    # Vacuity guard: at least one class or enum must be found
-    if not result:
-        raise ValueError("No Kotlin classes or enums found (vacuity guard)")
-
-    return result
-
-
-# ---------------------------------------------------------------------------
-# Mutate helper (for mismatch-class tests)
+# Mutate helper (for mismatch-class tests and gate mutants)
 # ---------------------------------------------------------------------------
 
 def mutate(text, anchor, replacement):
@@ -308,22 +184,36 @@ def mutate(text, anchor, replacement):
 # Structural validator
 # ---------------------------------------------------------------------------
 
+def iter_refs(node):
+    """Yield every $ref string anywhere in a spec structure (dicts, lists)."""
+    if isinstance(node, dict):
+        if "$ref" in node:
+            yield node["$ref"]
+        for v in node.values():
+            yield from iter_refs(v)
+    elif isinstance(node, list):
+        for v in node:
+            yield from iter_refs(v)
+
+
 def validate_spec_structure(spec):
     """Validate that the spec is structurally valid for the OpenAPI 3.x subset.
 
-    Checks:
+    Checks (every claim here is backed by code below and by a RED test in
+    test_structural_validator.py):
     - openapi version is 3.x
     - info has title and version
     - paths has at least one path
-    - All $refs are quoted and resolve
-    - All schemas have type
-    - All required fields are listed in properties
+    - Every schema in components/schemas has a `type`
+    - Every name in a schema's `required` list is a key in its `properties`
+    - All $refs in the WHOLE spec resolve to components/schemas (response
+      schemas, items.$ref, allOf members -- not just responses)
 
     Raises ValueError with a descriptive message on any violation.
     """
     # Check openapi version
     openapi_ver = spec.get("openapi", "")
-    if not openapi_ver.startswith("3."):
+    if not str(openapi_ver).startswith("3."):
         raise ValueError(f"openapi version must be 3.x, got: {openapi_ver}")
 
     # Check info
@@ -338,29 +228,30 @@ def validate_spec_structure(spec):
     if not paths:
         raise ValueError("paths is empty")
 
-    # Check all $refs are quoted (the yaml_subset reader would have refused unquoted)
-    # and resolve to existing schemas
     schemas = spec.get("components", {}).get("schemas", {})
-    for path, methods in paths.items():
-        for method, op in methods.items():
-            if not isinstance(op, dict):
-                continue
-            # Check responses
-            responses = op.get("responses", {})
-            for status, resp in responses.items():
-                if not isinstance(resp, dict):
-                    continue
-                content = resp.get("content", {})
-                for media_type, media in content.items():
-                    if not isinstance(media, dict):
-                        continue
-                    schema = media.get("schema", {})
-                    if isinstance(schema, dict):
-                        ref = schema.get("$ref")
-                        if ref:
-                            # Check the ref resolves
-                            ref_name = ref.split("/")[-1]
-                            if ref_name not in schemas:
-                                raise ValueError(f"Unresolved $ref: {ref}")
+
+    # [CHECK-TYPE] every schema has a type
+    for name, schema in schemas.items():
+        if not isinstance(schema, dict) or "type" not in schema:
+            raise ValueError(f"schema {name} has no type")
+
+    # [CHECK-REQUIRED-IN-PROPERTIES] required names are properties
+    for name, schema in schemas.items():
+        if not isinstance(schema, dict):
+            continue
+        props = schema.get("properties", {})
+        for req in schema.get("required", []):
+            if req not in props:
+                raise ValueError(
+                    f"schema {name}: required field '{req}' is not in properties"
+                )
+
+    # [CHECK-REFS] every $ref in the whole spec resolves
+    for ref in iter_refs(spec):
+        if not isinstance(ref, str) or not ref.startswith("#/components/schemas/"):
+            raise ValueError(f"Unrecognised $ref target: {ref!r}")
+        target = ref_target(ref)
+        if target not in schemas:
+            raise ValueError(f"Unresolved $ref: {ref}")
 
     return True
