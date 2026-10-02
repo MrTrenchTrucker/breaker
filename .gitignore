@@ -20,6 +20,9 @@ android/app/build/
 *.onnx
 *.ort
 models/
+# model-registry: its Kotlin package is named models; the line above would hide that source code
+!shared/modules/model-registry/src/main/kotlin/dev/breaker/shared/models/
+!shared/modules/model-registry/src/test/kotlin/dev/breaker/shared/models/
 
 # Secrets & keys
 *.pem
