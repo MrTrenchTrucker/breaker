@@ -25,6 +25,7 @@ import os
 import re
 import tempfile
 import unittest
+from unittest import mock
 
 import model_registry_support as ts
 import gen_model_registry as gmr
@@ -70,14 +71,10 @@ class UpstreamChecksumFixtureTest(unittest.TestCase):
                 f"line for {filename!r} (vacuity guard), carries {len(lines)}")
 
     def test_entry_sha256_equals_the_fixture_line(self):
-        for e in self.entries:
-            aid = ts.asset_id_of(e["url"])
-            filename = self.asset_map[aid]
-            (_, expected) = self._entry_lines_for(aid, filename)[0]
-            self.assertEqual(
-                e["sha256"], expected,
-                f"entry {e['id']!r} sha256 {e['sha256']} drifts from "
-                f"upstream's published line for {filename}: {expected}")
+        # the shared comparison, not a copy of it: the planted REDs below run
+        # this same function, so a plant can never be green against a check
+        # nothing ships
+        ts.assert_sha256_matches_fixture(self.entries, self.asset_map, self.lines)
 
 
 class FixtureRedPlantsTest(unittest.TestCase):
@@ -89,17 +86,6 @@ class FixtureRedPlantsTest(unittest.TestCase):
     are never touched).
     """
 
-    def _run_sha256_check(self, entries, asset_map, lines):
-        """The same comparison the class test makes, on given data."""
-        for e in entries:
-            aid = ts.asset_id_of(e["url"])
-            filename = asset_map[aid]
-            matches = [s for (f, s) in lines if f == filename]
-            assert len(matches) == 1, f"expected one fixture line for {filename}, got {len(matches)}"
-            assert e["sha256"] == matches[0], (
-                f"entry {e['id']!r} sha256 {e['sha256']} drifts from "
-                f"upstream's published line for {filename}: {matches[0]}")
-
     def test_one_hex_digit_changed_in_the_entry_is_caught(self):
         entries = ts.check_models(ts.models_text())
         e = entries[0]
@@ -107,7 +93,7 @@ class FixtureRedPlantsTest(unittest.TestCase):
         entries[0] = dict(e, sha256=altered)
         _, lines = ts.fixture_data()
         with self.assertRaises(AssertionError) as cm:
-            self._run_sha256_check(entries, {ts.asset_id_of(e["url"]): lines[0][0]}, lines)
+            ts.assert_sha256_matches_fixture(entries, {ts.asset_id_of(e["url"]): lines[0][0]}, lines)
         self.assertIn("drifts from", str(cm.exception))
 
     def test_filename_changed_in_the_fixture_is_caught(self):
@@ -121,8 +107,8 @@ class FixtureRedPlantsTest(unittest.TestCase):
         renamed = [("sherpa-onnx-streaming-zipformer-en-2023-06-21-RENAME.tar.bz2", s)
                    for (f, s) in lines]
         with self.assertRaises(AssertionError) as cm:
-            self._run_sha256_check(entries, asset_map, renamed)
-        self.assertIn("one fixture line", str(cm.exception))
+            ts.assert_sha256_matches_fixture(entries, asset_map, renamed)
+        self.assertIn("exactly one fixture line", str(cm.exception))
 
     def test_asset_id_changed_in_the_fixture_header_is_caught(self):
         entries = ts.check_models(ts.models_text())
@@ -132,10 +118,51 @@ class FixtureRedPlantsTest(unittest.TestCase):
         with self.assertRaises(AssertionError) as cm:
             # a header that maps the entry's id to the wrong filename has no
             # matching data line -> the vacuity guard fails
-            self._run_sha256_check(entries, {aid: "sherpa-onnx-streaming-zipformer-en-WRONG.tar.bz2"}, lines)
-        self.assertIn("expected one fixture line", str(cm.exception))
+            ts.assert_sha256_matches_fixture(entries, {aid: "sherpa-onnx-streaming-zipformer-en-WRONG.tar.bz2"}, lines)
+        self.assertIn("exactly one fixture line", str(cm.exception))
 
 
+
+class SharedComparisonTest(unittest.TestCase):
+    """The real check and the planted REDs must run ONE comparison.
+
+    A second, hand-written copy of the comparison can only ever prove itself:
+    it drifts from the real one silently, and the plants keep going green
+    against a check nothing ships. So both go through
+    `model_registry_support.assert_sha256_matches_fixture`, and these two tests
+    hold that together - one proves the real check routes through the shared
+    helper, the other pins the guard the real check gains by sharing it.
+    """
+
+    def test_the_real_check_calls_the_shared_comparison(self):
+        calls = []
+        real = ts.assert_sha256_matches_fixture
+
+        def counted(*args):
+            calls.append(args)
+            return real(*args)
+
+        case = UpstreamChecksumFixtureTest(
+            "test_entry_sha256_equals_the_fixture_line")
+        case.setUp()
+        with mock.patch.object(ts, "assert_sha256_matches_fixture", counted):
+            case.test_entry_sha256_equals_the_fixture_line()
+        self.assertEqual(
+            len(calls), 1,
+            "the shipped fixture check must run the shared comparison, not a "
+            f"private copy of it (shared helper called {len(calls)} times)")
+
+    def test_the_real_check_gains_the_vacuity_guard_by_sharing(self):
+        # two data lines for the entry's filename: a copy of the comparison
+        # that takes the first match and says nothing would ACCEPT this
+        # fixture, because the entry does match that first line
+        entries = ts.check_models(ts.models_text())
+        aid = ts.asset_id_of(entries[0]["url"])
+        asset_map, lines = ts.fixture_data()
+        doubled = lines + lines
+        with self.assertRaises(AssertionError) as cm:
+            ts.assert_sha256_matches_fixture(entries, asset_map, doubled)
+        self.assertIn("exactly one fixture line", str(cm.exception))
 
 
 class LicenseFieldTest(unittest.TestCase):

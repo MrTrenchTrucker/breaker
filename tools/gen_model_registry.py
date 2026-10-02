@@ -17,19 +17,27 @@ Entry checks (all of them, before any write):
 * required fields: id, family, params, size_mb, url, sha256, upstream_commit,
   tamper_verified, hosted — plus either license, or both license_name and
   license_link (notes is optional; anything else is an unknown field);
-* id: lowercase alphanumerics, unique across the registry;
+* id: lowercase alphanumerics starting with a letter, unique across the
+  registry (the generated Kotlin names a `val` after it, and a Kotlin
+  identifier may not start with a digit);
 * family: sherpa-onnx or whisper;
 * params: a positive integer with an M suffix (the parameter count rounded to
   the nearest million, e.g. 70M);
-* size_mb: a positive integer;
+* size_mb: a positive integer in MiB, rounded. For the registry's `small`
+  entry, 365,748,162 is the byte size of release asset 191972150 from that
+  asset's GitHub release metadata, and 191972150 is the asset id in that
+  entry's own url (348.8 MiB = 349; in decimal MB it would be 366). Note the
+  upstream checksum.txt that sha256 is checked against is itself 57,134 bytes -
+  a different file from the model asset;
 * sha256: 64 lowercase hex; upstream_commit: 40 lowercase hex;
 * tamper_verified and hosted: exactly true or false;
-* url: https only, host exactly github.com or api.github.com, and the path
-  ends in /releases/assets/<digits> with nothing after it (no query, no
-  fragment, no trailing segment) — OR a URL naming a full 40-character
-  commit. The asset id is the immutable pin (module card, Known Gotchas: the
-  downloader resolves it via the GitHub API asset route); tags and "latest"
-  are refused;
+* url: https only, host exactly github.com or api.github.com, and either a
+  path ending in /releases/assets/<digits> with nothing after it (no query,
+  no fragment, no trailing segment) — and then the host must be
+  api.github.com, because GitHub's web asset-id route returns 404 — or a URL
+  naming a full 40-character commit. The asset id is the immutable pin
+  (module card, Known Gotchas: the downloader resolves it via the GitHub API
+  asset route); tags and "latest" are refused;
 * license: an SPDX id (a single token), or, when absent, both license_name
   and license_link (an https URL).
 """
@@ -61,10 +69,13 @@ KNOWN_FIELDS = set(REQUIRED_FIELDS) | set(OPTIONAL_FIELDS)
 
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 HEX40 = re.compile(r"^[0-9a-f]{40}$")
-ID_SHAPE = re.compile(r"^[a-z0-9]+$")
+# An id becomes a Kotlin val name (`val SMALL`), so it starts with a letter.
+ID_SHAPE = re.compile(r"^[a-z][a-z0-9]*$")
 PARAMS_SHAPE = re.compile(r"^[1-9][0-9]*M$")
 DIGITS = re.compile(r"^[1-9][0-9]*$")
 ASSET_PATH = re.compile(r"^/.+/releases/assets/[0-9]+$")
+# The only host that serves an asset id's bytes (the web route 404s).
+ASSET_HOST = "api.github.com"
 COMMIT_PATH = re.compile(r"^/.+/commit/[0-9a-f]{40}$")
 SPDX_SHAPE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9.+-]*$")
 FAMILIES = ("sherpa-onnx", "whisper")
@@ -74,10 +85,18 @@ class RegistryError(ValueError):
     """A models.yaml entry the generator refuses to ship."""
 
 
+BLOCK_SCALAR = re.compile(r"^(\s*)\S[^:]*:\s*[|>][0-9+-]*\s*$")
+ITEM = re.compile(r"^\s*-\s+(\S|$)")
+
+
 def _entry_spans(text):
     """(start, end) line spans (1-based, end exclusive) of the sequence items
     under the top-level `models:` key, in file order. Spans exist so a
-    refusal can point at the entry it refuses."""
+    refusal can point at the entry it refuses.
+
+    Body lines of a block scalar (`notes: >-`) are free text, not sequence
+    items: a note that starts with "- " must not be counted as an entry, or a
+    valid file is refused for carrying one item too many."""
     lines = text.splitlines()
     models_at = None
     for i, line in enumerate(lines, start=1):
@@ -86,10 +105,20 @@ def _entry_spans(text):
             break
     if models_at is None:
         raise RegistryError("the document has no top-level `models:` key")
-    starts = [
-        i + 1 for i in range(models_at - 1, len(lines))
-        if re.match(r"^\s*-\s+(\S|$)", lines[i])
-    ]
+    starts = []
+    block_indent = None
+    for i in range(models_at - 1, len(lines)):
+        line = lines[i]
+        if block_indent is not None:
+            if not line.strip() or len(line) - len(line.lstrip()) > block_indent:
+                continue  # a body line of the scalar open above
+            block_indent = None
+        scalar = BLOCK_SCALAR.match(line)
+        if scalar:
+            block_indent = len(scalar.group(1))
+            continue
+        if ITEM.match(line):
+            starts.append(i + 1)
     return [(s, e) for s, e in zip(starts, starts[1:] + [len(lines) + 1])]
 
 
@@ -100,6 +129,19 @@ def _field_line(lines, span, field):
         if re.match(rf"^\s*{field}\s*:", lines[i - 1]):
             return i
     return start
+
+
+def _where(raw, span, lines, field=None):
+    """The `entry '<id>' line <n>` prefix a refusal carries: the entry named by
+    its id when the id is a usable non-empty scalar, and by the line it starts
+    on otherwise (an absent or empty id is itself the thing being refused, so
+    there is no id to name it by). `field` points the line at that field
+    instead of at the entry's sequence marker."""
+    eid = raw.get("id")
+    if isinstance(eid, str) and eid:
+        line = _field_line(lines, span, field) if field else span[0]
+        return f"entry '{eid}' line {line}"
+    return f"entry at line {span[0]}"
 
 
 def _check_url(url, line, label=""):
@@ -115,7 +157,16 @@ def _check_url(url, line, label=""):
     if parts.query or parts.fragment:
         raise RegistryError(
             f"{label}line {line}: url must not carry a query or fragment")
-    if ASSET_PATH.match(parts.path) or COMMIT_PATH.match(parts.path):
+    if ASSET_PATH.match(parts.path):
+        # Host and path shape are one rule, not two: the web asset route
+        # 404s, so an asset id is only downloadable from the API host.
+        if parts.hostname != ASSET_HOST:
+            raise RegistryError(
+                f"{label}line {line}: an /releases/assets/<asset id> url is "
+                f"served only by {ASSET_HOST} (GitHub's web asset route "
+                f"returns 404; got host '{parts.hostname}')")
+        return
+    if COMMIT_PATH.match(parts.path):
         return
     raise RegistryError(
         f"{label}line {line}: url path must end in /releases/assets/<asset id> or "
@@ -131,26 +182,28 @@ def _check_entry(raw, span, lines):
 
     for f in REQUIRED_FIELDS:
         if f not in keys:
-            raise RegistryError(f"line {start}: required field '{f}' is missing")
+            raise RegistryError(
+                f"{_where(raw, span, lines)}: required field '{f}' is missing")
     for k in sorted(keys - KNOWN_FIELDS):
         raise RegistryError(
-            f"line {_field_line(lines, span, k)}: unknown field '{k}' "
+            f"{_where(raw, span, lines, k)}: unknown field '{k}' "
             f"(known: {', '.join(sorted(KNOWN_FIELDS))})")
 
     def value(field):
         v = raw[field]
         if not isinstance(v, str) or not v:
             raise RegistryError(
-                f"line {_field_line(lines, span, field)}: field '{field}' "
+                f"{_where(raw, span, lines, field)}: field '{field}' "
                 f"must be a non-empty scalar")
         return v
 
     eid = value("id")
+    label = f"entry '{eid}' "
     if not ID_SHAPE.match(eid):
         raise RegistryError(
-            f"line {start}: id '{eid}' must be "
-            f"lowercase alphanumerics")
-    label = f"entry '{eid}' "
+            f"{label}line {_field_line(lines, span, 'id')}: id '{eid}' must be "
+            f"lowercase alphanumerics starting with a letter (the generated "
+            f"Kotlin names a val after it)")
     family = value("family")
     if family not in FAMILIES:
         raise RegistryError(
@@ -258,7 +311,10 @@ def _kotlin_constant(eid):
 
 
 def _kotlin_str(s):
-    return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    # Kotlin reads $ as a template start: a bare $ in a licence or a url owner
+    # segment must reach the compiler as an escaped literal dollar.
+    return ('"' + s.replace("\\", "\\\\").replace('"', '\\"')
+            .replace("$", "\\$") + '"')
 
 
 def render_kotlin(entries):

@@ -25,10 +25,24 @@ class ModelRegistryTest {
         return File(root, "models.yaml").readLines()
     }
 
-    private fun yamlIds(): List<String> =
-        modelsYaml().mapNotNull { line ->
-            Regex("""^\s*-\s+id:\s*(\S+)\s*$""").find(line)?.groupValues?.get(1)
-        }
+    /**
+     * The ids of the sequence items under the top-level `models:` key, in file
+     * order. Anchored to the indent of the first item: block-scalar content
+     * (a `notes: >-` body) is prose and is indented deeper, so a notes line
+     * that happens to read like `- id: ...` cannot pass for an entry.
+     */
+    private fun yamlIds(lines: List<String> = modelsYaml()): List<String> {
+        val modelsAt = lines.indexOfFirst { it == "models:" }
+        require(modelsAt >= 0) { "models.yaml has no top-level `models:` key" }
+        val itemIndent = lines.drop(modelsAt + 1)
+            .firstOrNull { ITEM_START.containsMatchIn(it) }
+            ?.takeWhile { it == ' ' }?.length
+            ?: return emptyList()
+        val item = Regex("""^ {${itemIndent}}-\s+id:\s*(\S+)\s*$""")
+        return lines.drop(modelsAt + 1).mapNotNull { item.find(it)?.groupValues?.get(1) }
+    }
+
+    private val ITEM_START = Regex("""^\s+-\s+""")
 
     @Test
     fun byIdReturnsTheKnownModelWithItsPinnedFields() {
@@ -65,9 +79,29 @@ class ModelRegistryTest {
     }
 
     @Test
+    fun aNotesBlockScalarCannotBeCountedAsAnEntry() {
+        // The shape mirrors models.yaml: one entry under `models:`, whose
+        // `notes: >-` folded scalar carries free text that itself looks like
+        // sequence items. Those lines are prose, not registry entries.
+        val yaml = listOf(
+            "models:",
+            "  - id: small",
+            "    notes: >-",
+            "      - id: phantom-one",
+            "      - id: phantom-two",
+            "",
+        )
+        assertEquals(
+            "only the indented item under `models:` is an entry; notes text is not",
+            listOf("small"),
+            yamlIds(yaml),
+        )
+    }
+
+    @Test
     fun everySha256Is64LowercaseHex() {
         for (e in ModelRegistry.ALL) {
-            assertTrue("sha256 of ${'$'}{e.id} must be 64 lowercase hex, was ${'$'}{e.sha256}",
+            assertTrue("sha256 of ${e.id} must be 64 lowercase hex, was ${e.sha256}",
                 e.sha256.matches(Regex("[0-9a-f]{64}")))
         }
     }

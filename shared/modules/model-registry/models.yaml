@@ -5,8 +5,15 @@
 # committed Kotlin (src/main/kotlin/dev/breaker/shared/models/ModelRegistry.kt);
 # this file is never parsed at runtime (ADR-016).
 #
-# Values are byte-verified against the upstream release; provenance in the
-# module card.
+# Values are byte-verified against the upstream release; provenance in
+# fixtures/upstream-checksum-excerpt.txt (fetch route, fetch date, the size and
+# sha256 of the upstream checksum.txt itself, and the byte-exact upstream line)
+# and in each entry's own `notes` field.
+#
+# size_mb is MiB, rounded. For the `small` entry below, 365,748,162 is the byte
+# size of release asset 191972150 taken from that asset's GitHub release
+# metadata, and 191972150 is the asset id in that entry's url (348.8 MiB = 349;
+# in decimal MB it would be 366).
 
 models:
   - id: small
