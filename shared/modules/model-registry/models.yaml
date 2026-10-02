@@ -1,0 +1,38 @@
+# models.yaml — the model registry (shared/modules/model-registry).
+#
+# Hand-edited source of record for the speech models the app may download.
+# tools/gen_model_registry.py checks every entry before it writes the
+# committed Kotlin (src/main/kotlin/dev/breaker/shared/models/ModelRegistry.kt);
+# this file is never parsed at runtime (ADR-016).
+#
+# Values are byte-verified against the upstream release; provenance in
+# fixtures/upstream-checksum-excerpt.txt (fetch route, fetch date, the size and
+# sha256 of the upstream checksum.txt itself, and the byte-exact upstream line)
+# and in each entry's own `notes` field.
+#
+# size_mb is MiB, rounded. For the `small` entry below, 365,748,162 is the byte
+# size of release asset 191972150 taken from that asset's GitHub release
+# metadata, and 191972150 is the asset id in that entry's url (348.8 MiB = 349;
+# in decimal MB it would be 366).
+
+models:
+  - id: small
+    family: sherpa-onnx
+    params: 70M
+    size_mb: 349
+    url: https://api.github.com/repos/k2-fsa/sherpa-onnx/releases/assets/191972150
+    sha256: b97e7ff75a27136f4dd33c99bb7d5f493094397501be4739578c6cd95ea7f422
+    upstream_commit: 9a65b6ea94c311ca770c2bf895b30f456a22d703
+    tamper_verified: false
+    license: Apache-2.0
+    hosted: false
+    notes: >-
+      The -mobile files were converted by upstream from the fp32 asset
+      (checksum.txt line 21); the encoder files differ from the source repo
+      because of that conversion, the joiner and decoder are byte-identical to
+      upstream_commit. Trained on LibriSpeech and GigaSpeech (icefall recipe
+      pruned_transducer_stateless7, k2-fsa/icefall PR 984). params 69,920,764 =
+      sum of ONNX initializer elements (fp32 encoder + decoder + joiner);
+      upstream RESULTS.md reports 70,369,391 for the training model, the gap is
+      the unexported training heads; encoder Constant-node elements (19,199,860)
+      are export constants, not counted.

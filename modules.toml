@@ -231,7 +231,7 @@ path = "shared/modules/model-registry"
 owns = "Model sizes, immutable release-asset URLs, upstream checksum.txt, licenses, hosted flag."
 does_not_own = "Download/verify logic (android/stt-ondevice)."
 depends_on = ["shared"]
-public = "Generated Kotlin model registry (ADR-016)"
+public = "ModelRegistry, ModelEntry, ModelFamily (generated, ADR-016)"
 card = "shared/modules/model-registry/AGENTS.md"
 
 [module.shared_format_prompts]

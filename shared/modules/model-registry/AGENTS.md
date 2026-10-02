@@ -20,14 +20,22 @@ upstream already publishes** — not just our own recorded SHA-256 [2].
 **Server (Whisper X container, CPU):** whatever the existing pipeline already
 serves — document it here for parity.
 
-**Format:** `models.yaml` — one entry per model: id, family (sherpa-onnx|whisper),
-params, size_mb, url, sha256, **license** (the SPDX id when the license has one,
-e.g. `MIT` for Whisper weights; check sherpa-onnx model cards), `license_name` and
-`license_link` (required when the license has no SPDX id, such as a custom or
-non-commercial model license), `upstream_commit` (the upstream source revision the
-model file was built or converted from, recorded separately from `url`),
-`tamper_verified` (true only after the tamper test has been run against this entry
-and watched refusing a corrupted copy), hosted, notes. Required in every entry:
+**Format:** `models.yaml` — one entry per model: id (lowercase alphanumerics
+starting with a letter, e.g. `small`; `7small` is refused because the generated
+Kotlin names a `val` after it and a Kotlin identifier may not start with a digit),
+family (sherpa-onnx|whisper), params, size_mb (MiB, rounded; for the `small`
+entry, 365,748,162 is the byte size of release asset 191972150 from that
+asset's GitHub release metadata, and 191972150 is the asset id in that entry's
+own url: 348.8 MiB = 349, in decimal MB it would be 366 - the upstream
+checksum.txt that sha256 is checked against is a different file, 57,134 bytes),
+url, sha256, **license** (the
+SPDX id when the license has one, e.g. `MIT` for Whisper weights; check sherpa-onnx
+model cards), `license_name` and `license_link` (required when the license has no
+SPDX id, such as a custom or non-commercial model license), `upstream_commit` (the
+upstream source revision the model file was built or converted from, recorded
+separately from `url`), `tamper_verified` (true only after the tamper test has been
+run against this entry and watched refusing a corrupted copy), hosted, notes.
+Required in every entry:
 id, family, params, size_mb, url, sha256, upstream_commit, tamper_verified, hosted,
 and either `license` or both `license_name` and `license_link`; only `notes` is
 optional. The generated `licence` constant (ADR-016) carries the SPDX id, or
@@ -46,7 +54,10 @@ the license check result (R26).
 - Every entry has a license field (R8).
 - URLs pinned to specific releases (no floating "latest").
 - Registry versioned; app refuses unknown model ids.
-- **Every entry verifies against upstream's checksum.txt** (T21) [2].
+- **Every entry verifies against upstream's checksum.txt** (T21) [2]. The fetch
+  route, fetch date, upstream file size and sha256, and the byte-exact
+  upstream line are recorded in `fixtures/upstream-checksum-excerpt.txt`;
+  each entry's own `notes` field carries the rest of its provenance.
 - The generator checks every entry before it writes anything, and fails on a
   missing required field, an unknown field, a sha256 that is not 64 hex
   characters, a url that is neither a release-asset id URL
@@ -99,7 +110,8 @@ agents, not required: an outside contributor may write the code themselves
 (`.github/CONTRIBUTING.md`).
 
 ## Known Gotchas
-- Not in the tree yet: `models.yaml`, `tools/gen_model_registry.py` and the CI step that runs its entry check are created when this module is built (ADR-016). Until then, this card describes them; nothing can import them.
+- GitHub's web asset-id route returns 404, so entries pin the immutable asset id and use the API asset route (host `api.github.com`), which returns the file only with `Accept: application/octet-stream` — without it the route returns JSON metadata (HTTP 200) and the sha256 pin rejects it; sending the header is the downloader's concern (stt-ondevice).
+- `models.yaml` and `tools/gen_model_registry.py` are in the tree (ADR-016, slice 1): the generated Kotlin is committed, and the contract test fails if it drifts from the generator's output. Nothing parses `models.yaml` at runtime (ADR-016).
 - URLs pin to immutable release-asset ids; verify upstream checksum.txt [2].
 - The generated Kotlin file is never hand-edited: edit `models.yaml`, rerun the
   generator, commit both. A contract test fails if they drift (ADR-016).
