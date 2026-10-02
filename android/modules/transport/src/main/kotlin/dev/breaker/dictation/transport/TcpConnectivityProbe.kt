@@ -28,7 +28,8 @@ import java.util.concurrent.TimeoutException
  * name to look up. Resolution is still not instant — a slow or blackholed
  * resolver can outlive the budget — so when the budget runs out the answer is
  * "not reachable" and the worker is interrupted, but the parked thread finishes
- * only when the platform gives up on its own.
+ * only when the platform gives up on its own. A budget that expires that way
+ * caches nothing either: the probe never learned an answer worth keeping.
  *
  * **A parked lookup's reach is the PROCESS, not the address.** The old KDoc here
  * said probes for that address keep answering from this rule; that was false.
@@ -88,6 +89,44 @@ class TcpConnectivityProbe internal constructor(
         clock: Clock,
     ) : this(serverUrlProvider, clock, SystemHostResolver, SocketTcpConnector)
 
+    /**
+     * One probe's answer, and whether it was learned at all.
+     *
+     * "Not reachable" is one word for three different facts: a dial that was
+     * made and failed, a task that never ran because [ProbeExecutor] had
+     * nowhere to put it (every slot held by a lookup that has not returned, or
+     * this host's own lookup still parked), and a task that ran but whose
+     * budget expired before it produced anything. All three are correct
+     * answers to a caller's question, and the caller gets one boolean either
+     * way. Only the first is a MEASUREMENT. The other two resolved nothing
+     * and dialled nothing, so there is nothing learned about the server, and
+     * caching either would serve it for [CACHE_TTL_MS] — answering the first
+     * question asked after the host comes back out of that cache instead of
+     * dialling a server that is there again.
+     *
+     * [learned] is what [probeAndStore] keys that decision on. A genuine
+     * failure — a real socket refused, a name that does not resolve, a body
+     * that threw — is a measurement of this address and is cached, which is
+     * the whole purpose of a negative cache.
+     */
+    private enum class ProbeAttempt(val reachable: Boolean, val learned: Boolean) {
+        /** A connection was accepted. */
+        REACHABLE(true, true),
+
+        /** The task ran and reported that the server was not there. Cached. */
+        UNREACHABLE(false, true),
+
+        /** The task was refused before it ran; no lookup, no dial. Not cached. */
+        UNDIALED(false, false),
+
+        /**
+         * The budget ran out while the task was still going. Not cached: the
+         * address that would have been dialled was never obtained, so nothing
+         * is known rather than measured.
+         */
+        UNANSWERED(false, false),
+    }
+
     /** A cached answer and the address it was measured for. */
     private class CacheEntry(
         val host: String,
@@ -126,8 +165,16 @@ class TcpConnectivityProbe internal constructor(
      *
      * This is the one caller that reaches [probeAndStore] with
      * `allowFreshCache = false`, so a cached answer — however fresh — never
-     * short-circuits it; it always dials and answers from what it just
-     * measured.
+     * short-circuits it; it answers from the probe it just ran.
+     *
+     * **The exceptions, honestly stated.** It dials whenever a dial can be
+     * MADE, and it produces no answer to keep in two cases: no worker is
+     * available at all ([ProbeExecutor] at
+     * [ProbeExecutor.MAX_WEDGED_PROBES], or this host's own lookup still in
+     * flight), or the budget runs out before the task produces one. Both answer
+     * false, and — because neither learned anything about the server — both
+     * cache nothing. The next question asked once the lookup returns is a real
+     * probe and really dials.
      */
     fun refresh(): Boolean {
         val target = target() ?: return false
@@ -178,16 +225,24 @@ class TcpConnectivityProbe internal constructor(
      *
      * @param allowFreshCache true for the [isServerReachable] path, which may
      *   serve an answer another caller has just measured; false for
-     *   [refresh], which must always dial.
+     *   [refresh], which must never be served a cached answer.
      */
     private fun probeAndStore(target: Target, allowFreshCache: Boolean): Boolean {
         synchronized(this) {
             if (allowFreshCache) {
                 freshEntryFor(target)?.let { return it.reachable }
             }
-            val reachable = runProbe(target)
-            cache = CacheEntry(target.host, target.port, reachable, clock.nowEpochMillis())
-            return reachable
+            val attempt = runProbe(target)
+            // Only an answer that LEARNED something is cached. An attempt that
+            // was refused before it ran, and one whose budget expired while it
+            // was still running, learned nothing: caching either false would
+            // serve it for the whole window and hide a server that has just
+            // come back from the very question meant to find it. See
+            // [ProbeAttempt].
+            if (attempt.learned) {
+                cache = CacheEntry(target.host, target.port, attempt.reachable, clock.nowEpochMillis())
+            }
+            return attempt.reachable
         }
     }
 
@@ -203,7 +258,8 @@ class TcpConnectivityProbe internal constructor(
      * If every worker in [ProbeExecutor] is wedged the task is never started:
      * there is no waiting, and "not reachable" is answered at once. The same
      * answer comes back, for the same reason and at the same cost, when a
-     * lookup for this host is ALREADY in flight: the host is the key, so a
+     * lookup for this host is ALREADY in flight: the host's NAME is the key
+     * (case-folded - see [ProbeExecutor]), so a
      * second probe of a wedged host neither starts a second lookup nor spends
      * a second of the cap, leaving the remaining slots to other addresses. The
      * task wraps its body in [ProbeExecutor.answering] so that mark ends when
@@ -212,24 +268,33 @@ class TcpConnectivityProbe internal constructor(
      * report a healthy server down. The wait below therefore happens only for
      * a task that really is running, and stays bounded by the same budget.
      */
-    private fun runProbe(target: Target): Boolean {
+    private fun runProbe(target: Target): ProbeAttempt {
         val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(CONNECT_TIMEOUT_MS)
         val task = FutureTask { ProbeExecutor.answering(target.host) { connect(target, deadline) } }
         if (!ProbeExecutor.execute(target.host, task)) {
             // Either every worker is held by a lookup that has not returned, or
             // this host's own lookup is still parked. In both cases no
             // connection was attempted. Answering now is the honest answer and
-            // keeps the caller inside its budget.
-            return false
+            // keeps the caller inside its budget - and UNDIALED, so the caller
+            // caches nothing on the strength of it.
+            return ProbeAttempt.UNDIALED
         }
         val remainingNanos = deadline - System.nanoTime()
-        return try {
+        val reachable = try {
             task.get(remainingNanos, TimeUnit.NANOSECONDS)
         } catch (_: TimeoutException) {
-            // The parked worker is told to stop, but it ends on its own terms:
-            // a blocking socket call is not guaranteed to react to an interrupt.
+            // The budget is spent and the task is still running, so nothing is
+            // known: the address that would have been dialled was never
+            // obtained, and the connection that would have been made was never
+            // established. The parked worker is told to stop, but it ends on
+            // its own terms - a blocking socket call is not guaranteed to
+            // react to an interrupt - so whatever it eventually produces is
+            // not an answer this caller ever sees. UNANSWERED, and the caller
+            // caches nothing on the strength of it: a false that was never
+            // measured, served for the whole window, is the same defect as
+            // caching a refusal.
             task.cancel(true)
-            false
+            return ProbeAttempt.UNANSWERED
         } catch (_: ExecutionException) {
             false
         } catch (_: CancellationException) {
@@ -241,6 +306,11 @@ class TcpConnectivityProbe internal constructor(
         } catch (_: RuntimeException) {
             false
         }
+        // The task ran to completion and reported its own outcome, so this
+        // attempt is a measurement of this address and is cached like any
+        // other failure - a real refusal, a name that does not resolve, and a
+        // body that threw are all things the network actually said.
+        return if (reachable) ProbeAttempt.REACHABLE else ProbeAttempt.UNREACHABLE
     }
 
     /**
@@ -422,79 +492,3 @@ class TcpConnectivityProbe internal constructor(
         private const val MAX_PORT = 65_535
     }
 }
-
-/** How many dotted groups a valid IPv4 literal has. */
-internal const val V4_GROUP_COUNT = 4
-
-/** How many digits one group of a valid IPv4 literal may have. */
-private const val V4_MAX_GROUP_DIGITS = 3
-
-/** The highest value any group of a valid IPv4 literal may take. */
-private const val V4_MAX_GROUP_VALUE = 255
-
-/**
- * True only for text that is an address literal in its entirety — never for
- * text that merely LOOKS like one. Being strict here is what keeps malformed
- * text answered without a lookup or a dial.
- *
- * **IPv4** is exactly [V4_GROUP_COUNT] groups of one to
- * [V4_MAX_GROUP_DIGITS] digits, each in `0..`[V4_MAX_GROUP_VALUE].
- *
- * **IPv6** (a host containing ':') is text built only from hex digits, '.'
- * and ':' whose FIRST character is a hex digit or ':'. The hex character set
- * is what makes that an IPv6 test rather than a digit test: a hex IPv6 literal
- * is mostly letters, so accepting only digits rejected every real IPv6 address
- * and sent it to the resolver.
- *
- * **The first-character rule is load-bearing, and so is the range rule.**
- * [InetAddress.getByName] attempts its numeric parse ONLY when the first
- * character is a hex digit or ':'. If that parse then fails and the text
- * contains no ':', the JDK has no IPv6 branch left and falls through to a
- * REAL SYSTEM DNS LOOKUP — measured at 70-150 ms on JDK 17. A shape-only test
- * ("four all-digit groups", "every character is hex, dot or colon") lets
- * exactly those texts through, so the parse fails *inside* the JDK where this
- * module can no longer see or refuse it. "999.1.1.1", "1.2.3.256" and
- * "4294967295.0.0.0" are all four all-digit groups, and ".:", "..::1" and
- * ".1::" all pass a character-set test; none of them is an address.
- *
- * Hoisted out of [TcpConnectivityProbe.Target] so it can be table-tested on
- * its own: it is the only place the range and first-character rules are
- * observable, because a lookup through [InetAddress] never reaches this seam.
- */
-internal fun isAddressLiteral(host: String): Boolean =
-    if (host.contains(':')) isIpv6Literal(host) else isIpv4Literal(host)
-
-/**
- * True for exactly four dotted groups of one to three digits, each 0-255.
- *
- * "999.1.1.1" fails on the first group and "1.2.3.256" on the last, which is
- * the whole point: a group count without a range is what handed those two
- * strings to a real DNS lookup.
- */
-private fun isIpv4Literal(host: String): Boolean {
-    val groups = host.split('.')
-    if (groups.size != V4_GROUP_COUNT) return false
-    return groups.all { group ->
-        group.length in 1..V4_MAX_GROUP_DIGITS &&
-            group.all { it.isDigit() } &&
-            group.toInt() in 0..V4_MAX_GROUP_VALUE
-    }
-}
-
-/**
- * True for colon-separated address text whose first character is a hex digit
- * or ':' and whose remaining characters are hex digits, '.' or ':'.
- *
- * Text that fails the first-character condition — ".1::", "..::1" — is refused
- * here rather than offered to the JDK as a name.
- */
-private fun isIpv6Literal(host: String): Boolean {
-    if (host.isEmpty()) return false
-    val first = host[0]
-    if (!(first.isHexDigit() || first == ':')) return false
-    return host.all { it.isHexDigit() || it == '.' || it == ':' }
-}
-
-/** True for 0-9, a-f and A-F: the digits an address literal is written in. */
-private fun Char.isHexDigit(): Boolean =
-    this in '0'..'9' || this in 'a'..'f' || this in 'A'..'F'

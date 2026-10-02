@@ -26,11 +26,13 @@ import java.util.concurrent.TimeUnit
  * in flight, a later probe of that host must not start a second one. These
  * tests pin it from the outside, through the public answer only.
  *
- * **Every probe of a parked host below moves the fake clock past
- * [TcpConnectivityProbe.CACHE_TTL_MS] first.** A cached `false` is served
- * without touching the pool at all, so a re-probe that never reaches the pool is
- * indistinguishable from a re-probe that was refused - and the defect would be
- * invisible. Expiring the entry is what makes the second probe a real one.
+ * **The clock is moved past [TcpConnectivityProbe.CACHE_TTL_MS] only where a
+ * test needs to be certain its next question reaches the POOL** (`R2`), and
+ * is deliberately left alone where nothing was cached in the first place. A
+ * probe whose budget expired with its lookup still parked is UNANSWERED, and a
+ * probe refused before it ran is UNDIALED: both learned nothing, so neither
+ * stores an entry, and advancing the clock to "expire" one hides a mutant that
+ * caches it rather than exposing it.
  *
  * **These tests wedge a process-wide singleton, so every one of them cleans up
  * in a `finally`:** every latch is released and then the test waits, bounded,
@@ -84,9 +86,14 @@ class TcpConnectivityProbeSingleFlightTest {
                 latches.lookupsOf(WEDGED_HOST),
             )
 
-            // Expire the answer the timed-out probe stored, so the second probe
-            // of the SAME host is a real one and reaches the pool.
-            clock.instant += TcpConnectivityProbe.CACHE_TTL_MS + 1L
+            // No clock move here, and that is the point: the attempt above
+            // ended at the budget with the lookup parked, so it never obtained
+            // an address and never dialled. It is UNANSWERED, and UNANSWERED
+            // caches NOTHING, so there is no entry for the window to expire
+            // and the re-probe below reaches the pool on its own. Advancing
+            // the clock "to be safe against the cache" would instead make a
+            // cache hit impossible, and a wrongly-cached false needs exactly
+            // that to stay unobserved.
             val second = measured { probe.isServerReachable() }
             secondAnswer = second.answer
             assertFalse(
@@ -196,14 +203,21 @@ class TcpConnectivityProbeSingleFlightTest {
 
             // Bounded poll rather than a single retry: the worker may still be
             // finishing the wedged attempt when the latch is released, so the
-            // first poll can legitimately race it. The clock moves past the cache
-            // window on every attempt, because the parked attempt STORED its own
-            // not-reachable answer and a poll served from that entry would be
-            // measuring the cache rather than the recovery.
+            // first poll can legitimately race it.
+            //
+            // The clock is NOT advanced, and that is the point rather than an
+            // omission. The attempt above ended at the budget with the lookup
+            // parked, so it never obtained an address and never dialled: it is
+            // UNANSWERED, and UNANSWERED caches NOTHING. There is no cached
+            // false for the window to expire, and moving the clock past
+            // [TcpConnectivityProbe.CACHE_TTL_MS] on every poll would only hide
+            // a regression that did cache one - it would make a cache hit
+            // impossible, and a wrongly-cached false needs exactly that to
+            // stay unobserved. Leaving the clock still keeps the poll
+            // measuring the recovery.
             val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(RECOVERY_BOUND_MS)
             while (System.nanoTime() < deadline) {
                 attempts++
-                clock.instant += TcpConnectivityProbe.CACHE_TTL_MS + 1L
                 if (probe.isServerReachable()) {
                     recovered = true
                     break
@@ -220,7 +234,7 @@ class TcpConnectivityProbeSingleFlightTest {
             recovered,
         )
         assertTrue(
-            cardFailure("the recovery must come from a DIAL that ran after the release, not from the not-reachable answer the parked attempt stored: no dial to $WEDGED_HOST was recorded at all, over $attempts probes, so ${connector.hosts} cannot have produced the true above"),
+            cardFailure("the recovery must come from a DIAL that ran after the release, and not from any answer that was merely re-served: no dial to $WEDGED_HOST was recorded at all, over $attempts probes, so ${connector.hosts} cannot have produced the true above. An answer that recorded no connection attempt is not a measurement, and serving one for ${TcpConnectivityProbe.CACHE_TTL_MS} ms would be this defect with the dial hidden rather than exposed"),
             dialsToRecoveredHost >= 1,
         )
     }

@@ -1,5 +1,6 @@
 package dev.breaker.dictation.transport
 
+import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.SynchronousQueue
@@ -156,7 +157,8 @@ internal object ProbeExecutor {
      * The key is the HOST ALONE, never host-and-port: the thing that wedges is
      * a per-NAME resolution, and a blackholed resolver wedges that name for
      * every port it appears on. A port in the key would let one wedged name
-     * take the whole cap a port at a time.
+     * take the whole cap a port at a time. The host is also case-folded, so
+     * one wedged name is one key however it was spelled; see [keyFor].
      *
      * **Why [ConcurrentHashMap]'s key set and not a synchronised [java.util.HashSet].**
      * The set is written by whichever caller wins the mark, read by other
@@ -288,14 +290,16 @@ internal object ProbeExecutor {
         try {
             compute()
         } finally {
-            inFlight.remove(host)
+            inFlight.remove(keyFor(host))
         }
 
     /**
      * Runs [task] for [host] on a daemon worker, or reports that there is
      * nowhere to put it - INCLUDING when a lookup for [host] is already parked.
      *
-     * **The key is [host] alone, deliberately, and not host-and-port.** The
+     * **The key is one NAME, deliberately.** [keyFor] folds case, so a host
+     * already being looked up under another spelling is joined rather than
+     * looked up again. And the key is [host] alone, not host-and-port: the
      * thing that wedges is `resolver.resolve(host)`, which takes a name and
      * nothing else. DNS is per-NAME: a blackholed resolver wedges that name
      * for every port it appears on, so a host+port key would let
@@ -333,18 +337,48 @@ internal object ProbeExecutor {
         // Atomic against concurrent callers: exactly one of them wins the
         // absent-to-present transition for this name, and a `false` here means
         // somebody else's lookup for this very name is still parked.
-        if (!inFlight.add(host)) return false
+        val key = keyFor(host)
+        if (!inFlight.add(key)) return false
         val single = Runnable {
             try {
                 task.run()
             } finally {
-                inFlight.remove(host)
+                inFlight.remove(key)
             }
         }
         val started = execute(single)
-        if (!started) inFlight.remove(host)
+        if (!started) inFlight.remove(key)
         return started
     }
+
+    /**
+     * The [inFlight] key for [host]: the name as DNS sees it, not as the
+     * configuration happened to type it.
+     *
+     * DNS names are case-insensitive, and `InetAddress.getAllByName` folds
+     * case before it asks the platform, so "Box.local" and "box.local" are
+     * one name to every resolver that has ever existed. Keying on the raw
+     * text therefore gives ONE wedged name TWO slots and TWO lookups into the
+     * same blackholed resolver - precisely the cap overrun [inFlight] exists to
+     * prevent - and the join never happens either, because the second spelling
+     * is a stranger to the set and is resolved and dialled afresh against a
+     * name already known to be stuck.
+     *
+     * **Locale.ROOT, never a bare [String.lowercase].** Kotlin's no-argument
+     * `lowercase()` uses the DEFAULT locale, and under a Turkish default
+     * locale "I" lowercases to a dotless "ı": "IIS" would become "ııs" and
+     * would NOT equal the "iis" that the same name produces under any other
+     * locale - reintroducing the very split this function removes, invisibly,
+     * and only on the devices whose users would be least likely to explain it.
+     * ROOT is locale-independent, so every device computes the same key.
+     *
+     * Deliberately inside this file, at the point of use, rather than at the
+     * caller: [execute] and [answering] are separate entry points and the
+     * mark has to be removed by the SAME key it was added under, so a caller
+     * that lowercased one call site and not the other would leave a mark that
+     * is never cleared. Folding it in one place makes that impossible.
+     */
+    private fun keyFor(host: String): String = host.lowercase(Locale.ROOT)
 
     /**
      * Claims one of the [MAX_WEDGED_PROBES] slots, or reports that all of them

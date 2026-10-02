@@ -1,43 +1,68 @@
 package dev.breaker.dictation.transport
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 /**
  * What a hung name resolution does to every OTHER probe in the process.
  *
- * The promise under test is the KDoc's own: "Until then, probes for **that
- * address** keep answering from this rule, not from a stale success" (see
- * [TcpConnectivityProbe] lines 31-35). A resolution that never returns is not
- * a property of one address. The worker in [TcpConnectivityProbe] is a
- * companion-object singleton with a queue of one, and an interrupt does not
- * stop a name lookup, so one wedged host parks the ONE thread that serves
- * every probe in the JVM. From that moment a healthy host's probe is not
- * answered by a failed dial - it is never dialled at all, and the domain
- * routes every dictation on-device with no way back.
+ * The promise under test is the one [ProbeExecutor] writes down: a wedged
+ * lookup must be COUNTED AND REPLACED, never waited on, and the damage one hung
+ * name can do must be bounded by [ProbeExecutor.MAX_WEDGED_PROBES] rather than
+ * by whatever the platform feels like doing about the resolver. A resolution
+ * that never returns is not a property of one address: an interrupt does not
+ * stop a name lookup, so the worker inside it stays occupied, and the pool that
+ * serves every probe in this JVM is what keeps that from becoming every
+ * address's problem. From that moment a healthy host's probe can be answered by
+ * a failed dial, or by no dial at all - and the domain routes every dictation
+ * on-device, with no way back short of a process restart.
+ *
+ * **The design these tests describe.** [ProbeExecutor] is a process-wide
+ * daemon worker pool, a slot at a time, with a bounded count of
+ * [ProbeExecutor.MAX_WEDGED_PROBES] task bodies in flight. Three things follow
+ * from that, and all three are exercised below: a wedged lookup is COUNTED so a
+ * spare worker can serve a different address and the count comes back down on
+ * the wedged worker's OWN thread when its lookup returns; a task with nowhere
+ * to go is REFUSED and answered "not reachable" at once rather than queued
+ * behind a wedged task, because there is no queue - a queued task is a task
+ * nobody is going to run; and a later probe of a name already being looked up
+ * starts no second lookup and takes no second slot.
+ *
+ * **The honest remaining limits, which no test here claims away.** Two
+ * DIFFERENT hung names still fill the cap, and from there every further probe is
+ * refused; a network that wedges two names at once is still described as
+ * comprehensively down. And a re-probe of a PARKED host is answered not
+ * reachable with no evidence any dial was attempted, so for as long as that
+ * lookup is parked a host that is merely slow is indistinguishable from one
+ * that is permanently wedged. That is the deliberate price of not spending a
+ * second slot on it, and the alternative is a cap overrun that silences healthy
+ * addresses too.
  *
  * So these tests assert through the PUBLIC behaviour only: what
  * `isServerReachable()` answers for a host that is fine, and how long the
  * caller was kept waiting. Nothing reaches into the executor, and nothing here
  * can tell a real DNS failure from a refusal - the assertion is always made
  * about a host whose dial is scripted CONNECTED, so a `true` is only possible
- * if a dial actually ran.
+ * if a dial actually ran. No real DNS and no real sockets: the resolver is a
+ * fake that blocks, and the connector is the shared [RecordingConnector].
  *
  * **Every test here wedges a process-wide singleton, so every one of them
  * cleans up in a `finally`: release the latch, then wait, bounded, until a
  * known-good probe answers true.** A worker still parked on a latch released
  * only by the test's own exit turns every LATER test in this JVM into a
- * discarded task and a false "not reachable", and the suite goes flaky in
+ * refused task and a false "not reachable", and the suite goes flaky in
  * whichever order JUnit happens to pick. The drain uses a FRESH probe with a
  * FRESH clock on a host nothing has cached, so a `true` can only have come
  * from a dial that really ran on the shared worker.
  *
- * No real DNS and no real sockets: the resolver is a fake that blocks, and the
- * connector is the shared [RecordingConnector]. The only waits here are latch
- * awaits and bounded polling loops; nothing sleeps.
+ * **The cap is read from [ProbeExecutor], never hardcoded**, so these tests
+ * track [ProbeExecutor.MAX_WEDGED_PROBES] instead of pinning a second,
+ * quietly-drifting copy of it.
  */
 class TcpConnectivityProbeWedgedLookupTest {
 
@@ -64,8 +89,7 @@ class TcpConnectivityProbeWedgedLookupTest {
 
             // The same provider, re-pointed. Nothing about the operator's edit
             // changes the worker: this is a fresh question about a different
-            // address, and the cache is keyed on the address, so nothing can be
-            // served from the previous answer.
+            // address, and the cache is keyed on the address.
             address = "https://$HEALTHY_HOST:8443"
             val startedAt = System.nanoTime()
             secondAnswer = probe.isServerReachable()
@@ -101,15 +125,23 @@ class TcpConnectivityProbeWedgedLookupTest {
 
             // Bounded poll rather than a single retry: the worker may still be
             // finishing the wedged attempt when the latch is released, so the
-            // first poll can legitimately race it. The clock is moved past the
-            // cache window on every attempt, because the parked attempt STORED
-            // its own not-reachable answer and a poll served from that entry
-            // would be measuring the cache rather than the recovery.
+            // first poll can legitimately race it, and it is UNDIALED - not
+            // run, not dialled, cached nothing - while this host's own lookup
+            // is still marked in flight.
+            // The clock is NOT advanced here, and that is the point rather than
+            // an omission. The attempt above ended at the budget with the lookup
+            // parked, so it never obtained an address and never dialled: it is
+            // UNANSWERED, and UNANSWERED caches NOTHING (the attempt learned nothing
+            // about the server). There is therefore no cached false for the window
+            // to expire, and moving the clock past [TcpConnectivityProbe.CACHE_TTL_MS]
+            // on every attempt would only hide a regression that did cache one: it makes a cache hit
+            // impossible, which is exactly what a wrongly-cached false needs to
+            // stay unobserved. Leaving the clock still keeps the poll measuring
+            // the recovery.
             val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(RECOVERY_BOUND_MS)
             var attempts = 0
             while (System.nanoTime() < deadline) {
                 attempts++
-                clock.instant += TcpConnectivityProbe.CACHE_TTL_MS + 1L
                 if (probe.isServerReachable()) {
                     recovered = true
                     break
@@ -135,16 +167,18 @@ class TcpConnectivityProbeWedgedLookupTest {
 
     @Test
     fun `probes past the worker and its queue answer not reachable at once and the worker comes back`() {
-        val latches = WedgeResolver().apply { wedge(WEDGED_HOST); wedge(WEDGED_HOST_TWO) }
+        val wedgedHosts = listOf(WEDGED_HOST, WEDGED_HOST_TWO) +
+            (2 until ProbeExecutor.MAX_WEDGED_PROBES).map { index -> "wedged-extra-$index.invalid" }
+        val latches = WedgeResolver().apply { wedgedHosts.forEach { wedge(it) } }
         val clock = FakeClock(1_000L)
         val connector = RecordingConnector(script = listOf(ProbeOutcome.CONNECTED))
         var address = "https://$WEDGED_HOST:8443"
         val probe = TcpConnectivityProbe({ address }, clock, latches.asResolver(), connector)
 
-        // Two wedged hosts is enough to exhaust the singleton and no more: one
-        // occupies the single thread and one fills the single queue slot, so the
-        // next probe has nowhere to go. The list is fixed, not looped, and each
-        // entry is released in the finally - see the class KDoc.
+        // Enough wedged hosts to fill [ProbeExecutor.MAX_WEDGED_PROBES] and no
+        // more, so the next probe has nowhere to go. The cap is read from
+        // production so a change to it is tracked here rather than pinned a
+        // second time; every entry is released in the finally.
         var exhaustedAnswer = true
         var exhaustedElapsedMs = -1L
         var escaped: Throwable? = null
@@ -188,11 +222,10 @@ class TcpConnectivityProbeWedgedLookupTest {
                 exhaustedElapsedMs < RETURN_BOUND_MS,
             )
 
-            // Releasing the RUNNING host does not by itself free the singleton:
-            // the worker simply moves on to the queued one and parks there
-            // again, because the queue is FIFO. So the recovery arm is two
-            // steps, and each is asserted for what it shows - the singleton is
-            // handed from one lookup to the next, and then handed back.
+            // Releasing one parked lookup does not by itself hand the whole cap
+            // back: the count comes down when THAT worker's lookup returns, so
+            // a slot is only free once its own name has been released, so the
+            // recovery arm releases every wedged name.
             latches.release(WEDGED_HOST)
             address = "https://$WEDGED_HOST_TWO:8443"
             latches.release(WEDGED_HOST_TWO)
@@ -222,18 +255,126 @@ class TcpConnectivityProbeWedgedLookupTest {
         )
     }
 
+    // --- T4: neither an unanswered nor an undialled attempt may cache its false --
+
     /**
-     * Waits, bounded, for the one shared probe worker to come back.
+     * That a false learned from nothing is not left behind
      *
-     * The worker in [TcpConnectivityProbe] is a process-wide singleton with a
-     * queue of one, so a worker still parked on a released latch turns every
-     * LATER test in this JVM into a discarded task and a false "not reachable".
-     * Failing loudly here beats letting the next test fail for a reason that
-     * has nothing to do with what it is testing.
+     * "Not reachable" is one word for three facts, and only one of them is a
+     * measurement. A task refused before it ran - because [ProbeExecutor] had
+     * nowhere to put it, or because this host's own lookup is still parked -
+     * obtained no address and dialled nothing: it is UNDIALED. A task whose
+     * budget ran out while its lookup was still parked learned nothing for the
+     * same reason: it is UNANSWERED. Caching either serves it for the whole
+     * [TcpConnectivityProbe.CACHE_TTL_MS] window, and the first question asked
+     * once the host is genuinely there again is answered out of that cache
+     * instead of by a dial: the caller sees a server that has come back as
+     * still down, and the domain routes every dictation on-device for a whole
+     * window.
      *
-     * Each attempt costs at most one budget while the worker is still busy, so
-     * the bound is generous for the several attempts it can take and still
-     * fails rather than hanging when the worker never comes back.
+     * So this is ONE sequence through both, and it is the only observation that
+     * can tell them apart, because both are the same host and both are answered
+     * "not reachable": the lookup is parked and the first question is answered
+     * false AT THE BUDGET (UNANSWERED); while it is STILL parked a
+     * [TcpConnectivityProbe.refresh] - which never serves a cached answer, so
+     * it can hide nothing - is answered false by the single-flight refusal and
+     * must start no second lookup (UNDIALED); the latch is released; and with
+     * the clock untouched a released host must still DIAL.
+     *
+     * **The clock is deliberately NOT moved, and this is the whole point
+     * rather than an omission.** A cached entry whose age is inside
+     * `0 until CACHE_TTL_MS` is FRESH and WILL be served, so holding the clock
+     * still is precisely what makes a wrongly-cached false observable.
+     * Advancing it by [TcpConnectivityProbe.CACHE_TTL_MS] or more - the "be
+     * safe against the cache" instinct - would make a cache hit impossible, and
+     * a wrongly-cached false needs exactly that to stay unobserved: both
+     * observations here vanish behind such a jump, step 1's false under an
+     * implementation that caches UNANSWERED and step 2's under one caching
+     * UNDIALED.
+     *
+     * The poll is bounded in wall-clock time by [RECOVERY_BOUND_MS] instead,
+     * and that is enough: a released lookup resolves on its next poll, and a
+     * poll that loses the race to the still-parked lookup is itself UNDIALED.
+     */
+    @Test
+    fun `a false answered at the budget for a parked lookup is not cached and a released host still dials`() {
+        val latches = WedgeResolver().apply { wedge(WEDGED_HOST) }
+        val connector = RecordingConnector(script = listOf(ProbeOutcome.CONNECTED))
+        val clock = FakeClock(1_000L)
+        val probe = TcpConnectivityProbe({ "https://$WEDGED_HOST:8443" }, clock, latches.asResolver(), connector)
+
+        var refreshElapsedMs = -1L
+        var recovered = false
+        try {
+            // Step 1: the first question, answered at the budget.
+            assertFalse(
+                cardFailure("with the resolution parked there is nothing to answer, so the first question must be not reachable - a true here means the lookup was never actually wedged"),
+                probe.isServerReachable(),
+            )
+            assertTrue(
+                cardFailure("the lookup must still be parked when the first caller was released at the budget, otherwise that false was measured rather than merely unanswered and this test would prove nothing about the budget path"),
+                latches.parked(WEDGED_HOST),
+            )
+
+            // Step 2: the same host, still parked, asked again by a caller that
+            // ignores the cache entirely - so its false can only have come
+            // from the single-flight refusal, and it is UNDIALED.
+            val startedAt = System.nanoTime()
+            assertFalse(
+                cardFailure("the lookup of $WEDGED_HOST is still parked, so a refresh of it has nothing to answer and must say not reachable - a true here means the answer came from a connection attempt against a name known to be stuck"),
+                probe.refresh(),
+            )
+            refreshElapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt)
+            assertTrue(
+                cardFailure("a refresh of a host whose lookup is already parked must be answered AT ONCE and cost nothing: it took ${refreshElapsedMs} ms against a ${TcpConnectivityProbe.CONNECT_TIMEOUT_MS} ms budget, so a second slot was handed to a second lookup of one wedged name rather than the in-flight lookup answering"),
+                refreshElapsedMs < RETURN_BOUND_MS,
+            )
+            assertEquals(
+                cardFailure("a lookup that is already in flight for $WEDGED_HOST must be JOINED, not duplicated: the refresh started a second lookup for a name whose first lookup is still parked, and a second worker is a second slot out of the ${ProbeExecutor.MAX_WEDGED_PROBES} this process allows itself. Lookups of $WEDGED_HOST in total: ${latches.lookupsOf(WEDGED_HOST)}"),
+                1,
+                latches.lookupsOf(WEDGED_HOST),
+            )
+
+            // Step 3: the name comes back.
+            latches.release(WEDGED_HOST)
+
+            // Step 4: the clock stays exactly where it is - see this test's
+            // KDoc. The poll is bounded the way T2's is, so a lookup that
+            // never comes back fails here instead of hanging.
+            val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(RECOVERY_BOUND_MS)
+            var attempts = 0
+            while (System.nanoTime() < deadline) {
+                attempts++
+                if (probe.isServerReachable()) {
+                    recovered = true
+                    break
+                }
+            }
+            if (!recovered) {
+                throw AssertionError(
+                    cardFailure("the lookup was released and the dial is scripted CONNECTED, yet $WEDGED_HOST was still answered not reachable after $RECOVERY_BOUND_MS ms and $attempts probes - with the clock held still inside the cache window, so the only thing that could keep answering false is one of the two steps above having cached a not-reachable answer it never measured: the budget-expired attempt in step 1, or the refused refresh in step 2. A false that was never measured, served for the whole window, is a server that has come back being reported down; recorded dials: ${connector.hosts}"),
+                )
+            }
+        } finally {
+            latches.releaseAll()
+            drainProbeExecutor()
+        }
+
+        assertTrue(
+            cardFailure("the released lookup must be re-probed rather than answered from the cache: the host answered false only because its lookup had not returned yet, and it has now, so the dial that really ran is the only honest source of the answer. Recorded dials: ${connector.hosts}"),
+            connector.hosts.contains(WEDGED_HOST),
+        )
+    }
+
+    /**
+     * Waits, bounded, for the one shared probe pool to come back.
+     *
+     * The pool in [ProbeExecutor] is a process-wide singleton, so a worker still
+     * parked on a released latch turns every LATER test in this JVM into a
+     * refused task and a false "not reachable". Each attempt costs at most one
+     * budget while the pool is still busy, so the bound is generous for the
+     * several attempts it can take and still fails rather than hanging when the
+     * pool never comes back.
      */
     private fun drainProbeExecutor() {
         val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(DRAIN_BOUND_MS)
@@ -249,7 +390,7 @@ class TcpConnectivityProbeWedgedLookupTest {
             if (drain.isServerReachable()) return
         }
         throw AssertionError(
-            cardFailure("the shared probe worker was still busy ${DRAIN_BOUND_MS} ms after this test released its latches, over $attempts attempts - the one thread in [TcpConnectivityProbe] serves every probe in this JVM, so a worker left parked past this test answers false for everything that follows it"),
+            cardFailure("the shared probe pool was still busy ${DRAIN_BOUND_MS} ms after this test released its latches, over $attempts attempts - the one pool in [ProbeExecutor] serves every probe in this JVM, so a worker left parked past this test answers false for everything that follows it"),
         )
     }
 
@@ -263,20 +404,32 @@ class TcpConnectivityProbeWedgedLookupTest {
      * the platform gives up on its own. So this double does what the real thing
      * does — it **ignores the interrupt** the budget's `task.cancel(true)` sends
      * and keeps waiting. A double that honoured the interrupt would let the
-     * worker free itself and the defect under test would not reproduce at all.
+     * worker free itself and the defects under test would not reproduce at all.
      *
-     * Once released, the host resolves to a loopback address carrying its name,
-     * so the connector is offered a real (never dialled) address and a scripted
-     * CONNECTED answer means a genuine success path.
+     * Every host asked about is recorded on the way IN, which is what lets a
+     * test see that a lookup was STARTED - and therefore see that a lookup
+     * refused before it started is absent. Once released, a host resolves to a
+     * loopback address carrying its name, so a scripted CONNECTED answer means
+     * a genuine success path.
      */
     private class WedgeResolver {
         private val latches = LinkedHashMap<String, CountDownLatch>()
+        private val asked = CopyOnWriteArrayList<String>()
 
         /** Wedges [host] until [release] is called, or until the await times out. */
         fun wedge(host: String): CountDownLatch = latches.getOrPut(host) { CountDownLatch(1) }
 
         /** True while [host]'s resolution is still inside its await. */
         fun parked(host: String): Boolean = latches[host]?.let { it.count > 0L } ?: false
+
+        /**
+         * How many lookups of [host] this resolver was actually asked for.
+         *
+         * Recorded on the way in, so a lookup that is refused before it is
+         * started is visibly absent: the only way to start a second lookup is to
+         * reach this resolver at all.
+         */
+        fun lookupsOf(host: String): Int = asked.count { it == host }
 
         fun release(host: String) {
             latches[host]?.countDown()
@@ -288,6 +441,7 @@ class TcpConnectivityProbeWedgedLookupTest {
 
         /** The resolver itself: wedges the scripted hosts, answers the rest. */
         fun asResolver(): HostResolver = HostResolver { host ->
+            asked.add(host)
             latches[host]?.let { latch ->
                 awaitIgnoringInterrupts(latch)
             }
