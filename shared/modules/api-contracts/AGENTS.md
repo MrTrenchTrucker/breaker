@@ -108,7 +108,7 @@ X's existing `/v1/chat/completions` (used separately by `format`) is out of
 scope here.
 
 ## Invariants
-- Spec is machine-validatable (openapi-generator parses clean).
+- Spec is machine-validatable (openapi-generator parses clean). **NOT VERIFIED** — the tool is not in the toolchain; a stdlib structural validator covers the slice's subset.
 - Example request/response for each endpoint (golden WAV included).
 - Client and server generated/stubbed from THIS spec — no drift.
 
@@ -162,4 +162,7 @@ code.
   `project(":shared:modules:api-contracts")` edge while this module
   publishes no artifact; the moment it gains code (applies an artifact
   plugin) the edge becomes required, and the bijection check will then
-  demand it.
+  demand it. **No consumer names the edge yet** (as of slice 1).
+- The `openapi-generator parses clean` invariant is **NOT VERIFIED** — the
+  tool is not in the toolchain; a stdlib structural validator covers the
+  slice's subset.
