@@ -1,12 +1,16 @@
-"""Structural validator tests: openapi.yaml is structurally valid for the OpenAPI 3.x subset.
+"""Structural validator tests: openapi.yaml is structurally valid for the
+OpenAPI 3.x subset.
 
-Each check gets a test watched RED on a mutated copy:
-- missing openapi version
-- missing info.title
-- missing info.version
-- empty paths
-- unresolved $ref
-- missing schema type
+Every check the validator's docstring claims is backed by code in
+validate_spec_structure AND by a test watched RED on a mutated copy of the
+spec:
+- openapi version is 3.x
+- info has title and version
+- paths has at least one path
+- every schema in components/schemas has a type
+- every required name is listed in the schema's properties
+- every $ref in the WHOLE spec resolves (responses, items.$ref,
+  allOf members -- not just response schemas)
 """
 import unittest
 import sys
@@ -20,7 +24,8 @@ from api_contracts_support import load_spec, validate_spec_structure
 
 
 class StructuralValidatorTest(unittest.TestCase):
-    """Tests that the spec is structurally valid."""
+    """Tests that the spec is structurally valid, and that each claimed
+    check fires on a mutated copy."""
 
     @classmethod
     def setUpClass(cls):
@@ -62,16 +67,60 @@ class StructuralValidatorTest(unittest.TestCase):
             validate_spec_structure(spec)
         self.assertIn("paths is empty", str(ctx.exception))
 
-    def test_unresolved_ref_fails(self):
-        """Spec with unresolved $ref fails validation."""
+    def test_unresolved_response_ref_fails(self):
+        """Spec with an unresolved response $ref fails validation."""
         spec = copy.deepcopy(self.spec)
-        # Add a bogus ref
-        spec["paths"]["/v1/audio/transcriptions"]["post"]["responses"]["202"]["content"]["application/json"]["schema"] = {
+        spec["paths"]["/v1/audio/transcriptions"]["post"]["responses"]["202"][
+            "content"]["application/json"]["schema"] = {
             "$ref": "#/components/schemas/NonExistent"
         }
         with self.assertRaises(ValueError) as ctx:
             validate_spec_structure(spec)
         self.assertIn("Unresolved $ref", str(ctx.exception))
+
+    # ------------------------------------------------------------------
+    # The checks the docstring used to claim without implementing.
+    # Each is RED on the e2704fee validator (which had none of them) and
+    # green on the fixed validator.
+    # ------------------------------------------------------------------
+
+    def test_validator_refuses_missing_type(self):
+        """[CHECK-TYPE] A schema without a type is refused."""
+        spec = copy.deepcopy(self.spec)
+        del spec["components"]["schemas"]["Health"]["type"]
+        with self.assertRaises(ValueError) as ctx:
+            validate_spec_structure(spec)
+        self.assertIn("has no type", str(ctx.exception))
+
+    def test_validator_refuses_required_name_absent_from_properties(self):
+        """[CHECK-REQUIRED-IN-PROPERTIES] A required name with no property is refused."""
+        spec = copy.deepcopy(self.spec)
+        spec["components"]["schemas"]["Job"]["required"].append("ghost_field")
+        with self.assertRaises(ValueError) as ctx:
+            validate_spec_structure(spec)
+        self.assertIn(
+            "schema Job: required field 'ghost_field' is not in properties",
+            str(ctx.exception),
+        )
+
+    def test_validator_refuses_dangling_items_ref(self):
+        """[CHECK-REFS] A dangling items.$ref (NOT in a response schema) is refused."""
+        spec = copy.deepcopy(self.spec)
+        segments = spec["components"]["schemas"]["TranscriptionResult"][
+            "properties"]["segments"]
+        segments["items"]["$ref"] = "#/components/schemas/Bogus"
+        with self.assertRaises(ValueError) as ctx:
+            validate_spec_structure(spec)
+        self.assertIn("Unresolved $ref: #/components/schemas/Bogus", str(ctx.exception))
+
+    def test_validator_refuses_dangling_allof_ref(self):
+        """[CHECK-REFS] A dangling allOf member $ref is refused."""
+        spec = copy.deepcopy(self.spec)
+        result = spec["components"]["schemas"]["Job"]["properties"]["result"]
+        result["allOf"][0]["$ref"] = "#/components/schemas/Bogus"
+        with self.assertRaises(ValueError) as ctx:
+            validate_spec_structure(spec)
+        self.assertIn("Unresolved $ref: #/components/schemas/Bogus", str(ctx.exception))
 
 
 if __name__ == "__main__":

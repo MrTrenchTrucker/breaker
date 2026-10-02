@@ -144,6 +144,16 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    JobStatus:
+      type: string
+      enum:
+        - queued
+        - processing
+        - done
+        - failed
+      description: >-
+        The status of a transcription job. Named schema shared by Job and
+        JobAccepted; JobAccepted.status narrows it to [queued].
     JobAccepted:
       type: object
       required:
@@ -154,28 +164,37 @@ components:
           type: string
           description: The unique identifier for the job
         status:
-          type: string
+          allOf:
+            - $ref: "#/components/schemas/JobStatus"
           enum:
             - queued
-          description: The initial status of the job
+          description: >-
+            The initial status of the job. The enum narrows the JobStatus
+            values a 202 may carry to exactly [queued]; a job is accepted as
+            queued and nothing else. The Kotlin side must be JobStatus with
+            the same narrowing at construction.
     Job:
       type: object
       required:
         - status
       properties:
         status:
-          type: string
-          enum:
-            - queued
-            - processing
-            - done
-            - failed
+          allOf:
+            - $ref: "#/components/schemas/JobStatus"
           description: The current status of the job
         result:
           nullable: true
           allOf:
             - $ref: "#/components/schemas/TranscriptionResult"
           description: The transcription result (null until status is "done")
+        error:
+          type: string
+          nullable: true
+          description: >-
+            The failure reason; non-null exactly when status is "failed".
+            This is the contract's failure-reason field: whisper-server
+            surfaces failures as failed with a clear error, and the
+            stt-server client reads it into SttResult.failure.
     TranscriptionResult:
       type: object
       required:
