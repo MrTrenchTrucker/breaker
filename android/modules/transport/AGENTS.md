@@ -111,13 +111,32 @@ agents, not required: an outside contributor may write the code themselves
   no timeout and ignores interrupts, so one hung DNS lookup (captive portal, VPN,
   firewall dropping DNS) can pin a worker. `ProbeExecutor` caps that at
   `MAX_WEDGED_PROBES` (2) and makes lookups for one name single-flight, so a
-  permanently hung host holds at most ONE slot. Two limits remain, both
+  permanently hung host holds at most ONE slot. The cap counts lookups THAT HAVE
+  NOT ANSWERED YET, not lookups in flight generally: a worker hands its slot back
+  the moment it PUBLISHES its answer, not when its task body returns, so a worker
+  that has already answered must never keep the cap full - otherwise a healthy
+  address is refused and answered "not reachable" with no dial, while nothing at
+  all is wedged. **Post-answer work is not bounded:** a body that hangs AFTER
+  answering still holds its thread, and at pool max further probes are refused as
+  not measured until it ends. Today's post-answer work is socket close plus
+  unmark - microseconds, but REASONED, not measured. Two limits also remain, both
   deliberate: **two DIFFERENT hung hosts still fill the cap** and every later
   probe is then refused; and a re-probe of a parked host answers "not reachable"
   at once, so a host that is merely slow is indistinguishable from a permanently
   wedged one for the duration of its lookup - the caller gets that answer with no
   evidence a dial was attempted. That is the price of not spending a second slot;
   the alternative is a cap overrun that silences healthy addresses too.
+  **A refusal names its cause, and the two caps do not share one.** `claim()`
+  hands back a sealed `Claim` - the admission it took, or the cap that stopped
+  it - and names the two caps apart: `NO_FREE_SLOT` when every slot of
+  `MAX_WEDGED_PROBES` is held by a lookup that has not answered, and
+  `NO_FREE_THREAD` when all `POOL_MAX_THREADS` (3) threads are held by bodies
+  that have not ended, which its reason text says out loud. Every refusal means
+  the same thing to a CALLER - nothing was measured, nothing is cached - and a
+  different thing in a report. The claim is taken under ONE lock, so a refused
+  attempt writes nothing, mints no release token, and cannot release a slot it
+  did not hold; the type is sealed, so a cap added later without a branch fails
+  to compile rather than silently misreporting the cause.
 - Speech engines: `core.SttEngine` instances are wired into
   `core.DictateUseCase` by `android/app` (ADR-001), not into this module. It
   never sees an `SttEngine` and never imports `stt-ondevice` or `stt-server`.
