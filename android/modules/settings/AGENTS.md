@@ -70,3 +70,22 @@ agents, not required: an outside contributor may write the code themselves
   `project(":shared:modules:model-registry")` edge here while
   `shared_model_registry` is base-only (it publishes no artifact); the
   moment it gains an artifact plugin the edge becomes required.
+- The device Keystore is **not implemented and not verified** yet. Nothing in
+  this module has been run against Android Keystore; the port carries the credential
+  *reference* only and has no method that can receive or return a secret. The
+  instrumented test that will verify a hardware-backed key is a later change — it
+  belongs in `androidTest`, not `src/test`, and it is the only place that claim can
+  honestly be made.
+- A reference's durability **across a real process restart is NOT VERIFIED**. What the
+  unit tests prove is narrower: that the store routes the reference through the
+  `Keystore` port and never writes it to the settings file. A fake port lives in the
+  same process, so it cannot prove survival across process death — that is the platform
+  Keystore's job, and it arrives with the device implementation.
+- The settings file holds **nine** of the card's ten keys. `api_key` is deliberately
+  absent: the credential reference travels through the `Keystore` port, never through
+  `java.util.Properties`. A reader counting keys will find one short and that is
+  correct.
+- The model id is validated as **non-blank only**. `shared/model-registry` publishes no
+  artifact and no generated constants yet, so there is no id format to check against;
+  validating one here would be inventing a contract the registry does not have. The
+  "not built yet" note above stays true.
