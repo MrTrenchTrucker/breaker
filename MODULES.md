@@ -66,7 +66,7 @@ commands ("copy #27") deferred to v1.2.
 | `gesture` | Shake-to-wake (accelerometer) | `android/modules/gesture/` | Coding |
 | `overlay` | Floating tile = **CB mic glyph** + **LED bar meter** (WindowManager overlay, F36) | `android/modules/overlay/` | Coding |
 | `commit` | CommitService: IME text commit + clipboard fallback | `android/modules/commit/` | Coding |
-| `history` | SQLite transcription history + sync status + **3-month TTL cleanup + tombstones** | `android/modules/history/` | Coding |
+| `history` | SQLite transcription history + **3-month TTL cleanup + tombstones** | `android/modules/history/` | Coding |
 | `settings` | Settings persistence + model registry access | `android/modules/settings/` | Coding |
 | `sync` | Offline-first sync queue → push transcriptions to server | `android/modules/sync/` | Coding |
 | `auth-client` | Login/register, token storage (Android Keystore) | `android/modules/auth-client/` | Coding |

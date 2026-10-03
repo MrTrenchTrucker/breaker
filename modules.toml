@@ -111,7 +111,7 @@ path = "android/modules/history"
 owns = "SQLite transcription history, 3-month TTL cleanup, tombstones."
 does_not_own = "Sync transport (sync); encryption (crypto)."
 depends_on = ["android", "android_core"]
-public = "HistoryStore"
+public = "SqliteHistoryStore (via create), PurgeReport"
 card = "android/modules/history/AGENTS.md"
 
 [module.android_settings]

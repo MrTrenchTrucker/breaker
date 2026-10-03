@@ -10,9 +10,12 @@ compileSdk = "35"
 targetSdk = "35"
 minSdk = "30"
 junit = "4.13.2"
+sqlite-jdbc = "3.53.4.0"
 
 [libraries]
 junit = { module = "junit:junit", version.ref = "junit" }
+# JVM unit tests only (real SQLite for HistorySql); must never be a non-test dependency.
+sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite-jdbc" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
