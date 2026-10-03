@@ -31,23 +31,27 @@ import java.util.concurrent.TimeoutException
  * only when the platform gives up on its own. A budget that expires that way
  * caches nothing either: the probe never learned an answer worth keeping.
  *
- * **A parked lookup's reach is the PROCESS, not the address.** The old KDoc here
- * said probes for that address keep answering from this rule; that was false.
- * An interrupt does not stop a name lookup, so a wedged resolution holds a
- * worker, and what it affects is every other probe in the process: probes of a
- * DIFFERENT address, and later probes of the same one, all go through the same
- * bounded pool. One wedged lookup therefore (a) makes another address's probe
- * wait for a worker rather than dial, and (b) if every worker is wedged,
+ * **A parked lookup's reach is the PROCESS, not the address.** The old KDoc
+ * here said probes for that address keep answering from this rule; that was
+ * false. An interrupt does not stop a name lookup, so a wedged resolution holds
+ * a worker, and what it affects is every other probe in the process: probes of
+ * a DIFFERENT address, and later probes of the same one, all go through the
+ * same bounded pool. One wedged lookup therefore (a) makes another address's
+ * probe wait for a worker rather than dial, and (b) if every worker is wedged,
  * refuses probes outright so they answer "not reachable" without a connection
  * attempt — a healthy server reported down, and the domain routes every
  * dictation on-device. [ProbeExecutor] is what bounds that: each wedged worker
  * is counted so a spare one is created for the next address, and the count
  * comes back down when the lookup finally returns, so the pool recovers without
- * a restart. A lookup that is still in flight also makes a LATER probe of the
- * same host answer "not reachable" at once, with no second lookup: while the
- * name is unresolved there is nothing to dial, and a merely slow host is
- * indistinguishable from a wedged one for the duration - a deliberate price
- * for keeping a slot free for other addresses.
+ * a restart. The cap counts lookups THAT HAVE NOT ANSWERED YET, not lookups in
+ * flight generally: a worker hands its slot back the moment it PUBLISHES its
+ * answer, not when its task body returns, so an already-answered worker must
+ * never keep the cap full - that would make (b) fire and refuse a healthy
+ * address with no dial while nothing at all is wedged. A lookup that is still
+ * in flight also makes a LATER probe of the same host answer "not reachable" at
+ * once, with no second lookup: while the name is unresolved there is nothing to
+ * dial, and a merely slow host is indistinguishable from a wedged one for the
+ * duration - a deliberate price for keeping a slot free for other addresses.
  *
  * **Cache.** One answer is cached for [CACHE_TTL_MS], keyed on the address the
  * configuration resolved to, so editing the server address takes effect
@@ -96,13 +100,13 @@ class TcpConnectivityProbe internal constructor(
      * made and failed, a task that never ran because [ProbeExecutor] had
      * nowhere to put it (every slot held by a lookup that has not returned, or
      * this host's own lookup still parked), and a task that ran but whose
-     * budget expired before it produced anything. All three are correct
-     * answers to a caller's question, and the caller gets one boolean either
-     * way. Only the first is a MEASUREMENT. The other two resolved nothing
-     * and dialled nothing, so there is nothing learned about the server, and
-     * caching either would serve it for [CACHE_TTL_MS] — answering the first
-     * question asked after the host comes back out of that cache instead of
-     * dialling a server that is there again.
+     * budget expired before it produced anything. All three are correct answers
+     * to a caller's question, and the caller gets one boolean either way. Only
+     * the first is a MEASUREMENT. The other two resolved nothing and dialled
+     * nothing, so there is nothing learned about the server, and caching either
+     * would serve it for [CACHE_TTL_MS] — answering the first question asked
+     * after the host comes back out of that cache instead of dialling a server
+     * that is there again.
      *
      * [learned] is what [probeAndStore] keys that decision on. A genuine
      * failure — a real socket refused, a name that does not resolve, a body
@@ -168,18 +172,16 @@ class TcpConnectivityProbe internal constructor(
      * retrying immediately. Like [isServerReachable], it answers false rather
      * than throwing for the same four server-side failures.
      *
-     * This is the one caller that reaches [probeAndStore] with
-     * `allowFreshCache = false`, so a cached answer — however fresh — never
-     * short-circuits it; it answers from the probe it just ran.
-     *
-     * **The exceptions, honestly stated.** It dials whenever a dial can be
-     * MADE, and it produces no answer to keep in two cases: no worker is
-     * available at all ([ProbeExecutor] at
+     * This is the one caller that reaches [probeAndStore] with `allowFreshCache
+     * = false`, so a cached answer — however fresh — never short-circuits it;
+     * it answers from the probe it just ran. **The exceptions, honestly
+     * stated.** It dials whenever a dial can be MADE, and it produces no answer
+     * to keep in two cases: no worker is available at all ([ProbeExecutor] at
      * [ProbeExecutor.MAX_WEDGED_PROBES], or this host's own lookup still in
-     * flight), or the budget runs out before the task produces one. Both answer
-     * false, and — because neither learned anything about the server — both
-     * cache nothing. The next question asked once the lookup returns is a real
-     * probe and really dials.
+     * flight - see the class KDoc), or the budget runs out before the task
+     * produces one. Both answer false, and — because neither learned anything
+     * about the server — both cache nothing. The next question asked once the
+     * lookup returns is a real probe and really dials.
      */
     fun refresh(): Boolean {
         val target = target() ?: return false
@@ -264,24 +266,21 @@ class TcpConnectivityProbe internal constructor(
      * there is no waiting, and "not reachable" is answered at once. The same
      * answer comes back, for the same reason and at the same cost, when a
      * lookup for this host is ALREADY in flight: the host's NAME is the key
-     * (case-folded - see [ProbeExecutor]), so a
-     * second probe of a wedged host neither starts a second lookup nor spends
-     * a second of the cap, leaving the remaining slots to other addresses. The
-     * task wraps its body in [ProbeExecutor.answering] so that mark ends when
-     * THIS answer is produced, not after the worker tidies up - otherwise the
-     * next back-to-back probe of a host just answered would be refused and
-     * report a healthy server down. The wait below therefore happens only for
-     * a task that really is running, and stays bounded by the same budget.
+     * (case-folded - see [ProbeExecutor]), so a second probe of a wedged host
+     * neither starts a second lookup nor spends a second of the cap, leaving
+     * the remaining slots to other addresses. The task wraps its body in
+     * [ProbeExecutor.answering] so that mark ends when THIS answer is produced,
+     * not after the worker tidies up - for the reason given in the class KDoc.
+     * The wait below therefore happens only for a task that really is running,
+     * and stays bounded by the same budget.
      */
     private fun runProbe(target: Target): ProbeAttempt {
         val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(CONNECT_TIMEOUT_MS)
         val task = FutureTask { ProbeExecutor.answering(target.host) { connect(target, deadline) } }
         if (!ProbeExecutor.execute(target.host, task)) {
-            // Either every worker is held by a lookup that has not returned, or
-            // this host's own lookup is still parked. In both cases no
-            // connection was attempted. Answering now is the honest answer and
-            // keeps the caller inside its budget - and UNDIALED, so the caller
-            // caches nothing on the strength of it.
+            // No connection was attempted. Answering now is the honest answer
+            // and keeps the caller inside its budget - and UNDIALED, so the
+            // caller caches nothing on the strength of it.
             return ProbeAttempt.UNDIALED
         }
         val remainingNanos = deadline - System.nanoTime()
@@ -289,15 +288,10 @@ class TcpConnectivityProbe internal constructor(
             task.get(remainingNanos, TimeUnit.NANOSECONDS)
         } catch (_: TimeoutException) {
             // The budget is spent and the task is still running, so nothing is
-            // known: the address that would have been dialled was never
-            // obtained, and the connection that would have been made was never
-            // established. The parked worker is told to stop, but it ends on
-            // its own terms - a blocking socket call is not guaranteed to
-            // react to an interrupt - so whatever it eventually produces is
-            // not an answer this caller ever sees. UNANSWERED, and the caller
-            // caches nothing on the strength of it: a false that was never
-            // measured, served for the whole window, is the same defect as
-            // caching a refusal.
+            // known: see [ProbeAttempt.UNANSWERED]. The parked worker is told
+            // to stop, but it ends on its own terms - a blocking socket call is
+            // not guaranteed to react to an interrupt - so whatever it
+            // eventually produces is not an answer this caller ever sees.
             task.cancel(true)
             return ProbeAttempt.UNANSWERED
         } catch (_: ExecutionException) {
