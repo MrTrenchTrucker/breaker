@@ -15,7 +15,8 @@ sealed agent-token results (ADR-018).
 ## Public Interface `core.SyncService` port.
 
 **Queue:**
-- Rows in the history SQLite store carry `sync_status = pending|synced`.
+- The sync module keeps its own queue of pending transcriptions: `core.SyncService.enqueue` fills it and
+  `pushPending` drains it. Rows in the history SQLite store carry no `sync_status`.
 - A background worker pushes pending transcriptions to `POST /v1/sync` whenever
   the server is reachable (reuses the transport probe).
 - **Idempotent (N12):** each push carries a `client_id` and the record's

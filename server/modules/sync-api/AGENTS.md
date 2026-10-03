@@ -142,7 +142,7 @@ here (N13).
   to state, not this module's to paper over. Logged as an event (F32).
 - `POST /v1/admin/clear-store` — **admin-only**: clear transcriptions per-user
   or for all users, with confirmation (F29, T23). Tombstones propagate to phones.
-- Retention: transcriptions TTL = **3 months**; purge job enforces it (F28).
+- Retention: transcriptions TTL = **3 months** (ADR-010 precise rule); purge job enforces it (F28).
 - **Log policy (F32):** events only, per-user — auth, admin actions, queue
   health. **Never plaintext transcriptions** (T22).
 - **Multi-admin config:** concurrent edits to the transcription service config
