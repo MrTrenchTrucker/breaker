@@ -1,11 +1,10 @@
 package dev.breaker.dictation.transport
 
-import java.util.Locale
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.SynchronousQueue
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -18,84 +17,77 @@ import java.util.concurrent.atomic.AtomicInteger
  * captive portal or a VPN mid-handshake parks its thread until the platform
  * gives up on its own terms. Under the single worker + queue of one this
  * replaced, one such lookup parked the ONE thread that served every probe in
- * the JVM; the next task filled the single queue slot, and from then on every
- * probe — every address, every instance, every later call — was refused without
- * a connection attempt and answered "not reachable". The domain read that as
- * "the server is down" and routed on-device, with no way back short of a
- * process restart. So a wedged worker must be **counted and replaced**, not
- * waited on: the count is what lets the pool grow to [MAX_WEDGED_PROBES], and
- * the count comes back down on its own so a released lookup leaves the pool
- * whole again. The pool itself is built one thread larger than that cap, so
- * the cap is upheld by [claim] - code this module owns - rather than by the
- * JDK's rejection path; see [CAP_HEADROOM_THREADS].
+ * the JVM, and every later probe was refused without a connection attempt and
+ * answered "not reachable" — which the domain read as "the server is down" and
+ * routed on-device, with no way back short of a process restart. So a wedged
+ * worker must be **counted and replaced**, not waited on, and two counters are
+ * what make that replacement honest: [MAX_WEDGED_PROBES] for the slot,
+ * [POOL_MAX_THREADS] for the thread.
  *
- * **The cap.** [MAX_WEDGED_PROBES] is 2. One worker is the one wedged lookup; the
- * second is what keeps a healthy address dialable while the first is stuck —
- * a captive portal that swallows DNS for one address must not be able to
- * silence a different, perfectly good address. Two is also the point at which
- * "the network stack is comprehensively down" is a better description than
- * "another address needs probing": beyond a wedged lookup AND a concurrent
- * healthy probe, every further simultaneous hang is the same dead network seen
- * again (a captive portal AND a VPN AND a mistyped address all at once), and a
- * probe that cannot get a worker answers "not reachable" immediately, which is
- * the honest answer for that state. Two also bounds the damage when every
- * lookup hangs forever: however many hang, at most [MAX_WEDGED_PROBES] task
- * bodies are ever in flight, never an unbounded pile. (The JDK pool is sized
- * one thread above the cap so [claim] is the only gate; that spare thread
- * stays idle and is never given a task, because a third task never gets past
- * [claim].)
+ * **TWO counters, released at TWO different moments. This asymmetry is the
+ * design, and collapsing it is the defect.**
  *
- * **At the cap the answer is "not reachable", at once.** [execute] returns
- * false rather than throwing, and never runs the task on the calling thread.
- * A CallerRunsPolicy — the obvious alternative for a rejecting pool — would
- * move an unbounded, uninterruptible lookup onto exactly the caller this pool
- * exists to protect, who is supposed to return within
- * [TcpConnectivityProbe.CONNECT_TIMEOUT_MS]. The caller turns a false into "not
- * reachable" without a connection attempt ever being made.
+ *  - [occupied] — the SLOT. Admitted and not yet ANSWERED. Given back at
+ *    PUBLISH, by [answering]'s `finally`, which runs before the value it
+ *    produced can be observed by anybody. A worker that has answered holds
+ *    nothing worth counting, however long its own bookkeeping takes to unwind,
+ *    so the next healthy name is not refused behind a finished lookup.
+ *  - [bodies] — the THREAD. Held by any running body, answered or not. Given
+ *    back when the BODY ENDS - it returns, or it throws - in the submitted
+ *    wrapper's `finally`.
  *
- * **How the count moves.** [occupied] is the number of tasks handed to the
- * pool and not yet finished, wedged or merely in flight:
+ * They are deliberately not the same moment. A body that has published its
+ * answer but is still inside its own task really is occupying an OS thread the
+ * pool cannot hand to anybody else, so releasing the thread at publish would
+ * let the pool over-subscribe itself into a rejection; and a body that has NOT
+ * yet answered is genuinely still looking, so holding its slot past the answer
+ * is what made a healthy address answer "not reachable" with no dial.
  *
- *  - up: [execute] claims a slot with a CAS loop before submitting, so the
- *    count can never exceed [MAX_WEDGED_PROBES] and a rejected submit gives the
- *    slot straight back.
- *  - down: the submitted wrapper decrements in a `finally`, so it runs on the
- *    wedged worker's OWN thread the moment the lookup returns — or the moment
- *    a task that was cancelled before it started declines to run. A lookup that
- *    returns hands its worker back and a later probe runs on it; the pool never
- *    needs to grow a fresh thread to recover from a transient wedge.
+ * **Admission needs BOTH, together.** [claim] checks the slot and the thread
+ * under ONE lock and takes both or neither. Separate checks would not be a
+ * style question: two callers could each pass one condition and fail the
+ * other, and both proceed, so the bound this file promises would hold by luck.
+ * A refused attempt leaves both counters exactly as it found them, because
+ * nothing is written until both conditions have passed.
  *
- * **Per-host single-flight.** The cap alone is not enough: two probes of the
- * SAME host, seconds apart, each start their own lookup, and two parked
- * lookups for one unreachable name consume the whole cap - after which a
- * perfectly healthy server is answered "not reachable" without a dial and the
- * domain routes every dictation on-device. So while a lookup for a host is in
- * flight, a later probe of that host is answered not reachable AT ONCE and
- * starts no second lookup and takes no second slot. One permanently hung host
- * therefore holds at most ONE of the [MAX_WEDGED_PROBES] slots, and the other
- * stays available to every other address. See the keyed [execute].
+ * **The SLOT cap.** [MAX_WEDGED_PROBES] is 2: one wedged lookup, plus one
+ * healthy address that must still be dialled — a captive portal that swallows
+ * DNS for one address must not be able to silence a different, perfectly good
+ * one. Two is also the point at which "the network stack is comprehensively
+ * down" describes the state better than "another address needs probing", and
+ * it bounds the damage when every lookup hangs forever: however many hang, at
+ * most [MAX_WEDGED_PROBES] UNANSWERED bodies are ever in flight.
  *
- * **What single-flight does NOT fix.** It is a bound on the damage ONE wedged
- * name can do, not a cure for wedged lookups, and both remaining limits are
- * real:
+ * **The THREAD cap** is [POOL_MAX_THREADS] — the cap plus its one headroom
+ * thread, which is the pool's own `maximumPoolSize`. It is the count of bodies
+ * that have started and not yet ended, and it exists because the slot cap
+ * alone cannot see post-answer work. The bound it enforces is the one the JDK
+ * pool would enforce anyway, one layer up: a body handed a thread it does not
+ * give back is a thread the next probe cannot have.
  *
- *  - Two DIFFERENT hung hosts still fill the cap of [MAX_WEDGED_PROBES], and
- *    from there every further probe is refused. Single-flight stops a repeat of
- *    ONE host; it does not admit a third distinct one. A network that wedges
- *    two names at once is still described as comprehensively down.
- *  - A re-probe of a parked host answers not reachable at once BY DESIGN, so
- *    for as long as that lookup is parked a host that is merely SLOW is
- *    indistinguishable from one that is permanently wedged, and the caller
- *    receives that answer with no evidence any dial was attempted. That is the
- *    price of not spending a second slot, and it is paid deliberately: the
- *    alternative is a cap overrun that silences healthy addresses too.
+ * **At either cap the answer is "not reachable", at once.** [execute] returns
+ * false rather than throwing, and never runs the task on the calling thread:
+ * a CallerRunsPolicy would move an unbounded, uninterruptible lookup onto
+ * exactly the caller this pool exists to protect. The caller turns a false
+ * into "not reachable" without a connection attempt ever being made.
+ *
+ * **The honest limit: post-answer work is not bounded.** A body that hangs
+ * after answering holds its thread, and at [POOL_MAX_THREADS] further probes
+ * are refused as not measured until it ends. Today's post-answer work is
+ * socket close + unmark (microseconds; reasoned, not measured).
+ *
+ * **A refusal is NOT MEASURED and is NEVER CACHED.** [Refusal] names the cause,
+ * and every one of its cases means the same thing to a caller: nothing was
+ * looked up and nothing was dialled, so nothing was learned about the server.
+ * The caller maps the whole family to its undialed shape, which is keyed on
+ * "learned = false" and therefore stores nothing; see [Refusal]. Thread
+ * saturation is one member of that family, not a reachability verdict.
  *
  * **Process-wide, and never shut down.** This is a file-level singleton on
  * purpose: an executor per probe instance would multiply threads — and file
  * descriptors — by the number of probes built, and nothing ever tears a probe
  * down, so a per-instance executor could only ever leak. Nothing owns this
- * pool's lifetime, so it is never shut down; the threads are daemon threads, so
- * a live worker cannot hold up process exit.
+ * pool's lifetime, so it is never shut down; the threads are daemon threads,
  */
 internal object ProbeExecutor {
 
@@ -103,40 +95,42 @@ internal object ProbeExecutor {
      * The most probe tasks this pool will run at once, wedged ones included.
      *
      * 2: one wedged lookup, plus one healthy address that must still be
-     * dialled. It must cover the realistic concurrent hangs without allowing
-     * unbounded thread growth if EVERY lookup hangs forever. See the object
-     * KDoc for why the third simultaneous hang is answered "not reachable"
-     * rather than given a third thread.
+     * dialled; see the object KDoc for why the number is two.
      *
      * This cap is a PROMISE this module makes and enforces, not a consequence
-     * of how the pool happens to be sized. It is upheld solely by [claim],
-     * whose CAS loop is the only thing that can refuse a task - the worker
-     * pool is deliberately one thread larger than this constant (see
-     * [CAP_HEADROOM_THREADS]) precisely so the JDK's own rejection is never
-     * the thing holding the line. Were the pool sized to this cap instead, the
-     * bound would hold by luck of the pool's internals, the constant would not
-     * be load-bearing, and a test could not tell "correctly refused" from
-     * "accidentally refused", so removing [claim]'s guard would change nothing
-     * observable.
+     * of how the pool happens to be sized: [claim] is the only thing that can
+     * refuse a task, because the pool is deliberately one thread larger than
+     * this constant (see [CAP_HEADROOM_THREADS]) so the JDK's own rejection is
+     * never the thing holding the line.
      */
     const val MAX_WEDGED_PROBES: Int = 2
 
     /**
      * Threads the JDK pool is allowed beyond [MAX_WEDGED_PROBES].
      *
-     * Exactly one, and it is load-bearing. The bound this class promises is
-     * enforced by [claim], in code this module owns and can test. If the
-     * pool's `maximumPoolSize` were the cap itself, the JDK would silently be
-     * the thing refusing overflow work: [execute] would return the same
-     * `false` for "cap reached" as for "pool saturated", with the task body
-     * never run under either path and nothing to distinguish them. That makes
-     * [MAX_WEDGED_PROBES] an accident of pool sizing rather than a promise -
-     * and a neutralised [claim] guard would be undetectable. With one spare
-     * thread the JDK always accepts a task [claim] lets through, so the ONLY
-     * possible refuser is [claim], and "the task body did not run" becomes
-     * evidence about our code.
+     * Exactly one, and it is load-bearing: it is what makes [claim] the only
+     * refuser, so a task [claim] admits always has a worker and the
+     * [RejectedExecutionException] catch in [execute] is a backstop behind it
+     * rather than the mechanism. Sized to the cap instead, the JDK would refuse
+     * overflow work indistinguishably from a cap refusal and a neutralised
+     * [claim] guard would be undetectable.
      */
     private const val CAP_HEADROOM_THREADS: Int = 1
+
+    /**
+     * The pool's `maximumPoolSize`, and the ceiling [bodies] is checked
+     * against at admission. It is [MAX_WEDGED_PROBES] plus its headroom.
+     *
+     * **This is a check, not a sizing.** [bodies] counts bodies that have
+     * started and not yet ended, so the thread bound and the pool's own ceiling
+     * are the same number from two directions: the pool would refuse to grow
+     * past it, and [claim] has already refused a body that would have. Because
+     * [bodies] only ever rises for a body the pool accepted, [claim] admits on
+     * `bodies < POOL_MAX_THREADS` exactly the tasks the pool can run - which is
+     * what makes the [RejectedExecutionException] catch in [execute] a genuine
+     * backstop rather than the load-bearing refusal.
+     */
+    private const val POOL_MAX_THREADS: Int = MAX_WEDGED_PROBES + CAP_HEADROOM_THREADS
 
     /**
      * How long a worker that has FINISHED a task waits for the next one before
@@ -147,66 +141,92 @@ internal object ProbeExecutor {
      */
     private const val WORKER_IDLE_MS = 30_000L
 
-    /** Tasks handed to the pool and not yet finished; the wedged count. */
+    /** Why an admission was refused, and what a caller is to conclude. */
+    internal enum class Refusal(private val explanation: String) {
+        /** Every slot of [MAX_WEDGED_PROBES] is held by a body that has not answered. */
+        NO_FREE_SLOT("no free probe slot: every slot is held by a lookup that has not answered"),
+
+        /** Every thread of [POOL_MAX_THREADS] is held by a body that has not ended. */
+        NO_FREE_THREAD(
+            "no free probe worker thread: thread saturation - every thread is held by a task body that has not ended",
+        ),
+
+        /** This host's own lookup is already in flight. */
+        HOST_IN_FLIGHT("this host's lookup is already in flight"),
+
+        /**
+         * The pool's rejection handler refused the submit after [claim] let it
+         * through; kept because our accounting and the JDK's are independent.
+         */
+        POOL_REJECTED("the probe worker pool rejected the task after admission"),
+        ;
+
+        /**
+         * What refused the task, in words. A caller that reports this is
+         * reporting that NOTHING was measured.
+         */
+        fun reason(): String = explanation
+    }
+
+    /** The one lock both admission checks are taken under; see [claim]. */
+    private val admission = Any()
+
+    /** Tasks admitted and not yet ANSWERED; the wedged count. */
     private val occupied = AtomicInteger(0)
 
     /**
-     * The names whose lookup is in flight right now, and so already hold a
-     * slot of [occupied].
-     *
-     * The key is the HOST ALONE, never host-and-port: the thing that wedges is
-     * a per-NAME resolution, and a blackholed resolver wedges that name for
-     * every port it appears on. A port in the key would let one wedged name
-     * take the whole cap a port at a time. The host is also case-folded, so
-     * one wedged name is one key however it was spelled; see [keyFor].
-     *
-     * **Why a [ConcurrentHashMap] and not a synchronised [java.util.HashSet].**
-     * The map is written by whichever caller wins the mark, read by other
-     * callers deciding whether to answer at once, and mutated on worker threads
-     * as lookups return. All three happen concurrently, and the decision that
-     * matters - the absent-to-present transition for a name - has to be a
-     * SINGLE atomic step, or two callers could both see the name absent, both
-     * start a lookup, and both take a slot, which is the defect this map exists
-     * to prevent. Hand-rolled synchronisation around a plain set would have to
-     * be right at every one of those sites, and the failure mode of getting it
-     * wrong is a silent cap overrun.
-     *
-     * **Why the value is a mark object and not a unit.** The name alone cannot
-     * identify who is allowed to clear it. Between [answering]'s removal and
-     * the keyed [execute]'s backstop, another probe of the SAME name can claim
-     * its own mark, and an unkeyed removal cannot tell the two apart - it would
-     * clear the LATER probe's mark while that probe's lookup was still parked,
-     * admitting a second lookup of a wedged name and two slots out of
-     * [MAX_WEDGED_PROBES]. So each admission puts a FRESH identity here, and
-     * both of [execute]'s removals are conditional on that exact identity
-     * ([ConcurrentHashMap.remove] with both key and value), which succeeds only
-     * while the very mark that put the entry there is still the one present.
-     *
-     * Deliberately NOT cleared by a caller that has given up waiting: see the
-     * keyed [execute].
+     * Task bodies that have STARTED and not yet ENDED, answered or not; the
+     * thread count. Ceilinged by [POOL_MAX_THREADS] at admission and given back
+     * by the submitted wrapper's `finally`, when the body ends - NOT at publish.
+     * See the object KDoc for why the two counters end at different moments.
      */
-    private val inFlight: ConcurrentHashMap<String, Any> = ConcurrentHashMap<String, Any>()
+    private val bodies = AtomicInteger(0)
+
+    /**
+     * The [SlotRelease] of the admission this thread is currently running, or
+     * null when this thread is not running an admitted body.
+     *
+     * **Why a thread-local and not a parameter.** [answering] is called from
+     * INSIDE the body - that is what makes it run before the value escapes -
+     * and its signature is fixed by [TcpConnectivityProbe] and by the tests
+     * that pin the mark's lifetime. Threading a token through it would hand
+     * every caller a value it has no use for, and a caller that dropped it
+     * would silently reintroduce this defect. So the wrapper publishes its own
+     * token here for the length of its body and [answering] reads it.
+     *
+     * Deliberately NOT [java.lang.InheritableThreadLocal]: inheriting hands a
+     * child's thread the PARENT's slot, so an [answering] call there would
+     * release a DIFFERENT admission's slot. With a plain [ThreadLocal] a body
+     * that moves the work to another thread finds no token, releases nothing,
+     * and the real wrapper's backstop still covers the admission. Finding no
+     * token is always safe; finding the wrong one is not.
+     *
+     * [ThreadLocal.withInitial] with null, NOT the no-argument constructor: the
+     * no-arg [ThreadLocal] calls `initialValue()` on an unset read and the JDK's
+     * implementation THROWS there. `get()` must be safe on any thread not
+     * running a body - which is exactly the case the reasoning above leans on
+     * - so it has to return null rather than throw.
+     */
+    private val runningSlot: ThreadLocal<SlotRelease?> =
+        ThreadLocal.withInitial<SlotRelease?> { null }
 
     /** Numbers the daemon threads so a wedged worker is identifiable in a dump. */
     private val started = AtomicInteger(0)
 
     /**
      * The worker pool, sized at [MAX_WEDGED_PROBES] PLUS one thread
-     * ([CAP_HEADROOM_THREADS]).
+     * ([CAP_HEADROOM_THREADS]) — the same number as [POOL_MAX_THREADS].
      *
-     * That extra slot is intentional and is not slack in the cap. With a
-     * [SynchronousQueue] the JDK starts a thread per submitted task up to
-     * `maximumPoolSize`, so sizing the pool at exactly [MAX_WEDGED_PROBES]
-     * would let `ThreadPoolExecutor` enforce the cap in place of [claim] -
-     * invisibly, and identically to the correct refusal, which is to say not
-     * at all distinguishably. One thread of headroom means any task [claim]
-     * admits is guaranteed a worker, so [claim] is the sole gate at the
-     * boundary and the behaviour under that boundary is observable from
-     * outside this file.
+     * That extra slot is not slack in the cap; see [CAP_HEADROOM_THREADS].
+     * [SynchronousQueue] is what makes the sizing matter at all: with it the
+     * JDK starts a thread per submitted task up to `maximumPoolSize`, so a pool
+     * sized at exactly [MAX_WEDGED_PROBES] would let `ThreadPoolExecutor` enforce
+     * the cap in place of [claim] - invisibly, and identically to the correct
+     * refusal, which is to say not at all distinguishably.
      */
     private val pool = ThreadPoolExecutor(
         0,
-        MAX_WEDGED_PROBES + CAP_HEADROOM_THREADS,
+        POOL_MAX_THREADS,
         WORKER_IDLE_MS,
         TimeUnit.MILLISECONDS,
         // A direct handoff: an idle worker takes the task itself, and when
@@ -225,18 +245,84 @@ internal object ProbeExecutor {
             }
         },
         { _, _ ->
-            // The backstop behind [occupied], kept as defence in depth. Under
-            // normal operation this is UNREACHABLE: the pool carries one more
-            // thread than [MAX_WEDGED_PROBES] (see [CAP_HEADROOM_THREADS]), so
-            // every task [claim] admits has a worker waiting for it and the JDK
-            // has no reason to refuse. It stays because the accounting and the
-            // pool's thread count are two independent mechanisms, and if they
-            // were ever to disagree this is what stops an unbounded pile of
-            // threads. Throwing is safe because [execute] turns it into
-            // `false` and no caller ever sees it.
+            // The backstop behind [bodies], kept as defence in depth. Under
+            // normal operation this is UNREACHABLE: [claim] refuses a body once
+            // [bodies] reaches [POOL_MAX_THREADS], which is this pool's own
+            // `maximumPoolSize`, so the JDK has no reason to refuse a task
+            // [claim] admitted. It stays because the accounting and the pool's
+            // thread count are two independent mechanisms, and if they were ever
+            // to disagree this is what stops an unbounded pile of threads.
+            // Throwing is safe because [execute] turns it into a refusal and no
+            // caller ever sees an exception.
             throw RejectedExecutionException("probe worker pool is saturated")
         },
     )
+
+    /**
+     * The once-only right to give back the one slot of [occupied] that one
+     * admission holds.
+     *
+     * **Why a token at all, given there is only one count.** Two paths must be
+     * able to release - [answering], for a body that answered, and the wrapper's
+     * `finally`, for one that never did - and both belong to the SAME admission.
+     * The hazard is real: a decrement that runs twice drives [occupied] below
+     * zero, after which [claim]'s `occupied >= MAX_WEDGED_PROBES` guard is
+     * satisfied by a negative number and the cap silently rises above its
+     * promise, forever, with nothing to report it.
+     *
+     * **Why a double release is structurally impossible, not unlikely.**
+     * [released] is a compare-and-set on a field only this object can reach,
+     * and the decrement sits INSIDE the branch that wins it. So the second
+     * caller - whichever path it is, in whatever order they race - observes
+     * `released == true`, takes the other branch, and never touches [occupied].
+     * No interleaving has both seeing `false`: CAS admits exactly one winner.
+     * This is also what makes the wrapper's backstop SAFE to keep: it is
+     * reachable where the answer already released the slot, and is a no-op
+     * there rather than a second decrement.
+     *
+     * **One token per [claim], never reused.** [executeReporting] mints one only
+     * after a successful claim, so a refused admission holds no slot, has no
+     * token, and cannot release one.
+     */
+    private class SlotRelease {
+        /** Flips exactly once, by exactly one caller; see the class KDoc. */
+        private val released = AtomicBoolean(false)
+
+        /**
+         * Gives this admission's slot back, if it has not already been given
+         * back. Never throws and never touches [occupied] twice.
+         */
+        fun release() {
+            if (released.compareAndSet(false, true)) {
+                synchronized(admission) { occupied.decrementAndGet() }
+            }
+        }
+    }
+
+    /**
+     * The once-only right to give back the one thread of [bodies] that one
+     * admission holds.
+     *
+     * The same hazard and the same shape as [SlotRelease] — a second decrement
+     * would drive [bodies] below zero and lift [POOL_MAX_THREADS] off its
+     * promise — but a DIFFERENT release moment, and that is the point. This is
+     * called from the wrapper's `finally` and nowhere else: a body that has
+     * published its answer still holds its thread until it ends.
+     *
+     * One token per [claim], like [SlotRelease]: a refused admission has none
+     * and cannot release one.
+     */
+    private class BodyRelease {
+        /** Flips exactly once, by exactly one caller; see the class KDoc. */
+        private val released = AtomicBoolean(false)
+
+        /** Gives this admission's thread back, if it has not already been. */
+        fun release() {
+            if (released.compareAndSet(false, true)) {
+                synchronized(admission) { bodies.decrementAndGet() }
+            }
+        }
+    }
 
     /**
      * Runs [task] on a daemon worker, or reports that there is nowhere to put
@@ -251,28 +337,56 @@ internal object ProbeExecutor {
      * how many bodies run at once and nothing more. A resolution-plus-connect
      * task must use the keyed overload below, or it can duplicate a lookup that
      * is already parked; see the object KDoc.
+     *
+     * **Where the two counters come back.** [SlotRelease] is released as the
+     * answer is published - the release that matters, since a worker holding an
+     * answer nobody needs is not a cost - and again in the wrapper's `finally`,
+     * which is a no-op wherever the first ran. [BodyRelease] is released ONLY
+     * in that `finally`: the thread is really busy until the body ends.
      */
-    fun execute(task: Runnable): Boolean {
-        if (!claim()) return false
+    fun execute(task: Runnable): Boolean = executeReporting(task) == null
+
+    /**
+     * The shape behind [execute], naming the refusal instead of flattening it to
+     * a `false`: null when the body was admitted and started, the [Refusal] that
+     * stopped it otherwise. [claim] supplies that cause, so each cap is named
+     * rather than folded into one.
+     */
+    internal fun executeReporting(task: Runnable): Refusal? {
+        // `held`, not `admission`: a local of that name shadows the lock both
+        // checks are taken under, and an edit meaning the lock would get this.
+        val held = when (val claim = claim()) {
+            is Claim.Refused -> return claim.cause
+            is Claim.Granted -> claim.admission
+        }
         return try {
             pool.execute {
+                // Published before the body so [answering] can find it, and
+                // cleared in the `finally` so a reused worker never sees the
+                // previous task's token.
+                runningSlot.set(held.slot)
                 try {
                     task.run()
                 } finally {
-                    // On the worker's own thread, so the slot comes back the
-                    // instant the lookup returns - whether it returned an
-                    // answer, threw, or was cancelled before it ran.
-                    occupied.decrementAndGet()
+                    runningSlot.remove()
+                    // The two releases are in this order deliberately: the slot
+                    // first, so a body that HAS answered is already un-counted
+                    // by the time its thread is handed back, and the thread last,
+                    // because the thread is busy until this line.
+                    held.slot.release()
+                    held.body.release()
                 }
             }
-            true
+            null
         } catch (_: RejectedExecutionException) {
             // The handler above - unreachable while [CAP_HEADROOM_THREADS]
-            // holds, but wired for the case where it does not. Give the slot
-            // straight back, or the count would stay pinned at the cap with
-            // nothing running and every later probe refused.
-            occupied.decrementAndGet()
-            false
+            // holds, but wired for the case where it does not. Give both
+            // counters straight back, or they would stay pinned with nothing
+            // running and every later probe refused. The body never ran, so
+            // these tokens' only release is this one.
+            held.slot.release()
+            held.body.release()
+            Refusal.POOL_REJECTED
         }
     }
 
@@ -295,144 +409,90 @@ internal object ProbeExecutor {
      * interrupt from the caller's budget does not stop a name lookup, so
      * [compute] simply has not returned and this `finally` has not run. The
      * mark therefore still covers exactly the window in which the lookup is
-     * genuinely outstanding.
+     * genuinely outstanding. See [ProbeSingleFlight] for the precondition this
+     * relies on.
      *
-     * **Precondition.** Call this only from inside the body of a task that the
-     * keyed [execute] started FOR THE SAME NAME. That is what makes the plain
-     * unkeyed removal below correct rather than merely convenient: [answering]
-     * runs INSIDE that task, on the worker holding the present mark, so the
-     * mark it removes is unambiguously its own. While that mark is present no
-     * other caller can put a mark for the same name into [inFlight] - the keyed
-     * [execute] admits a name only on an absent-to-present transition, and the
-     * entry is present for exactly as long as this call runs. So there is no
-     * window in which the removal below could discard somebody else's mark.
-     * Called for a name this task does not hold the mark for - a stray call, or
-     * a task started under one spelling and answered under another - it would
-     * instead evict an unrelated probe's live mark, which is the defect the
-     * keyed removals in [execute] exist to prevent.
+     * **The SLOT goes here too, and ONLY here.** This is the release the card
+     * is about: the wrapper's `finally` runs after
+     * [java.util.concurrent.FutureTask.set] has handed the caller its answer, so
+     * a worker that has ALREADY answered still counted against
+     * [MAX_WEDGED_PROBES], and the next probe of a healthy name was refused with
+     * no lookup and no dial. Releasing here ties the slot to the ANSWER exactly
+     * as it ties the mark.
+     *
+     * The release goes through the admission's own [SlotRelease], published by
+     * [executeReporting] in [runningSlot] - the same right the wrapper's backstop
+     * holds, not a second decrement. Off a worker running no admitted body
+     * there is no token, which is inert: the count stays with whoever does own
+     * the slot. The THREAD is deliberately NOT released here; see the object
+     * KDoc.
      */
     fun <T> answering(host: String, compute: () -> T): T =
         try {
             compute()
         } finally {
-            inFlight.remove(keyFor(host))
+            ProbeSingleFlight.releaseMark(host)
+            // Null off a worker running no admitted body: nothing to release.
+            runningSlot.get()?.release()
         }
 
     /**
      * Runs [task] for [host] on a daemon worker, or reports that there is
      * nowhere to put it - INCLUDING when a lookup for [host] is already parked.
      *
-     * **The key is one NAME, deliberately.** [keyFor] folds case, so a host
-     * already being looked up under another spelling is joined rather than
-     * looked up again. And the key is [host] alone, not host-and-port: the
-     * thing that wedges is `resolver.resolve(host)`, which takes a name and
-     * nothing else. DNS is per-NAME: a blackholed resolver wedges that name
-     * for every port it appears on, so a host+port key would let
-     * `a.invalid:8443` park and then admit `a.invalid:9443` as a different key
-     * and refill the cap - the same defect by another route. This key therefore
-     * differs on purpose from the CACHE key in [TcpConnectivityProbe], which is
-     * host+port: the cache answers "is this ADDRESS reachable", while this map
-     * guards a per-NAME resource. One resource, one key.
-     *
-     * **Where the mark is cleared.** Its lifetime must be the ANSWER's, not the
-     * task's: a caller that already holds a result must not be able to block
-     * the next probe of that host. So a task that produces a value wraps its
-     * body in [answering], whose `finally` runs BEFORE the value reaches the
-     * caller's waiter, and that is the mark's real end. The wrapper `finally`
-     * here is the backstop for the paths where no value is ever produced -
-     * cancelled before it started, or a body that never ran [answering] - and
-     * on every path where the task never runs at all: a refused claim or a
-     * rejected submit removes it in this function. Each of this function's two
-     * removals is CONDITIONAL on the mark this admission installed - it
-     * removes the name only while that exact mark is still the one present -
-     * so the backstop clears its OWN entry and never a mark that has since
-     * been handed to a later probe of the same name. An unkeyed removal there
-     * would clear exactly that: [answering] releases a name as soon as an
-     * answer exists, which is before this task body has returned, so the
-     * window between the two is one in which another probe of the same name is
-     * legitimately admitted and holds its own mark. Missing the submit-side
-     * removal is strictly worse than the defect this prevents, because the
-     * host would stay marked for the life of the process, never be probed
-     * again, and have every answer look like a legitimate "not reachable".
-     *
-     * **Where the mark is NOT cleared: the caller's timeout.** The caller
-     * answers its own budget with `cancel(true)`, and cancel only INTERRUPTS -
-     * the callable keeps running on the wedged worker. Releasing the mark there
-     * would admit the next probe to start a second lookup of a name whose first
-     * lookup is still parked, which is the whole bug. The mark belongs to the
-     * TASK's lifetime, not to the caller's wait.
-     *
-     * See "What this does not fix" on the object for the honest limit.
+     * The mark, the key and the removal rules live in [ProbeSingleFlight]; this
+     * is the boolean face of it, kept because [TcpConnectivityProbe] and the
+     * tests call this name. See [executeReporting] for the refusal-naming
+     * shape behind it.
      */
-    fun execute(host: String, task: Runnable): Boolean {
-        // Atomic against concurrent callers: exactly one of them wins the
-        // absent-to-present transition for this name, and a `false` here means
-        // somebody else's lookup for this very name is still parked.
-        val key = keyFor(host)
-        // A fresh identity per admission, so this task can later prove the mark
-        // it installed is still the one present before clearing it.
-        val mark = Any()
-        if (inFlight.putIfAbsent(key, mark) != null) return false
-        val single = Runnable {
-            try {
-                task.run()
-            } finally {
-                // Both key AND mark: unconditional removal here would clear a
-                // LATER probe's mark for this name, whose lookup is still
-                // parked, admitting a second lookup of a wedged name.
-                inFlight.remove(key, mark)
+    fun execute(host: String, task: Runnable): Boolean =
+        executeReporting(host, task) == null
+
+    /**
+     * The refusal-naming shape of the keyed [execute]; see [executeReporting].
+     */
+    internal fun executeReporting(host: String, task: Runnable): Refusal? =
+        ProbeSingleFlight.submit(host, task)
+
+    /**
+     * Both admission checks, both taken, or neither - and WHICH refused: the two
+     * caps mean the same thing to a caller and different things in a report, so
+     * they cannot share one answer.
+     *
+     * **A refused attempt changes NOTHING.** Both conditions are tested before
+     * either counter is written, so there is no partial update to undo: a
+     * refused caller took no slot and no thread, so it has no token to release
+     * and cannot release someone else's.
+     */
+    private fun claim(): Claim =
+        synchronized(admission) {
+            if (occupied.get() >= MAX_WEDGED_PROBES) {
+                return@synchronized Claim.Refused(Refusal.NO_FREE_SLOT)
             }
+            if (bodies.get() >= POOL_MAX_THREADS) {
+                return@synchronized Claim.Refused(Refusal.NO_FREE_THREAD)
+            }
+            occupied.incrementAndGet()
+            bodies.incrementAndGet()
+            Claim.Granted(Admission(SlotRelease(), BodyRelease()))
         }
-        val started = execute(single)
-        if (!started) inFlight.remove(key, mark)
-        return started
-    }
 
     /**
-     * The [inFlight] key for [host]: the name as DNS sees it, not as the
-     * configuration happened to type it.
-     *
-     * DNS names are case-insensitive, and `InetAddress.getAllByName` folds
-     * case before it asks the platform, so "Box.local" and "box.local" are
-     * one name to every resolver that has ever existed. Keying on the raw
-     * text therefore gives ONE wedged name TWO slots and TWO lookups into the
-     * same blackholed resolver - precisely the cap overrun [inFlight] exists to
-     * prevent - and the join never happens either, because the second spelling
-     * is a stranger to the map and is resolved and dialled afresh against a
-     * name already known to be stuck.
-     *
-     * **Locale.ROOT, spelled out.** Kotlin's no-argument `lowercase()` is
-     * already ROOT, so that spelling is not a bug either; naming the locale
-     * makes the independence something a reader checks, not something they
-     * must remember about the language. The hazard is a fold consulting the
-     * DEFAULT locale - the deprecated `toLowerCase()`, which looks like the
-     * modern spelling and is not, or `lowercase(Locale.getDefault())`: a
-     * Turkish default folds "IIS" to "ııs", not the "iis" it makes elsewhere.
-     *
-     * Deliberately inside this file, at the point of use, rather than at the
-     * caller: [execute] and [answering] are separate entry points and the
-     * mark has to be removed by the SAME key it was added under, so a caller
-     * that lowercased one call site and not the other would leave a mark that
-     * is never cleared. Folding it in one place makes that impossible.
+     * [claim]'s whole answer: the [Admission] it took, or the [Refusal] that
+     * stopped it. A refused [Claim] carries no [Admission], so no token is
+     * minted and nothing can be released - the property naming the cause must
+     * not cost.
      */
-    private fun keyFor(host: String): String = host.lowercase(Locale.ROOT)
+    private sealed interface Claim {
+        /** Both counters were taken; the two once-only rights to give them back. */
+        data class Granted(val admission: Admission) : Claim
 
-    /**
-     * Claims one of the [MAX_WEDGED_PROBES] slots, or reports that all of them
-     * are held by tasks that have not finished.
-     *
-     * A CAS loop rather than a plain `incrementAndGet` so the cap is enforced
-     * under concurrency: two callers racing at the last slot cannot both take
-     * it, and neither can push the count past the cap and leave it there when
-     * the pool refuses their task.
-     */
-    private fun claim(): Boolean {
-        while (true) {
-            val held = occupied.get()
-            if (held >= MAX_WEDGED_PROBES) return false
-            if (occupied.compareAndSet(held, held + 1)) return true
-        }
+        /** Nothing was taken; [cause] names the cap that stopped the attempt. */
+        data class Refused(val cause: Refusal) : Claim
     }
+
+    /** What one successful [claim] hands back: the once-only right to release. */
+    private class Admission(val slot: SlotRelease, val body: BodyRelease)
 }
 
 /** Daemon thread name prefix for the probe workers; descriptive, never exposed. */
