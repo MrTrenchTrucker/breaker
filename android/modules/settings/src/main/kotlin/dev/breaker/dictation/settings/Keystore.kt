@@ -9,13 +9,13 @@ package dev.breaker.dictation.settings
  * restart, and no file is involved on either side of that. [activeRef] is asked
  * on *every* [SettingsFileStore.load] path, missing file included, which is
  * what makes the reference recoverable even when there is no file to recover it
- * from — `SettingsPersistenceTest.a missing file still reports the reference
- * the port remembers` and `an empty file still reports the reference the port
+ * from — `SettingsDefaultsTest.a missing file still reports the reference the
+ * port remembers` and `an empty file still reports the reference the port
  * remembers` are the proof.
  * [SettingsFileStore.save] is the only caller that moves it.
  * [SettingsFileStore.save] calls [setActiveRef] *after* the file has been
  * written and closed, so a save that throws cannot leave the port advertising a
- * reference that was never stored — `SettingsPersistenceTest` proves both the
+ * reference that was never stored — `SettingsWriteFailureTest` proves both the
  * propagation and the ordering.
  *
  * **This port cannot receive or return a secret.** There is no method here that
@@ -26,11 +26,17 @@ package dev.breaker.dictation.settings
  * would prove that come with that work.
  *
  * **No class under `src/main` implements this port yet.**
- * `SettingsNoFallbackTest` proves that: it builds the settings store over a
- * fake port and asserts that the production source tree contains no
- * implementation, so a store cannot be constructed without a reference port
- * supplied. There is no default, no internal stand-in and no no-argument
- * store constructor that would quietly skip the reference path.
+ * `SettingsNoFallbackTest` proves that, and it proves it by **scanning the
+ * compiled classes**, not by reading source and not by building a store over a
+ * fake: the compiled output location comes from a class's own `CodeSource`
+ * (which may be an exploded directory or a packaged jar), every `.class` under
+ * it is loaded, and those assignable to this port are required to be none. The
+ * same scan run over the test class output must find the fake port, so a scan
+ * that saw nothing could not pass as a scan that found nothing wrong. What it
+ * also proves is that every compiled store constructor and factory takes this
+ * port, so a store cannot be constructed without a reference port supplied.
+ * There is no default, no internal stand-in and no no-argument store
+ * constructor that would quietly skip the reference path.
  */
 interface Keystore {
 

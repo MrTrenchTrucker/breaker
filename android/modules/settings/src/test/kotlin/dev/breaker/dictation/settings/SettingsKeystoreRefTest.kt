@@ -93,8 +93,8 @@ class SettingsKeystoreRefTest {
 
         assertEquals("the saved key set", THE_NINE_KEYS, rawKeysOf(file))
         assertTrue(
-            "a credential-like key was written",
-            rawKeysOf(file).intersect(CREDENTIAL_LIKE_KEYS).isEmpty(),
+            "a credential-like key was written: ${rawKeysOf(file)}",
+            credentialLikeKeysIn(rawKeysOf(file)).isEmpty(),
         )
     }
 
@@ -160,7 +160,7 @@ class SettingsKeystoreRefTest {
         )
         assertTrue(
             "a credential-like key reached the file: ${rawKeysOf(file)}",
-            rawKeysOf(file).intersect(CREDENTIAL_LIKE_KEYS).isEmpty(),
+            credentialLikeKeysIn(rawKeysOf(file)).isEmpty(),
         )
         assertFalse(
             "the reference reached the settings file as plaintext",

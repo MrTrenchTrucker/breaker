@@ -41,7 +41,7 @@ import java.util.Properties
  * error — [load] yields core's own defaults for the nine file-backed keys *and*
  * the reference the [keystore] port remembers. A file that does not exist says
  * nothing about the credential, so the port answers for it;
- * `SettingsPersistenceTest.a missing file still reports the reference the port
+ * `SettingsDefaultsTest.a missing file still reports the reference the port
  * remembers` is the proof, and it asserts the nine defaults in the same breath.
  *
  * **IO failures propagate.** [save] does not catch, swallow or log-and-continue
@@ -73,13 +73,13 @@ class SettingsFileStore(
      * reference, so the port does, on this path and on every other one. A
      * present but damaged file is read key by key: an unparsable value, one
      * core rejects, or a logical line the format's own parser rejects costs
-     * that key its default and nothing else — `SettingsValidationTest` and
-     * `SettingsPersistenceTest`.
+     * that key its default and nothing else — `SettingsFallbackIsolationTest`
+     * for the first two and `SettingsDamagedTextTest` for the third.
      *
      * The credential reference is not in the file, so it comes from the
      * [keystore] port — the only place it was ever written. It is read once,
      * before the file is touched, so no condition below can substitute another
-     * source for it; `SettingsPersistenceTest.a missing file still reports the
+     * source for it; `SettingsDefaultsTest.a missing file still reports the
      * reference the port remembers` and its empty-file twin are the proof.
      */
     override fun load(): AppSettings {
@@ -100,7 +100,7 @@ class SettingsFileStore(
      * is split into the format's LOGICAL lines here and each is parsed on its
      * own into a throwaway [Properties]; a logical line the parser rejects costs
      * that key — and the continuation lines that belong to it — and nothing else.
-     * `SettingsPersistenceTest` plants the bad escape first and last in the file
+     * `SettingsDamagedTextTest` plants the bad escape first and last in the file
      * and requires the other eight keys both times.
      *
      * **A byte-order mark is not a key.** One leading U+FEFF is dropped first.
@@ -123,9 +123,15 @@ class SettingsFileStore(
     }
 
     /**
-     * [text] split the way the format defines a line: at a newline, except that a
+     * [text] split the way the format defines a line: at any of the three
+     * terminators the format accepts (see [LINE_TERMINATOR]), except that a
      * physical line ending in an odd number of backslashes continues onto the
      * next one and loses that final backslash.
+     *
+     * **A continuation is joined across whichever terminator came before it.**
+     * The rule is applied to the piece, not to a character the piece was cut
+     * on, so a value wrapped at a bare CR joins exactly as one wrapped at `\n`
+     * does; only the split in [LINE_TERMINATOR] knows about terminators.
      *
      * **A comment or a blank line never continues**, however many backslashes it
      * ends with. The format settles comment-ness when a logical line starts — a
@@ -136,25 +142,27 @@ class SettingsFileStore(
      * would read as the comment it starts with, so the key on the line after it
      * would be gone with nothing to show for it. Getting this wrong would split a
      * wrapped value and drop every key after it, so it is exercised directly by
-     * `SettingsPersistenceTest` and by `SettingsDamagedTextTest`, which covers
-     * both directions: a comment ending in a backslash and one that does not.
+     * `SettingsDamagedTextTest`, which covers both directions: a comment ending
+     * in a backslash and one that does not.
      */
     private fun logicalLines(text: String): List<String> {
         val lines = mutableListOf<String>()
         val current = StringBuilder()
-        for (physical in text.split('\n')) {
-            val line = physical.removeSuffix("\r")
+        for (physical in text.split(LINE_TERMINATOR)) {
             // Comment-ness is settled where a logical line STARTS. Inside a
             // continued line a `#` is part of the value — the format has
             // already passed its comment decision — so the exception below is
             // scoped to `current.isEmpty()` and a wrapped value keeps its `#`.
-            if (current.isEmpty() && neverContinues(line)) {
-                lines += line
+            if (current.isEmpty() && neverContinues(physical)) {
+                lines += physical
                 continue
             }
             // A continued line's leading whitespace is layout, not value: the
             // format drops it, so it is dropped here too.
-            current.append(if (current.isEmpty()) line else line.trimStart(' ', '\t', '\u000C'))
+            current.append(
+                if (current.isEmpty()) physical
+                else physical.trimStart(' ', '\t', '\u000C'),
+            )
             if (endsWithUnescapedBackslash(current)) {
                 current.deleteCharAt(current.length - 1)
             } else {
@@ -228,5 +236,30 @@ class SettingsFileStore(
 
         /** A UTF-8 byte-order mark, carried by some editors and none of our keys. */
         const val BOM = "\uFEFF"
+
+        /**
+         * Where a physical line ends: CRLF, a lone CR, or a lone LF — all three
+         * are terminators to `java.util.Properties`, so all three are terminators
+         * here too.
+         *
+         * **THE ORDER OF THE ALTERNATION IS LOAD-BEARING: CRLF FIRST.**
+         * These alternatives are tried left to right at each position and the
+         * first match wins, so with a bare-CR alternative first the CR of a
+         * CRLF would match on its own, and the LF after it would then match as
+         * a terminator of its own — so what follows is an EMPTY piece, not a
+         * piece that begins with a stray LF. That empty piece is emitted as a
+         * line of its own, so every CRLF-terminated entry is followed by a
+         * BLANK line. A blank line costs no key, which is what makes it a quiet
+         * defect — but it also ends the continuation that reaches it, so a
+         * joined address is cut short and the remainder becomes a line of its
+         * own, the same damage as any other blank line. That would be a
+         * regression introduced while fixing the lone-CR case this regex exists
+         * to handle.
+         *
+         * Written as one alternation with the order on its face rather than as a
+         * chain of `removeSuffix` calls, so the invariant is readable here
+         * instead of being spread across three statements.
+         */
+        val LINE_TERMINATOR = Regex("\r\n|\r|\n")
     }
 }

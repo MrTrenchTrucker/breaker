@@ -75,7 +75,10 @@ class SettingsPersistenceTest : SettingsFileStoreTestBase() {
         val keys = rawPropertiesOf(file).stringPropertyNames()
 
         assertEquals("the saved key set", THE_NINE_KEYS, keys)
-        assertTrue("a credential-like key was written: $keys", keys.intersect(CREDENTIAL_LIKE_KEYS).isEmpty())
+        assertTrue(
+            "a credential-like key was written: $keys",
+            credentialLikeKeysIn(keys).isEmpty(),
+        )
     }
 
     @Test

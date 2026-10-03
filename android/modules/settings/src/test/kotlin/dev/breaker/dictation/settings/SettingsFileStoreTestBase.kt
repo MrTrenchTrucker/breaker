@@ -41,10 +41,27 @@ internal val THE_NINE_KEYS: Set<String> = setOf(
     KEY_THEME_MODE,
 )
 
-/** Every key a saved settings file may carry that must never mention a credential. */
-internal val CREDENTIAL_LIKE_KEYS: Set<String> = THE_NINE_KEYS.filterTo(mutableSetOf()) {
-    it.contains("api", ignoreCase = true) || it.contains("key", ignoreCase = true) || it.contains("token", ignoreCase = true)
-}
+/**
+ * Substrings that make a property key credential-shaped, matched
+ * case-insensitively. `secret` and `password` belong here for the same reason
+ * `api` does; the earlier filter checked only the first three, which is part
+ * of what this guard now covers.
+ */
+internal val CREDENTIAL_LIKE_SUBSTRINGS: List<String> =
+    listOf("api", "key", "token", "secret", "password")
+
+/**
+ * The credential-shaped keys among [keys] — where [keys] are the keys parsed
+ * out of a file on disk, never the keys the writer believed it wrote.
+ *
+ * The input has to come from the file. A guard handed the writer's own key
+ * list can only ever see its own output, so it can never catch a key the
+ * writer never intended to write, which is the only thing it is here for.
+ */
+internal fun credentialLikeKeysIn(keys: Collection<String>): Set<String> =
+    keys.filterTo(mutableSetOf()) { key ->
+        CREDENTIAL_LIKE_SUBSTRINGS.any { key.contains(it, ignoreCase = true) }
+    }
 
 /**
  * Shared fixture for the settings-file test classes.

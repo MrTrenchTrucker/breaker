@@ -166,7 +166,7 @@ class SettingsValidationTest : SettingsFileStoreTestBase() {
 
         val loaded = store(file).load()
 
-        // M10 witness: the exact default "" here is what tells isNullOrBlank from isNullOrEmpty.
+        // The exact default "" here is what tells isNullOrBlank from isNullOrEmpty.
         assertEquals("server address", AppSettings().serverUrl, loaded.serverUrl)
         // Consistency check only: hasServerUrl is isNotBlank(), false for a tab under either guard.
         assertEquals("a whitespace address is not a configured address", false, loaded.hasServerUrl)
