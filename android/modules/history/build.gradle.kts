@@ -37,4 +37,6 @@ dependencies {
     implementation(project(":android:modules:core"))
 
     testImplementation(libs.junit)
+    // Test-only: runs HistorySql on the desktop SQLite; never shipped.
+    testImplementation(libs.sqlite.jdbc)
 }
