@@ -31,15 +31,27 @@ internal class InMemoryHistoryDatabase : HistoryDatabase {
         rows[row.id] = row
     }
 
+    // Each `id` tiebreak below is ordered by UTF-8 bytes and unsigned, which is
+    // what BINARY collation does to the shipped `ORDER BY ... , id`. A Kotlin
+    // `String` comparison would walk UTF-16 code units instead and, for an id
+    // holding a character above the basic multilingual plane, name a different
+    // winner than the SQL it stands in for. `HistoryTiebreakAgreementTest` and
+    // its two siblings hold the two to the same order.
     override fun newest(limit: Int): List<TranscriptionRow> = rows.values
-        .sortedWith(compareByDescending<TranscriptionRow> { it.createdAt }.thenByDescending { it.id })
+        .sortedWith(
+            compareByDescending<TranscriptionRow> { it.createdAt }
+                .then(Utf8TextOrder.byId<TranscriptionRow> { it.id }.reversed()),
+        )
         .take(limit)
 
     override fun deleteById(id: String): Boolean = rows.remove(id) != null
 
     override fun idsCreatedBefore(cutoff: Long): List<String> = rows.values
         .filter { RetentionBoundary.isExpired(it.createdAt, cutoff) }
-        .sortedWith(compareBy<TranscriptionRow> { it.createdAt }.thenBy { it.id })
+        .sortedWith(
+            compareBy<TranscriptionRow> { it.createdAt }
+                .then(Utf8TextOrder.byId<TranscriptionRow> { it.id }),
+        )
         .map { it.id }
 
     override fun deleteCreatedBefore(cutoff: Long): Int =
@@ -50,7 +62,10 @@ internal class InMemoryHistoryDatabase : HistoryDatabase {
     }
 
     override fun newestTombstones(limit: Int): List<Tombstone> = tombstones.values
-        .sortedWith(compareByDescending<Tombstone> { it.deletedAt }.thenByDescending { it.id })
+        .sortedWith(
+            compareByDescending<Tombstone> { it.deletedAt }
+                .then(Utf8TextOrder.byId<Tombstone> { it.id }.reversed()),
+        )
         .take(limit)
 
     override fun deleteTombstonesRecordedBefore(cutoff: Long): Int {
