@@ -35,10 +35,22 @@ internal class EnergyVad(
     frameSizeSamples: Int = DEFAULT_FRAME_SAMPLES,
     /** A frame is speech when it is this far above the tracked floor. */
     private val speechMarginDb: Float = DEFAULT_SPEECH_MARGIN_DB,
-    /** The floor may rise by this much per frame, so a loud passage cannot inflate it. */
-    private val floorRisePerFrameDb: Float = DEFAULT_FLOOR_RISE_DB,
-    /** Speech that ends is held this long before the detector calls it over. */
-    private val hangoverFrames: Int = DEFAULT_HANGOVER_FRAMES,
+    /**
+     * The floor may rise by this much per frame, so a loud passage cannot inflate it.
+     *
+     * Derived from [DEFAULT_FLOOR_RISE_DB_PER_SECOND] and the analysis window
+     * rather than stated per frame: a frame is 20 ms at 16 kHz and 6.67 ms at
+     * 48 kHz, so one number per frame is one number per second only at the rate
+     * it was chosen for.
+     */
+    private val floorRisePerFrameDb: Float = floorRiseDbPerFrameOf(sampleRateHz, frameSizeSamples),
+    /**
+     * Speech that ends is held this long before the detector calls it over.
+     *
+     * Derived from [DEFAULT_HANGOVER_MS] for the same reason: a hangover counted
+     * in frames bridges the gap between words at one rate and not at another.
+     */
+    private val hangoverFrames: Int = framesForMs(DEFAULT_HANGOVER_MS, sampleRateHz, frameSizeSamples),
     /** Padding kept on each side of the retained span, so word edges survive. */
     private val padMs: Long = DEFAULT_PAD_MS,
     /** Speech shorter than this is treated as a cough or a door, not a dictation. */
@@ -225,17 +237,31 @@ internal class EnergyVad(
     }
 
     companion object {
-        /** 20 ms at 16 kHz. */
+        /**
+         * The analysis window, in samples: 20 ms at 16 kHz.
+         *
+         * Stated in samples rather than derived from the rate because the window
+         * has to be a whole number of samples at whatever rate the caller runs.
+         * Every other duration in this class is converted from milliseconds, so
+         * an overridden window keeps them in milliseconds as well: the rise and
+         * the hangover are read off this window rather than counted out on it.
+         */
         const val DEFAULT_FRAME_SAMPLES: Int = 320
 
         /** Speech must clear the floor by this many decibels. */
         const val DEFAULT_SPEECH_MARGIN_DB: Float = 8f
 
-        /** How fast the floor is allowed to rise, in decibels per frame. */
-        const val DEFAULT_FLOOR_RISE_DB: Float = 0.5f
+        /**
+         * How fast the floor is allowed to rise, in decibels per second.
+         *
+         * Per second and not per frame so the floor climbs at the same rate
+         * whatever the window is: 25 dB/s is 0.5 dB on a 20 ms frame, 1.0 dB on a
+         * 40 ms one and 0.167 dB on a 6.67 ms one.
+         */
+        const val DEFAULT_FLOOR_RISE_DB_PER_SECOND: Float = 25f
 
         /** 200 ms of hangover bridges the gap between words. */
-        const val DEFAULT_HANGOVER_FRAMES: Int = 10
+        const val DEFAULT_HANGOVER_MS: Long = 200L
 
         /** Padding on each side of the retained span. */
         const val DEFAULT_PAD_MS: Long = 120L
@@ -261,5 +287,51 @@ internal class EnergyVad(
          * does not.
          */
         const val DEFAULT_MAX_NOISE_FLOOR_DB: Float = -25f
+
+        /**
+         * Whole analysis windows in [ms], at least one.
+         *
+         * Rounded up, because a hangover that lands a fraction of a window short
+         * bridges less than [ms] and the shortfall is in the direction that cuts
+         * a word in half. Zero is not a meaningful answer either: it would drop
+         * the hangover rather than shorten it, so a caller asking for no
+         * hangover says so with the field, not with a duration.
+         *
+         * A window or a rate that is not positive has no length to convert, and
+         * that combination is refused at construction — but the refusal lives in
+         * the constructor body, which runs after this default is evaluated, so
+         * the shortest hold is returned here and the refusal is what the caller
+         * is left with. Throwing from here would report the wrong field: this
+         * helper is only reached through the constructor, which names every
+         * field it refuses and why.
+         */
+        private fun framesForMs(ms: Long, sampleRateHz: Int, frameSizeSamples: Int): Int {
+            if (frameSizeSamples <= 0 || sampleRateHz <= 0) return 1
+            val denominator = frameSizeSamples * 1000L
+            return maxOf(1L, (ms * sampleRateHz + denominator - 1) / denominator).toInt()
+        }
+
+        /**
+         * The per-frame step that climbs at [DEFAULT_FLOOR_RISE_DB_PER_SECOND]
+         * over one window.
+         *
+         * Derived from the window rather than stated per frame so the climb is
+         * the same speed in wall-clock terms at every sample rate: the rate is
+         * per second and a frame lasts `frameSizeSamples / sampleRateHz` of one,
+         * so on a 6.67 ms window at 48 kHz the same 25 dB/s is 0.167 dB a frame,
+         * not the 0.5 dB that 25 dB/s happens to be at 16 kHz.
+         *
+         * Tolerates a non-positive rate for the same reason as
+         * [framesForMs]: there is no frame duration to scale by, the value is
+         * never read because construction refuses that rate, and a rate of zero
+         * would otherwise make the division non-finite.
+         */
+        private fun floorRiseDbPerFrameOf(
+            sampleRateHz: Int,
+            frameSizeSamples: Int,
+        ): Float {
+            if (sampleRateHz <= 0) return 0f
+            return DEFAULT_FLOOR_RISE_DB_PER_SECOND * frameSizeSamples.toFloat() / sampleRateHz.toFloat()
+        }
     }
 }
