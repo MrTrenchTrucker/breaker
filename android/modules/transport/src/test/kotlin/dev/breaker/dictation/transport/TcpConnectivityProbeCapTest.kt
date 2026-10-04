@@ -61,7 +61,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * No real DNS and no real sockets: every wait is a bounded latch await or a
  * bounded poll; nothing sleeps.
  */
-class TcpConnectivityProbeCapTest {
+class TcpConnectivityProbeCapTest : ProbePoolIsolation() {
 
     // --- the cap is the number, not just "there is a number" --------------------
 

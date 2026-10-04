@@ -51,8 +51,15 @@ import java.util.concurrent.atomic.AtomicInteger
  * the submitted wrapper's `finally` hands the counters back, so a single
  * immediate attempt could lose that race on a loaded machine and report a leak
  * that is not there.
+ *
+ * **And teardown states the postcondition rather than repairing it.** There is
+ * nothing here to release - this class holds no latch and parks no worker - so
+ * its `@After` only confirms the pool is idle once the class is done. That is
+ * worth saying out loud rather than leaving implicit, because the pool is
+ * process-wide: a counter this class failed to return would be reported by
+ * whichever class happens to run next, with no way to name the culprit.
  */
-class TcpConnectivityProbeThrowingConnectTest {
+class TcpConnectivityProbeThrowingConnectTest : ProbePoolIsolation() {
 
     @Test
     fun `a connect that throws answers not reachable and leaves the pool serving`() {

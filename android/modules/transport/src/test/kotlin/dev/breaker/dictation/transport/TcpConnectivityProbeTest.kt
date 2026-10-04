@@ -22,7 +22,7 @@ import org.junit.Test
  * prove it does - a test that waited on the clock to time out a stalled dial
  * would pass against code with no timeout at all.
  */
-class TcpConnectivityProbeTest {
+class TcpConnectivityProbeTest : ProbePoolIsolation() {
 
     // --- What each dial outcome means -------------------------------------------------
 

@@ -1,6 +1,5 @@
 package dev.breaker.dictation.transport
 
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -28,13 +27,17 @@ import java.util.concurrent.atomic.AtomicInteger
  * only user is the test. So this test observes the accounting through its
  * consequence instead. It submits MORE throwing bodies than the cap allows
  * ([ProbeExecutor.MAX_WEDGED_PROBES] of them, one at a time, each awaited to
- * completion) and then requires a FULL cap of BLOCKING bodies to be admitted
- * and to run. A counter the throws failed to return would refuse one of those
- * two - and a refusal here is unambiguous precisely because the order is fixed:
- * every throw is finished before the first blocking body is submitted, so
- * there is no way to blame a refusal on a body that was still holding a counter
- * for a legitimate reason. Interleaving them would leave two suspects for one
- * failure.
+ * completion), waits for the pool to come back, and then requires a FULL cap of
+ * BLOCKING bodies to be admitted and to run. A counter the throws failed to
+ * return would refuse one of those two - and a refusal here is unambiguous
+ * because the order is fixed: every throw is finished before the first blocking
+ * body is submitted, so there is no way to blame a refusal on a body that still
+ * holds a counter for a legitimate reason. Interleaving them would leave two
+ * suspects for one failure. The wait between the halves is what makes that
+ * separation exact: a body's OWN `finally` counts down its `ended` latch, so a
+ * body can be over while the submitted wrapper has not yet returned the pool's
+ * counters, and reading the pool in that gap would report a hand-back still in
+ * progress as a leak.
  *
  * **Why three throws and not one.** One throw is not more than the cap, so it
  * cannot be distinguished from a body that had legitimately released its
@@ -66,18 +69,23 @@ import java.util.concurrent.atomic.AtomicInteger
  * cannot and does not report anything about how the body ended. Nothing here
  * asserts an outcome for the submitter, because there is no outcome to assert.
  *
- * **This wedges a process-wide singleton, so it drains in `@After`.** The one
- * pool in [ProbeExecutor] serves every probe in this JVM; a worker left parked
- * on a latch only this test can release turns every later test into a discarded
- * task and a false "not reachable", and the suite goes flaky in whatever order
- * JUnit happens to pick. The drain uses a FRESH probe with a FRESH clock on a
- * host nothing has cached, so a `true` can only have come from a dial that
- * really ran on the shared worker.
+ * **This parks bodies on a process-wide singleton, so it inherits an idle
+ * check on both sides of the test.** The one pool in [ProbeExecutor] serves
+ * every probe in this JVM; a worker left parked on a latch only this test can
+ * release turns every later test into a discarded task and a false "not
+ * reachable", and the suite goes flaky in whatever order JUnit happens to pick.
+ * [ProbePoolIsolation] supplies the hooks, and they fail this class by name,
+ * with all four counters read out, before the test begins and again once it
+ * ends - so a leak lands on the class that made it instead of on whichever
+ * class happens to run next. The hooks can only find the pool idle if the gates
+ * this test parks its later bodies on come down first, which is why the
+ * `finally` in the test body counts them down on the passing and the failing
+ * path alike.
  *
  * No real DNS and no real sockets: every wait is a bounded latch await, and
  * nothing sleeps or polls in a loop to decide an assertion.
  */
-class ProbeExecutorThrowingBodyTest {
+class ProbeExecutorThrowingBodyTest : ProbePoolIsolation() {
 
     // --- a throwing body must not cost the pool a single later admission -----
 
@@ -90,7 +98,6 @@ class ProbeExecutorThrowingBodyTest {
         val gates = List(cap) { CountDownLatch(1) }
         val blockingStarted = CountDownLatch(cap)
         val blockingRan = AtomicInteger(0)
-        var admittedBlocking = 0
 
         for (throwNumber in 1..throwCount) {
             // Counted down in a `finally` inside the body, so the throw itself
@@ -116,10 +123,47 @@ class ProbeExecutorThrowingBodyTest {
             )
         }
 
-        // Every throw above has ended, so both counters are back if - and only
-        // if - a throw returns them. These two bodies stay in flight while they
-        // are measured, so neither can quietly hand its own counter back and
-        // make the count look right.
+        // Every throw above ENDED, which is not the same fact as every counter
+        // coming back: `ended` is counted down on the last statement inside the
+        // body, and the submitted wrapper only returns both counters in its own
+        // `finally`, which runs after that. Reading the pool here rather than
+        // after it would measure a legitimate hand-back as a leak. So the pool
+        // is asked, once, to come back - and that is also the only reading that
+        // makes the admission count below mean what its message claims: an
+        // admission refused once the pool is confirmed idle can only have been
+        // refused by a counter a throw held on to.
+        awaitProbePoolIdle(
+            context = "$throwCount bodies threw before this point, and every one of them reached the end of itself",
+        )
+
+        try {
+            admitAndMeasureBlockingBodies(cap, throwCount, gates, blockingStarted, blockingRan)
+        } finally {
+            // On both paths. A failed assertion between here and the end of the
+            // method would otherwise leave both bodies parked on their gates,
+            // holding a slot and a thread for the rest of the JVM, and every
+            // later probe would be refused for capacity this test is using.
+            gates.forEach { it.countDown() }
+        }
+    }
+
+    /**
+     * Admits [cap] bodies that stay in flight for the whole measurement, so
+     * neither can hand its own counter back and make the count look right.
+     *
+     * The gates are NOT released here. The caller owns them and releases them in
+     * a `finally`, so a failed assertion in this method still lets the workers
+     * go instead of parking them for the rest of the JVM; this method's own
+     * contract is the measurement and nothing else.
+     */
+    private fun admitAndMeasureBlockingBodies(
+        cap: Int,
+        throwCount: Int,
+        gates: List<CountDownLatch>,
+        blockingStarted: CountDownLatch,
+        blockingRan: AtomicInteger,
+    ) {
+        var admittedBlocking = 0
         for (index in 0 until cap) {
             val gate = gates[index]
             if (!ProbeExecutor.execute {
@@ -135,9 +179,11 @@ class ProbeExecutorThrowingBodyTest {
 
         assertEquals(
             cardFailure(
-                "a full cap of $cap later bodies must be admitted after $throwCount bodies threw, because the wrapper's `finally` gives back both " +
-                    "counters whether the body returns or throws; only $admittedBlocking were admitted, so a throwing body left a slot and a thread " +
-                    "held for the life of the process and every probe after this one is refused for capacity nobody is using",
+                "a full cap of $cap later bodies must be admitted once the pool has come back from $throwCount bodies that threw, because the " +
+                    "wrapper's `finally` gives back both counters whether the body returns or throws; the pool is confirmed idle immediately " +
+                    "before this loop, so a refusal here cannot be blamed on a counter that is merely on its way back - only $admittedBlocking were " +
+                    "admitted, so a throwing body kept a slot and a thread for the life of the process and every probe after this one is refused " +
+                    "for capacity nobody is using",
             ),
             cap,
             admittedBlocking,
@@ -170,38 +216,6 @@ class ProbeExecutorThrowingBodyTest {
             ),
             cap,
             blockingRan.get(),
-        )
-
-        gates.forEach { it.countDown() }
-    }
-
-    /**
-     * Waits, bounded, for the shared probe pool to come back.
-     *
-     * [ProbeExecutor] is a process-wide singleton, so a worker still parked on a
-     * latch this test released turns every LATER test in this JVM into a discarded
-     * task and a false "not reachable". Failing loudly here beats letting the next
-     * test fail for a reason that has nothing to do with what it is testing. Each
-     * attempt costs at most one budget while the pool is still busy, so the bound
-     * is generous for the several attempts it can take and still fails rather than
-     * hanging when a worker never comes back.
-     */
-    @After
-    fun drainProbeExecutor() {
-        val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(DRAIN_BOUND_MS)
-        var attempts = 0
-        while (System.nanoTime() < deadline) {
-            attempts++
-            val drain = TcpConnectivityProbe(
-                { "https://drain-throw-$attempts.invalid" },
-                FakeClock(1_000L),
-                FakeHostResolver(),
-                RecordingConnector(script = listOf(ProbeOutcome.CONNECTED)),
-            )
-            if (drain.isServerReachable()) return
-        }
-        throw AssertionError(
-            cardFailure("the shared probe worker was still busy ${DRAIN_BOUND_MS} ms after this test released its latches, over $attempts attempts - the one pool in [ProbeExecutor] serves every probe in this JVM, so a worker left parked past this test answers false for everything that follows it"),
         )
     }
 
@@ -250,8 +264,5 @@ class ProbeExecutorThrowingBodyTest {
          * is a failure to report rather than scheduling to wait out.
          */
         const val ALL_BODIES_STARTED_BOUND_MS = 10_000L
-
-        /** Ceiling on the drain, generous because each attempt can cost one budget. */
-        const val DRAIN_BOUND_MS = 10_000L
     }
 }

@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit
  * choice rather than a contract. What IS asserted is the weaker, promised
  * thing: the dial count is unchanged by the storm, and the answer survives it.
  */
-class TcpConnectivityProbeConcurrencyTest {
+class TcpConnectivityProbeConcurrencyTest : ProbePoolIsolation() {
 
     @Test
     fun `a storm of concurrent questions costs one dial and loses no caller`() {

@@ -72,7 +72,7 @@ import java.util.concurrent.TimeUnit
  * connector is the shared [RecordingConnector], and every wait is a bounded
  * latch await or a bounded poll over real probes.
  */
-class TcpConnectivityProbeThreadSaturationTest {
+class TcpConnectivityProbeThreadSaturationTest : ProbePoolIsolation() {
 
     // --- the saturation contract -------------------------------------------------
 
