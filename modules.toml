@@ -23,7 +23,7 @@ path = "android/ui"
 owns = "Screens: dictation, history, settings, auth, training. Consumes ui-tokens."
 does_not_own = "Business logic (core); platform adapters (modules/*)."
 depends_on = ["android", "android_core", "shared_ui_tokens"]
-public = "Screen components"
+public = "createSettingsView"
 card = "android/ui/AGENTS.md"
 
 [module.android_core]
