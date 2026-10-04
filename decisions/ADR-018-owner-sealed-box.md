@@ -135,8 +135,8 @@ of the user, the admin now holds a fresh KEK/DEK/keypair the user never
 chose, and keeps the ability to read anything synced under it until a
 password change is made by someone who does not pass the new password back
 to the admin — in practice, the user's own change. Every password change
-re-keys (ADR-006), but a change the admin makes himself leaves him holding
-the new keys, so that change does not end his access. What does is the
+re-keys (ADR-006), but a change made by the admin leaves the admin holding
+the new keys, so that change does not end the admin's access. What does is the
 user's own change, and the "keys last changed on \<date\>" line is how a
 user sees a change they did not make. The access is real until then, not
 eliminated the instant the reset completes.
@@ -161,7 +161,7 @@ footprint right after a reset is small precisely because the reset just
 wiped it, which is what keeps that cost small. Whoever completed the reset
 loses access from this point on only when this change is made by someone who
 does not hand the new password back to them, in practice the user's own
-change. If the admin makes the change himself, he generates the new DEK and
+change. If the admin makes the change, the admin generates the new DEK and
 keeps access, and the "keys last changed on \<date\>" line shows the user a
 change they did not make. Either way, what was written before the user's own
 change is the honest, bounded exposure window this design leaves open, not a
@@ -187,7 +187,7 @@ to hand over the code, but cannot make a completed reset not have happened.
 force a reset), not with data indefinitely** — a reset itself recovers no
 plaintext for anyone, admin included, and the user's own next password change
 is what bounds how long a completing admin's access lasts (a change the admin
-makes himself does not, see above).
+makes does not, see above).
 
 ## Reasons
 - Keeps ADR-006's guarantee for agent-authored content without breaking F27
