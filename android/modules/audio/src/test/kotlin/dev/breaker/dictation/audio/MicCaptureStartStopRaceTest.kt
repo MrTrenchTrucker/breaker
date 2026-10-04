@@ -1,7 +1,6 @@
 package dev.breaker.dictation.audio
 
 import dev.breaker.dictation.audio.RaceTestSupport.FULL_TAKE_SAMPLES
-import dev.breaker.dictation.audio.RaceTestSupport.GATE_RELEASE_MS
 import dev.breaker.dictation.audio.RaceTestSupport.GATE_WAIT_MS
 import dev.breaker.dictation.audio.RaceTestSupport.NO_OVERLAP_WINDOW_MS
 import dev.breaker.dictation.core.port.AudioListener
@@ -42,15 +41,16 @@ class MicCaptureStartStopRaceTest {
         // caller's side it did exactly what it asked, and got a capture it
         // cannot restart.
         //
-        // So the racing open() is released about a fifth of a second AFTER the
-        // stop comes back, and the assertions run at that moment rather than
-        // after the open has come back. An assertion that waited for the open
-        // would pass against the old code too, which is the whole point: the
-        // state has to be read while the hole is still open.
+        // So the racing open() is released only after the assertions below have
+        // read the state, and never before, and the assertions run at that
+        // moment rather than after the open has come back. An assertion that
+        // waited for the open would pass against the old code too, which is the
+        // whole point: the state has to be read while the hole is still open.
         //
-        // No sleep decides the outcome. The gate release is a third thread on a
-        // timer, the "stop has returned" edge is a latch, and the only wait for
-        // the take is a bounded poll that ends as soon as the frames land.
+        // No sleep decides the outcome. The gate release is a third thread
+        // waiting on this test's own "I have read it" latch, the "stop has
+        // returned" edge is a latch, and the only wait for the take is a
+        // bounded poll that ends as soon as the frames land.
         val source = GatedSource(script = speech(FULL_TAKE_SAMPLES))
         val capture = MicCapture(source = source)
         val frames = CopyOnWriteArrayList<FloatArray>()
@@ -77,8 +77,24 @@ class MicCaptureStartStopRaceTest {
             "stop() never returned; the racing open() is holding the session",
             stopReturned.await(WAIT_SECONDS, TimeUnit.SECONDS),
         )
+        // Teardown ordering, not a claim of its own. The racing open() has to
+        // stay in flight across the assertions below, or they would be reading
+        // a window that had already closed and would pass against code with no
+        // hole in it at all. What is left undecided at this point is nothing:
+        // the verdict those assertions read was captured by the stop thread
+        // before it counted stopReturned down, and published there, so this
+        // test's own outcome does not depend on when the open is let go.
+        //
+        // So the release waits on this test saying it has finished reading,
+        // rather than on a stretch of time it hopes is long enough. The two
+        // differ in what they are evidence of: a delay has to be guessed from
+        // outside and is over the moment the machine is loaded, whereas the
+        // latch is the test's own "I am done looking" and cannot expire early.
+        // An assertion that fails throws before the countdown, which is why the
+        // release is bounded rather than open-ended.
+        val verdictRead = CountDownLatch(1)
         Thread({
-            Thread.sleep(GATE_RELEASE_MS)
+            verdictRead.await(WAIT_SECONDS, TimeUnit.SECONDS)
             source.releaseOpen.countDown()
         }, "open-gate-release").start()
 
@@ -95,12 +111,17 @@ class MicCaptureStartStopRaceTest {
             "stop() returned and isCapturing still reads true, so the session it " +
                 "tore down is still up: a capture the caller has been told it " +
                 "stopped cannot be restarted, because the next start() is refused " +
-                "as \"already running\" until the racing open() comes back " +
-                "(${GATE_RELEASE_MS}ms away). The stop found no session thread to " +
-                "take, because the device was still opening, so it has to drop " +
-                "the flag on its way out regardless.",
+                "as \"already running\" until the racing open() comes back. The " +
+                "stop found no session thread to take, because the device was " +
+                "still opening, so it has to drop the flag on its way out " +
+                "regardless.",
             capturingAtStopReturn == true,
         )
+        // The verdict is in hand, so the racing open() is no longer holding
+        // anything up. Signalled rather than scheduled: this is the point
+        // where the test stops needing the window open, and only the test
+        // knows that.
+        verdictRead.countDown()
 
         // And the caller can act on it: the start issued after that stop is a
         // full take, not a refusal and not a take that came up short.

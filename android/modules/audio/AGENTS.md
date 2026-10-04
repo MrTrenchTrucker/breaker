@@ -65,6 +65,35 @@ the registry line, and not reachable from outside the module):
 nothing raises it — and consumers are fed by a second, separate plain `Thread`.
 There is no executor in the module. Never block UI.
 
+**Why these primitives and not coroutines.** The threading above is a fact about
+this module's code, and it is the worked example of the narrow exception class
+named in the root order (root `AGENTS.md` section 6). The order holds for every
+concurrent thing here that is not one of these four cases, and each case is
+decided by a site rather than by preference:
+- **No dispatcher supplies a dedicated thread at default priority.** The shared
+  default pool reuses its workers for unrelated work, so the capture and
+  dispatch threads are created and named by hand in the session lifecycle.
+- **`Mutex` is non-reentrant, has no timed acquire and no `wait`, and
+  `withLock` takes a suspend lambda.** It therefore cannot carry the
+  re-entrant `deviceGate` lock or its bounded `tryLock`, the `teardownInFlight`
+  latch and its bounded await, the critical sections that must not split around
+  the paired thread publication, `joinWithin` and the stuck-thread record, the
+  drain in the capture loop's exit path, the ordered listener fan-out, or the
+  ring buffer's `wait` and `notifyAll` pairs.
+- **`withTimeout` and `select` throw, where these sites record and return.** A
+  bounded give-up here is reported through `failureRef`, where a caller reads
+  it, rather than raised at a caller that did nothing wrong.
+- **`CancellationException` is a `Throwable`,** so at the interrupt sites it
+  would fall into the failure-recording arm and record an ordinary cancellation
+  as a capture failure; the interrupt is instead classified as teardown and
+  re-armed, on the capture loop, the dispatch loop and the ring buffer alike.
+
+Simple atomic visibility flags are not required to migrate where there is no
+real gain to be had: the recording flag the indicator publishes is a plain
+`Boolean` that no suspending primitive would improve on. The `captureThread` and
+`dispatchThread` references are a different case and stay for the first reason
+above, not for this one.
+
 ## Invariants
 - Record → clean PCM/WAV. VAD trim is built and tested inside this module
   but is NOT applied to a take today: `Vad` and `TrimResult` are `internal`,
@@ -159,7 +188,8 @@ code.
   skip the record entirely, making the one failure that says the microphone may
   still be open the one failure a throwing listener could suppress.
 
-- Listeners run on the thread that called start()/stop(). From a 'stopped'
+- Indicator listeners run on the thread that called start()/stop(); the audio
+  listener runs on the dispatch thread, never on the caller's. From a 'stopped'
   listener, start() begins a new take and the outer stop() returns with that
   take running. From a 'started' listener, start() throws 'already running'
   and the outer start is unwound: the device is never opened, isCapturing is
