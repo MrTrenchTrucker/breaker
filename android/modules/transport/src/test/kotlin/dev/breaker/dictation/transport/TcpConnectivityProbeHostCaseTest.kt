@@ -60,7 +60,7 @@ import java.util.concurrent.TimeUnit
  * connector is the shared [RecordingConnector], and every wait is a bounded
  * latch await or a bounded poll.
  */
-class TcpConnectivityProbeHostCaseTest {
+class TcpConnectivityProbeHostCaseTest : ProbePoolIsolation() {
 
     @Test
     fun `the other spelling of a name already being looked up is that same name`() {

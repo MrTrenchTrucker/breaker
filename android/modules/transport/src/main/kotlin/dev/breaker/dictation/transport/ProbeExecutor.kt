@@ -47,8 +47,6 @@ import java.util.concurrent.atomic.AtomicInteger
  * under ONE lock and takes both or neither. Separate checks would not be a
  * style question: two callers could each pass one condition and fail the
  * other, and both proceed, so the bound this file promises would hold by luck.
- * A refused attempt leaves both counters exactly as it found them, because
- * nothing is written until both conditions have passed.
  *
  * **The SLOT cap.** [MAX_WEDGED_PROBES] is 2: one wedged lookup, plus one
  * healthy address that must still be dialled — a captive portal that swallows
@@ -83,6 +81,22 @@ import java.util.concurrent.atomic.AtomicInteger
  * "learned = false" and therefore stores nothing; see [Refusal]. Thread
  * saturation is one member of that family, not a reachability verdict.
  *
+ * **Precondition: a submitted body must not throw.** Callers wrap the work
+ * in a `FutureTask` (or equivalent) that reports failure through its result;
+ * a raw body that throws still gives both counters back, because the wrapper
+ * gives them back on every exit, but that is ACCOUNTING and not a promise
+ * about the worker — the body takes its thread down with it, and on Android
+ * the documented default handler is what ends the process (documented
+ * default, not observed here; reasoned, not measured).
+ *
+ * **Why it is a precondition and not a fact this type establishes.**
+ * `ProbeSingleFlight.submit` takes a bare `Runnable` and its wrapper's
+ * `finally` removes the in-flight entry without catching, and
+ * [executeReporting] hands the task straight through, so a throwing body
+ * would really do it; what keeps that from arriving today is that the one
+ * caller passes a `FutureTask`, whose `run()` captures any `Throwable`
+ * (reasoned from the source, not measured).
+ *
  * **Process-wide, and never shut down.** This is a file-level singleton on
  * purpose: an executor per probe instance would multiply threads — and file
  * descriptors — by the number of probes built, and nothing ever tears a probe
@@ -94,14 +108,8 @@ internal object ProbeExecutor {
     /**
      * The most probe tasks this pool will run at once, wedged ones included.
      *
-     * 2: one wedged lookup, plus one healthy address that must still be
-     * dialled; see the object KDoc for why the number is two.
-     *
      * This cap is a PROMISE this module makes and enforces, not a consequence
-     * of how the pool happens to be sized: [claim] is the only thing that can
-     * refuse a task, because the pool is deliberately one thread larger than
-     * this constant (see [CAP_HEADROOM_THREADS]) so the JDK's own rejection is
-     * never the thing holding the line.
+     * of how the pool happens to be sized; see [CAP_HEADROOM_THREADS].
      */
     const val MAX_WEDGED_PROBES: Int = 2
 
@@ -126,9 +134,7 @@ internal object ProbeExecutor {
      * are the same number from two directions: the pool would refuse to grow
      * past it, and [claim] has already refused a body that would have. Because
      * [bodies] only ever rises for a body the pool accepted, [claim] admits on
-     * `bodies < POOL_MAX_THREADS` exactly the tasks the pool can run - which is
-     * what makes the [RejectedExecutionException] catch in [execute] a genuine
-     * backstop rather than the load-bearing refusal.
+     * `bodies < POOL_MAX_THREADS` exactly the tasks the pool can run.
      */
     private const val POOL_MAX_THREADS: Int = MAX_WEDGED_PROBES + CAP_HEADROOM_THREADS
 
@@ -214,10 +220,6 @@ internal object ProbeExecutor {
     private val started = AtomicInteger(0)
 
     /**
-     * The worker pool, sized at [MAX_WEDGED_PROBES] PLUS one thread
-     * ([CAP_HEADROOM_THREADS]) — the same number as [POOL_MAX_THREADS].
-     *
-     * That extra slot is not slack in the cap; see [CAP_HEADROOM_THREADS].
      * [SynchronousQueue] is what makes the sizing matter at all: with it the
      * JDK starts a thread per submitted task up to `maximumPoolSize`, so a pool
      * sized at exactly [MAX_WEDGED_PROBES] would let `ThreadPoolExecutor` enforce
@@ -231,13 +233,11 @@ internal object ProbeExecutor {
         TimeUnit.MILLISECONDS,
         // A direct handoff: an idle worker takes the task itself, and when
         // there is no idle worker a new one is started, up to the pool's
-        // maximum - which is the cap plus its one headroom thread. No queue,
-        // because a queued task is a task nobody is going to run - its worker
-        // is the thing that is wedged. With no core threads and a finite idle
-        // window, a worker that FINISHES a task is offered the next one and
-        // only retires after [WORKER_IDLE_MS] of quiet, so a steady stream of
-        // healthy probes reuses the same threads rather than making one per
-        // probe.
+        // maximum. No queue, because a queued task is a task nobody is going
+        // to run - its worker is the thing that is wedged. With no core threads
+        // and a finite idle window, a worker that FINISHES a task is offered
+        // the next one and only retires after [WORKER_IDLE_MS] of quiet, so a
+        // steady stream of healthy probes reuses the same threads.
         SynchronousQueue(),
         { runnable ->
             Thread(runnable, "$PROBE_THREAD_NAME-${started.incrementAndGet()}").apply {
@@ -252,8 +252,10 @@ internal object ProbeExecutor {
             // [claim] admitted. It stays because the accounting and the pool's
             // thread count are two independent mechanisms, and if they were ever
             // to disagree this is what stops an unbounded pile of threads.
-            // Throwing is safe because [execute] turns it into a refusal and no
-            // caller ever sees an exception.
+            // Throwing is safe HERE, and only on this path: a refused start
+            // is reported as a refusal by [execute], so no caller ever sees an
+            // exception from it. This says nothing about a body that throws
+            // while running; see the precondition in the class KDoc.
             throw RejectedExecutionException("probe worker pool is saturated")
         },
     )
@@ -279,10 +281,6 @@ internal object ProbeExecutor {
      * This is also what makes the wrapper's backstop SAFE to keep: it is
      * reachable where the answer already released the slot, and is a no-op
      * there rather than a second decrement.
-     *
-     * **One token per [claim], never reused.** [executeReporting] mints one only
-     * after a successful claim, so a refused admission holds no slot, has no
-     * token, and cannot release one.
      */
     private class SlotRelease {
         /** Flips exactly once, by exactly one caller; see the class KDoc. */
@@ -309,7 +307,7 @@ internal object ProbeExecutor {
      * called from the wrapper's `finally` and nowhere else: a body that has
      * published its answer still holds its thread until it ends.
      *
-     * One token per [claim], like [SlotRelease]: a refused admission has none
+     * One token per [claim]: a refused admission has no token
      * and cannot release one.
      */
     private class BodyRelease {

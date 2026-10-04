@@ -64,7 +64,7 @@ import java.util.concurrent.TimeUnit
  * track [ProbeExecutor.MAX_WEDGED_PROBES] instead of pinning a second,
  * quietly-drifting copy of it.
  */
-class TcpConnectivityProbeWedgedLookupTest {
+class TcpConnectivityProbeWedgedLookupTest : ProbePoolIsolation() {
 
     // --- T1: a wedged host must not answer for a healthy one ----------------------
 

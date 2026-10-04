@@ -79,7 +79,7 @@ import java.util.concurrent.locks.LockSupport
  * [ProbeExecutor] is a singleton and a worker left parked here would answer
  * false for every later test in this JVM.
  */
-class TcpConnectivityProbeSlotReleaseOnceTest {
+class TcpConnectivityProbeSlotReleaseOnceTest : ProbePoolIsolation() {
 
     @Test
     fun `a slot is returned exactly once by a body that answered and then finished`() {

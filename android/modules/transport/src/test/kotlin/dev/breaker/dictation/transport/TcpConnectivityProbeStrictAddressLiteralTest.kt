@@ -34,7 +34,7 @@ import java.net.InetAddress
  * 198.51.100.0/24, 2001:db8::/32). No test here resolves a name, opens a
  * socket or sleeps.
  */
-class TcpConnectivityProbeStrictAddressLiteralTest {
+class TcpConnectivityProbeStrictAddressLiteralTest : ProbePoolIsolation() {
 
     // --- U1: the classifier itself ------------------------------------------------
 

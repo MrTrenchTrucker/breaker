@@ -58,7 +58,7 @@ import java.util.concurrent.TimeUnit
  * latch await or a bounded poll. Nothing sleeps, and no test starts more than
  * two of anything.
  */
-class TcpConnectivityProbeSingleFlightTest {
+class TcpConnectivityProbeSingleFlightTest : ProbePoolIsolation() {
 
     // --- R1: the cap must survive repeated probes of one wedged host -------------
 

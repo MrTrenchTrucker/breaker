@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit
  * latch the test owns, which is what makes the bound observable: the caller has
  * to come back while the dial is still running.
  */
-class TcpConnectivityProbeBudgetAndIdentityTest {
+class TcpConnectivityProbeBudgetAndIdentityTest : ProbePoolIsolation() {
 
     // --- The caller is bounded by the budget, not by the dial -----------------------
 
