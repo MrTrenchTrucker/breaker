@@ -89,7 +89,7 @@ import java.util.concurrent.TimeUnit
  * No real DNS and no real sockets: every wait is a bounded latch await or a
  * bounded poll; nothing sleeps and nothing spins.
  */
-class TcpConnectivityProbeSlotReleaseOnAnswerTest {
+class TcpConnectivityProbeSlotReleaseOnAnswerTest : ProbePoolIsolation() {
 
     @Test
     fun `a slot is released when the answer is published, not when the body returns`() {

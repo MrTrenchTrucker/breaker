@@ -25,7 +25,7 @@ import java.net.ServerSocket
  * double, because a real dial to a real host would make the suite depend on
  * somebody's network.
  */
-class TcpConnectivityProbeAddressLiteralTest {
+class TcpConnectivityProbeAddressLiteralTest : ProbePoolIsolation() {
 
     // --- An address literal is dialled as written, never looked up ------------------
 

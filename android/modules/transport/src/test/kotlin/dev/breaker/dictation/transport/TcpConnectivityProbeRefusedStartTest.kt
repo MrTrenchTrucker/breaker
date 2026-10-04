@@ -69,7 +69,7 @@ import java.util.concurrent.TimeUnit
  * connector is the shared [RecordingConnector], and every wait is a bounded
  * latch await or a bounded poll.
  */
-class TcpConnectivityProbeRefusedStartTest {
+class TcpConnectivityProbeRefusedStartTest : ProbePoolIsolation() {
 
     // --- T1: a refused start must not leave the host marked in flight -----------
 

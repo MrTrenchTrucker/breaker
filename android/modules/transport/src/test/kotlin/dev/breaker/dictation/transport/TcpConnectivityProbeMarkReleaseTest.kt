@@ -76,7 +76,7 @@ import java.util.concurrent.TimeUnit
  * backstop - a leaked Turkish default would silently re-key every later test in
  * this JVM, in a way that only shows up as an unrelated flake.
  */
-class TcpConnectivityProbeMarkReleaseTest {
+class TcpConnectivityProbeMarkReleaseTest : ProbePoolIsolation() {
 
     // --- G1: the mark ends with the answer, not with the wrapper ---------------
 
