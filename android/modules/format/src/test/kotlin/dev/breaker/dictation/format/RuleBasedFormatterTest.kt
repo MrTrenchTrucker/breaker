@@ -133,4 +133,28 @@ class RuleBasedFormatterTest {
             out
         )
     }
+
+    @Test
+    fun `trailing spaces with no mark are dropped and a period is gained`() {
+        val out = formatter.format("the dog sat down   ")
+        assertEquals(
+            "trailing spaces are not content: trim them, then gain the period",
+            "The dog sat down.",
+            out
+        )
+        assertEquals(
+            "the same for a list whose last item ends in spaces",
+            "1. is a.\n2. is b.",
+            formatter.format("one is a, two is b   ")
+        )
+    }
+
+    @Test
+    fun `item text keeps its own casing`() {
+        assertEquals(
+            "the list rule touches structure only: item casing survives",
+            "1. is New York.\n2. is Boston.",
+            formatter.format("one is New York, two is Boston")
+        )
+    }
 }

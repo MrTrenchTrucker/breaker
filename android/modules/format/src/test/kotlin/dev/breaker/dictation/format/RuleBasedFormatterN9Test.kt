@@ -1,5 +1,6 @@
 package dev.breaker.dictation.format
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -131,6 +132,47 @@ class RuleBasedFormatterN9Test {
         assertTrue(
             "the bullet golden equality must be the check that goes RED here",
             out != formatter.format(input)
+        )
+    }
+
+    @Test
+    fun `N9 a mixed run is plain and consumes no ordinal markers`() {
+        // a run that mixes the two shapes ("one is a, second b") satisfies
+        // neither list rule: the text stays plain, so the formatter
+        // consumed nothing — a marker report for it would let N9 explain
+        // away ordinal words that are still in the output
+        assertEquals(
+            "a mixed run must stay plain text",
+            "One is a, second b.",
+            formatter.format("one is a, second b")
+        )
+        assertEquals(
+            "a mixed run must report no consumed ordinal markers",
+            emptyList<String>(),
+            formatter.consumedOrdinalMarkers("one is a, second b")
+        )
+        assertEquals(
+            "the bullet-first mix is plain too",
+            "First a, two is b.",
+            formatter.format("first a, two is b")
+        )
+        assertEquals(
+            "the bullet-first mix must report no consumed ordinal markers",
+            emptyList<String>(),
+            formatter.consumedOrdinalMarkers("first a, two is b")
+        )
+    }
+
+    @Test
+    fun `N9 a killed run consumes no ordinal markers`() {
+        // the run is killed by the sentence end inside its first item, so
+        // the formatter left the text plain and consumed nothing: a non-
+        // empty marker report would let N9 explain away ordinal words that
+        // the output still contains
+        assertEquals(
+            "a killed run must report no consumed ordinal markers",
+            emptyList<String>(),
+            formatter.consumedOrdinalMarkers("one is a.b, two is c")
         )
     }
 }
