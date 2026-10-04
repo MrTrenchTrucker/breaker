@@ -175,4 +175,36 @@ class RuleBasedFormatterN9Test {
             formatter.consumedOrdinalMarkers("one is a.b, two is c")
         )
     }
+
+    @Test
+    fun `N9 a run whose last item is killed consumes no ordinal markers`() {
+        // Pins the LAST-ITEM check in consumedOrdinalMarkers — without
+        // `if (processLastItem(items.last()) == null) return emptyList()`
+        // these two would report markers although the formatter left the
+        // text plain, and N9 would explain away ordinal words the output
+        // still contains. Both inputs kill the run in its LAST item (a
+        // final '?' the sentence-end set does not trim away; a newline the
+        // cleanup leaves behind), so the markers must be reported as
+        // consumed nothing.
+        assertEquals(
+            "a final '?' kills the last item: no consumed markers",
+            emptyList<String>(),
+            formatter.consumedOrdinalMarkers("one is a, two is b?")
+        )
+        assertEquals(
+            "a newline in the last item kills the run: no consumed markers",
+            emptyList<String>(),
+            formatter.consumedOrdinalMarkers("one is a, two is b\nc")
+        )
+        assertEquals(
+            "the final-? input stays plain",
+            "One is a, two is b?",
+            formatter.format("one is a, two is b?")
+        )
+        assertEquals(
+            "the newline-in-last-item input stays plain",
+            "One is a, two is b\nc.",
+            formatter.format("one is a, two is b\nc")
+        )
+    }
 }

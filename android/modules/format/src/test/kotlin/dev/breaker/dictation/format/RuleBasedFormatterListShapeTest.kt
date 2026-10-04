@@ -263,4 +263,66 @@ class RuleBasedFormatterListShapeTest {
             )
         }
     }
+
+    @Test
+    fun `a comma before a filler before a numbered list is replaced by the colon`() {
+        // The filler after the comma is removed, and the comma the first
+        // strip removed re-appears at the end of the lead — without the
+        // re-strip the lead keeps its comma instead of gaining the ':'
+        assertEquals(
+            "a comma before a filler must be replaced by the ':' (numbered)",
+            "He needs this:\n\n1. is a.\n2. is b.",
+            formatter.format("He needs this, um one is a, two is b")
+        )
+    }
+
+    @Test
+    fun `a comma before a filler before a bullet list is replaced by the colon`() {
+        // Bullet shape: same rule, same fix
+        assertEquals(
+            "a comma before a filler must be replaced by the ':' (bullet)",
+            "He needs this:\n\n- a.\n- b.",
+            formatter.format("He needs this, uh first a, second b")
+        )
+    }
+
+    @Test
+    fun `a line break or a tab in the trailing position is trimmed and the list still forms`() {
+        // The last item's cleanup trims trailing whitespace, and a
+        // trailing U+0085 (next line) is trimmed too — Kotlin's default
+        // trimEnd uses Char.isWhitespace, which excludes U+0085, so without
+        // the added check a trailing NEL leaks into the output and kills
+        // the list while the other seven line breaks at the same position
+        // are trimmed. Written as literals: each at the very end of the
+        // utterance must be dropped and the list must still form (RED on
+        // 1596ca6d for the U+0085 case only, per JDK 21 isWhitespace).
+        val trailing = listOf(
+            "newline" to "\n",
+            "carriage return" to "\r",
+            "tab" to "\t",
+            "U+2028 line separator" to "\u2028",
+            "U+2029 paragraph separator" to "\u2029",
+            "U+0085 next line" to "\u0085",
+            "U+000B vertical tab" to "\u000B",
+            "U+000C form feed" to "\u000C"
+        )
+        for ((name, ch) in trailing) {
+            assertEquals(
+                "a trailing '$name' must be trimmed and the list must still form",
+                "1. is a.\n2. is b.",
+                formatter.format("one is a, two is b" + ch)
+            )
+        }
+    }
+
+    @Test
+    fun `a lead ending in a digit gains the colon`() {
+        // A lead ending in a letter OR a digit gains ':' — a lead
+        // ending in '12' must gain the ':' (isLetterOrDigit, not isLetter)
+        assertEquals(
+            "a digit-ending lead must gain the ':'",
+            "Room 12:\n\n1. is a.\n2. is b.",
+            formatter.format("Room 12 one is a, two is b")
+        )
+    }
 }

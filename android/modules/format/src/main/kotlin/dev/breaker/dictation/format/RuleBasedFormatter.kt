@@ -176,7 +176,14 @@ class RuleBasedFormatter : Formatter {
      * leaves behind.
      */
     private fun processLastItem(item: String): String? {
-        var s = item.trimEnd()
+        // The last item's trailing whitespace is dropped, and a trailing
+        // U+0085 (next line) is trimmed too — Kotlin's default trimEnd uses
+        // Char.isWhitespace, which does not include U+0085, so without this
+        // a trailing NEL would leak into the output and kill the list while
+        // the other line breaks at the same position are trimmed. This is a
+        // TRIM only; U+0085 stays in KILL_CHARS, so a NEL INSIDE the item
+        // still kills the run.
+        var s = item.trimEnd { it.isWhitespace() || it == '\u0085' }
         if (s.endsWith(".")) s = s.dropLast(1)
         if (s.endsWith(",")) s = s.dropLast(1).trimEnd()
         if (itemKilled(s)) return null
@@ -201,6 +208,11 @@ class RuleBasedFormatter : Formatter {
     private fun leadLine(lead: String): String {
         var l = lead.trimEnd().trimEnd(',').trimEnd()
         l = removeFillers(l).trim()
+        // A filler word after the comma ("this, um") is removed by the
+        // rule above, and the comma the first strip removed then re-appears
+        // at the end. Strip a trailing ',' (and its spaces) again so the
+        // comma is really replaced by the ':' the rule gives the lead.
+        l = l.trimEnd(',').trimEnd()
         if (!l.any { it.isLetterOrDigit() }) return ""
         return if (l.last().isLetterOrDigit()) l + ":" else l
     }
