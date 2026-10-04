@@ -1,9 +1,12 @@
 package dev.breaker.dictation.audio
 
+import dev.breaker.dictation.core.model.AudioFormat
 import dev.breaker.dictation.core.port.AudioListener
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -321,14 +324,99 @@ class MicCaptureStopTest {
 
     @Test
     fun `no frames arrive after stop returns`() {
-        val capture = MicCapture(FakeMicSource(script = silenceThenSpeech(totalMs = 400)))
-        val frames = collectFrames(capture, expectedFrames = 14)
+        // 400 ms of audio at 16 kHz is 6400 samples, which is 20 whole
+        // 320-sample frames. The take is stopped while the device still has
+        // audio to hand over, so there is something in flight for the stop to
+        // be responsible for: a stop that returned before the dispatcher had
+        // delivered the rest of the take would show up as a total short of the
+        // whole, not as a count that changed later.
+        //
+        // The device holds the take open once its script is spent rather than
+        // reporting a dead one. That is what lets this wait on the DEVICE
+        // saying it has handed over everything — its scriptSpent latch —
+        // instead of on a frame count, and it means the capture cannot end by
+        // itself: the only thing that can end this take is the stop below,
+        // which is the thing under test. A take that ended on its own would
+        // have recorded a failure for a device it decided was dead.
+        val takeSamples = 400 * AudioFormat.SAMPLE_RATE_HZ / 1000
+        val source = FakeMicSource(
+            script = silenceThenSpeech(totalMs = 400),
+            holdsOpenWhenScriptSpent = true,
+        )
+        val capture = MicCapture(source = source)
+        val frames = CopyOnWriteArrayList<FloatArray>()
+        // Set the instant stop() returns, so a callback that runs after it is
+        // one that arrived behind the caller's timeline rather than one that
+        // was already on its way.
+        val stopReturned = AtomicBoolean(false)
+        val lateFrames = AtomicInteger(0)
+
+        capture.start(AudioListener {
+            if (stopReturned.get()) lateFrames.incrementAndGet()
+            frames.add(it)
+        })
+
+        assertTrue(
+            "the device never handed over its whole ${source.readCalls} reads, so " +
+                "this never reached the point where the take was all in the pipeline " +
+                "and the stop had something to finish",
+            source.scriptSpent.await(WAIT_SECONDS, TimeUnit.SECONDS),
+        )
+
+        capture.stop()
+        stopReturned.set(true)
         val countAtStop = frames.size
-        Thread.sleep(120)
+        val deliveredAtStop = frames.sumOf { it.size }
+
+        // What says the dispatcher was joined, rather than how long the test
+        // was prepared to believe it had been.
+        //
+        // stop() joins every session thread it took, and a thread that
+        // outlives the join is recorded in MicCapture.failure by name. So a
+        // null failure after stop() has returned IS the statement that the
+        // dispatcher is gone: the only thread that calls the listener has
+        // finished, so no callback can arrive after this point, and the total
+        // read below is the take's final total rather than a total that is
+        // still being added to.
+        //
+        // This is the positive witness the claim needs. A pause can only say
+        // "nothing arrived during the pause", which is a weaker and much
+        // slower statement: it is silent about a frame that arrives a
+        // millisecond later, and on a loaded machine it is a coin flip rather
+        // than a fact.
+        assertNull(
+            "stop() returned with a session thread still running: ${capture.failure}. " +
+                "A dispatcher that outlives the stop can deliver a frame behind it, so " +
+                "the totals below cannot be read as the take's last word, and a caller " +
+                "that stops and then reads the take would be racing the capture that " +
+                "filled it",
+            capture.failure,
+        )
         assertEquals(
-            "frames kept arriving after stop(): $countAtStop then ${frames.size}",
-            countAtStop,
-            frames.size,
+            "the listener was called $countAtStop times by the time stop() returned " +
+                "and ${lateFrames.get()} more times after it did, so frames kept " +
+                "arriving behind the caller's stop. The take was already whole when " +
+                "stop() returned, so there was nothing left to deliver",
+            0,
+            lateFrames.get(),
+        )
+        // The take is whole at the instant stop() returned. Not "at least" and
+        // not "no more than": the device produced takeSamples, the pipeline
+        // converts a take of N input samples at a rate of one into exactly N
+        // output samples across its reads and its end-of-take drain, and every
+        // one of them either reached the listener or was counted as dropped.
+        assertEquals(
+            "stop() returned with ${deliveredAtStop} of the $takeSamples samples the " +
+                "device had already produced delivered (in $countAtStop frames), so the " +
+                "take was still being delivered behind the caller's stop rather than " +
+                "being finished by it. stop() has to join the dispatcher for this to " +
+                "hold, and joining is what it promises a caller",
+            takeSamples,
+            deliveredAtStop,
+        )
+        assertFalse(
+            "the take was delivered whole but the capture did not shut down cleanly",
+            capture.isCapturing,
         )
     }
 

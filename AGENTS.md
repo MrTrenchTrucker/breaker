@@ -61,6 +61,7 @@ These hold in every module, every session, every lane.
   - A library the script does not cover: `curl -s https://repo1.maven.org/maven2/<group path>/<artifact>/maven-metadata.xml` (AndroidX: `https://dl.google.com/dl/android/maven2/<group path>/<artifact>/maven-metadata.xml`). Take the highest `<version>` with no `alpha`, `beta`, `rc`. Then add that library to `tools/latest.sh` in the same PR, so the next worker does not have to know this.
 - Every version in `gradle/libs.versions.toml` has `# read YYYY-MM-DD from <url>` beside it. A pin with no date and URL is a pin from memory; the reviewer sends it back.
 - Use `kotlinx.coroutines` for every concurrent thing. Do not use `Thread`, `synchronized`, `CountDownLatch`, `AtomicReference`, or `Thread.sleep`.
+- A module may keep a raw `Thread`, a lock, or `Thread.sleep` where a coroutines primitive cannot reproduce something the module genuinely needs: a dedicated OS thread's priority, a timed or reentrant lock that must not throw where the design records a failure and returns, or a cancellation path that depends on being interrupt-driven rather than exception-driven. State the specific reason next to the site; "this is simpler" and "this is how it was written" are not reasons. A module does not get this by default: it argues each site, as the audio module's card does.
 - A test waits on a signal. A test never waits on a clock.
 - One module per work order. One work order per PR.
 - When a build error names a library, read the first error line before you change anything. The first line is the cause.
