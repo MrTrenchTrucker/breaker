@@ -185,12 +185,17 @@ code.
   the floor's `-25 dBFS` ceiling. The cap is what keeps a sustained level that is genuinely
   below the margin still reading as speech: without it the pinned floor plus the margin set a
   threshold of −17 dBFS, and steady speech below that was silently discarded after the floor
-  pinned. Below the ceiling the threshold still tracks the floor, which rises 0.5 dB per
-  20 ms frame — about 25 dB/s — so in a quiet room the floor reaches its ceiling quickly and
-  anything quieter than −25 dBFS never reads as speech however long it sustains. Population
-  today is zero (`Vad` is `internal` and unwired), so nothing is broken now; it bites the day
-  the core VAD port lands. Fix when it does: raise the floor only on non-speech frames, or at
-  a far slower rate. Not fixed in this round.
+  pinned. Below the ceiling the threshold still tracks the floor, which climbs at a fixed
+  25 dB/s whatever the sample rate — so in a quiet room the floor reaches its ceiling
+  quickly and anything quieter than −25 dBFS never reads as speech however long it sustains.
+  The rate is held per second rather than per frame, because the 320-sample window is 20 ms
+  at 16 kHz and 6.67 ms at 48 kHz: a rise or a hangover stated per frame is only the stated
+  figure at the rate it was written for, and off that rate the floor learns a passing truck
+  as the room at 48 kHz while the hangover is twice as long at 8 kHz and a third as long at 48 kHz.
+  Population today is zero (`Vad` is `internal` and unwired), so nothing is broken now; it
+  bites the day the core VAD port lands. The ceiling itself is still the open half: raising
+  the floor only on non-speech frames, or letting a level that has sustained below the margin
+  through, are both untried. Not fixed in this round.
 - `AudioResampler`'s exact output count, and samples identical chunked vs
   whole, hold bit-for-bit only for rates whose ratio is exact in a double —
   48k → 16k among them. At 44.1k → 16k, chunked processing of a whole 3 s
