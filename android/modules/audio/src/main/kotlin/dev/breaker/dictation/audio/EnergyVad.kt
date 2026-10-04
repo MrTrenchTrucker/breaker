@@ -44,7 +44,8 @@ internal class EnergyVad(
     /** Speech shorter than this is treated as a cough or a door, not a dictation. */
     private val minSpeechMs: Long = DEFAULT_MIN_SPEECH_MS,
     /**
-     * The loudest the tracked noise floor is ever allowed to become.
+     * The loudest the tracked noise floor is ever allowed to become, and the
+     * loudest level that is ever reported as silence.
      *
      * The floor follows the quietest recent frames, so a capture that contains
      * no quiet frames at all would otherwise learn the *speech* as its own
@@ -52,6 +53,11 @@ internal class EnergyVad(
      * discarded, with no error anywhere. This ceiling is the absolute claim
      * that a room is never this loud: whatever the recent frames say, a level
      * above the ceiling is treated as speech.
+     *
+     * It bounds the speech threshold as well as the floor, which is the half
+     * that makes the claim hold. Clamping only the floor would leave the
+     * threshold a margin higher than the ceiling, and every level in that band
+     * — sustained speech in a loud cab — would be called silence.
      */
     private val maxNoiseFloorDb: Float = DEFAULT_MAX_NOISE_FLOOR_DB,
 ) : Vad {
@@ -97,8 +103,24 @@ internal class EnergyVad(
             primed = true
         }
         noiseFloorDb = trackFloor(noiseFloorDb, level)
-        return level > noiseFloorDb + speechMarginDb
+        return level > speechThresholdDb()
     }
+
+    /**
+     * The level a frame has to beat to count as speech.
+     *
+     * The margin alone is not the whole threshold. The tracked floor is already
+     * clamped to [maxNoiseFloorDb], so in a loud cab the sum of the two sits
+     * *above* the ceiling by the margin's width — and a level between the
+     * ceiling and the sum, which the ceiling's own contract calls speech, is
+     * reported as silence. Sustained speech is exactly that level: it is loud
+     * enough that the floor learns it as background, and quiet enough to sit
+     * under the sum. Capping the threshold at the ceiling is what makes the
+     * ceiling mean what it says — nothing above it is ever the floor, so
+     * nothing above it can be silence either — and it leaves the margin doing
+     * its job in a quiet room, where the two are far apart.
+     */
+    private fun speechThresholdDb(): Float = min(noiseFloorDb + speechMarginDb, maxNoiseFloorDb)
 
     override fun trim(pcm: FloatArray): TrimResult {
         if (pcm.isEmpty()) return TrimResult(FloatArray(0), 0, 0, 0, 0, hasSpeech = false)
@@ -233,9 +255,10 @@ internal class EnergyVad(
         private const val INITIAL_FLOOR_DB = -60f
 
         /**
-         * The loudest a tracked floor may become: -25 dBFS, about 5% of full
-         * scale. Room tone, a fan and a quiet engine all sit well under it, and
-         * a voice does not.
+         * The loudest a tracked floor may become, and the loudest level that
+         * may be reported as silence: -25 dBFS, about 5% of full scale. Room
+         * tone, a fan and a quiet engine all sit well under it, and a voice
+         * does not.
          */
         const val DEFAULT_MAX_NOISE_FLOOR_DB: Float = -25f
     }

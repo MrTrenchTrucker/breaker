@@ -181,13 +181,16 @@ code.
   no failure even when samples were lost. The fix (drops and failure on the
   port, or a small companion port) is a core interface change and comes with
   the next core change.
-- `EnergyVad`'s floor rises 0.5 dB per 20 ms frame — about 25 dB/s —
-  against an 8 dB speech margin. Steady speech quieter than roughly
-  −17 dBFS therefore stops reading as speech after about half a second and
-  does not recover. Population today is zero (`Vad` is `internal` and
-  unwired), so nothing is broken now; it bites the day the core VAD port
-  lands. Fix when it does: raise the floor only on non-speech frames, or
-  at a far slower rate. Not fixed in this round.
+- `EnergyVad`'s speech threshold is the sum of its noise floor and an 8 dB margin, capped at
+  the floor's `-25 dBFS` ceiling. The cap is what keeps a sustained level that is genuinely
+  below the margin still reading as speech: without it the pinned floor plus the margin set a
+  threshold of −17 dBFS, and steady speech below that was silently discarded after the floor
+  pinned. Below the ceiling the threshold still tracks the floor, which rises 0.5 dB per
+  20 ms frame — about 25 dB/s — so in a quiet room the floor reaches its ceiling quickly and
+  anything quieter than −25 dBFS never reads as speech however long it sustains. Population
+  today is zero (`Vad` is `internal` and unwired), so nothing is broken now; it bites the day
+  the core VAD port lands. Fix when it does: raise the floor only on non-speech frames, or at
+  a far slower rate. Not fixed in this round.
 - `AudioResampler`'s exact output count, and samples identical chunked vs
   whole, hold bit-for-bit only for rates whose ratio is exact in a double —
   48k → 16k among them. At 44.1k → 16k, chunked processing of a whole 3 s
