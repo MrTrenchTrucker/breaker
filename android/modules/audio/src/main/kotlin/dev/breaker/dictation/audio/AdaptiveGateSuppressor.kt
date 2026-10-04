@@ -63,8 +63,21 @@ class AdaptiveGateSuppressor(
 
     override val isActive: Boolean = true
 
-    /** One-pole high-pass coefficient for [highPassHz]. */
+    /**
+     * Passband gain of the high-pass at [highPassHz], so a tone well above the
+     * corner comes out at unity rather than a few dB down.
+     */
     private val highPassAlpha: Float = highPassCoefficient(sampleRateHz, highPassHz)
+
+    /**
+     * The feedback term of the one-pole high-pass.
+     *
+     * Derived from [sampleRateHz] and [highPassHz] rather than fixed: a fixed
+     * coefficient puts the corner at a frequency that depends on the capture
+     * rate, so the same suppressor rolls off at a different place on every
+     * device and the parameter stops meaning what it says.
+     */
+    private val highPassPole: Float = highPassPole(sampleRateHz, highPassHz).toFloat()
 
     /** Per-sample gain smoothing coefficients. */
     private val openCoefficient: Float = smoothingCoefficient(sampleRateHz, openMs)
@@ -106,7 +119,7 @@ class AdaptiveGateSuppressor(
 
     /** DC blocker then a one-pole high-pass, in place on the running state. */
     private fun highPass(sample: Float): Float {
-        val blocked = sample - highPassInput + HIGH_PASS_POLE * highPassOutput
+        val blocked = sample - highPassInput + highPassPole * highPassOutput
         highPassInput = sample
         highPassOutput = blocked
         return blocked * highPassAlpha
@@ -177,7 +190,20 @@ class AdaptiveGateSuppressor(
         /** Gate closing time. */
         const val DEFAULT_CLOSE_MS: Float = 60f
 
-        private const val HIGH_PASS_POLE = 0.995f
+        /**
+         * The feedback term of a one-pole high-pass whose corner sits at [hz]
+         * when the signal is sampled at [sampleRateHz].
+         *
+         * A one-pole DC blocker rolls off from the corner at
+         * `-ln(pole)` radians per sample, so a pole fixed in source puts the
+         * corner at a frequency that moves with the sample rate and is not the
+         * one the caller asked for. Inverting that relation is what puts the
+         * corner where [hz] says it is.
+         */
+        fun highPassPole(sampleRateHz: Int, hz: Float): Double =
+            exp(-TWO_PI * hz / sampleRateHz)
+
+        private const val TWO_PI = 2.0 * Math.PI
         private const val INITIAL_FLOOR = 0.01f
 
         /** Where the floor starts before it has heard a frame. */
@@ -196,13 +222,19 @@ class AdaptiveGateSuppressor(
 
         private val LN10_OVER_20 = kotlin.math.ln(10.0) / 20.0
 
-        /** The one-pole coefficient for a high-pass corner at [hz]. */
-        fun highPassCoefficient(sampleRateHz: Int, hz: Float): Float {
-            val tau = 1.0 / (2.0 * Math.PI * hz)
-            val te = 1.0 / sampleRateHz
-            val alpha = 1.0 / (1.0 + tau / te)
-            return alpha.coerceIn(0.0, 1.0).toFloat()
-        }
+        /**
+         * The passband gain of the one-pole high-pass at [hz] and
+         * [sampleRateHz]: the scalar that scales a DC blocker's output so its
+         * passband sits at unity.
+         *
+         * The raw difference equation `y[n] = x[n] - x[n-1] + pole * y[n-1]`
+         * approaches a gain of `2 / (1 + pole)` as the frequency rises, so
+         * applying `(1 + pole) / 2` cancels it and leaves the passband at unity
+         * whatever the corner. Every frequency below the corner is then shaped
+         * by [highPassPole] alone.
+         */
+        fun highPassCoefficient(sampleRateHz: Int, hz: Float): Float =
+            ((1.0 + highPassPole(sampleRateHz, hz)) / 2.0).toFloat()
 
         /** The one-pole smoothing coefficient for a [timeMs] time constant. */
         fun smoothingCoefficient(sampleRateHz: Int, timeMs: Float): Float {
