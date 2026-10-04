@@ -266,9 +266,10 @@ class RuleBasedFormatterListShapeTest {
 
     @Test
     fun `a comma before a filler before a numbered list is replaced by the colon`() {
-        // The filler after the comma is removed, and the comma the first
-        // strip removed re-appears at the end of the lead — without the
-        // re-strip the lead keeps its comma instead of gaining the ':'
+        // The filler after the comma is removed, and the comma that was
+        // always there is exposed at the end of the lead — no mark is left
+        // in the trailing run, so the letter-or-digit rule gives the lead
+        // its ':'
         assertEquals(
             "a comma before a filler must be replaced by the ':' (numbered)",
             "He needs this:\n\n1. is a.\n2. is b.",
@@ -323,6 +324,114 @@ class RuleBasedFormatterListShapeTest {
             "a digit-ending lead must gain the ':'",
             "Room 12:\n\n1. is a.\n2. is b.",
             formatter.format("Room 12 one is a, two is b")
+        )
+    }
+    @Test
+    fun `a space before a comma in a filler lead is still replaced by the colon`() {
+        // The comma sits one space off from the filler: the filler removal
+        // exposes it and the space after it, and both must go before the
+        // colon rule runs - a trailing space left here would skip the colon.
+        assertEquals(
+            "a space before the comma must not survive the lead cleanup",
+            "He needs this:\n\n1. is a.\n2. is b.",
+            formatter.format("He needs this , um , one is a, two is b")
+        )
+    }
+
+    @Test
+    fun `a next line before a final comma is trimmed like a newline`() {
+        // The re-trim after dropping the final comma must use the same
+        // predicate as the first trim: a next line right before the comma
+        // is dropped, just like a newline, and the list forms. The period
+        // branch is a different path and stays plain for both line breaks.
+        assertEquals(
+            "a next line before the final comma must not kill the list",
+            "1. is a.\n2. is b.",
+            formatter.format("one is a, two is b\u0085,")
+        )
+        assertEquals(
+            "a newline before the final comma behaves the same",
+            "1. is a.\n2. is b.",
+            formatter.format("one is a, two is b\n,")
+        )
+        assertEquals(
+            "a next line before the final period stays plain (period branch)",
+            "One is a, two is b\u0085.",
+            formatter.format("one is a, two is b\u0085.")
+        )
+        assertEquals(
+            "a newline before the final period stays plain (period branch)",
+            "One is a, two is b\n.",
+            formatter.format("one is a, two is b\n.")
+        )
+    }
+
+    @Test
+    fun `the speaker's space before a mark left by filler removal stays`() {
+        // The collapse keeps the whitespace the speaker put before the run's
+        // first mark — for a dash a glued hyphen would read as a hyphenated
+        // word, so the space is part of what was dictated
+        assertEquals(
+            "the space before the speaker's dash must survive the cleanup",
+            "He needs this -\n\n1. is a.\n2. is b.",
+            formatter.format("He needs this - um - one is a, two is b")
+        )
+    }
+
+    @Test
+    fun `the speaker's space before a semicolon left by filler removal stays`() {
+        // Same rule as the dash case, for a semicolon: the space before the
+        // kept mark is the speaker's, not the filler's
+        assertEquals(
+            "the space before the speaker's semicolon must survive the cleanup",
+            "He needs this ;\n\n1. is a.\n2. is b.",
+            formatter.format("He needs this ; um , one is a, two is b")
+        )
+    }
+
+    @Test
+    fun `two different marks left by filler removal keep the last one`() {
+        // The run keeps its last non-comma mark, not its first: the dash
+        // comes first in the dictation, the semicolon is the one kept
+        assertEquals(
+            "the last of two different marks must be the one kept",
+            "He needs this ;\n\n1. is a.\n2. is b.",
+            formatter.format("He needs this - um ; one is a, two is b")
+        )
+    }
+
+    @Test
+    fun `the speaker's own two marks with no filler stay untouched`() {
+        // No filler removed anything, so nothing is collapsed: the comma
+        // and the semicolon both stand exactly as dictated
+        assertEquals(
+            "a lead whose fillers removed nothing keeps both its marks",
+            "He said, ;\n\n1. is a.\n2. is b.",
+            formatter.format("He said, ; one is a, two is b")
+        )
+    }
+
+    @Test
+    fun `a trailing mark run left by filler removal keeps only its last mark`() {
+        // After the fillers go, the lead can end in a run of separators
+        // and marks: drop the commas, keep only the last mark (a lead
+        // never ends in two marks), and if no mark is left the letter-or-
+        // digit colon rule applies. A comma in the middle of the lead,
+        // outside that trailing run, survives.
+        assertEquals(
+            "a semicolon left behind by the filler replaces the whole trailing run",
+            "He needs this;\n\n1. is a.\n2. is b.",
+            formatter.format("He needs this, um ; one is a, two is b")
+        )
+        assertEquals(
+            "commas only after the filler leave a clean colon",
+            "He needs this:\n\n1. is a.\n2. is b.",
+            formatter.format("He needs this,, ,, um one is a, two is b")
+        )
+        assertEquals(
+            "a comma in the middle of the lead survives the cleanup",
+            "He needs this, then:\n\n1. is a.\n2. is b.",
+            formatter.format("He needs this, then one is a, two is b")
         )
     }
 }

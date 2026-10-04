@@ -185,7 +185,9 @@ class RuleBasedFormatter : Formatter {
         // still kills the run.
         var s = item.trimEnd { it.isWhitespace() || it == '\u0085' }
         if (s.endsWith(".")) s = s.dropLast(1)
-        if (s.endsWith(",")) s = s.dropLast(1).trimEnd()
+        // The re-trim after the comma drop uses the same predicate as the
+        // trim above, so a next line right before the final comma goes.
+        if (s.endsWith(",")) s = s.dropLast(1).trimEnd { it.isWhitespace() || it == '\u0085' }
         if (itemKilled(s)) return null
         return s
     }
@@ -203,16 +205,32 @@ class RuleBasedFormatter : Formatter {
      * or digit in it (punctuation only) is no lead either: the list stands
      * alone. A lead that ends in a letter or a digit gains ':'; a trailing
      * ',' (already stripped) is replaced by that ':'; a lead that ends in
-     * any other mark keeps it and gains nothing — never two marks.
+     * any other mark keeps it and gains nothing. The speaker's own marks
+     * stay exactly as dictated; only the trailing run of separators and
+     * marks left behind by a filler removal is collapsed to its last
+     * non-comma mark, and the whitespace the speaker put before that first
+     * mark stays as dictated.
      */
     private fun leadLine(lead: String): String {
         var l = lead.trimEnd().trimEnd(',').trimEnd()
+        val beforeFillers = l
         l = removeFillers(l).trim()
-        // A filler word after the comma ("this, um") is removed by the
-        // rule above, and the comma the first strip removed then re-appears
-        // at the end. Strip a trailing ',' (and its spaces) again so the
-        // comma is really replaced by the ':' the rule gives the lead.
-        l = l.trimEnd(',').trimEnd()
+        // If the fillers removed something, the lead may end in a run of
+        // separators and marks they left behind. Collapse that run to its
+        // last non-comma mark (or none, then the colon rule below decides),
+        // and keep the whitespace the speaker put before the run's first
+        // mark: the speaker's own marks and their spacing are untouched.
+        if (l != beforeFillers) {
+            var i = l.length - 1
+            while (i >= 0 && !l[i].isLetterOrDigit()) i--
+            if (i >= 0) {
+                val run = l.substring(i + 1)
+                val firstMark = run.indexOfFirst { !it.isWhitespace() }
+                val space = if (firstMark >= 0) run.substring(0, firstMark) else ""
+                val kept = run.lastOrNull { !it.isWhitespace() && it != ',' }
+                l = if (kept != null) l.substring(0, i + 1) + space + kept else l.substring(0, i + 1)
+            }
+        }
         if (!l.any { it.isLetterOrDigit() }) return ""
         return if (l.last().isLetterOrDigit()) l + ":" else l
     }
