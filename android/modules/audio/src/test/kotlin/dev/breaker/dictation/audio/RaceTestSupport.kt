@@ -31,16 +31,6 @@ internal object RaceTestSupport {
     const val FULL_TAKE_SAMPLES = 4 * MicCapture.DEFAULT_FRAME_SAMPLES
 
     /**
-     * How long after stop() returns the racing open() is released.
-     *
-     * Long enough that the open is still in flight when the stop comes back,
-     * short enough to keep the suite quick. It is a gate a third thread
-     * opens, not a condition any assertion waits on: the assertions about
-     * the state at that moment all run before it.
-     */
-    const val GATE_RELEASE_MS = 200L
-
-    /**
      * How long the third start is watched for reaching the device while the
      * first is still inside its own open.
      *

@@ -6,6 +6,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -132,25 +133,146 @@ class MicCaptureSustainedTest {
     fun `a slow consumer loses the oldest audio and is told how much`() {
         // The alternative is a stalled capture thread, which the platform turns
         // into invisible audio loss. Here the loss is counted.
-        val source = FakeMicSource(script = rampOf(64_000), samplesPerRead = 3_200)
+        //
+        // ### How the consumer is made slow
+        //
+        // By a gate, not by a pace. The consumer blocks inside its first
+        // callback until this test opens the gate, and the gate is opened only
+        // after the DEVICE says it has handed over its whole script — its
+        // scriptSpent latch, which is the one signal on the device side that
+        // means the take is complete. So the loss is not something a
+        // scheduling race produced: the device produced all 64 000 samples into
+        // a 1600-sample buffer while the consumer provably had taken none of
+        // them, and the arithmetic below says how much of that had nowhere to
+        // go.
+        //
+        // A consumer that slept a fixed time per frame instead would make the
+        // same claim by hoping: whether it outran the buffer would depend on
+        // how fast the machine scheduled two threads against each other, and
+        // the assertion would have to be "something was dropped" because
+        // nothing could say how much. Here the amount is derived from the
+        // sizes, so the assertion can be an exact one.
+        //
+        // The device holds the take open once its script is spent rather than
+        // reporting a dead one. That keeps the take from ending by itself: the
+        // only thing that can end it is the stop below, so the count read
+        // afterwards is the loss this construction caused rather than a loss
+        // mixed in with a capture that gave up on a device it decided was
+        // silent.
+        val producedSamples = 64_000
+        val frameSamples = 320
+        val bufferSamples = 1_600
+        val source = FakeMicSource(
+            script = rampOf(producedSamples),
+            samplesPerRead = 3_200,
+            holdsOpenWhenScriptSpent = true,
+        )
         val capture = MicCapture(
             source = source,
-            frameSamples = 320,
-            bufferSamples = 1_600,
+            frameSamples = frameSamples,
+            bufferSamples = bufferSamples,
         )
+        val consumerMayProceed = CountDownLatch(1)
         val delivered = AtomicInteger()
-        capture.start(AudioListener {
-            delivered.incrementAndGet()
-            Thread.sleep(4)
+        capture.start(AudioListener { frame ->
+            delivered.addAndGet(frame.size)
+            // Bounded, so a test that fails before opening the gate reports its
+            // own failure instead of leaving the dispatcher parked forever.
+            consumerMayProceed.await(WAIT_SECONDS, TimeUnit.SECONDS)
         })
-        val deadline = System.currentTimeMillis() + 5_000
-        while (delivered.get() < 8 && System.currentTimeMillis() < deadline) Thread.sleep(10)
-        capture.stop()
 
         assertTrue(
-            "a consumer sleeping 4 ms per 320-sample frame should have outrun a " +
-                "1600-sample buffer, but nothing was dropped",
-            capture.droppedSamples > 0,
+            "the fake did not hand over its whole $producedSamples-sample script, so " +
+                "the consumer was never held off long enough for the buffer to overrun " +
+                "and this never got into the state it is about",
+            source.scriptSpent.await(WAIT_SECONDS, TimeUnit.SECONDS),
+        )
+        consumerMayProceed.countDown()
+        capture.stop()
+
+        // ### The floor
+        //
+        // Somewhere other than the drop counter, a sample can only be in one
+        // of six places, and each has a size the code fixes rather than the
+        // schedule. Each term below names the line that fixes it:
+        //
+        //   1600  the ring, which never holds more than its capacity
+        //   +1280 the capture thread's own read buffer, holding one read of
+        //         the device that has not been converted, downmixed,
+        //         resampled, suppressed or written yet. CaptureLoop.kt:30
+        //         allocates it from CaptureSessionLifecycle.kt:490-493,
+        //         which sizes it at DEFAULT_FRAME_SAMPLES *
+        //         READ_BUFFER_MULTIPLIER, so 320 * 4. The device hands over
+        //         at most min(lengthInShorts, samplesPerRead, remaining), so
+        //         this buffer's own 1280 binds, not samplesPerRead's 3200.
+        //   +640  the dispatcher's read buffer, which it fills with at most two
+        //         frames per read of the ring (DispatchLoop.kt:30)
+        //   +320  the frame it has partly filled and not yet handed over
+        //         (DispatchLoop.kt:31)
+        //   +320  the frame the consumer was given and is sitting in, since
+        //         every callback blocks on the gate this test has not opened
+        //   +16   the resampler's held-back tail: the next read point and the
+        //         half kernel ahead of it that no output has claimed, kept
+        //         for the next call (AudioResampler.kt:255, with half =
+        //         taps / 2 over DEFAULT_TAPS of 32, so 16).
+        //         CapturePcmPipeline.kt:39-47 documents the same held-back
+        //         samples from the other side: they are samples the device
+        //         produced and the listener was promised.
+        //   ----
+        //   4176  samples that can have escaped being dropped
+        //
+        // The device produced 64 000 and the drop counter only ever grows, so
+        // once the whole script is over at least 64 000 - 4 176 = 59 824
+        // samples have been dropped. A smaller count would be saying the buffer
+        // held audio it had no room for.
+        //
+        // The floor, not an exact figure, on purpose: how much the dispatcher
+        // managed to pull out between the consumer's first callback and the
+        // consumer blocking is a race between two threads, and this test does
+        // not need to win it to make its point. What it needs is for the loss
+        // to follow from the sizes rather than from a delay. The exact
+        // accounting is asserted separately below, where nothing is racing.
+        val ringSamples = bufferSamples
+        val captureReadBufferSamples = 1_280
+        val dispatcherReadBufferSamples = 2 * frameSamples
+        val dispatcherPartialFrameSamples = frameSamples
+        val consumerFrameSamples = frameSamples
+        val resamplerHeldTailSamples = 16
+        val inFlightOutsideTheCounter = ringSamples +
+            captureReadBufferSamples +
+            dispatcherReadBufferSamples +
+            dispatcherPartialFrameSamples +
+            consumerFrameSamples +
+            resamplerHeldTailSamples
+        val lossFloor = producedSamples - inFlightOutsideTheCounter
+        assertTrue(
+            "a consumer held off until the device had produced all $producedSamples " +
+                "samples into a $bufferSamples-sample buffer lost only " +
+                "${capture.droppedSamples} of them, but at most " +
+                "$inFlightOutsideTheCounter could have escaped being dropped " +
+                "($ringSamples in the ring, $captureReadBufferSamples in the capture " +
+                "thread's own read buffer, $dispatcherReadBufferSamples in the " +
+                "dispatcher's read, $dispatcherPartialFrameSamples in its part-filled " +
+                "frame, $consumerFrameSamples in the frame the consumer was given, " +
+                "$resamplerHeldTailSamples in the resampler's held-back tail), so the " +
+                "loss has to be at least $lossFloor. A consumer that cannot keep up " +
+                "loses the oldest audio, and this capture has to say how much",
+            capture.droppedSamples >= lossFloor,
+        )
+        // And the count is the whole truth rather than a lower bound that
+        // could hide unaccounted samples. Every sample the device produced
+        // either reached the listener or was counted as dropped: the ring
+        // counts on the way in and keeps everything it does not drop, and the
+        // stop drains what is left into the take's last short frame.
+        assertEquals(
+            "the take lost audio without accounting for it: the device produced " +
+                "$producedSamples samples, $delivered reached the listener and " +
+                "${capture.droppedSamples} were counted as dropped, which is " +
+                "${delivered.get() + capture.droppedSamples}. A capture that reports a " +
+                "loss must report all of it, or a caller is left with a recording that " +
+                "sounds complete",
+            producedSamples.toLong(),
+            delivered.get() + capture.droppedSamples,
         )
     }
 }
