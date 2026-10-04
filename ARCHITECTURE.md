@@ -544,8 +544,8 @@ account's very next password change, whichever one that is, generates a
 **new** DEK and box keypair and re-encrypts whatever the account has synced
 since the reset. Whoever held the reset-era keys loses access from that point
 on only if the change is made by someone who does not pass the new password
-back to them, in practice the user's own change; a change the admin makes
-himself keeps his access, and shows the user a "keys last changed" date they
+back to them, in practice the user's own change; a change made by the admin
+keeps the admin's access, and shows the user a "keys last changed" date they
 don't recognise. "The old password stops working" fires on
 every reset, legitimate or not, so it is not a signal a user can act on;
 instead, the app and the web FE show "this account was reset on \<date\>" when
@@ -850,7 +850,7 @@ See `docs/04-build-order.md`. Summary:
       admin who completes it can take over the account until a password
       change is made by someone who does not pass the new password back to
       the admin, in practice the user's own change (every change re-keys,
-      ADR-006, but one the admin makes himself keeps his access). "The old password stops working" is NOT a signal the legitimate
+      ADR-006, but one made by the admin keeps the admin's access). "The old password stops working" is NOT a signal the legitimate
       user can rely on to notice this — it fires on every reset, admin
       takeover or not; the honest signals are the "this account was reset on
       \<date\>" and "keys last changed on \<date\>" notices the app and web
