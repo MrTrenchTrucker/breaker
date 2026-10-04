@@ -1,16 +1,20 @@
 package dev.breaker.dictation.audio
 
+import dev.breaker.dictation.audio.RaceTestSupport.FULL_TAKE_SAMPLES
+import dev.breaker.dictation.audio.RaceTestSupport.GATE_RELEASE_MS
+import dev.breaker.dictation.audio.RaceTestSupport.GATE_WAIT_MS
+import dev.breaker.dictation.audio.RaceTestSupport.NO_OVERLAP_WINDOW_MS
 import dev.breaker.dictation.core.port.AudioListener
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -100,21 +104,64 @@ class MicCaptureStartStopRaceTest {
 
         // And the caller can act on it: the start issued after that stop is a
         // full take, not a refusal and not a take that came up short.
+        //
+        // The wait for the take is a wait for the TAKE, not for a stretch of
+        // time. A wall-clock poll decides the outcome by how fast the machine
+        // is, so on a loaded runner it gives up on a take that was about to
+        // land and the test fails for a reason that has nothing to do with
+        // what it is about.
+        //
+        // The condition it waits on is the CUMULATIVE sample count, not a
+        // frame count: the take is many frames, and a latch counted down once
+        // per callback would release the wait on the FIRST frame, with the
+        // take still short. So the counter is incremented by every frame and
+        // the latch is counted down once the running total reaches the whole
+        // take — the same total the assertion below is going to read, so the
+        // wait ends exactly when the thing being waited for is true.
+        //
+        // The countdown happens once and only once. Every callback that
+        // passes the threshold would otherwise count down, which is
+        // harmless for a latch but is the wrong statement to leave behind:
+        // this says "the take is complete" once, and only the first crossing
+        // gets to say it. Both the running total and the once-only claim are
+        // touched from the device thread while this thread waits, so both
+        // are the counter's own.
         val startFailure = AtomicReference<Throwable?>(null)
+        val takeArrived = CountDownLatch(1)
+        val takeSamples = AtomicInteger(0)
+        val takeCompleted = AtomicBoolean(false)
         Thread({
             try {
-                capture.start(AudioListener { frames.add(it) })
+                capture.start(AudioListener { frame ->
+                    frames.add(frame)
+                    val total = takeSamples.addAndGet(frame.size)
+                    if (total >= FULL_TAKE_SAMPLES && takeCompleted.compareAndSet(false, true)) {
+                        takeArrived.countDown()
+                    }
+                })
             } catch (e: Throwable) {
                 startFailure.set(e)
+                takeArrived.countDown()
             }
         }, "race-restart").start()
 
-        val deadline = System.currentTimeMillis() + WAIT_SECONDS * 1000
-        while (frames.sumOf { it.size } < FULL_TAKE_SAMPLES &&
-            System.currentTimeMillis() < deadline
-        ) {
-            Thread.sleep(5)
-        }
+        // Bounded, because the signal is not guaranteed to fire: if start()
+        // itself threw, the catch above counts it down and the wait returns at
+        // once rather than burning the whole bound; only a start() that died
+        // without throwing (a hard kill, an Error, a thread that never
+        // returns) attaches no listener and nothing will ever count this down,
+        // and an unbounded wait would hang the suite instead of failing it.
+        // Generous for the same reason it is finite — a take that is going to
+        // arrive at all arrives on the device's own time, after the racing
+        // open comes back, and WAIT_SECONDS is already the file's ceiling for
+        // "the thing under test has had its chance".
+        //
+        // The result is deliberately discarded. This is the WAIT, not the
+        // verdict: a timeout falls straight through to stop() and to the
+        // assertions below, so a start() that threw is reported by the
+        // assertNull that names it rather than by a generic "the take never
+        // arrived" that would hide the failure this test exists to catch.
+        takeArrived.await(WAIT_SECONDS, TimeUnit.SECONDS)
         capture.stop()
 
         assertNull(
@@ -309,323 +356,4 @@ class MicCaptureStartStopRaceTest {
         )
     }
 
-    @Test
-    fun `a start that never gets the device gives up in bounded time and says so`() {
-        // A device whose open() never returns must not turn the next start into
-        // a wait forever. The give-up is reported the way a stuck session
-        // thread is reported — through failure, where a caller reads it — so a
-        // caller that silently got no take and no explanation is not left
-        // guessing.
-        val source = GatedSource(script = speech(FULL_TAKE_SAMPLES))
-        val capture = MicCapture(source = source, joinTimeoutMs = GIVE_UP_TIMEOUT_MS)
-
-        Thread({ capture.start(AudioListener { }) }, "d-stuck-starter").start()
-        assertTrue(
-            "the first start never reached open(), so there is no hung device to " +
-                "give up on",
-            source.insideOpen.await(WAIT_SECONDS, TimeUnit.SECONDS),
-        )
-
-        // Answerable while a start is inside the open — that is the whole of the
-        // first test, and a give-up that made stop() block here would trade one
-        // hang for another.
-        capture.stop()
-
-        val secondStart = AtomicReference<Throwable?>(null)
-        val gaveUpAfterMs = System.currentTimeMillis()
-        Thread({
-            try {
-                capture.start(AudioListener { })
-            } catch (e: Throwable) {
-                secondStart.set(e)
-            }
-        }, "d-giver-upper").start()
-        val deadline = System.currentTimeMillis() + WAIT_SECONDS * 1000
-        while (secondStart.get() == null && System.currentTimeMillis() < deadline) {
-            Thread.sleep(5)
-        }
-        val elapsed = System.currentTimeMillis() - gaveUpAfterMs
-
-        source.releaseOpen.countDown()
-
-        assertNotNull(
-            "the second start() neither got the device nor gave up after " +
-                "${elapsed}ms; a hung open() must be bounded by joinTimeoutMs " +
-                "($GIVE_UP_TIMEOUT_MS), not waited on forever",
-            secondStart.get(),
-        )
-        assertTrue(
-            "the give-up took ${elapsed}ms, which is not bounded by " +
-                "joinTimeoutMs ($GIVE_UP_TIMEOUT_MS)",
-            elapsed < GIVE_UP_TIMEOUT_MS * 20,
-        )
-        assertNotNull(
-            "the give-up was not recorded in failure, so a caller reading failure " +
-                "would see a null and believe the last take ended cleanly",
-            capture.failure,
-        )
-        assertFalse(
-            "isCapturing is true after a start that gave up and a stop that had " +
-                "already returned",
-            capture.isCapturing,
-        )
-    }
-
-    @Test
-    fun `the stop that loses the race does not return before the teardown is done`() {
-        // Two stops at once are legal — a caller that stops twice is easy to
-        // write, and the class says stop is safe at any point. Exactly one of
-        // them does the teardown. The other must not return early: a caller that
-        // reads "stop() returned" as "the microphone is shut" and then starts a
-        // session of its own is racing a join it was told had finished.
-        //
-        // Made deterministic by holding the teardown open rather than by timing
-        // it. The listener is parked inside onFrame, so the winning stop() is
-        // provably inside its join (the device is closed by then) and stays
-        // there until this test releases it. The losing stop() is started only
-        // after that is observable, so which stop wins is not in question: it is
-        // the one already inside the teardown.
-        val source = FakeMicSource(script = silenceThenSpeech(totalMs = 500))
-        val release = CountDownLatch(1)
-        val parked = CountDownLatch(1)
-        val capture = MicCapture(source = source, joinTimeoutMs = JOIN_TIMEOUT_MS)
-        capture.start(AudioListener {
-            parked.countDown()
-            release.await(WAIT_SECONDS, TimeUnit.SECONDS)
-        })
-        assertTrue(
-            "the listener was never reached, so there is no parked dispatcher for " +
-                "a stop to be waiting on",
-            parked.await(WAIT_SECONDS, TimeUnit.SECONDS),
-        )
-
-        // Counted down by the winning stop() on its way out, so the test can
-        // tell "the join gave up and the teardown finished" from "the test
-        // released the dispatcher first and there was never a stuck thread".
-        val winnerReturned = CountDownLatch(1)
-        val winner = Thread({
-            try {
-                capture.stop()
-            } finally {
-                winnerReturned.countDown()
-            }
-        }, "e-winner")
-        winner.start()
-        val closedBy = System.currentTimeMillis() + WAIT_SECONDS * 1000
-        while (source.closeCalls == 0 && System.currentTimeMillis() < closedBy) {
-            Thread.sleep(2)
-        }
-        assertEquals(
-            "the first stop() never closed the device, so it never got as far as " +
-                "the join and this test is not in the state it is about",
-            1,
-            source.closeCalls,
-        )
-
-        val loserReturned = CountDownLatch(1)
-        Thread({
-            capture.stop()
-            loserReturned.countDown()
-        }, "e-loser").start()
-
-        // A bounded window in which the loser must NOT come back. The winner is
-        // parked in its join and cannot finish until this test releases the
-        // listener, so a loser that returns inside this window has returned
-        // before the teardown it is waiting on is done — which is the fault.
-        assertFalse(
-            "the losing stop() returned while the winning stop() was still " +
-                "joining a parked dispatcher. A stop() that returns has told the " +
-                "caller the microphone is shut; returning before the teardown " +
-                "that is actually happening is a promise the caller then races.",
-            loserReturned.await(LOSER_WINDOW_MS, TimeUnit.MILLISECONDS),
-        )
-
-        // Now prove the winner really did give up on the parked dispatcher, and
-        // only THEN let it out. The loser has to be released inside the
-        // winner's join for the stuck-thread record to exist at all, but with a
-        // bare countDown() the release lands ~LOSER_WINDOW_MS after the loser
-        // started while the winner's join expires JOIN_TIMEOUT_MS after it
-        // closed — about 50ms of slack in which a loaded machine can get the
-        // dispatcher home first and leave `capture.failure` null, failing a test
-        // that is about ordering. So the teardown is observed to have finished
-        // its join (the winner has returned) before the release, which makes
-        // the record a fact about the code rather than about the schedule.
-        assertTrue(
-            "the winning stop() never returned while its dispatcher was " +
-                "parked, so the join never gave up and this test is not in the " +
-                "state it is about",
-            winnerReturned.await(WAIT_SECONDS, TimeUnit.SECONDS),
-        )
-        release.countDown()
-        assertTrue(
-            "the losing stop() never returned after the teardown finished",
-            loserReturned.await(WAIT_SECONDS, TimeUnit.SECONDS),
-        )
-
-        assertEquals(
-            "the device was closed ${source.closeCalls} times across two stop() " +
-                "calls; a teardown that runs twice releases the same resources twice",
-            1,
-            source.closeCalls,
-        )
-        assertFalse(
-            "isCapturing is still true once both stops have returned",
-            capture.isCapturing,
-        )
-        assertNotNull(
-            "the parked dispatcher was not reported as a stuck session thread, so " +
-                "this test's teardown never actually had to wait for anything",
-            capture.failure,
-        )
-    }
-
-    private companion object {
-        /**
-         * A take that is a whole number of frames, so "every sample arrived" is
-         * a statement about the take rather than about where the test stopped
-         * reading it.
-         */
-        const val FULL_TAKE_SAMPLES = 4 * MicCapture.DEFAULT_FRAME_SAMPLES
-
-        /**
-         * How long after stop() returns the racing open() is released.
-         *
-         * Long enough that the open is still in flight when the stop comes back,
-         * short enough to keep the suite quick. It is a gate a third thread
-         * opens, not a condition any assertion waits on: the assertions about
-         * the state at that moment all run before it.
-         */
-        const val GATE_RELEASE_MS = 200L
-
-        /**
-         * How long the third start is watched for reaching the device while the
-         * first is still inside its own open.
-         *
-         * A window that ends on the SECOND open arriving, so a gate that does
-         * not hold is caught at once. Long enough that a loaded machine gives
-         * the third start a fair chance to be scheduled and prove it CAN get
-         * there — which is what makes the absence of a second open a statement
-         * about the gate rather than about the thread never being run.
-         */
-        const val NO_OVERLAP_WINDOW_MS = 750L
-
-        /**
-         * How long a start is allowed to wait on the device gate in the
-         * overlapping-starts test.
-         *
-         * Sized against [NO_OVERLAP_WINDOW_MS], not against the suite: the
-         * first open is held for the length of that window and released the
-         * moment it ends, so the third start's wait on the gate is however long
-         * the first took to release plus a scheduling hand-off. Four times the
-         * window is generous for that and still short enough that a gate which
-         * genuinely gave up would say so inside the test's own bounds rather
-         * than being mistaken for a slow machine.
-         */
-        const val GATE_WAIT_MS = 4 * NO_OVERLAP_WINDOW_MS
-
-        /** The bound a hung open() is held to. */
-        const val GIVE_UP_TIMEOUT_MS = 250L
-
-        /** Short enough that a parked dispatcher is given up on promptly. */
-        const val JOIN_TIMEOUT_MS = 150L
-
-        /**
-         * How long the losing stop() is watched for an early return.
-         *
-         * A ceiling on the wait, not the wait itself. It MUST be shorter than
-         * [JOIN_TIMEOUT_MS], and that is the whole reason it is not a larger
-         * number: the winning stop() gives up on its parked dispatcher after
-         * joinTimeoutMs and returns, so a window longer than that would be
-         * asserting about a teardown that has provably finished — the loser
-         * would come home correctly and be failed for it. The two constants
-         * are a matched pair and moving one without the other breaks the test.
-         */
-        const val LOSER_WINDOW_MS = 100L
-    }
-}
-
-/**
- * A device whose [open] blocks until the test releases it, counting how many
- * opens are inside it at once and recording each one's entry and exit against
- * the thread that made it.
- *
- * Three things live here because they are the same property of the same seam: an
- * open takes real time (tens of milliseconds on a phone, a permission prompt on
- * a cold start), only a caller that can HOLD an open open can put a test inside
- * that window or see whether two opens overlap, and an overlap cannot be checked
- * from outside at all — two starts that both returned "successfully" and a
- * source that reports one open tell a caller nothing about whether the
- * microphone was really shared.
- *
- * The per-thread event log is what makes the order of two opens a fact rather
- * than an inference. A peak count alone says two were open at once and not which
- * one was late; the log says which thread entered when and which left when, so a
- * test can assert that one start's open finished before the next one began, and
- * can put that order in a failure message.
- *
- * The spent script holds the device open rather than reporting a dead one, so a
- * take that ends here is a take that ended because the test stopped it, and
- * [MicCapture.failure] is null for a reason that is not the fixture's.
- */
-private class GatedSource(
-    script: FloatArray,
-    override val sampleRateHz: Int = 16_000,
-    override val channelCount: Int = 1,
-) : MicSource {
-
-    private val delegate = FakeMicSource(script = script, holdsOpenWhenScriptSpent = true)
-    private val inside = AtomicInteger(0)
-
-    /** Counted down once [open] is under way and waiting. */
-    val insideOpen = CountDownLatch(1)
-
-    /** Counted down by the test to let [open] finish. */
-    val releaseOpen = CountDownLatch(1)
-
-    val openCalls = AtomicInteger(0)
-    val peakOpenConcurrency = AtomicInteger(0)
-
-    private val events = CopyOnWriteArrayList<String>()
-
-    /**
-     * "thread entered" / "thread left" for every [open], in the order the device
-     * saw them.
-     *
-     * Deliberately a flat list rather than a map: the claim under test is about
-     * ORDER between two threads, and a map keyed by thread would lose the
-     * interleaving that is the whole point.
-     */
-    val openEvents: List<String> get() = events.toList()
-
-    /**
-     * True while a thread is inside [open] and blocked on [releaseOpen].
-     *
-     * Read by a test that has to know the window was still open when it looked,
-     * so a window that found nothing to complain about because the first open
-     * had already returned cannot pass by saying nothing.
-     */
-    @Volatile
-    var insideOpenInProgress: Boolean = false
-        private set
-
-    override fun open() {
-        openCalls.incrementAndGet()
-        peakOpenConcurrency.accumulateAndGet(inside.incrementAndGet(), ::maxOf)
-        insideOpenInProgress = true
-        events.add("${Thread.currentThread().name} entered")
-        insideOpen.countDown()
-        try {
-            releaseOpen.await(WAIT_SECONDS, TimeUnit.SECONDS)
-        } finally {
-            insideOpenInProgress = false
-            events.add("${Thread.currentThread().name} left")
-            inside.decrementAndGet()
-        }
-        delegate.open()
-    }
-
-    override fun read(buffer: ShortArray, offset: Int, lengthInShorts: Int): Int =
-        delegate.read(buffer, offset, lengthInShorts)
-
-    override fun close() = delegate.close()
 }
