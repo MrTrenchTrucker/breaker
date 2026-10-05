@@ -43,7 +43,7 @@ project's agents run, one pair per rank, and says which rank to give which agent
 ```bash
 git clone https://github.com/MrTrenchTrucker/breaker.git breaker && cd breaker
 python3 tools/check_repo.py     # must print REPO CONSISTENT
-./gradlew --no-daemon build     # JDK 17 + Android SDK 35; see .github/CONTRIBUTING.md
+./gradlew --no-daemon build     # JDK 25 + Android SDK 36; see .github/CONTRIBUTING.md
 ```
 
 ## Security posture (Security Review, two audits)
