@@ -56,9 +56,9 @@ jobs:
       - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: temurin
-          java-version: "17"
-      - name: Android SDK platform 35
-        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-35" "build-tools;35.0.0" > /dev/null
+          java-version: "25"
+      - name: Android SDK platform 36
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0" > /dev/null
       - name: Clean build, every Kotlin test
         run: ./gradlew --no-daemon --no-build-cache --rerun-tasks build
       - name: Kotlin tests ran and passed

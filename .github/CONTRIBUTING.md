@@ -19,7 +19,7 @@ file.
    judged against), the module's `AGENTS.md` card and `README.md`, and every
    ADR the card cites. An **ADR** (Architecture Decision Record) is a file in
    `decisions/` that records a settled decision and why.
-3. **Set up the build.** JDK 17
+3. **Set up the build.** JDK 25 (the newest LTS)
    and the repo's Gradle wrapper (nothing to install — use `./gradlew`).
    Python 3.11 or newer for the check scripts.
 4. **Build and test.** Run the exact commands in the card's "Test Locations".
@@ -48,13 +48,13 @@ file.
 - **Dev container:** planned, not here yet. Until it lands, use the manual
   setup below.
 - **Manual setup:**
-  - JDK 17 (the build runs on it)
-  - The repo's Gradle wrapper: `./gradlew` — Gradle 8.13 comes with the repo,
+  - JDK 25 (the build runs on it; the newest LTS release)
+  - The repo's Gradle wrapper: `./gradlew` — Gradle 9.8.0 comes with the repo,
     pinned by SHA-256. Nothing to install.
   - Python 3.11+ for the check scripts.
-  - Android SDK platform 35 (compileSdk and targetSdk 35, minSdk 30) — needed
+  - Android SDK platform 36 (compileSdk and targetSdk 36, minSdk 30) — needed
     to build the Android app.
-  - Kotlin 2.0.21 and AGP 8.13.0 are pinned in `gradle/libs.versions.toml` —
+  - Kotlin 2.4.20 and AGP 9.4.1 are pinned in `gradle/libs.versions.toml` —
     don't change them in your PR.
 - **Verify your setup:** `python3 tools/check_repo.py` must print
   `REPO CONSISTENT`.
