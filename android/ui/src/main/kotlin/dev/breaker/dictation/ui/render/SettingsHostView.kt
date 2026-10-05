@@ -70,11 +70,12 @@ internal class SettingsHostView(
     /**
      * Replaces the rows with [rendered], keeping the position on the screen.
      *
-     * The position is read before the child goes away and put back afterwards,
-     * so a change made at the bottom of a long screen does not throw the reader
-     * back to the top. The background of the container itself follows the theme
-     * too: what is behind a scroll that has reached its end would otherwise be
-     * the window's own colour.
+     * The position is read before the child goes away and put back afterwards; it
+     * is kept exactly when the new content is at least as tall as the old. When a
+     * redraw is shorter - a notice removed after a write, a value block collapsing -
+     * the platform clamps the position to the new bottom instead. The background of
+     * the container itself follows the theme too: what is behind a scroll that has
+     * reached its end would otherwise be the window's own colour.
      */
     fun show(rendered: Rendered) {
         val held = scrollY
