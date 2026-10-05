@@ -194,7 +194,7 @@ class TcpConnectivityProbe internal constructor(
      */
     private fun freshEntryFor(target: Target): CacheEntry? {
         val entry = cache ?: return null
-        if (entry.host != target.host || entry.port != target.port) return null
+        if (!entry.host.equals(target.host, ignoreCase = true) || entry.port != target.port) return null
         val age = clock.nowEpochMillis() - entry.storedAtMillis
         return if (age in 0 until CACHE_TTL_MS) entry else null
     }
@@ -444,7 +444,11 @@ class TcpConnectivityProbe internal constructor(
          * every other colon host, and every host that merely LOOKS numeric
          * without being a valid address, is refused here and reaches neither
          * the resolver nor [InetAddress.getByName] nor the connector, so the
-         * probe answers "not reachable" with no lookup or dial at all.
+         * probe answers "not reachable" with no lookup or dial at all. A scoped
+         * IPv6 literal (one carrying a %zone suffix) is refused by design: zone
+         * ids vary by platform and the population is narrow, so the refusal
+         * fails safe - it yields no address, dials nothing and answers "not
+         * reachable" without a lookup or an exception.
          */
         fun addresses(resolver: HostResolver): List<InetAddress> {
             if (isAddressLiteral(host)) return literalAddresses()
