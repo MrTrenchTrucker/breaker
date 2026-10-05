@@ -128,9 +128,16 @@ private fun sourcesUnder(tree: String): List<Pair<String, String>> {
 
 /** The variant roots that hold a compiled class, whichever variants were built. */
 private fun builtVariantRoots(): List<File> {
-    val base = File(MODULE_DIR, "build/tmp/kotlin-classes")
+    // The built-in Kotlin toolchain writes a variant's classes under
+    // build/intermediates/built_in_kotlinc/<variant>/compile<Variant>Kotlin/classes;
+    // the legacy build/tmp/kotlin-classes/<variant> layout no longer exists, so the
+    // roots are taken from the intermediates layout and named after the variant that
+    // owns them.
+    val base = File(MODULE_DIR, "build/intermediates/built_in_kotlinc")
     val roots = listOf("debug", "release")
-        .map { File(base, it) }
+        .map { variant ->
+            File(base, "$variant/compile${variant.replaceFirstChar { it.uppercase() }}Kotlin/classes")
+        }
         .filter { root -> root.isDirectory && root.walkTopDown().any { it.name == KNOWN_CLASS } }
     assertTrue(
         "no compiled class was found under ${base.absolutePath}; the gates need a build to read",

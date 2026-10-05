@@ -239,18 +239,27 @@ class AndroidConfinementGateTest {
         for (root in CLASS_ROOTS) {
             assertTrue("an unexpected variant root was taken: ${root.absolutePath}", root.isDirectory)
         }
+        // The built-in Kotlin toolchain names a variant's class directory `classes`,
+        // under `compile<Variant>Kotlin`, under the variant it belongs to; the variant
+        // is what distinguishes one root from another, so it is read off that parent.
         assertEquals(
             "the same variant was taken twice",
             CLASS_ROOTS.size,
-            CLASS_ROOTS.map { it.name }.distinct().size,
+            CLASS_ROOTS.map { it.parentFile.parentFile.name }.distinct().size,
         )
         assertTrue(
             "the variant roots are named as the build names them",
-            CLASS_ROOTS.all { it.name == "debug" || it.name == "release" },
+            CLASS_ROOTS.all {
+                it.name == "classes" &&
+                    (it.parentFile.parentFile.name == "debug" || it.parentFile.parentFile.name == "release")
+            },
         )
         assertTrue(
             "the search did not start at the module it belongs to",
-            CLASS_ROOTS.all { it.parentFile.name == "kotlin-classes" && it.parentFile.parentFile.name == "tmp" },
+            CLASS_ROOTS.all {
+                it.parentFile.parentFile.parentFile.name == "built_in_kotlinc" &&
+                    it.parentFile.parentFile.parentFile.parentFile.name == "intermediates"
+            },
         )
     }
 
