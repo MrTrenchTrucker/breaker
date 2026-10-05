@@ -4,10 +4,10 @@
 # changes it for every module; no module build file pins a version itself.
 
 [versions]
-agp = "8.13.0"
-kotlin = "2.0.21"
-compileSdk = "35"
-targetSdk = "35"
+agp = "9.4.1"   # read 2026-10-04 from https://dl.google.com/android/maven2/com/android/tools/build/gradle/maven-metadata.xml
+kotlin = "2.4.20"   # read 2026-10-04 from https://kotlinlang.org/docs/whatsnew24.html
+compileSdk = "36"   # read 2026-10-04 from https://dl.google.com/android/repository/repository2-3.xml (platforms;android-36 = platform-36_r02.zip)
+targetSdk = "36"   # read 2026-10-04 from https://dl.google.com/android/repository/repository2-3.xml (build-tools;36.0.0 = build-tools_r36_linux.zip)
 minSdk = "30"
 junit = "4.13.2"
 sqlite-jdbc = "3.53.4.0"
