@@ -68,7 +68,10 @@ private fun isIpv4Literal(host: String): Boolean {
  * or ':' and whose remaining characters are hex digits, '.' or ':'.
  *
  * Text that fails the first-character condition — ".1::", "..::1" — is refused
- * here rather than offered to the JDK as a name.
+ * here rather than offered to the JDK as a name. A scoped IPv6 literal (one
+ * carrying a %zone suffix) is refused by design: zone ids vary by platform and
+ * the population is narrow, so the refusal fails safe - it yields no address,
+ * dials nothing and answers "not reachable" without a lookup or an exception.
  */
 private fun isIpv6Literal(host: String): Boolean {
     if (host.isEmpty()) return false
