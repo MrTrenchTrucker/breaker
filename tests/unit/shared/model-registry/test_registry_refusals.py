@@ -39,7 +39,7 @@ class MissingRequiredFieldTest(unittest.TestCase):
 
 class UnknownFieldTest(unittest.TestCase):
     def test_unknown_field_is_refused_with_field_and_line(self):
-        text = ts.models_text()
+        text = ts.single_entry_yaml("small")
         planted = replace_once(text, "    family: sherpa-onnx",
                                "    family: sherpa-onnx\n    flavour: vanilla")
         msg = ts.refuses(planted)
@@ -56,14 +56,16 @@ class UnknownFieldTest(unittest.TestCase):
 class DuplicateIdTest(unittest.TestCase):
     def test_duplicate_id_is_refused_naming_both_lines(self):
         text = ts.models_text()
-        second = text.split("models:\n", 1)[1]
-        planted = text + second  # a full second entry, appended after the first
+        # the small entry's own block, appended after the committed entries:
+        # exactly one duplicate id, whichever the committed registry carries
+        second = "\n".join(ts.entry_block("small")) + "\n"
+        planted = text + second
         msg = ts.refuses(planted)
         self.assertIn("duplicate id 'small'", msg)
-        # both markers, derived from the planted text: the first entry's own
-        # marker, and the appended copy's marker at len(text) + its offset
+        # the clash is the first duplicate the reader meets: the committed
+        # small entry's marker, and the appended copy's marker after it
         markers = [i + 1 for i, l in enumerate(planted.splitlines())
-                   if l.strip().startswith("- id:")]
+                   if l.strip().startswith("- id: small")]
         self.assertEqual(len(markers), 2)
         self.assertIn(f"first on line {markers[0]}", msg)
         self.assertIn(f"line {markers[1]}:", msg)  # the clash
@@ -91,7 +93,7 @@ class IdShapeTest(unittest.TestCase):
 
 class FamilyTest(unittest.TestCase):
     def test_family_outside_the_enum_is_refused(self):
-        planted = replace_once(ts.models_text(),
+        planted = replace_once(ts.single_entry_yaml("small"),
                                "family: sherpa-onnx", "family: whisperx")
         msg = ts.refuses(planted)
         self.assertIn("'whisperx'", msg)
@@ -265,14 +267,16 @@ class ParamsTest(unittest.TestCase):
 
 class BooleanTest(unittest.TestCase):
     def test_hosted_with_a_word_other_than_true_false_is_refused(self):
-        planted = replace_once(ts.models_text(), "hosted: false", "hosted: no")
+        planted = replace_once(
+            ts.single_entry_yaml("small"), "hosted: false", "hosted: no")
         msg = ts.refuses(planted)
         self.assertIn("hosted", msg)
         self.assertIn("true or false", msg)
 
     def test_tamper_verified_with_a_digit_is_refused(self):
-        planted = replace_once(ts.models_text(),
-                               "tamper_verified: false", "tamper_verified: 0")
+        planted = replace_once(
+            ts.single_entry_yaml("small"),
+            "tamper_verified: false", "tamper_verified: 0")
         msg = ts.refuses(planted)
         self.assertIn("tamper_verified", msg)
 
@@ -286,8 +290,9 @@ class LicenseTest(unittest.TestCase):
         self.assertIn("license_name", msg)
 
     def test_spdx_id_with_whitespace_is_refused(self):
-        planted = replace_once(ts.models_text(),
-                               "license: Apache-2.0", "license: Apache 2.0")
+        planted = replace_once(
+            ts.single_entry_yaml("small"),
+            "license: Apache-2.0", "license: Apache 2.0")
         msg = ts.refuses(planted)
         self.assertIn("SPDX", msg)
 
@@ -309,7 +314,7 @@ class NotesBlockBulletTest(unittest.TestCase):
         # free text in a `notes: >-` body: "- the encoder was retrained" is a
         # line of prose, not a second sequence item under `models:`
         planted = replace_once(
-            ts.models_text(),
+            ts.single_entry_yaml("small"),
             "      pruned_transducer_stateless7, k2-fsa/icefall PR 984). params 69,920,764 =",
             "      - the encoder was retrained\n"
             "      - the joiner is byte-identical\n"
@@ -319,11 +324,12 @@ class NotesBlockBulletTest(unittest.TestCase):
         self.assertEqual(entries[0]["id"], "small")
 
     def test_a_real_span_and_entry_mismatch_is_still_refused(self):
-        # the count check is load-bearing: this file carries three "- " items
-        # where the reader parsed one entry, and spans are counted outside a
-        # block scalar, so the mismatch is still a refusal
+        # the count check is load-bearing: the entry's own marker plus the
+        # two "- " items under `aliases:` make three sequence items where the
+        # reader parsed one entry, and spans are counted outside a block
+        # scalar, so the mismatch is still a refusal
         planted = replace_once(
-            ts.models_text(), "    notes: >-",
+            ts.single_entry_yaml("small"), "    notes: >-",
             "    aliases:\n      - a\n      - b\n    notes: >-")
         msg = ts.refuses(planted)
         self.assertIn("the reader found 1 entries but the file carries 3", msg)

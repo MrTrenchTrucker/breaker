@@ -55,14 +55,57 @@ def models_text():
     return text
 
 
-def entry():
-    """The single converted entry, as the generator would ship it."""
-    entries = check_models(models_text())
-    if len(entries) != 1:
+def entry(eid):
+    """The converted entry whose id is `eid`, as the generator would ship it.
+
+    The entry is looked up by id, not by position or a hard-coded count, so
+    adding an entry to models.yaml later breaks no caller of this helper.
+    """
+    by_id = {e["id"]: e for e in check_models(models_text())}
+    if eid not in by_id:
         raise AssertionError(
-            f"model_registry tests: models.yaml carries {len(entries)} "
-            f"entries, slice 1 has exactly one")
-    return entries[0]
+            f"model_registry tests: models.yaml carries no entry with id "
+            f"{eid!r} (it has {sorted(by_id)})")
+    return by_id[eid]
+
+
+def entry_block(eid):
+    """The committed models.yaml lines of the entry whose id is `eid`, as a
+    list, in file order: its sequence marker plus its field lines, up to (not
+    including) the next sequence item at the same indent.
+
+    The block is taken by indent, so a `notes: >-` body that happens to carry
+    a `- ` line is never mistaken for the next entry.
+    """
+    lines = models_text().splitlines()
+    start = next(
+        (i for i, l in enumerate(lines)
+         if re.match(rf"^\s*-\s+id:\s*{re.escape(eid)}\s*$", l)),
+        None)
+    if start is None:
+        raise AssertionError(
+            f"model_registry tests: models.yaml has no entry {eid!r}")
+    indent = len(lines[start]) - len(lines[start].lstrip())
+    end = len(lines)
+    for i in range(start + 1, len(lines)):
+        m = re.match(r"^(\s*)-\s+id:\s*\S", lines[i])
+        if m and len(m.group(1)) == indent:
+            end = i
+            break
+    return lines[start:end]
+
+
+def single_entry_yaml(eid):
+    """A minimal, self-contained models.yaml carrying exactly the one entry
+    whose id is `eid`, in its committed field order.
+
+    Tests that plant a bad shape in one entry build on this instead of the
+    committed file: `replace_once` then sees the line exactly once, and the
+    line numbers a refusal reports are relative to a file the test fully
+    controls, so the test holds no matter how many entries the committed
+    registry carries.
+    """
+    return "models:\n" + "\n".join(entry_block(eid)) + "\n"
 
 
 def asset_id_of(url):

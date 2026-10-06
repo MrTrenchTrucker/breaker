@@ -7,6 +7,9 @@
 # 4e34edcb64434bcf533afaee9dcc14b5b2f9c277ed3a745f263e79a4464b28d0.
 # Asset id -> filename for the line below (from the release API, 2026-10-01):
 #   191972150 -> sherpa-onnx-streaming-zipformer-en-2023-06-21-mobile.tar.bz2
+#   143510207 -> sherpa-onnx-streaming-zipformer-en-20M-2023-02-17.tar.bz2
+#   196350763 -> sherpa-onnx-whisper-base.en.tar.bz2
+#   179372814 -> sherpa-onnx-whisper-medium.en.tar.bz2
 #
 # The line below is a byte-exact copy of the matching upstream line
 # (tab-separated filename <TAB> sha256), unedited. A refresh is a deliberate,
@@ -14,3 +17,6 @@
 # above, then replace this line and the header.
 
 sherpa-onnx-streaming-zipformer-en-2023-06-21-mobile.tar.bz2	b97e7ff75a27136f4dd33c99bb7d5f493094397501be4739578c6cd95ea7f422
+sherpa-onnx-whisper-base.en.tar.bz2	475bc7052ce299c007f6d5d5407ba8601f819a2867f6eecee510ed17df581542
+sherpa-onnx-whisper-medium.en.tar.bz2	73d95c169a410b5f23a79f8901374b26e0a16a09ea7f02b5e1db983f4cdfdd67
+sherpa-onnx-streaming-zipformer-en-20M-2023-02-17.tar.bz2	9c559283e8498d3fe95913c79ca1cb454bb26281ac2b102b41306c7d752765d9

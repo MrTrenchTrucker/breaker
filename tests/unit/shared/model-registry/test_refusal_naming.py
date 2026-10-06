@@ -54,7 +54,7 @@ class MissingRequiredFieldNamesTheEntryTest(unittest.TestCase):
 
 class UnknownFieldNamesTheEntryTest(unittest.TestCase):
     def test_unknown_field_names_the_entry_and_the_field_line(self):
-        text = ts.models_text()
+        text = ts.single_entry_yaml("small")
         planted = replace_once(text, "    family: sherpa-onnx",
                                "    family: sherpa-onnx\n    flavour: vanilla")
         msg = ts.refuses(planted)
@@ -66,7 +66,7 @@ class UnknownFieldNamesTheEntryTest(unittest.TestCase):
 
 class EmptyScalarNamesTheEntryTest(unittest.TestCase):
     def test_empty_scalar_names_the_entry_and_the_field_line(self):
-        text = ts.models_text()
+        text = ts.single_entry_yaml("small")
         planted = replace_once(text, "    family: sherpa-onnx", '    family: ""')
         msg = ts.refuses(planted)
         self.assertIn("must be a non-empty scalar", msg)

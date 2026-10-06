@@ -29,7 +29,37 @@ object ModelRegistry {
         hosted = false,
     )
 
-    val ALL: List<ModelEntry> = listOf(SMALL)
+    val TINY: ModelEntry = ModelEntry(
+        id = "tiny",
+        family = ModelFamily.SHERPA_ONNX,
+        url = "https://api.github.com/repos/k2-fsa/sherpa-onnx/releases/assets/143510207",
+        sha256 = "9c559283e8498d3fe95913c79ca1cb454bb26281ac2b102b41306c7d752765d9",
+        sizeMb = 122,
+        licence = "Apache-2.0",
+        hosted = false,
+    )
+
+    val BASE: ModelEntry = ModelEntry(
+        id = "base",
+        family = ModelFamily.WHISPER,
+        url = "https://api.github.com/repos/k2-fsa/sherpa-onnx/releases/assets/196350763",
+        sha256 = "475bc7052ce299c007f6d5d5407ba8601f819a2867f6eecee510ed17df581542",
+        sizeMb = 199,
+        licence = "MIT",
+        hosted = false,
+    )
+
+    val MEDIUM: ModelEntry = ModelEntry(
+        id = "medium",
+        family = ModelFamily.WHISPER,
+        url = "https://api.github.com/repos/k2-fsa/sherpa-onnx/releases/assets/179372814",
+        sha256 = "73d95c169a410b5f23a79f8901374b26e0a16a09ea7f02b5e1db983f4cdfdd67",
+        sizeMb = 1818,
+        licence = "MIT",
+        hosted = false,
+    )
+
+    val ALL: List<ModelEntry> = listOf(SMALL, TINY, BASE, MEDIUM)
 
     fun byId(id: String): ModelEntry? = ALL.firstOrNull { it.id == id }
 }

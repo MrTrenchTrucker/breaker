@@ -13,9 +13,11 @@ asr-models ref), and every download is verified against the **checksum.txt the
 upstream already publishes** — not just our own recorded SHA-256 [2].
 
 **On-device (sherpa-onnx compatible, S25 Ultra 16 GB):**
-- `small` — **recommended default** for real-time dictation
-- `medium` — possible on 16 GB; higher accuracy, slower
-- (tiny/base available for weaker hardware)
+- `tiny`, `small` — streaming Zipformer (English); `small` is the recommended
+  default for real-time dictation, `tiny` for weaker hardware
+- `base`, `medium` — non-streaming Whisper (English); optional, higher
+  accuracy, slower; they need non-streaming support, which is not built yet
+  (see Known Gotchas)
 
 **Server (Whisper X container, CPU):** whatever the existing pipeline already
 serves — document it here for parity.
@@ -126,3 +128,7 @@ agents, not required: an outside contributor may write the code themselves
   publishes no artifact; the moment it gains code (applies an artifact
   plugin) the edge becomes required, and the bijection check will then
   demand it.
+- `base` and `medium` are non-streaming Whisper assets: optional, higher
+  accuracy, slower. The app cannot run a non-streaming model yet; that support
+  is stt-ondevice's (Phase 3, not built). A registry entry is metadata — it
+  records a downloadable, verifiable asset, not a promise to ship it.

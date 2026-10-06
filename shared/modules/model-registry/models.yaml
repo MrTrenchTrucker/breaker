@@ -36,3 +36,67 @@ models:
       upstream RESULTS.md reports 70,369,391 for the training model, the gap is
       the unexported training heads; encoder Constant-node elements (19,199,860)
       are export constants, not counted.
+  - id: tiny
+    family: sherpa-onnx
+    params: 20M
+    size_mb: 122
+    url: https://api.github.com/repos/k2-fsa/sherpa-onnx/releases/assets/143510207
+    sha256: 9c559283e8498d3fe95913c79ca1cb454bb26281ac2b102b41306c7d752765d9
+    upstream_commit: be162ecc09bade73063a671fad9d18220149d25b
+    tamper_verified: false
+    license: Apache-2.0
+    hosted: false
+    notes: >-
+      Exported by upstream from the icefall
+      pruned_transducer_stateless7_streaming 20M checkpoint (k2-fsa/icefall
+      PR 903), epoch-99; the tarball's tokens.txt is byte-identical to the
+      source repo's. Trained on LibriSpeech. params 20,312,568 = sum of ONNX
+      initializer elements (fp32 encoder + decoder + joiner); encoder
+      Constant-node elements (2,559,827) are export constants, not counted.
+  - id: base
+    family: whisper
+    params: 73M
+    size_mb: 199
+    url: https://api.github.com/repos/k2-fsa/sherpa-onnx/releases/assets/196350763
+    sha256: 475bc7052ce299c007f6d5d5407ba8601f819a2867f6eecee510ed17df581542
+    upstream_commit: 59eea950fc76df2453efb57e6c0fd334548e8ffe
+    tamper_verified: false
+    license: MIT
+    hosted: false
+    notes: >-
+      Non-streaming Whisper (openai/whisper base.en) weights, exported to ONNX
+      by upstream; all four ONNX files byte-match the source repo
+      (csukuangfj/sherpa-onnx-whisper-base.en) at upstream_commit, tokens.txt
+      byte-identical. Needs non-streaming support, not built yet (see Known
+      Gotchas). params 72,593,408 = sum of ONNX initializer elements (fp32
+      encoder + decoder); openai/whisper's README lists 74M for the training
+      model, the gap is the unexported training heads and positional-embedding
+      constants, the same class the small entry records. License: the weights'
+      source repository (openai/whisper) licenses its code and model weights
+      under MIT (LICENSE file; README "License" section); OpenAI's Hugging
+      Face model cards tag the weights apache-2.0; both statements are
+      permissive, and the registry records the repository's licence.
+  - id: medium
+    family: whisper
+    params: 764M
+    size_mb: 1818
+    url: https://api.github.com/repos/k2-fsa/sherpa-onnx/releases/assets/179372814
+    sha256: 73d95c169a410b5f23a79f8901374b26e0a16a09ea7f02b5e1db983f4cdfdd67
+    upstream_commit: 251ab4521f354490e8f2c206fbd0b7f3f6b0a7ec
+    tamper_verified: false
+    license: MIT
+    hosted: false
+    notes: >-
+      Non-streaming Whisper (openai/whisper medium.en) weights, exported to
+      ONNX by upstream; all four ONNX files byte-match the source repo
+      (csukuangfj/sherpa-onnx-whisper-medium.en) at upstream_commit,
+      tokens.txt byte-identical. Needs non-streaming support, not built yet
+      (see Known Gotchas). params 763,856,896 = sum of ONNX initializer
+      elements (fp32 encoder + decoder); openai/whisper's README lists 769M
+      for the training model, the gap is the unexported training heads and
+      positional-embedding constants, the same class the small entry records.
+      License: the weights' source repository (openai/whisper) licenses its
+      code and model weights under MIT (LICENSE file; README "License"
+      section); OpenAI's Hugging Face model cards tag the weights apache-2.0;
+      both statements are permissive, and the registry records the
+      repository's licence.

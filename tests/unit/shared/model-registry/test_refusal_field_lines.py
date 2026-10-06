@@ -53,12 +53,18 @@ def lines_of(text, field):
 
 
 def entry(opening, drop=()):
-    """The committed entry with its two opening field lines replaced by
-    `opening`, and the named fields' lines removed."""
-    lines = ts.models_text().split("models:\n", 1)[1].splitlines(True)
+    """The committed small entry with its two opening field lines replaced by
+    `opening`, and the named fields' lines removed.
+
+    The block is the small entry's own lines (by id), not everything after
+    the `models:` key, so the planted file carries exactly one entry no
+    matter how many the committed registry has.
+    """
+    lines = ts.entry_block("small")
     for i, expected in enumerate(COMMITTED_OPENING):
-        assert lines[i] == expected, f"models.yaml opening moved: {lines[i]!r}"
-    body = [l for l in lines[len(COMMITTED_OPENING):]
+        assert lines[i] == expected.rstrip("\n"), \
+            f"models.yaml opening moved: {lines[i]!r}"
+    body = [l + "\n" for l in lines[len(COMMITTED_OPENING):]
             if not any(l.startswith(f"    {f}:") for f in drop)]
     return opening + "".join(body)
 

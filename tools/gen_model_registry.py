@@ -370,8 +370,7 @@ def render_kotlin(entries):
         "",
         "object ModelRegistry {",
     ]
-    for i, e in enumerate(entries):
-        comma = "," if i < len(entries) - 1 else ""
+    for e in entries:
         fam = "SHERPA_ONNX" if e["family"] == "sherpa-onnx" else "WHISPER"
         lines += [
             f"    val {_kotlin_constant(e['id'])}: ModelEntry = ModelEntry(",
@@ -382,7 +381,7 @@ def render_kotlin(entries):
             f"        sizeMb = {e['size_mb']},",
             f"        licence = {_kotlin_str(e['licence'])},",
             f"        hosted = {str(e['hosted']).lower()},",
-            f"    ){comma}",
+            "    )",
             "",
         ]
     names = ", ".join(_kotlin_constant(e["id"]) for e in entries)
