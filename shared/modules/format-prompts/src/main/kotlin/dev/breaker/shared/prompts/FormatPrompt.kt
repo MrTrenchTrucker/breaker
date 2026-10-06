@@ -50,11 +50,13 @@ object PromptParameters {
      *
      * Monotonic and never below [MIN_TOKENS]: a longer dictation never gets a
      * smaller budget, so the output cannot be cut short by a fixed ceiling.
+     * The budget is computed in [Long] and clamped to [Int.MAX_VALUE], so a very
+     * large input cannot wrap around to a small one.
      */
     fun maxTokensFor(inputTokens: Int): Int {
         require(inputTokens >= 0) { "input token count must not be negative, was $inputTokens" }
-        val scaled = (inputTokens * TOKENS_PER_INPUT_TOKEN).toInt() + HEADROOM_TOKENS
-        return if (scaled < MIN_TOKENS) MIN_TOKENS else scaled
+        val scaled = (inputTokens.toLong() * TOKENS_PER_INPUT_TOKEN).toLong() + HEADROOM_TOKENS
+        return scaled.coerceIn(MIN_TOKENS.toLong(), Int.MAX_VALUE.toLong()).toInt()
     }
 }
 

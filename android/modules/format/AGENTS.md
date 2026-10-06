@@ -18,7 +18,9 @@ Whisper Flow-style formatting: server LLM + rule-based local formatter.
    Temperature 0, structured output off (plain text), non-destructive system prompt.
 2. `RuleBasedFormatter` (fallback) — deterministic regex grammar for enumerations
    ("one is / two is / three is" → numbered list), sentence casing, filler-word
-   removal. Zero cost, always available offline.
+   removal. Zero cost, always available offline. Ordinal markers
+   match without regard to letter case (Locale.ROOT); item text keeps its own
+   casing.
 
 **Selection:** core's `DictateUseCase` picks the adapter, not `transport`: a
 transcript from the server engine goes to the LLM formatter, an on-device
