@@ -82,7 +82,37 @@ modules implement, and the use cases that run a dictation.
 - `LocalModeEgress` — the pure rule that keeps a phone transcript away from cloud
   formatting, used by `DictateUseCase`.
 
-**Dependencies:** none (pure Kotlin). Feature modules depend on `core`, never the reverse.
+**Dependencies:** no other module and nothing from Android (pure JVM Kotlin), plus the one library below.
+Feature modules depend on `core`, never the reverse.
+- One library: `kotlinx-coroutines-core`, for the capture channel. It is a library,
+  not a module or Android dependency, so the module stays pure-JVM and plain-JUnit
+  testable.
+
+**Threading (the capture channel and the interrupt re-arms).** The capture buffer
+is a `kotlinx.coroutines` `Channel`, unbounded: the capture thread appends with
+`trySend` and the draining thread takes the lot out with a `tryReceive` loop, so an
+append never blocks the capture thread and never fails while the channel is open,
+and the snapshot-and-clear is one shared loop that stops at the first empty read —
+the cut. That is the only concurrent thing in the module. The three interrupt
+re-arms are the narrow exception class named by the threading rule in the root
+`AGENTS.md`, decided by a site rather than by preference. A `CancellationException`
+cannot carry them: it is a `Throwable` a suspending fold would raise at a caller,
+where these sites record the failure and return, and it does not set the calling
+thread's interrupt flag, which is what the re-arm restores:
+- `DictateUseCase`, the adapter fold — an `InterruptedException` from the settings
+  store, the probe, the WAV encoder, an engine, a formatter, the id source or the
+  clock is folded into `DictationResult.Failure(OTHER, <class>)`; the flag is
+  re-armed because the interruption belongs to whatever runs next on the caller's
+  thread, not to the dictation. Pinned by `DictateUseCaseAdapterFailureTest` (a
+  checked exception leaves the flag clear; an `InterruptedException` restores it).
+- `SendUseCase`, the history save — an `InterruptedException` from
+  `HistoryStore.save` is folded into the "not saved to history" detail; the flag is
+  re-armed for the caller's thread. Pinned by `SendUseCaseHistoryStoreFailureTest`
+  (an interrupted save keeps the commit and restores the flag).
+- `SendUseCase`, the commit — an `InterruptedException` from `TextCommitter.commit`
+  is folded into the `FAILED` outcome; the flag is re-armed for the caller's
+  thread. Pinned by `SendUseCaseCommitterFailureTest` (an interrupted commit is a
+  failed commit and the flag is restored).
 
 ## Invariants
 - All ports compile; the `DictateUseCase` state machine is unit-tested including its

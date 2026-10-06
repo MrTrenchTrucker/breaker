@@ -26,5 +26,8 @@ kotlin {
 }
 
 dependencies {
+    // The capture buffer is a kotlinx.coroutines Channel; the alias lands with
+    // the transport PR's catalog hunk.
+    implementation(libs.kotlinx.coroutines.core)
     testImplementation(libs.junit)
 }
