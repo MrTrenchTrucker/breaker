@@ -111,6 +111,7 @@ class MicCaptureFailureTest {
                 suppressor = suppressor,
             ),
             running = running,
+            stopRequested = AtomicBoolean(false),
             session = session,
             failureRef = failureRef,
             readBufferSamples = READ_BUFFER_SAMPLES,

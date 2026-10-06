@@ -16,6 +16,14 @@ internal class CaptureLoop(
     private val pipeline: CapturePcmPipeline,
     /** The session's own progress: false once the take stops being read. */
     private val running: AtomicBoolean,
+    /**
+     * The stop's request that the take end, distinct from [running].
+     *
+     * A stop asks the take to end here rather than dropping [running] itself,
+     * so the capture thread always reaches the drain below before the
+     * dispatcher can see the take finish. See the field on [MicCapture].
+     */
+    private val stopRequested: AtomicBoolean,
     /** Which take is current; a thread whose take is replaced retires. */
     private val session: AtomicLong,
     private val failureRef: AtomicReference<Throwable?>,
@@ -30,7 +38,7 @@ internal class CaptureLoop(
         val readBuffer = ShortArray(readBufferSamples)
         var consecutiveEmptyReads = 0
         try {
-            while (running.get() && isCurrent(mine)) {
+            while (running.get() && !stopRequested.get() && isCurrent(mine)) {
                 val read = source.read(readBuffer, 0, readBuffer.size)
                 // A read still in flight when the take is replaced must not be
                 // delivered into the next take's buffer.
