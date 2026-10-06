@@ -105,6 +105,14 @@ code.
 - `purgeExpired()` is to be called by the app's scheduler (android/app); nothing calls it until the app shell wires it.
 - Tombstones are written and kept; no shipped code reads or sweeps them yet. The port that lets sync reach them is
   deferred, so the tombstone table only grows until it lands.
+- A tombstone can outlive a re-save of its id. `save` replaces a row by id and never touches the tombstones table, so
+  `delete` of X followed by `save` of X leaves a live row and a pending tombstone for one id, and only the age sweep
+  removes it. Two cases look alike today and may deserve different answers. A tombstone recorded by a REMOTE delete
+  (`applyRemoteDelete`) is held across a local re-save on purpose (tests pin it); that is arguably right, because the
+  server should learn that the earlier content was deleted even if new content landed under the same id. A tombstone
+  recorded by a LOCAL `delete` arguably should clear when the same id is saved again: the row is live again, and once
+  sync carries tombstones it would otherwise tell the server to delete a row the user dictated again. Whether to split
+  the two is the open design question for whoever designs sync; change neither case before that design exists.
 - When the app wires the store, create it once per process and share it through the app's wiring. Each `create()`
   opens its own database handle on the same file, so two stores on one file would contend for the write lock
   (expected from how SQLite locks a file; no test here shows it). Close the store on
