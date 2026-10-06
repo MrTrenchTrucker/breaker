@@ -2,12 +2,14 @@ package dev.breaker.dictation.transport
 
 import dev.breaker.dictation.core.port.Clock
 import dev.breaker.dictation.core.port.ConnectivityProbe
-import java.net.InetAddress
-import java.util.concurrent.CancellationException
-import java.util.concurrent.ExecutionException
-import java.util.concurrent.FutureTask
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Answers whether the configured Local Server is reachable, with a TCP connect
@@ -93,57 +95,6 @@ class TcpConnectivityProbe internal constructor(
         clock: Clock,
     ) : this(serverUrlProvider, clock, SystemHostResolver, SocketTcpConnector)
 
-    /**
-     * One probe's answer, and whether it was learned at all.
-     *
-     * "Not reachable" is one word for three different facts: a dial that was
-     * made and failed, a task that never ran because [ProbeExecutor] had
-     * nowhere to put it (every slot held by a lookup that has not returned, or
-     * this host's own lookup still parked), and a task that ran but whose
-     * budget expired before it produced anything. All three are correct answers
-     * to a caller's question, and the caller gets one boolean either way. Only
-     * the first is a MEASUREMENT. The other two resolved nothing and dialled
-     * nothing, so there is nothing learned about the server, and caching either
-     * would serve it for [CACHE_TTL_MS] — answering the first question asked
-     * after the host comes back out of that cache instead of dialling a server
-     * that is there again.
-     *
-     * [learned] is what [probeAndStore] keys that decision on. A genuine
-     * failure — a real socket refused, a name that does not resolve, a body
-     * that threw — is a measurement of this address and is cached, which is
-     * the whole purpose of a negative cache.
-     *
-     * **The cost of not caching [UNANSWERED].** A name whose resolution outlives
-     * the budget is re-probed every question, not once per [CACHE_TTL_MS]
-     * window. A timed-out connect IS measured and cached, unless the caller's
-     * own budget wins that race first.
-     */
-    private enum class ProbeAttempt(val reachable: Boolean, val learned: Boolean) {
-        /** A connection was accepted. */
-        REACHABLE(true, true),
-
-        /** The task ran and reported that the server was not there. Cached. */
-        UNREACHABLE(false, true),
-
-        /** The task was refused before it ran; no lookup, no dial. Not cached. */
-        UNDIALED(false, false),
-
-        /**
-         * The budget ran out while the task was still going. Not cached: the
-         * address that would have been dialled was never obtained, so nothing
-         * is known rather than measured.
-         */
-        UNANSWERED(false, false),
-    }
-
-    /** A cached answer and the address it was measured for. */
-    private class CacheEntry(
-        val host: String,
-        val port: Int,
-        val reachable: Boolean,
-        val storedAtMillis: Long,
-    )
-
     /** One immutable entry, published as a whole: two separate fields could be read torn. */
     @Volatile
     private var cache: CacheEntry? = null
@@ -200,22 +151,35 @@ class TcpConnectivityProbe internal constructor(
     }
 
     /**
+     * The per-instance lock that serialises cold probes. A [Mutex] now, held
+     * **across** the connection attempt exactly as the monitor it replaced was
+     * (a deliberate blocking-under-lock decision, for the reason in the class
+     * KDoc). The monitor it replaces was reentrant and this [Mutex] is not;
+     * nothing in this class ever reenters the lock, so that difference is
+     * invisible here. It is untimed exactly as the monitor was (there is no
+     * timed acquire), which is what lets the critical section in [probeAndStore]
+     * be the one place in this class that suspends: the lock lives inside the
+     * [runBlocking] bridge and nowhere else.
+     */
+    private val probeLock = Mutex()
+
+    /**
      * Probes once and stores the answer.
      *
-     * Synchronized so that a cold probe opens one socket rather than one per
+     * Locked so that a cold probe opens one socket rather than one per
      * concurrent caller, and so a refresh cannot interleave with a cold probe
      * and leave the older answer cached last.
      *
-     * The monitor is held **across** the connection attempt. That is a
+     * The lock is held **across** the connection attempt. That is a
      * deliberate blocking-under-lock decision: the alternative is a second
      * connection per simultaneous caller, and reachability checks are cheap to
      * collapse and expensive to duplicate. The wait is bounded by the budget
      * below, and the lock is on this instance only, so it cannot block an
      * unrelated object.
      *
-     * **Double-checked locking.** Holding the monitor only makes concurrent
+     * **Double-checked locking.** Holding the lock only makes concurrent
      * callers wait *for each other*; it does not make any of them skip the
-     * dial. Every caller that missed the cache outside the monitor would
+     * dial. Every caller that missed the cache outside the lock would
      * otherwise queue and then probe anyway — a storm of N callers on a cold
      * cache costs N dials, serially, and the last one waits N times the budget.
      * So when [allowFreshCache] is set the cache is re-read here, inside the
@@ -235,21 +199,42 @@ class TcpConnectivityProbe internal constructor(
      *   [refresh], which must never be served a cached answer.
      */
     private fun probeAndStore(target: Target, allowFreshCache: Boolean): Boolean {
-        synchronized(this) {
-            if (allowFreshCache) {
-                freshEntryFor(target)?.let { return it.reachable }
+        return try {
+            runBlocking {
+                probeLock.withLock {
+                    if (allowFreshCache) {
+                        freshEntryFor(target)?.let { return@withLock it.reachable }
+                    }
+                    val attempt = runProbe(target)
+                    // Only an answer that LEARNED something is cached. An attempt
+                    // that was refused before it ran, and one whose budget expired
+                    // while it was still running, learned nothing: caching either
+                    // false would serve it for the whole window and hide a server
+                    // that has just come back from the very question meant to
+                    // find it. See [ProbeAttempt].
+                    if (attempt.learned) {
+                        cache = CacheEntry(target.host, target.port, attempt.reachable, clock.nowEpochMillis())
+                    }
+                    return@withLock attempt.reachable
+                }
             }
-            val attempt = runProbe(target)
-            // Only an answer that LEARNED something is cached. An attempt that
-            // was refused before it ran, and one whose budget expired while it
-            // was still running, learned nothing: caching either false would
-            // serve it for the whole window and hide a server that has just
-            // come back from the very question meant to find it. See
-            // [ProbeAttempt].
-            if (attempt.learned) {
-                cache = CacheEntry(target.host, target.port, attempt.reachable, clock.nowEpochMillis())
-            }
-            return attempt.reachable
+        } catch (_: InterruptedException) {
+            // kotlinx.coroutines 1.11.0, jvm/src/Builders.kt: the blocked
+            // caller parks in BlockingCoroutine.joinBlocking, whose loop runs
+            //   if (Thread.interrupted()) cancelCoroutine(InterruptedException())
+            // at :58 and, once the job is complete,
+            //   (state as? CompletedExceptionally)?.let { throw it.cause }
+            // at :68. createCauseException (common/src/JobSupport.kt:749-752)
+            // passes a Throwable through unwrapped, so the rethrow at :68 is
+            // the PLAIN InterruptedException, not a CancellationException, and
+            // Thread.interrupted() at :58 has already cleared the caller's
+            // flag. Re-arm it and answer without learning: the dispatched body
+            // is not a structured child of the cancelled job, so it ends on
+            // its own terms on its worker, bounded by its own connect
+            // deadline, and whatever it produces is not an answer this caller
+            // ever sees.
+            Thread.currentThread().interrupt()
+            false
         }
     }
 
@@ -268,15 +253,47 @@ class TcpConnectivityProbe internal constructor(
      * lookup for this host is ALREADY in flight: the host's NAME is the key
      * (case-folded - see [ProbeExecutor]), so a second probe of a wedged host
      * neither starts a second lookup nor spends a second of the cap, leaving
-     * the remaining slots to other addresses. The task wraps its body in
+     * the remaining slots to other addresses. The body wraps itself in
      * [ProbeExecutor.answering] so that mark ends when THIS answer is produced,
      * not after the worker tidies up - for the reason given in the class KDoc.
-     * The wait below therefore happens only for a task that really is running,
-     * and stays bounded by the same budget.
+     *
+     * Suspends inside [probeAndStore]'s [runBlocking]: the admission is a
+     * plain call, and the wait below is the one suspension in this class. The
+     * worker publishes its answer through a [CompletableDeferred] (the
+     * coroutine replacement for the FutureTask the wait used to read), and the
+     * wait therefore happens only for a body that really is running, and stays
+     * bounded by the same budget - the budget's `withTimeout` cancels the wait
+     * when it is spent, and a body that throws publishes its throw to the
+     * caller through the deferred instead of swallowing it.
      */
-    private fun runProbe(target: Target): ProbeAttempt {
+    private suspend fun runProbe(target: Target): ProbeAttempt {
         val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(CONNECT_TIMEOUT_MS)
-        val task = FutureTask { ProbeExecutor.answering(target.host) { connect(target, deadline) } }
+        // The body's result, published from the worker. A [CompletableDeferred]
+        // replaces the FutureTask: the worker completes it, and the caller
+        // waits on it under the budget.
+        val result = CompletableDeferred<Boolean>()
+        val task = Runnable {
+            ProbeExecutor.answering(target.host) {
+                try {
+                    result.complete(connect(target, deadline))
+                } catch (t: Throwable) {
+                    // A body that threw: publish the throw to the caller through
+                    // the deferred (the CompletableDeferred equivalent of a
+                    // FutureTask's ExecutionException) and RETURN normally. The
+                    // caller's wait re-throws the deferred's exception and folds
+                    // it into UNREACHABLE, so the failure reaches the caller the
+                    // way it always did. It must not also escape the body: a
+                    // launched body that re-throws completes its coroutine
+                    // exceptionally, and the failure then has the uncaught-
+                    // exception handler of the thread it runs on as its last
+                    // resort - the documented default of which ends the
+                    // process on Android. Returning normally ends the body the
+                    // way a FutureTask always did: the exception is carried in
+                    // the result, not in the thread.
+                    result.completeExceptionally(t)
+                }
+            }
+        }
         if (!ProbeExecutor.execute(target.host, task)) {
             // No connection was attempted. Answering now is the honest answer
             // and keeps the caller inside its budget - and UNDIALED, so the
@@ -285,27 +302,27 @@ class TcpConnectivityProbe internal constructor(
         }
         val remainingNanos = deadline - System.nanoTime()
         val reachable = try {
-            task.get(remainingNanos, TimeUnit.NANOSECONDS)
-        } catch (_: TimeoutException) {
-            // The budget is spent and the task is still running, so nothing is
-            // known: see [ProbeAttempt.UNANSWERED]. The parked worker is told
-            // to stop, but it ends on its own terms - a blocking socket call is
-            // not guaranteed to react to an interrupt - so whatever it
-            // eventually produces is not an answer this caller ever sees.
-            task.cancel(true)
+            withTimeout(TimeUnit.NANOSECONDS.toMillis(remainingNanos)) { result.await() }
+        } catch (_: TimeoutCancellationException) {
+            // The budget is spent and the body is still running, so nothing is
+            // known: see [ProbeAttempt.UNANSWERED]. The parked worker ends on
+            // its own terms - a blocking socket call is not guaranteed to react
+            // to anything - so whatever it eventually completes the deferred
+            // with is not an answer this caller ever sees.
             return ProbeAttempt.UNANSWERED
-        } catch (_: ExecutionException) {
-            false
         } catch (_: CancellationException) {
-            false
-        } catch (_: InterruptedException) {
-            Thread.currentThread().interrupt()
-            task.cancel(true)
-            false
-        } catch (_: RuntimeException) {
-            false
+            // The wait was cancelled for a reason that is not the budget: this
+            // caller gave up, and nothing was measured.
+            return ProbeAttempt.UNANSWERED
+        } catch (_: Throwable) {
+            // The body threw: its exception was re-thrown out of [result.await],
+            // so this attempt is a measurement of this address and is cached
+            // like any other failure - a real refusal, a name that does not
+            // resolve, and a body that threw are all things the network actually
+            // said.
+            return ProbeAttempt.UNREACHABLE
         }
-        // The task ran to completion and reported its own outcome, so this
+        // The body ran to completion and reported its own outcome, so this
         // attempt is a measurement of this address and is cached like any
         // other failure - a real refusal, a name that does not resolve, and a
         // body that threw are all things the network actually said.
@@ -436,47 +453,6 @@ class TcpConnectivityProbe internal constructor(
         return text.toIntOrNull()
     }
 
-    /** A configured host and port, with the host already stripped of brackets. */
-    private class Target(val host: String, val port: Int) {
-        /**
-         * The addresses to try for this target. A valid address literal (see
-         * [isAddressLiteral]) is used as-is and never reaches the resolver;
-         * every other colon host, and every host that merely LOOKS numeric
-         * without being a valid address, is refused here and reaches neither
-         * the resolver nor [InetAddress.getByName] nor the connector, so the
-         * probe answers "not reachable" with no lookup or dial at all. A scoped
-         * IPv6 literal (one carrying a %zone suffix) is refused by design: zone
-         * ids vary by platform and the population is narrow, so the refusal
-         * fails safe - it yields no address, dials nothing and answers "not
-         * reachable" without a lookup or an exception.
-         */
-        fun addresses(resolver: HostResolver): List<InetAddress> {
-            if (isAddressLiteral(host)) return literalAddresses()
-            if (host.contains(':') || looksNumeric(host)) return emptyList()
-            return try {
-                resolver.resolve(host)
-            } catch (_: RuntimeException) {
-                emptyList()
-            }
-        }
-
-        /**
-         * True for text made only of digits and dots — text someone wrote as an
-         * address and got wrong, such as "999.1.1.1" or "1.2.3". Refused
-         * alongside the colon hosts: it names no server, so asking a name server
-         * about it asks about a name that was never a name. A real host name
-         * contains a letter or a hyphen, so this cannot swallow one.
-         */
-        private fun looksNumeric(host: String): Boolean =
-            host.isNotEmpty() && host.all { it.isDigit() || it == '.' }
-
-        private fun literalAddresses(): List<InetAddress> = try {
-            listOf(InetAddress.getByName(host))
-        } catch (_: Exception) {
-            emptyList()
-        }
-    }
-
     companion object {
         /**
          * The budget for one resolution-plus-connection attempt. Long enough to
@@ -488,10 +464,5 @@ class TcpConnectivityProbe internal constructor(
         /** How long an answer is served without touching the network. */
         const val CACHE_TTL_MS: Long = 30_000L
 
-        private const val SCHEME_SEPARATOR = "://"
-        private const val HTTPS_PORT = 443
-        private const val HTTP_PORT = 80
-        private const val MIN_PORT = 1
-        private const val MAX_PORT = 65_535
     }
 }

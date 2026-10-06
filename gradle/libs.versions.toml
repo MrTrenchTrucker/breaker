@@ -11,11 +11,13 @@ targetSdk = "36"   # read 2026-10-04 from https://dl.google.com/android/reposito
 minSdk = "30"
 junit = "4.13.2"
 sqlite-jdbc = "3.53.4.0"
+kotlinx-coroutines = "1.11.0"   # read 2026-10-05 from https://repo1.maven.org/maven2/org/jetbrains/kotlinx/kotlinx-coroutines-core/maven-metadata.xml (newest stable; core artifact only)
 
 [libraries]
 junit = { module = "junit:junit", version.ref = "junit" }
 # JVM unit tests only (real SQLite for HistorySql); must never be a non-test dependency.
 sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite-jdbc" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

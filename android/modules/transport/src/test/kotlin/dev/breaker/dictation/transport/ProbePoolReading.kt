@@ -2,7 +2,6 @@ package dev.breaker.dictation.transport
 
 import java.lang.reflect.Field
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.TimeUnit
 import org.junit.After
@@ -66,15 +65,20 @@ internal object ProbePoolReading {
         if (occupied == null) unreadable += "ProbeExecutor.occupied"
         val bodies = readIntField(ProbeExecutor, executorClass, "bodies")
         if (bodies == null) unreadable += "ProbeExecutor.bodies"
-        val pool = field(ProbeExecutor, executorClass, "pool")?.get(ProbeExecutor) as? ThreadPoolExecutor
-        if (pool == null) unreadable += "ProbeExecutor.pool"
+        // The `pool.activeCount` leg collapses onto `bodies`. The pool's
+        // substrate is now a dispatcher, so the `pool` field no longer reflects
+        // as a ThreadPoolExecutor, and `bodies` carries the same "a body is in
+        // flight" fact this pool needs for the idle decision: it rises when a
+        // body is admitted for dispatch and falls when the body ends. The
+        // Reading still reports a fourth leg named pool.activeCount so the
+        // failure text and the busy/idle predicate are unchanged.
         val marks = readMarks(ProbeSingleFlight, flightClass, "inFlight")
         if (marks == null) unreadable += "ProbeSingleFlight.inFlight"
 
         return Reading(
             occupied = occupied ?: -1,
             bodies = bodies ?: -1,
-            activeCount = pool?.activeCount ?: -1,
+            activeCount = bodies ?: -1,
             marks = marks ?: -1,
             unreachable = unreadable,
         )

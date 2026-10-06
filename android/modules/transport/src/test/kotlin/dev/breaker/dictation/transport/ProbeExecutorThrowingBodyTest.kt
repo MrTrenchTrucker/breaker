@@ -55,14 +55,16 @@ import java.util.concurrent.atomic.AtomicInteger
  * finished" is a fact rather than an inference from the second having finished.
  *
  * **What this test does not claim, and why the absence is deliberate.** It does
- * not assert that anything catches, reports, contains or logs the throw.
- * [ProbeExecutor] installs no handler and swallows nothing: the exception
- * reaches the thread's uncaught path, the JVM's default handler prints the stack
- * trace, and the worker thread - not the pool, not the process - is what ends.
- * Installing an `UncaughtExceptionHandler` here would REPLACE the exact
- * behaviour under test and would pass whatever the release behaviour became, so
- * the trace is left in the output where it is. It is expected, and it is not a
- * failure.
+ * not assert that anything logs or surfaces the throw on a thread: [ProbeExecutor]
+ * contains the throw inside the launch block (see the object KDoc), so the body's
+ * failure never reaches a thread's uncaught-exception handler - it is carried in
+ * the result the body's own caller already saw, and the launched coroutine ends
+ * normally. That is the module's promise, pinned by
+ * [TcpConnectivityProbeUncaughtHandlerTest]; it is not what this test measures,
+ * and an `UncaughtExceptionHandler` installed here would REPLACE exactly that
+ * promise rather than observe it, so none is installed. What this test pins is
+ * the accounting: that a body that throws still gives both counters back, so a
+ * throwing body is the same to the pool as a returning one.
  *
  * **And it makes no claim about the caller.** `execute` answers one boolean for
  * the admission, and that boolean is produced before the body has run, so it
