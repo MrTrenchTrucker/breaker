@@ -4,8 +4,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.util.concurrent.CopyOnWriteArrayList
-import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 /**
@@ -371,14 +369,28 @@ class TcpConnectivityProbeWedgedLookupTest : ProbePoolIsolation() {
      *
      * The pool in [ProbeExecutor] is a process-wide singleton, so a worker still
      * parked on a released latch turns every LATER test in this JVM into a
-     * refused task and a false "not reachable". Each attempt costs at most one
-     * budget while the pool is still busy, so the bound is generous for the
-     * several attempts it can take and still fails rather than hanging when the
-     * pool never comes back.
+     * refused task and a false "not reachable".
+     *
+     * **Why a drain probe AND an idle confirmation, not just one of the two.**
+     * A single green dial only proves that ONE body was admitted and answered;
+     * it does not prove the pool is IDLE. The counters are returned in the
+     * wrapper's `finally`, which runs the instant a body ends - but a cold,
+     * freshly-compiled build is exactly where that hand-off (the slot and the
+     * thread coming back) is slowest, and a dial that is green on arrival can
+     * still be leaving its worker's hand-off in flight when the NEXT class's
+     * `@Before` reads the pool. The next class would then start with a slot not
+     * yet handed back, and an admission that is deterministically a refusal on
+     * a truly idle pool would be judged against a pool that is one hand-off away
+     * from idle. So this drain first runs a real dial on a host nothing has
+     * cached (a `true` can only have come from a dial that really ran), and then
+     * CONFIRMS the pool is idle with the same bounded wait the isolation hooks
+     * use - so a class that hands a busy pool to the next one fails HERE, by
+     * name, instead of blaming whichever class runs after it.
      */
     private fun drainProbeExecutor() {
         val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(DRAIN_BOUND_MS)
         var attempts = 0
+        var dialled = false
         while (System.nanoTime() < deadline) {
             attempts++
             val drain = TcpConnectivityProbe(
@@ -387,89 +399,22 @@ class TcpConnectivityProbeWedgedLookupTest : ProbePoolIsolation() {
                 FakeHostResolver(),
                 RecordingConnector(script = listOf(ProbeOutcome.CONNECTED)),
             )
-            if (drain.isServerReachable()) return
+            if (drain.isServerReachable()) {
+                dialled = true
+                break
+            }
         }
-        throw AssertionError(
-            cardFailure("the shared probe pool was still busy ${DRAIN_BOUND_MS} ms after this test released its latches, over $attempts attempts - the one pool in [ProbeExecutor] serves every probe in this JVM, so a worker left parked past this test answers false for everything that follows it"),
+        if (!dialled) {
+            throw AssertionError(
+                cardFailure("the shared probe pool was still busy ${DRAIN_BOUND_MS} ms after this test released its latches, over $attempts attempts - the one pool in [ProbeExecutor] serves every probe in this JVM, so a worker left parked past this test answers false for everything that follows it"),
+            )
+        }
+        // The dial above answered true, which means a worker really ran it; now
+        // wait for that worker's slot and thread to be handed back so the pool
+        // is idle - not merely dial-able - before this class hands it on.
+        awaitProbePoolIdle(
+            context = "after this test's drain dial, before the next class reads the shared pool",
         )
-    }
-
-    /**
-     * A resolver whose hosts can be made to hang, standing in for a name lookup
-     * the platform has given up on handing back.
-     *
-     * A real `InetAddress.getAllByName` cannot be interrupted: the JDK hands the
-     * name to the OS resolver and waits on it, so a lookup against a blackholed
-     * resolver, a captive portal or a VPN mid-handshake parks that thread until
-     * the platform gives up on its own. So this double does what the real thing
-     * does — it **ignores the interrupt** the budget's `task.cancel(true)` sends
-     * and keeps waiting. A double that honoured the interrupt would let the
-     * worker free itself and the defects under test would not reproduce at all.
-     *
-     * Every host asked about is recorded on the way IN, which is what lets a
-     * test see that a lookup was STARTED - and therefore see that a lookup
-     * refused before it started is absent. Once released, a host resolves to a
-     * loopback address carrying its name, so a scripted CONNECTED answer means
-     * a genuine success path.
-     */
-    private class WedgeResolver {
-        private val latches = LinkedHashMap<String, CountDownLatch>()
-        private val asked = CopyOnWriteArrayList<String>()
-
-        /** Wedges [host] until [release] is called, or until the await times out. */
-        fun wedge(host: String): CountDownLatch = latches.getOrPut(host) { CountDownLatch(1) }
-
-        /** True while [host]'s resolution is still inside its await. */
-        fun parked(host: String): Boolean = latches[host]?.let { it.count > 0L } ?: false
-
-        /**
-         * How many lookups of [host] this resolver was actually asked for.
-         *
-         * Recorded on the way in, so a lookup that is refused before it is
-         * started is visibly absent: the only way to start a second lookup is to
-         * reach this resolver at all.
-         */
-        fun lookupsOf(host: String): Int = asked.count { it == host }
-
-        fun release(host: String) {
-            latches[host]?.countDown()
-        }
-
-        fun releaseAll() {
-            latches.values.forEach { it.countDown() }
-        }
-
-        /** The resolver itself: wedges the scripted hosts, answers the rest. */
-        fun asResolver(): HostResolver = HostResolver { host ->
-            asked.add(host)
-            latches[host]?.let { latch ->
-                awaitIgnoringInterrupts(latch)
-            }
-            listOf(FakeHostResolver.loopbackFor(host))
-        }
-
-        /**
-         * Awaits [latch] to completion however often the thread is interrupted.
-         *
-         * An `await` throws [InterruptedException] and CLEARS the interrupt
-         * status, so swallowing it and awaiting again is what "interrupts do not
-         * stop this lookup" means in code. The status is restored afterwards so
-         * the park is not silently swallowing a shutdown request either, and
-         * the wait is bounded so a test that forgets its `finally` fails with a
-         * real answer rather than poisoning the rest of the JVM.
-         */
-        private fun awaitIgnoringInterrupts(latch: CountDownLatch) {
-            val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(WEDGE_AWAIT_MS)
-            var interrupted = false
-            while (latch.count > 0L && System.nanoTime() < deadline) {
-                try {
-                    latch.await(WEDGE_AWAIT_MS, TimeUnit.MILLISECONDS)
-                } catch (_: InterruptedException) {
-                    interrupted = true
-                }
-            }
-            if (interrupted) Thread.currentThread().interrupt()
-        }
     }
 
     private companion object {
@@ -484,9 +429,6 @@ class TcpConnectivityProbeWedgedLookupTest : ProbePoolIsolation() {
 
         /** Documentation address probed once the worker has nowhere to put a task. */
         const val EXHAUSTED_HOST = "exhausted.invalid"
-
-        /** Ceiling on a wedged lookup if nothing releases it; a safety valve. */
-        const val WEDGE_AWAIT_MS = 30_000L
 
         /** Ceiling on what an exhausted or recovering caller may be held. */
         const val RETURN_BOUND_MS = 3_000L

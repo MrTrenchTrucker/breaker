@@ -46,6 +46,121 @@ order and spelling:
 records the whole clip before it asks the probe, so no audio waits on a probe
 and none is dropped. This module holds no audio. Never block the UI.
 
+**Threading:** the probe's resolve-plus-connect body runs on the bounded pool
+of named daemon threads the module always had - a `SynchronousQueue`-backed
+`ThreadPoolExecutor` with a 30 s worker idle window - now reached through the
+pool's `asCoroutineDispatcher()` instead of a `Runnable` handed to it directly.
+The caller's wait is a `runBlocking` that bridges into the budgeted wait on a
+`CompletableDeferred`, and the per-instance lock that serialises cold probes is
+a `Mutex`. Never block the UI.
+
+**Why these primitives and not coroutines.** The threading above is a fact
+about this module's code, and it is the worked example of the narrow exception
+class named in the root order (root `AGENTS.md` section 6). The order holds for
+every concurrent thing here that is not one of these three cases, and each case
+is decided by a site rather than by preference:
+- **No dispatcher supplies a dedicated daemon thread at default priority.** The
+  shared default pools recycle workers for unrelated work, so the probe workers
+  are created and named by hand in `ProbeExecutor` and the body runs on them
+  through the pool's own `asCoroutineDispatcher()`, which hands the worker the
+  work and nothing else of a coroutine.
+- **`Mutex` is non-reentrant, has no timed acquire and `withLock` takes a
+  suspend lambda.** It therefore cannot carry the admission gate: `claim`, both
+  releases and `answering` are all non-suspend, reached from the submitted
+  wrapper's `finally`, and a `withLock` none of them could call; the gate also
+  checks and writes the two counters as one indivisible step, which is the
+  property a `Mutex` would not add.
+- **`answering` is non-suspend, so the slot token is a `ThreadLocal`, not a
+  coroutine context element.** It is called from inside the body, before the
+  value escapes, and its signature is pinned; a context element would need the
+  same `ThreadLocal` behind it to be reachable from non-suspend code, and a
+  plain `ThreadLocal` that a body that moved its work to another thread finds
+  is empty and releases nothing, which is the safe failure.
+
+The two admission counters are `AtomicInteger`s taken under the gate's monitor
+and the in-flight marks live in the single-flight map; none of them is a
+coroutine state that a `Mutex` or a channel would improve on.
+
+**The bounded pool's design (`ProbeExecutor`).** The threading above is the
+mechanism; this is the design it exists to hold. `ProbeExecutor`'s KDoc states
+the contract the code keeps and points here for the reasoning, per topic:
+- **Why not a single worker with a queue of one.** A name lookup cannot be
+  interrupted: `InetAddress.getAllByName` hands the name to the OS resolver and
+  waits on it, so a lookup against a blackholed resolver, a captive portal or a
+  VPN mid-handshake parks its thread until the platform gives up on its own
+  terms. Under the single worker + queue of one this replaced, one such lookup
+  parked the ONE thread that served every probe in the JVM, and every later
+  probe was refused without a connection attempt and answered "not reachable" -
+  which the domain read as "the server is down" and routed on-device, with no
+  way back short of a process restart. A wedged worker must therefore be
+  counted and replaced, not waited on, and the two counters are what make that
+  replacement honest.
+- **Two counters, released at two different moments - the asymmetry is the
+  design.** `occupied` is the SLOT: admitted and not yet ANSWERED, given back
+  at PUBLISH by `answering`'s `finally`, which runs before the value it
+  produced can be observed. `bodies` is the THREAD: held by any running body,
+  answered or not, given back when the body ENDS - it returns, or it throws -
+  in the submitted wrapper's `finally`. They are deliberately not the same
+  moment: a body that has published its answer but is still inside its own task
+  really is occupying an OS thread the pool cannot hand to anybody else, so
+  releasing the thread at publish would let the pool over-subscribe itself into
+  a rejection; and a body that has NOT yet answered is genuinely still looking,
+  so holding its slot past the answer is what made a healthy address answer
+  "not reachable" with no dial.
+- **Admission needs both, together.** `claim` checks the slot and the thread
+  under ONE lock and takes both or neither; separate checks would not be a
+  style question - two callers could each pass one condition and fail the
+  other, and both proceed, so the bound the pool promises would hold by luck.
+  A refused attempt changes nothing: both conditions are tested before either
+  counter is written, so there is no partial update to undo, and a refused
+  caller takes no slot and no thread and has no token to release.
+- **The two caps, and their headroom.** `MAX_WEDGED_PROBES` is 2: one wedged
+  lookup, plus one healthy address that must still be dialled - a captive
+  portal that swallows DNS for one address must not silence a different,
+  perfectly good one - and it is the point at which "the network stack is
+  comprehensively down" describes the state better than "another address needs
+  probing": however many lookups hang, at most two UNANSWERED bodies are ever
+  in flight. `POOL_MAX_THREADS` is the slot cap plus its ONE headroom thread,
+  which is the pool's own `maximumPoolSize`, and it is a check, not a sizing:
+  it is the count of bodies that have started and not yet ended, and it exists
+  because the slot cap alone cannot see post-answer work. Exactly one headroom
+  is load-bearing, because it makes `claim` the only refuser - sized to the
+  cap instead, the JDK pool would refuse overflow work indistinguishably from
+  a cap refusal and a neutralised `claim` guard would be undetectable.
+- **At either cap the answer is "not reachable", at once, and the task never
+  runs on the caller.** `execute` returns false rather than throwing: a
+  `CallerRunsPolicy` would move an unbounded, uninterruptible lookup onto
+  exactly the caller this pool exists to protect. The caller turns the false
+  into "not reachable" without a connection attempt ever being made.
+- **A submitted body MAY throw, and the containment sits in the launch
+  block, not the body.** The body is a bare `Runnable` handed to `execute` by
+  callers the module does not own, so the module cannot make every body catch
+  its own throw; the one place the module controls, on every body, is the
+  wrapper in `executeReporting`, where the throw is caught, the counters are
+  given back by the `finally`, and the launched coroutine is kept on the
+  normal-completion path. That is load-bearing, not incidental: a launched
+  body that completed its coroutine EXCEPTIONALLY would hand the failure to
+  the thread's uncaught-exception handler by the coroutine machinery's last
+  resort, and on Android the documented default handler is what ends the
+  process. The throw is not logged there on purpose: the body's caller already
+  holds the failure (a production body publishes it to its deferred, a test
+  body observes it through its own latch), and any work between the body
+  ending and the counters coming back - even a stderr write the test runner
+  captures - holds the slot and the thread while the next admission is judged
+  and can refuse a body that should be admitted. Nothing is dropped that a
+  caller cannot already see; nothing is handed to a thread the module does not
+  own.
+- **Process-wide, and never shut down.** This is a file-level singleton on
+  purpose: an executor per probe instance would multiply threads - and file
+  descriptors - by the number of probes built, and nothing ever tears a probe
+  down, so a per-instance executor could only ever leak. Nothing owns the
+  pool's lifetime, so it is never shut down, and the threads are daemon
+  threads.
+- **The honest limit: post-answer work is not bounded.** A body that hangs
+  after answering holds its thread, and at `POOL_MAX_THREADS` further probes
+  are refused as not measured until it ends. Today's post-answer work is
+  socket close plus unmark: microseconds, reasoned, not measured.
+
 ## Invariants
 - Reachable only when the configured Local Server accepts a TCP connect within
   1.5 s; refused, timed out or no network all answer "not reachable".

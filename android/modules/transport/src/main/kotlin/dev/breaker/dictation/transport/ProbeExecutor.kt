@@ -1,107 +1,43 @@
 package dev.breaker.dictation.transport
 
-import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.SynchronousQueue
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.launch
 
 /**
- * The daemon worker pool that resolution-plus-connection tasks run on, and the
- * bounded accounting that keeps one wedged lookup from starving the process.
+ * The bounded pool that resolution-plus-connection bodies run on, and the
+ * admission that keeps one wedged lookup from starving the process. The
+ * design prose - why the pool is process-wide, why the slot and the thread
+ * are two counters released at two different moments, why admission takes
+ * both or neither, and why a body that throws is contained in the launch
+ * block - is in the module card (android/modules/transport/AGENTS.md,
+ * Threading, "The bounded pool's design"), kept there per topic like the
+ * rest of the card's per-site reasons. The contract this type keeps:
  *
- * **Why this is not a single-threaded pool with a queue of one.** A name lookup
- * cannot be interrupted: `InetAddress.getAllByName` hands the name to the OS
- * resolver and waits on it, so a lookup against a blackholed resolver, a
- * captive portal or a VPN mid-handshake parks its thread until the platform
- * gives up on its own terms. Under the single worker + queue of one this
- * replaced, one such lookup parked the ONE thread that served every probe in
- * the JVM, and every later probe was refused without a connection attempt and
- * answered "not reachable" — which the domain read as "the server is down" and
- * routed on-device, with no way back short of a process restart. So a wedged
- * worker must be **counted and replaced**, not waited on, and two counters are
- * what make that replacement honest: [MAX_WEDGED_PROBES] for the slot,
- * [POOL_MAX_THREADS] for the thread.
- *
- * **TWO counters, released at TWO different moments. This asymmetry is the
- * design, and collapsing it is the defect.**
- *
- *  - [occupied] — the SLOT. Admitted and not yet ANSWERED. Given back at
- *    PUBLISH, by [answering]'s `finally`, which runs before the value it
- *    produced can be observed by anybody. A worker that has answered holds
- *    nothing worth counting, however long its own bookkeeping takes to unwind,
- *    so the next healthy name is not refused behind a finished lookup.
- *  - [bodies] — the THREAD. Held by any running body, answered or not. Given
- *    back when the BODY ENDS - it returns, or it throws - in the submitted
- *    wrapper's `finally`.
- *
- * They are deliberately not the same moment. A body that has published its
- * answer but is still inside its own task really is occupying an OS thread the
- * pool cannot hand to anybody else, so releasing the thread at publish would
- * let the pool over-subscribe itself into a rejection; and a body that has NOT
- * yet answered is genuinely still looking, so holding its slot past the answer
- * is what made a healthy address answer "not reachable" with no dial.
- *
- * **Admission needs BOTH, together.** [claim] checks the slot and the thread
- * under ONE lock and takes both or neither. Separate checks would not be a
- * style question: two callers could each pass one condition and fail the
- * other, and both proceed, so the bound this file promises would hold by luck.
- *
- * **The SLOT cap.** [MAX_WEDGED_PROBES] is 2: one wedged lookup, plus one
- * healthy address that must still be dialled — a captive portal that swallows
- * DNS for one address must not be able to silence a different, perfectly good
- * one. Two is also the point at which "the network stack is comprehensively
- * down" describes the state better than "another address needs probing", and
- * it bounds the damage when every lookup hangs forever: however many hang, at
- * most [MAX_WEDGED_PROBES] UNANSWERED bodies are ever in flight.
- *
- * **The THREAD cap** is [POOL_MAX_THREADS] — the cap plus its one headroom
- * thread, which is the pool's own `maximumPoolSize`. It is the count of bodies
- * that have started and not yet ended, and it exists because the slot cap
- * alone cannot see post-answer work. The bound it enforces is the one the JDK
- * pool would enforce anyway, one layer up: a body handed a thread it does not
- * give back is a thread the next probe cannot have.
- *
- * **At either cap the answer is "not reachable", at once.** [execute] returns
- * false rather than throwing, and never runs the task on the calling thread:
- * a CallerRunsPolicy would move an unbounded, uninterruptible lookup onto
- * exactly the caller this pool exists to protect. The caller turns a false
- * into "not reachable" without a connection attempt ever being made.
- *
- * **The honest limit: post-answer work is not bounded.** A body that hangs
- * after answering holds its thread, and at [POOL_MAX_THREADS] further probes
- * are refused as not measured until it ends. Today's post-answer work is
- * socket close + unmark (microseconds; reasoned, not measured).
- *
- * **A refusal is NOT MEASURED and is NEVER CACHED.** [Refusal] names the cause,
- * and every one of its cases means the same thing to a caller: nothing was
- * looked up and nothing was dialled, so nothing was learned about the server.
- * The caller maps the whole family to its undialed shape, which is keyed on
- * "learned = false" and therefore stores nothing; see [Refusal]. Thread
- * saturation is one member of that family, not a reachability verdict.
- *
- * **Precondition: a submitted body must not throw.** Callers wrap the work
- * in a `FutureTask` (or equivalent) that reports failure through its result;
- * a raw body that throws still gives both counters back, because the wrapper
- * gives them back on every exit, but that is ACCOUNTING and not a promise
- * about the worker — the body takes its thread down with it, and on Android
- * the documented default handler is what ends the process (documented
- * default, not observed here; reasoned, not measured).
- *
- * **Why it is a precondition and not a fact this type establishes.**
- * `ProbeSingleFlight.submit` takes a bare `Runnable` and its wrapper's
- * `finally` removes the in-flight entry without catching, and
- * [executeReporting] hands the task straight through, so a throwing body
- * would really do it; what keeps that from arriving today is that the one
- * caller passes a `FutureTask`, whose `run()` captures any `Throwable`
- * (reasoned from the source, not measured).
- *
- * **Process-wide, and never shut down.** This is a file-level singleton on
- * purpose: an executor per probe instance would multiply threads — and file
- * descriptors — by the number of probes built, and nothing ever tears a probe
- * down, so a per-instance executor could only ever leak. Nothing owns this
- * pool's lifetime, so it is never shut down; the threads are daemon threads,
+ * - [MAX_WEDGED_PROBES] (the slot) and [POOL_MAX_THREADS] (the thread, the
+ *   slot cap plus one headroom thread - the pool's own `maximumPoolSize`)
+ *   are the only limits, and at either one [execute] answers false at once,
+ *   never running the task on the calling thread, so the caller answers
+ *   "not reachable" without a connection attempt ever being made.
+ * - [occupied] comes back at PUBLISH, by [answering]'s `finally`, before
+ *   the value it produced can be observed; [bodies] comes back only when the
+ *   body ENDS - it returns, or it throws - in the submitted wrapper's
+ *   `finally`. The two moments differ on purpose.
+ * - [claim] checks both counters under one lock and takes both or neither;
+ *   a refused attempt writes nothing and holds no token to release.
+ * - A body that throws is contained in the launch block: the launched
+ *   coroutine completes normally, the wrapper's `finally` gives both
+ *   counters back, and no thread's uncaught-exception handler is ever
+ *   reached by a body's throw.
+ * - The pool is process-wide, its workers are daemon threads, and it is
+ *   never shut down.
  */
 internal object ProbeExecutor {
 
@@ -117,11 +53,12 @@ internal object ProbeExecutor {
      * Threads the JDK pool is allowed beyond [MAX_WEDGED_PROBES].
      *
      * Exactly one, and it is load-bearing: it is what makes [claim] the only
-     * refuser, so a task [claim] admits always has a worker and the
-     * [RejectedExecutionException] catch in [execute] is a backstop behind it
-     * rather than the mechanism. Sized to the cap instead, the JDK would refuse
-     * overflow work indistinguishably from a cap refusal and a neutralised
-     * [claim] guard would be undetectable.
+     * refuser, so a task [claim] admits always has a worker and the pool's
+     * rejection handler (which throws [java.util.concurrent.RejectedExecutionException],
+     * caught and resubmitted by the dispatcher - see that handler's comment)
+     * stays a backstop behind [claim] rather than the mechanism. Sized to the
+     * cap instead, the JDK would refuse overflow work indistinguishably from a
+     * cap refusal and a neutralised [claim] guard would be undetectable.
      */
     private const val CAP_HEADROOM_THREADS: Int = 1
 
@@ -158,14 +95,7 @@ internal object ProbeExecutor {
         ),
 
         /** This host's own lookup is already in flight. */
-        HOST_IN_FLIGHT("this host's lookup is already in flight"),
-
-        /**
-         * The pool's rejection handler refused the submit after [claim] let it
-         * through; kept because our accounting and the JDK's are independent.
-         */
-        POOL_REJECTED("the probe worker pool rejected the task after admission"),
-        ;
+        HOST_IN_FLIGHT("this host's lookup is already in flight");
 
         /**
          * What refused the task, in words. A caller that reports this is
@@ -174,7 +104,17 @@ internal object ProbeExecutor {
         fun reason(): String = explanation
     }
 
-    /** The one lock both admission checks are taken under; see [claim]. */
+    /**
+     * The one lock both admission checks are taken under; see [claim].
+     *
+     * **Why a monitor, not a `Mutex`.** The sites that take it - [claim],
+     * [SlotRelease.release] and [BodyRelease.release] - are all non-suspend,
+     * reached from [executeReporting] and [answering] and the submitted
+     * wrapper's `finally`. `Mutex.withLock` takes a suspend lambda and cannot
+     * be called from any of them, so the critical section stays a monitor:
+     * the two counters are checked and written as one indivisible step, which
+     * is the property a `Mutex` would not add.
+     */
     private val admission = Any()
 
     /** Tasks admitted and not yet ANSWERED; the wedged count. */
@@ -212,6 +152,12 @@ internal object ProbeExecutor {
      * implementation THROWS there. `get()` must be safe on any thread not
      * running a body - which is exactly the case the reasoning above leans on
      * - so it has to return null rather than throw.
+     *
+     * **Why not a coroutine context element.** [answering] is non-suspend -
+     * its signature is pinned by [TcpConnectivityProbe] and the tests - so it
+     * cannot read `currentCoroutineContext()`; a context element would need a
+     * `ThreadLocal` behind it to be reachable from non-suspend code anyway,
+     * which is this. A plain [ThreadLocal] is the honest shape.
      */
     private val runningSlot: ThreadLocal<SlotRelease?> =
         ThreadLocal.withInitial<SlotRelease?> { null }
@@ -220,45 +166,88 @@ internal object ProbeExecutor {
     private val started = AtomicInteger(0)
 
     /**
+     * The bounded substrate the probe bodies run on, exposed to the module's
+     * logic as a [CoroutineDispatcher].
+     *
+     * **Why the workers stay a hand-built pool.** A dispatcher
+     * does not hand out a dedicated daemon thread at default priority: the
+     * shared default pools recycle workers for unrelated work and would not
+     * give this module a named, daemon, countable worker per admitted body. So
+     * the workers are the pool's own daemon threads, started by the factory
+     * below and numbered so a wedged one is identifiable in a dump - the same
+     * threads as before the migration, now reached through a dispatcher rather
+     * than handed a `Runnable` directly.
+     *
      * [SynchronousQueue] is what makes the sizing matter at all: with it the
-     * JDK starts a thread per submitted task up to `maximumPoolSize`, so a pool
-     * sized at exactly [MAX_WEDGED_PROBES] would let `ThreadPoolExecutor` enforce
-     * the cap in place of [claim] - invisibly, and identically to the correct
+     * pool starts a thread per submitted task up to `maximumPoolSize`, so a
+     * pool sized at exactly [MAX_WEDGED_PROBES] would let the pool enforce the
+     * cap in place of [claim] - invisibly, and identically to the correct
      * refusal, which is to say not at all distinguishably.
+     *
+     * The thread substrate - the pool's sizing, its `SynchronousQueue`, its
+     * daemon factory and its 30 s idle retirement - is UNCHANGED by the
+     * migration; only the way a body is handed to it changed (a `launch` on the
+     * [CoroutineDispatcher] instead of a direct `execute` of a `Runnable`).
      */
-    private val pool = ThreadPoolExecutor(
-        0,
-        POOL_MAX_THREADS,
-        WORKER_IDLE_MS,
-        TimeUnit.MILLISECONDS,
-        // A direct handoff: an idle worker takes the task itself, and when
-        // there is no idle worker a new one is started, up to the pool's
-        // maximum. No queue, because a queued task is a task nobody is going
-        // to run - its worker is the thing that is wedged. With no core threads
-        // and a finite idle window, a worker that FINISHES a task is offered
-        // the next one and only retires after [WORKER_IDLE_MS] of quiet, so a
-        // steady stream of healthy probes reuses the same threads.
-        SynchronousQueue(),
-        { runnable ->
-            Thread(runnable, "$PROBE_THREAD_NAME-${started.incrementAndGet()}").apply {
-                isDaemon = true
-            }
-        },
-        { _, _ ->
-            // The backstop behind [bodies], kept as defence in depth. Under
-            // normal operation this is UNREACHABLE: [claim] refuses a body once
-            // [bodies] reaches [POOL_MAX_THREADS], which is this pool's own
-            // `maximumPoolSize`, so the JDK has no reason to refuse a task
-            // [claim] admitted. It stays because the accounting and the pool's
-            // thread count are two independent mechanisms, and if they were ever
-            // to disagree this is what stops an unbounded pile of threads.
-            // Throwing is safe HERE, and only on this path: a refused start
-            // is reported as a refusal by [execute], so no caller ever sees an
-            // exception from it. This says nothing about a body that throws
-            // while running; see the precondition in the class KDoc.
-            throw RejectedExecutionException("probe worker pool is saturated")
-        },
-    )
+    private val pool: CoroutineDispatcher =
+        ThreadPoolExecutor(
+            0,
+            POOL_MAX_THREADS,
+            WORKER_IDLE_MS,
+            TimeUnit.MILLISECONDS,
+            // A direct handoff: an idle worker takes the task itself, and when
+            // there is no idle worker a new one is started, up to the pool's
+            // maximum. No queue, because a queued task is a task nobody is going
+            // to run - its worker is the thing that is wedged. With no core
+            // threads and a finite idle window, a worker that FINISHES a task is
+            // offered the next one and only retires after [WORKER_IDLE_MS] of
+            // quiet, so a steady stream of healthy probes reuses the same threads.
+            SynchronousQueue(),
+            { runnable ->
+                Thread(runnable, "$PROBE_THREAD_NAME-${started.incrementAndGet()}").apply {
+                    isDaemon = true
+                }
+            },
+            { _, _ ->
+                // The backstop behind [bodies]. UNREACHABLE while [claim] holds:
+                // [claim] refuses a body once [bodies] reaches [POOL_MAX_THREADS],
+                // which is the pool's own `maximumPoolSize`, so the pool has no
+                // reason to refuse a task [claim] admitted. It is kept because
+                // the accounting and the pool's thread count are two independent
+                // mechanisms.
+                //
+                // What this does if it ever fires is NOT "stop an unbounded pile
+                // of threads": the dispatcher wraps this pool
+                // (asCoroutineDispatcher), and when execute() throws
+                // RejectedExecutionException it catches it, CANCELS the launched
+                // job, and resubmits the body onto Dispatchers.IO - which is not
+                // bounded by this pool. So the containment that protects the
+                // two counters in that case is NOT this throw; it is the launch
+                // block's own catch + finally in [executeReporting], which runs
+                // where the body ends up and returns both counters no matter
+                // which thread finally runs it. This handler exists only to make
+                // a saturated hand-off a named, catchable event instead of a
+                // silent drop.
+                throw java.util.concurrent.RejectedExecutionException("probe worker pool is saturated")
+            },
+        ).asCoroutineDispatcher()
+
+    /**
+     * The scope that dispatches admitted bodies onto [pool]. A [SupervisorJob]
+     * so one body that fails never cancels the scope and takes every later
+     * probe with it.
+     *
+     * **There is deliberately no [CoroutineExceptionHandler] here.** The scope
+     * has no parent to propagate a failure to, so the only reason to add one
+     * would be to keep a body's failure off a worker thread's uncaught-exception
+     * handler. That is not needed: [executeReporting] contains each body's throw
+     * inside the launch block (see there), so a launched body - whether it is
+     * the module's own [TcpConnectivityProbe] body or a raw external one -
+     * ALWAYS completes its coroutine normally, and there is no exceptional
+     * completion for a handler to catch. Adding one would be dead code that
+     * implies a failure path the design has removed.
+     */
+    private val scope = CoroutineScope(SupervisorJob())
 
     /**
      * The once-only right to give back the one slot of [occupied] that one
@@ -357,35 +346,49 @@ internal object ProbeExecutor {
             is Claim.Refused -> return claim.cause
             is Claim.Granted -> claim.admission
         }
-        return try {
-            pool.execute {
-                // Published before the body so [answering] can find it, and
-                // cleared in the `finally` so a reused worker never sees the
-                // previous task's token.
-                runningSlot.set(held.slot)
+        // The body reaches a worker as a coroutine launched on [pool], not a
+        // Runnable handed to the pool: the admission and the wrapper around the
+        // body (the token, the contained throw, then the two releases in this
+        // order) are unchanged, only the hand-off is a launch. [claim] is the
+        // only refuser - a task it admits always has a worker - so no rejection
+        // path wraps this: while [CAP_HEADROOM_THREADS] holds the pool never
+        // rejects, and if it ever did the dispatcher would cancel the job and
+        // resubmit the block (see the pool's rejection handler), and the catch
+        // + finally inside the launch block below would still return both
+        // counters from whichever thread the block finally runs on.
+        scope.launch(pool) {
+            // Published before the body so [answering] can find it, and
+            // cleared in the `finally` so a reused worker never sees the
+            // previous task's token.
+            runningSlot.set(held.slot)
+            try {
                 try {
                     task.run()
-                } finally {
-                    runningSlot.remove()
-                    // The two releases are in this order deliberately: the slot
-                    // first, so a body that HAS answered is already un-counted
-                    // by the time its thread is handed back, and the thread last,
-                    // because the thread is busy until this line.
-                    held.slot.release()
-                    held.body.release()
+                } catch (_: Throwable) {
+                    // Swallowed on purpose - see the object KDoc ("A submitted
+                    // body MAY throw"). The counters are given back by the
+                    // `finally` regardless; what this catch controls is HOW the
+                    // launched coroutine ends. Nothing runs between the body
+                    // ending and that `finally` - no log, no I/O: the failure is
+                    // already carried where its caller will find it (a
+                    // production body publishes it to its deferred; a test body
+                    // observes it through its own latch), and any work here -
+                    // even a stderr write the test runner captures - runs BEFORE
+                    // the counters come back, so it holds the slot and the
+                    // thread while the next admission is judged and can refuse a
+                    // body that should be admitted.
                 }
+            } finally {
+                runningSlot.remove()
+                // The two releases are in this order deliberately: the slot
+                // first, so a body that HAS answered is already un-counted
+                // by the time its thread is handed back, and the thread last,
+                // because the thread is busy until this line.
+                held.slot.release()
+                held.body.release()
             }
-            null
-        } catch (_: RejectedExecutionException) {
-            // The handler above - unreachable while [CAP_HEADROOM_THREADS]
-            // holds, but wired for the case where it does not. Give both
-            // counters straight back, or they would stay pinned with nothing
-            // running and every later probe refused. The body never ran, so
-            // these tokens' only release is this one.
-            held.slot.release()
-            held.body.release()
-            Refusal.POOL_REJECTED
         }
+        return null
     }
 
     /**
