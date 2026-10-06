@@ -7,6 +7,7 @@ Fails if the tree drifts from modules.toml. Run after any structural change:
 
 Exit code 0 = consistent. Exit code 1 = problems listed.
 """
+import glob
 import os
 import re
 import sys
@@ -69,7 +70,14 @@ def main():
                 errors.append(f"{key}: depends_on '{dep}' not a registered module")
 
     # dependency cycle check (DFS)
-    adj = {k: v.get("depends_on", []) for k, v in modules.items()}
+    #
+    # Only registered keys go into the adjacency: a depends_on that names an
+    # unregistered module is already listed as an error above, and letting it
+    # into the DFS would index `color` with a key that was never colored
+    # (KeyError, no problems listed). Filtering keeps that error in the printed
+    # list and the cycle check total.
+    adj = {k: [d for d in v.get("depends_on", []) if d in modules]
+           for k, v in modules.items()}
     WHITE, GRAY, BLACK = 0, 1, 2
     color = {k: WHITE for k in adj}
     def dfs(u):
@@ -133,12 +141,24 @@ def main():
                     f"sub-module of {parent}"
                 )
 
-    # README doc references resolve
+    # README doc references resolve.
+    #
+    # Two ref shapes occur in the README: a dashed slug (`docs/04-build-order.md`)
+    # resolves to that exact file, and a bare number (`docs/07`, as in the
+    # "`docs/00`-`docs/07`" range line) resolves to the spec file
+    # `docs/07-*.md`. Both must be checked; a bare number used to fall through
+    # the dashed-only regex and pass silently when its spec was deleted.
     with open(os.path.join(ROOT, "README.md")) as fh:
         readme_text = fh.read()
-    for ref in re.findall(r"`(docs/\d+-[^`]+)`", readme_text):
-        if not os.path.isfile(os.path.join(ROOT, ref)):
-            errors.append(f"README references missing doc: {ref}")
+    for ref in re.findall(r"`(docs/\d+(?:-[^`]+)?)`", readme_text):
+        if "-" in ref:
+            if not os.path.isfile(os.path.join(ROOT, ref)):
+                errors.append(f"README references missing doc: {ref}")
+        else:
+            if not glob.glob(os.path.join(ROOT, ref + "-*.md")):
+                errors.append(
+                    f"README references missing doc: {ref} (no {ref}-*.md)"
+                )
 
     if errors:
         print("REPO INCONSISTENT — %d problem(s):" % len(errors))

@@ -317,31 +317,54 @@ def step_junit(root, out, before, projects):
 
 
 def step_nul(root, out):
-    """Returns (exit_code, reason). A git failure and a found NUL byte are
-    distinct reasons, never both labelled "NUL byte found"."""
-    code, text = _run(["git", "ls-files",
+    """Returns (exit_code, reason). Four outcomes stay distinct reasons:
+
+    - a git failure -> "git ls-files failed" (the listing never ran);
+    - a tracked path that is a directory or otherwise unreadable ->
+      "unreadable tracked file(s)" (open failed for a reason other than the
+      file being gone);
+    - a tracked file that holds a NUL byte -> "NUL byte found in tracked
+      file(s)";
+    - a tracked path that no longer exists (deleted, not yet staged) is
+      skipped: it has no bytes to check, and a working tree may hold an
+      unstaged deletion.
+
+    The listing is read NUL-delimited (`git ls-files -z`) so a name is never
+    C-quoted or line-split: a non-ASCII name reaches open() as the real path,
+    and a name with a newline cannot masquerade as two paths.
+    """
+    code, text = _run(["git", "ls-files", "-z",
                        "*.kt", "*.kts", "*.py", "*.md", "*.toml", "*.yaml"],
                       cwd=root)
     if code != 0:
         out.append("step 6 nul: exit %d - git ls-files failed" % code)
         return 1, "git ls-files failed"
     bad = []
-    for line in text.strip().splitlines():
+    unreadable = []
+    for line in text.split("\0"):
         if not line:
             continue
         p = os.path.join(root, line)
+        if not os.path.exists(p):
+            continue  # deleted, not yet staged: nothing to read
         try:
             with open(p, "rb") as fh:
                 if b"\x00" in fh.read():
                     bad.append(line)
+        except FileNotFoundError:
+            continue  # gone between the listing and the open: same as above
         except OSError:
-            bad.append(line)
+            unreadable.append(line)
     for b in bad:
         out.append("step 6 nul: RED - NUL byte in %s" % b)
-    if not bad:
+    for u in unreadable:
+        out.append("step 6 nul: RED - unreadable tracked file %s" % u)
+    if not bad and not unreadable:
         out.append("step 6 nul: clean (0 NUL bytes in tracked files)")
     if bad:
         return 1, "NUL byte found in tracked file(s)"
+    if unreadable:
+        return 1, "unreadable tracked file(s)"
     return 0, None
 
 
