@@ -14,7 +14,13 @@ permissions:
   contents: read
 
 concurrency:
-  group: checks-${{ github.ref }}
+  # Keyed on the commit SHA, not github.ref: a push to a module branch and the
+  # pull_request event it also triggers share the same commit but a DIFFERENT
+  # ref (refs/heads/module/x vs refs/pull/N/merge), so the old ref-keyed group
+  # let both runs fire at once and contend for the runner's CPU -- the actual
+  # cause of this repo's timing-sensitive test flakes on GitHub's shared
+  # runners (the same suite is reliably green on our own hardware).
+  group: checks-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
 jobs:
