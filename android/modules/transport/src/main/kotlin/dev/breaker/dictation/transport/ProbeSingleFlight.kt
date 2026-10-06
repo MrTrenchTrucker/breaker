@@ -93,8 +93,9 @@ internal object ProbeSingleFlight {
      * `finally` here is the backstop for the paths where no value is ever
      * produced - cancelled before it started, or a body that never ran
      * [ProbeExecutor.answering] - and on every path where the task never runs
-     * at all: a refused admission or a rejected submit removes it in this
-     * function. Each of this function's two removals is CONDITIONAL on the
+     * at all: a refused admission removes it in this function (a submit the
+     * pool rejects does run the task, on another thread, so the wrapper's
+     * `finally` removes it). Each of this function's two removals is CONDITIONAL on the
      * mark this admission installed - it removes the name only while that exact
      * mark is still the one present - so the backstop clears its OWN entry and
      * never a mark that has since been handed to a later probe of the same

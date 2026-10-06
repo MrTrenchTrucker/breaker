@@ -223,11 +223,11 @@ internal object ProbeExecutor {
                 // job, and resubmits the body onto Dispatchers.IO - which is not
                 // bounded by this pool. So the containment that protects the
                 // two counters in that case is NOT this throw; it is the launch
-                // block's own catch + finally in [executeReporting], which runs
-                // where the body ends up and returns both counters no matter
-                // which thread finally runs it. This handler exists only to make
-                // a saturated hand-off a named, catchable event instead of a
-                // silent drop.
+                // block's own catch + finally in [executeReporting] (started
+                // ATOMIC, see the launch there), which runs where the body ends
+                // up and returns both counters no matter which thread runs it.
+                // This handler exists only to make a saturated hand-off a named,
+                // catchable event instead of a silent drop.
                 throw java.util.concurrent.RejectedExecutionException("probe worker pool is saturated")
             },
         ).asCoroutineDispatcher()
@@ -347,16 +347,16 @@ internal object ProbeExecutor {
             is Claim.Granted -> claim.admission
         }
         // The body reaches a worker as a coroutine launched on [pool], not a
-        // Runnable handed to the pool: the admission and the wrapper around the
+        // Runnable handed to the pool; the admission and the wrapper around the
         // body (the token, the contained throw, then the two releases in this
-        // order) are unchanged, only the hand-off is a launch. [claim] is the
-        // only refuser - a task it admits always has a worker - so no rejection
-        // path wraps this: while [CAP_HEADROOM_THREADS] holds the pool never
-        // rejects, and if it ever did the dispatcher would cancel the job and
-        // resubmit the block (see the pool's rejection handler), and the catch
-        // + finally inside the launch block below would still return both
-        // counters from whichever thread the block finally runs on.
-        scope.launch(pool) {
+        // order) are unchanged. [claim] is the only refuser - a task it admits
+        // always has a worker - so while [CAP_HEADROOM_THREADS] holds the pool
+        // never rejects. If it ever did, the dispatcher cancels the job and
+        // THEN resubmits the block, and a coroutine cancelled before it starts
+        // never runs a default-start block: only start = ATOMIC still runs this
+        // block, so its catch + finally return both counters from whichever
+        // thread it lands on.
+        scope.launch(pool, start = kotlinx.coroutines.CoroutineStart.ATOMIC) {
             // Published before the body so [answering] can find it, and
             // cleared in the `finally` so a reused worker never sees the
             // previous task's token.
