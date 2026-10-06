@@ -20,6 +20,7 @@ import dev.breaker.dictation.core.port.IdSource
 import dev.breaker.dictation.core.port.SettingsStore
 import dev.breaker.dictation.core.port.SttEngine
 import dev.breaker.dictation.core.port.WavEncoder
+import kotlinx.coroutines.channels.Channel
 
 /**
  * Runs one dictation from audio to text.
@@ -64,8 +65,9 @@ import dev.breaker.dictation.core.port.WavEncoder
  * Deciding this adds no probe and no settings read: it uses the route and the
  * settings already loaded for the attempt.
  *
- * Not thread-safe: drive one dictation from one thread. The audio callback is
- * synchronised with the buffer it fills.
+ * Not thread-safe: drive one dictation from one thread. The audio callback and
+ * the thread that drains it meet at the capture channel, which is the only
+ * shared thing between the two.
  */
 class DictateUseCase(
     private val settings: SettingsStore,
@@ -78,11 +80,20 @@ class DictateUseCase(
     private val ids: IdSource,
     private val localFormatter: Formatter,
 ) {
-    private val captured = mutableListOf<FloatArray>()
-    private val captureLock = Any()
+    /**
+     * The audio a capture collects, as a queue of frames. The capture thread
+     * appends; the draining thread takes the lot out in one go. Unbounded, so an
+     * append never blocks the capture thread and never fails while the channel is
+     * open — the same way the list it replaces grew. It is drained to empty by a
+     * stop, a cancel or a fresh start, so it holds one capture's worth of audio at
+     * a time.
+     */
+    private val captured = Channel<FloatArray>(Channel.UNLIMITED)
 
     private val captureListener = AudioListener { samples ->
-        synchronized(captureLock) { captured += samples.copyOf() }
+        // The capture thread hands a frame in and moves on; it never waits on the
+        // drain and never loses a frame while the channel is open.
+        captured.trySend(samples.copyOf())
     }
 
     /**
@@ -95,7 +106,9 @@ class DictateUseCase(
         check(session.state == DictationState.RECORDING) {
             "Recording can only start from the RECORDING state, not ${session.state.name}"
         }
-        synchronized(captureLock) { captured.clear() }
+        // A fresh capture starts empty: whatever an earlier capture left in the
+        // channel is drained away, so its audio cannot leak into this one.
+        drainCaptured()
         audioSource.start(captureListener)
         return session
     }
@@ -151,7 +164,9 @@ class DictateUseCase(
         // so a stale cancel handed a fresh session cannot kill a live capture.
         val idle = session.cancel()
         audioSource.stop()
-        synchronized(captureLock) { captured.clear() }
+        // A cancel drops the audio: whatever is left in the channel is drained
+        // away, so a cancelled capture leaves nothing for the next one.
+        drainCaptured()
         return idle
     }
 
@@ -182,6 +197,8 @@ class DictateUseCase(
         return try {
             transcribe(transcribing, audio)
         } catch (e: Exception) {
+            // Re-armed, not folded: an interrupted adapter is the thread's, not just a
+            // Failure(OTHER) class name (the threading rule in the root AGENTS.md).
             if (e is InterruptedException) Thread.currentThread().interrupt()
             fail(transcribing, SttError.OTHER, e::class.simpleName ?: "Dictation failed")
         }
@@ -272,11 +289,12 @@ class DictateUseCase(
      * rate, so it cannot wrap around.
      */
     private fun takeCapturedAudio(trimBeforeMs: Long?): FloatArray {
-        val frames = synchronized(captureLock) {
-            val snapshot = captured.toList()
-            captured.clear()
-            snapshot
-        }
+        // The snapshot-and-clear: drain the channel to empty, taking whatever is
+        // in it now. A frame the capture thread appends after the drain has seen
+        // the channel empty stays in the channel for the next capture, exactly as
+        // it would have stayed in the cleared list. The drain is one loop shared
+        // with the start and cancel paths, so the cut is defined in one place.
+        val frames = drainCaptured()
         val total = frames.sumOf { it.size }
         val flat = FloatArray(total)
         var offset = 0
@@ -300,6 +318,26 @@ class DictateUseCase(
         } else {
             (trimBeforeMs * AudioFormat.SAMPLE_RATE_HZ / 1000L).coerceIn(0L, total.toLong()).toInt()
         }
+    }
+
+    /**
+     * Takes every frame currently in the capture channel, in order, leaving it
+     * empty. The loop stops at the first empty read, which is the cut: a frame
+     * the capture thread appends after that read stays in the channel for the
+     * next capture. Shared by the stop, the cancel and the fresh start, so the
+     * cut is defined in one place.
+     */
+    private fun drainCaptured(): List<FloatArray> {
+        val frames = mutableListOf<FloatArray>()
+        while (true) {
+            // tryReceive() hands back a ChannelResult, not the element: an empty
+            // read is a result, so the element is taken with getOrNull(), which is
+            // null exactly when there is nothing to take. That null is the cut.
+            val frame = captured.tryReceive().getOrNull()
+            if (frame == null) break
+            frames += frame
+        }
+        return frames
     }
 
     /** An engine plus the source its transcripts are recorded as. */

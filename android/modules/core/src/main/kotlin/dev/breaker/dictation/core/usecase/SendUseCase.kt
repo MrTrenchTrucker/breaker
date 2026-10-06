@@ -102,6 +102,8 @@ class SendUseCase(
             history.save(transcription)
             null
         } catch (e: Exception) {
+            // Re-armed, not folded: an interrupted save is the thread's, not just a
+            // "not saved" class name (the threading rule in the root AGENTS.md).
             if (e is InterruptedException) Thread.currentThread().interrupt()
             e::class.simpleName ?: "error"
         }
@@ -118,6 +120,8 @@ class SendUseCase(
         return try {
             committer.commit(CommitRequest(text))
         } catch (e: Exception) {
+            // Re-armed, not folded: an interrupted commit is the thread's, not just a
+            // FAILED class name (the threading rule in the root AGENTS.md).
             if (e is InterruptedException) Thread.currentThread().interrupt()
             // Name the failure, never its message: an adapter's message can
             // carry the text it was asked to type.
