@@ -63,10 +63,22 @@ jobs:
         with:
           distribution: temurin
           java-version: "25"
+          # Persists ~/.gradle/caches (dependency jars + build cache entries)
+          # between runs via GitHub's actions cache. Every run before this was
+          # a fully cold download of the whole dependency tree from Maven
+          # Central -- across this repo's bursts of concurrent CI runs that
+          # traffic gets grouped with the rest of GitHub's shared Azure egress
+          # by Maven Central's rate limiter, not counted as ours alone.
+          cache: gradle
       - name: Android SDK platform 36
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0" > /dev/null
       - name: Clean build, every Kotlin test
-        run: ./gradlew --no-daemon --no-build-cache --rerun-tasks build
+        # --rerun-tasks forced every task to re-execute even though a fresh
+        # checkout has nothing to skip anyway; dropped along with
+        # --no-build-cache now that the Gradle cache above can actually help
+        # across runs. --no-daemon stays: nothing benefits from daemon reuse
+        # on an ephemeral runner.
+        run: ./gradlew --no-daemon build
       - name: Kotlin tests ran and passed
         run: |
           python3 - <<'EOF'
