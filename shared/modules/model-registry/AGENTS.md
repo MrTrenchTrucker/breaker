@@ -113,7 +113,7 @@ agents, not required: an outside contributor may write the code themselves
 
 ## Known Gotchas
 - GitHub's web asset-id route returns 404, so entries pin the immutable asset id and use the API asset route (host `api.github.com`), which returns the file only with `Accept: application/octet-stream` — without it the route returns JSON metadata (HTTP 200) and the sha256 pin rejects it; sending the header is the downloader's concern (stt-ondevice).
-- `models.yaml` and `tools/gen_model_registry.py` are in the tree (ADR-016, slice 1): the generated Kotlin is committed, and the contract test fails if it drifts from the generator's output. Nothing parses `models.yaml` at runtime (ADR-016).
+- `models.yaml` and `tools/gen_model_registry.py` are in the tree (ADR-016): the generated Kotlin is committed, and the contract test fails if it drifts from the generator's output. Nothing parses `models.yaml` at runtime (ADR-016).
 - URLs pin to immutable release-asset ids; verify upstream checksum.txt [2].
 - The generated Kotlin file is never hand-edited: edit `models.yaml`, rerun the
   generator, commit both. A contract test fails if they drift (ADR-016).

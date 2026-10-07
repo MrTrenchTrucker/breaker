@@ -1,8 +1,8 @@
-"""Slice-2 registry tests: the per-entry pins, the per-entry tamper cases and
+"""Registry entry tests: the per-entry pins, the per-entry tamper cases and
 the ALL-order check, for every models.yaml entry.
 
-The slice-1 refusal tests own the generator's refusal classes as written for
-the one entry present then. These hold the rest of the registry:
+The refusal tests own the generator's refusal classes. These hold the rest of
+the registry:
 
 * every entry is pinned to the exact values the generator ships (id, family,
   url, sha256, size_mb, licence, hosted). The lookup is BY ID, so an entry
@@ -122,8 +122,8 @@ class EntryPinsTest(unittest.TestCase):
             got = by_id[eid]
             for field in want:
                 # every field the pin names is asserted; the pin names
-                # upstream_commit and tamper_verified only for the three
-                # slice-2 entries (small's are pinned by slice 1's own
+                # upstream_commit and tamper_verified only for tiny, base and
+                # medium (small's are pinned by the generator refusal tests'
                 # plants, which anchor on its exact committed strings)
                 self.assertEqual(
                     want[field], got[field],
@@ -247,11 +247,10 @@ class MediumTamperTest(WhisperTamperMixin, unittest.TestCase):
 class RenderShapeTest(unittest.TestCase):
     """The rendered Kotlin must stay valid property declarations for any
     entry count: no line of the rendered file is `),` — a comma after a
-    property declaration is not Kotlin (the builder found it: round 1's
-    render put `),` after every non-last entry, invisible at the one entry
-    slice 1 shipped). Every entry block therefore closes with a bare `)`
-    line. A text test cannot prove compilation: the builder is the compile
-    proof (CHANGES.md).
+    property declaration is not Kotlin, and with a single entry the
+    separator was never emitted, so only a test over several entries can see
+    it. Every entry block therefore closes with a bare `)` line. A text test
+    cannot prove compilation: building the module is the compile proof.
     """
 
     def _render(self, eids):
