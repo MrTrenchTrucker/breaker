@@ -158,7 +158,7 @@ admins.
 - N3. Model files **pinned to immutable release-asset ids** and verified against
       upstream's published checksum.txt (SHA-256) before use [2].
 - N4. Battery-friendly: sensor + overlay listeners idle when not dictating.
-- N5. Android 11+ (`setFloating`), arm64-v8a primary target.
+- N5. Android 11+ (min SDK 30), arm64-v8a primary target.
 - N6. Audio never leaves the device in local/fallback mode (except user-initiated sync).
 - N7. Server API is OpenAI-shaped but **asynchronous**: `POST /v1/audio/transcriptions`
       enqueues and returns `{ job_id, status: "queued" }`; the client polls
@@ -349,7 +349,7 @@ filtered magnitude threshold crossings in a 500 ms window.
 - **Permissions (F11):** mic, sensor, overlay, notifications requested together
   at first startup. **High-power mode (F12):** verify power-saving off.
 
-**Overlay (floating tile):** `WindowManager` + `TYPE_APPLICATION_OVERLAY` + `setFloating(true)` (Android 11+). Tile is **tap-only**; tapping it launches the dictation UI as a normal in-app Activity (no special overlay window type — only the floating tile itself needs `TYPE_APPLICATION_OVERLAY`). The tile IS the **CB mic glyph** — tap to talk. While awake and recording, a digital Cobra-style **LED bar meter** fills directly above it (F36). Permission set: `SYSTEM_ALERT_WINDOW` (tile), mic, internet, foreground service, notifications (F11) [1].
+**Overlay (floating tile):** `WindowManager` + `TYPE_APPLICATION_OVERLAY` with `FLAG_NOT_FOCUSABLE` (Android 11+). Tile is **tap-only**; tapping it launches the dictation UI as a normal in-app Activity (no special overlay window type — only the floating tile itself needs `TYPE_APPLICATION_OVERLAY`). The tile IS the **CB mic glyph** — tap to talk. While awake and recording, a digital Cobra-style **LED bar meter** fills directly above it (F36). Permission set: `SYSTEM_ALERT_WINDOW` (tile), mic, internet, foreground service, notifications (F11) [1].
 
 ## 9. Formatting
 
