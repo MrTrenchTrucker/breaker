@@ -93,9 +93,9 @@ card = "android/modules/gesture/AGENTS.md"
 [module.android_overlay]
 path = "android/modules/overlay"
 owns = "Floating tile = CB mic glyph + LED bar meter (WindowManager overlay, F36)."
-does_not_own = "Dictation UI (ui); gesture/voice triggers."
+does_not_own = "Dictation itself: recording and putting the text into the target field (app, commit; ADR-022); gesture/voice triggers."
 depends_on = ["android", "android_core", "shared_ui_tokens"]
-public = "FloatingTile"
+public = "FloatingTile (via create), ShowResult"
 card = "android/modules/overlay/AGENTS.md"
 
 [module.android_commit]
