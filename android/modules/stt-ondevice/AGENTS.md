@@ -162,9 +162,6 @@ agents, not required: an outside contributor may write the code themselves
 - The start target (N1) is not met by the engine as it stands: every call hashes the whole archive
   and creates a recognizer, and preload keeps neither. Model sizes in the registry range from 122 MB
   to 1818 MB. This has not been measured on a device.
-- ARCHITECTURE.md section 4 says inference runs on a single-threaded coroutine dispatcher; the
-  engine uses a single-slot dispatcher (`Dispatchers.IO.limitedParallelism(1)`), which differs in
-  whether the thread is the same across decodes. Nothing here relies on a fixed thread.
 - Engine behaviour not changed yet: a failing `Error` (not an `Exception`) from the loader reaches
   the caller; the decode catch policy names two `Error` types and not others; a recognizer release
   that throws replaces the result; the engine and the loader keep two sets of user sentences that
