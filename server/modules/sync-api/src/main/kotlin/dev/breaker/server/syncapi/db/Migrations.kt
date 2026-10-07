@@ -4,7 +4,7 @@ import java.sql.Connection
 import java.sql.SQLException
 
 internal object Migrations {
-    val ALL: List<Migration> = listOf(SchemaV1.MIGRATION)
+    val ALL: List<Migration> = listOf(SchemaV1.MIGRATION, SchemaV2.MIGRATION)
 
     /**
      * Brings the database behind [connection] up to the last version in [steps]

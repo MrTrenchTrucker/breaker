@@ -21,16 +21,21 @@ internal class MigrationsTest : TempDatabaseTest() {
         TestDatabases.longs(connection, "SELECT n FROM log ORDER BY rowid")
 
     @Test
-    fun `a fresh database ends at version 1 with the accounts table`() {
+    fun `a fresh database ends at the latest version with the accounts and tokens tables`() {
         val temp = openTemp()
         inTransaction(temp) { connection ->
-            assertEquals("sync-api: fresh database user_version", 1, TestDatabases.userVersion(connection))
             assertEquals(
-                "sync-api: accounts table missing after the first migration",
-                listOf("accounts"),
+                "sync-api: fresh database user_version must be the last migration's version",
+                Migrations.ALL.last().version,
+                TestDatabases.userVersion(connection),
+            )
+            assertEquals("sync-api: fresh database user_version", 2, TestDatabases.userVersion(connection))
+            assertEquals(
+                "sync-api: accounts and tokens tables missing after the migrations",
+                listOf("accounts", "tokens"),
                 TestDatabases.strings(
                     connection,
-                    "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'accounts'",
+                    "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('accounts', 'tokens') ORDER BY name",
                 ),
             )
         }
@@ -44,7 +49,12 @@ internal class MigrationsTest : TempDatabaseTest() {
         }
         val second = reopen(first)
         inTransaction(second) { connection ->
-            assertEquals("sync-api: user_version after reopen", 1, TestDatabases.userVersion(connection))
+            assertEquals(
+                "sync-api: user_version after reopen must be the last migration's version",
+                Migrations.ALL.last().version,
+                TestDatabases.userVersion(connection),
+            )
+            assertEquals("sync-api: user_version after reopen", 2, TestDatabases.userVersion(connection))
             assertEquals(
                 "sync-api: stored account lost or duplicated by a second migrate",
                 listOf(1L),
@@ -56,7 +66,7 @@ internal class MigrationsTest : TempDatabaseTest() {
     @Test
     fun `a database with a newer version than the code knows is refused untouched`() {
         withMemoryConnection { connection ->
-            connection.executeStatement("PRAGMA user_version = 2")
+            connection.executeStatement("PRAGMA user_version = ${Migrations.ALL.last().version + 1}")
             val failure = TestDatabases.expectFailure<MigrationException>("newer schema") {
                 Migrations.migrate(connection, Migrations.ALL)
             }
@@ -69,7 +79,11 @@ internal class MigrationsTest : TempDatabaseTest() {
                 emptyList<String>(),
                 TestDatabases.tableNames(connection),
             )
-            assertEquals("sync-api: user_version must stay as found", 2, TestDatabases.userVersion(connection))
+            assertEquals(
+                "sync-api: user_version must stay as found",
+                Migrations.ALL.last().version + 1,
+                TestDatabases.userVersion(connection),
+            )
         }
     }
 
