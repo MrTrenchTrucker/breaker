@@ -26,7 +26,7 @@ For the maintainers' team, building a module or a sub-module works like this:
    separate markdown plan file: what to build, which documents to read, the
    tests that must fail first, and a checklist of what "done" means. The
    sub-agent reads it before starting; the owner checks the result against
-   that checklist. Plan files travel with the delivery for review; they are
+   that checklist. Plan files travel with the pull request for review; they are
    not committed into the module.
 3. **Sub-agents write the code; the owner does not.** The owner plans,
    coordinates and verifies. Work that is wrong goes back down to a
@@ -46,8 +46,8 @@ For the maintainers' team, building a module or a sub-module works like this:
   what each piece was asked to do and whether it did it.
 
 ## Consequences
-Rules in: for the maintainers' team, every delivery names its plan files,
-and the review sends back a delivery whose code was written in the owner's own
+Rules in: for the maintainers' team, every pull request names its plan files,
+and the review sends back a pull request whose code was written in the owner's own
 context beyond a one-line edit.
 
 Rules out nothing for outside contributors. For them this stays the method
