@@ -159,7 +159,7 @@ path = "android/modules/crypto"
 owns = "Client-side key derivation (Argon2id + HKDF), DEK generation/wrap/unwrap, AES-256-GCM, X25519 box keypair generation, sealed-box unsealing (ADR-006, ADR-018)."
 does_not_own = "Key wrapping of any kind server-side — the server never wraps or unwraps a key (server/sync-api); token storage (auth-client); sealing a job result to the owner's key, which happens server-side in whisper-server (ADR-018)."
 depends_on = ["android", "android_core"]
-public = "CryptoService"
+public = "Argon2idHkdfKeyDerivation, implementing core's KeyDerivation"
 card = "android/modules/crypto/AGENTS.md"
 
 [module.server]

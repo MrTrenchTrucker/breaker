@@ -9,14 +9,14 @@ transcriptions with AES-256-GCM, generates the owner's X25519 box keypair,
 and unseals agent-token results sealed to it — all locally. Nothing here ever
 sends the password, the KEK, or a plaintext DEK off the device.
 
-**Build phase:** Phase 11 builds key derivation only (`deriveKeys`); Phase 19 builds the DEK, AES-256-GCM, the box keypair and unsealing. Needs first: `core` (on main).
+**Build phase:** key derivation is built (Phase 11, `deriveKeys`); Phase 19 builds the DEK, AES-256-GCM, the box keypair and unsealing. Needs first: `core` (on main).
 
 ## Owns
 Client-side key derivation (Argon2id + HKDF), DEK generation/wrap/unwrap,
 AES-256-GCM encrypt/decrypt, X25519 box keypair generation, sealed-box
 unsealing.
 
-## Public Interface `core.CryptoService` port.
+## Public Interface `core.KeyDerivation` port, implemented here by `Argon2idHkdfKeyDerivation`, now; `core.CryptoService` port for the later operations.
 
 **Key flow:**
 1. **Registration:** the client derives one Argon2id output from the
@@ -85,10 +85,12 @@ unsealing.
    access to anything written after this point.
 
 **Interfaces:**
-- `deriveKeys(password, salt, kdfParams) -> {kek, authVerifier}` — one
-  Argon2id run, then two HKDF expansions with distinct labels; there is no
-  function that returns the KEK alone, so nothing that computes the auth
-  verifier without the password can also produce the KEK.
+- `KeyDerivation.deriveKeys(password, salt, kdfParams) -> DerivedKeys` — one
+  Argon2id run, then two HKDF expansions with distinct labels. Both values
+  come back together; no function returns the key-encryption key alone, so
+  nothing that computes the auth verifier without the password can also
+  produce the KEK. A refusal is a `KdfRefused` with a reason, raised before
+  any work is done.
 - `generateDek() -> Dek` / `wrapDek(dek, kek) -> WrappedDek` /
   `unwrapDek(wrappedDek, kek) -> Dek`
 - `encrypt(plaintext, dek) -> {ciphertext, nonce, tag}`
@@ -118,6 +120,13 @@ shape, not a change to `core.CryptoService` itself.
   parameters back to the phone, so a buggy or hostile value must not make
   every login try to allocate it. A `kdf_version` other than 1 is refused
   after those range checks.
+- Library: Bouncy Castle `bcprov-jdk18on` 1.86 (version and read date 2026-10-07
+  pinned in `gradle/libs.versions.toml`), under the Bouncy Castle Licence
+  (MIT-style, https://www.bouncycastle.org/licence.html). It is pure Java, we
+  use only its lightweight API, and no security provider is registered. Honest
+  limits: the Argon2id implementation is pure Java and is not hardened against
+  side channels; a Kotlin `String` password cannot be wiped; this module zeroes
+  the intermediate arrays it owns, and callers can wipe the `DerivedKeys`.
 - No plaintext keys on disk; memory-only DEK and box private key; wipe on
   lock/logout.
 - The client enforces a 12-character minimum password and warns further on
@@ -151,6 +160,7 @@ shape, not a change to `core.CryptoService` itself.
 ## Test Locations
 - Unit (Kotlin): `android/modules/crypto/src/test/kotlin/`, created with the module's first code. Run: `./gradlew :android:modules:crypto:test`
 - Contract: `tests/contract/test_crypto_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_crypto_contract.py`
+- Unit test files in `crypto/src/test/kotlin/dev/breaker/dictation/crypto/`: `Argon2idRfc9106Test`, `HkdfRfc5869Test`, `PasswordBytesTest`, `KeySplitTest`, `KdfLimitsTest`, `Argon2idHkdfKeyDerivationTest`. Known answers come from RFC 9106 section 5.3, RFC 5869 appendix A.1 to A.3, and vectors computed with independent libraries. Exactly two tests run a real 64 MiB derivation.
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
 ## Test Requirement
@@ -179,6 +189,10 @@ agents, not required: an outside contributor may write the code themselves
 (`.github/CONTRIBUTING.md`).
 
 ## Known Gotchas
+- The web client must apply the same NFC step, the same limits and the same
+  labels, or logins will not match.
+- A derivation allocates between 64 and 256 MiB and takes noticeable time, so
+  call it off the main thread.
 - An old-version record this device cannot decrypt keeps `prev_wrapped_dek` alive, so the server refuses every password change (409) until it is gone. Tell the user which record is stuck and let them delete it; deleting it clears the block (ADR-006).
 - KDF params + test vectors must match the server and web FE (interop); the
   sealed-box construction (libsodium `crypto_box_seal`, no Tink) must match
