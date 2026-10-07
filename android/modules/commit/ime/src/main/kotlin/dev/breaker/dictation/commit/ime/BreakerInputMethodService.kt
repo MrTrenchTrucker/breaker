@@ -1,9 +1,10 @@
-package dev.breaker.dictation.commit.adapter
+package dev.breaker.dictation.commit.ime
 
 import android.inputmethodservice.InputMethodService
 import android.text.InputType
 import android.view.inputmethod.EditorInfo
 import dev.breaker.dictation.commit.FocusedFieldRegistry
+import dev.breaker.dictation.commit.adapter.FocusedFieldHolder
 
 /**
  * Our keyboard, reduced to the one thing the text commit needs: telling the
@@ -13,8 +14,8 @@ import dev.breaker.dictation.commit.FocusedFieldRegistry
  * this keyboard to the user. That is why there is no input view override here.
  *
  * The framework creates this service, so the field is shared through
- * [ImeHolder]. The token kept here is what makes a late "finished" for an older
- * field harmless: it clears only the field this service published last.
+ * [FocusedFieldHolder]. The token kept here is what makes a late "finished" for
+ * an older field harmless: it clears only the field this service published last.
  */
 class BreakerInputMethodService : InputMethodService() {
 
@@ -25,7 +26,7 @@ class BreakerInputMethodService : InputMethodService() {
         clearPublishedField()
         val connection = currentInputConnection
         if (connection != null && attribute != null && attribute.inputType != InputType.TYPE_NULL) {
-            token = ImeHolder.registry.publish(ImeFocusedField(connection))
+            token = FocusedFieldHolder.registry.publish(ImeFocusedField(connection))
         }
     }
 
@@ -35,7 +36,7 @@ class BreakerInputMethodService : InputMethodService() {
     }
 
     override fun onDestroy() {
-        ImeHolder.registry.clearAll()
+        FocusedFieldHolder.registry.clearAll()
         token = null
         super.onDestroy()
     }
@@ -43,7 +44,7 @@ class BreakerInputMethodService : InputMethodService() {
     private fun clearPublishedField() {
         val held = token
         if (held != null) {
-            ImeHolder.registry.clear(held)
+            FocusedFieldHolder.registry.clear(held)
         }
         token = null
     }

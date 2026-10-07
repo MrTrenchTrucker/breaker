@@ -100,11 +100,28 @@ card = "android/modules/overlay/AGENTS.md"
 
 [module.android_commit]
 path = "android/modules/commit"
-owns = "CommitService: IME text commit + clipboard fallback + toast."
-does_not_own = "Formatting (format); history storage (history)."
+owns = "CommitService: mechanism-neutral text commit (focused field gets the text, otherwise the clipboard) + toast."
+does_not_own = "Formatting (format); history storage (history); the text-insert mechanism itself (commit/accessibility, commit/ime)."
 depends_on = ["android", "android_core"]
-public = "CommitService"
+public = "CommitService, CommitServices"
 card = "android/modules/commit/AGENTS.md"
+
+[module.android_commit_ime]
+path = "android/modules/commit/ime"
+owns = "Dead code: a keyboard (IME) adapter that published the focused field for the commit service, written for ADR-005. Superseded by ADR-022; kept out of the build on purpose. See DEAD_CODE.md."
+does_not_own = "The live text-insert mechanism (commit/accessibility); the mechanism-neutral commit logic (commit)."
+depends_on = ["android_commit"]
+public = ""
+card = "android/modules/commit/ime/AGENTS.md"
+status = "dead"
+
+[module.android_commit_accessibility]
+path = "android/modules/commit/accessibility"
+owns = "The accessibility text-insert mechanism (ADR-022): finds the focused editable field, inserts text (ACTION_SET_TEXT merging at the cursor, or ACTION_PASTE), refuses password fields, publishes the focused field into the parent's holder. Not built yet."
+does_not_own = "The mechanism-neutral commit logic (commit); the dead keyboard adapter (commit/ime); onboarding for the permission (ui)."
+depends_on = ["android_commit"]
+public = ""
+card = "android/modules/commit/accessibility/AGENTS.md"
 
 [module.android_history]
 path = "android/modules/history"

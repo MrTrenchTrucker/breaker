@@ -4,7 +4,8 @@ package dev.breaker.dictation.commit
 internal enum class FieldCommit { ACCEPTED, REFUSED }
 
 /**
- * A text field of our own keyboard that can take text.
+ * A text field that a text-insert mechanism (ADR-022) has published as
+ * focused, and that can take text.
  *
  * Called only inside the main-thread hop. It may throw: the service treats a
  * throwing field as a field that refused.
@@ -17,8 +18,9 @@ internal interface FocusedField {
 /**
  * Where the service finds the field to type into.
  *
- * Returns a field only while our keyboard is active in a text field; null means
- * there is nowhere to type and the clipboard is the way out.
+ * Returns a field only while a text-insert mechanism has published one as
+ * focused; null means there is nowhere to type and the clipboard is the way
+ * out.
  */
 internal fun interface FocusedFieldSource {
     fun current(): FocusedField?

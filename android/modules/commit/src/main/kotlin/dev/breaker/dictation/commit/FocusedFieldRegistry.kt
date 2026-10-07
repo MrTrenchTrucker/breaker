@@ -4,10 +4,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 
 /**
- * Holds the one field of our keyboard that can take text right now.
+ * Holds the one focused field that can take text right now.
  *
- * The keyboard publishes its field when it starts typing into one and clears it
- * when it finishes. The commit reads it through [FocusedFieldSource].
+ * A text-insert mechanism (ADR-022) publishes its field when it starts typing
+ * into one and clears it when it finishes. The commit reads it through
+ * [FocusedFieldSource].
  */
 internal class FocusedFieldRegistry : FocusedFieldSource {
     /** Identity only. Each publish returns a new one. */

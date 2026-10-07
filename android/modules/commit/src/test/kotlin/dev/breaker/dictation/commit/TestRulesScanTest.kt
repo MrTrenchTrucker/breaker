@@ -8,8 +8,8 @@ import org.junit.Test
  * The module's tests pass on one core with little memory and in parallel on many.
  *
  * That only holds when no test waits on a clock, a sleep, a timer or a thread of
- * its own, and when none of them touches the one process-wide holder the keyboard
- * service uses. A test that needs to wait is a design problem to raise, never a
+ * its own, and when none of them touches the one process-wide holder a
+ * text-insert mechanism uses. A test that needs to wait is a design problem to raise, never a
  * timeout to add, with one exception: a time limit on each of the three posted main
  * thread test classes, a safety net that fails a test whose hop call never returns,
  * never what a test measures. Every test source is scanned, this one and the scanner
@@ -56,7 +56,7 @@ internal class TestRulesScanTest {
         "GlobalScope" to Regex("""\bGlobalScope\b"""),
         "a volatile field" to Regex("""@\s*Volatile\b"""),
         "a synchronized block" to Regex("""\b[sS]ynchronized\b"""),
-        "the process-wide holder" to Regex("""\bImeHolder\b"""),
+        "the process-wide holder" to Regex("""\bFocusedFieldHolder\b"""),
         threadRule to Regex("""\bThread\s*[({]"""),
         "a thread block" to Regex("""\bthread\s*[({]"""),
         "a timer" to Regex("""\bTimer(Task)?\b"""),
@@ -77,7 +77,7 @@ internal class TestRulesScanTest {
         "GlobalScope" to "class T { val s = GlobalScope }",
         "a volatile field" to "class T { @Volatile var v: Int = 0 }",
         "a synchronized block" to "class T { fun f() = synchronized(this) { 1 } }",
-        "the process-wide holder" to "class T { val r = ImeHolder.registry }",
+        "the process-wide holder" to "class T { val r = FocusedFieldHolder.registry }",
         threadRule to "class T { val t = Thread(r) }",
         "a thread block" to "class T { val t = thread { run() } }",
         "a timer" to "class T { val t = Timer() }",
@@ -151,14 +151,14 @@ internal class TestRulesScanTest {
 
     @Test
     fun `the same names in comments, strings or longer words are not reported`() {
-        val source: String = "// Thread.sleep(1) delay(2) ImeHolder\n" +
+        val source: String = "// Thread.sleep(1) delay(2) FocusedFieldHolder\n" +
             "/** Executors, Dispatchers and GlobalScope are not allowed here. */\n" +
             "class T {\n" +
             "    val a = \"System.currentTimeMillis() withTimeout runBlocking @Volatile\"\n" +
             "    val b = \"\"\"Thread(x) Timer() synchronized(y) Instant.now()\"\"\"\n" +
             "    val c = MainThread(1)\n" +
             "    val d = InlineMainThread(2)\n" +
-            "    val e = ImeHolderFake(3)\n" +
+            "    val e = FocusedFieldHolderFake(3)\n" +
             "    val f = candelay(4)\n" +
             "    val g = Thread.currentThread()\n" +
             "    val h = DispatchersX\n" +

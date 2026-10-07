@@ -7,8 +7,8 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** The text goes into the focused field of our keyboard, and nowhere else. */
-internal class CommitServiceImeTest {
+/** The text goes into the focused field (ADR-022), and nowhere else. */
+internal class CommitServiceFocusedFieldTest {
 
     private fun commitInto(rig: Rig, text: String): CommitOutcomeResult =
         rig.service.commit(Texts.request(text))

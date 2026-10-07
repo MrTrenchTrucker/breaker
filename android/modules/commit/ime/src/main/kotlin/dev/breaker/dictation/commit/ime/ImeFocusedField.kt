@@ -1,4 +1,4 @@
-package dev.breaker.dictation.commit.adapter
+package dev.breaker.dictation.commit.ime
 
 import android.view.inputmethod.InputConnection
 import dev.breaker.dictation.commit.FieldCommit

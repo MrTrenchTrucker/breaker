@@ -10,10 +10,10 @@ import kotlinx.coroutines.Job
 /**
  * Puts dictated text where the user is typing.
  *
- * It types into the focused field of our own keyboard when there is one, and
- * otherwise copies the text to the clipboard. The call blocks; the caller owns
- * the threading. It never throws an [Exception], and no string it builds can
- * contain the text.
+ * It types into the focused field when a text-insert mechanism (ADR-022) has
+ * published one, and otherwise copies the text to the clipboard. The call
+ * blocks; the caller owns the threading. It never throws an [Exception], and no
+ * string it builds can contain the text.
  *
  * A block that has started on the main thread is waited for, and the result
  * reports what it did. A block that has not started when the deadline passes is

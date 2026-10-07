@@ -17,12 +17,10 @@ import org.junit.Test
 internal class AndroidConfinementTest {
 
     private val adapterFiles: Set<String> = setOf(
-        "adapter/BreakerInputMethodService.kt",
-        "adapter/ImeFocusedField.kt",
         "adapter/AndroidClipboardWriter.kt",
         "adapter/ToastNotice.kt",
         "adapter/HandlerMainThread.kt",
-        "adapter/ImeHolder.kt",
+        "adapter/FocusedFieldHolder.kt",
         "adapter/CommitServices.kt",
     )
 
@@ -42,7 +40,7 @@ internal class AndroidConfinementTest {
     }
 
     @Test
-    fun `the adapter folder holds exactly the seven known files`() {
+    fun `the adapter folder holds exactly the five known files`() {
         assertEquals(
             "commit: the adapter folder changed; a new device file has to be argued for and listed here",
             adapterFiles,
@@ -54,7 +52,7 @@ internal class AndroidConfinementTest {
     fun `the scan sees real framework use in the adapter files that talk to the device`() {
         val adapter: Map<String, String> = SourceFiles.mainSources().filterKeys { it.startsWith("adapter/") }
         val naming: Set<String> = SourceFiles.filesMatching(adapter, rules.getValue("framework package")).toSet()
-        val talkToDevice: Set<String> = adapterFiles - "adapter/ImeHolder.kt"
+        val talkToDevice: Set<String> = adapterFiles - "adapter/FocusedFieldHolder.kt"
         assertTrue(
             "commit: the scan no longer finds the framework in ${talkToDevice - naming}",
             naming.containsAll(talkToDevice),

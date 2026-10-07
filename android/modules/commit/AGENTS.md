@@ -2,13 +2,22 @@
 
 ## Purpose
 
-CommitService: IME text commit + clipboard fallback + toast. CommitService — get transcription text into the user's target field.
+CommitService: mechanism-neutral text commit — get transcription text into the
+user's target field: into the focused field when a text-insert mechanism
+(ADR-022) has published one, otherwise the clipboard.
 *Text commit / text insertion* — never "injection."
 
-**Build phase:** Phase 7 (start a spike of the IME part in Phase 5; it carries the most platform risk). Needs first: `core` (on main).
+This module keeps the mechanism-neutral logic and has two sub-modules:
+`commit/accessibility`, the live accessibility-service mechanism (ADR-022);
+and `commit/ime`, the dead keyboard (IME) adapter from the superseded ADR-005.
+Neither sub-module's code lives here — see their own cards.
+
+**Build phase:** Phase 7 (start a spike of the accessibility mechanism in
+Phase 5; it carries the most platform risk). Needs first: `core` (on main).
 
 ## Owns
-CommitService: IME text commit + clipboard fallback + toast.
+CommitService: mechanism-neutral text commit (focused field gets the text,
+otherwise the clipboard) + toast.
 
 ## Public Interface `core.TextCommitter`.
 
@@ -16,22 +25,23 @@ Implements `commit(request: CommitRequest): CommitOutcomeResult`.
 
 - `CommitService : core.TextCommitter`. Its constructor is `internal`; the only
   public way to get one is `adapter/CommitServices.create(context)`, the one place
-  the app builds it (once per process, from the application context).
+  the app builds it (once per process, from the application context). `CommitServices`
+  itself is public, because the app wiring calls it directly.
 - `commit` is blocking, not `suspend`. The caller owns the threading and normally
   calls it from a worker thread (a call on the main thread runs the block
   inline). It never throws an `Exception`, and no string it builds can contain
   the text.
-- `BreakerInputMethodService` is public because the framework creates it; the
-  app lists it in its manifest (see "What the app must add later").
 - Layout: six pure Kotlin files in the module's package (no Android class is
-  named in them) and seven files in `adapter/`, the only place that names
-  Android classes.
+  named in them) and five files in `adapter/`, the only place that names
+  Android classes: `CommitServices.kt`, `AndroidClipboardWriter.kt`,
+  `ToastNotice.kt`, `HandlerMainThread.kt`, and `FocusedFieldHolder.kt` (the
+  one process-wide holder a text-insert mechanism publishes into).
 
 **Outcomes** (`detail` is a fixed text, never the committed text):
 
 | Outcome | detail | When |
 |---|---|---|
-| `COMMITTED` | none | The focused field of our keyboard accepted the text. |
+| `COMMITTED` | none | A focused field accepted the text. |
 | `COPIED` | none | There was no focused field, and the clipboard took the text. |
 | `COPIED` | `The field did not accept the text, so it was copied instead.` | A field was focused but refused the text or threw, and the clipboard took the text. |
 | `FAILED` | `The text could not be put anywhere.` | No field took the text and the clipboard was unavailable or threw. |
@@ -48,9 +58,10 @@ Implements `commit(request: CommitRequest): CommitOutcomeResult`.
    call fails as not responding. The deadline only frees the caller; it cannot
    stop a step that is already running. The deadline is 5 seconds, a safety net
    for a stuck main thread, not a measured value.
-3. Inside the block: if a field of our keyboard is focused, hand it the text. If
-   it accepts, the result is `COMMITTED` and nothing else runs. If it refuses or
-   throws, remember the refusal and go on. If no field is focused, go on.
+3. Inside the block: if a focused field has been published, hand it the text.
+   If it accepts, the result is `COMMITTED` and nothing else runs. If it
+   refuses or throws, remember the refusal and go on. If no field is published,
+   go on.
 4. Copy the text to the clipboard. The sensitive flag is always set: dictated
    text is private. If the clipboard is unavailable or throws, the result is
    `FAILED` with "The text could not be put anywhere."
@@ -73,23 +84,16 @@ running cannot be stopped; the guard only prevents the next one. If the wait is
 interrupted after the block started, the call still fails as not responding and
 the block finishes on its own.
 
-**IME:** Android `android.inputmethodservice` framework (same mechanism
-Fleksy/SwiftKey use). One-time user setup: Settings → Keyboards → enable our IME.
-Onboarding screen in the app links there (R5).
-
 ## What the app must add later
-The module is a library. It has no manifest entry and no `method.xml`, so until
-the app adds these, the system does not offer our keyboard:
-- A `<service>` entry for `dev.breaker.dictation.commit.adapter.BreakerInputMethodService`
-  with `android:permission="android.permission.BIND_INPUT_METHOD"` and an
-  intent filter for `android.view.InputMethod`.
-- `<meta-data android:name="android.view.im" android:resource="@xml/method"/>` on
-  that service, and the file `res/xml/method.xml`.
-- The keyboard view (the service has no input view yet).
-- The onboarding link to the keyboard settings.
+The module is a library. It has no manifest entry, so until the app and its
+text-insert mechanism add these, nothing publishes a focused field for this
+module to find, and every commit goes to the clipboard:
+- The accessibility service, its manifest `<service>` entry, and its service
+  config — built in `commit/accessibility` (ADR-022), not here.
+- The onboarding screen that explains the permission and walks the Android 13+
+  restricted-setting step (owned by `ui`).
 - One call to `CommitServices.create(context)` per process, handed to the use
   case that needs a `TextCommitter`.
-- The preview toggle (optional), which is not built here.
 
 ## Invariants
 - Send with focused field → text appears inline (F4).
@@ -105,10 +109,12 @@ the app adds these, the system does not offer our keyboard:
 ## Does Not Own
 - Formatting (format)
 - History storage (history)
+- The text-insert mechanism itself: finding the focused field and publishing
+  it (commit/accessibility, commit/ime)
 
 ## Test Locations
 - Unit (Kotlin): `android/modules/commit/src/test/kotlin/dev/breaker/dictation/commit/`. Run: `./gradlew :android:modules:commit:test`
-  - Service tests: `CommitServiceImeTest`, `CommitServiceClipboardTest`, `CommitServiceFailureTest`, `CommitServiceRedactionTest` (with the fakes in `Fakes.kt`).
+  - Service tests: `CommitServiceFocusedFieldTest`, `CommitServiceClipboardTest`, `CommitServiceFailureTest`, `CommitServiceRedactionTest` (with the fakes in `Fakes.kt`). `CommitServiceFocusedFieldTest` was `CommitServiceImeTest` before the ADR-022 restructure; its test bodies are unchanged.
   - Hop tests: `CommitServiceThreadHopTest`, `CommitServiceLateHopTest`, `CommitServiceInterruptTest`, `CommitServiceExplicitSendTest`, and, for the wait itself, `PostedMainThreadTest`, `PostedMainThreadClaimTest`, `PostedMainThreadServiceTest` (with the fakes in `HopFakes.kt`).
   - Other tests: `NoticeGatingTest`, `FocusedFieldRegistryTest`.
   - Scan tests (read the source text): `PureFilesScanTest`, `AndroidConfinementTest`, `ConcurrencyRuleScanTest`, `TestRulesScanTest` (with the helper `SourceFiles.kt`).
@@ -148,21 +154,21 @@ agents, not required: an outside contributor may write the code themselves
   fixed constants in `CommitTexts`; keep it so when adding an outcome.
 - A step already running cannot be stopped, by the deadline or by the late-hop
   guard. The deadline only frees a caller whose block has not started.
-- The only process-wide holder is `adapter/ImeHolder`, because the framework
-  creates the keyboard service itself. No test touches it; every test builds its
-  own registry.
-- Known risk: the dictation screen is an Activity, and showing it ends the
-  keyboard's input session, which clears the focused field. Until the app keeps
-  the session alive (or the commit happens from a surface that does not end it),
-  the clipboard path will be the common one and `COMMITTED` the rare one.
+- The only process-wide holder is `adapter/FocusedFieldHolder`, shared by
+  whatever text-insert mechanism publishes a focused field (today,
+  `commit/accessibility`, once built — ADR-022) and the commit service that
+  reads it. No test touches it; every test builds its own registry.
+- ADR-022: dictation happens in place from the floating tile; no Activity opens
+  while dictating, so the mechanism that used to lose focus whenever a screen
+  opened (the old IME approach, `commit/ime`, now dead) is not this module's
+  risk anymore. The risk moved to the accessibility mechanism actually finding
+  and holding the focused node reliably — tracked in `commit/accessibility`.
 - Not verified on a device (the adapter files run no JVM test, and nothing in
   this module has been run on a device):
-  - The keyboard service, and what `currentInputConnection` returns in
-    `onStartInput` and `onFinishInput` on real apps.
   - Whether the clip's sensitive extra hides the copy preview on Android 13 and
     later.
   - The toast on SDK level 32 and lower, and its absence from level 33.
   - The hop timing on a busy main thread.
-  - The whole focused-field flow, from a field gaining focus to text appearing in
-    it.
+  - The whole focused-field flow, from a field being published to text
+    appearing in it, once `commit/accessibility` exists to publish one.
   - Where the cursor lands after the text is committed.
