@@ -26,7 +26,7 @@
                               │  ZeroTier VPN (TLS via self-hosted CA)
                               ▼
 ┌─── Local Server ───────────────────────────────────────────────────────────────────┐
-│  whisper-server ── /v1/audio/transcriptions + FIFO queue (GAP: to add)       │
+│  whisper-server ── /v1/audio/transcriptions + FIFO queue                     │
 │                   ──▶ forwards to admin-configured service (Docker/IP/ext)    │
 │  sync-api ── /v1/sync + /v1/auth (users, roles, agent tokens) + updates      │
 │  web-fe ── Debian container: website (client-side decrypt) + APK + cert +    │

@@ -56,6 +56,8 @@ commands ("copy #27") deferred to v1.2.
 
 | ID | Module | Where | Owner agent lane |
 |----|--------|-------|------------------|
+| `app` | Android entry point, dependency injection wiring, Gradle build | `android/app/` | Orchestration |
+| `ui` | Screens: dictation, history, settings, auth, training; consumes ui-tokens | `android/ui/` | Coding |
 | `core` | Domain core: models, ports, use cases (no Android deps) | `android/modules/core/` | Orchestration |
 | `audio` | Mic capture, VAD, noise suppression, WAV encode | `android/modules/audio/` | Coding |
 | `stt-ondevice` | sherpa-onnx local transcription (fallback engine) | `android/modules/stt-ondevice/` | Coding |
