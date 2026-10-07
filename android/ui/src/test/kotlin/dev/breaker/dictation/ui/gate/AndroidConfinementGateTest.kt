@@ -214,7 +214,7 @@ class AndroidConfinementGateTest {
 
     @Test
     fun `a framework package in a class file is caught`() {
-        val control = " android/view/View "
+        val control = "\u0000android/view/View\u0000"
         assertEquals(listOf("android/"), frameworkPackagesIn(control))
     }
 
@@ -226,12 +226,12 @@ class AndroidConfinementGateTest {
 
     @Test
     fun `a class outside the render package is caught when it names the framework`() {
-        assertEquals(listOf("android/"), forbiddenPackagesIn("theme/Themes.class", " android/content/Context "))
+        assertEquals(listOf("android/"), forbiddenPackagesIn("theme/Themes.class", "\u0000android/content/Context\u0000"))
         assertEquals(
             emptyList<String>(),
-            forbiddenPackagesIn("$RENDER_DIRECTORY/ScreenRenderer.class", " android/view/View "),
+            forbiddenPackagesIn("$RENDER_DIRECTORY/ScreenRenderer.class", "\u0000android/view/View\u0000"),
         )
-        assertEquals(emptyList<String>(), forbiddenPackagesIn(ENTRY_CLASS, " android/view/View "))
+        assertEquals(emptyList<String>(), forbiddenPackagesIn(ENTRY_CLASS, "\u0000android/view/View\u0000"))
     }
 
     @Test
