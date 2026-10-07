@@ -5,7 +5,7 @@
 sherpa-onnx local transcription (fallback engine), model lifecycle, checksum verify. Offline speech-to-text on the phone using the base repo's **sherpa-onnx**
 engine (vendored from XIAOMI CORPORATION, upstream Apache-2.0, swept clean by Security Review).
 
-**Build phase:** Phase 3 of `docs/04-build-order.md`. Needs first: `core` (on main) and `model-registry` (not built yet; this module names models only through its generated constants, ADR-016).
+**Build phase:** Phase 3 of `docs/04-build-order.md`. Needs first: `core` (on main) and `model-registry` (built; this module names models only through the registry's entries, ADR-016).
 
 ## Owns
 sherpa-onnx local transcription (fallback engine), model lifecycle, checksum verify.
@@ -24,8 +24,23 @@ sherpa-onnx local transcription (fallback engine), model lifecycle, checksum ver
 - Models from `shared/model-registry` (sizes + SHA-256 + per-model license terms).
 - Download once → app data dir → **verify against upstream checksum.txt + our
   SHA-256 before load** (N3, T1, T21) [2].
-- A file that fails either check is deleted at once, never loaded or kept. The
-  user sees why, and the next attempt downloads it fresh.
+- The check, as it is today: an archive is trusted only when the SHA-256 of
+  the downloaded archive equals our pin AND that pin appears in the upstream
+  checksum list. It does not yet check that the pin is the digest listed for
+  this archive's own name (see Known Gotchas). The archive is checked when it
+  is installed (in staging, and again after the move) and on every load.
+- A file that fails the check is deleted at once, never loaded, never kept, so
+  the next attempt downloads it fresh. If the delete itself fails, the refusal
+  stays: the result carries `leftOnDisk` and its fixed sentence says the file
+  could not be removed.
+- Separate case: if the stored checksum list is missing or unreadable when a
+  model is loaded, nothing was judged. The archive is kept and never loaded,
+  the recognizer factory is never called, the user is told the model could not
+  be checked right now, and it is checked again on the next load.
+- What the user sees: one fixed plain sentence per kind of problem
+  (`ModelMessages`). Paths, exception text and digests go to a debug sink the
+  caller supplies (`ModelDebugSink`; the default drops them). A load or install
+  refusal never carries a path or an exception class name.
 - Load at startup (or lazy per setting); preload on idle to meet N1 (< 1 s start).
 
 **Security Review's sherpa-onnx audit [2]:** safe to use with three mitigations — clean
@@ -87,7 +102,27 @@ agents, not required: an outside contributor may write the code themselves
 
 ## Known Gotchas
 - Every .onnx is untrusted — verify checksum.txt before load [2]; track #3983 [2].
-- The Gradle boundary check does not require the
-  `project(":shared:modules:model-registry")` edge here while
-  `shared_model_registry` is base-only (it publishes no artifact); the
-  moment it gains an artifact plugin the edge becomes required.
+- The Gradle edge to `:shared:modules:model-registry` is required and present:
+  the registry publishes an artifact (its build file applies `java-library`),
+  this module's build file declares the edge, and its `modules.toml` entry
+  lists `shared_model_registry`. The registry's types `ModelEntry` and
+  `ModelFamily` appear in the public signatures of `ModelFetcher`,
+  `ModelInstaller` and `ModelLoader` here, so a module that calls them needs
+  the same edge.
+- The per-archive check waits on a registry field. The registry's download
+  URLs end in numeric release-asset ids, so the archive's upstream file name
+  cannot be derived from the URL, and `ModelEntry` carries no file name.
+  `ModelIntegrity.verify` already takes an optional archive name (unused) for
+  the day the registry records it. Until then the check is the one under
+  Model lifecycle.
+- A crash between moving the archive into place and writing the stored
+  checksum list and the verified marker can leave an archive without them. The
+  window is the span in `ModelInstaller` from the move to those two writes,
+  and it includes the second check of the archive. The loader then keeps the
+  archive and refuses it with the "could not be checked right now" sentence on
+  every load, because the stored checksum list is missing; installing the
+  model again heals it.
+- Nothing in this module downloads or extracts yet: there is no real
+  `ModelFetcher`, no real recognizer factory (the default,
+  `UnavailableRecognizerFactory`, refuses to create one), and no production
+  code calls `ModelInstaller` or `ModelLoader`. Those arrive with later work.
