@@ -106,7 +106,7 @@ class ModelLoader(
      * Load the model with [modelId] from the local store.
      *
      * The load order is: registry lookup, family check, install check,
-     * checksum parse, archive verification, engine creation. Each step has
+     * checksum parse, archive verification, unpacked-files check, engine creation. Each step has
      * its own refusal category, and each refusal carries a fixed sentence from
      * [ModelMessages]; the technical text goes to the debug sink.
      *
@@ -120,6 +120,10 @@ class ModelLoader(
      *   [Refusal.VERIFICATION_REFUSED]. When the delete fails the refusal stays,
      *   its sentence says the file could not be deleted, and
      *   [LoadResult.Refused.leftOnDisk] is true.
+     *
+     * A verified archive whose unpacked files are missing is refused as
+     * [Refusal.NOT_INSTALLED] and kept: nothing about it was judged wrong, and
+     * installing again unpacks it.
      *
      * @return [LoadResult.Ready] on success, [LoadResult.Refused] otherwise.
      */
@@ -183,11 +187,24 @@ class ModelLoader(
         }
         val digest = (verdict as ModelIntegrity.Verdict.Verified).digest
 
+        // Step 5b: the engine opens the unpacked files, not the archive. A
+        // verified archive without them (an install that stopped before the
+        // unpack) is kept, because nothing about it was wrong; installing again
+        // unpacks it. This comes after step 5, so a tampered archive is still
+        // judged and deleted first.
+        if (!store.isExtracted(modelId)) {
+            return refuse(
+                Refusal.NOT_INSTALLED,
+                ModelMessages.MODEL_NOT_INSTALLED,
+                "model '$modelId' is verified but has no unpacked files",
+            )
+        }
+
         // Step 6: engine creation. Any Exception from the factory (checked or
         // not, including SherpaTranscriptionException) is a refusal. An Error
         // (out of memory, a native library that fails to link) is not caught:
         // it is not an engine refusal and must reach the caller.
-        val model = SherpaModel(modelId, store.directoryFor(modelId), digest)
+        val model = SherpaModel(modelId, store.extractedDirectory(modelId), digest)
         val recognizer: SherpaRecognizer = try {
             factory.create(model)
         } catch (e: Exception) {

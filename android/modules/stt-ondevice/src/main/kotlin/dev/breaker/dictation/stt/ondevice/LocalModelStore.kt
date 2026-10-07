@@ -14,6 +14,13 @@ import java.io.IOException
  * is a same-filesystem rename, not a copy - a crash can therefore never
  * leave a half-copied archive where the loader reads.
  *
+ * A verified archive is unpacked into [EXTRACTED_DIR] inside the model
+ * directory: written in a work directory in staging, then moved into place with
+ * one rename, so a partly unpacked model is never visible. [delete] removes the
+ * archive, the markers and the unpacked files together. [extractedDirectory] and
+ * [extractionWorkDirectory] `require` a safe id; [isExtracted] and
+ * [removeExtracted] answer safely.
+ *
  * Division of responsibility for unsafe ids: [directoryFor] is the one place
  * a bad id must be loud (it `require`s a safe name), because it returns a path
  * that callers will write to. The question-answering calls - [isInstalled],
@@ -46,6 +53,12 @@ class LocalModelStore(
 
         /** Name of the model archive file inside each model directory. */
         const val ARCHIVE_NAME: String = "model.archive"
+
+        /** Name of the directory inside each model directory that holds the unpacked model files. */
+        const val EXTRACTED_DIR: String = "files"
+
+        /** Suffix of the work directory (inside the staging directory) while a model is being unpacked. */
+        const val EXTRACTING_SUFFIX: String = ".extracting"
 
         /**
          * Returns true when [name] is safe to use as a model id.
@@ -240,4 +253,47 @@ class LocalModelStore(
      * therefore never leave a half-copied archive where the loader reads.
      */
     fun stagingDirectory(): File = File(root, STAGING_DIR)
+
+    /**
+     * Returns the directory that holds the unpacked files of [modelId]: `<root>/<id>/files`.
+     *
+     * @throws IllegalArgumentException if [modelId] is not a safe name.
+     */
+    fun extractedDirectory(modelId: String): File =
+        File(directoryFor(modelId), EXTRACTED_DIR)
+
+    /**
+     * Returns true when the extracted directory of [modelId] is a directory with
+     * at least one entry. Absent, empty and a plain file at that path answer
+     * false, and so does an unsafe id.
+     */
+    fun isExtracted(modelId: String): Boolean {
+        if (!isSafeName(modelId)) return false
+        return extractedDirectory(modelId).list()?.isNotEmpty() == true
+    }
+
+    /**
+     * Returns the work directory an unpack of [modelId] writes into:
+     * `<root>/.staging/<id>.extracting`, on the same filesystem as the extracted
+     * directory, so moving it into place is a rename.
+     * @throws IllegalArgumentException if [modelId] is not a safe name.
+     */
+    fun extractionWorkDirectory(modelId: String): File {
+        require(isSafeName(modelId)) { "unsafe model id: '$modelId'" }
+        return File(stagingDirectory(), modelId + EXTRACTING_SUFFIX)
+    }
+
+    /**
+     * Remove the unpacked files of [modelId], keeping the archive and the markers.
+     * Nothing to remove (absent files, an unsafe id) answers true without asking
+     * the remove function.
+     *
+     * @return true when no unpacked files are left, false when removing them failed.
+     */
+    fun removeExtracted(modelId: String): Boolean {
+        if (!isSafeName(modelId)) return true
+        val dir = extractedDirectory(modelId)
+        if (!dir.exists()) return true
+        return remove(dir)
+    }
 }

@@ -55,6 +55,7 @@ class ModelLoaderEdgeCasesTest {
         Fixtures.writeBytes(File(store.directoryFor(modelId), LocalModelStore.ARCHIVE_NAME), archiveBytes)
         store.markVerified(modelId, digest)
         if (checksums != null) store.storeChecksums(modelId, checksums)
+        Fixtures.seedExtracted(store, modelId)
     }
 
     private fun load(loader: ModelLoader, id: String = modelId): ModelLoader.LoadResult =
@@ -144,7 +145,7 @@ class ModelLoaderEdgeCasesTest {
         seed(store, checksums = "model.archive\t$digest")
         val ready = readyOf(load(ModelLoader(store, StubFactory(), lookupOf(entryFor()))))
         assertEquals(modelId, ready.model.modelId)
-        assertEquals(store.directoryFor(modelId), ready.model.directory)
+        assertEquals(store.extractedDirectory(modelId), ready.model.directory)
         assertTrue("the model directory must be a directory", ready.model.directory.isDirectory)
         assertNotEquals("the model directory is not the archive file", store.archiveFile(modelId), ready.model.directory)
     }

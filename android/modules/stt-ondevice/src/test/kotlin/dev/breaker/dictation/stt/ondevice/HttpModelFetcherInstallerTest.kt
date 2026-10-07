@@ -138,13 +138,29 @@ class HttpModelFetcherInstallerTest {
         assertNothingInstalled()
     }
 
+    // The installer refuses an id with no unpack profile before it makes any request, so this
+    // id never reaches the fetcher. The fetcher's own id rule is covered by the next test.
     @Test
     fun `an unsafe model id is refused as a failed download before any model request`() {
         val opener = FakeOpener(list(), serve(okBytes(payload)))
         val unsafe = ModelInstaller(store, fetcherOf(opener), sink).install(testEntry(id = "../evil", sha256 = digest))
         val result = refused(unsafe, "unsafe model id")
-        assertEquals(ModelInstaller.Refusal.FETCH_FAILED, result.refusal)
-        assertEquals(ModelMessages.MODEL_DOWNLOAD_FAILED, result.detail)
-        assertEquals("only the checksum address was asked", 1, opener.requests.size)
+        assertEquals(ModelInstaller.Refusal.UNSUPPORTED_MODEL, result.refusal)
+        assertEquals(ModelMessages.MODEL_WRONG_FAMILY, result.detail)
+        assertEquals(
+            "the technical text names the refusal and the id",
+            listOf("install refused (UNSUPPORTED_MODEL): no unpack profile for '../evil'"),
+            sink.lines,
+        )
+        assertEquals("no request at all, not even for the checksum list", 0, opener.requests.size)
+    }
+
+    @Test
+    fun `the fetcher called directly refuses an unsafe model id and makes no request`() {
+        val opener = FakeOpener(serve(reply(body = ThrowIfRead("model body for the unsafe id"))))
+        val reason = attemptModel(fetcherOf(opener), testEntry(id = "../evil", sha256 = digest), staging).failedReason("unsafe model id")
+        assertEquals("model id not allowed", reason)
+        assertEquals("the model address was not asked", 0, opener.requests.size)
+        assertEquals("nothing was staged", emptyList<String>(), stagedNames(staging))
     }
 }

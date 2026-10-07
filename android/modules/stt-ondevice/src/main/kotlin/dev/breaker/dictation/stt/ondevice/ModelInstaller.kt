@@ -15,6 +15,14 @@ import java.io.IOException
  * a file that failed verification will not pass it on the next attempt, and
  * the next attempt downloads it fresh.
  *
+ * After the second check the archive is unpacked into the few files the engine
+ * opens (see [ModelExtractor]). The install result is Installed only once that
+ * has finished. The store's isInstalled answers for the archive alone, and the
+ * loader answers not installed when the unpacked files are missing. An archive
+ * that cannot be unpacked is deleted with the rest of the model, and the refusal
+ * says whether the archive was at fault, the phone was, or the space ran out. A
+ * model with no unpack profile is refused before anything is downloaded.
+ *
  * When a delete on a refusal path fails, the refusal is kept, its sentence says
  * that the file could not be deleted, and [InstallResult.Refused.leftOnDisk] is
  * true.
@@ -27,6 +35,7 @@ class ModelInstaller(
     private val store: LocalModelStore,
     private val fetcher: ModelFetcher,
     private val debug: ModelDebugSink = NoDebugSink,
+    private val extractor: ModelExtractor = ModelExtractor(),
 ) {
 
     /**
@@ -74,6 +83,18 @@ class ModelInstaller(
 
         /** The staged archive could not be moved to its final location. */
         MOVE_FAILED,
+
+        /** The model has no unpack profile, so it can never be unpacked; refused before any download. */
+        UNSUPPORTED_MODEL,
+
+        /** The archive is unsafe or damaged and was not unpacked; the model was deleted. */
+        EXTRACT_REFUSED,
+
+        /** The phone could not unpack the archive (a write or the final move failed); the model was deleted. */
+        EXTRACT_FAILED,
+
+        /** There was not enough free space to unpack the archive; the model was deleted. */
+        NO_SPACE,
     }
 
     /**
@@ -95,6 +116,12 @@ class ModelInstaller(
         }
         if (!stagingDir.exists() && !stagingDir.mkdirs()) {
             return refuse(Refusal.STAGING_FAILED, ModelMessages.SAVE_FAILED, "cannot create ${stagingDir.absolutePath}")
+        }
+
+        // Step 0b: a model with no unpack profile can never be unpacked, so it is
+        // refused before anything is downloaded.
+        if (!extractor.supports(entry.id)) {
+            return refuse(Refusal.UNSUPPORTED_MODEL, ModelMessages.MODEL_WRONG_FAMILY, "no unpack profile for '${entry.id}'")
         }
 
         // Step 1: fetch checksums. The fetcher writes into staging, so an
@@ -189,6 +216,17 @@ class ModelInstaller(
                 leftOnDisk = !removed,
             )
         }
+        // Files unpacked from an earlier install must not outlive the archive they
+        // came from, so they are removed before the archive is replaced.
+        if (!store.removeExtracted(entry.id)) {
+            val removed = store.discardFailedDownload(staged)
+            return refuse(
+                Refusal.MOVE_FAILED,
+                ModelMessages.SAVE_FAILED,
+                "cannot remove the earlier unpacked files of '${entry.id}'",
+                leftOnDisk = !removed,
+            )
+        }
         // Delete any existing file at the destination - renameTo fails on
         // some filesystems when the target already exists, and re-installing
         // over a previously installed model must not fail with MOVE_FAILED.
@@ -233,7 +271,27 @@ class ModelInstaller(
             )
         }
 
-        return InstallResult.Installed(entry.id, digest)
+        // Step 8: unpack. Only now is the model complete: the archive has been
+        // verified twice, its metadata is recorded, and its files appear in one
+        // move. A refusal deletes the whole model so nothing half-installed stays.
+        return when (val unpacked = extractor.extract(archiveFile, entry.id, store)) {
+            is ExtractionOutcome.Extracted -> InstallResult.Installed(entry.id, digest)
+            is ExtractionOutcome.Rejected -> refuseUnpack(entry.id, unpacked)
+        }
+    }
+
+    /**
+     * Delete the whole model after [rejected] and refuse with the category and
+     * sentence that match who was at fault: the archive, the phone, or the space.
+     */
+    private fun refuseUnpack(modelId: String, rejected: ExtractionOutcome.Rejected): InstallResult.Refused {
+        val removed = store.delete(modelId)
+        val (refusal, sentence) = when (rejected.reason.fault) {
+            ExtractionFault.ARCHIVE -> Refusal.EXTRACT_REFUSED to ModelMessages.UNPACK_REFUSED
+            ExtractionFault.LOCAL -> Refusal.EXTRACT_FAILED to ModelMessages.UNPACK_FAILED
+            ExtractionFault.SPACE -> Refusal.NO_SPACE to ModelMessages.UNPACK_NO_SPACE
+        }
+        return refuse(refusal, sentence, "${rejected.reason.name}: ${rejected.detail}", leftOnDisk = !removed)
     }
 
     /**

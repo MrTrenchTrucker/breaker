@@ -28,7 +28,8 @@ class ModelInstallerEdgeCasesTest {
     @get:Rule
     val tmp = TemporaryFolder()
 
-    private val goodBytes = "test model bytes".toByteArray()
+    // A real archive: a successful install unpacks what it fetched.
+    private val goodBytes = TarFixtures.tinyArchive()
     private val pin = Fixtures.independentSha256(goodBytes)
     private val listNamingPin = "model.archive\t$pin"
 

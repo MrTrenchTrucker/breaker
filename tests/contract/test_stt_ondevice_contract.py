@@ -15,6 +15,7 @@ import unittest
 
 import contract_support
 from stt_ondevice_bound_pins import SttOndeviceBoundPinsTest  # noqa: F401  (decode-bound pins, collected here)
+from stt_ondevice_extract_pins import SttOndeviceExtractPinsTest  # noqa: F401  (unpack pins, collected here)
 
 REGISTRY_FILE = (
     "shared/modules/model-registry/src/main/kotlin/dev/breaker/"

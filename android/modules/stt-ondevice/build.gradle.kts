@@ -36,6 +36,7 @@ dependencies {
     implementation(project(":android:modules:core"))
     implementation(project(":shared:modules:model-registry"))
     implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.commons.compress)
 
     testImplementation(libs.junit)
 }

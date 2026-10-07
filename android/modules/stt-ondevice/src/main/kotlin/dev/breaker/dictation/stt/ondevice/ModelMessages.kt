@@ -61,6 +61,15 @@ object ModelMessages {
     /** The downloaded archive failed its check and could not be removed, so it is still on the phone. */
     const val DOWNLOAD_FAILED_CHECK_NOT_DELETED = "The downloaded file failed its check but could not be discarded."
 
+    /** The downloaded archive held something unsafe or was damaged, so it was not unpacked. */
+    const val UNPACK_REFUSED = "The model file could not be unpacked safely. Download it again."
+
+    /** The phone could not do the unpacking (a write or the final move failed). */
+    const val UNPACK_FAILED = "The model could not be unpacked on the phone."
+
+    /** There was not enough free space for the unpacked files. */
+    const val UNPACK_NO_SPACE = "There is not enough free space to unpack the model."
+
     /** Appended after another sentence when removing the bad file also failed. */
     const val COULD_NOT_DELETE = " The file could not be deleted."
 }

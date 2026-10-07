@@ -136,13 +136,15 @@ class HttpModelFetcherTest {
     @Test
     fun `an install through the model installer with the fake opener ends Installed`() {
         val store = LocalModelStore(tmp.newFolder("models"))
-        val digest = httpTestSha256Hex(payload)
+        // The served model is a real archive: a successful install unpacks it.
+        val archive = TarFixtures.tinyArchive()
+        val digest = httpTestSha256Hex(archive)
         val entry = testEntry(sha256 = digest)
-        val opener = FakeOpener(serve(okBytes(httpTestChecksumList(digest))), serve(okBytes(payload)))
+        val opener = FakeOpener(serve(okBytes(httpTestChecksumList(digest))), serve(okBytes(archive)))
         val result = ModelInstaller(store, fetcherOf(opener)).install(entry)
         assertEquals(ModelInstaller.InstallResult.Installed("tiny", digest), result)
         assertTrue("the model is installed", store.isInstalled("tiny"))
-        assertArrayEquals("the installed archive holds the served bytes", payload, store.archiveFile("tiny").readBytes())
+        assertArrayEquals("the installed archive holds the served bytes", archive, store.archiveFile("tiny").readBytes())
         assertEquals(
             "the checksum list was asked for first, then the model",
             listOf(DownloadLimits().checksumsUrl, entry.url),

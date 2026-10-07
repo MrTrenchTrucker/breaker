@@ -44,6 +44,16 @@ internal object Fixtures {
     }
 
     /**
+     * Put one file in the unpacked-files directory of [id], so the model counts
+     * as unpacked. Returns that directory.
+     */
+    fun seedExtracted(store: LocalModelStore, id: String): File {
+        val dir = store.extractedDirectory(id)
+        Fixtures.writeText(File(dir, "tokens.txt"), "seeded")
+        return dir
+    }
+
+    /**
      * Write [bytes] to [file], creating parent directories as needed.
      */
     fun writeBytes(file: File, bytes: ByteArray): File {

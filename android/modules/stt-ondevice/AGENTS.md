@@ -51,7 +51,8 @@ sherpa-onnx local transcription (fallback engine), model lifecycle, checksum ver
 
 **Download side:**
 - `HttpModelFetcher` is the real `ModelFetcher`. It is built on the platform's `HttpURLConnection`,
-  so the module takes no new dependency. `DownloadLimits` holds every bound as a plain parameter, so
+  so the fetcher needs no library of its own (the unpack side does, see Known Gotchas).
+  `DownloadLimits` holds every bound as a plain parameter, so
   a test can tighten any of them. Both constructor arguments (`limits`, `cancelled`) have defaults.
 - Where it may connect: https only, on every request. The first request goes to a host in the
   first-hop set (`api.github.com`); a redirect goes to a host in the redirect set
@@ -70,6 +71,40 @@ sherpa-onnx local transcription (fallback engine), model lifecycle, checksum ver
   Only a problem writing the staging file (a full disk included) is thrown, as an `IOException`,
   and the partial file is deleted first.
 - The fetcher never hashes. The installer's digest check is the judge of the bytes.
+
+**Unpack side:**
+- Five files make it up. `ModelExtractor` unpacks a verified archive and is the only file in the
+  module that imports the archive library. `ExtractionProfiles` is a static per-model table: for
+  each model that has a profile (`small`, `tiny`) it names the four files the engine opens
+  (encoder, decoder, joiner, tokens) and the bounds. `EntryRules` holds the checks that need only an
+  entry's header (name, type flag, declared size). `BoundedStream` counts the decompressed bytes and
+  throws past its limit instead of ending the stream early. `ExtractionOutcome` is the result:
+  `Extracted`, or `Rejected` with a reason that says whether the archive, the phone or the free
+  space was at fault.
+- How it reads and writes: the archive is a tar inside bzip2, read through a 64 KiB buffer. Only the
+  profile's flat file names are written, under the profile's own names (never a name taken from the
+  archive), into a work directory in the staging directory. Each file is forced to storage before it
+  is closed. Then ONE rename makes `<id>/files/`, so a partly unpacked model is never visible. Every
+  other entry is read past and not written. After the last entry the stream is read to its end, so
+  a missing end marker or extra bytes are noticed.
+- What it refuses: an absolute path, a parent segment, a link, a non-regular or sparse entry, too
+  many entries, an entry or the total over its bound (also the decompressed stream as a whole), a
+  damaged stream or header, a truncated archive, a second top directory, duplicate names, a missing
+  or empty needed file, and too little free space. A refusal deletes the work directory, creates no
+  target and never touches the archive.
+- The installer unpacks after the second check and the metadata writes, and only then reports
+  `Installed`. On any refusal it deletes the whole model directory; a failed delete is reported
+  through the could-not-delete sentence variant (`leftOnDisk`). A model with no profile is refused
+  before anything is downloaded. An install over an existing one removes the earlier unpacked files
+  before the archive is replaced; if that removal fails, the install is refused and the downloaded
+  file is discarded. `ModelInstaller` takes the extractor as its new last constructor parameter,
+  with the real one as the default.
+- New installer refusal values: `UNSUPPORTED_MODEL`, `EXTRACT_REFUSED`, `EXTRACT_FAILED`, `NO_SPACE`.
+  Three new user sentences: the archive could not be unpacked safely, the phone could not unpack it,
+  and there is not enough free space to unpack it.
+- The loader answers not-installed, and keeps the archive, when the archive verifies but `files/` is
+  missing or empty. That check comes after the archive check, so a tampered archive is still judged
+  and deleted first. The loader hands the engine factory the `files/` directory.
 
 **Model lifecycle:**
 - Models from `shared/model-registry` (sizes + SHA-256 + per-model license terms).
@@ -167,8 +202,22 @@ it.
 - `DownloadPolicyContractTest` reads the real model registry against the default `DownloadLimits`:
   every registry address must be https on a first-hop host, and every entry must fit under the
   default size cap.
+- The unpack tests are `EntryRulesTest`, `BoundedStreamTest`, `ExtractionProfilesTest` (pins each
+  profile against the listing of the real archive), `ModelExtractorTest`,
+  `ModelExtractorRefusalTest`, `ModelExtractorBoundsTest`, `ModelExtractorCrashTest`,
+  `ModelExtractorByIdTest`, `ModelExtractorSeamTest`, `ModelExtractorNamesTest`,
+  `LocalModelStoreUnpackTest`, `ModelInstallerUnpackTest`, `ModelInstallerUnpackReinstallTest`,
+  `ModelLoaderUnpackTest` and `ModelMessagesUnpackTextTest`. They use no network and no real
+  archive.
+- `TarFixtures` writes the test archives in memory (hand-written tar headers inside bzip2, damaged
+  ones included); it is the only test file that imports the archive library.
+  `ModelInstallerUnpackFixture`, in `ModelInstallerUnpackReinstallTest.kt`, is the shared fixture of
+  the two installer unpack test classes.
 - Contract: `tests/contract/test_stt_ondevice_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_stt_ondevice_contract.py`
 - Contract (decode bound pins): `tests/contract/stt_ondevice_bound_pins.py`, collected and run by the contract test above.
+- Contract (unpack pins): `tests/contract/stt_ondevice_extract_pins.py`, imported and run by the contract test above.
+  It also pins the catalog version of the archive library to the release the unpack was written
+  against, so a version change is a deliberate edit of that pin.
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
 ## Test Requirement
@@ -228,11 +277,42 @@ agents, not required: an outside contributor may write the code themselves
   wrong-family sentence names a model family the code does not check; `loadedModelId` in the
   diagnostics is not cleared after a refusal; diagnostics on a closed engine reads on the caller's
   thread; one salvaged test duplicates another; the `Outcome` enum is unused.
-- The download side now exists (`HttpModelFetcher`, see Download side). Extraction does not, and
-  neither does a real recognizer factory (the default, `UnavailableRecognizerFactory`, refuses to
-  create one). No production code constructs `ModelInstaller` or `ModelLoader`. The engine takes the
-  loader through `ModelLoaderPort`, and the app's wiring supplies it later, so the engine cannot
-  transcribe real audio until a recognizer factory exists.
+- The download side (`HttpModelFetcher`) and the unpack side (`ModelExtractor`) exist; a real
+  recognizer factory does not (the default, `UnavailableRecognizerFactory`, refuses to create one).
+  No production code constructs `ModelInstaller` or `ModelLoader`. The engine takes the loader
+  through `ModelLoaderPort`, and the app's wiring supplies it later, so the engine cannot transcribe
+  real audio until a recognizer factory exists.
+- The extractor writes at most the profile's written-bytes bound and needs free space equal to that
+  bound before it starts (80 MiB for `tiny`, 160 MiB for `small`). It compares the bound with the
+  free space of the staging directory; that is a bound, not a measure of what the files need. A
+  refusal for space deletes the model, so the next try downloads the archive again.
+- A crash between the second check and the rename leaves the verified archive and no `files/`. The
+  store still counts the model as installed (the archive is there), but the loader answers not
+  installed and keeps the archive; installing again heals it. A work directory left in the staging
+  directory by the crash stays until the next install of that model, which removes it first.
+- `isExtracted` means a non-empty `files/` and nothing more: it does not check that all four files
+  are there. The extractor makes sure of that, because `files/` appears only through the single
+  rename of a complete work directory. A removal of the earlier unpacked files that fails part-way
+  is refused by the installer, but the old archive and a partly removed `files/` stay, and the
+  loader can then hand the engine factory a directory with files missing. A stricter check (all four
+  profile names present) is open.
+- The loader hashes only the archive, on every load, and never the four unpacked files. A change to
+  an unpacked file after install is not detected, so the invariant "corrupt model file: load refused
+  and the file deleted" holds for the archive only.
+- The unpack side adds a library to the module: the archive library (`commons-compress`,
+  Apache-2.0) at the version in `gradle/libs.versions.toml`, which carries the dated source line.
+  Gradle also resolves three libraries it declares: `commons-codec`, `commons-io` and
+  `commons-lang3` (Apache-2.0); the catalog names their versions in comment lines and has no
+  entries for them. Main code imports the archive library in `ModelExtractor.kt` only.
+- The profile bounds come from the entry listing of each real archive (names and sizes) plus
+  headroom, and a test pins the listing figures. The extractor itself has not been run on a real
+  archive: its tests use small archives they write themselves. Details a listing does not show
+  (extended headers, for example) have not been seen.
+- Existing tests that install a model were re-pointed to serve a real archive
+  (`TarFixtures.tinyArchive()`), and the loader tests seed a `files/` directory
+  (`Fixtures.seedExtracted`). The installer tests use the real extractor by default, so they need
+  free disk space in the temp folder equal to the tiny model's written-bytes bound (80 MiB); on a
+  full disk they fail with a no-space refusal, not a hang.
 - There is no resume: an interrupted download starts again from zero. A partial file named
   `<id>.download` can stay in the staging directory after a process death, and the installer never
   sweeps it; the fetcher deletes its own same-name file at the start of the next attempt, so a
@@ -250,6 +330,8 @@ agents, not required: an outside contributor may write the code themselves
   network failure shows the checksum-list sentence, not the model sentence.
 - The metered-data and Wi-Fi-only policy, the `INTERNET` permission, running the download off the UI
   thread and allowing one install at a time belong to the app wiring, not to this module.
+  `install()` now also unpacks inside the same blocking call, so the whole call must stay off the UI
+  thread; how long the unpack takes on a phone has not been measured.
 - Not exercised yet: the real TLS handshake, Android's own `HttpURLConnection` behaviour (the tests
   run on the JDK's) and a full-size download on mobile data. A device check is owed before anyone
   says downloads work.

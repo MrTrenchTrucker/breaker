@@ -57,6 +57,7 @@ class ModelLoaderTest {
         File(dir, LocalModelStore.ARCHIVE_NAME).writeBytes(bytes)
         store.markVerified(id, digest)
         store.storeChecksums(id, "model.archive\t$digest")
+        Fixtures.seedExtracted(store, id)
     }
 
     @Test

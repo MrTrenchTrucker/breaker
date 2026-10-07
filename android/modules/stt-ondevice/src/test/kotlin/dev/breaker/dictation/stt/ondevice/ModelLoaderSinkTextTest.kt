@@ -71,6 +71,7 @@ class ModelLoaderSinkTextTest {
         Fixtures.writeBytes(File(store.directoryFor(modelId), LocalModelStore.ARCHIVE_NAME), archiveBytes)
         store.markVerified(modelId, digest)
         if (checksums != null) store.storeChecksums(modelId, checksums)
+        Fixtures.seedExtracted(store, modelId)
     }
 
     /** The text the parser gives for [text]; the test fails if the parser accepts it. */

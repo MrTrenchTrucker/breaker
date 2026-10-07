@@ -44,6 +44,7 @@ class ModelLoaderDefaultEngineTest {
         Fixtures.writeBytes(store.archiveFile(modelId), bytes)
         store.markVerified(modelId, digest)
         store.storeChecksums(modelId, "model.archive\t$digest")
+        Fixtures.seedExtracted(store, modelId)
         assertTrue("fixture: the model must be installed", store.isInstalled(modelId))
         return store
     }

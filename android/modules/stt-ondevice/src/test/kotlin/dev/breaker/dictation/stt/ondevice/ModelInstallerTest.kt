@@ -59,7 +59,8 @@ class ModelInstallerTest {
 
     @Test
     fun `install succeeds when bytes match pin and checksums contain pin`() {
-        val bytes = "test model bytes".toByteArray()
+        // A real archive: a successful install unpacks what it fetched.
+        val bytes = TarFixtures.tinyArchive()
         val digest = sha256Hex(bytes)
         val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false)
         val checksumsText = "model.archive\t$digest"
@@ -261,7 +262,8 @@ class ModelInstallerTest {
         // A re-download is verified in staging before it touches the model
         // directory, so a bad one cannot destroy a model that is already
         // installed and verified.
-        val goodBytes = "test model bytes".toByteArray()
+        // The good bytes are a real archive: a successful install unpacks what it fetched.
+        val goodBytes = TarFixtures.tinyArchive()
         val badBytes = "different model bytes".toByteArray()
         val pin = sha256Hex(goodBytes)
         assertNotEquals("the bad bytes must not match the pin", pin, sha256Hex(badBytes))
@@ -306,7 +308,8 @@ class ModelInstallerTest {
 
     @Test
     fun `install refuses bytes that match the pin when the fetched upstream list does not name the pin`() {
-        val bytes = "test model bytes".toByteArray()
+        // A real archive: the control arm below installs it and so unpacks it.
+        val bytes = TarFixtures.tinyArchive()
         val pin = sha256Hex(bytes)
         val entry = ModelEntry("tiny", ModelFamily.SHERPA_ONNX, "https://example.com/model", pin, 1, "Apache-2.0", false)
         val unrelated = sha256Hex("other".toByteArray())

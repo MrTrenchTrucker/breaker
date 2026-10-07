@@ -86,6 +86,7 @@ class ModelLoaderMessagesTest {
         Fixtures.writeBytes(s.archive, archiveBytes)
         s.store.markVerified(s.id, digest)
         if (checksums != null) s.store.storeChecksums(s.id, checksums)
+        Fixtures.seedExtracted(s.store, s.id)
         assertTrue("fixture: the model must be installed", s.store.isInstalled(s.id))
         return s
     }
@@ -251,6 +252,7 @@ class ModelLoaderMessagesTest {
         Fixtures.writeBytes(File(store.directoryFor(modelId), LocalModelStore.ARCHIVE_NAME), bytes)
         store.markVerified(modelId, digest)
         store.storeChecksums(modelId, validChecksums())
+        Fixtures.seedExtracted(store, modelId)
         val loader = ModelLoader(
             store,
             CountingFactory(IllegalStateException(engineFailureText)),
