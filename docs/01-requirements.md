@@ -94,7 +94,7 @@
 - **N3** Model files **pinned to immutable release-asset ids** and verified against
   upstream's published checksum.txt (SHA-256) before use [2].
 - **N4** Battery-friendly: sensor + overlay listeners idle when not dictating.
-- **N5** Android 11+ (`setFloating`), arm64-v8a primary target.
+- **N5** Android 11+ (min SDK 30), arm64-v8a primary target.
 - **N6** Audio never leaves the device in local/fallback mode (except user-initiated sync).
 - **N7** Server API is OpenAI-shaped but **asynchronous**: `POST /v1/audio/transcriptions`
   enqueues and returns `{ job_id, status: "queued" }`; the client polls

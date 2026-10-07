@@ -110,7 +110,8 @@ The mic glyph + **LED bar meter** show transmission state:
 ### Floating tile
 - The **CB mic glyph**, draggable, tap-only (overlay windows cannot take focus
   [1] — the dictation UI opens in a normal window). Permission set stays
-  minimal: mic, internet, foreground service [1].
+  minimal: display over other apps (the tile), mic, internet, foreground
+  service [1].
 - **LED bar meter above the mic** when awake and recording (F36).
 - State colors per section 4.
 
