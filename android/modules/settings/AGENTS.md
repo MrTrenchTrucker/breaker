@@ -2,28 +2,49 @@
 
 ## Purpose
 
-Settings persistence + model registry access. Typed settings persistence + access to the shared model registry.
+Settings persistence + model registry access. Typed settings persistence + read-only access to the shared model registry.
 
-**Build phase:** Phase 2. Needs first: `core` (on main) and `model-registry` (not built yet; model choices come from its generated constants, ADR-016).
+**Build phase:** Phase 2. Needs first: `core` (on main) and `model-registry`; model choices come from the registry's generated constants (ADR-016).
 
 ## Owns
 Settings persistence + model registry access.
 
-## Public Interface `core.SettingsStore`.
+## Public Interface
+
+The caller constructs `SettingsFileStore` and supplies a `Keystore`
+implementation:
+
+- `SettingsFileStore` — a concrete class; the caller constructs it with its
+  settings file and a `Keystore`. It implements `core.SettingsStore`.
+- `Keystore` — an interface, not a class: the caller supplies an implementation
+  of it and does not construct the type itself. It is the credential port
+  `SettingsFileStore` routes the `api_key` reference through. The module
+  supplies no implementation of it for real use — no device implementation
+  exists yet (see Known Gotchas) — so a caller who treats it as a constructible
+  type will not compile.
+- `ModelCatalog` — a read-only object over the model registry: the full model
+  list (id, size, URL, SHA-256) and a lookup by id. No download or verify logic
+  lives here; that is `stt-ondevice`'s.
 
 **Keys:** mode, model_size, server_url, api_key (Android Keystore, encrypted at
-rest — T2), wake_gesture_enabled, tile_position, language, preload_model,
+rest — T2) *(the device Keystore is not built yet — see Known Gotchas)*,
+wake_gesture_enabled, tile_position, language, preload_model,
 formatting_enabled, theme_mode.
 
-**Model registry:** reads `shared/model-registry` (model list, sizes, URLs,
-SHA-256 pins) — used by `stt-ondevice` for download + verify.
+**Model registry:** `ModelCatalog` reads `shared/model-registry` (model list,
+sizes, URLs, SHA-256 pins); `stt-ondevice` reads the same registry for download
++ verify, which is its work, not this module's.
 
-**UI:** settings screen (F7).
+**UI:** settings screen (F7). *(Not built yet.)*
 
 ## Invariants
 - Settings persist across restarts.
-- API key stored via Keystore, never in plaintext/logs.
-- Model registry parsed; invalid SHA-256 blocks model load.
+- API key stored via Keystore, never in plaintext/logs. Both halves of that are
+  stated apart on purpose: routing the reference through the `Keystore` port, and
+  the settings file never carrying the key, are built and tested; what is not
+  built is any device Keystore behind the port.
+  *(the device Keystore is not built yet — see Known Gotchas)*
+- Model registry parsed; invalid SHA-256 blocks model load. *(Not built yet.)*
 
 ## Depends On
 - android (registered in modules.toml)
@@ -66,7 +87,29 @@ agents, not required: an outside contributor may write the code themselves
 
 ## Known Gotchas
 - Server URL is a first-run setting — never hardcode.
-- The Gradle boundary check does not require the
-  `project(":shared:modules:model-registry")` edge here while
-  `shared_model_registry` is base-only (it publishes no artifact); the
-  moment it gains an artifact plugin the edge becomes required.
+- The Gradle edge to `:shared:modules:model-registry` is required and present:
+  the registry publishes an artifact, and the boundary check makes the edge
+  mandatory the moment it does. `ModelCatalog` reads the registry through it,
+  and the edge stays `implementation(...)` — the registry's types never appear
+  in this module's public signatures, so nothing outside needs the edge.
+- The device Keystore is **not implemented and not verified** yet. Nothing in
+  this module has been run against Android Keystore; the port carries the credential
+  *reference* only and has no method that can receive or return a secret. The
+  instrumented test that will verify a hardware-backed key is a later change — it
+  belongs in `androidTest`, not `src/test`, and it is the only place that claim can
+  honestly be made.
+- A reference's durability **across a real process restart is NOT VERIFIED**. What the
+  unit tests prove is narrower: that the store routes the reference through the
+  `Keystore` port and never writes it to the settings file. A fake port lives in the
+  same process, so it cannot prove survival across process death — that is the platform
+  Keystore's job, and it arrives with the device implementation.
+- The settings file holds **nine** of the card's ten keys. `api_key` is deliberately
+  absent: the credential reference travels through the `Keystore` port, never through
+  `java.util.Properties`. A reader counting keys will find one short and that is
+  correct.
+- A saved `model_size` is a registry id: a save is refused, before the file is
+  touched, when it is not an id the registry names, and a read falls the key back
+  to the default for exactly that case. The match is EXACT-CASE — the registry's
+  own lookup is exact, and its ids are lowercase alphanumerics — so a case-folded
+  reader would honour a file the writer refuses. The file holds plain strings;
+  the registry holds the ids; no id list is copied into either.

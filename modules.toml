@@ -119,7 +119,7 @@ path = "android/modules/settings"
 owns = "Settings persistence + model registry access."
 does_not_own = "Server URL auth (auth-client); model catalog (shared/model-registry)."
 depends_on = ["android", "android_core", "shared_model_registry"]
-public = "SettingsStore"
+public = "SettingsFileStore, Keystore, ModelCatalog, ModelInfo"
 card = "android/modules/settings/AGENTS.md"
 
 [module.android_sync]
