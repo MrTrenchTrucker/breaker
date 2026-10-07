@@ -9,7 +9,9 @@
   **recording starts automatically**.
 - **F5** **"And I'm Gone"** (voice phrase) OR tap tile → stop + send → commit text
   to focused field.
-- **F6** If no text field is focused → copy to clipboard + toast.
+- **F6** If no text field is focused, or the accessibility insert is refused →
+  copy to clipboard, with a confirmation: our toast on Android 12 and below,
+  the system's own copy confirmation on Android 13+.
 - **F7** In-app transcription history with one-tap copy.
 - **F8** Whisper Flow-style formatting: numbered lists, punctuation, filler removal.
 - **F9** The send phrase "And I'm Gone" is **excluded** from the transcription

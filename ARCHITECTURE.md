@@ -51,7 +51,7 @@ admins.
 7. [Transport & Fallback](#7-transport--fallback)
 8. [Gesture, Voice Phrases & Overlay](#8-gesture-voice-phrases--overlay)
 9. [Formatting](#9-formatting)
-10. [Text Commit (IME + Clipboard)](#10-text-commit-ime--clipboard)
+10. [Text Commit (Accessibility Service + Clipboard)](#10-text-commit-accessibility-service--clipboard)
 11. [History, Sync & Web Access](#11-history-sync--web-access)
 12. [Multi-User & Auth](#12-multi-user--auth)
 13. [Voice Phrase Training](#13-voice-phrase-training)
@@ -74,7 +74,9 @@ admins.
       **recording starts automatically**.
 - F5. **"And I'm Gone"** (voice phrase) OR tap tile → stop + send → commit text to
       focused field.
-- F6. If no text field is focused → copy to clipboard + toast.
+- F6. If no text field is focused, or the accessibility insert is refused →
+      copy to clipboard, with a confirmation: our toast on Android 12 and
+      below, the system's own copy confirmation on Android 13+.
 - F7. In-app transcription history with one-tap copy.
 - F8. Whisper Flow-style formatting: numbered lists, punctuation, filler removal.
 - F9. The send phrase "And I'm Gone" is excluded from the transcription (audio
@@ -188,8 +190,8 @@ admins.
 │     └─ server down ──▶ stt-ondevice (sherpa-onnx) ──raw text──▶               │
 │                          format (rule-based) ──formatted text──▶ commit       │
 │                                                                               │
-│  commit ──IME active?──▶ InputMethodService commit ──▶ focused field          │
-│       └── no field ──▶ clipboard + toast                                      │
+│  commit ──accessibility insert──▶ focused field                               │
+│       └── no field / refused ──▶ clipboard                                    │
 │  history ◀── every transcription (text, source, timestamp)                    │
 │  sync ──queue──▶ push to server when reachable (even local-only mode)         │
 │  training-client ──record samples──▶ upload──▶ download trained model         │
@@ -348,10 +350,13 @@ filtered magnitude threshold crossings in a 500 ms window.
   container fine-tunes a small KWS model from the user's own recordings.
 - "Breaker Breaker" (idle) → tile + auto-record (F4). "And I'm Gone" (recording)
   → stop + **trim audio at phrase onset** (F9) + dispatch (F5).
-- **Permissions (F11):** mic, sensor, overlay, notifications requested together
-  at first startup. **High-power mode (F12):** verify power-saving off.
+- **Permissions (F11):** mic, sensor, overlay, notifications requested
+  together at first startup. The accessibility service isn't part of that
+  runtime prompt — it has no system dialog to request; onboarding leads the
+  user to its Settings toggle instead (ADR-022). **High-power mode (F12):**
+  verify power-saving off.
 
-**Overlay (floating tile):** `WindowManager` + `TYPE_APPLICATION_OVERLAY` with `FLAG_NOT_FOCUSABLE` (Android 11+). Tile is **tap-only**; tapping it launches the dictation UI as a normal in-app Activity (no special overlay window type — only the floating tile itself needs `TYPE_APPLICATION_OVERLAY`). The tile IS the **CB mic glyph** — tap to talk. While awake and recording, a digital Cobra-style **LED bar meter** fills directly above it (F36). Permission set: `SYSTEM_ALERT_WINDOW` (tile), mic, internet, foreground service, notifications (F11) [1].
+**Overlay (floating tile):** `WindowManager` + `TYPE_APPLICATION_OVERLAY` with `FLAG_NOT_FOCUSABLE` (Android 11+). Tile is **tap-only**; tapping it starts dictation in place, on the tile — no Activity opens, so the app the user is typing in keeps focus and the user's own keyboard stays up (ADR-022). The tile IS the **CB mic glyph** — tap to talk. While recording, a digital Cobra-style **LED bar meter** fills directly above it, with a small cancel control; tap again (or the send phrase) to send (F36). Permission set: `SYSTEM_ALERT_WINDOW` (tile), mic, internet, foreground service, notifications (F11), plus the accessibility service — a Settings toggle onboarding leads the user to, not a runtime prompt (ADR-022) [1].
 
 ## 9. Formatting
 
@@ -365,12 +370,19 @@ filtered magnitude threshold crossings in a 500 ms window.
 - Golden test: "I have 3 things... one is file a, two is file b, three is file c"
   → numbered list. Diff-check test enforces N9.
 
-## 10. Text Commit (IME + Clipboard)
+## 10. Text Commit (Accessibility Service + Clipboard)
 
 **CommitService** — *text commit*, not "injection."
-1. IME active + field focused → `InputMethodService.commitText(...)` inline.
-2. Else → clipboard copy + toast.
-3. Optional candidate-bar preview.
+1. Focused editable field found → the accessibility service (`AccessibilityService`)
+   inserts the text (`AccessibilityNodeInfo.ACTION_SET_TEXT` merging with the
+   existing text at the cursor, or `ACTION_PASTE` from the clipboard).
+   `ACTION_SET_TEXT` replaces the node's whole text, so the merge is the
+   service's own job: read the current text + selection, build the new text,
+   set it, then place the cursor after the inserted text.
+2. No focused field, or the insert is refused → clipboard copy, with a
+   confirmation: our toast on Android 12 and below, the system's own copy
+   confirmation on Android 13+.
+3. Optional preview before send.
 
 ## 11. History, Sync & Web Access
 
@@ -416,7 +428,7 @@ values) live in `shared/ui-tokens`:
 - **Responsive (F35):** mobile-first breakpoints; bottom nav on phones, sidebar
   on desktop; the Android app consumes the same tokens so both look identical.
 - **CB mic motif + state colors (F36):** the CB mic glyph is the favicon, the
-  floating tile, and the dictation hero (ComfyUI art: flat vector, white/green
+  floating tile, and the web FE's hero card (ComfyUI art: flat vector, white/green
   + black-outline variant). A digital Cobra-style **LED bar meter** (segments
   filling with audio level, directly above the floating mic on Android) shows
   state: **green** = sent (copy confirmed), **orange** = server failed → local
@@ -732,7 +744,7 @@ See `docs/04-build-order.md`. Summary:
 | 4 | **whisper-server (async queue) + VPN wiring** — Breaker's own container adds `/v1/audio/transcriptions` (async enqueue) + `/v1/jobs/{id}` (poll), forwarding to the admin-configured service (default: existing Whisper X container, unmodified). Absorbs former Phase 18. | Coding + Bug Hunt |
 | 5 | `stt-server` client + `transport` (connectivity probe; core routes) | Coding |
 | 6 | `overlay` + `gesture` | Coding |
-| 7 | `commit` (IME + clipboard) | Coding |
+| 7 | `commit` (accessibility + clipboard) | Coding |
 | 8 | `format` (server LLM + rule-based) | Coding |
 | 9 | E2E test, bench, security review | Bug Hunt |
 | 10 | `phrases` — streaming ASR + phrase matching | Coding |
@@ -752,13 +764,13 @@ See `docs/04-build-order.md`. Summary:
 ## 18. Decisions & Risks
 
 **Decisions:**
-- D1. Kotlin / native Android (base is already Kotlin; IME + overlay need native).
+- D1. Kotlin / native Android (base is already Kotlin; accessibility service + overlay need native).
 - D2. Base = swept OpenWhispr Android fork (com.edib.openwhispr) [1].
 - D3. On-device engine = sherpa-onnx (in base, swept); whisper.cpp fallback only.
 - D4. Server = reuse existing Local Server pipeline via a new **Breaker-owned
       `whisper-server` container** that adds the async `/v1/audio/transcriptions`
       job queue and forwards to it — Whisper X itself is not patched [1].
-- D5. IME-first text commit with clipboard fallback.
+- D5. Accessibility-service text insert with clipboard fallback (supersedes IME-first, ADR-022).
 - D6. Server-primary with automatic local fallback; no silent cloud fallthrough.
 - D7. Formatting = server LLM + rule-based local, one `format` interface.
 - D8. Voice control = two phrases in v1 (streaming ASR + phrase matching);
@@ -827,7 +839,8 @@ See `docs/04-build-order.md`. Summary:
 - R2. Sensor permission denied (fallback: always-visible tile).
 - R3. On-device model accuracy vs speed (S25 Ultra 16 GB → small/medium fine).
 - R4. ZeroTier flakiness on mobile networks (probe TTL + auto-fallback).
-- R5. IME registration UX friction (onboarding screen).
+- R5. Accessibility-service permission UX friction, including the Android 13+
+      "restricted setting" step for sideloaded apps (onboarding screen).
 - R6. **Missing server endpoint** — server path blocked until `/v1/audio/transcriptions` [1].
 - R7. **Base code never built/run** — Phase 0 gate [1].
 - R8. ASR model upstream terms (outside Security Review audit) [1].

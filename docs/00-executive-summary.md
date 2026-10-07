@@ -47,7 +47,7 @@ FE and Android app share one token set and look identical.
 
 **Key decisions (see 05):** Kotlin/native Android · swept OpenWhispr fork ·
 sherpa-onnx on-device · reuse the existing server pipeline · server-primary with
-local fallback · IME-first text commit with clipboard fallback · LLM + rule-based
+local fallback · accessibility-service text insert with clipboard fallback · LLM + rule-based
 formatting · FIFO transcription queue · encryption by default (per-user DEK,
 password-wrapped) · admin-configurable transcription service · agent tokens ·
 3-month retention · Trucking UI.

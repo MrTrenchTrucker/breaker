@@ -60,7 +60,7 @@ language (F25). Consumed by the web FE (CSS variables) and the Android app
 
 ## CB mic glyph (F36)
 
-- **Favicon** (browser tab), **floating tile** (Android), **dictation hero**.
+- **Favicon** (browser tab), **floating tile** (Android), **web FE hero card**.
 - Flat vector, white/green on transparent + black-outline variant for dark mode.
 - Art generated via ComfyUI; one asset, three uses.
 

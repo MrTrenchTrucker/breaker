@@ -28,7 +28,9 @@ and green.
 The CB mic glyph is used in three places:
 1. **Favicon** (browser tab) and app icon.
 2. **Floating tile** (Android) — the tile IS the mic. Tap to talk.
-3. **Hero element** on the dictation screen.
+3. **Hero element** on the web FE's hero card (see the web FE section below).
+   Android has no dictation screen: the floating tile (above) is where
+   dictation happens (ADR-022).
 
 **Art:** generated via ComfyUI — flat vector style, white/green on transparent,
 with a black-outline variant for dark mode. One asset, three uses.
@@ -109,18 +111,15 @@ The mic glyph + **LED bar meter** show transmission state:
 
 ### Floating tile
 - The **CB mic glyph**, draggable, tap-only (overlay windows cannot take focus
-  [1] — the dictation UI opens in a normal window). Permission set stays
-  minimal: display over other apps (the tile), mic, internet, foreground
-  service [1].
+  [1]). Tap starts dictation in place, on the tile — no screen opens, so the
+  app the user is typing in keeps focus (ADR-022). While recording, the meter
+  shows on the tile with a small cancel control; tap again (or say the send
+  phrase) to send. Permission set stays minimal: display over other apps (the
+  tile), mic, internet, foreground service, accessibility service [1].
 - **LED bar meter above the mic** when awake and recording (F36).
+- Status text in mono (`LISTENING…` / `QUEUED…` / `TRANSMITTING…`) with a
+  green status dot, shown as a small label beside the tile.
 - State colors per section 4.
-
-### Dictation screen
-- **BREAKER** wordmark top with green underline stripe. Center: the **big mic**
-  hero. **LED bar meter / waveform strip** beneath (green bars on white, black
-  bars on dark — a CB signal meter). Status line in mono: `LISTENING…` /
-  `QUEUED…` / `TRANSMITTING…` with a green status dot. Last transcription
-  previews as a floating tile at the bottom — the same tile as the web.
 
 ### History — the dispatch board in your pocket
 - Same floating tiles: mono timestamp, source tag, text, copy + delete.

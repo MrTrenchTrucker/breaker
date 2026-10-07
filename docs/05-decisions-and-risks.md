@@ -3,8 +3,9 @@
 ## Decisions (ADR-style)
 
 **D1 — Kotlin / native Android.**
-The base repo is already Kotlin/Android; IME (`InputMethodService`), overlay
-(`WindowManager`), and sensor access need native APIs.
+The base repo is already Kotlin/Android; the accessibility service
+(`AccessibilityService`), overlay (`WindowManager`), and sensor access need
+native APIs.
 
 **D2 — Base = swept OpenWhispr Android fork (`com.edib.openwhispr`).**
 Security Review gave a clean bill of health; Apache-2.0 permits the fork. Package id
@@ -23,9 +24,12 @@ Breaker's new `whisper-server` container, which async-queues jobs and forwards
 them to the admin-configured downstream service (default: Whisper X). **The
 only gap:** build that queue/forward container (Phase 4).
 
-**D5 — IME-first text commit with clipboard fallback.**
+**D5 — Accessibility-service text insert with clipboard fallback (supersedes
+IME-first, ADR-022).**
 Matches the user's UX spec exactly ("click to send; if it can't paste, copy to
-clipboard"). Text commit, not "injection."
+clipboard") while working with whatever keyboard the user already uses — no
+own IME to switch to, and no window to steal focus from the target field.
+Text commit, not "injection."
 
 **D6 — Server-primary with automatic local fallback.**
 Local Server is the primary transcription + formatting path; on-device is the
@@ -195,7 +199,7 @@ Mobile-first breakpoints; landscape/portrait layouts by viewport; the Android
 app consumes the same `shared/ui-tokens` so both look identical (F35).
 
 **D33 — CB mic motif + LED bar state indicators.**
-The CB mic glyph is the favicon, floating tile, and dictation hero (ComfyUI
+The CB mic glyph is the favicon, floating tile, and web FE hero card (ComfyUI
 art). A digital Cobra-style LED bar meter fills above the floating mic while
 recording; state colors: **green** = sent (copy confirmed), **orange** = server
 failed → local fallback, **red** = complete failure (F36).
@@ -204,11 +208,11 @@ failed → local fallback, **red** = complete failure (F36).
 
 | # | Risk | Impact | Mitigation |
 |---|------|--------|------------|
-| R1 | Overlay focus limits on newer Android | Med | Tile is tap-only; dictation UI in a normal window |
+| R1 | Overlay focus limits on newer Android | Med | Tile is tap-only; dictation happens in place on the tile — no window takes focus (ADR-022) |
 | R2 | Sensor permission denied on some devices | Med | Fallback: always-visible tile toggle |
 | R3 | On-device model accuracy vs speed | Low | S25 Ultra 16 GB → small/medium fine; size is a setting |
 | R4 | ZeroTier flakiness on mobile networks | Med | Probe TTL + auto-fallback to local; never block on server |
-| R5 | IME registration UX friction | Low | Onboarding screen linking to IME settings |
+| R5 | Accessibility-service permission UX friction, including the Android 13+ "restricted setting" step for sideloaded apps | Low | Onboarding screen walks the user to the accessibility settings and through the restricted-setting step |
 | R6 | **Missing server endpoint** — server path blocked until `/v1/audio/transcriptions` is added | High | Phase 4 first priority after Phase 0 |
 | R7 | **Base code never built/run** — compilation + runtime unverified | High | Phase 0 build + smoke-test gate |
 | R8 | ASR model upstream terms (outside Security Review audit) | Med | Per-model license recorded in model-registry |

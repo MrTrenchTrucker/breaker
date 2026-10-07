@@ -14,7 +14,7 @@ modules implement, and the use cases that run a dictation.
   the `AudioListener` receives each frame through `onFrame`
 - `WavEncoder` — `encode(FloatArray): ByteArray` (the WAV bytes an upload needs)
 - `Formatter` — `format(rawText): String` (turns a raw transcript into structured text)
-- `TextCommitter` — `commit(CommitRequest): CommitOutcomeResult` (keyboard input or clipboard)
+- `TextCommitter` — `commit(CommitRequest): CommitOutcomeResult` (accessibility insert or clipboard)
 - `CommitOutcomeResult` — the value `TextCommitter` returns: the outcome plus a short reason
 - `HistoryStore` — `save(Transcription)`, `list(limit)`, `delete(id)`
 - `SettingsStore` — `load()`, `save(AppSettings)`

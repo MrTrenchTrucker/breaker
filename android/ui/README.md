@@ -1,6 +1,7 @@
 # Ui — README
 
-Screens: dictation, history, settings, auth, training.
+Screens: history, settings, auth, training, and the onboarding for the
+permissions (accessibility service, overlay).
 
 The module's public interface is one function, `createSettingsView(context, settings)`, which builds the settings view for a caller-supplied context and settings store. Everything else is internal to the module.
 

@@ -12,8 +12,8 @@ phase number. Agents build from `AGENTS.md` files in each module.
 | 3 | **stt-ondevice** — sherpa-onnx local mode, model download **pinned to immutable release-asset ids + verified against upstream checksum.txt** [2], transcribe; clear error when no model (fix #1) | Coding | Offline dictation E2E on device (F3, N1, N3, N8); tamper test (T21) |
 | 4 | **whisper-server (async queue) + VPN wiring** — build Breaker's own `whisper-server` container: `POST /v1/audio/transcriptions` (enqueue) + `GET /v1/jobs/{job_id}` (poll), single FIFO worker forwarding audio to the admin-configured transcription service (default target: the existing Whisper X container, unmodified); TLS + API key; ZT bind check. **Absorbs former Phase 18** (see that row). | Coding + Bug Hunt | `curl` enqueue + poll works from phone over ZT; two concurrent jobs serialize FIFO; restart resumes the queue; port scan shows ZT-only bind |
 | 5 | **stt-server + transport** — OpenAI-compatible client; **server-primary** probe + fallback | Coding | Server-primary: server when reachable, local when not (F1, F2, F3) |
-| 6 | **overlay + gesture** — floating tile (WindowManager), shake-to-wake (accelerometer) | Coding | Shake → tile → tap → dictation UI (F4, F5) |
-| 7 | **commit** — CommitService: IME commit + clipboard fallback + toast | Coding | Send → text in focused field; no field → clipboard (F5, F6) |
+| 6 | **overlay + gesture** — floating tile (WindowManager), shake-to-wake (accelerometer) | Coding | Shake → tile → tap → dictation on the tile (no screen opens) (F4, F5) |
+| 7 | **commit** — CommitService: accessibility insert + clipboard fallback (+ toast on Android 12 and below) | Coding | Send → text in focused field; no field → clipboard (F5, F6) |
 | 8 | **format** — server LLM formatter (via existing chat completions) + rule-based local formatter; non-destructive tests | Coding | Numbered-list example formats correctly (F8, N9); offline formatting works |
 | 9 | **E2E + bench + security review** — full flow test, on-device model bench, threat-model checklist | Bug Hunt | All F/N requirements in scope for Phases 0–8 met; docs/03 checklist items tagged for that scope signed off (items tagged with a later phase sign off at their own phase — see docs/03 phase tags) |
 | 10 | **phrases** — streaming ASR + phrase matching: "Breaker Breaker" wake + auto-record; "And I'm Gone" send + audio trim | Coding | Wake phrase starts recording; send phrase sends; phrase excluded from text (F4, F5, F9, N10) |
@@ -94,8 +94,10 @@ ever meets development data.
   the admin panel (12) — build after 20.
 - Phase 22 (UI/UX) consumes `shared/ui-tokens` — build the tokens first, then
   apply to the FE (12) and the Android app shell (1).
-- Phase 7 (IME) has the most platform risk — start a spike in Phase 5 to validate
-  `InputMethodService` on the S25 Ultra.
+- Phase 7 (accessibility insert) has the most platform risk — start a spike in
+  Phase 5 to validate two things on the S25 Ultra: `AccessibilityService`
+  text insert into the focused field, and starting the microphone foreground
+  service from a tile tap while another app is in front.
 
 ## Definition of Done (repo-wide)
 - Every module has an `AGENTS.md` that matches reality.

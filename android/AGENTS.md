@@ -33,7 +33,7 @@ upgrade path (ARCHITECTURE section 8). Shake + tap remain the manual fallbacks.
 - `phrases` — streaming ASR + phrase matching: "Breaker Breaker" wake + "And I'm Gone" send
 - `gesture` — shake-to-wake (accelerometer)
 - `overlay` — floating tile (WindowManager)
-- `commit` — CommitService: IME commit + clipboard fallback
+- `commit` — CommitService: accessibility insert + clipboard fallback
 - `history` — SQLite transcription history + 3-month TTL + tombstones
 - `settings` — settings persistence
 - `sync` — offline-first sync queue (idempotent push)
@@ -97,4 +97,4 @@ agents, not required: an outside contributor may write the code themselves
 (`.github/CONTRIBUTING.md`).
 
 ## Known Gotchas
-- Kotlin + native Android — IME and overlay need native APIs, not Flutter.
+- Kotlin + native Android — accessibility service and overlay need native APIs, not Flutter.
