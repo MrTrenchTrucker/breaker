@@ -70,5 +70,6 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-017](ADR-017-server-language.md) | Breaker's server services are written in Kotlin on the JVM | accepted |
 | [ADR-018](ADR-018-owner-sealed-box.md) | Owner sealed box for agent-token job results; account reset | accepted |
 | [ADR-019](ADR-019-agent-skills-module.md) | Agent skills ship in the repo as their own module | accepted |
+| [ADR-020](ADR-020-ci-concurrency-and-caching.md) | CI runs are deduplicated per commit and cache Gradle dependencies | accepted |
 
-Next free number: **ADR-020**.
+Next free number: **ADR-021**.
