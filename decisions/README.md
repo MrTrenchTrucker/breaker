@@ -71,5 +71,6 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-018](ADR-018-owner-sealed-box.md) | Owner sealed box for agent-token job results; account reset | accepted |
 | [ADR-019](ADR-019-agent-skills-module.md) | Agent skills ship in the repo as their own module | accepted |
 | [ADR-020](ADR-020-ci-concurrency-and-caching.md) | CI runs are deduplicated per commit and cache Gradle dependencies | accepted |
+| [ADR-021](ADR-021-module-build-method.md) | The maintainers' team builds each module through sub-agents that write the code | accepted |
 
-Next free number: **ADR-021**.
+Next free number: **ADR-022**.
