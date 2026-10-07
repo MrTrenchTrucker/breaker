@@ -198,7 +198,7 @@ admins.
                               │  ZeroTier VPN (TLS via self-hosted CA)
                               ▼
 ┌─────────────────────────────── Local Server ──────────────────────────────────┐
-│  whisper-server ── /v1/audio/transcriptions (GAP: to add)                     │
+│  whisper-server ── /v1/audio/transcriptions                                   │
 │  sync-api ── /v1/sync (push/pull transcriptions) + /v1/auth (users, tokens)   │
 │  web-fe ── Debian container: website (view/search/copy) + APK + cert hosting  │
 │  training ── per-user voice phrase model training container                   │
@@ -244,8 +244,8 @@ Android SDK. **Gradle distribution SHA-256 pinned** (Security Review fix #4) [1]
 **Layering (hexagonal):** `core` (pure Kotlin ports + use cases, no Android
 imports) · `ui` (views) · `modules/*` (adapters).
 
-**Threading:** ASR inference is blocking → dedicated single-thread executor, never
-the UI thread. Audio capture on a separate high-priority thread.
+**Threading:** ASR inference is blocking → it runs on a single-threaded coroutine
+dispatcher, never the UI thread (`AGENTS.md` section 6). Audio capture on a separate high-priority thread.
 
 ## 5. On-Device STT Engine (fallback)
 
@@ -307,8 +307,10 @@ priority in v1 — strict FIFO. Timeouts + failure states surface in the app
 ("queued…", "transcribing…").
 
 **Retry + audio lifecycle (F28):** a failed transcription job auto-retries
-**3× at 10 s intervals** before failing; the audio file is deleted once the job
-finishes (success or final failure) — audio never persists on the server.
+**3× at 10 s intervals** before failing; the queued audio is held in the job
+store only while the job is queued or running and is erased when the job
+finishes (success or final failure) — audio never outlives its job on the
+server (ADR-010).
 
 **Configurable transcription service (F26):** the transcription endpoint is
 **not hardcoded** — admins configure it in the web FE (name, base URL, optional
@@ -372,7 +374,7 @@ filtered magnitude threshold crossings in a 500 ms window.
 
 ## 11. History, Sync & Web Access
 
-**History (Android):** SQLite (Room). Rows: id, text, raw_text, source
+**History (Android):** SQLite through the history module's own adapter on the platform API (no Room). Rows: id, text, raw_text, source
 (`local`|`server`), model, duration_ms, created_at, audio_path (optional). What
 is still to push lives in the sync module's own queue, not on history's rows.
 Tap-to-copy, search, delete.
@@ -856,8 +858,10 @@ See `docs/04-build-order.md`. Summary:
       \<date\>" and "keys last changed on \<date\>" notices the app and web
       FE show instead, each when its date is new (ADR-006, ADR-018). No
       recovery-key option in v1 (F24).
-- R21. **Client-side crypto complexity (Android + web FE)** — shared spec +
-      test vectors in api-contracts; one crypto module reused by both.
+- R21. **Client-side crypto complexity (Android + web FE)** — one shared spec
+      (ADR-006, "Exact bytes") + test vectors; the vectors live in the crypto
+      module's tests today and move to a shared file in api-contracts when the
+      web FE's crypto is built (Phase 19).
 - R22. **Misconfigured transcription endpoint** — connectivity test + clear
       errors; queue fails jobs with a visible status (F26).
 - R23. **Agent token leakage** — scoped + revocable tokens, rate-limited (T19).
