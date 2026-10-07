@@ -27,10 +27,13 @@ screens remain for history, settings, onboarding.
 Text goes into the focused field through an Android accessibility service
 (`AccessibilityService`): it finds the focused editable node and inserts the
 text (`AccessibilityNodeInfo.ACTION_SET_TEXT` merging with the existing text
-at the cursor, or `ACTION_PASTE` from the clipboard). If there is no focused
-editable field, or the insert is refused, the text goes to the clipboard; on
-Android 12 and below a toast says so, on Android 13+ the system's own copy
-confirmation is enough.
+at the cursor, or `ACTION_PASTE` from the clipboard). `ACTION_SET_TEXT`
+replaces a node's whole text, so the merge is the service's own job: it reads
+the field's current text and selection, builds the new text, sets it, then
+places the cursor after the inserted text. If there is no focused editable
+field, or the insert is refused, the text goes to the clipboard; on Android 12
+and below a toast says so, on Android 13+ the system's own copy confirmation
+is enough.
 
 This supersedes ADR-005. Breaker no longer ships its own keyboard.
 

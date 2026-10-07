@@ -1,7 +1,8 @@
 # AGENTS.md — android/ui/
 
 ## Purpose
-Screens: dictation, history, settings, auth, training.
+Screens: history, settings, auth, training, and the onboarding for the
+permissions (accessibility service, overlay).
 
 **Build phase:** Phase 1 (the app shell's first screens). Each screen arrives with its feature's phase, and the Trucking theme with Phase 22. Needs first: `core` and `shared/ui-tokens` (both on `main`).
 

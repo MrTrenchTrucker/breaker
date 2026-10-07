@@ -3,8 +3,9 @@
 ## Decisions (ADR-style)
 
 **D1 — Kotlin / native Android.**
-The base repo is already Kotlin/Android; IME (`InputMethodService`), overlay
-(`WindowManager`), and sensor access need native APIs.
+The base repo is already Kotlin/Android; the accessibility service
+(`AccessibilityService`), overlay (`WindowManager`), and sensor access need
+native APIs.
 
 **D2 — Base = swept OpenWhispr Android fork (`com.edib.openwhispr`).**
 Security Review gave a clean bill of health; Apache-2.0 permits the fork. Package id
@@ -198,7 +199,7 @@ Mobile-first breakpoints; landscape/portrait layouts by viewport; the Android
 app consumes the same `shared/ui-tokens` so both look identical (F35).
 
 **D33 — CB mic motif + LED bar state indicators.**
-The CB mic glyph is the favicon, floating tile, and dictation hero (ComfyUI
+The CB mic glyph is the favicon, floating tile, and web FE hero card (ComfyUI
 art). A digital Cobra-style LED bar meter fills above the floating mic while
 recording; state colors: **green** = sent (copy confirmed), **orange** = server
 failed → local fallback, **red** = complete failure (F36).

@@ -350,11 +350,13 @@ filtered magnitude threshold crossings in a 500 ms window.
   container fine-tunes a small KWS model from the user's own recordings.
 - "Breaker Breaker" (idle) → tile + auto-record (F4). "And I'm Gone" (recording)
   → stop + **trim audio at phrase onset** (F9) + dispatch (F5).
-- **Permissions (F11):** mic, sensor, overlay, notifications, accessibility
-  service requested together at first startup. **High-power mode (F12):**
+- **Permissions (F11):** mic, sensor, overlay, notifications requested
+  together at first startup. The accessibility service isn't part of that
+  runtime prompt — it has no system dialog to request; onboarding leads the
+  user to its Settings toggle instead (ADR-022). **High-power mode (F12):**
   verify power-saving off.
 
-**Overlay (floating tile):** `WindowManager` + `TYPE_APPLICATION_OVERLAY` with `FLAG_NOT_FOCUSABLE` (Android 11+). Tile is **tap-only**; tapping it starts dictation in place, on the tile — no Activity opens, so the app the user is typing in keeps focus and the user's own keyboard stays up (ADR-022). The tile IS the **CB mic glyph** — tap to talk. While recording, a digital Cobra-style **LED bar meter** fills directly above it, with a small cancel control; tap again (or the send phrase) to send (F36). Permission set: `SYSTEM_ALERT_WINDOW` (tile), mic, internet, foreground service, notifications, accessibility service (F11) [1].
+**Overlay (floating tile):** `WindowManager` + `TYPE_APPLICATION_OVERLAY` with `FLAG_NOT_FOCUSABLE` (Android 11+). Tile is **tap-only**; tapping it starts dictation in place, on the tile — no Activity opens, so the app the user is typing in keeps focus and the user's own keyboard stays up (ADR-022). The tile IS the **CB mic glyph** — tap to talk. While recording, a digital Cobra-style **LED bar meter** fills directly above it, with a small cancel control; tap again (or the send phrase) to send (F36). Permission set: `SYSTEM_ALERT_WINDOW` (tile), mic, internet, foreground service, notifications (F11), plus the accessibility service — a Settings toggle onboarding leads the user to, not a runtime prompt (ADR-022) [1].
 
 ## 9. Formatting
 
@@ -374,6 +376,9 @@ filtered magnitude threshold crossings in a 500 ms window.
 1. Focused editable field found → the accessibility service (`AccessibilityService`)
    inserts the text (`AccessibilityNodeInfo.ACTION_SET_TEXT` merging with the
    existing text at the cursor, or `ACTION_PASTE` from the clipboard).
+   `ACTION_SET_TEXT` replaces the node's whole text, so the merge is the
+   service's own job: read the current text + selection, build the new text,
+   set it, then place the cursor after the inserted text.
 2. No focused field, or the insert is refused → clipboard copy, with a
    confirmation: our toast on Android 12 and below, the system's own copy
    confirmation on Android 13+.
@@ -423,7 +428,7 @@ values) live in `shared/ui-tokens`:
 - **Responsive (F35):** mobile-first breakpoints; bottom nav on phones, sidebar
   on desktop; the Android app consumes the same tokens so both look identical.
 - **CB mic motif + state colors (F36):** the CB mic glyph is the favicon, the
-  floating tile, and the dictation hero (ComfyUI art: flat vector, white/green
+  floating tile, and the web FE's hero card (ComfyUI art: flat vector, white/green
   + black-outline variant). A digital Cobra-style **LED bar meter** (segments
   filling with audio level, directly above the floating mic on Android) shows
   state: **green** = sent (copy confirmed), **orange** = server failed → local

@@ -95,7 +95,9 @@ ever meets development data.
 - Phase 22 (UI/UX) consumes `shared/ui-tokens` — build the tokens first, then
   apply to the FE (12) and the Android app shell (1).
 - Phase 7 (accessibility insert) has the most platform risk — start a spike in
-  Phase 5 to validate `AccessibilityService` text insert on the S25 Ultra.
+  Phase 5 to validate two things on the S25 Ultra: `AccessibilityService`
+  text insert into the focused field, and starting the microphone foreground
+  service from a tile tap while another app is in front.
 
 ## Definition of Done (repo-wide)
 - Every module has an `AGENTS.md` that matches reality.

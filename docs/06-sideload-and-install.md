@@ -43,8 +43,14 @@
    ("Breaker Breaker") and end phrase ("And I'm Gone") 10–20 times each in your
    environment (car, home, etc.). The server trains your personal model; the phone
    downloads it.
-5. **Enable the IME** (one time): Settings → Keyboards → enable **Breaker IME**
-   (needed for text commit into any app).
+5. **Enable Breaker's accessibility service** (one time): Settings →
+   Accessibility → Installed apps → **Breaker** → turn it on. This is what
+   lets Breaker put your dictated text into whatever app you're typing in; it
+   never reads, stores, or sends anywhere any screen content beyond what one
+   insert needs in the moment (ADR-022). On Android 13+, a sideloaded app's
+   accessibility entry shows as a **restricted setting** at first: open
+   Settings → Apps → Breaker → the three-dot menu → **Allow restricted
+   settings**, then go back and turn the service on.
 
 > **Privacy:** your transcriptions are encrypted with a key derived from your
 > password — the server stores them as ciphertext, so a passive admin
@@ -92,5 +98,5 @@
 | "Connection not private" | Install the Breaker CA cert (Step 1) |
 | APK won't install | Enable "Install unknown apps" for your browser (Step 2) |
 | Wake phrase not responding | Train your phrases (Step 4.4); check mic permission |
-| Text not landing in apps | Enable the Breaker IME (Step 4.5) |
+| Text goes to the clipboard instead of the field | The accessibility service is off or restricted (Step 4.5), or the field is a password field (never filled, by design) |
 | Sync stuck | Confirm ZeroTier connectivity; sync retries automatically |

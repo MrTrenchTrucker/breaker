@@ -254,10 +254,14 @@ implemented by `stt-ondevice` (sherpa-onnx, local fallback) and `stt-server`
 (`android/modules/core/AGENTS.md` "Ports"; `modules.toml`).
 
 **Text commit / text insertion** — The repo's required term for landing
-dictated text into the app the user was using — `InputMethodService
-.commitText(...)` when a field is focused, clipboard + toast otherwise.
-**Never call this "injection"** — that's a repo-wide naming rule, not a
-style preference (root `AGENTS.md` rule 2; `ADR-005-ime-commit.md`).
+dictated text into the app the user was using — an accessibility service
+finds the focused editable node and inserts the text
+(`AccessibilityNodeInfo.ACTION_SET_TEXT` or `ACTION_PASTE`), clipboard
+otherwise (a toast on Android 12 and below, the system's own copy
+confirmation on Android 13+). **Never call this "injection"** — that's a
+repo-wide naming rule, not a style preference (root `AGENTS.md` rule 2;
+`ADR-022-accessibility-text-insert.md`, which supersedes the IME-first
+mechanism in `ADR-005-ime-commit.md`).
 
 **Transcription service** — The downstream speech-to-text backend
 `whisper-server` forwards audio to. Admin-configured in the web FE (name,

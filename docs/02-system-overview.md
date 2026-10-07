@@ -14,8 +14,8 @@
 │     └─ server down ──▶ stt-ondevice (sherpa-onnx) ──raw text──▶               │
 │                          format (rule-based) ──formatted text──▶ commit       │
 │                                                                               │
-│  commit ──IME active?──▶ InputMethodService commit ──▶ focused field          │
-│       └── no field ──▶ clipboard + toast                                      │
+│  commit ──accessibility insert──▶ focused field                               │
+│       └── no field / refused ──▶ clipboard                                    │
 │  history ◀── every transcription (text, source, timestamp)                    │
 │  sync ──queue──▶ push to server when reachable (even local-only mode)         │
 │  crypto ──keys+DEK (Argon2id+HKDF, AES-GCM) ──▶ encrypt before upload         │
@@ -42,7 +42,7 @@
 3. User dictates. "And I'm Gone" detected → stop + trim at phrase onset.
 4. Transport probes Local Server → audio → POST /v1/audio/transcriptions (enqueue) → poll GET /v1/jobs/{id} → raw text →
    formatter (existing LLM) → formatted text.
-5. CommitService: IME commit inline, else clipboard.
+5. CommitService: accessibility insert into the focused field, else clipboard.
 6. Transcription row written to history, and queued for sync.
 7. Sync queue pushes to `/v1/sync` → server stores under the user's namespace.
 
