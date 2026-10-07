@@ -401,6 +401,95 @@ class AndroidModulesSttOndeviceContractTest(contract_support.ModuleContractTest)
                 text, r"(?i)quarantine",
                 f"{name} mentions quarantine in code; delete immediately instead")
 
+    # --- 6. Engine: one decode at a time on a single-slot dispatcher ----
+    ENGINE = ONDEVICE_DIR + "OnDeviceSttEngine.kt"
+
+    def _body(self, code, name):
+        """Body of the one `fun NAME(` in `code`, braced or `= expression`."""
+        found = list(re.finditer(r"\bfun\s+" + name + r"\s*\(", code))
+        self.assertEqual(len(found), 1, f"engine pin: fun {name}( must be declared once (found {len(found)})")
+        end = _close_of(code, found[0].end() - 1)
+        head = re.match(r"[^={]*([={])", code[end + 1:])
+        self.assertIsNotNone(head, f"fun {name} has no body")
+        at = end + 1 + head.end()
+        return code[at:(_expression_end(code, at) if head.group(1) == "=" else _close_of(code, at - 1))]
+
+    def test_engine_default_dispatcher_is_a_single_slot_over_io(self):
+        """The default is `singleSlot(Dispatchers.IO)`, `singleSlot` is exactly
+        `base.limitedParallelism(1)`, the scope is `inferenceDispatcher + SupervisorJob()`."""
+        code = self._code(self.ENGINE)
+        self.assertRegex(
+            code, r"\bclass\s+OnDeviceSttEngine\s*\([^()]*\binferenceDispatcher\s*:\s*CoroutineDispatcher"
+            r"\s*=\s*singleSlot\s*\(\s*Dispatchers\s*\.\s*IO\s*\)\s*,?\s*\)",
+            "dispatcher pin: the default must be singleSlot(Dispatchers.IO)")
+        self.assertRegex(
+            self._body(code, "singleSlot"), r"\A\s*\w+\s*\.\s*limitedParallelism\s*\(\s*1\s*\)\s*\Z",
+            "dispatcher pin: singleSlot must be exactly limitedParallelism(1)")
+        self.assertRegex(
+            code, r"\bCoroutineScope\s*\(\s*inferenceDispatcher\s*\+\s*SupervisorJob\s*\(\s*\)\s*\)",
+            "dispatcher pin: the scope must be inferenceDispatcher + SupervisorJob()")
+
+    def test_async_path_never_calls_the_blocking_path(self):
+        """`transcribe` uses `runBlocking(inferenceDispatcher)`; `transcribeAsync` uses `scope.async`
+        and, like the private functions it calls (one hop), holds no `runBlocking`, `transcribe(`, `::transcribe`."""
+        code = self._code(self.ENGINE)
+        self.assertRegex(
+            self._body(code, "transcribe"), r"\brunBlocking\s*\(\s*inferenceDispatcher\s*\)",
+            "bridge pin: transcribe must use runBlocking(inferenceDispatcher)")
+        asy = self._body(code, "transcribeAsync")
+        self.assertRegex(asy, r"\bscope\s*\.\s*async\b", "bridge pin: transcribeAsync must use scope.async")
+        bodies = {"transcribeAsync": asy}
+        for name in set(re.findall(r"\bprivate\s+(?:suspend\s+|inline\s+)*fun\s+(\w+)", code)):
+            if re.search(r"\b" + name + r"\s*\(", asy):
+                bodies[name] = self._body(code, name)
+        for name, body in sorted(bodies.items()):
+            self.assertNotRegex(
+                body, r"\brunBlocking\b|\btranscribe\s*\(|::\s*transcribe\b",
+                f"no-call pin: {name}, reached from transcribeAsync, must not call transcribe or runBlocking")
+
+    def test_reentrancy_marker_is_reset_in_a_finally(self):
+        """Each `decodingHere.set(true)` is followed by `try {` and its block by a
+        `finally {` holding `decodingHere.set(false)`; both calls occur equally often."""
+        code = self._code(self.ENGINE)
+        flag = r"\bdecodingHere\s*\.\s*set\s*\(\s*%s\s*\)"
+        sets = list(re.finditer(flag % "true", code))
+        self.assertTrue(sets and len(sets) == len(re.findall(flag % "false", code)),
+                        "marker pin: set(true) and set(false) must both occur, equally often")
+        for m in sets:
+            body = re.match(r"\s*try\s*\{", code[m.end():])
+            end = _close_of(code, m.end() + body.end() - 1) if body else -1
+            fin = re.match(r"\s*finally\s*\{", code[end + 1:]) if body else None
+            self.assertIsNotNone(fin, "marker pin: set(true) must be followed by try { } finally {")
+            self.assertRegex(
+                code[end + fin.end():_close_of(code, end + fin.end())], flag % "false",
+                "marker pin: the finally must call decodingHere.set(false)")
+
+    def test_closed_flag_is_volatile(self):
+        """`@Volatile private var closed`: close() may run on any thread."""
+        self.assertRegex(
+            self._code(self.ENGINE), r"@Volatile\s+private\s+var\s+closed\b",
+            "volatile pin: closed must be a @Volatile private var")
+
+    def test_engine_and_error_mapping_use_no_thread_primitives(self):
+        """No `Thread`, `synchronized`, `Atomic*`, `CountDownLatch`, `sleep(` in
+        OnDeviceSttEngine.kt or ErrorMapping.kt; `ThreadLocal` stays allowed."""
+        files = self._module_code(keep_strings=False)
+        for name in ("OnDeviceSttEngine.kt", "ErrorMapping.kt"):
+            self.assertIn(name, files, f"{name} is missing")
+            self.assertNotRegex(
+                files[name], r"\b(?:Thread|CountDownLatch|Atomic\w*|[Ss]ynchronized)\b|\bsleep\s*\(",
+                f"thread pin: {name} uses a thread primitive the module does not allow")
+
+    def test_preload_releases_the_recognizer_it_loaded(self):
+        """In `preload` the `Ready` arm has a `finally {` calling `.recognizer.release()`."""
+        body = self._body(self._code(self.ENGINE), "preload")
+        arm = re.search(r"\bis\s+ModelLoader\s*\.\s*LoadResult\s*\.\s*Ready\s*->\s*\{", body)
+        self.assertIsNotNone(arm, "release pin: preload needs a LoadResult.Ready arm")
+        self.assertRegex(
+            body[arm.end():_close_of(body, arm.end() - 1)],
+            r"\bfinally\s*\{[^{}]*\.\s*recognizer\s*\.\s*release\s*\(\s*\)",
+            "release pin: the Ready arm of preload must release the recognizer in a finally")
+
 
 if __name__ == "__main__":
     unittest.main()

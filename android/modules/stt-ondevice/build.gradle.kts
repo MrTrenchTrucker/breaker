@@ -35,6 +35,7 @@ kotlin {
 dependencies {
     implementation(project(":android:modules:core"))
     implementation(project(":shared:modules:model-registry"))
+    implementation(libs.kotlinx.coroutines.core)
 
     testImplementation(libs.junit)
 }
