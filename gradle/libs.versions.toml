@@ -15,7 +15,7 @@ kotlinx-coroutines = "1.11.0"   # read 2026-10-05 from https://repo1.maven.org/m
 
 [libraries]
 junit = { module = "junit:junit", version.ref = "junit" }
-# Test-only in the android modules (real SQLite for HistorySql on the desktop JVM, never shipped there); the runtime driver in server/modules/sync-api.
+# Test-only in the android modules (real SQLite for HistorySql on the desktop JVM, never shipped there); the runtime driver in the server modules (whisper-server; sync-api once it lands).
 sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite-jdbc" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 
