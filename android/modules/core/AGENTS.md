@@ -30,6 +30,10 @@ modules implement, and the use cases that run a dictation.
 - `PhraseTraining` — `recordSample`, `upload`, `downloadModel`
 - `AuthService` — `register`, `login`, `logout`, `currentSession`
 - `CryptoService` — `unwrapDek`, `encrypt`, `decrypt`, `toEncryptedText`
+- `KeyDerivation` — `deriveKeys(password, salt, kdfParams)`: derives the
+  key-encryption key and the auth verifier in one call and returns both as
+  `DerivedKeys`; the crypto module implements it and holds the parameter limits
+  (core carries the values and judges nothing). `CryptoService` is unchanged.
 - `SyncService` — `pushPending()`, `enqueue(Transcription)`
 - `UpdateChecker` — `check(force)`, `install(release)`, `rollback()`
 - `Clock` — `nowEpochMillis()`, and `IdSource` — `newId()`, so the domain never reads
@@ -49,6 +53,17 @@ modules implement, and the use cases that run a dictation.
 - `CipherText` (ciphertext may be empty; nonce and tag may not), `DataEncryptionKey`,
   `WrappedDek`, `EncryptedText` (its ciphertext string may be empty; whitespace-only is
   refused)
+- `KdfParams(memoryKib, iterations, parallelism, outputLength, version)` — the
+  stored key-derivation settings; a plain carrier that accepts any Int and
+  judges nothing, because the limits live in the crypto module, not in core
+- `KeyEncryptionKey` and `AuthVerifier` — each exactly 32 bytes, copied when
+  built and copied when read, with `wipe()` and a `toString` that never prints
+  the bytes; `DerivedKeys` is the pair, and its `wipe()` wipes both
+- `KdfRefusal` — why a derivation was refused (MEMORY_BELOW_FLOOR,
+  MEMORY_ABOVE_CEILING, ITERATIONS_BELOW_FLOOR, ITERATIONS_ABOVE_CEILING,
+  PARALLELISM_BELOW_FLOOR, PARALLELISM_ABOVE_CEILING, OUTPUT_LENGTH_NOT_32,
+  BAD_SALT_LENGTH, UNSUPPORTED_VERSION); `KdfRefused` is the
+  IllegalArgumentException that carries one
 - `PhraseKind`, `PhraseEvent(Wake|Send(trimBeforeMs))`, `PhraseModel`, `PhraseSample`,
   `TrainedPhraseModel`
 - `AuthSession`, `UserRole`, `TokenScope`

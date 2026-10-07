@@ -226,6 +226,7 @@ class TranscriptRedactionTest {
         "DictateUseCase.Route" to "an engine and the source it is recorded as; private to the use case",
         "AppSettings" to "settings; the key is a reference, never the credential",
         "EncryptedText" to "the sealed form of a transcript: ciphertext, nonce and tag, not readable text",
+        "KdfParams" to "five numbers, no text",
     )
 
     private val declaration = Regex("""^(\s*)(?:(?:public|internal|private|protected)\s+)?data\s+class\s+(\w+)""")

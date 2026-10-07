@@ -47,9 +47,32 @@ stored. The
 client independently refuses to derive against parameters below that same
 floor when a login response hands them back, whatever `kdf_version` they
 claim — a client does not trust a server to talk it down to a cheaper KDF.
+The limits have a ceiling as well, and the client checks all of them before it
+derives anything: memory 64 to 256 MiB, iterations 3 to 10, parallelism 1 to 4,
+output length exactly 32 bytes, whatever `kdf_version` is claimed — login hands
+the stored parameters back to the phone, so a buggy or hostile value must not
+make every login try to allocate it. The server refuses a kdf_version other than
+1 and kdf_params outside the same memory, iteration and parallelism bounds on
+register, change-password and complete-reset. The client refuses a
+`kdf_version` other than 1 after the range checks; the output length is fixed at
+32 bytes by kdf_version 1 and is not sent.
 **Password rule:** the client refuses a password under 12 characters and
 warns further on common/weak ones; this is a client-side nudge, not a
 guarantee (see Reasons).
+
+**Exact bytes, so every client agrees.** Before the password is turned into
+bytes it is normalised to Unicode NFC and then encoded as UTF-8
+(`java.text.Normalizer.Form.NFC` on Android, `String.prototype.normalize('NFC')`
+in the browser), with no case folding, no trimming and nothing else: the same
+password can arrive composed or decomposed from different keyboards, and the
+user must still be able to log in. The HKDF step is HKDF-SHA256 Extract with an
+empty salt (RFC 5869 treats it as 32 zero bytes) over the 32-byte Argon2id
+output, then Expand with `info` set to the ASCII bytes of the label and length
+32; Android and the web FE both do exactly this. The KEK (an AES-256 key) and
+the auth verifier are therefore each exactly 32 bytes: the client sends exactly
+32 verifier bytes and the server refuses any other length before hashing. How
+those bytes are written on the wire (base64 or hex) is decided in api-contracts,
+not here.
 
 **Login is two steps, with no decoy:**
 1. The client asks for the account's `{salt, kdf_params, kdf_version}`
@@ -265,10 +288,11 @@ landing through `POST /v1/sync`'s `key_version`-aware replace), `POST
 re-keys — replaces the DEK and box keypair and advances `key_version` — on
 every call, revokes other user session tokens), the `key_version` field on
 every synced record and the atomic-replace path it drives, type-to-confirm on
-destructive actions. `core.CryptoService` gains the
-Argon2id/HKDF derivation operations when Phase 11 builds it, and the DEK
-generation/wrap + box-keypair operations when Phase 19 builds them — the
-port is not changed by this documentation change set itself (see
+destructive actions. The Argon2id/HKDF derivation is its own
+core port, `core.KeyDerivation` (one `deriveKeys` call that returns both
+values, implemented by `android/modules/crypto`); `core.CryptoService` gains
+only the DEK generation/wrap + box-keypair operations when Phase 19 builds
+them — it is not changed by this documentation change set itself (see
 `android/modules/crypto/AGENTS.md`).
 
 Rules out: server-side search; a decoy salt response; citing queue rate

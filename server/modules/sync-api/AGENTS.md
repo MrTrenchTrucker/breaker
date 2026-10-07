@@ -12,7 +12,11 @@ here (N13).
   creates no DEK and no box keypair). **First account ever registered =
   admin by default** (F22). Subsequent = `user`. Rejects `kdf_params` below
   the 64 MiB / 3 iterations / parallelism 1 floor (ADR-006) — a weaker
-  request is refused, not silently stored.
+  request is refused, not silently stored. It refuses `kdf_params` outside
+  the same bounds in both directions (memory 64 to 256 MiB, iterations 3 to
+  10, parallelism 1 to 4), a `kdf_version` other than 1, and an
+  `auth_verifier` that is not exactly 32 bytes, before it hashes it (the wire
+  encoding, base64 or hex, is decided in api-contracts).
 - `POST /v1/auth/salt` — `{username} -> {salt, kdf_params, kdf_version}`.
   **No decoy**: an unknown username gets an honest "no such account" (ADR-006
   — account discovery sits inside the VPN perimeter, docs/01/05).
@@ -56,7 +60,8 @@ here (N13).
   password or a session token — the reset already revoked every token this
   account had, so there is none to present, and this endpoint refuses an
   agent token the same as the key-bearing endpoints above. Rejects
-  `kdf_params` below the floor, same as registration. Leaves the account
+  `kdf_params` outside the bounds above and a `kdf_version` other than 1, same
+  as registration. Leaves the account
   keyless again, so `POST /v1/auth/keys` follows it exactly as it would a
   brand-new account.
 - `POST /v1/auth/change-password` — Bearer token identifies the account;
@@ -70,7 +75,8 @@ here (N13).
   F33), then deletes it (ADR-006)
   — `old_auth_verifier` re-proves the current password before any key
   material is replaced, so a live token alone is never sufficient (ADR-006).
-  Rejects `new_kdf_params` below the floor, same as registration. Revokes
+  Rejects `new_kdf_params` outside the bounds above and a `new_kdf_version`
+  other than 1, same as registration. Revokes
   every other outstanding **user session token**; agent tokens are not
   password-derived and are unaffected — they are revoked only through
   `DELETE /v1/admin/agent-tokens/{id}`. **This endpoint always re-keys — there
@@ -162,8 +168,9 @@ namespaces.
 generates the DEK and derives the KEK (Argon2id + HKDF split), and only at
 the first-login bootstrap, not at registration. Registration receives and
 stores, as-is, `{salt, kdf_params, kdf_version, hash(auth_verifier)}` (params
-checked against the floor first) — never a password, never a DEK, never a
-KEK. Login receives the auth verifier, checks it against the stored hash,
+checked against the floor and the ceiling, and the version against 1, first, and
+the verifier checked to be exactly 32 bytes before it is hashed) — never a
+password, never a DEK, never a KEK. Login receives the auth verifier, checks it against the stored hash,
 and returns the account's wrapped keys, its current `key_version`, and
 `reset_at`/`rekeyed_at` unchanged (this module never unwraps the keys or
 computes a version itself — it advances `key_version` only when it accepts a
@@ -222,8 +229,11 @@ completes it by rotating the DEK at the account's next password change
   reset just deleted; an ordinary re-key (`change-password`) clears the same
   way for whatever `box_pubkey` it just replaced.
 - `register`, `change-password` and `complete-reset` never accept
-  `kdf_params` below the ADR-006 floor (test: submit a weaker set, confirm
-  the 4xx).
+  `kdf_params` below the ADR-006 floor or above its ceiling, or a
+  `kdf_version` other than 1 (test: submit a weaker set, a heavier one and
+  version 2, confirm the 4xx), and no endpoint hashes an
+  auth verifier that is not exactly 32 bytes (test: submit 31 and 33 bytes,
+  confirm the 4xx).
 - `change-password` always advances `key_version` by exactly one and never
   accepts a same-or-lower `new_key_version` (test: replay an old value,
   confirm the 4xx) — there is no call shape that re-wraps without advancing
