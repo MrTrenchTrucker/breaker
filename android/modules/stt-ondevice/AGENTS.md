@@ -49,6 +49,28 @@ sherpa-onnx local transcription (fallback engine), model lifecycle, checksum ver
 - When a checksum failure left the file on disk (the delete failed), the user sentence says it could
   not be deleted instead of saying it was deleted.
 
+**Download side:**
+- `HttpModelFetcher` is the real `ModelFetcher`. It is built on the platform's `HttpURLConnection`,
+  so the module takes no new dependency. `DownloadLimits` holds every bound as a plain parameter, so
+  a test can tighten any of them. Both constructor arguments (`limits`, `cancelled`) have defaults.
+- Where it may connect: https only, on every request. The first request goes to a host in the
+  first-hop set (`api.github.com`); a redirect goes to a host in the redirect set
+  (`release-assets.githubusercontent.com`) and nowhere else. An address with user-info or a port
+  other than 443 is refused. Redirects (301, 302, 303, 307, 308) are followed by hand, at most 5. No
+  credentials and no cookies are sent: the request carries only fixed `Accept`, `Accept-Encoding`
+  and `User-Agent` headers.
+- How much and how long: the body is capped at the registry size plus one MiB (the registry gives
+  the size to the nearest whole MiB); the checksum list is capped at one MiB. A declared length above
+  the cap fails before one byte is read, and a body that grows past the cap is cut off. Connect
+  timeout 15 s, read timeout 30 s, and one hour for the whole fetch.
+- The caller may stop a fetch with a polled cancel lambda: it is asked before each request and once
+  per chunk of a body. A read already blocked in the socket ends at the read timeout.
+- A network problem is a failure result with a short reason that never carries an address, path or
+  query. The installer sends that reason to the debug sink only; the user sees one fixed sentence.
+  Only a problem writing the staging file (a full disk included) is thrown, as an `IOException`,
+  and the partial file is deleted first.
+- The fetcher never hashes. The installer's digest check is the judge of the bytes.
+
 **Model lifecycle:**
 - Models from `shared/model-registry` (sizes + SHA-256 + per-model license terms).
 - Download once → app data dir → **verify against upstream checksum.txt + our
@@ -101,6 +123,10 @@ queued body inside the wait. A native call cannot be cancelled, so the only leve
 for it. A JDK future parks the thread and pumps nothing. The reason is also written at the park and
 at the worker dispatch in `DecodeBound.kt`.
 
+An interrupt of the thread that waits ends the wait like a deadline: the call returns the timeout
+failure, the decode counts as abandoned, and the thread's interrupt flag is put back. A test covers
+it.
+
 - Thread affinity: the engine creates a recognizer on the slot thread, decodes with it on a bound
   worker thread (one recognizer, two threads, one at a time) and releases it inside a single call
   (on the slot thread, or on the worker when the decode was abandoned). It keeps none between
@@ -135,6 +161,12 @@ at the worker dispatch in `DecodeBound.kt`.
 
 ## Test Locations
 - Unit (Kotlin): `android/modules/stt-ondevice/src/test/kotlin/`, created with the module's first code. Run: `./gradlew :android:modules:stt-ondevice:test`
+- The fetcher tests use a scripted opener and no network. One class, `JdkHttpOpenerLoopbackTest`,
+  tests the real opener against a plain server on the loopback address only. Exactly one of its
+  tests (the read timeout) waits on a real timer, by design: the timer is the behaviour under test.
+- `DownloadPolicyContractTest` reads the real model registry against the default `DownloadLimits`:
+  every registry address must be https on a first-hop host, and every entry must fit under the
+  default size cap.
 - Contract: `tests/contract/test_stt_ondevice_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_stt_ondevice_contract.py`
 - Contract (decode bound pins): `tests/contract/stt_ondevice_bound_pins.py`, collected and run by the contract test above.
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
@@ -196,11 +228,31 @@ agents, not required: an outside contributor may write the code themselves
   wrong-family sentence names a model family the code does not check; `loadedModelId` in the
   diagnostics is not cleared after a refusal; diagnostics on a closed engine reads on the caller's
   thread; one salvaged test duplicates another; the `Outcome` enum is unused.
-- Nothing in this module downloads or extracts yet: there is no real `ModelFetcher` and no real
-  recognizer factory (the default, `UnavailableRecognizerFactory`, refuses to create one), and no
-  production code constructs `ModelInstaller` or `ModelLoader`. The engine takes the loader through
-  `ModelLoaderPort`, and the app's wiring supplies it later, so the engine cannot transcribe real
-  audio until a recognizer factory exists.
+- The download side now exists (`HttpModelFetcher`, see Download side). Extraction does not, and
+  neither does a real recognizer factory (the default, `UnavailableRecognizerFactory`, refuses to
+  create one). No production code constructs `ModelInstaller` or `ModelLoader`. The engine takes the
+  loader through `ModelLoaderPort`, and the app's wiring supplies it later, so the engine cannot
+  transcribe real audio until a recognizer factory exists.
+- There is no resume: an interrupted download starts again from zero. A partial file named
+  `<id>.download` can stay in the staging directory after a process death, and the installer never
+  sweeps it; the fetcher deletes its own same-name file at the start of the next attempt, so a
+  partial for a model that is never tried again stays. The staged `checksums.txt` is never deleted
+  by the installer (the next fetch replaces it).
+- The download limits and the two host sets are recommended values and are NOT measured on a
+  device. The redirect host was read from the live release when the fetcher was written. If the
+  release host changes, a download fails closed (the "could not be downloaded" sentence) until the
+  redirect set is updated.
+- The channel is the platform's trust store, with no certificate pinning. A certificate authority
+  the user installed on the phone can intercept the download, but it cannot defeat the digest
+  check, which is the integrity control.
+- The host rate limits unauthenticated API access (the limit itself was not measured). A 403 or 429
+  shows as "could not be downloaded". The checksum list is fetched first, so on a clean install a
+  network failure shows the checksum-list sentence, not the model sentence.
+- The metered-data and Wi-Fi-only policy, the `INTERNET` permission, running the download off the UI
+  thread and allowing one install at a time belong to the app wiring, not to this module.
+- Not exercised yet: the real TLS handshake, Android's own `HttpURLConnection` behaviour (the tests
+  run on the JDK's) and a full-size download on mobile data. A device check is owed before anyone
+  says downloads work.
 - The decode deadline does not cover loading the model: the registry lookup, hashing the archive and
   creating the recognizer are not bounded, so a load that never returns still holds the slot and
   every call queued behind it waits.

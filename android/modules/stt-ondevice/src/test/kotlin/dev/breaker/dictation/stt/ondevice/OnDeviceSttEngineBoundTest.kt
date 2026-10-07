@@ -62,6 +62,17 @@ class OnDeviceSttEngineBoundTest {
             throw AssertionError("$claim: the call threw $e instead of returning a result", e)
         }
 
+    /**
+     * One blocking transcribe made on another scope, so a broken engine cannot park the test thread.
+     * The wait ends by name when the call is never handed to the slot, or when a second task is handed
+     * to the slot the call already holds.
+     */
+    private fun transcribeOffThread(rig: BoundRig, claim: String, samples: Int = 16_000): SttResult {
+        val call = callers.async { callOrFail(claim) { rig.engine.transcribe(clipRequest(samples = samples)) } }
+        rig.awaitSlotTask(call, "$claim must be handed to the engine's slot")
+        return awaitUnlessStuck(call, rig.watcher, "$claim handed a second task to its slot")
+    }
+
     @Test
     fun `transcribe returns the timeout failure when the deadline fires while the decode is parked`() {
         val rig = track(BoundRig(parkFirst = true))
@@ -100,10 +111,10 @@ class OnDeviceSttEngineBoundTest {
     fun `the deadline is armed once per decode with the clip length in milliseconds`() {
         val rig = track(BoundRig(false, CountingRecognizer(), CountingRecognizer()))
 
-        callOrFail("transcribe of 16000 samples") { rig.engine.transcribe(clipRequest(samples = 16_000)) }
+        transcribeOffThread(rig, "transcribe of 16000 samples", samples = 16_000)
         assertEquals("one decode must arm the deadline once, for 1000 ms", listOf(1000L), rig.deadline.audioMs)
 
-        callOrFail("transcribe of 32000 samples") { rig.engine.transcribe(clipRequest(samples = 32_000)) }
+        transcribeOffThread(rig, "transcribe of 32000 samples", samples = 32_000)
         assertEquals(
             "a second decode must arm the deadline once more, for 2000 ms",
             listOf(1000L, 2000L),
@@ -115,14 +126,14 @@ class OnDeviceSttEngineBoundTest {
     fun `a decode that finishes first returns its transcript, disarms the deadline once and a late fire changes nothing`() {
         val rig = track(BoundRig(false, CountingRecognizer(), CountingRecognizer()))
 
-        val first = callOrFail("the first transcribe") { rig.engine.transcribe(clipRequest()) }
+        val first = transcribeOffThread(rig, "the first transcribe")
         assertTrue("a decode that finishes must return its transcript", first is SttResult.Success)
         assertEquals("a decode that finished must disarm its deadline once", 1, rig.deadline.closeCount)
 
         rig.deadline.fire()
         assertFalse("a late fire must not mark the engine abandoned", rig.engine.abandonedDecodeRunning)
 
-        val second = callOrFail("the transcribe after a late fire") { rig.engine.transcribe(clipRequest()) }
+        val second = transcribeOffThread(rig, "the transcribe after a late fire")
         assertTrue("the engine must still decode after a late fire", second is SttResult.Success)
         assertEquals("the second decode must arm once more", 2, rig.deadline.armCount)
     }
@@ -131,7 +142,7 @@ class OnDeviceSttEngineBoundTest {
     fun `a decode that throws disarms the deadline`() {
         val rig = track(BoundRig(false, FailingRecognizer()))
 
-        val result = callOrFail("transcribe with a failing decode") { rig.engine.transcribe(clipRequest()) }
+        val result = transcribeOffThread(rig, "transcribe with a failing decode")
 
         assertEquals("a throwing decode must return the decode failure", ErrorMapping.decodeFailed(), result)
         assertEquals("a decode that threw must disarm its deadline once", 1, rig.deadline.closeCount)
@@ -281,5 +292,32 @@ class OnDeviceSttEngineBoundTest {
         assertTrue("the engine must decode again once the abandoned decode returned, got $third", third is SttResult.Success)
         assertEquals("the recovered call must load a fresh recognizer", 2, rig.loader.loads)
         assertFalse("the recovered engine must not report an abandoned decode", rig.engine.abandonedDecodeRunning)
+    }
+
+    @Test
+    fun `an interrupt of the waiting caller returns the timeout failure and leaves the interrupt flag set`() {
+        val rig = track(BoundRig(parkFirst = true))
+        val call = callers.async { callOrFail("the interrupted transcribe") { rig.engine.transcribe(clipRequest()) } }
+        rig.awaitSlotTask(call, "the interrupted transcribe must be handed to the engine's slot")
+        rig.awaitEnter(call, "the decode must reach the recognizer before the interrupt")
+        val slotThread = rig.loader.loadThread ?: throw AssertionError("the loader must have recorded the slot thread")
+
+        // A coroutine primitive cannot deliver a thread interrupt to one specific thread, so this
+        // test holds the slot thread and interrupts it. The decode is parked and the deadline is
+        // never fired, so the interrupt is the only thing that can end the wait.
+        slotThread.interrupt()
+        val result = awaitUnlessStuck(call, rig.watcher, "the interrupted transcribe handed a second task to its slot")
+
+        assertEquals("an interrupted wait must return the timeout failure", ErrorMapping.decodeTimedOut(), result)
+        assertTrue("an interrupted wait must leave the decode abandoned and running", rig.engine.abandonedDecodeRunning)
+        assertEquals("an interrupted wait must disarm the deadline once", 1, rig.deadline.closeCount)
+        assertTrue(
+            "the interrupt flag must still be set when the slot thread leaves the wait",
+            rig.deadline.interruptedAtClose,
+        )
+        assertFalse(
+            "the recognizer of an interrupted decode must not be released while its decode still runs",
+            rig.parked.releasedWhileDecoding,
+        )
     }
 }

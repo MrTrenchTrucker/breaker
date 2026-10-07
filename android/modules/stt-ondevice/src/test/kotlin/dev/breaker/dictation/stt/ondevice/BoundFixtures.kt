@@ -47,14 +47,28 @@ internal class FakeDeadline : DecodeDeadline {
     /** How many times the engine armed this deadline. */
     val armCount: Int get() = lengths.size
 
+    // Single writer: the thread that closes the handle, which is the engine's slot thread.
+    @Volatile
+    private var flagAtClose = false
+
     /** How many times a handle returned by [arm] was closed. */
     val closeCount: Int get() = closes
+
+    /** Whether the thread that closed the latest handle had its interrupt flag set at that moment. False before any close. */
+    val interruptedAtClose: Boolean get() = flagAtClose
 
     override fun arm(audioMs: Long, onExpired: () -> Unit): AutoCloseable {
         lengths = lengths + audioMs
         callback = onExpired
         armed.complete(Unit)
-        return AutoCloseable { closes++ }
+        return AutoCloseable {
+            // Reads the flag first and clears it only after it was recorded. A coroutine primitive has no view of the interrupt
+            // flag of the thread that closes the handle, so this needs the plain thread.
+            flagAtClose = Thread.currentThread().isInterrupted
+            // Once read, the flag is cleared so it cannot leak into the next task that runs on this pooled thread.
+            if (flagAtClose) Thread.interrupted()
+            closes++
+        }
     }
 
     /** Calls the callback of the latest arm on the CALLING thread, and fails by name when nothing was armed. */
@@ -188,10 +202,23 @@ internal class QueueLoader(recognizers: List<SherpaRecognizer>) : ModelLoaderPor
     @Volatile
     private var count = 0
 
+    // Written only on the thread that loads, read by the test after a signal that came later.
+    @Volatile
+    private var lastThread: Thread? = null
+
     /** How often the engine asked for a model. */
     val loads: Int get() = count
 
+    /**
+     * The thread of the latest load, or null before the first one. The engine loads on its slot
+     * thread, the one that later waits for the decode, so a test can interrupt exactly that
+     * thread. A coroutine primitive cannot deliver a thread interrupt to one specific thread,
+     * which is why the plain thread is kept here.
+     */
+    val loadThread: Thread? get() = lastThread
+
     override fun load(modelId: String): ModelLoader.LoadResult {
+        lastThread = Thread.currentThread()
         count++
         val next = queue.removeFirstOrNull()
             ?: return ModelLoader.LoadResult.Refused(ModelLoader.Refusal.NOT_INSTALLED, "unused detail")

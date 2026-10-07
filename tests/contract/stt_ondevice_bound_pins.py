@@ -146,6 +146,43 @@ class SttOndeviceBoundPinsTest(unittest.TestCase):
             code, r"\bworkerDone\s*\.\s*(?:get|join|await|getNow)\b",
             "expiry pin: nothing may wait on workerDone")
 
+    # --- 15b. what "abandoned and still running" means -------------------
+
+    def test_abandoned_is_expired_and_worker_still_running(self):
+        """The returned value of the `abandonedRunning` getter in DecodeBound.kt, with the getter's
+        own `val` locals written back in, is a conjunction (no `||`, no leading `!`) that holds the
+        done check on `outcome`, `is Outcome.Expired`, and `!<handle>.workerDone.isDone`. A decode
+        that finished normally while its worker is still in its last statements is not busy."""
+        code = self._code(BOUND)
+        head = list(re.finditer(r"\bval\s+abandonedRunning\s*:\s*Boolean\s*get\s*\(\s*\)\s*([={])", code))
+        self.assertEqual(len(head), 1, f"abandoned pin: `val abandonedRunning` with a getter must be declared once (found {len(head)})")
+        base = _base()[0]
+        at = head[0].end()
+        if head[0].group(1) == "=":
+            body = "return " + code[at:base._expression_end(code, at)]
+        else:
+            body = code[at:base._close_of(code, at - 1)]
+        returns = list(re.finditer(r"\breturn\b(?!@)", body))
+        self.assertTrue(returns, "abandoned pin: the getter must return a value")
+        last = returns[-1].end()
+        value = body[last:base._expression_end(body, last)]
+        locals_ = {m.group(1): body[m.end():base._expression_end(body, m.end())]
+                   for m in re.finditer(r"\bval\s+(\w+)\s*(?::[^=\n]*)?=\s*", body)}
+        locals_ = {k: v for k, v in locals_.items() if not re.search(r"\breturn\b", v)}
+        for _ in range(6):
+            value = re.sub(r"\b(\w+)\b", lambda w: "(" + locals_[w.group(1)] + ")"
+                           if w.group(1) in locals_ else w.group(1), value)
+        value = " ".join(value.split())
+        self.assertNotIn("||", value, f"abandoned pin: the busy value must be a conjunction, not an `||` ({value})")
+        self.assertNotRegex(value, r"\A\s*!", f"abandoned pin: the busy value must not be negated as a whole ({value})")
+        self.assertIn("&&", value, f"abandoned pin: the busy value must join its checks with `&&` ({value})")
+        self.assertRegex(value, r"\boutcome\s*\.\s*isDone\b",
+                         f"abandoned pin: the outcome must be read as done before it is joined ({value})")
+        self.assertRegex(value, r"(?<!!)\bis\s+Outcome\s*\.\s*Expired\b",
+                         f"abandoned pin: only an Expired outcome may count as abandoned ({value})")
+        self.assertRegex(value, r"!\s*\(*\s*\w+\s*\.\s*workerDone\s*\.\s*isDone\b",
+                         f"abandoned pin: the worker must be checked as not finished ({value})")
+
     # --- 16. busy refusal -----------------------------------------------
 
     def test_busy_refusal_guards_both_bodies_and_nothing_else(self):
