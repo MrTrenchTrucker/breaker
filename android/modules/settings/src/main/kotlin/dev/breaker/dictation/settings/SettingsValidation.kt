@@ -1,6 +1,7 @@
 package dev.breaker.dictation.settings
 
 import dev.breaker.dictation.core.model.TilePosition
+import dev.breaker.shared.models.ModelRegistry
 import java.util.Locale
 
 /**
@@ -33,6 +34,15 @@ import java.util.Locale
  * `TilePosition`, because an invalid one throws on construction and must never
  * be built even to be thrown away. `SettingsValidationTest` covers that those
  * core rules still hold after a save/load round trip.
+ *
+ * **The one rule decided here against the registry.** A `modelSize` is either
+ * an id the shared model registry names — checked EXACT-CASE, no folding,
+ * because the registry's own lookup folds nothing — or it costs the key:
+ * [modelSizeOrFallback] falls the key back to the default on the READ path,
+ * and [requireRegistryModelSize] refuses the value on the WRITE path, because
+ * a file the user's own save wrote must never hold an id no load will honour.
+ * The ids come from the registry's own constants on every call; none are
+ * written into this file. `SettingsModelIdTest` is the proof.
  */
 internal object SettingsValidation {
 
@@ -111,5 +121,42 @@ internal object SettingsValidation {
     private fun inUnitRange(raw: String?): Float? {
         val parsed = floatOrFallback(raw, Float.NaN)
         return if (parsed in 0f..1f) parsed else null
+    }
+
+    /**
+     * [raw] as a model id the shared registry names, or [fallback].
+     *
+     * The file exists to survive hand edits, so the value is trimmed before it
+     * is asked of the registry — the same trim every other string key gets —
+     * and a value that is nothing but whitespace is absent, like a blank one.
+     * What the value is NOT trimmed into is a fold: `Small` is not `small`.
+     * The registry's own lookup is exact, and its ids are lowercase
+     * alphanumerics, so a reader that folded case here would honour a file the
+     * writer refused; the match is exact, with no [String.equals] call asked to
+     * ignore case. [ModelRegistry.byId] is the single source of truth for what
+     * an id is.
+     */
+    fun modelSizeOrFallback(raw: String?, fallback: String): String {
+        val trimmed = raw?.trim()
+        if (trimmed.isNullOrEmpty()) return fallback
+        return if (ModelRegistry.byId(trimmed) != null) trimmed else fallback
+    }
+
+    /**
+     * Refuse to persist a [modelSize] the registry does not name.
+     *
+     * The check runs BEFORE a save touches the file, so a refused value never
+     * reaches disk and the file a user already saved is left exactly as it was
+     * — `SettingsModelIdTest` proves the file is untouched, not only that this
+     * call throws. The exception names the offending value and the ids the
+     * registry actually carries, read from the registry's own constants rather
+     * than re-typed here, so the message cannot drift from the truth.
+     */
+    fun requireRegistryModelSize(modelSize: String) {
+        if (ModelRegistry.byId(modelSize) != null) return
+        val validIds = ModelRegistry.ALL.joinToString { it.id }
+        require(false) {
+            "model_size '$modelSize' is not a model the registry names; the registry knows: $validIds"
+        }
     }
 }

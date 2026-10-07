@@ -52,7 +52,7 @@ class SettingsKeystoreRefTest {
 
     private fun minimalSettings(ref: String?) = AppSettings(
         mode = SttMode.SERVER,
-        modelSize = "large",
+        modelSize = "medium",
         serverUrl = "https://box.local",
         apiKeyRef = ref,
         wakeGestureEnabled = false,

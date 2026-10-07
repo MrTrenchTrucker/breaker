@@ -160,7 +160,7 @@ class SettingsWrittenKeysTest : SettingsFileStoreTestBase() {
 
         // The other eight at values a file of blanks could not produce.
         assertEquals("mode", "SERVER", raw.getProperty("mode"))
-        assertEquals("model_size", "large", raw.getProperty("model_size"))
+        assertEquals("model_size", "medium", raw.getProperty("model_size"))
         assertEquals("wake_gesture_enabled", "false", raw.getProperty("wake_gesture_enabled"))
         assertEquals("tile_position", "0.25,0.75", raw.getProperty("tile_position"))
         assertEquals("language", "de", raw.getProperty("language"))

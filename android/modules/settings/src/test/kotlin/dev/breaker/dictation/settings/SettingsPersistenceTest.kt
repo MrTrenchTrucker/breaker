@@ -28,7 +28,7 @@ class SettingsPersistenceTest : SettingsFileStoreTestBase() {
 
         // Each key asserted by name, so a failure names the key that broke.
         assertEquals("mode", SttMode.SERVER, reloaded.mode)
-        assertEquals("model_size", "large", reloaded.modelSize)
+        assertEquals("model_size", "medium", reloaded.modelSize)
         assertEquals("server_url", "https://box.local", reloaded.serverUrl)
         assertEquals("wake_gesture_enabled", false, reloaded.wakeGestureEnabled)
         assertEquals("language", "de", reloaded.language)
@@ -106,7 +106,7 @@ class SettingsPersistenceTest : SettingsFileStoreTestBase() {
                     KEY_THEME_MODE -> ThemeMode.DARK.name
                     KEY_TILE_POSITION -> "0.25,0.75"
                     KEY_WAKE_GESTURE, KEY_PRELOAD_MODEL, KEY_FORMATTING -> "false"
-                    KEY_MODEL_SIZE -> "large"
+                    KEY_MODEL_SIZE -> "medium"
                     KEY_SERVER_URL -> "https://box.local"
                     else -> "de"
                 },
@@ -123,6 +123,6 @@ class SettingsPersistenceTest : SettingsFileStoreTestBase() {
         // surface, and it comes from the Keystore port, never the file.
         assertNull("an unknown file key became the credential reference", loaded.apiKeyRef)
         assertEquals(SttMode.SERVER, loaded.mode)
-        assertEquals("large", loaded.modelSize)
+        assertEquals("medium", loaded.modelSize)
     }
 }

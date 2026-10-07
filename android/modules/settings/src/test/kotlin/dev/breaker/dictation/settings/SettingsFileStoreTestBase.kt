@@ -84,7 +84,7 @@ abstract class SettingsFileStoreTestBase {
     /** A settings value that is non-default on every key the file carries. */
     protected fun validSettings(tile: TilePosition = TilePosition(0.25f, 0.75f)) = AppSettings(
         mode = SttMode.SERVER,
-        modelSize = "large",
+        modelSize = "medium",
         serverUrl = "https://box.local",
         apiKeyRef = null,
         wakeGestureEnabled = false,
@@ -111,7 +111,7 @@ abstract class SettingsFileStoreTestBase {
     protected fun fileWith(key: String, value: String): File {
         val props = Properties()
         props.setProperty(KEY_MODE, SttMode.SERVER.name)
-        props.setProperty(KEY_MODEL_SIZE, "large")
+        props.setProperty(KEY_MODEL_SIZE, "medium")
         props.setProperty(KEY_SERVER_URL, "https://box.local")
         props.setProperty(KEY_WAKE_GESTURE, "false")
         props.setProperty(KEY_TILE_POSITION, "0.25,0.75")

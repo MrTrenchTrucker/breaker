@@ -94,7 +94,9 @@ internal object SettingsPropertiesCodec {
             mode = SettingsValidation.enumOrFallback(
                 properties.getProperty(KEY_MODE), SttMode.entries.toTypedArray(), defaults.mode,
             ),
-            modelSize = SettingsValidation.stringOrFallback(
+            // An id the registry does not name costs this key its default and
+            // nothing else — the per-key contract every other key here keeps.
+            modelSize = SettingsValidation.modelSizeOrFallback(
                 properties.getProperty(KEY_MODEL_SIZE), defaults.modelSize,
             ),
             serverUrl = SettingsValidation.stringOrFallback(

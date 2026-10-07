@@ -72,9 +72,10 @@ class SettingsFileStore(
      * reference the [keystore] port remembers — the file cannot supply the
      * reference, so the port does, on this path and on every other one. A
      * present but damaged file is read key by key: an unparsable value, one
-     * core rejects, or a logical line the format's own parser rejects costs
+     * core rejects, a model size the registry does not name, or a logical line the format's own parser rejects costs
      * that key its default and nothing else — `SettingsFallbackIsolationTest`
-     * for the first two and `SettingsDamagedTextTest` for the third.
+     * for the first two, `SettingsModelIdTest` for the id, and
+     * `SettingsDamagedTextTest` for the line.
      *
      * The credential reference is not in the file, so it comes from the
      * [keystore] port — the only place it was ever written. It is read once,
@@ -215,10 +216,21 @@ class SettingsFileStore(
      * persisted it first and then failed to write would leave the port
      * claiming a save that never happened.
      *
+     * **The model size is refused before the file is touched.** A [save] whose
+     * [AppSettings.modelSize] is not an id the shared model registry names
+     * throws before the file is opened, so a refused value never reaches disk
+     * and the file that was there is left exactly as it was — the keystore is
+     * asked nothing either. `SettingsModelIdTest` proves the file is unchanged
+     * and the port untouched, not only that the call throws. The reason to be
+     * strict here: a file the module itself wrote must never hold an id no
+     * load will honour, and the load path, unlike this one, cannot refuse —
+     * it can only fall the key back to the default.
+     *
      * **Propagates.** An [IOException] from opening or writing the file leaves
      * this method, uncaught and unswallowed.
      */
     override fun save(settings: AppSettings) {
+        SettingsValidation.requireRegistryModelSize(settings.modelSize)
         val properties = SettingsPropertiesCodec.encode(settings)
         file.parentFile?.mkdirs()
         OutputStreamWriter(

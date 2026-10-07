@@ -52,7 +52,7 @@ class SettingsLineEndingTest : SettingsFileStoreTestBase() {
 
     /** The nine keys at non-default values — text, not `Properties.store` output. */
     private val nonDefaultLines = listOf(
-        "mode=SERVER", "model_size=large", "server_url=https://box.local",
+        "mode=SERVER", "model_size=medium", "server_url=https://box.local",
         "wake_gesture_enabled=false", "tile_position=0.25,0.75", "language=de",
         "preload_model=false", "formatting_enabled=false", "theme_mode=DARK",
     )
@@ -143,7 +143,7 @@ class SettingsLineEndingTest : SettingsFileStoreTestBase() {
             "server_url=https://box.\\",
             "  local",
             truncatedEscapeLanguage,
-            "model_size=large",
+            "model_size=medium",
             "wake_gesture_enabled=false",
             "tile_position=0.25,0.75",
             "preload_model=false",
