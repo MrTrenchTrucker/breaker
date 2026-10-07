@@ -1,4 +1,4 @@
-// android/modules/crypto — CryptoService.
+// android/modules/crypto — KeyDerivation port (Argon2idHkdfKeyDerivation); CryptoService port later.
 //
 // Card: android/modules/crypto/AGENTS.md   Registry: modules.toml [module.android_crypto]
 // Owns: Per-user DEK unwrap (Argon2id + AES-256-GCM), encrypt/decrypt transcriptions.
@@ -34,6 +34,8 @@ kotlin {
 
 dependencies {
     implementation(project(":android:modules:core"))
+    // Argon2id and HKDF-SHA256, used through the lightweight API only.
+    implementation(libs.bouncycastle.bcprov)
 
     testImplementation(libs.junit)
 }
