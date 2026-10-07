@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Card: android/modules/commit/accessibility/AGENTS.md   Registry: modules.toml [module.android_commit_accessibility]
+
+  The service config: focused-view events only, and window content access only
+  because finding the focused field needs it. No flags, no package filter, no
+  other capability.
+-->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeViewFocused"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:canRetrieveWindowContent="true"
+    android:description="@string/commit_accessibility_service_description" />
