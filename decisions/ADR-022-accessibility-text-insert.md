@@ -70,8 +70,23 @@ adapter is no longer used: it is kept, marked dead with a `DEAD_CODE.md` file,
 and left out of the build, so it can never register a keyboard. The `ui`
 module no longer owns a dictation screen; it owns the onboarding for the
 permission. The `app` module owns the foreground service (microphone type)
-that keeps recording alive while another app is in front; starting it from a
-tile tap is the main platform risk and is spiked first.
+that keeps recording alive while another app is in front.
+
+Amended 2026-10-07 (project owner approved): the service is started while
+Breaker is switched on, not on each tile tap. On Android 14 and later a
+foreground service that uses the microphone may only be created while the app
+has a visible screen, or from one of a short list of exemptions (a tap on the
+app's own notification is one); a visible overlay window and an accessibility
+service are not on that list. So Breaker starts the service when the user
+switches Breaker on (from the app's own screen, or from the service's
+notification) and keeps it running, with a quiet, low-priority ongoing
+notification, until the
+user switches it off. A tile tap then only starts recording inside the running
+service. If the service is not running, a tile tap tries to start it once and,
+if Android refuses, tells the user to open Breaker once to switch dictation
+on. Recording happens only between a tap and send or cancel; Android's own
+microphone indicator shows only then. The shake listener needs a running
+service in the background too, so it can live in the same service.
 
 Rules in: the accessibility service as the text-insert mechanism; in-place
 dictation from the floating tile (no Activity opens while dictating);
@@ -80,6 +95,13 @@ onboarding that covers both the permission grant and the restricted-setting
 step; the limits above (focused-view + window-content access only, no
 storage or logging of screen content, no network egress, explicit-send-only,
 never into password fields).
+
+The ongoing notification is the cost of this design: while Breaker is on,
+the user sees it in the notification shade, as with other dictation apps that
+work over other apps. Android also shows its own notice that Breaker is
+displaying over other apps; that notice comes from the system for every app
+with an overlay, not from Breaker. Whether a running accessibility service
+changes the microphone rule on a real phone is checked in the Phase 5 spike.
 
 Rules out: Breaker shipping its own keyboard/IME; a dictation Activity or any
 other window opening during dictation; reading or keeping any screen content
