@@ -28,7 +28,16 @@ unsealing.
    Only the salt, the KDF parameters/version, and the auth verifier are sent
    anywhere — never the password, the KEK, or a DEK. Registration alone
    creates no DEK and no box keypair (Phase 11 ships derivation only;
-   ADR-006).
+   ADR-006). Before it becomes bytes the password is normalised to Unicode
+   NFC (`java.text.Normalizer.Form.NFC`) and encoded as UTF-8, with no case
+   folding, no trimming and nothing else, so the same password typed composed
+   or decomposed on different keyboards still logs in. The HKDF step is
+   HKDF-SHA256 Extract with an empty salt (RFC 5869 treats it as 32 zero
+   bytes) over the 32-byte Argon2id output, then Expand with `info` set to the
+   ASCII bytes of the label and length 32. The KEK (an AES-256 key) and the
+   auth verifier are each exactly 32 bytes; the client sends exactly 32
+   verifier bytes and the server refuses any other length before hashing (the
+   wire encoding, base64 or hex, is decided in api-contracts).
 2. **First login with no keys yet (Phase 19, or any later first login on a
    keyless account — ADR-006's bootstrap):** generate a 256-bit DEK and an
    X25519 box keypair, wrap the DEK with the KEK and the box private key with
@@ -92,16 +101,23 @@ unsealing.
   `encrypt`. This module never seals (that happens server-side in
   `whisper-server`, ADR-018) — it only opens.
 
-`core.CryptoService` (the port these implement) gains the derivation
-operations when Phase 11 builds them and the DEK/box operations when Phase
-19 builds them — see ADR-006's and ADR-018's Consequences for that timeline;
-this card describes the module's target shape, not a change to `core` itself.
+`deriveKeys` implements its own core port, `core.KeyDerivation`;
+`core.CryptoService` (the port the other operations implement) gains only the
+DEK/box operations when Phase 19 builds them — see ADR-006's and ADR-018's
+Consequences for that timeline; this card describes the module's target
+shape, not a change to `core.CryptoService` itself.
 
 **Security notes:**
 - Same Argon2id parameters, HKDF labels, and test vectors as the server and
   web FE (shared spec in api-contracts, R21) — all clients must interoperate,
   and so must the one libsodium sealed-box construction (ADR-018) across a
   JVM sealer and Android/browser unsealers.
+- The module checks the KDF parameters before it derives anything, whatever
+  `kdf_version` is claimed: memory 64 to 256 MiB, iterations 3 to 10,
+  parallelism 1 to 4, output length exactly 32 bytes. Login hands the stored
+  parameters back to the phone, so a buggy or hostile value must not make
+  every login try to allocate it. A `kdf_version` other than 1 is refused
+  after those range checks.
 - No plaintext keys on disk; memory-only DEK and box private key; wipe on
   lock/logout.
 - The client enforces a 12-character minimum password and warns further on
