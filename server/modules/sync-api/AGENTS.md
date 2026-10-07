@@ -11,8 +11,10 @@ here (N13).
   auth_verifier}` (ADR-006 — never a password, never a DEK; registration
   creates no DEK and no box keypair). **First account ever registered =
   admin by default** (F22). Subsequent = `user`. Rejects `kdf_params` below
-  the 64 MiB / 3 iterations / parallelism 1 floor (ADR-006) — a weaker
-  request is refused, not silently stored.
+  the accepted range or above it (memory 64 to 256 MiB, iterations 3 to 10,
+  parallelism 1 to 4, inclusive, each field checked on its own; the low ends
+  are ADR-006's floor). A value outside it is refused, not silently stored.
+  A `kdf_version` other than 1 is refused.
 - `POST /v1/auth/salt` — `{username} -> {salt, kdf_params, kdf_version}`.
   **No decoy**: an unknown username gets an honest "no such account" (ADR-006
   — account discovery sits inside the VPN perimeter, docs/01/05).
@@ -56,7 +58,7 @@ here (N13).
   password or a session token — the reset already revoked every token this
   account had, so there is none to present, and this endpoint refuses an
   agent token the same as the key-bearing endpoints above. Rejects
-  `kdf_params` below the floor, same as registration. Leaves the account
+  `kdf_params` outside the accepted range, same as registration. Leaves the account
   keyless again, so `POST /v1/auth/keys` follows it exactly as it would a
   brand-new account.
 - `POST /v1/auth/change-password` — Bearer token identifies the account;
@@ -70,7 +72,7 @@ here (N13).
   F33), then deletes it (ADR-006)
   — `old_auth_verifier` re-proves the current password before any key
   material is replaced, so a live token alone is never sufficient (ADR-006).
-  Rejects `new_kdf_params` below the floor, same as registration. Revokes
+  Rejects `new_kdf_params` outside the accepted range, same as registration. Revokes
   every other outstanding **user session token**; agent tokens are not
   password-derived and are unaffected — they are revoked only through
   `DELETE /v1/admin/agent-tokens/{id}`. **This endpoint always re-keys — there
@@ -162,7 +164,7 @@ namespaces.
 generates the DEK and derives the KEK (Argon2id + HKDF split), and only at
 the first-login bootstrap, not at registration. Registration receives and
 stores, as-is, `{salt, kdf_params, kdf_version, hash(auth_verifier)}` (params
-checked against the floor first) — never a password, never a DEK, never a
+checked against the accepted range first) — never a password, never a DEK, never a
 KEK. Login receives the auth verifier, checks it against the stored hash,
 and returns the account's wrapped keys, its current `key_version`, and
 `reset_at`/`rekeyed_at` unchanged (this module never unwraps the keys or
@@ -222,8 +224,10 @@ completes it by rotating the DEK at the account's next password change
   reset just deleted; an ordinary re-key (`change-password`) clears the same
   way for whatever `box_pubkey` it just replaced.
 - `register`, `change-password` and `complete-reset` never accept
-  `kdf_params` below the ADR-006 floor (test: submit a weaker set, confirm
-  the 4xx).
+  `kdf_params` outside the accepted range, 64 to 256 MiB memory, 3 to 10
+  iterations, parallelism 1 to 4, inclusive, each field checked on its own;
+  `register` also refuses any `kdf_version` other than 1
+  (test: submit a set below and a set above it, confirm the 4xx each time).
 - `change-password` always advances `key_version` by exactly one and never
   accepts a same-or-lower `new_key_version` (test: replay an old value,
   confirm the 4xx) — there is no call shape that re-wraps without advancing
@@ -232,6 +236,16 @@ completes it by rotating the DEK at the account's next password change
   `client_id` as a duplicate, and never treats a lower one as an update — the
   first replaces, the second is refused (test: push both orders, confirm the
   replace and the 409).
+- A username is 1 to 64 characters from `A-Z a-z 0-9 . _ -` only. It is
+  stored as typed; uniqueness and every lookup use its lower-case form, so
+  "Bob" and "bob" cannot both exist and a lookup under another case finds the
+  account (test: register both, expect the second refused; look up under a
+  different case).
+- The auth verifier is exactly 32 bytes; any other length is refused before
+  any hashing. The server keeps only a salted hash of it (PBKDF2-HMAC-SHA256,
+  600,000 iterations by default, a fresh 16-byte salt per account, the
+  algorithm id and iteration count stored in the row so the cost can be
+  raised later) and compares hashes in constant time.
 
 ## Owns
 Auth (users, roles, agent tokens), sync, updates, retention, store clear, log policy.
@@ -248,7 +262,7 @@ AuthApi, SyncApi, AdminApi
 - UI (web-fe)
 
 ## Test Locations
-- Unit (Kotlin/Ktor, ADR-017): `server/modules/sync-api/src/test/kotlin/`, created with the module's first code. Run: `./gradlew :server:modules:sync-api:test` once this module's build file applies the Kotlin plugin (today it applies `base` only, so there is no test task yet).
+- Unit (Kotlin/Ktor, ADR-017): `server/modules/sync-api/src/test/kotlin/`. Run: `./gradlew :server:modules:sync-api:test`. The entry point `main` is not covered by unit tests, because it needs a real socket; every function it calls is.
 - Contract: `tests/contract/test_sync_api_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_sync_api_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
@@ -293,3 +307,39 @@ agents, not required: an outside contributor may write the code themselves
 - `change-password`'s `old_auth_verifier` field is the only thing standing
   between "holds a live session token" and "can replace this account's
   keys" — do not let the Bearer token alone satisfy this endpoint.
+- The server-side hash adds no guessing resistance beyond the client's key
+  derivation: the verifier is 32 pseudorandom bytes, and the hash is there so
+  that a stolen row is not a usable login.
+- An unknown username is refused without running the hash, so it costs less
+  time than a wrong verifier. That is by design: there is no decoy, and
+  account existence is already public at the salt step.
+- No logging binding is on the classpath yet, so Ktor prints a notice about a
+  no-op logger in tests.
+- `sqlite-jdbc` unpacks a native library into the temporary directory at
+  first use, so the container needs a writable one.
+- Hashing at 600,000 iterations takes a noticeable fraction of a second per
+  register or login. It runs off the database lane.
+- The database holds one connection, and every transaction runs on one
+  single-lane coroutine dispatcher.
+
+## Third-Party Dependencies
+
+This is a licence check and an advisory-database lookup, not a source audit.
+Licences were read from each artifact's POM on 2026-10-07. Each version is the
+newest stable release on Maven Central on 2026-10-07; the read dates and URLs
+for the Ktor and coroutines versions are in `gradle/libs.versions.toml`.
+Password hashing uses the JDK's `javax.crypto.Mac`, so it adds no
+dependency (Bouncy Castle was considered for Argon2id and not used).
+
+| Dependency | Version | Scope | Licence | Security note |
+|---|---|---|---|---|
+| `io.ktor:ktor-server-core` | 3.6.0 | main | Apache-2.0 | 0 advisories in the OSV database on 2026-10-07. |
+| `io.ktor:ktor-server-cio` | 3.6.0 | main | Apache-2.0 | 0 advisories. Pure Kotlin, no native code. |
+| `io.ktor:ktor-server-test-host` | 3.6.0 | test | Apache-2.0 | 0 advisories. |
+| `org.xerial:sqlite-jdbc` | 3.53.4.0 | main here | Apache-2.0 | 0 advisories. Ships native code. The catalog entry is test-only in the android modules and the runtime driver here. |
+| `org.jetbrains.kotlinx:kotlinx-coroutines-core` | 1.11.0 | main | Apache-2.0 | 0 advisories. |
+| `junit:junit` | 4.13.2 | test | EPL-1.0 | 0 advisories. |
+| `org.slf4j:slf4j-api` | 2.0.19, transitive via Ktor | main | MIT (the project's licence; its POM has no licence element) | No logging binding is added. |
+
+A control query on the same date for a known-vulnerable library (log4j-core
+2.14.1) returned 7 advisories, so the lookup works.
