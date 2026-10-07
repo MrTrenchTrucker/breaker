@@ -65,3 +65,19 @@ These hold in every module, every session, every lane.
 - A test waits on a signal. A test never waits on a clock.
 - One module per work order. One work order per PR.
 - When a build error names a library, read the first error line before you change anything. The first line is the cause.
+
+## 7. How the maintainers' team builds a module
+
+The maintainers' team works this way on every module and sub-module (ADR-021).
+Outside contributors may work however they like; for them this is
+recommended, not required (`.github/CONTRIBUTING.md`).
+
+- Read the root `ARCHITECTURE.md`, the parent area's card, the module's
+  `AGENTS.md` and `README.md`, and every ADR they cite, before planning.
+- Write one plan file per sub-agent: what to build, what to read, the tests
+  that must fail first, and a checklist of "done". The sub-agent reads it
+  first; the owner checks the result against it.
+- Sub-agents write the code. The owner plans and verifies, sends wrong work
+  back down, and makes no edit larger than one line itself.
+- A whole-module owner plans at the module level; its sub-agents work at the
+  sub-module level. Sub-agents run on Claude Sonnet.
