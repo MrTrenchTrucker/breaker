@@ -130,6 +130,26 @@ class MicCapture(
     val frameSize: Int = frameSamples
 
     private val running = AtomicBoolean(false)
+
+    /**
+     * Set by [stop] to ask the capture thread to end, and read by that thread's
+     * loop.
+     *
+     * It is separate from [running] on purpose. [running] is the signal the
+     * dispatcher reads to decide the take is finished, and a take is not
+     * finished until the capture thread has recovered the tail the resampler is
+     * still holding back — the capture thread does that on its own way out and
+     * drops [running] there. A stop that dropped [running] itself would let the
+     * dispatcher finish on an empty ring before that tail arrived, and the take
+     * would come up short by exactly the tail: 15 samples of the 6 400 a 400 ms
+     * take at 16 kHz is promised. Which thread wins that race is a scheduling
+     * coin flip, so the symptom is a flake rather than a certainty. So the stop
+     * asks ([stopRequested]) and the capture thread answers (drops [running]),
+     * and the ordering that makes the tail whole is a fact rather than a coin
+     * flip.
+     */
+    private val stopRequested = AtomicBoolean(false)
+
     private val failureRef = AtomicReference<Throwable?>(null)
 
     /**
@@ -194,6 +214,7 @@ class MicCapture(
         frameSize = frameSize,
         joinTimeoutMs = joinTimeoutMs,
         running = running,
+        stopRequested = stopRequested,
         session = session,
         failureRef = failureRef,
     )
@@ -271,6 +292,9 @@ class MicCapture(
         // condition is next evaluated.
         val current = session.incrementAndGet()
         failureRef.set(null)
+        // A request left over from a take that has ended must not end this one
+        // before its first read. Cleared before the threads that read it exist.
+        stopRequested.set(false)
         val mine = PcmRingBuffer(bufferSamples)
         ringRef.set(mine)
         // A pipeline per take, for the same reason the ring is per take. Both
