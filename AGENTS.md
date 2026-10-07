@@ -75,10 +75,14 @@ recommended, not required (`.github/CONTRIBUTING.md`).
 
 - Read the root `ARCHITECTURE.md`, the parent area's card, the module's
   `AGENTS.md` and `README.md`, and every ADR they cite, before planning.
-- Write one plan file per sub-agent: what to build, what to read, the tests
-  that must fail first, and a checklist of "done". The sub-agent reads it
-  first; the owner checks the result against it.
+- Look over the job and read the work order first, then write one plan file
+  per sub-agent: what to build, what to read, the tests that must fail first,
+  and a checklist of "done". The sub-agent reads it first and ticks each item
+  as it finishes it; the owner checks the result against it.
 - Sub-agents write the code. The owner plans and verifies, sends wrong work
   back down, and makes no edit larger than one line itself.
 - A whole-module owner plans at the module level; its sub-agents work at the
-  sub-module level. Sub-agents run on Claude Sonnet.
+  sub-module level. Sub-agents run on Claude Sonnet (an agent on another
+  harness uses its configured sub-agent model).
+- Reviews judge the code: correct, tested work is not rejected for how it was
+  written; the review records it and reminds the owner of the method.

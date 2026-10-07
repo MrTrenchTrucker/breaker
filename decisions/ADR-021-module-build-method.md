@@ -26,8 +26,10 @@ For the maintainers' team, building a module or a sub-module works like this:
    separate markdown plan file: what to build, which documents to read, the
    tests that must fail first, and a checklist of what "done" means. The
    sub-agent reads it before starting; the owner checks the result against
-   that checklist. Plan files travel with the pull request for review; they are
-   not committed into the module.
+   that checklist. The sub-agent ticks each checklist item in the plan file as
+   it finishes it, so the owner, and anyone reviewing later, can see what is
+   done and what is left. Plan files travel with the pull request for review;
+   they are not committed into the module.
 3. **Sub-agents write the code; the owner does not.** The owner plans,
    coordinates and verifies. Work that is wrong goes back down to a
    sub-agent with the reason. The owner may make a one-line edit itself;
@@ -35,7 +37,11 @@ For the maintainers' team, building a module or a sub-module works like this:
 4. **Levels.** An owner of a whole module plans at the module level; its
    sub-agents work at the sub-module level.
 5. **One model tier for sub-agents.** The maintainers' sub-agents run on
-   Claude Sonnet.
+   Claude Sonnet; an agent on another harness uses the sub-agent model that
+   harness is configured with.
+6. **Order of work.** The owner gets the assignment, looks over the job to see
+   what it involves, reads its work order and the documents in point 1, and
+   only then writes the plan files and starts the sub-agents.
 
 ## Reasons
 - A sub-agent that has read its card and plan knows the boundaries it must
@@ -47,8 +53,12 @@ For the maintainers' team, building a module or a sub-module works like this:
 
 ## Consequences
 Rules in: for the maintainers' team, every pull request names its plan files,
-and the review sends back a pull request whose code was written in the owner's own
-context beyond a one-line edit.
+and every review asks whether sub-agents wrote the code.
+
+Amended 2026-10-07: the review judges the code, not only how it was written.
+Correct, tested work is not rejected because the owner wrote more than one line
+itself; the review records it and reminds the owner of the method. Wrong work
+goes back down to a sub-agent as before.
 
 Rules out nothing for outside contributors. For them this stays the method
 described in each card and in `.github/CONTRIBUTING.md`: recommended for AI
