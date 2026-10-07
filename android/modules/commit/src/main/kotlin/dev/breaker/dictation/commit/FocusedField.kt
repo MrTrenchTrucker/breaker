@@ -1,16 +1,19 @@
 package dev.breaker.dictation.commit
 
 /** What a focused field did with the text it was handed. */
-internal enum class FieldCommit { ACCEPTED, REFUSED }
+enum class FieldCommit { ACCEPTED, REFUSED }
 
 /**
  * A text field that a text-insert mechanism (ADR-022) has published as
  * focused, and that can take text.
  *
- * Called only inside the main-thread hop. It may throw: the service treats a
- * throwing field as a field that refused.
+ * A text-insert mechanism (for example `commit/accessibility`, built as its
+ * own Gradle module) implements this and publishes it through
+ * `adapter.FocusedFieldHolder.publish`. It is called only inside the
+ * main-thread hop of an explicit send, and only there. It may throw: the
+ * service treats a throwing field as a field that refused.
  */
-internal interface FocusedField {
+interface FocusedField {
     /** Put [text] into the field and say whether the field took it. */
     fun commitText(text: String): FieldCommit
 }

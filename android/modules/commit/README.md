@@ -40,6 +40,10 @@ Android adapters (five files, the only ones that name Android classes), in
   mechanism publishes into (the `commit/accessibility` sub-module, once built
   — ADR-022) and the commit service reads.
 
+A sub-module built as its own Gradle module hands over its focused field by
+calling the public `adapter.FocusedFieldHolder.publish(field): AutoCloseable`
+and holding onto the returned handle, closing it when the field loses focus.
+
 ## Not in the app yet
 
 The library has no manifest entry, so until a text-insert mechanism and the app
@@ -57,6 +61,6 @@ been tried on a device. Files: `CommitServiceFocusedFieldTest` (was
 `CommitServiceLateHopTest`, `CommitServiceInterruptTest`,
 `CommitServiceExplicitSendTest`; `PostedMainThreadTest`,
 `PostedMainThreadClaimTest`, `PostedMainThreadServiceTest` with `HopFakes.kt`;
-`NoticeGatingTest`, `FocusedFieldRegistryTest`; the scans `PureFilesScanTest`,
+`NoticeGatingTest`, `FocusedFieldRegistryTest`, `FocusedFieldHandleTest`; the scans `PureFilesScanTest`, `FocusedFieldSeamScanTest`,
 `AndroidConfinementTest`, `ConcurrencyRuleScanTest`, `TestRulesScanTest` with
 `SourceFiles.kt`.

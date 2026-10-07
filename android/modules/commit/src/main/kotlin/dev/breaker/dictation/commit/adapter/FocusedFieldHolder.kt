@@ -1,5 +1,6 @@
 package dev.breaker.dictation.commit.adapter
 
+import dev.breaker.dictation.commit.FocusedField
 import dev.breaker.dictation.commit.FocusedFieldRegistry
 
 /**
@@ -11,9 +12,25 @@ import dev.breaker.dictation.commit.FocusedFieldRegistry
  * reach it here. Nothing else in the module is global, and no test touches
  * this object: every test builds its own registry.
  *
- * Nothing publishes into this holder yet. `commit/accessibility` (ADR-022) is
- * the mechanism meant to publish into it, once built.
+ * This object is public, and [publish] is its one public member, because
+ * Kotlin `internal` does not cross a Gradle module boundary: a text-insert
+ * mechanism built as its own module (`commit/accessibility`, ADR-022) needs a
+ * real seam to reach this holder. [registry] itself stays internal, and there
+ * is no public `current()` or `clearAll()`: nothing outside this module can
+ * read the published field, so text can only be inserted through the commit
+ * service, on an explicit send, never read from outside it.
  */
-internal object FocusedFieldHolder {
-    val registry: FocusedFieldRegistry = FocusedFieldRegistry()
+object FocusedFieldHolder {
+    internal val registry: FocusedFieldRegistry = FocusedFieldRegistry()
+
+    /**
+     * Publish [field] as the focused field until the returned handle is
+     * closed.
+     *
+     * Closing the handle clears this publish only while it is still current:
+     * a stale close (an older handle, after a newer field replaced this one)
+     * or a double close does nothing either time. See
+     * [FocusedFieldRegistry.publishScoped].
+     */
+    fun publish(field: FocusedField): AutoCloseable = registry.publishScoped(field)
 }

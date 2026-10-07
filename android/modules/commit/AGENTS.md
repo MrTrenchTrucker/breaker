@@ -31,11 +31,22 @@ Implements `commit(request: CommitRequest): CommitOutcomeResult`.
   calls it from a worker thread (a call on the main thread runs the block
   inline). It never throws an `Exception`, and no string it builds can contain
   the text.
+- `FocusedField` and `FieldCommit` are public: a text-insert mechanism built as
+  its own Gradle module (`commit/accessibility`, ADR-022) implements
+  `FocusedField` and reports `FieldCommit`, and Kotlin `internal` does not
+  cross a module boundary. `adapter.FocusedFieldHolder.publish(field:
+  FocusedField): AutoCloseable` is the one public seam such a sub-module
+  publishes through; closing the returned handle clears that publish (a stale
+  or repeated close is a no-op). The seam is publish-only on purpose: there is
+  no public way to read or clear the current field from outside this module,
+  so text can only ever be inserted through the commit service's own
+  explicit-send flow.
 - Layout: six pure Kotlin files in the module's package (no Android class is
   named in them) and five files in `adapter/`, the only place that names
   Android classes: `CommitServices.kt`, `AndroidClipboardWriter.kt`,
   `ToastNotice.kt`, `HandlerMainThread.kt`, and `FocusedFieldHolder.kt` (the
-  one process-wide holder a text-insert mechanism publishes into).
+  one process-wide holder a text-insert mechanism publishes into, through its
+  one public `publish` function).
 
 **Outcomes** (`detail` is a fixed text, never the committed text):
 
@@ -116,7 +127,7 @@ module to find, and every commit goes to the clipboard:
 - Unit (Kotlin): `android/modules/commit/src/test/kotlin/dev/breaker/dictation/commit/`. Run: `./gradlew :android:modules:commit:test`
   - Service tests: `CommitServiceFocusedFieldTest`, `CommitServiceClipboardTest`, `CommitServiceFailureTest`, `CommitServiceRedactionTest` (with the fakes in `Fakes.kt`). `CommitServiceFocusedFieldTest` was `CommitServiceImeTest` before the ADR-022 restructure; its test bodies are unchanged.
   - Hop tests: `CommitServiceThreadHopTest`, `CommitServiceLateHopTest`, `CommitServiceInterruptTest`, `CommitServiceExplicitSendTest`, and, for the wait itself, `PostedMainThreadTest`, `PostedMainThreadClaimTest`, `PostedMainThreadServiceTest` (with the fakes in `HopFakes.kt`).
-  - Other tests: `NoticeGatingTest`, `FocusedFieldRegistryTest`.
+  - Other tests: `NoticeGatingTest`, `FocusedFieldRegistryTest`, `FocusedFieldHandleTest` (the `publishScoped` handle), `FocusedFieldSeamScanTest` (scans the public seam's exact shape).
   - Scan tests (read the source text): `PureFilesScanTest`, `AndroidConfinementTest`, `ConcurrencyRuleScanTest`, `TestRulesScanTest` (with the helper `SourceFiles.kt`).
 - Contract: `tests/contract/test_commit_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_commit_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
@@ -158,6 +169,11 @@ agents, not required: an outside contributor may write the code themselves
   whatever text-insert mechanism publishes a focused field (today,
   `commit/accessibility`, once built — ADR-022) and the commit service that
   reads it. No test touches it; every test builds its own registry.
+- The holder's public seam is publish-only on purpose: `publish(field)` is its
+  only public member, there is no public `current()` or `clearAll()`, so a
+  sub-module can hand over a focused field but cannot read it back or peek at
+  what another mechanism published — text only ever leaves through the commit
+  service's own explicit-send flow.
 - ADR-022: dictation happens in place from the floating tile; no Activity opens
   while dictating, so the mechanism that used to lose focus whenever a screen
   opened (the old IME approach, `commit/ime`, now dead) is not this module's

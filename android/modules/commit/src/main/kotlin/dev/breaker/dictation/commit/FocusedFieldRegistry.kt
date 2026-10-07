@@ -40,5 +40,18 @@ internal class FocusedFieldRegistry : FocusedFieldSource {
         state.value = null
     }
 
+    /**
+     * Publish [field] and return a handle that clears it on [AutoCloseable.close].
+     *
+     * The same token rule as [clear] holds through the handle: closing it
+     * clears this publish only while it is still the current one. Closing it
+     * twice, or closing it after a newer [publish] (directly or through
+     * another handle) replaced this field, does nothing either time.
+     */
+    internal fun publishScoped(field: FocusedField): AutoCloseable {
+        val token: Token = publish(field)
+        return AutoCloseable { clear(token) }
+    }
+
     override fun current(): FocusedField? = state.value?.field
 }

@@ -103,7 +103,7 @@ path = "android/modules/commit"
 owns = "CommitService: mechanism-neutral text commit (focused field gets the text, otherwise the clipboard) + toast."
 does_not_own = "Formatting (format); history storage (history); the text-insert mechanism itself (commit/accessibility, commit/ime)."
 depends_on = ["android", "android_core"]
-public = "CommitService, CommitServices"
+public = "CommitService, CommitServices, FocusedField, FieldCommit, FocusedFieldHolder.publish"
 card = "android/modules/commit/AGENTS.md"
 
 [module.android_commit_ime]
