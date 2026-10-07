@@ -151,3 +151,9 @@ agents, not required: an outside contributor may write the code themselves
   owner's next login, with no review (T26, ADR-018).
 - An owner account with no box public key yet gets no sealed copy, not a
   dropped job and not a plaintext one — see the Owner sealed-box step above.
+
+## Forwarder contract
+- A forwarder must bound its own call: it must not make an unbounded HTTP request.
+  The worker's retry logic assumes each forward completes in a reasonable time.
+- The stored error text is bounded at 500 characters (JobPolicy.ERROR_TEXT_LIMIT).
+  The worker applies .take(ERROR_TEXT_LIMIT) to the full formatted failure string.
