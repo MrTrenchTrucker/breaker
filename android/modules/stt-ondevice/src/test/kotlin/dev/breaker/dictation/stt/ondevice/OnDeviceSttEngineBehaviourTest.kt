@@ -4,8 +4,11 @@ import dev.breaker.dictation.core.model.SttRequest
 import dev.breaker.dictation.core.model.SttResult
 import java.io.File
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.selects.select
@@ -34,6 +37,10 @@ class OnDeviceSttEngineBehaviourTest {
 
     private val engines = ArrayList<OnDeviceSttEngine>()
 
+    // Calls that may park their thread are made on this scope, never on the test thread. It is
+    // not a child of the test, so a parked call can never keep the test from ending.
+    private val callers = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
     private fun track(engine: OnDeviceSttEngine): OnDeviceSttEngine {
         engines.add(engine)
         return engine
@@ -42,6 +49,7 @@ class OnDeviceSttEngineBehaviourTest {
     @After
     fun closeEngines() {
         engines.forEach { it.close() }
+        callers.cancel()
     }
 
     /** A loader that counts how often it was asked and always gives the same answer. */
@@ -131,12 +139,23 @@ class OnDeviceSttEngineBehaviourTest {
 
         runBlocking {
             try {
-                val running = engine.transcribeAsync(request())
-                watcher.expectDispatched(1, "the first call must be handed to the engine's dispatcher")
+                val started = startOffThread(callers) { engine.transcribeAsync(request()) }
+                expectSlotBeforeDecode(
+                    watcher,
+                    log,
+                    "the first call must be handed to the engine's own dispatcher before its decode starts",
+                )
+                val running = started.await()
                 // The decode must hold the slot before the second call is made.
                 val entered = select<String?> {
                     log.onReceive { it }
                     running.onAwait { null }
+                    watcher.dispatched.onReceive {
+                        throw AssertionError(
+                            "the running call handed a second task to the slot it already holds, " +
+                                "so it would wait forever",
+                        )
+                    }
                 }
                 assertEquals("the first decode must reach the recognizer", "enter", entered)
 

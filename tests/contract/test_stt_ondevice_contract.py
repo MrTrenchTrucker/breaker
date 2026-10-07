@@ -14,6 +14,7 @@ import re
 import unittest
 
 import contract_support
+from stt_ondevice_bound_pins import SttOndeviceBoundPinsTest  # noqa: F401  (decode-bound pins, collected here)
 
 REGISTRY_FILE = (
     "shared/modules/model-registry/src/main/kotlin/dev/breaker/"
@@ -420,7 +421,7 @@ class AndroidModulesSttOndeviceContractTest(contract_support.ModuleContractTest)
         code = self._code(self.ENGINE)
         self.assertRegex(
             code, r"\bclass\s+OnDeviceSttEngine\s*\([^()]*\binferenceDispatcher\s*:\s*CoroutineDispatcher"
-            r"\s*=\s*singleSlot\s*\(\s*Dispatchers\s*\.\s*IO\s*\)\s*,?\s*\)",
+            r"\s*=\s*singleSlot\s*\(\s*Dispatchers\s*\.\s*IO\s*\)\s*[,)]",
             "dispatcher pin: the default must be singleSlot(Dispatchers.IO)")
         self.assertRegex(
             self._body(code, "singleSlot"), r"\A\s*\w+\s*\.\s*limitedParallelism\s*\(\s*1\s*\)\s*\Z",

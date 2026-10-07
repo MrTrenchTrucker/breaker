@@ -116,10 +116,18 @@ class OnDeviceSttEngineTest {
         val watcher = newSlotWatcher()
         val engine = OnDeviceSttEngine(readyLoader(recognizer), watcher)
 
-        val first = engine.transcribeAsync(validRequest())
-        val second = engine.transcribeAsync(validRequest())
-        try {
-            watcher.expectDispatched(2, "both calls must be handed to the engine's own dispatcher")
+        val firstStart = startOffThread(callers) { engine.transcribeAsync(validRequest()) }
+        val secondStart = startOffThread(callers) { engine.transcribeAsync(validRequest()) }
+        val (first, second) = try {
+            expectSlotBeforeDecode(
+                watcher,
+                log,
+                "transcribeAsync serialises decode calls on single-threaded dispatcher: " +
+                    "the decode started without the call being handed to the engine's own dispatcher",
+            )
+            val started = runBlocking { Pair(firstStart.await(), secondStart.await()) }
+            watcher.expectDispatched(1, "both calls must be handed to the engine's own dispatcher")
+            started
         } finally {
             release.complete(Unit)
         }

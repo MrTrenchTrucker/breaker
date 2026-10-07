@@ -6,9 +6,11 @@ import java.io.File
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.selects.select
@@ -146,4 +148,29 @@ internal class HoldingRecognizer(
     }
 
     override fun release() {}
+}
+
+/**
+ * Makes [call] on a thread of [callers] and returns a handle to what it gave
+ * back. A call that parks its own thread (a decode run inline by its caller)
+ * then parks a thread of [callers], never the thread of the test.
+ */
+internal fun <T> startOffThread(callers: CoroutineScope, call: () -> Deferred<T>): Deferred<Deferred<T>> =
+    callers.async { call() }
+
+/**
+ * Waits until [watcher] reports a task, and fails with [message] when the
+ * decode logs "enter" on [log] first. A decode that starts before the call was
+ * handed to the engine's own dispatcher never reported a task, so the wait ends
+ * with an assertion instead of waiting for a report that never comes. When both
+ * are ready the report wins, so a correct engine, which reports before it
+ * forwards, never trips it.
+ */
+internal fun expectSlotBeforeDecode(watcher: SlotWatcher, log: Channel<String>, message: String) {
+    runBlocking {
+        select<Unit> {
+            watcher.dispatched.onReceive { }
+            log.onReceive { throw AssertionError(message) }
+        }
+    }
 }

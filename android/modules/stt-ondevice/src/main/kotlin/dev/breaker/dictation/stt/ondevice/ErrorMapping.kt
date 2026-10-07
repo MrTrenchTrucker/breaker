@@ -109,6 +109,27 @@ object ErrorMapping {
         SttResult.Failure(SttError.OTHER, "The on-device engine could not transcribe the audio.")
 
     /**
+     * The on-device engine took too long to transcribe the audio.
+     *
+     * The detail is a short, safe, user-facing sentence. No audio content,
+     * transcript text, or file path is ever placed in a detail.
+     */
+    fun decodeTimedOut(): SttResult.Failure =
+        SttResult.Failure(SttError.OTHER, "The on-device engine took too long to transcribe the audio.")
+
+    /**
+     * The on-device engine is still working on an earlier recording; the call was refused.
+     *
+     * The detail is a short, safe, user-facing sentence. No audio content,
+     * transcript text, or file path is ever placed in a detail.
+     */
+    fun decodeBusy(): SttResult.Failure =
+        SttResult.Failure(
+            SttError.OTHER,
+            "The on-device engine is still working on an earlier recording; try again in a moment.",
+        )
+
+    /**
      * The on-device engine is shutting down.
      *
      * The detail is a short, safe, user-facing sentence. No audio content,

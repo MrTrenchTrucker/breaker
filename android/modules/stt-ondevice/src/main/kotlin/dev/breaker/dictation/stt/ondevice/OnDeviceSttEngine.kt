@@ -57,10 +57,21 @@ internal fun singleSlot(base: CoroutineDispatcher): CoroutineDispatcher = base.l
  * The ThreadLocal is RESET (set back to false) in a [finally] after each
  * decode, or a pooled IO thread would stay marked and refuse later
  * legitimate calls.
+ *
+ * Decode bound: a native decode cannot be cancelled, so the engine hands only
+ * the native call to a worker on [decodeWorkers] and the slot waits for the
+ * result or for [decodeDeadline] (30 seconds plus three times the clip length,
+ * not measured on a device). When the deadline wins, the call returns
+ * [ErrorMapping.decodeTimedOut] and the decode is abandoned: it can leak one
+ * worker thread and one recognizer until the native call returns, the worker
+ * releases that recognizer itself, [close] does not cancel it, and new calls
+ * return [ErrorMapping.decodeBusy] meanwhile. Loading the model is not bounded.
  */
 class OnDeviceSttEngine(
     private val loader: ModelLoaderPort,
     private val inferenceDispatcher: CoroutineDispatcher = singleSlot(Dispatchers.IO),
+    decodeDeadline: DecodeDeadline = DecodeDeadline.afterAudio(),
+    decodeWorkers: CoroutineDispatcher = Dispatchers.IO,
 ) : SttEngine, AutoCloseable {
 
     /** Snapshot of engine state for diagnostics. */
@@ -79,6 +90,15 @@ class OnDeviceSttEngine(
 
     // A ThreadLocal because "is this thread already inside the slot" is a thread-scoped fact that non-suspend code must be able to read.
     private val decodingHere = ThreadLocal.withInitial { false }
+
+    // The worker that runs the native decode carries the same marker, or a call made from inside a decode would wait on the slot its own caller holds.
+    private val bound = DecodeBound(decodeDeadline, decodeWorkers) { block ->
+        decodingHere.set(true)
+        try { block() } finally { decodingHere.set(false) }
+    }
+
+    /** True while an abandoned decode's worker is still inside the native call. Test hook, not public API. */
+    internal val abandonedDecodeRunning: Boolean get() = bound.abandonedRunning
 
     // close() is non-suspend and callable from any thread, so the flag needs
     // visibility without a lock.
@@ -118,6 +138,7 @@ class OnDeviceSttEngine(
             runBlocking(inferenceDispatcher) {
                 if (closed) return@runBlocking ErrorMapping.engineClosed()
                 if (decodingHere.get()) return@runBlocking ErrorMapping.reentrantDecode()
+                if (bound.abandonedRunning) return@runBlocking ErrorMapping.decodeBusy()
 
                 decodingHere.set(true)
                 try {
@@ -148,6 +169,8 @@ class OnDeviceSttEngine(
             if (decodingHere.get()) {
                 return@async ErrorMapping.reentrantDecode()
             }
+
+            if (bound.abandonedRunning) return@async ErrorMapping.decodeBusy()
 
             decodingHere.set(true)
             try {
@@ -252,7 +275,7 @@ class OnDeviceSttEngine(
                 loadedModelId = request.model
                 verificationCount++
 
-                val recognizer = loadResult.recognizer
+                val recognizer = bound.wrap(loadResult.recognizer)
                 return try {
                     decodeCount++
                     val transcript = recognizer.decode(request.pcm, request.sampleRateHz)
@@ -265,6 +288,8 @@ class OnDeviceSttEngine(
                     ErrorMapping.decodeFailed()
                 } catch (e: CancellationException) {
                     throw e
+                } catch (_: DecodeExpiredException) {
+                    ErrorMapping.decodeTimedOut()
                 } catch (_: RuntimeException) {
                     ErrorMapping.decodeFailed()
                 } catch (_: StackOverflowError) {

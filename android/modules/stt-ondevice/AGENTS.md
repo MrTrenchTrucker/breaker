@@ -13,7 +13,7 @@ sherpa-onnx local transcription (fallback engine), model lifecycle, checksum ver
 ## Public Interface `core.SttEngine` (local path).
 
 **In:** 16 kHz mono PCM float32.
-**Out:** `SttResult(text, segments, language)` or a failure result: `SttError.LOCAL_MODEL_MISSING` for model problems, `SttError.OTHER` for audio, engine and store problems. The engine class is `OnDeviceSttEngine`; user sentences come from `ErrorMapping`.
+**Out:** `SttResult(text, segments, language)` or a failure result: `SttError.LOCAL_MODEL_MISSING` for model problems, `SttError.OTHER` for audio, engine and store problems. The engine class is `OnDeviceSttEngine`; user sentences come from `ErrorMapping`. A decode that does not finish before its deadline is an `OTHER` failure too (see Engine notes).
 
 **Engine notes:**
 - Keep the base's sherpa-onnx local-mode code (already swept). Do NOT reintroduce
@@ -21,21 +21,31 @@ sherpa-onnx local transcription (fallback engine), model lifecycle, checksum ver
 - whisper.cpp AAR is a **fallback only** if sherpa-onnx lacks a needed feature.
 - `OnDeviceSttEngine` implements `core.SttEngine` over the loader port. It checks the audio rate
   first (16 kHz only), asks the loader for the model, decodes, and releases the recognizer after the
-  decode. Every problem comes back as a failure result and `transcribe` never throws, including a
-  store failure while loading (reported as an OTHER failure).
+  decode (after an abandoned decode, the worker releases it when the native call returns). Every
+  problem comes back as a failure result and `transcribe` never throws, including a store failure
+  while loading (reported as an OTHER failure).
 - Model problems map to `LOCAL_MODEL_MISSING`; audio, engine and store problems map to `OTHER`. The
   engine never returns `SERVER_UNREACHABLE` or `TIMEOUT`: it has no server path.
+- A decode that does not finish before its deadline returns a failure, category `OTHER`
+  (`ErrorMapping.decodeTimedOut()`), not `TIMEOUT`. While an abandoned decode is still running,
+  `transcribe` and `transcribeAsync` return `ErrorMapping.decodeBusy()` (also `OTHER`) at once;
+  `preload` and `diagnostics` are not refused. The constructor takes an injectable `DecodeDeadline`
+  and a worker dispatcher for the native call after the loader and the slot dispatcher; both have
+  defaults, so a call with one or two arguments compiles unchanged. The default limit is 30 seconds
+  plus three times the clip length. It is a recommended value and is NOT measured on a device.
 - `transcribe` blocks (it bridges onto the dispatcher with `runBlocking`). `transcribeAsync` runs
   the decode on the dispatcher directly and must never call `transcribe`: the inner `runBlocking`
   would wait for the slot its caller holds and hang.
 - A `transcribe` called from a thread already inside a decode is refused at once. The marker is a
   `ThreadLocal` reset in a `finally`; the reason a coroutine primitive does not fit is written at
-  the site.
+  the site. The worker that runs the native call carries the same marker, so a call made from inside
+  a decode is still refused at once.
 - If a decode throws a cancellation, the result of `transcribeAsync` ends cancelled (the cause is
   not swallowed); the blocking `transcribe` still returns a failure.
-- `close()` marks the engine closed. It does not interrupt a running decode and does not cancel
-  queued async calls: each of those returns the engine-closed failure when its turn comes. The
-  engine holds no recognizer between calls.
+- `close()` marks the engine closed. It does not interrupt a running decode, does not cancel an
+  abandoned decode and does not cancel queued async calls: each queued call returns the engine-closed
+  failure when its turn comes. The engine holds no recognizer between calls; an abandoned decode's
+  worker still holds its recognizer until the native call returns (see Known Gotchas).
 - When a checksum failure left the file on disk (the delete failed), the user sentence says it could
   not be deleted instead of saying it was deleted.
 
@@ -79,17 +89,33 @@ dispatcher, never the UI thread. The dispatcher is a single-slot view over the s
 by `singleSlot`). One slot is not one fixed thread: successive decodes may run on different IO
 threads, so the reentrancy marker is reset after every decode.
 
-- Thread affinity: the engine creates a recognizer, runs one decode and releases it inside a single
-  call and keeps none between calls, so it does not matter which IO thread runs the next decode. As
-  far as the upstream code read shows, the sherpa-onnx recognizer has no thread affinity: its native
-  handle is a plain pointer, and the recognizer code read keeps no thread-local state and reads no
-  thread identity (k2-fsa/sherpa-onnx, jni/ and csrc/ recognizer sources, read at the upstream
-  version Breaker pins). ONNX Runtime documents that a session's Run may be called from multiple
-  threads (onnxruntime core/session/inference_session.h). Limits: upstream gives no written
-  guarantee, so the claim rests on reading the code; only the recognizer paths were searched; the
-  vendored Kotlin in this repo is the offline recognizer, and the native adapter this module will
-  use does not exist yet, so the claim must be re-checked when the adapter lands; if it ever needs
-  one thread, the engine must switch to a single fixed thread.
+The native call itself runs on an IO worker (the worker dispatcher, `Dispatchers.IO` by default)
+while the slot thread parks on a first-wins `CompletableFuture`. The worker's result or the deadline
+completes the future, whichever comes first. The deadline ends the wait, not the native call: when
+it wins, the slot thread returns the timeout failure and the slot is free again, while the abandoned
+worker stays inside the native call and releases its recognizer when that call returns. This is an
+argued exception to the rule to use coroutines for every concurrent thing (root
+`AGENTS.md` section 6). A suspension would hand the single slot to the next queued decode, so two
+native decodes could overlap. A nested coroutine bridge on a caller's own loop could run the next
+queued body inside the wait. A native call cannot be cancelled, so the only lever is to stop waiting
+for it. A JDK future parks the thread and pumps nothing. The reason is also written at the park and
+at the worker dispatch in `DecodeBound.kt`.
+
+- Thread affinity: the engine creates a recognizer on the slot thread, decodes with it on a bound
+  worker thread (one recognizer, two threads, one at a time) and releases it inside a single call
+  (on the slot thread, or on the worker when the decode was abandoned). It keeps none between
+  calls, so it does not matter which IO thread runs the next decode. As far as the upstream code
+  read shows, the sherpa-onnx recognizer has no thread affinity: its native handle is a plain
+  pointer, and the recognizer code read keeps no thread-local state and reads no thread identity
+  (k2-fsa/sherpa-onnx, jni/ and csrc/ recognizer sources, read at the upstream version Breaker
+  pins). ONNX Runtime documents that a session's Run may be called from multiple threads
+  (onnxruntime core/session/inference_session.h). Limits: upstream gives no written guarantee, so
+  the claim rests on reading the code. That reading covered the absence of thread-bound state in the
+  recognizer paths read; it did NOT cover creating a recognizer on one thread and decoding with it
+  on another, and that is re-checked against the real binding when the adapter lands. Only the
+  recognizer paths were searched; the vendored Kotlin in this repo is the offline recognizer, and
+  the native adapter this module will use does not exist yet, so the claim must be re-checked when
+  the adapter lands; if it ever needs one thread, the engine must switch to a single fixed thread.
 
 ## Invariants
 - Offline dictation E2E: tap → speak → send → text (F1).
@@ -110,6 +136,7 @@ threads, so the reentrancy marker is reset after every decode.
 ## Test Locations
 - Unit (Kotlin): `android/modules/stt-ondevice/src/test/kotlin/`, created with the module's first code. Run: `./gradlew :android:modules:stt-ondevice:test`
 - Contract: `tests/contract/test_stt_ondevice_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_stt_ondevice_contract.py`
+- Contract (decode bound pins): `tests/contract/stt_ondevice_bound_pins.py`, collected and run by the contract test above.
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
 ## Test Requirement
@@ -174,3 +201,15 @@ agents, not required: an outside contributor may write the code themselves
   production code constructs `ModelInstaller` or `ModelLoader`. The engine takes the loader through
   `ModelLoaderPort`, and the app's wiring supplies it later, so the engine cannot transcribe real
   audio until a recognizer factory exists.
+- The decode deadline does not cover loading the model: the registry lookup, hashing the archive and
+  creating the recognizer are not bounded, so a load that never returns still holds the slot and
+  every call queued behind it waits.
+- An abandoned decode (one that passed its deadline) can leak one worker thread and one recognizer,
+  up to the model's memory, until the native call returns. At most one at a time: `transcribe` and
+  `transcribeAsync` return the busy failure while it runs. `preload` is not refused, so for a moment
+  a second recognizer can exist next to the stuck one. If the native call never returns, the thread
+  and the recognizer stay until the process ends. `close()` does not cancel it.
+- A slow phone or a long clip can trigger a false timeout: the engine reports a failure while the
+  native call keeps using CPU and battery until it ends.
+- The limit (30 seconds plus three times the clip length) is a recommended value, not a
+  measurement. It has not been tried on a device.
