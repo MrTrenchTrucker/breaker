@@ -33,7 +33,8 @@ For the maintainers' team, building a module or a sub-module works like this:
 3. **Sub-agents write the code; the owner does not.** The owner plans,
    coordinates and verifies. Work that is wrong goes back down to a
    sub-agent with the reason. The owner may make a one-line edit itself;
-   anything larger goes back down.
+   anything larger is a sub-agent's job (a review does not reject correct work
+   for how it was written; see Consequences).
 4. **Levels.** An owner of a whole module plans at the module level; its
    sub-agents work at the sub-module level.
 5. **One model tier for sub-agents.** The maintainers' sub-agents run on
