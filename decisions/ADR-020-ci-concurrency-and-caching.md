@@ -12,11 +12,13 @@ and the workflow's `concurrency.group` was keyed on `github.ref`
 the `push` event) — two different refs for the same commit, so both triggers
 ran a full Gradle build simultaneously on the shared GitHub-hosted runner.
 Measured before the fix: `module/core` commit `a231aedf` ran the `build` job
-twice, one attempt failing, one passing; the same double-run pattern showed
-on `module/transport` (`5ff3eef4`) and `module/audio` (`2e378830`). Two
-compiler daemons and two test JVMs contending for the same runner produced
-recurring "the same test fails intermittently on GitHub but never locally"
-reports on those commits.
+twice, one run failing, one passing; the same double-run pattern showed on
+`module/transport` (`5ff3eef4`) and `module/audio` (`2e378830`), both of
+whose pairs happened to pass. Two compiler daemons and two test JVMs
+contending for the same runner is the likely contributor to the recurring
+"the same test fails intermittently on GitHub but never locally" reports —
+confirmed as a mechanism (duplicate runs existed), not confirmed as the sole
+cause of every such report on these commits.
 
 The build also downloaded its whole Maven/Gradle dependency tree from Maven
 Central on every single run, with no cache step. Maven Central's own 429
