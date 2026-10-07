@@ -118,7 +118,7 @@ The mic glyph + **LED bar meter** show transmission state:
   tile), mic, internet, foreground service, accessibility service [1].
 - While Breaker is switched on, an ongoing notification shows (the microphone
   service runs in the background; ADR-022). It records only between a tile
-  tap and send or cancel.
+  tap and send, cancel or an error.
 - **LED bar meter above the mic** when awake and recording (F36).
 - Status text in mono (`LISTENING…` / `QUEUED…` / `TRANSMITTING…`) with a
   green status dot, shown as a small label beside the tile.
