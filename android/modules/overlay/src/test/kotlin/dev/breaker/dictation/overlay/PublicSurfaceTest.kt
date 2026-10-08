@@ -7,8 +7,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * What the module shows to the app: the four results, the functions of the tile, and nothing
- * else public.
+ * What the module shows to the app: the four results, the five tile states, the functions of the
+ * tile, and nothing else public.
  *
  * The first two are read by reflection against literal expected values. The last is read as
  * text, with a control that must fire on wrong samples and stay quiet on right ones before the
@@ -27,7 +27,7 @@ class PublicSurfaceTest {
     private fun publicMethodNames(type: Class<*>): List<String> =
         type.declaredMethods.filter { Modifier.isPublic(it.modifiers) && !it.isSynthetic }.map { it.name }.sorted()
 
-    private val publicFiles = setOf("FloatingTile.kt", "ShowResult.kt")
+    private val publicFiles = setOf("FloatingTile.kt", "ShowResult.kt", "TileState.kt")
 
     private val declaration = Regex(
         "^((?:@\\w+(?:\\([^)]*\\))?\\s+)*)" +
@@ -64,10 +64,23 @@ class PublicSurfaceTest {
         assertTrue("android_overlay: ShowResult must be public", Modifier.isPublic(ShowResult::class.java.modifiers))
     }
 
+    /** A failure here means a state was added, dropped or reordered, and the app's `when` over the states no longer fits. */
+    @Test
+    fun `TileState has exactly the five states in order`() {
+        assertEquals(
+            "overlay: expected the five tile states in this order",
+            listOf("IDLE", "ARMED", "RECORDING", "SENDING", "FAILED"),
+            TileState.values().map { it.name },
+        )
+        assertTrue("overlay: TileState must be public", Modifier.isPublic(TileState::class.java.modifiers))
+    }
+
     /** A failure here means the tile's public functions changed, so the app's calls no longer match the documented surface. */
     @Test
     fun `FloatingTile exposes exactly the documented public functions`() {
-        val expected = listOf("hide", "isShown", "onDisplayChanged", "setTheme", "show")
+        val expected = listOf(
+            "clearNotice", "getState", "hide", "isShown", "onDisplayChanged", "setDescription", "setLevel", "setState", "setTheme", "show", "showNotice",
+        )
         assertEquals("android_overlay: control: only the public functions of a class must be listed", listOf("other", "shown"), publicMethodNames(ControlSurface::class.java))
         assertNotEquals("android_overlay: control: a class with other functions must not match the documented ones", expected, publicMethodNames(ControlSurface::class.java))
 
@@ -97,7 +110,7 @@ class PublicSurfaceTest {
         }
         assertEquals("android_overlay: control: a file with no declaration must be reported", 1, surfaceProblems(oneFile("// nothing here\n")).size)
         assertEquals("android_overlay: control: only the public files means nothing was checked", 1, surfaceProblems(mapOf("FloatingTile.kt" to "class A")).size)
-        assertEquals("android_overlay: control: the two public files are left alone", emptyList<String>(), surfaceProblems(mapOf("FloatingTile.kt" to "class A", "ShowResult.kt" to "enum class B { X }", "C.kt" to "internal class C")))
+        assertEquals("android_overlay: control: the three public files are left alone", emptyList<String>(), surfaceProblems(mapOf("FloatingTile.kt" to "class A", "ShowResult.kt" to "enum class B { X }", "TileState.kt" to "enum class D { X }", "C.kt" to "internal class C")))
 
         val texts = ModuleFiles.mainTexts()
         assertTrue("android_overlay: the public files were not found among ${texts.keys}", texts.keys.containsAll(publicFiles))

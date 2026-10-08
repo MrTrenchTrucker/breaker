@@ -9,6 +9,10 @@ import dev.breaker.shared.tokens.TruckingPalette
  * the screen, then reads the recorded lists to see what the controller asked the
  * window to do. [down], [move], [up] and [cancel] forward to the sink the
  * controller registered, and fail loudly when it never registered one.
+ *
+ * [calls] is one combined log of the calls that change the window, by name and in the order they came:
+ * "add", "moveTo", "setFrame", "applyPalette", "applyFace" and "remove". It lets a test pin the order of
+ * calls that the separate lists cannot show.
  */
 internal class FakeTileWindow(
     var permission: Boolean = true,
@@ -20,9 +24,15 @@ internal class FakeTileWindow(
     /** One recorded call of [add]. */
     class Add(val x: Int, val y: Int, val palette: TruckingPalette)
 
+    /** One recorded call of [setFrame]. */
+    data class Frame(val x: Int, val y: Int, val width: Int, val height: Int)
+
     val adds = ArrayList<Add>()
     val moves = ArrayList<PixelPoint>()
+    val frames = ArrayList<Frame>()
     val appliedPalettes = ArrayList<TruckingPalette>()
+    val appliedFaces = ArrayList<TileFace>()
+    val calls = ArrayList<String>()
     var removeCount = 0
     var canDrawCalls = 0
     var boundsReads = 0
@@ -57,19 +67,33 @@ internal class FakeTileWindow(
     }
 
     override fun add(x: Int, y: Int, palette: TruckingPalette): AddOutcome {
+        calls.add("add")
         adds.add(Add(x, y, palette))
         return addOutcome
     }
 
     override fun moveTo(x: Int, y: Int) {
+        calls.add("moveTo")
         moves.add(PixelPoint(x, y))
     }
 
+    override fun setFrame(x: Int, y: Int, width: Int, height: Int) {
+        calls.add("setFrame")
+        frames.add(Frame(x, y, width, height))
+    }
+
     override fun applyPalette(palette: TruckingPalette) {
+        calls.add("applyPalette")
         appliedPalettes.add(palette)
     }
 
+    override fun applyFace(face: TileFace) {
+        calls.add("applyFace")
+        appliedFaces.add(face)
+    }
+
     override fun remove() {
+        calls.add("remove")
         removeCount++
     }
 

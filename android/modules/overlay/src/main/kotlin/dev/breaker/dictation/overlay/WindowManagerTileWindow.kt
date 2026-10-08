@@ -24,9 +24,11 @@ import kotlin.math.roundToInt
  * x counts from the left edge whatever the layout direction.
  *
  * The permission answer comes from the system ([canDrawOverlays]). When the
- * system refuses to add the window (no permission, or a window token it does not
- * accept) [add] answers [AddOutcome.REFUSED] instead of throwing, and [remove]
- * is safe on a view the system no longer knows.
+ * system refuses to add the window (no permission, a window token it does not
+ * accept, or any other runtime failure of the add) [add] answers
+ * [AddOutcome.REFUSED] instead of throwing, and [remove] is safe on a view the
+ * system no longer knows. The window changes shape (the square tile, the wide
+ * window) through [setFrame], which keeps the same flags.
  *
  * Call it from the UI looper only. Pass the application context: the window outlives any one
  * screen.
@@ -88,7 +90,16 @@ internal class WindowManagerTileWindow(private val context: Context) : TileWindo
         removeQuietly()
 
         val size = tileSizePx()
-        val view = TileView(context, activeSink, tileColors(palette))
+        val face = TileFace(
+            state = TileState.IDLE,
+            shape = TileShape.COLLAPSED,
+            litSegments = 0,
+            segments = LedMeter.SEGMENTS,
+            look = TileStyle.look(TileState.IDLE, palette),
+            notice = null,
+            description = null,
+        )
+        val view = TileView(context, activeSink, face)
         val params = WindowManager.LayoutParams(
             size,
             size,
@@ -108,6 +119,9 @@ internal class WindowManagerTileWindow(private val context: Context) : TileWindo
             return AddOutcome.REFUSED
         } catch (e: SecurityException) {
             return AddOutcome.REFUSED
+        } catch (e: RuntimeException) {
+            // Any other runtime failure of the add is a refusal too, never a crash.
+            return AddOutcome.REFUSED
         }
         tileView = view
         layoutParams = params
@@ -123,10 +137,22 @@ internal class WindowManagerTileWindow(private val context: Context) : TileWindo
      * stays safe to call afterwards.
      */
     override fun moveTo(x: Int, y: Int) {
+        val params = layoutParams ?: return
+        setFrame(x, y, params.width, params.height)
+    }
+
+    /**
+     * Move the added window to ([x], [y]) and give it [width] by [height] pixels; nothing happens
+     * when no tile is added. The flags stay as [add] set them. An [IllegalArgumentException] from
+     * the system is swallowed for the same reason as in [moveTo].
+     */
+    override fun setFrame(x: Int, y: Int, width: Int, height: Int) {
         val view = tileView ?: return
         val params = layoutParams ?: return
         params.x = x
         params.y = y
+        params.width = width
+        params.height = height
         try {
             windowManager.updateViewLayout(view, params)
         } catch (e: IllegalArgumentException) {
@@ -134,9 +160,16 @@ internal class WindowManagerTileWindow(private val context: Context) : TileWindo
         }
     }
 
-    /** Redraw the added tile in [palette]; nothing happens when no tile is added. */
+    /** Draw [face] on the added tile; nothing happens when no tile is added. */
+    override fun applyFace(face: TileFace) {
+        tileView?.applyFace(face)
+    }
+
+    /** Redraw the added tile in [palette], keeping its state, shape and meter; nothing happens when no tile is added. */
     override fun applyPalette(palette: TruckingPalette) {
-        tileView?.applyColors(tileColors(palette))
+        val view = tileView ?: return
+        val face = view.face
+        view.applyFace(face.copy(look = TileStyle.look(face.state, palette)))
     }
 
     override fun remove() {

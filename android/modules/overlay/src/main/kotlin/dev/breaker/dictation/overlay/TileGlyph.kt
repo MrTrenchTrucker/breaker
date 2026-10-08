@@ -69,17 +69,20 @@ internal object TileGlyph {
 }
 
 /**
- * The three colours the tile is drawn with, as opaque ARGB ints.
+ * The three colours of the plain microphone tile, as opaque ARGB ints.
  *
- * [background] fills the tile, [glyph] paints the [GlyphRole.BODY] rectangles
- * and [outline] paints the [GlyphRole.GRILLE] and [GlyphRole.OUTLINE] ones.
+ * The tile does not draw with these: [TileStyle.look] gives the colours it draws with. They
+ * describe the microphone picture alone: [background] is the surface behind
+ * it, [glyph] is for the [GlyphRole.BODY] rectangles and [outline] is for the [GlyphRole.GRILLE]
+ * and [GlyphRole.OUTLINE] ones.
  */
 internal data class TileColors(val background: Int, val glyph: Int, val outline: Int)
 
 /**
- * The tile colours for a palette: the surface colour behind a glyph in the
+ * The microphone picture's colours for a palette: the surface colour behind a glyph in the
  * primary colour with trim-coloured detail, so light and dark mode each follow
- * their own palette and nothing here holds a colour of its own.
+ * their own palette and nothing here holds a colour of its own. The tile itself does not use
+ * this; it draws with [TileStyle.look].
  */
 internal fun tileColors(palette: TruckingPalette): TileColors = TileColors(
     background = palette.surface.argb,
@@ -103,4 +106,10 @@ internal object TileMetrics {
 
     /** Thickness of the outline lines. */
     const val OUTLINE_DP = 2
+
+    /** Thickness of the ring drawn around the microphone. */
+    const val RING_DP = 2
+
+    /** Gap in pixels cut from each side of a meter segment, so neighbouring segments show a thin line between them. */
+    const val SEGMENT_GAP_PX = 1
 }

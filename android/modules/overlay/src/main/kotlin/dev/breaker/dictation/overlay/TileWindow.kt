@@ -49,8 +49,8 @@ internal interface TouchSink {
  *   is not attached. A refusal is reported as [AddOutcome.REFUSED]; removing a
  *   window that is already gone is a quiet no-op.
  * - [canDrawOverlays] only asks the system; it changes nothing.
- * - [moveTo] and [applyPalette] are only called while a window has been added
- *   and not yet removed.
+ * - [moveTo], [setFrame], [applyPalette] and [applyFace] are only called while a
+ *   window has been added and not yet removed.
  */
 internal interface TileWindow {
     /** True when the system currently lets this app draw over other apps. */
@@ -79,8 +79,17 @@ internal interface TileWindow {
     /** Move the added window so its top-left corner is at ([x], [y]) pixels. */
     fun moveTo(x: Int, y: Int)
 
+    /**
+     * Move and resize the added window: its top-left corner goes to ([x], [y]) pixels and it becomes
+     * [width] by [height] pixels. The window keeps the flags it was added with.
+     */
+    fun setFrame(x: Int, y: Int, width: Int, height: Int)
+
     /** Redraw the added window with [palette]. */
     fun applyPalette(palette: TruckingPalette)
+
+    /** Redraw the added window to show [face]: the state, the meter, the colours and the notice. */
+    fun applyFace(face: TileFace)
 
     /** Take the window off screen. Quietly does nothing when it is not there. */
     fun remove()
