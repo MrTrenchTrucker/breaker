@@ -58,9 +58,11 @@ Exit code is 1 if any check fails.
 
 ## Published release
 
-GitHub release `sherpa-onnx-asr-v1.13.8`, file
+GitHub release `sherpa-onnx-asr-v1.13.8-r2`, file
 `sherpa-onnx-v1.13.8-asr-only.aar`,
-SHA-256 `8f5b6913f0caae05ee9a299e6711429be28cd052bda9998ab32c1c30bfaec262`.
+SHA-256 `5a9a7412d74e53fb4b2b24f7b3960b2dc6c402041ae2d386f98598abf29eff1a`,
+built from this folder. Its native libraries and `classes.jar` are
+byte-identical to the first release of this package; only `NOTICE.md` changed.
 
 ## Reproducing the build
 
