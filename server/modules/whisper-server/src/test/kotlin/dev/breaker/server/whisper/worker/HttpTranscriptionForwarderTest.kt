@@ -28,12 +28,20 @@ internal class HttpTranscriptionForwarderTest {
     private var holdResponse: Boolean = false
     private val releaseServer = CountDownLatch(1)
     private val requestArrived = CountDownLatch(1)
+    private val requestCount = java.util.concurrent.atomic.AtomicInteger(0)
+    private var receivedAuth: String? = null
+    private var receivedContentType: String? = null
+    private var receivedBody: ByteArray = ByteArray(0)
 
     @Before
     fun setUp() {
         server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
         server.createContext("/v1/audio/transcriptions") { exchange ->
+            requestCount.incrementAndGet()
             requestArrived.countDown()
+            receivedAuth = exchange.requestHeaders.getFirst("Authorization")
+            receivedContentType = exchange.requestHeaders.getFirst("Content-Type")
+            receivedBody = exchange.requestBody.readBytes()
             if (delayMillis > 0) { LockSupport.parkNanos(delayMillis * 1_000_000) }
             if (holdResponse) { releaseServer.await() }
             val bytes = responseBody.toByteArray(Charsets.UTF_8)
@@ -49,6 +57,29 @@ internal class HttpTranscriptionForwarderTest {
 
     private fun forwarder(requestTimeout: Duration = Duration.ofSeconds(5)): HttpTranscriptionForwarder {
         return HttpTranscriptionForwarder(DownstreamConfig(baseUrl = "http://127.0.0.1:${server.address.port}", requestTimeout = requestTimeout))
+    }
+
+    private fun forwarder(
+        requestTimeout: Duration = Duration.ofSeconds(5),
+        apiKey: String? = null,
+        model: String = "whisper-1",
+    ): HttpTranscriptionForwarder {
+        return HttpTranscriptionForwarder(
+            DownstreamConfig(
+                baseUrl = "http://127.0.0.1:${server.address.port}",
+                apiKey = apiKey,
+                model = model,
+                requestTimeout = requestTimeout,
+            )
+        )
+    }
+
+    private fun indexOfBytes(haystack: ByteArray, needle: ByteArray): Int {
+        outer@ for (i in 0..haystack.size - needle.size) {
+            for (j in needle.indices) if (haystack[i + j] != needle[j]) continue@outer
+            return i
+        }
+        return -1
     }
 
     private fun forward(requestTimeout: Duration = Duration.ofSeconds(5)): ForwardOutcome {
@@ -348,5 +379,79 @@ internal class HttpTranscriptionForwarderTest {
             "whisper-server: the transcription service returned an empty response",
             (outcome as ForwardOutcome.Failure).reason,
         )
+    }
+
+    @Test
+    fun `empty audio returns failure without calling the server`() {
+        val outcome = runBlocking { forwarder().forward(ForwardRequest(1L, byteArrayOf(), 1)) }
+        assertTrue("whisper-server: expected Failure but was $outcome", outcome is ForwardOutcome.Failure)
+        assertEquals(
+            "whisper-server: the reason must pin the empty audio",
+            "whisper-server: the audio is empty",
+            (outcome as ForwardOutcome.Failure).reason,
+        )
+        assertEquals("whisper-server: the server must receive no request", 0, requestCount.get())
+    }
+
+    @Test
+    fun `an api key is sent as a bearer authorization header`() {
+        responseBody = """{"text":"hello"}"""
+        responseCode = 200
+        runBlocking { withTimeout(30_000L) { forwarder(apiKey = "k-123").forward(ForwardRequest(1L, byteArrayOf(1, 2, 3), 1)) } }
+        assertEquals(
+            "whisper-server: the request must carry exactly the bearer header",
+            "Bearer k-123",
+            receivedAuth,
+        )
+    }
+
+    @Test
+    fun `a null api key sends no authorization header`() {
+        responseBody = """{"text":"hello"}"""
+        responseCode = 200
+        runBlocking { withTimeout(30_000L) { forwarder(apiKey = null).forward(ForwardRequest(1L, byteArrayOf(1, 2, 3), 1)) } }
+        assertEquals("whisper-server: a null key must send no authorization header", null, receivedAuth)
+    }
+
+    @Test
+    fun `a blank api key sends no authorization header`() {
+        responseBody = """{"text":"hello"}"""
+        responseCode = 200
+        runBlocking { withTimeout(30_000L) { forwarder(apiKey = "   ").forward(ForwardRequest(1L, byteArrayOf(1, 2, 3), 1)) } }
+        assertEquals("whisper-server: a blank key must send no authorization header", null, receivedAuth)
+    }
+
+    @Test
+    fun `the request body carries the file model and response format`() {
+        responseBody = """{"text":"hello"}"""
+        responseCode = 200
+        val audio = byteArrayOf(1, 2, 3, 4, 5)
+        runBlocking { withTimeout(30_000L) { forwarder(model = "m-test").forward(ForwardRequest(1L, audio, 1)) } }
+
+        val contentType = receivedContentType
+        assertTrue("whisper-server: the request must be multipart", contentType != null && contentType.contains("multipart/form-data"))
+        val boundary = contentType!!.substringAfter("boundary=")
+        val bodyText = String(receivedBody, Charsets.UTF_8)
+
+        assertTrue(
+            "whisper-server: the file part must be named and typed",
+            bodyText.contains("Content-Disposition: form-data; name=\"file\"; filename=\"audio.wav\""),
+        )
+        assertTrue("whisper-server: the file part must be audio/wav", bodyText.contains("Content-Type: audio/wav"))
+        assertTrue(
+            "whisper-server: the model part must carry the configured model",
+            bodyText.contains("name=\"model\"\r\n\r\nm-test\r\n"),
+        )
+        assertTrue(
+            "whisper-server: the response format must be verbose_json",
+            bodyText.contains("name=\"response_format\"\r\n\r\nverbose_json\r\n"),
+        )
+
+        val marker = "Content-Type: audio/wav\r\n\r\n".toByteArray(Charsets.UTF_8)
+        val start = indexOfBytes(receivedBody, marker)
+        assertTrue("whisper-server: the audio part must be present", start >= 0)
+        val payload = receivedBody.copyOfRange(start + marker.size, start + marker.size + audio.size)
+        assertTrue("whisper-server: the file part must carry exactly the audio bytes", payload.contentEquals(audio))
+        assertTrue("whisper-server: the boundary must close the body", bodyText.contains("--$boundary--"))
     }
 }

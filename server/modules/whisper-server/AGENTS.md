@@ -157,3 +157,12 @@ agents, not required: an outside contributor may write the code themselves
   The worker's retry logic assumes each forward completes in a reasonable time.
 - The stored error text is bounded at 500 characters (JobPolicy.ERROR_TEXT_LIMIT).
   The worker applies .take(ERROR_TEXT_LIMIT) to the full formatted failure string.
+- The forwarder is `HttpTranscriptionForwarder`. It makes ONE attempt per call and never retries
+  itself; the queue worker owns the retry schedule (3 attempts, 10 s apart).
+- It asks the downstream for `verbose_json` (`response_format=verbose_json`).
+- `TranscriptionResponse` reads a plain-text body as the text, with no segments and no language.
+- The request timeout defaults to 60 s and is admin-set (`DownstreamConfig.requestTimeout`); it
+  bounds how long a long audio upload may take, so a stuck downstream cannot hold the worker.
+- Failure messages are fixed strings: they never contain the downstream URL or the API key.
+- A 2xx answer whose content type is not JSON is refused before parsing, so the plain-text branch
+  of `TranscriptionResponse` is reached only by direct callers, never through the forwarder.
