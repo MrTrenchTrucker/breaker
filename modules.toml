@@ -117,10 +117,10 @@ status = "dead"
 
 [module.android_commit_accessibility]
 path = "android/modules/commit/accessibility"
-owns = "The accessibility text-insert mechanism (ADR-022): finds the focused editable field, inserts text (ACTION_SET_TEXT merging at the cursor, or ACTION_PASTE), refuses password fields, publishes the focused field into the parent's holder. Not built yet."
+owns = "The accessibility text-insert mechanism (ADR-022): finds the focused editable field, inserts text (ACTION_SET_TEXT merging at the cursor; ACTION_PASTE is not built yet), refuses password fields, publishes the focused field into the parent's holder."
 does_not_own = "The mechanism-neutral commit logic (commit); the dead keyboard adapter (commit/ime); onboarding for the permission (ui)."
 depends_on = ["android_commit"]
-public = ""
+public = "BreakerAccessibilityService"
 card = "android/modules/commit/accessibility/AGENTS.md"
 
 [module.android_history]
