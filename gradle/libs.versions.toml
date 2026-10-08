@@ -12,12 +12,15 @@ minSdk = "30"
 junit = "4.13.2"
 sqlite-jdbc = "3.53.4.0"
 kotlinx-coroutines = "1.11.0"   # read 2026-10-05 from https://repo1.maven.org/maven2/org/jetbrains/kotlinx/kotlinx-coroutines-core/maven-metadata.xml (newest stable; core artifact only)
+ktor = "3.6.0"   # read 2026-10-08 from https://repo1.maven.org/maven2/io/ktor/ktor-server-core/maven-metadata.xml (newest stable)
 
 [libraries]
 junit = { module = "junit:junit", version.ref = "junit" }
-# JVM unit tests only (real SQLite for HistorySql); must never be a non-test dependency.
+# Test-only in the android modules (real SQLite for HistorySql on the desktop JVM, never shipped there); the runtime driver in the server modules (whisper-server; sync-api once it lands).
 sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite-jdbc" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
+ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }
+ktor-server-test-host = { module = "io.ktor:ktor-server-test-host", version.ref = "ktor" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
