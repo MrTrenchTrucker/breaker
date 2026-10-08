@@ -13,6 +13,9 @@ import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
+import io.ktor.client.request.forms.formData
+import io.ktor.client.request.forms.FormDataContent
+import io.ktor.http.Headers
 import java.util.concurrent.atomic.AtomicInteger
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -88,6 +91,23 @@ internal class TranscriptionRoutesTest {
         val store = openStore()
         withTranscriptionApi(store) { client ->
             val response = client.postAudio(multipartBody(file = ByteArray(0), model = "m"))
+            assertEquals(400, response.status.value)
+            assertEquals("{\"error\":\"the file part is required\"}", response.bodyAsText())
+        }
+    }
+
+    @Test
+    fun `a file part under a wrong field name is rejected with 400`() {
+        val store = openStore()
+        withTranscriptionApi(store) { client ->
+            val body = formData {
+                append("audio", JobFixtures.audio(1), Headers.build {
+                    append("Content-Disposition", "form-data; name=\"audio\"; filename=\"audio.wav\"")
+                    append("Content-Type", "application/octet-stream")
+                })
+                append("model", "m")
+            }
+            val response = client.post("/v1/audio/transcriptions") { setBody(MultiPartFormDataContent(body)) }
             assertEquals(400, response.status.value)
             assertEquals("{\"error\":\"the file part is required\"}", response.bodyAsText())
         }
