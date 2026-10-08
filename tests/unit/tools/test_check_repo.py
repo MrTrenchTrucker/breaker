@@ -133,7 +133,6 @@ class RequiredSectionsListsStayInStep(unittest.TestCase):
 
 
 
-
 class CheckRepoSubModuleListTest(unittest.TestCase):
     """The naming check reads the **Sub-modules:** list, not the prose.
 
@@ -254,7 +253,7 @@ class CheckRepoDeadModuleTest(unittest.TestCase):
     must not be include()d or carry a project() edge to it, and — being a
     registered module — must be named in the README of its nearest ancestor
     home that carries a **Sub-modules:** list. These tests plant faults in a
-    scratch copy, run the real check_repo.py on it, watch the fault get named,
+    scratch copy, run the real check_repo.py on it, watch the fault get name,
     then restore. Every failure case fails against the earlier code and passes
     only after the fix; the passing cases pass on both, and a check that matches
     by substring instead of the exact path turns them red.
@@ -271,6 +270,13 @@ class CheckRepoDeadModuleTest(unittest.TestCase):
         "# Depends On", "# Invariants", "# Test Locations",
         "# Test Requirement", "# Known Gotchas",
     ]
+
+    def _make_fixture_parent(self, submodules):
+        parent = os.path.join(self.scratch, "android", "modules", "fixture")
+        os.makedirs(parent, exist_ok=True)
+        line = "**Sub-modules:** " + ", ".join(submodules) + " — each with its own AGENTS.md + README.md"
+        with open(os.path.join(parent, "README.md"), "w", encoding="utf-8") as fh:
+            fh.write("# fixture — README\n\n" + line + "\n")
 
     def setUp(self):
         self.scratch = _scratch_copy()
@@ -327,7 +333,7 @@ class CheckRepoDeadModuleTest(unittest.TestCase):
         with open(readme) as fh:
             original_readme = fh.read()
         try:
-            self._make_module("android/modules/commit/ime", dead=False, dead_code_present=None)
+            self._make_module("android/modules/fixture/fixture_dead", dead=False, dead_code_present=None)
             # register it as a DEAD module, not included in settings.
             self._add_module_table(status="dead")
             rc, out = _run_check(self.scratch)
@@ -343,7 +349,7 @@ class CheckRepoDeadModuleTest(unittest.TestCase):
             original_readme = fh.read()
         try:
             # DEAD_CODE.md present but blank.
-            self._make_module("android/modules/commit/ime", dead=True, dead_code_present=False)
+            self._make_module("android/modules/fixture/fixture_dead", dead=True, dead_code_present=False)
             self._add_module_table(status="dead")
             rc, out = _run_check(self.scratch)
             assert rc != 0, f"blank DEAD_CODE.md stayed clean: {out!r}"
@@ -359,9 +365,9 @@ class CheckRepoDeadModuleTest(unittest.TestCase):
             original_readme = fh.read()
         try:
             # DEAD_CODE.md present (non-empty); add the include of the dead child.
-            self._make_module("android/modules/commit/ime", dead=True, dead_code_present=True)
+            self._make_module("android/modules/fixture/fixture_dead", dead=True, dead_code_present=True)
             with open(settings, "a", encoding="utf-8") as fh:
-                fh.write('include(":android:modules:commit:ime")\n')
+                fh.write('include(":android:modules:fixture:fixture_dead")\n')
             self._add_module_table(status="dead")
             rc, out = _run_check(self.scratch)
             assert rc != 0, f"dead module included via settings stayed clean: {out!r}"
@@ -371,18 +377,19 @@ class CheckRepoDeadModuleTest(unittest.TestCase):
                 fh.write(original_readme)
 
     def test_live_module_dependson_dead_via_registry_is_an_error(self):
-        # A LIVE module (auth-client) now depends_on the dead child via registry.
-        self._make_module("android/modules/commit/ime", dead=True, dead_code_present=True)
+        # A LIVE module (fixture_live) now depends_on the dead child via registry.
+        self._make_module("android/modules/fixture/fixture_dead", dead=True, dead_code_present=True)
         self._add_module_table(status="dead")
-        # append dead key to auth-client's registry depends_on array
+        self._add_live_fixture()  # register the live fixture table first
+        # append the dead key to fixture_live's registry depends_on array
         with open(self._toml_path(), encoding="utf-8") as fh:
             text = fh.read()
         import re
         pat = re.compile(
-            r"(\[module\.android_auth_client\][^\[]*?depends_on\s*=\s*)\[.*?\]",
+            r"(\[module\.android_fixture_live\][^\[]*?depends_on\s*=\s*)\[.*?\]",
             re.S,
         )
-        text = pat.sub(lambda m: m.group(1) + '["android", "android_core", "android_commit_ime"]', text, count=1)
+        text = pat.sub(lambda m: m.group(1) + '["android", "android_core", "android_fixture_dead"]', text, count=1)
         with open(self._toml_path(), "w", encoding="utf-8") as fh:
             fh.write(text)
         rc, out = _run_check(self.scratch)
@@ -396,10 +403,17 @@ class CheckRepoDeadModuleTest(unittest.TestCase):
         try:
             # DEAD_CODE.md present; add an EXACT project() edge to the dead child
             # in a live sibling's build.gradle.kts.
-            self._make_module("android/modules/commit/ime", dead=True, dead_code_present=True)
+            self._make_module("android/modules/fixture/fixture_dead", dead=True, dead_code_present=True)
             self._add_module_table(status="dead")
-            with open(os.path.join(self.scratch, "android", "modules", "auth-client", "build.gradle.kts"), "a", encoding="utf-8") as fh:
-                fh.write("    implementation(project(\":android:modules:commit:ime\"))\n")
+            live_build = os.path.join(self.scratch, "android", "modules", "fixture", "fixture_live", "build.gradle.kts")
+            os.makedirs(os.path.dirname(live_build), exist_ok=True)
+            with open(live_build, "w", encoding="utf-8") as fh:
+                fh.write(
+                    "// android/modules/fixture/fixture_live\n"
+                    "dependencies {\n"
+                    '    implementation(project(":android:modules:fixture:fixture_dead"))\n'
+                    "}\n"
+                )
             rc, out = _run_check(self.scratch)
             assert rc != 0, f"project() edge to dead stayed clean: {out!r}"
             assert "project() edge" in out, f"expected project() edge error: {out!r}"
@@ -412,7 +426,7 @@ class CheckRepoDeadModuleTest(unittest.TestCase):
         with open(readme) as fh:
             original_readme = fh.read()
         try:
-            self._make_module("android/modules/commit/ime", dead=False, dead_code_present=False)
+            self._make_module("android/modules/fixture/fixture_dead", dead=False, dead_code_present=False)
             # register it with an invalid status value.
             self._add_module_table(status="deadd")
             rc, out = _run_check(self.scratch)
@@ -428,11 +442,18 @@ class CheckRepoDeadModuleTest(unittest.TestCase):
         with open(readme) as fh:
             original_readme = fh.read()
         try:
-            self._make_module("android/modules/commit/ime", dead=True, dead_code_present=True)
-            self._add_module_table(status="dead")
-            # exact project edge — the positive catch.
-            with open(os.path.join(self.scratch, "android", "modules", "auth-client", "build.gradle.kts"), "a", encoding="utf-8") as fh:
-                fh.write("    implementation(project(\":android:modules:commit:ime\"))\n")
+            self._make_module("android/modules/fixture/fixture_dead", dead=True, dead_code_present=True)
+            self._add_dead_fixture()  # register the dead fixture
+            self._make_module("android/modules/fixture/fixture_live", dead=False, dead_code_present=False)
+            self._add_live_fixture()  # register the live sibling
+            self._set_fixture_readme_submodules(["fixture_dead", "fixture_live"])
+            with open(os.path.join(self.scratch, "android", "modules", "fixture", "fixture_live", "build.gradle.kts"), "w", encoding="utf-8") as fh:
+                fh.write(
+                    "// android/modules/fixture/fixture_live\n"
+                    "dependencies {\n"
+                    '    implementation(project(":android:modules:fixture:fixture_dead"))\n'
+                    "}\n"
+                )
             rc, out = _run_check(self.scratch)
             assert rc != 0, f"exact project() edge to dead stayed clean: {out!r}"
             assert "project() edge" in out, f"expected exact-edge error: {out!r}"
@@ -443,27 +464,27 @@ class CheckRepoDeadModuleTest(unittest.TestCase):
     # ---- exact-path match (a substring match fails these) --------------
 
     def test_dead_submodule_exact_path_not_matched_by_sibling_edge(self):
-        """A live sibling's project() edge to :android:modules:commit:accessibility
-        must NOT be read as depending on the dead child ime."""
+        """A live sibling's project() edge to :android:modules:fixture:fixture_live
+        must NOT be read as depending on the dead child fixture_dead."""
         readme = self._commit_readme_path()
         with open(readme) as fh:
             original_readme = fh.read()
         try:
-            # dead child 'ime' registered, DEAD_CODE present, not included.
-            self._make_module("android/modules/commit/ime", dead=True, dead_code_present=True)
-            self._add_dead_ime()
-            # live sibling 'accessibility' with an EXACT project() edge to ITSELF.
-            self._make_module("android/modules/commit/accessibility", dead=False, dead_code_present=False)
-            self._add_live_accessibility()
-            self._set_commit_readme_submodules(["accessibility", "ime"])
-            with open(os.path.join(self.scratch, "android", "modules", "commit", "accessibility", "build.gradle.kts"), "w", encoding="utf-8") as fh:
+            # dead child 'fixture_dead' registered, DEAD_CODE present, not included.
+            self._make_module("android/modules/fixture/fixture_dead", dead=True, dead_code_present=True)
+            self._add_dead_fixture()
+            # live sibling 'fixture_live' with an EXACT project() edge to ITSELF.
+            self._make_module("android/modules/fixture/fixture_live", dead=False, dead_code_present=False)
+            self._add_live_fixture()
+            self._set_fixture_readme_submodules(["fixture_live", "fixture_dead"])
+            with open(os.path.join(self.scratch, "android", "modules", "fixture", "fixture_live", "build.gradle.kts"), "w", encoding="utf-8") as fh:
                 fh.write(
-                    "// android/modules/commit/accessibility\n"
+                    "// android/modules/fixture/fixture_live\n"
                     "plugins { libs.plugins.android.library }\n"
                     "}\n"
                     "kotlin {}\n"
                     "dependencies {\n"
-                    '    implementation(project(":android:modules:commit:accessibility"))\n'
+                    '    implementation(project(":android:modules:fixture:fixture_live"))\n'
                     "}\n"
                 )
             rc, out = _run_check(self.scratch)
@@ -473,18 +494,20 @@ class CheckRepoDeadModuleTest(unittest.TestCase):
                 fh.write(original_readme)
 
     def test_dead_path_prefix_not_matched(self):
-        """A live module's project() edge ":android:modules:commit" (a superset
-        prefix of the child path) must NOT match the dead child ime."""
+        """A live module's project() edge ":android:modules:fixture" (a string
+        prefix of the child path) must NOT match the dead child fixture_dead."""
         readme = self._commit_readme_path()
         with open(readme) as fh:
             original_readme = fh.read()
         try:
-            self._make_module("android/modules/commit/ime", dead=True, dead_code_present=True)
+            self._make_module("android/modules/fixture/fixture_dead", dead=True, dead_code_present=True)
             self._add_module_table(status="dead")
-            self._set_commit_readme_submodules(["ime"])
+            self._set_fixture_readme_submodules(["fixture_dead"])
             # project() edge to the parent path — a string prefix of the child.
-            with open(os.path.join(self.scratch, "android", "modules", "auth-client", "build.gradle.kts"), "a", encoding="utf-8") as fh:
-                fh.write("    implementation(project(\":android:modules:commit\"))\n")
+            live_build = os.path.join(self.scratch, "android", "modules", "fixture", "fixture_live", "build.gradle.kts")
+            os.makedirs(os.path.dirname(live_build), exist_ok=True)
+            with open(live_build, "a", encoding="utf-8") as fh:
+                fh.write('    implementation(project(":android:modules:fixture"))\n')
             rc, out = _run_check(self.scratch)
             assert rc == 0, f"parent edge wrongly matched the dead child: {out!r}"
         finally:
@@ -493,10 +516,10 @@ class CheckRepoDeadModuleTest(unittest.TestCase):
 
     # ---- sub-module naming ----------------------------------------------
 
-    def _add_module_table(self, key="android_commit_ime", path="android/modules/commit/ime", status="dead"):
+    def _add_module_table(self, key="android_fixture_dead", path="android/modules/fixture/fixture_dead", status="dead"):
         """Append a [module.<key>] table to the scratch modules.toml.
 
-        `path` is the module's on-disk path (e.g. "android/modules/commit/ime").
+        `path` is the module's on-disk path (e.g. "android/modules/fixture/fixture_dead").
         `status`: "dead" registers dead; "live"/None registers live (no status line).
         """
         with open(self._toml_path(), "rb") as fh:
@@ -513,72 +536,66 @@ class CheckRepoDeadModuleTest(unittest.TestCase):
         with open(self._toml_path(), "w", encoding="utf-8") as fh:
             fh.write(text + "\n\n" + block)
 
-    def _add_dead_ime(self):
-        """Register the dead submodule android/modules/commit/ime."""
-        self._add_module_table("android_commit_ime", "android/modules/commit/ime", status="dead")
+    def _add_dead_fixture(self):
+        """Register the dead fixture android/modules/fixture/fixture_dead."""
+        self._add_module_table("android_fixture_dead", "android/modules/fixture/fixture_dead", status="dead")
 
-    def _add_live_accessibility(self):
-        """Register the live submodule android/modules/commit/accessibility."""
+    def _add_live_fixture(self):
+        """Register the live fixture android/modules/fixture/fixture_live."""
         self._add_module_table(
-            "android_commit_accessibility", "android/modules/commit/accessibility", status=None
+            "android_fixture_live", "android/modules/fixture/fixture_live", status=None
         )
 
-    def _set_commit_readme_submodules(self, names):
-        """Append a **Sub-modules:** line to commit/README.md naming `names`."""
-        with open(self._commit_readme_path()) as fh:
-            original = fh.read()
-        line = "**Sub-modules:** " + ", ".join(names) + " — each with its own AGENTS.md + README.md\n"
-        if line not in original:
-            original = original.rstrip("\n") + "\n"
-        with open(self._commit_readme_path(), "w", encoding="utf-8") as fh:
-            fh.write(original.rstrip("\n") + "\n\n" + line)
+    def _set_fixture_readme_submodules(self, names):
+        """Write the fixture parent README's **Sub-modules:** line naming `names`."""
+        self._make_fixture_parent(names)
 
     def _restore_commit_readme(self, saved):
         with open(self._commit_readme_path(), "w", encoding="utf-8") as fh:
             fh.write(saved)
 
     def test_dead_submodule_must_be_named_in_direct_parent_readme(self):
-        """A dead child 'ime' must be named in its DIRECT parent (commit)'s README;
+        """A dead child 'fixture_dead' must be named in its DIRECT parent (fixture)'s README;
         omitting it from the list is an error."""
         saved = self._read_commit_readme()
         try:
-            # commit/README names accessibility but NOT ime.
-            self._make_module("android/modules/commit/ime", dead=True, dead_code_present=True)
+            # fixture parent names fixture_live but NOT fixture_dead.
+            self._make_module("android/modules/fixture/fixture_dead", dead=True, dead_code_present=True)
             self._add_module_table(status="dead")
-            self._set_commit_readme_submodules(["accessibility"])
+            self._set_fixture_readme_submodules(["fixture_live"])
             rc, out = _run_check(self.scratch)
             assert rc != 0, f"dead child not named in direct parent README stayed green: {out!r}"
-            assert "ime" in out, f"expected the omit'd leaf named: {out!r}"
+            assert "fixture_dead" in out, f"expected the omit'd leaf named: {out!r}"
         finally:
             self._restore_commit_readme(saved)
 
     def test_dead_submodule_named_in_direct_parent_readme_is_clean(self):
-        """Dead child 'ime' present, DEAD_CODE present, and named in commit/README."""
+        """Dead child 'fixture_dead' present, DEAD_CODE present, and named in fixture's README."""
         saved = self._read_commit_readme()
         try:
-            self._make_module("android/modules/commit/ime", dead=True, dead_code_present=True)
-            self._add_live_accessibility()
-            self._make_module("android/modules/commit/accessibility", dead=False, dead_code_present=False)
+            self._make_module("android/modules/fixture/fixture_dead", dead=True, dead_code_present=True)
+            self._add_live_fixture()
+            self._make_module("android/modules/fixture/fixture_live", dead=False, dead_code_present=False)
             self._add_module_table(status="dead")
-            self._set_commit_readme_submodules(["accessibility", "ime"])
+            self._set_fixture_readme_submodules(["fixture_live", "fixture_dead"])
             rc, out = _run_check(self.scratch)
             assert rc == 0, f"named-and-clean dead child failed: {out!r}"
         finally:
             self._restore_commit_readme(saved)
 
     def test_nested_submodule_named_in_direct_parent_not_top(self):
-        """A LIVE submodule 'accessibility' under commit is named in commit's README;
+        """A LIVE submodule 'fixture_live' under fixture is named in fixture's README;
         android/README does not name it — proving the naming home is the direct parent,
         not the top. Must stay clean."""
         readme = self._commit_readme_path()
         with open(readme) as fh:
             original_readme = fh.read()
         try:
-            # live sibling accessibility registered + real folder present.
-            self._make_module("android/modules/commit/accessibility", dead=False, dead_code_present=False)
-            self._add_live_accessibility()
-            # commit/README names 'accessibility' (its direct parent naming).
-            self._set_commit_readme_submodules(["accessibility"])
+            # live sibling fixture_live registered + real folder present.
+            self._make_module("android/modules/fixture/fixture_live", dead=False, dead_code_present=False)
+            self._add_live_fixture()
+            # fixture/README names 'fixture_live' (its direct parent naming).
+            self._set_fixture_readme_submodules(["fixture_live"])
             rc, out = _run_check(self.scratch)
             assert rc == 0, f"named-in-direct-parent live submodule failed: {out!r}"
         finally:
