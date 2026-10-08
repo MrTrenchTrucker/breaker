@@ -16,9 +16,38 @@ pluginManagement {
     }
 }
 
+// Where the sherpa-onnx release file comes from. The address and the file name pattern are
+// written once, in the pin file of the stt-ondevice module (the same file holds the version and
+// the SHA-256 that the module build checks), and read here as plain text. A missing file or a
+// missing key stops the build with a message that names it.
+val sherpaPinFile = File(settingsDir, "android/modules/stt-ondevice/sherpa-onnx-aar.properties")
+if (!sherpaPinFile.isFile) {
+    throw GradleException("missing ${sherpaPinFile.path}: it holds the address of the sherpa-onnx release file")
+}
+val sherpaPin = java.util.Properties().also { pin -> sherpaPinFile.inputStream().use { pin.load(it) } }
+val sherpaPinValue = { key: String ->
+    sherpaPin.getProperty(key)?.trim()?.takeIf { it.isNotEmpty() }
+        ?: throw GradleException("${sherpaPinFile.name}: the key '$key' is missing or empty")
+}
+val sherpaRepositoryUrl = sherpaPinValue("repositoryUrl")
+val sherpaArtifactPattern = sherpaPinValue("artifactPattern")
+
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
+        // The sherpa-onnx release file. This repository serves that one module and nothing else,
+        // and no other repository may serve it. The group is a local name, not a real Maven group.
+        exclusiveContent {
+            forRepository {
+                ivy {
+                    name = "sherpaOnnxRelease"
+                    url = java.net.URI.create(sherpaRepositoryUrl)
+                    patternLayout { artifact(sherpaArtifactPattern) }
+                    metadataSources { artifact() }
+                }
+            }
+            filter { includeModule("external.github.k2-fsa", "sherpa-onnx") }
+        }
         google()
         mavenCentral()
     }

@@ -246,8 +246,8 @@ Android SDK. **Gradle distribution SHA-256 pinned** (Security Review fix #4) [1]
 **Layering (hexagonal):** `core` (pure Kotlin ports + use cases, no Android
 imports) · `ui` (views) · `modules/*` (adapters).
 
-**Threading:** ASR inference is blocking → it runs on a single-threaded coroutine
-dispatcher, never the UI thread (`AGENTS.md` section 6). Audio capture on a separate high-priority thread.
+**Threading:** ASR inference is blocking → it runs one decode at a time on a single-slot
+coroutine dispatcher, never the UI thread (`AGENTS.md` section 6). Audio capture on a separate high-priority thread.
 
 ## 5. On-Device STT Engine (fallback)
 
