@@ -93,7 +93,7 @@ recommended, not required (`.github/CONTRIBUTING.md`).
 - Sub-agents write the code. The owner plans and verifies, sends wrong work
   back down, and makes no edit larger than one line itself.
 - A whole-module owner plans at the module level; its sub-agents work at the
-  sub-module level. Sub-agents run on Claude Sonnet (an agent on another
-  harness uses its configured sub-agent model).
+  sub-module level. Sub-agents run on whatever sub-agent model the
+  maintainers configure for their harness.
 - Reviews judge the code: correct, tested work is not rejected for how it was
   written; the review records it and reminds the owner of the method.
