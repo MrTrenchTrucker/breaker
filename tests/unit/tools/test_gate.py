@@ -460,5 +460,85 @@ class TestMultiArgInclude(unittest.TestCase):
             shutil.rmtree(root, ignore_errors=True)
 
 
+class TestDeadModuleFilter(GateTestBase):
+    """A dead module (status = 'dead' in modules.toml) is filtered out of the
+    project set before both _snapshot_xml and step_junit, so it can never NO-SOURCE
+    or contribute a test count, even if it was include()d by mistake."""
+
+    def _plant_modules_toml_dead(self):
+        _write(os.path.join(self.repo.root, "modules.toml"),
+               '[module.a_b]\n'
+               'card = "a/b/AGENTS.md"\n'
+               'public = true\n'
+               'depends_on = []\n'
+               'path = "a/b"\n'
+               'status = "dead"\n')
+
+    def test_dead_module_included_by_mistake_is_not_no_source(self):
+        # a/b IS include()d (the mistake), has src/test sources,
+        # no fresh TEST-*.xml, and is registered dead. On the unmodified gate
+        # the NO-SOURCE fires -> the assert below FAILS. After the filter it's
+        # removed from projects -> no NO-SOURCE -> PASS.
+        _write(os.path.join(self.repo.root, "gradlew"), GRADLEW_NOOP, mode=0o755)
+        self._plant_modules_toml_dead()
+        code, lines = self.run_gate()
+        text = "\n".join(lines)
+        self.assertNotIn("NO-SOURCE: a/b", text)
+
+    def test_dead_module_not_included_is_not_no_source(self):
+        # Control (GREEN both ways): same project but NOT include()d; it is not
+        # in projects anyway. Pins that the common case (not included) is fine.
+        _write(os.path.join(self.repo.root, "settings.gradle.kts"),
+               'rootProject.name = "fake"\n')
+        self._plant_modules_toml_dead()
+        code, lines = self.run_gate()
+        text = "\n".join(lines)
+        self.assertNotIn("NO-SOURCE: a/b", text)
+
+    def test_live_module_included_still_no_sources_red(self):
+        # Control (GREEN both ways): a LIVE project c/d (no status == live),
+        # include()d, with src/test sources and no fresh XML -> NO-SOURCE must
+        # STILL fire. Proves the live rule was not loosened.
+        _write(os.path.join(self.repo.root, "gradlew"), GRADLEW_NOOP, mode=0o755)
+        _write(os.path.join(self.repo.root, "settings.gradle.kts"),
+               'rootProject.name = "fake"\ninclude(":c:d")\n')
+        _write(os.path.join(self.repo.root, "c", "d", "src", "test", "CTest.kt"),
+               "class CTest\n")
+        code, lines = self.run_gate()
+        text = "\n".join(lines)
+        self.assertIn("NO-SOURCE: c/d", text)
+
+
+class TestStepUnitRunsEveryFolder(GateTestBase):
+    """Regression guard for the step_unit `return bad` bug.
+
+    The loop tail must run EVERY folder and only return after the loop. If
+    `return bad` is left inside the loop, the first folder's exit
+    short-circuits discovery of every later folder, so a failing test in a
+    second folder is never reached.
+
+    Build tests/unit/<A>/test_a.py (passes) and tests/unit/<B>/test_b.py
+    (a deliberately FAILING assertion). Folder order is what matters: A is
+    discovered first (index 1), B second (index 2). The failing test lives in
+    the SECOND folder, so a short-circuiting tail hides it.
+    """
+
+    def test_step_unit_runs_every_folder_and_reports_red(self):
+        # A passes (index 1), B fails (index 2) -> sorted order: A then B.
+        _write(os.path.join(self.repo.root, "tests", "unit", "A", "test_a.py"),
+               UNIT_TEST)
+        # the SECOND folder's test deliberately FAILS
+        _write(os.path.join(self.repo.root, "tests", "unit", "B", "test_b.py"),
+               "import unittest\n\nclass B(unittest.TestCase):\n    def test_boom(self):\n        self.assertFalse(True)  # boom\n")
+
+        code, lines = self.run_gate()
+        text = "\n".join(lines)
+        # RED: the failing second folder makes bad == 1 (step_unit returns non-zero)
+        self.assertEqual(code, 1, text)
+        # BOTH folders ran: a `3 unit[1 ...]` and a `3 unit[2 ...]` line exist.
+        self.assertRegex(text, r"3 unit\[1 ")
+        self.assertRegex(text, r"3 unit\[2 ")
+        self.assertIn("GATE: RED", text)
+
 if __name__ == "__main__":
     unittest.main()
