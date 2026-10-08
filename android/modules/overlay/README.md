@@ -24,9 +24,9 @@ a tap.
 | `SENT` | the ring turns green: the text is committed | `onTap` |
 | `SENT_LOCAL` | the ring turns orange: the phone model committed it after the server failed | `onTap` |
 
-The armed ring can show a pulse. The pulse rule is a pure function that turns a
-pushed phase into a ring brightness, but nothing in the module moves the phase
-over time, so the ring stays steady until the app pushes a phase.
+The armed ring has a pulse rule, a pure function that turns a phase into a ring
+brightness. Nothing calls it yet and the app has no way to give the tile a
+phase, so the armed ring stays steady for now.
 
 ## The expanded tile and the meter
 
@@ -80,7 +80,8 @@ the app's, not this module's.
 ## Not built yet
 
 - The final microphone art (the glyph stays a placeholder until then).
-- Driving the armed pulse over time: the app must push the phase.
+- The armed pulse on screen: a public way to give the tile a phase, and the app
+  driving it over time.
 - The app pushing `SENT` and `SENT_LOCAL`, and the state it pushes after a
   commit that only reached the clipboard (open: the app's decision).
 - Sound or haptics, a time limit on the notice, and the window-ownership check.

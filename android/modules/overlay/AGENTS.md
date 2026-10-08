@@ -8,8 +8,8 @@ Floating tile = CB mic glyph + LED bar meter (WindowManager overlay, F36). The f
 - A small draggable tile (56 dp) with a stand-in glyph, shown above other apps.
 - Seven states, pushed by the app with `setState`: `IDLE`, `ARMED`, `RECORDING`, `SENDING`, `FAILED`, `SENT` and `SENT_LOCAL`. The tile never
   changes the state itself, not even on a tap. The ring around the microphone takes its colour from the state. The
-  armed ring can show a pulse: a pure rule (`armedPulseAlpha`) turns a pushed phase into a ring alpha. Nothing in the
-  module advances that phase over time, so the armed ring does not change until the app pushes a phase.
+  armed pulse exists only as an internal rule (`armedPulseAlpha`, phase to ring alpha). Nothing calls it yet and there
+  is no public way to give the tile a phase, so the armed ring is always drawn at full strength.
 - An LED bar meter of 12 segments, fed by the app with `setLevel` (0.0 to 1.0), drawn directly above the microphone
   while the state is `RECORDING`.
 - The expanded tile while `RECORDING`: [X cancel] [microphone with the meter above it] [check = send], in one window
@@ -105,13 +105,14 @@ The ring around the microphone is 2 dp thick and sits just inside the edge of th
   or sending, and the danger colour after a failure (all palette fields). **SENT = green** (the palette's `sent` field:
   copy confirmed) and **SENT_LOCAL = orange** (the palette's `warning` field: committed by the phone model after the
   server path failed) are built as states and colours; the tile only shows what the app pushes. The armed pulse is a
-  pure rule (`armedPulseAlpha`, a triangle wave between an internal minimum and maximum alpha) that the module does not
-  drive, so the armed ring stays steady until the app pushes a phase. While sending, the tile looks like the armed tile;
+  internal rule (`armedPulseAlpha`, a triangle wave between an internal minimum and maximum alpha) that nothing calls
+  yet: the tile has no public way to take a phase, so the armed ring stays steady. While sending, the tile looks like the armed tile;
   the app's description is the only cue.
 
 **Not built yet:**
 - The real CB mic art (final mic art later; the glyph stays a placeholder).
-- The pulse driven over time: the module has no timer, so the app must push the phase.
+- The pulse on screen: a public way for the app to give the tile a phase, and the app driving it over time (the
+  module has no timer).
 - The app's pushing of SENT and SENT_LOCAL, and the state the app pushes after a clipboard-only commit (OPEN: the app's
   decision, not decided here).
 - Words on the tile of its own, sound or haptics, a time limit on the notice, the window-ownership check (T4), the
@@ -132,7 +133,7 @@ The ring around the microphone is 2 dp thick and sits just inside the edge of th
 - The tile never chooses SENT or SENT_LOCAL: only the app pushes them.
 - No clocks and no threads in the module: no long press, no timeouts, no background work.
 - No timers, clocks or animation in the module: nothing pulses, fades, decays or times out on its own (the armed pulse
-  rule is pure code and moves only when the app pushes a phase), and the notice stays until the app clears it or pushes a different state.
+  rule is internal pure code that nothing calls yet), and the notice stays until the app clears it or pushes a different state.
   Tested by: `ModuleHygieneTest`, `TileViewGateTest`.
 - Colours are palette fields only: every colour the tile draws is a ui-tokens palette field; no colour value and no new token is written in this module.
   Tested by: `TileStyleTest`, `TileGlyphTest`, `TileViewGateTest`, `TileViewMappingGateTest`, `TileViewDrawingGateTest`, `AdapterGateTest`.
@@ -205,8 +206,7 @@ FloatingTile (via create), ShowResult, TileState
     `show()` may try again.
 - `TileState`, in this order, and what the tile shows:
   - `IDLE`: dictation is off or not ready. The microphone with a plain ring. A tap on the microphone calls `onTap`.
-  - `ARMED`: dictation is on and ready. The ring is steady until the app pushes a pulse phase; the module does not
-    advance it. A tap on the microphone calls `onBegin`.
+  - `ARMED`: dictation is on and ready. The ring is steady (the pulse rule is not wired to the tile yet). A tap on the microphone calls `onBegin`.
   - `RECORDING`: the microphone is open. The tile widens to the X, the microphone with the meter above it, and the check.
   - `SENDING`: recording is over and the text is on its way. Taps do nothing.
   - `FAILED`: the last try did not work. The ring is in the danger colour. A tap on the microphone calls `onTap`.
@@ -230,7 +230,7 @@ FloatingTile (via create), ShowResult, TileState
 - The permission request and the microphone service: sending the user to the overlay-permission page, the foreground service that listens and records, and the audio capture (the app).
 - Which state the app pushes after a commit, including SENT, SENT_LOCAL and the state after a clipboard-only commit
   (the app; the tile only shows the state it is given).
-- Driving the armed pulse over time: the module has no clock; the app pushes the phase.
+- Driving the armed pulse over time: the module has no clock; once a public phase input exists, the app drives it.
 
 ## Test Locations
 - Unit (Kotlin): `android/modules/overlay/src/test/kotlin/`. Run: `./gradlew :android:modules:overlay:test`
@@ -346,7 +346,7 @@ checked only as text: no test draws the view or sends it a touch.
 - Vendor quirks.
 - The look of the stand-in glyph.
 - Whether `setFilterTouchesWhenObscured` behaves as intended.
-- Pulse timing on a real screen, once the app pushes the phase (the module has no timer to test against).
+- Pulse timing on a real screen (not possible yet: no public phase input, and the module has no timer).
 - How the green (SENT) and orange (SENT_LOCAL) rings read in sunlight, in light and dark.
 - The expanded tile, the meter and the notice: see "Known Gotchas" below.
 
