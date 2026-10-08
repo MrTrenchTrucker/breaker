@@ -9,13 +9,25 @@ import org.junit.Test
 // audio, a message that leaks into a stored error, a write that overwrites a row, a query that
 // reads the audio column on every poll, a worker that reads the clock. It guards the shape of
 // the code instead, and each rule has a control that shows the scan can report it.
+//
+// io.ktor is allowed only under the http/ package; every other forbidden token stays forbidden
+// everywhere, including under http/. Approval recorded on the work order (2026-10-08).
 internal class SourceScanTest {
 
     private val forbidden = listOf(
         "println(", "System.out", "System.err", "Logger", "printStackTrace", "Thread.sleep",
         "synchronized", "SELECT *", "OR REPLACE", "REPLACE INTO", "ON CONFLICT",
-        "System.currentTimeMillis", "Instant.now(", "dev.breaker.server.syncapi", "io.ktor",
+        "System.currentTimeMillis", "Instant.now(", "dev.breaker.server.syncapi",
     )
+
+    // io.ktor is allowed only under the http/ package; everywhere else it stays forbidden.
+    private val httpOnly = listOf("io.ktor")
+
+    private fun isHttpPackage(path: String) = path.startsWith("http/")
+
+    /** Scan for http-only tokens, filtering out http/ files first. */
+    private fun scanHttpOnly(sources: List<Pair<String, String>>): List<String> =
+        scan(sources.filterNot { (path, _) -> isHttpPackage(path) }, httpOnly)
 
     // The message of a forwarder exception can hold a URL or a key and must never be stored.
     private val messageAccess = listOf(".message", ".localizedMessage", "printStackTrace")
@@ -74,7 +86,13 @@ internal class SourceScanTest {
 
     @Test
     fun `no main file prints, logs, sleeps, locks, overwrites a row, reads the wall clock or uses another module`() {
-        assertEquals("whisper-server: forbidden tokens found", emptyList<String>(), scan(readSources(), forbidden))
+        val sources = readSources()
+        assertEquals("whisper-server: forbidden tokens found", emptyList<String>(), scan(sources, forbidden))
+        assertEquals(
+            "whisper-server: io.ktor is forbidden outside the http/ package",
+            emptyList<String>(),
+            scanHttpOnly(sources),
+        )
     }
 
     @Test
@@ -156,6 +174,28 @@ internal class SourceScanTest {
             "whisper-server: a clock in the worker package must be reported",
             listOf("worker/Late.kt contains Clock"),
             scan(listOf("worker/Late.kt" to "val c: Clock"), listOf("Clock")) { path -> path.startsWith("worker/") },
+        )
+    }
+
+    @Test
+    fun `io ktor is reported outside http and allowed inside it`() {
+        val nonHttp = listOf("jobs/Late.kt" to "import io.ktor.http.HttpMethod")
+        val httpFile = listOf("http/Routes.kt" to "import io.ktor.http.HttpMethod")
+
+        assertEquals(
+            "whisper-server: io.ktor in a non-http file must be reported",
+            listOf("jobs/Late.kt contains io.ktor"),
+            scan(nonHttp, httpOnly),
+        )
+        assertEquals(
+            "whisper-server: io.ktor in an http/ file must not be reported",
+            emptyList<String>(),
+            scanHttpOnly(httpFile),
+        )
+        assertEquals(
+            "whisper-server: other forbidden tokens in an http/ file are still reported",
+            listOf("http/Routes.kt contains println("),
+            scan(listOf("http/Routes.kt" to "println(\"x\")"), forbidden),
         )
     }
 

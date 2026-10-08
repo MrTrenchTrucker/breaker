@@ -28,7 +28,9 @@ kotlin {
 dependencies {
     implementation(libs.sqlite.jdbc)
     implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.ktor.server.core)
     testImplementation(libs.junit)
+    testImplementation(libs.ktor.server.test.host)
 }
 
 tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {

@@ -1,5 +1,6 @@
 package dev.breaker.server.whisper.worker
 
+import dev.breaker.server.whisper.json.escapeJsonString
 import java.io.ByteArrayOutputStream
 import java.net.URI
 import java.net.http.HttpClient
@@ -81,39 +82,22 @@ class HttpTranscriptionForwarder(
         }
         val resultJson = buildString {
             append("{\"text\":")
-            append(escapeJson(parsed.text))
+            append(escapeJsonString(parsed.text))
             append(",\"segments\":[")
             parsed.segments.forEachIndexed { i, seg ->
                 if (i > 0) append(",")
                 append("{\"start\":${seg.start},\"end\":${seg.end},\"text\":")
-                append(escapeJson(seg.text))
+                append(escapeJsonString(seg.text))
                 append("}")
             }
             append("]")
             parsed.language?.let { lang ->
                 append(",\"language\":")
-                append(escapeJson(lang))
+                append(escapeJsonString(lang))
             }
             append("}")
         }
         return ForwardOutcome.Success(resultJson)
-    }
-
-    private fun escapeJson(s: String): String {
-        val sb = StringBuilder()
-        sb.append('"')
-        for (c in s) {
-            when (c) {
-                '"' -> sb.append("\\\"")
-                '\\' -> sb.append("\\\\")
-                '\n' -> sb.append("\\n")
-                '\r' -> sb.append("\\r")
-                '\t' -> sb.append("\\t")
-                else -> if (c < ' ') sb.append("\\u${c.code.toString(16).padStart(4, '0')}") else sb.append(c)
-            }
-        }
-        sb.append('"')
-        return sb.toString()
     }
 
     private suspend fun sendAsync(request: HttpRequest): HttpResponse<ByteArray> =

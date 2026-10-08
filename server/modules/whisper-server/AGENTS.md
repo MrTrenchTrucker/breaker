@@ -166,3 +166,27 @@ agents, not required: an outside contributor may write the code themselves
 - Failure messages are fixed strings: they never contain the downstream URL or the API key.
 - A 2xx answer whose content type is not JSON is refused before parsing, so the plain-text branch
   of `TranscriptionResponse` is reached only by direct callers, never through the forwarder.
+
+## HTTP front
+
+- The two public routes live in `http/TranscriptionRoutes.kt` and are installed by
+  `http/TranscriptionApi.kt` (`TranscriptionApi(store, wakeWorker).install(app)`), the module's
+  public entry point. This slice ships the routes as an installable Ktor application module and is
+  tested with `testApplication`; the runnable entry point (engine, port, container wiring) is a
+  later slice.
+- `POST /v1/audio/transcriptions` takes a multipart `file` part and a `model` part, both required;
+  an optional `language` part is accepted and ignored. It enqueues a job and answers
+  `202 { job_id, status: "queued" }`, then wakes the worker.
+- The upload cap is 25 MiB (`MAX_AUDIO_BYTES`), the OpenAI audio-transcriptions limit this
+  OpenAI-shaped front follows. It is enforced while the part is read (a counted read plus Ktor's
+  form-field limit), never by reading the whole body first; over the cap is `413`.
+- A missing or empty `file` part is `400`; a missing or blank `model` part is `400`.
+- `GET /v1/jobs/{job_id}` answers `{ status, result }` for a known id and `404` for an unknown one;
+  a `failed` job also carries the stored `error`. Fetch-once result deletion is the store's
+  (`JobStore.fetch`), unchanged.
+- **Honest limits of this slice:** the `model` part is required but not stored (there is no column;
+  the configured downstream model serves every job); the `language` part is not stored; there is no
+  auth yet, so every job is enqueued under one owner constant (`OWNER_ACCOUNT_ID`) until `sync-api`
+  lands; no audio-format check is done (the downstream service decides).
+- `json/Json.kt` holds the one shared `escapeJsonString`, used by both the forwarder and the HTTP
+  layer so the two cannot disagree about escaping.
