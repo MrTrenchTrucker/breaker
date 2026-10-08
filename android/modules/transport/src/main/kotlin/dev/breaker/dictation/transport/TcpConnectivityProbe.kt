@@ -259,6 +259,13 @@ class TcpConnectivityProbe internal constructor(
      *
      * Suspends inside [probeAndStore]'s [runBlocking]: the admission is a
      * plain call, and the wait below is the one suspension in this class. The
+     * body computes its answer INSIDE [ProbeExecutor.answering]'s mark - the
+     * reachable boolean, or the caught throw held in a Result - and publishes it
+     * only AFTER answering has released the host's mark and the slot; so a
+     * caller that probes the same host again the instant its answer becomes
+     * observable finds an already-unmarked host, never refused by the
+     * single-flight check for an answer that already exists - the
+     * release-at-publish contract the answer-order test in this module pins. The
      * worker publishes its answer through a [CompletableDeferred] (the
      * coroutine replacement for the FutureTask the wait used to read), and the
      * wait therefore happens only for a body that really is running, and stays
@@ -273,25 +280,30 @@ class TcpConnectivityProbe internal constructor(
         // waits on it under the budget.
         val result = CompletableDeferred<Boolean>()
         val task = Runnable {
-            ProbeExecutor.answering(target.host) {
-                try {
-                    result.complete(connect(target, deadline))
-                } catch (t: Throwable) {
-                    // A body that threw: publish the throw to the caller through
-                    // the deferred (the CompletableDeferred equivalent of a
-                    // FutureTask's ExecutionException) and RETURN normally. The
-                    // caller's wait re-throws the deferred's exception and folds
-                    // it into UNREACHABLE, so the failure reaches the caller the
-                    // way it always did. It must not also escape the body: a
-                    // launched body that re-throws completes its coroutine
-                    // exceptionally, and the failure then has the uncaught-
-                    // exception handler of the thread it runs on as its last
-                    // resort - the documented default of which ends the
-                    // process on Android. Returning normally ends the body the
-                    // way a FutureTask always did: the exception is carried in
-                    // the result, not in the thread.
-                    result.completeExceptionally(t)
-                }
+            // The answer is COMPUTED inside [answering], which releases host's
+            // mark and the slot before its return; this lambda never touches
+            // `result`. connect runs once here, and either yields the reachable
+            // boolean or, contained in a kotlin.Result (the current try/catch's
+            // single catch, throwing body included), becomes one.
+            val answer: Result<Boolean> = ProbeExecutor.answering(target.host) {
+                runCatching { connect(target, deadline) }
+            }
+            // Publish only AFTER answering has released the mark and the slot: a
+            // caller that probes the same host again the moment its answer is
+            // observable finds an already-unmarked host, never refused by the
+            // single-flight check for an answer that already exists - the
+            // release-at-publish contract the test relies on. On success publish
+            // the boolean; on failure publish its contained throw exceptionally.
+            // The body still returns normally on every path: a thrown connect is
+            // contained in the Result, so the launched coroutine completes normally.
+            // Were the throw not contained, it would complete the coroutine
+            // exceptionally and reach the uncaught-exception handler of the thread
+            // the body runs on - whose documented default ends the process on
+            // Android. The containment is what preserves that contract.
+            if (answer.isSuccess) {
+                result.complete(answer.getOrThrow())
+            } else {
+                result.completeExceptionally(answer.exceptionOrNull()!!)
             }
         }
         if (!ProbeExecutor.execute(target.host, task)) {
