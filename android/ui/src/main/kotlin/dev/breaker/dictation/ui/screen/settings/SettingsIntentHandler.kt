@@ -86,6 +86,8 @@ internal class SettingsIntentHandler(
             ScreenIntent.UseSystemTheme -> notice = themeNotice(themes.useSystem())
             is ScreenIntent.SetRoutingMode -> writeSetting(intent)
             is ScreenIntent.SetSetting -> writeSetting(intent)
+            // The setup walk-through has its own screen and handler; this screen offers no such control.
+            is ScreenIntent.Setup -> notice = Notice.NOT_ACCEPTED
         }
         return render()
     }

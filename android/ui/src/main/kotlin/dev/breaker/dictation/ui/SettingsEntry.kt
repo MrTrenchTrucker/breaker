@@ -1,21 +1,29 @@
 package dev.breaker.dictation.ui
 
+import dev.breaker.dictation.core.model.ThemeMode as StoredThemeMode
+import dev.breaker.dictation.ui.render.AndroidSetupPlatform
 import dev.breaker.dictation.ui.render.ScreenRenderer
 import dev.breaker.dictation.ui.render.SettingsHostView
+import dev.breaker.dictation.ui.render.SetupHostView
+import dev.breaker.dictation.ui.screen.onboarding.SetupIntentHandler
+import dev.breaker.dictation.ui.screen.onboarding.SetupScreen
 import dev.breaker.dictation.ui.screen.settings.SettingsIntentHandler
 import dev.breaker.dictation.ui.screen.settings.SettingsScreen
 import dev.breaker.dictation.ui.theme.ThemeController
+import dev.breaker.dictation.ui.theme.Themes
 import dev.breaker.dictation.ui.theme.isNightMode
+import dev.breaker.dictation.ui.theme.shownMode
 
 /*
- * The module's whole public surface, in one function.
+ * The module's whole public surface: two functions and one interface.
  *
- * The app owns the activity, the manifest entry and the settings store; this
- * module owns no window and no storage. So there is one way in: hand over a
- * context and a store, get back a view to put in the layout. Everything the
- * screen needs is built here and held by the view, which is what lets the
- * whole module ship without an activity of its own and without a reference
- * that outlives the window it was made for.
+ * The app owns the activity, the manifest entry, the settings store and the
+ * switch that turns Breaker on and off; this module owns no window and no
+ * storage. So there are two ways in, each of which takes what the app owns and
+ * gives back a view to put in the layout, and one interface, BreakerSwitch, for
+ * the app to implement. Everything a screen needs is built here and held by its
+ * view, which is what lets the whole module ship without an activity of its own
+ * and without a reference that outlives the window it was made for.
  */
 
 /**
@@ -44,4 +52,39 @@ fun createSettingsView(context: android.content.Context, settings: dev.breaker.d
     val themes = ThemeController(settings, phoneIsDark)
     val handler = SettingsIntentHandler(settings, themes, SettingsScreen())
     return SettingsHostView(context, handler, themes, ScreenRenderer(context))
+}
+
+/**
+ * Builds the setup screen as a view for [context].
+ *
+ * The screen walks the user through the permissions Breaker needs and holds the
+ * switch that turns Breaker on and off. What is granted is read from the phone
+ * each time the screen is drawn, and again when the user comes back from a system
+ * page or a permission dialog, so the screen shows what is true now. Nothing is
+ * stored by this module: whether Breaker is on is read from [switch]. The screen
+ * remembers, in memory and only for as long as the view lives, which permission
+ * prompts it has already shown, so that the next tap on the same button opens a
+ * settings page instead of asking again.
+ *
+ * This screen has no settings store, so it follows the phone's own light or dark
+ * mode, which is read from [context] once, here. A mode that reports neither
+ * night nor day counts as light.
+ *
+ * @param context the context the views are built with, normally an activity's.
+ * @param switch the switch the app provides for turning Breaker on and off.
+ * @param accessibilityServiceComponent the accessibility service's component
+ *   name, as the phone lists it among the enabled services, for example
+ *   "com.example/com.example.TheService". It is compared whole, never as a part of
+ *   a longer name. Either spelling of a class that starts with the package is
+ *   accepted: "com.example/com.example.TheService" or "com.example/.TheService".
+ * @return a view that shows the setup steps and the switch and can be put in a
+ *   layout as it stands.
+ */
+// The parameter types are written out in full, for the same reason as above.
+fun createOnboardingView(context: android.content.Context, switch: BreakerSwitch, accessibilityServiceComponent: String): android.view.View {
+    val phoneIsDark = isNightMode(context.resources.configuration.uiMode)
+    val theme = Themes.of(shownMode(StoredThemeMode.SYSTEM, phoneIsDark))
+    val platform = AndroidSetupPlatform(context, accessibilityServiceComponent)
+    val handler = SetupIntentHandler(platform, switch, SetupScreen())
+    return SetupHostView(context, handler, theme, ScreenRenderer(context))
 }

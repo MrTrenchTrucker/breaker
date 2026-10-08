@@ -77,6 +77,9 @@ internal sealed class ScreenIntent {
 
     /** Change the setting named [key] to [value], given as text. */
     data class SetSetting(val key: String, val value: String) : ScreenIntent()
+
+    /** Do the step of the setup walk-through named by [action], such as opening a page or switching on. */
+    data class Setup(val action: String) : ScreenIntent()
 }
 
 /** A whole screen: an identity, a title and the tree that makes it up. */

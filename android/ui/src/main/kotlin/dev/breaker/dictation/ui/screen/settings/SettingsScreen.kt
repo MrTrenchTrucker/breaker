@@ -76,7 +76,7 @@ internal class SettingsScreen {
     fun editFor(intent: ScreenIntent): ((AppSettings) -> AppSettings)? = when (intent) {
         is ScreenIntent.SetRoutingMode -> routingEdit(intent.mode)
         is ScreenIntent.SetSetting -> booleanEdit(intent.key, intent.value)
-        ScreenIntent.ToggleTheme, ScreenIntent.UseSystemTheme -> null
+        ScreenIntent.ToggleTheme, ScreenIntent.UseSystemTheme, is ScreenIntent.Setup -> null
     }
 
     /**
