@@ -76,6 +76,7 @@ internal class SetupIntentHandler(
             ScreenIntent.UseSystemTheme,
             is ScreenIntent.SetRoutingMode,
             is ScreenIntent.SetSetting,
+            is ScreenIntent.History,
             -> SetupNotice.NOT_ACCEPTED
         }
         return show(notice = notice, fresh = notice != SetupNotice.NOT_ACCEPTED)

@@ -269,8 +269,8 @@ class SetupTextsTest {
     }
 
     @Test
-    fun `the introduction says that only the microphone is required`() {
-        assertTrue(text("INTRO").contains("only the microphone is required"))
+    fun `the introduction says that only the microphone is needed to switch Breaker on`() {
+        assertTrue(text("INTRO").contains("Only the microphone is needed to switch Breaker on"))
     }
 
     @Test

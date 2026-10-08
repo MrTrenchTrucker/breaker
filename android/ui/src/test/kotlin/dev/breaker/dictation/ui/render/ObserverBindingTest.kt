@@ -32,6 +32,11 @@ class ObserverBindingTest {
         "fun createOnboardingView(context: android.content.Context, " +
             "switch: BreakerSwitch, accessibilityServiceComponent: String): android.view.View"
 
+    /** The public declaration of the history view, written on one line. */
+    private val HISTORY_SIGNATURE =
+        "fun createHistoryView(context: android.content.Context, " +
+            "history: dev.breaker.dictation.core.port.HistoryStore): android.view.View"
+
     /** A controller over a store holding a light scheme, with the phone in light mode. */
     private class Fixture {
         val store = FakeSettingsStore(NONDEFAULT.copy(themeMode = StoredThemeMode.LIGHT))
@@ -150,11 +155,12 @@ class ObserverBindingTest {
     }
 
     @Test
-    fun `the entry file offers two declarations and they are the settings view and the setup view`() {
+    fun `the entry file offers three declarations of settings view, setup view and history view`() {
         val offered = offeredDeclarations(sourceOf("SettingsEntry.kt"))
-        assertEquals("exactly two declarations may be offered by the entry file", 2, offered.size)
+        assertEquals("exactly three declarations may be offered by the entry file", 3, offered.size)
         assertTrue("the first offered declaration must be the settings view", offered.any { it.startsWith("fun createSettingsView(") })
         assertTrue("the second offered declaration must be the setup view", offered.any { it.startsWith("fun createOnboardingView(") })
+        assertTrue("the third offered declaration must be the history view", offered.any { it.startsWith("fun createHistoryView(") })
 
         val control = offeredDeclarations(CONTROL_WITH_THREE_OFFERED)
         assertEquals("the scan must catch a third offered declaration", 3, control.size)
@@ -183,6 +189,19 @@ class ObserverBindingTest {
         assertFalse(
             "the scan must not accept a switch parameter that has been weakened",
             CONTROL_WEAK_SWITCH.contains(ONBOARDING_SIGNATURE),
+        )
+    }
+
+    @Test
+    fun `the history view takes a context and a history store and gives back a view`() {
+        val flattened = sourceOf("SettingsEntry.kt").replace(ANY_WHITESPACE, " ")
+        assertTrue(
+            "the pinned declaration must be there with both parameter types",
+            flattened.contains(HISTORY_SIGNATURE),
+        )
+        assertFalse(
+            "the scan must not accept a history parameter that has been weakened",
+            CONTROL_WEAK_HISTORY.contains(HISTORY_SIGNATURE),
         )
     }
 
@@ -257,4 +276,8 @@ class ObserverBindingTest {
     /** A setup view that takes any object for its switch, which is not the declaration this module offers. */
     private val CONTROL_WEAK_SWITCH =
         "fun createOnboardingView(context: android.content.Context, switch: Any, accessibilityServiceComponent: String): android.view.View"
+
+    /** A history view that takes any object for its store, which is not the declaration this module offers. */
+    private val CONTROL_WEAK_HISTORY =
+        "fun createHistoryView(context: android.content.Context, history: Any): android.view.View"
 }

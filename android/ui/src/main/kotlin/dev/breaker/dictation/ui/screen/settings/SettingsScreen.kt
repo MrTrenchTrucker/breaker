@@ -77,6 +77,7 @@ internal class SettingsScreen {
         is ScreenIntent.SetRoutingMode -> routingEdit(intent.mode)
         is ScreenIntent.SetSetting -> booleanEdit(intent.key, intent.value)
         ScreenIntent.ToggleTheme, ScreenIntent.UseSystemTheme, is ScreenIntent.Setup -> null
+        is ScreenIntent.History -> null
     }
 
     /**

@@ -1,10 +1,16 @@
 package dev.breaker.dictation.ui
 
 import dev.breaker.dictation.core.model.ThemeMode as StoredThemeMode
+import dev.breaker.dictation.ui.render.AndroidClipboard
 import dev.breaker.dictation.ui.render.AndroidSetupPlatform
+import dev.breaker.dictation.ui.render.HistoryHostView
+import dev.breaker.dictation.ui.render.LateDelayedWork
 import dev.breaker.dictation.ui.render.ScreenRenderer
 import dev.breaker.dictation.ui.render.SettingsHostView
 import dev.breaker.dictation.ui.render.SetupHostView
+import dev.breaker.dictation.ui.screen.history.HistoryIntentHandler
+import dev.breaker.dictation.ui.screen.history.HistoryScreen
+import dev.breaker.dictation.ui.screen.history.LocalizedTimestampFormat
 import dev.breaker.dictation.ui.screen.onboarding.SetupIntentHandler
 import dev.breaker.dictation.ui.screen.onboarding.SetupScreen
 import dev.breaker.dictation.ui.screen.settings.SettingsIntentHandler
@@ -13,13 +19,14 @@ import dev.breaker.dictation.ui.theme.ThemeController
 import dev.breaker.dictation.ui.theme.Themes
 import dev.breaker.dictation.ui.theme.isNightMode
 import dev.breaker.dictation.ui.theme.shownMode
+import java.time.ZoneId
 
 /*
- * The module's whole public surface: two functions and one interface.
+ * The module's whole public surface: three functions and one interface.
  *
  * The app owns the activity, the manifest entry, the settings store and the
  * switch that turns Breaker on and off; this module owns no window and no
- * storage. So there are two ways in, each of which takes what the app owns and
+ * storage. So there are three ways in, each of which takes what the app owns and
  * gives back a view to put in the layout, and one interface, BreakerSwitch, for
  * the app to implement. Everything a screen needs is built here and held by its
  * view, which is what lets the whole module ship without an activity of its own
@@ -87,4 +94,32 @@ fun createOnboardingView(context: android.content.Context, switch: BreakerSwitch
     val platform = AndroidSetupPlatform(context, accessibilityServiceComponent)
     val handler = SetupIntentHandler(platform, switch, SetupScreen())
     return SetupHostView(context, handler, theme, ScreenRenderer(context))
+}
+
+/**
+ * Builds the history screen as a view for [context].
+ *
+ * The screen lists what was dictated, newest first, with a copy and a delete action
+ * on each row. A deletion can be undone for a short time: the row leaves [history]
+ * only when that time has passed, or when the view leaves the window.
+ *
+ * Like the setup screen, this screen has no settings store, so it follows the phone's
+ * own light or dark mode, which is read from [context] once, here. A mode that reports
+ * neither night nor day counts as light. The screen reads and deletes only through
+ * [history], and copies text only to the system clipboard.
+ *
+ * @param context the context the views are built with, normally an activity's.
+ * @param history the store the app owns, through which every read and delete goes.
+ * @return a view that shows the history and can be put in a layout as it stands.
+ */
+// The parameter types are written out in full, for the same reason as above.
+fun createHistoryView(context: android.content.Context, history: dev.breaker.dictation.core.port.HistoryStore): android.view.View {
+    val phoneIsDark = isNightMode(context.resources.configuration.uiMode)
+    val theme = Themes.of(shownMode(StoredThemeMode.SYSTEM, phoneIsDark))
+    val format = LocalizedTimestampFormat(context.resources.configuration.locales[0], ZoneId.systemDefault())
+    val work = LateDelayedWork()
+    val handler = HistoryIntentHandler(history, AndroidClipboard(context), format, work, HistoryScreen())
+    val host = HistoryHostView(context, handler, theme, ScreenRenderer(context))
+    work.bind(host.scheduler())
+    return host
 }

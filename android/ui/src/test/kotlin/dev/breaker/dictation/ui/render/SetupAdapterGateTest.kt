@@ -311,13 +311,13 @@ private fun hostProblemsIn(text: String): List<String> {
 private fun forbiddenIn(text: String): List<String> =
     withoutCommentsAndStrings(text).let { code -> FORBIDDEN.filter { (_, shape) -> shape.containsMatchIn(code) }.map { it.first } }
 
-/** The first-column declarations of the two entry functions and the switch, which must be exactly the three promised. */
+/** The first-column declarations of the three entry functions and the switch, which must be exactly the four promised. */
 private fun surfaceProblemsIn(entry: String, switch: String): List<String> {
     val declared = { text: String ->
         withoutComments(text).lines().filter { FIRST_COLUMN.containsMatchIn(it) }.map { it.substringBefore("(").removeSuffix("{").trim() }
     }
     val problems = mutableListOf<String>()
-    if (declared(entry) != listOf("fun createSettingsView", "fun createOnboardingView")) problems.add("entry file declares ${declared(entry)}")
+    if (declared(entry) != listOf("fun createSettingsView", "fun createOnboardingView", "fun createHistoryView")) problems.add("entry file declares ${declared(entry)}")
     if (declared(switch) != listOf("interface BreakerSwitch")) problems.add("switch file declares ${declared(switch)}")
     return problems
 }
@@ -484,10 +484,10 @@ class SetupAdapterGateTest {
     }
 
     @Test
-    fun `the module offers exactly the two entry functions and the switch interface, with the result nested`() {
+    fun `the module offers exactly the three entry functions and the switch interface, with the result nested`() {
         assertEquals("surface: ", emptyList<String>(), surfaceProblemsIn(entry, switch))
         assertFires("a renamed setup entry", surfaceProblemsIn(edit(entry, "fun createOnboardingView(", "fun createOnboardingScreen("), switch), "entry file declares")
-        assertFires("a third function", surfaceProblemsIn(entry + "\nfun createThird(): Int = 1\n", switch), "entry file declares")
+        assertFires("an extra function", surfaceProblemsIn(entry + "\nfun createThird(): Int = 1\n", switch), "entry file declares")
         assertFires("a renamed interface", surfaceProblemsIn(entry, edit(switch, "interface BreakerSwitch", "interface BreakerToggle")), "switch file declares")
         assertFires("the result lifted out of the interface", surfaceProblemsIn(entry, edit(switch, "    sealed class Result {", "sealed class Result {")), "switch file declares")
     }

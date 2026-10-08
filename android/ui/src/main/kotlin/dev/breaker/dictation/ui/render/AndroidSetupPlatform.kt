@@ -97,6 +97,7 @@ internal class AndroidSetupPlatform(
      * context there is no way to ask, and the answer is [OpenResult.NOT_POSSIBLE].
      */
     private fun request(permission: String): OpenResult {
+        // ActivityNotFoundException and SecurityException stay named: the adapter check requires them, though RuntimeException covers the same ground.
         val activity = activityOf(context) ?: return OpenResult.NOT_POSSIBLE
         return try {
             activity.requestPermissions(arrayOf(permission), PERMISSION_REQUEST)
@@ -120,6 +121,7 @@ internal class AndroidSetupPlatform(
     private fun start(intent: Intent): OpenResult {
         val activity = activityOf(context)
         if (activity == null) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        // ActivityNotFoundException and SecurityException stay named: the adapter check requires them, though RuntimeException covers the same ground.
         return try {
             (activity ?: context).startActivity(intent)
             OpenResult.OPENED
