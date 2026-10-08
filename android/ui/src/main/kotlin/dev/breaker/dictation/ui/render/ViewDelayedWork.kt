@@ -8,8 +8,8 @@ import dev.breaker.dictation.ui.screen.history.DelayedWork
  * The one place in this module where work is put off.
  *
  * The history screen's undo window is a wait, and the queue this module uses for it
- * is the one the view already owns. The queue delivers the work on the main thread,
- * and so does the cancel, so nothing here needs a lock.
+ * is the one the view already owns. The view's own queue delivers the work on the
+ * main thread, and schedule and cancel may be called from any thread.
  */
 
 /**

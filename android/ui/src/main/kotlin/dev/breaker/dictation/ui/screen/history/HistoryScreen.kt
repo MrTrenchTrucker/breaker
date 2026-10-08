@@ -27,6 +27,24 @@ private const val EMPTY_ID = "history.empty"
 private const val LIMIT_ID = "history.limit"
 private const val MORE_ID = "history.more"
 
+/** The id of a notice carried over from a read whose draw was dropped, so it can be told from the notice. */
+internal const val CARRIED_NOTICE_ID = "history.notice.carried"
+
+/** The notice label of this screen, or null when it has none. */
+internal fun Screen.noticeLabel(): Label? = nodes.firstOrNull { it.id == NOTICE_ID } as? Label
+
+/**
+ * This screen with [carried] added once: right after the notice, or right after the title when
+ * there is no notice. A screen whose notice already has the same text is returned as it is.
+ */
+internal fun Screen.withCarriedNotice(carried: Label): Screen {
+    if (noticeLabel()?.text == carried.text) return this
+    val notice = nodes.indexOfFirst { it.id == NOTICE_ID }
+    val at = if (notice >= 0) notice + 1 else minOf(1, nodes.size)
+    val added = Label(CARRIED_NOTICE_ID, carried.text, carried.role, carried.color)
+    return copy(nodes = nodes.take(at) + added + nodes.drop(at))
+}
+
 /** Draws the history screen. */
 internal class HistoryScreen {
     /** The whole tree for [state], with [notice] above the rows when there is one. */

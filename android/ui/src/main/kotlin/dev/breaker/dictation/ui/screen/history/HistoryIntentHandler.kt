@@ -14,7 +14,7 @@ import dev.breaker.dictation.ui.screen.ScreenIntent
  * Undo inside it leaves the store as it was. Every store and clipboard call is
  * guarded: an exception is read as a failure and is never shown or passed on.
  *
- * Call it from the main thread only; it does no locking.
+ * Call it from one thread at a time; it does no locking. AsyncHistory runs it on its serial dispatcher.
  */
 
 /**
