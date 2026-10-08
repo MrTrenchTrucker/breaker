@@ -27,7 +27,18 @@ this repo without being told by a person first.
    ever passes proves nothing.
 5. **Registry and tree must agree.** Every entry in `modules.toml` has a real
    folder with `AGENTS.md` + `README.md`; every parent README names its
-   sub-modules. Run `tools/check_repo.py` after any structural change.
+   sub-modules. Run `tools/check_repo.py` after any structural change. A
+   module may also be `status = "dead"` in `modules.toml`: it keeps its
+   folder, card, README and a non-empty `DEAD_CODE.md`, is NOT `include()`d
+   in `settings.gradle.kts`, and no module — live or dead — lists it in
+   `depends_on` or carries a `project()` edge to it. A dead module's
+   `build.gradle.kts` is neither required nor forbidden; the include list is
+   the boundary between registered and built, and it is checked in both
+   `tools/check_repo.py` and the contract tests. A sub-module is named in
+   the README of its nearest ancestor folder that carries a `**Sub-modules:**`
+   line — a nested module is named in its direct parent's README, not the
+   top-level one. Revival is two tool-checked edits: remove the `status`
+   line and add the `include()` line.
 6. **Security gates are load-bearing.** The forked base app is not on `main`
    yet and has not passed its build and smoke test [1][2]. Modules may be
    built, reviewed and merged before the gates are signed off; the gates

@@ -247,5 +247,368 @@ class CheckRepoSubModuleListTest(unittest.TestCase):
         rc, out = _run_check(self.scratch)
         assert rc == 0, f"check_repo is not clean on the unmodified tree: {out}"
 
-if __name__ == "__main__":
-    unittest.main()
+class CheckRepoDeadModuleTest(unittest.TestCase):
+    """Dead-module guards + sub-module naming.
+
+    A dead module (registry status == "dead") must still have DEAD_CODE.md,
+    must not be include()d or carry a project() edge to it, and — being a
+    registered module — must be named in the README of its nearest ancestor
+    home that carries a **Sub-modules:** list. These tests plant faults in a
+    scratch copy, run the real check_repo.py on it, watch the fault get named,
+    then restore. Every failure case fails against the earlier code and passes
+    only after the fix; the passing cases pass on both, and a check that matches
+    by substring instead of the exact path turns them red.
+
+    The scratch tree is per-test: each plant saves what it changes, runs the
+    checker, asserts, and restores in `finally` so no mutation leaks between
+    tests or into the other test classes.
+    """
+
+    # ---- fixtures ---------------------------------------------------------
+
+    _SECTIONS = [
+        "# Purpose", "# Owns", "# Does Not Own", "# Public Interface",
+        "# Depends On", "# Invariants", "# Test Locations",
+        "# Test Requirement", "# Known Gotchas",
+    ]
+
+    def setUp(self):
+        self.scratch = _scratch_copy()
+
+    def tearDown(self):
+        shutil.rmtree(self.scratch, ignore_errors=True)
+
+    # ---- helpers ----------------------------------------------------------
+
+    def _write_card(self, folder):
+        """Write an AGENTS.md carrying all nine required sections."""
+        text = (
+            "# AGENTS.md — {n}\n\n"
+            "## Purpose\n\nA demo module.\n\n"
+            "## Owns\nIts behaviour.\n\n"
+            "## Does Not Own\nNothing else.\n\n"
+            "## Public Interface\nPublicThing\n\n"
+            "## Depends On\n- android (registered in modules.toml)\n- android_core (registered in modules.toml)\n\n"
+            "## Invariants\n- nothing bad happens.\n\n"
+            "## Test Locations\n- unit (Kotlin): src/test/kotlin/\n"
+            "## Test Requirement\nBreak protected behaviour, confirm red, restore.\n\n"
+            "## Known Gotchas\n- none\n"
+        ).format(n=os.path.basename(folder))
+        with open(os.path.join(folder, "AGENTS.md"), "w", encoding="utf-8") as fh:
+            fh.write(text)
+
+    def _make_module(self, path, dead=False, dead_code_present=None):
+        """Create the on-disk folder (AGENTS.md + README.md) for a module.
+
+        `dead_code_present`: None -> no DEAD_CODE.md; True -> non-empty;
+        False -> empty file present.
+        """
+        folder = os.path.join(self.scratch, path)
+        os.makedirs(folder, exist_ok=True)
+        self._write_card(folder)
+        with open(os.path.join(folder, "README.md"), "w", encoding="utf-8") as fh:
+            fh.write(f"# {os.path.basename(path)} — README\n")
+        if dead_code_present is None:
+            return
+        dc = os.path.join(folder, "DEAD_CODE.md")
+        with open(dc, "w", encoding="utf-8") as fh:
+            fh.write("Dead code: retained for compatibility.\n" if dead_code_present else "\n   \n")
+
+    def _toml_path(self):
+        return os.path.join(self.scratch, "modules.toml")
+
+    def _commit_readme_path(self):
+        return os.path.join(self.scratch, "android", "modules", "commit", "README.md")
+
+    # ---- RED cases --------------------------------------------------------
+
+    def test_dead_module_without_dead_code_md_is_an_error(self):
+        readme = self._commit_readme_path()
+        with open(readme) as fh:
+            original_readme = fh.read()
+        try:
+            self._make_module("android/modules/commit/ime", dead=False, dead_code_present=None)
+            # register it as a DEAD module, not included in settings.
+            self._add_module_table(status="dead")
+            rc, out = _run_check(self.scratch)
+            assert rc != 0, f"dead module without DEAD_CODE.md stayed clean: {out!r}"
+            assert "has no DEAD_CODE.md" in out, f"expected the missing DEAD_CODE.md error: {out!r}"
+        finally:
+            with open(readme, "w", encoding="utf-8") as fh:
+                fh.write(original_readme)
+
+    def test_dead_module_empty_dead_code_md_is_an_error(self):
+        readme = self._commit_readme_path()
+        with open(readme) as fh:
+            original_readme = fh.read()
+        try:
+            # DEAD_CODE.md present but blank.
+            self._make_module("android/modules/commit/ime", dead=True, dead_code_present=False)
+            self._add_module_table(status="dead")
+            rc, out = _run_check(self.scratch)
+            assert rc != 0, f"blank DEAD_CODE.md stayed clean: {out!r}"
+            assert "empty" in out.lower(), f"expected 'empty' message: {out!r}"
+        finally:
+            with open(readme, "w", encoding="utf-8") as fh:
+                fh.write(original_readme)
+
+    def test_dead_module_still_included_is_an_error(self):
+        readme = self._commit_readme_path()
+        settings = os.path.join(self.scratch, "settings.gradle.kts")
+        with open(readme) as fh:
+            original_readme = fh.read()
+        try:
+            # DEAD_CODE.md present (non-empty); add the include of the dead child.
+            self._make_module("android/modules/commit/ime", dead=True, dead_code_present=True)
+            with open(settings, "a", encoding="utf-8") as fh:
+                fh.write('include(":android:modules:commit:ime")\n')
+            self._add_module_table(status="dead")
+            rc, out = _run_check(self.scratch)
+            assert rc != 0, f"dead module included via settings stayed clean: {out!r}"
+            assert "include()d" in out, f"expected include()d error: {out!r}"
+        finally:
+            with open(readme, "w", encoding="utf-8") as fh:
+                fh.write(original_readme)
+
+    def test_live_module_dependson_dead_via_registry_is_an_error(self):
+        # A LIVE module (auth-client) now depends_on the dead child via registry.
+        self._make_module("android/modules/commit/ime", dead=True, dead_code_present=True)
+        self._add_module_table(status="dead")
+        # append dead key to auth-client's registry depends_on array
+        with open(self._toml_path(), encoding="utf-8") as fh:
+            text = fh.read()
+        import re
+        pat = re.compile(
+            r"(\[module\.android_auth_client\][^\[]*?depends_on\s*=\s*)\[.*?\]",
+            re.S,
+        )
+        text = pat.sub(lambda m: m.group(1) + '["android", "android_core", "android_commit_ime"]', text, count=1)
+        with open(self._toml_path(), "w", encoding="utf-8") as fh:
+            fh.write(text)
+        rc, out = _run_check(self.scratch)
+        assert rc != 0, f"registry depends_on to dead stayed clean: {out!r}"
+        assert "depends_on names dead" in out, f"expected registry dep error: {out!r}"
+
+    def test_live_module_dependson_dead_via_project_edge_is_an_error(self):
+        readme = self._commit_readme_path()
+        with open(readme) as fh:
+            original_readme = fh.read()
+        try:
+            # DEAD_CODE.md present; add an EXACT project() edge to the dead child
+            # in a live sibling's build.gradle.kts.
+            self._make_module("android/modules/commit/ime", dead=True, dead_code_present=True)
+            self._add_module_table(status="dead")
+            with open(os.path.join(self.scratch, "android", "modules", "auth-client", "build.gradle.kts"), "a", encoding="utf-8") as fh:
+                fh.write("    implementation(project(\":android:modules:commit:ime\"))\n")
+            rc, out = _run_check(self.scratch)
+            assert rc != 0, f"project() edge to dead stayed clean: {out!r}"
+            assert "project() edge" in out, f"expected project() edge error: {out!r}"
+        finally:
+            with open(readme, "w", encoding="utf-8") as fh:
+                fh.write(original_readme)
+
+    def test_unknown_status_typo_is_an_error(self):
+        readme = self._commit_readme_path()
+        with open(readme) as fh:
+            original_readme = fh.read()
+        try:
+            self._make_module("android/modules/commit/ime", dead=False, dead_code_present=False)
+            # register it with an invalid status value.
+            self._add_module_table(status="deadd")
+            rc, out = _run_check(self.scratch)
+            assert rc != 0, f"unknown status stayed clean: {out!r}"
+            assert "unknown status" in out, f"expected 'unknown status' error: {out!r}"
+        finally:
+            with open(readme, "w", encoding="utf-8") as fh:
+                fh.write(original_readme)
+
+    def test_dead_submodule_exact_edge_is_caught(self):
+        """The EXACT project() edge to the dead child IS caught."""
+        readme = self._commit_readme_path()
+        with open(readme) as fh:
+            original_readme = fh.read()
+        try:
+            self._make_module("android/modules/commit/ime", dead=True, dead_code_present=True)
+            self._add_module_table(status="dead")
+            # exact project edge — the positive catch.
+            with open(os.path.join(self.scratch, "android", "modules", "auth-client", "build.gradle.kts"), "a", encoding="utf-8") as fh:
+                fh.write("    implementation(project(\":android:modules:commit:ime\"))\n")
+            rc, out = _run_check(self.scratch)
+            assert rc != 0, f"exact project() edge to dead stayed clean: {out!r}"
+            assert "project() edge" in out, f"expected exact-edge error: {out!r}"
+        finally:
+            with open(readme, "w", encoding="utf-8") as fh:
+                fh.write(original_readme)
+
+    # ---- exact-path match (a substring match fails these) --------------
+
+    def test_dead_submodule_exact_path_not_matched_by_sibling_edge(self):
+        """A live sibling's project() edge to :android:modules:commit:accessibility
+        must NOT be read as depending on the dead child ime."""
+        readme = self._commit_readme_path()
+        with open(readme) as fh:
+            original_readme = fh.read()
+        try:
+            # dead child 'ime' registered, DEAD_CODE present, not included.
+            self._make_module("android/modules/commit/ime", dead=True, dead_code_present=True)
+            self._add_dead_ime()
+            # live sibling 'accessibility' with an EXACT project() edge to ITSELF.
+            self._make_module("android/modules/commit/accessibility", dead=False, dead_code_present=False)
+            self._add_live_accessibility()
+            self._set_commit_readme_submodules(["accessibility", "ime"])
+            with open(os.path.join(self.scratch, "android", "modules", "commit", "accessibility", "build.gradle.kts"), "w", encoding="utf-8") as fh:
+                fh.write(
+                    "// android/modules/commit/accessibility\n"
+                    "plugins { libs.plugins.android.library }\n"
+                    "}\n"
+                    "kotlin {}\n"
+                    "dependencies {\n"
+                    '    implementation(project(":android:modules:commit:accessibility"))\n'
+                    "}\n"
+                )
+            rc, out = _run_check(self.scratch)
+            assert rc == 0, f"sibling edge wrongly flagged the dead child: {out!r}"
+        finally:
+            with open(readme, "w", encoding="utf-8") as fh:
+                fh.write(original_readme)
+
+    def test_dead_path_prefix_not_matched(self):
+        """A live module's project() edge ":android:modules:commit" (a superset
+        prefix of the child path) must NOT match the dead child ime."""
+        readme = self._commit_readme_path()
+        with open(readme) as fh:
+            original_readme = fh.read()
+        try:
+            self._make_module("android/modules/commit/ime", dead=True, dead_code_present=True)
+            self._add_module_table(status="dead")
+            self._set_commit_readme_submodules(["ime"])
+            # project() edge to the parent path — a string prefix of the child.
+            with open(os.path.join(self.scratch, "android", "modules", "auth-client", "build.gradle.kts"), "a", encoding="utf-8") as fh:
+                fh.write("    implementation(project(\":android:modules:commit\"))\n")
+            rc, out = _run_check(self.scratch)
+            assert rc == 0, f"parent edge wrongly matched the dead child: {out!r}"
+        finally:
+            with open(readme, "w", encoding="utf-8") as fh:
+                fh.write(original_readme)
+
+    # ---- sub-module naming ----------------------------------------------
+
+    def _add_module_table(self, key="android_commit_ime", path="android/modules/commit/ime", status="dead"):
+        """Append a [module.<key>] table to the scratch modules.toml.
+
+        `path` is the module's on-disk path (e.g. "android/modules/commit/ime").
+        `status`: "dead" registers dead; "live"/None registers live (no status line).
+        """
+        with open(self._toml_path(), "rb") as fh:
+            text = fh.read().decode("utf-8")
+        card_rel = os.path.join(path, "AGENTS.md")
+        block = (
+            "[module.%s]\n" % key
+            + 'path = "%s"\n' % path
+            + ('status = "%s"\n' % status if status else "")
+            + 'depends_on = ["android", "android_core"]\n'
+            + 'public = "X"\n'
+            + 'card = "%s"\n' % card_rel
+        )
+        with open(self._toml_path(), "w", encoding="utf-8") as fh:
+            fh.write(text + "\n\n" + block)
+
+    def _add_dead_ime(self):
+        """Register the dead submodule android/modules/commit/ime."""
+        self._add_module_table("android_commit_ime", "android/modules/commit/ime", status="dead")
+
+    def _add_live_accessibility(self):
+        """Register the live submodule android/modules/commit/accessibility."""
+        self._add_module_table(
+            "android_commit_accessibility", "android/modules/commit/accessibility", status=None
+        )
+
+    def _set_commit_readme_submodules(self, names):
+        """Append a **Sub-modules:** line to commit/README.md naming `names`."""
+        with open(self._commit_readme_path()) as fh:
+            original = fh.read()
+        line = "**Sub-modules:** " + ", ".join(names) + " — each with its own AGENTS.md + README.md\n"
+        if line not in original:
+            original = original.rstrip("\n") + "\n"
+        with open(self._commit_readme_path(), "w", encoding="utf-8") as fh:
+            fh.write(original.rstrip("\n") + "\n\n" + line)
+
+    def _restore_commit_readme(self, saved):
+        with open(self._commit_readme_path(), "w", encoding="utf-8") as fh:
+            fh.write(saved)
+
+    def test_dead_submodule_must_be_named_in_direct_parent_readme(self):
+        """A dead child 'ime' must be named in its DIRECT parent (commit)'s README;
+        omitting it from the list is an error."""
+        saved = self._read_commit_readme()
+        try:
+            # commit/README names accessibility but NOT ime.
+            self._make_module("android/modules/commit/ime", dead=True, dead_code_present=True)
+            self._add_module_table(status="dead")
+            self._set_commit_readme_submodules(["accessibility"])
+            rc, out = _run_check(self.scratch)
+            assert rc != 0, f"dead child not named in direct parent README stayed green: {out!r}"
+            assert "ime" in out, f"expected the omit'd leaf named: {out!r}"
+        finally:
+            self._restore_commit_readme(saved)
+
+    def test_dead_submodule_named_in_direct_parent_readme_is_clean(self):
+        """Dead child 'ime' present, DEAD_CODE present, and named in commit/README."""
+        saved = self._read_commit_readme()
+        try:
+            self._make_module("android/modules/commit/ime", dead=True, dead_code_present=True)
+            self._add_live_accessibility()
+            self._make_module("android/modules/commit/accessibility", dead=False, dead_code_present=False)
+            self._add_module_table(status="dead")
+            self._set_commit_readme_submodules(["accessibility", "ime"])
+            rc, out = _run_check(self.scratch)
+            assert rc == 0, f"named-and-clean dead child failed: {out!r}"
+        finally:
+            self._restore_commit_readme(saved)
+
+    def test_nested_submodule_named_in_direct_parent_not_top(self):
+        """A LIVE submodule 'accessibility' under commit is named in commit's README;
+        android/README does not name it — proving the naming home is the direct parent,
+        not the top. Must stay clean."""
+        readme = self._commit_readme_path()
+        with open(readme) as fh:
+            original_readme = fh.read()
+        try:
+            # live sibling accessibility registered + real folder present.
+            self._make_module("android/modules/commit/accessibility", dead=False, dead_code_present=False)
+            self._add_live_accessibility()
+            # commit/README names 'accessibility' (its direct parent naming).
+            self._set_commit_readme_submodules(["accessibility"])
+            rc, out = _run_check(self.scratch)
+            assert rc == 0, f"named-in-direct-parent live submodule failed: {out!r}"
+        finally:
+            with open(readme, "w", encoding="utf-8") as fh:
+                fh.write(original_readme)
+
+    def test_control_live_module_not_included_still_errors(self):
+        """A LIVE module dropped from the android/README **Sub-modules:** list still
+        errors — the naming rule was not loosened for live modules."""
+        readme = os.path.join(self.scratch, "android", "README.md")
+        with open(readme) as fh:
+            original = fh.read()
+        try:
+            # drop 'app' from the android/README list.
+            text = original.replace("app, ui,", "ui,", 1)
+            with open(readme, "w", encoding="utf-8") as fh:
+                fh.write(text)
+            rc, out = _run_check(self.scratch)
+            assert rc != 0, f"live module omitted from the list stayed green: {out!r}"
+            assert "app" in out, f"expected 'app' named: {out!r}"
+        finally:
+            with open(readme, "w", encoding="utf-8") as fh:
+                fh.write(original)
+
+    def test_restored_tree_is_clean_after_every_plant(self):
+        rc, out = _run_check(self.scratch)
+        assert rc == 0, f"check_repo is not clean on the unmodified tree: {out}"
+
+    # ---- small read helper ------------------------------------------------
+
+    def _read_commit_readme(self):
+        with open(self._commit_readme_path()) as fh:
+            return fh.read()
