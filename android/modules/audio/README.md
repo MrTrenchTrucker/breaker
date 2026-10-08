@@ -16,6 +16,23 @@ mono audio, in the form the downstream consumers need.
   indicator dark once that open comes back. `MicSource` is the port a real
   microphone adapts to, and
   `MicSourceException` is what a source that cannot be opened throws.
+- **Choosing the microphone.** `AndroidMicSource.create(audioManager)` gives a
+  `MicSource` for a real phone. It uses a Bluetooth microphone if one is
+  connected, otherwise a wired or USB one, otherwise the phone's own. It never
+  asks and never complains when it falls back to a lesser one, at the start of a
+  take or in the middle of one: if the headset is unplugged while recording, the
+  next read carries on from the next best microphone and the take does not end.
+  The app holds the permissions: `RECORD_AUDIO` to record at all, and
+  `BLUETOOTH_CONNECT` for a Bluetooth microphone (without it the phone sees no
+  Bluetooth microphone and the wired or phone one is used). The choice itself is
+  `MicRoutePolicy`; only `AudioRecordMicPort.kt` talks to the Android framework.
+- **Knowing when a take ended.** `MicCapture` can be given an `onTakeEnded`
+  callback. It is called once per take, after the last frame, whether the caller
+  stopped the take or it ended by itself (the microphone failed, went quiet, or
+  the frame listener threw), with the failure or null. A take that ended by
+  itself still has the microphone open and the indicator lit until the app calls
+  `stop`, and the callback runs on the thread `stop` waits for, so the app must
+  hand the `stop` call to another thread. Leaving the callback out changes nothing.
 - **Resampling.** `AudioResampler` converts the device's sample rate to the
   16 kHz mono the rest of the pipeline is specified in.
 - **Voice activity detection.** `EnergyVad` trims leading and trailing silence

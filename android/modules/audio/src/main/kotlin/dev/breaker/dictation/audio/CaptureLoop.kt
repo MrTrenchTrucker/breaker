@@ -39,10 +39,23 @@ internal class CaptureLoop(
         var consecutiveEmptyReads = 0
         try {
             while (running.get() && !stopRequested.get() && isCurrent(mine)) {
-                val read = source.read(readBuffer, 0, readBuffer.size)
+                val read = try {
+                    source.read(readBuffer, 0, readBuffer.size)
+                } catch (e: InterruptedException) {
+                    throw e
+                } catch (e: Exception) {
+                    // A stop closes the device while this read may be inside
+                    // it, and a real device then fails that read. That is how
+                    // the stop ends the take, not a fault, so it is not
+                    // recorded. With no stop requested it is a real failure.
+                    if (stopRequested.get()) break
+                    throw e
+                }
                 // A read still in flight when the take is replaced must not be
                 // delivered into the next take's buffer.
                 if (!isCurrent(mine)) break
+                // The same stop-closed-the-device case, as an error code.
+                if (read < 0 && stopRequested.get()) break
                 when {
                     read < 0 -> throw MicSourceException(
                         "the microphone driver reported error code $read",
