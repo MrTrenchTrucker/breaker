@@ -343,15 +343,15 @@ agents, not required: an outside contributor may write the code themselves
   `ModelInstaller` or `ModelLoader`. The engine takes the loader through `ModelLoaderPort`, and the
   app's wiring supplies it later, so the module cannot transcribe real audio until the app builds the
   loader with a `SherpaOnnxRecognizerFactory` and adds the release file (next bullet). The adapter, the
-  release-file build route and their tests were written without being compiled or run.
+  release-file build route and their tests compile, and the tests run.
 - The engine library is our own package of sherpa-onnx: the speech-recognition-only build at upstream
   commit 11afbd00, with text-to-speech and speaker diarization off, published as the release file
   `sherpa-onnx-v1.13.8-asr-only.aar` (an Android archive holding the classes and the native
   libraries). This module uses it to compile and nothing else: the build file declares it
   `compileOnly`, so it is not packaged, and the module's tests do not rely on it being on their
   classpath. The app must add the same release file at run time; that brings the classes and the
-  native libraries, and the app chooses the ABIs (the upstream k2-fsa file holds arm64-v8a,
-  armeabi-v7a, x86 and x86_64; the ABIs of this package were not read here; the app's base filter is
+  native libraries, and the app chooses the ABIs (this package holds arm64-v8a and x86_64; the
+  upstream k2-fsa file holds arm64-v8a, armeabi-v7a, x86 and x86_64; the app's base filter is
   arm64-v8a only). The upstream k2-fsa release file may be used only as a test control: it is not
   the pinned file and is never part of the shipped build.
 - The build downloads the release file (about 23 MB) on a first build or an IDE sync, from the
@@ -365,11 +365,10 @@ agents, not required: an outside contributor may write the code themselves
   place the build of the library changes (its version must still equal the catalog
   version); which build the project ships is decided outside this module. At run time the module's
   network use is unchanged: it still reaches the network only to download a pinned model.
-- Not exercised, and owed to whoever runs the real build: the settings repository (an ivy
-  repository with `exclusiveContent` and artifact-only metadata), whether the file host answers the
-  existence check after the redirect from GitHub, how the Android plugin treats the same coordinate
-  on `compileOnly`, and the Kotlin metadata and minimum SDK of the release file. Nothing in
-  this list was compiled or resolved by the author of this text.
+- What the build has shown: the adapter and the build route compile, the release file resolves and
+  its SHA-256 is checked by the build, and the module tests pass (684 of 684) on a single core and
+  in parallel. Not verified: the minimum SDK of the release file. None of this says the library
+  loads or runs on a device (see the items below).
 - `numThreads` defaults to 2 (`SherpaOnnxRecognizerFactory.DEFAULT_NUM_THREADS`) and the silence fed
   after the clip is 10,560 samples, 0.66 s (`SherpaOnnxRecognizer.TAIL_PADDING_SAMPLES`). Both are
   device placeholders and are NOT measured: whether that silence finishes the last word, or is too much,
