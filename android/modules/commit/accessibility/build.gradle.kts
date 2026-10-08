@@ -1,8 +1,8 @@
-// android/modules/commit — CommitService.
+// android/modules/commit/accessibility — the accessibility text-insert mechanism (ADR-022).
 //
-// Card: android/modules/commit/AGENTS.md   Registry: modules.toml [module.android_commit]
-// Owns: CommitService: mechanism-neutral text commit (focused field gets the text, otherwise the clipboard) + toast.
-// Depends on: android, android_core
+// Card: android/modules/commit/accessibility/AGENTS.md   Registry: modules.toml [module.android_commit_accessibility]
+// Owns: nothing yet — no code written. See AGENTS.md for what Phase 7 adds.
+// Depends on: android_commit
 // Cross-module calls go through the core ports or the app's own
 // dependency wiring; this module never reaches into a sibling's code.
 //
@@ -13,7 +13,7 @@ plugins {
 }
 
 android {
-    namespace = "dev.breaker.dictation.commit"
+    namespace = "dev.breaker.dictation.commit.accessibility"
     compileSdk = libs.versions.compileSdk.get().toInt()
 
     defaultConfig {
@@ -33,8 +33,7 @@ kotlin {
 }
 
 dependencies {
-    implementation(project(":android:modules:core"))
-    implementation(libs.kotlinx.coroutines.core)
+    implementation(project(":android:modules:commit"))
 
     testImplementation(libs.junit)
 }
