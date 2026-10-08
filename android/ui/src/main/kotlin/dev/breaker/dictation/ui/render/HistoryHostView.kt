@@ -2,13 +2,18 @@ package dev.breaker.dictation.ui.render
 
 import android.content.Context
 import android.widget.ScrollView
+import dev.breaker.dictation.core.port.HistoryStore
 import dev.breaker.dictation.ui.screen.Screen
 import dev.breaker.dictation.ui.screen.ScreenIntent
+import dev.breaker.dictation.ui.screen.history.AsyncHistory
 import dev.breaker.dictation.ui.screen.history.Cancellation
+import dev.breaker.dictation.ui.screen.history.ClipboardSink
 import dev.breaker.dictation.ui.screen.history.DelayedWork
-import dev.breaker.dictation.ui.screen.history.HistoryIntentHandler
+import dev.breaker.dictation.ui.screen.history.HistoryScreen
+import dev.breaker.dictation.ui.screen.history.TimestampFormat
 import dev.breaker.dictation.ui.theme.PaletteSlot
 import dev.breaker.dictation.ui.theme.Theme
+import kotlinx.coroutines.CoroutineDispatcher
 
 /*
  * The view the app puts on the display for the history screen.
@@ -17,7 +22,8 @@ import dev.breaker.dictation.ui.theme.Theme
  * row can be deleted, and a deletion waits for a short window before it happens, so
  * the screen changes when that wait ends and nothing else asks for it. And the
  * screen is closed when the view leaves the window, which ends every wait still open:
- * the handler then deletes what is pending, at once.
+ * AsyncHistory then carries out the pending deletes once, after the view is gone, on
+ * the serial dispatcher.
  */
 
 /** The id of the notice node, as the history screen names it. */
@@ -26,34 +32,53 @@ private const val NOTICE_ID = "history.notice"
 /**
  * A scrolling container that shows the history screen and keeps it up to date.
  *
- * The rows are drawn by [renderer] and what they mean is decided by [handler]. A tap
- * goes to [HistoryIntentHandler.handle] and the result is drawn. The current screen
- * is drawn when the view joins a window and each time the window gains focus.
+ * The rows are drawn by [renderer]. What they mean is decided by [AsyncHistory], which
+ * runs every store and clipboard call on [serial] and hands each drawn screen back to
+ * [show] on the main thread. A tap goes to [AsyncHistory.tap] and its result is drawn
+ * when it is ready. The current screen is read when the view joins a window and each
+ * time the window gains focus.
  *
- * Leaving the window calls [HistoryIntentHandler.close] once, which commits every
- * deletion still waiting. A wait is scheduled through the [scheduler] of this view,
+ * Leaving the window calls [AsyncHistory.close] once, which hands every deletion still
+ * waiting to the serial queue. A wait is scheduled through the [scheduler] of this view,
  * and when a wait ends the screen is drawn again.
  *
- * Everything here runs on the main thread: taps, attachment, focus and the work a
- * wait runs. There is no lock.
+ * Taps, attachment and focus are handled on the main thread. The store reads and the
+ * deletes run on [serial], one job at a time, and a wait runs on this view's own queue.
  *
  * @param context the context the views are built with, normally an activity's.
- * @param handler turns intents into the screen to draw next.
+ * @param history the store every read and delete goes through.
+ * @param clipboard the clipboard that Copy writes to.
+ * @param format the time text each row shows.
+ * @param work the scheduler for the undo windows, bound once the view exists.
+ * @param serial the one queue the model runs its store and clipboard work on.
  * @param theme the colours and sizes the screen is drawn in.
  * @param renderer draws a described screen into views.
  */
 internal class HistoryHostView(
     context: Context,
-    private val handler: HistoryIntentHandler,
+    history: HistoryStore,
+    clipboard: ClipboardSink,
+    format: TimestampFormat,
+    work: DelayedWork,
+    serial: CoroutineDispatcher,
     private val theme: Theme,
     private val renderer: ScreenRenderer,
 ) : ScrollView(context) {
+    private val asyncHistory = AsyncHistory(
+        history,
+        clipboard,
+        format,
+        work,
+        HistoryScreen(),
+        serial,
+        postToMain = { task -> post(Runnable { task() }) },
+        draw = ::show,
+    )
+
     init {
         // A screen is taller than a short window in landscape, and without this
         // the colour of the child would stop short of the visible area.
         isFillViewport = true
-        handler.onChange = ::show
-        show(handler.current())
     }
 
     /**
@@ -71,10 +96,10 @@ internal class HistoryHostView(
     }
 
     /**
-     * The scheduler the handler uses for the undo window.
+     * The scheduler the model uses for the undo window.
      *
-     * A wait runs on this view's own queue. The handler's work draws the screen itself,
-     * through its change hook, so the row is gone or back at once.
+     * A wait runs on this view's own queue. When it ends, the model's work runs its store
+     * call on the serial queue and then draws the screen, so the row is gone or back at once.
      */
     fun scheduler(): DelayedWork {
         val posted = ViewDelayedWork(this)
@@ -84,25 +109,26 @@ internal class HistoryHostView(
         }
     }
 
-    /** Acts on [intent] and draws the result. */
+    /** Hands a tap on this screen to the model, which draws the result. */
     private fun onIntent(intent: ScreenIntent) {
-        show(handler.handle(intent))
+        if (intent is ScreenIntent.History) asyncHistory.tap(intent)
     }
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        show(handler.current())
+        asyncHistory.reopen()
+        asyncHistory.load()
     }
 
     override fun onWindowFocusChanged(hasWindowFocus: Boolean) {
         super.onWindowFocusChanged(hasWindowFocus)
         if (hasWindowFocus) {
-            show(handler.current())
+            asyncHistory.load()
         }
     }
 
     override fun onDetachedFromWindow() {
-        handler.close()
+        asyncHistory.close()
         super.onDetachedFromWindow()
     }
 }
@@ -110,12 +136,13 @@ internal class HistoryHostView(
 /**
  * A scheduler that is bound once the view it posts on exists.
  *
- * The handler needs its scheduler when it is built, and the view needs the handler,
- * so the entry builds the handler on this, builds the view, and binds this to the
- * view's scheduler before anything can be tapped. A wait asked for before the binding
- * is not scheduled, so nothing is deleted for it.
+ * The model needs its scheduler when it is built, and the view needs the model, so the
+ * entry builds this, builds the view on it, and binds this to the view's scheduler before
+ * anything can be tapped. A wait asked for before the binding is not scheduled, so nothing
+ * is deleted for it.
  */
 internal class LateDelayedWork : DelayedWork {
+    @Volatile
     private var target: DelayedWork? = null
 
     /** Sends every wait from now on to [scheduler]. */

@@ -8,8 +8,7 @@ import dev.breaker.dictation.ui.render.LateDelayedWork
 import dev.breaker.dictation.ui.render.ScreenRenderer
 import dev.breaker.dictation.ui.render.SettingsHostView
 import dev.breaker.dictation.ui.render.SetupHostView
-import dev.breaker.dictation.ui.screen.history.HistoryIntentHandler
-import dev.breaker.dictation.ui.screen.history.HistoryScreen
+import dev.breaker.dictation.ui.screen.history.HistoryDispatcher
 import dev.breaker.dictation.ui.screen.history.LocalizedTimestampFormat
 import dev.breaker.dictation.ui.screen.onboarding.SetupIntentHandler
 import dev.breaker.dictation.ui.screen.onboarding.SetupScreen
@@ -118,8 +117,7 @@ fun createHistoryView(context: android.content.Context, history: dev.breaker.dic
     val theme = Themes.of(shownMode(StoredThemeMode.SYSTEM, phoneIsDark))
     val format = LocalizedTimestampFormat(context.resources.configuration.locales[0], ZoneId.systemDefault())
     val work = LateDelayedWork()
-    val handler = HistoryIntentHandler(history, AndroidClipboard(context), format, work, HistoryScreen())
-    val host = HistoryHostView(context, handler, theme, ScreenRenderer(context))
+    val host = HistoryHostView(context, history, AndroidClipboard(context), format, work, HistoryDispatcher.serial, theme, ScreenRenderer(context))
     work.bind(host.scheduler())
     return host
 }
