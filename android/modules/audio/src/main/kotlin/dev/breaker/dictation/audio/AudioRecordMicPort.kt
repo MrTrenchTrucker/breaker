@@ -1,5 +1,6 @@
 package dev.breaker.dictation.audio
 
+import android.annotation.SuppressLint
 import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioFormat
@@ -164,7 +165,12 @@ internal class AudioRecordMicPort(private val audioManager: AudioManager) : MicI
     private fun inputInfoFor(id: Int): AudioDeviceInfo? =
         audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS).firstOrNull { it.id == id }
 
-    /** An [AudioRecord] at 16 kHz mono 16-bit, or a [MicSourceException] if the platform refuses. */
+    /**
+     * An [AudioRecord] at 16 kHz mono 16-bit, or a [MicSourceException] if the platform refuses.
+     * The caller holds RECORD_AUDIO (module card); a missing grant surfaces as the
+     * SecurityException that [open] turns into a [MicSourceException].
+     */
+    @SuppressLint("MissingPermission")
     private fun newRecord(source: Int): AudioRecord {
         val minimum = AudioRecord.getMinBufferSize(RATE_HZ, CHANNELS, ENCODING)
         if (minimum <= 0) throw refused()
