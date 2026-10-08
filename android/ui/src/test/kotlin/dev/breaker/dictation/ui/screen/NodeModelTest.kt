@@ -101,12 +101,13 @@ class NodeModelTest {
     }
 
     @Test
-    fun `the four intents are distinct from one another`() {
+    fun `the five intents are distinct from one another`() {
         val intents = listOf<ScreenIntent>(
             ScreenIntent.ToggleTheme,
             ScreenIntent.UseSystemTheme,
             ScreenIntent.SetRoutingMode("LOCAL"),
             ScreenIntent.SetSetting("language", "de"),
+            ScreenIntent.Setup("recheck"),
         )
 
         for (i in intents.indices) {
@@ -127,9 +128,9 @@ class NodeModelTest {
     }
 
     @Test
-    fun `there are exactly four kinds of intent`() {
+    fun `there are exactly five kinds of intent`() {
         assertEquals(
-            setOf("ToggleTheme", "UseSystemTheme", "SetRoutingMode", "SetSetting"),
+            setOf("ToggleTheme", "UseSystemTheme", "SetRoutingMode", "SetSetting", "Setup"),
             permittedNames(ScreenIntent::class.java),
         )
     }

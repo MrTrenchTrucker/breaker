@@ -61,6 +61,7 @@ class SettingsScreenTest {
     private fun intentStrings(intent: ScreenIntent): List<String> = when (intent) {
         is ScreenIntent.SetSetting -> listOf(intent.key, intent.value)
         is ScreenIntent.SetRoutingMode -> listOf(intent.mode)
+        is ScreenIntent.Setup -> listOf(intent.action)
         ScreenIntent.ToggleTheme, ScreenIntent.UseSystemTheme -> emptyList()
     }
 

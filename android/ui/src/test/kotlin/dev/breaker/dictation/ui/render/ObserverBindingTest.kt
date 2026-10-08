@@ -27,6 +27,11 @@ class ObserverBindingTest {
         "fun createSettingsView(context: android.content.Context, " +
             "settings: dev.breaker.dictation.core.port.SettingsStore): android.view.View"
 
+    /** The second public declaration of the entry file, written on one line. */
+    private val ONBOARDING_SIGNATURE =
+        "fun createOnboardingView(context: android.content.Context, " +
+            "switch: BreakerSwitch, accessibilityServiceComponent: String): android.view.View"
+
     /** A controller over a store holding a light scheme, with the phone in light mode. */
     private class Fixture {
         val store = FakeSettingsStore(NONDEFAULT.copy(themeMode = StoredThemeMode.LIGHT))
@@ -145,13 +150,14 @@ class ObserverBindingTest {
     }
 
     @Test
-    fun `the entry file offers one declaration and it is the settings view`() {
+    fun `the entry file offers two declarations and they are the settings view and the setup view`() {
         val offered = offeredDeclarations(sourceOf("SettingsEntry.kt"))
-        assertEquals("exactly one declaration may be offered to an app", 1, offered.size)
-        assertTrue("the offered declaration must be the settings view", offered.single().startsWith("fun createSettingsView("))
+        assertEquals("exactly two declarations may be offered by the entry file", 2, offered.size)
+        assertTrue("the first offered declaration must be the settings view", offered.any { it.startsWith("fun createSettingsView(") })
+        assertTrue("the second offered declaration must be the setup view", offered.any { it.startsWith("fun createOnboardingView(") })
 
-        val control = offeredDeclarations(CONTROL_WITH_TWO_OFFERED)
-        assertEquals("the scan must catch a second offered declaration", 2, control.size)
+        val control = offeredDeclarations(CONTROL_WITH_THREE_OFFERED)
+        assertEquals("the scan must catch a third offered declaration", 3, control.size)
     }
 
     @Test
@@ -164,6 +170,19 @@ class ObserverBindingTest {
         assertFalse(
             "the scan must not accept a parameter type that has been weakened",
             CONTROL_WEAK_PARAMETER.contains(ENTRY_SIGNATURE),
+        )
+    }
+
+    @Test
+    fun `the setup view takes a context, a switch and a component name and gives back a view`() {
+        val flattened = sourceOf("SettingsEntry.kt").replace(ANY_WHITESPACE, " ")
+        assertTrue(
+            "the pinned declaration must be there with all three parameter types",
+            flattened.contains(ONBOARDING_SIGNATURE),
+        )
+        assertFalse(
+            "the scan must not accept a switch parameter that has been weakened",
+            CONTROL_WEAK_SWITCH.contains(ONBOARDING_SIGNATURE),
         )
     }
 
@@ -213,12 +232,16 @@ class ObserverBindingTest {
         import android.view.View
         """.trimIndent()
 
-    /** Two declarations offered to an app, where the entry file may offer one. */
-    private val CONTROL_WITH_TWO_OFFERED =
+    /** Three declarations offered to an app, where the entry file may offer two. */
+    private val CONTROL_WITH_THREE_OFFERED =
         """
         package dev.breaker.dictation.ui
 
         fun createSettingsView(context: android.content.Context, settings: dev.breaker.dictation.core.port.SettingsStore): android.view.View {
+            return View(context)
+        }
+
+        fun createOnboardingView(context: android.content.Context, switch: BreakerSwitch, accessibilityServiceComponent: String): android.view.View {
             return View(context)
         }
 
@@ -230,4 +253,8 @@ class ObserverBindingTest {
     /** A settings view that takes any object, which is not the declaration this module offers. */
     private val CONTROL_WEAK_PARAMETER =
         "fun createSettingsView(context: android.content.Context, settings: Any): android.view.View"
+
+    /** A setup view that takes any object for its switch, which is not the declaration this module offers. */
+    private val CONTROL_WEAK_SWITCH =
+        "fun createOnboardingView(context: android.content.Context, switch: Any, accessibilityServiceComponent: String): android.view.View"
 }
