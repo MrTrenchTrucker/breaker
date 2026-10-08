@@ -1,7 +1,7 @@
 // android/modules/commit/accessibility — the accessibility text-insert mechanism (ADR-022).
 //
 // Card: android/modules/commit/accessibility/AGENTS.md   Registry: modules.toml [module.android_commit_accessibility]
-// Owns: nothing yet — no code written. See AGENTS.md for what Phase 7 adds.
+// Owns: The accessibility text-insert mechanism (ADR-022): finds the focused editable field, inserts text (ACTION_SET_TEXT merging at the cursor; ACTION_PASTE is not built yet), refuses password fields, publishes the focused field into the parent's holder.
 // Depends on: android_commit
 // Cross-module calls go through the core ports or the app's own
 // dependency wiring; this module never reaches into a sibling's code.
