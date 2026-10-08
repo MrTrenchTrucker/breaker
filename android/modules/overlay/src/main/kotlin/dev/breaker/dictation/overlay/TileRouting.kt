@@ -11,12 +11,13 @@ internal object TileRouting {
     /**
      * The action for a tap on [zone] while the tile is in [state].
      *
-     * Idle and failed: the microphone is a plain tap. Armed: the microphone begins recording.
-     * Recording: the microphone and the send button send, the cancel button cancels. Sending: nothing.
-     * Any other pair does nothing.
+     * Idle, failed and the two finished outcomes (sent and sent on the phone): the microphone is a plain
+     * tap. Armed: the microphone begins recording. Recording: the microphone and the send button send,
+     * the cancel button cancels. Sending: nothing. Any other pair does nothing.
      */
     fun action(state: TileState, zone: TileZone): TileAction = when (state) {
-        TileState.IDLE, TileState.FAILED -> if (zone == TileZone.MIC) TileAction.TAP else TileAction.NONE
+        TileState.IDLE, TileState.FAILED, TileState.SENT, TileState.SENT_LOCAL ->
+            if (zone == TileZone.MIC) TileAction.TAP else TileAction.NONE
         TileState.ARMED -> if (zone == TileZone.MIC) TileAction.BEGIN else TileAction.NONE
         TileState.RECORDING -> when (zone) {
             TileZone.MIC, TileZone.SEND -> TileAction.SEND

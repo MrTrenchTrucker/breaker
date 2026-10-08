@@ -10,7 +10,7 @@ import dev.breaker.shared.tokens.ThemeMode
  *
  * The tile never takes focus and has no text input, so the app you were in keeps its keyboard. It only
  * shows what the app tells it and reports taps; it never records and never inserts text. The app pushes
- * one of five states ([TileState]), the sound level while recording, and a sentence to show; what a tap
+ * one of seven states ([TileState]), the sound level while recording, and a sentence to show; what a tap
  * means is up to the app, which passes its callbacks in when it calls [create]. A drag of the small tile
  * moves it, and where it was dropped is saved in the settings as a fraction of the range the tile can
  * move over (the usable screen area minus the tile size), so it comes back at the same place on any

@@ -39,6 +39,8 @@ class TileStyleTest {
         TileState.RECORDING -> p.primary.argb
         TileState.SENDING -> p.primary.argb
         TileState.FAILED -> p.danger.argb
+        TileState.SENT -> p.sent.argb
+        TileState.SENT_LOCAL -> p.warning.argb
     }
 
     private fun fields(look: TileLook): List<Int> =

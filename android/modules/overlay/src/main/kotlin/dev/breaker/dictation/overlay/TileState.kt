@@ -16,5 +16,20 @@ package dev.breaker.dictation.overlay
  *
  * [FAILED]: the last try did not work. The ring turns to the failure colour, and a tap on the
  * microphone is passed to the app like a tap in [IDLE].
+ *
+ * [SENT] and [SENT_LOCAL] are the two finished outcomes, after [SENDING]; a tap on either is passed
+ * to the app like a tap in [IDLE].
  */
-enum class TileState { IDLE, ARMED, RECORDING, SENDING, FAILED }
+enum class TileState {
+    IDLE,
+    ARMED,
+    RECORDING,
+    SENDING,
+    FAILED,
+
+    /** The text was committed, and the ring is the palette's sent colour (green). */
+    SENT,
+
+    /** The text was committed on the phone after the server path failed, and the ring is the palette's warning colour (orange). */
+    SENT_LOCAL,
+}

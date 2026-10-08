@@ -4,7 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * What a tap means in each state on each zone: the whole table of 5 states by 5 zones, written out
+ * What a tap means in each state on each zone: the whole table of 7 states by 5 zones, written out
  * one row to a cell, so a change to any single cell is seen.
  */
 class TileRoutingTest {
@@ -41,6 +41,18 @@ class TileRoutingTest {
         Triple(TileState.FAILED, TileZone.SEND, none),
         Triple(TileState.FAILED, TileZone.STRIP, none),
         Triple(TileState.FAILED, TileZone.NONE, none),
+
+        Triple(TileState.SENT, TileZone.MIC, TileAction.TAP),
+        Triple(TileState.SENT, TileZone.CANCEL, none),
+        Triple(TileState.SENT, TileZone.SEND, none),
+        Triple(TileState.SENT, TileZone.STRIP, none),
+        Triple(TileState.SENT, TileZone.NONE, none),
+
+        Triple(TileState.SENT_LOCAL, TileZone.MIC, TileAction.TAP),
+        Triple(TileState.SENT_LOCAL, TileZone.CANCEL, none),
+        Triple(TileState.SENT_LOCAL, TileZone.SEND, none),
+        Triple(TileState.SENT_LOCAL, TileZone.STRIP, none),
+        Triple(TileState.SENT_LOCAL, TileZone.NONE, none),
     )
 
     /** A failure means a state, a zone or an action was added, removed or reordered, so the table below no longer covers everything. */
@@ -48,7 +60,7 @@ class TileRoutingTest {
     fun `the enums are the ones the table covers`() {
         assertEquals(
             "overlay: the tile states expected in this order",
-            listOf(TileState.IDLE, TileState.ARMED, TileState.RECORDING, TileState.SENDING, TileState.FAILED),
+            listOf(TileState.IDLE, TileState.ARMED, TileState.RECORDING, TileState.SENDING, TileState.FAILED, TileState.SENT, TileState.SENT_LOCAL),
             TileState.values().toList(),
         )
         assertEquals(
@@ -63,12 +75,12 @@ class TileRoutingTest {
         )
     }
 
-    /** A failure means the table does not hold exactly one row for each of the 25 state and zone pairs. */
+    /** A failure means the table does not hold exactly one row for each of the 35 state and zone pairs. */
     @Test
-    fun `the table has one row for each of the 25 pairs`() {
-        assertEquals("overlay: the table expected 25 rows", 25, table.size)
+    fun `the table has one row for each of the 35 pairs`() {
+        assertEquals("overlay: the table expected 35 rows", 35, table.size)
         val pairs = table.map { it.first to it.second }.toSet()
-        assertEquals("overlay: the table expected 25 different state and zone pairs", 25, pairs.size)
+        assertEquals("overlay: the table expected 35 different state and zone pairs", 35, pairs.size)
         for (state in TileState.values()) for (zone in TileZone.values()) {
             assertEquals("overlay: the table expected a row for $state on $zone", true, (state to zone) in pairs)
         }
@@ -76,7 +88,7 @@ class TileRoutingTest {
 
     /** A failure means a tap in some state on some zone is routed to the wrong action; the message names the pair. */
     @Test
-    fun `every one of the 25 cells routes as written`() {
+    fun `every one of the 35 cells routes as written`() {
         table.forEach { (state, zone, expected) ->
             assertEquals("overlay: a tap on $zone while $state expected $expected", expected, TileRouting.action(state, zone))
         }
