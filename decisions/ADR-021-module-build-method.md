@@ -37,9 +37,8 @@ For the maintainers' team, building a module or a sub-module works like this:
    for how it was written; see Consequences).
 4. **Levels.** An owner of a whole module plans at the module level; its
    sub-agents work at the sub-module level.
-5. **One model tier for sub-agents.** The maintainers' sub-agents run on
-   Claude Sonnet; an agent on another harness uses the sub-agent model that
-   harness is configured with.
+5. **Sub-agent model.** Sub-agents run on whatever sub-agent model the
+   maintainers configure for their harness; this record does not name one.
 6. **Order of work.** The owner gets the assignment, looks over the job to see
    what it involves, reads its work order and the documents in point 1, and
    only then writes the plan files and starts the sub-agents.
@@ -65,3 +64,6 @@ Rules out nothing for outside contributors. For them this stays the method
 described in each card and in `.github/CONTRIBUTING.md`: recommended for AI
 agents, not required. What every contributor must meet is unchanged: the
 card's rules, the fail-first test requirement and the passing checks.
+
+Amended 2026-10-08: point 5 no longer names a model. Sub-agents run on the
+sub-agent model the maintainers configure for their harness.
