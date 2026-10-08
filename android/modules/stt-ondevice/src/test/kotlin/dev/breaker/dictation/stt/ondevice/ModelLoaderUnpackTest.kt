@@ -23,6 +23,9 @@ class ModelLoaderUnpackTest {
     val tmp = TemporaryFolder()
 
     private val modelId = "tiny"
+
+    /** The four file names of the profile of the "tiny" model. */
+    private val fourFiles = TarFixtures.TINY_FILES.toTypedArray()
     private val bytes = "test model bytes".toByteArray()
     private val digest = Fixtures.independentSha256(bytes)
     private val entry = ModelEntry(modelId, ModelFamily.SHERPA_ONNX, "https://example.com/model", digest, 1, "Apache-2.0", false)
@@ -120,7 +123,7 @@ class ModelLoaderUnpackTest {
     @Test
     fun `the same fixture with an unpacked file loads so the refusal comes from the missing files`() {
         val r = rig()
-        seed(r, bytes, "tokens.txt")
+        seed(r, bytes, *fourFiles)
         val ready = readyOf(r.loader.load(modelId))
         assertEquals(modelId, ready.model.modelId)
         assertEquals(digest, ready.model.digest)
@@ -160,13 +163,13 @@ class ModelLoaderUnpackTest {
     @Test
     fun `load hands the files directory to the factory`() {
         val r = rig()
-        seed(r, bytes, "tokens.txt", "encoder.onnx")
+        seed(r, bytes, *fourFiles)
         val ready = readyOf(r.loader.load(modelId))
         val files = r.store.extractedDirectory(modelId)
         assertEquals(files, ready.model.directory)
         assertNotEquals("not the model directory", r.store.directoryFor(modelId), ready.model.directory)
         assertEquals("the factory saw the same model", listOf(ready.model), r.factory.models)
-        assertEquals(listOf("encoder.onnx", "tokens.txt"), ready.model.directory.list()!!.sorted())
+        assertEquals(fourFiles.sorted(), ready.model.directory.list()!!.sorted())
         assertEquals(digest, ready.model.digest)
     }
 
@@ -177,7 +180,7 @@ class ModelLoaderUnpackTest {
         assertEquals(ModelLoader.Refusal.NOT_INSTALLED, refusedOf(r.loader.load(modelId)).refusal)
         assertEquals(0, r.factory.models.size)
 
-        Fixtures.writeBytes(File(r.store.extractedDirectory(modelId), "tokens.txt"), "t".toByteArray())
+        for (name in fourFiles) Fixtures.writeBytes(File(r.store.extractedDirectory(modelId), name), "t".toByteArray())
         readyOf(r.loader.load(modelId))
         assertEquals(1, r.factory.models.size)
         assertKept(r)
@@ -186,7 +189,7 @@ class ModelLoaderUnpackTest {
     @Test
     fun `an engine that fails with the files in place is still reported as ENGINE_UNUSABLE and nothing is deleted`() {
         val r = rig(factory = CountingFactory(IllegalStateException("init failed")))
-        seed(r, bytes, "tokens.txt")
+        seed(r, bytes, *fourFiles)
         val refused = refusedOf(r.loader.load(modelId))
         assertEquals(ModelLoader.Refusal.ENGINE_UNUSABLE, refused.refusal)
         assertEquals(ModelMessages.ENGINE_COULD_NOT_START, refused.detail)

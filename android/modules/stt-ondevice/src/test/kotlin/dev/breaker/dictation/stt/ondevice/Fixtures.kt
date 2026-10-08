@@ -44,12 +44,15 @@ internal object Fixtures {
     }
 
     /**
-     * Put one file in the unpacked-files directory of [id], so the model counts
-     * as unpacked. Returns that directory.
+     * Put all four files of the unpack profile of [id] (each with content) in the
+     * unpacked-files directory, so the model counts as unpacked. An id with no
+     * profile can never count as unpacked; it gets the single file "tokens.txt".
+     * Returns that directory.
      */
     fun seedExtracted(store: LocalModelStore, id: String): File {
         val dir = store.extractedDirectory(id)
-        Fixtures.writeText(File(dir, "tokens.txt"), "seeded")
+        val names = ExtractionProfiles.forModel(id)?.files ?: listOf("tokens.txt")
+        for (name in names) Fixtures.writeText(File(dir, name), "seeded $name")
         return dir
     }
 

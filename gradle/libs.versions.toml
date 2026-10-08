@@ -16,6 +16,7 @@ commons-compress = "1.28.0"   # read 2026-10-07 from https://repo1.maven.org/mav
 # Pulled in by commons-compress, version resolved by Gradle (no entry here): commons-codec 1.19.0   # read 2026-10-07 from https://repo1.maven.org/maven2/commons-codec/commons-codec/maven-metadata.xml
 # Pulled in by commons-compress, version resolved by Gradle (no entry here): commons-io 2.20.0   # read 2026-10-07 from https://repo1.maven.org/maven2/commons-io/commons-io/maven-metadata.xml
 # Pulled in by commons-compress, version resolved by Gradle (no entry here): commons-lang3 3.18.0   # read 2026-10-07 from https://repo1.maven.org/maven2/org/apache/commons/commons-lang3/maven-metadata.xml
+sherpa-onnx = "1.13.8"   # read 2026-10-08 from https://github.com/MrTrenchTrucker/breaker/releases/tag/sherpa-onnx-asr-v1.13.8-r2
 
 [libraries]
 junit = { module = "junit:junit", version.ref = "junit" }

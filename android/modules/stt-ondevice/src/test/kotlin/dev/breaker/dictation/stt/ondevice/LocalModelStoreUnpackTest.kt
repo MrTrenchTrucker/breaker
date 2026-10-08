@@ -21,6 +21,9 @@ class LocalModelStoreUnpackTest {
 
     private val unsafeIds = listOf("../evil", "", ".hidden", "a/b", "a b", "a\\b")
 
+    /** The four file names of the profile of the "tiny" model, written out in the fixtures. */
+    private val fourFiles = TarFixtures.TINY_FILES
+
     /** A removal that records what it was asked to remove and answers [answer]. */
     private class RecordingRemoval(private val answer: Boolean?) : (File) -> Boolean {
         val asked = ArrayList<File>()
@@ -92,7 +95,7 @@ class LocalModelStoreUnpackTest {
         assertFalse("a plain file at the path", store.isExtracted("tiny"))
 
         files.delete()
-        Fixtures.writeBytes(File(files, "tokens.txt"), "t".toByteArray())
+        for (name in fourFiles) Fixtures.writeBytes(File(files, name), "t".toByteArray())
         assertTrue("a directory holding a file", store.isExtracted("tiny"))
     }
 
@@ -118,7 +121,7 @@ class LocalModelStoreUnpackTest {
         assertEquals(listOf("tiny"), store.installedModelIds())
 
         val other = LocalModelStore(tmp.newFolder())
-        Fixtures.writeBytes(File(other.extractedDirectory("tiny"), "tokens.txt"), "t".toByteArray())
+        for (name in fourFiles) Fixtures.writeBytes(File(other.extractedDirectory("tiny"), name), "t".toByteArray())
         assertTrue(other.isExtracted("tiny"))
         assertFalse(other.isInstalled("tiny"))
         assertEquals(emptyList<String>(), other.installedModelIds())
@@ -138,7 +141,7 @@ class LocalModelStoreUnpackTest {
     fun `a work directory can be moved into the extracted place by one rename`() {
         val store = LocalModelStore(tmp.newFolder())
         val work = store.extractionWorkDirectory("tiny")
-        Fixtures.writeBytes(File(work, "tokens.txt"), "t".toByteArray())
+        for (name in fourFiles) Fixtures.writeBytes(File(work, name), "t".toByteArray())
         store.directoryFor("tiny").mkdirs()
         assertTrue("the rename must work on this layout", work.renameTo(store.extractedDirectory("tiny")))
         assertTrue(store.isExtracted("tiny"))
@@ -148,7 +151,7 @@ class LocalModelStoreUnpackTest {
     @Test
     fun `removeExtracted removes the files and keeps the archive and the markers`() {
         val store = LocalModelStore(tmp.newFolder())
-        val dir = installedWithFiles(store, "tokens.txt", "encoder.onnx")
+        val dir = installedWithFiles(store, *fourFiles.toTypedArray())
         assertTrue(store.isExtracted("tiny"))
 
         assertTrue(store.removeExtracted("tiny"))
@@ -182,7 +185,7 @@ class LocalModelStoreUnpackTest {
     fun `removeExtracted asks for the files directory and reports a failed removal`() {
         val removal = RecordingRemoval(answer = false)
         val store = storeWith(removal)
-        installedWithFiles(store, "tokens.txt")
+        installedWithFiles(store, *fourFiles.toTypedArray())
 
         assertFalse("a failed removal must be reported", store.removeExtracted("tiny"))
         assertEquals(listOf(store.extractedDirectory("tiny")), removal.asked)
@@ -193,7 +196,7 @@ class LocalModelStoreUnpackTest {
     fun `delete removes the archive and the unpacked files together with one request`() {
         val removal = RecordingRemoval(answer = null)
         val store = storeWith(removal)
-        val dir = installedWithFiles(store, "tokens.txt")
+        val dir = installedWithFiles(store, *fourFiles.toTypedArray())
 
         assertTrue(store.delete("tiny"))
         assertEquals("one request, for the model directory", listOf(dir), removal.asked)
@@ -205,7 +208,7 @@ class LocalModelStoreUnpackTest {
     @Test
     fun `modelFiles does not list the unpacked directory`() {
         val store = LocalModelStore(tmp.newFolder())
-        installedWithFiles(store, "tokens.txt")
+        installedWithFiles(store, *fourFiles.toTypedArray())
         assertEquals(listOf(LocalModelStore.ARCHIVE_NAME), store.modelFiles("tiny").keys.sorted())
     }
 }

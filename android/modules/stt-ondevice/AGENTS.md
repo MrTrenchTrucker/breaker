@@ -2,8 +2,13 @@
 
 ## Purpose
 
-sherpa-onnx local transcription (fallback engine), model lifecycle, checksum verify. Offline speech-to-text on the phone using the base repo's **sherpa-onnx**
-engine (vendored from XIAOMI CORPORATION, upstream Apache-2.0, swept clean by Security Review).
+sherpa-onnx local transcription (fallback engine), model lifecycle, checksum verify. Offline speech-to-text on the phone using the upstream **sherpa-onnx**
+library (Apache-2.0, upstream k2-fsa/sherpa-onnx). The module compiles against our own build of it:
+a speech-recognition-only package at upstream commit 11afbd00, with text-to-speech and speaker
+diarization switched off, published as a release file. The components of that package and their
+licences are listed in `tools/sherpa-asr/NOTICE.md`, in the recipe folder that builds the package;
+the same file is copied into the package. The app supplies that file at run time; nothing of the
+library is copied into this repository.
 
 **Build phase:** Phase 3 of `docs/04-build-order.md`. Needs first: `core` (on main) and `model-registry` (built; this module names models only through the registry's entries, ADR-016).
 
@@ -14,9 +19,12 @@ sherpa-onnx local transcription (fallback engine), model lifecycle, checksum ver
 
 **In:** 16 kHz mono PCM float32.
 **Out:** `SttResult(text, segments, language)` or a failure result: `SttError.LOCAL_MODEL_MISSING` for model problems, `SttError.OTHER` for audio, engine and store problems. The engine class is `OnDeviceSttEngine`; user sentences come from `ErrorMapping`. A decode that does not finish before its deadline is an `OTHER` failure too (see Engine notes).
+The one public class for the native engine is `SherpaOnnxRecognizerFactory`, a `SherpaRecognizerFactory`.
+The app passes `SherpaOnnxRecognizerFactory()` (optionally with a thread count) as the `factory`
+argument of `ModelLoader`; the default there is still `UnavailableRecognizerFactory`, which refuses.
 
 **Engine notes:**
-- Keep the base's sherpa-onnx local-mode code (already swept). Do NOT reintroduce
+- Local mode runs on the upstream sherpa-onnx library; none of its code is kept here. Do NOT reintroduce
   the base's cloud/Groq fallback path (Security Review fix #1).
 - whisper.cpp AAR is a **fallback only** if sherpa-onnx lacks a needed feature.
 - `OnDeviceSttEngine` implements `core.SttEngine` over the loader port. It checks the audio rate
@@ -28,8 +36,8 @@ sherpa-onnx local transcription (fallback engine), model lifecycle, checksum ver
   engine never returns `SERVER_UNREACHABLE` or `TIMEOUT`: it has no server path.
 - A decode that does not finish before its deadline returns a failure, category `OTHER`
   (`ErrorMapping.decodeTimedOut()`), not `TIMEOUT`. While an abandoned decode is still running,
-  `transcribe` and `transcribeAsync` return `ErrorMapping.decodeBusy()` (also `OTHER`) at once;
-  `preload` and `diagnostics` are not refused. The constructor takes an injectable `DecodeDeadline`
+  `transcribe`, `transcribeAsync` and `preload` return `ErrorMapping.decodeBusy()` (also `OTHER`) at
+  once, and `preload` loads nothing; `diagnostics` is not refused. The constructor takes an injectable `DecodeDeadline`
   and a worker dispatcher for the native call after the loader and the slot dispatcher; both have
   defaults, so a call with one or two arguments compiles unchanged. The default limit is 30 seconds
   plus three times the clip length. It is a recommended value and is NOT measured on a device.
@@ -48,6 +56,40 @@ sherpa-onnx local transcription (fallback engine), model lifecycle, checksum ver
   worker still holds its recognizer until the native call returns (see Known Gotchas).
 - When a checksum failure left the file on disk (the delete failed), the user sentence says it could
   not be deleted instead of saying it was deleted.
+
+**Native adapter side:**
+- `SherpaOnnxRecognizerFactory` is the one public class here. `create(model)` refuses a model id
+  with no streaming profile (`StreamingProfiles`: `small` and `tiny`, both English), asks
+  `TransducerFileLocator` for the four files, and only then opens the engine, so a refusal leaves
+  nothing to release. Every refusal and every failure to open is a `SherpaTranscriptionException`
+  with a fixed message that carries no path, file name or model id; the engine's own error travels
+  as the cause. A native library that fails to link (a `LinkageError`) is reported the same way, at
+  open and at decode, so the loader and the engine see an engine failure and not an `Error`. Any
+  other `Error` passes through the adapter (the engine has its own arms for out of memory and stack
+  overflow). The thread count is a constructor argument, at least 1, default 2.
+- `TransducerFileLocator` picks the files by which names are present, not from a fixed list: the
+  encoder prefers the int8 file, the decoder and the joiner prefer the plain file, and each falls
+  back to the other kind. A name belongs to a role when it starts with the role word followed by a
+  dash or a dot and ends with `.onnx`; of several, the first by sort order is taken, and the token
+  table must be named exactly `tokens.txt`. The files are returned only when each is a regular file
+  of at least one byte.
+- `SherpaOnnxRecognizer` (internal) is the `SherpaRecognizer` over a native streaming recognizer. It
+  talks to the engine only through the small internal seam in `NativeStreaming.kt` (`NativeStream`,
+  `NativeStreamingRecognizer`, `TransducerFiles`, `NativeStreamingOpener`), so it and its tests run
+  without the library. One `decode` opens a stream, feeds the clip, then a block of 10,560 zero
+  samples, marks the input finished, polls until the engine has nothing left to decode, reads the
+  text and always releases the stream. Before any native call it refuses a recognizer that is
+  already released, a sample rate other than 16 kHz and an empty clip. The number of polls is
+  bounded (the frames in the clip and the silence, 100 per second, plus 16); past the bound the
+  decode fails instead of looping. The transcript is one segment that spans the clip, or no segment
+  when the text is blank. `release()` frees the native recognizer once, does nothing the second
+  time and never throws.
+- `SherpaOnnxBinding` (internal) is the only file that names the library's classes
+  (`com.k2fsa.sherpa.onnx`). It sets 16 kHz, 80 mel bins, the CPU provider, greedy search and no
+  endpoint detection, and leaves the model type empty so the library reads it from the model files.
+  It never loads a native library itself; the library's own classes do that on first use.
+- `RefusalMapping.kt` holds `mapRefusal` (a loader refusal to a failure result). It was moved out of
+  `OnDeviceSttEngine.kt` with its text unchanged except for visibility (`internal`).
 
 **Download side:**
 - `HttpModelFetcher` is the real `ModelFetcher`. It is built on the platform's `HttpURLConnection`,
@@ -102,9 +144,10 @@ sherpa-onnx local transcription (fallback engine), model lifecycle, checksum ver
 - New installer refusal values: `UNSUPPORTED_MODEL`, `EXTRACT_REFUSED`, `EXTRACT_FAILED`, `NO_SPACE`.
   Three new user sentences: the archive could not be unpacked safely, the phone could not unpack it,
   and there is not enough free space to unpack it.
-- The loader answers not-installed, and keeps the archive, when the archive verifies but `files/` is
-  missing or empty. That check comes after the archive check, so a tampered archive is still judged
-  and deleted first. The loader hands the engine factory the `files/` directory.
+- The loader answers not-installed, and keeps the archive, when the archive verifies but `files/` does
+  not hold all four profile files, each a regular file of at least one byte. That check comes after
+  the archive check, so a tampered archive is still judged and deleted first. The loader hands the
+  engine factory the `files/` directory.
 
 **Model lifecycle:**
 - Models from `shared/model-registry` (sizes + SHA-256 + per-model license terms).
@@ -133,13 +176,16 @@ sherpa-onnx local transcription (fallback engine), model lifecycle, checksum ver
   lazy per setting) remains the app's wiring decision.
 
 **Security Review's sherpa-onnx audit [2]:** safe to use with three mitigations — clean
-of malware/backdoors/phone-home; the vendored Kotlin bindings match upstream
+of malware/backdoors/phone-home; the Kotlin bindings of the copy vendored in the base repo match upstream
 signatures exactly. **Known bug:** issue #3983 — OOB write in the offline
 transducer greedy-search decoder, reachable via a tampered .onnx (vocab_size
 parsed with no upper bound). Mitigations adopted here: pinned immutable release-asset ids + upstream checksum.txt verification (closes the tampered-model delivery
 vector); track #3983 and adopt the upstream decoder fix when it lands; revisit
 (beam-search / non-transducer models) only if the fix doesn't land in a
-reasonable window [2].
+reasonable window [2]. Whether our package (upstream commit 11afbd00) contains that fix has not been
+checked. This audit covered the copy vendored in the base repo, which this module no longer uses (it
+compiles against our speech-recognition-only package, see Known Gotchas); no audit of that package is
+recorded here.
 
 **Threading:** inference blocks, so the engine runs one decode at a time on a single-slot coroutine
 dispatcher, never the UI thread. The dispatcher is a single-slot view over the shared IO pool (built
@@ -163,20 +209,20 @@ failure, the decode counts as abandoned, and the thread's interrupt flag is put 
 it.
 
 - Thread affinity: the engine creates a recognizer on the slot thread, decodes with it on a bound
-  worker thread (one recognizer, two threads, one at a time) and releases it inside a single call
-  (on the slot thread, or on the worker when the decode was abandoned). It keeps none between
-  calls, so it does not matter which IO thread runs the next decode. As far as the upstream code
-  read shows, the sherpa-onnx recognizer has no thread affinity: its native handle is a plain
-  pointer, and the recognizer code read keeps no thread-local state and reads no thread identity
-  (k2-fsa/sherpa-onnx, jni/ and csrc/ recognizer sources, read at the upstream version Breaker
-  pins). ONNX Runtime documents that a session's Run may be called from multiple threads
-  (onnxruntime core/session/inference_session.h). Limits: upstream gives no written guarantee, so
-  the claim rests on reading the code. That reading covered the absence of thread-bound state in the
-  recognizer paths read; it did NOT cover creating a recognizer on one thread and decoding with it
-  on another, and that is re-checked against the real binding when the adapter lands. Only the
-  recognizer paths were searched; the vendored Kotlin in this repo is the offline recognizer, and
-  the native adapter this module will use does not exist yet, so the claim must be re-checked when
-  the adapter lands; if it ever needs one thread, the engine must switch to a single fixed thread.
+  worker thread and releases it on the slot thread, or on the worker when the decode was abandoned:
+  one recognizer, two threads, one at a time. It keeps none between calls, so it does not matter
+  which IO thread runs the next decode. What was read, at upstream release 1.13.8: the Kotlin files
+  `OnlineRecognizer.kt` and `OnlineStream.kt` and the JNI files `online-recognizer.cc`,
+  `online-stream.cc` and `common.h`. The Kotlin classes hold the native pointer in one plain field
+  and use no thread-local value, lock, handler or thread identity. The JNI files keep no
+  thread-local value, no lock, no stored environment pointer and no class, method or field id
+  between calls; the only `static` in them is one helper function (a text search for the usual
+  names, run with a control that shows the search finds JNI text). Limits: the C++ sources behind
+  those JNI calls (recognizer, stream, feature and session code) and the ONNX Runtime inside the
+  release file were NOT read here, so whether a recognizer created on one thread may be used from
+  another is not confirmed; upstream gives no written guarantee; and the claim has not been tried
+  on a device. If it ever needs one thread, the engine must switch to a single fixed thread for
+  create, decode and release.
 
 ## Invariants
 - Offline dictation E2E: tap → speak → send → text (F1).
@@ -213,11 +259,24 @@ it.
   ones included); it is the only test file that imports the archive library.
   `ModelInstallerUnpackFixture`, in `ModelInstallerUnpackReinstallTest.kt`, is the shared fixture of
   the two installer unpack test classes.
+- The adapter tests are `SherpaOnnxRecognizerTest` and `SherpaOnnxRecognizerFailureTest` (the adapter
+  over `FakeNative.kt`, a scripted native engine), `SherpaOnnxRecognizerFactoryTest`,
+  `TransducerFileLocatorTest`, `StreamingProfilesConsistencyTest` (the streaming ids equal the unpack
+  ids, and the locator picks the files the unpack writes), `SherpaOnnxRecognizerWiringTest` (a real
+  loader and engine over the real factory, with a fake opener) and `SherpaOnnxRealBindingTest` (the
+  public factory on a plain JVM: a failure result, not an exception). The preload change has
+  `OnDeviceSttEnginePreloadBusyTest`, and the four-names check has `LocalModelStoreFourNamesTest`
+  and `ModelLoaderFourNamesTest`. None of them runs the native engine or a real model.
 - Contract: `tests/contract/test_stt_ondevice_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_stt_ondevice_contract.py`
 - Contract (decode bound pins): `tests/contract/stt_ondevice_bound_pins.py`, collected and run by the contract test above.
+  It includes the pin that `preload` holds the busy guard.
 - Contract (unpack pins): `tests/contract/stt_ondevice_extract_pins.py`, imported and run by the contract test above.
   It also pins the catalog version of the archive library to the release the unpack was written
   against, so a version change is a deliberate edit of that pin.
+- Contract (release file pins): `tests/contract/stt_ondevice_aar_pins.py` holds the tests and
+  `tests/contract/stt_ondevice_aar_checks.py` the rules they call; the contract test above imports
+  and runs them. They pin the pin file, the settings and build wiring, the compile-only
+  declaration, and that only the binding names the library and no main source loads a native library.
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
 ## Test Requirement
@@ -270,18 +329,80 @@ agents, not required: an outside contributor may write the code themselves
 - The start target (N1) is not met by the engine as it stands: every call hashes the whole archive
   and creates a recognizer, and preload keeps neither. Model sizes in the registry range from 122 MB
   to 1818 MB. This has not been measured on a device.
-- Engine behaviour not changed yet: a failing `Error` (not an `Exception`) from the loader reaches
-  the caller; the decode catch policy names two `Error` types and not others; a recognizer release
+- Engine behaviour not changed yet: an `Error` (not an `Exception`) from the loader reaches the
+  caller, except a native link failure, which the on-device adapter reports as an engine failure;
+  the decode catch policy names two `Error` types and not others; a recognizer release
   that throws replaces the result; the engine and the loader keep two sets of user sentences that
   have drifted apart; a model the loader could not start is shown as "could not transcribe"; the
   wrong-family sentence names a model family the code does not check; `loadedModelId` in the
   diagnostics is not cleared after a refusal; diagnostics on a closed engine reads on the caller's
   thread; one salvaged test duplicates another; the `Outcome` enum is unused.
-- The download side (`HttpModelFetcher`) and the unpack side (`ModelExtractor`) exist; a real
-  recognizer factory does not (the default, `UnavailableRecognizerFactory`, refuses to create one).
-  No production code constructs `ModelInstaller` or `ModelLoader`. The engine takes the loader
-  through `ModelLoaderPort`, and the app's wiring supplies it later, so the engine cannot transcribe
-  real audio until a recognizer factory exists.
+- The download side (`HttpModelFetcher`), the unpack side (`ModelExtractor`) and the native adapter
+  (`SherpaOnnxRecognizerFactory`) exist. The default factory of `ModelLoader` is still
+  `UnavailableRecognizerFactory`, which refuses to create a recognizer. No production code constructs
+  `ModelInstaller` or `ModelLoader`. The engine takes the loader through `ModelLoaderPort`, and the
+  app's wiring supplies it later, so the module cannot transcribe real audio until the app builds the
+  loader with a `SherpaOnnxRecognizerFactory` and adds the release file (next bullet). The adapter, the
+  release-file build route and their tests were written without being compiled or run.
+- The engine library is our own package of sherpa-onnx: the speech-recognition-only build at upstream
+  commit 11afbd00, with text-to-speech and speaker diarization off, published as the release file
+  `sherpa-onnx-v1.13.8-asr-only.aar` (an Android archive holding the classes and the native
+  libraries). This module uses it to compile and nothing else: the build file declares it
+  `compileOnly`, so it is not packaged, and the module's tests do not rely on it being on their
+  classpath. The app must add the same release file at run time; that brings the classes and the
+  native libraries, and the app chooses the ABIs (the upstream k2-fsa file holds arm64-v8a,
+  armeabi-v7a, x86 and x86_64; the ABIs of this package were not read here; the app's base filter is
+  arm64-v8a only). The upstream k2-fsa release file may be used only as a test control: it is not
+  the pinned file and is never part of the shipped build.
+- The build downloads the release file (about 23 MB) on a first build or an IDE sync, from the
+  address in `sherpa-onnx-aar.properties`, through one exclusive repository in
+  `settings.gradle.kts`. The task `verifySherpaAar` checks its SHA-256 against the pin and fails
+  closed: a missing key, a digest that is not 64 lowercase hex digits, a version that differs from
+  `gradle/libs.versions.toml`, anything but exactly one regular file named for the version, or a
+  digest mismatch stops the build. It runs before this module's own build tasks only, and a
+  command line can skip it with `-x`. When the app adds the release file it must add its own
+  `dependsOn` on that task; that wiring is not in this module. The pin file is the only
+  place the build of the library changes (its version must still equal the catalog
+  version); which build the project ships is decided outside this module. At run time the module's
+  network use is unchanged: it still reaches the network only to download a pinned model.
+- Not exercised, and owed to whoever runs the real build: the settings repository (an ivy
+  repository with `exclusiveContent` and artifact-only metadata), whether the file host answers the
+  existence check after the redirect from GitHub, how the Android plugin treats the same coordinate
+  on `compileOnly`, and the Kotlin metadata and minimum SDK of the release file. Nothing in
+  this list was compiled or resolved by the author of this text.
+- `numThreads` defaults to 2 (`SherpaOnnxRecognizerFactory.DEFAULT_NUM_THREADS`) and the silence fed
+  after the clip is 10,560 samples, 0.66 s (`SherpaOnnxRecognizer.TAIL_PADDING_SAMPLES`). Both are
+  device placeholders and are NOT measured: whether that silence finishes the last word, or is too much,
+  and which thread count suits a phone, are unknown. The 80 mel bins in the binding equal the
+  library's own default and have not been checked against either model. The refusals of a rate
+  other than 16 kHz and of an empty clip are this adapter's own rule, not the library's.
+- Owed on a device before anyone says on-device transcription works: a first load and a decode of a
+  known clip for BOTH models, `tiny` and `small` (the model metadata of neither was read here, so
+  that each really is a streaming transducer is judged from its file names only); the memory one
+  recognizer needs and the start latency, neither of which is measured; the size the native
+  libraries add to the app (the file list of this package was not read here; the upstream k2-fsa
+  file, a different build, has for arm64-v8a `libonnxruntime.so` at 22,249,560 bytes and
+  `libsherpa-onnx-jni.so` at 4,771,760 bytes); the casing, punctuation and
+  error rate of the text (English only); a check that the native libraries are aligned for 16 KB
+  pages (not checked); and, if the app ever turns on code shrinking (no such setting was found in the
+  app build file), keep rules for `com.k2fsa.sherpa.onnx`, because the JNI code looks fields up by
+  name and the upstream k2-fsa file ships an empty `proguard.txt` (the one in this package was
+  not read).
+- The library is reported to end the whole process, not to throw, when a model file is missing, a
+  line of the token table does not parse, or the model metadata is missing. That comes from the
+  design notes: the C++ sources were not read here. The locator and the four-names check keep a
+  missing or empty file, or a directory in its place, from reaching the library, but they cannot
+  catch a damaged token table, and nothing in-process can recover from that exit.
+- This package is built with text-to-speech and speaker diarization off. The upstream k2-fsa release
+  file also contains text-to-speech classes (the `OfflineTts` family); this module uses none of
+  them, and whether this package still holds any such class was not read here. The components of
+  this package and their licences are listed in `tools/sherpa-asr/NOTICE.md`, which the recipe also
+  copies into the package; this module does not change the repository NOTICE. As that file states
+  them: sherpa-onnx Apache-2.0; onnxruntime (prebuilt, csukuangfj/onnxruntime-libs v1.28.2) MIT plus
+  its ThirdPartyNotices; kaldi-native-fbank Apache-2.0; kissfft BSD-3-Clause; kaldi-decoder
+  Apache-2.0; kaldifst v1.8.0 Apache-2.0; openfst Apache-2.0; simple-sentencepiece Apache-2.0;
+  nlohmann/json MIT. The list was read from that file; the package itself was not opened here. This
+  card makes no licence statement beyond the one in Purpose and this list.
 - The extractor writes at most the profile's written-bytes bound and needs free space equal to that
   bound before it starts (80 MiB for `tiny`, 160 MiB for `small`). It compares the bound with the
   free space of the staging directory; that is a bound, not a measure of what the files need. A
@@ -290,12 +411,14 @@ agents, not required: an outside contributor may write the code themselves
   store still counts the model as installed (the archive is there), but the loader answers not
   installed and keeps the archive; installing again heals it. A work directory left in the staging
   directory by the crash stays until the next install of that model, which removes it first.
-- `isExtracted` means a non-empty `files/` and nothing more: it does not check that all four files
-  are there. The extractor makes sure of that, because `files/` appears only through the single
-  rename of a complete work directory. A removal of the earlier unpacked files that fails part-way
-  is refused by the installer, but the old archive and a partly removed `files/` stay, and the
-  loader can then hand the engine factory a directory with files missing. A stricter check (all four
-  profile names present) is open.
+- `isExtracted` is true only when the model has an unpack profile, `files/` is a directory, and each
+  of the profile's four names is a regular file of at least one byte in it; other files there do
+  not matter. A model with no profile is never extracted. A removal of the earlier unpacked files
+  that fails part-way is refused by the installer, and the old archive and a partly removed
+  `files/` stay; when fewer than the four names remain, the loader now answers not-installed and
+  keeps the archive. The check looks at names, file kind and size above zero only: it does not
+  hash the four files (see the next bullet), and the locator checks the same four again before the
+  engine opens them.
 - The loader hashes only the archive, on every load, and never the four unpacked files. A change to
   an unpacked file after install is not detected, so the invariant "corrupt model file: load refused
   and the file deleted" holds for the archive only.
@@ -339,11 +462,19 @@ agents, not required: an outside contributor may write the code themselves
   creating the recognizer are not bounded, so a load that never returns still holds the slot and
   every call queued behind it waits.
 - An abandoned decode (one that passed its deadline) can leak one worker thread and one recognizer,
-  up to the model's memory, until the native call returns. At most one at a time: `transcribe` and
-  `transcribeAsync` return the busy failure while it runs. `preload` is not refused, so for a moment
-  a second recognizer can exist next to the stuck one. If the native call never returns, the thread
-  and the recognizer stay until the process ends. `close()` does not cancel it.
+  up to the model's memory, until the native call returns. At most one at a time: `transcribe`,
+  `transcribeAsync` and `preload` return the busy failure while it runs, so no second recognizer is
+  created next to the stuck one. If the native call never returns, the thread and the recognizer
+  stay until the process ends. `close()` does not cancel it.
 - A slow phone or a long clip can trigger a false timeout: the engine reports a failure while the
   native call keeps using CPU and battery until it ends.
 - The limit (30 seconds plus three times the clip length) is a recommended value, not a
   measurement. It has not been tried on a device.
+- Two source files are over the soft line cap of 300 lines and under the hard cap of 500:
+  `OnDeviceSttEngine.kt` at 308 lines and `LocalModelStore.kt` at 307 lines. Neither is split further
+  for now.
+- The test `test_build_file_adds_exactly_one_external_dependency` (in the unpack pins) is false by
+  its own name, because the build file now adds two coordinates. It is to be renamed in a later
+  change.
+- The thread-affinity reads above were made on upstream release 1.13.8. They were not repeated on
+  the source at commit 11afbd00 that this package is built from.

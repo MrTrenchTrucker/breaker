@@ -201,7 +201,10 @@ class SttOndeviceExtractPinsTest(unittest.TestCase):
 
     def test_build_file_adds_exactly_one_external_dependency(self):
         """The module build file lists these dependencies and no others: the two project edges,
-        `libs.kotlinx.coroutines.core`, `libs.commons.compress` (once), and `libs.junit` for tests."""
+        `libs.kotlinx.coroutines.core`, `libs.commons.compress` (once), `libs.junit` for tests, and
+        `compileOnly(sherpaCoordinate)`. That last one is the release file of the speech engine, used to
+        compile the one binding file only and never packaged: the app supplies it at run time. The same
+        coordinate is also added to the verify configuration with `add(...)`, which this pin does not see."""
         code = _scan(self._read(BUILD), True)
         found = re.findall(r"\b(implementation|api|compileOnly|runtimeOnly|testImplementation|testRuntimeOnly|"
                            r"androidTestImplementation|debugImplementation|kapt|ksp|annotationProcessor)\s*\(\s*([^()]*(?:\([^()]*\))?[^()]*)\)",
@@ -211,7 +214,8 @@ class SttOndeviceExtractPinsTest(unittest.TestCase):
                        ("implementation", 'project(":shared:modules:model-registry")'),
                        ("implementation", "libs.kotlinx.coroutines.core"),
                        ("implementation", "libs.commons.compress"),
-                       ("testImplementation", "libs.junit")])
+                       ("testImplementation", "libs.junit"),
+                       ("compileOnly", "sherpaCoordinate")])
         self.assertEqual(got, want, "build pin: the dependency list changed")
         self.assertEqual(len(re.findall(r"commons", code)), 1, "build pin: commons-compress must be named on exactly one line")
         self.assertEqual(len(re.findall(r"\bimplementation\s*\(\s*libs\.commons\.compress\s*\)", code)), 1,

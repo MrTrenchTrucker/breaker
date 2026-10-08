@@ -15,6 +15,7 @@ import unittest
 
 import contract_support
 from stt_ondevice_bound_pins import SttOndeviceBoundPinsTest  # noqa: F401  (decode-bound pins, collected here)
+from stt_ondevice_aar_pins import SttOndeviceAarPinsTest  # noqa: F401  (sherpa-onnx compile route pins, collected here)
 from stt_ondevice_extract_pins import SttOndeviceExtractPinsTest  # noqa: F401  (unpack pins, collected here)
 
 REGISTRY_FILE = (

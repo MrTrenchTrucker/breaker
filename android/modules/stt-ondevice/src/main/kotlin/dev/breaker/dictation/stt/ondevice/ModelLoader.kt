@@ -201,8 +201,10 @@ class ModelLoader(
         }
 
         // Step 6: engine creation. Any Exception from the factory (checked or
-        // not, including SherpaTranscriptionException) is a refusal. An Error
-        // (out of memory, a native library that fails to link) is not caught:
+        // not, including SherpaTranscriptionException) is a refusal. The real
+        // factory turns a native library that fails to link into a
+        // SherpaTranscriptionException, so that case arrives here as a
+        // refusal. Any other Error (out of memory, for example) is not caught:
         // it is not an engine refusal and must reach the caller.
         val model = SherpaModel(modelId, store.extractedDirectory(modelId), digest)
         val recognizer: SherpaRecognizer = try {

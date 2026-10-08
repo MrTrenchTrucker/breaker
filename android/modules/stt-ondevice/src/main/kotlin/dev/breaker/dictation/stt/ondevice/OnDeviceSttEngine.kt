@@ -184,8 +184,9 @@ class OnDeviceSttEngine(
     /**
      * Loads the model, releases the recognizer it created, and holds nothing.
      * It lets a settings screen report a bad model early; it does not shorten
-     * the next transcribe, which loads and verifies again. Returns the
-     * failure, or null when the model loaded.
+     * the next transcribe, which loads and verifies again. While an abandoned
+     * decode still runs it loads nothing and returns [ErrorMapping.decodeBusy].
+     * Returns the failure, or null when the model loaded.
      */
     fun preload(modelId: String): SttResult.Failure? {
         if (closed) return ErrorMapping.engineClosed()
@@ -195,6 +196,7 @@ class OnDeviceSttEngine(
             runBlocking(inferenceDispatcher) {
                 if (closed) return@runBlocking ErrorMapping.engineClosed()
                 if (decodingHere.get()) return@runBlocking ErrorMapping.reentrantDecode()
+                if (bound.abandonedRunning) return@runBlocking ErrorMapping.decodeBusy()
 
                 decodingHere.set(true)
                 try {
@@ -301,17 +303,6 @@ class OnDeviceSttEngine(
                     recognizer.release()
                 }
             }
-        }
-    }
-
-    private fun mapRefusal(modelId: String, result: ModelLoader.LoadResult.Refused): SttResult.Failure {
-        return when (result.refusal) {
-            ModelLoader.Refusal.UNKNOWN_MODEL -> ErrorMapping.unknownModel(modelId)
-            ModelLoader.Refusal.WRONG_FAMILY -> ErrorMapping.wrongFamily(modelId, result.family?.name ?: "unknown")
-            ModelLoader.Refusal.NOT_INSTALLED -> ErrorMapping.noModelInstalled(modelId)
-            ModelLoader.Refusal.CHECKSUMS_UNREADABLE -> ErrorMapping.checksumsUnreadable(modelId)
-            ModelLoader.Refusal.VERIFICATION_REFUSED -> ErrorMapping.tampered(modelId, result.leftOnDisk)
-            ModelLoader.Refusal.ENGINE_UNUSABLE -> ErrorMapping.decodeFailed()
         }
     }
 }

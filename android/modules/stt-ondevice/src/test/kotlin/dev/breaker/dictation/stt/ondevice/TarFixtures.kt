@@ -81,6 +81,9 @@ internal object TarFixtures {
     private const val NAME_FIELD = 100
     private const val BZ2_TRAILER_BYTES = 10
 
+    // Block size unit of the bzip2 writer: 1 is 100 kB per block, 9 is 900 kB.
+    private const val DEFAULT_BLOCK_SIZE = 1
+
     // Entry order of the real listings, names relative to the top directory; "" is the top directory itself.
     private val SMALL_ORDER = listOf(
         "", "notes.md", "test_wavs/", "test_wavs/trans.txt", "test_wavs/8k.wav", "test_wavs/1.wav",
@@ -148,11 +151,16 @@ internal object TarFixtures {
 
     // ---- bzip2 ----
 
-    /** Compress [raw]; a [blockSize] of 1 means 100 kB blocks, so a few hundred kB of random bytes gives several blocks. */
-    fun bz2(raw: ByteArray, blockSize: Int = 9): ByteArray = bz2Of(blockSize) { it.write(raw) }
+    /**
+     * Compress [raw]. A [blockSize] of 1 means 100 kB blocks, so a few hundred kB of random bytes gives several blocks.
+     * The default is 1: every archive built without a size is far smaller than one block, and a small block size
+     * keeps the memory of the compressor here, and of the decompressor under test, small. A test that needs
+     * more than one block says so by passing the size and enough bytes.
+     */
+    fun bz2(raw: ByteArray, blockSize: Int = DEFAULT_BLOCK_SIZE): ByteArray = bz2Of(blockSize) { it.write(raw) }
 
     /** Compress whatever [write] puts on the stream, without holding it all in memory. */
-    fun bz2Of(blockSize: Int = 9, write: (OutputStream) -> Unit): ByteArray {
+    fun bz2Of(blockSize: Int = DEFAULT_BLOCK_SIZE, write: (OutputStream) -> Unit): ByteArray {
         val sink = ByteArrayOutputStream()
         BZip2CompressorOutputStream(sink, blockSize).use { write(it) }
         return sink.toByteArray()

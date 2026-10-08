@@ -188,8 +188,9 @@ class SttOndeviceBoundPinsTest(unittest.TestCase):
     def test_busy_refusal_guards_both_bodies_and_nothing_else(self):
         """`if (bound.abandonedRunning) return ... ErrorMapping.decodeBusy()` sits in the
         transcribe body and in the transcribeAsync body, inside the dispatched block, after the
-        reentrancy check and before the marker is set; preload, diagnostics and the rest of
-        the engine never read `bound.abandonedRunning` (three reads in all, the third is the test hook)."""
+        reentrancy check and before the marker is set; preload holds the same guard once (its
+        position is pinned in test_preload_is_refused_as_busy_before_it_loads); diagnostics and the
+        rest of the engine never read `bound.abandonedRunning` (four reads in all, the fourth is the test hook)."""
         code = self._code(ENGINE)
         for fun, anchor in (("transcribe", r"\brunBlocking\s*\(\s*inferenceDispatcher\s*\)"),
                             ("transcribeAsync", r"\bscope\s*\.\s*async\b")):
@@ -206,12 +207,40 @@ class SttOndeviceBoundPinsTest(unittest.TestCase):
             checks = [m.start() for m in re.finditer(r"\bdecodingHere\s*\.\s*get\s*\(\s*\)", body[:marker.start()])]
             self.assertTrue(checks and checks[-1] < where,
                             f"busy pin: the guard in {fun} must come after the reentrancy check")
-        for fun in ("preload", "diagnostics"):
+        # preload is refused as busy while an abandoned decode runs, so that no second recognizer is created
+        # next to the stuck one. It used to be allowed; the contract changed on purpose.
+        self.assertEqual(
+            len(re.findall(BUSY, self._body(code, "preload"))), 1,
+            "busy pin: preload must hold the busy guard once, it is refused while an abandoned decode runs")
+        for fun in ("diagnostics",):
             self.assertNotRegex(
                 self._body(code, fun), r"\babandonedRunning\b|\bdecodeBusy\b",
                 f"busy pin: {fun} must not be refused while an abandoned decode runs")
         reads = re.findall(r"\bbound\s*\.\s*abandonedRunning\b", code)
-        self.assertEqual(len(reads), 3, f"busy pin: bound.abandonedRunning is read {len(reads)} times, expected 3")
+        self.assertEqual(len(reads), 4, f"busy pin: bound.abandonedRunning is read {len(reads)} times, expected 4")
+
+    # --- 16b. preload is refused while an abandoned decode runs -----------
+
+    def test_preload_is_refused_as_busy_before_it_loads(self):
+        """`preload` holds `if (bound.abandonedRunning) return ... ErrorMapping.decodeBusy()` once,
+        inside the dispatched block, after the reentrancy check, before the marker is set and
+        before `loader.load(`, so an abandoned decode never gets a second recognizer next to it."""
+        body = self._body(self._code(ENGINE), "preload")
+        guard = list(re.finditer(BUSY, body))
+        self.assertEqual(len(guard), 1, f"preload busy pin: preload must hold the busy guard once (found {len(guard)})")
+        where = guard[0].start()
+        top = re.search(r"\brunBlocking\s*\(\s*inferenceDispatcher\s*\)", body)
+        self.assertIsNotNone(top, "preload busy pin: preload lost its dispatcher bridge")
+        self.assertGreater(where, top.start(), "preload busy pin: the guard must be inside the dispatched body")
+        load = re.search(r"\bloader\s*\.\s*load\s*\(", body)
+        self.assertIsNotNone(load, "preload busy pin: preload must load through the loader")
+        self.assertLess(where, load.start(), "preload busy pin: the guard must come before the loader is asked for a model")
+        marker = re.search(r"\bdecodingHere\s*\.\s*set\s*\(\s*true\s*\)", body)
+        self.assertIsNotNone(marker, "preload busy pin: preload must set the marker")
+        self.assertLess(where, marker.start(), "preload busy pin: the guard must come before the marker is set")
+        checks = [m.start() for m in re.finditer(r"\bdecodingHere\s*\.\s*get\s*\(\s*\)", body[:marker.start()])]
+        self.assertTrue(checks and checks[-1] < where,
+                        "preload busy pin: the guard must come after the reentrancy check")
 
     # --- 17. the worker never takes the slot ----------------------------
 

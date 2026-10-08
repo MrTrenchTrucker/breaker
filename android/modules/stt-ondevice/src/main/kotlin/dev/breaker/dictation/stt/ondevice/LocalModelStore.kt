@@ -263,13 +263,21 @@ class LocalModelStore(
         File(directoryFor(modelId), EXTRACTED_DIR)
 
     /**
-     * Returns true when the extracted directory of [modelId] is a directory with
-     * at least one entry. Absent, empty and a plain file at that path answer
-     * false, and so does an unsafe id.
+     * Returns true when the extracted directory of [modelId] holds all four files
+     * of its unpack profile, each a regular file with at least one byte (extra
+     * files do not matter). Anything less answers false, because a half-removed
+     * earlier unpack can leave some files behind: a missing, empty or directory
+     * name, an absent or plain-file directory, a model with no profile, an unsafe id.
      */
     fun isExtracted(modelId: String): Boolean {
         if (!isSafeName(modelId)) return false
-        return extractedDirectory(modelId).list()?.isNotEmpty() == true
+        val profile = ExtractionProfiles.forModel(modelId) ?: return false
+        val directory = extractedDirectory(modelId)
+        if (!directory.isDirectory) return false
+        return profile.files.all { name ->
+            val file = File(directory, name)
+            file.isFile && file.length() > 0L
+        }
     }
 
     /**
