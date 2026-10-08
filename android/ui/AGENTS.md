@@ -21,9 +21,8 @@ Four declarations; everything else in the module is internal or private.
 
 ## Depends On
 - android (registered in modules.toml)
-- android_core (registered in modules.toml)
+- android_core (registered in modules.toml); the history screen takes core's HistoryStore port through it and never imports the history module.
 - shared_ui_tokens (registered in modules.toml)
-- The history screen takes core's HistoryStore port through android_core; the module never imports the history module.
 
 ## Invariants
 screens render with ui-tokens; light/dark toggle persists (F25).
