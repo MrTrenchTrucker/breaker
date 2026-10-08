@@ -30,9 +30,16 @@ TTS_MARKERS = (b"phontab", b"phondata", b"phonindex", b"intonations", b"mbrola",
 
 REQUIRED_ABIS = ("jni/arm64-v8a/", "jni/x86_64/")
 
+# CMake download names that differ from the component's NOTICE name.
+# Today none are needed beyond the last-path-part rule; add one here only
+# with the reason, never a catch-all.
+DOWNLOAD_ALIASES = {}
+
 
 def _so_files(zf):
-    return [n for n in zf.namelist() if n.endswith(".so") and any(n.startswith(abi) for abi in REQUIRED_ABIS)]
+    """Every native library in the AAR, whatever its ABI folder, so a library
+    for an ABI outside REQUIRED_ABIS cannot carry the markers unseen."""
+    return [n for n in zf.namelist() if n.startswith("jni/") and n.endswith(".so")]
 
 
 def _scan_for_markers(aar_path):
@@ -145,9 +152,12 @@ def _notice_known_component_names(notice_text):
         if cell:
             names.append(cell)
 
-    not_linked = re.search(r"NOT linked into any library[^:]*:(.*?)(?:\n\n|$)", notice_text, re.S)
+    not_linked = re.search(r"NOT linked into any library(.*?)(?:\n\n|$)", notice_text, re.S)
     if not_linked:
-        segment = not_linked.group(1)
+        # Drop "(...)" asides first: one of them may hold its own colon, which
+        # would otherwise be taken as the start of the name list.
+        segment = re.sub(r"\([^()]*\)", "", " ".join(not_linked.group(1).split()))
+        segment = segment.split(":", 1)[1] if ":" in segment else ""
         segment = segment.split(". ")[0]
         for token in re.split(r",| and ", segment):
             token = re.sub(r"\(.*?\)", "", token).strip().rstrip(".").strip()
@@ -172,10 +182,18 @@ def check_build_log_downloads_are_named(build_log_path, notice_path):
     known = [_normalize(n) for n in _notice_known_component_names(notice_text)]
     known = [n for n in known if n]
 
+    # Exact match only: a short name ("onnx", "fst") must not pass because it
+    # sits inside a longer one. A NOTICE name also matches by its last path
+    # part ("nlohmann/json" -> "json"), and DOWNLOAD_ALIASES covers the rest.
+    known_set = set(known)
+    for n in _notice_known_component_names(notice_text):
+        last = _normalize(n.split("/")[-1])
+        if last:
+            known_set.add(last)
     missing = []
     for name in downloaded:
-        norm = _normalize(name)
-        if not any(norm in k or k in norm for k in known):
+        norm = _normalize(DOWNLOAD_ALIASES.get(name, name))
+        if norm not in known_set:
             missing.append(name)
     if missing:
         return False, f"downloaded component(s) not named in NOTICE.md: {missing}"

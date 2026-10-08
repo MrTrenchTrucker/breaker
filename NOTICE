@@ -7,10 +7,9 @@ provided in accordance with the Apache License, Version 2.0, Section 4.
 Vendored code and dependencies:
 
 1. sherpa-onnx
-   - Vendored from XIAOMI CORPORATION (upstream: k2-fsa/sherpa-onnx),
-     Apache License 2.0.
-   - This distribution includes modified files from the original sherpa-onnx
-     sources. Modifications are limited to integration with Breaker.
+   - Upstream: k2-fsa/sherpa-onnx, Copyright XIAOMI Corporation, Apache
+     License 2.0. No sherpa-onnx source files are copied into this repository
+     or modified; the app uses a prebuilt package (see the last bullet).
    - Security note: the pinned sherpa-onnx tree carries an open upstream
      decoder bug (GitHub issue #3983, transducer greedy-search OOB write).
      Breaker mitigates per the Security Review audit: models are pinned to immutable release-asset ids and verified against upstream checksum.txt, and sherpa-onnx

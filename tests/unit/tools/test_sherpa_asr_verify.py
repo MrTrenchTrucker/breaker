@@ -37,6 +37,7 @@ GOOD_NOTICE = """# NOTICE — third-party components in the ASR-only sherpa-onnx
 |---|---|---|---|---|
 | sherpa-onnx | tag `v1.13.8` | Apache-2.0 | `https://example.invalid/sherpa-onnx` | `licenses/sherpa-onnx.LICENSE.txt` |
 | onnxruntime | `v1.28.2` | MIT | `https://example.invalid/onnxruntime` | `licenses/onnxruntime.LICENSE.txt` |
+| nlohmann/json | tag `v3.12.0` | MIT | `https://example.invalid/json` | `licenses/onnxruntime.LICENSE.txt` |
 
 Downloaded by the upstream build but NOT linked into any library in this package: asio, websocketpp and Eigen.
 """
@@ -49,6 +50,7 @@ GOOD_LICENSE_FILES = {
 GOOD_BUILD_LOG = (
     "-- Downloading sherpa-onnx from https://example.invalid/sherpa-onnx\n"
     "-- Downloading onnxruntime from https://example.invalid/onnxruntime\n"
+    "-- Downloading json from https://example.invalid/json\n"
 )
 
 
@@ -253,6 +255,57 @@ class SherpaAsrVerifyRedTests(unittest.TestCase):
                 rc, 0,
                 f"a build-tool download (not a CMake component line) was counted as a component: {out}",
             )
+
+    def test_check_a_marker_in_a_third_abi_fails(self):
+        """(a) Every jni/*/*.so is scanned, not only the two required ABIs."""
+        with tempfile.TemporaryDirectory() as tmp:
+            so = {
+                "jni/arm64-v8a/libsherpa-onnx-jni.so": GOOD_SO_BYTES,
+                "jni/x86_64/libsherpa-onnx-jni.so": GOOD_SO_BYTES,
+                "jni/armeabi-v7a/libsherpa-onnx-jni.so": GOOD_SO_BYTES + b"phontab",
+            }
+            aar = _build_aar(os.path.join(tmp, "bad.aar"), so_bytes_by_path=so)
+            rc, out = _run_verify(aar)
+            self.assertNotEqual(
+                rc, 0,
+                f"a marker in a library for a third ABI (armeabi-v7a) passed the scan: {out}",
+            )
+            self.assertIn("phontab", out, f"the scan failed but did not name the marker: {out}")
+
+    def test_check_e_short_name_inside_a_longer_one_fails(self):
+        """(e) Names match exactly: 'onnx' and 'fst' must not pass because they sit inside longer NOTICE names."""
+        for short in ("onnx", "fst"):
+            with tempfile.TemporaryDirectory() as tmp:
+                aar = _build_aar(os.path.join(tmp, "good.aar"))
+                log_path = os.path.join(tmp, "build.log")
+                with open(log_path, "w", encoding="utf-8") as fh:
+                    fh.write(GOOD_BUILD_LOG)
+                    fh.write(f"-- Downloading {short} from https://example.invalid/{short}\n")
+                rc, out = _run_verify(aar, build_log=log_path)
+                self.assertNotEqual(
+                    rc, 0,
+                    f"the download name {short!r}, listed nowhere in NOTICE.md, passed as part of a longer name: {out}",
+                )
+                self.assertIn(short, out, f"the check failed but did not name {short!r}: {out}")
+
+    def test_check_e_reads_names_after_an_aside_with_a_colon(self):
+        """(e) The 'not linked' sentence may hold an aside with its own colon before the name list; the names after it still count."""
+        notice = GOOD_NOTICE.replace(
+            "Downloaded by the upstream build but NOT linked into any library in this package: asio, websocketpp and Eigen.",
+            "Downloaded by the upstream build but NOT linked into any library in this package (checked: none of\n"
+            "their strings appear in the libraries): asio, websocketpp (server examples only) and Eigen (diarization only).",
+        )
+        self.assertNotEqual(notice, GOOD_NOTICE, "test setup: the NOTICE sentence was not replaced")
+        with tempfile.TemporaryDirectory() as tmp:
+            aar = _build_aar(os.path.join(tmp, "good.aar"), notice_text=notice)
+            log_path = os.path.join(tmp, "build.log")
+            with open(log_path, "w", encoding="utf-8") as fh:
+                fh.write(GOOD_BUILD_LOG)
+                fh.write("-- Downloading asio https://example.invalid/asio\n")
+                fh.write("-- Downloading eigen from https://example.invalid/eigen\n")
+                fh.write("-- Downloading websocketpp from https://example.invalid/websocketpp\n")
+            rc, out = _run_verify(aar, build_log=log_path)
+            self.assertEqual(rc, 0, f"names listed after an aside holding a colon were not read: {out}")
 
 if __name__ == "__main__":
     unittest.main()
