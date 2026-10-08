@@ -1,6 +1,7 @@
 package dev.breaker.dictation.overlay
 
 import dev.breaker.shared.tokens.TruckingPalette
+import kotlin.math.floor
 
 /**
  * The colours one tile state is drawn with, as opaque ARGB ints.
@@ -42,21 +43,57 @@ internal object TileStyle {
      * The look of the tile in [state] with [palette].
      *
      * Only the ring depends on the state: trim when idle, primary when armed, recording and sending,
-     * and danger after a failure. Everything else is the same in every state.
+     * danger after a failure, and the palette's sent or warning colour after a send. Everything else
+     * is the same in every state.
      */
     fun look(state: TileState, palette: TruckingPalette): TileLook = TileLook(
         background = palette.surface.argb,
         glyph = palette.primary.argb,
         glyphOutline = palette.trim.argb,
-        ring = when (state) {
-            TileState.IDLE -> palette.trim.argb
-            TileState.ARMED -> palette.primary.argb
-            TileState.RECORDING -> palette.primary.argb
-            TileState.SENDING -> palette.primary.argb
-            TileState.FAILED -> palette.danger.argb
-        },
+        ring = ringColor(state, palette),
         litSegment = palette.primary.argb,
         unlitSegment = palette.bg.argb,
         control = palette.text.argb,
     )
+}
+
+/** The lowest alpha of the armed ring's pulse, and the highest. The minimum is below the maximum and both are in (0, 1]. */
+internal const val PULSE_ALPHA_MIN = 0.25f
+internal const val PULSE_ALPHA_MAX = 1f
+
+/**
+ * The ring colour of [state] in [palette], with [alpha] (0 to 1) applied to the armed ring only.
+ * Every other state keeps its palette colour whatever [alpha] is.
+ */
+internal fun ringColor(state: TileState, palette: TruckingPalette, alpha: Float = 1f): Int {
+    val ring = when (state) {
+        TileState.IDLE -> palette.trim.argb
+        TileState.ARMED -> palette.primary.argb
+        TileState.RECORDING -> palette.primary.argb
+        TileState.SENDING -> palette.primary.argb
+        TileState.FAILED -> palette.danger.argb
+        TileState.SENT -> palette.sent.argb
+        TileState.SENT_LOCAL -> palette.warning.argb
+    }
+    return if (state == TileState.ARMED) withAlpha(ring, alpha) else ring
+}
+
+/**
+ * The alpha of the armed ring at [phase], a position in one cycle of the pulse.
+ *
+ * The phase wraps: it is taken modulo 1, so 0 and 1 are the same moment and 0.5 is the peak. The alpha
+ * rises in a straight line from [PULSE_ALPHA_MIN] at phase 0 to [PULSE_ALPHA_MAX] at phase 0.5 and falls
+ * back the same way. A phase that is not a finite number gives [PULSE_ALPHA_MAX].
+ */
+internal fun armedPulseAlpha(phase: Float): Float {
+    if (!phase.isFinite()) return PULSE_ALPHA_MAX
+    val cycle = phase - floor(phase)
+    val rise = if (cycle < 0.5f) 2f * cycle else 2f * (1f - cycle)
+    return PULSE_ALPHA_MIN + (PULSE_ALPHA_MAX - PULSE_ALPHA_MIN) * rise
+}
+
+/** [argb] with its alpha byte set to [alpha] (0 to 1, taken to the nearest of 256 steps); the colour is kept. */
+private fun withAlpha(argb: Int, alpha: Float): Int {
+    val byte = (alpha.coerceIn(0f, 1f) * 255f + 0.5f).toInt()
+    return (byte shl 24) or (argb and ((1 shl 24) - 1))
 }

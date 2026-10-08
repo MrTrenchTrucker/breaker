@@ -109,9 +109,11 @@ internal object TileLayout {
  * The shape the tile window has for [state] and the app's [notice] (null when there is none).
  *
  * Recording always wins. Otherwise a notice gives the wide window and no notice gives the square tile.
+ * The two finished outcomes, [TileState.SENT] and [TileState.SENT_LOCAL], take the same shape as
+ * [TileState.FAILED].
  */
-internal fun shapeOf(state: TileState, notice: String?): TileShape = when {
-    state == TileState.RECORDING -> TileShape.RECORDING
-    notice != null -> TileShape.NOTICE
-    else -> TileShape.COLLAPSED
+internal fun shapeOf(state: TileState, notice: String?): TileShape = when (state) {
+    TileState.RECORDING -> TileShape.RECORDING
+    TileState.IDLE, TileState.ARMED, TileState.SENDING, TileState.FAILED, TileState.SENT, TileState.SENT_LOCAL ->
+        if (notice != null) TileShape.NOTICE else TileShape.COLLAPSED
 }

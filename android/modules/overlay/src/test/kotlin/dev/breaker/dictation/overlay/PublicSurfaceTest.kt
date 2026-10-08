@@ -64,12 +64,15 @@ class PublicSurfaceTest {
         assertTrue("android_overlay: ShowResult must be public", Modifier.isPublic(ShowResult::class.java.modifiers))
     }
 
-    /** A failure here means a state was added, dropped or reordered, and the app's `when` over the states no longer fits. */
+    /**
+     * A failure here means a state was dropped or reordered, or a state was added in a place other than the end. The
+     * five existing states must come first and in order, then the two finished outcomes SENT and SENT_LOCAL.
+     */
     @Test
-    fun `TileState has exactly the five states in order`() {
+    fun `TileState has the five existing states first and in order then SENT and SENT_LOCAL`() {
         assertEquals(
-            "overlay: expected the five tile states in this order",
-            listOf("IDLE", "ARMED", "RECORDING", "SENDING", "FAILED"),
+            "overlay: expected the tile states in this order: the five existing ones, then SENT and SENT_LOCAL",
+            listOf("IDLE", "ARMED", "RECORDING", "SENDING", "FAILED", "SENT", "SENT_LOCAL"),
             TileState.values().map { it.name },
         )
         assertTrue("overlay: TileState must be public", Modifier.isPublic(TileState::class.java.modifiers))

@@ -2,13 +2,14 @@
 
 ## Purpose
 
-Floating tile = CB mic glyph + LED bar meter (WindowManager overlay, F36). The floating tile that appears over any app and is where dictation is started, watched and ended. A tap on the microphone calls the app's `onTap` (idle or failed) or `onBegin` (armed), and the app decides whether that starts or stops dictation. The real CB mic art is **not built yet**: the tile draws a stand-in glyph.
+Floating tile = CB mic glyph + LED bar meter (WindowManager overlay, F36). The floating tile that appears over any app and is where dictation is started, watched and ended. A tap on the microphone calls the app's `onTap` (idle or failed) or `onBegin` (armed), and the app decides whether that starts or stops dictation. The real CB mic art is **not built yet**: the tile draws a stand-in glyph (a placeholder; final mic art later).
 
 **What is built now:**
 - A small draggable tile (56 dp) with a stand-in glyph, shown above other apps.
-- Five states, pushed by the app with `setState`: `IDLE`, `ARMED`, `RECORDING`, `SENDING`, `FAILED`. The tile never
-  changes the state itself, not even on a tap. The ring around the microphone takes its colour from the state and is
-  steady (it does not pulse).
+- Seven states, pushed by the app with `setState`: `IDLE`, `ARMED`, `RECORDING`, `SENDING`, `FAILED`, `SENT` and `SENT_LOCAL`. The tile never
+  changes the state itself, not even on a tap. The ring around the microphone takes its colour from the state. The
+  armed pulse exists only as an internal rule (`armedPulseAlpha`, phase to ring alpha). Nothing calls it yet and there
+  is no public way to give the tile a phase, so the armed ring is always drawn at full strength.
 - An LED bar meter of 12 segments, fed by the app with `setLevel` (0.0 to 1.0), drawn directly above the microphone
   while the state is `RECORDING`.
 - The expanded tile while `RECORDING`: [X cancel] [microphone with the meter above it] [check = send], in one window
@@ -81,18 +82,19 @@ microphone while recording -> `onSend`; the X -> `onCancel`. A callback that is 
 
 **Theme:** the app passes the theme the tile should show, light or dark (ui-tokens `ThemeMode`, not core's
 `ThemeMode` which also has SYSTEM). The tile draws from the ui-tokens palette only: surface behind, primary for
-the glyph, trim for the detail, a ring in trim (idle), primary (armed, recording, sending) or danger (failed), primary
-for the lit meter segments and the page background colour (bg) for the unlit ones, text for the X, the check and the
+the glyph, trim for the detail, a ring in trim (idle), primary (armed, recording, sending), danger (failed), the palette's
+`sent` field (SENT) or its `warning` field (SENT_LOCAL), primary for the lit meter segments and the page background colour (bg) for the unlit ones, text for the X, the check and the
 notice. No colour value is written in this module's sources.
 
-**Glyph:** a stand-in glyph drawn in code from a few rectangles (a head, a handle, a grille, thin outlines). It is
-not the real CB mic art, which replaces it when it exists. The tile is 56 dp square with 4 dp corners, and the
+**Glyph:** a stand-in glyph drawn in code from a few rectangles (a head, a handle, a grille, thin outlines). It is a
+placeholder and not the real CB mic art; final mic art comes later and replaces it. The tile is 56 dp square with 4 dp corners, and the
 outline lines are 2 dp thick.
 The ring around the microphone is 2 dp thick and sits just inside the edge of the microphone's cell.
 
 **Look & feel (F36):**
-- **Built:** the five states, the LED bar meter and the expanded tile, as described below. **Not built yet:** the real
-  CB mic art, the armed pulse, and the sent and fallback states. Each line below says which it is.
+- **Built:** the seven states, the LED bar meter and the expanded tile, as described below, and the armed-pulse rule as
+  pure code (the module drives no pulse over time). **Not built yet:** the real CB mic art (final mic art later), the
+  app's pushing of the sent and fallback states, and the pulse driven over time. Each line below says which it is.
 - The tile IS the **CB mic glyph** (favicon art from `shared/ui-tokens`) - not built yet: the tile draws a
   stand-in glyph drawn in code, and the favicon art is not used.
 - **LED bar meter** (digital Cobra-style segments) renders **directly above the
@@ -100,15 +102,22 @@ The ring around the microphone is 2 dp thick and sits just inside the edge of th
   times 12 taken up to the next whole segment, no smoothing; lit in the primary colour and unlit in the page
   background colour. The audio-level feed itself is the app's: it pushes the level with `setLevel`.
 - State colors: the ring around the microphone is the trim colour when idle, the primary colour when armed, recording
-  or sending, and the danger colour after a failure (all palette fields). The armed ring is steady; the pulse is
-  not built yet. **sent = green** (copy confirmed) and **server-fail -> local fallback = orange** are not built yet:
-  they are not among the five states. While sending, the tile looks like the armed tile; the app's description is the
-  only cue.
+  or sending, and the danger colour after a failure (all palette fields). **SENT = green** (the palette's `sent` field:
+  copy confirmed) and **SENT_LOCAL = orange** (the palette's `warning` field: committed by the phone model after the
+  server path failed) are built as states and colours; the tile only shows what the app pushes. The armed pulse is a
+  internal rule (`armedPulseAlpha`, a triangle wave between an internal minimum and maximum alpha) that nothing calls
+  yet: the tile has no public way to take a phase, so the armed ring stays steady. While sending, the tile looks like the armed tile;
+  the app's description is the only cue.
 
-**Not built yet:** the real CB mic art, the armed pulse, the sent (green) and local-fallback (orange) states and
-colors, words on the tile of its own, sound or haptics, a time limit on the notice, the window-ownership check (T4),
-the audio capture and the audio-level feed (the app's), the foreground service (the app's), asking the user for the
-overlay permission (the app's), and any gesture or phrase code.
+**Not built yet:**
+- The real CB mic art (final mic art later; the glyph stays a placeholder).
+- The pulse on screen: a public way for the app to give the tile a phase, and the app driving it over time (the
+  module has no timer).
+- The app's pushing of SENT and SENT_LOCAL, and the state the app pushes after a clipboard-only commit (OPEN: the app's
+  decision, not decided here).
+- Words on the tile of its own, sound or haptics, a time limit on the notice, the window-ownership check (T4), the
+  audio capture and the audio-level feed (the app's), the foreground service (the app's), asking the user for the
+  overlay permission (the app's), and any gesture or phrase code.
 
 **Build phase:** Phase 6, together with `gesture`. Needs first: `core` and `ui-tokens` (both on main).
 
@@ -119,10 +128,12 @@ overlay permission (the app's), and any gesture or phrase code.
 - No focus stealing; other apps keep focus while tile is shown (the window is asked to be not focusable; not checked on a device).
 - T4: the tile is tap-only and drops touches while covered. It does not verify window ownership.
 - Tile renders a stand-in mic glyph (the CB mic art is not built yet); the LED bar fills above it while recording (F36).
-- State colors: a failure turns the ring to the danger colour (F36). Sent green and fallback orange are not built yet:
-  they are not among the five states.
+- State colors: a failure turns the ring to the danger colour (F36). SENT is green (the palette's `sent` field) and
+  SENT_LOCAL is orange (the palette's `warning` field).
+- The tile never chooses SENT or SENT_LOCAL: only the app pushes them.
 - No clocks and no threads in the module: no long press, no timeouts, no background work.
-- No timers, clocks or animation in the module: nothing pulses, fades, decays or times out, and the notice stays until the app clears it or pushes a different state.
+- No timers, clocks or animation in the module: nothing pulses, fades, decays or times out on its own (the armed pulse
+  rule is internal pure code that nothing calls yet), and the notice stays until the app clears it or pushes a different state.
   Tested by: `ModuleHygieneTest`, `TileViewGateTest`.
 - Colours are palette fields only: every colour the tile draws is a ui-tokens palette field; no colour value and no new token is written in this module.
   Tested by: `TileStyleTest`, `TileGlyphTest`, `TileViewGateTest`, `TileViewMappingGateTest`, `TileViewDrawingGateTest`, `AdapterGateTest`.
@@ -147,7 +158,7 @@ overlay permission (the app's), and any gesture or phrase code.
 
 ## Owns
 Floating tile = CB mic glyph + LED bar meter (WindowManager overlay, F36). Built: the draggable tile with a
-stand-in glyph, the five states, the LED bar meter, the expanded recording tile with cancel and send, and the notice and
+stand-in glyph, the seven states, the armed-pulse rule (pure code), the LED bar meter, the expanded recording tile with cancel and send, and the notice and
 description the app pushes. Not built yet: the real CB mic art.
 
 ## Public Interface
@@ -195,10 +206,14 @@ FloatingTile (via create), ShowResult, TileState
     `show()` may try again.
 - `TileState`, in this order, and what the tile shows:
   - `IDLE`: dictation is off or not ready. The microphone with a plain ring. A tap on the microphone calls `onTap`.
-  - `ARMED`: dictation is on and ready. The ring is steady, not pulsing. A tap on the microphone calls `onBegin`.
+  - `ARMED`: dictation is on and ready. The ring is steady (the pulse rule is not wired to the tile yet). A tap on the microphone calls `onBegin`.
   - `RECORDING`: the microphone is open. The tile widens to the X, the microphone with the meter above it, and the check.
   - `SENDING`: recording is over and the text is on its way. Taps do nothing.
   - `FAILED`: the last try did not work. The ring is in the danger colour. A tap on the microphone calls `onTap`.
+  - `SENT`: the text is committed (copy confirmed). The ring is in the `sent` colour (green). A tap on the microphone
+    calls `onTap`, as in `IDLE`.
+  - `SENT_LOCAL`: the text is committed by the phone model after the server path failed. The ring is in the `warning`
+    colour (orange). A tap on the microphone calls `onTap`, as in `IDLE`.
 - Everything else is `internal`.
 
 ## Depends On
@@ -213,6 +228,9 @@ FloatingTile (via create), ShowResult, TileState
 - The send phrase: listening for it and acting on it (the app); the tile only has the check and the microphone.
 - The text commit: putting the text into the target field (the commit module).
 - The permission request and the microphone service: sending the user to the overlay-permission page, the foreground service that listens and records, and the audio capture (the app).
+- Which state the app pushes after a commit, including SENT, SENT_LOCAL and the state after a clipboard-only commit
+  (the app; the tile only shows the state it is given).
+- Driving the armed pulse over time: the module has no clock; once a public phase input exists, the app drives it.
 
 ## Test Locations
 - Unit (Kotlin): `android/modules/overlay/src/test/kotlin/`. Run: `./gradlew :android:modules:overlay:test`
@@ -266,7 +284,7 @@ FloatingTile (via create), ShowResult, TileState
   nothing; a press made while hidden is not a tap after the next `show()`, and touches on the old place of a hidden
   tile call nothing.
 - Buttons and callbacks (`TileControllerButtonsTest`, `TileControllerCallbackTest`, `TileControllerGestureRulesTest`,
-  `TileGestureEdgesTest`, `TileRoutingTest`): each of the 25 pairs of state and tapped part is routed as the table says; idle and failed call
+  `TileGestureEdgesTest`, `TileRoutingTest`): each pair of tapped part and state, for all seven states, is routed as the table says (a tap on SENT or SENT_LOCAL is a plain tap); idle and failed call
   `onTap`, armed calls `onBegin` and stays armed, recording sends on the microphone and the check and cancels on the X,
   sending ignores taps, and under a notice only the microphone answers; a missing callback does nothing; one tap with a
   wobble is one call; `hide()`, `show()` and the pushes call no callback; an exception from a callback reaches the caller
@@ -306,7 +324,7 @@ FloatingTile (via create), ShowResult, TileState
   touch handler gives the sink the screen position of the finger that owns the gesture and answers true.
 - Hygiene (`ModuleHygieneTest`): main sources hold no thread primitive, no clock read, no network class and no
   file over 300 lines; test sources hold no clock or thread word.
-- The public surface (`PublicSurfaceTest`): the four `ShowResult` values and the five `TileState` values in order and the
+- The public surface (`PublicSurfaceTest`): the four `ShowResult` values and the seven `TileState` values in order and the
   public tile members are read by reflection; that every other top-level declaration is `internal` is read from the source text.
 
 **Not verified by any test:** the lift of a second finger in the tile view (only the first finger is followed) and the
@@ -328,6 +346,8 @@ checked only as text: no test draws the view or sends it a touch.
 - Vendor quirks.
 - The look of the stand-in glyph.
 - Whether `setFilterTouchesWhenObscured` behaves as intended.
+- Pulse timing on a real screen (not possible yet: no public phase input, and the module has no timer).
+- How the green (SENT) and orange (SENT_LOCAL) rings read in sunlight, in light and dark.
 - The expanded tile, the meter and the notice: see "Known Gotchas" below.
 
 ## Test Requirement
@@ -344,10 +364,9 @@ one module at a time. The owner does not write the module's code. The owner:
   tests;
 - coordinates and orchestrates those sub-agents, checks every piece of their
   work, and sends back anything that is wrong until it is right;
-- convenes a small council of sub-agents to advise on design, risks and tests
+- asks a small set of sub-agents for advice on design, risks and tests
   before and during the build;
-- hands the finished, checked module directly to the reviewer as a single pull
-  request.
+- hands the finished, checked module over as a single pull request for review.
 The owner's own work is orchestration, checking and correction, not writing
 code.
 

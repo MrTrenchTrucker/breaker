@@ -2,13 +2,14 @@
 
 The floating tile that appears over any app. It is a small draggable tile with a
 stand-in microphone glyph, and it is where dictation is started, watched and
-ended. The app tells the tile which of five states to show, how loud the sound
+ended. The app tells the tile which of seven states to show, how loud the sound
 is, and what sentence to display; the tile reports taps back through callbacks.
+The microphone is a placeholder drawing until the final mic art comes later.
 The tile never records and never inserts text. It has no text input, and its
 window is asked to be not focusable, so the app underneath should keep focus and
 its keyboard; that is not checked on a device.
 
-## The five states
+## The seven states
 
 The app pushes the state with `setState`. The tile never changes it, not even on
 a tap.
@@ -16,10 +17,16 @@ a tap.
 | State | What the tile shows | A tap on the microphone calls |
 |---|---|---|
 | `IDLE` | the microphone with a plain ring | `onTap` |
-| `ARMED` | the microphone with a steady ring (it does not pulse) | `onBegin` |
+| `ARMED` | the microphone with a steady ring | `onBegin` |
 | `RECORDING` | the expanded tile, below | `onSend` |
 | `SENDING` | the microphone; taps do nothing | nothing |
 | `FAILED` | the ring turns to the failure colour | `onTap` |
+| `SENT` | the ring turns green: the text is committed | `onTap` |
+| `SENT_LOCAL` | the ring turns orange: the phone model committed it after the server failed | `onTap` |
+
+The armed ring has a pulse rule, a pure function that turns a phase into a ring
+brightness. Nothing calls it yet and the app has no way to give the tile a
+phase, so the armed ring stays steady for now.
 
 ## The expanded tile and the meter
 
@@ -72,11 +79,15 @@ the app's, not this module's.
 
 ## Not built yet
 
-The real microphone art, the pulse on the armed ring, the sent and fallback
-states and their colors, sound or haptics, a time limit on the notice, and the
-window-ownership check. Nothing has been run on a device yet; the module card
-lists what the tests check and, under "Known Gotchas", what is not verified on a
-device.
+- The final microphone art (the glyph stays a placeholder until then).
+- The armed pulse on screen: a public way to give the tile a phase, and the app
+  driving it over time.
+- The app pushing `SENT` and `SENT_LOCAL`, and the state it pushes after a
+  commit that only reached the clipboard (open: the app's decision).
+- Sound or haptics, a time limit on the notice, and the window-ownership check.
+
+Nothing has been run on a device yet; the module card lists what the tests check
+and what is not verified on a device.
 
 ## Tests
 
