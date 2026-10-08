@@ -18,7 +18,9 @@ internal object SetupTexts {
     /** What the screen is for. */
     const val INTRO =
         "Breaker types what you say into the app you are using. " +
-            "It needs a few things from your phone first, but only the microphone is required. " +
+            "It needs a few things from your phone first. " +
+            "Only the microphone is needed to switch Breaker on; " +
+            "the tile also needs \"Display over other apps\". " +
             "Go through the steps below, then switch Breaker on."
 
     /** The state words shown beside each step. */

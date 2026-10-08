@@ -5,21 +5,17 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /*
- * Three declarations, offered on purpose.
+ * Four declarations, offered on purpose.
  *
- * This module hands an app two views and a switch to implement, and nothing else: the
- * app owns the activity, the manifest entry, the settings store and what turns Breaker
- * on, so everything else here is an implementation detail that a later change is free
- * to rename. Every top level declaration therefore carries `internal` or `private`,
- * with three exceptions, and each is a fixed shape rather than a name alone: the two
- * functions that build a view, in one named file, and the switch interface in its own.
+ * This module hands an app three views and a switch to implement, and nothing else:
+ * the app owns the activity, the manifest entry, the settings store and what turns
+ * Breaker on, so everything else is an implementation detail a later change may rename.
+ * Every top level declaration carries `internal` or `private`, except the three
+ * functions that build a view and the switch interface, each in a fixed shape.
  *
- * A declaration is read as being at the top level when it starts in the first
- * column. That is what the language requires of one, so a name inside a class body
- * or a function body is not offered to anybody and is not counted. How a
- * declaration is read out of a file at all, meaning where it ends and what its
- * text is once spacing stops mattering, is settled once in GateScan.kt, because a
- * gate that settled those for itself would settle them differently from this one.
+ * A declaration is read as top level when it starts in the first column, so a name
+ * inside a body is not offered. How a declaration is read out of a file is settled
+ * once, in GateScan.kt.
  */
 
 /** The one file allowed to offer something. */
@@ -32,13 +28,8 @@ private const val SWITCH_FILE = "BreakerSwitch.kt"
 private const val ENTRY_FUNCTION = "createSettingsView"
 
 /**
- * The shape of the entry declaration.
- *
- * The parameter types are written out in full in that file, so the settled text
- * carries them in full too; comparing the whole declaration rather than the name
- * alone is what catches an entry that takes `Any` or returns something that is not
- * a view. The trailing brace is left off, because the shape is the signature and
- * not the body that follows it.
+ * The entry shape, parameter types in full: an entry that takes `Any` or returns
+ * something other than a view must compare unequal. The brace is left off.
  */
 private const val SETTLED_ENTRY =
     "fun createSettingsView(context: android.content.Context, " +
@@ -47,10 +38,15 @@ private const val SETTLED_ENTRY =
 /** The setup entry and the switch interface, as written in their files. */
 private const val SETTLED_ONBOARDING = "fun createOnboardingView(context: android.content.Context, " +
     "switch: BreakerSwitch, accessibilityServiceComponent: String): android.view.View"
+private const val SETTLED_HISTORY = "fun createHistoryView(context: android.content.Context, " +
+    "history: dev.breaker.dictation.core.port.HistoryStore): android.view.View"
 private const val SETTLED_SWITCH = "interface BreakerSwitch"
 
 /** Each offered file with the one shape it offers: nothing more, nothing less, nothing elsewhere. */
-private val SETTLED_SURFACE = setOf(ENTRY_FILE to SETTLED_ENTRY, ENTRY_FILE to SETTLED_ONBOARDING, SWITCH_FILE to SETTLED_SWITCH)
+private val SETTLED_SURFACE = setOf(
+    ENTRY_FILE to SETTLED_ENTRY, ENTRY_FILE to SETTLED_ONBOARDING, ENTRY_FILE to SETTLED_HISTORY,
+    SWITCH_FILE to SETTLED_SWITCH,
+)
 
 private fun isSettled(offered: List<Pair<String, String>>): Boolean =
     offered.size == SETTLED_SURFACE.size && offered.map { (path, text) -> path to shaped(text) }.toSet() == SETTLED_SURFACE
@@ -61,7 +57,7 @@ private val OFFERED: List<Pair<String, String>> = MAIN_SOURCES.flatMap { (path, 
 }
 
 /**
- * Nothing is offered but the two entry functions and the switch interface, and each
+ * Nothing is offered but the three entry functions and the switch interface, and each
  * is the shape the app was promised.
  */
 class PublicSurfaceGateTest {
@@ -72,7 +68,7 @@ class PublicSurfaceGateTest {
             setOf(ENTRY_FILE, SWITCH_FILE),
             OFFERED.map { it.first }.toSet(),
         )
-        assertEquals("declarations offered: $OFFERED", 3, OFFERED.size)
+        assertEquals("declarations offered: $OFFERED", 4, OFFERED.size)
     }
 
     @Test

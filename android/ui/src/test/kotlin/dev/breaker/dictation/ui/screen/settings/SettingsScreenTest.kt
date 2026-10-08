@@ -62,6 +62,7 @@ class SettingsScreenTest {
         is ScreenIntent.SetSetting -> listOf(intent.key, intent.value)
         is ScreenIntent.SetRoutingMode -> listOf(intent.mode)
         is ScreenIntent.Setup -> listOf(intent.action)
+        is ScreenIntent.History -> listOf(intent.action, intent.id)
         ScreenIntent.ToggleTheme, ScreenIntent.UseSystemTheme -> emptyList()
     }
 

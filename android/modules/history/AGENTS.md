@@ -31,7 +31,7 @@ internal too.
 `id, text, source (local|server), model, duration_ms, created_at, audio_path (nullable, off by default)`.
 The table has no `sync_status` column: a history row carries no sync state.
 
-**UI:** the history screen (list, tap-to-copy, long-press delete, search) is the
+**UI:** the history screen (list, Copy and Delete buttons, a 5-second Undo for Delete through the HistoryStore port) is the
 ui module's; this module supplies the data it shows.
 
 **Storage protection (T7):** the database is app-private: a bare file name,

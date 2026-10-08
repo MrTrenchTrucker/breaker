@@ -80,6 +80,17 @@ internal sealed class ScreenIntent {
 
     /** Do the step of the setup walk-through named by [action], such as opening a page or switching on. */
     data class Setup(val action: String) : ScreenIntent()
+
+    /** Do the step of the history screen named by [action] (see [HistoryActions]) on the row [id]. */
+    data class History(val action: String, val id: String = "") : ScreenIntent()
+}
+
+/** The action names a [ScreenIntent.History] may carry. */
+internal object HistoryActions {
+    const val COPY = "COPY"
+    const val DELETE = "DELETE"
+    const val UNDO = "UNDO"
+    const val MORE = "MORE"
 }
 
 /** A whole screen: an identity, a title and the tree that makes it up. */
