@@ -14,8 +14,9 @@ import org.junit.Test
  * (comments and string text are blanked first, so a word in a comment is not a use) and read
  * a text value from the list of literals the scanner keeps. They pin: the application id;
  * compileSdk, minSdk and targetSdk each assigned once, from the version
- * catalog entry of the same name; the dependency list is exactly the eleven project
- * dependencies, the coroutines library, the unit test library and the speech engine release file as a
+ * catalog entry of the same name; the dependency list is exactly the thirteen project
+ * dependencies (the commit module as an implementation, its accessibility adapter as a run-time
+ * only dependency), the coroutines library, the unit test library and the speech engine release file as a
  * run-time only dependency (the value it names is pinned by BuildFileSherpaGateTest), in any order, and nothing
  * is exposed with `api`; no repository is declared; unit tests include Android resources;
  * the processor architecture is the one filter the file holds; and the build states a version
@@ -37,6 +38,8 @@ internal class BuildFileGateTest {
         "implementation :android:ui",
         "implementation :android:modules:overlay",
         "implementation :android:modules:stt-ondevice",
+        "implementation :android:modules:commit",
+        "runtimeOnly :android:modules:commit:accessibility",
         "implementation :shared:modules:ui-tokens",
         "implementation :shared:modules:model-registry",
         "implementation libs.kotlinx.coroutines.core",
@@ -184,6 +187,8 @@ internal class BuildFileGateTest {
         XmlSample("a second architecture", "ndk { abiFilters += \"arm64-v8a\" }", "ndk { abiFilters += \"arm64-v8a\"; abiFilters += \"x86_64\" }", "abiFilters:"),
         XmlSample("architecture filter removed", "ndk { abiFilters += \"arm64-v8a\" }", "", "abiFilters:"),
         XmlSample("unit test library moved", "testImplementation(libs.junit)", "implementation(libs.junit)", "dependency missing: testImplementation libs.junit", "dependency not expected: implementation libs.junit"),
+        XmlSample("commit module removed", "implementation(project(\":android:modules:commit\"))", "", "dependency missing: implementation :android:modules:commit"),
+        XmlSample("accessibility adapter moved to the compile path", "runtimeOnly(project(\":android:modules:commit:accessibility\"))", "implementation(project(\":android:modules:commit:accessibility\"))", "dependency missing: runtimeOnly :android:modules:commit:accessibility", "dependency not expected: implementation :android:modules:commit:accessibility"),
         XmlSample("speech engine file removed", "    runtimeOnly(sherpaCoordinate)\n", "", "dependency missing: runtimeOnly sherpaCoordinate"),
         XmlSample("speech engine file in the compile path", "runtimeOnly(sherpaCoordinate)", "implementation(sherpaCoordinate)", "dependency missing: runtimeOnly sherpaCoordinate", "dependency not expected: implementation sherpaCoordinate"),
         XmlSample("ui dependency removed", "    implementation(project(\":android:ui\"))\n", "", "dependency missing: implementation :android:ui"),
@@ -247,7 +252,7 @@ internal class BuildFileGateTest {
             "isIncludeAndroidResources", "abiFilters is", "abiFilters:", "dependency missing", "dependency not expected", "api( is used",
             "is not a project or catalog dependency", "dependencies: 2 blocks", "repositories:", "versionCode is not", "versionName is not",
         )
-        assertEquals("app: the number of firing samples changed", 29, firing.size)
+        assertEquals("app: the number of firing samples changed", 31, firing.size)
         for (rule in rules) {
             assertTrue("app: no firing sample names the rule \"$rule\"", firing.any { sample -> sample.fragments.any { it.contains(rule) } })
         }

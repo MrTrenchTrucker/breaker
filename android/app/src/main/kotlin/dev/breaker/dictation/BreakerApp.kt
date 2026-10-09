@@ -3,6 +3,7 @@ package dev.breaker.dictation
 import android.util.Log
 import dev.breaker.dictation.core.port.HistoryStore
 import dev.breaker.dictation.core.port.SettingsStore
+import dev.breaker.dictation.core.port.TextCommitter
 import dev.breaker.dictation.history.SqliteHistoryStore
 import dev.breaker.dictation.host.TileHost
 import dev.breaker.dictation.service.AndroidMicPermission
@@ -10,6 +11,7 @@ import dev.breaker.dictation.service.AndroidServiceLauncher
 import dev.breaker.dictation.service.DictationServiceController
 import dev.breaker.dictation.wiring.ArmedSwitch
 import dev.breaker.dictation.wiring.FileOffStore
+import dev.breaker.dictation.wiring.appTextCommitter
 import java.io.File
 
 /**
@@ -51,8 +53,16 @@ class BreakerApp : android.app.Application() {
         )
     }
 
+    /** The dictated-text committer, built once from the application context. */
+    val textCommitter: TextCommitter by lazy { appTextCommitter(applicationContext) }
+
     val compositionRoot: dev.breaker.dictation.BreakerCompositionRoot by lazy {
-        BreakerCompositionRoot(filesDir, { history }, dictationServiceController)
+        BreakerCompositionRoot(
+            filesDir = filesDir,
+            history = { history },
+            serviceController = dictationServiceController,
+            committer = textCommitter,
+        )
     }
 
     /** The on and off switch over the service; a switch-off is kept in a small file of the app. */

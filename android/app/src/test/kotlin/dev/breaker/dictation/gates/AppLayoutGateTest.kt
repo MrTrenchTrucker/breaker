@@ -37,6 +37,7 @@ internal class AppLayoutGateTest {
         "BreakerApp.kt", "SettingsLauncherActivity.kt", "service/AndroidMicPermission.kt",
         "service/AndroidServiceLauncher.kt", "service/DictationForegroundService.kt", "service/DictationNotification.kt",
         "service/ModelNotifications.kt", "host/AppThreads.kt", "host/OverlayTilePort.kt", "host/TileHost.kt",
+        "wiring/AndroidSwaps.kt",
     )
 
     private val softCap: Int = 300

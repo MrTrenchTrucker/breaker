@@ -21,8 +21,8 @@ import org.junit.rules.TemporaryFolder
 
 /**
  * A dictation through the pieces the composition root builds: the real probe, the real on-device
- * engine over the root's own model folder, the unavailable server, committer and microphone slots,
- * the rule-based formatters and the real capture over a scripted microphone.
+ * engine over the root's own model folder, the fake committer handed to the root, the unavailable
+ * server and microphone slots, the rule-based formatters and the real capture over a scripted microphone.
  */
 class DictationFlowTest {
     @get:Rule
@@ -41,7 +41,13 @@ class DictationFlowTest {
      */
     private fun dictate(mode: SttMode?, prepare: (BreakerCompositionRoot) -> Unit = {}): FinishResult {
         val mic = ScriptedMic()
-        val root = BreakerCompositionRoot(tmp.root, history, controller, mic)
+        val root = BreakerCompositionRoot(
+            filesDir = tmp.root,
+            historyStore = history,
+            serviceController = controller,
+            committer = FakeCommitter(),
+            micSource = mic,
+        )
         prepare(root)
         if (mode != null) root.settingsStore.save(AppSettings().copy(mode = mode))
         controller.adopt()
@@ -90,7 +96,12 @@ class DictationFlowTest {
 
     @Test
     fun `the model folder is models under the files directory`() {
-        val root = BreakerCompositionRoot(tmp.root, history, controller)
+        val root = BreakerCompositionRoot(
+            filesDir = tmp.root,
+            historyStore = history,
+            serviceController = controller,
+            committer = FakeCommitter(),
+        )
         assertEquals(
             "app: the model store must sit in the models folder of the files directory",
             File(File(tmp.root, "models"), "small"),
@@ -109,7 +120,12 @@ class DictationFlowTest {
 
     @Test
     fun `with the microphone slot in place listening fails honestly and the service stays armed`() {
-        val root = BreakerCompositionRoot(tmp.root, history, controller)
+        val root = BreakerCompositionRoot(
+            filesDir = tmp.root,
+            historyStore = history,
+            serviceController = controller,
+            committer = FakeCommitter(),
+        )
         controller.adopt()
         assertEquals(
             "app: the unavailable microphone should make begin fail",
@@ -123,7 +139,12 @@ class DictationFlowTest {
 
     @Test
     fun `the unavailable commit slot fails a send with its sentence and the history store of the root still receives the text`() {
-        val root = BreakerCompositionRoot(tmp.root, { history }, controller)
+        val root = BreakerCompositionRoot(
+            filesDir = tmp.root,
+            history = { history },
+            serviceController = controller,
+            committer = FakeCommitter(),
+        )
         val text = Transcription("t-1", "hand made", TranscriptionSource.LOCAL, "small", 100L, 1_000L)
         val waiting = DictationSession(DictationState.SENDING, null, text)
         val result = SendUseCase(UnavailableTextCommitter(), root.historyStore).send(waiting, text)

@@ -33,6 +33,10 @@ settings screen, the manifest, and the Gradle build.
   notification and in a sentence beside the tile. The recognizer behind the
   engine is the real one, over the engine library the app packages; it has not
   been tried on a device yet.
+- **Text commit.** Dictated text is committed through the commit module's
+  accessibility service. The app creates that committer once per process, from
+  the application context, and hands it to the composition root. The service
+  entry comes from the library's manifest. It has not been tried on a device.
 - **The floating tile.** While the microphone service is on, the app shows the
   floating tile of the overlay module and decides what each tap does and which
   state the tile shows. It hides the tile when the service goes off. Showing it
@@ -95,9 +99,9 @@ failure sentence, never a success:
 
 - the real microphone driver (the audio module's work), so listening fails with a
   sentence for now;
-- the server speech engine, and putting the text into another app's field (the
-  on-device engine with its recognizer, its model store and the download are
-  built; the recognizer has not been tried on a device);
+- the server speech engine (the on-device engine with its recognizer, its model
+  store and the download are built; the recognizer has not been tried on a
+  device);
 - asking the user for the microphone, notification and draw-over-other-apps
   permissions (onboarding), the switch-on screen, the spoken off word, the history
   screen, and the gesture that starts a take.

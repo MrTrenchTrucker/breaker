@@ -1,7 +1,6 @@
 package dev.breaker.dictation.wiring
 
 import dev.breaker.dictation.audio.MicSource
-import dev.breaker.dictation.core.port.TextCommitter
 import dev.breaker.dictation.stt.ondevice.SherpaOnnxRecognizerFactory
 import dev.breaker.dictation.stt.ondevice.SherpaRecognizerFactory
 
@@ -17,9 +16,6 @@ import dev.breaker.dictation.stt.ondevice.SherpaRecognizerFactory
  * code; the library is opened when a model is first loaded.
  */
 val RECOGNIZER_FACTORY: SherpaRecognizerFactory = SherpaOnnxRecognizerFactory()
-
-/** The committer that puts the dictated text where the user is typing. Until the real one exists every commit fails. */
-fun appTextCommitter(): TextCommitter = UnavailableTextCommitter()
 
 /** The microphone the capture reads. Until the real one exists it cannot be opened, so listening fails at the start. */
 fun appMicSource(): MicSource = UnavailableMicSource()

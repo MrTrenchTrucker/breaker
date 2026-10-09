@@ -75,6 +75,8 @@ dependencies {
     implementation(project(":android:modules:stt-ondevice"))
     implementation(project(":shared:modules:ui-tokens"))
     implementation(project(":shared:modules:model-registry"))
+    implementation(project(":android:modules:commit"))
+    runtimeOnly(project(":android:modules:commit:accessibility"))
     implementation(libs.kotlinx.coroutines.core)
     runtimeOnly(sherpaCoordinate)
 

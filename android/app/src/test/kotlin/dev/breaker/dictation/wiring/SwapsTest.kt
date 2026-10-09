@@ -47,8 +47,10 @@ internal class SwapsTest {
     }
 
     @Test
-    fun `the text committer fails every commit with its sentence`() {
-        val result = appTextCommitter().commit(CommitRequest("hello"))
+    fun `the unavailable text committer fails every commit with its sentence`() {
+        // The swap point now returns the real committer, which needs an Android context and so cannot be
+        // built on the plain JVM; the swap point itself is pinned by the source gate in AppCommitGateTest.
+        val result = UnavailableTextCommitter().commit(CommitRequest("hello"))
         assertEquals("app: the placeholder committer must fail", CommitOutcome.FAILED, result.outcome)
         assertEquals("app: and say so", COMMIT_UNAVAILABLE_DETAIL, result.detail)
     }

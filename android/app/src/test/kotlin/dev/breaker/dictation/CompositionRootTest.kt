@@ -13,13 +13,14 @@ import org.junit.Assert.assertSame
 import dev.breaker.dictation.core.port.HistoryStore
 import dev.breaker.dictation.core.model.TranscriptionSource
 import dev.breaker.dictation.core.model.Transcription
+import dev.breaker.dictation.wiring.FakeCommitter
 
 /**
  * Proves the composition root is wired file-to-file: a `save` on one instance
  * must be visible to a second instance over the same directory, the exposed
  * [dev.breaker.dictation.settings.Keystore] port must carry whatever the store
  * persisted, and the on-disk file names must be the ones an installed app
- * finds after an update. Plain JVM — no Android, no network — so it runs where
+ * finds after an update. Plain JVM - no Android, no network - so it runs where
  * the app's `Application` class can't.
  */
 class CompositionRootTest {
@@ -28,7 +29,11 @@ class CompositionRootTest {
     val tmp = TemporaryFolder()
 
     /** A fresh root over a clean dir per test so saves never bleed across cases. */
-    private fun compositionRoot() = BreakerCompositionRoot(tmp.getRoot(), FakeHistoryStore())
+    private fun compositionRoot() = BreakerCompositionRoot(
+        filesDir = tmp.getRoot(),
+        historyStore = FakeHistoryStore(),
+        committer = FakeCommitter(),
+    )
 
     @Test
     fun `save_reads_back_through_second_store`() {
@@ -36,7 +41,11 @@ class CompositionRootTest {
         compositionRoot().settingsStore.save(
             AppSettings().copy(mode = SttMode.LOCAL, themeMode = ThemeMode.DARK, apiKeyRef = "ref-123"),
         )
-        val second = BreakerCompositionRoot(tmp.getRoot(), FakeHistoryStore())
+        val second = BreakerCompositionRoot(
+            filesDir = tmp.getRoot(),
+            historyStore = FakeHistoryStore(),
+            committer = FakeCommitter(),
+        )
 
         val reloaded = second.settingsStore.load()
         assertEquals("second store over the same dir should read back mode == LOCAL", SttMode.LOCAL, reloaded.mode)
@@ -108,7 +117,11 @@ class CompositionRootTest {
         first.settingsStore.save(AppSettings().copy(apiKeyRef = "ref-a"))
         first.settingsStore.save(AppSettings())
 
-        val second = BreakerCompositionRoot(tmp.getRoot(), FakeHistoryStore())
+        val second = BreakerCompositionRoot(
+            filesDir = tmp.getRoot(),
+            historyStore = FakeHistoryStore(),
+            committer = FakeCommitter(),
+        )
         assertEquals(
             "a second root's load should read back no ref after a clearing save",
             null,
@@ -122,7 +135,11 @@ class CompositionRootTest {
         // installed app finds after an update; a rename would silently lose
         // the user's settings or the credential pointer.
         val dir = tmp.getRoot()
-        val root = BreakerCompositionRoot(dir, FakeHistoryStore())
+        val root = BreakerCompositionRoot(
+            filesDir = dir,
+            historyStore = FakeHistoryStore(),
+            committer = FakeCommitter(),
+        )
         root.settingsStore.save(AppSettings().copy(apiKeyRef = "ref-pin"))
 
         val settingsFile = File(dir, "settings.properties")
@@ -172,7 +189,11 @@ class CompositionRootTest {
         // Identity: the root must expose the very store it was handed, so a
         // root that dropped the parameter or built its own goes RED.
         val fake = FakeHistoryStore()
-        val root = BreakerCompositionRoot(tmp.root, fake)
+        val root = BreakerCompositionRoot(
+            filesDir = tmp.root,
+            historyStore = fake,
+            committer = FakeCommitter(),
+        )
         assertSame(
             "the root must expose the history store it was handed",
             fake,

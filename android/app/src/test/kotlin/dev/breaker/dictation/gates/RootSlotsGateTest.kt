@@ -11,8 +11,8 @@ import org.junit.Test
  * every dictation through the root ends at a failing step, so the formatters, the committer and
  * the encoder are never called. The text gate reads the real BreakerCompositionRoot.kt (comments and
  * literal text removed by the shared scanner) and holds these facts: both formatter slots are the
- * rule-based formatter and nothing in the file is a lambda formatter or a throw; the committer and the
- * microphone come from their swap functions and the recognizer from its swap value, and the file
+ * rule-based formatter and nothing in the file is a lambda formatter or a throw; the committer comes from
+ * the parameter the app hands in, the microphone from its swap function and the recognizer from its swap value, and the file
  * names no placeholder for them; the encoder is the 16-bit encoder; the on-device engine slot is the
  * on-device engine over the root's own model store and no placeholder engine stands in for it; the
  * server engine slot is the unavailable engine with the other error. Each rule holds on the real file, is broken by at least two edited samples,
@@ -49,7 +49,7 @@ internal class RootSlotsGateTest {
         Rule("NO_LAMBDA_FORMATTER") { !has(it, """\bFormatter\s*\{""") },
         Rule("NO_ERROR_CALL") { !has(it, """\berror\s*\(""") },
         Rule("NO_THROW") { !has(it, """\bthrow\b""") },
-        Rule("COMMITTER_COMES_FROM_ITS_SWAP_POINT") { has(it, bound("committer", """appTextCommitter\s*\(\s*\)""")) },
+        Rule("COMMITTER_COMES_FROM_ITS_PARAMETER") { has(it, bound("committer", "committer")) },
         Rule("MIC_DEFAULT_COMES_FROM_ITS_SWAP_POINT") {
             has(it, """\bprivate\s+val\s+micSource\s*:\s*MicSource\s*=\s*appMicSource\s*\(\s*\)(?=\s*[,)])""")
         },
@@ -76,7 +76,7 @@ internal class RootSlotsGateTest {
 
     private val localLine = "localFormatter = RuleBasedFormatter()"
     private val serverLine = "serverFormatter = RuleBasedFormatter()"
-    private val committerLine = "committer = appTextCommitter()"
+    private val committerLine = "committer = committer"
     private val micDefaultLine = "private val micSource: MicSource = appMicSource(),"
     private val micLine = "micSource = micSource,"
     private val storeLine = "val modelStore: LocalModelStore = LocalModelStore("
@@ -118,11 +118,11 @@ internal class RootSlotsGateTest {
             lazyOpen to "$lazyOpen\n        throw IllegalStateException()",
             helperFun to "private fun boom(): Nothing = throw IllegalStateException()\n$helperFun",
         ),
-        "COMMITTER_COMES_FROM_ITS_SWAP_POINT" to listOf(
-            committerLine to "committer = FakeCommitter()",
+        "COMMITTER_COMES_FROM_ITS_PARAMETER" to listOf(
+            committerLine to "committer = appTextCommitter()",
             committerLine to "committer = UnavailableTextCommitter()",
-            committerLine to "committer = appTextCommitter().also { }",
-            committerLine to "textCommitter = appTextCommitter()",
+            committerLine to "committer = committer.also { }",
+            committerLine to "textCommitter = committer",
             "$committerLine," to "",
         ),
         "MIC_DEFAULT_COMES_FROM_ITS_SWAP_POINT" to listOf(
@@ -179,7 +179,7 @@ internal class RootSlotsGateTest {
         "clock = SystemClockAdapter," to "clock = SystemClockAdapter, /* throw error( Formatter { RuleBasedFormatter() */",
         helperFun to "private const val NOTE = \"error( throw Formatter { RuleBasedFormatter()\"\n$helperFun",
         "micSource = micSource," to "micSource = micSource, // the real source drops in here",
-        committerLine to "committer =\n            appTextCommitter( )",
+        committerLine to "committer =\n            committer",
         "ids = UuidIdSource()," to "ids = UuidIdSource(), // UnavailableMicSource UnavailableTextCommitter UnavailableRecognizerFactory",
         micDefaultLine to "private val micSource: MicSource =\n        appMicSource( ),",
         storeLine to "val modelStore: LocalModelStore =\n        LocalModelStore(",

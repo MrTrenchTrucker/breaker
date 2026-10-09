@@ -5,6 +5,7 @@ import dev.breaker.dictation.audio.Pcm16WavEncoder
 import dev.breaker.dictation.core.model.SttError
 import dev.breaker.dictation.core.port.HistoryStore
 import dev.breaker.dictation.core.port.SettingsStore
+import dev.breaker.dictation.core.port.TextCommitter
 import dev.breaker.dictation.format.RuleBasedFormatter
 import dev.breaker.dictation.service.DictationServiceController
 import dev.breaker.dictation.service.LaunchResult
@@ -22,7 +23,6 @@ import dev.breaker.dictation.wiring.SERVER_UNAVAILABLE_DETAIL
 import dev.breaker.dictation.wiring.UnavailableSttEngine
 import dev.breaker.dictation.wiring.UuidIdSource
 import dev.breaker.dictation.wiring.appMicSource
-import dev.breaker.dictation.wiring.appTextCommitter
 import java.io.File
 
 /**
@@ -53,15 +53,21 @@ class BreakerCompositionRoot(
     filesDir: File,
     val historyStore: HistoryStore,
     private val serviceController: DictationServiceController,
+    private val committer: TextCommitter,
     private val micSource: MicSource = appMicSource(),
 ) {
     /** Takes an already built history store; the microphone service is never switched on. */
-    constructor(filesDir: File, historyStore: HistoryStore) :
-        this(filesDir, historyStore, neverArmedController())
+    constructor(filesDir: File, historyStore: HistoryStore, committer: TextCommitter) :
+        this(filesDir, historyStore, neverArmedController(), committer)
 
     /** Takes a supplier; it is called by the first use of the history store, once. */
-    constructor(filesDir: File, history: () -> HistoryStore, serviceController: DictationServiceController) :
-        this(filesDir, LazyHistoryStore(history), serviceController)
+    constructor(
+        filesDir: File,
+        history: () -> HistoryStore,
+        serviceController: DictationServiceController,
+        committer: TextCommitter,
+    ) :
+        this(filesDir, LazyHistoryStore(history), serviceController, committer)
 
     val keystore: dev.breaker.dictation.settings.Keystore =
         FileCredentialRefHolder(File(filesDir, "credential-ref"))
@@ -88,7 +94,7 @@ class BreakerCompositionRoot(
             localFormatter = RuleBasedFormatter(),
             serverFormatter = RuleBasedFormatter(),
             wavEncoder = Pcm16WavEncoder(),
-            committer = appTextCommitter(),
+            committer = committer,
             micSource = micSource,
             controller = serviceController,
         )

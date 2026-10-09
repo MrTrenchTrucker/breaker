@@ -26,9 +26,10 @@ class LazyHistoryRootTest {
     private val controller = DictationServiceController(SwitchPermission(true), RecordingLauncher(LaunchResult.Launched))
 
     private fun root() = BreakerCompositionRoot(
-        tmp.root,
-        { supplierCalls += 1; store },
-        controller,
+        filesDir = tmp.root,
+        history = { supplierCalls += 1; store },
+        serviceController = controller,
+        committer = FakeCommitter(),
     )
 
     private fun row(id: String) = Transcription(id, "text", TranscriptionSource.LOCAL, "small", 10L, 1_000L)
@@ -67,7 +68,11 @@ class LazyHistoryRootTest {
     @Test
     fun `a history store handed in as a value is exposed as it is and the older constructor works`() {
         val handed: HistoryStore = RecordingHistoryStore()
-        val root = BreakerCompositionRoot(tmp.root, handed)
+        val root = BreakerCompositionRoot(
+            filesDir = tmp.root,
+            historyStore = handed,
+            committer = FakeCommitter(),
+        )
         assertSame("app: a store handed in as a value should be exposed unchanged", handed, root.historyStore)
         assertFalse("app: the older constructor must not wrap the store", root.historyStore is LazyHistoryStore)
         root.settingsStore.save(AppSettings().copy(apiKeyRef = "ref-2"))
