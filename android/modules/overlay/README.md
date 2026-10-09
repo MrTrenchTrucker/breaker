@@ -23,11 +23,20 @@ a tap.
 | `FAILED` | the ring turns to the failure colour | `onTap` |
 | `SENT` | the ring turns green: the text is committed | `onTap` |
 | `SENT_LOCAL` | the ring turns orange: the phone model committed it after the server failed | `onTap` |
+| `MIC_BUSY` | the microphone with a red slash (danger colour), pulsing slowly | `onTap` |
 
 The armed ring pulses while the state is `ARMED` and the tile is shown: a platform animator
 lowers and raises the ring's brightness from a quarter to full strength over 1.6 seconds. It stops
 when the state leaves `ARMED`, when the tile is hidden or detached, when the window is not visible,
 or when the screen turns off. The app drives nothing; with system animations off the ring stays steady.
+
+## The busy pulse
+
+While the tile is MIC_BUSY and shown, the ring pulses slowly: a 3200 ms cycle
+with the alpha ranging from 0.6 to 1.0. It uses the same run conditions as the
+armed pulse (shown, attached, visible, lit screen, animations on). It stops
+when the state leaves MIC_BUSY, when the tile is hidden or detached, when the
+window is not visible, or when the screen turns off.
 
 ## The expanded tile and the meter
 

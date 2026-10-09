@@ -8,7 +8,7 @@ import dev.breaker.shared.tokens.TruckingPalette
  * [BODY] is drawn in the glyph colour. [GRILLE] and [OUTLINE] are drawn in the
  * outline colour.
  */
-internal enum class GlyphRole { BODY, GRILLE, OUTLINE }
+internal enum class GlyphRole { BODY, GRILLE, OUTLINE, SLASH }
 
 /**
  * One rectangle of the glyph in the unit square.
@@ -65,6 +65,16 @@ internal object TileGlyph {
         GlyphRect(0.40f, 0.55f, 0.40f + outline, 0.88f, GlyphRole.OUTLINE),
         GlyphRect(0.60f - outline, 0.55f, 0.60f, 0.88f, GlyphRole.OUTLINE),
         GlyphRect(0.40f, 0.88f - outline, 0.60f, 0.88f, GlyphRole.OUTLINE),
+        // The busy slash (MIC_BUSY only): a placeholder shape until the final art. Eight stair-step
+        // rectangles along the diagonal of the whole cell, listed last so they are drawn on top.
+        GlyphRect(0.0f, 0.0f, 0.165f, 0.165f, GlyphRole.SLASH),
+        GlyphRect(0.125f, 0.125f, 0.29f, 0.29f, GlyphRole.SLASH),
+        GlyphRect(0.25f, 0.25f, 0.415f, 0.415f, GlyphRole.SLASH),
+        GlyphRect(0.375f, 0.375f, 0.54f, 0.54f, GlyphRole.SLASH),
+        GlyphRect(0.5f, 0.5f, 0.665f, 0.665f, GlyphRole.SLASH),
+        GlyphRect(0.625f, 0.625f, 0.79f, 0.79f, GlyphRole.SLASH),
+        GlyphRect(0.75f, 0.75f, 0.915f, 0.915f, GlyphRole.SLASH),
+        GlyphRect(0.875f, 0.875f, 1.0f, 1.0f, GlyphRole.SLASH),
     )
 }
 

@@ -4,7 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * What a tap means in each state on each zone: the whole table of 7 states by 5 zones, written out
+ * What a tap means in each state on each zone: the whole table of 8 states by 5 zones, written out
  * one row to a cell, so a change to any single cell is seen.
  */
 class TileRoutingTest {
@@ -53,6 +53,11 @@ class TileRoutingTest {
         Triple(TileState.SENT_LOCAL, TileZone.SEND, none),
         Triple(TileState.SENT_LOCAL, TileZone.STRIP, none),
         Triple(TileState.SENT_LOCAL, TileZone.NONE, none),
+        Triple(TileState.MIC_BUSY, TileZone.MIC, TileAction.TAP),
+        Triple(TileState.MIC_BUSY, TileZone.CANCEL, none),
+        Triple(TileState.MIC_BUSY, TileZone.SEND, none),
+        Triple(TileState.MIC_BUSY, TileZone.STRIP, none),
+        Triple(TileState.MIC_BUSY, TileZone.NONE, none),
     )
 
     /** A failure means a state, a zone or an action was added, removed or reordered, so the table below no longer covers everything. */
@@ -60,7 +65,7 @@ class TileRoutingTest {
     fun `the enums are the ones the table covers`() {
         assertEquals(
             "overlay: the tile states expected in this order",
-            listOf(TileState.IDLE, TileState.ARMED, TileState.RECORDING, TileState.SENDING, TileState.FAILED, TileState.SENT, TileState.SENT_LOCAL),
+            listOf(TileState.IDLE, TileState.ARMED, TileState.RECORDING, TileState.SENDING, TileState.FAILED, TileState.SENT, TileState.SENT_LOCAL, TileState.MIC_BUSY),
             TileState.values().toList(),
         )
         assertEquals(
@@ -75,12 +80,12 @@ class TileRoutingTest {
         )
     }
 
-    /** A failure means the table does not hold exactly one row for each of the 35 state and zone pairs. */
+    /** A failure means the table does not hold exactly one row for each of the 40 state and zone pairs. */
     @Test
-    fun `the table has one row for each of the 35 pairs`() {
-        assertEquals("overlay: the table expected 35 rows", 35, table.size)
+    fun `the table has one row for each of the 40 pairs`() {
+        assertEquals("overlay: the table expected 40 rows", 40, table.size)
         val pairs = table.map { it.first to it.second }.toSet()
-        assertEquals("overlay: the table expected 35 different state and zone pairs", 35, pairs.size)
+        assertEquals("overlay: the table expected 40 different state and zone pairs", 40, pairs.size)
         for (state in TileState.values()) for (zone in TileZone.values()) {
             assertEquals("overlay: the table expected a row for $state on $zone", true, (state to zone) in pairs)
         }

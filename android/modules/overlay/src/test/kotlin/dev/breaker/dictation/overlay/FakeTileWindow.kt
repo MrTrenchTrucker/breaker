@@ -102,6 +102,19 @@ internal class FakeTileWindow(
         order.add(if (on) "pulse:true" else "pulse:false")
     }
 
+    /** Every [setBusyPulse] call, in order: true for a request to pulse and false for a stop. */
+    val busyPulseCalls = mutableListOf<Boolean>()
+    /** The last [setBusyPulse] call, or null when none has been made. */
+    var busyPulseOn: Boolean? = null
+    /** How many times [setBusyPulse] has been called. */
+    val busyPulseCallCount: Int get() = busyPulseCalls.size
+
+    /** Record a [setBusyPulse] call. */
+    override fun setBusyPulse(on: Boolean) {
+        busyPulseCalls.add(on)
+        busyPulseOn = on
+    }
+
     override fun remove() {
         calls.add("remove")
         removeCount++

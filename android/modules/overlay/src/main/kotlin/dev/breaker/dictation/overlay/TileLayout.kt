@@ -114,6 +114,6 @@ internal object TileLayout {
  */
 internal fun shapeOf(state: TileState, notice: String?): TileShape = when (state) {
     TileState.RECORDING -> TileShape.RECORDING
-    TileState.IDLE, TileState.ARMED, TileState.SENDING, TileState.FAILED, TileState.SENT, TileState.SENT_LOCAL ->
+    TileState.IDLE, TileState.ARMED, TileState.SENDING, TileState.FAILED, TileState.SENT, TileState.SENT_LOCAL, TileState.MIC_BUSY ->
         if (notice != null) TileShape.NOTICE else TileShape.COLLAPSED
 }

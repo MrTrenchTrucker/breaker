@@ -12,7 +12,11 @@ import android.animation.ValueAnimator
  *
  * @param onAlpha receives the alpha of each frame; the view stores it and redraws.
  */
-internal class ArmedPulse(private val onAlpha: (Float) -> Unit) {
+internal class ArmedPulse(
+    internal val periodMs: Long = PULSE_PERIOD_MS,
+    internal val alphaMin: Float = PULSE_ALPHA_MIN,
+    private val onAlpha: (Float) -> Unit,
+) {
 
     private var animator: ValueAnimator? = null
 
@@ -24,10 +28,10 @@ internal class ArmedPulse(private val onAlpha: (Float) -> Unit) {
     fun start() {
         if (running) return
         val next = ValueAnimator.ofFloat(PULSE_PHASE_START, PULSE_PHASE_END)
-        next.duration = PULSE_PERIOD_MS
+        next.duration = periodMs
         next.interpolator = LinearInterpolator()
         next.repeatCount = ValueAnimator.INFINITE
-        next.addUpdateListener { frame -> onAlpha(armedPulseAlpha(frame.animatedValue as Float)) }
+        next.addUpdateListener { frame -> onAlpha(armedPulseAlpha(frame.animatedValue as Float, alphaMin)) }
         animator = next
         next.start()
     }
@@ -44,3 +48,7 @@ internal class ArmedPulse(private val onAlpha: (Float) -> Unit) {
         fun animationsOn(): Boolean = ValueAnimator.areAnimatorsEnabled()
     }
 }
+
+/** A busy pulse: slower period and higher alpha floor than the armed pulse. */
+internal fun busyPulse(onAlpha: (Float) -> Unit): ArmedPulse =
+    ArmedPulse(BUSY_PULSE_PERIOD_MS, BUSY_PULSE_ALPHA_MIN, onAlpha)

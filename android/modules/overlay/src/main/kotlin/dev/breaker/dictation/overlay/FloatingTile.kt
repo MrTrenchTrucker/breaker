@@ -10,14 +10,14 @@ import dev.breaker.shared.tokens.ThemeMode
  *
  * The tile never takes focus and has no text input, so the app you were in keeps its keyboard. It only
  * shows what the app tells it and reports taps; it never records and never inserts text. The app pushes
- * one of seven states ([TileState]), the sound level while recording, and a sentence to show; what a tap
+ * one of eight states ([TileState]), the sound level while recording, and a sentence to show; what a tap
  * means is up to the app, which passes its callbacks in when it calls [create]. A drag of the small tile
  * moves it, and where it was dropped is saved in the settings as a fraction of the range the tile can
  * move over (the usable screen area minus the tile size), so it comes back at the same place on any
  * display size.
  *
  * **What a tap does**
- * - Idle or failed: a tap on the microphone calls `onTap`.
+ * - Idle, failed, or busy: a tap on the microphone calls `onTap`. In busy the tile shows a mic glyph with a red circle and diagonal slash (danger colour), pulsing slowly.
  * - Armed: a tap on the microphone calls `onBegin`.
  * - Recording: the tile widens to a cancel button, the level meter above the microphone, and a send
  *   button. A tap on the send button or on the microphone calls `onSend`; a tap on the cancel button
@@ -125,8 +125,8 @@ class FloatingTile internal constructor(private val controller: TileController) 
          *
          * @param context any context; the tile keeps only the application context.
          * @param settings where the tile position is read from and saved to.
-         * @param onTap what the app does when the microphone is tapped while the tile is idle or
-         *   failed; called once per tap, on the main looper. An exception it throws is not caught.
+         * @param onTap what the app does when the microphone is tapped while the tile is idle, failed,
+         *   or busy; called once per tap, on the main looper. An exception it throws is not caught.
          * @param theme the theme the tile is first drawn in.
          * @param onSaveFailed called, with no arguments, when a dropped position
          *   could not be saved; the tile stays where it was dropped. Null for none.

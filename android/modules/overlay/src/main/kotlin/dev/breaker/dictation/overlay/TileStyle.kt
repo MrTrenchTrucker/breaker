@@ -74,6 +74,7 @@ internal fun ringColor(state: TileState, palette: TruckingPalette): Int {
         TileState.FAILED -> palette.danger.argb
         TileState.SENT -> palette.sent.argb
         TileState.SENT_LOCAL -> palette.warning.argb
+        TileState.MIC_BUSY -> palette.danger.argb
     }
     return ring
 }
@@ -85,9 +86,9 @@ internal fun ringColor(state: TileState, palette: TruckingPalette): Int {
  * rises in a straight line from [PULSE_ALPHA_MIN] at phase 0 to [PULSE_ALPHA_MAX] at phase 0.5 and falls
  * back the same way. A phase that is not a finite number gives [PULSE_ALPHA_MAX].
  */
-internal fun armedPulseAlpha(phase: Float): Float {
+internal fun armedPulseAlpha(phase: Float, alphaMin: Float = PULSE_ALPHA_MIN): Float {
     if (!phase.isFinite()) return PULSE_ALPHA_MAX
     val cycle = phase - floor(phase)
     val rise = if (cycle < 0.5f) 2f * cycle else 2f * (1f - cycle)
-    return PULSE_ALPHA_MIN + (PULSE_ALPHA_MAX - PULSE_ALPHA_MIN) * rise
+    return alphaMin + (PULSE_ALPHA_MAX - alphaMin) * rise
 }
