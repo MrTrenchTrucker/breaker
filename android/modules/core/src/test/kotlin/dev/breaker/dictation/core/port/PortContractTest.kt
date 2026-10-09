@@ -8,6 +8,7 @@ import dev.breaker.dictation.core.model.DataEncryptionKey
 import dev.breaker.dictation.core.model.DictationResult
 import dev.breaker.dictation.core.model.DictationSession
 import dev.breaker.dictation.core.model.EncryptedText
+import dev.breaker.dictation.core.model.HeardWord
 import dev.breaker.dictation.core.model.PhraseEvent
 import dev.breaker.dictation.core.model.PhraseKind
 import dev.breaker.dictation.core.model.ReleaseInfo
@@ -16,6 +17,7 @@ import dev.breaker.dictation.core.model.SttMode
 import dev.breaker.dictation.core.model.SttRequest
 import dev.breaker.dictation.core.model.Transcription
 import dev.breaker.dictation.core.model.TranscriptionSource
+import dev.breaker.dictation.core.model.WordUpdate
 import dev.breaker.dictation.core.model.WrappedDek
 import dev.breaker.dictation.core.testing.FakeTextCommitter
 import dev.breaker.dictation.core.testing.FakeWavEncoder
@@ -220,6 +222,30 @@ class PortContractTest {
             }
         }
         assertEquals("SEND@1200", heard)
+    }
+
+    @Test
+    fun `a word stream port is writable against the domain`() {
+        val stream = object : WordStream {
+            override var isRunning: Boolean = false
+                private set
+
+            override fun start(onUpdate: (WordUpdate) -> Unit) {
+                isRunning = true
+                onUpdate(WordUpdate(listOf(HeardWord("and", 1_200L)), false))
+            }
+
+            override fun stop() {
+                isRunning = false
+            }
+        }
+        var heard: String? = null
+        stream.start { update ->
+            heard = update.words.joinToString { "${it.text}@${it.startMs}" }
+        }
+        assertEquals("and@1200", heard)
+        stream.stop()
+        assertFalse(stream.isRunning)
     }
 
     @Test

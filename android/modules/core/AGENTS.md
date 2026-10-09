@@ -28,6 +28,13 @@ modules implement, and the use cases that run a dictation.
   `PhraseEvent`. Core pins its half of this: given an offset the capture is cut there, and
   no offset keeps it whole.
 - `PhraseTraining` — `recordSample`, `upload`, `downloadModel`
+- `WordStream` — `isRunning`, `start(onUpdate)`, `stop()`; the callback gets a
+  `WordUpdate` (the words heard since the last endpoint, `final` set when the
+  recogniser closed that utterance). Start while running is a no-op: the first
+  callback stays and no second stream starts. Stop is safe when stopped.
+  The callback is called on one thread, and none arrives after `stop()` returns.
+  Word times are capture-relative (see `HeardWord`). An adapter in another module
+  implements it, and the app wires it.
 - `AuthService` — `register`, `login`, `logout`, `currentSession`
 - `CryptoService` — `unwrapDek`, `encrypt`, `decrypt`, `toEncryptedText`
 - `KeyDerivation` — `deriveKeys(password, salt, kdfParams)`: derives the
@@ -66,6 +73,14 @@ modules implement, and the use cases that run a dictation.
   IllegalArgumentException that carries one
 - `PhraseKind`, `PhraseEvent(Wake|Send(trimBeforeMs))`, `PhraseModel`, `PhraseSample`,
   `TrainedPhraseModel`
+- `HeardWord(text, startMs)` and `WordUpdate(words, final)`: a heard word refuses
+  blank text and a negative `startMs`. `startMs` is milliseconds from the start of
+  the ACTIVE capture, counted from the decoded sample count on the 16 kHz grid and
+  rounded down, never a wall clock; the source owns that origin and resets it when
+  a capture starts, and a word has no null time. `WordUpdate` keeps a copy of the
+  list it is built from and is built through its companion `invoke`; an empty list
+  is a valid hypothesis. Both are data classes; their `toString` prints counts,
+  `final` and times, never the text.
 - `AuthSession`, `UserRole`, `TokenScope`
 - `SyncState`, `SyncReport`
 - `ReleaseInfo`, `UpdateCheckResult`
@@ -166,6 +181,10 @@ Domain models, ports, use cases
 ## Test Locations
 - Unit: `src/test/kotlin/dev/breaker/dictation/core/` — plain JUnit 4, run with
   `./gradlew :android:modules:core:test`
+- Word stream tests: `model/WordsTest.kt` (the two types), `port/WordStreamFakeTest.kt`
+  (the port contract on a synchronous fake), `port/PortContractTest.kt` (one additive
+  test that the port is writable against the domain) and `model/TranscriptRedactionTest.kt`
+  (both types registered in the scan). They run with the same command as above.
 - Contract: `tests/contract/test_core_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_core_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
@@ -198,3 +217,7 @@ code.
 - `DictateUseCase` has no default for `localFormatter`. The composition root passes the
   on-device formatter (a pass-through until a real one exists); it must not call out to a
   network.
+- `WordUpdate` is built through its companion `invoke`, and its generated `copy()` is
+  private, so every `WordUpdate` holds its own copy of the list.
+- `HeardWord` and `WordUpdate` print counts and times only: the hand-written `toString`
+  keeps dictated words out of logs, and `TranscriptRedactionTest` registers both types.
