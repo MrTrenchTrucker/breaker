@@ -25,10 +25,20 @@ the capture starts after the wake phrase, so there is nothing to trim) or
 capture to where the send phrase began. This module computes that offset; it
 does not buffer or cut the dictation audio itself (see Audio handling).
 
+**Detector (built):**
+- `PhraseDetector` — its constructor takes a core word stream (`WordStream`) and implements the core phrase trigger. It reports `PhraseEvent.Wake` (no data) when "breaker breaker" is heard, and `PhraseEvent.Send` with the start of the word "and" when "and I'm gone" is heard. Each phrase is reported at most once per utterance. It holds no dictation state, delivers on the one thread that feeds the word stream, reports nothing after `stop`, and `stop` is safe to call from inside the callback.
+- The matching itself is an internal class, PhraseMatcher, and is not part of this public interface.
+
+**Built / Not built:**
+- Built: the phrase matcher and the detector over the core word stream, with tests that run on scripted word streams.
+- Not built: the recogniser adapter that feeds words into the word stream (another module); the app wiring that filters Wake and Send; the KWS upgrade path; training; any measurement on a device.
+
 **v1 mechanism — streaming on-device ASR + phrase matching:**
-- The sherpa-onnx ASR (already in the base) runs in **streaming mode**; partial
-  transcripts are matched against "breaker breaker" (idle) and "and i'm gone"
-  (recording) with fuzzy/normalized matching (case, filler words).
+- A recogniser adapter in another module runs the sherpa-onnx ASR in **streaming
+  mode** and feeds its words to this module through the core word stream; each
+  update is matched against "breaker breaker" and "and i'm gone" after
+  normalising case, punctuation and the spellings of "i'm" ("i'm", "im", "i m").
+  Filler words inside a phrase are not skipped.
 - No training, no new dependency. Power is a non-issue (high-power mode, plugged in).
 
 **Upgrade path — sherpa-onnx KWS (documented, not v1):**
@@ -64,6 +74,18 @@ enable high-performance mode if not.
 - False positives < 1/day on device (N10).
 - Manual shake/tap path unaffected (regression).
 - Startup permission prompt grants all required permissions (F11).
+- Phrases are matched inside one recogniser update only: no words are kept from an earlier update, so a phrase cut by an endpoint is not reported.
+  Tested by: `PhraseMatcherTest`, `PhraseDetectorTest`.
+- The send offset is the start time of the word "and" in the update that holds the phrase, never the start time of the other two words or of the utterance.
+  Tested by: `PhraseMatcherTest`, `PhraseDetectorTest`.
+- Each phrase is reported at most once per utterance; each listening run starts with a fresh reported set; it is cleared after a final update.
+  Tested by: `PhraseMatcherTest`, `PhraseDetectorTest`.
+- Phrase text is normalised: case, trailing punctuation and the curly apostrophe are ignored, and "im", "i'm" and "i m" all match "I'm".
+  Tested by: `PhraseMatcherTest`.
+- No report reaches the callback after `stop`, and a `stop` called from inside the callback returns safely.
+  Tested by: `PhraseDetectorTest`.
+- The module has no Android import, no thread, timer or clock, and it imports core only.
+  Tested by: `ModuleHygieneTest`.
 
 ## Depends On
 - android (registered in modules.toml)
@@ -75,7 +97,7 @@ enable high-performance mode if not.
 - Training (training-client)
 
 ## Test Locations
-- Unit (Kotlin): `android/modules/phrases/src/test/kotlin/`, created with the module's first code. Run: `./gradlew :android:modules:phrases:test`
+- Unit (Kotlin): `android/modules/phrases/src/test/kotlin/`. Run: `./gradlew :android:modules:phrases:test`
 - Contract: `tests/contract/test_phrases_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_phrases_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
@@ -108,4 +130,8 @@ agents, not required: an outside contributor may write the code themselves
 - This module must report where the send phrase began
   (`PhraseEvent.Send(trimBeforeMs)`) accurately; `DictateUseCase.stopCapture`
   is what actually trims the audio at that offset (F9).
-- Audio arrives through `core.AudioSource`, wired by `android/app` (ADR-001); this module never imports `audio` or `stt-ondevice`. If keyword spotting needs a streaming-recognition port that core lacks, it is proposed as a core port when Phase 10 is built.
+- Audio arrives through `core.AudioSource`, wired by `android/app` (ADR-001); this module never imports `audio` or `stt-ondevice`. Words arrive through core's `WordStream` port (its word stream); the recogniser adapter that feeds it is not built yet.
+- A phrase cut by an endpoint (half in one utterance, half in the next) is not reported. Device check.
+- Device-only and NOT verified: that the Send offset lands on the word "and" on a real capture; false positives (N10); start latency (N1).
+- Matching is exact word adjacency: no filler words and no fuzzy matching yet.
+- The word source (the recogniser adapter) is not built, so the detector cannot run on a device yet.
