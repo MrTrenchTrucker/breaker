@@ -41,6 +41,9 @@ class TileCoordinator(
     private var pushed: TileState = TileState.IDLE
     private var generation: Int = 0
 
+    /** True while the last show answered SHOWN; a refused or failed show and a switch-off clear it. A take may begin only while it holds. */
+    private var tileShown: Boolean = false
+
     /** How a take that was told to finish came out. */
     private sealed class End {
         object Back : End()
@@ -55,7 +58,7 @@ class TileCoordinator(
 
     /** The microphone on an armed tile was tapped: start a take, if the speech model is there. */
     fun onBegin() {
-        if (!armed || beginPending || (pushed != TileState.ARMED && pushed != TileState.SENT)) return
+        if (!armed || !tileShown || beginPending || (pushed != TileState.ARMED && pushed != TileState.SENT)) return
         val wasSent: Boolean = pushed == TileState.SENT
         lastCommit = null
         if (!isModelReady()) {
@@ -135,6 +138,7 @@ class TileCoordinator(
         } catch (e: Exception) {
             TileShow.FAILED
         }
+        tileShown = (shown == TileShow.SHOWN)
         when (shown) {
             TileShow.SHOWN -> {
                 push(session)
@@ -150,6 +154,7 @@ class TileCoordinator(
         sendPushed = false
         lastFailed = false
         beginPending = false
+        tileShown = false
         lastCommit = null
         push()
         submit { guarded { take.cancel() } }
