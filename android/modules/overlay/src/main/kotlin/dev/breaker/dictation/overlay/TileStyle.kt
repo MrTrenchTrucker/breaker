@@ -62,10 +62,10 @@ internal const val PULSE_ALPHA_MIN = 0.25f
 internal const val PULSE_ALPHA_MAX = 1f
 
 /**
- * The ring colour of [state] in [palette], with [alpha] (0 to 1) applied to the armed ring only.
- * Every other state keeps its palette colour whatever [alpha] is.
+ * The ring colour of [state] in [palette], as the palette has it. The armed ring's pulse alpha is not
+ * applied here; the view applies it when it draws the ring, through [ringDrawColor].
  */
-internal fun ringColor(state: TileState, palette: TruckingPalette, alpha: Float = 1f): Int {
+internal fun ringColor(state: TileState, palette: TruckingPalette): Int {
     val ring = when (state) {
         TileState.IDLE -> palette.trim.argb
         TileState.ARMED -> palette.primary.argb
@@ -75,7 +75,7 @@ internal fun ringColor(state: TileState, palette: TruckingPalette, alpha: Float 
         TileState.SENT -> palette.sent.argb
         TileState.SENT_LOCAL -> palette.warning.argb
     }
-    return if (state == TileState.ARMED) withAlpha(ring, alpha) else ring
+    return ring
 }
 
 /**
@@ -90,10 +90,4 @@ internal fun armedPulseAlpha(phase: Float): Float {
     val cycle = phase - floor(phase)
     val rise = if (cycle < 0.5f) 2f * cycle else 2f * (1f - cycle)
     return PULSE_ALPHA_MIN + (PULSE_ALPHA_MAX - PULSE_ALPHA_MIN) * rise
-}
-
-/** [argb] with its alpha byte set to [alpha] (0 to 1, taken to the nearest of 256 steps); the colour is kept. */
-private fun withAlpha(argb: Int, alpha: Float): Int {
-    val byte = (alpha.coerceIn(0f, 1f) * 255f + 0.5f).toInt()
-    return (byte shl 24) or (argb and ((1 shl 24) - 1))
 }

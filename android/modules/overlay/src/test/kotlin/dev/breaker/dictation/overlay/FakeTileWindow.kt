@@ -33,6 +33,10 @@ internal class FakeTileWindow(
     val appliedPalettes = ArrayList<TruckingPalette>()
     val appliedFaces = ArrayList<TileFace>()
     val calls = ArrayList<String>()
+    /** Every [setPulse] call, in order: true for a request to pulse and false for a stop. */
+    val pulses = mutableListOf<Boolean>()
+    /** The order of [setPulse] and [applyFace] calls: "pulse:true", "pulse:false" and "face". */
+    val order = mutableListOf<String>()
     var removeCount = 0
     var canDrawCalls = 0
     var boundsReads = 0
@@ -90,6 +94,12 @@ internal class FakeTileWindow(
     override fun applyFace(face: TileFace) {
         calls.add("applyFace")
         appliedFaces.add(face)
+        order.add("face")
+    }
+
+    override fun setPulse(on: Boolean) {
+        pulses.add(on)
+        order.add(if (on) "pulse:true" else "pulse:false")
     }
 
     override fun remove() {

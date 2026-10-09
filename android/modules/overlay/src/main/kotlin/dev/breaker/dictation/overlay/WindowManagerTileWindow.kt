@@ -165,6 +165,11 @@ internal class WindowManagerTileWindow(private val context: Context) : TileWindo
         tileView?.applyFace(face)
     }
 
+    /** Turn the armed ring's pulse on or off on the added tile; nothing happens when no tile is added. */
+    override fun setPulse(on: Boolean) {
+        tileView?.setPulse(on)
+    }
+
     /** Redraw the added tile in [palette], keeping its state, shape and meter; nothing happens when no tile is added. */
     override fun applyPalette(palette: TruckingPalette) {
         val view = tileView ?: return

@@ -188,7 +188,7 @@ internal object AdapterRules {
     )
     private const val LOOK = "(?:face\\.)?look\\.\\w+"
     private val colourAssignment = Regex("\\.color\\s*=\\s*([^\\n]*)")
-    private val colourAssignmentOk = Regex("color|$LOOK|if\\s*\\([^)\\n]*\\)\\s*$LOOK\\s+else\\s+$LOOK|when\\s*\\([^)\\n]*\\)\\s*\\{")
+    private val colourAssignmentOk = Regex("color|$LOOK|if\\s*\\([^)\\n]*\\)\\s*$LOOK\\s+else\\s+$LOOK|when\\s*\\([^)\\n]*\\)\\s*\\{|ringDrawColor\\(color, pulseAlpha\\)")
     private val lookOnly = Regex(LOOK)
     private val colourFunctions = listOf("drawRing", "drawCancel", "drawSend")
     private val colourCall = Regex("\\b(?:${colourFunctions.joinToString("|")})\\s*\\(")
