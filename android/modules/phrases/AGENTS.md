@@ -63,6 +63,9 @@ enable high-performance mode if not.
   transcription (F9).
 - False positives < 1/day on device (N10).
 - Manual shake/tap path unaffected (regression).
+- Wake listening hears audio only while the app runs it: Breaker armed, wake
+  listening switched on, and the microphone not given up to another app. The
+  app decides when it comes back (F37, ADR-022) (not built yet).
 - Startup permission prompt grants all required permissions (F11).
 
 ## Depends On
