@@ -112,6 +112,18 @@ class TileCoordinatorOutcomeTest {
     }
 
     @Test
+    fun `switching on again while armed clears sent`() {
+        val rig = TileRig()
+        rig.startRecording()
+        rig.coordinator.onSend()
+        rig.settle()
+        assertEquals("app: the send should leave the tile on SENT before the switch", TileState.SENT, rig.tile.states.last())
+        rig.tile.calls.clear()
+        rig.coordinator.onArmedChanged(true)
+        assertEquals("app: switching on while armed should show the tile and push ARMED, not SENT", listOf("show", "state:ARMED"), rig.tile.calls)
+    }
+
+    @Test
     fun `a missing model on a begin from sent shows armed and the notice and starts nothing`() {
         val rig = TileRig()
         rig.startRecording()
