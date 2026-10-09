@@ -70,8 +70,8 @@ private fun imEnd(tokens: List<Token>, from: Int): Int? {
  *
  * A character that is not a letter, a digit or an ASCII apostrophe ends the current piece without
  * being added (a space, U+00A0, a hyphen, a period or any punctuation acts as a boundary); a piece
- * with no letter or digit is dropped. This replaces the old "delete every other character" normalise,
- * so a hyphen or non-breaking space between letters now separates two words instead of merging them.
+ * with no letter or digit is dropped; a hyphen or non-breaking space between letters separates two
+ * words instead of merging them.
  */
 private fun tokenize(update: WordUpdate): List<Token> {
     val out = mutableListOf<Token>()

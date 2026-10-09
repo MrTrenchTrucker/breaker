@@ -104,4 +104,24 @@ class PhraseMatcherFixTest {
         )
         assertEquals("the middle apostrophe is skipped, the wake still matches", listOf(PhraseEvent.Wake), events)
     }
+
+    @Test
+    fun `a hyphen between the two wake words in one heard word is a boundary`() {
+        // A hyphen ends a piece like a space, so one heard word holding "breaker-breaker" still
+        // yields two adjacent "breaker" tokens.
+        val events = PhraseMatcher().accept(
+            WordUpdate(listOf(HeardWord("breaker-breaker", 0L)), false),
+        )
+        assertEquals("the hyphen separates the two wake words", listOf(PhraseEvent.Wake), events)
+    }
+
+    @Test
+    fun `a hyphenated i-m as one heard word matches like the spaced form`() {
+        // A hyphen ends a piece, so "i-m" reads as "i" then "m", the same as the two spaced
+        // words; the send is reported the way the spaced form reports it.
+        val events = PhraseMatcher().accept(
+            update(false, "and" to 1_000L, "i-m" to 1_200L, "gone" to 1_500L),
+        )
+        assertEquals("a hyphenated i-m matches like the spaced form", listOf(PhraseEvent.Send(1_000L)), events)
+    }
 }
