@@ -18,6 +18,7 @@ internal object AdapterAllowed {
         "node" to setOf(
             "packageName", "isPassword", "isEditable", "isEnabled", "isShowingHintText", "maxTextLength",
             "text", "textSelectionStart", "textSelectionEnd", "refresh", "performAction", "recycle",
+            "inputType",
         ),
         "root" to setOf("findFocus", "recycle"),
         "service" to setOf("rootInActiveWindow"),
@@ -33,6 +34,7 @@ internal object AdapterAllowed {
         "dev.breaker.dictation.commit.accessibility.FieldNode",
         "dev.breaker.dictation.commit.accessibility.FocusedNodeFinder",
         "dev.breaker.dictation.commit.accessibility.NodeFocusedField",
+        "dev.breaker.dictation.commit.accessibility.isPasswordInputType",
         "dev.breaker.dictation.commit.adapter.FocusedFieldHolder",
     )
 }

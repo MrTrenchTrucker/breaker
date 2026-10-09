@@ -24,7 +24,7 @@ import org.junit.Test
 internal class PureFilesScanTest {
 
     /** The pure files. A new main file is not covered until it is added here on purpose. */
-    private val pureFiles: Set<String> = setOf("InsertPlan.kt", "FieldNode.kt", "NodeFocusedField.kt")
+    private val pureFiles: Set<String> = setOf("InsertPlan.kt", "FieldNode.kt", "NodeFocusedField.kt", "PasswordInputType.kt")
 
     /**
      * The device files in `adapter/`, the only code no JVM test runs.
@@ -124,8 +124,8 @@ internal class PureFilesScanTest {
         val pureOnly: Map<String, String> = pureFiles.associateWith { "" }
         val clean: Map<String, String> = (pureFiles + adapterFiles).associateWith { "" }
         assertEquals(
-            "commit/accessibility: the pinned pure files are not the three the module is built from",
-            setOf("InsertPlan.kt", "FieldNode.kt", "NodeFocusedField.kt"),
+            "commit/accessibility: the pinned pure files are not the four the module is built from",
+            setOf("InsertPlan.kt", "FieldNode.kt", "NodeFocusedField.kt", "PasswordInputType.kt"),
             pureFiles,
         )
         assertEquals(

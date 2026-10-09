@@ -5,13 +5,16 @@ import android.os.Bundle
 import android.view.accessibility.AccessibilityNodeInfo
 import dev.breaker.dictation.commit.accessibility.FieldNode
 import dev.breaker.dictation.commit.accessibility.FocusedNodeFinder
+import dev.breaker.dictation.commit.accessibility.isPasswordInputType
 
 /**
- * One platform node seen as a [FieldNode]: every member is exactly one framework call.
+ * One platform node seen as a [FieldNode]: every member is exactly one framework call, except
+ * isPassword, which is two.
  *
  * Only two actions are ever performed on it, setting the whole text and setting the
- * selection. It reads nothing beyond the members of [FieldNode], never walks to a
- * parent or a child, and never logs, stores or copies what it reads. The caller gives
+ * selection. It reads nothing beyond the members of [FieldNode], plus the node's input type
+ * for the password check, never walks to a parent or a child, and never logs, stores or
+ * copies what it reads. The caller gives
  * the node back with [release] once.
  */
 internal class AndroidFieldNode(private val node: AccessibilityNodeInfo) : FieldNode {
@@ -20,7 +23,7 @@ internal class AndroidFieldNode(private val node: AccessibilityNodeInfo) : Field
         get() = node.packageName?.toString()
 
     override val isPassword: Boolean
-        get() = node.isPassword
+        get() = node.isPassword || isPasswordInputType(node.inputType)
 
     override val isEditable: Boolean
         get() = node.isEditable
