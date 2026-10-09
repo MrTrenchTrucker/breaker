@@ -70,6 +70,7 @@ as described in ADR-022 as amended:
   already running. Sending, cancelling or an error ends the recording; the service
   stays on. The app shows the tile while the service is on and hides it when the
   service ends or the user switches off.
+- A shake of the phone, read from the accelerometer, goes through the same check as a tap: it begins a recording only while the tile shows the armed or the sent state, and the sensor runs only while the service is on. Whether a shake does nothing with no tile shown is a device check, not a verified fact (see the Known Gotchas section of `AGENTS.md`).
 - The service stops when the user switches dictation off, when the part that owns
   the dictation is closed, or when it is started with nothing switched on. If it
   ends on its own, the dictation under way is dropped.
@@ -107,8 +108,7 @@ failure sentence, never a success:
   store and the download are built; the recognizer has not been tried on a
   device);
 - asking the user for the microphone, notification and draw-over-other-apps
-  permissions (onboarding), the switch-on screen, the spoken off word, and the
-  gesture that starts a take.
+  permissions (onboarding), the switch-on screen and the spoken off word.
 
 So the first build cannot produce text yet: the microphone slot cannot be opened
 and the text commit fails.
@@ -136,3 +136,5 @@ verified (the service in the background, the restart from the notification,
 whether Android lets the tile start the service when it is off, the tile on screen,
 the model download on a phone, the first run through the three permissions, and
 more) is in the Known Gotchas section of `AGENTS.md`.
+
+The shake of the phone is not verified on a device either. Its device checks are the DEVICE CHECK LIST in the same section of `AGENTS.md`.

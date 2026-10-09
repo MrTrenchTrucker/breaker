@@ -47,7 +47,7 @@ internal class TileHost(
 
     private val main = MainLooperPost()
     private val notifications = ModelNotifications(context)
-    private val gesture = appGesture()
+    private val gesture = appGesture(context)
     private val selectedId: () -> String = { root.settingsStore.load().modelSize }
 
     private val tile = OverlayTilePort(

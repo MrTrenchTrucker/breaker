@@ -20,7 +20,7 @@ val RECOGNIZER_FACTORY: SherpaRecognizerFactory = SherpaOnnxRecognizerFactory()
 /** The microphone the capture reads. Until the real one exists it cannot be opened, so listening fails at the start. */
 fun appMicSource(): MicSource = UnavailableMicSource()
 
-/** The gesture that starts a dictation. Until the real one exists nothing ever triggers. */
+/** The placeholder gesture: the Android swap point in AndroidSwaps.kt replaces it with the shake gesture, and until then nothing triggers. */
 fun appGesture(): GesturePort = NoGesture()
 
 
