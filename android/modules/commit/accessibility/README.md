@@ -17,6 +17,12 @@ Full module card: `AGENTS.md` in this folder.
 3. It refuses a node that is no longer valid, a field of this app's own package, a
    password field, a field that is not editable and a field that is not enabled. The
    flags are read in that order and a refused field's text is never read.
+   A field counts as a password when the platform's password flag is set, or when its input
+   type is a text password, visible password, web password or number password. The adapter
+   reads the input type as one raw number and passes it to `PasswordInputType.kt`, which
+   decides from that number alone; any other input type, including a URI field, is not
+   counted. The check refuses when in doubt: if either the flag or the input type says
+   password, the field is refused.
 4. It reads the hint flag, the length limit, the text and the selection once each and
    asks the insert rule (`InsertPlan`) for the new text:
    - hint text counts as empty text, and the reported selection is ignored;
@@ -40,14 +46,15 @@ Full module card: `AGENTS.md` in this folder.
 |---|---|
 | `InsertPlan.kt` | Pure insert rule: field state and dictated text in, new text and cursor out, or a fixed refusal reason. |
 | `FieldNode.kt` | The seam to a platform node (`FieldNode`) and to the lookup of the focused one (`FocusedNodeFinder`). |
+| `PasswordInputType.kt` | Pure password rule: the raw input type number in, password or not out. The adapter's `isPassword` uses it. |
 | `NodeFocusedField.kt` | The resolver published to the parent: the order of checks, reads and calls above. |
-| `adapter/AndroidFieldNode.kt` | The node adapter and the finder: one framework call per member; the active window's root and its input-focused node only. |
+| `adapter/AndroidFieldNode.kt` | The node adapter and the finder: one framework call per member, except `isPassword`, which reads two (the platform flag, then the input type); the active window's root and its input-focused node only. |
 | `adapter/BreakerAccessibilityService.kt` | The accessibility service: publishes the resolver on connect, closes the handle on unbind and destroy. |
 | `src/main/AndroidManifest.xml` | Declares the one service, bound only by the system. |
 | `src/main/res/xml/commit_accessibility_service_config.xml` | The service config: focused-view events, window content access, nothing else. |
 | `src/main/res/values/strings.xml` | The service label and the description Android shows in its accessibility list. |
 
-Only the two files in `adapter/` name Android. Everything else is plain Kotlin that a
+Only the two main files in `adapter/` name Android (a test file may name the platform's input type constants to pin copies). Everything else is plain Kotlin that a
 JVM test runs without a device. Only the service class is public; the rest is internal.
 
 ## What it deliberately does not do
@@ -78,6 +85,8 @@ is in `AGENTS.md`. Every test message starts with "commit/accessibility:".
 
 - Insert rule: `InsertPlan` merge, selection, surrogate, refusal and redaction tests.
   They are pure and assert the whole outcome (new text and cursor) each time.
+- Password rule: `PasswordInputTypeTest` (the pure input-type check: the four password types,
+  the wrong class and variation pairs, and the flag bits above the variation).
 - Fakes: `FakeFieldNode` and `FakeFocusedNodeFinder` count every call and keep the call
   order; `FakeFieldNodeTest` and `FakeFieldNodeSwitchesTest` prove the counters move,
   so a later "zero reads" assertion means something.

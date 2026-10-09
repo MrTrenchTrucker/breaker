@@ -90,6 +90,12 @@ argument of `ModelLoader`; the default there is still `UnavailableRecognizerFact
   It never loads a native library itself; the library's own classes do that on first use.
 - `RefusalMapping.kt` holds `mapRefusal` (a loader refusal to a failure result). It was moved out of
   `OnDeviceSttEngine.kt` with its text unchanged except for visibility (`internal`).
+- `OnDeviceWordStream` (internal) implements the core `WordStream` port over the same native seam. It
+  runs on its own single slot (`singleSlot(Dispatchers.IO)`, not the batch decode slot): native calls and
+  updates run one at a time, in order, and may run on different IO threads. `start` opens the recognizer
+  and one stream there, `feed` takes 16 kHz mono float samples (a copy, never blocking) and `stop` ends the
+  run. Each update carries the whole hypothesis of words with capture-relative start times. It is internal
+  here: a later change in the app adds the public bridge.
 
 **Download side:**
 - `HttpModelFetcher` is the real `ModelFetcher`. It is built on the platform's `HttpURLConnection`,
@@ -230,6 +236,16 @@ it.
   downloads it fresh (T1, T21).
 - Start latency < 1 s with preload (N1).
 - **No model installed + local mode → clear "No model installed" error** (fix #1).
+- One slot runs the recognizer, the stream and every update, the final one included, in order. Each start delivers at most one final (`finalDone`), only at stop, with the whole hypothesis even when unchanged; none on the deadline path, after a stop from inside an update, after an abandoned open, after a native failure, or after the update callback throws. Tested by: `OnDeviceWordStreamTest`, `OnDeviceWordStreamStopTest`, `OnDeviceWordStreamDeadlineTest`, `OnDeviceWordStreamRaceTest`, `OnDeviceWordStreamBoundsTest`, `OnDeviceWordStreamReleaseTest`
+- Stop from another thread, never from the stream's own slot, waits, with no bound, for the update already running and for the worker to reach the tail flush; then the tail flush (tail padding zeros, input end, bounded drain) is bounded by the flush deadline. A stop while the native open is still running returns at once and abandons the run: the worker releases the recogniser when the open returns and delivers nothing. Chunks still queued at stop are discarded and never reach the recognizer; no update is delivered after stop returns. NOT HANDLED yet: if the thread that calls stop is interrupted while it waits, stop returns early and the running update or tail flush may still finish after it returned. Tested by: `OnDeviceWordStreamStopTest`, `OnDeviceWordStreamDeadlineTest`
+- Stop from inside an update returns at once: no tail flush, no final, and that update is the last one this run delivers; a stop from inside an update acts on the run that made it. Tested by: `OnDeviceWordStreamStopTest`, `OnDeviceWordStreamRaceTest`
+- The tail flush has a deadline (`flushDeadline`, default 2 seconds because stop() may block the main thread (Android's not-responding limit is 5 s for input), NOT MEASURED on a device (the device check measures the real tail decode time)). Past it no final is delivered, `flushTimeouts` counts it and stop returns; the deadline does not bound the wait for a running update, and a native open is not waited for at all (see the abandoned-open rule above). Tested by: `OnDeviceWordStreamStopTest`, `OnDeviceWordStreamDeadlineTest`
+- Feed never blocks: a chunk that does not fit the queue is dropped and counted, and the call returns at once; feed before start and after stop is ignored and not counted. Tested by: `OnDeviceWordStreamTest`, `OnDeviceWordStreamStopTest`
+- A word starts at the piece that opens it, at that piece's time in 16 kHz samples divided by 16 with the fraction dropped (0.12 s gives 120 ms); the origin is the first sample fed after start, or the first sample accepted when the queue overflowed (see the overflow gotcha). Tested by: `WordMergeTest`, `OnDeviceWordStreamTest`
+- The word stream never opens or holds the microphone; it only hears the audio
+  the capture gives it. When the microphone yields to another app it gets no
+  more audio, and the app stops it as at any capture end (at most one final
+  update, then none) (F37, ADR-022) (not built yet).
 
 ## Depends On
 - android (registered in modules.toml)
@@ -477,3 +493,8 @@ agents, not required: an outside contributor may write the code themselves
   change.
 - The thread-affinity reads above were made on upstream release 1.13.8. They were not repeated on
   the source at commit 11afbd00 that this package is built from.
+- The word marker (U+2581, written as an escape in source) and the per-token start times are read from the class files of the published sherpa-onnx package; the fields exist and the code compiles against them. Only their values and units on a device are unverified; check them on a device run.
+- After an overflow drop the word times are early by the dropped audio. That is how the skew shows; it is not corrected.
+- Device-only and not verified: whether the offset lands on the word "and" on a real capture, the start latency (the model load at start), the CPU use and the flush deadline value.
+- The port has no error channel: an Exception from a native call, or one from the update callback, ends the word stream quietly, with nothing thrown and no final update, and `failures` counts it. A link failure (a LinkageError) from the native open ends the run the same way and is counted. Any other Error (an AssertionError or an OutOfMemoryError, for example, or a LinkageError from a later native call) is not caught: it leaves the worker once the native objects are released, and it reaches the uncaught-exception handler of the scope. A release that throws an Exception is counted in `failures` and swallowed; an Error from a release propagates only after both releases have run (if both throw an Error, the recogniser's replaces the stream's). Coroutine cancellation is rethrown and not counted.
+- `onUpdate` must never wait on the thread that calls `stop`: the final update is delivered while that caller is blocked in `stop`, so the app posts each update to its own queue and never blocks.

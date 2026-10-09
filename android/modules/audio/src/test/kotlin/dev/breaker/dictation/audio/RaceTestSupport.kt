@@ -139,6 +139,10 @@ internal class GatedSource(
     var insideOpenInProgress: Boolean = false
         private set
 
+    /** The device's "script handed over" latch, exposed so a test can wait on the
+     *  device signal rather than a wall clock. See [FakeMicSource.scriptSpent]. */
+    val scriptSpent: CountDownLatch get() = delegate.scriptSpent
+
     override fun open() {
         openCalls.incrementAndGet()
         peakOpenConcurrency.accumulateAndGet(inside.incrementAndGet(), ::maxOf)

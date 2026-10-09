@@ -86,7 +86,10 @@ admins.
 - F11. On startup, the app prompts for ALL permissions it needs at once (mic,
       sensor, overlay/foreground service, notifications) with clear explanations.
 - F12. High-power mode: the app detects Android power-saving state and prompts
-      the user to enable high-performance mode.
+      the user to enable high-performance mode. The battery-optimization
+      exemption that keeps wake listening alive while the phone sleeps is
+      explained at first start and can be revoked any time in Settings; when it
+      is off, the app says wake listening may stop while the phone sleeps.
 - F13. **Sync:** every transcription syncs to the server — even local-only mode —
       pushed when connectivity returns. No data loss on offline dictation.
 - F14. **Multi-user:** username/password accounts; each user's data (transcriptions,
@@ -153,6 +156,12 @@ admins.
       state — **green** = sent (copy confirmed), **orange** = server failed →
       local fallback, **red** = complete failure; the LED bar (digital
       Cobra-style segment display) fills above the floating mic while recording.
+- F37. **Microphone sharing:** when any other app or a phone call wants the
+      microphone, Breaker releases it at once, with no prompt. Wake listening
+      starts again only after the microphone has been free for 30 seconds in a
+      row; a recording is never restarted on its own. A recording cut this way
+      is transcribed, saved to history and copied to the clipboard, never typed
+      into the field (ADR-022).
 
 **Non-functional**
 - N1. Dictation starts < 1 s after wake phrase (models preloaded where possible).
@@ -350,6 +359,18 @@ filtered magnitude threshold crossings in a 500 ms window.
   container fine-tunes a small KWS model from the user's own recordings.
 - "Breaker Breaker" (idle) → tile + auto-record (F4). "And I'm Gone" (recording)
   → stop + **trim audio at phrase onset** (F9) + dispatch (F5).
+- **Wake listening:** while Breaker is armed, the microphone stays open for the
+  word stream only, so the wake phrase can be heard; nothing is stored or sent
+  until the wake phrase starts a normal recording. A Settings switch turns wake
+  listening off (the send phrase is unaffected). Android shows its microphone
+  indicator the whole time (ADR-022, amended 2026-10-09).
+- **Microphone sharing (F37):** Breaker never competes for the microphone. When
+  any other app or a phone call wants it, Breaker releases it at once, with no
+  prompt and no retry while it is in use. Wake listening comes back only after
+  the microphone has been free for 30 seconds in a row (the count restarts if
+  it is taken again). A recording is never restarted on its own; a recording
+  cut this way is ended, not cancelled: what was captured is transcribed, saved
+  to history and copied to the clipboard, never typed into the field.
 - **Permissions (F11):** mic, sensor, overlay, notifications requested
   together at first startup. The accessibility service isn't part of that
   runtime prompt — it has no system dialog to request; onboarding leads the

@@ -67,7 +67,7 @@ internal class NodeFocusedField(
 
         val showingHint: Boolean = node.isShowingHint
         val limit: Int = node.maxTextLength
-        val current: String = node.text ?: ""
+        val current: String = if (showingHint) "" else node.text ?: ""
         val start: Int = node.selectionStart
         val end: Int = node.selectionEnd
 

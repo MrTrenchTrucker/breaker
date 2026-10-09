@@ -38,7 +38,8 @@ This module owns:
 - Refusing, so the parent falls back to the clipboard: an empty text, a field
   of this app's own package, a field that is not editable or not enabled, and
   a node that is no longer valid.
-- Refusing to insert into password fields (`isPassword`).
+- Refusing to insert into password fields: a field is a password when the platform flag
+  (`isPassword`) is set, or when its input type is a password type (see Invariants).
 - Publishing the focused field into the parent's `FocusedFieldHolder` registry
   (`android_commit`, `adapter/FocusedFieldHolder`) so `CommitService` finds it
   the same way it will have found anything else published there.
@@ -50,8 +51,8 @@ This module owns:
 One public type: the final class `BreakerAccessibilityService`, the
 `AccessibilityService` subclass that the framework creates and that the manifest
 names (`.adapter.BreakerAccessibilityService`). Everything else is `internal`:
-the pure insert rule, the node seam, the focused-field resolver and the Android
-adapter. The service publishes its resolver through the parent's
+the pure insert rule, the pure password input-type rule, the node seam, the
+focused-field resolver and the Android adapter. The service publishes its resolver through the parent's
 `FocusedFieldHolder.publish` when it connects, and closes the returned handle
 on unbind and on destroy.
 
@@ -70,7 +71,11 @@ on unbind and on destroy.
 From ADR-022, enforced by tests that read this module's own files:
 - Never inserts into a password field (`isPassword`).
   - Tested by: `NodeFocusedFieldRefusalTest`, `NodeFocusedFieldPrivacyTest`,
-    `AdapterMappingGateTest`.
+    `AdapterMappingGateTest`, `PasswordInputTypeTest`.
+- Also refuses a field whose input type is a password type (text password, visible
+  password, web password or number password), even when the platform flag is not set.
+  This is this module's own stricter reading, not a rule ADR-022 states; it fails safe.
+  - Tested by: `PasswordInputTypeTest`.
 - Never stores, logs, or sends off the device any text or content read from
   the screen; it reads only what one insert needs, in the moment.
   - Tested by: `PrivacyScanTest`, `PureFilesScanTest`, `InsertPlanRedactionTest`,
@@ -89,6 +94,7 @@ From ADR-022, enforced by tests that read this module's own files:
 - Unit (Kotlin): `android/modules/commit/accessibility/src/test/kotlin/`. Run: `./gradlew :android:modules:commit:accessibility:test`
   - Insert rule: `InsertPlanMergeTest`, `InsertPlanSelectionTest`, `InsertPlanSurrogateTest`,
     `InsertPlanRefusalTest`, `InsertPlanRedactionTest`.
+  - Password rule: `PasswordInputTypeTest`.
   - Doubles and their tests: `FakeFieldNode` (with the fake finder), `FakeFieldNodeTest`,
     `FakeFieldNodeSwitchesTest`.
   - Focused-field resolver: `NodeFocusedFieldInsertTest`, `NodeFocusedFieldRefusalTest`,
@@ -152,6 +158,9 @@ agents, not required: an outside contributor may write the code themselves
   never read.
 - The receiver names in the adapter (`node`, `root`, `service`, `found`) are pinned by
   `AdapterGateTest` and `AdapterMappingGateTest`; renaming one needs both gates updated.
+- Web views that set neither the password flag nor a password input type are not
+  covered: a password field in one of them is not refused. This is not claimed to work;
+  a device check is owed with Chrome and one other web view.
 - Not verified on a device (nothing in this module has been run on one):
   - `findFocus(FOCUS_INPUT)` at send time while the floating tile is showing.
   - The cases where the active window has no root.

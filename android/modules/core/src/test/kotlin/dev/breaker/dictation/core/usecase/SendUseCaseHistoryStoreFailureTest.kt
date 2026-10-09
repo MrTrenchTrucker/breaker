@@ -27,11 +27,11 @@ import org.junit.Test
  *   it tells the truth about the text;
  * - the session follows the COMMIT, not the history save: commit landed ->
  *   IDLE, commit failed -> ERROR;
- * - the detail says what was lost, naming the exception's class, never its
- *   message: commit landed + save threw -> "Sent, but not saved to history
- *   (<Class>)"; commit failed + save threw -> "The text could not be sent
- *   and was not saved (<Class>)". Saving is the user's only way to recover
- *   failed text, so that case says so.
+ * - the detail says what was lost, and it names neither the exception's class
+ *   nor its message: commit landed + save threw -> "Sent, but not saved to
+ *   history."; commit failed + save threw -> "The text could not be sent and
+ *   was not saved." Saving is the user's only way to recover failed text, so
+ *   that case says so.
  */
 class SendUseCaseHistoryStoreFailureTest {
     private class ThrowingHistoryStore : HistoryStore {
@@ -81,10 +81,10 @@ class SendUseCaseHistoryStoreFailureTest {
         // The session follows the COMMIT, not the failed save: the text
         // landed, so it is done — IDLE, not ERROR.
         assertEquals(DictationState.IDLE, result.session.state)
-        // The detail says what was lost, naming the class, never the message.
+        // The detail says what was lost, and it names neither the class nor the message.
         val detail = result.outcome.detail!!
-        assertTrue(
-            "the detail names the exception class: $detail",
+        assertFalse(
+            "the detail must not name the exception class: $detail",
             detail.contains("IllegalStateException"),
         )
         assertFalse(
@@ -96,7 +96,7 @@ class SendUseCaseHistoryStoreFailureTest {
             detail.contains("words worth keeping"),
         )
         assertEquals(
-            "Sent, but not saved to history (IllegalStateException)",
+            "Sent, but not saved to history.",
             detail,
         )
         // A plain store failure is not an interruption: it must leave the
@@ -121,7 +121,7 @@ class SendUseCaseHistoryStoreFailureTest {
         // The commit failed, so the session is ERROR — as today.
         assertEquals(DictationState.ERROR, result.session.state)
         // Saving is the user's only way to recover failed text, so the
-        // detail says both were lost, naming the class, never the message.
+        // detail says both were lost, and it names neither the class nor the message.
         val detail = result.outcome.detail!!
         assertFalse(
             "the detail must not carry the exception message: $detail",
@@ -132,7 +132,7 @@ class SendUseCaseHistoryStoreFailureTest {
             detail.contains("words nobody got"),
         )
         assertEquals(
-            "The text could not be sent and was not saved (IllegalStateException)",
+            "The text could not be sent and was not saved.",
             detail,
         )
         // A plain store failure is not an interruption: it must leave the
@@ -158,7 +158,7 @@ class SendUseCaseHistoryStoreFailureTest {
             // commit's: the text was sent and the session is done.
             assertEquals(CommitOutcome.COMMITTED, result.outcome.outcome)
             assertEquals(DictationState.IDLE, result.session.state)
-            // The detail names the class, never the message.
+            // The detail names neither the class nor the message.
             val detail = result.outcome.detail!!
             assertFalse(
                 "the detail must not carry the exception message: $detail",
@@ -169,7 +169,7 @@ class SendUseCaseHistoryStoreFailureTest {
                 detail.contains("interrupted words"),
             )
             assertEquals(
-                "Sent, but not saved to history (InterruptedException)",
+                "Sent, but not saved to history.",
                 detail,
             )
             // An interruption is not a failure the code may swallow: the
@@ -232,7 +232,7 @@ class SendUseCaseHistoryStoreFailureTest {
                 detail.contains("interrupted loss"),
             )
             assertEquals(
-                "The text could not be sent and was not saved (InterruptedException)",
+                "The text could not be sent and was not saved.",
                 detail,
             )
             assertTrue(

@@ -18,6 +18,13 @@ app entry, DI container, Gradle build.
 
 ## Invariants
 app launches to the settings screen; DI wiring composes all modules.
+- Microphone sharing (F37, ADR-022): when the audio module reports that another
+  app or a phone call wants the microphone, the app ends the recording (what
+  was captured is transcribed, saved to history and copied to the clipboard,
+  never typed into the field, and the notification says another app needed the
+  microphone) and starts wake listening again only after the microphone has
+  been free for 30 seconds in a row; a recording is never restarted on its own
+  (not built yet).
 
 ## Does Not Own
 - Screen implementations (ui)
