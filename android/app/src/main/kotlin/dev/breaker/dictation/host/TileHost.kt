@@ -71,6 +71,10 @@ internal class TileHost(
         )
     }
 
+    init {
+        root.onTakeEnded = { toCoordinator { it.onTakeEnded() } }
+    }
+
     private val forwardingNotice = ForwardingDownloadNotice(notifications)
     private val downloader = ModelDownloader(
         installer = modelInstallPortFor(root.modelStore),

@@ -82,6 +82,7 @@ internal class HostGateTest {
         rx("TILE_SHOW_NOTICE_PASSES_THE_TEXT", "tile", """\boverride\s+fun\s+showNotice\s*\(\s*text\s*:\s*String\s*\)\s*\{\s*tile\s*\?\.\s*showNotice\s*\(\s*text\s*\)\s*\}"""),
         rx("TILE_CLEAR_NOTICE_CLEARS_THE_NOTICE", "tile", """\boverride\s+fun\s+clearNotice\s*\(\s*\)\s*\{\s*tile\s*\?\.\s*clearNotice\s*\(\s*\)\s*\}"""),
         rx("DOWNLOADER_GETS_THE_FORWARDING_NOTICE", "host", """\bnotice\s*=\s*forwardingNotice\s*,"""),
+        rx("TAKE_ENDED_IS_WIRED_THROUGH_THE_POST", "host", """\broot\.onTakeEnded\s*=\s*\{\s*toCoordinator\s*\{\s*it\.onTakeEnded\(\)\s*\}\s*\}"""),
     )
     private val firing: List<Sample> = listOf(
         Sample("MAIN_POST_USES_THE_MAIN_LOOPER", "Handler(Looper.getMainLooper())", "Handler(Looper.myLooper()!!)"),
@@ -183,6 +184,8 @@ internal class HostGateTest {
         Sample("TILE_CLEAR_NOTICE_CLEARS_THE_NOTICE", "tile?.clearNotice()", "tile?.showNotice(\"\")"),
         Sample("DOWNLOADER_GETS_THE_FORWARDING_NOTICE", "notice = forwardingNotice,", "notice = notifications,"),
         Sample("DOWNLOADER_GETS_THE_FORWARDING_NOTICE", "notice = forwardingNotice,", "notice = otherNotice,"),
+        Sample("TAKE_ENDED_IS_WIRED_THROUGH_THE_POST", "root.onTakeEnded = { toCoordinator { it.onTakeEnded() } }", "root.onTakeEnded = null"),
+        Sample("TAKE_ENDED_IS_WIRED_THROUGH_THE_POST", "root.onTakeEnded = { toCoordinator { it.onTakeEnded() } }", "root.onTakeEnded = { }"),
     )
 
     private val quiet: List<Quiet> = listOf(
@@ -195,6 +198,7 @@ internal class HostGateTest {
         Quiet("host", "selectedId = selectedId,", "selectedId = selectedId, // { \"small\" }"),
         Quiet("host", "StoreModelReady(root.modelStore, selectedId)", "StoreModelReady( root.modelStore,\n            selectedId )"),
         Quiet("tile", "tile?.clearNotice()", "tile\n            ?.clearNotice() // tile?.hide()"),
+        Quiet("host", "root.onTakeEnded = { toCoordinator { it.onTakeEnded() } }", "root.onTakeEnded = { toCoordinator { it.onTakeEnded() } } // comment"),
     )
 
     private fun edit(text: String, old: String, new: String): String {

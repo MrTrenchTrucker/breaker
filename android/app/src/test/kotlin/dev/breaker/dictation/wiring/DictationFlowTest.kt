@@ -1,6 +1,7 @@
 package dev.breaker.dictation.wiring
 
 import dev.breaker.dictation.BreakerCompositionRoot
+import dev.breaker.dictation.audio.MicSourceException
 import dev.breaker.dictation.core.model.AppSettings
 import dev.breaker.dictation.core.model.CommitOutcome
 import dev.breaker.dictation.core.model.DictationSession
@@ -11,6 +12,7 @@ import dev.breaker.dictation.core.model.TranscriptionSource
 import dev.breaker.dictation.core.port.CommitOutcomeResult
 import dev.breaker.dictation.core.usecase.SendUseCase
 import dev.breaker.dictation.service.DictationServiceController
+import dev.breaker.dictation.service.FakeMicSource
 import dev.breaker.dictation.stt.ondevice.ErrorMapping
 import java.io.File
 import org.junit.Assert.assertEquals
@@ -64,6 +66,28 @@ class DictationFlowTest {
     }
 
     @Test
+    fun `a take that ends by itself reaches the root's take-ended callback once`() {
+        var count = 0
+        val mic = ScriptedMic()
+        mic.readError = MicSourceException("the microphone stopped")
+        val root = BreakerCompositionRoot(
+            filesDir = tmp.root,
+            historyStore = history,
+            serviceController = controller,
+            committer = FakeCommitter(),
+            micSource = mic,
+        )
+        root.onTakeEnded = { count += 1 }
+        controller.adopt()
+        assertEquals("app: the capture should start over the scripted microphone", BeginResult.Recording, root.dictation.runner.begin())
+        val thread = awaitBounded("the capture thread to read", mic.firstReadThread)
+        thread.join(5_000L)
+        assertFalse("app: the capture thread should have ended by itself", thread.isAlive)
+        assertEquals("app: a take that ends by itself must reach the root's onTakeEnded once", 1, count)
+        root.dictation.close()
+    }
+
+    @Test
     fun `automatic mode with no server address lands on the on-device engine and fails with its not-installed sentence`() {
         assertEquals(
             "app: automatic routing with no server should end at the on-device engine",
@@ -102,6 +126,7 @@ class DictationFlowTest {
             historyStore = history,
             serviceController = controller,
             committer = FakeCommitter(),
+            micSource = ScriptedMic(),
         )
         assertEquals(
             "app: the model store must sit in the models folder of the files directory",
@@ -126,6 +151,7 @@ class DictationFlowTest {
             historyStore = history,
             serviceController = controller,
             committer = FakeCommitter(),
+            micSource = FakeMicSource().apply { openError = RuntimeException("fail") },
         )
         controller.adopt()
         assertEquals(
@@ -145,6 +171,7 @@ class DictationFlowTest {
             history = { history },
             serviceController = controller,
             committer = FakeCommitter(),
+            micSource = ScriptedMic(),
         )
         val text = Transcription("t-1", "hand made", TranscriptionSource.LOCAL, "small", 100L, 1_000L)
         val waiting = DictationSession(DictationState.SENDING, null, text)

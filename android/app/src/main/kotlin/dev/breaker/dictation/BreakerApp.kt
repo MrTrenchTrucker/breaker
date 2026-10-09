@@ -1,6 +1,7 @@
 package dev.breaker.dictation
 
 import android.util.Log
+import dev.breaker.dictation.audio.MicSource
 import dev.breaker.dictation.core.port.HistoryStore
 import dev.breaker.dictation.core.port.SettingsStore
 import dev.breaker.dictation.core.port.TextCommitter
@@ -11,6 +12,7 @@ import dev.breaker.dictation.service.AndroidServiceLauncher
 import dev.breaker.dictation.service.DictationServiceController
 import dev.breaker.dictation.wiring.ArmedSwitch
 import dev.breaker.dictation.wiring.FileOffStore
+import dev.breaker.dictation.wiring.appMicSource
 import dev.breaker.dictation.wiring.appTextCommitter
 import java.io.File
 
@@ -56,12 +58,19 @@ class BreakerApp : android.app.Application() {
     /** The dictated-text committer, built once from the application context. */
     val textCommitter: TextCommitter by lazy { appTextCommitter(applicationContext) }
 
+    /** The microphone the capture reads, built once from the application context. */
+    val realMicSource: MicSource by lazy {
+        val audioManager = applicationContext.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
+        appMicSource(audioManager)
+    }
+
     val compositionRoot: dev.breaker.dictation.BreakerCompositionRoot by lazy {
         BreakerCompositionRoot(
             filesDir = filesDir,
             history = { history },
             serviceController = dictationServiceController,
             committer = textCommitter,
+            micSource = realMicSource,
         )
     }
 

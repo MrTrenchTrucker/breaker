@@ -72,7 +72,7 @@ class LazyHistoryRootTest {
             filesDir = tmp.root,
             historyStore = handed,
             committer = FakeCommitter(),
-        )
+            )
         assertSame("app: a store handed in as a value should be exposed unchanged", handed, root.historyStore)
         assertFalse("app: the older constructor must not wrap the store", root.historyStore is LazyHistoryStore)
         root.settingsStore.save(AppSettings().copy(apiKeyRef = "ref-2"))

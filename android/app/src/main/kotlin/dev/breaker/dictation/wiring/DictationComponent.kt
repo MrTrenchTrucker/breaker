@@ -48,6 +48,7 @@ class DictationComponent(
     committer: TextCommitter,
     micSource: MicSource,
     private val controller: DictationServiceController,
+    private val onTakeEnded: () -> Unit = {},
 ) : AutoCloseable {
 
     private val runnerHolder = AtomicReference<DictationRunner?>(null)
@@ -57,7 +58,10 @@ class DictationComponent(
     val runner: DictationRunner
 
     init {
-        val reporting = ReportingMicSource(micSource) { runnerHolder.get()?.onCaptureEnded() }
+        val reporting = ReportingMicSource(micSource) {
+            runnerHolder.get()?.onCaptureEnded()
+            onTakeEnded()
+        }
         val dictate = DictateUseCase(
             settings = settings,
             probe = probe,

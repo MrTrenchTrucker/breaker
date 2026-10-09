@@ -222,6 +222,43 @@ class DictationComponentTest {
     }
 
     @Test
+    fun `a take that ends by itself calls onTakeEnded once`() {
+        var count = 0
+        val mic = ScriptedMic()
+        mic.readError = MicSourceException("the microphone stopped")
+        val built = Built(mic = mic, onTakeEnded = { count += 1 })
+        assertEquals("app: the capture should start", BeginResult.Recording, built.runner.begin())
+        built.awaitCaptureThreadEnd()
+        assertEquals("app: a take that ends by itself must call onTakeEnded once", 1, count)
+        built.component.close()
+    }
+
+    @Test
+    fun `a user stop does not call onTakeEnded`() {
+        var count = 0
+        val built = Built(onTakeEnded = { count += 1 })
+        built.listen()
+        built.runner.cancel()
+        awaitBounded("the capture to be closed after the cancel", built.mic.closed)
+        assertEquals("app: a user stop must not call onTakeEnded", 0, count)
+        built.assertMicWasStopped()
+        built.component.close()
+    }
+
+    @Test
+    fun `a take that ends by itself while the text is on its way does not disturb the send`() {
+        var count = 0
+        val built = Built(onTakeEnded = { count += 1 })
+        built.listen()
+        val finished = built.runner.finish()
+        assertTrue("app: finish should be ready to send", finished is FinishResult.ReadyToSend)
+        assertEquals("app: a take that ends by itself after finish must not call onTakeEnded", 0, count)
+        assertTrue("app: the text should be committed", built.runner.send()!!.isCommitted)
+        built.assertMicWasStopped()
+        built.component.close()
+    }
+
+    @Test
     fun `a server take is formatted by the server formatter and never by the on-device formatter`() {
         val built = Built(mode = SttMode.SERVER)
         built.listen()

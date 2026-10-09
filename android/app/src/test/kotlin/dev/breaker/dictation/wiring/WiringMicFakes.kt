@@ -82,6 +82,7 @@ internal class Built(
     localEngine: SttEngine = FakeSttEngine(SttResult.Success("hello world")),
     serverEngine: SttEngine = FakeSttEngine(SttResult.Success("from the server")),
     armed: Boolean = true,
+    onTakeEnded: () -> Unit = {},
 ) {
     val launcher = RecordingLauncher()
     val controller = DictationServiceController(SwitchPermission(true), launcher)
@@ -102,6 +103,7 @@ internal class Built(
         committer = FakeCommitter(),
         micSource = mic,
         controller = controller,
+        onTakeEnded = onTakeEnded,
     )
     val runner = component.runner
 

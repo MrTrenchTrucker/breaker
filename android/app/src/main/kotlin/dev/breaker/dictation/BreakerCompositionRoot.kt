@@ -66,8 +66,9 @@ class BreakerCompositionRoot(
         history: () -> HistoryStore,
         serviceController: DictationServiceController,
         committer: TextCommitter,
+        micSource: MicSource = appMicSource(),
     ) :
-        this(filesDir, LazyHistoryStore(history), serviceController, committer)
+        this(filesDir, LazyHistoryStore(history), serviceController, committer, micSource)
 
     val keystore: dev.breaker.dictation.settings.Keystore =
         FileCredentialRefHolder(File(filesDir, "credential-ref"))
@@ -77,6 +78,9 @@ class BreakerCompositionRoot(
 
     /** Where the speech models are kept: the on-device engine reads it and the download writes it. */
     val modelStore: LocalModelStore = LocalModelStore(File(filesDir, "models"))
+
+    /** Called when a take ends by itself (the microphone stopped). Set by the tile host. */
+    var onTakeEnded: (() -> Unit)? = null
 
     /** The dictation parts, built on first use. */
     val dictation: DictationComponent by lazy {
@@ -97,6 +101,7 @@ class BreakerCompositionRoot(
             committer = committer,
             micSource = micSource,
             controller = serviceController,
+            onTakeEnded = { onTakeEnded?.invoke() },
         )
     }
 }
