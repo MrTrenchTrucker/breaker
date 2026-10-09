@@ -63,6 +63,10 @@ enable high-performance mode if not.
   transcription (F9).
 - False positives < 1/day on device (N10).
 - Manual shake/tap path unaffected (regression).
+- Wake listening runs only while Breaker is armed, wake listening is switched
+  on, and the microphone has not been given up to another app; after it yields,
+  listening comes back only once the microphone has been free for 30 seconds in
+  a row (F37, ADR-022) (not built yet).
 - Startup permission prompt grants all required permissions (F11).
 
 ## Depends On

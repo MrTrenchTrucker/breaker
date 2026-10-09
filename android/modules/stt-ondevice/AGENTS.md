@@ -230,6 +230,9 @@ it.
   downloads it fresh (T1, T21).
 - Start latency < 1 s with preload (N1).
 - **No model installed + local mode → clear "No model installed" error** (fix #1).
+- The word stream never opens or holds the microphone; it only hears the audio
+  the capture gives it, so when the microphone yields to another app it gets
+  no audio and delivers no further updates (F37, ADR-022) (not built yet).
 
 ## Depends On
 - android (registered in modules.toml)
