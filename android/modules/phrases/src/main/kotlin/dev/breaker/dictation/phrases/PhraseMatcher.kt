@@ -38,11 +38,6 @@ internal class PhraseMatcher {
 /** One normalised word of an update, with the start time of the heard word it came from. */
 private class Token(val text: String, val startMs: Long)
 
-private val WHITESPACE = Regex("\\s+")
-
-/** The curly apostrophe, written as an escape so the source stays ASCII. */
-private const val CURLY_APOSTROPHE = '\u2019'
-
 /** Index of the first token of the first adjacent "breaker" "breaker" pair, or null. */
 private fun findWake(tokens: List<Token>): Int? {
     for (i in 0 until tokens.size - 1) {
@@ -70,25 +65,30 @@ private fun imEnd(tokens: List<Token>, from: Int): Int? {
     return null
 }
 
-/** Splits each heard word on whitespace; every token keeps that heard word's start time. Empty tokens are dropped. */
+/**
+ * Splits each heard word into letter/digit/apostrophe pieces, keeping the owning word's start time.
+ *
+ * A character that is not a letter, a digit or an ASCII apostrophe ends the current piece without
+ * being added (a space, U+00A0, a hyphen, a period or any punctuation acts as a boundary); a piece
+ * with no letter or digit is dropped. This replaces the old "delete every other character" normalise,
+ * so a hyphen or non-breaking space between letters now separates two words instead of merging them.
+ */
 private fun tokenize(update: WordUpdate): List<Token> {
     val out = mutableListOf<Token>()
     for (word in update.words) {
-        for (piece in word.text.split(WHITESPACE)) {
-            val text = normalise(piece)
-            if (text.isNotEmpty()) out.add(Token(text, word.startMs))
+        var piece = StringBuilder()
+        // Map U+2019 -> ' BEFORE the walk so a curly apostrophe is content, never a boundary.
+        for (c in word.text.replace('\u2019', '\'').lowercase(Locale.ROOT)) {
+            if (c.isLetterOrDigit() || c == '\'') {
+                piece.append(c)
+            } else {
+                // A boundary ends the piece: flush it only if it holds a letter or digit, but always
+                // reset it, so a letterless run (a lone apostrophe) never carries into the next letters.
+                if (piece.any { it.isLetterOrDigit() }) out.add(Token(piece.toString(), word.startMs))
+                piece.setLength(0)
+            }
         }
+        if (piece.any { it.isLetterOrDigit() }) out.add(Token(piece.toString(), word.startMs))
     }
     return out
-}
-
-/** Lower-cases with Locale.ROOT, maps the curly apostrophe to an ASCII apostrophe, and keeps only letters, digits and apostrophes. */
-private fun normalise(raw: String): String {
-    // Redundant: the filter below drops a curly mark anyway. Kept so the intent stays visible.
-    val lower = raw.lowercase(Locale.ROOT).replace(CURLY_APOSTROPHE, '\'')
-    val sb = StringBuilder(lower.length)
-    for (c in lower) {
-        if (c.isLetterOrDigit() || c == '\'') sb.append(c)
-    }
-    return sb.toString()
 }

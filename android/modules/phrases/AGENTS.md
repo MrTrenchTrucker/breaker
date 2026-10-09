@@ -26,7 +26,7 @@ capture to where the send phrase began. This module computes that offset; it
 does not buffer or cut the dictation audio itself (see Audio handling).
 
 **Detector (built):**
-- `PhraseDetector` — its constructor takes a core word stream (`WordStream`) and implements the core phrase trigger. It reports `PhraseEvent.Wake` (no data) when "breaker breaker" is heard, and `PhraseEvent.Send` with the start of the word "and" when "and I'm gone" is heard. Each phrase is reported at most once per utterance. It holds no dictation state, delivers on the one thread that feeds the word stream, reports nothing after `stop`, and `stop` is safe to call from inside the callback.
+- `PhraseDetector` — its constructor takes a core word stream (`WordStream`) and implements the core phrase trigger. It reports `PhraseEvent.Wake` (no data) when "breaker breaker" is heard, and `PhraseEvent.Send` with the start of the word "and" when "and I'm gone" is heard. Each phrase is reported at most once per utterance. It holds no dictation state, onUpdate is called one at a time, in order; each call happens-before the next, so everything one call wrote is seen by the next, even when calls run on different threads; the adapter's single-slot dispatcher gives that ordering; no update is delivered after stop() returns.; reports nothing after `stop`, and `stop` is safe to call from inside the callback.
 - The matching itself is an internal class, PhraseMatcher, and is not part of this public interface.
 
 **Built / Not built:**
@@ -73,14 +73,19 @@ enable high-performance mode if not.
   transcription (F9).
 - False positives < 1/day on device (N10).
 - Manual shake/tap path unaffected (regression).
+- Wake listening hears audio only while the app runs it: Breaker armed, wake
+  listening switched on, and the microphone not given up to another app. The
+  app decides when it comes back (F37, ADR-022) (not built yet).
 - Startup permission prompt grants all required permissions (F11).
 - Phrases are matched inside one recogniser update only: no words are kept from an earlier update, so a phrase cut by an endpoint is not reported.
   Tested by: `PhraseMatcherTest`, `PhraseDetectorTest`.
-- The send offset is the start time of the word "and" in the update that holds the phrase, never the start time of the other two words or of the utterance.
+- The send offset is the start of the HEARD WORD that holds the send phrase (the owning HeardWord's startMs), which is earlier than the literal 'and' when 'and' is mid-HeardWord, never the start time of the other two words or of the utterance.
   Tested by: `PhraseMatcherTest`, `PhraseDetectorTest`.
 - Each phrase is reported at most once per utterance; each listening run starts with a fresh reported set; it is cleared after a final update.
   Tested by: `PhraseMatcherTest`, `PhraseDetectorTest`.
-- Phrase text is normalised: case, trailing punctuation and the curly apostrophe are ignored, and "im", "i'm" and "i m" all match "I'm".
+- A character that is not a letter, a digit or an apostrophe ends a word; a piece with no letter or digit is skipped; each piece carries the start of the heard word it came from.
+  Note (a): the curly apostrophe (U+2019) is treated like the ASCII apostrophe — mapped before the split, so it is content, not a boundary.
+  Note (b): a hyphenated "i-m" splits to "i","m" and matches the existing i + m form.
   Tested by: `PhraseMatcherTest`.
 - No report reaches the callback after `stop`, and a `stop` called from inside the callback returns safely.
   Tested by: `PhraseDetectorTest`.
