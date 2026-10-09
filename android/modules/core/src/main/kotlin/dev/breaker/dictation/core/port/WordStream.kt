@@ -13,14 +13,16 @@ import dev.breaker.dictation.core.model.WordUpdate
  * Stop is safe to call when stopped.
  * [WordUpdate.words] times are capture-relative, as HeardWord.startMs describes: the
  * source owns the origin and resets it when a capture starts.
- * onUpdate is called on one thread.
- * No update is delivered after stop() returns.
+ * onUpdate is called one at a time, in order.
+ * Each call happens-before the next, so everything one call wrote is seen by the next, even
+ * when calls run on different threads; the adapter's single-slot dispatcher gives that ordering.
+ * No update is delivered after stop() returns. Stop called from another thread returns after a running onUpdate has returned. Stop called from inside onUpdate returns without waiting.
  */
 interface WordStream {
     /** True while the stream is running. */
     val isRunning: Boolean
 
-    /** Start the stream. [onUpdate] is called on one thread. */
+    /** Start the stream. [onUpdate] is called one at a time, in order. */
     fun start(onUpdate: (WordUpdate) -> Unit)
 
     /** Stop the stream. Safe to call when stopped. */

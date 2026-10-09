@@ -27,11 +27,14 @@ internal interface NativeStream {
     /** The text decoded so far. */
     fun text(): String
 
+    /** The text, the sub-word pieces and their start times in seconds, decoded so far. */
+    fun result(): NativeResult = NativeResult(text(), emptyList(), emptyList())
+
     /** Frees the native memory of this stream. */
     fun release()
 }
 
-/** A loaded native recognizer that hands out streams. */
+/** A loaded native recognizer that gives out streams. */
 internal interface NativeStreamingRecognizer {
     /** Starts a new, empty stream. */
     fun createStream(): NativeStream
@@ -39,6 +42,9 @@ internal interface NativeStreamingRecognizer {
     /** Frees the native memory of this recognizer. */
     fun release()
 }
+
+/** What a stream has decoded: the text, the pieces in order, and the start of each piece in seconds from the stream start. */
+internal class NativeResult(val text: String, val tokens: List<String>, val timestampsSeconds: List<Float>)
 
 /** The four files a streaming transducer model needs, each already checked to exist. */
 internal class TransducerFiles(val encoder: File, val decoder: File, val joiner: File, val tokens: File)

@@ -14,10 +14,13 @@ fun interface DecodeDeadline {
     fun arm(audioMs: Long, onExpired: () -> Unit): AutoCloseable
 
     companion object {
-        /** The production deadline: [decodeLimitMs] after arming, measured on Dispatchers.Default. The only clock in this module's production code. */
-        fun afterAudio(): DecodeDeadline = DecodeDeadline { audioMs, onExpired ->
+        /**
+         * The production deadline: [limitMs] of the clip length, after arming, measured on Dispatchers.Default.
+         * The only clock in this module's production code. The default [decodeLimitMs] is the engine's limit.
+         */
+        fun afterAudio(limitMs: (Long) -> Long = ::decodeLimitMs): DecodeDeadline = DecodeDeadline { audioMs, onExpired ->
             val timer = CoroutineScope(Dispatchers.Default).launch {
-                delay(decodeLimitMs(audioMs))
+                delay(limitMs(audioMs))
                 onExpired()
             }
             AutoCloseable { timer.cancel() }
