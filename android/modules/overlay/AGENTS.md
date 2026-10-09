@@ -18,6 +18,7 @@ Floating tile = CB mic glyph + LED bar meter (WindowManager overlay, F36). The f
   clears it (`clearNotice`) or pushes a different state. The module holds no words of its own.
 - A description (`setDescription`) that the view gives to screen readers as its content description.
 - The callbacks `onTap`, `onBegin`, `onCancel` and `onSend`.
+- MIC_BUSY: the microphone is not available. The app decides when to show it. The tile shows a mic glyph with a red circle and diagonal slash (danger colour), pulsing slowly. No text. A tap reports like IDLE.
 
 **How dictation ends:** while the state is `RECORDING`, the check, or a tap on the microphone, calls `onSend`, and the X
 calls `onCancel`. The send phrase is the app's job, not this module's. The tile never records and never inserts text: the
@@ -133,6 +134,7 @@ The ring around the microphone is 2 dp thick and sits just inside the edge of th
 - No timers, clocks or threads in the module. The one exception is the armed ring pulse: one platform `ValueAnimator` in ArmedPulse.kt, on the main thread, running only while the tile is ARMED, shown, attached, visible, the screen is on and system animations are on; it never changes the state or what a tap does.
   and the notice stays until the app clears it or pushes a different state.
   Tested by: `ModuleHygieneTest`, `TileViewGateTest`, `PulseRulesTest`.
+- The busy ring pulse: while the tile is MIC_BUSY and shown, the ring pulses slowly (period 3200 ms, alpha min 0.6). It stops when the state leaves MIC_BUSY, when the tile is hidden or detached, when the window is not visible, or when the screen turns off — the same run conditions as the armed pulse.
 - Colours are palette fields only: every colour the tile draws is a ui-tokens palette field; no colour value and no new token is written in this module.
   Tested by: `TileStyleTest`, `TileGlyphTest`, `TileViewGateTest`, `TileViewMappingGateTest`, `TileViewDrawingGateTest`, `AdapterGateTest`.
 - The module holds no words of its own: the notice and the description come from the app.
@@ -176,6 +178,7 @@ FloatingTile (via create), ShowResult, TileState
     state; the app must tolerate a repeat.
   - A callback that is null makes the tap do nothing. An exception thrown by any callback is not caught by the module.
 - `FloatingTile.show(): ShowResult`, `hide()`, `setTheme(theme)`, `onDisplayChanged()`, the property `isShown`, the pushes from the app `setState(state)`, `setLevel(level)`, `showNotice(text)`, `clearNotice()` and `setDescription(text)`, and the property `state`.
+  - `TileState.MIC_BUSY` — public; the overlay face when the microphone is not available. The app decides when to show it. The tile shows a mic glyph with a red circle and diagonal slash (danger colour), pulsing slowly. No text. A tap reports like IDLE.
   - `setTheme`: while the tile is shown it is repainted at once; while hidden the choice is kept for the next `show()`.
   - `onDisplayChanged`: call it when the screen size, density or insets change. While shown and not being dragged
     the tile moves to where its saved fraction falls on the new screen (a wide window is placed again around it);
@@ -212,6 +215,7 @@ FloatingTile (via create), ShowResult, TileState
     calls `onTap`, as in `IDLE`.
   - `SENT_LOCAL`: the text is committed by the phone model after the server path failed. The ring is in the `warning`
     colour (orange). A tap on the microphone calls `onTap`, as in `IDLE`.
+  - `MIC_BUSY` — the microphone is not available. The app decides when to show it. The tile shows a mic glyph with a red circle and diagonal slash (danger colour), pulsing slowly. No text. A tap reports like IDLE.
 - Everything else is `internal`.
 
 ## Depends On
@@ -396,6 +400,9 @@ agents, not required: an outside contributor may write the code themselves
 - Pushing the state the tile already has changes nothing, so it does not clear a notice; only a different state or `clearNotice()` does.
 - A level pushed outside `RECORDING` is ignored, and the meter starts empty when `RECORDING` is entered.
 - While `SENDING` the tile looks like the armed tile without the pulse (a collapsed tile with the steady primary ring); the app's description is the only cue.
+- The MIC_BUSY slash is a code-drawn placeholder: eight stair-step rectangles from corner to corner of the tile, drawn on top of the microphone. Final art comes later (issue #87).
+- No text is drawn on the tile in any MIC_BUSY state. The accessibility label is the only content description.
+- A tap on a MIC_BUSY tile reports a tap exactly like IDLE. The app decides what to do.
 - `hide()` while the tile is expanded or recording removes the window and calls no callback; the pushed state, level and notice are kept and the next `show()` draws them.
 - Battery: while armed with the screen on, the pulse redraws the tile every frame for as long as dictation stays armed. The cost is not measured. Device check: battery over 30 minutes armed, pulse on versus animations off (steady ring).
 - The pulse stops when the state leaves ARMED, when the tile is hidden or detached, when the window is not visible, and when the screen turns off; a system animation scale change applies at the next start.

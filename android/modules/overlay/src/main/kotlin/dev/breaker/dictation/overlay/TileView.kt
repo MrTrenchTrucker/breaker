@@ -11,33 +11,17 @@ import android.view.MotionEvent
 import android.view.View
 
 /**
- * The floating tile as one Android view. It draws one [TileFace] and nothing else: a background with
- * small corners, the stand-in microphone glyph with a ring around it, and, by the face's shape, either
- * the level meter with the cancel and send buttons, or the app's notice text.
+ * The floating tile as one Android view: it draws one [TileFace] (a background, the microphone glyph
+ * with a ring, then the level meter with buttons or the notice text) and nothing else.
  *
  * T4: overlay spoofing. The view asks the system to drop touches that arrive while another window
- * covers it ([setFilterTouchesWhenObscured]), so a window laid over the tile cannot feed it taps.
- * The tile is tap-only: it holds no text input and never takes focus.
- *
+ * covers it ([setFilterTouchesWhenObscured]). The tile is tap-only: no text input, no focus.
  * Every colour comes from the face's [TileLook], every position from [TileLayout] and every glyph
- * shape from [TileGlyph], so this class holds no colour value of its own. It draws when [applyFace] is
- * called or when the system asks, and while [setPulse] is on it changes only the alpha of the armed ring's colour. The description the app
- * gave for the tile is passed on to accessibility services as the view's content description.
- *
- * Touches are forwarded to the [TouchSink] in screen coordinates (the raw position) and the view
- * decides nothing itself: telling a tap from a drag, and which button was hit, is the sink's job.
- *
- * Only the finger that went down is followed. Its pointer id is remembered on the down event, moves
- * are read from that pointer alone, and the gesture ends when that finger lifts (or on a cancel). A
- * second finger that lands, moves or lifts changes nothing, so the tile never jumps to another finger.
- *
- * Call it from the UI looper only.
- *
- * **What this class cannot prove.** Nothing here runs without a device, so none of this is verified:
- * how the glyph, the ring, the meter and the buttons look at a real density, how the notice text
- * wraps and is cut, what an accessibility service reads out, whether the system really drops covered
- * touches, how a drag feels, or any vendor difference in how overlay windows deliver touches. Only
- * the text of this file is checked on a plain JVM.
+ * shape from [TileGlyph]. Touches go to the [TouchSink] in screen coordinates and the view decides
+ * nothing itself; only the finger that went down is followed. Call it from the UI looper only.
+ * **What this class cannot prove.** Nothing here runs without a device: how it looks at real
+ * density, how the notice text wraps, what an accessibility service reads, how a drag feels,
+ * whether the system really drops covered touches, or any vendor difference in how overlay windows deliver touches.
  */
 internal class TileView(
     context: Context,
@@ -64,6 +48,8 @@ internal class TileView(
     private var screenOn = true
     private var pulseAlpha = 1f
     private val pulse = ArmedPulse { alpha -> pulseAlpha = alpha; invalidate() }
+    private val busyPulse = busyPulse { alpha -> if (busyWanted) pulseAlpha = alpha; invalidate() }
+    private var busyWanted = false
     init {
         setFilterTouchesWhenObscured(true)
         contentDescription = face.description
@@ -73,12 +59,20 @@ internal class TileView(
     fun applyFace(face: TileFace) {
         this.face = face
         contentDescription = face.description
+        busyWanted = face.state == TileState.MIC_BUSY
+        refreshPulse()
         invalidate()
     }
 
     /** Ask for the armed ring's pulse while [on] is true; it runs only while the other conditions hold. */
     fun setPulse(on: Boolean) {
         wanted = on
+        refreshPulse()
+    }
+
+    /** Ask for the busy ring's slow pulse while [on] is true; same run rules as the armed pulse. */
+    fun setBusyPulse(on: Boolean) {
+        busyWanted = on
         refreshPulse()
     }
 
@@ -108,6 +102,7 @@ internal class TileView(
 
     private fun refreshPulse() {
         if (pulseShouldRun(wanted, attached, windowVisible, screenOn, ArmedPulse.animationsOn())) pulse.start() else pulse.stop()
+        if (pulseShouldRun(busyWanted, attached, windowVisible, screenOn, ArmedPulse.animationsOn())) busyPulse.start() else busyPulse.stop()
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -122,7 +117,7 @@ internal class TileView(
         canvas.drawRoundRect(0f, 0f, width.toFloat(), height.toFloat(), cornerRadiusPx, cornerRadiusPx, paint)
 
         val mic = TileLayout.micCell(face.shape, s)
-        drawGlyph(canvas, mic, look)
+        drawGlyph(canvas, mic, look, face.state)
         drawRing(canvas, mic, look.ring)
         when (face.shape) {
             TileShape.COLLAPSED -> Unit
@@ -135,16 +130,18 @@ internal class TileView(
         }
     }
 
-    /** The glyph's rectangles scaled into [cell], each in the colour of its role. */
-    private fun drawGlyph(canvas: Canvas, cell: TileRect, look: TileLook) {
+    /** The glyph's rectangles scaled into [cell], each in the colour of its role; the slash only for MIC_BUSY. */
+    private fun drawGlyph(canvas: Canvas, cell: TileRect, look: TileLook, state: TileState) {
         paint.style = Paint.Style.FILL
         val w = cell.width.toFloat()
         val h = cell.height.toFloat()
         for (rect in TileGlyph.rects) {
+            if (rect.role == GlyphRole.SLASH && state != TileState.MIC_BUSY) continue
             paint.color = when (rect.role) {
                 GlyphRole.BODY -> look.glyph
                 GlyphRole.GRILLE -> look.glyphOutline
                 GlyphRole.OUTLINE -> look.glyphOutline
+                GlyphRole.SLASH -> look.ring
             }
             canvas.drawRect(
                 cell.left + rect.left * w,

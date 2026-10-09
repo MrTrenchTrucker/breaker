@@ -77,6 +77,9 @@ class FakeMicSource(
     /** The driver error code reported once [failAfterReads] is reached. */
     var readErrorCode: Int = -1
 
+    /** After this many reads, [read] throws the microphone-taken reason. */
+    var takenAfterReads: Int = Int.MAX_VALUE
+
     /** After this many reads, [read] reports that nothing arrived. */
     var stallAfterReads: Int = Int.MAX_VALUE
 
@@ -146,6 +149,12 @@ class FakeMicSource(
         val reads = readCount.incrementAndGet()
         if (readDelayMs > 0) Thread.sleep(readDelayMs)
         if (reads > failAfterReads) return readErrorCode
+        if (reads > takenAfterReads) {
+            throw MicSourceException(
+                "audio: another app or a call took the microphone",
+                reason = MicSourceException.Reason.MICROPHONE_TAKEN,
+            )
+        }
         if (reads > stallAfterReads) {
             Thread.sleep(1)
             return 0

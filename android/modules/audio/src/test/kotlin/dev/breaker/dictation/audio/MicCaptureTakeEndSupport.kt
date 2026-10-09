@@ -4,6 +4,7 @@ import dev.breaker.dictation.core.port.AudioListener
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import org.junit.Assert.assertTrue
 
 /**
@@ -28,6 +29,21 @@ internal class TakeEndRecorder(private val throwOnEnd: Throwable? = null) {
 
     private val ends = Semaphore(0)
 
+    /**
+     * The total number of samples delivered through [frames], summed over every
+     * frame's size.
+     *
+     * A frame COUNT cannot see the tail the resampler drains at the end of a
+     * take: that tail is only a fraction of a frame wide, so it changes how many
+     * samples arrive without changing how many frames do. This number does see
+     * it, which is what a test that has to prove the tail reached the listener
+     * needs — the sample count is exact where the frame count is blind.
+     */
+    private val samples = AtomicInteger(0)
+
+    /** Samples delivered through [frames] so far, summed over every frame. */
+    val totalSamples: Int get() = samples.get()
+
     /** The callback to give [MicCapture]. */
     val onTakeEnded: (Throwable?) -> Unit = { failure ->
         endThreadNames.add(Thread.currentThread().name)
@@ -40,8 +56,11 @@ internal class TakeEndRecorder(private val throwOnEnd: Throwable? = null) {
     /** How many times the end call has run. */
     val endCount: Int get() = endFailures.size
 
-    /** A frame listener that records each frame under [tag]. */
-    fun frames(tag: String = FRAME_EVENT): AudioListener = AudioListener { events.add(tag) }
+    /** A frame listener that records each frame under [tag] and sums its samples. */
+    fun frames(tag: String = FRAME_EVENT): AudioListener = AudioListener { frame ->
+        events.add(tag)
+        samples.addAndGet(frame.size)
+    }
 
     /** [events] with runs of the same entry collapsed to one, so a count of frames does not matter. */
     fun runs(): List<String> =

@@ -60,6 +60,11 @@ class MicCaptureTakeEndTest {
             "audio: the failure should name the driver error code, was: ${reported!!.message}",
             reported.message!!.contains("-3"),
         )
+        assertEquals(
+            "audio: a device failure must default to DEVICE_FAILED",
+            MicSourceException.Reason.DEVICE_FAILED,
+            (reported as MicSourceException).reason,
+        )
         assertSame("audio: the end call and MicCapture.failure disagree", capture.failure, reported)
         assertTrue("audio: a self-end must leave the indicator lit until stop()", indicator.isRecording)
         assertEquals("audio: a self-end must leave the device open until stop()", 0, source.closeCalls)

@@ -25,6 +25,7 @@ order and spelling:
 - `Pcm16WavEncoder`
 - `MicSource`
 - `MicSourceException`
+- `MicSourceException.Reason`
 - `NoiseSuppressor`
 - `PassThroughNoiseSuppressor`
 - `AdaptiveGateSuppressor`
@@ -37,7 +38,10 @@ the registry line, and not reachable from outside the module):
 - `MicCapture` — public; AudioRecorder/MediaRecorder session; drives a
   default-priority capture thread
 - `MicSource` — public; the capture source seam the capture session is driven through
-- `MicSourceException` — public; raised when a source fails or stops producing audio
+- `MicSourceException` — public; raised when a source fails or stops producing audio.
+  It carries a `reason`: `DEVICE_FAILED` by default, or `MICROPHONE_TAKEN` when another
+  app or a call took the microphone. It stays final; the reason is read as a value
+  (`e.reason`), not by type.
 - `NoiseSuppressor` — public; an optional neural suppressor (none chosen yet);
   skip if the AAR is not built with one
 - `PassThroughNoiseSuppressor` — public; the no-op `NoiseSuppressor` used when no neural
@@ -162,6 +166,19 @@ default null (nobody is told, and behaviour is exactly as before). It adds no pu
   take that a later `start()` has replaced.
 - **A take that ends by itself does not release anything.** The device stays open and the indicator
   stays lit until the caller calls `stop()`. The callback only tells the caller that the stop is owed.
+- **The one exception: a take the platform takes.** When the reason is
+  `MICROPHONE_TAKEN` — another app or a call has taken the microphone — the capture
+  releases the device at once, on the capture thread, and marks the indicator dark,
+  without waiting for the caller's `stop()`. The audio already captured is still
+  delivered, so the take stays whole. The release is observed within about one check
+  interval of the platform silencing us (see below). Every other self-end reason keeps
+  the rule above: the device stays open until the caller's `stop()`.
+- **How the take notices.** The capture asks the recorder itself, at a bounded rate —
+  about once per 100 ms of audio, counted in samples read, not by a clock — whether the
+  platform is silencing this recorder (`AudioRecord.getActiveRecordingConfiguration()`,
+  then `isClientSilenced()`, API 29). The pull is rate-limited because it is a call into
+  the system audio service. When the recorder reports no configuration of its own, that
+  is NOT a signal: the take continues.
 - **Threads.** The callback runs on the thread that `stop()` joins, so it must hop to another thread
   before it calls `stop()`; calling `stop()` inline makes `stop()` wait for itself until the join
   time-out and then record a false failure. Keep the callback short, for the same reason. It must not
@@ -184,8 +201,10 @@ default null (nobody is told, and behaviour is exactly as before). It adds no pu
 - Mic indicator surfaced in UI while recording (privacy, T5).
 - The microphone yields to every other app: when any other app or a phone call
   wants it, the capture releases it at once and reports why, with no prompt and
-  no retry while it is in use (F37, ADR-022) (not built yet: device check
-  owed for an incoming call, an outgoing call and another recording app).
+  no retry while it is in use (F37, ADR-022) (built: the capture notices the platform silencing
+  it and releases the device at once, reporting `MICROPHONE_TAKEN`; proven on the JVM against a fake. Still owed: a device
+  check for an incoming call, an outgoing call, another recording app, and an incoming
+  call with the app's accessibility service on).
 - No `android.*` class is named anywhere in the module except `AudioRecordMicPort.kt`; this is
   checked by `AudioConfinementGateTest` on the source text, on the test sources, and on the
   compiled classes.
@@ -207,7 +226,8 @@ default null (nobody is told, and behaviour is exactly as before). It adds no pu
   `AudioConfinementRules`), `MicCaptureTakeEndTest`, `MicCaptureTakeEndContainmentTest`,
   `MicCaptureTakeEndReplacedTest` (helpers: `MicCaptureTakeEndSupport`), `MicCaptureNoCallbackThreadTest`,
   `MicCaptureStopDuringReadTest`, `MicCaptureStopDuringReadErrorTest` (fake: `ThrowingAfterCloseMicSource`),
-  `RoutedMicSourceIdentityTest`, `CaptureLoopInterruptTest`.
+  `RoutedMicSourceIdentityTest`, `CaptureLoopInterruptTest`, `RoutedMicSourceTakenTest`,
+  `MicCaptureTakenReleaseTest`.
   `RoutedMicSourceIdentityTest` checks that the source follows the device it really opened, and that a replaced device with a new id counts as gone.
   `CaptureLoopInterruptTest` checks that an interrupt raised inside a read is handed back to the capture thread, also when a stop is closing the read.
 - Contract: `tests/contract/test_audio_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_audio_contract.py`
@@ -332,6 +352,18 @@ code.
   still the right length to within one sample, and the difference is
   accumulated rounding at a rate that is not exactly representable, not a
   leak.
+- **A recorder with no configuration of its own is not a signal.** The take notices a
+  taken microphone by asking the recorder for its own active configuration; when the
+  recorder reports none (not open, or the platform reports none), the capture treats
+  that as "not taken" and keeps recording. This is deliberate: a missing answer must
+  not be read as "another app has the microphone", or an ordinary start would end
+  itself. The taken case is a configuration that is present and silenced.
+- **An accessibility service may not be silenced during a call.** The platform lets an
+  accessibility service keep capturing during a call, and this app ships an
+  accessibility service for text insertion. Whether that exempts this capture from
+  call silencing is a device question and is not claimed here; until it is measured, a
+  call is covered only by the general silencing path, which the same device check
+  verifies.
 
 ## Not verified on a device
 
@@ -354,3 +386,6 @@ adapter (`AudioRecordMicPort.kt`) cannot run there, so these are by reading only
 - The 16 kHz request on real hardware, and what a refusal looks like.
 - The wording of a permission failure: a missing `RECORD_AUDIO` shows up as the platform refusing the
   format, so the message may mislead.
+- An incoming call while the app's accessibility service is running: whether the call
+  silences this capture (the general path) or the accessibility service is exempt, and
+  that the release fires either way.

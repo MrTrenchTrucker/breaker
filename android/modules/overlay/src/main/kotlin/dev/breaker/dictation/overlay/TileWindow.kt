@@ -97,6 +97,10 @@ internal interface TileWindow {
      */
     fun setPulse(on: Boolean)
 
+    /** Ask the window to pulse its busy ring while [on] is true. The window pulses only while the other
+     * conditions of the view hold (attached, visible, screen on, system animations on); false stops it. */
+    fun setBusyPulse(on: Boolean)
+
     /** Take the window off screen. Quietly does nothing when it is not there. */
     fun remove()
 }
