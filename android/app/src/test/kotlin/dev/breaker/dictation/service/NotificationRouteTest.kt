@@ -5,6 +5,7 @@ import dev.breaker.dictation.gates.XmlNode
 import dev.breaker.dictation.gates.XmlTree
 import java.io.File
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -133,5 +134,25 @@ internal class NotificationRouteTest {
         }
         assertThrows("app: a build script without a namespace must be refused", IllegalStateException::class.java) { namespaceOf("android { }") }
         assertEquals("app: the namespace was not read", ns, namespaceOf("android {\n    namespace = \"$ns\"\n}"))
+    }
+
+    @Test
+    fun `opensHistory is true for the history route`() {
+        assertTrue("app: the history route does not open the history", NotificationRoute.opensHistory(NotificationRoute.ROUTE_HISTORY))
+    }
+
+    @Test
+    fun `opensHistory is false for the model route, null, an empty string and a different case`() {
+        assertFalse("app: the model route opens the history", NotificationRoute.opensHistory(NotificationRoute.ROUTE_MODEL))
+        assertFalse("app: a null route opens the history", NotificationRoute.opensHistory(null))
+        assertFalse("app: an empty route opens the history", NotificationRoute.opensHistory(""))
+        assertFalse("app: a route written as History opens the history", NotificationRoute.opensHistory("History"))
+        assertFalse("app: a route written as HISTORY opens the history", NotificationRoute.opensHistory("HISTORY"))
+    }
+
+    @Test
+    fun `opensHistory follows the route constant`() {
+        assertTrue("app: opensHistory does not open for the history route constant", NotificationRoute.opensHistory(NotificationRoute.ROUTE_HISTORY))
+        assertFalse("app: opensHistory opens for the model route constant", NotificationRoute.opensHistory(NotificationRoute.ROUTE_MODEL))
     }
 }

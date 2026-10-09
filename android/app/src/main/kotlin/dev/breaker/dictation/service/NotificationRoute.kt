@@ -3,8 +3,8 @@ package dev.breaker.dictation.service
 /**
  * Where a tap on the ongoing notification takes the user.
  *
- * The tap opens the launcher activity with [EXTRA_ROUTE] set to [ROUTE_HISTORY]; the screen that honours
- * the route is built by the ui module, so until then the launcher simply opens. The notification that
+ * The tap opens the launcher activity with [EXTRA_ROUTE] set to [ROUTE_HISTORY]. On a fresh create the
+ * launcher shows the history screen when the route is [ROUTE_HISTORY] (see [opensHistory]). The notification that
  * says the speech model is missing carries [ROUTE_MODEL]; the launcher puts the download button in focus.
  */
 object NotificationRoute {
@@ -19,4 +19,7 @@ object NotificationRoute {
 
     /** The full class name of the launcher activity the tap opens; it is the activity the manifest declares. */
     const val TARGET_ACTIVITY: String = "dev.breaker.dictation.SettingsLauncherActivity"
+
+    /** True when the route asks the launcher to show the history screen; the match is exact and case sensitive. */
+    fun opensHistory(route: String?): Boolean = route == ROUTE_HISTORY
 }

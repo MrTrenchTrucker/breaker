@@ -10,23 +10,24 @@ Full module card: `AGENTS.md` in this folder.
 
 The Android application. It owns the one place where the modules are put
 together (`BreakerCompositionRoot`), the launcher activity that shows the
-settings screen, the manifest, and the Gradle build.
+settings screen and the history screen, the manifest, and the Gradle build.
 
 ## What it puts together
 
 - **Settings and the credential reference.** The settings store is built over
   the app's files folder, together with a small file that holds the reference to
   the user's credential (never the secret itself).
-- **History.** The history database is opened the first time the history is used,
-  not when the app starts or when the settings are read. The one start-up clean-up
-  of old rows runs on the background (I/O) dispatcher.
+- **History.** The history database opens on its first use, which is the one
+  start-up clean-up of old rows. That clean-up runs on the background (I/O)
+  dispatcher, never on the main thread. The launcher has a History button, and a
+  tap on the notification opens the same screen.
 - **Dictation.** A `DictationComponent` joins the microphone capture of the audio
   module, the on-device rule-based formatter of the format module, the
   connectivity probe of the transport module and the dictation use cases of the
   core module. `DictationRunner` drives one dictation at a time: begin, finish,
   send, cancel.
 - **Speech engine and model.** The on-device speech engine reads its models from
-  a model store in the app's files folder. One button on the launcher screen,
+  a model store in the app's files folder. Two buttons sit on the launcher screen.
   "Download the speech model", downloads the model the settings select; the
   address and the checksum come from the model registry. A tap on the tile's
   microphone with no model installed starts nothing and says so, in a
@@ -63,7 +64,8 @@ as described in ADR-022 as amended:
   notification.
 - While it is on, the service shows a quiet, ongoing notification with one
   "Switch off" button. Tapping the notification opens Breaker on the history of
-  transcriptions (the screen itself belongs to the ui module).
+  transcriptions. The launcher shows the history screen that the ui module
+  builds.
 - A tap on the floating tile only begins a recording inside the service that is
   already running. Sending, cancelling or an error ends the recording; the service
   stays on. The app shows the tile while the service is on and hides it when the
@@ -105,8 +107,8 @@ failure sentence, never a success:
   store and the download are built; the recognizer has not been tried on a
   device);
 - asking the user for the microphone, notification and draw-over-other-apps
-  permissions (onboarding), the switch-on screen, the spoken off word, the history
-  screen, and the gesture that starts a take.
+  permissions (onboarding), the switch-on screen, the spoken off word, and the
+  gesture that starts a take.
 
 So the first build cannot produce text yet: the microphone slot cannot be opened
 and the text commit fails.
