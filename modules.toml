@@ -31,7 +31,7 @@ path = "android/modules/core"
 owns = "Domain models, ports, use cases. No Android imports."
 does_not_own = "Android platform code; adapters."
 depends_on = ["android"]
-public = "Domain models, ports (including KeyDerivation), use cases"
+public = "Domain models (including HeardWord, WordUpdate), ports (including KeyDerivation, WordStream), use cases"
 card = "android/modules/core/AGENTS.md"
 
 [module.android_audio]
