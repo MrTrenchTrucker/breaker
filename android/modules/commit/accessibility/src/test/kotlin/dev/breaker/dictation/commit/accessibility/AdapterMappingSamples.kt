@@ -18,7 +18,7 @@ internal object MappingExpected {
 
     val node: Map<String, String> = mapOf(
         "packageName" to "override val packageName: String? get() = node.packageName?.toString()",
-        "isPassword" to "override val isPassword: Boolean get() = node.isPassword",
+        "isPassword" to "override val isPassword: Boolean get() = node.isPassword || isPasswordInputType(node.inputType)",
         "isEditable" to "override val isEditable: Boolean get() = node.isEditable",
         "isEnabled" to "override val isEnabled: Boolean get() = node.isEnabled",
         "isShowingHint" to "override val isShowingHint: Boolean get() = node.isShowingHintText",
@@ -131,9 +131,13 @@ internal object MappingSamples {
 
     /** Copies that break one mapping each (or the node file's shape). */
     fun firing(real: String): List<MappingVariant> = listOf(
-        variant(real, "the password flag is always false", setOf("isPassword"), swap("isPassword", "Boolean", "node.isPassword", "false")),
-        variant(real, "the password flag reads the editable flag", setOf("isPassword"), swap("isPassword", "Boolean", "node.isPassword", "node.isEditable")),
-        variant(real, "the password flag needs a second flag", setOf("isPassword"), swap("isPassword", "Boolean", "node.isPassword", "node.isPassword && node.isEnabled")),
+        variant(real, "the password flag is always false", setOf("isPassword"), swap("isPassword", "Boolean", "node.isPassword || isPasswordInputType(node.inputType)", "false")),
+        variant(real, "the password flag reads the editable flag", setOf("isPassword"), swap("isPassword", "Boolean", "node.isPassword || isPasswordInputType(node.inputType)", "node.isEditable")),
+        variant(real, "the password flag needs a second flag", setOf("isPassword"), swap("isPassword", "Boolean", "node.isPassword || isPasswordInputType(node.inputType)", "node.isPassword && node.isEnabled")),
+        variant(real, "the password flag ignores the input type", setOf("isPassword"), swap("isPassword", "Boolean", "node.isPassword || isPasswordInputType(node.inputType)", "node.isPassword")),
+        variant(real, "the input type decides alone", setOf("isPassword"), swap("isPassword", "Boolean", "node.isPassword || isPasswordInputType(node.inputType)", "isPasswordInputType(node.inputType)")),
+        variant(real, "the input type is not read", setOf("isPassword"), swap("isPassword", "Boolean", "node.isPassword || isPasswordInputType(node.inputType)", "node.isPassword || isPasswordInputType(0)")),
+        variant(real, "the input type is read through the wrong member", setOf("isPassword"), swap("isPassword", "Boolean", "node.isPassword || isPasswordInputType(node.inputType)", "node.isPassword || isPasswordInputType(node.maxTextLength)")),
         variant(real, "the editable flag is always true", setOf("isEditable"), swap("isEditable", "Boolean", "node.isEditable", "true")),
         variant(real, "the enabled flag is always true", setOf("isEnabled"), swap("isEnabled", "Boolean", "node.isEnabled", "true")),
         variant(real, "the enabled flag is read in another letter case", setOf("isEnabled"), swap("isEnabled", "Boolean", "node.isEnabled", "node.isenabled")),
@@ -172,7 +176,7 @@ internal object MappingSamples {
         MappingVariant("the real file", emptySet(), real),
         variant(
             real, "comments and line breaks inside a getter", emptySet(),
-            "get() = node.isPassword" to "get() =\n            /* the flag */ node.isPassword // read once",
+            "get() = node.isPassword || isPasswordInputType(node.inputType)" to "get() =\n            /* the flag */ node.isPassword || isPasswordInputType(node.inputType) // read once",
         ),
     )
 }
