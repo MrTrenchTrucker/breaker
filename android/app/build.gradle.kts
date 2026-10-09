@@ -44,7 +44,9 @@ kotlin {
 dependencies {
     implementation(project(":android:modules:core"))
     implementation(project(":android:modules:settings"))
+    implementation(project(":android:modules:history"))
     implementation(project(":android:ui"))
+    implementation(libs.kotlinx.coroutines.core)
 
     testImplementation(libs.junit)
 }

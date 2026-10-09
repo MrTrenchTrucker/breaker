@@ -11,6 +11,9 @@ app-level composition of all modules. Concretely, the app's own types are:
 - `BreakerCompositionRoot` — the single place modules are composed; takes a files directory (plain JVM, testable without Android) and exposes the `SettingsStore` and the credential-reference `Keystore`.
 - `SettingsLauncherActivity` — the launcher activity; hosts the settings view the `ui` module builds.
 - `FileCredentialRefHolder` — a `Keystore` implementation backed by a file, holding the credential *reference* (never a secret).
+- `SystemClockAdapter` — the app's `Clock` adapter (the real system clock; plain JVM).
+- `AppStartPurge` — schedules the one start-up purge off the main thread, reporting a failure to a callback instead of letting it escape.
+- The composition root exposes the `HistoryStore` it is handed (the concrete `SqliteHistoryStore` the app builds).
 
 ## Owns
 app entry, DI container (composition root), Gradle build, and the file-backed credential-reference holder (a `Keystore` impl that holds the reference, not the secret).
@@ -20,6 +23,7 @@ app entry, DI container (composition root), Gradle build, and the file-backed cr
 - android_core (registered in modules.toml)
 - android_ui (registered in modules.toml)
 - android_settings (registered in modules.toml)
+- android_history (registered in modules.toml)
 
 ## Invariants
 app launches to the settings screen; DI wiring composes all modules.
@@ -61,6 +65,11 @@ code.
   compile (`assembleDebug` plus the unit test) and the JVM tests of the
   composition root. The launcher activity and the real settings view are **not
   exercised** — the app has not been launched on a device or an emulator.
+- **Start-up purge is one-shot and only logged.** `BreakerApp` schedules
+  `SqliteHistoryStore.purgeExpired()` once on an app-lifetime coroutine scope
+  off the main thread. A failure is passed to a callback that logs it
+  (`Log.w`); it is not retried and does not crash the app. Purge scheduling
+  beyond app start is not built.
 - `FileCredentialRefHolder` holds a credential *reference*, never a secret. The
   platform `Keystore` that would resolve the reference against a secret is **not
   built and not verified**; nothing in this module is a claim that a key is kept
