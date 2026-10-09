@@ -97,7 +97,7 @@ class SendUseCaseEmptyTextTest {
         assertEquals(SttError.OTHER, result.session.lastError)
         val detail = result.outcome.detail
         assertNotNull(detail)
-        assertTrue("the detail names the failure: $detail", detail!!.contains("IllegalStateException"))
+        assertEquals("the detail is the fixed sentence", "The text could not be sent.", detail!!)
         assertFalse("the detail must not carry the exception message: $detail", detail.contains("secret words"))
         assertFalse("the detail must not carry the dictated text: $detail", detail.contains("words worth keeping"))
     }
