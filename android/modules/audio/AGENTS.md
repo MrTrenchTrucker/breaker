@@ -184,7 +184,8 @@ default null (nobody is told, and behaviour is exactly as before). It adds no pu
 - Mic indicator surfaced in UI while recording (privacy, T5).
 - The microphone yields to every other app: when any other app or a phone call
   wants it, the capture releases it at once and reports why, with no prompt and
-  no retry while it is in use (F37, ADR-022) (not built yet: device check owed for an incoming call, an outgoing call and another recording app).
+  no retry while it is in use (F37, ADR-022) (not built yet: device check
+  owed for an incoming call, an outgoing call and another recording app).
 - No `android.*` class is named anywhere in the module except `AudioRecordMicPort.kt`; this is
   checked by `AudioConfinementGateTest` on the source text, on the test sources, and on the
   compiled classes.
