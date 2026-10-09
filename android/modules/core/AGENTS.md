@@ -32,7 +32,9 @@ modules implement, and the use cases that run a dictation.
   `WordUpdate` (the words heard since the last endpoint, `final` set when the
   recogniser closed that utterance). Start while running is a no-op: the first
   callback stays and no second stream starts. Stop is safe when stopped.
-  The callback is called on one thread, and none arrives after `stop()` returns.
+  Calls arrive one at a time and in order, possibly on different threads, and none arrives
+  after `stop()` returns. Each call happens-before the next, so everything one call wrote is
+  seen by the next; the adapter's single-slot dispatcher gives that ordering.
   Word times are capture-relative (see `HeardWord`). An adapter in another module
   implements it, and the app wires it.
 - `AuthService` — `register`, `login`, `logout`, `currentSession`

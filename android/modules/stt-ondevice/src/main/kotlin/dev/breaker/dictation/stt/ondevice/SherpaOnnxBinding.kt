@@ -89,6 +89,11 @@ internal object SherpaOnnxBinding : NativeStreamingOpener {
 
         override fun text(): String = recognizer.getResult(stream).text
 
+        override fun result(): NativeResult {
+            val r = recognizer.getResult(stream)
+            return NativeResult(r.text, r.tokens.toList(), r.timestamps.toList())
+        }
+
         override fun release() {
             stream.release()
         }
