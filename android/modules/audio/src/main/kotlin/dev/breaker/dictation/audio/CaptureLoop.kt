@@ -28,6 +28,7 @@ internal class CaptureLoop(
     private val session: AtomicLong,
     private val failureRef: AtomicReference<Throwable?>,
     private val readBufferSamples: Int,
+    private val releaseOnTaken: (Long) -> Unit = {},
 ) {
 
     /**
@@ -37,6 +38,7 @@ internal class CaptureLoop(
     fun run(ring: PcmRingBuffer, mine: Long) {
         val readBuffer = ShortArray(readBufferSamples)
         var consecutiveEmptyReads = 0
+        var takenByOtherApp = false
         try {
             while (running.get() && !stopRequested.get() && isCurrent(mine)) {
                 val read = try {
@@ -81,6 +83,11 @@ internal class CaptureLoop(
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()
         } catch (e: Throwable) {
+            // A taken microphone is tracked locally so the finally below can
+            // release the device at once, on this capture thread.
+            if (e is MicSourceException && e.reason == MicSourceException.Reason.MICROPHONE_TAKEN) {
+                takenByOtherApp = true
+            }
             if (isCurrent(mine)) failureRef.compareAndSet(null, e)
         } finally {
             // A take whose sessions have been replaced is not this thread's to
@@ -134,6 +141,11 @@ internal class CaptureLoop(
                     // put a throw between the take's last samples and the flag
                     // that says the take is over. The flag is the one thing
                     // here that must not be skippable.
+                    //
+                    // The release runs here, after the tail is recovered and
+                    // before the flag drops, so the take stays whole and the
+                    // dispatcher sees a finished take.
+                    if (takenByOtherApp) releaseOnTaken(mine)
                     running.set(false)
                 }
             }

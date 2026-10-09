@@ -35,6 +35,15 @@ internal interface MicInputPort {
      */
     fun routeLost(): Boolean
 
+    /**
+     * True while the platform is silencing THIS recorder's audio because another
+     * client (another app, or a call) holds the microphone.
+     *
+     * Read on demand — there is no callback to wait for. False when the recorder
+     * reports no configuration of its own, so "unknown" is not mistaken for "taken".
+     */
+    fun silenced(): Boolean
+
     /** Release the device. Safe when not open and safe to call twice. */
     fun close()
 }

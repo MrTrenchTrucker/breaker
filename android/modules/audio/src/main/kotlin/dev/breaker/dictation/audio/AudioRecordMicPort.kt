@@ -144,6 +144,18 @@ internal class AudioRecordMicPort(private val audioManager: AudioManager) : MicI
      */
     override fun routeLost(): Boolean = lost
 
+    /**
+     * True when the platform is silencing this recorder because another client
+     * holds the microphone. The rate limit that keeps this a bounded pull lives
+     * in [RoutedMicSource]; this method only asks the recorder itself.
+     *
+     * Uses the API 29+ `getActiveRecordingConfiguration()` / `isClientSilenced()`
+     * accessors (mapped to Kotlin properties). minSdk is 30, so the framework
+     * is always present; a null configuration means no signal, not "taken".
+     */
+    override fun silenced(): Boolean =
+        record?.activeRecordingConfiguration?.isClientSilenced == true
+
     override fun close() {
         val active = record
         record = null

@@ -73,6 +73,13 @@ internal class FakeMicInputPort(
     var isOpen = false
         private set
 
+    /** Set to make [silenced] answer true, as the platform does when another client takes the mic. */
+    var silencedNow = false
+
+    /** How many times [silenced] has been asked, so a test can pin the check rate. */
+    var silencedChecks = 0
+        private set
+
     override fun open(device: MicDevice?) {
         events += openEvent(device)
         lostPending = false
@@ -101,6 +108,11 @@ internal class FakeMicInputPort(
 
     override fun routeLost(): Boolean {
         return lostPending
+    }
+
+    override fun silenced(): Boolean {
+        silencedChecks++
+        return silencedNow
     }
 
     override fun close() {
