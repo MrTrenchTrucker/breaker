@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Every connection must use https: clear text is refused for every host, and only
+  the system certificate store is trusted. There is no per-host exception, no
+  debug override, no user certificate and no pinned key here.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

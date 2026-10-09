@@ -1,8 +1,9 @@
-// android/app — App entry, DI container.
+// android/app - App entry, DI container.
 //
 // Card: android/app/AGENTS.md   Registry: modules.toml [module.android_app]
 // Owns: Android entry point, dependency injection wiring, Gradle build.
-// Depends on: android, android_core, android_ui
+// Depends on: android, android_core, android_ui, android_settings, android_history,
+// android_audio, android_format, android_transport
 // Cross-module calls go through the core ports or the app's own
 // dependency wiring; this module never reaches into a sibling's code.
 //
@@ -45,6 +46,9 @@ dependencies {
     implementation(project(":android:modules:core"))
     implementation(project(":android:modules:settings"))
     implementation(project(":android:modules:history"))
+    implementation(project(":android:modules:audio"))
+    implementation(project(":android:modules:format"))
+    implementation(project(":android:modules:transport"))
     implementation(project(":android:ui"))
     implementation(libs.kotlinx.coroutines.core)
 

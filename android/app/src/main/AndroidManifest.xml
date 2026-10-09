@@ -3,19 +3,41 @@
   Card: android/app/AGENTS.md   Registry: modules.toml [module.android_app]
 
   The app identity (namespace, applicationId, minSdk, targetSdk) is set in
-  build.gradle.kts. This file names the application class and the single
-  launcher activity, and adds nothing else: no services, receivers, providers,
-  permissions, icon, label or theme are declared here.
+  build.gradle.kts. This file names the application class, the single
+  launcher activity and the microphone service, and nothing else: no receivers
+  or providers are declared, and there is no icon, label or theme.
+
+  Permissions, each one used by the app:
+    INTERNET                          send audio to the user's own server
+    RECORD_AUDIO                      the microphone
+    FOREGROUND_SERVICE                run the dictation service in the foreground
+    FOREGROUND_SERVICE_MICROPHONE     the microphone type of that service
+    POST_NOTIFICATIONS                show the service's ongoing notification
+
+  Network traffic must be encrypted: cleartext is switched off here and in
+  res/xml/network_security_config.xml, which trusts only the system's
+  certificate authorities.
+
+  The service is private to the app (not exported) and has no intent filter;
+  its notification action reaches it through an explicit pending intent.
 
   The application class (BreakerApp) builds the composition root, the only
   place the modules are composed. The launcher activity (SettingsLauncherActivity)
   hosts the settings screen the ui module builds; the app owns the window, the
-  ui module owns no window. The launcher activity is the settings screen;
-  launching it has not been verified on a device.
+  ui module owns no window. Launching it, and running the service, have not
+  been verified on a device.
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application
-        android:name=".BreakerApp">
+        android:name=".BreakerApp"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:usesCleartextTraffic="false">
         <activity
             android:name=".SettingsLauncherActivity"
             android:exported="true">
@@ -24,5 +46,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <service
+            android:name=".service.DictationForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
     </application>
 </manifest>
