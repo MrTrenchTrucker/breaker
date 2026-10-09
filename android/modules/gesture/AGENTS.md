@@ -1,34 +1,35 @@
-# AGENTS.md — android/modules/gesture/
+# AGENTS.md - android/modules/gesture/
 
 ## Purpose
 
-Shake-to-wake (accelerometer). Shake-to-wake: detect a shake gesture and arm the floating tile.
+Shake-to-wake (accelerometer): detect a shake gesture. A detection begins a take; the app decides what a detection does.
 
 **In:** accelerometer samples.
 **Out:** a callback on this module's own `ShakeDetector`, not a core port
 (core defines none for the shake). The app's DI wiring (`android/app`)
-connects it to `overlay`'s `FloatingTile.show()`; `gesture` never imports
-`overlay` (ADR-001).
+begins a take on each detection; `gesture` never imports `overlay` (ADR-001).
 
 **Implementation:**
-- `SensorManager` accelerometer (`TYPE_ACCELEROMETER`), sensor permission required.
+- `SensorManager` accelerometer (`TYPE_ACCELEROMETER`), no permission needed at the used rate (see rate note).
 - Shake detector: high-pass filter on acceleration magnitude; count threshold
-  crossings in a 500 ms window → fire.
-- Listener registered only while idle (battery, N4).
-- Fallback: if sensor unavailable/denied → always-visible tile setting.
+  crossings in a 500 ms window -> fire.
+- Listener armed by app intent - the app arms the detector when a shake should mean something; while a take runs it ignores detections (a battery reason keeps the detector quiet).
+- Fallback: if the sensor is unavailable -> always-visible tile setting.
+
+- Rate: SENSOR_DELAY_GAME = 20,000 microseconds per sample = 50 per second. No permission needed at that rate (HIGH_SAMPLING_RATE_SENSORS is only for rates above 200 Hz on API 31+).
 
 **Build phase:** Phase 6, together with `overlay`. Needs first: `core` (on main).
 
 ## Invariants
-- Shake wakes tile reliably (tune threshold on target device).
+- A detection begins a take reliably (tune threshold on target device).
 - No false wakes from normal walking (test on device).
-- Sensor listener inactive while dictating (battery).
+- A shake while a take runs is ignored by the app (the detector fires; the app decides - a battery reason keeps it quiet).
 
 ## Owns
 Shake-to-wake (accelerometer).
 
 ## Public Interface
-ShakeDetector
+ShakeHandle - the public entry: `ShakeHandle.create(onShake, port: ShakePort)` wires a port to the detector (the SensorManager-backed port is `SensorManagerShakeSource`; tests pass a fake port). Start/stop on the main thread; a start the port refuses reports false and stays retryable. The detector itself is module-internal, reached only through the handle.
 
 ## Depends On
 - android (registered in modules.toml)
@@ -69,4 +70,4 @@ agents, not required: an outside contributor may write the code themselves
 (`.github/CONTRIBUTING.md`).
 
 ## Known Gotchas
-- Sensor permission can be denied — always-visible tile is the fallback.
+- Device check (not covered by unit tests): a real shake fires once; screen-off delivery works; events arrive on the main looper (no Handler registered).
