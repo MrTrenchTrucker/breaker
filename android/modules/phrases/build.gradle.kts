@@ -2,7 +2,8 @@
 //
 // Card: android/modules/phrases/AGENTS.md   Registry: modules.toml [module.android_phrases]
 // Owns: Voice phrases: 'Breaker Breaker' wake + 'And I'm Gone' send detection, reporting where the send phrase began.
-// Depends on: android, android_core
+// Depends on: android, android_core. The Gradle build wires :android:modules:core only;
+// "android" is the container entry in the registry, not a Gradle project.
 // Cross-module calls go through the core ports or the app's own
 // dependency wiring; this module never reaches into a sibling's code.
 //
