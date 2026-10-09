@@ -41,6 +41,7 @@ class TileStyleTest {
         TileState.FAILED -> p.danger.argb
         TileState.SENT -> p.sent.argb
         TileState.SENT_LOCAL -> p.warning.argb
+        TileState.MIC_BUSY -> p.danger.argb
     }
 
     private fun fields(look: TileLook): List<Int> =
@@ -111,7 +112,7 @@ class TileStyleTest {
         }
     }
 
-    /** A failure means a lit segment cannot be told from an unlit one, or the failed ring cannot be told from the others. */
+    /** A failure means a lit segment cannot be told from an unlit one, or the failed ring cannot be told from the others. The failure ring is shared with MIC_BUSY by design — the MIC_BUSY face uses the danger token for its red circle. */
     @Test
     fun `lit and unlit segments differ and a failure has its own ring`() {
         for (mode in modes) {
@@ -121,7 +122,7 @@ class TileStyleTest {
                 assertNotEquals("overlay: $mode $state lit and unlit segments expected different colours", look.litSegment, look.unlitSegment)
             }
             val failed = TileStyle.look(TileState.FAILED, p).ring
-            for (state in TileState.values().filter { it != TileState.FAILED }) {
+            for (state in TileState.values().filter { it != TileState.FAILED && it != TileState.MIC_BUSY }) {
                 assertNotEquals("overlay: $mode the failed ring expected to differ from the $state ring", failed, TileStyle.look(state, p).ring)
             }
             assertNotEquals(

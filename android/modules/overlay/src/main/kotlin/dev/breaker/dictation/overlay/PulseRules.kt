@@ -9,6 +9,12 @@ internal const val PULSE_PHASE_START: Float = 0.5f
 /** The phase the pulse ends its first run at, one full cycle after the start. */
 internal const val PULSE_PHASE_END: Float = 1.5f
 
+/** The length of one full cycle of the busy ring's pulse, in milliseconds. Slower than the armed pulse. */
+internal const val BUSY_PULSE_PERIOD_MS: Long = 3200L
+
+/** The lowest alpha of the busy ring's pulse. Lower depth than the armed pulse (0.25). */
+internal const val BUSY_PULSE_ALPHA_MIN: Float = 0.6f
+
 /**
  * The colour the armed ring is drawn with at [pulseAlpha]: [color] with its own alpha byte multiplied by the
  * pulse alpha, the product rounded half up, and its low 24 colour bits kept as they are. A finite pulse alpha

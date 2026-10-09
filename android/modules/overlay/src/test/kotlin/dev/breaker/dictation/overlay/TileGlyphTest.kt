@@ -69,12 +69,12 @@ class TileGlyphTest {
         assertEquals("android_overlay: the outline width expected 2 dp", 2, TileMetrics.OUTLINE_DP)
     }
 
-    /** A failure means a glyph role (body, grille or outline) has no rectangle, so part of the picture is never drawn, or a role was added or removed. */
+    /** A failure means a glyph role (body, grille, outline or slash) has no rectangle, so part of the picture is never drawn, or a role was added or removed. */
     @Test
     fun `every glyph role is drawn at least once`() {
         assertEquals(
-            "android_overlay: the glyph roles expected BODY, GRILLE, OUTLINE in that order",
-            listOf(GlyphRole.BODY, GlyphRole.GRILLE, GlyphRole.OUTLINE),
+            "android_overlay: the glyph roles expected BODY, GRILLE, OUTLINE, SLASH in that order",
+            listOf(GlyphRole.BODY, GlyphRole.GRILLE, GlyphRole.OUTLINE, GlyphRole.SLASH),
             GlyphRole.values().toList(),
         )
         for (role in GlyphRole.values()) {
@@ -103,5 +103,25 @@ class TileGlyphTest {
                 0.00001f,
             )
         }
+    }
+
+    /** A failure means the busy slash is not eight connected steps from corner to corner of the tile, or it is drawn under the microphone. */
+    @Test
+    fun `the slash runs corner to corner in eight steps on top of the microphone`() {
+        val slash = TileGlyph.rects.filter { it.role == GlyphRole.SLASH }
+        assertEquals("android_overlay: the slash expected 8 steps", 8, slash.size)
+        assertEquals("android_overlay: the first step expected at the top left corner (left)", 0f, slash.first().left, 0.0001f)
+        assertEquals("android_overlay: the first step expected at the top left corner (top)", 0f, slash.first().top, 0.0001f)
+        assertEquals("android_overlay: the last step expected at the bottom right corner (right)", 1f, slash.last().right, 0.0001f)
+        assertEquals("android_overlay: the last step expected at the bottom right corner (bottom)", 1f, slash.last().bottom, 0.0001f)
+        for (i in 1 until slash.size) {
+            assertTrue("android_overlay: step $i expected to move right of step ${i - 1}", slash[i].left > slash[i - 1].left)
+            assertTrue("android_overlay: step $i expected to move down from step ${i - 1}", slash[i].top > slash[i - 1].top)
+            assertTrue("android_overlay: step $i expected to touch step ${i - 1} across", slash[i].left <= slash[i - 1].right)
+            assertTrue("android_overlay: step $i expected to touch step ${i - 1} down", slash[i].top <= slash[i - 1].bottom)
+        }
+        val lastPicture = TileGlyph.rects.indexOfLast { it.role != GlyphRole.SLASH }
+        val firstSlash = TileGlyph.rects.indexOfFirst { it.role == GlyphRole.SLASH }
+        assertTrue("android_overlay: the slash expected after the picture so it lies on top", firstSlash > lastPicture)
     }
 }

@@ -66,13 +66,13 @@ class PublicSurfaceTest {
 
     /**
      * A failure here means a state was dropped or reordered, or a state was added in a place other than the end. The
-     * five existing states must come first and in order, then the two finished outcomes SENT and SENT_LOCAL.
+     * five existing states must come first and in order, then the two finished outcomes SENT and SENT_LOCAL, then MIC_BUSY.
      */
     @Test
     fun `TileState has the five existing states first and in order then SENT and SENT_LOCAL`() {
         assertEquals(
-            "overlay: expected the tile states in this order: the five existing ones, then SENT and SENT_LOCAL",
-            listOf("IDLE", "ARMED", "RECORDING", "SENDING", "FAILED", "SENT", "SENT_LOCAL"),
+            "overlay: expected the tile states in this order: the five existing ones, then SENT and SENT_LOCAL, then MIC_BUSY",
+            listOf("IDLE", "ARMED", "RECORDING", "SENDING", "FAILED", "SENT", "SENT_LOCAL", "MIC_BUSY"),
             TileState.values().map { it.name },
         )
         assertTrue("overlay: TileState must be public", Modifier.isPublic(TileState::class.java.modifiers))

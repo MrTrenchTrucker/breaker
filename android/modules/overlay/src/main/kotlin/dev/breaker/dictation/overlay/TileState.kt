@@ -32,4 +32,7 @@ enum class TileState {
 
     /** The text was committed on the phone after the server path failed, and the ring is the palette's warning colour (orange). */
     SENT_LOCAL,
+
+    /** The microphone is not available. The app decides when to show it. The tile shows a mic glyph with a red circle and diagonal slash (danger colour), pulsing slowly. No text. A tap reports like IDLE. */
+    MIC_BUSY,
 }

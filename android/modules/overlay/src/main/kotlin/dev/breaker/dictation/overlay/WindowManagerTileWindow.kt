@@ -170,6 +170,11 @@ internal class WindowManagerTileWindow(private val context: Context) : TileWindo
         tileView?.setPulse(on)
     }
 
+    /** Turn the busy ring's pulse on or off on the added tile; nothing happens when no tile is added. */
+    override fun setBusyPulse(on: Boolean) {
+        tileView?.setBusyPulse(on)
+    }
+
     /** Redraw the added tile in [palette], keeping its state, shape and meter; nothing happens when no tile is added. */
     override fun applyPalette(palette: TruckingPalette) {
         val view = tileView ?: return

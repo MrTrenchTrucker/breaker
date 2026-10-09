@@ -16,7 +16,7 @@ internal object TileRouting {
      * the cancel button cancels. Sending: nothing. Any other pair does nothing.
      */
     fun action(state: TileState, zone: TileZone): TileAction = when (state) {
-        TileState.IDLE, TileState.FAILED, TileState.SENT, TileState.SENT_LOCAL ->
+        TileState.IDLE, TileState.FAILED, TileState.SENT, TileState.SENT_LOCAL, TileState.MIC_BUSY ->
             if (zone == TileZone.MIC) TileAction.TAP else TileAction.NONE
         TileState.ARMED -> if (zone == TileZone.MIC) TileAction.BEGIN else TileAction.NONE
         TileState.RECORDING -> when (zone) {
