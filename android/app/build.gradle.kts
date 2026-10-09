@@ -43,6 +43,7 @@ kotlin {
 
 dependencies {
     implementation(project(":android:modules:core"))
+    implementation(project(":android:modules:settings"))
     implementation(project(":android:ui"))
 
     testImplementation(libs.junit)

@@ -3,18 +3,23 @@
 ## Purpose
 Android entry point, dependency injection wiring, Gradle build.
 
-**Build phase:** Phase 1. Needs first: `core` (on `main`); it wires each other module in as that module lands.
+**Build phase:** Phase 1. Needs first: `core` (on `main`); it wires each other module in as that module lands. This card covers the app scaffold: it wires `settings` and `ui`, and its launcher activity hosts the settings screen.
 
 ## Public Interface
-app-level composition of all modules.
+app-level composition of all modules. Concretely, the app's own types are:
+- `BreakerApp` — the `Application`; builds and holds the composition root.
+- `BreakerCompositionRoot` — the single place modules are composed; takes a files directory (plain JVM, testable without Android) and exposes the `SettingsStore` and the credential-reference `Keystore`.
+- `SettingsLauncherActivity` — the launcher activity; hosts the settings view the `ui` module builds.
+- `FileCredentialRefHolder` — a `Keystore` implementation backed by a file, holding the credential *reference* (never a secret).
 
 ## Owns
-app entry, DI container, Gradle build.
+app entry, DI container (composition root), Gradle build, and the file-backed credential-reference holder (a `Keystore` impl that holds the reference, not the secret).
 
 ## Depends On
 - android (registered in modules.toml)
 - android_core (registered in modules.toml)
 - android_ui (registered in modules.toml)
+- android_settings (registered in modules.toml)
 
 ## Invariants
 app launches to the settings screen; DI wiring composes all modules.
@@ -22,9 +27,10 @@ app launches to the settings screen; DI wiring composes all modules.
 ## Does Not Own
 - Screen implementations (ui)
 - Domain logic (core)
+- The secret-resolving device Keystore (not built and not verified; the app's `FileCredentialRefHolder` holds only the reference)
 
 ## Test Locations
-- Unit (Kotlin): `android/app/src/test/kotlin/`, created with the module's first test. Run: `./gradlew :android:app:test`
+- Unit (Kotlin): `android/app/src/test/kotlin/` — `CompositionRootTest` (JVM, no Android): proves the composition root is wired file-to-file (a `save` on one instance is visible to a second over the same directory; the exposed `Keystore` carries the reference a `save` wrote; the reference survives a second `FileCredentialRefHolder` over the same file). Run: `./gradlew :android:app:test`
 - Contract: `tests/contract/test_app_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_app_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
@@ -51,3 +57,11 @@ code.
 
 ## Known Gotchas
 - Phase 1 deliverable — DI wiring must be the ONLY place modules are composed.
+- **NOT VERIFIED on a device or emulator.** What is checked for this scaffold is
+  compile (`assembleDebug` plus the unit test) and the JVM tests of the
+  composition root. The launcher activity and the real settings view are **not
+  exercised** — the app has not been launched on a device or an emulator.
+- `FileCredentialRefHolder` holds a credential *reference*, never a secret. The
+  platform `Keystore` that would resolve the reference against a secret is **not
+  built and not verified**; nothing in this module is a claim that a key is kept
+  safe on the device.
