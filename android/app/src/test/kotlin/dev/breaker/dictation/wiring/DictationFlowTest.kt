@@ -8,6 +8,7 @@ import dev.breaker.dictation.core.model.DictationState
 import dev.breaker.dictation.core.model.SttMode
 import dev.breaker.dictation.core.model.Transcription
 import dev.breaker.dictation.core.model.TranscriptionSource
+import dev.breaker.dictation.core.port.CommitOutcomeResult
 import dev.breaker.dictation.core.usecase.SendUseCase
 import dev.breaker.dictation.service.DictationServiceController
 import dev.breaker.dictation.stt.ondevice.ErrorMapping
@@ -147,9 +148,10 @@ class DictationFlowTest {
         )
         val text = Transcription("t-1", "hand made", TranscriptionSource.LOCAL, "small", 100L, 1_000L)
         val waiting = DictationSession(DictationState.SENDING, null, text)
-        val result = SendUseCase(UnavailableTextCommitter(), root.historyStore).send(waiting, text)
+        val failure = "the committer could not commit"
+        val result = SendUseCase(FakeCommitter(CommitOutcomeResult(CommitOutcome.FAILED, failure)), root.historyStore).send(waiting, text)
         assertEquals("app: the commit slot should make the send fail", CommitOutcome.FAILED, result.outcome.outcome)
-        assertEquals("app: the failed send should carry the commit slot's sentence", COMMIT_UNAVAILABLE_DETAIL, result.outcome.detail)
+        assertEquals("app: the failed send should carry the committer's detail", failure, result.outcome.detail)
         assertEquals("app: the history should have received the text through the root", listOf(text), history.saved)
     }
 }

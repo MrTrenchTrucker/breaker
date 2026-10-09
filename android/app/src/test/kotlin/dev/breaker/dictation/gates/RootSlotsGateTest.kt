@@ -120,7 +120,7 @@ internal class RootSlotsGateTest {
         ),
         "COMMITTER_COMES_FROM_ITS_PARAMETER" to listOf(
             committerLine to "committer = appTextCommitter()",
-            committerLine to "committer = UnavailableTextCommitter()",
+            committerLine to "committer = FailingCommitter()",
             committerLine to "committer = committer.also { }",
             committerLine to "textCommitter = committer",
             "$committerLine," to "",
@@ -138,7 +138,7 @@ internal class RootSlotsGateTest {
             micLine to "mic = micSource,",
         ),
         "NO_PLACEHOLDER_NAMED_IN_ROOT" to listOf(
-            committerLine to "committer = UnavailableTextCommitter()",
+            committerLine to "committer = UnavailableMicSource()",
             micLine to "micSource = UnavailableMicSource(),",
             "factory = RECOGNIZER_FACTORY" to "factory = UnavailableRecognizerFactory",
         ),
@@ -168,7 +168,7 @@ internal class RootSlotsGateTest {
         "SERVER_ENGINE_IS_OTHER" to listOf(
             "SttError.OTHER" to "SttError.LOCAL_MODEL_MISSING",
             "serverEngine = UnavailableSttEngine(" to "serverEngine = FakeSttEngine(",
-            "SERVER_UNAVAILABLE_DETAIL)" to "COMMIT_UNAVAILABLE_DETAIL)",
+            "SERVER_UNAVAILABLE_DETAIL)" to "MIC_UNAVAILABLE_MESSAGE)",
         ),
     )
 
@@ -180,7 +180,7 @@ internal class RootSlotsGateTest {
         helperFun to "private const val NOTE = \"error( throw Formatter { RuleBasedFormatter()\"\n$helperFun",
         "micSource = micSource," to "micSource = micSource, // the real source drops in here",
         committerLine to "committer =\n            committer",
-        "ids = UuidIdSource()," to "ids = UuidIdSource(), // UnavailableMicSource UnavailableTextCommitter UnavailableRecognizerFactory",
+        "ids = UuidIdSource()," to "ids = UuidIdSource(), // UnavailableMicSource FailingCommitter UnavailableRecognizerFactory",
         micDefaultLine to "private val micSource: MicSource =\n        appMicSource( ),",
         storeLine to "val modelStore: LocalModelStore =\n        LocalModelStore(",
         "factory = RECOGNIZER_FACTORY" to "factory =\n                RECOGNIZER_FACTORY",

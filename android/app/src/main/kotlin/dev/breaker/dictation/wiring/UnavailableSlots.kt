@@ -3,20 +3,13 @@ package dev.breaker.dictation.wiring
 import dev.breaker.dictation.audio.MicSource
 import dev.breaker.dictation.audio.MicSourceException
 import dev.breaker.dictation.core.model.AudioFormat
-import dev.breaker.dictation.core.model.CommitOutcome
-import dev.breaker.dictation.core.model.CommitRequest
 import dev.breaker.dictation.core.model.SttError
 import dev.breaker.dictation.core.model.SttRequest
 import dev.breaker.dictation.core.model.SttResult
-import dev.breaker.dictation.core.port.CommitOutcomeResult
 import dev.breaker.dictation.core.port.SttEngine
-import dev.breaker.dictation.core.port.TextCommitter
 
 /** What the server slot tells the user while no server engine is installed. */
 const val SERVER_UNAVAILABLE_DETAIL: String = "Server transcription is not available yet."
-
-/** What the commit slot tells the user while no text can be put into a field. */
-const val COMMIT_UNAVAILABLE_DETAIL: String = "Putting text into a field is not available yet."
 
 /** What the microphone slot says when it is asked to open. */
 const val MIC_UNAVAILABLE_MESSAGE: String = "The microphone is not available yet."
@@ -33,12 +26,6 @@ class UnavailableSttEngine(
     private val detail: String,
 ) : SttEngine {
     override fun transcribe(request: SttRequest): SttResult = SttResult.failure(error, detail)
-}
-
-/** A text committer slot that reports a failed commit with a plain sentence and puts no text anywhere. */
-class UnavailableTextCommitter : TextCommitter {
-    override fun commit(request: CommitRequest): CommitOutcomeResult =
-        CommitOutcomeResult(CommitOutcome.FAILED, COMMIT_UNAVAILABLE_DETAIL)
 }
 
 /**

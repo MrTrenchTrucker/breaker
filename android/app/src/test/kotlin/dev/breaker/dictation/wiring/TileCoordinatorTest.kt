@@ -226,7 +226,7 @@ class TileCoordinatorTest {
         assertEquals("app: a send after a cancel should show SENDING again", TileState.SENDING, rig.tile.states.last())
         assertEquals("app: a send after a cancel should queue its own finish", queued + 1, rig.background.pending)
         rig.settle()
-        assertEquals("app: the tile should end on ARMED", TileState.ARMED, rig.tile.states.last())
+        assertEquals("app: the tile should end on SENT after the committed send", TileState.SENT, rig.tile.states.last())
     }
 
     @Test

@@ -1,5 +1,6 @@
 package dev.breaker.dictation.wiring
 
+import dev.breaker.dictation.core.model.CommitOutcome
 import dev.breaker.dictation.core.model.DictationState
 import dev.breaker.dictation.core.usecase.SendResult
 import dev.breaker.dictation.overlay.TileState
@@ -16,9 +17,10 @@ private const val EMPTY_TAKE_SENTENCE: String = "No audio was captured"
  * finishing blocks while the audio is transcribed. The coordinator starts no thread of its own.
  *
  * A tile state always comes from [tileStateFor]. The coordinator keeps the facts the runner does not
- * keep: that the text of a take is on its way, that the last take failed, and that a begin is waiting
- * for its answer. A port that throws never reaches the caller: a take that throws shows a fixed
- * sentence and no exception text, and a tile or notification that throws is skipped.
+ * keep: that the text of a take is on its way, that the last take failed, what the last send
+ * committed, and that a begin is waiting for its answer. A port that throws never reaches the
+ * caller: a take that throws shows a fixed sentence and no exception text, and a tile or
+ * notification that throws is skipped.
  *
  * Switching off, then on again, makes every answer still on its way stale; a stale answer is dropped.
  */
@@ -34,6 +36,7 @@ class TileCoordinator(
     private var armed: Boolean = false
     private var sendPushed: Boolean = false
     private var lastFailed: Boolean = false
+    private var lastCommit: CommitOutcome? = null
     private var beginPending: Boolean = false
     private var pushed: TileState = TileState.IDLE
     private var generation: Int = 0
@@ -41,7 +44,7 @@ class TileCoordinator(
     /** How a take that was told to finish came out. */
     private sealed class End {
         object Back : End()
-        object Sent : End()
+        class Sent(val outcome: CommitOutcome) : End()
         class Failure(val sentence: String) : End()
     }
 
@@ -52,8 +55,11 @@ class TileCoordinator(
 
     /** The microphone on an armed tile was tapped: start a take, if the speech model is there. */
     fun onBegin() {
-        if (!armed || beginPending || pushed != TileState.ARMED) return
+        if (!armed || beginPending || (pushed != TileState.ARMED && pushed != TileState.SENT)) return
+        val wasSent: Boolean = pushed == TileState.SENT
+        lastCommit = null
         if (!isModelReady()) {
+            if (wasSent) push()
             guarded { modelNotice.showMissing() }
             // The notification may be switched off for the app, so the tile says it too.
             guarded { tile.showNotice(ModelSentences.NO_MODEL) }
@@ -80,6 +86,7 @@ class TileCoordinator(
         if (!armed) return
         lastFailed = false
         sendPushed = false
+        lastCommit = null
         guarded { tile.clearNotice() }
         // The runner is still recording until the cancel below has run, so the session is given here.
         push(DictationState.IDLE)
@@ -101,6 +108,10 @@ class TileCoordinator(
 
     /** The tile was tapped while it is off or failed: clear the failure and open the launcher. */
     fun onTap() {
+        if (armed && pushed == TileState.SENT) {
+            onBegin()
+            return
+        }
         lastFailed = false
         guarded { tile.clearNotice() }
         if (armed) push()
@@ -118,6 +129,7 @@ class TileCoordinator(
         // A tile that was off has no take: the one cancel queued when it went off may not have run yet.
         val session: DictationState = if (armed) sessionNow() else DictationState.IDLE
         armed = true
+        lastCommit = null
         val shown: TileShow = try {
             tile.show()
         } catch (e: Exception) {
@@ -138,6 +150,7 @@ class TileCoordinator(
         sendPushed = false
         lastFailed = false
         beginPending = false
+        lastCommit = null
         push()
         submit { guarded { take.cancel() } }
         guarded { tile.hide() }
@@ -157,6 +170,7 @@ class TileCoordinator(
         when (end) {
             is End.Back -> push()
             is End.Sent -> {
+                lastCommit = end.outcome
                 push()
                 guarded { tile.clearNotice() }
             }
@@ -195,7 +209,7 @@ class TileCoordinator(
         }
         return when {
             sent == null -> End.Failure(RunnerSentences.COULD_NOT_FINISH)
-            sent.outcome.isSuccess -> End.Sent
+            sent.outcome.isSuccess -> End.Sent(sent.outcome.outcome)
             else -> End.Failure(sent.outcome.detail?.takeIf { it.isNotBlank() } ?: RunnerSentences.COULD_NOT_FINISH)
         }
     }
@@ -209,13 +223,14 @@ class TileCoordinator(
     private fun fail(sentence: String) {
         sendPushed = false
         lastFailed = true
+        lastCommit = null
         push()
         // A notice is cleared by a state change, so it is shown after the state.
         guarded { tile.showNotice(sentence) }
     }
 
     private fun push(session: DictationState = sessionNow()) {
-        val state: TileState = tileStateFor(armed, session, sendPushed, lastFailed)
+        val state: TileState = tileStateFor(armed, session, sendPushed, lastFailed, lastCommit)
         pushed = state
         guarded { tile.setState(state) }
     }

@@ -122,20 +122,20 @@ class TileCoordinatorTakeTest {
         assertEquals("app: repeated sends should finish exactly once", 1, rig.take.finishCalls)
         assertEquals("app: repeated sends should send exactly once", 1, rig.take.sendCalls)
         assertEquals(
-            "app: the states should be armed, recording, sending, armed",
-            listOf(TileState.ARMED, TileState.RECORDING, TileState.SENDING, TileState.ARMED),
+            "app: the states should be armed, recording, sending, sent",
+            listOf(TileState.ARMED, TileState.RECORDING, TileState.SENDING, TileState.SENT),
             rig.tile.states,
         )
     }
 
     @Test
-    fun `a send that commits clears the notice and shows armed`() {
+    fun `a send that commits clears the notice and shows sent`() {
         val rig = TileRig()
         rig.startRecording()
         rig.tile.calls.clear()
         rig.coordinator.onSend()
         rig.settle()
-        assertEquals("app: a committed send should push ARMED and then clear the notice", listOf("state:SENDING", "state:ARMED", "clearNotice"), rig.tile.calls)
+        assertEquals("app: a committed send should push SENT and then clear the notice", listOf("state:SENDING", "state:SENT", "clearNotice"), rig.tile.calls)
         assertEquals("app: a committed send shows no notice", emptyList<String>(), rig.tile.notices)
     }
 
@@ -146,7 +146,7 @@ class TileCoordinatorTakeTest {
         copied.startRecording()
         copied.coordinator.onSend()
         copied.settle()
-        assertEquals("app: a copied text should end on ARMED", TileState.ARMED, copied.tile.states.last())
+        assertEquals("app: a copied text should end on SENT", TileState.SENT, copied.tile.states.last())
         val detailed = TileRig()
         detailed.take.sendResult = sentResult(CommitOutcome.FAILED, "Putting text into a field is not available yet.")
         detailed.startRecording()
@@ -269,7 +269,7 @@ class TileCoordinatorTakeTest {
         assertEquals("app: the background must not touch the tile", before, rig.tile.calls.size)
         assertEquals("app: the answer should be waiting for the main post", 1, rig.main.pending)
         rig.main.drain()
-        assertEquals("app: the main post should show ARMED", TileState.ARMED, rig.tile.states.last())
+        assertEquals("app: the main post should show SENT", TileState.SENT, rig.tile.states.last())
     }
 
     @Test

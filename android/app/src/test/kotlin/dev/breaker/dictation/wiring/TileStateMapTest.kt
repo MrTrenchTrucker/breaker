@@ -1,5 +1,6 @@
 package dev.breaker.dictation.wiring
 
+import dev.breaker.dictation.core.model.CommitOutcome
 import dev.breaker.dictation.core.model.DictationState
 import dev.breaker.dictation.overlay.TileState
 import org.junit.Assert.assertEquals
@@ -31,7 +32,7 @@ class TileStateMapTest {
                     assertEquals(
                         "app: off with $session sendPushed=$sendPushed lastFailed=$lastFailed should show IDLE",
                         TileState.IDLE,
-                        tileStateFor(false, session, sendPushed, lastFailed),
+                        tileStateFor(false, session, sendPushed, lastFailed, null),
                     )
                 }
             }
@@ -49,7 +50,7 @@ class TileStateMapTest {
             TileState.SENDING, // SENDING
             TileState.FAILED, // ERROR
         )
-        val actual: List<TileState> = sessions.map { tileStateFor(true, it, false, false) }
+        val actual: List<TileState> = sessions.map { tileStateFor(true, it, false, false, null) }
         assertEquals("app: the armed rows should map IDLE, ARMED, RECORDING, TRANSCRIBING, SENDING, ERROR", expected, actual)
     }
 
@@ -59,12 +60,12 @@ class TileStateMapTest {
             assertEquals(
                 "app: sendPushed with $session should show SENDING",
                 TileState.SENDING,
-                tileStateFor(true, session, true, false),
+                tileStateFor(true, session, true, false, null),
             )
             assertEquals(
                 "app: sendPushed with a failure and $session should still show SENDING",
                 TileState.SENDING,
-                tileStateFor(true, session, true, true),
+                tileStateFor(true, session, true, true, null),
             )
         }
     }
@@ -75,7 +76,7 @@ class TileStateMapTest {
             assertEquals(
                 "app: lastFailed with $session should show FAILED",
                 TileState.FAILED,
-                tileStateFor(true, session, false, true),
+                tileStateFor(true, session, false, true, null),
             )
         }
     }
@@ -85,19 +86,105 @@ class TileStateMapTest {
         assertEquals(
             "app: TRANSCRIBING should show RECORDING",
             TileState.RECORDING,
-            tileStateFor(true, DictationState.TRANSCRIBING, false, false),
+            tileStateFor(true, DictationState.TRANSCRIBING, false, false, null),
         )
         assertEquals(
             "app: RECORDING should show RECORDING",
             TileState.RECORDING,
-            tileStateFor(true, DictationState.RECORDING, false, false),
+            tileStateFor(true, DictationState.RECORDING, false, false, null),
         )
     }
 
     @Test
     fun `an error session shows failed and an idle or armed session shows armed`() {
-        assertEquals("app: ERROR should show FAILED", TileState.FAILED, tileStateFor(true, DictationState.ERROR, false, false))
-        assertEquals("app: IDLE should show ARMED", TileState.ARMED, tileStateFor(true, DictationState.IDLE, false, false))
-        assertEquals("app: ARMED should show ARMED", TileState.ARMED, tileStateFor(true, DictationState.ARMED, false, false))
+        assertEquals("app: ERROR should show FAILED", TileState.FAILED, tileStateFor(true, DictationState.ERROR, false, false, null))
+        assertEquals("app: IDLE should show ARMED", TileState.ARMED, tileStateFor(true, DictationState.IDLE, false, false, null))
+        assertEquals("app: ARMED should show ARMED", TileState.ARMED, tileStateFor(true, DictationState.ARMED, false, false, null))
+    }
+
+    @Test
+    fun `a committed send shows sent whatever the session says`() {
+        for (session in sessions) {
+            assertEquals(
+                "app: COMMITTED with $session should show SENT",
+                TileState.SENT,
+                tileStateFor(true, session, false, false, CommitOutcome.COMMITTED),
+            )
+        }
+    }
+
+    @Test
+    fun `a copied text shows sent whatever the session says`() {
+        for (session in sessions) {
+            assertEquals(
+                "app: COPIED with $session should show SENT",
+                TileState.SENT,
+                tileStateFor(true, session, false, false, CommitOutcome.COPIED),
+            )
+        }
+    }
+
+    @Test
+    fun `a failed commit shows failed whatever the session says`() {
+        for (session in sessions) {
+            assertEquals(
+                "app: a FAILED commit with $session should show FAILED",
+                TileState.FAILED,
+                tileStateFor(true, session, false, false, CommitOutcome.FAILED),
+            )
+        }
+    }
+
+    @Test
+    fun `no commit outcome leaves the session map in charge`() {
+        val expected: List<TileState> = listOf(
+            TileState.ARMED, // IDLE
+            TileState.ARMED, // ARMED
+            TileState.RECORDING, // RECORDING
+            TileState.RECORDING, // TRANSCRIBING
+            TileState.SENDING, // SENDING
+            TileState.FAILED, // ERROR
+        )
+        val actual: List<TileState> = sessions.map { tileStateFor(true, it, false, false, null) }
+        assertEquals("app: with no commit outcome the armed rows should follow the session map", expected, actual)
+    }
+
+    @Test
+    fun `a switch that is off shows idle even after a commit outcome`() {
+        for (session in sessions) {
+            for (outcome in listOf(CommitOutcome.COMMITTED, CommitOutcome.COPIED, CommitOutcome.FAILED)) {
+                assertEquals(
+                    "app: off with $session and $outcome should show IDLE",
+                    TileState.IDLE,
+                    tileStateFor(false, session, false, false, outcome),
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `a pushed send shows sending over any commit outcome`() {
+        for (session in sessions) {
+            for (outcome in listOf<CommitOutcome?>(CommitOutcome.COMMITTED, CommitOutcome.COPIED, CommitOutcome.FAILED, null)) {
+                assertEquals(
+                    "app: sendPushed with $session and $outcome should show SENDING",
+                    TileState.SENDING,
+                    tileStateFor(true, session, true, false, outcome),
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `a failed take shows failed over any commit outcome`() {
+        for (session in sessions) {
+            for (outcome in listOf(CommitOutcome.COMMITTED, CommitOutcome.COPIED, CommitOutcome.FAILED)) {
+                assertEquals(
+                    "app: lastFailed with $session and $outcome should show FAILED",
+                    TileState.FAILED,
+                    tileStateFor(true, session, false, true, outcome),
+                )
+            }
+        }
     }
 }

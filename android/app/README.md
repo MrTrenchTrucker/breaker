@@ -42,7 +42,9 @@ settings screen, the manifest, and the Gradle build.
   state the tile shows. It hides the tile when the service goes off. Showing it
   needs the permission to draw over other apps; without it the app posts a
   notification that opens Breaker, and tries to show the tile again the next time
-  Breaker comes to the front.
+  Breaker comes to the front. After a send, the tile shows SENT when the text
+  landed or only reached the clipboard, and FAILED with its sentence when the
+  commit failed. It keeps that until the next action.
 - **The user's switch-off.** When the user switches dictation off (the
   notification's "Switch off" button), the app keeps that in a small file in its
   files folder, and a start of the launcher from a notification or the tile no

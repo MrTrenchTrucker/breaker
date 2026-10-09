@@ -3,8 +3,6 @@ package dev.breaker.dictation.wiring
 import dev.breaker.dictation.audio.MicCapture
 import dev.breaker.dictation.audio.MicSourceException
 import dev.breaker.dictation.core.model.AppSettings
-import dev.breaker.dictation.core.model.CommitOutcome
-import dev.breaker.dictation.core.model.CommitRequest
 import dev.breaker.dictation.core.model.DictationResult
 import dev.breaker.dictation.core.model.DictationSession
 import dev.breaker.dictation.core.model.SttError
@@ -45,7 +43,6 @@ class UnavailableSlotsTest {
     @Test
     fun `the sentences the slots give are the plain words the user is shown`() {
         assertEquals("app: the server slot sentence changed", "Server transcription is not available yet.", SERVER_UNAVAILABLE_DETAIL)
-        assertEquals("app: the commit slot sentence changed", "Putting text into a field is not available yet.", COMMIT_UNAVAILABLE_DETAIL)
         assertEquals("app: the microphone slot sentence changed", "The microphone is not available yet.", MIC_UNAVAILABLE_MESSAGE)
     }
 
@@ -98,17 +95,6 @@ class UnavailableSlotsTest {
         assertEquals("app: the server slot error should be OTHER", SttError.OTHER, failure.error)
         assertEquals("app: the failure should carry the server slot's sentence", SERVER_UNAVAILABLE_DETAIL, failure.detail)
         assertEquals("app: a server dictation must not reach the on-device engine", 0, local.calls)
-    }
-
-    @Test
-    fun `the commit slot reports a failed commit with its sentence for any text`() {
-        val slot = UnavailableTextCommitter()
-        for (text in listOf("a", "a longer text")) {
-            val answer = slot.commit(CommitRequest(text))
-            assertEquals("app: the commit slot should fail", CommitOutcome.FAILED, answer.outcome)
-            assertEquals("app: the commit slot should give its sentence", COMMIT_UNAVAILABLE_DETAIL, answer.detail)
-            assertFalse("app: a failed commit is not a success", answer.isSuccess)
-        }
     }
 
     @Test

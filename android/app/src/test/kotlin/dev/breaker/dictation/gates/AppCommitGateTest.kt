@@ -97,15 +97,15 @@ internal class AppCommitGateTest {
     )
 
     private val firing: List<Sample> = listOf(
-        Sample("SWAP_POINT_IS_THE_REAL_COMMITTER", androidSwaps, "= CommitServices.create(context)", "= UnavailableTextCommitter()"),
+        Sample("SWAP_POINT_IS_THE_REAL_COMMITTER", androidSwaps, "= CommitServices.create(context)", "= FailingCommitter()"),
         Sample("SWAP_POINT_IS_THE_REAL_COMMITTER", androidSwaps, "= CommitServices.create(context)", "= CommitServices.create(context).also { }"),
         Sample("SWAP_POINT_IS_THE_REAL_COMMITTER", androidSwaps, "= CommitServices.create(context)", "= CommitServices.create(applicationContext)"),
         Sample("SWAP_POINT_IS_THE_REAL_COMMITTER", androidSwaps, "appTextCommitter(context: Context)", "appTextCommitter(context: Context?)"),
-        Sample("EXACTLY_ONE_CREATE_IN_APP_MAIN", androidSwaps, "= CommitServices.create(context)", "= UnavailableTextCommitter()"),
+        Sample("EXACTLY_ONE_CREATE_IN_APP_MAIN", androidSwaps, "= CommitServices.create(context)", "= FailingCommitter()"),
         Sample("EXACTLY_ONE_CREATE_IN_APP_MAIN", app, "val textCommitter: TextCommitter by lazy", "val spare = CommitServices.create(applicationContext)\n    val textCommitter: TextCommitter by lazy"),
-        Sample("ROOT_TAKES_ITS_COMMITTER", root, "private val committer: TextCommitter,", "private val committer: TextCommitter = UnavailableTextCommitter(),"),
+        Sample("ROOT_TAKES_ITS_COMMITTER", root, "private val committer: TextCommitter,", "private val committer: TextCommitter = appTextCommitter(),"),
         Sample("ROOT_TAKES_ITS_COMMITTER", root, "committer = committer,", "committer = appTextCommitter(),"),
-        Sample("ROOT_TAKES_ITS_COMMITTER", root, "committer = committer,", "committer = UnavailableTextCommitter(),"),
+        Sample("ROOT_TAKES_ITS_COMMITTER", root, "committer = committer,", "committer = committer, spare = appTextCommitter(),"),
         Sample("APP_MAKES_IT_ONCE_FROM_APP_CONTEXT", app, "appTextCommitter(applicationContext) }", "appTextCommitter(this) }"),
         Sample("APP_MAKES_IT_ONCE_FROM_APP_CONTEXT", app, "by lazy { appTextCommitter(applicationContext) }", "= appTextCommitter(applicationContext)"),
         Sample("APP_MAKES_IT_ONCE_FROM_APP_CONTEXT", app, "committer = textCommitter,", "committer = textCommitter, micSource = appMicSource(),"),
@@ -123,14 +123,14 @@ internal class AppCommitGateTest {
         Sample("SERVICE_NAME_MATCHES_THE_CONSTANT", adapterManifest, "android:name=\".adapter.BreakerAccessibilityService\"", "android:name=\".service.BreakerAccessibilityService\""),
         Sample("SERVICE_NAME_MATCHES_THE_CONSTANT", adapterBuild, "namespace = \"dev.breaker.dictation.commit.accessibility\"", "namespace = \"dev.breaker.dictation.commit.access\""),
         Sample("SERVICE_NAME_MATCHES_THE_CONSTANT", build, "applicationId = \"dev.breaker.dictation\"", "applicationId = \"dev.breaker.app\""),
-        Sample("NO_SECOND_COMMITTER_SWAP", swaps, "fun appMicSource(): MicSource = UnavailableMicSource()", "fun appMicSource(): MicSource = UnavailableMicSource()\n\nfun appTextCommitter(): TextCommitter = UnavailableTextCommitter()"),
+        Sample("NO_SECOND_COMMITTER_SWAP", swaps, "fun appMicSource(): MicSource = UnavailableMicSource()", "fun appMicSource(): MicSource = UnavailableMicSource()\n\nfun appTextCommitter(): TextCommitter = FailingCommitter()"),
         Sample("NO_SECOND_COMMITTER_SWAP", swaps, "fun appMicSource(): MicSource = UnavailableMicSource()", "fun appMicSource(): MicSource = UnavailableMicSource()\n\nfun appTextCommitter(context: Context): TextCommitter = CommitServices.create(context)"),
     )
 
     private val quiet: List<Quiet> = listOf(
         Quiet("SWAP_POINT_IS_THE_REAL_COMMITTER", androidSwaps, "= CommitServices.create(context)", "=\n    CommitServices.create(context)"),
         Quiet("EXACTLY_ONE_CREATE_IN_APP_MAIN", androidSwaps, "The committer that puts dictated text into the focused field,", "The committer that puts dictated text into the focused field (made by CommitServices.create( once),"),
-        Quiet("ROOT_TAKES_ITS_COMMITTER", root, "committer = committer,", "committer = committer, // not appTextCommitter() or UnavailableTextCommitter()"),
+        Quiet("ROOT_TAKES_ITS_COMMITTER", root, "committer = committer,", "committer = committer, // not appTextCommitter() or FailingCommitter()"),
         Quiet("APP_MAKES_IT_ONCE_FROM_APP_CONTEXT", app, "/** The dictated-text committer, built once from the application context. */", "/** The dictated-text committer, built once from the application context; not appTextCommitter(this). */"),
         Quiet("APP_MAKES_IT_ONCE_FROM_APP_CONTEXT", app, "by lazy { appTextCommitter(applicationContext) }", "by lazy {\n        appTextCommitter(applicationContext)\n    }"),
         Quiet("BUILD_HAS_THE_COMMIT_EDGES", build, "implementation(project(\":android:modules:commit\"))", "implementation( project( \":android:modules:commit\" ) ) // runtimeOnly(project(\":x\"))"),

@@ -1,8 +1,6 @@
 package dev.breaker.dictation.wiring
 
 import dev.breaker.dictation.audio.MicSourceException
-import dev.breaker.dictation.core.model.CommitOutcome
-import dev.breaker.dictation.core.model.CommitRequest
 import dev.breaker.dictation.stt.ondevice.SherpaModel
 import dev.breaker.dictation.stt.ondevice.SherpaOnnxRecognizerFactory
 import dev.breaker.dictation.stt.ondevice.SherpaTranscriptionException
@@ -44,15 +42,6 @@ internal class SwapsTest {
             RECOGNIZER_FACTORY.create(SherpaModel("small", tmp.newFolder(), "digest"))
         }
         assertEquals("app: the refusal says the files are missing", "the model files are missing or empty", thrown.message)
-    }
-
-    @Test
-    fun `the unavailable text committer fails every commit with its sentence`() {
-        // The swap point now returns the real committer, which needs an Android context and so cannot be
-        // built on the plain JVM; the swap point itself is pinned by the source gate in AppCommitGateTest.
-        val result = UnavailableTextCommitter().commit(CommitRequest("hello"))
-        assertEquals("app: the placeholder committer must fail", CommitOutcome.FAILED, result.outcome)
-        assertEquals("app: and say so", COMMIT_UNAVAILABLE_DETAIL, result.detail)
     }
 
     @Test

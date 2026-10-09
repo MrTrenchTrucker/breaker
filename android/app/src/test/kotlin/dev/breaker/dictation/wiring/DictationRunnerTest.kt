@@ -6,6 +6,7 @@ import dev.breaker.dictation.core.model.SttError
 import dev.breaker.dictation.core.model.SttResult
 import dev.breaker.dictation.core.model.Transcription
 import dev.breaker.dictation.core.model.TranscriptionSource
+import dev.breaker.dictation.core.port.CommitOutcomeResult
 import dev.breaker.dictation.service.LaunchResult
 import dev.breaker.dictation.service.ServiceSentences
 import org.junit.Assert.assertEquals
@@ -206,13 +207,14 @@ class DictationRunnerTest {
     }
 
     @Test
-    fun `send over the unavailable committer reports a failed commit and still saves`() {
-        val rig = Rig(committer = UnavailableTextCommitter())
+    fun `send over a committer that fails reports a failed commit and still saves`() {
+        val failure = "the committer could not commit"
+        val rig = Rig(committer = FakeCommitter(CommitOutcomeResult(CommitOutcome.FAILED, failure)))
         rig.readyToSend()
         val result = rig.runner.send()
         assertNotNull("app: send should answer a result even when the commit fails", result)
-        assertEquals("app: the unavailable committer should give a failed outcome", CommitOutcome.FAILED, result!!.outcome.outcome)
-        assertEquals("app: the failed outcome should carry the slot's sentence", COMMIT_UNAVAILABLE_DETAIL, result.outcome.detail)
+        assertEquals("app: a committer that fails should give a failed outcome", CommitOutcome.FAILED, result!!.outcome.outcome)
+        assertEquals("app: the failed outcome should carry the committer's detail", failure, result.outcome.detail)
         assertEquals("app: the dictation should be saved even though the commit failed", 1, rig.history.saved.size)
         assertEquals("app: a failed send should still end the dictation", DictationState.IDLE, rig.runner.sessionState)
     }
