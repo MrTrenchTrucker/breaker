@@ -19,7 +19,7 @@ class AdapterGateTest {
     private val window = "WindowManagerTileWindow.kt"
     private val view = "TileView.kt"
     private val facade = "FloatingTile.kt"
-    private val adapterFiles = listOf(window, view, facade)
+    private val adapterFiles = listOf(window, view, facade, "ArmedPulse.kt")
 
     private fun assertFires(what: String, problems: List<String>, part: String) =
         assertTrue("android_overlay: control: $what must be reported with '$part', got $problems", problems.any { it.contains(part) })
@@ -55,6 +55,7 @@ class AdapterGateTest {
         val adapters = adapterFiles.associateWith { "import android.view.View\n" }
         assertFires("an import in another file", confinementProblems(adapters + ("TileController.kt" to "import android.content.Context\n")), "TileController.kt names")
         assertFires("a full name in another file", confinementProblems(adapters + ("TilePlacement.kt" to "val v = android.graphics.Color.RED\n")), "TilePlacement.kt names")
+        assertFires("an animator import in another file", confinementProblems(adapters + ("TileController.kt" to "import android.animation.ValueAnimator\n")), "TileController.kt names")
         assertFires("a missing adapter file", confinementProblems(adapters - view), "$view is missing")
         val quiet = adapters + ("TileController.kt" to "// import android.view.View\n/* android.os.Handler */\nimport dev.breaker.dictation.core.port.SettingsStore\n")
         assertQuiet("the adapters importing, and another file naming it only in comments", confinementProblems(quiet))

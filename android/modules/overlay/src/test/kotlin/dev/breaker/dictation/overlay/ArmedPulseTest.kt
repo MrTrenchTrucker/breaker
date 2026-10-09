@@ -76,13 +76,14 @@ class ArmedPulseTest {
     fun `the alpha is applied to the armed ring and keeps its colour`() {
         for (mode in modes) {
             val p = TruckingTokens.palette(mode)
-            assertEquals("overlay: $mode armed ring at alpha 1 expected the primary colour", p.primary.argb, ringColor(TileState.ARMED, p, 1f))
-            assertEquals("overlay: $mode armed ring at alpha 0 expected a zero alpha byte", 0, ringColor(TileState.ARMED, p, 0f) ushr 24)
-            assertEquals("overlay: $mode armed ring at alpha 0.5 expected an alpha byte of 128", 128, ringColor(TileState.ARMED, p, 0.5f) ushr 24)
+            val armed = ringColor(TileState.ARMED, p)
+            assertEquals("overlay: $mode armed ring at alpha 1 expected the primary colour", p.primary.argb, ringDrawColor(armed, 1f))
+            assertEquals("overlay: $mode armed ring at alpha 0 expected a zero alpha byte", 0, ringDrawColor(armed, 0f) ushr 24)
+            assertEquals("overlay: $mode armed ring at alpha 0.5 expected an alpha byte of 128", 128, ringDrawColor(armed, 0.5f) ushr 24)
             assertEquals(
                 "overlay: $mode armed ring at alpha 0.5 expected the primary colour under the alpha",
                 p.primary.argb and 0xFFFFFF,
-                ringColor(TileState.ARMED, p, 0.5f) and 0xFFFFFF,
+                ringDrawColor(armed, 0.5f) and 0xFFFFFF,
             )
         }
     }
@@ -94,13 +95,9 @@ class ArmedPulseTest {
             val p = TruckingTokens.palette(mode)
             for (state in TileState.values()) {
                 if (state == TileState.ARMED) continue
-                for (alpha in listOf(0f, 0.5f, 1f)) {
-                    assertEquals(
-                        "overlay: $mode $state ring at alpha $alpha expected the palette ring whatever the alpha",
-                        TileStyle.look(state, p).ring,
-                        ringColor(state, p, alpha),
-                    )
-                }
+                val ring = TileStyle.look(state, p).ring
+                assertEquals("overlay: $mode $state ring expected the palette ring", ring, ringColor(state, p))
+                assertEquals("overlay: $mode $state ring at full pulse expected the palette ring", ring, ringDrawColor(ring, 1f))
             }
         }
     }

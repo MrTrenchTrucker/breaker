@@ -180,6 +180,9 @@ class TileViewGateTest {
         assertFires("a cross drawn in a variable", AdapterRules.viewColourProblems(edit(colourSample, "look.control)", "tint)")), "a draw call passes a colour")
         assertFires("no colour assignment", AdapterRules.viewColourProblems("class V\n"), "no colour assignment")
         assertFires("no draw call with a colour", AdapterRules.viewColourProblems(edit(edit(colourSample, "drawRing(canvas, mic, look.ring)\n", ""), "drawCancel(canvas, TileLayout.cancelCell(s), look.control)\n", "")), "no draw call with a colour")
+        assertFires("a pulse alpha written as a number", AdapterRules.viewColourProblems(edit(colourSample, "paint.color = color", "paint.color = ringDrawColor(color, 7)")), "a colour is set from 'ringDrawColor(color, 7)'")
+        assertFires("a pulse-scaled colour written as a number", AdapterRules.viewColourProblems(edit(colourSample, "paint.color = color", "paint.color = ringDrawColor(7, pulseAlpha)")), "a colour is set from 'ringDrawColor(7, pulseAlpha)'")
+        assertQuiet("the pulse-scaled colour of the ring", AdapterRules.viewColourProblems(edit(colourSample, "paint.color = color", "paint.color = ringDrawColor(color, pulseAlpha)")))
         assertQuiet("the look everywhere, a colour parameter, and the old words in comments", AdapterRules.viewColourProblems("// Color.RED palette 0xFF1E7A46 TileColors\n/* look.glyph.argb */\n" + colourSample))
 
         assertEquals("overlay: $view must take every colour from the face's look", emptyList<String>(), inFile(ModuleFiles.mainTexts(), view, AdapterRules::viewColourProblems))

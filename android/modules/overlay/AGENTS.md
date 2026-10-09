@@ -8,8 +8,8 @@ Floating tile = CB mic glyph + LED bar meter (WindowManager overlay, F36). The f
 - A small draggable tile (56 dp) with a stand-in glyph, shown above other apps.
 - Seven states, pushed by the app with `setState`: `IDLE`, `ARMED`, `RECORDING`, `SENDING`, `FAILED`, `SENT` and `SENT_LOCAL`. The tile never
   changes the state itself, not even on a tap. The ring around the microphone takes its colour from the state. The
-  armed pulse exists only as an internal rule (`armedPulseAlpha`, phase to ring alpha). Nothing calls it yet and there
-  is no public way to give the tile a phase, so the armed ring is always drawn at full strength.
+  ring pulses while the tile is ARMED and shown (the armed ring pulse, see Invariants). The app drives nothing: the pulse
+  starts and stops with the state and with the tile being shown, attached, visible and on a lit screen.
 - An LED bar meter of 12 segments, fed by the app with `setLevel` (0.0 to 1.0), drawn directly above the microphone
   while the state is `RECORDING`.
 - The expanded tile while `RECORDING`: [X cancel] [microphone with the meter above it] [check = send], in one window
@@ -92,9 +92,9 @@ outline lines are 2 dp thick.
 The ring around the microphone is 2 dp thick and sits just inside the edge of the microphone's cell.
 
 **Look & feel (F36):**
-- **Built:** the seven states, the LED bar meter and the expanded tile, as described below, and the armed-pulse rule as
-  pure code (the module drives no pulse over time). **Not built yet:** the real CB mic art (final mic art later), the
-  app's pushing of the sent and fallback states, and the pulse driven over time. Each line below says which it is.
+- **Built:** the seven states, the LED bar meter and the expanded tile, as described below, and the armed ring pulse
+  (one platform animator, see Invariants; the app drives nothing). **Not built yet:** the real CB mic art (final mic art later), the
+  app's pushing of the sent and fallback states. Each line below says which it is.
 - The tile IS the **CB mic glyph** (favicon art from `shared/ui-tokens`) - not built yet: the tile draws a
   stand-in glyph drawn in code, and the favicon art is not used.
 - **LED bar meter** (digital Cobra-style segments) renders **directly above the
@@ -104,15 +104,13 @@ The ring around the microphone is 2 dp thick and sits just inside the edge of th
 - State colors: the ring around the microphone is the trim colour when idle, the primary colour when armed, recording
   or sending, and the danger colour after a failure (all palette fields). **SENT = green** (the palette's `sent` field:
   copy confirmed) and **SENT_LOCAL = orange** (the palette's `warning` field: committed by the phone model after the
-  server path failed) are built as states and colours; the tile only shows what the app pushes. The armed pulse is a
-  internal rule (`armedPulseAlpha`, a triangle wave between an internal minimum and maximum alpha) that nothing calls
-  yet: the tile has no public way to take a phase, so the armed ring stays steady. While sending, the tile looks like the armed tile;
+  server path failed) are built as states and colours; the tile only shows what the app pushes. The armed ring pulses
+  while the tile is ARMED (see Invariants), and is steady when animations are off. While sending, the tile looks like the armed tile
+  but does not pulse;
   the app's description is the only cue.
 
 **Not built yet:**
 - The real CB mic art (final mic art later; the glyph stays a placeholder).
-- The pulse on screen: a public way for the app to give the tile a phase, and the app driving it over time (the
-  module has no timer).
 - The app's pushing of SENT and SENT_LOCAL, and the state the app pushes after a clipboard-only commit (OPEN: the app's
   decision, not decided here).
 - Words on the tile of its own, sound or haptics, a time limit on the notice, the window-ownership check (T4), the
@@ -132,9 +130,9 @@ The ring around the microphone is 2 dp thick and sits just inside the edge of th
   SENT_LOCAL is orange (the palette's `warning` field).
 - The tile never chooses SENT or SENT_LOCAL: only the app pushes them.
 - No clocks and no threads in the module: no long press, no timeouts, no background work.
-- No timers, clocks or animation in the module: nothing pulses, fades, decays or times out on its own (the armed pulse
-  rule is internal pure code that nothing calls yet), and the notice stays until the app clears it or pushes a different state.
-  Tested by: `ModuleHygieneTest`, `TileViewGateTest`.
+- No timers, clocks or threads in the module. The one exception is the armed ring pulse: one platform `ValueAnimator` in ArmedPulse.kt, on the main thread, running only while the tile is ARMED, shown, attached, visible, the screen is on and system animations are on; it never changes the state or what a tap does.
+  and the notice stays until the app clears it or pushes a different state.
+  Tested by: `ModuleHygieneTest`, `TileViewGateTest`, `PulseRulesTest`.
 - Colours are palette fields only: every colour the tile draws is a ui-tokens palette field; no colour value and no new token is written in this module.
   Tested by: `TileStyleTest`, `TileGlyphTest`, `TileViewGateTest`, `TileViewMappingGateTest`, `TileViewDrawingGateTest`, `AdapterGateTest`.
 - The module holds no words of its own: the notice and the description come from the app.
@@ -158,7 +156,7 @@ The ring around the microphone is 2 dp thick and sits just inside the edge of th
 
 ## Owns
 Floating tile = CB mic glyph + LED bar meter (WindowManager overlay, F36). Built: the draggable tile with a
-stand-in glyph, the seven states, the armed-pulse rule (pure code), the LED bar meter, the expanded recording tile with cancel and send, and the notice and
+stand-in glyph, the seven states, the armed ring pulse (one platform animator), the LED bar meter, the expanded recording tile with cancel and send, and the notice and
 description the app pushes. Not built yet: the real CB mic art.
 
 ## Public Interface
@@ -206,7 +204,7 @@ FloatingTile (via create), ShowResult, TileState
     `show()` may try again.
 - `TileState`, in this order, and what the tile shows:
   - `IDLE`: dictation is off or not ready. The microphone with a plain ring. A tap on the microphone calls `onTap`.
-  - `ARMED`: dictation is on and ready. The ring is steady (the pulse rule is not wired to the tile yet). A tap on the microphone calls `onBegin`.
+  - `ARMED`: dictation is on and ready. The ring pulses (the armed ring pulse, see Invariants) and is steady when animations are off. A tap on the microphone calls `onBegin`.
   - `RECORDING`: the microphone is open. The tile widens to the X, the microphone with the meter above it, and the check.
   - `SENDING`: recording is over and the text is on its way. Taps do nothing.
   - `FAILED`: the last try did not work. The ring is in the danger colour. A tap on the microphone calls `onTap`.
@@ -230,13 +228,13 @@ FloatingTile (via create), ShowResult, TileState
 - The permission request and the microphone service: sending the user to the overlay-permission page, the foreground service that listens and records, and the audio capture (the app).
 - Which state the app pushes after a commit, including SENT, SENT_LOCAL and the state after a clipboard-only commit
   (the app; the tile only shows the state it is given).
-- Driving the armed pulse over time: the module has no clock; once a public phase input exists, the app drives it.
+- Deciding when the armed ring pulse runs: the module decides it from the state and the tile's own shown, attached, visible and screen state; the app only pushes the state.
 
 ## Test Locations
 - Unit (Kotlin): `android/modules/overlay/src/test/kotlin/`. Run: `./gradlew :android:modules:overlay:test`
 - Contract: `tests/contract/test_overlay_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_overlay_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
-- All the test classes named below are in `android/modules/overlay/src/test/kotlin/dev/breaker/dictation/overlay/`, which also holds the helpers `FakeTileWindow`, `FakeSettingsStore`, `TestData`, `SourceText`, `ModuleFiles`, `AdapterRules` and `TileAdapterWiringRules` (they hold no tests).
+- All the test classes named below are in `android/modules/overlay/src/test/kotlin/dev/breaker/dictation/overlay/`, which also holds the helpers `FakeTileWindow`, `FakeSettingsStore`, `TestData`, `SourceText`, `ModuleFiles`, `AdapterRules`, `TileAdapterWiringRules` and `PulseSourceRules` (they hold no tests).
 
 **Verified by tests on a plain JVM** (the class that checks each line is named in brackets):
 - Show and hide (`TileControllerShowHideTest`, `FloatingTileFacadeTest`): the four `ShowResult` answers, a second
@@ -327,6 +325,8 @@ FloatingTile (via create), ShowResult, TileState
 - The public surface (`PublicSurfaceTest`): the four `ShowResult` values and the seven `TileState` values in order and the
   public tile members are read by reflection; that every other top-level declaration is `internal` is read from the source text.
 
+- The armed ring pulse (`PulseRulesTest`, `PulseAlphaTest`, `TileControllerPulseTest`, `PulseGateTest`): the pure rules run only when all five conditions hold and only an armed, shown tile wants a pulse; a non-finite alpha is drawn at full strength; the controller asks for the pulse before each face, stops it on hide and on leaving armed, and gives the same tap answers with the pulse on or off; the animator is named in one file only, the view's four hooks reach the pure rule, and the view passes the system's animator switch as the fifth argument (`PulseGateTest`: the view asks the system whether animations are on). All of this is read as text, not run.
+
 **Not verified by any test:** the lift of a second finger in the tile view (only the first finger is followed) and the
 gravity value are read in the code only.
 What the view paints, and where, how it hands over a touch, and the guards around moving and removing the window are
@@ -346,7 +346,8 @@ checked only as text: no test draws the view or sends it a touch.
 - Vendor quirks.
 - The look of the stand-in glyph.
 - Whether `setFilterTouchesWhenObscured` behaves as intended.
-- Pulse timing on a real screen (not possible yet: no public phase input, and the module has no timer).
+- The armed ring pulse on a phone: that the animator really runs and stops with the hooks above; that the screen-off and window-visibility callbacks fire as the documentation describes; that a system animation scale change while the pulse runs applies at the next start; how the ring looks.
+- The battery cost of the armed ring pulse (see Known Gotchas).
 - How the green (SENT) and orange (SENT_LOCAL) rings read in sunlight, in light and dark.
 - The expanded tile, the meter and the notice: see "Known Gotchas" below.
 
@@ -394,8 +395,10 @@ agents, not required: an outside contributor may write the code themselves
 - The module never changes the state, so `onSend` is called for every tap on the check or the microphone while the state is still `RECORDING`. A double tap on a tile that has just opened lands on the microphone and ends an empty recording. The app must tolerate a repeated `onSend` and an empty recording, and push `SENDING` to stop it. The module has no clock to wait out a second tap.
 - Pushing the state the tile already has changes nothing, so it does not clear a notice; only a different state or `clearNotice()` does.
 - A level pushed outside `RECORDING` is ignored, and the meter starts empty when `RECORDING` is entered.
-- While `SENDING` the tile looks like the armed tile (a collapsed tile with the primary ring); the app's description is the only cue.
+- While `SENDING` the tile looks like the armed tile without the pulse (a collapsed tile with the steady primary ring); the app's description is the only cue.
 - `hide()` while the tile is expanded or recording removes the window and calls no callback; the pushed state, level and notice are kept and the next `show()` draws them.
+- Battery: while armed with the screen on, the pulse redraws the tile every frame for as long as dictation stays armed. The cost is not measured. Device check: battery over 30 minutes armed, pulse on versus animations off (steady ring).
+- The pulse stops when the state leaves ARMED, when the tile is hidden or detached, when the window is not visible, and when the screen turns off; a system animation scale change applies at the next start.
 - **Not verified on a device (the expanded tile and what it draws).** Nothing here has been run on a device:
   - Focus with the user's keyboard up: that the wide window, like the square one, leaves the field underneath focused and the keyboard on screen.
   - The expanded window over other apps, and partial covers (another window over only part of the tile, and what the system does with the touches there).

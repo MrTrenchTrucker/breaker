@@ -17,16 +17,17 @@ a tap.
 | State | What the tile shows | A tap on the microphone calls |
 |---|---|---|
 | `IDLE` | the microphone with a plain ring | `onTap` |
-| `ARMED` | the microphone with a steady ring | `onBegin` |
+| `ARMED` | the microphone with a pulsing ring | `onBegin` |
 | `RECORDING` | the expanded tile, below | `onSend` |
 | `SENDING` | the microphone; taps do nothing | nothing |
 | `FAILED` | the ring turns to the failure colour | `onTap` |
 | `SENT` | the ring turns green: the text is committed | `onTap` |
 | `SENT_LOCAL` | the ring turns orange: the phone model committed it after the server failed | `onTap` |
 
-The armed ring has a pulse rule, a pure function that turns a phase into a ring
-brightness. Nothing calls it yet and the app has no way to give the tile a
-phase, so the armed ring stays steady for now.
+The armed ring pulses while the state is `ARMED` and the tile is shown: a platform animator
+lowers and raises the ring's brightness from a quarter to full strength over 1.6 seconds. It stops
+when the state leaves `ARMED`, when the tile is hidden or detached, when the window is not visible,
+or when the screen turns off. The app drives nothing; with system animations off the ring stays steady.
 
 ## The expanded tile and the meter
 
@@ -80,8 +81,6 @@ the app's, not this module's.
 ## Not built yet
 
 - The final microphone art (the glyph stays a placeholder until then).
-- The armed pulse on screen: a public way to give the tile a phase, and the app
-  driving it over time.
 - The app pushing `SENT` and `SENT_LOCAL`, and the state it pushes after a
   commit that only reached the clipboard (open: the app's decision).
 - Sound or haptics, a time limit on the notice, and the window-ownership check.
