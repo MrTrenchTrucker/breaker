@@ -51,6 +51,9 @@ internal class CaptureSessionLifecycle(
     private val onTakeEnded: ((Throwable?) -> Unit)? = null,
 ) {
 
+    /** Close-once guard: the device is closed exactly once, whoever gets here first. */
+    private val deviceClosed = AtomicBoolean(false)
+
     /**
      * The take this lifecycle last opened, if any.
      *
@@ -112,6 +115,8 @@ internal class CaptureSessionLifecycle(
             throw gaveUp
         }
         try {
+            // A new take can close its own device once.
+            deviceClosed.set(false)
             liveOpen.markLiveAndOpen(current)
             // The handshake, taken under the same lock stop() takes the threads
             // under: a stop that has already been through this lock is one this
@@ -142,7 +147,7 @@ internal class CaptureSessionLifecycle(
                 // end that take before its first frame — the mirror of the hole
                 // this closes, on the other side of the race.
                 if (session.get() == current) running.set(false)
-                closeQuietly()
+                closeDeviceOnce()
                 indicator.markRecordingStopped()
                 return
             }
@@ -159,6 +164,7 @@ internal class CaptureSessionLifecycle(
                 session = session,
                 failureRef = failureRef,
                 readBufferSamples = readBufferSamples,
+                releaseOnTaken = { c -> releaseForTaken(c) },
             )
             val dispatch = DispatchLoop(
                 frameSize = frameSize,
@@ -299,7 +305,7 @@ internal class CaptureSessionLifecycle(
                 running.set(false)
                 return
             }
-            closeQuietly()
+            closeDeviceOnce()
 
             // Giving up here is legitimate: a listener that blocks past the
             // timeout leaves its dispatcher running, and that dispatcher is
@@ -369,12 +375,23 @@ internal class CaptureSessionLifecycle(
         false
     }
 
-    private fun closeQuietly() {
-        try {
-            source.close()
-        } catch (e: Throwable) {
-            failureRef.compareAndSet(null, e)
+    /** Close the device once, whoever gets here first. */
+    private fun closeDeviceOnce() {
+        if (deviceClosed.compareAndSet(false, true)) {
+            try { source.close() } catch (e: Throwable) { failureRef.compareAndSet(null, e) }
         }
+    }
+
+    /**
+     * Release the device at once because another app or a call took the microphone.
+     * Runs on the capture thread, for the taken reason only. Safe to race stop():
+     * the close is guarded once and the indicator mark is idempotent, so a later
+     * stop() and a caller's own close are both no-ops.
+     */
+    fun releaseForTaken(current: Long) {
+        if (session.get() != current) return
+        closeDeviceOnce()
+        indicator.markRecordingStopped()
     }
 
     /**

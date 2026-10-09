@@ -37,8 +37,18 @@ interface MicSource {
     fun close()
 }
 
-/** Why a [MicSource] could not be opened, or stopped working. */
+/**
+ * Why a [MicSource] could not be opened, or stopped working.
+ *
+ * [reason] tells a taken microphone apart from every other failure, so the
+ * caller can react to "another app or a call took the microphone" without
+ * parsing the message.
+ */
 class MicSourceException(
     message: String,
     cause: Throwable? = null,
-) : RuntimeException(message, cause)
+    val reason: Reason = Reason.DEVICE_FAILED,
+) : RuntimeException(message, cause) {
+    /** What went wrong. A taken microphone is told apart from every other failure. */
+    enum class Reason { DEVICE_FAILED, MICROPHONE_TAKEN }
+}
