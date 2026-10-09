@@ -71,12 +71,7 @@ internal class SwapsTest {
         assertEquals("app: the placeholder must not trigger a dictation", 0, triggers)
     }
 
-    @Test
-    fun `the onboarding is never due`() {
-        val onboarding = appOnboarding()
-        assertTrue("app: the placeholder onboarding is the never-due one", onboarding is NoOnboarding)
-        assertEquals("app: the placeholder must not claim a first run", false, onboarding.isDue())
-    }
+
 
     @Test
     fun `the accessibility component is the one full string`() {

@@ -81,6 +81,7 @@ internal class HostGateTest {
         rx("TILE_SET_STATE_PASSES_THE_STATE", "tile", """\boverride\s+fun\s+setState\s*\(\s*state\s*:\s*TileState\s*\)\s*\{\s*tile\s*\?\.\s*setState\s*\(\s*state\s*\)\s*\}"""),
         rx("TILE_SHOW_NOTICE_PASSES_THE_TEXT", "tile", """\boverride\s+fun\s+showNotice\s*\(\s*text\s*:\s*String\s*\)\s*\{\s*tile\s*\?\.\s*showNotice\s*\(\s*text\s*\)\s*\}"""),
         rx("TILE_CLEAR_NOTICE_CLEARS_THE_NOTICE", "tile", """\boverride\s+fun\s+clearNotice\s*\(\s*\)\s*\{\s*tile\s*\?\.\s*clearNotice\s*\(\s*\)\s*\}"""),
+        rx("DOWNLOADER_GETS_THE_FORWARDING_NOTICE", "host", """\bnotice\s*=\s*forwardingNotice\s*,"""),
     )
     private val firing: List<Sample> = listOf(
         Sample("MAIN_POST_USES_THE_MAIN_LOOPER", "Handler(Looper.getMainLooper())", "Handler(Looper.myLooper()!!)"),
@@ -180,6 +181,8 @@ internal class HostGateTest {
         Sample("TILE_SHOW_NOTICE_PASSES_THE_TEXT", "tile?.showNotice(text)", "tile?.showNotice(\"\")"),
         Sample("TILE_CLEAR_NOTICE_CLEARS_THE_NOTICE", "tile?.clearNotice()", "tile?.hide()"),
         Sample("TILE_CLEAR_NOTICE_CLEARS_THE_NOTICE", "tile?.clearNotice()", "tile?.showNotice(\"\")"),
+        Sample("DOWNLOADER_GETS_THE_FORWARDING_NOTICE", "notice = forwardingNotice,", "notice = notifications,"),
+        Sample("DOWNLOADER_GETS_THE_FORWARDING_NOTICE", "notice = forwardingNotice,", "notice = otherNotice,"),
     )
 
     private val quiet: List<Quiet> = listOf(

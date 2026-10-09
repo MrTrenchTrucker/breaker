@@ -26,10 +26,5 @@ class NoopPortsTest {
         assertEquals("app: NoGesture must still never call the trigger after stops", 0, triggers)
     }
 
-    @Test
-    fun `the no-onboarding slot is never due`() {
-        val onboarding: OnboardingPort = NoOnboarding()
-        assertFalse("app: NoOnboarding should not be due on the first ask", onboarding.isDue())
-        assertFalse("app: NoOnboarding should not be due on the second ask", onboarding.isDue())
-    }
+
 }

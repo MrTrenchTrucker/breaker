@@ -20,12 +20,4 @@ class NoGesture : GesturePort {
     }
 }
 
-/** Whether the first-run screens still have to be shown. */
-interface OnboardingPort {
-    fun isDue(): Boolean
-}
 
-/** The onboarding slot while no onboarding exists: it is never due. */
-class NoOnboarding : OnboardingPort {
-    override fun isDue(): Boolean = false
-}

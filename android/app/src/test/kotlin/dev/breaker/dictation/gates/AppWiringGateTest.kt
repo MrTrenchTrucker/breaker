@@ -52,9 +52,9 @@ internal class AppWiringGateTest {
         Rule("OBSERVER_FEEDS_THE_SWITCH", app, """\bsetStateObserver\s*\{\s*armed\s*,\s*reason\s*->\s*armedSwitch\s*\.\s*onStateChanged\s*\(\s*armed\s*,\s*reason\s*\)"""),
         Rule("OBSERVER_THEN_FEEDS_THE_TILE", app, """\barmedSwitch\s*\.\s*onStateChanged\s*\(\s*armed\s*,\s*reason\s*\)\s*tileHost\s*\.\s*onArmedChanged\s*\(\s*armed\s*\)\s*\}"""),
         Rule("ONSTART_SWITCHES_ON_FOR_THE_ICON_AND_ARMS_AT_START_OTHERWISE", activity, """\boverride\s+fun\s+onStart\s*\(\s*\)\s*\{\s*super\s*\.\s*onStart\s*\(\s*\)\s*val\s+app\s*=\s*applicationContext\s+as\s+BreakerApp\s+val\s+launch\s*=\s*intent\s+if\s*\(\s*isIconLaunch\s*\(\s*launch\s*\?\s*\.\s*action\s*,\s*launch\s*\?\s*\.\s*categories\s*\.\s*orEmpty\s*\(\s*\)\s*,\s*launch\s*\?\s*\.\s*getStringExtra\s*\(\s*NotificationRoute\s*\.\s*EXTRA_ROUTE\s*\)\s*\)\s*\)\s*\{\s*app\s*\.\s*armedSwitch\s*\.\s*switchOn\s*\(\s*\)\s*\}\s*else\s*\{\s*app\s*\.\s*armedSwitch\s*\.\s*armAtStart\s*\(\s*\)\s*\}\s*app\s*\.\s*tileHost\s*\.\s*onLauncherVisible\s*\(\s*\)\s*\}"""),
-        Rule("ACTIVITY_REACHES_THE_TILE_HOST_ONLY_TO_DOWNLOAD_AND_TO_SHOW_AGAIN", activity, """\btileHost\s*\.\s*(?!requestDownload\b|onLauncherVisible\b)\w+""", times = 0),
+        Rule("ACTIVITY_REACHES_THE_TILE_HOST_ONLY_TO_DOWNLOAD_SHOW_AGAIN_AND_SET_THE_DOWNLOAD_LISTENER", activity, """\btileHost\s*\.\s*(?!requestDownload\b|onLauncherVisible\b|setDownloadListener\b)\w+""", times = 0),
         Rule("ARM_AT_START_IS_CALLED_ONCE", activity, """\barmAtStart\s*\("""),
-        Rule("SWITCH_IS_REACHED_IN_THE_TWO_BRANCHES_ONLY", activity, """\barmedSwitch\b""", times = 2),
+        Rule("SWITCH_IS_REACHED_IN_THE_TWO_BRANCHES_AND_BY_THE_ONBOARDING_ADAPTER", activity, """\barmedSwitch\b""", times = 3),
         Rule("SWITCH_ON_IS_CALLED_ONCE", activity, """\bswitchOn\s*\("""),
         Rule("NO_UNCONDITIONAL_ARM_IN_THE_ACTIVITY", activity, """\barm\s*\(""", times = 0),
         Rule("CONTROLLER_IS_NOT_REACHED_BY_THE_ACTIVITY", activity, """\bdictationServiceController\b""", times = 0),
@@ -65,6 +65,9 @@ internal class AppWiringGateTest {
         Rule("SERVER_ADDRESS_IS_THE_SAVED_ONE", root, """\bserverUrlProvider\s*=\s*\{\s*settingsStore\s*\.\s*load\s*\(\s*\)\s*\.\s*serverUrl\s*\}"""),
         Rule("COMPONENT_GETS_ROOT_HISTORY", root, """\bhistory\s*=\s*historyStore(?=\s*,)"""),
         Rule("COMPONENT_GETS_SERVICE_CONTROLLER", root, """\bcontroller\s*=\s*serviceController(?=\s*[,)])"""),
+        Rule("ONBOARDING_VIEW_IS_ADDED", activity, """\bcreateOnboardingView\s*\("""),
+        Rule("ONRESUME_REGISTERS_THE_DOWNLOAD_LISTENER", activity, """\boverride\s+fun\s+onResume\s*\(\s*\)\s*\{\s*super\s*\.\s*onResume\s*\(\s*\)\s*val\s+app\s*=\s*applicationContext\s+as\s+BreakerApp\s+app\s*\.\s*tileHost\s*\.\s*setDownloadListener\s*\(\s*this\s*\)\s*\}"""),
+        Rule("ONPAUSE_CLEARS_THE_DOWNLOAD_LISTENER", activity, """\boverride\s+fun\s+onPause\s*\(\s*\)\s*\{\s*super\s*\.\s*onPause\s*\(\s*\)\s*val\s+app\s*=\s*applicationContext\s+as\s+BreakerApp\s+app\s*\.\s*tileHost\s*\.\s*setDownloadListener\s*\(\s*null\s*\)\s*\}"""),
     )
 
     private val onStartArm = "app.armedSwitch.armAtStart()"
@@ -142,11 +145,11 @@ internal class AppWiringGateTest {
         Sample("ARM_AT_START_IS_CALLED_ONCE", activity, "super.onCreate(savedInstanceState)", "super.onCreate(savedInstanceState)\n        $onStartArm"),
         Sample("ARM_AT_START_IS_CALLED_ONCE", activity, "override fun onStart() {", "override fun onResume() {\n        $onStartArm\n    }\n\n    override fun onStart() {"),
         Sample("ARM_AT_START_IS_CALLED_ONCE", activity, "armedSwitch.armAtStart()", "armedSwitch"),
-        Sample("ACTIVITY_REACHES_THE_TILE_HOST_ONLY_TO_DOWNLOAD_AND_TO_SHOW_AGAIN", activity, "app.tileHost.onLauncherVisible()", "app.tileHost.onArmedChanged(true)"),
-        Sample("ACTIVITY_REACHES_THE_TILE_HOST_ONLY_TO_DOWNLOAD_AND_TO_SHOW_AGAIN", activity, "super.onCreate(savedInstanceState)", "super.onCreate(savedInstanceState)\n        (applicationContext as BreakerApp).tileHost.onArmedChanged(true)"),
-        Sample("ACTIVITY_REACHES_THE_TILE_HOST_ONLY_TO_DOWNLOAD_AND_TO_SHOW_AGAIN", activity, "app.tileHost.requestDownload()", "app.tileHost.openLauncher(null)"),
-        Sample("SWITCH_IS_REACHED_IN_THE_TWO_BRANCHES_ONLY", activity, "override fun onStart() {", stopSwitch),
-        Sample("SWITCH_IS_REACHED_IN_THE_TWO_BRANCHES_ONLY", activity, "super.onCreate(savedInstanceState)", "super.onCreate(savedInstanceState)\n        $onStartArm.hashCode()"),
+        Sample("ACTIVITY_REACHES_THE_TILE_HOST_ONLY_TO_DOWNLOAD_SHOW_AGAIN_AND_SET_THE_DOWNLOAD_LISTENER", activity, "app.tileHost.onLauncherVisible()", "app.tileHost.onArmedChanged(true)"),
+        Sample("ACTIVITY_REACHES_THE_TILE_HOST_ONLY_TO_DOWNLOAD_SHOW_AGAIN_AND_SET_THE_DOWNLOAD_LISTENER", activity, "super.onCreate(savedInstanceState)", "super.onCreate(savedInstanceState)\n        (applicationContext as BreakerApp).tileHost.onArmedChanged(true)"),
+        Sample("ACTIVITY_REACHES_THE_TILE_HOST_ONLY_TO_DOWNLOAD_SHOW_AGAIN_AND_SET_THE_DOWNLOAD_LISTENER", activity, "app.tileHost.requestDownload()", "app.tileHost.openLauncher(null)"),
+        Sample("SWITCH_IS_REACHED_IN_THE_TWO_BRANCHES_AND_BY_THE_ONBOARDING_ADAPTER", activity, "override fun onStart() {", stopSwitch),
+        Sample("SWITCH_IS_REACHED_IN_THE_TWO_BRANCHES_AND_BY_THE_ONBOARDING_ADAPTER", activity, "super.onCreate(savedInstanceState)", "super.onCreate(savedInstanceState)\n        $onStartArm.hashCode()"),
         Sample("NO_UNCONDITIONAL_ARM_IN_THE_ACTIVITY", activity, "super.onCreate(savedInstanceState)", "super.onCreate(savedInstanceState)\n        arm()"),
         Sample("NO_UNCONDITIONAL_ARM_IN_THE_ACTIVITY", activity, "armedSwitch.armAtStart()", "armedSwitch.armAtStart()\n        controller.arm()"),
         Sample("CONTROLLER_IS_NOT_REACHED_BY_THE_ACTIVITY", activity, "override fun onStart() {", "override fun onStop() {\n        (applicationContext as BreakerApp).dictationServiceController.disarm(null)\n    }\n\n    override fun onStart() {"),
@@ -169,6 +172,12 @@ internal class AppWiringGateTest {
         Sample("COMPONENT_GETS_ROOT_HISTORY", root, "history = historyStore,", "history = otherStore,"),
         Sample("COMPONENT_GETS_SERVICE_CONTROLLER", root, "controller = serviceController,", "controller = neverArmedController(),"),
         Sample("COMPONENT_GETS_SERVICE_CONTROLLER", root, "controller = serviceController,", "controller = other,"),
+        Sample("ONBOARDING_VIEW_IS_ADDED", activity, "createOnboardingView(", "createSettingsView("),
+        Sample("ONBOARDING_VIEW_IS_ADDED", activity, "createOnboardingView(", "buildOnboardingView("),
+        Sample("ONRESUME_REGISTERS_THE_DOWNLOAD_LISTENER", activity, "app.tileHost.setDownloadListener(this)", "app.tileHost.setDownloadListener(null)"),
+        Sample("ONRESUME_REGISTERS_THE_DOWNLOAD_LISTENER", activity, "override fun onResume() {", "override fun onResumeLater() {"),
+        Sample("ONPAUSE_CLEARS_THE_DOWNLOAD_LISTENER", activity, "app.tileHost.setDownloadListener(null)", "app.tileHost.setDownloadListener(this)"),
+        Sample("ONPAUSE_CLEARS_THE_DOWNLOAD_LISTENER", activity, "override fun onPause() {", "override fun onPauseLater() {"),
     )
 
     private val quiet: List<Quiet> = listOf(

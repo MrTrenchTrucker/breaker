@@ -76,8 +76,17 @@ manifest and in `res/xml/network_security_config.xml`, which has no exceptions a
 trusts only the system's certificate authorities. The manifest asks for exactly
 these permissions: internet, record audio, foreground service, foreground service
 of the microphone type, post notifications, and draw over other apps (six in all).
-None of them is asked for while the app runs: the user grants the three that need
-it by hand in the system settings.
+None of them is asked for while the app runs in app code: the user grants the
+three that need it by hand in the system settings, or through the walk-through
+in the settings screen.
+
+## Walk-through and download status
+
+The settings screen shows the setup walk-through (permissions: overlay,
+microphone, notifications, accessibility) under the Download button. The
+Download button shows a status line (downloading / failed / ready) using
+ModelSentences words. The app asks for no permission at run time in app code;
+the requests live in ui's screen.
 
 ## What is not built yet
 

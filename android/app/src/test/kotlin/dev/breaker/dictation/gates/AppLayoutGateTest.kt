@@ -29,6 +29,7 @@ internal class AppLayoutGateTest {
         "wiring/UnavailableSlots.kt", "wiring/UuidIdSource.kt",
         "wiring/TilePorts.kt", "wiring/TileStateMap.kt", "wiring/TileCoordinator.kt", "wiring/TakePortAdapter.kt", "wiring/NoopPorts.kt",
         "wiring/ArmedSwitch.kt", "wiring/LaunchRule.kt", "wiring/OffStore.kt", "wiring/ModelSupport.kt", "wiring/Swaps.kt",
+        "wiring/BreakerSwitchAdapter.kt", "wiring/ForwardingDownloadNotice.kt",
     )
 
     /** Main files that are the layer over the platform and name Android types. */

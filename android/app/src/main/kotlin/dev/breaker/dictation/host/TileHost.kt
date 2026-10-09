@@ -6,6 +6,8 @@ import dev.breaker.dictation.BreakerCompositionRoot
 import dev.breaker.dictation.SettingsLauncherActivity
 import dev.breaker.dictation.service.ModelNotifications
 import dev.breaker.dictation.service.NotificationRoute
+import dev.breaker.dictation.wiring.ForwardingDownloadNotice
+import dev.breaker.dictation.wiring.ModelDownloadNotice
 import dev.breaker.dictation.wiring.ModelDownloader
 import dev.breaker.dictation.wiring.Opener
 import dev.breaker.dictation.wiring.StoreModelReady
@@ -69,12 +71,13 @@ internal class TileHost(
         )
     }
 
+    private val forwardingNotice = ForwardingDownloadNotice(notifications)
     private val downloader = ModelDownloader(
         installer = modelInstallPortFor(root.modelStore),
         selectedId = selectedId,
         background = SerialBackground("breaker-model-download"),
         main = main,
-        notice = notifications,
+        notice = forwardingNotice,
     )
 
     /** Shows the tile when the service goes on and hides it when the service goes off. Any thread. */
@@ -91,6 +94,11 @@ internal class TileHost(
     /** Starts the download of the speech model the settings select. Call it on the main thread. */
     fun requestDownload() {
         downloader.requestDownload()
+    }
+
+    /** Sets the in-app download listener (called by the activity in onResume). */
+    fun setDownloadListener(listener: ModelDownloadNotice?) {
+        forwardingNotice.setListener(listener)
     }
 
     override fun openLauncher(route: String?) {

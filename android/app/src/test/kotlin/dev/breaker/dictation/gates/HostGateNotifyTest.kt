@@ -65,7 +65,8 @@ internal class HostGateNotifyTest {
         rx("ONE_BUTTON_CALLS_THE_DOWNLOAD_ENTRY_POINT", "activity", """\bsetOnClickListener\s*\{\s*app\s*\.\s*tileHost\s*\.\s*requestDownload\s*\(\s*\)\s*\}"""),
         rx("ONE_BUTTON", "activity", """\bButton\s*\(""" ),
         rx("MODEL_ROUTE_FOCUSES_THE_BUTTON", "activity", """\bgetStringExtra\s*\(\s*NotificationRoute\s*\.\s*EXTRA_ROUTE\s*\)\s*==\s*NotificationRoute\s*\.\s*ROUTE_MODEL\s*\)\s*\{\s*download\s*\.\s*isFocusableInTouchMode\s*=\s*true\s+download\s*\.\s*requestFocus\s*\(\s*\)\s*\}"""),
-        rx("COLUMN_HOLDS_THE_BUTTON_THEN_THE_SETTINGS_VIEW", "activity", """\bcolumn\s*\.\s*orientation\s*=\s*LinearLayout\s*\.\s*VERTICAL\s+column\s*\.\s*addView\s*\(\s*download\s*\)\s+val\s+settings\s*=\s*dev\s*\.\s*breaker\s*\.\s*dictation\s*\.\s*ui\s*\.\s*createSettingsView\s*\(\s*this\s*,\s*app\s*\.\s*settingsStore\s*\)\s+column\s*\.\s*addView\s*\(\s*settings\s*,\s*LinearLayout\s*\.\s*LayoutParams\s*\(\s*ViewGroup\s*\.\s*LayoutParams\s*\.\s*MATCH_PARENT\s*,\s*0\s*,\s*1f\s*\)\s*\)"""),
+        rx("COLUMN_HOLDS_THE_BUTTON_THE_ONBOARDING_THE_STATUS_LINE_THEN_THE_SETTINGS_VIEW", "activity", """\bcolumn\s*\.\s*orientation\s*=\s*LinearLayout\s*\.\s*VERTICAL\s+column\s*\.\s*addView\s*\(\s*download\s*\)\s+column\s*\.\s*addView\s*\(\s*onboarding\s*\)\s+column\s*\.\s*addView\s*\(\s*downloadStatus\s*\)\s+val\s+settings\s*=\s*dev\s*\.\s*breaker\s*\.\s*dictation\s*\.\s*ui\s*\.\s*createSettingsView\s*\(\s*this\s*,\s*app\s*\.\s*settingsStore\s*\)\s+column\s*\.\s*addView\s*\(\s*settings\s*,\s*LinearLayout\s*\.\s*LayoutParams\s*\(\s*ViewGroup\s*\.\s*LayoutParams\s*\.\s*MATCH_PARENT\s*,\s*0\s*,\s*1f\s*\)\s*\)"""),
+        rx("STATUS_LINE_SHOWS_DOWNLOADING_FAILED_AND_READY", "activity", """\boverride\s+fun\s+downloading\s*\(\s*\)\s*\{\s*downloadStatus\s*\.\s*text\s*=\s*ModelSentences\s*\.\s*DOWNLOADING\s*\}\s+override\s+fun\s+done\s*\(\s*\)\s*\{\s*downloadStatus\s*\.\s*text\s*=\s*""\s*\}\s+override\s+fun\s+failed\s*\(\s*sentence\s*:\s*String\s*\)\s*\{\s*downloadStatus\s*\.\s*text\s*=\s*sentence\s*\}"""),
     )
     private val firing: List<Sample> = listOf(
         Sample("NOTICE_TAP_IS_AN_IMMUTABLE_ACTIVITY_INTENT", "PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT", "PendingIntent.FLAG_UPDATE_CURRENT"),
@@ -126,13 +127,17 @@ internal class HostGateNotifyTest {
         Sample("ONE_BUTTON", "val download = Button(this)", "val download = TextView(this)"),
         Sample("MODEL_ROUTE_FOCUSES_THE_BUTTON", "NotificationRoute.ROUTE_MODEL) {", "NotificationRoute.ROUTE_HISTORY) {"),
         Sample("MODEL_ROUTE_FOCUSES_THE_BUTTON", "download.requestFocus()", "settings.requestFocus()"),
-        Sample("COLUMN_HOLDS_THE_BUTTON_THEN_THE_SETTINGS_VIEW", "column.addView(download)\n", ""),
-        Sample("COLUMN_HOLDS_THE_BUTTON_THEN_THE_SETTINGS_VIEW", "column.orientation = LinearLayout.VERTICAL", "column.orientation = LinearLayout.HORIZONTAL"),
+        Sample("COLUMN_HOLDS_THE_BUTTON_THE_ONBOARDING_THE_STATUS_LINE_THEN_THE_SETTINGS_VIEW", "column.addView(download)\n", ""),
+        Sample("COLUMN_HOLDS_THE_BUTTON_THE_ONBOARDING_THE_STATUS_LINE_THEN_THE_SETTINGS_VIEW", "column.orientation = LinearLayout.VERTICAL", "column.orientation = LinearLayout.HORIZONTAL"),
         Sample("MODEL_ROUTE_FOCUSES_THE_BUTTON", "download.isFocusableInTouchMode = true\n            ", ""),
         Sample("MODEL_ROUTE_FOCUSES_THE_BUTTON", "isFocusableInTouchMode = true", "isFocusableInTouchMode = false"),
         Sample("MODEL_ROUTE_FOCUSES_THE_BUTTON", "download.isFocusableInTouchMode = true\n            download.requestFocus()", "download.requestFocus()\n            download.isFocusableInTouchMode = true"),
-        Sample("COLUMN_HOLDS_THE_BUTTON_THEN_THE_SETTINGS_VIEW", ", 0, 1f))", ", 0, 0f))"),
-        Sample("COLUMN_HOLDS_THE_BUTTON_THEN_THE_SETTINGS_VIEW", "MATCH_PARENT, 0, 1f", "WRAP_CONTENT, 0, 1f"),
+        Sample("COLUMN_HOLDS_THE_BUTTON_THE_ONBOARDING_THE_STATUS_LINE_THEN_THE_SETTINGS_VIEW", ", 0, 1f))", ", 0, 0f))"),
+        Sample("COLUMN_HOLDS_THE_BUTTON_THE_ONBOARDING_THE_STATUS_LINE_THEN_THE_SETTINGS_VIEW", "MATCH_PARENT, 0, 1f", "WRAP_CONTENT, 0, 1f"),
+        Sample("COLUMN_HOLDS_THE_BUTTON_THE_ONBOARDING_THE_STATUS_LINE_THEN_THE_SETTINGS_VIEW", "column.addView(download)\n        column.addView(onboarding)\n        column.addView(downloadStatus)", "column.addView(onboarding)\n        column.addView(download)\n        column.addView(downloadStatus)"),
+        Sample("STATUS_LINE_SHOWS_DOWNLOADING_FAILED_AND_READY", "downloadStatus.text = ModelSentences.DOWNLOADING", "downloadStatus.text = \"\""),
+        Sample("STATUS_LINE_SHOWS_DOWNLOADING_FAILED_AND_READY", "downloadStatus.text = sentence", "downloadStatus.text = \"\""),
+        Sample("STATUS_LINE_SHOWS_DOWNLOADING_FAILED_AND_READY", "override fun done() {", "override fun doneLater() {"),
     )
 
     private val quiet: List<Quiet> = listOf(

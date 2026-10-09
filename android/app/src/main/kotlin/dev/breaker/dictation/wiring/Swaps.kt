@@ -27,8 +27,7 @@ fun appMicSource(): MicSource = UnavailableMicSource()
 /** The gesture that starts a dictation. Until the real one exists nothing ever triggers. */
 fun appGesture(): GesturePort = NoGesture()
 
-/** The first-run onboarding hook. Until the onboarding screen exists it is never due. */
-fun appOnboarding(): OnboardingPort = NoOnboarding()
+
 
 /**
  * The accessibility service that puts text into the focused field, as the system names it:
