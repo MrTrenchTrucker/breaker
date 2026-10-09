@@ -87,7 +87,7 @@ path = "android/modules/gesture"
 owns = "Shake-to-wake (accelerometer)."
 does_not_own = "Voice wake (phrases); tile (overlay)."
 depends_on = ["android", "android_core"]
-public = "ShakeDetector"
+public = "ShakeHandle, ShakePort, SensorManagerShakeSource"
 card = "android/modules/gesture/AGENTS.md"
 
 [module.android_overlay]

@@ -37,7 +37,7 @@ class SendUseCaseCommitterFailureTest {
         .transitionTo(DictationState.TRANSCRIBING)
         .withTranscription(aTranscription())
 
-    private fun assertSavedAndFailed(error: Throwable, expectedName: String) {
+    private fun assertSavedAndFailed(error: Throwable, thrownClass: String) {
         val useCase = SendUseCase(ThrowingCommitter(error), history)
 
         val result = useCase.send(sending(), aTranscription(id = "kept-1", text = "words worth keeping"))
@@ -47,7 +47,8 @@ class SendUseCaseCommitterFailureTest {
         assertEquals(DictationState.ERROR, result.session.state)
         assertEquals(SttError.OTHER, result.session.lastError)
         val detail = result.outcome.detail!!
-        assertTrue("the detail names the failure: $detail", detail.contains(expectedName))
+        assertEquals("the detail is the fixed sentence", "The text could not be sent.", detail)
+        assertFalse("the detail must not name the thrown class: $detail", detail.contains(thrownClass))
         assertFalse("the detail must not carry the exception message: $detail", detail.contains("secret words"))
         assertFalse("the detail must not carry the dictated text: $detail", detail.contains("words worth keeping"))
     }

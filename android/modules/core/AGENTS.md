@@ -32,7 +32,9 @@ modules implement, and the use cases that run a dictation.
   `WordUpdate` (the words heard since the last endpoint, `final` set when the
   recogniser closed that utterance). Start while running is a no-op: the first
   callback stays and no second stream starts. Stop is safe when stopped.
-  The callback is called on one thread, and none arrives after `stop()` returns.
+  Calls arrive one at a time and in order, possibly on different threads, and none arrives
+  after `stop()` returns. Each call happens-before the next, so everything one call wrote is
+  seen by the next; the adapter's single-slot dispatcher gives that ordering.
   Word times are capture-relative (see `HeardWord`). An adapter in another module
   implements it, and the app wires it.
 - `AuthService` — `register`, `login`, `logout`, `currentSession`
@@ -97,8 +99,10 @@ modules implement, and the use cases that run a dictation.
   is new and required, with no default, so a caller has to decide what runs on the phone.
   A move the state machine
   refuses is a wiring bug and throws; anything an adapter throws after that comes back
-  as a `DictationResult.Failure` (`SttError.OTHER`, the detail is the exception's class
-  name, never its message; an `Error` still propagates). `stopCapture` refuses a negative `trimBeforeMs` with an
+  as a `DictationResult.Failure` (`SttError.OTHER`, the detail is the one fixed sentence
+  "The speech could not be converted.", never the exception's class name or message: a
+  class name means nothing to the user and a message can carry the dictated text; an
+  `Error` still propagates). `stopCapture` refuses a negative `trimBeforeMs` with an
   `IllegalArgumentException` before it stops the source or discards any audio; an offset at
   or past the end of the capture keeps the whole capture, however large. `cancel` stops the
   source, drops the buffered audio and returns an IDLE session.
@@ -131,7 +135,7 @@ where these sites record the failure and return, and it does not set the calling
 thread's interrupt flag, which is what the re-arm restores:
 - `DictateUseCase`, the adapter fold — an `InterruptedException` from the settings
   store, the probe, the WAV encoder, an engine, a formatter, the id source or the
-  clock is folded into `DictationResult.Failure(OTHER, <class>)`; the flag is
+  clock is folded into `DictationResult.Failure(OTHER, <fixed sentence>)`; the flag is
   re-armed because the interruption belongs to whatever runs next on the caller's
   thread, not to the dictation. Pinned by `DictateUseCaseAdapterFailureTest` (a
   checked exception leaves the flag clear; an `InterruptedException` restores it).

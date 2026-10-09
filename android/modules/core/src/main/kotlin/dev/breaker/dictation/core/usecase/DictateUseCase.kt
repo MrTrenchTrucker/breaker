@@ -22,6 +22,9 @@ import dev.breaker.dictation.core.port.SttEngine
 import dev.breaker.dictation.core.port.WavEncoder
 import kotlinx.coroutines.channels.Channel
 
+// Shown when a step throws; a thrown exception's class name or message is never shown.
+private const val SPEECH_NOT_CONVERTED = "The speech could not be converted."
+
 /**
  * Runs one dictation from audio to text.
  *
@@ -180,8 +183,8 @@ class DictateUseCase(
      * adapter throws after that point — the settings store, the probe, the WAV
      * encoder, an engine, a formatter, the id source, the clock, checked exceptions
      * included — is reported as a [DictationResult.Failure] with [SttError.OTHER]
-     * instead of escaping, and the detail names the exception's class, never its
-     * message, which can carry the dictated text. An interruption also leaves the
+     * instead of escaping, and the detail is one fixed sentence, never the exception's
+     * class or message (which can carry the dictated text). An interruption also leaves the
      * thread's interrupt flag set. An [Error] is not an adapter failure and propagates.
      */
     fun dictate(session: DictationSession, audio: FloatArray): DictationResult {
@@ -198,9 +201,9 @@ class DictateUseCase(
             transcribe(transcribing, audio)
         } catch (e: Exception) {
             // Re-armed, not folded: an interrupted adapter is the thread's, not just a
-            // Failure(OTHER) class name (the threading rule in the root AGENTS.md).
+            // Failure(OTHER) with the fixed sentence (the threading rule in the root AGENTS.md).
             if (e is InterruptedException) Thread.currentThread().interrupt()
-            fail(transcribing, SttError.OTHER, e::class.simpleName ?: "Dictation failed")
+            fail(transcribing, SttError.OTHER, SPEECH_NOT_CONVERTED)
         }
     }
 
@@ -221,7 +224,7 @@ class DictateUseCase(
             // An adapter that throws instead of returning a failure would take
             // the whole flow down. Report it the same way as any other error
             // and let the caller carry on.
-            SttResult.failure(SttError.OTHER, e::class.simpleName ?: "Engine failed")
+            SttResult.failure(SttError.OTHER, SPEECH_NOT_CONVERTED)
         }
 
         return when (result) {
