@@ -7,7 +7,7 @@ package dev.breaker.dictation.overlay
  * [IDLE]: dictation is switched off, or not ready. The tile shows the microphone and a plain ring.
  *
  * [ARMED]: dictation is switched on and ready. A tap on the microphone starts recording. The ring
- * is steady, not pulsing.
+ * pulses gently while the tile is shown and the view is attached, visible and on a lit screen.
  *
  * [RECORDING]: the microphone is open. The tile widens to show a cancel button, the level meter
  * above the microphone, and a send button.

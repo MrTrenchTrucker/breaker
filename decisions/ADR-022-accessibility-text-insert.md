@@ -84,10 +84,30 @@ notification, until the
 user switches it off. A tile tap then only starts recording inside the running
 service. If the service is not running, a tile tap tries to start it once and,
 if Android refuses, tells the user to open Breaker once to switch dictation
-on. Recording happens only between a tap and send, cancel or an error; Android's own
-microphone indicator shows only then. Tapping the notification opens the
+on. Recording happens only between a tap (or the wake phrase) and send, cancel, an
+error or the microphone yielding to another app. Without wake listening,
+Android's own microphone indicator shows only then;
+with wake listening on (amendment of 2026-10-09 below) it also shows while
+Breaker is armed and listening. Tapping the notification opens the
 Breaker app on its history of transcriptions. The shake listener needs a running
 service in the background too, so it can live in the same service.
+
+Amended 2026-10-09 (project owner approved): wake listening and microphone
+sharing. While Breaker is armed, the microphone may stay open for the word
+stream only, so the wake phrase can be heard; nothing is stored or sent until
+the wake phrase starts a normal recording, and a Settings switch turns wake
+listening off. The battery-optimization exemption that keeps it alive while
+the phone sleeps is explained at first start and can be revoked any time in
+Settings. Breaker never competes for the microphone: when any other app or a
+phone call wants it, Breaker releases it at once, with no prompt and no retry
+while it is in use, and wake listening comes back only after the microphone
+has been free for 30 seconds in a row. A recording is never restarted on its
+own. A recording cut this way is ended, not cancelled: what was captured is
+transcribed, saved to history and copied to the clipboard, never typed into
+the field, and the notification says another app needed the microphone. How a
+phone reports that another app wants the microphone is measured on real
+phones (an incoming call, an outgoing call, another recording app) before it
+is claimed to work.
 
 Rules in: the accessibility service as the text-insert mechanism; in-place
 dictation from the floating tile (no Activity opens while dictating);

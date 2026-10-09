@@ -100,6 +100,7 @@ internal class TileController(
                 isShown = true
                 val face = model.face(currentTheme)
                 applied = face
+                window.setPulse(pulseWanted(model.state, isShown))
                 window.applyFace(face)
                 if (face.shape != TileShape.COLLAPSED) placeWindow(face.shape)
                 ShowResult.SHOWN
@@ -120,6 +121,7 @@ internal class TileController(
     fun hide() {
         if (!isShown) return
         endGesture()
+        window.setPulse(false)
         window.remove()
         isShown = false
     }
@@ -134,6 +136,7 @@ internal class TileController(
         window.applyPalette(TruckingTokens.palette(mode))
         val face = model.face(mode)
         applied = face
+        window.setPulse(pulseWanted(model.state, isShown))
         window.applyFace(face)
     }
 
@@ -209,6 +212,7 @@ internal class TileController(
             endGesture()
             placeWindow(face.shape)
         }
+        window.setPulse(pulseWanted(model.state, isShown))
         window.applyFace(face)
     }
 

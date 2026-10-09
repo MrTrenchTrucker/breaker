@@ -20,8 +20,8 @@ import android.view.View
  * The tile is tap-only: it holds no text input and never takes focus.
  *
  * Every colour comes from the face's [TileLook], every position from [TileLayout] and every glyph
- * shape from [TileGlyph], so this class holds no colour value of its own. It runs no timer and no
- * animation: it draws when [applyFace] is called, or when the system asks. The description the app
+ * shape from [TileGlyph], so this class holds no colour value of its own. It draws when [applyFace] is
+ * called or when the system asks, and while [setPulse] is on it changes only the alpha of the armed ring's colour. The description the app
  * gave for the tile is passed on to accessibility services as the view's content description.
  *
  * Touches are forwarded to the [TouchSink] in screen coordinates (the raw position) and the view
@@ -57,6 +57,13 @@ internal class TileView(
     /** Id of the pointer that owns the current gesture, or [NO_POINTER] when none does. */
     private var activePointerId: Int = NO_POINTER
 
+    /** Pulse inputs: the app's wish, attach, window visibility, screen state, and the ring's alpha now. */
+    private var wanted = false
+    private var attached = false
+    private var windowVisible = true
+    private var screenOn = true
+    private var pulseAlpha = 1f
+    private val pulse = ArmedPulse { alpha -> pulseAlpha = alpha; invalidate() }
     init {
         setFilterTouchesWhenObscured(true)
         contentDescription = face.description
@@ -67,6 +74,40 @@ internal class TileView(
         this.face = face
         contentDescription = face.description
         invalidate()
+    }
+
+    /** Ask for the armed ring's pulse while [on] is true; it runs only while the other conditions hold. */
+    fun setPulse(on: Boolean) {
+        wanted = on
+        refreshPulse()
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        attached = true
+        refreshPulse()
+    }
+
+    override fun onDetachedFromWindow() {
+        attached = false
+        refreshPulse()
+        super.onDetachedFromWindow()
+    }
+
+    override fun onWindowVisibilityChanged(visibility: Int) {
+        super.onWindowVisibilityChanged(visibility)
+        windowVisible = visibility == View.VISIBLE
+        refreshPulse()
+    }
+
+    override fun onScreenStateChanged(screenState: Int) {
+        super.onScreenStateChanged(screenState)
+        screenOn = screenState != View.SCREEN_STATE_OFF
+        refreshPulse()
+    }
+
+    private fun refreshPulse() {
+        if (pulseShouldRun(wanted, attached, windowVisible, screenOn, ArmedPulse.animationsOn())) pulse.start() else pulse.stop()
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -121,7 +162,7 @@ internal class TileView(
         val half = stroke / 2f
         paint.style = Paint.Style.STROKE
         paint.strokeWidth = stroke
-        paint.color = color
+        paint.color = ringDrawColor(color, pulseAlpha)
         canvas.drawRoundRect(
             cell.left + half,
             cell.top + half,
