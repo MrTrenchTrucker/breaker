@@ -309,12 +309,16 @@ class MicCaptureStartStopRaceTest {
         // Now let the first open finish, and the third start have the device.
         source.releaseOpen.countDown()
         first.join(WAIT_SECONDS * 1000L)
-        val takeDeadline = System.currentTimeMillis() + WAIT_SECONDS * 1000
-        while (frames.sumOf { it.size } < FULL_TAKE_SAMPLES &&
-            System.currentTimeMillis() < takeDeadline
-        ) {
-            Thread.sleep(5)
-        }
+        // Wait on the DEVICE signal that the whole script has been handed over,
+        // not a wall clock: the take is not whole until stop() drains the
+        // resampler's held-back tail, so a pre-stop wall-clock wait can only
+        // burn its bound. scriptSpent fires the moment the device has offered
+        // all FULL_TAKE_SAMPLES (pre-stop); the stop then delivers the tail.
+        assertTrue(
+            "the device never handed over the whole take, so the test is waiting " +
+                "on a script it never produced",
+            source.scriptSpent.await(WAIT_SECONDS, TimeUnit.SECONDS),
+        )
         capture.stop()
 
         assertTrue(
