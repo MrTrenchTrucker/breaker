@@ -85,7 +85,8 @@ user switches it off. A tile tap then only starts recording inside the running
 service. If the service is not running, a tile tap tries to start it once and,
 if Android refuses, tells the user to open Breaker once to switch dictation
 on. Recording happens only between a tap (or the wake phrase) and send, cancel, an
-error or the microphone yielding to another app. Without wake listening, Android's own microphone indicator shows only then;
+error or the microphone yielding to another app. Without wake listening,
+Android's own microphone indicator shows only then;
 with wake listening on (amendment of 2026-10-09 below) it also shows while
 Breaker is armed and listening. Tapping the notification opens the
 Breaker app on its history of transcriptions. The shake listener needs a running
