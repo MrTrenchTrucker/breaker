@@ -23,7 +23,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class UnavailableSlotsTest {
-    private val localSlot = UnavailableSttEngine(SttError.LOCAL_MODEL_MISSING, LOCAL_UNAVAILABLE_DETAIL)
+    private val localSlot = UnavailableSttEngine(SttError.LOCAL_MODEL_MISSING, STAND_IN_LOCAL_DETAIL)
     private val serverSlot = UnavailableSttEngine(SttError.OTHER, SERVER_UNAVAILABLE_DETAIL)
 
     private fun request(samples: Int = 160, model: String = "small") =
@@ -44,7 +44,6 @@ class UnavailableSlotsTest {
 
     @Test
     fun `the sentences the slots give are the plain words the user is shown`() {
-        assertEquals("app: the on-device slot sentence changed", "On-device transcription is not available yet.", LOCAL_UNAVAILABLE_DETAIL)
         assertEquals("app: the server slot sentence changed", "Server transcription is not available yet.", SERVER_UNAVAILABLE_DETAIL)
         assertEquals("app: the commit slot sentence changed", "Putting text into a field is not available yet.", COMMIT_UNAVAILABLE_DETAIL)
         assertEquals("app: the microphone slot sentence changed", "The microphone is not available yet.", MIC_UNAVAILABLE_MESSAGE)
@@ -55,7 +54,7 @@ class UnavailableSlotsTest {
         for (asked in listOf(request(), request(samples = 3_200, model = "large"))) {
             assertEquals(
                 "app: the on-device slot should answer its own failure for any request",
-                SttResult.Failure(SttError.LOCAL_MODEL_MISSING, LOCAL_UNAVAILABLE_DETAIL),
+                SttResult.Failure(SttError.LOCAL_MODEL_MISSING, STAND_IN_LOCAL_DETAIL),
                 localSlot.transcribe(asked),
             )
             assertEquals(
@@ -76,7 +75,7 @@ class UnavailableSlotsTest {
         assertTrue("app: a local dictation over the slot should fail, got $result", result is DictationResult.Failure)
         val failure = result as DictationResult.Failure
         assertEquals("app: the failure should be the no-fallback error", SttError.LOCAL_MODEL_MISSING, failure.error)
-        assertEquals("app: the failure should carry the slot's sentence", LOCAL_UNAVAILABLE_DETAIL, failure.detail)
+        assertEquals("app: the failure should carry the slot's sentence", STAND_IN_LOCAL_DETAIL, failure.detail)
         assertEquals("app: a missing local model must not reach the server engine", 0, server.calls)
         assertEquals("app: a local dictation must not ask the probe", 0, probe.asks)
     }

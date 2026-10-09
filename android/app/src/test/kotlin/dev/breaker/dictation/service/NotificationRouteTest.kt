@@ -64,11 +64,21 @@ internal class NotificationRouteTest {
     fun `the route names are exactly the agreed text`() {
         assertEquals("app: the route extra name changed", "dev.breaker.dictation.extra.ROUTE", NotificationRoute.EXTRA_ROUTE)
         assertEquals("app: the history route value changed", "history", NotificationRoute.ROUTE_HISTORY)
+        assertEquals("app: the model route value changed", "model", NotificationRoute.ROUTE_MODEL)
         assertEquals(
             "app: the target activity name changed",
             "dev.breaker.dictation.SettingsLauncherActivity",
             NotificationRoute.TARGET_ACTIVITY,
         )
+    }
+
+    @Test
+    fun `the model route is the value the tile code opens the launcher with, and not the history route`() {
+        val text: String = AppSourceFiles.mainFile("kotlin/dev/breaker/dictation/wiring/TilePorts.kt")
+        val pattern = "\\bconst\\s+val\\s+ROUTE_MODEL_VALUE\\s*(?::\\s*String)?\\s*=\\s*\"([^\"]*)\""
+        val declared: String? = Regex(pattern).find(text)?.groupValues?.get(1)
+        assertEquals("app: wiring/TilePorts.kt does not declare ROUTE_MODEL_VALUE equal to the model route", NotificationRoute.ROUTE_MODEL, declared)
+        assertNotEquals("app: the model route equals the history route", NotificationRoute.ROUTE_HISTORY, NotificationRoute.ROUTE_MODEL)
     }
 
     @Test

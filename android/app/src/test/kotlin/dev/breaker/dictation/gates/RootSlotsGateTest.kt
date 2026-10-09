@@ -8,14 +8,16 @@ import org.junit.Test
 
 /**
  * Pins what the composition root puts in its dictation slots, because nothing that runs can show it:
- * every dictation through the root ends at a failing engine, so the formatters, the committer and
+ * every dictation through the root ends at a failing step, so the formatters, the committer and
  * the encoder are never called. The text gate reads the real BreakerCompositionRoot.kt (comments and
  * literal text removed by the shared scanner) and holds these facts: both formatter slots are the
- * rule-based formatter and nothing in the file is a lambda formatter or a throw; the committer is the
- * unavailable committer; the encoder is the 16-bit encoder; the on-device engine slot is the
- * unavailable engine with the model-missing error and the server engine slot the one with the other
- * error. Each rule holds on the real file, is broken by at least one edited sample, and stays quiet on
- * harmless edits; a sample whose target text is missing fails by name, so it cannot go quiet by a typo.
+ * rule-based formatter and nothing in the file is a lambda formatter or a throw; the committer and the
+ * microphone come from their swap functions and the recognizer from its swap value, and the file
+ * names no placeholder for them; the encoder is the 16-bit encoder; the on-device engine slot is the
+ * on-device engine over the root's own model store and no placeholder engine stands in for it; the
+ * server engine slot is the unavailable engine with the other error. Each rule holds on the real file, is broken by at least two edited samples,
+ * and stays quiet on harmless edits; a sample whose target text is missing fails by name, so it
+ * cannot go quiet by a typo.
  */
 internal class RootSlotsGateTest {
 
@@ -47,10 +49,25 @@ internal class RootSlotsGateTest {
         Rule("NO_LAMBDA_FORMATTER") { !has(it, """\bFormatter\s*\{""") },
         Rule("NO_ERROR_CALL") { !has(it, """\berror\s*\(""") },
         Rule("NO_THROW") { !has(it, """\bthrow\b""") },
-        Rule("COMMITTER_IS_UNAVAILABLE") { has(it, bound("committer", """UnavailableTextCommitter\s*\(\s*\)""")) },
+        Rule("COMMITTER_COMES_FROM_ITS_SWAP_POINT") { has(it, bound("committer", """appTextCommitter\s*\(\s*\)""")) },
+        Rule("MIC_DEFAULT_COMES_FROM_ITS_SWAP_POINT") {
+            has(it, """\bprivate\s+val\s+micSource\s*:\s*MicSource\s*=\s*appMicSource\s*\(\s*\)(?=\s*[,)])""")
+        },
+        Rule("COMPONENT_GETS_THE_ROOT_MIC") { has(it, bound("micSource", """micSource""")) },
+        Rule("NO_PLACEHOLDER_NAMED_IN_ROOT") { !has(it, """\bUnavailable(?:MicSource|TextCommitter|RecognizerFactory)\b""") },
         Rule("ENCODER_IS_PCM16") { has(it, bound("wavEncoder", """Pcm16WavEncoder\s*\(\s*\)""")) },
-        Rule("LOCAL_ENGINE_IS_MODEL_MISSING") {
-            has(it, bound("localEngine", """${unavailableEngine}LOCAL_MODEL_MISSING\s*,\s*LOCAL_UNAVAILABLE_DETAIL\s*\)"""))
+        Rule("MODEL_STORE_IS_BUILT_HERE") { has(it, """\bval\s+modelStore\s*:\s*LocalModelStore\s*=\s*LocalModelStore\s*\(""") },
+        Rule("LOCAL_ENGINE_IS_ON_DEVICE_OVER_THE_MODEL_STORE") {
+            has(
+                it,
+                bound(
+                    "localEngine",
+                    """OnDeviceSttEngine\s*\(\s*ModelLoader\s*\(\s*store\s*=\s*modelStore\s*,\s*factory\s*=\s*RECOGNIZER_FACTORY\s*,?\s*\)\s*,?\s*\)""",
+                ),
+            )
+        },
+        Rule("NO_PLACEHOLDER_LOCAL_ENGINE") {
+            !has(it, """\bUnavailableSttEngine\s*\(\s*SttError\s*\.\s*LOCAL_MODEL_MISSING\b""")
         },
         Rule("SERVER_ENGINE_IS_OTHER") {
             has(it, bound("serverEngine", """${unavailableEngine}OTHER\s*,\s*SERVER_UNAVAILABLE_DETAIL\s*\)"""))
@@ -59,7 +76,11 @@ internal class RootSlotsGateTest {
 
     private val localLine = "localFormatter = RuleBasedFormatter()"
     private val serverLine = "serverFormatter = RuleBasedFormatter()"
-    private val committerLine = "committer = UnavailableTextCommitter()"
+    private val committerLine = "committer = appTextCommitter()"
+    private val micDefaultLine = "private val micSource: MicSource = appMicSource(),"
+    private val micLine = "micSource = micSource,"
+    private val storeLine = "val modelStore: LocalModelStore = LocalModelStore("
+    private val engineLine = "localEngine = OnDeviceSttEngine(ModelLoader(store = modelStore, factory = RECOGNIZER_FACTORY))"
     private val encoderLine = "wavEncoder = Pcm16WavEncoder()"
     private val lazyOpen = "val dictation: DictationComponent by lazy {"
     private val helperFun = "private fun neverArmedController()"
@@ -97,11 +118,34 @@ internal class RootSlotsGateTest {
             lazyOpen to "$lazyOpen\n        throw IllegalStateException()",
             helperFun to "private fun boom(): Nothing = throw IllegalStateException()\n$helperFun",
         ),
-        "COMMITTER_IS_UNAVAILABLE" to listOf(
+        "COMMITTER_COMES_FROM_ITS_SWAP_POINT" to listOf(
             committerLine to "committer = FakeCommitter()",
-            committerLine to "committer = UnavailableTextCommitter().also { }",
-            committerLine to "textCommitter = UnavailableTextCommitter()",
+            committerLine to "committer = UnavailableTextCommitter()",
+            committerLine to "committer = appTextCommitter().also { }",
+            committerLine to "textCommitter = appTextCommitter()",
             "$committerLine," to "",
+        ),
+        "MIC_DEFAULT_COMES_FROM_ITS_SWAP_POINT" to listOf(
+            micDefaultLine to "private val micSource: MicSource = UnavailableMicSource(),",
+            micDefaultLine to "private val micSource: MicSource = appMicSource().also { },",
+            micDefaultLine to "private val micSource: MicSource,",
+            micDefaultLine to "private val source: MicSource = appMicSource(),",
+        ),
+        "COMPONENT_GETS_THE_ROOT_MIC" to listOf(
+            micLine to "micSource = appMicSource(),",
+            micLine to "micSource = ScriptedMic(),",
+            micLine to "",
+            micLine to "mic = micSource,",
+        ),
+        "NO_PLACEHOLDER_NAMED_IN_ROOT" to listOf(
+            committerLine to "committer = UnavailableTextCommitter()",
+            micLine to "micSource = UnavailableMicSource(),",
+            "factory = RECOGNIZER_FACTORY" to "factory = UnavailableRecognizerFactory",
+        ),
+        "MODEL_STORE_IS_BUILT_HERE" to listOf(
+            storeLine to "val modelStore: LocalModelStore = sharedStore(",
+            storeLine to "val store: LocalModelStore = LocalModelStore(",
+            storeLine to "val modelStore: LocalModelStore? = LocalModelStore(",
         ),
         "ENCODER_IS_PCM16" to listOf(
             encoderLine to "wavEncoder = SilentEncoder()",
@@ -109,15 +153,22 @@ internal class RootSlotsGateTest {
             encoderLine to "encoder = Pcm16WavEncoder()",
             "$encoderLine," to "",
         ),
-        "LOCAL_ENGINE_IS_MODEL_MISSING" to listOf(
-            "SttError.LOCAL_MODEL_MISSING" to "SttError.OTHER",
-            "localEngine = UnavailableSttEngine(" to "localEngine = FakeSttEngine(",
-            "LOCAL_UNAVAILABLE_DETAIL)" to "SERVER_UNAVAILABLE_DETAIL)",
+        "LOCAL_ENGINE_IS_ON_DEVICE_OVER_THE_MODEL_STORE" to listOf(
+            "factory = RECOGNIZER_FACTORY" to "factory = UnavailableRecognizerFactory",
+            "store = modelStore" to "store = LocalModelStore(File(filesDir, \"other\"))",
+            "localEngine = OnDeviceSttEngine(" to "localEngine = FakeSttEngine(",
+            engineLine to "$engineLine.also { }",
+            "ModelLoader(store" to "ModelLoader(factory = RECOGNIZER_FACTORY, store",
+        ),
+        "NO_PLACEHOLDER_LOCAL_ENGINE" to listOf(
+            engineLine to "localEngine = UnavailableSttEngine(SttError.LOCAL_MODEL_MISSING, \"x\")",
+            "serverEngine = UnavailableSttEngine(SttError.OTHER" to "serverEngine = UnavailableSttEngine(SttError.LOCAL_MODEL_MISSING",
+            "ids = UuidIdSource()" to "ids = UuidIdSource(), spare = UnavailableSttEngine(SttError.LOCAL_MODEL_MISSING, d)",
         ),
         "SERVER_ENGINE_IS_OTHER" to listOf(
             "SttError.OTHER" to "SttError.LOCAL_MODEL_MISSING",
             "serverEngine = UnavailableSttEngine(" to "serverEngine = FakeSttEngine(",
-            "SERVER_UNAVAILABLE_DETAIL)" to "LOCAL_UNAVAILABLE_DETAIL)",
+            "SERVER_UNAVAILABLE_DETAIL)" to "COMMIT_UNAVAILABLE_DETAIL)",
         ),
     )
 
@@ -128,7 +179,12 @@ internal class RootSlotsGateTest {
         "clock = SystemClockAdapter," to "clock = SystemClockAdapter, /* throw error( Formatter { RuleBasedFormatter() */",
         helperFun to "private const val NOTE = \"error( throw Formatter { RuleBasedFormatter()\"\n$helperFun",
         "micSource = micSource," to "micSource = micSource, // the real source drops in here",
-        committerLine to "committer =\n            UnavailableTextCommitter( )",
+        committerLine to "committer =\n            appTextCommitter( )",
+        "ids = UuidIdSource()," to "ids = UuidIdSource(), // UnavailableMicSource UnavailableTextCommitter UnavailableRecognizerFactory",
+        micDefaultLine to "private val micSource: MicSource =\n        appMicSource( ),",
+        storeLine to "val modelStore: LocalModelStore =\n        LocalModelStore(",
+        "factory = RECOGNIZER_FACTORY" to "factory =\n                RECOGNIZER_FACTORY",
+        engineLine to "localEngine = OnDeviceSttEngine(\n                ModelLoader(store = modelStore, factory = RECOGNIZER_FACTORY),\n            )",
     )
 
     private fun realCode(): String = AppSourceFiles.strip(AppSourceFiles.mainFile(rootPath)).code

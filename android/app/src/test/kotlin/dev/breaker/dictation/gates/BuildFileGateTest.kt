@@ -14,10 +14,12 @@ import org.junit.Test
  * (comments and string text are blanked first, so a word in a comment is not a use) and read
  * a text value from the list of literals the scanner keeps. They pin: the application id;
  * compileSdk, minSdk and targetSdk each assigned once, from the version
- * catalog entry of the same name; the dependency list is exactly the seven project
- * dependencies, the coroutines library and the unit test library, in any order, and nothing
+ * catalog entry of the same name; the dependency list is exactly the eleven project
+ * dependencies, the coroutines library, the unit test library and the speech engine release file as a
+ * run-time only dependency (the value it names is pinned by BuildFileSherpaGateTest), in any order, and nothing
  * is exposed with `api`; no repository is declared; unit tests include Android resources;
- * and the processor architecture is the one filter the file holds. The module registry and
+ * the processor architecture is the one filter the file holds; and the build states a version
+ * code (a whole number of 1 or more) and a version name (a plain, non-blank text) once each. The module registry and
  * the card list the same dependencies and are compared elsewhere; this gate pins the build
  * side to the literal list.
  */
@@ -33,13 +35,18 @@ internal class BuildFileGateTest {
         "implementation :android:modules:format",
         "implementation :android:modules:transport",
         "implementation :android:ui",
+        "implementation :android:modules:overlay",
+        "implementation :android:modules:stt-ondevice",
+        "implementation :shared:modules:ui-tokens",
+        "implementation :shared:modules:model-registry",
         "implementation libs.kotlinx.coroutines.core",
+        "runtimeOnly sherpaCoordinate",
         "testImplementation libs.junit",
     ).sorted()
 
     private val emptyLiteral: Regex = Regex("\"\"")
     private val projectLine: Regex = Regex("(\\w+)\\(project\\(\"\"\\)\\)")
-    private val libraryLine: Regex = Regex("(\\w+)\\((libs(?:\\.\\w+)+)\\)")
+    private val libraryLine: Regex = Regex("(\\w+)\\((libs(?:\\.\\w+)+|sherpaCoordinate)\\)")
 
     private fun buildFileText(): String {
         val script = File(AppSourceFiles.moduleRoot, "build.gradle.kts")
@@ -72,7 +79,22 @@ internal class BuildFileGateTest {
             found.add("isIncludeAndroidResources is not assigned true exactly once")
         }
         abiProblems(stripped, found)
+        versionProblems(stripped, found)
         return found
+    }
+
+    private fun versionProblems(stripped: Stripped, found: MutableList<String>) {
+        val code: String = stripped.code
+        val codes = Regex("\\bversionCode\\b").findAll(code).count()
+        val numbers = Regex("\\bversionCode\\s*=\\s*(\\d+)\\s*$", RegexOption.MULTILINE).findAll(code).toList()
+        if (codes != 1 || numbers.size != 1 || numbers[0].groupValues[1].toLong() < 1L) {
+            found.add("versionCode is not assigned a whole number of 1 or more exactly once")
+        }
+        val names = Regex("\\bversionName\\b").findAll(code).count()
+        val plain = Regex("\\bversionName\\s*=\\s*\"\"").findAll(code).toList()
+        if (names != 1 || plain.size != 1 || stripped.literals[literalIndex(code, plain[0].range.first)].isBlank()) {
+            found.add("versionName is not assigned a plain, non-blank text exactly once")
+        }
     }
 
     private fun idProblems(stripped: Stripped, found: MutableList<String>) {
@@ -162,7 +184,15 @@ internal class BuildFileGateTest {
         XmlSample("a second architecture", "ndk { abiFilters += \"arm64-v8a\" }", "ndk { abiFilters += \"arm64-v8a\"; abiFilters += \"x86_64\" }", "abiFilters:"),
         XmlSample("architecture filter removed", "ndk { abiFilters += \"arm64-v8a\" }", "", "abiFilters:"),
         XmlSample("unit test library moved", "testImplementation(libs.junit)", "implementation(libs.junit)", "dependency missing: testImplementation libs.junit", "dependency not expected: implementation libs.junit"),
+        XmlSample("speech engine file removed", "    runtimeOnly(sherpaCoordinate)\n", "", "dependency missing: runtimeOnly sherpaCoordinate"),
+        XmlSample("speech engine file in the compile path", "runtimeOnly(sherpaCoordinate)", "implementation(sherpaCoordinate)", "dependency missing: runtimeOnly sherpaCoordinate", "dependency not expected: implementation sherpaCoordinate"),
         XmlSample("ui dependency removed", "    implementation(project(\":android:ui\"))\n", "", "dependency missing: implementation :android:ui"),
+        XmlSample("overlay dependency removed", "    implementation(project(\":android:modules:overlay\"))\n", "", "dependency missing: implementation :android:modules:overlay"),
+        XmlSample("model registry dependency exposed", "implementation(project(\":shared:modules:model-registry\"))", "api(project(\":shared:modules:model-registry\"))", "api( is used", "dependency missing: implementation :shared:modules:model-registry", "dependency not expected: api :shared:modules:model-registry"),
+        XmlSample("version code removed", "        versionCode = 1\n", "", "versionCode is not assigned"),
+        XmlSample("version code zero", "versionCode = 1", "versionCode = 0", "versionCode is not assigned"),
+        XmlSample("version name removed", "        versionName = \"0.1.0-debug\"\n", "", "versionName is not assigned"),
+        XmlSample("version name blank", "versionName = \"0.1.0-debug\"", "versionName = \"\"", "versionName is not assigned"),
         XmlSample("extra project dependency", "implementation(project(\":android:ui\"))", "implementation(project(\":android:ui\"))\n    implementation(project(\":android:modules:phrases\"))", "dependency not expected: implementation :android:modules:phrases"),
         XmlSample("project dependency exposed", "implementation(project(\":android:ui\"))", "api(project(\":android:ui\"))", "api( is used", "dependency missing: implementation :android:ui", "dependency not expected: api :android:ui"),
         XmlSample("extra test library", "testImplementation(libs.junit)", "testImplementation(libs.junit)\n    testImplementation(libs.kotlinx.coroutines.test)", "dependency not expected: testImplementation libs.kotlinx.coroutines.test"),
@@ -215,9 +245,9 @@ internal class BuildFileGateTest {
         val rules: List<String> = listOf(
             "applicationId is", "applicationId is not assigned", "compileSdk is", "minSdk is", "targetSdk is", "is assigned 2 times",
             "isIncludeAndroidResources", "abiFilters is", "abiFilters:", "dependency missing", "dependency not expected", "api( is used",
-            "is not a project or catalog dependency", "dependencies: 2 blocks", "repositories:",
+            "is not a project or catalog dependency", "dependencies: 2 blocks", "repositories:", "versionCode is not", "versionName is not",
         )
-        assertEquals("app: the number of firing samples changed", 21, firing.size)
+        assertEquals("app: the number of firing samples changed", 29, firing.size)
         for (rule in rules) {
             assertTrue("app: no firing sample names the rule \"$rule\"", firing.any { sample -> sample.fragments.any { it.contains(rule) } })
         }

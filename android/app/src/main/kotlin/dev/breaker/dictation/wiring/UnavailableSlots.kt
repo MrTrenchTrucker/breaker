@@ -12,9 +12,6 @@ import dev.breaker.dictation.core.port.CommitOutcomeResult
 import dev.breaker.dictation.core.port.SttEngine
 import dev.breaker.dictation.core.port.TextCommitter
 
-/** What the on-device slot tells the user while no on-device engine is installed. */
-const val LOCAL_UNAVAILABLE_DETAIL: String = "On-device transcription is not available yet."
-
 /** What the server slot tells the user while no server engine is installed. */
 const val SERVER_UNAVAILABLE_DETAIL: String = "Server transcription is not available yet."
 

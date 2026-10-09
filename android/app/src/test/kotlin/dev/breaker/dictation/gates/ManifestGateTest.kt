@@ -7,7 +7,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The app manifest declares five permissions, the launcher activity and the one
+ * The app manifest declares six permissions, the launcher activity and the one
  * microphone service, and nothing else.
  *
  * Adding a permission, a receiver, a provider, a second service, an export, an
@@ -25,6 +25,7 @@ internal class ManifestGateTest {
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MICROPHONE",
         "android.permission.POST_NOTIFICATIONS",
+        "android.permission.SYSTEM_ALERT_WINDOW",
     )
 
     private val good: String = """<?xml version="1.0" encoding="utf-8"?>
@@ -34,6 +35,7 @@ internal class ManifestGateTest {
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <application
         android:name=".BreakerApp"
         android:networkSecurityConfig="@xml/network_security_config"
@@ -109,7 +111,8 @@ internal class ManifestGateTest {
     }
 
     private val more: List<XmlSample> = listOf(
-        XmlSample("a system alert window permission", "<application", "<uses-permission android:name=\"android.permission.SYSTEM_ALERT_WINDOW\" />\n    <application", "holds the element <uses-permission>", "android.permission.SYSTEM_ALERT_WINDOW"),
+        XmlSample("a second system alert window permission", "<application", "<uses-permission android:name=\"android.permission.SYSTEM_ALERT_WINDOW\" />\n    <application", "holds the element <uses-permission>"),
+        XmlSample("a camera permission", "<application", "<uses-permission android:name=\"android.permission.CAMERA\" />\n    <application", "holds the element <uses-permission>", "android.permission.CAMERA"),
         XmlSample("a network state permission", "<application", "<uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\" />\n    <application", "holds the element <uses-permission>", "android.permission.ACCESS_NETWORK_STATE"),
         XmlSample("a contacts permission", "<application", "<uses-permission android:name=\"android.permission.READ_CONTACTS\" />\n    <application", "holds the element <uses-permission>", "android.permission.READ_CONTACTS"),
         XmlSample("a second internet permission", "<application", "<uses-permission android:name=\"android.permission.INTERNET\" />\n    <application", "holds the element <uses-permission>"),
@@ -158,6 +161,7 @@ internal class ManifestGateTest {
         XmlSample("no record audio permission", "    <uses-permission android:name=\"android.permission.RECORD_AUDIO\" />\n", "", "lacks the element <uses-permission>", "android.permission.RECORD_AUDIO"),
         XmlSample("no foreground service permission", "    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE\" />\n", "", "lacks the element <uses-permission>", "android.permission.FOREGROUND_SERVICE\""),
         XmlSample("no notifications permission", "    <uses-permission android:name=\"android.permission.POST_NOTIFICATIONS\" />\n", "", "lacks the element <uses-permission>", "android.permission.POST_NOTIFICATIONS"),
+        XmlSample("no system alert window permission", "    <uses-permission android:name=\"android.permission.SYSTEM_ALERT_WINDOW\" />\n", "", "lacks the element <uses-permission>", "android.permission.SYSTEM_ALERT_WINDOW"),
         XmlSample("a permission renamed", "android.permission.FOREGROUND_SERVICE_MICROPHONE", "android.permission.FOREGROUND_SERVICE_CAMERA", "lacks the element <uses-permission>", "android.permission.FOREGROUND_SERVICE_MICROPHONE", "android.permission.FOREGROUND_SERVICE_CAMERA"),
         XmlSample("another namespace", "http://schemas.android.com/apk/res/android", "http://example.invalid/ns", "attribute xmlns:android"),
     )
@@ -172,14 +176,14 @@ internal class ManifestGateTest {
     )
 
     @Test
-    fun `the real manifest declares exactly the five permissions, the launcher activity and the one service`() {
+    fun `the real manifest declares exactly the six permissions, the launcher activity and the one service`() {
         val text: String = AppSourceFiles.mainFile("AndroidManifest.xml")
         assertTrue("app: src/main/AndroidManifest.xml is empty", text.isNotBlank())
         val declared: List<String> = XmlTree.parse(text).children
             .filter { it.name == "uses-permission" }
             .map { it.attributes["android:name"] ?: "" }
             .sorted()
-        assertEquals("app: the manifest permissions are not the five allowed ones", permissions.sorted(), declared)
+        assertEquals("app: the manifest permissions are not the six allowed ones", permissions.sorted(), declared)
         val problems: List<String> = manifestProblems(text)
         assertEquals("app: the manifest differs from its allow-list: $problems", emptyList<String>(), problems)
     }

@@ -59,7 +59,7 @@ fun serviceActionOf(action: String?): ServiceAction = when (action) {
 
 /** The sentences the service controller answers with. */
 object ServiceSentences {
-    const val MIC_PERMISSION_MISSING: String = "Breaker cannot listen yet because microphone access is off."
-    const val ARM_REFUSED: String = "Android did not let Breaker start listening just now."
+    const val MIC_PERMISSION_MISSING: String = "Breaker cannot listen because microphone access is off. Turn it on in Settings, Apps, Breaker, Permissions."
+    const val ARM_REFUSED: String = "Android did not let Breaker start listening. Open Breaker and try again."
     const val COLD_START_REFUSED: String = "Open Breaker once to switch dictation on."
 }

@@ -12,7 +12,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DictationRunnerEndTest {
-    private val localMissing = UnavailableSttEngine(SttError.LOCAL_MODEL_MISSING, LOCAL_UNAVAILABLE_DETAIL)
+    private val localMissing = UnavailableSttEngine(SttError.LOCAL_MODEL_MISSING, STAND_IN_LOCAL_DETAIL)
 
     @Test
     fun `cancel while listening stops the capture once and keeps the service armed`() {

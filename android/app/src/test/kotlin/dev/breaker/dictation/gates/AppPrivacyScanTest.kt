@@ -5,17 +5,19 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The service and wiring code logs nothing, starts no thread, timer or lock, reads no
+ * The service, wiring and host code logs nothing, starts no thread, timer or lock, reads no
  * clock and draws no random number; no main string says an http:// address; no main text
- * uses the one word the project bans for putting text into a field.
+ * uses the one word the project bans for putting text into a field. One named exception:
+ * `host/AppThreads.kt` is the only file that may name a handler, a looper, an executor or a
+ * thread, and it is still held to every other rule.
  *
  * Dictated text, audio and transcripts must never reach a log, a print or a toast, and
  * the new code does its waiting through signals, not through clocks and threads. The scan
  * reads code only: comments, string literals and names in backticks are blanked first, a
  * template hole is code and is kept. It is text, not proof: a path to the outside that
  * uses none of these names is not seen here, and a URL built from pieces is not a literal.
- * The files under `service/` and `wiring/` are scanned when they exist; a folder that is
- * not there is not a failure.
+ * The files under `service/`, `wiring/` and `host/` are scanned when they exist; a folder
+ * that is not there is not a failure.
  */
 internal class AppPrivacyScanTest {
 
@@ -52,6 +54,10 @@ internal class AppPrivacyScanTest {
 
     /** The one exception, by name: the application class may keep a single fixed-shape warning log (see [logProblems]). */
     private val logException: String = "BreakerApp.kt"
+
+    /** The other named exception: this one file may name the thread types, and no other rule is lifted for it. */
+    private val threadFile: String = "host/AppThreads.kt"
+    private val threadRules: Set<String> = setOf("Handler", "Executor", "Thread")
 
     private val quiet: Map<String, String> = mapOf(
         "a line comment" to "// Log.d println(x) Thread.sleep(1) synchronized Random currentTimeMillis\nobject A",
@@ -117,13 +123,15 @@ internal class AppPrivacyScanTest {
         "in capitals" to "object A { val x = 1 } // #W#",
     )
 
-    /** The files the code rules read: everything under service/ and wiring/, and the two files that predate them. */
+    /** The files the code rules read: everything under service/, wiring/ and host/, and the two files that predate them. */
     private fun scanned(sources: Map<String, String>): Map<String, String> =
-        sources.filterKeys { it.startsWith("service/") || it.startsWith("wiring/") || it in predating }
+        sources.filterKeys { it.startsWith("service/") || it.startsWith("wiring/") || it.startsWith("host/") || it in predating }
 
     /** One line per file and rule hit in the scanned files; the application class is not read for the Log rule (see [logProblems]). */
     private fun codeOffences(sources: Map<String, String>): List<String> =
-        AppSourceFiles.offences(scanned(sources), ruleMap).filterNot { it.startsWith("$logException: Log x") }
+        AppSourceFiles.offences(scanned(sources), ruleMap)
+            .filterNot { it.startsWith("$logException: Log x") }
+            .filterNot { line -> threadRules.any { line.startsWith("$threadFile: $it x") } }
 
     private fun httpOffences(sources: Map<String, String>): List<String> {
         val found: MutableList<String> = ArrayList()
@@ -165,9 +173,9 @@ internal class AppPrivacyScanTest {
     }
 
     @Test
-    fun `no service or wiring file logs, prints, starts a thread, timer or lock, reads a clock or draws a random number`() {
+    fun `no service, wiring or host file logs, prints, starts a thread, timer or lock, reads a clock or draws a random number`() {
         assertEquals(
-            "app: a service or wiring file could send text out, wait on a clock or start a thread",
+            "app: a service, wiring or host file could send text out, wait on a clock or start a thread",
             emptyList<String>(),
             codeOffences(mainKotlin()),
         )
@@ -217,16 +225,35 @@ internal class AppPrivacyScanTest {
     }
 
     @Test
-    fun `only service, wiring and the two older files are scanned, and a folder that is not there is not a failure`() {
+    fun `only service, wiring, host and the two older files are scanned, and a folder that is not there is not a failure`() {
         val bad = "object A { fun f() { Log.d(t, m) } }"
         val none: Map<String, String> = mapOf("BreakerApp.kt" to "object A", "AppStartPurge.kt" to "object B", "Other.kt" to bad)
         assertEquals("app: a tree without service and wiring folders failed the scan", emptyList<String>(), codeOffences(none))
         assertEquals("app: a hit in service/ was not reported", listOf("service/A.kt: Log x1"), codeOffences(mapOf("service/A.kt" to bad)))
         assertEquals("app: a hit in wiring/ was not reported", listOf("wiring/A.kt: Log x1"), codeOffences(mapOf("wiring/A.kt" to bad)))
         assertEquals("app: a hit in a nested wiring folder was not reported", listOf("wiring/deep/A.kt: Log x1"), codeOffences(mapOf("wiring/deep/A.kt" to bad)))
+        assertEquals("app: a hit in host/ was not reported", listOf("host/A.kt: Log x1"), codeOffences(mapOf("host/A.kt" to bad)))
         assertEquals("app: a Thread in BreakerApp.kt was not reported", listOf("BreakerApp.kt: Thread x1"), codeOffences(mapOf("BreakerApp.kt" to "object A { val t = Thread { } }")))
         assertEquals("app: a Log in AppStartPurge.kt was not reported", listOf("AppStartPurge.kt: Log x1"), codeOffences(mapOf("AppStartPurge.kt" to bad)))
         assertEquals("app: a Log in BreakerApp.kt was left to the log check", emptyList<String>(), codeOffences(mapOf("BreakerApp.kt" to bad)))
+    }
+
+    @Test
+    fun `only host AppThreads may name a handler, a looper, an executor or a thread, and it is held to every other rule`() {
+        val threads = "object A { val h = Handler(Looper.getMainLooper()); val e = Executors.newSingleThreadExecutor(); val t = Thread { } }"
+        assertEquals("app: the thread names in host/AppThreads.kt were reported", emptyList<String>(), codeOffences(mapOf(threadFile to threads)))
+        for (other in listOf("host/TileHost.kt", "host/OverlayTilePort.kt", "wiring/AppThreads.kt", "service/AppThreads.kt", "host/deep/AppThreads.kt")) {
+            val found: Set<String> = codeOffences(mapOf(other to threads)).toSet()
+            assertEquals("app: the thread names in $other were not reported", setOf("$other: Handler x2", "$other: Thread x1", "$other: Executor x1"), found)
+        }
+        val lowercase = "object A { fun f() { thread { } } }"
+        assertEquals("app: a thread function in host/AppThreads.kt was let off", listOf("$threadFile: thread function x1"), codeOffences(mapOf(threadFile to lowercase)))
+        val others = "object A { val l = Log.d(t, m); val s = sleep(1); val c = System.currentTimeMillis(); val x = Timer(); val g = synchronized(this) { 1 } }"
+        val expected: Set<String> = setOf("Log", "sleep call", "clock read", "Timer", "synchronized").map { "$threadFile: $it x1" }.toSet()
+        assertEquals("app: host/AppThreads.kt was let off more than the thread names", expected, codeOffences(mapOf(threadFile to others)).toSet())
+        val real: String = mainKotlin().getValue(threadFile)
+        val named: Set<String> = AppSourceFiles.offences(mapOf(threadFile to real), ruleMap.filterKeys { it in threadRules }).map { it.substringAfter(": ").substringBefore(" x") }.toSet()
+        assertEquals("app: host/AppThreads.kt must name exactly the types the exception lifts", threadRules, named)
     }
 
     @Test

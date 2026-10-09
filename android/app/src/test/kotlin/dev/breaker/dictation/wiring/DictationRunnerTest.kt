@@ -16,7 +16,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DictationRunnerTest {
-    private val localMissing = UnavailableSttEngine(SttError.LOCAL_MODEL_MISSING, LOCAL_UNAVAILABLE_DETAIL)
+    private val localMissing = UnavailableSttEngine(SttError.LOCAL_MODEL_MISSING, STAND_IN_LOCAL_DETAIL)
 
     @Test
     fun `begin on an armed service starts one capture and leaves the service alone`() {
@@ -115,7 +115,7 @@ class DictationRunnerTest {
         val rig = Rig(localEngine = localMissing)
         rig.runner.begin()
         rig.speak()
-        assertEquals("app: finish over the unavailable slot should carry the slot's sentence", FinishResult.Failed(LOCAL_UNAVAILABLE_DETAIL), rig.runner.finish())
+        assertEquals("app: finish over the unavailable slot should carry the slot's sentence", FinishResult.Failed(STAND_IN_LOCAL_DETAIL), rig.runner.finish())
         assertEquals("app: a failed finish should still stop the capture once", 1, rig.audio.stops)
         assertEquals("app: a failed finish should leave the session idle", DictationState.IDLE, rig.runner.sessionState)
         assertTrue("app: a failed finish must leave the service armed", rig.controller.isArmed)

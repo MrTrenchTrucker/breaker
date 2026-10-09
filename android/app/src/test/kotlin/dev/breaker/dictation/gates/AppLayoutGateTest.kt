@@ -27,12 +27,15 @@ internal class AppLayoutGateTest {
         "service/ServiceStartDecision.kt", "service/ServiceStartHandler.kt", "service/ServiceTypes.kt",
         "wiring/DictationComponent.kt", "wiring/DictationRunner.kt", "wiring/LazyHistoryStore.kt",
         "wiring/UnavailableSlots.kt", "wiring/UuidIdSource.kt",
+        "wiring/TilePorts.kt", "wiring/TileStateMap.kt", "wiring/TileCoordinator.kt", "wiring/TakePortAdapter.kt", "wiring/NoopPorts.kt",
+        "wiring/ArmedSwitch.kt", "wiring/LaunchRule.kt", "wiring/OffStore.kt", "wiring/ModelSupport.kt", "wiring/Swaps.kt",
     )
 
     /** Main files that are the layer over the platform and name Android types. */
     private val androidFiles: Set<String> = setOf(
         "BreakerApp.kt", "SettingsLauncherActivity.kt", "service/AndroidMicPermission.kt",
         "service/AndroidServiceLauncher.kt", "service/DictationForegroundService.kt", "service/DictationNotification.kt",
+        "service/ModelNotifications.kt", "host/AppThreads.kt", "host/OverlayTilePort.kt", "host/TileHost.kt",
     )
 
     private val softCap: Int = 300

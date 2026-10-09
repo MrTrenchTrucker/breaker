@@ -9,9 +9,11 @@ import org.junit.Test
 /**
  * Pins the app wiring that no JVM test can run, because it lives in an Android class or behind a
  * lambda nothing calls: how BreakerApp hands the history to the root and builds the microphone
- * service controller, when the launcher activity switches the service on, what the root's
- * never-armed controller answers, where the server address comes from and which history store and
- * controller reach the dictation component. The gate reads the real BreakerApp.kt,
+ * service controller, the switch and the tile host, the one state observer that keeps them in step
+ * with the service, when the launcher activity switches the service on (only through the switch,
+ * which does not arm after a switch-off the user chose), what the root's never-armed controller
+ * answers, where the server address comes from and which history store and controller reach the
+ * dictation component. The gate reads the real BreakerApp.kt,
  * SettingsLauncherActivity.kt and BreakerCompositionRoot.kt with comments and literal text removed
  * by the shared scanner. Each rule holds on the real file, is broken by at least two edited
  * samples, and stays quiet on harmless edits; an edit whose target text is missing fails by name,
@@ -43,9 +45,19 @@ internal class AppWiringGateTest {
         Rule("PURGE_CALLS_PURGE_EXPIRED", app, """\bpurge\s*=\s*\{\s*history\s*\.\s*purgeExpired\s*\(\s*\)\s*\}"""),
         Rule("ONCREATE_CALLS_SUPER_THEN_PURGE", app, """\boverride\s+fun\s+onCreate\s*\(\s*\)\s*\{\s*super\s*\.\s*onCreate\s*\(\s*\)\s*scheduleAppStartPurge\s*\("""),
         Rule("NO_OWN_SCOPE_IN_APP", app, """\bDispatchers\b|\bCoroutineScope\s*\(""", times = 0),
-        Rule("ONSTART_CALLS_SUPER_THEN_ARMS", activity, """\boverride\s+fun\s+onStart\s*\(\s*\)\s*\{\s*super\s*\.\s*onStart\s*\(\s*\)\s*\(\s*applicationContext\s+as\s+BreakerApp\s*\)\s*\.\s*dictationServiceController\s*\.\s*arm\s*\(\s*\)\s*\}"""),
-        Rule("ARM_IS_CALLED_ONCE", activity, """\barm\s*\("""),
-        Rule("CONTROLLER_IS_REACHED_ONCE", activity, """\bdictationServiceController\b"""),
+        Rule("SWITCH_IS_OVER_THE_CONTROLLER_AND_THE_OFF_FILE", app, """\bval\s+armedSwitch\s*:\s*ArmedSwitch\s+by\s+lazy\s*\{\s*ArmedSwitch\s*\(\s*dictationServiceController\s*,\s*FileOffStore\s*\(\s*File\s*\(\s*filesDir\s*,\s*""\s*\)\s*\)\s*\)\s*\}"""),
+        Rule("TILE_HOST_IS_LAZY_OVER_THE_ROOT", app, """\bval\s+tileHost\s*:\s*TileHost\s+by\s+lazy\s*\{\s*TileHost\s*\(\s*applicationContext\s*,\s*compositionRoot\s*,\s*armedSwitch\s*::\s*isOn\s*,?\s*\)\s*\}"""),
+        Rule("OBSERVER_IS_SET_ONCE", app, """\bsetStateObserver\b"""),
+        Rule("OBSERVER_IS_SET_IN_ONCREATE_AFTER_THE_PURGE", app, """\boverride\s+fun\s+onCreate\s*\(\s*\)\s*\{\s*super\s*\.\s*onCreate\s*\(\s*\)\s*scheduleAppStartPurge\s*\([\s\S]*?\)\s*dictationServiceController\s*\.\s*setStateObserver\s*\{"""),
+        Rule("OBSERVER_FEEDS_THE_SWITCH", app, """\bsetStateObserver\s*\{\s*armed\s*,\s*reason\s*->\s*armedSwitch\s*\.\s*onStateChanged\s*\(\s*armed\s*,\s*reason\s*\)"""),
+        Rule("OBSERVER_THEN_FEEDS_THE_TILE", app, """\barmedSwitch\s*\.\s*onStateChanged\s*\(\s*armed\s*,\s*reason\s*\)\s*tileHost\s*\.\s*onArmedChanged\s*\(\s*armed\s*\)\s*\}"""),
+        Rule("ONSTART_SWITCHES_ON_FOR_THE_ICON_AND_ARMS_AT_START_OTHERWISE", activity, """\boverride\s+fun\s+onStart\s*\(\s*\)\s*\{\s*super\s*\.\s*onStart\s*\(\s*\)\s*val\s+app\s*=\s*applicationContext\s+as\s+BreakerApp\s+val\s+launch\s*=\s*intent\s+if\s*\(\s*isIconLaunch\s*\(\s*launch\s*\?\s*\.\s*action\s*,\s*launch\s*\?\s*\.\s*categories\s*\.\s*orEmpty\s*\(\s*\)\s*,\s*launch\s*\?\s*\.\s*getStringExtra\s*\(\s*NotificationRoute\s*\.\s*EXTRA_ROUTE\s*\)\s*\)\s*\)\s*\{\s*app\s*\.\s*armedSwitch\s*\.\s*switchOn\s*\(\s*\)\s*\}\s*else\s*\{\s*app\s*\.\s*armedSwitch\s*\.\s*armAtStart\s*\(\s*\)\s*\}\s*app\s*\.\s*tileHost\s*\.\s*onLauncherVisible\s*\(\s*\)\s*\}"""),
+        Rule("ACTIVITY_REACHES_THE_TILE_HOST_ONLY_TO_DOWNLOAD_AND_TO_SHOW_AGAIN", activity, """\btileHost\s*\.\s*(?!requestDownload\b|onLauncherVisible\b)\w+""", times = 0),
+        Rule("ARM_AT_START_IS_CALLED_ONCE", activity, """\barmAtStart\s*\("""),
+        Rule("SWITCH_IS_REACHED_IN_THE_TWO_BRANCHES_ONLY", activity, """\barmedSwitch\b""", times = 2),
+        Rule("SWITCH_ON_IS_CALLED_ONCE", activity, """\bswitchOn\s*\("""),
+        Rule("NO_UNCONDITIONAL_ARM_IN_THE_ACTIVITY", activity, """\barm\s*\(""", times = 0),
+        Rule("CONTROLLER_IS_NOT_REACHED_BY_THE_ACTIVITY", activity, """\bdictationServiceController\b""", times = 0),
         Rule("NEVER_ARMED_PERMISSION_IS_OFF", root, """\bpermission\s*=\s*MicPermission\s*\{\s*false\s*\}"""),
         Rule("NEVER_ARMED_LAUNCH_REFUSES", root, """\boverride\s+fun\s+launch\s*\(\s*\)\s*:\s*LaunchResult\s*=\s*LaunchResult\s*\.\s*Refused\b"""),
         Rule("TWO_ARGUMENT_CONSTRUCTOR_NEVER_ARMED", root, """\bthis\s*\(\s*filesDir\s*,\s*historyStore\s*,\s*neverArmedController\s*\(\s*\)\s*\)"""),
@@ -55,7 +67,8 @@ internal class AppWiringGateTest {
         Rule("COMPONENT_GETS_SERVICE_CONTROLLER", root, """\bcontroller\s*=\s*serviceController(?=\s*[,)])"""),
     )
 
-    private val onStartArm = "(applicationContext as BreakerApp).dictationServiceController.arm()"
+    private val onStartArm = "app.armedSwitch.armAtStart()"
+    private val stopSwitch = "override fun onStop() {\n        (applicationContext as BreakerApp).armedSwitch.switchOff()\n    }\n\n    override fun onStart() {"
 
     private val firing: List<Sample> = listOf(
         Sample("HISTORY_HANDED_AS_SUPPLIER", app, "{ history }", "history"),
@@ -87,22 +100,57 @@ internal class AppWiringGateTest {
         Sample("ONCREATE_CALLS_SUPER_THEN_PURGE", app, "override fun onCreate()", "fun onCreateLater()"),
         Sample("NO_OWN_SCOPE_IN_APP", app, "createPurgeScope()", "CoroutineScope(Dispatchers.Default)"),
         Sample("NO_OWN_SCOPE_IN_APP", app, "override fun onCreate() {", "private val extra = Dispatchers.IO\n\n    override fun onCreate() {"),
-        Sample("ONSTART_CALLS_SUPER_THEN_ARMS", activity, onStartArm, ""),
-        Sample("ONSTART_CALLS_SUPER_THEN_ARMS", activity, "super.onStart()", ""),
-        Sample("ONSTART_CALLS_SUPER_THEN_ARMS", activity, "super.onStart()\n        $onStartArm", "$onStartArm\n        super.onStart()"),
-        Sample("ONSTART_CALLS_SUPER_THEN_ARMS", activity, "override fun onStart()", "override fun onResume()"),
-        Sample("ONSTART_CALLS_SUPER_THEN_ARMS", activity, "dictationServiceController.arm()", "dictationServiceController.coldStart()"),
-        Sample("ONSTART_CALLS_SUPER_THEN_ARMS", activity, "dictationServiceController.arm()", "dictationServiceController.arm().also { }"),
-        Sample("ARM_IS_CALLED_ONCE", activity, "super.onCreate(savedInstanceState)", "super.onCreate(savedInstanceState)\n        $onStartArm"),
-        Sample("ARM_IS_CALLED_ONCE", activity, "override fun onStart() {", "override fun onResume() {\n        $onStartArm\n    }\n\n    override fun onStart() {"),
-        Sample("ARM_IS_CALLED_ONCE", activity, "dictationServiceController.arm()", "dictationServiceController"),
-        Sample(
-            "CONTROLLER_IS_REACHED_ONCE",
-            activity,
-            "override fun onStart() {",
-            "override fun onStop() {\n        (applicationContext as BreakerApp).dictationServiceController.disarm(null)\n    }\n\n    override fun onStart() {",
-        ),
-        Sample("CONTROLLER_IS_REACHED_ONCE", activity, "super.onCreate(savedInstanceState)", "super.onCreate(savedInstanceState)\n        $onStartArm.isArmed"),
+        Sample("SWITCH_IS_OVER_THE_CONTROLLER_AND_THE_OFF_FILE", app, "ArmedSwitch(dictationServiceController,", "ArmedSwitch(neverArmed,"),
+        Sample("SWITCH_IS_OVER_THE_CONTROLLER_AND_THE_OFF_FILE", app, "File(filesDir, \"dictation-off\")", "File(cacheDir, \"dictation-off\")"),
+        Sample("SWITCH_IS_OVER_THE_CONTROLLER_AND_THE_OFF_FILE", app, "FileOffStore(", "MemoryOffStore("),
+        Sample("TILE_HOST_IS_LAZY_OVER_THE_ROOT", app, "TileHost(applicationContext, compositionRoot, armedSwitch::isOn)", "TileHost(this, compositionRoot, armedSwitch::isOn)"),
+        Sample("TILE_HOST_IS_LAZY_OVER_THE_ROOT", app, "armedSwitch::isOn", "armedSwitch::switchOn"),
+        Sample("TILE_HOST_IS_LAZY_OVER_THE_ROOT", app, ", armedSwitch::isOn)", ", { true })"),
+        Sample("TILE_HOST_IS_LAZY_OVER_THE_ROOT", app, "compositionRoot, armedSwitch::isOn)", "compositionRoot)"),
+        Sample("TILE_HOST_IS_LAZY_OVER_THE_ROOT", app, "TileHost by lazy {", "TileHost = run {"),
+        Sample("OBSERVER_IS_SET_ONCE", app, "dictationServiceController.setStateObserver {", "dictationServiceController.setEndedListener {"),
+        Sample("OBSERVER_IS_SET_ONCE", app, "scheduleAppStartPurge(\n            purgeScope,", "dictationServiceController.setStateObserver { _, _ -> }\n        scheduleAppStartPurge(\n            purgeScope,"),
+        Sample("OBSERVER_IS_SET_IN_ONCREATE_AFTER_THE_PURGE", app, "dictationServiceController.setStateObserver {", "compositionRoot.setStateObserver {"),
+        Sample("OBSERVER_IS_SET_IN_ONCREATE_AFTER_THE_PURGE", app, "scheduleAppStartPurge(", "launchPurge("),
+        Sample("OBSERVER_IS_SET_IN_ONCREATE_AFTER_THE_PURGE", app, "super.onCreate()", "super.onCreate()\n        history.hashCode()"),
+        Sample("OBSERVER_FEEDS_THE_SWITCH", app, "armedSwitch.onStateChanged(armed, reason)", "armedSwitch.onStateChanged(reason, armed)"),
+        Sample("OBSERVER_FEEDS_THE_SWITCH", app, "armedSwitch.onStateChanged(armed, reason)", "armedSwitch.switchOff()"),
+        Sample("OBSERVER_FEEDS_THE_SWITCH", app, "{ armed, reason ->", "{ armed, _ ->"),
+        Sample("OBSERVER_THEN_FEEDS_THE_TILE", app, "tileHost.onArmedChanged(armed)", "tileHost.onArmedChanged(true)"),
+        Sample("OBSERVER_THEN_FEEDS_THE_TILE", app, "            tileHost.onArmedChanged(armed)\n", ""),
+        Sample("OBSERVER_THEN_FEEDS_THE_TILE", app, "armedSwitch.onStateChanged(armed, reason)\n            tileHost.onArmedChanged(armed)", "tileHost.onArmedChanged(armed)\n            armedSwitch.onStateChanged(armed, reason)"),
+        Sample("ONSTART_SWITCHES_ON_FOR_THE_ICON_AND_ARMS_AT_START_OTHERWISE", activity, onStartArm, ""),
+        Sample("ONSTART_SWITCHES_ON_FOR_THE_ICON_AND_ARMS_AT_START_OTHERWISE", activity, "super.onStart()", ""),
+        Sample("ONSTART_SWITCHES_ON_FOR_THE_ICON_AND_ARMS_AT_START_OTHERWISE", activity, "super.onStart()\n        val app = applicationContext as BreakerApp\n", "val app = applicationContext as BreakerApp\n        super.onStart()\n"),
+        Sample("ONSTART_SWITCHES_ON_FOR_THE_ICON_AND_ARMS_AT_START_OTHERWISE", activity, "app.tileHost.onLauncherVisible()", ""),
+        Sample("ONSTART_SWITCHES_ON_FOR_THE_ICON_AND_ARMS_AT_START_OTHERWISE", activity, "app.tileHost.onLauncherVisible()", "app.tileHost.onArmedChanged(true)"),
+        Sample("ONSTART_SWITCHES_ON_FOR_THE_ICON_AND_ARMS_AT_START_OTHERWISE", activity, "val launch = intent\n", "val launch = intent\n        app.tileHost.onLauncherVisible()\n"),
+        Sample("ONSTART_SWITCHES_ON_FOR_THE_ICON_AND_ARMS_AT_START_OTHERWISE", activity, "app.tileHost.onLauncherVisible()", "if (app.armedSwitch.isOn()) app.tileHost.onLauncherVisible()"),
+        Sample("ONSTART_SWITCHES_ON_FOR_THE_ICON_AND_ARMS_AT_START_OTHERWISE", activity, "override fun onStart()", "override fun onResume()"),
+        Sample("ONSTART_SWITCHES_ON_FOR_THE_ICON_AND_ARMS_AT_START_OTHERWISE", activity, "armedSwitch.armAtStart()", "armedSwitch.switchOn()"),
+        Sample("ONSTART_SWITCHES_ON_FOR_THE_ICON_AND_ARMS_AT_START_OTHERWISE", activity, "app.armedSwitch.switchOn()", "app.armedSwitch.armAtStart()"),
+        Sample("ONSTART_SWITCHES_ON_FOR_THE_ICON_AND_ARMS_AT_START_OTHERWISE", activity, "if (isIconLaunch(", "if (!isIconLaunch("),
+        Sample("ONSTART_SWITCHES_ON_FOR_THE_ICON_AND_ARMS_AT_START_OTHERWISE", activity, "launch?.getStringExtra(NotificationRoute.EXTRA_ROUTE)", "null"),
+        Sample("ONSTART_SWITCHES_ON_FOR_THE_ICON_AND_ARMS_AT_START_OTHERWISE", activity, "launch?.action", "launch?.type"),
+        Sample("ONSTART_SWITCHES_ON_FOR_THE_ICON_AND_ARMS_AT_START_OTHERWISE", activity, "} else {", "}\n        run {"),
+        Sample("ONSTART_SWITCHES_ON_FOR_THE_ICON_AND_ARMS_AT_START_OTHERWISE", activity, "val launch = intent", "val launch = intent.also { }"),
+        Sample("SWITCH_ON_IS_CALLED_ONCE", activity, "super.onCreate(savedInstanceState)", "super.onCreate(savedInstanceState)\n        (applicationContext as BreakerApp).armedSwitch.switchOn()"),
+        Sample("SWITCH_ON_IS_CALLED_ONCE", activity, "app.armedSwitch.armAtStart()", "app.armedSwitch.switchOn()"),
+        Sample("SWITCH_ON_IS_CALLED_ONCE", activity, "app.armedSwitch.switchOn()", "app.armedSwitch"),
+        Sample("ONSTART_SWITCHES_ON_FOR_THE_ICON_AND_ARMS_AT_START_OTHERWISE", activity, "armedSwitch.armAtStart()", "armedSwitch.armAtStart().also { }"),
+        Sample("ONSTART_SWITCHES_ON_FOR_THE_ICON_AND_ARMS_AT_START_OTHERWISE", activity, "armedSwitch.armAtStart()", "dictationServiceController.arm()"),
+        Sample("ARM_AT_START_IS_CALLED_ONCE", activity, "super.onCreate(savedInstanceState)", "super.onCreate(savedInstanceState)\n        $onStartArm"),
+        Sample("ARM_AT_START_IS_CALLED_ONCE", activity, "override fun onStart() {", "override fun onResume() {\n        $onStartArm\n    }\n\n    override fun onStart() {"),
+        Sample("ARM_AT_START_IS_CALLED_ONCE", activity, "armedSwitch.armAtStart()", "armedSwitch"),
+        Sample("ACTIVITY_REACHES_THE_TILE_HOST_ONLY_TO_DOWNLOAD_AND_TO_SHOW_AGAIN", activity, "app.tileHost.onLauncherVisible()", "app.tileHost.onArmedChanged(true)"),
+        Sample("ACTIVITY_REACHES_THE_TILE_HOST_ONLY_TO_DOWNLOAD_AND_TO_SHOW_AGAIN", activity, "super.onCreate(savedInstanceState)", "super.onCreate(savedInstanceState)\n        (applicationContext as BreakerApp).tileHost.onArmedChanged(true)"),
+        Sample("ACTIVITY_REACHES_THE_TILE_HOST_ONLY_TO_DOWNLOAD_AND_TO_SHOW_AGAIN", activity, "app.tileHost.requestDownload()", "app.tileHost.openLauncher(null)"),
+        Sample("SWITCH_IS_REACHED_IN_THE_TWO_BRANCHES_ONLY", activity, "override fun onStart() {", stopSwitch),
+        Sample("SWITCH_IS_REACHED_IN_THE_TWO_BRANCHES_ONLY", activity, "super.onCreate(savedInstanceState)", "super.onCreate(savedInstanceState)\n        $onStartArm.hashCode()"),
+        Sample("NO_UNCONDITIONAL_ARM_IN_THE_ACTIVITY", activity, "super.onCreate(savedInstanceState)", "super.onCreate(savedInstanceState)\n        arm()"),
+        Sample("NO_UNCONDITIONAL_ARM_IN_THE_ACTIVITY", activity, "armedSwitch.armAtStart()", "armedSwitch.armAtStart()\n        controller.arm()"),
+        Sample("CONTROLLER_IS_NOT_REACHED_BY_THE_ACTIVITY", activity, "override fun onStart() {", "override fun onStop() {\n        (applicationContext as BreakerApp).dictationServiceController.disarm(null)\n    }\n\n    override fun onStart() {"),
+        Sample("CONTROLLER_IS_NOT_REACHED_BY_THE_ACTIVITY", activity, "super.onCreate(savedInstanceState)", "super.onCreate(savedInstanceState)\n        (applicationContext as BreakerApp).dictationServiceController.isArmed"),
         Sample("NEVER_ARMED_PERMISSION_IS_OFF", root, "MicPermission { false }", "MicPermission { true }"),
         Sample("NEVER_ARMED_PERMISSION_IS_OFF", root, "MicPermission { false }", "MicPermission { granted }"),
         Sample("NEVER_ARMED_PERMISSION_IS_OFF", root, "permission = MicPermission { false },", ""),
@@ -131,9 +179,18 @@ internal class AppWiringGateTest {
         Quiet(app, "purge = { history.purgeExpired() },", "purge = {\n                history.purgeExpired()\n            },"),
         Quiet(app, "\"start-up purge failed\"", "\"start-up purge failed Dispatchers CoroutineScope(\""),
         Quiet(activity, "super.onStart()", "super . onStart ( )"),
-        Quiet(activity, "dictationServiceController.arm()", "dictationServiceController\n            .arm()"),
-        Quiet(activity, "super.onStart()", "super.onStart() // arm( dictationServiceController"),
+        Quiet(activity, "app.tileHost.onLauncherVisible()", "app\n            .tileHost\n            .onLauncherVisible()"),
+        Quiet(activity, "app.tileHost.onLauncherVisible()", "app.tileHost.onLauncherVisible() // tileHost.onArmedChanged(true)"),
+        Quiet(app, "armedSwitch::isOn", "armedSwitch :: isOn /* armedSwitch::switchOn */"),
+        Quiet(activity, "armedSwitch.armAtStart()", "armedSwitch\n            .armAtStart()"),
+        Quiet(activity, "app.armedSwitch.switchOn()", "app.armedSwitch\n                .switchOn()"),
+        Quiet(activity, "launch?.action,", "launch ?. action ,"),
+        Quiet(activity, "super.onStart()", "super.onStart() // switchOn( armedSwitch isIconLaunch("),
+        Quiet(activity, "super.onStart()", "super.onStart() // arm( dictationServiceController armedSwitch armAtStart("),
         Quiet(activity, "override fun onStart() {", "override fun onStart() { /* arm( dictationServiceController */"),
+        Quiet(app, "armedSwitch.onStateChanged(armed, reason)", "armedSwitch.onStateChanged( armed, reason ) // setStateObserver"),
+        Quiet(app, "tileHost.onArmedChanged(armed)", "tileHost\n                .onArmedChanged(armed)"),
+        Quiet(app, "\"dictation-off\"", "\"dictation-off setStateObserver tileHost\""),
         Quiet(root, "MicPermission { false }", "MicPermission {\n            false\n        }"),
         Quiet(root, "history = historyStore,", "history =\n            historyStore, // the store"),
         Quiet(root, "controller = serviceController,", "controller = serviceController, // the controller"),
@@ -200,6 +257,14 @@ internal class AppWiringGateTest {
                 )
             }
         }
+    }
+
+    @Test
+    fun `the off file is the one named dictation-off and a rename is seen`() {
+        val named = AppSourceFiles.strip(AppSourceFiles.mainFile(app)).literals
+        assertTrue("app: BreakerApp.kt does not name the off file dictation-off, its texts are $named", "dictation-off" in named)
+        val renamed = AppSourceFiles.strip(edit(AppSourceFiles.mainFile(app), "\"dictation-off\"", "\"switch-off\"")).literals
+        assertFalse("app: a renamed off file was still read as dictation-off", "dictation-off" in renamed)
     }
 
     @Test

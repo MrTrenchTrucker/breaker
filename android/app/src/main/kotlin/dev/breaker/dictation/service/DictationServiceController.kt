@@ -20,6 +20,7 @@ class DictationServiceController(
 ) {
     private val armed = AtomicBoolean(false)
     private val endedListener = AtomicReference<(() -> Unit)?>(null)
+    private val stateObserver = AtomicReference<((armed: Boolean, reason: DisarmReason?) -> Unit)?>(null)
 
     /** True while the service is switched on. */
     val isArmed: Boolean
@@ -31,6 +32,20 @@ class DictationServiceController(
      */
     fun setEndedListener(listener: (() -> Unit)?) {
         endedListener.set(listener)
+    }
+
+    /**
+     * Sets the one observer told when the switch really changes, or removes it with null. A second call
+     * replaces the first observer.
+     *
+     * It is called with `true` and no reason when the switch turns on ([arm], [coldStart], [adopt]), with
+     * `false` and the [DisarmReason] when [disarm] turns it off, and with `false` and no reason when
+     * [serviceEnded] turns it off. It is not called when the call changes nothing (already on, already
+     * off, a refused launch). It runs on the thread that made the change, after the change; an observer
+     * that throws an [Exception] is swallowed.
+     */
+    fun setStateObserver(observer: ((armed: Boolean, reason: DisarmReason?) -> Unit)?) {
+        stateObserver.set(observer)
     }
 
     /**
@@ -60,28 +75,32 @@ class DictationServiceController(
     fun adopt(): StartResult {
         if (armed.get()) return StartResult.AlreadyRunning
         if (!permissionGranted()) return StartResult.NotStarted(ServiceSentences.MIC_PERMISSION_MISSING)
-        return if (armed.compareAndSet(false, true)) StartResult.Started else StartResult.AlreadyRunning
+        if (!armed.compareAndSet(false, true)) return StartResult.AlreadyRunning
+        notifyObserver(true, null)
+        return StartResult.Started
     }
 
     /**
      * Switches the service off. If it was on, it is marked off and the launcher is halted exactly once;
      * if it was off, nothing happens. A halt that throws is swallowed after the mark is cleared.
      *
-     * [reason] is not stored or logged; it keeps each path a distinct call.
+     * [reason] is not stored or logged; it is handed to the state observer, once, when the switch really
+     * went from on to off.
      */
-    @Suppress("UNUSED_PARAMETER")
     fun disarm(reason: DisarmReason) {
         if (!armed.compareAndSet(true, false)) return
         haltQuietly()
+        notifyObserver(false, reason)
     }
 
     /**
      * The service is gone (killed, or it stopped itself): marks it off without halting anything, and then
      * calls the ended listener once (also when the switch was already off, so the owner can drop any
-     * capture). A listener that throws an [Exception] is swallowed.
+     * capture). A listener that throws an [Exception] is swallowed. The state observer is told first, and
+     * only when the switch was on.
      */
     fun serviceEnded() {
-        armed.set(false)
+        if (armed.getAndSet(false)) notifyObserver(false, null)
         val listener = endedListener.get() ?: return
         try {
             listener()
@@ -98,10 +117,22 @@ class DictationServiceController(
             armed.compareAndSet(true, false)
             return StartResult.NotStarted(refusedSentence)
         }
-        if (armed.get()) return StartResult.Started
+        if (armed.get()) {
+            notifyObserver(true, null)
+            return StartResult.Started
+        }
         // Switched off while the launch was under way: the service may be running now, so stop it again.
         haltQuietly()
         return StartResult.NotStarted(refusedSentence)
+    }
+
+    private fun notifyObserver(now: Boolean, reason: DisarmReason?) {
+        val observer = stateObserver.get() ?: return
+        try {
+            observer(now, reason)
+        } catch (e: Exception) {
+            // The switch has changed already; a failing observer cannot be handled here.
+        }
     }
 
     private fun haltQuietly() {

@@ -25,6 +25,25 @@ settings screen, the manifest, and the Gradle build.
   connectivity probe of the transport module and the dictation use cases of the
   core module. `DictationRunner` drives one dictation at a time: begin, finish,
   send, cancel.
+- **Speech engine and model.** The on-device speech engine reads its models from
+  a model store in the app's files folder. One button on the launcher screen,
+  "Download the speech model", downloads the model the settings select; the
+  address and the checksum come from the model registry. A tap on the tile's
+  microphone with no model installed starts nothing and says so, in a
+  notification and in a sentence beside the tile. The recognizer behind the
+  engine is the real one, over the engine library the app packages; it has not
+  been tried on a device yet.
+- **The floating tile.** While the microphone service is on, the app shows the
+  floating tile of the overlay module and decides what each tap does and which
+  state the tile shows. It hides the tile when the service goes off. Showing it
+  needs the permission to draw over other apps; without it the app posts a
+  notification that opens Breaker, and tries to show the tile again the next time
+  Breaker comes to the front.
+- **The user's switch-off.** When the user switches dictation off (the
+  notification's "Switch off" button), the app keeps that in a small file in its
+  files folder, and a start of the launcher from a notification or the tile no
+  longer switches dictation on. Opening Breaker from its launcher icon switches
+  it on again.
 
 ## The microphone service
 
@@ -32,14 +51,17 @@ Android 14 and later do not let an app start a microphone service from the
 background, so the app switches the service on ("arms" it) while it is visible,
 as described in ADR-022 as amended:
 
-- The launcher activity arms the service every time it becomes visible. The
-  service can also be started from its own notification.
+- The launcher activity arms the service every time it becomes visible, unless
+  the user switched dictation off; opening it from the launcher icon switches
+  dictation on even then. The service can also be started from its own
+  notification.
 - While it is on, the service shows a quiet, ongoing notification with one
   "Switch off" button. Tapping the notification opens Breaker on the history of
   transcriptions (the screen itself belongs to the ui module).
 - A tap on the floating tile only begins a recording inside the service that is
   already running. Sending, cancelling or an error ends the recording; the service
-  stays on.
+  stays on. The app shows the tile while the service is on and hides it when the
+  service ends or the user switches off.
 - The service stops when the user switches dictation off, when the part that owns
   the dictation is closed, or when it is started with nothing switched on. If it
   ends on its own, the dictation under way is dropped.
@@ -53,7 +75,9 @@ Only encrypted (https) connections are allowed. Clear text is switched off in th
 manifest and in `res/xml/network_security_config.xml`, which has no exceptions and
 trusts only the system's certificate authorities. The manifest asks for exactly
 these permissions: internet, record audio, foreground service, foreground service
-of the microphone type, and post notifications.
+of the microphone type, post notifications, and draw over other apps (six in all).
+None of them is asked for while the app runs: the user grants the three that need
+it by hand in the system settings.
 
 ## What is not built yet
 
@@ -62,10 +86,15 @@ failure sentence, never a success:
 
 - the real microphone driver (the audio module's work), so listening fails with a
   sentence for now;
-- on-device and server speech engines, and putting the text into another app's
-  field;
-- asking the user for the microphone and notification permissions (onboarding),
-  the switch-on screen, the spoken off word and the history screen.
+- the server speech engine, and putting the text into another app's field (the
+  on-device engine with its recognizer, its model store and the download are
+  built; the recognizer has not been tried on a device);
+- asking the user for the microphone, notification and draw-over-other-apps
+  permissions (onboarding), the switch-on screen, the spoken off word, the history
+  screen, and the gesture that starts a take.
+
+So the first build cannot produce text yet: the microphone slot cannot be opened
+and the text commit fails.
 
 The server formatter slot holds the on-device rule-based formatter, and the
 server path is not reached while the server engine slot fails.
@@ -87,5 +116,6 @@ still prints OK.
 
 Nothing here has been run on a device or an emulator. The list of what is not
 verified (the service in the background, the restart from the notification,
-whether Android lets the tile start the service when it is off, and more) is in
-the Known Gotchas section of `AGENTS.md`.
+whether Android lets the tile start the service when it is off, the tile on screen,
+the model download on a phone, the first run through the three permissions, and
+more) is in the Known Gotchas section of `AGENTS.md`.
