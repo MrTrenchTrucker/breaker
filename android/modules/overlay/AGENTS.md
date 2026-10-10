@@ -114,7 +114,15 @@ The ring around the microphone is 2 dp thick and sits just inside the edge of th
 - The real CB mic art (final mic art later; the glyph stays a placeholder).
 - The app's pushing of SENT and SENT_LOCAL, and the state the app pushes after a clipboard-only commit (OPEN: the app's
   decision, not decided here).
-- Words on the tile of its own, sound or haptics, a time limit on the notice, the window-ownership check (T4), the
+- Next slice, ordered (F38, B1). (1) A tap anywhere on the wide window of a notice clears the notice and the tile
+  collapses to the small tile; no callback runs (today only the microphone answers and calls `onTap`, which can show
+  the same notice again, so the user could not get the small tile back). The time limit on a notice is the app's,
+  not this module's. (2) Close target: while a small tile is dragged, a close target (an X in a circle, palette
+  colours only, placeholder art) is shown centred near the bottom of the usable area; it goes when the drag ends.
+  A drop with the tile's centre inside the target hides the tile, calls a new optional callback `onCloseRequested`
+  (no arguments, null by default) and does not save the position; a drop elsewhere saves as today. A tap never
+  closes. The target is shown in the same overlay window type and is not focusable and not touchable.
+- Words on the tile of its own, sound or haptics, the window-ownership check (T4), the
   audio capture and the audio-level feed (the app's), the foreground service (the app's), asking the user for the
   overlay permission (the app's), and any gesture or phrase code.
 

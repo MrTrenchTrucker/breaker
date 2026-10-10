@@ -57,6 +57,11 @@ screens render with ui-tokens; light/dark toggle persists (F25).
 - The accessibility service itself (its own module)
 - The overlay tile (the overlay module)
 - Storage of transcriptions and the 90-day purge (the history module)
+- Not built yet, ordered next (N2): the speech model becomes the FIRST step of the setup walk-through, with the same
+  shape as the permission steps: a sentence, a status line "Not done yet" or "Done", and one button "Download the speech
+  model" that calls back into the app (the download itself, its progress and its sentences stay the app's). The app's
+  separate download button above the walk-through then goes. This is an interface change to
+  `createOnboardingView` (a model step parameter from the app), approved here.
 - Not built yet. Delete All and search are in the design but not built: Delete All (the port has no delete-all, and it needs type-to-confirm); search (the port has none, and the node model has no text input); the app route to the history screen; long-press delete; true paging (needs a port change).
 
 ## Test Locations

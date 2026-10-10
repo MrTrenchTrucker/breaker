@@ -125,6 +125,18 @@ The switch for the ui module: `wiring/BreakerSwitchAdapter.kt` implements the sw
 - Accessibility text commit
 - The permission requests (the ui walk-through asks for them; the app code asks for none)
 - The history screen and the switch-on screen (`ArmedSwitch.switchOn()` is called only by the launcher icon start in this build)
+- Not built yet, ordered next (B1, F38, N1). (1) A notice the app shows on the tile is cleared by the app 4 seconds
+  after it is shown (one main-thread post, cancelled when another notice or state replaces it); the tile itself has
+  no clock. (2) `onCloseRequested` from the tile: the app hides the tile and remembers, in memory only, that the user
+  closed it; dictation stays switched on (the armed service and its notification stay). While the tile is closed
+  this way, a shake shows the tile and begins recording (F4, through the same begin path as a tap); opening the
+  launcher activity shows it again; switching dictation off and on clears the memory. The wake phrase does the same
+  once the wake slice is built. (3) The launcher label is "Breaker" (application and launcher activity label), so
+  the title bar and the app list no longer show the class name; the icon stays a placeholder until the art phase.
+  (4) Nothing is drawn under the system bars: with target SDK 36, Android 15 and later draw every activity edge to
+  edge, so the first device test showed words cut off under the title bar and the navigation bar. The launcher
+  activity pads its root view by the system bars and display cutout insets (and again when they change, for
+  example on rotation); checked on a device.
 
 ## Test Locations
 - Unit (Kotlin): `android/app/src/test/kotlin/` - `CompositionRootTest` (JVM, no Android): proves the composition root is wired file-to-file (a `save` on one instance is visible to a second over the same directory; the exposed `Keystore` carries the reference a `save` wrote; the reference survives a second `FileCredentialRefHolder` over the same file). Run: `./gradlew :android:app:test`
