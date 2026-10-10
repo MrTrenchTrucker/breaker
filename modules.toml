@@ -14,7 +14,7 @@ card = "android/AGENTS.md"
 path = "android/app"
 owns = "Android entry point, dependency injection wiring, Gradle build."
 does_not_own = "Screen implementations (ui); domain logic (core)."
-depends_on = ["android", "android_core", "android_ui"]
+depends_on = ["android", "android_core", "android_ui", "android_settings", "android_history", "android_audio", "android_format", "android_transport", "android_overlay", "android_stt_ondevice", "shared_ui_tokens", "shared_model_registry", "android_commit", "android_commit_accessibility", "android_gesture"]
 public = "App entry, DI container"
 card = "android/app/AGENTS.md"
 

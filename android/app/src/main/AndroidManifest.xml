@@ -2,18 +2,55 @@
 <!--
   Card: android/app/AGENTS.md   Registry: modules.toml [module.android_app]
 
-  The Android application plugin requires a main manifest to exist before it can
-  process, package or lint this module, so the module ships one from the moment
-  the build system exists. The identity of the app is set in build.gradle.kts
-  (namespace, applicationId, minSdk, targetSdk); this file adds nothing that is
-  declared anywhere else.
+  The app identity (namespace, applicationId, minSdk, targetSdk) is set in
+  build.gradle.kts. This file names the application class, the single
+  launcher activity and the microphone service, and nothing else: no receivers
+  or providers are declared, and there is no icon, label or theme.
 
-  Deliberately absent: activities, services, receivers, providers, permissions,
-  the application class, icon, label and theme. The app shell — entry point and
-  the DI wiring that composes the modules — belongs to the rest of Phase 1 and
-  depends on module interfaces that do not exist yet. Naming an entry point here
-  would hard-code a design that nothing supports yet, and would also claim the
-  "app launches to the settings screen" invariant on a module that cannot
-  launch anything.
+  Permissions, each one used by the app:
+    INTERNET                          send audio to the user's own server
+    RECORD_AUDIO                      the microphone
+    FOREGROUND_SERVICE                run the dictation service in the foreground
+    FOREGROUND_SERVICE_MICROPHONE     the microphone type of that service
+    POST_NOTIFICATIONS                show the service's ongoing notification
+    SYSTEM_ALERT_WINDOW               draw the floating dictation tile over other apps
+
+  Network traffic must be encrypted: cleartext is switched off here and in
+  res/xml/network_security_config.xml, which trusts only the system's
+  certificate authorities.
+
+  The service is private to the app (not exported) and has no intent filter;
+  its notification action reaches it through an explicit pending intent.
+
+  The application class (BreakerApp) builds the composition root, the only
+  place the modules are composed. The launcher activity (SettingsLauncherActivity)
+  hosts the settings screen the ui module builds; the app owns the window, the
+  ui module owns no window. Launching it, and running the service, have not
+  been verified on a device.
 -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <application
+        android:name=".BreakerApp"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:usesCleartextTraffic="false">
+        <activity
+            android:name=".SettingsLauncherActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <service
+            android:name=".service.DictationForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+    </application>
+</manifest>

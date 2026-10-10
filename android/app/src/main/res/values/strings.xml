@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Card: android/app/AGENTS.md   Registry: modules.toml [module.android_app]
+
+  The words of the dictation service's notification: the name of its channel
+  in the system settings, the title and line of text, and the one action that
+  switches dictation off.
+-->
+<resources>
+    <string name="dictation_channel_name">Dictation</string>
+    <string name="dictation_notification_title">Breaker is on</string>
+    <string name="dictation_notification_text">Tap the tile to start dictating.</string>
+    <string name="dictation_action_off">Switch off</string>
+</resources>
