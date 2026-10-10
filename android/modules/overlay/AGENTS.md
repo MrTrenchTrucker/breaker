@@ -114,8 +114,9 @@ The ring around the microphone is 2 dp thick and sits just inside the edge of th
 - The real CB mic art (final mic art later; the glyph stays a placeholder).
 - The app's pushing of SENT and SENT_LOCAL, and the state the app pushes after a clipboard-only commit (OPEN: the app's
   decision, not decided here).
-- Next slice, ordered (F38, B1). (1) A tap anywhere on the wide window of a notice clears the notice and the tile
-  collapses to the small tile; no callback runs (today only the microphone answers and calls `onTap`, which can show
+- Next slice, ordered (F38). (1) A tap anywhere on the wide window of a notice clears the notice and the tile
+  collapses to the small tile, and a new optional callback `onNoticeDismissed` (no arguments, null by default) is
+  called once so the app drops its notice line; `onTap` is not called (today only the microphone answers and calls `onTap`, which can show
   the same notice again, so the user could not get the small tile back). The time limit on a notice is the app's,
   not this module's. (2) Close target: while a small tile is dragged, a close target (an X in a circle, palette
   colours only, placeholder art) is shown centred near the bottom of the usable area; it goes when the drag ends.
