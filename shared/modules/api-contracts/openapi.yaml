@@ -120,6 +120,204 @@ paths:
               example:
                 error: "not_found"
                 message: "Job does not exist"
+  /v1/auth/register:
+    post:
+      summary: Register a new account
+      description: >-
+        Register a new account. Never a password, never a DEK — the client
+        derives the KEK and sends the verifier. First account = admin.
+      operationId: registerAccount
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+            example:
+              username: "alice"
+              salt: "c2FsdA=="
+              kdf_params:
+                memory: 64
+                iterations: 3
+                parallelism: 1
+              kdf_version: 1
+              auth_verifier: "dmVyaWZpZXI="
+      responses:
+        "201":
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisterResponse"
+              example:
+                username: "alice"
+                role: "admin"
+        "400":
+          description: Invalid field
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "invalid_field"
+                message: "kdf_params below floor"
+        "409":
+          description: Username taken
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "username_taken"
+                message: "Username already registered"
+  /v1/auth/salt:
+    post:
+      summary: Get account salt and KDF parameters
+      description: >-
+        Returns the salt and KDF parameters for an account. No decoy: an
+        unknown username gets an honest "no such account".
+      operationId: getSalt
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaltRequest"
+            example:
+              username: "alice"
+      responses:
+        "200":
+          description: Salt and KDF parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaltResponse"
+              example:
+                salt: "c2FsdA=="
+                kdf_params:
+                  memory: 64
+                  iterations: 3
+                  parallelism: 1
+                kdf_version: 1
+        "404":
+          description: No such account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "no_such_account"
+                message: "No such account"
+  /v1/auth/login:
+    post:
+      summary: Log in
+      description: >-
+        Log in with username and auth_verifier. Returns a session token and
+        the account's wrapped keys (null together for a keyless account).
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+            example:
+              username: "alice"
+              auth_verifier: "dmVyaWZpZXI="
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+              example:
+                token: "tok_abc123"
+                role: "admin"
+                wrapped_dek: null
+                wrapped_box_privkey: null
+                box_pubkey: null
+                key_version: 0
+                prev_wrapped_dek: null
+                reset_at: null
+                rekeyed_at: null
+        "401":
+          description: Bad credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid username or verifier"
+  /v1/auth/logout:
+    post:
+      summary: Log out
+      description: Revoke the presented session token.
+      operationId: logout
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Logged out
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing token"
+  /v1/admin/agent-tokens/{id}:
+    delete:
+      summary: Revoke an agent token
+      description: >-
+        Admin-only: revoke an agent token by id.
+      operationId: revokeAgentToken
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: The agent token id
+      responses:
+        "204":
+          description: Token revoked
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing token"
+        "403":
+          description: Forbidden (non-admin)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "forbidden"
+                message: "Admin role required"
+        "404":
+          description: Token not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "not_found"
+                message: "Agent token not found"
   /health:
     get:
       summary: Health check
@@ -247,6 +445,146 @@ components:
         uptime:
           type: string
           description: How long the service has been running
+    RegisterRequest:
+      type: object
+      required:
+        - username
+        - salt
+        - kdf_params
+        - kdf_version
+        - auth_verifier
+      properties:
+        username:
+          type: string
+          pattern: "^[A-Za-z0-9._-]{1,64}$"
+          description: The account username (ASCII [A-Za-z0-9._-], 1-64 chars)
+        salt:
+          type: string
+          pattern: "^[A-Za-z0-9+/]{43}=$"
+          description: The salt, base64 padded, 32 bytes after decode
+        kdf_params:
+          $ref: "#/components/schemas/KdfParams"
+        kdf_version:
+          type: integer
+          enum: [1]
+          description: Must equal 1
+        auth_verifier:
+          type: string
+          pattern: "^[A-Za-z0-9+/]{43}=$"
+          description: The auth verifier, base64 padded, 32 bytes after decode
+    RegisterResponse:
+      type: object
+      required:
+        - username
+        - role
+      properties:
+        username:
+          type: string
+          description: The account username
+        role:
+          type: string
+          description: The account role ("admin" or "user")
+    SaltRequest:
+      type: object
+      required:
+        - username
+      properties:
+        username:
+          type: string
+          pattern: "^[A-Za-z0-9._-]{1,64}$"
+          description: The account username
+    SaltResponse:
+      type: object
+      required:
+        - salt
+        - kdf_params
+        - kdf_version
+      properties:
+        salt:
+          type: string
+          pattern: "^[A-Za-z0-9+/]{43}=$"
+          description: The salt, base64 padded, 32 bytes after decode
+        kdf_params:
+          $ref: "#/components/schemas/KdfParams"
+        kdf_version:
+          type: integer
+          description: Must equal 1
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - auth_verifier
+      properties:
+        username:
+          type: string
+          pattern: "^[A-Za-z0-9._-]{1,64}$"
+          description: The account username
+        auth_verifier:
+          type: string
+          pattern: "^[A-Za-z0-9+/]{43}=$"
+          description: The auth verifier, base64 padded, 32 bytes after decode
+    LoginResponse:
+      type: object
+      required:
+        - token
+        - role
+        - key_version
+      properties:
+        token:
+          type: string
+          description: The session token
+        role:
+          type: string
+          description: The account role ("admin" or "user")
+        wrapped_dek:
+          type: string
+          nullable: true
+          description: The wrapped DEK, base64 padded; null together with other key fields for a keyless account
+        wrapped_box_privkey:
+          type: string
+          nullable: true
+          description: The wrapped box private key, base64 padded; null together
+        box_pubkey:
+          type: string
+          nullable: true
+          description: The box public key, base64 padded; null together
+        key_version:
+          type: integer
+          description: The account's current DEK generation; 0 before first bootstrap
+        prev_wrapped_dek:
+          type: string
+          nullable: true
+          description: The previous DEK wrapped with the current one; null unless re-key unfinished
+        reset_at:
+          type: string
+          nullable: true
+          description: The account's last-reset timestamp, or null
+        rekeyed_at:
+          type: string
+          nullable: true
+          description: The account's last-rekey timestamp, or null
+    KdfParams:
+      type: object
+      required:
+        - memory
+        - iterations
+        - parallelism
+      properties:
+        memory:
+          type: integer
+          minimum: 64
+          maximum: 256
+          description: Memory in MiB (64-256)
+        iterations:
+          type: integer
+          minimum: 3
+          maximum: 10
+          description: Iterations (3-10)
+        parallelism:
+          type: integer
+          minimum: 1
+          maximum: 4
+          description: Parallelism (1-4)
     Error:
       type: object
       required:

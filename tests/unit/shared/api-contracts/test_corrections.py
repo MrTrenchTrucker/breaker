@@ -190,7 +190,7 @@ class Correction6PathSetEqualityTest(unittest.TestCase):
     def test_path_set_equality(self):
         """Paths in the spec are exactly the three endpoints (no more, no less)."""
         paths = self.spec.get("paths", {})
-        expected_paths = {"/v1/audio/transcriptions", "/v1/jobs/{job_id}", "/health"}
+        expected_paths = {"/v1/audio/transcriptions", "/v1/jobs/{job_id}", "/health", "/v1/auth/register", "/v1/auth/salt", "/v1/auth/login", "/v1/auth/logout", "/v1/admin/agent-tokens/{id}"}
         self.assertEqual(set(paths.keys()), expected_paths,
                          "Paths must be exactly the three endpoints")
 
