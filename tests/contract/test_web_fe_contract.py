@@ -1,8 +1,9 @@
 """Contract test for the server/modules/web-fe module.
 
 Runs the node test suite via subprocess and asserts the results.
-Also checks browser-safety of the derivation.js source and
-verifies parity with an independent Python HKDF implementation.
+Also checks browser-safety of the derivation.js source,
+verifies parity with an independent Python HKDF implementation,
+pins vendor file checksums, and checks the page import graph.
 """
 import hashlib
 import hmac
@@ -14,15 +15,28 @@ import unittest
 import contract_support
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DERIVATION_JS = os.path.join(ROOT, "server/modules/web-fe/src/main/resources/static/derivation.js")
+STATIC_DIR = os.path.join(ROOT, "server/modules/web-fe/src/main/resources/static")
+DERIVATION_JS = os.path.join(STATIC_DIR, "derivation.js")
+WORKER_JS = os.path.join(STATIC_DIR, "argon2-worker.js")
 DERIVATION_TEST_JS = os.path.join(ROOT, "server/modules/web-fe/src/test/js/derivation.test.js")
+
+# 7 sha256 pins: 6 vendor files + LICENSE
+VENDOR_SHA256 = {
+    "vendor/noble-hashes-2.4.0/argon2.js": "f39753324bdf2f484150731d24b1d71236f26bf10bedd594f7d190fcdfdefdc9",
+    "vendor/noble-hashes-2.4.0/blake2.js": "03f00237bcc0b4d822a80f7c0ac22e42632c48e246c3b6da584e6452186e32f0",
+    "vendor/noble-hashes-2.4.0/utils.js": "037ad49adb78168b6b699598fd33f85f7877456b1d28b4d032e2a1a16807947c",
+    "vendor/noble-hashes-2.4.0/_blake.js": "cabbff61d1f373bac45594ad758df7c42e176464ddbb94b44f5533fa977a4f56",
+    "vendor/noble-hashes-2.4.0/_md.js": "60cf3010fda89e3e4d3f0e7ff1ce249e9c467f34b4fd41b6fd6101d9f69be763",
+    "vendor/noble-hashes-2.4.0/_u64.js": "b09da8c07fe8187c07649494cdb7cd0bcf13df90b506a9473d19e4d5f8c2e102",
+    "vendor/noble-hashes-2.4.0/LICENSE": "4f221aee6e072336700c408c68ab3b96a3fc09f6aebe6f48f1bd99e5ef13faec",
+}
 
 NODE_TEST_NAMES = [
     "split of the counting input gives the expected key-encryption key",
     "split of the counting input gives the expected verifier",
     "memory at the floor and at the ceiling is accepted",
     "iterations at the floor and at the ceiling are accepted",
-    "parallelism at the floor and at the ceiling is accepted",
+    "parallelism at the floor and at the ceiling are accepted",
     "output length 32 is accepted",
     "salt of 16 bytes is accepted",
     "version 1 is accepted",
@@ -59,6 +73,24 @@ NODE_TEST_NAMES = [
     "parallelism NaN is refused",
     "memory 65535 is refused",
     "memory 262145 is refused",
+    "salt must be a Uint8Array",
+    "salt must be 16 bytes",
+    "argon2id parity vector 1 — decomposed café",
+    "argon2id parity vector 2 — high vector with 2 lanes",
+    "checkKdfParams is called before salt check",
+    "RFC 9106 §5.3 vector through vendored copy",
+    "refused params never reach argon2id (spy)",
+    "params reach argon2id in right order and units",
+    "output length is 32 bytes",
+    "NFC: decomposed and composed give same bytes at argon2 call",
+    "salt of 15 bytes refused, never reaches argon2id",
+    "salt of 17 bytes refused, never reaches argon2id",
+    "import graph loader fails on missing file",
+    "import graph loader fails on cyclic import",
+    "worker derive OK — phone vector 1",
+    "worker refused params — real error message, NO kek",
+    "worker unknown type",
+    "worker missing/odd data — error, never throws",
 ]
 
 
@@ -83,7 +115,6 @@ class WebFeContractTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        # Check node exists and major >= 20
         try:
             result = subprocess.run(["node", "--version"], capture_output=True, text=True)
             if result.returncode != 0:
@@ -144,24 +175,52 @@ class WebFeContractTest(unittest.TestCase):
     def test_parity_hkdf_kek(self):
         ikm = bytes(range(32))
         salt = bytes(32)
-        # Label parity: KeySplit.kt:8 — KEK_LABEL = "breaker-kek-v1"
         kek = _hkdf(ikm, salt, b"breaker-kek-v1", 32)
         self.assertEqual(kek.hex(), "64ab835ac3c4c27e630723be2516fd9fca90ec58ade981222aa0219812915995")
 
     def test_parity_hkdf_verifier(self):
         ikm = bytes(range(32))
         salt = bytes(32)
-        # Label parity: KeySplit.kt:11 — AUTH_VERIFIER_LABEL = "breaker-auth-verifier-v1"
         verifier = _hkdf(ikm, salt, b"breaker-auth-verifier-v1", 32)
         self.assertEqual(verifier.hex(), "69503b3190a0704fca87cd50ee5819dc592fe5ab476416aff2e9408cff83a4e8")
 
     def test_parity_kek_differs_from_verifier(self):
         ikm = bytes(range(32))
         salt = bytes(32)
-        # Label parity: KeySplit.kt:8,11 — KEK_LABEL = "breaker-kek-v1", AUTH_VERIFIER_LABEL = "breaker-auth-verifier-v1"
         kek = _hkdf(ikm, salt, b"breaker-kek-v1", 32)
         verifier = _hkdf(ikm, salt, b"breaker-auth-verifier-v1", 32)
         self.assertNotEqual(kek, verifier)
+
+    def test_vendor_sha256_pins(self):
+        for relpath, expected_hash in VENDOR_SHA256.items():
+            fpath = os.path.join(STATIC_DIR, relpath)
+            self.assertTrue(os.path.isfile(fpath), f"vendor file missing: {relpath}")
+            with open(fpath, "rb") as f:
+                actual = hashlib.sha256(f.read()).hexdigest()
+            self.assertEqual(actual, expected_hash, f"sha256 mismatch for {relpath}")
+
+    def test_page_import_graph(self):
+        """Scan static/ except vendor/; exactly one file imports vendor/.../argon2.js."""
+        importers = []
+        for fname in os.listdir(STATIC_DIR):
+            if fname == "vendor" or not fname.endswith(".js"):
+                continue
+            fpath = os.path.join(STATIC_DIR, fname)
+            with open(fpath) as f:
+                src = f.read()
+            if re.search(r"import.*from.*vendor.*argon2\.js", src):
+                importers.append(fname)
+        self.assertEqual(importers, ["derivation.js"], f"expected only derivation.js to import vendor argon2, got {importers}")
+
+    def test_worker_does_not_import_vendor(self):
+        """Worker must not import vendor/ directly."""
+        with open(WORKER_JS) as f:
+            src = f.read()
+        self.assertNotIn("vendor", src, "worker must not reference vendor/")
+        self.assertIn("from './derivation.js'", src, "worker must import from derivation.js")
+
+    def test_worker_exists(self):
+        self.assertTrue(os.path.isfile(WORKER_JS), "argon2-worker.js missing")
 
 
 if __name__ == "__main__":

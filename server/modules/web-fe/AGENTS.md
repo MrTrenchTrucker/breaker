@@ -201,6 +201,8 @@ WebApp
 - Unit (Kotlin/Ktor, ADR-017): `server/modules/web-fe/src/test/kotlin/`, created with the module's first code. Run: `./gradlew :server:modules:web-fe:test` once this module's build file applies the Kotlin plugin (today it applies `base` only, so there is no test task yet).
 - Contract: `tests/contract/test_web_fe_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_web_fe_contract.py`
 - JS unit: `server/modules/web-fe/src/test/js/derivation.test.js`, node known-answer tests for the derivation module. Run: `node server/modules/web-fe/src/test/js/derivation.test.js` (the contract test runs it too)
+- Import graph loader: `server/modules/web-fe/src/test/js/import-graph-loader.js`, test-only loader that resolves ES module imports as nested data: URLs
+- Worker tests: stub-global tests for `argon2-worker.js` in `derivation.test.js`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
 ## Test Requirement

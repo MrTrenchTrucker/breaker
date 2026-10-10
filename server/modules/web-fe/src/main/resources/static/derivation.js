@@ -2,6 +2,8 @@
 // Uses ONLY globalThis.crypto.subtle, String.prototype.normalize('NFC'), TextEncoder.
 // NO require, NO process, NO node builtins.
 
+import { argon2id } from './vendor/noble-hashes-2.4.0/argon2.js';
+
 const KEK_LABEL = 'breaker-kek-v1';
 const VERIFIER_LABEL = 'breaker-auth-verifier-v1';
 
@@ -59,9 +61,26 @@ async function hkdfSha256(ikm, salt, info, length) {
   return new Uint8Array(bits);
 }
 
-async function deriveKeys(ikm) {
-  const kek = await hkdfSha256(ikm, new Uint8Array(0), encoder.encode(KEK_LABEL), 32);
-  const verifier = await hkdfSha256(ikm, new Uint8Array(0), encoder.encode(VERIFIER_LABEL), 32);
+async function deriveKeys(password, salt, params, argon2fn = argon2id) {
+  checkKdfParams(params);
+
+  if (!(salt instanceof Uint8Array)) {
+    throw new Error('salt must be a Uint8Array');
+  }
+  if (salt.length !== params.saltBytes) {
+    throw new Error(`salt must be ${params.saltBytes} bytes`);
+  }
+
+  const passwordBytes = passwordToBytes(password);
+  const tag = argon2fn(passwordBytes, salt, {
+    m: params.memoryKib,
+    t: params.iterations,
+    p: params.parallelism,
+    dkLen: params.outputBytes,
+  });
+
+  const kek = await hkdfSha256(tag, new Uint8Array(0), encoder.encode(KEK_LABEL), 32);
+  const verifier = await hkdfSha256(tag, new Uint8Array(0), encoder.encode(VERIFIER_LABEL), 32);
   return { kek, verifier };
 }
 
