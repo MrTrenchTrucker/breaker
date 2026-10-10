@@ -83,6 +83,7 @@ internal class HostGateTest {
         rx("TILE_CLEAR_NOTICE_CLEARS_THE_NOTICE", "tile", """\boverride\s+fun\s+clearNotice\s*\(\s*\)\s*\{\s*tile\s*\?\.\s*clearNotice\s*\(\s*\)\s*\}"""),
         rx("DOWNLOADER_GETS_THE_FORWARDING_NOTICE", "host", """\bnotice\s*=\s*forwardingNotice\s*,"""),
         rx("TAKE_ENDED_IS_WIRED_THROUGH_THE_POST", "host", """\broot\.onTakeEnded\s*=\s*\{\s*toCoordinator\s*\{\s*it\.onTakeEnded\(\)\s*\}\s*\}"""),
+        rx("TAKEN_HOOK_IS_WIRED_THROUGH_THE_POST", "host", """\broot\.onMicTaken\s*=\s*\{\s*toCoordinator\s*\{\s*it\.onTakeMicTaken\(\)\s*\}\s*\}"""),
     )
     private val firing: List<Sample> = listOf(
         Sample("MAIN_POST_USES_THE_MAIN_LOOPER", "Handler(Looper.getMainLooper())", "Handler(Looper.myLooper()!!)"),
@@ -147,7 +148,7 @@ internal class HostGateTest {
         Sample("LAUNCHER_OPENS_AS_A_NEW_TASK", "SettingsLauncherActivity::class.java", "OtherActivity::class.java"),
         Sample("LAUNCHER_GETS_THE_ROUTE", "intent.putExtra(NotificationRoute.EXTRA_ROUTE, route)", "intent.putExtra(\"route\", route)"),
         Sample("LAUNCHER_GETS_THE_ROUTE", "if (route != null) intent.putExtra(NotificationRoute.EXTRA_ROUTE, route)\n", ""),
-        Sample("LAUNCHER_REFUSAL_IS_CAUGHT", "catch (e: RuntimeException) {", "catch (e: IllegalStateException) {"),
+        Sample("LAUNCHER_REFUSAL_IS_CAUGHT", "context.startActivity(intent)\n        } catch (e: RuntimeException) {", "context.startActivity(intent)\n        } catch (e: IllegalStateException) {"),
         Sample("LAUNCHER_REFUSAL_IS_CAUGHT", "            context.startActivity(intent)\n        } catch (e: RuntimeException) {\n            // The platform refused to open the launcher; the tile stays as it is.\n        }", "            context.startActivity(intent)\n        } finally {\n        }"),
         Sample("TILE_HOST_TAKES_THE_SWITCH_STATE_AS_A_REQUIRED_LAMBDA", "private val isOn: () -> Boolean,", "private val isOn: () -> Boolean = { true },"),
         Sample("TILE_HOST_TAKES_THE_SWITCH_STATE_AS_A_REQUIRED_LAMBDA", "private val isOn: () -> Boolean,", "private val isOn: () -> Boolean? = null,"),
@@ -186,6 +187,8 @@ internal class HostGateTest {
         Sample("DOWNLOADER_GETS_THE_FORWARDING_NOTICE", "notice = forwardingNotice,", "notice = notifications,"),
         Sample("DOWNLOADER_GETS_THE_FORWARDING_NOTICE", "notice = forwardingNotice,", "notice = otherNotice,"),
         Sample("TAKE_ENDED_IS_WIRED_THROUGH_THE_POST", "root.onTakeEnded = { toCoordinator { it.onTakeEnded() } }", "root.onTakeEnded = null"),
+        Sample("TAKEN_HOOK_IS_WIRED_THROUGH_THE_POST", "root.onMicTaken = { toCoordinator { it.onTakeMicTaken() } }", "root.onMicTaken = null"),
+        Sample("TAKEN_HOOK_IS_WIRED_THROUGH_THE_POST", "root.onMicTaken = { toCoordinator { it.onTakeMicTaken() } }", "root.onMicTaken = { }"),
         Sample("TAKE_ENDED_IS_WIRED_THROUGH_THE_POST", "root.onTakeEnded = { toCoordinator { it.onTakeEnded() } }", "root.onTakeEnded = { }"),
     )
 
@@ -200,6 +203,7 @@ internal class HostGateTest {
         Quiet("host", "StoreModelReady(root.modelStore, selectedId)", "StoreModelReady( root.modelStore,\n            selectedId )"),
         Quiet("tile", "tile?.clearNotice()", "tile\n            ?.clearNotice() // tile?.hide()"),
         Quiet("host", "root.onTakeEnded = { toCoordinator { it.onTakeEnded() } }", "root.onTakeEnded = { toCoordinator { it.onTakeEnded() } } // comment"),
+        Quiet("host", "root.onMicTaken = { toCoordinator { it.onTakeMicTaken() } }", "root.onMicTaken = { toCoordinator { it.onTakeMicTaken() } } // the taken cut"),
     )
 
     private fun edit(text: String, old: String, new: String): String {

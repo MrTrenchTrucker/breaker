@@ -5,6 +5,7 @@ import android.hardware.SensorManager
 import android.media.AudioManager
 import dev.breaker.dictation.audio.AndroidMicSource
 import dev.breaker.dictation.audio.MicSource
+import dev.breaker.dictation.host.TakenClipboardAndroid
 import dev.breaker.dictation.commit.adapter.CommitServices
 import dev.breaker.dictation.core.port.TextCommitter
 import dev.breaker.dictation.gesture.SensorManagerShakeSource
@@ -50,3 +51,7 @@ class ShakeGesture(port: ShakePort) : GesturePort {
         handle.stop()
     }
 }
+
+/** The clipboard a taken take copies to, made once per process from the application context. Main thread only. */
+fun appTakenClipboard(context: Context): TakenClipboard =
+    TakenClipboardAndroid(context)

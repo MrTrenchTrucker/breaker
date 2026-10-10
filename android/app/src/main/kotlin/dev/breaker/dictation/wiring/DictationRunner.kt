@@ -11,6 +11,7 @@ import dev.breaker.dictation.core.usecase.SendUseCase
 import dev.breaker.dictation.core.usecase.SendResult
 import dev.breaker.dictation.service.DictationServiceController
 import dev.breaker.dictation.service.DisarmReason
+import dev.breaker.dictation.audio.MicSourceException
 import dev.breaker.dictation.service.ReportingMicSource
 import dev.breaker.dictation.service.StartResult
 import java.util.concurrent.atomic.AtomicBoolean
@@ -35,6 +36,9 @@ sealed class BeginResult {
 
     /** Starting the capture failed; the runner is ready for another try. */
     data class Failed(val sentence: String) : BeginResult()
+
+    /** The microphone was taken by another app or call; the tile shows the busy face. */
+    object Taken : BeginResult()
 }
 
 /** The answer to a request to stop listening and transcribe. */
@@ -103,6 +107,9 @@ class DictationRunner(
         } catch (e: Exception) {
             stopQuietly()
             session.set(DictationSession())
+            if ((e as? MicSourceException)?.reason == MicSourceException.Reason.MICROPHONE_TAKEN) {
+                return BeginResult.Taken
+            }
             return BeginResult.Failed(RunnerSentences.COULD_NOT_RECORD)
         }
         return BeginResult.Recording
@@ -192,6 +199,18 @@ class DictationRunner(
         // Recorded before the session moves, so a begin that sees the idle session also sees the debt.
         stopOwed.set(true)
         if (!session.compareAndSet(current, current.cancel())) stopOwed.set(false)
+    }
+
+    /**
+     * Resets a take cut by the microphone back to idle without stopping the audio again: it moves the
+     * session from SENDING to IDLE and drops the pending transcription (a [send] now answers null). It
+     * does not touch the capture wrapper or stop the audio source, so a taken take closes its device at
+     * most once. Exposed on the port for the coordinator's settle.
+     */
+    fun resetAfterTaken() {
+        val current = session.get()
+        session.set(current.cancel())
+        lastTranscription.set(null)
     }
 
     /**

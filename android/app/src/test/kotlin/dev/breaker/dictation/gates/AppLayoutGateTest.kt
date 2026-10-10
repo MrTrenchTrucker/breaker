@@ -30,6 +30,8 @@ internal class AppLayoutGateTest {
         "wiring/TilePorts.kt", "wiring/TileStateMap.kt", "wiring/TileCoordinator.kt", "wiring/TakePortAdapter.kt", "wiring/NoopPorts.kt",
         "wiring/ArmedSwitch.kt", "wiring/LaunchRule.kt", "wiring/OffStore.kt", "wiring/ModelSupport.kt", "wiring/Swaps.kt",
         "wiring/BreakerSwitchAdapter.kt", "wiring/ForwardingDownloadNotice.kt",
+        "wiring/TakeYield.kt", "wiring/TakenClipboard.kt",
+        "wiring/TakenSentences.kt",
     )
 
     /** Main files that are the layer over the platform and name Android types. */
@@ -38,6 +40,7 @@ internal class AppLayoutGateTest {
         "service/AndroidServiceLauncher.kt", "service/DictationForegroundService.kt", "service/DictationNotification.kt",
         "service/ModelNotifications.kt", "host/AppThreads.kt", "host/OverlayTilePort.kt", "host/TileHost.kt",
         "wiring/AndroidSwaps.kt",
+        "host/TakenClipboardAndroid.kt",
     )
 
     private val softCap: Int = 300

@@ -1,10 +1,12 @@
 package dev.breaker.dictation.host
 
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import dev.breaker.dictation.BreakerCompositionRoot
 import dev.breaker.dictation.SettingsLauncherActivity
 import dev.breaker.dictation.service.ModelNotifications
+import dev.breaker.dictation.service.DictationNotification
 import dev.breaker.dictation.service.NotificationRoute
 import dev.breaker.dictation.wiring.ForwardingDownloadNotice
 import dev.breaker.dictation.wiring.ModelDownloadNotice
@@ -14,6 +16,7 @@ import dev.breaker.dictation.wiring.StoreModelReady
 import dev.breaker.dictation.wiring.TakePortAdapter
 import dev.breaker.dictation.wiring.TileCoordinator
 import dev.breaker.dictation.wiring.appGesture
+import dev.breaker.dictation.wiring.appTakenClipboard
 import dev.breaker.dictation.wiring.modelInstallPortFor
 
 /**
@@ -68,11 +71,15 @@ internal class TileHost(
             StoreModelReady(root.modelStore, selectedId),
             notifications,
             this,
+            appTakenClipboard(context),
+            { text -> setNotificationLine(text) },
+            root.historyStore,
         )
     }
 
     init {
         root.onTakeEnded = { toCoordinator { it.onTakeEnded() } }
+        root.onMicTaken = { toCoordinator { it.onTakeMicTaken() } }
     }
 
     private val forwardingNotice = ForwardingDownloadNotice(notifications)
@@ -83,6 +90,25 @@ internal class TileHost(
         main = main,
         notice = forwardingNotice,
     )
+
+    /** Sets the notification line to a text of a taken take (or clears it when null). Main thread only. */
+    private fun setNotificationLine(text: String?) {
+        main.post {
+            val manager = context.getSystemService(NotificationManager::class.java)
+            try {
+                manager.notify(
+                    DictationNotification.NOTIFICATION_ID,
+                    if (text == null) {
+                        DictationNotification.build(context)
+                    } else {
+                        DictationNotification.withText(context, text)
+                    }
+                )
+            } catch (e: RuntimeException) {
+                // The platform refused the notification; there is nothing else to show it with.
+            }
+        }
+    }
 
     /** Shows the tile when the service goes on and hides it when the service goes off. Any thread. */
     fun onArmedChanged(armed: Boolean) {

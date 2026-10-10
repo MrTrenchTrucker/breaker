@@ -63,6 +63,9 @@ interface TakePort {
 
     /** Drops the dictation. */
     fun cancel()
+
+    /** Moves a taken take from SENDING to IDLE without stopping the audio again. */
+    fun resetAfterTaken()
 }
 
 /** Whether the speech model the settings select is installed and unpacked. */

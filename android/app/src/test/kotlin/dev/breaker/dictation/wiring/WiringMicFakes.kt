@@ -6,6 +6,8 @@ import dev.breaker.dictation.core.model.AppSettings
 import dev.breaker.dictation.core.model.DictationState
 import dev.breaker.dictation.core.model.SttMode
 import dev.breaker.dictation.core.model.SttResult
+import dev.breaker.dictation.core.port.AudioListener
+import dev.breaker.dictation.core.port.AudioSource
 import dev.breaker.dictation.core.port.SttEngine
 import dev.breaker.dictation.service.DictationServiceController
 import java.util.concurrent.atomic.AtomicBoolean
@@ -34,6 +36,7 @@ internal class ScriptedMic : MicSource {
     val firstReadThread = CompletableDeferred<Thread>()
     val secondReadEntered = CompletableDeferred<Unit>()
     val closed = CompletableDeferred<Unit>()
+    val closes = AtomicInteger()
 
     /** True when a read waited for a close that never came. */
     val timedOut: Boolean
@@ -71,8 +74,34 @@ internal class ScriptedMic : MicSource {
     }
 
     override fun close() {
+        closes.incrementAndGet()
         closed.complete(Unit)
     }
+}
+
+/**
+ * An [AudioSource] that also counts how many times its audio source has been stopped. The real frames
+ * it hands to the listener come from [speech], so a test can drive a finished dictation; [stops] then
+ * proves no extra stop came in through this runner path, and [closes] (on the wrapped microphone) proves
+ * no extra close either. It serves the reset-after-taken test and the whole-take counting chain.
+ */
+internal class CountingStops(private val inner: MicSource) : AudioSource {
+    var stops: Int = 0
+        private set
+    private var listener: AudioListener? = null
+
+    override fun start(listener: AudioListener) {
+        this.listener = listener
+    }
+
+    override fun stop() {
+        stops += 1
+    }
+
+    fun close() = inner.close()
+
+    /** Plays the shared speech block into the started capture listener. */
+    fun speak() = listener?.onFrame(speech())
 }
 
 /** The component over fakes and a scripted microphone, run through the real capture. */
@@ -83,12 +112,15 @@ internal class Built(
     serverEngine: SttEngine = FakeSttEngine(SttResult.Success("from the server")),
     armed: Boolean = true,
     onTakeEnded: () -> Unit = {},
+    onMicTaken: () -> Unit = {},
 ) {
     val launcher = RecordingLauncher()
     val controller = DictationServiceController(SwitchPermission(true), launcher)
     val localFormatter = CountingFormatter()
     val serverFormatter = CountingFormatter()
     val history = RecordingHistoryStore()
+    /** Completed by the component's take-end hook, which runs on the dispatch thread. */
+    val hookRan = CompletableDeferred<Unit>()
     val component = DictationComponent(
         settings = FakeSettingsStore(AppSettings(mode = mode)),
         history = history,
@@ -103,7 +135,8 @@ internal class Built(
         committer = FakeCommitter(),
         micSource = mic,
         controller = controller,
-        onTakeEnded = onTakeEnded,
+        onTakeEnded = { onTakeEnded(); hookRan.complete(Unit) },
+        onMicTaken = { onMicTaken(); hookRan.complete(Unit) },
     )
     val runner = component.runner
 
@@ -122,6 +155,7 @@ internal class Built(
         val thread = awaitBounded("the capture thread to read", mic.firstReadThread)
         thread.join(5_000L)
         if (thread.isAlive) throw AssertionError("app: timed out waiting for the capture thread to end")
+        awaitBounded("the take-end hook on the dispatch thread", hookRan)
     }
 
     /** Checks the state after the capture ended by itself, then pays the owed stop with a cancel. */

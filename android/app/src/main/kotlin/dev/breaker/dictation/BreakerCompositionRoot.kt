@@ -82,6 +82,9 @@ class BreakerCompositionRoot(
     /** Called when a take ends by itself (the microphone stopped). Set by the tile host. */
     var onTakeEnded: (() -> Unit)? = null
 
+    /** Called when the microphone was taken by another app. Set by the tile host. */
+    var onMicTaken: (() -> Unit)? = null
+
     /** The dictation parts, built on first use. */
     val dictation: DictationComponent by lazy {
         DictationComponent(
@@ -102,6 +105,7 @@ class BreakerCompositionRoot(
             micSource = micSource,
             controller = serviceController,
             onTakeEnded = { onTakeEnded?.invoke() },
+            onMicTaken = { onMicTaken?.invoke() },
         )
     }
 }

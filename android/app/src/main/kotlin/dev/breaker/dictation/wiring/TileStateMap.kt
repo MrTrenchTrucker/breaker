@@ -23,8 +23,10 @@ fun tileStateFor(
     sendPushed: Boolean,
     lastFailed: Boolean,
     lastCommit: CommitOutcome?,
+    micBusy: Boolean = false,
 ): TileState {
     if (!armed) return TileState.IDLE
+    if (micBusy) return TileState.MIC_BUSY
     if (sendPushed) return TileState.SENDING
     if (lastFailed) return TileState.FAILED
     return when (lastCommit) {

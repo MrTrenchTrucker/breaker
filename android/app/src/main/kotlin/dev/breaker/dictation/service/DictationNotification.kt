@@ -22,7 +22,15 @@ internal object DictationNotification {
     private const val OPEN_HISTORY_REQUEST: Int = 1
 
     /** Makes sure the channel exists (creating it again is harmless) and builds the notification. */
-    fun build(context: Context): Notification {
+    fun build(context: Context): Notification =
+        withText(context, context.getString(R.string.dictation_notification_text))
+
+    /** The ongoing notification with a line of [text] in place of the plain line: the same id, the same channel, the same icon, the same one action, the same tap that opens the history route. Only the text under the title is not the string resource. */
+    fun withText(context: Context, text: String): Notification =
+        builder(context) { text }
+
+    /** The shared body of [build] and [withText]: channel first, then the one action, then the return built around the given text. */
+    private fun builder(context: Context, textLine: () -> String): Notification {
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
             NotificationChannel(
@@ -54,7 +62,7 @@ internal object DictationNotification {
         return Notification.Builder(context, CHANNEL_ID)
             .setSmallIcon(icon)
             .setContentTitle(context.getString(R.string.dictation_notification_title))
-            .setContentText(context.getString(R.string.dictation_notification_text))
+            .setContentText(textLine())
             .setContentIntent(openHistory)
             .setOngoing(true)
             .addAction(action)

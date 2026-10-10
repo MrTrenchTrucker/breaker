@@ -97,6 +97,8 @@ class DictationComponentTest {
         assertTrue("app: the refusal should say the scope needs a job, got ${thrown.message}", thrown.message!!.contains("job"))
     }
 
+    // The cut was re-pointed: the old pin asserted the session was IDLE at report time; with the cut moved
+    // into the take-end hook (the dispatch thread) the same assertion now holds once the hook has run.
     @Test
     fun `a microphone that throws while reading drops the capture, owes the stop and leaves the service armed`() {
         val mic = ScriptedMic()
@@ -106,6 +108,7 @@ class DictationComponentTest {
         built.assertEndedBySelfThenPayStop()
     }
 
+    // Same as above: the wait targets the take-end hook's dispatch thread now.
     @Test
     fun `a microphone that answers a negative read drops the capture, owes the stop and leaves the service armed`() {
         val mic = ScriptedMic()
@@ -115,6 +118,8 @@ class DictationComponentTest {
         built.assertEndedBySelfThenPayStop()
     }
 
+    // The close still happens at the first take-away (the wrapper release), but "no call from the app"
+    // now means: no take-end hook runs until the dispatch thread drains - the old->new mapping.
     @Test
     fun `a microphone that answers a negative read is closed by its own report with no call from the app`() {
         val mic = ScriptedMic()
@@ -122,6 +127,8 @@ class DictationComponentTest {
         assertFailedMicrophoneIsReleased(Built(mic = mic))
     }
 
+    // Same re-point: the close happens at the first take-away; "no call from the app" now refers to
+    // the take-end hook, which waits for the dispatch thread before it runs.
     @Test
     fun `a microphone that throws while reading is closed by its own report with no call from the app`() {
         val mic = ScriptedMic()

@@ -187,4 +187,60 @@ class TileStateMapTest {
             }
         }
     }
+
+    // ---- micBusy coverage (additive; the signature gained micBusy as its last parameter) ----
+
+    @Test
+    fun `a busy face shows MIC_BUSY even with no send fail or commit`() {
+        assertEquals(
+            "app: micBusy with no push/fail/commit should show MIC_BUSY",
+            TileState.MIC_BUSY,
+            tileStateFor(true, DictationState.IDLE, false, false, null, true),
+        )
+    }
+
+    @Test
+    fun `a busy face wins over a pushed send`() {
+        assertEquals(
+            "app: micBusy beats a pushed send which comes after it",
+            TileState.MIC_BUSY,
+            tileStateFor(true, DictationState.IDLE, true, false, null, true),
+        )
+    }
+
+    @Test
+    fun `a busy face wins over a last failed`() {
+        assertEquals(
+            "app: micBusy beats a failure which comes after it",
+            TileState.MIC_BUSY,
+            tileStateFor(true, DictationState.IDLE, false, true, null, true),
+        )
+    }
+
+    @Test
+    fun `a busy face wins over a committed send`() {
+        assertEquals(
+            "app: micBusy beats a committed outcome which comes after it",
+            TileState.MIC_BUSY,
+            tileStateFor(true, DictationState.IDLE, false, false, CommitOutcome.COMMITTED, true),
+        )
+    }
+
+    @Test
+    fun `a dormant busy flag reports the session's own state`() {
+        assertEquals(
+            "app: micBusy false keeps today's behaviour (session decides)",
+            TileState.ARMED,
+            tileStateFor(true, DictationState.ARMED, false, false, null, false),
+        )
+    }
+
+    @Test
+    fun `an off switch shows IDLE regardless of busy`() {
+        assertEquals(
+            "app: the off switch wins over a busy flag",
+            TileState.IDLE,
+            tileStateFor(false, DictationState.IDLE, false, false, null, true),
+        )
+    }
 }

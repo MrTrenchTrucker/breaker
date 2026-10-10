@@ -15,6 +15,7 @@ import dev.breaker.dictation.service.DictationServiceController
 import dev.breaker.dictation.service.FakeMicSource
 import dev.breaker.dictation.stt.ondevice.ErrorMapping
 import java.io.File
+import kotlinx.coroutines.CompletableDeferred
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -77,12 +78,14 @@ class DictationFlowTest {
             committer = FakeCommitter(),
             micSource = mic,
         )
-        root.onTakeEnded = { count += 1 }
+        val hookRan = CompletableDeferred<Unit>()
+        root.onTakeEnded = { count += 1; hookRan.complete(Unit) }
         controller.adopt()
         assertEquals("app: the capture should start over the scripted microphone", BeginResult.Recording, root.dictation.runner.begin())
         val thread = awaitBounded("the capture thread to read", mic.firstReadThread)
         thread.join(5_000L)
         assertFalse("app: the capture thread should have ended by itself", thread.isAlive)
+        awaitBounded("the take-end hook on the dispatch thread", hookRan)
         assertEquals("app: a take that ends by itself must reach the root's onTakeEnded once", 1, count)
         root.dictation.close()
     }

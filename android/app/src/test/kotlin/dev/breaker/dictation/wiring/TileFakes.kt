@@ -6,6 +6,7 @@ import dev.breaker.dictation.core.model.DictationState
 import dev.breaker.dictation.core.model.Transcription
 import dev.breaker.dictation.core.model.TranscriptionSource
 import dev.breaker.dictation.core.port.CommitOutcomeResult
+import dev.breaker.dictation.core.port.HistoryStore
 import dev.breaker.dictation.core.usecase.SendResult
 import dev.breaker.dictation.overlay.TileState
 
@@ -153,6 +154,11 @@ internal class FakeTake : TakePort {
         if (mirrorRunner) sessionState = DictationState.IDLE
         cancelError?.let { throw it }
     }
+
+    /** Mirrors the runner's resetAfterTaken (session back to IDLE); matches the take lifetime rule. */
+    override fun resetAfterTaken() {
+        sessionState = DictationState.IDLE
+    }
 }
 
 internal class FakeModelReady(var ready: Boolean = true) : ModelReady {
@@ -207,7 +213,35 @@ internal fun sentResult(outcome: CommitOutcome, detail: String?): SendResult =
     SendResult(CommitOutcomeResult(outcome, detail), DictationSession())
 
 /** The coordinator over the fakes. It is armed when built unless [arm] is false. */
-internal class TileRig(ready: Boolean = true, arm: Boolean = true) {
+/** The clipboard as a test records every copy; an empty list means nothing was copied. */
+internal class RecordingClipboard : TakenClipboard {
+    val copies = ArrayList<String>()
+
+    override fun copy(text: String) {
+        copies.add(text)
+    }
+}
+
+/** A history store that records saved transcriptions and answers deletes with false. */
+internal class RecordingHistory : HistoryStore {
+    val saved = ArrayList<Transcription>()
+
+    override fun save(transcription: Transcription) {
+        saved.add(transcription)
+    }
+
+    override fun list(limit: Int): List<Transcription> = emptyList()
+
+    override fun delete(id: String): Boolean = false
+}
+
+internal class TileRig(
+    ready: Boolean = true,
+    arm: Boolean = true,
+    val clipboard: RecordingClipboard = RecordingClipboard(),
+    takenNotice: (String?) -> Unit = {},
+    val history: RecordingHistory = RecordingHistory(),
+) {
     val tile = RecordingTile()
     val main = ManualMain()
     val background = ManualBackground()
@@ -215,7 +249,7 @@ internal class TileRig(ready: Boolean = true, arm: Boolean = true) {
     val model = FakeModelReady(ready)
     val notice = RecordingModelNotice()
     val opener = RecordingOpener()
-    val coordinator = TileCoordinator(tile, main, background, take, model, notice, opener)
+    val coordinator = TileCoordinator(tile, main, background, take, model, notice, opener, clipboard, takenNotice, history)
 
     init {
         if (arm) coordinator.onArmedChanged(true)

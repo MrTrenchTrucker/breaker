@@ -17,4 +17,8 @@ class TakePortAdapter(private val runner: DictationRunner) : TakePort {
     override fun cancel() {
         runner.cancel()
     }
+
+    override fun resetAfterTaken() {
+        runner.resetAfterTaken()
+    }
 }

@@ -1,6 +1,7 @@
 package dev.breaker.dictation.wiring
 
 import dev.breaker.dictation.audio.MicCapture
+import dev.breaker.dictation.audio.MicSourceException
 import dev.breaker.dictation.audio.MicSource
 import dev.breaker.dictation.core.port.Clock
 import dev.breaker.dictation.core.port.ConnectivityProbe
@@ -49,6 +50,7 @@ class DictationComponent(
     micSource: MicSource,
     private val controller: DictationServiceController,
     private val onTakeEnded: () -> Unit = {},
+    private val onMicTaken: () -> Unit = {},
 ) : AutoCloseable {
 
     private val runnerHolder = AtomicReference<DictationRunner?>(null)
@@ -58,10 +60,10 @@ class DictationComponent(
     val runner: DictationRunner
 
     init {
-        val reporting = ReportingMicSource(micSource) {
-            runnerHolder.get()?.onCaptureEnded()
-            onTakeEnded()
-        }
+        // The wrapper reports at most once; the take end is routed below through MicCapture's
+        // take-end hook, which routes a taken failure to the take hook and any other end down
+        // the classic capture-ended path. The report here stays reported but no longer forwards.
+        val reporting = ReportingMicSource(micSource) {}
         val dictate = DictateUseCase(
             settings = settings,
             probe = probe,
@@ -73,7 +75,26 @@ class DictationComponent(
             ids = ids,
             localFormatter = localFormatter,
         )
-        val built = DictationRunner(dictate, SendUseCase(committer, history), MicCapture(reporting), controller, reporting)
+        val built = DictationRunner(
+            dictate,
+            SendUseCase(committer, history),
+            MicCapture(
+                reporting,
+                onTakeEnded = { failure ->
+                    when {
+                        failure == null -> {}  // a user stop or a stop without a failure is not a take end
+                        (failure as? MicSourceException)?.reason == MicSourceException.Reason.MICROPHONE_TAKEN ->
+                            onMicTaken()
+                        else -> {  // a device failure, a null-reason failure, any other throwable
+                            runnerHolder.get()?.onCaptureEnded()
+                            onTakeEnded()
+                        }
+                    }
+                },
+            ),
+            controller,
+            reporting,
+        )
         runnerHolder.set(built)
         runner = built
         controller.setEndedListener { runnerHolder.get()?.onServiceEnded() }

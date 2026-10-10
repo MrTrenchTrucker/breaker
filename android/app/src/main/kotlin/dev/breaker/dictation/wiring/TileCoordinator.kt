@@ -2,6 +2,7 @@ package dev.breaker.dictation.wiring
 
 import dev.breaker.dictation.core.model.CommitOutcome
 import dev.breaker.dictation.core.model.DictationState
+import dev.breaker.dictation.core.port.HistoryStore
 import dev.breaker.dictation.core.usecase.SendResult
 import dev.breaker.dictation.overlay.TileState
 
@@ -32,6 +33,9 @@ class TileCoordinator(
     private val modelReady: ModelReady,
     private val modelNotice: ModelNotice,
     private val opener: Opener,
+    private val clipboard: TakenClipboard = object : TakenClipboard { override fun copy(text: String) {} },
+    private val takenNotice: (String?) -> Unit = {},
+    private val history: HistoryStore? = null,
 ) {
     private var armed: Boolean = false
     private var sendPushed: Boolean = false
@@ -40,6 +44,12 @@ class TileCoordinator(
     private var beginPending: Boolean = false
     private var pushed: TileState = TileState.IDLE
     private var generation: Int = 0
+
+    /** The taken-entry controller (the MIC_BUSY face and its settle). */
+    internal val yield = TakeYieldController(
+        background, main, take, history, clipboard, takenNotice,
+        { push(it) }, { sendPushed = false }, { generation }  // the one place push happens
+    )
 
     /** True while the last show answered SHOWN; a refused or failed show and a switch-off clear it. A take may begin only while it holds. */
     private var tileShown: Boolean = false
@@ -58,7 +68,8 @@ class TileCoordinator(
 
     /** The microphone on an armed tile was tapped: start a take, if the speech model is there. */
     fun onBegin() {
-        if (!armed || !tileShown || beginPending || (pushed != TileState.ARMED && pushed != TileState.SENT)) return
+        if (!armed || !tileShown || beginPending || yield.yieldRunning() ||
+            (pushed != TileState.ARMED && pushed != TileState.SENT && pushed != TileState.MIC_BUSY)) return
         val wasSent: Boolean = pushed == TileState.SENT
         lastCommit = null
         if (!isModelReady()) {
@@ -86,7 +97,7 @@ class TileCoordinator(
 
     /** The user cancelled the take: drop it and show the armed tile. */
     fun onCancel() {
-        if (!armed) return
+        if (!armed || yield.yieldRunning()) return
         lastFailed = false
         sendPushed = false
         lastCommit = null
@@ -111,6 +122,10 @@ class TileCoordinator(
 
     /** The tile was tapped while it is off or failed: clear the failure and open the launcher. */
     fun onTap() {
+        if (armed && pushed == TileState.MIC_BUSY) {
+            onBegin()
+            return
+        }
         if (armed && pushed == TileState.SENT) {
             onBegin()
             return
@@ -122,10 +137,18 @@ class TileCoordinator(
         guarded { opener.openLauncher(route) }
     }
 
+    /** The microphone was taken by another app: cut the take and show the busy face. */
+    fun onTakeMicTaken() {
+        if (!armed || sendPushed) return
+        sendPushed = true
+        yield.onTakeMicTaken()
+    }
+
     /** A take ended by itself (the microphone stopped): the tile goes back to armed. */
     fun onTakeEnded() {
         if (!armed || sendPushed) return
         push()
+        yield.onTakeEndedCleared()
     }
 
     private fun arm() {
@@ -157,6 +180,7 @@ class TileCoordinator(
         tileShown = false
         lastCommit = null
         push()
+        yield.disarmCleared()
         submit { guarded { take.cancel() } }
         guarded { tile.hide() }
     }
@@ -164,9 +188,10 @@ class TileCoordinator(
     private fun beginSettled(result: BeginResult) {
         beginPending = false
         when (result) {
-            is BeginResult.Recording -> push()
+            is BeginResult.Recording -> { yield.onBeginAccepted(); push() }
+            is BeginResult.Taken -> { beginPending = false; yield.beginRefusedAsTaken() }  // no FAILED push
             is BeginResult.Refused -> fail(result.sentence)
-            is BeginResult.Failed -> fail(result.sentence)
+            is BeginResult.Failed -> { yield.onBeginFailed(); fail(result.sentence) }
         }
     }
 
@@ -174,11 +199,7 @@ class TileCoordinator(
         sendPushed = false
         when (end) {
             is End.Back -> push()
-            is End.Sent -> {
-                lastCommit = end.outcome
-                push()
-                guarded { tile.clearNotice() }
-            }
+            is End.Sent -> { lastCommit = end.outcome; push(); guarded { tile.clearNotice() } }
             is End.Failure -> fail(end.sentence)
         }
     }
@@ -235,7 +256,8 @@ class TileCoordinator(
     }
 
     private fun push(session: DictationState = sessionNow()) {
-        val state: TileState = tileStateFor(armed, session, sendPushed, lastFailed, lastCommit)
+        val state: TileState = tileStateFor(
+            armed, session, sendPushed, lastFailed, lastCommit, yield.micBusy.get())
         pushed = state
         guarded { tile.setState(state) }
     }
