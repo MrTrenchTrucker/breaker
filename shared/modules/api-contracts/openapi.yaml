@@ -138,7 +138,7 @@ paths:
               username: "alice"
               salt: "c2FsdA=="
               kdf_params:
-                memory: 64
+                memory_kib: 65536
                 iterations: 3
                 parallelism: 1
               kdf_version: 1
@@ -197,7 +197,7 @@ paths:
               example:
                 salt: "c2FsdA=="
                 kdf_params:
-                  memory: 64
+                  memory_kib: 65536
                   iterations: 3
                   parallelism: 1
                 kdf_version: 1
@@ -566,15 +566,15 @@ components:
     KdfParams:
       type: object
       required:
-        - memory
+        - memory_kib
         - iterations
         - parallelism
       properties:
-        memory:
+        memory_kib:
           type: integer
-          minimum: 64
-          maximum: 256
-          description: Memory in MiB (64-256)
+          minimum: 65536
+          maximum: 262144
+          description: Memory in KiB (65536-262144)
         iterations:
           type: integer
           minimum: 3

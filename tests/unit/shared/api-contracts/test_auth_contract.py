@@ -5,7 +5,7 @@ logout, and admin agent-token revoke. Uses the yaml_subset parser
 (the same one the Python tier already uses) to parse the spec and
 validate structure, field names, types, nullability, and required lists.
 
-Also tests the KDF rules: version must equal 1, memory 64-256 MiB,
+Also tests the KDF rules: version must equal 1, memory_kib 65536-262144,
 iterations 3-10, parallelism 1-4. And the base64/32-byte rules for
 verifier and KEK-wrapped values.
 
@@ -172,12 +172,39 @@ class KdfRulesTest(unittest.TestCase):
 
     def test_kdf_params_memory_field(self):
         props = self.schemas["KdfParams"]["properties"]
-        self.assertIn("memory", props)
+        self.assertIn("memory_kib", props)
 
     def test_kdf_params_memory_has_range(self):
-        memory = self.schemas["KdfParams"]["properties"]["memory"]
-        self.assertEqual(memory.get("minimum"), "64")
-        self.assertEqual(memory.get("maximum"), "256")
+        memory = self.schemas["KdfParams"]["properties"]["memory_kib"]
+        self.assertEqual(memory.get("minimum"), "65536")
+        self.assertEqual(memory.get("maximum"), "262144")
+
+    def test_kdf_params_memory_boundaries_accepted(self):
+        memory = self.schemas["KdfParams"]["properties"]["memory_kib"]
+        self.assertEqual(memory.get("minimum"), "65536")
+        self.assertEqual(memory.get("maximum"), "262144")
+
+    def test_kdf_params_memory_below_minimum_refused(self):
+        memory = self.schemas["KdfParams"]["properties"]["memory_kib"]
+        self.assertGreater(int(memory.get("minimum")), 65535)
+
+    def test_kdf_params_memory_above_maximum_refused(self):
+        memory = self.schemas["KdfParams"]["properties"]["memory_kib"]
+        self.assertLess(int(memory.get("maximum")), 262145)
+
+    def test_no_auth_schema_says_mib_in_field(self):
+        for schema_name, schema in self.schemas.items():
+            props = schema.get("properties", {})
+            for field_name, field_def in props.items():
+                desc = field_def.get("description", "")
+                if "MiB" in desc:
+                    self.fail(f"{schema_name}.{field_name} description still says MiB: {desc}")
+
+    def test_old_memory_field_name_gone(self):
+        props = self.schemas["KdfParams"]["properties"]
+        self.assertNotIn("memory", props)
+        required = self.schemas["KdfParams"].get("required", [])
+        self.assertNotIn("memory", required)
 
     def test_kdf_params_iterations_field(self):
         props = self.schemas["KdfParams"]["properties"]
@@ -196,6 +223,80 @@ class KdfRulesTest(unittest.TestCase):
         parallelism = self.schemas["KdfParams"]["properties"]["parallelism"]
         self.assertEqual(parallelism.get("minimum"), "1")
         self.assertEqual(parallelism.get("maximum"), "4")
+
+    def test_kdf_params_memory_kib_type_is_integer(self):
+        memory = self.schemas["KdfParams"]["properties"]["memory_kib"]
+        self.assertEqual(memory.get("type"), "integer")
+
+    def test_kdf_params_iterations_type_is_integer(self):
+        iterations = self.schemas["KdfParams"]["properties"]["iterations"]
+        self.assertEqual(iterations.get("type"), "integer")
+
+    def test_kdf_params_parallelism_type_is_integer(self):
+        parallelism = self.schemas["KdfParams"]["properties"]["parallelism"]
+        self.assertEqual(parallelism.get("type"), "integer")
+
+    def test_auth_examples_memory_kib_in_range(self):
+        """Scan all /v1/auth/ paths in the raw YAML for examples containing
+        memory_kib and assert each value is in [65536, 262144].
+        Uses yaml_subset (not PyYAML) — scalar values come back as strings."""
+        spec_path = os.path.join(ROOT, "shared", "modules", "api-contracts", "openapi.yaml")
+        if not os.path.isfile(spec_path):
+            raise AssertionError(f"openapi.yaml not found at {spec_path}")
+        with open(spec_path, encoding="utf-8") as fh:
+            text = fh.read()
+        raw = yaml_subset.loads(text, "openapi.yaml")
+        paths = raw.get("paths", {})
+        found = 0
+
+        def _find_memory_kib(obj, path_str):
+            nonlocal found
+            if isinstance(obj, dict):
+                for k, v in obj.items():
+                    if k == "memory_kib" and isinstance(v, (int, float, str)):
+                        val = int(v)
+                        self.assertTrue(65536 <= val <= 262144,
+                            f"{path_str} memory_kib example {val} out of range")
+                        found += 1
+                    else:
+                        _find_memory_kib(v, f"{path_str}.{k}")
+            elif isinstance(obj, list):
+                for i, item in enumerate(obj):
+                    _find_memory_kib(item, f"{path_str}[{i}]")
+
+        for path, item in paths.items():
+            if not path.startswith("/v1/auth/"):
+                continue
+            for method, op in item.items():
+                if not isinstance(op, dict):
+                    continue
+                # Check parameter examples
+                for param in op.get("parameters", []):
+                    if param.get("name") == "memory_kib":
+                        val = param.get("example")
+                        if val is not None:
+                            val = int(val)
+                            self.assertTrue(65536 <= val <= 262144,
+                                f"{path}.{method} parameter memory_kib example {val} out of range")
+                            found += 1
+                # Check requestBody examples
+                rb = op.get("requestBody", {})
+                content = rb.get("content", {})
+                for media_type, media_obj in content.items():
+                    ex = media_obj.get("example")
+                    if ex is not None:
+                        _find_memory_kib(ex, f"{path}.{method} requestBody")
+                # Check response examples
+                responses = op.get("responses", {})
+                for status, resp in responses.items():
+                    resp_content = resp.get("content", {})
+                    for media_type, media_obj in resp_content.items():
+                        ex = media_obj.get("example")
+                        if ex is not None:
+                            _find_memory_kib(ex, f"{path}.{method} response {status}")
+
+        self.assertGreaterEqual(found, 2,
+            f"Expected at least 2 memory_kib examples in /v1/auth/ paths, found {found}")
 
     def test_register_kdf_version_has_enum(self):
         kdf_version = self.schemas["RegisterRequest"]["properties"]["kdf_version"]
@@ -259,7 +360,7 @@ class KdfRulesTest(unittest.TestCase):
 
     def test_kdf_params_required_fields(self):
         required = self.schemas["KdfParams"].get("required", [])
-        self.assertIn("memory", required)
+        self.assertIn("memory_kib", required)
         self.assertIn("iterations", required)
         self.assertIn("parallelism", required)
 

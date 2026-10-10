@@ -72,12 +72,12 @@ There is no synchronous 200-with-body variant — every transcription is a job.
 - **auth — statuses of this slice** (every error body is the shared `ApiError`, never echoing a
   password, verifier, salt or token): register → **201** `{username, role}` | **400** naming the
   failing field (username charset or length, `kdf_version` other than 1, KDF values outside
-  memory 64-256 MiB / iterations 3-10 / parallelism 1-4, a salt or verifier whose decoded length is
+  memory_kib 65536-262144 (64-256 MiB) / iterations 3-10 / parallelism 1-4, a salt or verifier whose decoded length is
   not 32 bytes) | **409** username already taken (compared lowercase); salt → **200** | **404** for
   an unknown username (no decoy); login → **200** | **401** for bad credentials or an unknown
   account (the same body for both); `DELETE /v1/admin/agent-tokens/{id}` → **204** (also when
   already revoked) | **404** unknown id | **401** no or invalid token | **403** a valid
-  non-admin token.
+  non-admin token. The wire unit is KiB everywhere (memory_kib 65536-262144).
 - **sync** — **user session token only on every endpoint in this group, an
   agent token is refused.** `POST /v1/sync` (idempotent push, dedupe on the
   **(client id, `key_version`)** pair — not on client id alone, and not a
