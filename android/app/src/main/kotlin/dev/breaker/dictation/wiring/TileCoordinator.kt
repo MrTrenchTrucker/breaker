@@ -189,7 +189,7 @@ class TileCoordinator(
         beginPending = false
         when (result) {
             is BeginResult.Recording -> { yield.onBeginAccepted(); push() }
-            is BeginResult.Taken -> { beginPending = false; yield.beginRefusedAsTaken() }  // no FAILED push
+            is BeginResult.Taken -> { yield.beginRefusedAsTaken() }  // no FAILED push
             is BeginResult.Refused -> fail(result.sentence)
             is BeginResult.Failed -> { yield.onBeginFailed(); fail(result.sentence) }
         }

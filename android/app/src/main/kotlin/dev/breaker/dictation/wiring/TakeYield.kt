@@ -54,14 +54,19 @@ internal class TakeYieldController(
                     // drop the save/copy decision.
                 }
                 // The save is on the background (the send path
-                // saves there too):
-                if (finished is FinishResult.ReadyToSend &&
-                    finished.transcription.text.isNotBlank() &&
-                    history != null) {
-                    history.save(finished.transcription)
-                }
+                // saves there too). It has its own try, so a throw
+                // cannot skip the settle. The result is an immutable
+                // local value, made before main.post and captured by
+                // the lambda; main never reads a shared variable.
+                val saveFailed: Boolean =
+                    if (finished is FinishResult.ReadyToSend &&
+                        finished.transcription.text.isNotBlank() &&
+                        history != null) {
+                        try { history.save(finished.transcription); false }
+                        catch (e: Exception) { true }
+                    } else false
                 main.post {
-                    if (epoch == generation()) yieldSettle(finished)
+                    if (epoch == generation()) yieldSettle(finished, saveFailed)
                 }
             }
             true
@@ -85,7 +90,7 @@ internal class TakeYieldController(
 
     /** The settle of the taken take (on main; its three outcomes, the
      *  PER-OUTCOME line: the full outcome line replaces the LEAD). */
-    private fun yieldSettle(finished: FinishResult?) {
+    private fun yieldSettle(finished: FinishResult?, saveFailed: Boolean) {
         val line: String = when {
             finished is FinishResult.ReadyToSend &&
                 finished.transcription.text.isNotBlank() -> {
@@ -96,7 +101,8 @@ internal class TakeYieldController(
                     // A clipboard that throws must not stop the settle
                     // (the coordinator's guarded{} pattern).
                 }
-                TakenSentences.SAVED_AND_COPIED   // saved and copied
+                if (saveFailed) TakenSentences.COPIED_NOT_SAVED   // copied, save failed
+                else TakenSentences.SAVED_AND_COPIED   // saved and copied
             }
             finished is FinishResult.ReadyToSend ->
                 TakenSentences.TAKEN_NOTHING_HEARD   // blank: nothing was heard

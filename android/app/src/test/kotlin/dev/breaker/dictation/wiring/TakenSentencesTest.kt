@@ -26,5 +26,8 @@ internal class TakenSentencesTest {
 
         assertEquals("Another app still has the microphone. Breaker listens again once it is free.", TakenSentences.STILL_TAKEN)
         assertEquals(76, TakenSentences.STILL_TAKEN.length)
+
+        assertEquals("Recording stopped for a call or another app. Text copied, but not saved to History.", TakenSentences.COPIED_NOT_SAVED)
+        assertEquals(83, TakenSentences.COPIED_NOT_SAVED.length)
     }
 }

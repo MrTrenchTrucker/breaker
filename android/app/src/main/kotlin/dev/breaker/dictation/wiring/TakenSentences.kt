@@ -9,6 +9,8 @@ internal object TakenSentences {
         "Recording stopped for a call or another app. Nothing was heard."
     const val NOT_CONVERTED: String =
         "Recording stopped for a call or another app. The speech could not be converted."
+    const val COPIED_NOT_SAVED: String =
+        "Recording stopped for a call or another app. Text copied, but not saved to History."
     const val STILL_TAKEN: String =
         "Another app still has the microphone. Breaker listens again once it is free."
 }
