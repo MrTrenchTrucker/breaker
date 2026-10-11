@@ -10,18 +10,19 @@ import org.junit.Test
 class TileRoutingTest {
 
     private val none = TileAction.NONE
+    private val dismiss = TileAction.DISMISS
 
     private val table: List<Triple<TileState, TileZone, TileAction>> = listOf(
         Triple(TileState.IDLE, TileZone.MIC, TileAction.TAP),
         Triple(TileState.IDLE, TileZone.CANCEL, none),
         Triple(TileState.IDLE, TileZone.SEND, none),
-        Triple(TileState.IDLE, TileZone.STRIP, none),
+        Triple(TileState.IDLE, TileZone.STRIP, dismiss),
         Triple(TileState.IDLE, TileZone.NONE, none),
 
         Triple(TileState.ARMED, TileZone.MIC, TileAction.BEGIN),
         Triple(TileState.ARMED, TileZone.CANCEL, none),
         Triple(TileState.ARMED, TileZone.SEND, none),
-        Triple(TileState.ARMED, TileZone.STRIP, none),
+        Triple(TileState.ARMED, TileZone.STRIP, dismiss),
         Triple(TileState.ARMED, TileZone.NONE, none),
 
         Triple(TileState.RECORDING, TileZone.MIC, TileAction.SEND),
@@ -39,24 +40,24 @@ class TileRoutingTest {
         Triple(TileState.FAILED, TileZone.MIC, TileAction.TAP),
         Triple(TileState.FAILED, TileZone.CANCEL, none),
         Triple(TileState.FAILED, TileZone.SEND, none),
-        Triple(TileState.FAILED, TileZone.STRIP, none),
+        Triple(TileState.FAILED, TileZone.STRIP, dismiss),
         Triple(TileState.FAILED, TileZone.NONE, none),
 
         Triple(TileState.SENT, TileZone.MIC, TileAction.TAP),
         Triple(TileState.SENT, TileZone.CANCEL, none),
         Triple(TileState.SENT, TileZone.SEND, none),
-        Triple(TileState.SENT, TileZone.STRIP, none),
+        Triple(TileState.SENT, TileZone.STRIP, dismiss),
         Triple(TileState.SENT, TileZone.NONE, none),
 
         Triple(TileState.SENT_LOCAL, TileZone.MIC, TileAction.TAP),
         Triple(TileState.SENT_LOCAL, TileZone.CANCEL, none),
         Triple(TileState.SENT_LOCAL, TileZone.SEND, none),
-        Triple(TileState.SENT_LOCAL, TileZone.STRIP, none),
+        Triple(TileState.SENT_LOCAL, TileZone.STRIP, dismiss),
         Triple(TileState.SENT_LOCAL, TileZone.NONE, none),
         Triple(TileState.MIC_BUSY, TileZone.MIC, TileAction.TAP),
         Triple(TileState.MIC_BUSY, TileZone.CANCEL, none),
         Triple(TileState.MIC_BUSY, TileZone.SEND, none),
-        Triple(TileState.MIC_BUSY, TileZone.STRIP, none),
+        Triple(TileState.MIC_BUSY, TileZone.STRIP, dismiss),
         Triple(TileState.MIC_BUSY, TileZone.NONE, none),
     )
 
@@ -75,7 +76,7 @@ class TileRoutingTest {
         )
         assertEquals(
             "overlay: the actions expected in this order",
-            listOf(TileAction.NONE, TileAction.TAP, TileAction.BEGIN, TileAction.CANCEL, TileAction.SEND),
+            listOf(TileAction.NONE, TileAction.TAP, TileAction.BEGIN, TileAction.CANCEL, TileAction.SEND, TileAction.DISMISS),
             TileAction.values().toList(),
         )
     }

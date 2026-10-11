@@ -40,6 +40,7 @@ class TileControllerButtonsTest {
             },
             onCancel = { log.add("cancel") },
             onSend = { log.add("send") },
+            onNoticeDismissed = { log.add("noticeDismissed") },
         )
 
         /** Show the tile, push [state] and forget the calls made so far. */
@@ -122,15 +123,15 @@ class TileControllerButtonsTest {
         assertEquals("overlay: a failed tap on the microphone should call onTap once", listOf("tap"), rig.tapped(mic))
     }
 
-    /** If this fails, the notice window reacts to a part it does not draw, or the microphone stops answering under a notice. */
+    /** If this fails, the microphone stops answering under a notice, or the strip does not dismiss the notice. */
     @Test
-    fun `under a notice only the microphone answers`() {
+    fun `under a notice the microphone taps and the strip dismisses`() {
         val rig = Rig().shown(TileState.IDLE)
         rig.controller.showNotice("Turn dictation on first")
         assertEquals("overlay: the microphone under a notice should call onTap", listOf("tap"), rig.tapped(mic))
-        assertEquals("overlay: the strip under a notice should do nothing", emptyList<String>(), rig.tapped(strip))
         assertEquals("overlay: the empty place of the cancel button should do nothing", emptyList<String>(), rig.tapped(cancel))
         assertEquals("overlay: the empty place of the check should do nothing", emptyList<String>(), rig.tapped(send))
+        assertEquals("overlay: the strip under a notice should call onNoticeDismissed", listOf("noticeDismissed"), rig.tapped(strip))
     }
 
     /** If this fails, a missing callback crashes the tap instead of doing nothing. */
