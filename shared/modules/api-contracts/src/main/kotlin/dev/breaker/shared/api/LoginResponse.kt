@@ -9,11 +9,11 @@ package dev.breaker.shared.api
 data class LoginResponse(
     val token: String,
     val role: String,
-    val wrapped_dek: String?,
-    val wrapped_box_privkey: String?,
-    val box_pubkey: String?,
-    val key_version: Int,
-    val prev_wrapped_dek: String?,
-    val reset_at: String?,
-    val rekeyed_at: String?,
+    val wrappedDek: String?,
+    val wrappedBoxPrivkey: String?,
+    val boxPubkey: String?,
+    val keyVersion: Int,
+    val prevWrappedDek: String?,
+    val resetAt: String?,
+    val rekeyedAt: String?,
 )

@@ -7,6 +7,6 @@ package dev.breaker.shared.api
  */
 data class SaltResponse(
     val salt: String,
-    val kdf_params: KdfParams,
-    val kdf_version: Int,
+    val kdfParams: KdfParams,
+    val kdfVersion: Int,
 )

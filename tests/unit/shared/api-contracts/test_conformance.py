@@ -22,8 +22,26 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from api_contracts_support import (
     load_spec, get_schemas, get_schema_fields, get_enum_values,
     parse_all_kotlin, parse_kotlin_file, snake, map_spec_type_to_kotlin,
-    compare_fields, check_coverage, effective_enum,
+    compare_fields, check_coverage, effective_enum, KOTLIN_DIR,
 )
+
+_RAW_FIELDS = None
+
+
+def parse_raw_fields(class_name):
+    """The RAW (un-snaked) (name, type, nullable) fields of one Kotlin data class.
+
+    parse_all_kotlin() snakes the names for the wire comparison; this reads the
+    file directly so the camelCase rule can be checked on the real identifiers.
+    """
+    global _RAW_FIELDS
+    if _RAW_FIELDS is None:
+        _RAW_FIELDS = {}
+        for kt_file in sorted(KOTLIN_DIR.glob("*.kt")):
+            parsed = parse_kotlin_file(kt_file)
+            for name, fields, _rules in parsed["data_classes"]:
+                _RAW_FIELDS[name] = fields
+    return _RAW_FIELDS.get(class_name, [])
 
 
 class ConformanceTest(unittest.TestCase):
@@ -213,6 +231,36 @@ class ConformanceTest(unittest.TestCase):
             "the Job init rules must keep the DONE-requires-result rule, "
             f"got: {rules!r}"
         )
+
+
+    def test_every_schema_matches_its_kotlin_type_and_names_are_camel_case(self):
+        """EVERY schema/Kotlin pair, through the production comparator, and every
+        Kotlin DTO property camelCase (the wire name is snake() of it).
+
+        The Error schema maps to ApiError; the JobStatus enum is covered by its
+        named test and is skipped here (an enum has no fields).
+        """
+        mapping = {"Error": "ApiError"}
+        for schema_name, spec_schema in self.schemas.items():
+            kt_name = mapping.get(schema_name, schema_name)
+            self.assertIn(kt_name, self.kotlin,
+                          f"schema {schema_name} has no Kotlin type {kt_name}")
+            kt = self.kotlin[kt_name]
+            if kt.get("type") == "enum":
+                continue
+            self.assertEqual(kt.get("type"), "data_class",
+                             f"{schema_name} must be a data class in Kotlin")
+            # every Kotlin DTO property is camelCase: no underscore in the raw name
+            for raw_name, _type, _nullable in parse_raw_fields(kt_name):
+                self.assertNotIn(
+                    "_", raw_name,
+                    f"schema {schema_name} field {raw_name!r} must be camelCase in Kotlin "
+                    f"(the wire name is snake() of it)"
+                )
+            self.assertTrue(
+                compare_fields(schema_name, spec_schema, kt, self.kotlin, self.schemas),
+                f"{schema_name} must compare clean through the production comparator"
+            )
 
 
 if __name__ == "__main__":

@@ -9,7 +9,7 @@ package dev.breaker.shared.api
 data class RegisterRequest(
     val username: String,
     val salt: String,
-    val kdf_params: KdfParams,
-    val kdf_version: Int,
-    val auth_verifier: String,
+    val kdfParams: KdfParams,
+    val kdfVersion: Int,
+    val authVerifier: String,
 )
