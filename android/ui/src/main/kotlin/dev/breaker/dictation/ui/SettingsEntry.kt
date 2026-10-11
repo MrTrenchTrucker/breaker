@@ -83,15 +83,31 @@ fun createSettingsView(context: android.content.Context, settings: dev.breaker.d
  *   "com.example/com.example.TheService". It is compared whole, never as a part of
  *   a longer name. Either spelling of a class that starts with the package is
  *   accepted: "com.example/com.example.TheService" or "com.example/.TheService".
+ * @param modelReady answers whether the speech model is on the phone right now. It
+ *   is asked again on every refresh, so a download that finishes while the screen is
+ *   open is shown without this module keeping the answer.
+ * @param downloadLine answers the sentence to show under the model step's button,
+ *   or null when the app has nothing to say; the download's own progress and failure
+ *   sentences stay the app's.
+ * @param onDownloadModel asks the app to download the speech model; the download
+ *   itself stays the app's.
  * @return a view that shows the setup steps and the switch and can be put in a
- *   layout as it stands.
+ *   layout as it stands. The view also answers [ModelStepControl], which the app
+ *   calls to refresh the model step and to focus its download button.
  */
 // The parameter types are written out in full, for the same reason as above.
-fun createOnboardingView(context: android.content.Context, switch: BreakerSwitch, accessibilityServiceComponent: String): android.view.View {
+fun createOnboardingView(
+    context: android.content.Context,
+    switch: BreakerSwitch,
+    accessibilityServiceComponent: String,
+    modelReady: () -> Boolean,
+    downloadLine: () -> String?,
+    onDownloadModel: () -> Unit,
+): android.view.View {
     val phoneIsDark = isNightMode(context.resources.configuration.uiMode)
     val theme = Themes.of(shownMode(StoredThemeMode.SYSTEM, phoneIsDark))
     val platform = AndroidSetupPlatform(context, accessibilityServiceComponent)
-    val handler = SetupIntentHandler(platform, switch, SetupScreen())
+    val handler = SetupIntentHandler(platform, switch, modelReady, downloadLine, onDownloadModel, SetupScreen())
     return SetupHostView(context, handler, theme, ScreenRenderer(context))
 }
 

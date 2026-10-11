@@ -40,7 +40,30 @@ class SetupIntentHandlerTest {
     private class Fixture(phone: PlatformStatus, on: Boolean = false) {
         val platform = FakeSetupPlatform(phone)
         val switch = FakeBreakerSwitch(on)
-        val handler = SetupIntentHandler(platform, switch, SetupScreen())
+
+        /** Whether the speech model is on the phone, as the provider answers it. */
+        var modelReady: Boolean = false
+
+        /** The sentence the app wants shown under the model step's button, or null. */
+        var downloadLine: String? = null
+
+        /** How many times the app was asked to download the speech model. */
+        var downloadCalls: Int = 0
+
+        /** Set to make the download call throw, so the guard can be checked. */
+        var failDownload: Boolean = false
+
+        val handler = SetupIntentHandler(
+            platform,
+            switch,
+            { modelReady },
+            { downloadLine },
+            {
+                downloadCalls++
+                if (failDownload) throw IllegalStateException("download failed: $SETUP_FAILURE_MARKER")
+            },
+            SetupScreen(),
+        )
     }
 
     private fun tap(action: String) = ScreenIntent.Setup(action)
@@ -255,6 +278,25 @@ class SetupIntentHandlerTest {
         assertEquals(emptyList<OpenAction>(), f.platform.opened)
         assertEquals(0, f.switch.switchOnCalls + f.switch.switchOffCalls)
         assertNoNotice(after)
+    }
+
+    @Test
+    fun `the download button calls the app exactly once and a throw shows the fixed sentence`() {
+        val f = Fixture(nothing)
+        f.handler.current()
+        val after = f.handler.handle(tap("download.model"))
+        assertEquals(1, f.downloadCalls)
+        assertNoNotice(after)
+
+        val again = f.handler.handle(tap("download.model"))
+        assertEquals(2, f.downloadCalls)
+        assertNoNotice(again)
+
+        val broken = Fixture(nothing)
+        broken.failDownload = true
+        val failed = broken.handler.handle(tap("download.model"))
+        assertEquals(1, broken.downloadCalls)
+        assertEquals(SetupTexts.NOTICE_COULD_NOT_DOWNLOAD, failed.notice())
     }
 
     @Test

@@ -27,6 +27,11 @@ internal object SetupTexts {
     const val STATUS_GRANTED = "Done"
     const val STATUS_NOT_GRANTED = "Not done yet"
 
+    /** Step: the speech model, which the user downloads once and which is then ready. */
+    const val HEADING_MODEL = "Speech model"
+    const val WHY_MODEL = "Breaker needs a speech model on your phone to turn your voice into text."
+    const val BUTTON_DOWNLOAD_MODEL = "Download the speech model"
+
     /** Step: display over other apps. */
     const val HEADING_OVERLAY = "Display over other apps"
     const val WHY_OVERLAY =
@@ -111,4 +116,5 @@ internal object SetupTexts {
         "Breaker could not open that. Open it yourself from your phone's settings."
     const val NOTICE_SWITCH_FAILED = "Breaker could not change the switch. Try again."
     const val NOTICE_NOT_ACCEPTED = "That request was not accepted. Nothing was changed."
+    const val NOTICE_COULD_NOT_DOWNLOAD = "Breaker could not start the download. Try again."
 }

@@ -16,6 +16,7 @@ import org.junit.Test
 internal class NotificationTextGateTest {
 
     private val names: List<String> = listOf(
+        "app_name",
         "dictation_channel_name",
         "dictation_notification_title",
         "dictation_notification_text",
@@ -36,6 +37,7 @@ internal class NotificationTextGateTest {
 
     private val good: String = """<?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="app_name">Breaker</string>
     <string name="dictation_channel_name">Dictation</string>
     <string name="dictation_notification_title">Breaker is on</string>
     <string name="dictation_notification_text">Tap the tile to start dictating.</string>

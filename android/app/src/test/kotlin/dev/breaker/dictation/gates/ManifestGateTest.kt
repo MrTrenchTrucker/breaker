@@ -38,11 +38,13 @@ internal class ManifestGateTest {
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <application
         android:name=".BreakerApp"
+        android:label="@string/app_name"
         android:networkSecurityConfig="@xml/network_security_config"
         android:usesCleartextTraffic="false">
         <activity
             android:name=".SettingsLauncherActivity"
-            android:exported="true">
+            android:exported="true"
+            android:label="@string/app_name">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -61,13 +63,14 @@ internal class ManifestGateTest {
             name = "application",
             attributes = mapOf(
                 "android:name" to ".BreakerApp",
+                "android:label" to "@string/app_name",
                 "android:networkSecurityConfig" to "@xml/network_security_config",
                 "android:usesCleartextTraffic" to "false",
             ),
             children = listOf(
                 XmlExpect(
                     name = "activity",
-                    attributes = mapOf("android:name" to ".SettingsLauncherActivity", "android:exported" to "true"),
+                    attributes = mapOf("android:name" to ".SettingsLauncherActivity", "android:exported" to "true", "android:label" to "@string/app_name"),
                     children = listOf(
                         XmlExpect(
                             name = "intent-filter",
@@ -164,12 +167,16 @@ internal class ManifestGateTest {
         XmlSample("no system alert window permission", "    <uses-permission android:name=\"android.permission.SYSTEM_ALERT_WINDOW\" />\n", "", "lacks the element <uses-permission>", "android.permission.SYSTEM_ALERT_WINDOW"),
         XmlSample("a permission renamed", "android.permission.FOREGROUND_SERVICE_MICROPHONE", "android.permission.FOREGROUND_SERVICE_CAMERA", "lacks the element <uses-permission>", "android.permission.FOREGROUND_SERVICE_MICROPHONE", "android.permission.FOREGROUND_SERVICE_CAMERA"),
         XmlSample("another namespace", "http://schemas.android.com/apk/res/android", "http://example.invalid/ns", "attribute xmlns:android"),
+        XmlSample("the application label removed", "\n        android:label=\"@string/app_name\"", "", "lacks the attribute android:label"),
+        XmlSample("the application label wrong", "@string/app_name", "@string/other_name", "attribute android:label is \"@string/other_name\""),
+        XmlSample("the launcher activity label removed", "\n            android:label=\"@string/app_name\"", "", "lacks the attribute android:label"),
+        XmlSample("the launcher activity label wrong", "@string/app_name", "@string/other_name", "attribute android:label is \"@string/other_name\""),
     )
 
     private val quiet: List<XmlSample> = listOf(
         XmlSample("a comment that names forbidden things", "<application", "<!-- uses-permission android.permission.SYSTEM_ALERT_WINDOW android:exported=\"true\" <service android:name=\".X\" /> android:usesCleartextTraffic=\"true\" -->\n    <application"),
         XmlSample("a comment between the elements", "</activity>", "</activity>\n        <!-- receiver provider -->"),
-        XmlSample("application attributes in another order", "android:name=\".BreakerApp\"\n        android:networkSecurityConfig=\"@xml/network_security_config\"", "android:networkSecurityConfig=\"@xml/network_security_config\"\n        android:name=\".BreakerApp\""),
+        XmlSample("application attributes in another order", "android:name=\".BreakerApp\"\n        android:label=\"@string/app_name\"\n        android:networkSecurityConfig=\"@xml/network_security_config\"", "android:networkSecurityConfig=\"@xml/network_security_config\"\n        android:label=\"@string/app_name\"\n        android:name=\".BreakerApp\""),
         XmlSample("permissions in another order", "    <uses-permission android:name=\"android.permission.INTERNET\" />\n    <uses-permission android:name=\"android.permission.RECORD_AUDIO\" />", "    <uses-permission android:name=\"android.permission.RECORD_AUDIO\" />\n    <uses-permission android:name=\"android.permission.INTERNET\" />"),
         XmlSample("single quoted values", "android:exported=\"false\"", "android:exported='false'"),
         XmlSample("service attributes on one line", "android:name=\".service.DictationForegroundService\"\n            android:exported=\"false\"", "android:exported=\"false\" android:name=\".service.DictationForegroundService\""),

@@ -35,6 +35,14 @@ internal object SetupActions {
     const val SWITCH_OFF = "switch.off"
     const val RECHECK = "recheck"
 
+    /**
+     * The string the model step's button reports.
+     *
+     * It is not one of [OPENING]: the tap does not open a page of the phone's settings,
+     * it calls back into the app, which owns the download.
+     */
+    const val DOWNLOAD_MODEL = "download.model"
+
     /** The strings that ask the phone to open something. */
     val OPENING: Set<String> =
         setOf(OPEN_OVERLAY, OPEN_MICROPHONE, OPEN_NOTIFICATIONS, OPEN_ACCESSIBILITY, OPEN_APP_INFO)
@@ -76,6 +84,27 @@ internal object SetupActions {
 /** The id of the message node shown after an action that did not work; the view that holds the screen looks for it. */
 internal const val SETUP_NOTICE_ID = "setup.notice"
 
+/** The id of the model step block, the first step of the walk-through. */
+internal const val MODEL_STEP_ID = "setup.step.model"
+
+/** The id of the model step's download button, drawn while the speech model is not ready. */
+internal const val MODEL_STEP_BUTTON_ID = "setup.step.model.button"
+
+/**
+ * The id of the model step's download button in [screen], or null when the model is
+ * ready and the step has no button.
+ *
+ * This is the whole decision the model step's focus makes about where to put focus,
+ * kept as a plain function of the drawn screen so a JVM test can check it without a
+ * device. The view that holds the screen finds the button view by this id.
+ */
+internal fun modelDownloadButtonId(screen: Screen): String? =
+    screen.nodes.filterIsInstance<Box>()
+        .firstOrNull { it.id == MODEL_STEP_ID }
+        ?.children
+        ?.firstOrNull { it is Action }
+        ?.id
+
 /** The set-up screen. */
 internal class SetupScreen {
     /**
@@ -96,6 +125,7 @@ internal class SetupScreen {
                 add(TrimStripe(STRIPE_ID))
                 if (notice != null) add(Label(SETUP_NOTICE_ID, notice.text, TypeRole.BODY, PaletteSlot.DANGER))
                 add(Label(INTRO_ID, SetupTexts.INTRO, TypeRole.BODY, PaletteSlot.TEXT_MUTED))
+                add(modelBlock(state))
                 SetupStep.entries.forEach { add(stepBlock(it, state)) }
                 add(switchBlock(state))
                 add(
@@ -107,6 +137,41 @@ internal class SetupScreen {
                 )
             },
         )
+
+    /**
+     * The model step: the first step of the walk-through.
+     *
+     * It has the same shape as a permission step - what it is, why, whether it is
+     * done - but its button does not open a page of the phone's settings: it calls
+     * back into the app, which owns the download. While the model is not on the
+     * phone there is one button; once it is ready the step reads "Done" and has no
+     * button and no line. The line under the button is the app's own sentence for a
+     * download in progress or one that failed, and there is none when the app has
+     * nothing to say.
+     */
+    private fun modelBlock(state: SetupState): Box {
+        val prefix = MODEL_STEP_ID
+        return Box(
+            id = prefix,
+            background = PaletteSlot.SURFACE,
+            children = buildList {
+                add(Label("$prefix.heading", SetupTexts.HEADING_MODEL, TypeRole.BODY, PaletteSlot.TEXT))
+                add(Label("$prefix.why", SetupTexts.WHY_MODEL, TypeRole.BODY, PaletteSlot.TEXT_MUTED))
+                add(statusLabel("$prefix.status", state.modelReady))
+                if (!state.modelReady) {
+                    add(
+                        Action(
+                            id = MODEL_STEP_BUTTON_ID,
+                            text = SetupTexts.BUTTON_DOWNLOAD_MODEL,
+                            emphasis = Emphasis.PRIMARY,
+                            intent = ScreenIntent.Setup(SetupActions.DOWNLOAD_MODEL),
+                        ),
+                    )
+                    state.downloadLine?.let { add(note("$prefix.line", it)) }
+                }
+            },
+        )
+    }
 
     /**
      * One step: what it is, why, whether it is done, what to read before the button,

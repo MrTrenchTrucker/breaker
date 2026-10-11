@@ -41,17 +41,32 @@ private val NOTHING_KNOWN = PlatformStatus(
  *
  * Call it from the main thread only; it does no locking.
  *
+ * The speech model is read through two providers, [modelReady] and [downloadLine],
+ * rather than being kept as a fact here. Both are asked again on every drawing, so
+ * a download that finishes while the screen is open is shown the next time the
+ * screen is drawn, without this class having to be told.
+ *
  * @param platform the phone, which answers what is granted and opens settings.
  * @param switch the app's switch that turns Breaker on and off.
+ * @param modelReady answers whether the speech model is on the phone right now.
+ * @param downloadLine answers the sentence to show under the model step's button,
+ *   or null when the app has nothing to say.
+ * @param onDownloadModel asks the app to download the speech model; the download
+ *   itself, its progress and its sentences stay the app's.
  * @param screen the pure screen.
  */
 internal class SetupIntentHandler(
     private val platform: SetupPlatform,
     private val switch: BreakerSwitch,
+    private val modelReady: () -> Boolean,
+    private val downloadLine: () -> String?,
+    private val onDownloadModel: () -> Unit,
     private val screen: SetupScreen,
 ) {
     private var lastStatus: PlatformStatus? = null
     private var lastSwitchOn: Boolean = false
+    private var lastModelReady: Boolean = false
+    private var lastDownloadLine: String? = null
     private var micAsked: Boolean = false
     private var notificationsAsked: Boolean = false
     private var held: SetupState? = null
@@ -87,8 +102,26 @@ internal class SetupIntentHandler(
         if (action == SetupActions.SWITCH_ON) return switchOn()
         if (action == SetupActions.SWITCH_OFF) return switchOff()
         if (action == SetupActions.RECHECK) return null
+        if (action == SetupActions.DOWNLOAD_MODEL) return downloadModel()
         if (action in SetupActions.OPENING) return open(action)
         return SetupNotice.NOT_ACCEPTED
+    }
+
+    /**
+     * Asks the app to download the speech model.
+     *
+     * The download itself is the app's; this only hands the tap over. The call is
+     * guarded like the switch calls, so a failure shows as a plain sentence and is
+     * never allowed out into the screen, and the text of what it threw is never
+     * shown.
+     */
+    private fun downloadModel(): SetupNotice? {
+        try {
+            onDownloadModel()
+        } catch (failure: Exception) {
+            return SetupNotice.COULD_NOT_DOWNLOAD
+        }
+        return null
     }
 
     /**
@@ -167,7 +200,7 @@ internal class SetupIntentHandler(
         return screen.render(state, shown)
     }
 
-    /** Asks the phone and the switch, keeping the last answers for any that fail. Returns true if one failed. */
+    /** Asks the phone, the switch and the model providers, keeping the last answers for any that fail. Returns true if one failed. */
     private fun readSeams(): Boolean {
         var failed = false
         try {
@@ -177,6 +210,16 @@ internal class SetupIntentHandler(
         }
         try {
             lastSwitchOn = switch.isOn()
+        } catch (failure: Exception) {
+            failed = true
+        }
+        try {
+            lastModelReady = modelReady()
+        } catch (failure: Exception) {
+            failed = true
+        }
+        try {
+            lastDownloadLine = downloadLine()
         } catch (failure: Exception) {
             failed = true
         }
@@ -190,5 +233,7 @@ internal class SetupIntentHandler(
             switchedOn = lastSwitchOn,
             micAskedBefore = micAsked,
             notificationsAskedBefore = notificationsAsked,
+            modelReady = lastModelReady,
+            downloadLine = lastDownloadLine,
         )
 }
