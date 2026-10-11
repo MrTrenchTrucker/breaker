@@ -26,6 +26,7 @@ models:
     tamper_verified: false
     license: Apache-2.0
     hosted: false
+    archive_name: sherpa-onnx-streaming-zipformer-en-2023-06-21-mobile.tar.bz2
     notes: >-
       The -mobile files were converted by upstream from the fp32 asset
       (checksum.txt line 21); the encoder files differ from the source repo
@@ -46,6 +47,7 @@ models:
     tamper_verified: false
     license: Apache-2.0
     hosted: false
+    archive_name: sherpa-onnx-streaming-zipformer-en-20M-2023-02-17.tar.bz2
     notes: >-
       Exported by upstream from the icefall
       pruned_transducer_stateless7_streaming 20M checkpoint (k2-fsa/icefall
@@ -63,6 +65,7 @@ models:
     tamper_verified: false
     license: MIT
     hosted: false
+    archive_name: sherpa-onnx-whisper-base.en.tar.bz2
     notes: >-
       Non-streaming Whisper (openai/whisper base.en) weights, exported to ONNX
       by upstream; all four ONNX files byte-match the source repo
@@ -86,6 +89,7 @@ models:
     tamper_verified: false
     license: MIT
     hosted: false
+    archive_name: sherpa-onnx-whisper-medium.en.tar.bz2
     notes: >-
       Non-streaming Whisper (openai/whisper medium.en) weights, exported to
       ONNX by upstream; all four ONNX files byte-match the source repo
