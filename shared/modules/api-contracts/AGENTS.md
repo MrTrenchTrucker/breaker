@@ -6,13 +6,15 @@ The OpenAPI 3 spec for every endpoint group (jobs, auth, sync, updates, admin, t
 request/response types (ADR-017): the single contract both the Android client (`stt-server`) and the server
 (`whisper-server`) implement.
 
-**Build phase:** in slices, each before the phase that needs it. First the transcription-job contract (`POST /v1/audio/transcriptions`, `GET /v1/jobs/{job_id}`, `GET /health`), needed by `whisper-server` (Phase 4) and `stt-server` (Phase 5); auth and sync before Phase 11 (`auth-client`, `sync`, `sync-api`); updates, admin and training with their phases; the encryption fields and test vectors with Phase 19. Needs first: `shared`.
+**Build phase:** in slices, each before the phase that needs it. First the transcription-job contract (`POST /v1/audio/transcriptions`, `GET /v1/jobs/{job_id}`, `GET /health`), needed by `whisper-server` (Phase 4) and `stt-server` (Phase 5); auth and sync before Phase 11 (`auth-client`, `sync`, `sync-api`); updates, admin and training with their phases; the encryption fields and test vectors with Phase 19. **Shipped so far:** the job group (slice 1) and the auth group (slice 2: register, salt, login, logout, admin agent-token revoke); the remaining groups (sync, updates, the rest of admin, training, keys and change-password) are later slices. Needs first: `shared`.
 
 **Endpoints:**
 - `POST /v1/audio/transcriptions` — multipart form: `file`, `model`, `language`
   → 202 `{ job_id, status: "queued" }` | 401 unauth | 413 too large
 - `GET /v1/jobs/{job_id}` → `{ status: queued|processing|done|failed, result:
-  { text, segments[], language } | null }`
+  { text, segments[], language } | null, error: string | null }` — `error`
+  is the failure reason, set exactly when status is `failed` (enforced both
+  ways in the Kotlin type); `POST` 202 status is `queued` only
 - `GET /health` — `{ status, forwarding_to, uptime }`
 - (v1.1) `POST /v1/audio/transcriptions/stream` — SSE partial segments
 
@@ -63,6 +65,19 @@ There is no synchronous 200-with-body variant — every transcription is a job.
   the same as the key-bearing endpoints above** — leaves the account keyless
   again, so `POST /v1/auth/keys` follows it exactly as it would a new
   account.
+- **auth — logout (ADR-018)** — `POST /v1/auth/logout`, bearer token only, no request body: revokes
+  ONLY the presented token. → **204 No Content** | **401** `ApiError` for a missing, unknown or
+  already-revoked token (nothing beyond "not a valid session" is disclosed). There is no standalone
+  revoke-others route: other sessions are revoked only inside `change-password` (Phase 19).
+- **auth — statuses of this slice** (every error body is the shared `ApiError`, never echoing a
+  password, verifier, salt or token): register → **201** `{username, role}` | **400** naming the
+  failing field (username charset or length, `kdf_version` other than 1, KDF values outside
+  memory_kib 65536-262144 (64-256 MiB) / iterations 3-10 / parallelism 1-4, a salt or verifier whose decoded length is
+  not 32 bytes) | **409** username already taken (compared lowercase); salt → **200** | **404** for
+  an unknown username (no decoy); login → **200** | **401** for bad credentials or an unknown
+  account (the same body for both); `DELETE /v1/admin/agent-tokens/{id}` → **204** (also when
+  already revoked) | **404** unknown id | **401** no or invalid token | **403** a valid
+  non-admin token. The wire unit is KiB everywhere (memory_kib 65536-262144).
 - **sync** — **user session token only on every endpoint in this group, an
   agent token is refused.** `POST /v1/sync` (idempotent push, dedupe on the
   **(client id, `key_version`)** pair — not on client id alone, and not a
@@ -108,7 +123,7 @@ X's existing `/v1/chat/completions` (used separately by `format`) is out of
 scope here.
 
 ## Invariants
-- Spec is machine-validatable (openapi-generator parses clean).
+- Spec is machine-validatable (openapi-generator parses clean). **NOT VERIFIED** — the tool is not in the toolchain; a stdlib structural validator covers the slice's subset.
 - Example request/response for each endpoint (golden WAV included).
 - Client and server generated/stubbed from THIS spec — no drift.
 
@@ -158,8 +173,12 @@ code.
 
 ## Known Gotchas
 - Client and server generate from THIS spec — no drift.
-- The Gradle boundary check does not require a consumer to name the
-  `project(":shared:modules:api-contracts")` edge while this module
-  publishes no artifact; the moment it gains code (applies an artifact
-  plugin) the edge becomes required, and the bijection check will then
-  demand it.
+- The Gradle boundary edge is LIVE: this module applies the Kotlin/JVM
+  plugin and the artifact exists, and stt-server already names the edge —
+  `implementation(project(":shared:modules:api-contracts"))` in
+  android/modules/stt-server/build.gradle.kts, with `shared_api_contracts`
+  in stt-server's `depends_on` in modules.toml. The bijection check
+  demands the named edge; it is provided.
+- The `openapi-generator parses clean` invariant is **NOT VERIFIED** — the
+  tool is not in the toolchain; a stdlib structural validator covers the
+  slice's subset.
