@@ -29,9 +29,9 @@ import dev.breaker.shared.tokens.TruckingTokens
  *
  * **Taps.** A tap is routed by the state and by the part of the window the finger went down on: [onTap]
  * for the microphone while idle or failed, [onBegin] for the microphone while armed, [onSend] for the
- * microphone or the send button while recording, [onCancel] for the cancel button. A null callback does
- * nothing. Each runs once per tap, never on hide, show or a push from the app, and an exception it
- * throws is not caught here.
+ * microphone or the send button while recording, [onCancel] for the cancel button. A tap on the strip
+ * of a notice window clears the notice and collapses the tile, calling [onNoticeDismissed] once (not [onTap]).
+ * A null callback does nothing; each runs once per tap; an exception it throws is not caught.
  *
  * @param window the window seam; this controller registers itself as its touch sink.
  * @param settings where the tile position is read from and saved to.
@@ -42,6 +42,7 @@ import dev.breaker.shared.tokens.TruckingTokens
  * @param onBegin called when the microphone is tapped while armed; null for none.
  * @param onCancel called when the cancel button is tapped while recording; null for none.
  * @param onSend called when the send button or the microphone is tapped while recording; null for none.
+ * @param onNoticeDismissed called when the strip of a notice window is tapped; null for none.
  */
 internal class TileController(
     private val window: TileWindow,
@@ -53,6 +54,7 @@ internal class TileController(
     private val onBegin: (() -> Unit)? = null,
     private val onCancel: (() -> Unit)? = null,
     private val onSend: (() -> Unit)? = null,
+    private val onNoticeDismissed: (() -> Unit)? = null,
 ) : TouchSink {
 
     private val interpreter = TouchInterpreter(slopPx)
@@ -243,6 +245,10 @@ internal class TileController(
             TileAction.BEGIN -> onBegin?.invoke()
             TileAction.CANCEL -> onCancel?.invoke()
             TileAction.SEND -> onSend?.invoke()
+            TileAction.DISMISS -> {
+                push { model.clearNotice() }
+                onNoticeDismissed?.invoke()
+            }
             TileAction.NONE -> Unit
         }
     }

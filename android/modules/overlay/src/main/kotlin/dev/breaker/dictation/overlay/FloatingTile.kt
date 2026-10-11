@@ -23,6 +23,8 @@ import dev.breaker.shared.tokens.ThemeMode
  *   button. A tap on the send button or on the microphone calls `onSend`; a tap on the cancel button
  *   calls `onCancel`. The widened tile cannot be dragged.
  * - Sending: taps do nothing.
+ * - A tap on the strip of a notice window clears the notice and collapses the tile, calling
+ *   `onNoticeDismissed` once (not `onTap`).
  * - A callback that is null does nothing. A tap never changes the state: the app does.
  *
  * **How to use it**
@@ -134,6 +136,7 @@ class FloatingTile internal constructor(private val controller: TileController) 
          * @param onCancel called when the cancel button is tapped while recording. Null for none.
          * @param onSend called when the send button or the microphone is tapped while recording.
          *   Null for none.
+         * @param onNoticeDismissed called when the strip of a notice window is tapped. Null for none.
          */
         fun create(
             context: Context,
@@ -144,10 +147,11 @@ class FloatingTile internal constructor(private val controller: TileController) 
             onBegin: (() -> Unit)? = null,
             onCancel: (() -> Unit)? = null,
             onSend: (() -> Unit)? = null,
+            onNoticeDismissed: (() -> Unit)? = null,
         ): FloatingTile {
             val window = WindowManagerTileWindow(context.applicationContext)
             val slopPx = ViewConfiguration.get(context).scaledTouchSlop
-            val controller = TileController(window, settings, onTap, theme, slopPx, onSaveFailed, onBegin, onCancel, onSend)
+            val controller = TileController(window, settings, onTap, theme, slopPx, onSaveFailed, onBegin, onCancel, onSend, onNoticeDismissed)
             return FloatingTile(controller)
         }
     }

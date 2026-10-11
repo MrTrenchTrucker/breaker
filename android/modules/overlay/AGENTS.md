@@ -17,7 +17,8 @@ Floating tile = CB mic glyph + LED bar meter (WindowManager overlay, F36). The f
 - A notice: a sentence from the app (`showNotice`) drawn above the microphone, in the same wide window, until the app
   clears it (`clearNotice`) or pushes a different state. The module holds no words of its own.
 - A description (`setDescription`) that the view gives to screen readers as its content description.
-- The callbacks `onTap`, `onBegin`, `onCancel` and `onSend`.
+- The callbacks `onTap`, `onBegin`, `onCancel`, `onSend` and `onNoticeDismissed`.
+- A tap on the strip of a notice window clears the notice and collapses the tile, calling `onNoticeDismissed` once (not `onTap`). The module has no timer.
 - MIC_BUSY: the microphone is not available. The app decides when to show it. The tile shows a mic glyph with a red circle and diagonal slash (danger colour), pulsing slowly. No text. A tap reports like IDLE.
 
 **How dictation ends:** while the state is `RECORDING`, the check, or a tap on the microphone, calls `onSend`, and the X
@@ -114,11 +115,7 @@ The ring around the microphone is 2 dp thick and sits just inside the edge of th
 - The real CB mic art (final mic art later; the glyph stays a placeholder).
 - The app's pushing of SENT and SENT_LOCAL, and the state the app pushes after a clipboard-only commit (OPEN: the app's
   decision, not decided here).
-- Next slice, ordered (F38). (1) A tap anywhere on the wide window of a notice clears the notice and the tile
-  collapses to the small tile, and a new optional callback `onNoticeDismissed` (no arguments, null by default) is
-  called once so the app drops its notice line; `onTap` is not called (today only the microphone answers and calls `onTap`, which can show
-  the same notice again, so the user could not get the small tile back). The time limit on a notice is the app's,
-  not this module's. (2) Close target: while a small tile is dragged, a close target (an X in a circle, palette
+- Next slice, ordered (F38). (1) Close target: while a small tile is dragged, a close target (an X in a circle, palette
   colours only, placeholder art) is shown centred near the bottom of the usable area; it goes when the drag ends.
   A drop with the tile's centre inside the target hides the tile, calls a new optional callback `onCloseRequested`
   (no arguments, null by default) and does not save the position; a drop elsewhere saves as today. A tap never
@@ -152,6 +149,8 @@ The ring around the microphone is 2 dp thick and sits just inside the edge of th
   Tested by: `TileControllerGestureRulesTest`, `TileControllerButtonsTest`, `TileControllerDragTest`.
 - A tap on a collapsed tile is a tap on the microphone from any point of it.
   Tested by: `TileControllerGestureRulesTest`, `TileControllerDragTest`.
+- A tap on the strip of a notice window clears the notice and collapses the tile, calling `onNoticeDismissed` once and not `onTap`.
+  Tested by: `TileControllerNoticeDismissTest`, `TileControllerButtonsTest`, `TileRoutingTest`.
 - The module never changes the state by itself: a tap leaves the state as it is, so `onSend` is called again for every
   tap on the check or the microphone until the app pushes `SENDING`, and the app must tolerate it.
   Tested by: `TileControllerButtonsTest`, `TileRoutingTest`.
@@ -173,7 +172,7 @@ description the app pushes. Not built yet: the real CB mic art.
 ## Public Interface
 FloatingTile (via create), ShowResult, TileState
 
-- `FloatingTile`, built only through `FloatingTile.create(context, settings, onTap, theme, onSaveFailed, onBegin, onCancel, onSend)`:
+- `FloatingTile`, built only through `FloatingTile.create(context, settings, onTap, theme, onSaveFailed, onBegin, onCancel, onSend, onNoticeDismissed)`:
   - `context`: any context; the tile keeps only the application context.
   - `settings`: core's `SettingsStore`.
   - `onTap`: what the app does when the microphone is tapped while the tile is idle or failed. Called once per tap on
@@ -185,6 +184,7 @@ FloatingTile (via create), ShowResult, TileState
   - `onSend`: optional, no arguments, null by default. Called when the check, or the microphone, is tapped while the
     tile is recording. The tile does not change its state, so every such tap calls it until the app pushes another
     state; the app must tolerate a repeat.
+  - `onNoticeDismissed`: optional, no arguments, null by default. Called once when the strip of a notice window is tapped.
   - A callback that is null makes the tap do nothing. An exception thrown by any callback is not caught by the module.
 - `FloatingTile.show(): ShowResult`, `hide()`, `setTheme(theme)`, `onDisplayChanged()`, the property `isShown`, the pushes from the app `setState(state)`, `setLevel(level)`, `showNotice(text)`, `clearNotice()` and `setDescription(text)`, and the property `state`.
   - `TileState.MIC_BUSY` — public; the overlay face when the microphone is not available. The app decides when to show it. The tile shows a mic glyph with a red circle and diagonal slash (danger colour), pulsing slowly. No text. A tap reports like IDLE.
@@ -295,9 +295,9 @@ FloatingTile (via create), ShowResult, TileState
   nothing; a press made while hidden is not a tap after the next `show()`, and touches on the old place of a hidden
   tile call nothing.
 - Buttons and callbacks (`TileControllerButtonsTest`, `TileControllerCallbackTest`, `TileControllerGestureRulesTest`,
-  `TileGestureEdgesTest`, `TileRoutingTest`): each pair of tapped part and state, for all seven states, is routed as the table says (a tap on SENT or SENT_LOCAL is a plain tap); idle and failed call
+  `TileGestureEdgesTest`, `TileRoutingTest`, `TileControllerNoticeDismissTest`): each pair of tapped part and state, for all seven states, is routed as the table says (a tap on SENT or SENT_LOCAL is a plain tap); idle and failed call
   `onTap`, armed calls `onBegin` and stays armed, recording sends on the microphone and the check and cancels on the X,
-  sending ignores taps, and under a notice only the microphone answers; a missing callback does nothing; one tap with a
+  sending ignores taps, and under a notice the microphone taps and the strip dismisses; a missing callback does nothing; one tap with a
   wobble is one call; `hide()`, `show()` and the pushes call no callback; an exception from a callback reaches the caller
   and the tile keeps working; a slide on the wide tile never moves it or saves; a change of shape under a pressed finger
   ends the gesture; `hide()` while recording clears it; a tap anywhere on the square tile is a tap on the microphone;
