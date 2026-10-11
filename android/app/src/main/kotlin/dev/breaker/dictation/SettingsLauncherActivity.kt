@@ -3,52 +3,63 @@ package dev.breaker.dictation
 import android.annotation.SuppressLint
 import android.os.Bundle
 import android.view.ViewGroup
+import android.view.WindowInsets
 import android.widget.Button
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
-import dev.breaker.dictation.wiring.ModelDownloadNotice
 import dev.breaker.dictation.service.NotificationRoute
+import dev.breaker.dictation.ui.ModelStepControl
 import dev.breaker.dictation.wiring.ACCESSIBILITY_SERVICE_COMPONENT
 import dev.breaker.dictation.wiring.BreakerSwitchAdapter
+import dev.breaker.dictation.wiring.ModelDownloadNotice
 import dev.breaker.dictation.wiring.ModelSentences
+import dev.breaker.dictation.wiring.StoreModelReady
 import dev.breaker.dictation.wiring.isIconLaunch
+import dev.breaker.dictation.wiring.paddingFor
 
 class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
 
     private lateinit var downloadStatus: TextView
     private lateinit var settingsColumn: LinearLayout
+    private lateinit var settingsScroll: ScrollView
     private var historyShown: Boolean = false
     private var backCallback: android.window.OnBackInvokedCallback? = null
+    private var downloadSentence: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val app = applicationContext as BreakerApp
-        val download = Button(this)
-        download.text = DOWNLOAD_LABEL
-        download.setOnClickListener { app.tileHost.requestDownload() }
         downloadStatus = TextView(this)
         downloadStatus.text = ""
+        val modelReady = StoreModelReady(app.compositionRoot.modelStore) { app.settingsStore.load().modelSize }
         val onboarding = dev.breaker.dictation.ui.createOnboardingView(
             this,
             BreakerSwitchAdapter(app.armedSwitch),
             ACCESSIBILITY_SERVICE_COMPONENT,
+            modelReady = { modelReady.isReady() },
+            downloadLine = { downloadSentence },
+            onDownloadModel = { app.tileHost.requestDownload() },
         )
+        onboardingView = onboarding
         val history = Button(this)
         history.text = HISTORY_LABEL
         history.setOnClickListener { openHistory() }
         val column = LinearLayout(this)
         column.orientation = LinearLayout.VERTICAL
-        column.addView(download)
         column.addView(onboarding)
         column.addView(downloadStatus)
         column.addView(history)
         val settings = dev.breaker.dictation.ui.createSettingsView(this, app.settingsStore)
-        column.addView(settings, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
-        setContentView(column)
+        column.addView(settings, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        val scroll = ScrollView(this)
+        scroll.addView(column, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        setContentView(scroll)
         settingsColumn = column
+        settingsScroll = scroll
+        applyInsets(scroll)
         if (intent?.getStringExtra(NotificationRoute.EXTRA_ROUTE) == NotificationRoute.ROUTE_MODEL) {
-            download.isFocusableInTouchMode = true
-            download.requestFocus()
+            (onboarding as? ModelStepControl)?.focusDownload()
         }
         if (savedInstanceState == null && NotificationRoute.opensHistory(intent?.getStringExtra(NotificationRoute.EXTRA_ROUTE))) {
             openHistory()
@@ -71,6 +82,7 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         super.onResume()
         val app = applicationContext as BreakerApp
         app.tileHost.setDownloadListener(this)
+        (onboardingView as? ModelStepControl)?.refresh()
     }
 
     override fun onPause() {
@@ -85,11 +97,15 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         if (historyShown) closeHistory() else super.onBackPressed()
     }
 
+    private lateinit var onboardingView: android.view.View
+
     private fun openHistory() {
         if (historyShown) return
         historyShown = true
         val app = applicationContext as BreakerApp
-        setContentView(dev.breaker.dictation.ui.createHistoryView(this, app.historyStore))
+        val historyView = dev.breaker.dictation.ui.createHistoryView(this, app.historyStore)
+        setContentView(historyView)
+        applyInsets(historyView)
         registerBack()
     }
 
@@ -97,7 +113,8 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         if (!historyShown) return
         historyShown = false
         unregisterBack()
-        setContentView(settingsColumn)
+        setContentView(settingsScroll)
+        applyInsets(settingsScroll)
     }
 
     private fun registerBack() {
@@ -119,19 +136,45 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
     }
 
     override fun downloading() {
+        downloadSentence = ModelSentences.DOWNLOADING
         downloadStatus.text = ModelSentences.DOWNLOADING
+        (onboardingView as? ModelStepControl)?.refresh()
     }
 
     override fun done() {
+        downloadSentence = null
         downloadStatus.text = ""
+        (onboardingView as? ModelStepControl)?.refresh()
     }
 
     override fun failed(sentence: String) {
+        downloadSentence = sentence
         downloadStatus.text = sentence
+        (onboardingView as? ModelStepControl)?.refresh()
+    }
+
+    private fun applyInsets(view: android.view.View) {
+        val rootInsets = view.rootWindowInsets
+        if (rootInsets != null) {
+            applyPadding(view, rootInsets)
+        }
+        view.setOnApplyWindowInsetsListener { v, insets ->
+            applyPadding(v, insets)
+            insets
+        }
+    }
+
+    private fun applyPadding(view: android.view.View, insets: WindowInsets) {
+        val bars = insets.getInsets(WindowInsets.Type.systemBars())
+        val cutout = insets.getInsets(WindowInsets.Type.displayCutout())
+        val padding = paddingFor(
+            dev.breaker.dictation.wiring.Insets(bars.left, bars.top, bars.right, bars.bottom),
+            dev.breaker.dictation.wiring.Insets(cutout.left, cutout.top, cutout.right, cutout.bottom),
+        )
+        view.setPadding(padding.left, padding.top, padding.right, padding.bottom)
     }
 
     private companion object {
-        const val DOWNLOAD_LABEL: String = "Download the speech model"
         const val HISTORY_LABEL: String = "History"
     }
 }

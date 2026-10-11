@@ -5,24 +5,28 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /*
- * Four declarations, offered on purpose.
+ * Five declarations, offered on purpose.
  *
- * This module hands an app three views and a switch to implement, and nothing else:
- * the app owns the activity, the manifest entry, the settings store and what turns
- * Breaker on, so everything else is an implementation detail a later change may rename.
- * Every top level declaration carries `internal` or `private`, except the three
- * functions that build a view and the switch interface, each in a fixed shape.
+ * This module hands an app three views, a switch to implement and a control for the
+ * model step, and nothing else: the app owns the activity, the manifest entry, the
+ * settings store and what turns Breaker on, so everything else is an implementation
+ * detail a later change may rename. Every top level declaration carries `internal` or
+ * `private`, except the three functions that build a view, the switch interface and
+ * the model-step control, each in a fixed shape.
  *
  * A declaration is read as top level when it starts in the first column, so a name
  * inside a body is not offered. How a declaration is read out of a file is settled
  * once, in GateScan.kt.
  */
 
-/** The one file allowed to offer something. */
+/** The one file allowed to offer the view builders. */
 private const val ENTRY_FILE = "SettingsEntry.kt"
 
 /** The file of the switch interface, which is offered too. */
 private const val SWITCH_FILE = "BreakerSwitch.kt"
+
+/** The file of the model-step control, which is offered too. */
+private const val MODEL_CONTROL_FILE = "ModelStepControl.kt"
 
 /** The first declaration allowed to be offered. */
 private const val ENTRY_FUNCTION = "createSettingsView"
@@ -37,15 +41,17 @@ private const val SETTLED_ENTRY =
 
 /** The setup entry and the switch interface, as written in their files. */
 private const val SETTLED_ONBOARDING = "fun createOnboardingView(context: android.content.Context, " +
-    "switch: BreakerSwitch, accessibilityServiceComponent: String): android.view.View"
+    "switch: BreakerSwitch, accessibilityServiceComponent: String, " +
+    "modelReady: () -> Boolean, downloadLine: () -> String?, onDownloadModel: () -> Unit): android.view.View"
 private const val SETTLED_HISTORY = "fun createHistoryView(context: android.content.Context, " +
     "history: dev.breaker.dictation.core.port.HistoryStore): android.view.View"
 private const val SETTLED_SWITCH = "interface BreakerSwitch"
+private const val SETTLED_MODEL_CONTROL = "interface ModelStepControl"
 
 /** Each offered file with the one shape it offers: nothing more, nothing less, nothing elsewhere. */
 private val SETTLED_SURFACE = setOf(
     ENTRY_FILE to SETTLED_ENTRY, ENTRY_FILE to SETTLED_ONBOARDING, ENTRY_FILE to SETTLED_HISTORY,
-    SWITCH_FILE to SETTLED_SWITCH,
+    SWITCH_FILE to SETTLED_SWITCH, MODEL_CONTROL_FILE to SETTLED_MODEL_CONTROL,
 )
 
 private fun isSettled(offered: List<Pair<String, String>>): Boolean =
@@ -62,13 +68,13 @@ private val OFFERED: List<Pair<String, String>> = MAIN_SOURCES.flatMap { (path, 
  */
 class PublicSurfaceGateTest {
     @Test
-    fun `the entry functions and the switch are the only declarations offered`() {
+    fun `the entry functions, the switch and the model control are the only declarations offered`() {
         assertEquals(
-            "declarations offered outside $ENTRY_FILE and $SWITCH_FILE: $OFFERED",
-            setOf(ENTRY_FILE, SWITCH_FILE),
+            "declarations offered outside $ENTRY_FILE, $SWITCH_FILE and $MODEL_CONTROL_FILE: $OFFERED",
+            setOf(ENTRY_FILE, SWITCH_FILE, MODEL_CONTROL_FILE),
             OFFERED.map { it.first }.toSet(),
         )
-        assertEquals("declarations offered: $OFFERED", 4, OFFERED.size)
+        assertEquals("declarations offered: $OFFERED", 5, OFFERED.size)
     }
 
     @Test
@@ -77,9 +83,9 @@ class PublicSurfaceGateTest {
     }
 
     @Test
-    fun `a fourth declaration, a changed shape and a declaration in the wrong file are caught`() {
+    fun `a sixth declaration, a changed shape and a declaration in the wrong file are caught`() {
         assertTrue("the real surface must pass its own check", isSettled(OFFERED))
-        assertTrue("a fourth offered declaration passed", !isSettled(OFFERED + (ENTRY_FILE to "fun createThirdView(): android.view.View")))
+        assertTrue("a sixth offered declaration passed", !isSettled(OFFERED + (ENTRY_FILE to "fun createThirdView(): android.view.View")))
         assertTrue("a missing declaration passed", !isSettled(OFFERED.drop(1)))
         assertTrue("a weakened parameter passed", !isSettled(OFFERED.map { (p, d) -> p to d.replace("switch: BreakerSwitch", "switch: Any") }))
         assertTrue("a renamed interface passed", !isSettled(OFFERED.map { (p, d) -> p to d.replace("interface BreakerSwitch", "interface BreakerToggle") }))
@@ -103,7 +109,7 @@ class PublicSurfaceGateTest {
     @Test
     fun `every other file marks its declarations internal or private`() {
         val marked = MAIN_SOURCES
-            .filter { (path, _) -> path != ENTRY_FILE && path != SWITCH_FILE }
+            .filter { (path, _) -> path != ENTRY_FILE && path != SWITCH_FILE && path != MODEL_CONTROL_FILE }
             .flatMap { (path, text) -> topLevelDeclarationsIn(text).map { path to it } }
         assertTrue("no other file in the module declares anything at the top level", marked.isNotEmpty())
         val unmarked = marked.filterNot { (_, declaration) ->
@@ -252,7 +258,6 @@ class PublicSurfaceGateTest {
             OFFERED.distinct().size,
         )
     }
-
     /**
      * A body brace does not continue a signature.
      *

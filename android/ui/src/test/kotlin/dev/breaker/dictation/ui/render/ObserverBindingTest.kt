@@ -30,7 +30,8 @@ class ObserverBindingTest {
     /** The second public declaration of the entry file, written on one line. */
     private val ONBOARDING_SIGNATURE =
         "fun createOnboardingView(context: android.content.Context, " +
-            "switch: BreakerSwitch, accessibilityServiceComponent: String): android.view.View"
+            "switch: BreakerSwitch, accessibilityServiceComponent: String, " +
+            "modelReady: () -> Boolean, downloadLine: () -> String?, onDownloadModel: () -> Unit): android.view.View"
 
     /** The public declaration of the history view, written on one line. */
     private val HISTORY_SIGNATURE =
@@ -168,7 +169,7 @@ class ObserverBindingTest {
 
     @Test
     fun `the settings view takes a context and a settings store and gives back a view`() {
-        val flattened = sourceOf("SettingsEntry.kt").replace(ANY_WHITESPACE, " ")
+        val flattened = flattenedOf(sourceOf("SettingsEntry.kt"))
         assertTrue(
             "the pinned declaration must be there with both parameter types",
             flattened.contains(ENTRY_SIGNATURE),
@@ -181,9 +182,9 @@ class ObserverBindingTest {
 
     @Test
     fun `the setup view takes a context, a switch and a component name and gives back a view`() {
-        val flattened = sourceOf("SettingsEntry.kt").replace(ANY_WHITESPACE, " ")
+        val flattened = flattenedOf(sourceOf("SettingsEntry.kt"))
         assertTrue(
-            "the pinned declaration must be there with all three parameter types",
+            "the pinned declaration must be there with all six parameter types",
             flattened.contains(ONBOARDING_SIGNATURE),
         )
         assertFalse(
@@ -194,7 +195,7 @@ class ObserverBindingTest {
 
     @Test
     fun `the history view takes a context and a history store and gives back a view`() {
-        val flattened = sourceOf("SettingsEntry.kt").replace(ANY_WHITESPACE, " ")
+        val flattened = flattenedOf(sourceOf("SettingsEntry.kt"))
         assertTrue(
             "the pinned declaration must be there with both parameter types",
             flattened.contains(HISTORY_SIGNATURE),
@@ -209,6 +210,26 @@ class ObserverBindingTest {
     private val ANDROID_TYPE = Regex("\\bandroidx?\\.[A-Za-z]")
 
     private val ANY_WHITESPACE = Regex("\\s+")
+
+    /** A comma just before a closing bracket: Kotlin's trailing comma, which says nothing about a signature. */
+    private val TRAILING_COMMA = Regex("""\s*,\s*([])}])""")
+
+    /** Whitespace just before a closing bracket, which says nothing about a signature. */
+    private val SPACE_BEFORE_BRACKET = Regex("""\s+([)\]}])""")
+
+    /** Whitespace just after an opening bracket, which says nothing about a signature. */
+    private val SPACE_AFTER_BRACKET = Regex("""([(\[{])\s+""")
+
+    /**
+     * [text] with line breaks and spacing flattened and Kotlin's trailing comma dropped,
+     * so a signature written across lines, with a comma on its last parameter, matches a
+     * pin written on one line without it.
+     */
+    private fun flattenedOf(text: String): String =
+        text.replace(ANY_WHITESPACE, " ")
+            .replace(SPACE_BEFORE_BRACKET, "$1")
+            .replace(SPACE_AFTER_BRACKET, "$1")
+            .replace(TRAILING_COMMA, "$1")
 
     /** The words that open a top level declaration, followed by the declaration itself. */
     private val DECLARATION_START =
@@ -260,7 +281,7 @@ class ObserverBindingTest {
             return View(context)
         }
 
-        fun createOnboardingView(context: android.content.Context, switch: BreakerSwitch, accessibilityServiceComponent: String): android.view.View {
+        fun createOnboardingView(context: android.content.Context, switch: BreakerSwitch, accessibilityServiceComponent: String, modelReady: () -> Boolean, downloadLine: () -> String?, onDownloadModel: () -> Unit): android.view.View {
             return View(context)
         }
 
@@ -275,7 +296,8 @@ class ObserverBindingTest {
 
     /** A setup view that takes any object for its switch, which is not the declaration this module offers. */
     private val CONTROL_WEAK_SWITCH =
-        "fun createOnboardingView(context: android.content.Context, switch: Any, accessibilityServiceComponent: String): android.view.View"
+        "fun createOnboardingView(context: android.content.Context, switch: Any, accessibilityServiceComponent: String, " +
+            "modelReady: () -> Boolean, downloadLine: () -> String?, onDownloadModel: () -> Unit): android.view.View"
 
     /** A history view that takes any object for its store, which is not the declaration this module offers. */
     private val CONTROL_WEAK_HISTORY =

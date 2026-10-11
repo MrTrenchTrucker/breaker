@@ -24,6 +24,9 @@ internal sealed class SetupNotice(val text: String) {
     /** Switching Breaker on or off did not work. */
     data object SWITCH_FAILED : SetupNotice(SetupTexts.NOTICE_SWITCH_FAILED)
 
+    /** Asking the app to download the speech model did not work. */
+    data object COULD_NOT_DOWNLOAD : SetupNotice(SetupTexts.NOTICE_COULD_NOT_DOWNLOAD)
+
     /** The request names something this screen does not offer. */
     data object NOT_ACCEPTED : SetupNotice(SetupTexts.NOTICE_NOT_ACCEPTED)
 

@@ -1,11 +1,14 @@
 package dev.breaker.dictation.ui.render
 
 import android.content.Context
+import android.view.View
 import android.widget.ScrollView
+import dev.breaker.dictation.ui.ModelStepControl
 import dev.breaker.dictation.ui.screen.Screen
 import dev.breaker.dictation.ui.screen.ScreenIntent
 import dev.breaker.dictation.ui.screen.onboarding.SETUP_NOTICE_ID
 import dev.breaker.dictation.ui.screen.onboarding.SetupIntentHandler
+import dev.breaker.dictation.ui.screen.onboarding.modelDownloadButtonId
 import dev.breaker.dictation.ui.theme.PaletteSlot
 import dev.breaker.dictation.ui.theme.Theme
 
@@ -33,6 +36,11 @@ import dev.breaker.dictation.ui.theme.Theme
  * scroll position stays with this view and not with the rows; [show] says when it
  * is put back and when the view goes to the top.
  *
+ * This view also answers [ModelStepControl]. The app, which owns the speech model
+ * download, calls [refresh] on resume and on each download callback so the model
+ * step is drawn again from the app's current answers, and [focusDownload] to put
+ * focus on the model step's download button.
+ *
  * Everything here runs on the main thread: taps, attachment and focus changes.
  * There is no thread, no posted work and no lock.
  *
@@ -46,7 +54,10 @@ internal class SetupHostView(
     private val handler: SetupIntentHandler,
     private val theme: Theme,
     private val renderer: ScreenRenderer,
-) : ScrollView(context) {
+) : ScrollView(context), ModelStepControl {
+    /** The screen drawn last, so focus can be placed on a row of it without asking the handler again. */
+    private var drawn: Screen? = null
+
     init {
         // A screen is taller than a short window in landscape, and without this
         // the background of the child would stop short of the visible area.
@@ -66,6 +77,7 @@ internal class SetupHostView(
      * for the held position back in the same way.
      */
     fun show(screen: Screen) {
+        drawn = screen
         val held = if (screen.nodes.any { it.id == SETUP_NOTICE_ID }) 0 else scrollY
         removeAllViews()
         addView(renderer.render(screen, theme, ::onIntent))
@@ -78,10 +90,27 @@ internal class SetupHostView(
         show(handler.handle(intent))
     }
 
+    /** Draws the walk-through again from the app's current model answers. */
+    override fun refresh() {
+        show(handler.current())
+    }
+
+    /**
+     * Puts focus on the model step's download button, or answers false.
+     *
+     * False when the model is already ready, because then the step has no button to
+     * focus; otherwise true once the button has taken focus.
+     */
+    override fun focusDownload(): Boolean {
+        val id = drawn?.let { modelDownloadButtonId(it) } ?: return false
+        val button: View = findViewWithTag(id) ?: return false
+        return button.requestFocus()
+    }
+
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        // Drawn again on attachment: what the phone grants may have changed while
-        // this view was off screen.
+        // Drawn again on attachment: what the phone grants, or the model's state,
+        // may have changed while this view was off screen.
         show(handler.current())
     }
 

@@ -40,7 +40,9 @@ class SetupScreenTest {
         on: Boolean = false,
         micAsked: Boolean = false,
         notificationsAsked: Boolean = false,
-    ) = SetupState(phone, on, micAsked, notificationsAsked)
+        modelReady: Boolean = false,
+        downloadLine: String? = null,
+    ) = SetupState(phone, on, micAsked, notificationsAsked, modelReady, downloadLine)
 
     private val allGranted = status(overlay = true, microphone = true, notifications = true, accessibility = true)
 
@@ -87,7 +89,7 @@ class SetupScreenTest {
     @Test
     fun `the blocks come in display order and the notice is the first node after the stripe`() {
         val without = render(state(allGranted)).nodes.map { it.id }
-        val order = listOf("title", "stripe", "intro", "step.overlay", "step.microphone", "step.notifications")
+        val order = listOf("title", "stripe", "intro", "step.model", "step.overlay", "step.microphone", "step.notifications")
         assertEquals(order.map { "setup.$it" } + listOf("setup.step.accessibility", "setup.switch", "setup.recheck"), without)
         val withNotice = render(state(allGranted), SetupNotice.NOT_ACCEPTED).nodes.map { it.id }
         assertEquals(without.take(2) + "setup.notice" + without.drop(2), withNotice)
@@ -411,10 +413,10 @@ class SetupScreenTest {
     }
 
     @Test
-    fun `every button reports a setup intent with one of the eight agreed strings`() {
+    fun `every button reports a setup intent with one of the nine agreed strings`() {
         val agreed = setOf(
             "open.overlay", "open.microphone", "open.notifications", "open.accessibility", "open.appinfo",
-            "switch.on", "switch.off", "recheck",
+            "switch.on", "switch.off", "recheck", "download.model",
         )
         for (st in spread) {
             val actions = nodesOf(render(st)).filterIsInstance<Action>()

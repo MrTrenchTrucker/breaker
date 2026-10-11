@@ -32,8 +32,9 @@ private val EXPECTED_CALLS = setOf(
 )
 
 private val SIGNATURE = Regex(
-    """fun\s+createOnboardingView\(\s*context\s*:\s*[\w.]+\s*,\s*switch\s*:\s*BreakerSwitch\s*,""" +
-        """\s*accessibilityServiceComponent\s*:\s*String\s*\)\s*:\s*[\w.]+""",
+    """fun\s+createOnboardingView\(\s*context\s*:\s*[\w.]+,\s*switch\s*:\s*BreakerSwitch\s*,""" +
+        """\s*accessibilityServiceComponent\s*:\s*String\s*,\s*modelReady\s*:\s*\(\s*\)\s*->\s*Boolean\s*,""" +
+        """\s*downloadLine\s*:\s*\(\s*\)\s*->\s*String\?\s*,\s*onDownloadModel\s*:\s*\(\s*\)\s*->\s*Unit\s*,?\s*\)\s*:\s*[\w.]+""",
 )
 
 /** The signature and the body of the setup entry function, with comments and strings removed. */
@@ -88,13 +89,13 @@ private fun handlerVarIn(body: String): String? {
     val platform = platformVarIn(body) ?: return null
     return Regex(
         """\bval\s+(\w+)\s*=\s*SetupIntentHandler\(\s*""" + Regex.escape(platform) +
-            """\s*,\s*switch\s*,\s*SetupScreen\(\)\s*\)""" + LINE_END,
+            """\s*,\s*switch\s*,\s*modelReady\s*,\s*downloadLine\s*,\s*onDownloadModel\s*,\s*SetupScreen\(\)\s*\)""" + LINE_END,
     ).find(body)?.groupValues?.get(1)
 }
 
 private fun signatureProblemsIn(text: String): List<String> {
     val entry = entryOf(text) ?: return listOf(MISSING)
-    return if (SIGNATURE.matches(entry.signature.trim())) emptyList() else listOf("the function does not take a context, a switch and a component name")
+    return if (SIGNATURE.matches(entry.signature.trim())) emptyList() else listOf("the function does not take the six settled parameters")
 }
 
 private fun phoneProblemsIn(text: String): List<String> {
@@ -164,7 +165,7 @@ class SetupEntryGateTest {
     }
 
     @Test
-    fun `the setup entry function takes a context, the switch and the component name`() {
+    fun `the setup entry function takes a context, a switch, a component name and the three model providers`() {
         assertEquals("createOnboardingView signature: ", emptyList<String>(), signatureProblemsIn(entry))
         assertFires("the function renamed", signatureProblemsIn(editEntry(entry, "fun createOnboardingView(", "fun createOnboardingScreen(")), "not there")
         assertFires("the switch weakened", signatureProblemsIn(editEntry(entry, "switch: BreakerSwitch", "switch: Any")), "does not take")
@@ -205,13 +206,15 @@ class SetupEntryGateTest {
     }
 
     @Test
-    fun `the switch that was given is handed to the handler with the platform and a new screen`() {
+    fun `the switch and the model providers that were given are handed to the handler with the platform and a new screen`() {
         assertEquals("createOnboardingView handler: ", emptyList<String>(), handlerProblemsIn(entry))
-        val build = "SetupIntentHandler(platform, switch, SetupScreen())"
-        assertFires("another switch", handlerProblemsIn(editEntry(entry, build, "SetupIntentHandler(platform, noSwitch, SetupScreen())")), "handler")
-        assertFires("another platform", handlerProblemsIn(editEntry(entry, build, "SetupIntentHandler(otherPlatform, switch, SetupScreen())")), "handler")
-        assertFires("the arguments swapped", handlerProblemsIn(editEntry(entry, build, "SetupIntentHandler(switch, platform, SetupScreen())")), "handler")
-        assertFires("a screen that is not new", handlerProblemsIn(editEntry(entry, build, "SetupIntentHandler(platform, switch, sharedScreen)")), "handler")
+        val build = "SetupIntentHandler(platform, switch, modelReady, downloadLine, onDownloadModel, SetupScreen())"
+        assertFires("another switch", handlerProblemsIn(editEntry(entry, build, "SetupIntentHandler(platform, noSwitch, modelReady, downloadLine, onDownloadModel, SetupScreen())")), "handler")
+        assertFires("another platform", handlerProblemsIn(editEntry(entry, build, "SetupIntentHandler(otherPlatform, switch, modelReady, downloadLine, onDownloadModel, SetupScreen())")), "handler")
+        assertFires("the arguments swapped", handlerProblemsIn(editEntry(entry, build, "SetupIntentHandler(switch, platform, modelReady, downloadLine, onDownloadModel, SetupScreen())")), "handler")
+        assertFires("a screen that is not new", handlerProblemsIn(editEntry(entry, build, "SetupIntentHandler(platform, switch, modelReady, downloadLine, onDownloadModel, sharedScreen)")), "handler")
+        assertFires("the model-ready provider dropped", handlerProblemsIn(editEntry(entry, build, "SetupIntentHandler(platform, switch, downloadLine, onDownloadModel, SetupScreen())")), "handler")
+        assertFires("the download callback dropped", handlerProblemsIn(editEntry(entry, build, "SetupIntentHandler(platform, switch, modelReady, downloadLine, SetupScreen())")), "handler")
     }
 
     @Test

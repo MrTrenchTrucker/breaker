@@ -47,14 +47,14 @@ internal class ScreenRenderer(private val context: Context) {
             screen.nodes.forEach { addView(viewOf(it, theme, onIntent)) }
         }
 
-    /** The view for [node]. It carries its own layout parameters, set once. */
+    /** The view for [node]. It carries its own layout parameters and its id as a tag, set once. */
     private fun viewOf(node: Node, theme: Theme, onIntent: (ScreenIntent) -> Unit): View =
         when (node) {
             is Box -> boxOf(node, theme, onIntent)
             is Label -> labelOf(node, theme)
             is Action -> actionOf(node, theme, onIntent)
             is TrimStripe -> stripeOf(theme)
-        }
+        }.apply { tag = node.id }
 
     /** A vertical layout in the box's background slot, holding its children in order. */
     private fun boxOf(node: Box, theme: Theme, onIntent: (ScreenIntent) -> Unit): View =
