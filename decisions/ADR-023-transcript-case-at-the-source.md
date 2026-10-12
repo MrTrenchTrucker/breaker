@@ -7,7 +7,7 @@
 The on-device English speech model prints every word in capital letters. The
 formatter only capitalises the first letter of a sentence, so nothing in the
 app turns that text back into normal sentences, and every dictation arrives
-in capitals. Other paths (the local server) already return mixed-case text.
+in capitals.
 
 ## Decision
 The on-device speech module normalises case at the source:
@@ -17,7 +17,7 @@ The on-device speech module normalises case at the source:
   "I've" and "I'd" get their capital back.
 - A transcript that already has any lower-case letter is left untouched.
 - The rule applies to the final result and to every update of the live word
-  stream, so the phrase matcher and the committed text see the same case.
+  stream, so the live words and the final text agree.
 - The module's public interface does not change. The formatter is untouched
   and still adds the capital at the start of each sentence.
 

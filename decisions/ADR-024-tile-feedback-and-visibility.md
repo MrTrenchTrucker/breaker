@@ -27,9 +27,9 @@ tile has no animated texture yet.
    both ways. It is removed before release, after the project owner picks one.
    Whether shaking the phone still starts dictation while the tile is hidden
    this way is not decided yet.
-4. **Animated texture.** The tile gets an animated radio-wave texture while it
-   is listening and busy. This is graphics work: it waits for the art phase,
-   uses only commercial-use-safe assets, and lives in the design tokens and the
+4. **Animated texture.** The tile gets an animated texture while it is
+   listening and busy; the project owner suggested radio waves. This is graphics
+   work: it waits for the art phase and lives in the design tokens and the
    overlay, not in logic.
 
 ## Reasons
@@ -39,6 +39,6 @@ Android reports keyboards, which is cheaper to test than to argue.
 
 ## Consequences
 - The overlay, audio and app modules each change; the overlay changes first.
-- The developer setting is the only deliberately temporary piece; a check
-  before release fails if it is still present.
+- The developer setting is the only deliberately temporary piece; the code
+  change that adds it also adds a release check and a removal list for it.
 - The texture needs the art phase before it can ship.
