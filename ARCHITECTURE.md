@@ -178,10 +178,15 @@ admins.
 - F42. **Normal-looking text:** a transcript the speech engine prints entirely in
       capitals is turned into lower case, with the capital "I" restored, before it
       is formatted (ADR-023).
+- F43. **Say where the model comes from:** the model step and the download notice
+      state that the speech model is downloaded from GitHub, the public page of the
+      speech library makers, that the Local Server is not used, and that the file is
+      checked before use; the size shown comes from the registry (ADR-025).
 
 **Non-functional**
 - N1. Dictation starts < 1 s after wake phrase (models preloaded where possible).
-- N2. No telemetry; the only network calls are to Local Server.
+- N2. No telemetry; the app's network calls are to the Local Server and, once per
+      model, the speech-model download from GitHub (F43, N3).
 - N3. Model files **pinned to immutable release-asset ids** and verified against
       upstream's published checksum.txt (SHA-256) before use [2].
 - N4. Battery-friendly: sensor + overlay listeners idle when not dictating.

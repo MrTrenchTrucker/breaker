@@ -75,5 +75,6 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-022](ADR-022-accessibility-text-insert.md) | Text goes into the app through an accessibility service (supersedes ADR-005) | accepted |
 | [ADR-023](ADR-023-transcript-case-at-the-source.md) | A speech engine that prints capitals is fixed in the speech module, not in the formatter | accepted |
 | [ADR-024](ADR-024-tile-feedback-and-visibility.md) | The tile shows busy and loudness, and hides itself when no keyboard is in use | accepted |
+| [ADR-025](ADR-025-say-where-the-speech-model-comes-from.md) | The app tells the user where the speech model is downloaded from | accepted |
 
-Next free number: **ADR-025**.
+Next free number: **ADR-026**.
