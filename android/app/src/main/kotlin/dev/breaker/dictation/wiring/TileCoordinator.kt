@@ -226,7 +226,7 @@ class TileCoordinator(
         }
     }
 
-    /** Sends the text once; a text that only reached the clipboard counts as sent and says nothing, so a real committer that copies there needs its own sentence. */
+    /** Sends the text once; clipboard-only text counts as sent, so a real committer needs its own sentence. */
     private fun sendText(ready: FinishResult.ReadyToSend): End {
         if (ready.transcription.text.isBlank()) {
             // Nothing was said: there is nothing to commit and nothing worth keeping in history.

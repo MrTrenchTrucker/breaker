@@ -2,6 +2,7 @@ package dev.breaker.dictation.wiring
 
 import dev.breaker.dictation.overlay.TileState
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -228,5 +229,26 @@ internal class TileCoordinatorShownTest {
         assertEquals("app: a begin after a close must reach the take once", 1, rig.take.beginCalls)
         // Flag is cleared: isClosed is false after a successful show
         assertEquals("app: a successful show must clear the close flag", false, rig.coordinator.userClosedHandler.isClosed)
+    }
+
+    @Test
+    fun `a close request whose hide throws does not reach the caller`() {
+        val rig = TileRig()
+        rig.tile.hideThrows = true
+        rig.coordinator.onCloseRequested()  // must not throw
+        assertEquals("app: the close flag must stay set even if hide throws", true, rig.coordinator.userClosedHandler.isClosed)
+    }
+
+    @Test
+    fun `a begin after a close with no model pushes armed and shows missing`() {
+        val rig = TileRig(ready = false)
+        rig.tile.calls.clear()
+        rig.coordinator.onCloseRequested()
+        rig.coordinator.onBegin()
+        rig.settle()
+        val showIdx = rig.tile.calls.indexOf("show")
+        val armedIdx = rig.tile.calls.indexOf("state:ARMED")
+        assertTrue("app: a begin after a close must push ARMED after showing", showIdx >= 0 && armedIdx > showIdx)
+        assertEquals("app: a begin after a close with no model must show missing", "missing", rig.notice.calls.last())
     }
 }
