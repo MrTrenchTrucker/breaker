@@ -146,4 +146,211 @@ class MicBusyPulseTest {
             rig.window.busyPulseCalls,
         )
     }
+
+    /** A failure means setState(SENDING) does not start the busy pulse. */
+    @Test
+    fun `setState SENDING starts the busy pulse`() {
+        val rig = Rig().shown()
+        rig.controller.setState(TileState.SENDING)
+        assertEquals(
+            "overlay: setState(SENDING) should call setBusyPulse(true) once",
+            listOf(true),
+            rig.window.busyPulseCalls,
+        )
+        assertEquals(
+            "overlay: the last setBusyPulse call should be true",
+            true,
+            rig.window.busyPulseOn,
+        )
+    }
+
+    /** A failure means the busy pulse is not stopped when the face changes away from SENDING. */
+    @Test
+    fun `busy pulse stops when face changes away from SENDING`() {
+        val rig = Rig().shown()
+        rig.controller.setState(TileState.SENDING)
+        rig.forget()
+        rig.controller.setState(TileState.SENT)
+        assertEquals(
+            "overlay: setState(SENT) should call setBusyPulse(false)",
+            listOf(false),
+            rig.window.busyPulseCalls,
+        )
+        assertEquals(
+            "overlay: the last setBusyPulse call should be false",
+            false,
+            rig.window.busyPulseOn,
+        )
+    }
+
+    /** A failure means the busy pulse is not started when SENDING is pushed while hidden and then shown. */
+    @Test
+    fun `SENDING pushed while hidden starts the busy pulse on show`() {
+        val rig = Rig()
+        rig.controller.setState(TileState.SENDING)
+        assertTrue(
+            "overlay: a push while hidden should ask the window for nothing",
+            rig.window.busyPulseCalls.isEmpty(),
+        )
+        assertEquals("overlay: show should report SHOWN", ShowResult.SHOWN, rig.controller.show())
+        assertEquals(
+            "overlay: show should call setBusyPulse(true)",
+            listOf(true),
+            rig.window.busyPulseCalls,
+        )
+    }
+
+    /** A failure means setTheme() does not start the busy pulse when the state is SENDING. */
+    @Test
+    fun `setTheme with SENDING state starts the busy pulse`() {
+        val rig = Rig().shown()
+        rig.controller.setState(TileState.SENDING)
+        rig.forget()
+        rig.controller.setTheme(ThemeMode.DARK)
+        assertEquals(
+            "overlay: setTheme with SENDING state should call setBusyPulse(true)",
+            listOf(true),
+            rig.window.busyPulseCalls,
+        )
+        assertEquals(
+            "overlay: the last setBusyPulse call should be true",
+            true,
+            rig.window.busyPulseOn,
+        )
+    }
+
+    /** A failure means setTheme() does not start the busy pulse when the state is MIC_BUSY. */
+    @Test
+    fun `setTheme with MIC_BUSY state starts the busy pulse`() {
+        val rig = Rig().shown()
+        rig.controller.setState(TileState.MIC_BUSY)
+        rig.forget()
+        rig.controller.setTheme(ThemeMode.DARK)
+        assertEquals(
+            "overlay: setTheme with MIC_BUSY state should call setBusyPulse(true)",
+            listOf(true),
+            rig.window.busyPulseCalls,
+        )
+        assertEquals(
+            "overlay: the last setBusyPulse call should be true",
+            true,
+            rig.window.busyPulseOn,
+        )
+    }
+
+    // ---- Every exit from SENDING stops the busy pulse ----
+
+    /** A failure means setState(SENT) after SENDING does not stop the busy pulse. */
+    @Test
+    fun `SENDING to SENT stops the busy pulse`() {
+        val rig = Rig().shown()
+        rig.controller.setState(TileState.SENDING)
+        rig.forget()
+        rig.controller.setState(TileState.SENT)
+        assertEquals(
+            "overlay: setState(SENT) after SENDING should call setBusyPulse(false)",
+            listOf(false),
+            rig.window.busyPulseCalls,
+        )
+        assertEquals(
+            "overlay: the last setBusyPulse call should be false",
+            false,
+            rig.window.busyPulseOn,
+        )
+    }
+
+    /** A failure means setState(SENT_LOCAL) after SENDING does not stop the busy pulse. */
+    @Test
+    fun `SENDING to SENT_LOCAL stops the busy pulse`() {
+        val rig = Rig().shown()
+        rig.controller.setState(TileState.SENDING)
+        rig.forget()
+        rig.controller.setState(TileState.SENT_LOCAL)
+        assertEquals(
+            "overlay: setState(SENT_LOCAL) after SENDING should call setBusyPulse(false)",
+            listOf(false),
+            rig.window.busyPulseCalls,
+        )
+        assertEquals(
+            "overlay: the last setBusyPulse call should be false",
+            false,
+            rig.window.busyPulseOn,
+        )
+    }
+
+    /** A failure means setState(FAILED) after SENDING does not stop the busy pulse. */
+    @Test
+    fun `SENDING to FAILED stops the busy pulse`() {
+        val rig = Rig().shown()
+        rig.controller.setState(TileState.SENDING)
+        rig.forget()
+        rig.controller.setState(TileState.FAILED)
+        assertEquals(
+            "overlay: setState(FAILED) after SENDING should call setBusyPulse(false)",
+            listOf(false),
+            rig.window.busyPulseCalls,
+        )
+        assertEquals(
+            "overlay: the last setBusyPulse call should be false",
+            false,
+            rig.window.busyPulseOn,
+        )
+    }
+
+    /** A failure means setState(IDLE) after SENDING does not stop the busy pulse. */
+    @Test
+    fun `SENDING to IDLE stops the busy pulse`() {
+        val rig = Rig().shown()
+        rig.controller.setState(TileState.SENDING)
+        rig.forget()
+        rig.controller.setState(TileState.IDLE)
+        assertEquals(
+            "overlay: setState(IDLE) after SENDING should call setBusyPulse(false)",
+            listOf(false),
+            rig.window.busyPulseCalls,
+        )
+        assertEquals(
+            "overlay: the last setBusyPulse call should be false",
+            false,
+            rig.window.busyPulseOn,
+        )
+    }
+
+    /** A failure means setState(ARMED) after SENDING does not stop the busy pulse. */
+    @Test
+    fun `SENDING to ARMED stops the busy pulse`() {
+        val rig = Rig().shown()
+        rig.controller.setState(TileState.SENDING)
+        rig.forget()
+        rig.controller.setState(TileState.ARMED)
+        assertEquals(
+            "overlay: setState(ARMED) after SENDING should call setBusyPulse(false)",
+            listOf(false),
+            rig.window.busyPulseCalls,
+        )
+        assertEquals(
+            "overlay: the last setBusyPulse call should be false",
+            false,
+            rig.window.busyPulseOn,
+        )
+    }
+
+    /** A failure means setState(RECORDING) after SENDING does not stop the busy pulse. */
+    @Test
+    fun `SENDING to RECORDING stops the busy pulse`() {
+        val rig = Rig().shown()
+        rig.controller.setState(TileState.SENDING)
+        rig.forget()
+        rig.controller.setState(TileState.RECORDING)
+        assertEquals(
+            "overlay: setState(RECORDING) after SENDING should call setBusyPulse(false)",
+            listOf(false),
+            rig.window.busyPulseCalls,
+        )
+        assertEquals(
+            "overlay: the last setBusyPulse call should be false",
+            false,
+            rig.window.busyPulseOn,
+        )
+    }
 }

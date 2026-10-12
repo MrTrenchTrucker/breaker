@@ -41,6 +41,8 @@ class TileControllerPulseTest {
             window.pulses.clear()
             window.order.clear()
             window.calls.clear()
+            window.busyPulseCalls.clear()
+            window.busyPulseOn = null
             log.clear()
         }
 
@@ -131,7 +133,24 @@ class TileControllerPulseTest {
         assertTrue("overlay: a repeated armed push should not stop the pulse", rig.window.pulses.isEmpty())
     }
 
-    /** A failure means a tap changes the pulse request, or an armed tap answers something other than the begin of recording. */
+    /** A failure means a SENDING tile does not ask for the busy pulse. */
+    @Test
+    fun `a SENDING tile asks for the busy pulse`() {
+        val rig = Rig().shown()
+        rig.controller.setState(TileState.SENDING)
+        assertEquals(
+            "overlay: a SENDING tile should ask for the busy pulse once",
+            listOf(true),
+            rig.window.busyPulseCalls,
+        )
+        assertEquals(
+            "overlay: the last setBusyPulse call should be true",
+            true,
+            rig.window.busyPulseOn,
+        )
+    }
+
+    /** A failure means a tap changes the pulse request, or an armed tap answers something other than the beginning of recording. */
     @Test
     fun `tap answers do not change with the pulse asked on or off`() {
         val armed = Rig().shown()

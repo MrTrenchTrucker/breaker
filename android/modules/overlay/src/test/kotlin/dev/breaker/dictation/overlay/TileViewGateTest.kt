@@ -264,4 +264,40 @@ class TileViewGateTest {
 
         assertEquals("overlay: $view must set the content description from face.description", emptyList<String>(), inFile(ModuleFiles.mainTexts(), view, AdapterRules::descriptionProblems))
     }
+
+    // ---- The busy wish is set from both MIC_BUSY and SENDING ----
+
+    /** The problems with the busyWanted assignment in applyFace: it must name exactly MIC_BUSY and SENDING. */
+    private fun busyWantedStateProblems(source: String): List<String> {
+        val code = SourceText.code(source)
+        val body = AdapterRules.blockBodyOf(code, "applyFace")
+            ?: return listOf("TileView has no applyFace function with a block body")
+        val assignment = Regex("\\bbusyWanted\\s*=\\s*([^\\n]*)").find(body)
+            ?: return listOf("applyFace does not assign busyWanted")
+        val expr = assignment.groupValues[1].trim()
+        val tileStateNames = Regex("TileState\\.(\\w+)").findAll(expr).map { it.groupValues[1] }.toSet()
+        return listOfNotNull(
+            "busyWanted must be set from an expression naming both TileState.MIC_BUSY and TileState.SENDING"
+                .takeUnless { expr.contains("TileState.MIC_BUSY") && expr.contains("TileState.SENDING") },
+            "busyWanted must name exactly TileState.MIC_BUSY and TileState.SENDING, no other TileState"
+                .takeUnless { tileStateNames == setOf("MIC_BUSY", "SENDING") },
+        )
+    }
+
+    private val busyWantedSample = "fun applyFace(face: TileFace) {\n" +
+        "busyWanted = face.state == TileState.MIC_BUSY || face.state == TileState.SENDING\n" +
+        "}\n"
+
+    /** A failure means the busyWanted assignment does not name exactly MIC_BUSY and SENDING. */
+    @Test
+    fun `applyFace sets busyWanted from both MIC_BUSY and SENDING`() {
+        assertQuiet("the sample", busyWantedStateProblems(busyWantedSample))
+        assertFires("MIC_BUSY removed", busyWantedStateProblems(edit(busyWantedSample, "face.state == TileState.MIC_BUSY || face.state == TileState.SENDING", "face.state == TileState.SENDING")), "both TileState.MIC_BUSY and TileState.SENDING")
+        assertFires("SENDING removed", busyWantedStateProblems(edit(busyWantedSample, "face.state == TileState.MIC_BUSY || face.state == TileState.SENDING", "face.state == TileState.MIC_BUSY")), "both TileState.MIC_BUSY and TileState.SENDING")
+        assertFires("FAILED added", busyWantedStateProblems(edit(busyWantedSample, "face.state == TileState.MIC_BUSY || face.state == TileState.SENDING", "face.state == TileState.MIC_BUSY || face.state == TileState.SENDING || face.state == TileState.FAILED")), "exactly TileState.MIC_BUSY and TileState.SENDING")
+        assertFires("SENT added", busyWantedStateProblems(edit(busyWantedSample, "face.state == TileState.MIC_BUSY || face.state == TileState.SENDING", "face.state == TileState.MIC_BUSY || face.state == TileState.SENDING || face.state == TileState.SENT")), "exactly TileState.MIC_BUSY and TileState.SENDING")
+        assertFires("no busyWanted assignment", busyWantedStateProblems("fun applyFace(face: TileFace) {\n}\n"), "does not assign busyWanted")
+        assertFires("no applyFace", busyWantedStateProblems("val x = 1\n"), "no applyFace")
+        assertEquals("overlay: $view must set busyWanted from both MIC_BUSY and SENDING", emptyList<String>(), busyWantedStateProblems(ModuleFiles.mainTexts().getValue(view)))
+    }
 }

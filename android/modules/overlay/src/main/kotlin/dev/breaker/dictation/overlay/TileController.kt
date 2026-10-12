@@ -100,7 +100,7 @@ internal class TileController(
                 val face = model.face(currentTheme)
                 applied = face
                 window.setPulse(pulseWanted(model.state, isShown))
-                window.setBusyPulse(model.state == TileState.MIC_BUSY)
+                window.setBusyPulse(model.state == TileState.MIC_BUSY || model.state == TileState.SENDING)
                 window.applyFace(face)
                 if (face.shape != TileShape.COLLAPSED) placeWindow(face.shape)
                 ShowResult.SHOWN
@@ -136,7 +136,7 @@ internal class TileController(
         val face = model.face(mode)
         applied = face
         window.setPulse(pulseWanted(model.state, isShown))
-        window.setBusyPulse(model.state == TileState.MIC_BUSY)
+        window.setBusyPulse(model.state == TileState.MIC_BUSY || model.state == TileState.SENDING)
         window.applyFace(face)
     }
 
@@ -215,7 +215,7 @@ internal class TileController(
             placeWindow(face.shape)
         }
         window.setPulse(pulseWanted(model.state, isShown))
-        window.setBusyPulse(model.state == TileState.MIC_BUSY)
+        window.setBusyPulse(model.state == TileState.MIC_BUSY || model.state == TileState.SENDING)
         window.applyFace(face)
     }
 
