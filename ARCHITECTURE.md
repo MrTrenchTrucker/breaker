@@ -71,7 +71,9 @@ admins.
 - F3. On-device fallback: when the server is unreachable, transcribe locally (with
       rule-based formatting) so dictation never stops.
 - F4. **"Breaker Breaker"** (voice phrase) OR shake → floating tile appears AND
-      **recording starts automatically**.
+      **recording starts automatically**. A shake works from any app and with the
+      keyboard open, and keeps working whether or not the tile is on screen, for as
+      long as dictation is switched on.
 - F5. **"And I'm Gone"** (voice phrase) OR tap tile → stop + send → commit text to
       focused field.
 - F6. If no text field is focused, or the accessibility insert is refused →
@@ -89,7 +91,10 @@ admins.
       the user to enable high-performance mode. The battery-optimization
       exemption that keeps wake listening alive while the phone sleeps is
       explained at first start and can be revoked any time in Settings; when it
-      is off, the app says wake listening may stop while the phone sleeps.
+      is off, the app says wake listening may stop while the phone sleeps. The app
+      also tells the user to set its battery use to unrestricted (the system's
+      wording differs by phone maker), because a phone can stop listening for a
+      shake in the background otherwise; shown at first start and in Settings.
 - F13. **Sync:** every transcription syncs to the server — even local-only mode —
       pushed when connectivity returns. No data loss on offline dictation.
 - F14. **Multi-user:** username/password accounts; each user's data (transcriptions,
@@ -173,9 +178,10 @@ admins.
 - F40. **Loudness bar:** while recording, the bar above the microphone follows how
       loud the voice is; the audio module reports the level and the app passes it on
       (ADR-024).
-- F41. **Hide without a keyboard:** the tile can hide while no text input is in use
-      and return when one is. A temporary developer setting picks the signal and is
-      removed before release (ADR-024).
+- F41. **Hide without a keyboard:** the tile appears by itself when a text input
+      opens or the keyboard comes up, and hides when it goes away. A shake still
+      brings it back (F4, F38). A temporary developer setting (off, field focus,
+      keyboard visible) picks the signal and is removed before release (ADR-024).
 - F42. **Normal-looking text:** a transcript the speech engine prints entirely in
       capitals is turned into lower case, with the capital "I" restored, before it
       is formatted (ADR-023).
@@ -371,7 +377,11 @@ routes it, so no audio waits on a probe and none is dropped (ADR-002).
 ## 8. Gesture, Voice Phrases & Overlay
 
 **Gesture (shake-to-wake):** `SensorManager` accelerometer; shake = high-pass
-filtered magnitude threshold crossings in a 500 ms window.
+filtered magnitude threshold crossings in a 500 ms window. The detector stays
+registered for as long as dictation is switched on, whatever the tile shows and
+whether or not the keyboard is up; a detection always means "begin" (F4). Only
+switching dictation off, or the system stopping the app in the background (F12),
+ends it.
 
 **Voice phrases (CB slang):**
 - **v1 mechanism — streaming on-device ASR + phrase matching.** sherpa-onnx ASR in

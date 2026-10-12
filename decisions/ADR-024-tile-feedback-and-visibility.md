@@ -1,6 +1,6 @@
 # ADR-024: The tile shows busy and loudness, and hides itself when no keyboard is in use
 
-**Status:** accepted, amended 2026-10-12 (busy cue: no spinner)
+**Status:** accepted, amended 2026-10-12 (busy cue: no spinner; shake, keyboard and battery)
 **Date:** 2026-10-12
 
 ## Context
@@ -26,8 +26,8 @@ tile has no animated texture yet.
    visible keyboard) is chosen by a temporary developer setting with three
    values: off, field focus, keyboard visible. The setting exists only to test
    both ways. It is removed before release, after the project owner picks one.
-   Whether shaking the phone still starts dictation while the tile is hidden
-   this way is not decided yet.
+   A shake still brings the tile back and starts
+   dictation while it is hidden this way (F4, F38).
 4. **Animated texture.** The tile gets an animated texture while it is
    listening and busy; the project owner suggested radio waves. This is graphics
    work: it waits for the art phase and lives in the design tokens and the
@@ -47,3 +47,11 @@ Android reports keyboards, which is cheaper to test than to argue.
 Amended 2026-10-12: item 1 no longer says a spinner shows. The first design
 named one; the busy cue is the ring's own colour and pulse, and any further
 motion waits for the texture (item 4).
+
+Amended 2026-10-12: the second device test showed a shake doing nothing and the
+tile not coming up with the keyboard, and the loudness bar still not moving.
+Item 3 is read as: a shake works with the keyboard open and the tile
+hidden; the tile appears when a text input opens or the keyboard comes up; and
+the app tells the user to allow unrestricted battery use, because the system
+may stop listening for a shake in the background (F12). Item 2 is unchanged:
+the bar follows the voice live.
