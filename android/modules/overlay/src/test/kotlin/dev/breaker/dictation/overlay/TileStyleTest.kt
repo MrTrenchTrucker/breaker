@@ -37,7 +37,7 @@ class TileStyleTest {
         TileState.IDLE -> p.trim.argb
         TileState.ARMED -> p.primary.argb
         TileState.RECORDING -> p.primary.argb
-        TileState.SENDING -> p.primary.argb
+        TileState.SENDING -> p.warning.argb
         TileState.FAILED -> p.danger.argb
         TileState.SENT -> p.sent.argb
         TileState.SENT_LOCAL -> p.warning.argb
@@ -66,7 +66,7 @@ class TileStyleTest {
         }
     }
 
-    /** A failure means the ring colours are not as documented: plain trim idle, green armed, recording and sending, red after a failure. */
+    /** A failure means the ring colours are not as documented: plain trim idle, green armed and recording, amber sending, red after a failure. */
     @Test
     fun `ring colours against the token values written out`() {
         val light = TruckingTokens.palette(ThemeMode.LIGHT)
@@ -74,12 +74,12 @@ class TileStyleTest {
         assertEquals("overlay: light idle ring expected 0xFF000000", 0xFF000000.toInt(), TileStyle.look(TileState.IDLE, light).ring)
         assertEquals("overlay: light armed ring expected 0xFF1E7A46", 0xFF1E7A46.toInt(), TileStyle.look(TileState.ARMED, light).ring)
         assertEquals("overlay: light recording ring expected 0xFF1E7A46", 0xFF1E7A46.toInt(), TileStyle.look(TileState.RECORDING, light).ring)
-        assertEquals("overlay: light sending ring expected 0xFF1E7A46", 0xFF1E7A46.toInt(), TileStyle.look(TileState.SENDING, light).ring)
+        assertEquals("overlay: light sending ring expected 0xFFA55713", 0xFFA55713.toInt(), TileStyle.look(TileState.SENDING, light).ring)
         assertEquals("overlay: light failed ring expected 0xFFC0392B", 0xFFC0392B.toInt(), TileStyle.look(TileState.FAILED, light).ring)
         assertEquals("overlay: dark idle ring expected 0xFFFFFFFF", 0xFFFFFFFF.toInt(), TileStyle.look(TileState.IDLE, dark).ring)
         assertEquals("overlay: dark armed ring expected 0xFF2E9E5B", 0xFF2E9E5B.toInt(), TileStyle.look(TileState.ARMED, dark).ring)
         assertEquals("overlay: dark recording ring expected 0xFF2E9E5B", 0xFF2E9E5B.toInt(), TileStyle.look(TileState.RECORDING, dark).ring)
-        assertEquals("overlay: dark sending ring expected 0xFF2E9E5B", 0xFF2E9E5B.toInt(), TileStyle.look(TileState.SENDING, dark).ring)
+        assertEquals("overlay: dark sending ring expected 0xFFF39C12", 0xFFF39C12.toInt(), TileStyle.look(TileState.SENDING, dark).ring)
         assertEquals("overlay: dark failed ring expected 0xFFE74C3C", 0xFFE74C3C.toInt(), TileStyle.look(TileState.FAILED, dark).ring)
     }
 

@@ -42,9 +42,9 @@ internal object TileStyle {
     /**
      * The look of the tile in [state] with [palette].
      *
-     * Only the ring depends on the state: trim when idle, primary when armed, recording and sending,
-     * danger after a failure, and the palette's sent or warning colour after a send. Everything else
-     * is the same in every state.
+     * Only the ring depends on the state: trim when idle, primary when armed and recording, warning
+     * while sending, danger after a failure, and the palette's sent or warning colour after a send.
+     * Everything else is the same in every state.
      */
     fun look(state: TileState, palette: TruckingPalette): TileLook = TileLook(
         background = palette.surface.argb,
@@ -70,7 +70,7 @@ internal fun ringColor(state: TileState, palette: TruckingPalette): Int {
         TileState.IDLE -> palette.trim.argb
         TileState.ARMED -> palette.primary.argb
         TileState.RECORDING -> palette.primary.argb
-        TileState.SENDING -> palette.primary.argb
+        TileState.SENDING -> palette.warning.argb
         TileState.FAILED -> palette.danger.argb
         TileState.SENT -> palette.sent.argb
         TileState.SENT_LOCAL -> palette.warning.argb

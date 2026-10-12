@@ -59,7 +59,7 @@ internal class TileView(
     fun applyFace(face: TileFace) {
         this.face = face
         contentDescription = face.description
-        busyWanted = face.state == TileState.MIC_BUSY
+        busyWanted = face.state == TileState.MIC_BUSY || face.state == TileState.SENDING
         refreshPulse()
         invalidate()
     }
