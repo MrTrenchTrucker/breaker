@@ -55,6 +55,7 @@ internal class TileController(
     private val onCancel: (() -> Unit)? = null,
     private val onSend: (() -> Unit)? = null,
     private val onNoticeDismissed: (() -> Unit)? = null,
+    private val onCloseRequested: (() -> Unit)? = null,
 ) : TouchSink {
 
     private val interpreter = TouchInterpreter(slopPx)
@@ -130,10 +131,7 @@ internal class TileController(
         isShown = false
     }
 
-    /**
-     * Remember [mode] for the next [show]; while shown, repaint the tile with
-     * it once and draw the face again in the new colours.
-     */
+    /** Remember [mode] for the next [show]; while shown, repaint the tile with it once. */
     fun setTheme(mode: ThemeMode) {
         currentTheme = mode
         if (!isShown) return
@@ -190,14 +188,14 @@ internal class TileController(
         if (!isShown) return
         when (interpreter.up(x, y)) {
             is TouchEvent.Tap -> route()
-            is TouchEvent.DragEnd -> if (gesture.shape == TileShape.COLLAPSED) persist()
+            is TouchEvent.DragEnd -> CloseTarget.onDragEnd(window, gesture.shape == TileShape.COLLAPSED, pixels.x, pixels.y, onCloseRequested, { isShown = false }, { persist() })
             else -> Unit
         }
     }
 
     override fun onTouchCancel() {
         if (!isShown) return
-        endGesture()
+        endGesture(); CloseTarget.onDragCancel(window)
     }
 
     /**
@@ -263,6 +261,7 @@ internal class TileController(
 
     /** Move the tile by ([dx], [dy]) pixels, kept whole inside the fresh usable bounds. */
     private fun dragBy(dx: Int, dy: Int) {
+        CloseTarget.onDragStep(window, currentTheme)
         val target = TilePlacement.clamp(
             pixels.x + dx,
             pixels.y + dy,

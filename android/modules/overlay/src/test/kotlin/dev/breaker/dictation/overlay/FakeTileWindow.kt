@@ -35,6 +35,8 @@ internal class FakeTileWindow(
     val calls = ArrayList<String>()
     /** Every [setPulse] call, in order: true for a request to pulse and false for a stop. */
     val pulses = mutableListOf<Boolean>()
+    /** Every [setPulse] call, in order — a separate list from [pulses] for tests that assert exact calls. */
+    val pulseCalls = ArrayList<Boolean>()
     /** The order of [setPulse] and [applyFace] calls: "pulse:true", "pulse:false" and "face". */
     val order = mutableListOf<String>()
     var removeCount = 0
@@ -79,6 +81,7 @@ internal class FakeTileWindow(
     override fun moveTo(x: Int, y: Int) {
         calls.add("moveTo")
         moves.add(PixelPoint(x, y))
+        CloseTarget.onDragMove(this, x, y)
     }
 
     override fun setFrame(x: Int, y: Int, width: Int, height: Int) {
@@ -99,6 +102,7 @@ internal class FakeTileWindow(
 
     override fun setPulse(on: Boolean) {
         pulses.add(on)
+        pulseCalls.add(on)
         order.add(if (on) "pulse:true" else "pulse:false")
     }
 
@@ -118,6 +122,27 @@ internal class FakeTileWindow(
     override fun remove() {
         calls.add("remove")
         removeCount++
+        hideCloseTarget()
+    }
+
+    /** Every [showCloseTarget] call, in order. */
+    val closeTargetShows = ArrayList<Triple<Int, Int, Float>>()
+    /** Every [hideCloseTarget] call, in order. */
+    var closeTargetHideCount = 0
+    /** Every [setCloseTargetHighlight] call, in order. */
+    val closeTargetHighlights = ArrayList<CloseHighlight>()
+
+    override fun showCloseTarget(x: Int, y: Int, radiusPx: Float, palette: TruckingPalette): Boolean {
+        closeTargetShows.add(Triple(x, y, radiusPx))
+        return true
+    }
+
+    override fun hideCloseTarget() {
+        closeTargetHideCount++
+    }
+
+    override fun setCloseTargetHighlight(highlight: CloseHighlight) {
+        closeTargetHighlights.add(highlight)
     }
 
     private fun registeredSink(): TouchSink =
