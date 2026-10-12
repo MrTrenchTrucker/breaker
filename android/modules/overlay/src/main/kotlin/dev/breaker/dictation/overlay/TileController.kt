@@ -14,10 +14,9 @@ import dev.breaker.shared.tokens.TruckingTokens
  * [TouchInterpreter], and what the app pushed (state, level, notice, description) is kept by a
  * [TileModel]. Everything runs on the app's main (UI) looper: no locks, no background work, no clock.
  *
- * **Position.** The position of the collapsed tile is kept twice: as pixels and as a fraction of the
- * movable range (what is saved). The usable bounds and the tile size are read from the window every
- * time they matter, never cached, because a rotation changes both. A wider window (a notice, or
- * recording) is placed around the collapsed tile and kept on screen; it never changes the saved position.
+ * **Position.** The position is kept twice: as pixels and as a fraction of the movable range
+ * (what is saved). The usable bounds and tile size are read from the window every time they matter,
+ * never cached, because a rotation changes both. A wider window is placed around the collapsed tile.
  *
  * **Drawing.** After every push from the app, and only while shown, the window is told what changed:
  * a new shape resizes it first, a change that keeps the shape redraws it, and a push that changes
@@ -27,11 +26,9 @@ import dev.breaker.shared.tokens.TruckingTokens
  * replacing only the tile position and saving the result. Only a drag that began on the collapsed tile
  * moves it or saves. A save that fails is swallowed and [onSaveFailed] is told once.
  *
- * **Taps.** A tap is routed by the state and by the part of the window the finger went down on: [onTap]
- * for the microphone while idle or failed, [onBegin] for the microphone while armed, [onSend] for the
- * microphone or the send button while recording, [onCancel] for the cancel button. A tap on the strip
- * of a notice window clears the notice and collapses the tile, calling [onNoticeDismissed] once (not [onTap]).
- * A null callback does nothing; each runs once per tap; an exception it throws is not caught.
+ * **Taps.** A tap is routed by the state and the part of the window the finger went down on: [onTap]
+ * for the microphone while idle or failed, [onBegin] while armed, [onSend] while recording, [onCancel]
+ * for the cancel button. A tap on a notice strip clears the notice, calling [onNoticeDismissed] once.
  *
  * @param window the window seam; this controller registers itself as its touch sink.
  * @param settings where the tile position is read from and saved to.
@@ -55,6 +52,7 @@ internal class TileController(
     private val onCancel: (() -> Unit)? = null,
     private val onSend: (() -> Unit)? = null,
     private val onNoticeDismissed: (() -> Unit)? = null,
+    private val onCloseRequested: (() -> Unit)? = null,
 ) : TouchSink {
 
     private val interpreter = TouchInterpreter(slopPx)
@@ -82,12 +80,11 @@ internal class TileController(
     /**
      * Put the tile on screen at the saved position.
      *
-     * The checks run in a fixed order. Already shown answers [ShowResult.ALREADY_SHOWN] with no window
-     * call and no read of the settings. A missing overlay permission answers
-     * [ShowResult.PERMISSION_MISSING] with no window added and no setting touched. Only then is the
-     * start position read, and a refusal by the window answers [ShowResult.FAILED]. In every case other
-     * than [ShowResult.SHOWN] the tile stays hidden, so a later call can try again. Once the window is
-     * added, the face for the last state the app pushed is drawn, and a wider shape then gets its frame.
+     * The checks run in a fixed order. Already shown answers [ShowResult.ALREADY_SHOWN]; a missing
+     * overlay permission answers [ShowResult.PERMISSION_MISSING]; a refusal by the window answers
+     * [ShowResult.FAILED]. In every case other than [ShowResult.SHOWN] the tile stays hidden, so a
+     * later call can try again. Once added, the face for the last state is drawn, and a wider shape
+     * then gets its frame.
      */
     fun show(): ShowResult {
         if (isShown) return ShowResult.ALREADY_SHOWN
@@ -115,11 +112,9 @@ internal class TileController(
     /**
      * Take the tile off screen. Does nothing when it is already hidden.
      *
-     * A drag of the collapsed tile in progress is ended first exactly like a
-     * release, so the position the user dragged to is saved before the window
-     * goes. Any gesture state is cleared and no callback runs. The window is
-     * removed once. The state, level, notice and description the app pushed are
-     * kept, and the next [show] draws them.
+     * A drag in progress is ended first like a release, so the position is saved
+     * before the window goes. The state, level, notice and description the app
+     * pushed are kept, and the next [show] draws them.
      */
     fun hide() {
         if (!isShown) return
@@ -190,7 +185,8 @@ internal class TileController(
         if (!isShown) return
         when (interpreter.up(x, y)) {
             is TouchEvent.Tap -> route()
-            is TouchEvent.DragEnd -> if (gesture.shape == TileShape.COLLAPSED) persist()
+            is TouchEvent.DragEnd -> CloseTarget.onDragEnd(window, gesture.shape == TileShape.COLLAPSED,
+                pixels.x, pixels.y, onCloseRequested, { isShown = false }, { persist() })
             else -> Unit
         }
     }
@@ -198,6 +194,7 @@ internal class TileController(
     override fun onTouchCancel() {
         if (!isShown) return
         endGesture()
+        CloseTarget.onDragCancel(window)
     }
 
     /**
@@ -263,6 +260,7 @@ internal class TileController(
 
     /** Move the tile by ([dx], [dy]) pixels, kept whole inside the fresh usable bounds. */
     private fun dragBy(dx: Int, dy: Int) {
+        CloseTarget.onDragStep(window, currentTheme)
         val target = TilePlacement.clamp(
             pixels.x + dx,
             pixels.y + dy,

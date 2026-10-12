@@ -19,7 +19,7 @@ class AdapterGateTest {
     private val window = "WindowManagerTileWindow.kt"
     private val view = "TileView.kt"
     private val facade = "FloatingTile.kt"
-    private val adapterFiles = listOf(window, view, facade, "ArmedPulse.kt")
+    private val adapterFiles = listOf(window, view, facade, "ArmedPulse.kt", "CloseTargetView.kt", "CloseTargetWindow.kt")
 
     private fun assertFires(what: String, problems: List<String>, part: String) =
         assertTrue("android_overlay: control: $what must be reported with '$part', got $problems", problems.any { it.contains(part) })
@@ -77,6 +77,9 @@ class AdapterGateTest {
     private fun windowFlagProblems(source: String): List<String> =
         requireAll(SourceText.code(source), listOf("FLAG_NOT_FOCUSABLE", "FLAG_LAYOUT_IN_SCREEN"))
 
+    private fun closeTargetFlagProblems(source: String): List<String> =
+        requireAll(SourceText.code(source), listOf("FLAG_NOT_TOUCHABLE"))
+
     /** A failure here means the overlay is asked for with a window type that is wrong for this Android level. */
     @Test
     fun `the overlay window uses the application overlay type and no legacy type`() {
@@ -103,6 +106,18 @@ class AdapterGateTest {
         assertQuiet("both flags present", windowFlagProblems(both))
 
         assertEquals("android_overlay: $window must be not focusable and laid out in the screen", emptyList<String>(), inFile(ModuleFiles.mainTexts(), window, this::windowFlagProblems))
+    }
+
+    /** A failure here means the close target window can steal touches from the app underneath. */
+    @Test
+    fun `the close target window is not touchable`() {
+        val closeTarget = "CloseTargetWindow.kt"
+        val sample = "val f = FLAG_NOT_TOUCHABLE or FLAG_NOT_FOCUSABLE\n"
+        assertFires("a missing not-touchable flag", closeTargetFlagProblems("val f = FLAG_NOT_FOCUSABLE\n"), "FLAG_NOT_TOUCHABLE is not used")
+        assertFires("a flag named only in a comment", closeTargetFlagProblems("// FLAG_NOT_TOUCHABLE\nval f = FLAG_NOT_FOCUSABLE\n"), "FLAG_NOT_TOUCHABLE is not used")
+        assertQuiet("the not-touchable flag present", closeTargetFlagProblems(sample))
+
+        assertEquals("android_overlay: $closeTarget must be not touchable", emptyList<String>(), inFile(ModuleFiles.mainTexts(), closeTarget, this::closeTargetFlagProblems))
     }
 
     // ---- Adding the window is guarded ----
@@ -275,5 +290,87 @@ class AdapterGateTest {
         assertQuiet("a wrapped expression body", AdapterRules.permissionAnswerProblems("override fun canDrawOverlays(): Boolean =\n    android.provider.$system\nfun other() = true\n"))
 
         assertEquals("android_overlay: $window must take canDrawOverlays from the system", emptyList<String>(), inFile(ModuleFiles.mainTexts(), window, AdapterRules::permissionAnswerProblems))
+    }
+
+    // ---- moveTo must call CloseTarget.onDragMove ----
+
+    private fun moveToDragProblems(source: String): List<String> {
+        val body = AdapterRules.blockBodyOf(SourceText.code(source), "moveTo") ?: return listOf("no moveTo function with a block body was found")
+        return listOfNotNull(
+            "moveTo does not call CloseTarget.onDragMove".takeUnless { Regex("\\bCloseTarget\\s*\\.\\s*onDragMove\\s*\\(").containsMatchIn(body) },
+        )
+    }
+
+    /** A failure here means the tile window does not move the close target when it is dragged. */
+    @Test
+    fun `moveTo calls CloseTarget onDragMove`() {
+        val good = "fun moveTo(x: Int, y: Int) {\n CloseTarget.onDragMove(this, x, y)\n}\n"
+        assertFires("no moveTo", moveToDragProblems("val x = 1\n"), "no moveTo function")
+        assertFires("a missing onDragMove call", moveToDragProblems("fun moveTo(x: Int, y: Int) {\n}\n"), "does not call CloseTarget.onDragMove")
+        assertFires("onDragMove named only in a comment", moveToDragProblems("fun moveTo(x: Int, y: Int) {\n // CloseTarget.onDragMove(this, x, y)\n}\n"), "does not call CloseTarget.onDragMove")
+        assertQuiet("onDragMove present", moveToDragProblems(good))
+
+        assertEquals("android_overlay: $window moveTo must call CloseTarget.onDragMove", emptyList<String>(), inFile(ModuleFiles.mainTexts(), window, this::moveToDragProblems))
+    }
+
+    // ---- remove must call hideCloseTarget ----
+
+    private fun removeHideProblems(source: String): List<String> {
+        val body = AdapterRules.blockBodyOf(SourceText.code(source), "remove") ?: return listOf("no remove function with a block body was found")
+        return listOfNotNull(
+            "remove does not call hideCloseTarget()".takeUnless { Regex("\\bhideCloseTarget\\s*\\(").containsMatchIn(body) },
+        )
+    }
+
+    /** A failure here means the close target is not hidden when the tile window is removed. */
+    @Test
+    fun `remove calls hideCloseTarget`() {
+        val good = "fun remove() {\n hideCloseTarget()\n}\n"
+        assertFires("no remove", removeHideProblems("val x = 1\n"), "no remove function")
+        assertFires("a missing hideCloseTarget call", removeHideProblems("fun remove() {\n}\n"), "does not call hideCloseTarget")
+        assertFires("hideCloseTarget named only in a comment", removeHideProblems("fun remove() {\n // hideCloseTarget()\n}\n"), "does not call hideCloseTarget")
+        assertQuiet("hideCloseTarget present", removeHideProblems(good))
+
+        assertEquals("android_overlay: $window remove must call hideCloseTarget", emptyList<String>(), inFile(ModuleFiles.mainTexts(), window, this::removeHideProblems))
+    }
+
+    // ---- show() places the window at frameFor's left and top ----
+
+    private fun showFrameForProblems(source: String): List<String> {
+        val body = AdapterRules.blockBodyOf(SourceText.code(source), "show") ?: return listOf("no show function with a block body was found")
+        val noComments = body.replace(Regex("//.*"), "")
+        return listOfNotNull(
+            "show() does not set params.x = left".takeUnless { Regex("params\\.x\\s*=\\s*left").containsMatchIn(noComments) },
+            "show() does not set params.y = top".takeUnless { Regex("params\\.y\\s*=\\s*top").containsMatchIn(noComments) },
+            "show() does not call frameFor(x, y, radiusPx)".takeUnless { body.contains("frameFor(x, y, radiusPx)") },
+        )
+    }
+
+    /** A failure here means show() does not centre the close target on (x, y) using frameFor's left and top. */
+    @Test
+    fun `show uses frameFor left and top`() {
+        assertFires("no show", showFrameForProblems("val x = 1\n"), "no show function")
+        assertFires("missing params.x = left", showFrameForProblems("fun show(x: Int, y: Int, radiusPx: Float) {\n val (left, top, d) = frameFor(x, y, radiusPx)\n params.y = top\n}\n"), "params.x = left")
+        assertFires("params.x = x instead of left", showFrameForProblems("fun show(x: Int, y: Int, radiusPx: Float) {\n val (left, top, d) = frameFor(x, y, radiusPx)\n params.x = x\n params.y = top\n}\n"), "params.x = left")
+        assertFires("missing params.y = top", showFrameForProblems("fun show(x: Int, y: Int, radiusPx: Float) {\n val (left, top, d) = frameFor(x, y, radiusPx)\n params.x = left\n}\n"), "params.y = top")
+        assertFires("params.y = y instead of top", showFrameForProblems("fun show(x: Int, y: Int, radiusPx: Float) {\n val (left, top, d) = frameFor(x, y, radiusPx)\n params.x = left\n params.y = y\n}\n"), "params.y = top")
+        assertFires("params.x = left in comment only", showFrameForProblems("fun show(x: Int, y: Int, radiusPx: Float) {\n val (left, top, d) = frameFor(x, y, radiusPx)\n // params.x = left\n params.y = top\n}\n"), "params.x = left")
+        assertFires("params.y = top in comment only", showFrameForProblems("fun show(x: Int, y: Int, radiusPx: Float) {\n val (left, top, d) = frameFor(x, y, radiusPx)\n params.x = left\n // params.y = top\n}\n"), "params.y = top")
+        assertFires("no frameFor call", showFrameForProblems("fun show(x: Int, y: Int, radiusPx: Float) {\n params.x = left\n params.y = top\n}\n"), "frameFor")
+        assertQuiet("correct show()", showFrameForProblems("fun show(x: Int, y: Int, radiusPx: Float) {\n val (left, top, d) = frameFor(x, y, radiusPx)\n params.x = left\n params.y = top\n}\n"))
+
+        assertEquals("android_overlay: CloseTargetWindow.kt show must use frameFor left and top", emptyList<String>(), inFile(ModuleFiles.mainTexts(), "CloseTargetWindow.kt", this::showFrameForProblems))
+    }
+
+    @Test
+    fun `show frameFor wiring fires controls`() {
+        val firesX = "fun show(x: Int, y: Int, radiusPx: Float) {\n val (left, top, d) = frameFor(x, y, radiusPx)\n params.x = x\n params.y = top\n}\n"
+        val firesY = "fun show(x: Int, y: Int, radiusPx: Float) {\n val (left, top, d) = frameFor(x, y, radiusPx)\n params.x = left\n params.y = y\n}\n"
+        val firesComment = "fun show(x: Int, y: Int, radiusPx: Float) {\n val (left, top, d) = frameFor(x, y, radiusPx)\n // params.x = left\n params.y = top\n}\n"
+        val quiet = "fun show(x: Int, y: Int, radiusPx: Float) {\n val (left, top, d) = frameFor(x, y, radiusPx)\n params.x = left\n params.y = top\n}\n"
+        assertFires("params.x = x instead of left", showFrameForProblems(firesX), "params.x = left")
+        assertFires("params.y = y instead of top", showFrameForProblems(firesY), "params.y = top")
+        assertFires("comment-only params.x = left", showFrameForProblems(firesComment), "params.x = left")
+        assertQuiet("correct code", showFrameForProblems(quiet))
     }
 }

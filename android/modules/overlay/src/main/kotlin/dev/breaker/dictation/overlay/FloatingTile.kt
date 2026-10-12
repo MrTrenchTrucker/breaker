@@ -137,6 +137,7 @@ class FloatingTile internal constructor(private val controller: TileController) 
          * @param onSend called when the send button or the microphone is tapped while recording.
          *   Null for none.
          * @param onNoticeDismissed called when the strip of a notice window is tapped. Null for none.
+         * @param onCloseRequested called when a drag of the collapsed tile ends on the close target. Null for none.
          */
         fun create(
             context: Context,
@@ -148,10 +149,11 @@ class FloatingTile internal constructor(private val controller: TileController) 
             onCancel: (() -> Unit)? = null,
             onSend: (() -> Unit)? = null,
             onNoticeDismissed: (() -> Unit)? = null,
+            onCloseRequested: (() -> Unit)? = null,
         ): FloatingTile {
             val window = WindowManagerTileWindow(context.applicationContext)
             val slopPx = ViewConfiguration.get(context).scaledTouchSlop
-            val controller = TileController(window, settings, onTap, theme, slopPx, onSaveFailed, onBegin, onCancel, onSend, onNoticeDismissed)
+            val controller = TileController(window, settings, onTap, theme, slopPx, onSaveFailed, onBegin, onCancel, onSend, onNoticeDismissed, onCloseRequested)
             return FloatingTile(controller)
         }
     }

@@ -205,12 +205,12 @@ class FloatingTileFacadeTest {
         val real = createParameters(ModuleFiles.mainTexts().getValue("FloatingTile.kt"))!!
         assertEquals(
             "overlay: expected create to take these parameters in this order",
-            listOf("context", "settings", "onTap", "theme", "onSaveFailed", "onBegin", "onCancel", "onSend", "onNoticeDismissed"),
+            listOf("context", "settings", "onTap", "theme", "onSaveFailed", "onBegin", "onCancel", "onSend", "onNoticeDismissed", "onCloseRequested"),
             parameterNames(real),
         )
         assertEquals(
             "overlay: expected every parameter after the fourth to default to null",
-            listOf("onSaveFailed", "onBegin", "onCancel", "onSend", "onNoticeDismissed"),
+            listOf("onSaveFailed", "onBegin", "onCancel", "onSend", "onNoticeDismissed", "onCloseRequested"),
             defaultedNames(real),
         )
     }
@@ -242,7 +242,7 @@ class FloatingTileFacadeTest {
         return null
     }
 
-    private val controllerParameters = listOf("window", "settings", "onTap", "theme", "slopPx", "onSaveFailed", "onBegin", "onCancel", "onSend", "onNoticeDismissed")
+    private val controllerParameters = listOf("window", "settings", "onTap", "theme", "slopPx", "onSaveFailed", "onBegin", "onCancel", "onSend", "onNoticeDismissed", "onCloseRequested")
 
     /** The problems with how `create` hands the app's callbacks to the controller: each under its own name, whether the call is positional or named. */
     private fun wiringProblems(source: String): List<String> {
@@ -263,7 +263,7 @@ class FloatingTileFacadeTest {
     }
 
     private fun wiringSample(call: String) = "fun create(a: Int, onSend: (() -> Unit)? = null): FloatingTile {\n val w = X(ctx)\n val controller = $call\n return FloatingTile(controller)\n}\n"
-    private val positional = "TileController(window, settings, onTap, theme, slopPx, onSaveFailed, onBegin, onCancel, onSend, onNoticeDismissed)"
+    private val positional = "TileController(window, settings, onTap, theme, slopPx, onSaveFailed, onBegin, onCancel, onSend, onNoticeDismissed, onCloseRequested)"
 
     /** If this fails, a swap or a dropped argument inside create() hands the app's cancel to the begin of the tile, or loses a callback, with every other test green. */
     @Test
@@ -278,16 +278,16 @@ class FloatingTileFacadeTest {
         fires("begin and cancel swapped", positional.replace("onBegin, onCancel", "onCancel, onBegin"), "passes 'onCancel' as onBegin")
         fires("cancel and send swapped", positional.replace("onCancel, onSend", "onSend, onCancel"), "passes 'onSend' as onCancel")
         fires("save-failed and begin swapped", positional.replace("onSaveFailed, onBegin", "onBegin, onSaveFailed"), "passes 'onBegin' as onSaveFailed")
-        fires("the last callback dropped", positional.replace(", onNoticeDismissed)", ")"), "does not pass onNoticeDismissed")
-        fires("the send callback dropped", positional.replace("onSend, onNoticeDismissed)", "onNoticeDismissed)"), "passes 'onNoticeDismissed' as onSend")
+        fires("the last callback dropped", positional.replace(", onCloseRequested)", ")"), "does not pass onCloseRequested")
+        fires("the send callback dropped", positional.replace("onSend, onNoticeDismissed, onCloseRequested)", "onNoticeDismissed, onCloseRequested)"), "passes 'onNoticeDismissed' as onSend")
         fires("the tap callback replaced", positional.replace("onTap, theme", "{ }, theme"), "passes '{ }' as onTap")
         fires("a named swap", "TileController(window, settings, onTap, theme, slopPx, onBegin = onCancel, onCancel = onBegin, onSend = onSend, onSaveFailed = onSaveFailed)", "passes 'onCancel' as onBegin")
         fires("a named call that leaves one out", "TileController(window, settings, onTap, theme, slopPx, onBegin = onBegin, onCancel = onCancel, onSaveFailed = onSaveFailed)", "does not pass onSend")
-        fires("an extra argument", positional.replace(", onNoticeDismissed)", ", onNoticeDismissed, extra)"), "more arguments")
+        fires("an extra argument", positional.replace(", onCloseRequested)", ", onCloseRequested, extra)"), "more arguments")
         assertTrue("overlay: control: no TileController call must be reported", wiringProblems("fun create(a: Int) { }\n").contains("create does not build a TileController"))
         quiet("the right positional order", positional)
-        quiet("named arguments in another order", "TileController(window, settings, onTap, theme, slopPx, onSend = onSend, onBegin = onBegin, onCancel = onCancel, onSaveFailed = onSaveFailed, onNoticeDismissed = onNoticeDismissed)")
-        quiet("the call over several lines with a trailing comma", "TileController(\n window,\n settings,\n onTap,\n theme,\n slopPx,\n onSaveFailed,\n onBegin,\n onCancel,\n onSend,\n onNoticeDismissed,\n)")
+        quiet("named arguments in another order", "TileController(window, settings, onTap, theme, slopPx, onSend = onSend, onBegin = onBegin, onCancel = onCancel, onSaveFailed = onSaveFailed, onNoticeDismissed = onNoticeDismissed, onCloseRequested = onCloseRequested)")
+        quiet("the call over several lines with a trailing comma", "TileController(\n window,\n settings,\n onTap,\n theme,\n slopPx,\n onSaveFailed,\n onBegin,\n onCancel,\n onSend,\n onNoticeDismissed,\n onCloseRequested,\n)")
 
         assertEquals(
             "overlay: create must hand each callback to the TileController under its own name",

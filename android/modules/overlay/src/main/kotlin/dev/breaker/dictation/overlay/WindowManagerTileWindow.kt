@@ -51,6 +51,7 @@ internal class WindowManagerTileWindow(private val context: Context) : TileWindo
     private var sink: TouchSink? = null
     private var tileView: TileView? = null
     private var layoutParams: WindowManager.LayoutParams? = null
+    private val closeTargetWindow = CloseTargetWindow(context)
 
     override fun canDrawOverlays(): Boolean = Settings.canDrawOverlays(context)
 
@@ -139,6 +140,7 @@ internal class WindowManagerTileWindow(private val context: Context) : TileWindo
     override fun moveTo(x: Int, y: Int) {
         val params = layoutParams ?: return
         setFrame(x, y, params.width, params.height)
+        CloseTarget.onDragMove(this, x, y)
     }
 
     /**
@@ -182,8 +184,21 @@ internal class WindowManagerTileWindow(private val context: Context) : TileWindo
         view.applyFace(face.copy(look = TileStyle.look(face.state, palette)))
     }
 
+    override fun showCloseTarget(x: Int, y: Int, radiusPx: Float, palette: TruckingPalette): Boolean {
+        return closeTargetWindow.show(x, y, radiusPx, palette)
+    }
+
+    override fun hideCloseTarget() {
+        closeTargetWindow.hide()
+    }
+
+    override fun setCloseTargetHighlight(highlight: CloseHighlight) {
+        closeTargetWindow.setHighlight(highlight)
+    }
+
     override fun remove() {
         removeQuietly()
+        hideCloseTarget()
     }
 
     private fun removeQuietly() {
