@@ -410,6 +410,7 @@ agents, not required: an outside contributor may write the code themselves
 - Pushing the state the tile already has changes nothing, so it does not clear a notice; only a different state or `clearNotice()` does.
 - A level pushed outside `RECORDING` is ignored, and the meter starts empty when `RECORDING` is entered.
 - While `SENDING` the tile shows the warning ring and pulses slowly (the busy pulse, same as MIC_BUSY); the app's description is the only cue.
+- `SENDING` and `SENT_LOCAL` share the warning ring. They are told apart only by the pulse: it runs while sending and stops at `SENT_LOCAL`. This is interim, for the first test build; the final colours come in the art phase.
 - The MIC_BUSY slash is a code-drawn placeholder: eight stair-step rectangles from corner to corner of the tile, drawn on top of the microphone. Final art comes later (issue #87).
 - No text is drawn on the tile in any MIC_BUSY state. The accessibility label is the only content description.
 - A tap on a MIC_BUSY tile reports a tap exactly like IDLE. The app decides what to do.
