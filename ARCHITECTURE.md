@@ -167,6 +167,17 @@ admins.
       it hides the tile. Dictation stays switched on, so a shake or "Breaker Breaker"
       brings the tile back and starts recording (F4); opening Breaker from its icon
       shows it again. Switching dictation off stays in the notification and the app.
+- F39. **Busy cue:** from the check tap until the final outcome the tile shows
+      that the text is being processed: the ring pulses and a spinner shows (ADR-024).
+- F40. **Loudness bar:** while recording, the bar above the microphone follows how
+      loud the voice is; the audio module reports the level and the app passes it on
+      (ADR-024).
+- F41. **Hide without a keyboard:** the tile can hide while no text input is in use
+      and return when one is. A temporary developer setting picks the signal and is
+      removed before release (ADR-024).
+- F42. **Normal-looking text:** a transcript the speech engine prints entirely in
+      capitals is turned into lower case, with the capital "I" restored, before it
+      is formatted (ADR-023).
 
 **Non-functional**
 - N1. Dictation starts < 1 s after wake phrase (models preloaded where possible).
@@ -382,7 +393,7 @@ filtered magnitude threshold crossings in a 500 ms window.
   user to its Settings toggle instead (ADR-022). **High-power mode (F12):**
   verify power-saving off.
 
-**Overlay (floating tile):** `WindowManager` + `TYPE_APPLICATION_OVERLAY` with `FLAG_NOT_FOCUSABLE` (Android 11+). Tile has no long press: a tap starts dictation, a drag moves the tile or hides it (F38); tapping it starts dictation in place, on the tile — no Activity opens, so the app the user is typing in keeps focus and the user's own keyboard stays up (ADR-022). The tile IS the **CB mic glyph** — tap to talk. While recording, a digital Cobra-style **LED bar meter** fills directly above it, with a small cancel control; tap again (or the send phrase) to send (F36). A notice on the tile (a sentence from the app, such as a missing speech model) widens it for a moment: it collapses back to the small tile on its own after 4 seconds, and a tap anywhere on it collapses it at once; the timer is the app's, the tile has no clock. Dragging the small tile shows the close target (F38). Permission set: `SYSTEM_ALERT_WINDOW` (tile), mic, internet, foreground service, notifications (F11), plus the accessibility service — a Settings toggle onboarding leads the user to, not a runtime prompt (ADR-022) [1].
+**Overlay (floating tile):** `WindowManager` + `TYPE_APPLICATION_OVERLAY` with `FLAG_NOT_FOCUSABLE` (Android 11+). Tile has no long press: a tap starts dictation, a drag moves the tile or hides it (F38); tapping it starts dictation in place, on the tile — no Activity opens, so the app the user is typing in keeps focus and the user's own keyboard stays up (ADR-022). The tile IS the **CB mic glyph** — tap to talk. While recording, a digital Cobra-style **LED bar meter** fills directly above it, with a small cancel control; tap again (or the send phrase) to send (F36). A notice on the tile (a sentence from the app, such as a missing speech model) widens it for a moment: it collapses back to the small tile on its own after 4 seconds, and a tap anywhere on it collapses it at once; the timer is the app's, the tile has no clock. Dragging the small tile shows the close target (F38). After the check tap the tile shows a busy cue until the outcome (F39), the LED bar follows the voice level (F40), and the tile may hide while no text input is in use (F41, ADR-024). Permission set: `SYSTEM_ALERT_WINDOW` (tile), mic, internet, foreground service, notifications (F11), plus the accessibility service — a Settings toggle onboarding leads the user to, not a runtime prompt (ADR-022) [1].
 
 ## 9. Formatting
 

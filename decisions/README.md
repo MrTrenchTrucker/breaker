@@ -73,5 +73,7 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-020](ADR-020-ci-concurrency-and-caching.md) | CI runs are deduplicated per commit and cache Gradle dependencies | accepted |
 | [ADR-021](ADR-021-module-build-method.md) | The maintainers' team builds each module through sub-agents that write the code | accepted, amended 2026-10-07 and 2026-10-08 |
 | [ADR-022](ADR-022-accessibility-text-insert.md) | Text goes into the app through an accessibility service (supersedes ADR-005) | accepted |
+| [ADR-023](ADR-023-transcript-case-at-the-source.md) | A speech engine that prints capitals is fixed in the speech module, not in the formatter | accepted |
+| [ADR-024](ADR-024-tile-feedback-and-visibility.md) | The tile shows busy and loudness, and hides itself when no keyboard is in use | accepted |
 
-Next free number: **ADR-023**.
+Next free number: **ADR-025**.
