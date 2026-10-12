@@ -95,7 +95,7 @@ internal class SherpaOnnxRecognizer(
             if (steps > limit) throw SherpaTranscriptionException(MESSAGE_NOT_FINISHED)
             stream.decode()
         }
-        val text = stream.text().trim()
+        val text = TranscriptCase.normaliseText(stream.text().trim())
         if (text.isEmpty()) return SherpaTranscript("", emptyList(), language)
         val durationMs = pcm.size * 1000L / SAMPLE_RATE_HZ
         return SherpaTranscript(text, listOf(SttSegment(0L, durationMs, text)), language)

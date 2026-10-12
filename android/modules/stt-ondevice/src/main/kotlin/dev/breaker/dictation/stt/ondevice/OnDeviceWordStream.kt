@@ -410,7 +410,7 @@ internal class OnDeviceWordStream(
 
     private fun wordsOf(stream: NativeStream): List<HeardWord> {
         val result = stream.result()
-        return mergeWords(result.tokens, result.timestampsSeconds)
+        return TranscriptCase.normaliseWords(mergeWords(result.tokens, result.timestampsSeconds))
     }
 
     /**
