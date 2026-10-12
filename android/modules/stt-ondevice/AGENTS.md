@@ -27,6 +27,12 @@ argument of `ModelLoader`; the default there is still `UnavailableRecognizerFact
 - Local mode runs on the upstream sherpa-onnx library; none of its code is kept here. Do NOT reintroduce
   the base's cloud/Groq fallback path (Security Review fix #1).
 - whisper.cpp AAR is a **fallback only** if sherpa-onnx lacks a needed feature.
+- A transcript the engine prints entirely in capital letters is
+  normalised at the source before it leaves the module: it is lower
+  cased, and the standalone I and the contractions I'm, I'll, I've and
+  I'd get their capital back; a transcript that already has a lowercase
+  letter is left untouched, as is text with no letters. The rule runs on
+  the one-shot result and on every word-stream update.
 - `OnDeviceSttEngine` implements `core.SttEngine` over the loader port. It checks the audio rate
   first (16 kHz only), asks the loader for the model, decodes, and releases the recognizer after the
   decode (after an abandoned decode, the worker releases it when the native call returns). Every
