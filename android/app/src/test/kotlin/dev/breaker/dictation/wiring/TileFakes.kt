@@ -74,9 +74,12 @@ internal class RecordingTile : TilePort {
     val notices: MutableList<String> = ArrayList()
     var showResult: TileShow = TileShow.SHOWN
     var throwing: Boolean = false
+    /** When set, only [show] throws; the other calls stay calm. */
+    var showThrows: Boolean = false
 
     override fun show(): TileShow {
         calls.add("show")
+        if (showThrows) throw RuntimeException("the show refused")
         gate()
         return showResult
     }

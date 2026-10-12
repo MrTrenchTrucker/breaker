@@ -30,6 +30,7 @@ internal class OverlayTilePort(
     private val onBegin: () -> Unit,
     private val onCancel: () -> Unit,
     private val onSend: () -> Unit,
+    private val onCloseRequested: () -> Unit,
 ) : TilePort {
 
     private var tile: FloatingTile? = null

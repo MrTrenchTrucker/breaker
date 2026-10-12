@@ -24,6 +24,7 @@ internal class AppWiringGateTest {
     private val app: String = "kotlin/dev/breaker/dictation/BreakerApp.kt"
     private val activity: String = "kotlin/dev/breaker/dictation/SettingsLauncherActivity.kt"
     private val root: String = "kotlin/dev/breaker/dictation/BreakerCompositionRoot.kt"
+    private val host: String = "kotlin/dev/breaker/dictation/host/TileHost.kt"
 
     /** The pattern must match the code of [file] exactly [times] times. */
     private class Rule(val name: String, val file: String, val pattern: String, val times: Int = 1) {
@@ -69,6 +70,7 @@ internal class AppWiringGateTest {
         Rule("ONBOARDING_VIEW_IS_ADDED", activity, """\bcreateOnboardingView\s*\("""),
         Rule("ONRESUME_REGISTERS_THE_DOWNLOAD_LISTENER_AND_REFRESHES", activity, """\boverride\s+fun\s+onResume\s*\(\s*\)\s*\{\s*super\s*\.\s*onResume\s*\(\s*\)\s*val\s+app\s*=\s*applicationContext\s+as\s+BreakerApp\s+app\s*\.\s*tileHost\s*\.\s*setDownloadListener\s*\(\s*this\s*\)\s*\(onboardingView\s*as\s*\?\s*ModelStepControl\s*\)\s*\?\.\s*refresh\s*\(\s*\)\s*\}"""),
         Rule("ONPAUSE_CLEARS_THE_DOWNLOAD_LISTENER", activity, """\boverride\s+fun\s+onPause\s*\(\s*\)\s*\{\s*super\s*\.\s*onPause\s*\(\s*\)\s*val\s+app\s*=\s*applicationContext\s+as\s+BreakerApp\s+app\s*\.\s*tileHost\s*\.\s*setDownloadListener\s*\(\s*null\s*\)\s*\}"""),
+        Rule("TILE_HOST_WIRES_ONCLOSE_REQUESTED", host, """\bonCloseRequested\s*=\s*\{\s*toCoordinator\s*\{\s*it\s*\.\s*onCloseRequested\s*\(\s*\)\s*\}\s*\}"""),
     )
 
     private val onStartArm = "app.armedSwitch.armAtStart()"
@@ -184,6 +186,8 @@ internal class AppWiringGateTest {
         Sample("ONRESUME_REGISTERS_THE_DOWNLOAD_LISTENER_AND_REFRESHES", activity, "override fun onResume() {", "override fun onResumeLater() {"),
         Sample("ONPAUSE_CLEARS_THE_DOWNLOAD_LISTENER", activity, "app.tileHost.setDownloadListener(null)", "app.tileHost.setDownloadListener(this)"),
         Sample("ONPAUSE_CLEARS_THE_DOWNLOAD_LISTENER", activity, "override fun onPause() {", "override fun onPauseLater() {"),
+        Sample("TILE_HOST_WIRES_ONCLOSE_REQUESTED", host, "onCloseRequested = { toCoordinator { it.onCloseRequested() } },\n", ""),
+        Sample("TILE_HOST_WIRES_ONCLOSE_REQUESTED", host, "onCloseRequested = { toCoordinator { it.onCloseRequested() } }", "onCloseRequested = { toCoordinator { it.onCancel() } }"),
     )
 
     private val quiet: List<Quiet> = listOf(
@@ -229,7 +233,7 @@ internal class AppWiringGateTest {
 
     @Test
     fun `every rule holds on the real files`() {
-        for (file in listOf(app, activity, root)) {
+        for (file in listOf(app, activity, root, host)) {
             assertTrue("app: $file was read as empty", codeOf(file).isNotBlank())
         }
         for (rule in rules) {

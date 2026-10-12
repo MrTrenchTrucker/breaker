@@ -54,6 +54,9 @@ class TileCoordinator(
     /** True while the last show answered SHOWN; a refused or failed show and a switch-off clear it. A take may begin only while it holds. */
     private var tileShown: Boolean = false
 
+    /** Remembers the user closed the tile; cleared on launcher visible (through arm) or switch off/on. */
+    internal val userClosedHandler: UserClosedHandler = UserClosedHandler(tile, modelNotice)
+
     /** How a take that was told to finish came out. */
     private sealed class End {
         object Back : End()
@@ -68,10 +71,11 @@ class TileCoordinator(
 
     /** The microphone on an armed tile was tapped: start a take, if the speech model is there. */
     fun onBegin() {
-        if (!armed || !tileShown || beginPending || yield.yieldRunning() ||
+        if (!armed || (!tileShown && !userClosedHandler.isClosed) || beginPending || yield.yieldRunning() ||
             (pushed != TileState.ARMED && pushed != TileState.SENT && pushed != TileState.MIC_BUSY)) return
         val wasSent: Boolean = pushed == TileState.SENT
         lastCommit = null
+        if (userClosedHandler.onBegin { shown -> tileShown = (shown == TileShow.SHOWN); if (shown == TileShow.SHOWN) push() } || !tileShown) return
         if (!isModelReady()) {
             if (wasSent) push()
             guarded { modelNotice.showMissing() }
@@ -137,6 +141,8 @@ class TileCoordinator(
         guarded { opener.openLauncher(route) }
     }
 
+    fun onCloseRequested() = userClosedHandler.onCloseRequested()
+
     /** The microphone was taken by another app: cut the take and show the busy face. */
     fun onTakeMicTaken() {
         if (!armed || sendPushed) return
@@ -152,6 +158,7 @@ class TileCoordinator(
     }
 
     private fun arm() {
+        userClosedHandler.clear()
         // A tile that was off has no take: the one cancel queued when it went off may not have run yet.
         val session: DictationState = if (armed) sessionNow() else DictationState.IDLE
         armed = true
@@ -172,6 +179,7 @@ class TileCoordinator(
     }
 
     private fun disarm() {
+        userClosedHandler.clear()
         generation += 1
         armed = false
         sendPushed = false
@@ -218,10 +226,7 @@ class TileCoordinator(
         }
     }
 
-    /**
-     * Sends the text once. A text that only reached the clipboard counts as sent and says nothing, so a
-     * real committer that copies to the clipboard must have its own sentence, in plain words.
-     */
+    /** Sends the text once; a text that only reached the clipboard counts as sent and says nothing, so a real committer that copies there needs its own sentence. */
     private fun sendText(ready: FinishResult.ReadyToSend): End {
         if (ready.transcription.text.isBlank()) {
             // Nothing was said: there is nothing to commit and nothing worth keeping in history.
