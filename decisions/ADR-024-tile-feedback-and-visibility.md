@@ -1,6 +1,6 @@
 # ADR-024: The tile shows busy and loudness, and hides itself when no keyboard is in use
 
-**Status:** accepted, amended 2026-10-12 (busy cue: no spinner)
+**Status:** accepted, amended 2026-10-12 (busy cue: no spinner; shake, keyboard and battery)
 **Date:** 2026-10-12
 
 ## Context
@@ -50,7 +50,7 @@ motion waits for the texture (item 4).
 
 Amended 2026-10-12: the second device test showed a shake doing nothing and the
 tile not coming up with the keyboard, and the loudness bar still not moving.
-Item 3 now says in full: a shake works with the keyboard open and the tile
+Item 3 is read as: a shake works with the keyboard open and the tile
 hidden; the tile appears when a text input opens or the keyboard comes up; and
 the app tells the user to allow unrestricted battery use, because the system
 may stop listening for a shake in the background (F12). Item 2 is unchanged:
