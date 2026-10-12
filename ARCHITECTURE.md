@@ -168,7 +168,8 @@ admins.
       brings the tile back and starts recording (F4); opening Breaker from its icon
       shows it again. Switching dictation off stays in the notification and the app.
 - F39. **Busy cue:** from the check tap until the final outcome the tile shows
-      that the text is being processed: the ring pulses and a spinner shows (ADR-024).
+      that the text is being processed: the ring takes a colour of its own and
+      pulses on its own rhythm; there is no spinner (ADR-024).
 - F40. **Loudness bar:** while recording, the bar above the microphone follows how
       loud the voice is; the audio module reports the level and the app passes it on
       (ADR-024).
