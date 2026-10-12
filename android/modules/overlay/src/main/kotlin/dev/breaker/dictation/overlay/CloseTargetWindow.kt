@@ -59,8 +59,6 @@ internal class CloseTargetWindow(private val context: Context) {
 
         try {
             windowManager.addView(view, params)
-        } catch (e: WindowManager.BadTokenException) {
-            return false
         } catch (e: SecurityException) {
             return false
         } catch (e: RuntimeException) {

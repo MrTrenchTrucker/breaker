@@ -163,15 +163,6 @@ class CloseTargetTest {
         )
     }
 
-    /** If this fails, the target diameter is not positive. */
-    @Test
-    fun `target diameter is positive`() {
-        assertTrue(
-            "overlay: the target diameter should be positive",
-            CloseTarget.TARGET_DP > 0,
-        )
-    }
-
     /** If this fails, the target y fraction is not 0.87. */
     @Test
     fun `centre at the target y fraction 0_87`() {

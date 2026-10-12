@@ -115,11 +115,11 @@ The ring around the microphone is 2 dp thick and sits just inside the edge of th
 - The real CB mic art (final mic art later; the glyph stays a placeholder).
 - The app's pushing of SENT and SENT_LOCAL, and the state the app pushes after a clipboard-only commit (OPEN: the app's
   decision, not decided here).
-- Next slice, ordered (F38). (1) Close target: while a small tile is dragged, a close target (an X in a circle, palette
-  colours only, placeholder art) is shown centred near the bottom of the usable area; it goes when the drag ends.
-  A drop with the tile's centre inside the target hides the tile, calls a new optional callback `onCloseRequested`
-  (no arguments, null by default) and does not save the position; a drop elsewhere saves as today. A tap never
-  closes. The target is shown in the same overlay window type and is not focusable and not touchable.
+- Close target (F38): while a small tile is dragged, a close target (an X in a circle, palette colours only,
+  placeholder art) is shown centred near the bottom of the usable area; it goes when the drag ends. A drop
+  with the tile's centre inside the target hides the tile, calls `onCloseRequested` (no arguments, null by
+  default) and does not save the position; a drop elsewhere saves as today. A tap never closes. The target
+  is shown in the same overlay window type and is not focusable and not touchable.
 - Words on the tile of its own, sound or haptics, the window-ownership check (T4), the
   audio capture and the audio-level feed (the app's), the foreground service (the app's), asking the user for the
   overlay permission (the app's), and any gesture or phrase code.
@@ -172,7 +172,7 @@ description the app pushes. Not built yet: the real CB mic art.
 ## Public Interface
 FloatingTile (via create), ShowResult, TileState
 
-- `FloatingTile`, built only through `FloatingTile.create(context, settings, onTap, theme, onSaveFailed, onBegin, onCancel, onSend, onNoticeDismissed)`:
+- `FloatingTile`, built only through `FloatingTile.create(context, settings, onTap, theme, onSaveFailed, onBegin, onCancel, onSend, onNoticeDismissed, onCloseRequested)`:
   - `context`: any context; the tile keeps only the application context.
   - `settings`: core's `SettingsStore`.
   - `onTap`: what the app does when the microphone is tapped while the tile is idle or failed. Called once per tap on
@@ -185,6 +185,7 @@ FloatingTile (via create), ShowResult, TileState
     tile is recording. The tile does not change its state, so every such tap calls it until the app pushes another
     state; the app must tolerate a repeat.
   - `onNoticeDismissed`: optional, no arguments, null by default. Called once when the strip of a notice window is tapped.
+  - `onCloseRequested`: optional, no arguments, null by default. Called when a drag of the collapsed tile ends on the close target.
   - A callback that is null makes the tap do nothing. An exception thrown by any callback is not caught by the module.
 - `FloatingTile.show(): ShowResult`, `hide()`, `setTheme(theme)`, `onDisplayChanged()`, the property `isShown`, the pushes from the app `setState(state)`, `setLevel(level)`, `showNotice(text)`, `clearNotice()` and `setDescription(text)`, and the property `state`.
   - `TileState.MIC_BUSY` — public; the overlay face when the microphone is not available. The app decides when to show it. The tile shows a mic glyph with a red circle and diagonal slash (danger colour), pulsing slowly. No text. A tap reports like IDLE.
@@ -425,3 +426,4 @@ agents, not required: an outside contributor may write the code themselves
   - The window jumps at a screen edge when it expands: next to an edge the window is moved to stay on screen, so the microphone appears at a different place, and a window wider than the usable area loses part of the send cell.
   - A CR LF pair in a notice shows as two spaces.
   - Colour pair choices: the contrast of the ring, the meter, the X, the check and the notice text against the tile surface was not measured on a device.
+- **Not verified on a device (the close target).** The look and touch of the circle (ring, X, vendor touch delivery) are NOT verified without a device: the ring and X are drawn with palette colours only, the vendor touch delivery of the overlay window is not checked on a device, and the look of the placeholder art (an X in a circle) is not measured.

@@ -7,20 +7,15 @@ import dev.breaker.shared.tokens.TruckingTokens
 /**
  * The close target: a circular drop zone shown while a drag of the collapsed tile is in progress.
  *
- * The target is centred horizontally and sits near the bottom of the usable area. Its diameter is
- * [TARGET_DP] dp. The target is a separate overlay window of the same type as the tile itself; it
- * is not focusable and not touchable. It is drawn with palette colours only.
+ * The target is centred horizontally and sits near the bottom of the usable area. Its radius is
+ * targetRadiusFraction() (0.15) times the smaller of the usable bounds' width and height. The
+ * target is a separate overlay window of the same type as the tile itself; it is not focusable and
+ * not touchable. It is drawn with palette colours only.
  *
  * This object holds the geometry rules only: where the target sits, whether a tile centre is inside
  * it, and the highlight state. It has no Android types, no state and no window.
  */
 internal object CloseTarget {
-
-    /** The diameter of the close target in dp. */
-    const val TARGET_DP: Int = 72
-
-    /** The radius of the close target in dp. */
-    const val TARGET_RADIUS_DP: Int = TARGET_DP / 2
 
     /**
      * The centre of the target as fractions of the usable bounds.
@@ -34,7 +29,8 @@ internal object CloseTarget {
      * The centre of the target in pixels for the given [bounds].
      *
      * Returns the pixel coordinates of the target centre, computed from [targetCentreFractions]
-     * and the bounds. This is the single source of truth for where the target sits on screen.
+     * and the bounds. This is the single source of truth for where the target sits in the
+     * usable bounds.
      */
     fun targetCentreInPixels(bounds: PixelBounds): Pair<Int, Int> {
         val (xFraction, yFraction) = targetCentreFractions()
@@ -54,10 +50,9 @@ internal object CloseTarget {
     /**
      * The radius of the target as a fraction of the smaller dimension of the usable bounds.
      *
-     * The radius is [TARGET_RADIUS_DP] dp. To convert to pixels, the caller multiplies by the
-     * density and divides by the smaller dimension in dp. This function returns the fraction of
-     * the smaller dimension that the radius represents, so the caller can compute the radius in
-     * pixels as `targetRadiusFraction() * min(bounds.width, bounds.height)`.
+     * The radius is targetRadiusFraction() (0.15) times the smaller of the usable bounds' width and
+     * height. This function returns that fraction, so the caller can compute the radius in pixels
+     * as `targetRadiusFraction() * min(bounds.width, bounds.height)`.
      */
     fun targetRadiusFraction(): Float = 0.15f
 
