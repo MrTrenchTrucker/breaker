@@ -237,4 +237,120 @@ class MicBusyPulseTest {
             rig.window.busyPulseOn,
         )
     }
+
+    // ---- Every exit from SENDING stops the busy pulse ----
+
+    /** A failure means setState(SENT) after SENDING does not stop the busy pulse. */
+    @Test
+    fun `SENDING to SENT stops the busy pulse`() {
+        val rig = Rig().shown()
+        rig.controller.setState(TileState.SENDING)
+        rig.forget()
+        rig.controller.setState(TileState.SENT)
+        assertEquals(
+            "overlay: setState(SENT) after SENDING should call setBusyPulse(false)",
+            listOf(false),
+            rig.window.busyPulseCalls,
+        )
+        assertEquals(
+            "overlay: the last setBusyPulse call should be false",
+            false,
+            rig.window.busyPulseOn,
+        )
+    }
+
+    /** A failure means setState(SENT_LOCAL) after SENDING does not stop the busy pulse. */
+    @Test
+    fun `SENDING to SENT_LOCAL stops the busy pulse`() {
+        val rig = Rig().shown()
+        rig.controller.setState(TileState.SENDING)
+        rig.forget()
+        rig.controller.setState(TileState.SENT_LOCAL)
+        assertEquals(
+            "overlay: setState(SENT_LOCAL) after SENDING should call setBusyPulse(false)",
+            listOf(false),
+            rig.window.busyPulseCalls,
+        )
+        assertEquals(
+            "overlay: the last setBusyPulse call should be false",
+            false,
+            rig.window.busyPulseOn,
+        )
+    }
+
+    /** A failure means setState(FAILED) after SENDING does not stop the busy pulse. */
+    @Test
+    fun `SENDING to FAILED stops the busy pulse`() {
+        val rig = Rig().shown()
+        rig.controller.setState(TileState.SENDING)
+        rig.forget()
+        rig.controller.setState(TileState.FAILED)
+        assertEquals(
+            "overlay: setState(FAILED) after SENDING should call setBusyPulse(false)",
+            listOf(false),
+            rig.window.busyPulseCalls,
+        )
+        assertEquals(
+            "overlay: the last setBusyPulse call should be false",
+            false,
+            rig.window.busyPulseOn,
+        )
+    }
+
+    /** A failure means setState(IDLE) after SENDING does not stop the busy pulse. */
+    @Test
+    fun `SENDING to IDLE stops the busy pulse`() {
+        val rig = Rig().shown()
+        rig.controller.setState(TileState.SENDING)
+        rig.forget()
+        rig.controller.setState(TileState.IDLE)
+        assertEquals(
+            "overlay: setState(IDLE) after SENDING should call setBusyPulse(false)",
+            listOf(false),
+            rig.window.busyPulseCalls,
+        )
+        assertEquals(
+            "overlay: the last setBusyPulse call should be false",
+            false,
+            rig.window.busyPulseOn,
+        )
+    }
+
+    /** A failure means setState(ARMED) after SENDING does not stop the busy pulse. */
+    @Test
+    fun `SENDING to ARMED stops the busy pulse`() {
+        val rig = Rig().shown()
+        rig.controller.setState(TileState.SENDING)
+        rig.forget()
+        rig.controller.setState(TileState.ARMED)
+        assertEquals(
+            "overlay: setState(ARMED) after SENDING should call setBusyPulse(false)",
+            listOf(false),
+            rig.window.busyPulseCalls,
+        )
+        assertEquals(
+            "overlay: the last setBusyPulse call should be false",
+            false,
+            rig.window.busyPulseOn,
+        )
+    }
+
+    /** A failure means setState(RECORDING) after SENDING does not stop the busy pulse. */
+    @Test
+    fun `SENDING to RECORDING stops the busy pulse`() {
+        val rig = Rig().shown()
+        rig.controller.setState(TileState.SENDING)
+        rig.forget()
+        rig.controller.setState(TileState.RECORDING)
+        assertEquals(
+            "overlay: setState(RECORDING) after SENDING should call setBusyPulse(false)",
+            listOf(false),
+            rig.window.busyPulseCalls,
+        )
+        assertEquals(
+            "overlay: the last setBusyPulse call should be false",
+            false,
+            rig.window.busyPulseOn,
+        )
+    }
 }
