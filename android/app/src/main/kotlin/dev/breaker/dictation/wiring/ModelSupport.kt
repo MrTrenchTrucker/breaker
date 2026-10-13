@@ -6,6 +6,7 @@ import dev.breaker.dictation.stt.ondevice.ModelFetcher
 import dev.breaker.dictation.stt.ondevice.ModelInstaller
 import dev.breaker.shared.models.ModelEntry
 import dev.breaker.shared.models.ModelRegistry
+import kotlin.math.roundToInt
 import java.util.concurrent.atomic.AtomicBoolean
 
 /** The plain sentences about the speech model. */
@@ -14,7 +15,13 @@ object ModelSentences {
     const val NO_MODEL: String = "Download the speech model in Breaker first."
 
     /** Shown while the speech model is being downloaded. */
-    const val DOWNLOADING: String = "Downloading the speech model."
+    const val DOWNLOADING_TEMPLATE: String = "Downloading the speech model from GitHub ({size} MB)..."
+
+    /** The downloading sentence for a model of [sizeMb] mebibytes, with the size Android shows. */
+    fun downloadingFor(sizeMb: Int): String = DOWNLOADING_TEMPLATE.replace("{size}", mibToMb(sizeMb).toString())
+
+    /** The size in decimal megabytes Android shows, from the registry's mebibytes. */
+    fun mibToMb(sizeMb: Int): Int = (sizeMb * 1.048576).roundToInt()
 
     /** Shown when the speech model could not be downloaded; the download button in Breaker tries again. */
     const val DOWNLOAD_FAILED: String = "Could not download the speech model. Open Breaker to retry."
@@ -71,8 +78,8 @@ fun modelInstallPortFor(store: LocalModelStore, fetcher: ModelFetcher = HttpMode
 
 /** The notices a download shows. Each call is made on the main thread. */
 interface ModelDownloadNotice {
-    /** A download started; it has no known end, so the notice shows no percentage. */
-    fun downloading()
+    /** A download started; the sentence names the source and the size. */
+    fun downloading(sentence: String)
 
     /** The model is installed. */
     fun done()
@@ -137,7 +144,7 @@ class ModelDownloader(
             return
         }
         try {
-            notice.downloading()
+            notice.downloading(ModelSentences.downloadingFor(entry.sizeMb))
             background.submit { installAndReport(entry, onFinished) }
         } catch (e: Exception) {
             finish(DownloadOutcome.Failed(ModelSentences.DOWNLOAD_FAILED), onFinished)

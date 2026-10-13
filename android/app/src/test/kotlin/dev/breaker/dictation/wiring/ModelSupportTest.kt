@@ -60,9 +60,9 @@ internal class ModelSupportTest {
     @Test
     fun `every model sentence is short plain ASCII without the words the notification texts avoid`() {
         val forbidden = Regex("""\b(?:accessibility|overlay|foreground|service|permission|debug)\w*|\b(?:api|sdk)s?\b""", RegexOption.IGNORE_CASE)
-        val all = listOf(ModelSentences.NO_MODEL, ModelSentences.DOWNLOADING, ModelSentences.DOWNLOAD_FAILED)
+        val all = listOf(ModelSentences.NO_MODEL, ModelSentences.downloadingFor(349), ModelSentences.DOWNLOAD_FAILED)
         for (sentence in all) {
-            assertTrue("app: '$sentence' is over 60 characters", sentence.length <= 60)
+            assertTrue("app: '$sentence' is over 63 characters", sentence.length <= 63)
             assertTrue("app: '$sentence' is not ASCII", sentence.all { it.code in 32..126 })
             assertFalse("app: '$sentence' holds a word the notification texts avoid", forbidden.containsMatchIn(sentence))
             assertTrue("app: '$sentence' must end like a sentence", sentence.endsWith("."))
@@ -201,5 +201,24 @@ internal class ModelSupportTest {
             assertFalse("app: a string literal holds a checksum: '$literal'", hex.containsMatchIn(literal))
         }
         assertFalse("app: the file reads the entry's address from nowhere but the entry", Regex("""\.url\b|\.sha256\b""").containsMatchIn(stripped.code))
+    }
+
+    @Test
+    fun `the mebibyte to megabyte conversion is the one Android shows`() {
+        assertEquals("app: 349 MiB", 366, ModelSentences.mibToMb(349))
+        assertEquals("app: 122 MiB", 128, ModelSentences.mibToMb(122))
+        assertEquals("app: 199 MiB", 209, ModelSentences.mibToMb(199))
+        assertEquals("app: 1818 MiB", 1906, ModelSentences.mibToMb(1818))
+        assertEquals("app: 0 MiB", 0, ModelSentences.mibToMb(0))
+        assertEquals("app: 100 MiB rounds to nearest", 105, ModelSentences.mibToMb(100))
+    }
+
+    @Test
+    fun `the downloading sentence carries the converted size of the entry it is given`() {
+        for (entry in ModelRegistry.ALL) {
+            val sentence = ModelSentences.downloadingFor(entry.sizeMb)
+            assertTrue("app: ${entry.id} sentence must name the converted size", sentence.contains(ModelSentences.mibToMb(entry.sizeMb).toString()))
+            assertTrue("app: ${entry.id} sentence must name GitHub", sentence.contains("GitHub"))
+        }
     }
 }

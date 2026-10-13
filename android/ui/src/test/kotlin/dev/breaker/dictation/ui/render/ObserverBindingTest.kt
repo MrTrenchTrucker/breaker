@@ -31,7 +31,7 @@ class ObserverBindingTest {
     private val ONBOARDING_SIGNATURE =
         "fun createOnboardingView(context: android.content.Context, " +
             "switch: BreakerSwitch, accessibilityServiceComponent: String, " +
-            "modelReady: () -> Boolean, downloadLine: () -> String?, onDownloadModel: () -> Unit): android.view.View"
+            "modelReady: () -> Boolean, downloadLine: () -> String?, modelDownloadMb: () -> Int, onDownloadModel: () -> Unit): android.view.View"
 
     /** The public declaration of the history view, written on one line. */
     private val HISTORY_SIGNATURE =
@@ -281,7 +281,7 @@ class ObserverBindingTest {
             return View(context)
         }
 
-        fun createOnboardingView(context: android.content.Context, switch: BreakerSwitch, accessibilityServiceComponent: String, modelReady: () -> Boolean, downloadLine: () -> String?, onDownloadModel: () -> Unit): android.view.View {
+        fun createOnboardingView(context: android.content.Context, switch: BreakerSwitch, accessibilityServiceComponent: String, modelReady: () -> Boolean, downloadLine: () -> String?, modelDownloadMb: () -> Int, onDownloadModel: () -> Unit): android.view.View {
             return View(context)
         }
 
@@ -297,7 +297,7 @@ class ObserverBindingTest {
     /** A setup view that takes any object for its switch, which is not the declaration this module offers. */
     private val CONTROL_WEAK_SWITCH =
         "fun createOnboardingView(context: android.content.Context, switch: Any, accessibilityServiceComponent: String, " +
-            "modelReady: () -> Boolean, downloadLine: () -> String?, onDownloadModel: () -> Unit): android.view.View"
+            "modelReady: () -> Boolean, downloadLine: () -> String?, modelDownloadMb: () -> Int, onDownloadModel: () -> Unit): android.view.View"
 
     /** A history view that takes any object for its store, which is not the declaration this module offers. */
     private val CONTROL_WEAK_HISTORY =

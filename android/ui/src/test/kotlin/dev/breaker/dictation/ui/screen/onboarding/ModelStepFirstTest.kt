@@ -43,7 +43,8 @@ class ModelStepFirstTest {
         notificationsAsked: Boolean = false,
         modelReady: Boolean = false,
         downloadLine: String? = null,
-    ) = SetupState(phone, on, micAsked, notificationsAsked, modelReady, downloadLine)
+        modelDownloadMb: Int = 0,
+    ) = SetupState(phone, on, micAsked, notificationsAsked, modelReady, downloadLine, modelDownloadMb)
 
     private fun render(shown: SetupState = state()): Screen = screen.render(shown, null)
 
@@ -117,6 +118,33 @@ class ModelStepFirstTest {
         val s = render(state())
         assertEquals(SetupTexts.HEADING_MODEL, label(s, "setup.step.model.heading").text)
         assertEquals(SetupTexts.WHY_MODEL, label(s, "setup.step.model.why").text)
+    }
+
+    @Test
+    fun `while the model is not ready the step shows the source sentence with the size it was given`() {
+        val s = render(state(modelReady = false, modelDownloadMb = 366))
+        assertEquals(
+            SetupTexts.MODEL_STEP_LINE.replace("{size}", "366"),
+            label(s, "setup.step.model.source").text,
+        )
+    }
+
+    @Test
+    fun `the source sentence shows whatever size it is given, not a fixed one`() {
+        for (size in listOf(366, 128, 209, 1906)) {
+            val s = render(state(modelReady = false, modelDownloadMb = size))
+            assertEquals(
+                "size $size",
+                SetupTexts.MODEL_STEP_LINE.replace("{size}", size.toString()),
+                label(s, "setup.step.model.source").text,
+            )
+        }
+    }
+
+    @Test
+    fun `while the model is ready there is no source sentence`() {
+        val s = render(state(modelReady = true, modelDownloadMb = 366))
+        assertNull("no source sentence when the model is ready", node(s, "setup.step.model.source"))
     }
 
     @Test

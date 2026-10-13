@@ -47,6 +47,9 @@ class SetupIntentHandlerTest {
         /** The sentence the app wants shown under the model step's button, or null. */
         var downloadLine: String? = null
 
+        /** The size in decimal MB the model step's source line shows. */
+        var modelDownloadMb: Int = 0
+
         /** How many times the app was asked to download the speech model. */
         var downloadCalls: Int = 0
 
@@ -58,6 +61,7 @@ class SetupIntentHandlerTest {
             switch,
             { modelReady },
             { downloadLine },
+            { modelDownloadMb },
             {
                 downloadCalls++
                 if (failDownload) throw IllegalStateException("download failed: $SETUP_FAILURE_MARKER")
@@ -278,6 +282,23 @@ class SetupIntentHandlerTest {
         assertEquals(emptyList<OpenAction>(), f.platform.opened)
         assertEquals(0, f.switch.switchOnCalls + f.switch.switchOffCalls)
         assertNoNotice(after)
+    }
+
+    @Test
+    fun `the size provider is read again on the next drawing`() {
+        val f = Fixture(nothing)
+        f.modelDownloadMb = 366
+        val first = f.handler.current()
+        assertEquals(
+            SetupTexts.MODEL_STEP_LINE.replace("{size}", "366"),
+            first.text("setup.step.model.source"),
+        )
+        f.modelDownloadMb = 128
+        val second = f.handler.current()
+        assertEquals(
+            SetupTexts.MODEL_STEP_LINE.replace("{size}", "128"),
+            second.text("setup.step.model.source"),
+        )
     }
 
     @Test

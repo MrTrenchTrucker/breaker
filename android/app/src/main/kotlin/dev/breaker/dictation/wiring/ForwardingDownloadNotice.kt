@@ -15,9 +15,9 @@ class ForwardingDownloadNotice(
         listener = newListener
     }
 
-    override fun downloading() {
-        notifications.downloading()
-        listener?.downloading()
+    override fun downloading(sentence: String) {
+        notifications.downloading(sentence)
+        listener?.downloading(sentence)
     }
 
     override fun done() {

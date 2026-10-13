@@ -41,16 +41,18 @@ private val NOTHING_KNOWN = PlatformStatus(
  *
  * Call it from the main thread only; it does no locking.
  *
- * The speech model is read through two providers, [modelReady] and [downloadLine],
- * rather than being kept as a fact here. Both are asked again on every drawing, so
- * a download that finishes while the screen is open is shown the next time the
- * screen is drawn, without this class having to be told.
+ * The speech model is read through three providers, [modelReady], [downloadLine] and
+ * [modelDownloadMb], rather than being kept as a fact here. All are asked again on
+ * every drawing, so a download that finishes while the screen is open is shown the
+ * next time the screen is drawn, without this class having to be told.
  *
  * @param platform the phone, which answers what is granted and opens settings.
  * @param switch the app's switch that turns Breaker on and off.
  * @param modelReady answers whether the speech model is on the phone right now.
  * @param downloadLine answers the sentence to show under the model step's button,
  *   or null when the app has nothing to say.
+ * @param modelDownloadMb answers the size in decimal megabytes the model step's
+ *   source line shows; read again on every refresh.
  * @param onDownloadModel asks the app to download the speech model; the download
  *   itself, its progress and its sentences stay the app's.
  * @param screen the pure screen.
@@ -60,6 +62,7 @@ internal class SetupIntentHandler(
     private val switch: BreakerSwitch,
     private val modelReady: () -> Boolean,
     private val downloadLine: () -> String?,
+    private val modelDownloadMb: () -> Int,
     private val onDownloadModel: () -> Unit,
     private val screen: SetupScreen,
 ) {
@@ -67,6 +70,7 @@ internal class SetupIntentHandler(
     private var lastSwitchOn: Boolean = false
     private var lastModelReady: Boolean = false
     private var lastDownloadLine: String? = null
+    private var lastModelDownloadMb: Int = 0
     private var micAsked: Boolean = false
     private var notificationsAsked: Boolean = false
     private var held: SetupState? = null
@@ -223,6 +227,11 @@ internal class SetupIntentHandler(
         } catch (failure: Exception) {
             failed = true
         }
+        try {
+            lastModelDownloadMb = modelDownloadMb()
+        } catch (failure: Exception) {
+            failed = true
+        }
         return failed
     }
 
@@ -235,5 +244,6 @@ internal class SetupIntentHandler(
             notificationsAskedBefore = notificationsAsked,
             modelReady = lastModelReady,
             downloadLine = lastDownloadLine,
+            modelDownloadMb = lastModelDownloadMb,
         )
 }
