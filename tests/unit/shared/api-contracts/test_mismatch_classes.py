@@ -234,5 +234,98 @@ class MismatchClassETest(unittest.TestCase):
         self.assertIn("'failed'", msg)
 
 
+class SyncPushDriftSpecSideTest(unittest.TestCase):
+    """Spec-side drift on the new SyncPush schema must be refused by the
+    production comparator (the class-A/B idiom, applied to SyncPush).
+
+    Note on anchors (the house rule from the class A-E docstring): a
+    spec-side RENAME drifts both name sets, so it is NOT a clean anchor for
+    [NAME-SET-1]; the clean [NAME-SET-1] anchor is a field added to the spec
+    only, and the clean [NAME-SET-2] anchor is a field present on the Kotlin
+    side only.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.spec = load_spec()
+        cls.schemas = get_schemas(cls.spec)
+        cls.kotlin = parse_all_kotlin()
+
+    def test_spec_adds_sync_push_field(self):
+        """(anchor [NAME-SET-1]) A field added to the spec only must be
+        refused with the spec->kotlin named message."""
+        spec_mutated = copy.deepcopy(self.spec)
+        sp = spec_mutated["components"]["schemas"]["SyncPush"]
+        sp["properties"]["extra_field"] = {"type": "string"}
+
+        with self.assertRaises(AssertionError) as ctx:
+            compare_fields("SyncPush", sp, self.kotlin["SyncPush"],
+                           self.kotlin, spec_mutated["components"]["schemas"])
+        self.assertIn(
+            "spec - kotlin: SyncPush has fields not in kotlin: ['extra_field']",
+            str(ctx.exception),
+        )
+
+    def test_spec_drops_sync_push_field(self):
+        """(anchor [NAME-SET-2]) Dropping `encrypted` from the spec while
+        Kotlin keeps it must be refused with the kotlin->spec named message."""
+        spec_mutated = copy.deepcopy(self.spec)
+        sp = spec_mutated["components"]["schemas"]["SyncPush"]
+        del sp["properties"]["encrypted"]
+        sp["required"] = [r for r in sp["required"] if r != "encrypted"]
+
+        with self.assertRaises(AssertionError) as ctx:
+            compare_fields("SyncPush", sp, self.kotlin["SyncPush"],
+                           self.kotlin, spec_mutated["components"]["schemas"])
+        self.assertIn(
+            "kotlin - spec: SyncPush has fields not in spec: ['encrypted']",
+            str(ctx.exception),
+        )
+
+class SyncPushDriftKotlinSideTest(unittest.TestCase):
+    """Kotlin-side drift on the new SyncPush schema must be refused by the
+    production comparator (the class-B idiom, applied to SyncPush)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.spec = load_spec()
+        cls.schemas = get_schemas(cls.spec)
+        cls.kotlin = parse_all_kotlin()
+
+    def test_kotlin_adds_sync_push_field(self):
+        """(anchor [NAME-SET-2]) Adding a field to the Kotlin SyncPush only
+        must be refused with the kotlin->spec named message."""
+        kotlin_mutated = copy.deepcopy(self.kotlin)
+        kotlin_mutated["SyncPush"]["fields"] = list(kotlin_mutated["SyncPush"]["fields"])
+        kotlin_mutated["SyncPush"]["fields"].append(("extra_field", "String", False))
+
+        with self.assertRaises(AssertionError) as ctx:
+            compare_fields("SyncPush", self.schemas["SyncPush"],
+                           kotlin_mutated["SyncPush"], kotlin_mutated, self.schemas)
+        self.assertIn(
+            "kotlin - spec: SyncPush has fields not in spec: ['extra_field']",
+            str(ctx.exception),
+        )
+
+    def test_kotlin_nullability_flip_sync_push(self):
+        """(anchor [REQUIRED-NESS]) Making Kotlin SyncPush.encrypted nullable
+        while the spec keeps it required must be refused with the
+        required-but-nullable named message."""
+        kotlin_mutated = copy.deepcopy(self.kotlin)
+        kotlin_mutated["SyncPush"]["fields"] = list(kotlin_mutated["SyncPush"]["fields"])
+        kotlin_mutated["SyncPush"]["fields"] = [
+            (n, t, (True if n == "encrypted" else nul))
+            for (n, t, nul) in kotlin_mutated["SyncPush"]["fields"]
+        ]
+
+        with self.assertRaises(AssertionError) as ctx:
+            compare_fields("SyncPush", self.schemas["SyncPush"],
+                           kotlin_mutated["SyncPush"], kotlin_mutated, self.schemas)
+        self.assertIn(
+            "SyncPush.encrypted: spec says required, but Kotlin is nullable",
+            str(ctx.exception),
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
