@@ -5,10 +5,12 @@ import android.content.Context
 import android.content.Intent
 import dev.breaker.dictation.BreakerCompositionRoot
 import dev.breaker.dictation.SettingsLauncherActivity
+import dev.breaker.dictation.core.model.DictationState
 import dev.breaker.dictation.service.ModelNotifications
 import dev.breaker.dictation.service.DictationNotification
 import dev.breaker.dictation.service.NotificationRoute
 import dev.breaker.dictation.wiring.ForwardingDownloadNotice
+import dev.breaker.dictation.wiring.LevelFeed
 import dev.breaker.dictation.wiring.ModelDownloadNotice
 import dev.breaker.dictation.wiring.ModelDownloader
 import dev.breaker.dictation.wiring.Opener
@@ -81,6 +83,7 @@ internal class TileHost(
     init {
         root.onTakeEnded = { toCoordinator { it.onTakeEnded() } }
         root.onMicTaken = { toCoordinator { it.onTakeMicTaken() } }
+        root.levelSink = LevelFeed(tile, main) { root.dictation.runner.sessionState == DictationState.RECORDING }
     }
 
     private val forwardingNotice = ForwardingDownloadNotice(notifications)

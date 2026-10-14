@@ -30,6 +30,12 @@ interface TilePort {
     /** Shows [state]. The tile never changes its own state. */
     fun setState(state: TileState)
 
+    /**
+     * Shows how loud the voice is, from 0 to 1. The tile lights its meter only while it is recording,
+     * and this never changes the tile's state.
+     */
+    fun level(level: Float)
+
     /** Shows a short plain sentence beside the tile. */
     fun showNotice(text: String)
 

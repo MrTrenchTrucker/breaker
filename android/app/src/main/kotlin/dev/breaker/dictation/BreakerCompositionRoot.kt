@@ -18,6 +18,7 @@ import dev.breaker.dictation.stt.ondevice.OnDeviceSttEngine
 import dev.breaker.dictation.transport.TcpConnectivityProbe
 import dev.breaker.dictation.wiring.DictationComponent
 import dev.breaker.dictation.wiring.LazyHistoryStore
+import dev.breaker.dictation.wiring.LevelSink
 import dev.breaker.dictation.wiring.RECOGNIZER_FACTORY
 import dev.breaker.dictation.wiring.SERVER_UNAVAILABLE_DETAIL
 import dev.breaker.dictation.wiring.UnavailableSttEngine
@@ -85,6 +86,9 @@ class BreakerCompositionRoot(
     /** Called when the microphone was taken by another app. Set by the tile host. */
     var onMicTaken: (() -> Unit)? = null
 
+    /** Takes the level of each microphone frame. Set by the tile host. */
+    var levelSink: LevelSink? = null
+
     /** The dictation parts, built on first use. */
     val dictation: DictationComponent by lazy {
         DictationComponent(
@@ -106,6 +110,7 @@ class BreakerCompositionRoot(
             controller = serviceController,
             onTakeEnded = { onTakeEnded?.invoke() },
             onMicTaken = { onMicTaken?.invoke() },
+            levelSink = LevelSink { level -> levelSink?.publish(level) },
         )
     }
 }

@@ -36,6 +36,8 @@ microphone while recording -> `onSend`; the X -> `onCancel`. A callback that is 
 
 **Pushed in by the app:** `setState`, `setLevel`, `showNotice`, `clearNotice` and `setDescription`, on the main thread. While the tile is hidden they are only kept, and the next `show()` draws them. A push that changes nothing the tile shows makes no window call.
 
+The app now drives `setLevel` while recording: it works out the level from the microphone frames it already forwards to core, and pushes it only while the state is `RECORDING`.
+
 **Implementation:**
 - `WindowManager` + `TYPE_APPLICATION_OVERLAY` + `FLAG_NOT_FOCUSABLE` (Android 11+, the app's minimum). The window
   is also `FLAG_NOT_TOUCH_MODAL` and `FLAG_LAYOUT_IN_SCREEN`, with top and left gravity (`LEFT`, not `START`), so its
@@ -149,7 +151,7 @@ The ring around the microphone is 2 dp thick and sits just inside the edge of th
 - The module never changes the state by itself: a tap leaves the state as it is, so `onSend` is called again for every
   tap on the check or the microphone until the app pushes `SENDING`, and the app must tolerate it.
   Tested by: `TileControllerButtonsTest`, `TileRoutingTest`.
-- A level pushed outside `RECORDING` is ignored and reset on entering `RECORDING`; it is also reset on leaving it.
+- A level pushed outside `RECORDING` is stored but not lit; the meter starts empty on entering `RECORDING`, and it is also reset on leaving it.
   Tested by: `TileControllerStateTest`.
 - A callback runs only for a tap; `show()`, `hide()` and every push from the app call none, and `hide()` while expanded or recording removes the window without a callback.
   Tested by: `TileControllerButtonsTest`, `TileControllerGestureRulesTest`, `TileControllerHiddenTouchTest`.
@@ -405,7 +407,7 @@ agents, not required: an outside contributor may write the code themselves
   not `START`.
 - The module never changes the state, so `onSend` is called for every tap on the check or the microphone while the state is still `RECORDING`. A double tap on a tile that has just opened lands on the microphone and ends an empty recording. The app must tolerate a repeated `onSend` and an empty recording, and push `SENDING` to stop it. The module has no clock to wait out a second tap.
 - Pushing the state the tile already has changes nothing, so it does not clear a notice; only a different state or `clearNotice()` does.
-- A level pushed outside `RECORDING` is ignored, and the meter starts empty when `RECORDING` is entered.
+- A level pushed outside `RECORDING` is stored but not lit, and the meter starts empty when `RECORDING` is entered.
 - While `SENDING` the tile shows the warning ring and pulses slowly (the busy pulse, same as MIC_BUSY); the app's description is the only cue.
 - `SENDING` and `SENT_LOCAL` share the warning ring. They are told apart only by the pulse: it runs while sending and stops at `SENT_LOCAL`. This is interim, for the first test build; the final colours come in the art phase.
 - The MIC_BUSY slash is a code-drawn placeholder: eight stair-step rectangles from corner to corner of the tile, drawn on top of the microphone. Final art comes later (issue #87).
