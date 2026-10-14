@@ -9,11 +9,11 @@ package dev.breaker.dictation.wiring
  * take, and a refused or failed show begins nothing and keeps the flag set. Opening the launcher or
  * switching dictation off and on clears the flag.
  *
- * While the flag does not hold, the tile may still be off screen without the user's close (the window
- * system detached it, or the tile hid itself), and the coordinator's record of the last show cannot
- * see that. Show is idempotent, so every begin shows the tile first: a shown tile changes nothing and
- * pushes nothing, a hidden one comes back, and a refused show begins no take and says the tile is
- * unavailable.
+ * While the flag does not hold, every begin shows the tile first anyway. Show is idempotent: a shown
+ * tile changes nothing and pushes nothing, a tile the overlay knows is hidden comes back, and a refused
+ * show begins no take and says the tile is unavailable. A tile the window system removed without
+ * telling the overlay is not caught here: the overlay still answers that it is shown, so a take can
+ * begin with no tile on screen (a device check in the card).
  */
 internal class TileShowGuard(
     private val tile: TilePort,
@@ -36,11 +36,10 @@ internal class TileShowGuard(
 
     fun onBegin(shown: (TileShow) -> Unit): Boolean {
         if (!userClosed) {
-            // The tile may be off screen without the user's close: the window system can detach it,
-            // or the tile can hide itself, and the coordinator's tileShown cannot see that. Show is
-            // idempotent, so it is called on every begin: a shown tile changes nothing and pushes
-            // nothing, a hidden one comes back. A refused show begins no take, says the tile is
-            // unavailable, and leaves tileShown alone so the next begin tries again.
+            // Show is idempotent, so it is called on every begin: a shown tile changes nothing and
+            // pushes nothing, a tile the overlay knows is hidden comes back. A refused show begins no
+            // take, says the tile is unavailable, and leaves tileShown alone so the next begin tries
+            // again. A tile the window system removed without telling the overlay still answers shown.
             val result: TileShow = try {
                 tile.show()
             } catch (e: Exception) {
