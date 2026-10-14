@@ -220,7 +220,9 @@ class SettingsFileStore internal constructor(
      * The document is written to a temp file in the same folder, and that file
      * is then moved over the live file in one atomic move. Saves are serialized
      * by one lock for the whole process, so two store instances over the same
-     * file never interleave.
+     * file never interleave. The move asks for ATOMIC_MOVE on purpose: if a rename
+     * in one step is ever not possible, it fails loudly with an exception instead
+     * of quietly copying and leaving a half-written live file.
      *
      * A failure at any step, of any exception type, leaves the previous file
      * untouched, removes the temp file and propagates the exception. The keystore
