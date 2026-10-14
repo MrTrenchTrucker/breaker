@@ -5,7 +5,6 @@ import dev.breaker.dictation.core.port.SettingsStore
 import java.io.File
 import java.io.IOException
 import java.io.InputStreamReader
-import java.io.OutputStreamWriter
 import java.io.StringReader
 import java.nio.charset.StandardCharsets
 import java.util.Properties
@@ -13,11 +12,12 @@ import java.util.Properties
 /**
  * The settings store, backed by a [java.util.Properties] file on disk.
  *
- * **Construction.** Both the [file] and the [keystore] port are required and
- * have no default: `SettingsNoFallbackTest` asserts that a store cannot be
- * built without the secret port, so there is no constructor path that quietly
- * persists settings while dropping the credential reference. There is
- * deliberately no secondary constructor and no no-argument factory.
+ * **Construction.** The public constructor takes the [file] and the [keystore]
+ * port, and both are required with no default: `SettingsNoFallbackTest` asserts
+ * that a store cannot be built without the secret port. There is no constructor
+ * without the keystore. An internal constructor also takes the write and move
+ * steps, so a test can make either one fail; the public constructor supplies
+ * the real steps.
  *
  * **What this store holds.** Nine property keys of plain settings. It holds
  * **no secret**, and it does not put the key reference in the file either —
@@ -50,19 +50,24 @@ import java.util.Properties
  * itself, having been told it happened. [load] holds to the same rule — see
  * [readProperties].
  *
- * **Character set: UTF-8, symmetric.** Writes go out through an
- * [OutputStreamWriter] over [StandardCharsets.UTF_8] and come back through a
- * matching [InputStreamReader]. [Properties.store] escapes what it must and
+ * **Character set: UTF-8, symmetric.** Writes go out through [AtomicFileReplace.write],
+ * which uses [StandardCharsets.UTF_8], and come back through a matching
+ * [InputStreamReader]. [Properties.store] escapes what it must and
  * writes the rest literally, so non-ASCII text in a language tag or a URL
  * survives a round trip; the same choice is made on both sides on purpose.
  * Decoding uses [Properties.load] and never `org.json`, whose JVM stubs would
  * make the tests pass or fail for reasons that have nothing to do with this
  * code.
  */
-class SettingsFileStore(
+class SettingsFileStore internal constructor(
     val file: File,
     val keystore: Keystore,
+    private val writeFile: (File, Properties) -> Unit,
+    private val moveOver: (File, File) -> Unit,
 ) : SettingsStore {
+
+    constructor(file: File, keystore: Keystore) :
+        this(file, keystore, AtomicFileReplace::write, AtomicFileReplace::move)
 
     /**
      * The stored settings, or core's defaults for the nine file-backed keys when
@@ -212,6 +217,17 @@ class SettingsFileStore(
      * Write [settings] to [file], replacing what was there, and point the
      * [keystore] at the settings' credential reference.
      *
+     * The document is written to a temp file in the same folder, and that file
+     * is then moved over the live file in one atomic move. Saves are serialized
+     * by one lock for the whole process, so two store instances over the same
+     * file never interleave.
+     *
+     * A failure at any step, of any exception type, leaves the previous file
+     * untouched, removes the temp file and propagates the exception. The keystore
+     * is told about the new reference only after the file is in place, and not at
+     * all when the save failed. There is no fsync, so a power cut during the move
+     * is outside what this guarantees.
+     *
      * The reference is handed over after the file is written, so a store that
      * persisted it first and then failed to write would leave the port
      * claiming a save that never happened.
@@ -232,20 +248,25 @@ class SettingsFileStore(
     override fun save(settings: AppSettings) {
         SettingsValidation.requireRegistryModelSize(settings.modelSize)
         val properties = SettingsPropertiesCodec.encode(settings)
-        file.parentFile?.mkdirs()
-        OutputStreamWriter(
-            file.outputStream(),
-            StandardCharsets.UTF_8,
-        ).use { writer ->
-            properties.store(writer, HEADER_COMMENT)
+        // A monitor, not a coroutines Mutex: save() is a blocking call, not a
+        // suspend function. It runs on the main thread through the SettingsStore
+        // port, and a Mutex can only be taken by suspending.
+        synchronized(AtomicFileReplace.lock) {
+            file.parentFile?.mkdirs()
+            val temp = AtomicFileReplace.tempFileFor(file)
+            var moved = false
+            try {
+                writeFile(temp, properties)
+                moveOver(temp, file)
+                moved = true
+            } finally {
+                if (!moved) AtomicFileReplace.deleteQuietly(temp)
+            }
+            keystore.setActiveRef(settings.apiKeyRef)
         }
-        keystore.setActiveRef(settings.apiKeyRef)
     }
 
     private companion object {
-        /** Properties comment on save; a timestamp follows it on disk. */
-        const val HEADER_COMMENT = "Breaker settings"
-
         /** A UTF-8 byte-order mark, carried by some editors and none of our keys. */
         const val BOM = "\uFEFF"
 

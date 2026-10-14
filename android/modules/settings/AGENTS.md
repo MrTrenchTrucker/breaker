@@ -39,6 +39,7 @@ sizes, URLs, SHA-256 pins); `stt-ondevice` reads the same registry for download
 
 ## Invariants
 - Settings persist across restarts.
+- A save that fails leaves the previous settings file as it was, and the keystore is not told the new reference.
 - API key stored via Keystore, never in plaintext/logs. Both halves of that are
   stated apart on purpose: routing the reference through the `Keystore` port, and
   the settings file never carrying the key, are built and tested; what is not
@@ -113,3 +114,8 @@ agents, not required: an outside contributor may write the code themselves
   own lookup is exact, and its ids are lowercase alphanumerics — so a case-folded
   reader would honour a file the writer refuses. The file holds plain strings;
   the registry holds the ids; no id list is copied into either.
+- **Why a monitor, and the one lock in this module.** `save()` is a blocking call, not a suspend function. The settings file is small, and `save()` may be called from the main thread through the `SettingsStore` port. A coroutines `Mutex` can only be taken by suspending, and its non-suspending `tryLock` cannot wait, so the only other choice would be a spin, which the standing orders forbid. A monitor is therefore the one place this module uses `synchronized`, and the reason is written next to the site in `SettingsFileStore.save`.
+- **One lock for the whole process.** Every save takes the same monitor, `AtomicFileReplace.lock`, and holds it for the whole save, including the keystore call. Two store instances over the same file never write at once, whichever instance is used.
+- **The write and the move.** `save()` writes the whole document to `<file name>.tmp` in the same folder, then moves it over the live file in one atomic move (`ATOMIC_MOVE`). The keystore is told the new reference only after that move, and not at all when the save failed. There is no fsync, so a power cut or a crash in the middle of the move is not covered: the live file may then be the old one, and what a power cut leaves on disk has not been verified.
+- **The temp name is fixed.** It is never random, so a stale `<file name>.tmp` left by a crash is overwritten by the next save, and `load()` never reads it.
+- **The test seam.** The in-module test seam is an internal constructor that takes the write and the move as functions. The public constructor `SettingsFileStore(file, keystore)` is unchanged and supplies the real steps.
