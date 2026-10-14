@@ -95,7 +95,10 @@ data class FormatPrompt(
     }
 
     /**
-     * The non-destructive clauses the prompt must carry.
+     * The non-destructive clauses the prompt must carry, both kinds: the
+     * REQUIRED clauses first, then the NEVER clauses that forbid changing
+     * content. Each kind is reported on its own, so a missing NEVER clause is
+     * named as such and is not hidden behind the REQUIRED check.
      *
      * Checked on construction, because a prompt that has lost one of these is
      * the failure this module exists to prevent — and it fails quietly, as
@@ -113,9 +116,19 @@ data class FormatPrompt(
         require(missing.isEmpty()) {
             "prompt '$id' is missing the clauses that make formatting non-destructive: $missing"
         }
+        val lost = NEVER_CLAUSES.filterNot { it.folded() in text }
+        require(lost.isEmpty()) {
+            "prompt '$id' is missing the clauses that forbid changing content: $lost"
+        }
     }
 
-    /** True when the text forbids inventing content. */
+    /**
+     * True when the text forbids inventing content.
+     *
+     * Construction refuses a prompt that lacks the NEVER clauses, so every
+     * prompt that exists passes this check. The function stays for callers
+     * that ask the question, and its answer is unchanged.
+     */
     fun preservesContent(): Boolean =
         NEVER_CLAUSES.all { it.folded() in systemPrompt.folded() }
 
