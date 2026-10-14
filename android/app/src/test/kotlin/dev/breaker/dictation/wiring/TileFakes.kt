@@ -78,6 +78,7 @@ internal class RecordingTile : TilePort {
     var showThrows: Boolean = false
     /** When set, only [hide] throws; the other calls stay calm. */
     var hideThrows: Boolean = false
+    var noticeThrows: Boolean = false
 
     override fun show(): TileShow {
         calls.add("show")
@@ -102,6 +103,7 @@ internal class RecordingTile : TilePort {
         calls.add("notice")
         notices.add(text)
         gate()
+        if (noticeThrows) throw RuntimeException("the tile notice refused")
     }
 
     override fun clearNotice() {

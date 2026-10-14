@@ -1,12 +1,19 @@
 package dev.breaker.dictation.wiring
 
 /**
- * Remembers whether the user closed the tile by dragging it onto the close target.
+ * Shows the tile before a take begins, and remembers when the user closed it by dragging it onto
+ * the close target.
  *
- * Dictation stays switched on (the armed service and its notification stay). While the tile is
- * closed this way, a shake shows the tile and begins a take; if the show is refused or fails, no
- * take begins and the flag stays set. Opening the launcher or switching dictation off and on
- * clears the flag.
+ * Two paths reach [onBegin]. While the flag holds, the tile was closed by the user: dictation stays
+ * switched on (the armed service and its notification stay), a shake shows the tile and begins a
+ * take, and a refused or failed show begins nothing and keeps the flag set. Opening the launcher or
+ * switching dictation off and on clears the flag.
+ *
+ * While the flag does not hold, the tile may still be off screen without the user's close (the window
+ * system detached it, or the tile hid itself), and the coordinator's record of the last show cannot
+ * see that. Show is idempotent, so every begin shows the tile first: a shown tile changes nothing and
+ * pushes nothing, a hidden one comes back, and a refused show begins no take and says the tile is
+ * unavailable.
  */
 internal class TileShowGuard(
     private val tile: TilePort,
@@ -28,9 +35,23 @@ internal class TileShowGuard(
     }
 
     fun onBegin(shown: (TileShow) -> Unit): Boolean {
-        // A user-closed tile may be off screen, so the on-screen check is waived while the flag holds;
-        // the show below still has to succeed before a take begins.
-        if (!userClosed) return false
+        if (!userClosed) {
+            // The tile may be off screen without the user's close: the window system can detach it,
+            // or the tile can hide itself, and the coordinator's tileShown cannot see that. Show is
+            // idempotent, so it is called on every begin: a shown tile changes nothing and pushes
+            // nothing, a hidden one comes back. A refused show begins no take, says the tile is
+            // unavailable, and leaves tileShown alone so the next begin tries again.
+            val result: TileShow = try {
+                tile.show()
+            } catch (e: Exception) {
+                TileShow.FAILED
+            }
+            if (result != TileShow.SHOWN) {
+                guarded { modelNotice.showTileUnavailable() }
+                return true
+            }
+            return false
+        }
         userClosed = false
         val result: TileShow = try {
             tile.show()
