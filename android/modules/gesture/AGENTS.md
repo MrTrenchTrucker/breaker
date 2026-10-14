@@ -22,6 +22,10 @@ begins a take on each detection; `gesture` never imports `overlay` (ADR-001).
 
 ## Invariants
 - A detection begins a take reliably (tune threshold on target device).
+- Threshold (THRESHOLD_G): 0.65
+- Threshold checked against one measured hand shake (2.06 g raw) on one phone; other phones are a device check.
+- Fixtures (raw input amplitude -> reached AC): hand 8 Hz 1.0926 g -> ~0.98 g AC, softer 8 Hz 0.8762 g -> ~0.79 g AC, walking 2 Hz 0.8485 g -> ~0.53 g AC, bumpy 3 Hz 1.0817 g -> ~0.86 g AC, vibration 7 Hz 0.52 g -> ~0.47 g AC (assumed), rest/tilt. One phone, one person.
+- Tuned on one measured hand shake on one phone plus synthetic fixtures; the vibration amplitude is an assumption. Device checks: hand shake (keyboard up); walking 1 min with the phone in a pocket; phone in a truck cab mount while driving 10 min - no false start.
 - No false wakes from normal walking (test on device).
 - A shake while a take runs is ignored by the app (the detector fires; the app decides - a battery reason keeps it quiet).
 
@@ -71,3 +75,4 @@ agents, not required: an outside contributor may write the code themselves
 
 ## Known Gotchas
 - Device check (not covered by unit tests): a real shake fires once; screen-off delivery works; events arrive on the main looper (no Handler registered).
+- Fold-over: the detector reads the magnitude |a|, so a swing larger than 1 g along gravity folds over each cycle and gives about twice the crossing rate (a 3 Hz swing gives ~6 Hz of crossings). A strong swing (2.1 g AC) therefore fires; a light canary below 1 g (0.8 g AC) does not.
