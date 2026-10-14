@@ -240,6 +240,15 @@ class ShakeDetectorTest {
         )
     }
 
+    /** The low-pass starts at one g, a resting phone, and is not seeded from the first sample: a first
+     *  sample at 2 g reads as motion (about 0.94 g AC after one filter step), not as rest. */
+    @Test fun first_sample_is_measured_against_rest() {
+        val det = ShakeDetector.create { }
+        det.start()
+        det.feed(ShakeDetector.Sample((2.0 * G).toFloat(), 0f, 0f, 0L))
+        assertTrue("a first sample at 2 g must read well above rest, got ${det.lastAcTerm}", det.lastAcTerm > 0.5)
+    }
+
     /** Fast wrist flick: 8 Hz, 1.0926 g raw amplitude on a 1.2 g baseline over a 400 ms burst after a 400 ms rest
      * at baseline (reaches ~0.98 g AC after the one-pole low-pass). */
     private fun handShake(): List<ShakeDetector.Sample> =
