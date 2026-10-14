@@ -9,25 +9,27 @@ Three screens are built.
 
 **Settings.** The theme choice, the routing mode, the three switches and the read-only lines. Every change is written through the settings store the app passes in.
 
-**History.** The transcriptions, newest first, from the history store the app passes in. Each row shows a mono timestamp in the phone's own short date and time, a source tag (phone or server), the text, and Copy and Delete buttons. Copy puts the text on the clipboard, marked as sensitive. Delete does not delete at once: the row is replaced by a "Deleted." line with an Undo button for 5 seconds. Only when that time ends is the transcription removed from the store. Undo brings the row back and the store is not touched. The list opens with 50 rows; Load more adds 50, up to 300. The list is read off the main thread, and a screen that closes still carries out the deletes waiting. If the app closes the screen, or the screen is rotated, a delete still waiting is carried out once, right after, on the serial dispatcher. If the store refuses that delete, nothing is said and the row stays in the store. If the app is killed during the 5 seconds, nothing is deleted. A screen result that arrives after the view has closed is dropped, and a failed read's sentence is not lost: it is shown with the next result. Delete All, search, long-press delete and the route into this screen are not built.
+**History.** The transcriptions, newest first, from the history store the app passes in. Each row shows a mono timestamp in the phone's own short date and time, a source tag (phone or server), the text, and Copy and Delete buttons. Copy puts the text on the clipboard, marked as sensitive. Delete does not delete at once: the row is replaced by a "Deleted." line with an Undo button for 5 seconds. Only when that time ends is the transcription removed from the store. Undo brings the row back and the store is not touched. The list opens with 50 rows; Load more adds 50, up to 300. The list is read off the main thread, and a screen that closes still carries out the deletes waiting. If the app closes the screen, or the screen is rotated, a delete still waiting is carried out once, right after, on the serial dispatcher. If the store refuses that delete, nothing is said and the row stays in the store. If the app is killed during the 5 seconds, nothing is deleted. A screen result that arrives after the view has closed is dropped, and a failed read's sentence is not lost: it is shown with the next result. Delete All, search, long-press delete are not built; the route into this screen is built in the app.
 
-**Setup walk-through.** One step per permission, in this order:
+**Setup walk-through.** The model step first, then one step per permission, in this order:
 
-1. Display over other apps (the overlay), so the tile can show.
-2. Microphone, the one permission the switch needs.
-3. Notifications, optional. The screen says plainly what is lost without them.
-4. Accessibility, so the words can be typed into the field. The step lists what the service does and does not do. On Android 13 and later, while the service is off, it also explains the "Restricted setting" box, in three steps. That explanation has no status and no button, because the phone gives no way to read that state.
+1. Speech model. Breaker needs a speech model on your phone to turn your voice into text. The step says "Not done yet" until the model is on the phone, then "Done". While it is not there, the button "Download the speech model" starts the download, and a line under it gives the download size, says it comes from GitHub and that your server is not used, and says the file is checked before it is used.
+2. Display over other apps (the overlay), so the tile can show.
+3. Microphone, the one permission the switch needs.
+4. Notifications, optional. The screen says plainly what is lost without them.
+5. Accessibility, so the words can be typed into the field. The step lists what the service does and does not do. On Android 13 and later, while the service is off, it also explains the "Restricted setting" box, in three steps. That explanation has no status and no button, because the phone gives no way to read that state.
 
 Below the steps is the on/off switch for Breaker. Only the microphone gates it. A missing overlay or accessibility step shows a warning next to the switch and does not block it. A "Check again" button draws the screen afresh. The screen also draws itself again whenever its window gets focus back, so a permission given on a system page shows when the user returns.
 
 ## Public declarations
 
-The module offers exactly four, all in two files:
+The module offers exactly five, all in three files:
 
 - `createSettingsView(context, settings)` builds the settings view.
-- `createOnboardingView(context, switch, accessibilityServiceComponent)` builds the setup view.
+- `createOnboardingView(context, switch, accessibilityServiceComponent, modelReady, downloadLine, modelDownloadMb, onDownloadModel)` builds the setup view. The last four parameters carry the speech model step: `modelReady` says whether the model is on the phone, `downloadLine` gives the sentence under its button (or null), `modelDownloadMb` gives the download size in decimal megabytes, and `onDownloadModel` asks the app to start the download.
 - `createHistoryView(context, history)` builds the history view. `history` is the core `HistoryStore` port; the screen only lists and deletes through it.
 - `BreakerSwitch` is the interface the app implements: `isOn()`, `switchOn()` and `switchOff()`. `switchOn()` answers `BreakerSwitch.Result`, which is nested in the interface: `On`, `AlreadyOn` or `Refused(sentence)`. The sentence is shown to the user as the app wrote it.
+- `ModelStepControl` is the interface the setup view answers: `refresh()` redraws the walk-through, and `focusDownload(): Boolean` puts focus on the model step's download button. It answers true when the button is drawn and took focus; false when there is no button to focus (the model is ready, or nothing is drawn yet) or the button would not take focus. The app casts the setup view to it.
 
 Everything else is internal or private.
 
