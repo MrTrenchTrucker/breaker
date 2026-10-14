@@ -252,6 +252,6 @@ class ModelLoader(
         checksums: UpstreamChecksums.Checksums,
     ): ModelIntegrity.Verdict {
         val archive = store.archiveFile(modelId)
-        return ModelIntegrity.verify(archive, entry.sha256, checksums)
+        return ModelIntegrity.verify(archive, entry.sha256, checksums, entry.archiveName)
     }
 }

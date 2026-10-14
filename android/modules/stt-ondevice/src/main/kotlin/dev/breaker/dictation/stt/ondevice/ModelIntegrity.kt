@@ -11,8 +11,11 @@ import java.security.NoSuchAlgorithmException
  *
  * The rule this file keeps: a downloaded archive is trusted only when its
  * computed digest equals our compiled pin AND that pin appears as a digest
- * in the upstream checksum file. The pin is the digest of the downloaded
- * archive itself - it is not a version number, a size, or a filename.
+ * in the upstream checksum file. When the archive's name is known, the digest
+ * listed for that exact name must be the pin, so a pin listed only on another
+ * archive's line is refused. A null or blank name skips that per-archive check.
+ * The pin is the digest of the downloaded archive itself - it is not a version
+ * number, a size, or a filename.
  *
  * Verification is deliberately strict and ordered. Each step has its own
  * refusal category so the caller can distinguish a missing file from a
@@ -79,15 +82,17 @@ object ModelIntegrity {
      * 4. pin does not match `^[0-9a-fA-F]{64}$` -> [Refusal.PIN_MALFORMED]
      *    (checked before any bytes are read - a malformed pin can never match)
      * 5. `!checksums.containsDigest(pin)` -> [Refusal.PIN_NOT_IN_UPSTREAM]
+     *    Also under step 5: with a non-blank [archiveName], the digest listed for
+     *    that name must equal the pin (case-insensitive), otherwise ->
+     *    [Refusal.PIN_NOT_IN_UPSTREAM]
      * 6. `sha256(file) == null` -> [Refusal.DIGEST_UNREADABLE]
      * 7. computed digest != pin (case-insensitive) -> [Refusal.PIN_MISMATCH]
      * 8. otherwise -> [Verdict.Verified]
      *
-     * [archiveName] is reserved for the per-archive check (upstream's line for
-     * this archive must carry the pin); it is not used until the model registry
-     * records the name.
+     * [archiveName] is the archive's upstream file name. When it is null or
+     * blank, the per-archive part of step 5 is skipped and only the set match applies.
      *
-     * @param archiveName the archive's upstream file name; reserved, not used yet.
+     * @param archiveName the archive's upstream file name; null or blank skips the per-archive part of step 5.
      * @return [Verdict.Verified] with the computed digest on success,
      *   [Verdict.Refused] otherwise.
      */
@@ -118,6 +123,17 @@ object ModelIntegrity {
                 Refusal.PIN_NOT_IN_UPSTREAM,
                 "pin ${pin.lowercase()} not found in upstream checksums"
             )
+        }
+
+        val name = archiveName?.takeIf { it.isNotBlank() }
+        if (name != null) {
+            val listedForArchive = checksums[name]
+            if (listedForArchive == null || !listedForArchive.equals(pin, ignoreCase = true)) {
+                return Verdict.Refused(
+                    Refusal.PIN_NOT_IN_UPSTREAM,
+                    "pin ${pin.lowercase()} is not the digest listed for archive $name"
+                )
+            }
         }
 
         val computed = sha256(file)

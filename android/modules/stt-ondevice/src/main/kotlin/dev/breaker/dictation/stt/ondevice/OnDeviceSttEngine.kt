@@ -82,12 +82,6 @@ class OnDeviceSttEngine(
         val decodeCount: Int,
     )
 
-    /** Outcome classification for internal use. */
-    enum class Outcome {
-        TRANSCRIBED, NO_MODEL, MODEL_REFUSED, AUDIO_REJECTED,
-        ENGINE_FAILED, ENGINE_CLOSED, REFUSED_REENTRANT
-    }
-
     // A ThreadLocal because "is this thread already inside the slot" is a thread-scoped fact that non-suspend code must be able to read.
     private val decodingHere = ThreadLocal.withInitial { false }
 
