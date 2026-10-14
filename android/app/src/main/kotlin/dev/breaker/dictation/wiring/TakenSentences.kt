@@ -12,5 +12,5 @@ internal object TakenSentences {
     const val COPIED_NOT_SAVED: String =
         "Recording stopped for a call or another app. Text copied, but not saved to History."
     const val STILL_TAKEN: String =
-        "Another app still has the microphone. Breaker listens again once it is free."
+        "Another app still has the microphone. Tap the tile again when it is free."
 }
