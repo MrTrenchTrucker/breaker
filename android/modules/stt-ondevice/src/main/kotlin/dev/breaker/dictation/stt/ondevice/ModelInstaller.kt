@@ -242,6 +242,7 @@ class ModelInstaller(
         }
 
         // Step 6: verify at final location
+        // Repeats the step 3 staging check on the same bytes as defence in depth; the archive name rule is enforced at step 3, not here.
         val finalVerdict = ModelIntegrity.verify(archiveFile, entry.sha256, checksums, entry.archiveName)
         if (finalVerdict is ModelIntegrity.Verdict.Refused) {
             val removed = store.delete(entry.id)
