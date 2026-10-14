@@ -102,7 +102,7 @@ From ADR-022, enforced by tests that read this module's own files:
     `NodeFocusedFieldPrivacyTest`, `NodeFocusedFieldErrorTest`.
   - Gates that read the module's own files: `PureFilesScanTest`, `PrivacyScanTest`,
     `TestRulesScanTest`, `ManifestGateTest`, `ConfigGateTest`, `AdapterGateTest`,
-    `AdapterMappingGateTest`, `ModuleFilesGateTest` (with the helpers `SourceFiles.kt`,
+    `AdapterMappingGateTest`, `FieldStateFlagsGateTest`, `ModuleFilesGateTest` (with the helpers `SourceFiles.kt`,
     `XmlFiles.kt` and the sample files `AdapterGateSamples.kt`, `AdapterMappingSamples.kt`).
 - Contract: `tests/contract/test_commit_accessibility_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_commit_accessibility_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.

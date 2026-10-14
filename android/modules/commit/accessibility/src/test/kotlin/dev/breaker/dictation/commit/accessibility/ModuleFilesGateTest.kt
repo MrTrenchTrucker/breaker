@@ -44,6 +44,7 @@ internal class ModuleFilesGateTest {
         "src/test/kotlin/dev/breaker/dictation/commit/accessibility/FakeFieldNode.kt",
         "src/test/kotlin/dev/breaker/dictation/commit/accessibility/FakeFieldNodeSwitchesTest.kt",
         "src/test/kotlin/dev/breaker/dictation/commit/accessibility/FakeFieldNodeTest.kt",
+        "src/test/kotlin/dev/breaker/dictation/commit/accessibility/FieldStateFlagsGateTest.kt",
         "src/test/kotlin/dev/breaker/dictation/commit/accessibility/HintTextNotReadTest.kt",
         "src/test/kotlin/dev/breaker/dictation/commit/accessibility/InsertPlanMergeTest.kt",
         "src/test/kotlin/dev/breaker/dictation/commit/accessibility/InsertPlanRedactionTest.kt",

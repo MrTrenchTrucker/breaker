@@ -61,9 +61,12 @@ internal class NodeFocusedField(
     private fun insertInto(node: FieldNode, dictated: String): FieldCommit {
         if (!node.refresh()) return FieldCommit.REFUSED
         if (node.packageName == ownPackage) return FieldCommit.REFUSED
-        if (node.isPassword) return FieldCommit.REFUSED
-        if (!node.isEditable) return FieldCommit.REFUSED
-        if (!node.isEnabled) return FieldCommit.REFUSED
+        val isPassword: Boolean = node.isPassword
+        if (isPassword) return FieldCommit.REFUSED
+        val isEditable: Boolean = node.isEditable
+        if (!isEditable) return FieldCommit.REFUSED
+        val isEnabled: Boolean = node.isEnabled
+        if (!isEnabled) return FieldCommit.REFUSED
 
         val showingHint: Boolean = node.isShowingHint
         val limit: Int = node.maxTextLength
@@ -71,15 +74,15 @@ internal class NodeFocusedField(
         val start: Int = node.selectionStart
         val end: Int = node.selectionEnd
 
-        // The flags above are already clean; InsertPlan checks them again as a second line.
+        // The flags were read once at the guard; InsertPlan checks them again as a second line.
         val state = FieldState(
             text = current,
             selectionStart = start,
             selectionEnd = end,
             isShowingHint = showingHint,
-            isPassword = false,
-            isEditable = true,
-            isEnabled = true,
+            isPassword = isPassword,
+            isEditable = isEditable,
+            isEnabled = isEnabled,
             maxTextLength = limit,
         )
         return when (val outcome: InsertOutcome = InsertPlan.plan(state, dictated)) {
