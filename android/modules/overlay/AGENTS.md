@@ -6,7 +6,7 @@ Floating tile = CB mic glyph + LED bar meter (WindowManager overlay, F36). The f
 
 **What is built now:**
 - A small draggable tile (56 dp) with a stand-in glyph, shown above other apps.
-- Seven states, pushed by the app with `setState`: `IDLE`, `ARMED`, `RECORDING`, `SENDING`, `FAILED`, `SENT` and `SENT_LOCAL`. The tile never
+- Eight states, pushed by the app with `setState`: `IDLE`, `ARMED`, `RECORDING`, `SENDING`, `FAILED`, `SENT`, `SENT_LOCAL` and `MIC_BUSY`. The tile never
   changes the state itself, not even on a tap. The ring around the microphone takes its colour from the state. The
   ring pulses while the tile is ARMED and shown (the armed ring pulse, see Invariants). The app drives nothing: the pulse
   starts and stops with the state and with the tile being shown, attached, visible and on a lit screen.
@@ -20,6 +20,7 @@ Floating tile = CB mic glyph + LED bar meter (WindowManager overlay, F36). The f
 - The callbacks `onTap`, `onBegin`, `onCancel`, `onSend` and `onNoticeDismissed`.
 - A tap on the strip of a notice window clears the notice and collapses the tile, calling `onNoticeDismissed` once (not `onTap`). The module has no timer.
 - MIC_BUSY: the microphone is not available. The app decides when to show it. The tile shows a mic glyph with a red circle and diagonal slash (danger colour), pulsing slowly. No text. A tap reports like IDLE.
+- Close target (F38): while a small tile is dragged, a close target (an X in a circle, palette colours only, placeholder art) is shown centred near the bottom of the usable area; it goes when the drag ends. A drop with the tile's centre inside the target hides the tile, calls `onCloseRequested` (no arguments, null by default) and does not save the position; a drop elsewhere saves as today. A tap never closes. The target is shown in the same overlay window type and is not focusable and not touchable.
 
 **How dictation ends:** while the state is `RECORDING`, the check, or a tap on the microphone, calls `onSend`, and the X
 calls `onCancel`. The send phrase is the app's job, not this module's. The tile never records and never inserts text: the
@@ -94,7 +95,7 @@ outline lines are 2 dp thick.
 The ring around the microphone is 2 dp thick and sits just inside the edge of the microphone's cell.
 
 **Look & feel (F36):**
-- **Built:** the seven states, the LED bar meter and the expanded tile, as described below, and the armed ring pulse
+- **Built:** the eight states, the LED bar meter and the expanded tile, as described below, and the armed ring pulse
   (one platform animator, see Invariants; the app drives nothing). **Not built yet:** the real CB mic art (final mic art later), the
   app's pushing of the sent and fallback states. Each line below says which it is.
 - The tile IS the **CB mic glyph** (favicon art from `shared/ui-tokens`) - not built yet: the tile draws a
@@ -114,11 +115,6 @@ The ring around the microphone is 2 dp thick and sits just inside the edge of th
 - The real CB mic art (final mic art later; the glyph stays a placeholder).
 - The app's pushing of SENT and SENT_LOCAL, and the state the app pushes after a clipboard-only commit (OPEN: the app's
   decision, not decided here).
-- Close target (F38): while a small tile is dragged, a close target (an X in a circle, palette colours only,
-  placeholder art) is shown centred near the bottom of the usable area; it goes when the drag ends. A drop
-  with the tile's centre inside the target hides the tile, calls `onCloseRequested` (no arguments, null by
-  default) and does not save the position; a drop elsewhere saves as today. A tap never closes. The target
-  is shown in the same overlay window type and is not focusable and not touchable.
 - Words on the tile of its own, sound or haptics, the window-ownership check (T4), the
   audio capture and the audio-level feed (the app's), the foreground service (the app's), asking the user for the
   overlay permission (the app's), and any gesture or phrase code.
@@ -165,7 +161,7 @@ The ring around the microphone is 2 dp thick and sits just inside the edge of th
 
 ## Owns
 Floating tile = CB mic glyph + LED bar meter (WindowManager overlay, F36). Built: the draggable tile with a
-stand-in glyph, the seven states, the armed ring pulse (one platform animator), the LED bar meter, the expanded recording tile with cancel and send, and the notice and
+stand-in glyph, the eight states, the armed ring pulse (one platform animator), the LED bar meter, the expanded recording tile with cancel and send, and the notice and
 description the app pushes. Not built yet: the real CB mic art.
 
 ## Public Interface
@@ -219,7 +215,7 @@ FloatingTile (via create), ShowResult, TileState
   - `ARMED`: dictation is on and ready. The ring pulses (the armed ring pulse, see Invariants) and is steady when animations are off. A tap on the microphone calls `onBegin`.
   - `RECORDING`: the microphone is open. The tile widens to the X, the microphone with the meter above it, and the check.
   - `SENDING`: recording is over and the text is on its way. The tile shows the warning ring and pulses
-    slowly (the busy pulse). Taps do nothing.
+    slowly (the busy pulse, same as MIC_BUSY). Taps do nothing.
   - `FAILED`: the last try did not work. The ring is in the danger colour. A tap on the microphone calls `onTap`.
   - `SENT`: the text is committed (copy confirmed). The ring is in the `sent` colour (green). A tap on the microphone
     calls `onTap`, as in `IDLE`.
@@ -296,7 +292,7 @@ FloatingTile (via create), ShowResult, TileState
   nothing; a press made while hidden is not a tap after the next `show()`, and touches on the old place of a hidden
   tile call nothing.
 - Buttons and callbacks (`TileControllerButtonsTest`, `TileControllerCallbackTest`, `TileControllerGestureRulesTest`,
-  `TileGestureEdgesTest`, `TileRoutingTest`, `TileControllerNoticeDismissTest`): each pair of tapped part and state, for all seven states, is routed as the table says (a tap on SENT or SENT_LOCAL is a plain tap); idle and failed call
+  `TileGestureEdgesTest`, `TileRoutingTest`, `TileControllerNoticeDismissTest`): each pair of tapped part and state, for all eight states, is routed as the table says (a tap on SENT or SENT_LOCAL is a plain tap); idle and failed call
   `onTap`, armed calls `onBegin` and stays armed, recording sends on the microphone and the check and cancels on the X,
   sending ignores taps, and under a notice the microphone taps and the strip dismisses; a missing callback does nothing; one tap with a
   wobble is one call; `hide()`, `show()` and the pushes call no callback; an exception from a callback reaches the caller
@@ -336,7 +332,7 @@ FloatingTile (via create), ShowResult, TileState
   touch handler gives the sink the screen position of the finger that owns the gesture and answers true.
 - Hygiene (`ModuleHygieneTest`): main sources hold no thread primitive, no clock read, no network class and no
   file over 300 lines; test sources hold no clock or thread word.
-- The public surface (`PublicSurfaceTest`): the four `ShowResult` values and the seven `TileState` values in order and the
+- The public surface (`PublicSurfaceTest`): the four `ShowResult` values and the eight `TileState` values in order and the
   public tile members are read by reflection; that every other top-level declaration is `internal` is read from the source text.
 
 - The armed ring pulse (`PulseRulesTest`, `PulseAlphaTest`, `TileControllerPulseTest`, `PulseGateTest`): the pure rules run only when all five conditions hold and only an armed, shown tile wants a pulse; a non-finite alpha is drawn at full strength; the controller asks for the pulse before each face, stops it on hide and on leaving armed, and gives the same tap answers with the pulse on or off; the animator is named in one file only, the view's four hooks reach the pure rule, and the view passes the system's animator switch as the fifth argument (`PulseGateTest`: the view asks the system whether animations are on). All of this is read as text, not run.
@@ -364,6 +360,7 @@ checked only as text: no test draws the view or sends it a touch.
 - The battery cost of the armed ring pulse (see Known Gotchas).
 - How the green (SENT) and orange (SENT_LOCAL) rings read in sunlight, in light and dark.
 - The expanded tile, the meter and the notice: see "Known Gotchas" below.
+- System detach: the proposed fix adds a race (a late `onDetached` from a removed view), so it stays a device check.
 
 ## Test Requirement
 Every test added or touched for this module must be proven to fail loudly:

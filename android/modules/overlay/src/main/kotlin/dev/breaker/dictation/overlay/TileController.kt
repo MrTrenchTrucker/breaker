@@ -227,9 +227,11 @@ internal class TileController(
         window.setFrame(origin.x, origin.y, size.width, size.height)
     }
 
-    /** End the gesture in progress like a release; a drag that began on the collapsed tile is saved, no tap is made. */
+    /** End the gesture in progress like a release; a drag that began on the collapsed tile is saved and its close target hidden, no tap is made. */
     private fun endGesture() {
-        if (interpreter.cancel() is TouchEvent.DragEnd && gesture.shape == TileShape.COLLAPSED) persist()
+        val dragged = interpreter.cancel() is TouchEvent.DragEnd && gesture.shape == TileShape.COLLAPSED
+        if (dragged) persist()
+        if (dragged) window.hideCloseTarget()
     }
 
     /** Run what a tap means for the state and for the part of the window the finger went down on. */
