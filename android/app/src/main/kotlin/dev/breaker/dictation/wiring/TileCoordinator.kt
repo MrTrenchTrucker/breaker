@@ -55,7 +55,7 @@ class TileCoordinator(
     private var tileShown: Boolean = false
 
     /** Remembers the user closed the tile; cleared on launcher visible (through arm) or switch off/on. */
-    internal val userClosedHandler: UserClosedHandler = UserClosedHandler(tile, modelNotice)
+    internal val tileShowGuard: TileShowGuard = TileShowGuard(tile, modelNotice)
 
     /** How a take that was told to finish came out. */
     private sealed class End {
@@ -71,11 +71,11 @@ class TileCoordinator(
 
     /** The microphone on an armed tile was tapped: start a take, if the speech model is there. */
     fun onBegin() {
-        if (!armed || (!tileShown && !userClosedHandler.isClosed) || beginPending || yield.yieldRunning() ||
+        if (!armed || (!tileShown && !tileShowGuard.isClosed) || beginPending || yield.yieldRunning() ||
             (pushed != TileState.ARMED && pushed != TileState.SENT && pushed != TileState.MIC_BUSY)) return
         val wasSent: Boolean = pushed == TileState.SENT
         lastCommit = null
-        if (userClosedHandler.onBegin { shown -> tileShown = (shown == TileShow.SHOWN); if (shown == TileShow.SHOWN) push() } || !tileShown) return
+        if (tileShowGuard.onBegin { shown -> tileShown = (shown == TileShow.SHOWN); if (shown == TileShow.SHOWN) push() } || !tileShown) return
         if (!isModelReady()) {
             if (wasSent) push()
             guarded { modelNotice.showMissing() }
@@ -141,7 +141,7 @@ class TileCoordinator(
         guarded { opener.openLauncher(route) }
     }
 
-    fun onCloseRequested() = userClosedHandler.onCloseRequested()
+    fun onCloseRequested() = tileShowGuard.onCloseRequested()
 
     /** The microphone was taken by another app: cut the take and show the busy face. */
     fun onTakeMicTaken() {
@@ -158,7 +158,7 @@ class TileCoordinator(
     }
 
     private fun arm() {
-        userClosedHandler.clear()
+        tileShowGuard.clear()
         // A tile that was off has no take: the one cancel queued when it went off may not have run yet.
         val session: DictationState = if (armed) sessionNow() else DictationState.IDLE
         armed = true
@@ -179,7 +179,7 @@ class TileCoordinator(
     }
 
     private fun disarm() {
-        userClosedHandler.clear()
+        tileShowGuard.clear()
         generation += 1
         armed = false
         sendPushed = false

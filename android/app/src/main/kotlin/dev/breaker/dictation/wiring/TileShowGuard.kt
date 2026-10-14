@@ -8,7 +8,7 @@ package dev.breaker.dictation.wiring
  * take begins and the flag stays set. Opening the launcher or switching dictation off and on
  * clears the flag.
  */
-internal class UserClosedHandler(
+internal class TileShowGuard(
     private val tile: TilePort,
     private val modelNotice: ModelNotice,
 ) {

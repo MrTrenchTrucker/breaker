@@ -202,7 +202,7 @@ internal class TileCoordinatorShownTest {
         val rig = TileRig()
         rig.coordinator.onCloseRequested()
         rig.coordinator.onArmedChanged(false)  // disarm
-        assertEquals("app: a disarm must clear the close flag", false, rig.coordinator.userClosedHandler.isClosed)
+        assertEquals("app: a disarm must clear the close flag", false, rig.coordinator.tileShowGuard.isClosed)
     }
 
     @Test
@@ -228,7 +228,7 @@ internal class TileCoordinatorShownTest {
         assertEquals("app: a begin after a close must show the tile once", 1, rig.tile.calls.count { it == "show" })
         assertEquals("app: a begin after a close must reach the take once", 1, rig.take.beginCalls)
         // Flag is cleared: isClosed is false after a successful show
-        assertEquals("app: a successful show must clear the close flag", false, rig.coordinator.userClosedHandler.isClosed)
+        assertEquals("app: a successful show must clear the close flag", false, rig.coordinator.tileShowGuard.isClosed)
     }
 
     @Test
@@ -236,7 +236,7 @@ internal class TileCoordinatorShownTest {
         val rig = TileRig()
         rig.tile.hideThrows = true
         rig.coordinator.onCloseRequested()  // must not throw
-        assertEquals("app: the close flag must stay set even if hide throws", true, rig.coordinator.userClosedHandler.isClosed)
+        assertEquals("app: the close flag must stay set even if hide throws", true, rig.coordinator.tileShowGuard.isClosed)
     }
 
     @Test
