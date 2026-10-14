@@ -70,6 +70,9 @@ object ModelMessages {
     /** There was not enough free space for the unpacked files. */
     const val UNPACK_NO_SPACE = "There is not enough free space to unpack the model."
 
+    /** There was not enough free space on the phone to download the model. */
+    const val DOWNLOAD_NO_SPACE = "There is not enough free space on the phone to download the model."
+
     /** Appended after another sentence when removing the bad file also failed. */
     const val COULD_NOT_DELETE = " The file could not be deleted."
 }

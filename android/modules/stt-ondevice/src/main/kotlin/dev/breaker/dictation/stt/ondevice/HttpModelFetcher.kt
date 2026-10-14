@@ -22,7 +22,8 @@ import javax.net.ssl.SSLException
  * Failure contract, matching the port: a network problem comes back as
  * [ModelFetcher.Result.Failed] with a short reason that never carries an
  * address, path or query. Only a problem writing to the staging directory is
- * thrown, as an [IOException], after the partial file has been deleted.
+ * thrown, as an [IOException], after the partial file has been deleted. A failed
+ * free-space check is thrown as a [NoSpaceException], which is an [IOException].
  *
  * [cancelled] is polled before every request and once per chunk of a body.
  * A read that is already blocked in the socket ends at the read timeout.
@@ -140,7 +141,7 @@ class HttpModelFetcher internal constructor(
         val declared = reply.contentLength
         if (declared > capBytes) return ModelFetcher.Result.Failed("too large")
         val needBytes = if (declared >= 0L) declared else capBytes
-        if (usableSpace(stagingDir) < needBytes) throw StagingWriteException(IOException("not enough space"))
+        if (usableSpace(stagingDir) < needBytes) throw StagingWriteException(NoSpaceException())
         val output = openStaging(target)
         try {
             var total = 0L
