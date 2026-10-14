@@ -37,12 +37,16 @@ decision is made, reviving this sub-module needs all of the following:
    (`include(":android:modules:commit:ime")`).
 2. Give it a real `build.gradle.kts` (an Android library module like its
    siblings; see any other module's build file as a template).
-3. Expose a real publish seam from the parent (`android_commit`) instead of
-   reaching into `adapter/FocusedFieldHolder` directly — that holder is
-   `internal` to the parent on purpose, and this sub-module currently cannot
-   see it. The parent needs to grow a public (or module-visible) way for a
-   sub-module to publish a focused field, the same way `commit/accessibility`
-   will need to publish one.
+3. Publish through the public seam, not the internal member. The dead adapter
+   reaches the focused-field registry through the INTERNAL member
+   `FocusedFieldHolder.registry` (the call is at
+   `ime/src/main/kotlin/dev/breaker/dictation/commit/ime/BreakerInputMethodService.kt:29`);
+   `registry` is `internal` to the parent module and crosses no module
+   boundary, while the holder's one public member is
+   `FocusedFieldHolder.publish(field)` (`src/main/kotlin/dev/breaker/dictation/commit/adapter/FocusedFieldHolder.kt:35`).
+   On revival, publish through `FocusedFieldHolder.publish(field)` and keep
+   the returned AutoCloseable, exactly like the accessibility mechanism's
+   scoped publish.
 4. Add the manifest `<service>` entry for `BreakerInputMethodService`
    (`android:permission="android.permission.BIND_INPUT_METHOD"`, the
    `android.view.InputMethod` intent filter), the
@@ -60,3 +64,19 @@ decision is made, reviving this sub-module needs all of the following:
 Until all of that is done, this sub-module stays exactly as it is: present,
 unbuilt, unreachable, and incapable of registering a keyboard, because it is
 compiled into no artifact the app ships.
+
+
+## Revival notes
+
+- The dead adapter reaches the focused-field registry through the INTERNAL
+  member `FocusedFieldHolder.registry`
+  (`ime/src/main/kotlin/dev/breaker/dictation/commit/ime/BreakerInputMethodService.kt:29`),
+  not through the holder's one public seam, `FocusedFieldHolder.publish(field)`
+  (`src/main/kotlin/dev/breaker/dictation/commit/adapter/FocusedFieldHolder.kt:35`).
+  On revival, publish through the seam and keep the returned AutoCloseable; do
+  not re-open the internal member.
+- `onDestroy` calls `registry.clearAll()`, which clears whatever field is
+  current — a field published by any mechanism, not just the IME's. On
+  revival, close only this service's own token-scoped handle (the
+  AutoCloseable from `publish`, or the token it holds), so a late IME teardown
+  cannot clear a field another mechanism published.
