@@ -13,6 +13,7 @@ import dev.breaker.dictation.settings.ModelCatalog
 import dev.breaker.dictation.ui.ModelStepControl
 import dev.breaker.dictation.wiring.ACCESSIBILITY_SERVICE_COMPONENT
 import dev.breaker.dictation.wiring.BreakerSwitchAdapter
+import dev.breaker.dictation.wiring.IconLaunchOnce
 import dev.breaker.dictation.wiring.ModelDownloadNotice
 import dev.breaker.dictation.wiring.ModelSentences
 import dev.breaker.dictation.wiring.StoreModelReady
@@ -28,9 +29,11 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
     private var historyShown: Boolean = false
     private var backCallback: android.window.OnBackInvokedCallback? = null
     private var downloadSentence: String? = null
+    private lateinit var iconLaunch: IconLaunchOnce
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        iconLaunch = IconLaunchOnce(savedInstanceState?.getBoolean(ICON_LAUNCH_DONE_KEY, false) ?: false)
         val app = applicationContext as BreakerApp
         downloadStatus = TextView(this)
         downloadStatus.text = ""
@@ -73,12 +76,17 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         super.onStart()
         val app = applicationContext as BreakerApp
         val launch = intent
-        if (isIconLaunch(launch?.action, launch?.categories.orEmpty(), launch?.getStringExtra(NotificationRoute.EXTRA_ROUTE))) {
-            app.armedSwitch.switchOn()
-        } else {
-            app.armedSwitch.armAtStart()
-        }
+        iconLaunch.onStart(
+            isIconLaunch(launch?.action, launch?.categories.orEmpty(), launch?.getStringExtra(NotificationRoute.EXTRA_ROUTE)),
+            { app.armedSwitch.switchOn() },
+            { app.armedSwitch.armAtStart() },
+        )
         app.tileHost.onLauncherVisible()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(ICON_LAUNCH_DONE_KEY, iconLaunch.isDone)
     }
 
     override fun onResume() {
@@ -179,5 +187,6 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
 
     private companion object {
         const val HISTORY_LABEL: String = "History"
+        const val ICON_LAUNCH_DONE_KEY: String = "icon-launch-done"
     }
 }

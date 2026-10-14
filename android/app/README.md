@@ -50,7 +50,8 @@ settings screen and the history screen, the manifest, and the Gradle build.
   notification's "Switch off" button), the app keeps that in a small file in its
   files folder, and a start of the launcher from a notification or the tile no
   longer switches dictation on. Opening Breaker from its launcher icon switches
-  it on again.
+  it on again, once for each activity the icon opens; a tap on the icon while
+  Breaker is still open does not switch it on.
 
 ## The microphone service
 
@@ -60,8 +61,9 @@ as described in ADR-022 as amended:
 
 - The launcher activity arms the service every time it becomes visible, unless
   the user switched dictation off; opening it from the launcher icon switches
-  dictation on even then. The service can also be started from its own
-  notification.
+  dictation on even then, once for each activity the icon opens; a tap on the
+  icon while Breaker is still open does not. The service can also be started
+  from its own notification.
 - While it is on, the service shows a quiet, ongoing notification with one
   "Switch off" button. Tapping the notification opens Breaker on the history of
   transcriptions. The launcher shows the history screen that the ui module
