@@ -14,7 +14,9 @@ request/response types (ADR-017): the single contract both the Android client (`
 - `GET /v1/jobs/{job_id}` → `{ status: queued|processing|done|failed, result:
   { text, segments[], language } | null, error: string | null }` — `error`
   is the failure reason, set exactly when status is `failed` (enforced both
-  ways in the Kotlin type); `POST` 202 status is `queued` only
+  ways in the Kotlin type); `POST` 202 status is `queued` only. `result` is
+  set exactly when status is `done` (enforced both ways in the Kotlin type,
+  like `error`).
 - `GET /health` — `{ status, forwarding_to, uptime }`
 - (v1.1) `POST /v1/audio/transcriptions/stream` — SSE partial segments
 

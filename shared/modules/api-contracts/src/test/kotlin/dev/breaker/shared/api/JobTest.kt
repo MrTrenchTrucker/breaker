@@ -78,4 +78,43 @@ class JobTest {
             )
         }
     }
+
+    @Test
+    fun `Job with status QUEUED and a non-null result throws`() {
+        try {
+            Job(status = JobStatus.QUEUED, result = doneResult)
+            fail("expected IllegalArgumentException")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(
+                "message should name the result invariant, was: ${e.message}",
+                e.message!!.contains("result")
+            )
+        }
+    }
+
+    @Test
+    fun `Job with status PROCESSING and a non-null result throws`() {
+        try {
+            Job(status = JobStatus.PROCESSING, result = doneResult)
+            fail("expected IllegalArgumentException")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(
+                "message should name the result invariant, was: ${e.message}",
+                e.message!!.contains("result")
+            )
+        }
+    }
+
+    @Test
+    fun `Job with status FAILED and a non-null result throws`() {
+        try {
+            Job(status = JobStatus.FAILED, result = doneResult, error = "boom")
+            fail("expected IllegalArgumentException")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(
+                "message should name the result invariant, was: ${e.message}",
+                e.message!!.contains("result")
+            )
+        }
+    }
 }
