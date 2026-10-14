@@ -69,9 +69,9 @@ words for the tile.
 ## How the app uses it
 
 1. Make one tile with
-   `FloatingTile.create(context, settings, onTap, theme, onSaveFailed, onBegin, onCancel, onSend)`
+   `FloatingTile.create(context, settings, onTap, theme, onSaveFailed, onBegin, onCancel, onSend, onNoticeDismissed, onCloseRequested)`
    and keep it. `settings` is core's `SettingsStore`, `theme` is the light or dark
-   theme being shown, and the last four callbacks are optional. A callback that is
+   theme being shown, and the last six callbacks are optional. A callback that is
    null makes its tap do nothing. An exception thrown by a callback is not caught.
 2. Call `show()` from the main thread. It answers `SHOWN`, `ALREADY_SHOWN`,
    `PERMISSION_MISSING` or `FAILED`. On `PERMISSION_MISSING`, send the user to the

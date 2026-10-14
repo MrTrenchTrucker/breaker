@@ -284,7 +284,8 @@ Android SDK. **Gradle distribution SHA-256 pinned** (Security Review fix #4) [1]
 imports) · `ui` (views) · `modules/*` (adapters).
 
 **Threading:** ASR inference is blocking → it runs one decode at a time on a single-slot
-coroutine dispatcher, never the UI thread (`AGENTS.md` section 6). Audio capture on a separate high-priority thread.
+coroutine dispatcher, never the UI thread (`AGENTS.md` section 6). Audio capture runs on its own
+thread at default priority, and a second thread hands the frames to their consumer.
 
 ## 5. On-Device STT Engine (fallback)
 
