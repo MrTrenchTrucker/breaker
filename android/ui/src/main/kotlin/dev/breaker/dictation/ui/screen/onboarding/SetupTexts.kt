@@ -117,4 +117,9 @@ internal object SetupTexts {
     const val NOTICE_SWITCH_FAILED = "Breaker could not change the switch. Try again."
     const val NOTICE_NOT_ACCEPTED = "That request was not accepted. Nothing was changed."
     const val NOTICE_COULD_NOT_DOWNLOAD = "Breaker could not start the download. Try again."
+
+    /** The model step's source sentence; {size} is replaced with the size in decimal MB. */
+    const val MODEL_STEP_LINE =
+        "Downloads about {size} MB from GitHub, where the makers of the speech library publish it. " +
+            "Your server is not used. The file is checked before it is used."
 }

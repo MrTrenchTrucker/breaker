@@ -9,12 +9,14 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import dev.breaker.dictation.service.NotificationRoute
+import dev.breaker.dictation.settings.ModelCatalog
 import dev.breaker.dictation.ui.ModelStepControl
 import dev.breaker.dictation.wiring.ACCESSIBILITY_SERVICE_COMPONENT
 import dev.breaker.dictation.wiring.BreakerSwitchAdapter
 import dev.breaker.dictation.wiring.ModelDownloadNotice
 import dev.breaker.dictation.wiring.ModelSentences
 import dev.breaker.dictation.wiring.StoreModelReady
+import dev.breaker.shared.models.ModelRegistry
 import dev.breaker.dictation.wiring.isIconLaunch
 import dev.breaker.dictation.wiring.paddingFor
 
@@ -39,6 +41,7 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
             ACCESSIBILITY_SERVICE_COMPONENT,
             modelReady = { modelReady.isReady() },
             downloadLine = { downloadSentence },
+            modelDownloadMb = { ModelCatalog.byId(app.settingsStore.load().modelSize)?.sizeMb?.let(ModelSentences::mibToMb) ?: ModelSentences.mibToMb(ModelRegistry.SMALL.sizeMb) },
             onDownloadModel = { app.tileHost.requestDownload() },
         )
         onboardingView = onboarding
@@ -135,9 +138,9 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         }
     }
 
-    override fun downloading() {
-        downloadSentence = ModelSentences.DOWNLOADING
-        downloadStatus.text = ModelSentences.DOWNLOADING
+    override fun downloading(sentence: String) {
+        downloadSentence = sentence
+        downloadStatus.text = sentence
         (onboardingView as? ModelStepControl)?.refresh()
     }
 

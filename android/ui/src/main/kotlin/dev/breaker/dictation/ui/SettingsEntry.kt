@@ -89,6 +89,8 @@ fun createSettingsView(context: android.content.Context, settings: dev.breaker.d
  * @param downloadLine answers the sentence to show under the model step's button,
  *   or null when the app has nothing to say; the download's own progress and failure
  *   sentences stay the app's.
+ * @param modelDownloadMb answers the size in decimal megabytes the model step's
+ *   line shows; read again on every refresh.
  * @param onDownloadModel asks the app to download the speech model; the download
  *   itself stays the app's.
  * @return a view that shows the setup steps and the switch and can be put in a
@@ -102,12 +104,13 @@ fun createOnboardingView(
     accessibilityServiceComponent: String,
     modelReady: () -> Boolean,
     downloadLine: () -> String?,
+    modelDownloadMb: () -> Int,
     onDownloadModel: () -> Unit,
 ): android.view.View {
     val phoneIsDark = isNightMode(context.resources.configuration.uiMode)
     val theme = Themes.of(shownMode(StoredThemeMode.SYSTEM, phoneIsDark))
     val platform = AndroidSetupPlatform(context, accessibilityServiceComponent)
-    val handler = SetupIntentHandler(platform, switch, modelReady, downloadLine, onDownloadModel, SetupScreen())
+    val handler = SetupIntentHandler(platform, switch, modelReady, downloadLine, modelDownloadMb, onDownloadModel, SetupScreen())
     return SetupHostView(context, handler, theme, ScreenRenderer(context))
 }
 

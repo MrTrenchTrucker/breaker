@@ -42,7 +42,7 @@ private const val SETTLED_ENTRY =
 /** The setup entry and the switch interface, as written in their files. */
 private const val SETTLED_ONBOARDING = "fun createOnboardingView(context: android.content.Context, " +
     "switch: BreakerSwitch, accessibilityServiceComponent: String, " +
-    "modelReady: () -> Boolean, downloadLine: () -> String?, onDownloadModel: () -> Unit): android.view.View"
+    "modelReady: () -> Boolean, downloadLine: () -> String?, modelDownloadMb: () -> Int, onDownloadModel: () -> Unit): android.view.View"
 private const val SETTLED_HISTORY = "fun createHistoryView(context: android.content.Context, " +
     "history: dev.breaker.dictation.core.port.HistoryStore): android.view.View"
 private const val SETTLED_SWITCH = "interface BreakerSwitch"

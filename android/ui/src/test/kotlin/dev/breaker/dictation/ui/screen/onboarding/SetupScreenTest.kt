@@ -42,7 +42,8 @@ class SetupScreenTest {
         notificationsAsked: Boolean = false,
         modelReady: Boolean = false,
         downloadLine: String? = null,
-    ) = SetupState(phone, on, micAsked, notificationsAsked, modelReady, downloadLine)
+        modelDownloadMb: Int = 0,
+    ) = SetupState(phone, on, micAsked, notificationsAsked, modelReady, downloadLine, modelDownloadMb)
 
     private val allGranted = status(overlay = true, microphone = true, notifications = true, accessibility = true)
 
@@ -60,6 +61,22 @@ class SetupScreenTest {
 
     private fun setupAction(a: Action): String =
         (a.intent as? ScreenIntent.Setup)?.action ?: throw AssertionError("action ${a.id} reports ${a.intent}")
+
+    /** The one hole a constant may carry, filled with the size in decimal MB. */
+    private val sizeHole = "{size}"
+
+    /**
+     * Whether [text] is one of [constants], or a constant whose [sizeHole] has been filled with
+     * digits. Only the hole may differ: every other character must match the constant exactly.
+     */
+    private fun isSettledText(text: String, constants: Set<String>): Boolean {
+        if (text in constants) return true
+        return constants.filter { it.contains(sizeHole) }.any { template ->
+            // Escape each literal piece on its own: Kotlin's Regex.escape wraps its whole argument in
+            // one \Q...\E block, so escaping first and then swapping the hole would never match.
+            Regex(template.split(sizeHole).joinToString("\\d+") { Regex.escape(it) }).matches(text)
+        }
+    }
 
     /** A spread of states: nothing granted, everything granted, old and new versions, switch on and off, prompts already shown. */
     private val spread: List<SetupState> = listOf(
@@ -400,6 +417,15 @@ class SetupScreenTest {
             }
             .toSet()
         assertTrue("the texts object was read as nearly empty: ${constants.size}", constants.size >= 35)
+        assertEquals(
+            "only the model step's source line may carry a $sizeHole hole",
+            setOf(SetupTexts.MODEL_STEP_LINE),
+            constants.filter { it.contains(sizeHole) }.toSet(),
+        )
+        assertTrue(
+            "the model step's source line must be the filled template",
+            isSettledText(label(render(state(modelDownloadMb = 366)), "setup.step.model.source").text, constants),
+        )
         for (st in spread) {
             for (n in nodesOf(render(st, SetupNotice.COULD_NOT_CHECK))) {
                 val text = when (n) {
@@ -407,9 +433,33 @@ class SetupScreenTest {
                     is Action -> n.text
                     is Box, is TrimStripe -> continue
                 }
-                assertTrue("'$text' on ${n.id} is not a constant of the texts object", text in constants)
+                assertTrue("'$text' on ${n.id} is not a constant of the texts object", isSettledText(text, constants))
             }
         }
+    }
+
+    @Test
+    fun `a text that is not a constant and not a filled template is refused`() {
+        val constants = SetupTexts::class.java.declaredFields
+            .filter { it.type == String::class.java }
+            .map { field ->
+                field.isAccessible = true
+                field.get(SetupTexts) as String
+            }
+            .toSet()
+        assertFalse("a made-up text must be refused", isSettledText("Something the screen never says", constants))
+        assertFalse(
+            "a filled template with a changed word must be refused",
+            isSettledText(SetupTexts.MODEL_STEP_LINE.replace(sizeHole, "366").replace("GitHub", "elsewhere"), constants),
+        )
+        assertFalse(
+            "a filled template with a letter where the size goes must be refused",
+            isSettledText(SetupTexts.MODEL_STEP_LINE.replace(sizeHole, "many"), constants),
+        )
+        assertTrue(
+            "the real filled template must be accepted",
+            isSettledText(SetupTexts.MODEL_STEP_LINE.replace(sizeHole, "366"), constants),
+        )
     }
 
     @Test

@@ -145,9 +145,9 @@ internal class SetupScreen {
      * done - but its button does not open a page of the phone's settings: it calls
      * back into the app, which owns the download. While the model is not on the
      * phone there is one button; once it is ready the step reads "Done" and has no
-     * button and no line. The line under the button is the app's own sentence for a
-     * download in progress or one that failed, and there is none when the app has
-     * nothing to say.
+     * button and no line. The step also shows the app's source sentence with the
+     * size. The line under the button is the app's own sentence for a download in
+     * progress or one that failed, and there is none when the app has nothing to say.
      */
     private fun modelBlock(state: SetupState): Box {
         val prefix = MODEL_STEP_ID
@@ -165,6 +165,12 @@ internal class SetupScreen {
                             text = SetupTexts.BUTTON_DOWNLOAD_MODEL,
                             emphasis = Emphasis.PRIMARY,
                             intent = ScreenIntent.Setup(SetupActions.DOWNLOAD_MODEL),
+                        ),
+                    )
+                    add(
+                        note(
+                            "$prefix.source",
+                            SetupTexts.MODEL_STEP_LINE.replace("{size}", state.modelDownloadMb.toString()),
                         ),
                     )
                     state.downloadLine?.let { add(note("$prefix.line", it)) }

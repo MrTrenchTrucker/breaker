@@ -7,7 +7,7 @@ internal class ForwardingDownloadNoticeTest {
 
     private class RecordingNotice : ModelDownloadNotice {
         val calls = ArrayList<String>()
-        override fun downloading() { calls.add("downloading") }
+        override fun downloading(sentence: String) { calls.add("downloading:$sentence") }
         override fun done() { calls.add("done") }
         override fun failed(sentence: String) { calls.add("failed:$sentence") }
     }
@@ -18,9 +18,9 @@ internal class ForwardingDownloadNoticeTest {
         val listener = RecordingNotice()
         val forwarder = ForwardingDownloadNotice(notifications)
         forwarder.setListener(listener)
-        forwarder.downloading()
-        assertEquals(listOf("downloading"), notifications.calls)
-        assertEquals(listOf("downloading"), listener.calls)
+        forwarder.downloading("Downloading the speech model from GitHub (366 MB)...")
+        assertEquals(listOf("downloading:Downloading the speech model from GitHub (366 MB)..."), notifications.calls)
+        assertEquals(listOf("downloading:Downloading the speech model from GitHub (366 MB)..."), listener.calls)
     }
 
     @Test
@@ -51,10 +51,20 @@ internal class ForwardingDownloadNoticeTest {
         val listener = RecordingNotice()
         val forwarder = ForwardingDownloadNotice(notifications)
         forwarder.setListener(listener)
-        forwarder.downloading()
+        forwarder.downloading("Downloading the speech model from GitHub (366 MB)...")
         forwarder.setListener(null)
         forwarder.done()
-        assertEquals(listOf("downloading", "done"), notifications.calls)
-        assertEquals(listOf("downloading"), listener.calls)
+        assertEquals(listOf("downloading:Downloading the speech model from GitHub (366 MB)...", "done"), notifications.calls)
+        assertEquals(listOf("downloading:Downloading the speech model from GitHub (366 MB)..."), listener.calls)
+    }
+
+    @Test
+    fun `the downloading sentence is passed on to the listener`() {
+        val notifications = RecordingNotice()
+        val listener = RecordingNotice()
+        val forwarder = ForwardingDownloadNotice(notifications)
+        forwarder.setListener(listener)
+        forwarder.downloading("Downloading the speech model from GitHub (366 MB)...")
+        assertEquals(listOf("downloading:Downloading the speech model from GitHub (366 MB)..."), listener.calls)
     }
 }

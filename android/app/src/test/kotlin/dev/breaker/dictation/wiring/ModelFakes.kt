@@ -82,8 +82,8 @@ internal class ModelRecordingNotice(val log: MutableList<String> = ArrayList()) 
     var doneThrows: Boolean = false
     var failedThrows: Boolean = false
 
-    override fun downloading() {
-        log.add("downloading")
+    override fun downloading(sentence: String) {
+        log.add("downloading:$sentence")
         if (downloadingThrows) throw IllegalStateException("notice broke")
     }
 

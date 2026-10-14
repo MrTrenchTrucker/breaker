@@ -42,8 +42,8 @@ internal class ModelNotifications(private val context: Context) : ModelNotice, M
         cancel(UNAVAILABLE_ID)
     }
 
-    override fun downloading() {
-        show(DOWNLOAD_ID, DOWNLOAD_REQUEST, android.R.drawable.stat_sys_download, MODEL_TITLE, ModelSentences.DOWNLOADING, null, true)
+    override fun downloading(sentence: String) {
+        show(DOWNLOAD_ID, DOWNLOAD_REQUEST, android.R.drawable.stat_sys_download, MODEL_TITLE, sentence, null, true)
     }
 
     override fun done() {

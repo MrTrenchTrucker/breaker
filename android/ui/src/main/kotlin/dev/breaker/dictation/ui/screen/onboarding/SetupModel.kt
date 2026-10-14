@@ -120,12 +120,13 @@ internal enum class SetupWarning { NO_OVERLAY, NO_ACCESSIBILITY }
  * since the screen was opened. The second one defaults to false, so a caller that
  * never asks for notifications can leave it out.
  *
- * [modelReady] and [downloadLine] are the model step's answers for this one drawing:
- * whether the speech model is on the phone, and the sentence the app wants shown
- * under the model step's button (a download in progress, a failure, or nothing).
- * They are re-read by the caller on every refresh, so this state is a snapshot of
- * one drawing and not a stored fact. Both default so a caller that has no model step
- * can leave them out.
+ * [modelReady], [downloadLine] and [modelDownloadMb] are the model step's answers for
+ * this one drawing: whether the speech model is on the phone, the sentence the app
+ * wants shown under the model step's button (a download in progress, a failure, or
+ * nothing), and the size in decimal MB the step's source line shows. They are re-read
+ * by the caller on every refresh, so this state is a snapshot of one drawing and not
+ * a stored fact. All three default so a caller that has no model step can leave them
+ * out.
  */
 internal data class SetupState(
     val status: PlatformStatus,
@@ -134,6 +135,7 @@ internal data class SetupState(
     val notificationsAskedBefore: Boolean = false,
     val modelReady: Boolean = false,
     val downloadLine: String? = null,
+    val modelDownloadMb: Int = 0,
 ) {
     /** Whether the phone has given Breaker what [step] needs. */
     fun statusOf(step: SetupStep): StepStatus =

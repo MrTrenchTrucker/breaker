@@ -6,6 +6,7 @@ import java.lang.reflect.Modifier
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -48,14 +49,14 @@ internal class ModelDownloadEntryTest {
         val installer = ModelFakeInstaller()
         val downloader = newDownloader(installer)
         request(downloader)
-        assertEquals("app: the notice must be shown at the request", listOf("downloading"), notice.log)
+        assertEquals("app: the notice must be shown at the request", listOf("downloading:" + ModelSentences.downloadingFor(ModelRegistry.SMALL.sizeMb)), notice.log)
         assertEquals("app: nothing installs before the background worker runs", 0, installer.entries.size)
         background.runAll()
         assertEquals("app: the install must have run on the worker", 1, installer.entries.size)
         assertEquals("app: the answer waits for the main post", emptyList<DownloadOutcome>(), outcomes)
-        assertEquals("app: the done notice waits for the main post", listOf("downloading"), notice.log)
+        assertEquals("app: the done notice waits for the main post", listOf("downloading:" + ModelSentences.downloadingFor(ModelRegistry.SMALL.sizeMb)), notice.log)
         main.runAll()
-        assertEquals("app: the notices end in done", listOf("downloading", "done"), notice.log)
+        assertEquals("app: the notices end in done", listOf("downloading:" + ModelSentences.downloadingFor(ModelRegistry.SMALL.sizeMb), "done"), notice.log)
         assertEquals("app: the answer names the selected model", listOf<DownloadOutcome>(DownloadOutcome.Done("small")), outcomes)
     }
 
@@ -131,14 +132,14 @@ internal class ModelDownloadEntryTest {
             listOf<DownloadOutcome>(DownloadOutcome.Failed(ModelSentences.DOWNLOAD_FAILED)),
             outcomes,
         )
-        assertEquals("app: the notices end in failed", listOf("downloading", "failed:${ModelSentences.DOWNLOAD_FAILED}"), notice.log)
+        assertEquals("app: the notices end in failed", listOf("downloading:" + ModelSentences.downloadingFor(ModelRegistry.SMALL.sizeMb), "failed:${ModelSentences.DOWNLOAD_FAILED}"), notice.log)
         request(downloader)
         finishEverything()
         assertEquals("app: the same call installed the second time", DownloadOutcome.Done("small"), outcomes.last())
         assertEquals("app: two installs in all", 2, installer.entries.size)
         assertEquals(
             "app: the notices of the retry follow",
-            listOf("downloading", "failed:${ModelSentences.DOWNLOAD_FAILED}", "downloading", "done"),
+            listOf("downloading:" + ModelSentences.downloadingFor(ModelRegistry.SMALL.sizeMb), "failed:${ModelSentences.DOWNLOAD_FAILED}", "downloading:" + ModelSentences.downloadingFor(ModelRegistry.SMALL.sizeMb), "done"),
             notice.log,
         )
     }
@@ -150,7 +151,7 @@ internal class ModelDownloadEntryTest {
         request(newDownloader(installer))
         finishEverything()
         assertEquals("app: the answer is the one sentence", listOf<DownloadOutcome>(DownloadOutcome.Failed(ModelSentences.DOWNLOAD_FAILED)), outcomes)
-        assertEquals("app: the notice shows the one sentence", listOf("downloading", "failed:${ModelSentences.DOWNLOAD_FAILED}"), notice.log)
+        assertEquals("app: the notice shows the one sentence", listOf("downloading:" + ModelSentences.downloadingFor(ModelRegistry.SMALL.sizeMb), "failed:${ModelSentences.DOWNLOAD_FAILED}"), notice.log)
         assertFalse("app: the installer's reason is not shown", notice.log.any { it.contains(reason) })
     }
 
@@ -177,7 +178,7 @@ internal class ModelDownloadEntryTest {
         assertEquals("app: the second request is answered at once", listOf<DownloadOutcome>(DownloadOutcome.AlreadyRunning), outcomes)
         finishEverything()
         assertEquals("app: only one install ran", 1, installer.entries.size)
-        assertEquals("app: only one downloading notice", listOf("downloading", "done"), notice.log)
+        assertEquals("app: only one downloading notice", listOf("downloading:" + ModelSentences.downloadingFor(ModelRegistry.SMALL.sizeMb), "done"), notice.log)
         assertEquals("app: the first request still ended in done", listOf(DownloadOutcome.AlreadyRunning, DownloadOutcome.Done("small")), outcomes)
     }
 
@@ -202,7 +203,7 @@ internal class ModelDownloadEntryTest {
         background.refuse = true
         request(downloader)
         assertEquals("app: the refusal is a failure", listOf<DownloadOutcome>(DownloadOutcome.Failed(ModelSentences.DOWNLOAD_FAILED)), outcomes)
-        assertEquals("app: the notices show the start and the failure", listOf("downloading", "failed:${ModelSentences.DOWNLOAD_FAILED}"), notice.log)
+        assertEquals("app: the notices show the start and the failure", listOf("downloading:" + ModelSentences.downloadingFor(ModelRegistry.SMALL.sizeMb), "failed:${ModelSentences.DOWNLOAD_FAILED}"), notice.log)
         background.refuse = false
         request(downloader)
         finishEverything()
@@ -259,7 +260,7 @@ internal class ModelDownloadEntryTest {
         val downloader = newDownloader(installer)
         downloader.requestDownload()
         finishEverything()
-        assertEquals("app: the button calls it with no arguments", listOf("downloading", "done"), notice.log)
+        assertEquals("app: the button calls it with no arguments", listOf("downloading:" + ModelSentences.downloadingFor(ModelRegistry.SMALL.sizeMb), "done"), notice.log)
     }
 
     @Test
@@ -268,5 +269,17 @@ internal class ModelDownloadEntryTest {
             .filter { Modifier.isPublic(it.modifiers) && !it.isSynthetic }
             .map { it.name }
         assertEquals("app: the downloader must have one public method", listOf("requestDownload"), names)
+    }
+
+    @Test
+    fun `the downloading notice names the source and the size of the selected model`() {
+        val installer = ModelFakeInstaller()
+        request(newDownloader(installer))
+        assertEquals(
+            "app: the notice sentence names GitHub and the converted size",
+            listOf("downloading:" + ModelSentences.downloadingFor(ModelRegistry.SMALL.sizeMb)),
+            notice.log,
+        )
+        assertTrue("app: the sentence names GitHub", notice.log.single().contains("GitHub"))
     }
 }
