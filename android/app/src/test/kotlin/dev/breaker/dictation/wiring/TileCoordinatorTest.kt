@@ -232,7 +232,7 @@ class TileCoordinatorTest {
     @Test
     fun `a tile or notification that throws on the missing model notice does not stop the other`() {
         val tileFails = TileRig(ready = false)
-        tileFails.tile.throwing = true
+        tileFails.tile.noticeThrows = true
         tileFails.coordinator.onBegin()
         assertEquals("app: a tile notice that throws must not stop the notification", listOf("clear", "missing"), tileFails.notice.calls)
         assertEquals("app: the throwing tile notice was tried once", listOf(ModelSentences.NO_MODEL), tileFails.tile.notices)

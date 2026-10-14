@@ -16,7 +16,7 @@ class TileCoordinatorTakeTest {
         assertEquals("app: no model should raise the missing notice once", listOf("clear", "missing"), rig.notice.calls)
         assertEquals("app: no model must not start a take", 0, rig.take.beginCalls)
         assertEquals("app: no model must not queue anything", 0, rig.background.pending)
-        assertEquals("app: no model leaves the tile armed, with no state push and one tile notice", listOf("notice"), rig.tile.calls)
+        assertEquals("app: no model leaves the tile armed, with no state push and one show and one tile notice", listOf("show", "notice"), rig.tile.calls)
         assertEquals("app: no model tells the tile the fixed sentence", listOf(ModelSentences.NO_MODEL), rig.tile.notices)
     }
 

@@ -18,7 +18,9 @@ import dev.breaker.shared.tokens.ThemeMode as TileTheme
  * Until then every other call does nothing: the coordinator pushes the state again after a tile is
  * shown. A tap on the tile calls the matching function handed in here and changes nothing itself;
  * the coordinator decides what the tile shows next. A dropped position that could not be saved is
- * not reported: the tile stays where it was dropped.
+ * not reported: the tile stays where it was dropped. A drag of the collapsed tile onto the close
+ * target calls [onCloseRequested], which the app answers by hiding the tile and remembering that
+ * the user closed it.
  *
  * The tile draws in light or dark. A theme of [ThemeMode.SYSTEM] follows the phone's night mode as it
  * is when [show] is called.
@@ -45,6 +47,7 @@ internal class OverlayTilePort(
             onBegin = onBegin,
             onCancel = onCancel,
             onSend = onSend,
+            onCloseRequested = onCloseRequested,
         )
         tile = made
         made.setTheme(theme)

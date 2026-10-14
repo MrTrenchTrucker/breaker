@@ -57,7 +57,7 @@ class TileCoordinatorOutcomeTest {
         rig.tile.calls.clear()
         rig.coordinator.onBegin()
         rig.settle()
-        assertEquals("app: a begin after a sent text should push RECORDING and not SENT", listOf("state:RECORDING"), rig.tile.calls)
+        assertEquals("app: a begin after a sent text should show the tile and push RECORDING and not SENT", listOf("show", "state:RECORDING"), rig.tile.calls)
     }
 
     @Test
