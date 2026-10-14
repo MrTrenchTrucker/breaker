@@ -145,7 +145,7 @@ internal class ModelDownloadEntryTest {
     }
 
     @Test
-    fun `every installer refusal shows the one download sentence, whatever its reason`() {
+    fun `every other installer refusal shows the one download sentence, whatever its reason`() {
         val reason = "The checksum of the model did not match."
         val installer = ModelFakeInstaller(InstallOutcome.Refused(reason))
         request(newDownloader(installer))

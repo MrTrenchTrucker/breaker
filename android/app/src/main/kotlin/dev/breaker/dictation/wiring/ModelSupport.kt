@@ -25,6 +25,9 @@ object ModelSentences {
 
     /** Shown when the speech model could not be downloaded; the download button in Breaker tries again. */
     const val DOWNLOAD_FAILED: String = "Could not download the speech model. Open Breaker to retry."
+
+    /** Shown when the phone has too little free space for the speech model; the download button in Breaker tries again once space is free. */
+    const val DOWNLOAD_NO_SPACE: String = "Not enough free space for the speech model. Free up some space."
 }
 
 /**
@@ -51,6 +54,9 @@ sealed class InstallOutcome {
     /** The model is installed, verified and unpacked. */
     object Installed : InstallOutcome()
 
+    /** Nothing was installed because the phone has too little free space. */
+    object NoSpace : InstallOutcome()
+
     /** Nothing usable was installed; [reason] is the installer's fixed sentence. */
     data class Refused(val reason: String) : InstallOutcome()
 }
@@ -65,7 +71,12 @@ class InstallerPort(private val installer: (ModelEntry) -> ModelInstaller.Instal
     override fun install(entry: ModelEntry): InstallOutcome =
         when (val result = installer(entry)) {
             is ModelInstaller.InstallResult.Installed -> InstallOutcome.Installed
-            is ModelInstaller.InstallResult.Refused -> InstallOutcome.Refused(result.detail)
+            is ModelInstaller.InstallResult.Refused ->
+                if (result.refusal == ModelInstaller.Refusal.NO_SPACE) {
+                    InstallOutcome.NoSpace
+                } else {
+                    InstallOutcome.Refused(result.detail)
+                }
         }
 }
 
@@ -155,6 +166,7 @@ class ModelDownloader(
         val outcome = try {
             when (installer.install(entry)) {
                 is InstallOutcome.Installed -> DownloadOutcome.Done(entry.id)
+                is InstallOutcome.NoSpace -> DownloadOutcome.Failed(ModelSentences.DOWNLOAD_NO_SPACE)
                 is InstallOutcome.Refused -> DownloadOutcome.Failed(ModelSentences.DOWNLOAD_FAILED)
             }
         } catch (e: Exception) {
