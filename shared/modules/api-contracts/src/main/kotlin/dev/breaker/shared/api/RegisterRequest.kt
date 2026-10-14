@@ -12,4 +12,10 @@ data class RegisterRequest(
     val kdfParams: KdfParams,
     val kdfVersion: Int,
     val authVerifier: String,
-)
+) {
+    init {
+        require(java.util.Base64.getDecoder().decode(salt).size == 16) {
+            "salt must be 16 bytes after decode"
+        }
+    }
+}

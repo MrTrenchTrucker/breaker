@@ -332,7 +332,7 @@ class KdfRulesTest(unittest.TestCase):
 
     def test_register_salt_pattern_value(self):
         salt = self.schemas["RegisterRequest"]["properties"]["salt"]
-        self.assertEqual(salt.get("pattern"), "^[A-Za-z0-9+/]{43}=$")
+        self.assertEqual(salt.get("pattern"), "^[A-Za-z0-9+/]{22}==$")
 
     def test_salt_response_salt_has_pattern(self):
         salt = self.schemas["SaltResponse"]["properties"]["salt"]
@@ -340,7 +340,7 @@ class KdfRulesTest(unittest.TestCase):
 
     def test_salt_response_salt_pattern_value(self):
         salt = self.schemas["SaltResponse"]["properties"]["salt"]
-        self.assertEqual(salt.get("pattern"), "^[A-Za-z0-9+/]{43}=$")
+        self.assertEqual(salt.get("pattern"), "^[A-Za-z0-9+/]{22}==$")
 
     def test_login_username_has_pattern(self):
         username = self.schemas["LoginRequest"]["properties"]["username"]

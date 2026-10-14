@@ -74,8 +74,8 @@ There is no synchronous 200-with-body variant — every transcription is a job.
 - **auth — statuses of this slice** (every error body is the shared `ApiError`, never echoing a
   password, verifier, salt or token): register → **201** `{username, role}` | **400** naming the
   failing field (username charset or length, `kdf_version` other than 1, KDF values outside
-  memory_kib 65536-262144 (64-256 MiB) / iterations 3-10 / parallelism 1-4, a salt or verifier whose decoded length is
-  not 32 bytes) | **409** username already taken (compared lowercase); salt → **200** | **404** for
+  memory_kib 65536-262144 (64-256 MiB) / iterations 3-10 / parallelism 1-4, a salt whose decoded length is
+  not 16 bytes or a verifier whose decoded length is not 32 bytes) | **409** username already taken (compared lowercase); salt → **200** | **404** for
   an unknown username (no decoy); login → **200** | **401** for bad credentials or an unknown
   account (the same body for both); `DELETE /v1/admin/agent-tokens/{id}` → **204** (also when
   already revoked) | **404** unknown id | **401** no or invalid token | **403** a valid
