@@ -25,14 +25,22 @@ import org.junit.Assert.assertTrue
  * A dispatcher that reports every task handed to it, then forwards the task to
  * the real [delegate]. It exists so a test can see the moment an engine puts
  * work on its own slot, which happens before any wait on that slot.
+ *
+ * With a [trace], each hand-over also appends "dispatch" to it. The append comes
+ * after the report and before the task is forwarded, so a task that runs and
+ * then writes to the same trace always lands after "dispatch".
  */
-internal class SlotWatcher(private val delegate: CoroutineDispatcher) : CoroutineDispatcher() {
+internal class SlotWatcher(
+    private val delegate: CoroutineDispatcher,
+    private val trace: Channel<String>? = null,
+) : CoroutineDispatcher() {
 
     /** One element per task handed to this dispatcher, in the order handed. */
     val dispatched = Channel<Unit>(Channel.UNLIMITED)
 
     override fun dispatch(context: CoroutineContext, block: Runnable) {
         dispatched.trySend(Unit)
+        trace?.trySend("dispatch")
         delegate.dispatch(context, block)
     }
 
@@ -48,7 +56,8 @@ internal class SlotWatcher(private val delegate: CoroutineDispatcher) : Coroutin
 }
 
 /** A watcher over a fresh single-slot view of the shared IO pool, the shape the engine uses by default. */
-internal fun newSlotWatcher(): SlotWatcher = SlotWatcher(Dispatchers.IO.limitedParallelism(1))
+internal fun newSlotWatcher(trace: Channel<String>? = null): SlotWatcher =
+    SlotWatcher(Dispatchers.IO.limitedParallelism(1), trace)
 
 /**
  * Waits for [call] to finish. When the engine hands a second task to the slot
@@ -135,13 +144,17 @@ internal class CountingRecognizer : SherpaRecognizer {
  * decode is a blocking call, so a fake can hold the slot only by parking the
  * slot's thread on a signal. A test that uses this completes [holdUntil] in a
  * finally block, so a failing assertion never leaves the slot held.
+ *
+ * With a [trace], "enter" is also appended to it at the same point as on [log].
  */
 internal class HoldingRecognizer(
     private val holdUntil: CompletableDeferred<Unit>,
     val log: Channel<String>,
+    private val trace: Channel<String>? = null,
 ) : SherpaRecognizer {
     override fun decode(pcm: FloatArray, sampleRateHz: Int): SherpaTranscript {
         log.trySend("enter")
+        trace?.trySend("enter")
         runBlocking { holdUntil.await() }
         log.trySend("exit")
         return SherpaTranscript("hello", emptyList(), "en")
@@ -159,18 +172,16 @@ internal fun <T> startOffThread(callers: CoroutineScope, call: () -> Deferred<T>
     callers.async { call() }
 
 /**
- * Waits until [watcher] reports a task, and fails with [message] when the
- * decode logs "enter" on [log] first. A decode that starts before the call was
- * handed to the engine's own dispatcher never reported a task, so the wait ends
- * with an assertion instead of waiting for a report that never comes. When both
- * are ready the report wins, so a correct engine, which reports before it
- * forwards, never trips it.
+ * Reads the next record of [trace] and checks that it is "dispatch", the record a
+ * hand-over to the engine's slot leaves. A correct engine writes that record
+ * before it forwards the task, so the task's decode ("enter") can never come
+ * first. Any other first record fails with [message]: "enter" means the decode
+ * started before the call was handed over, and "complete" means the call ended
+ * without one. The report that the same hand-over sent on [watcher] is consumed
+ * here. Only one record is read.
  */
-internal fun expectSlotBeforeDecode(watcher: SlotWatcher, log: Channel<String>, message: String) {
-    runBlocking {
-        select<Unit> {
-            watcher.dispatched.onReceive { }
-            log.onReceive { throw AssertionError(message) }
-        }
-    }
+internal fun expectSlotBeforeDecode(watcher: SlotWatcher, trace: Channel<String>, message: String) {
+    val first = runBlocking { trace.receive() }
+    assertTrue(message, first == "dispatch")
+    assertTrue(message, watcher.dispatched.tryReceive().isSuccess)
 }
