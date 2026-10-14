@@ -10,14 +10,15 @@ screen.
 **Build phase:** Phase 1 (the app shell's first screens). Each screen arrives with its feature's phase, and the Trucking theme with Phase 22. Needs first: `core` and `shared/ui-tokens` (both on `main`).
 
 ## Owns
-screen components; the setup walk-through (one step per permission, then Breaker's on/off switch) and the thin adapters in render/ that read the phone's permission state and open its settings pages; the history screen (the list, copy, delete with a 5-second Undo, load more) and its thin adapters in render/ for the clipboard and the delayed work; every store and clipboard call runs on one process-wide serial dispatcher (screen/history/HistoryDispatcher.kt), and while a read is out the screen shows the last drawn state; consumes `shared/ui-tokens` (Trucking theme).
+screen components; the setup walk-through (the model step, then one step per permission, then Breaker's on/off switch) and the thin adapters in render/ that read the phone's permission state and open its settings pages; the history screen (the list, copy, delete with a 5-second Undo, load more) and its thin adapters in render/ for the clipboard and the delayed work; every store and clipboard call runs on one process-wide serial dispatcher (screen/history/HistoryDispatcher.kt), and while a read is out the screen shows the last drawn state; consumes `shared/ui-tokens` (Trucking theme).
 
 ## Public Interface
-Four declarations; everything else in the module is internal or private.
+Five declarations; everything else in the module is internal or private.
 - `createSettingsView(context, settings)`: builds the settings screen as a view.
-- `createOnboardingView(context, switch, accessibilityServiceComponent)`: builds the setup walk-through and the on/off switch as a view. The app passes the accessibility service's flattened component name as a String ("pkg/pkg.Class"; "pkg/.Class" is accepted too).
+- `createOnboardingView(context, switch, accessibilityServiceComponent, modelReady, downloadLine, modelDownloadMb, onDownloadModel)`: builds the setup walk-through and the on/off switch as a view. The app passes the accessibility service's flattened component name as a String ("pkg/pkg.Class"; "pkg/.Class" is accepted too). The last four parameters are the model step's: `modelReady` answers whether the speech model is on the phone, `downloadLine` answers the sentence under the model step's button or null, `modelDownloadMb` answers the size in decimal megabytes the step shows, and `onDownloadModel` asks the app to download the model. The first three are asked again each time the screen is drawn.
 - `createHistoryView(context, history)`: builds the history screen as a view. `history` is core's `HistoryStore` port; `list(limit)` and `delete(id)` are the only calls the screen makes. The screen follows the phone's light and dark mode and keeps no setting.
-- `BreakerSwitch`: the interface the app implements: `isOn()`, `switchOn()` (answers `BreakerSwitch.Result`: `On`, `AlreadyOn` or `Refused` with a sentence) and `switchOff()`. The result type is nested in the interface, so it adds no fifth top-level name.
+- `BreakerSwitch`: the interface the app implements: `isOn()`, `switchOn()` (answers `BreakerSwitch.Result`: `On`, `AlreadyOn` or `Refused` with a sentence) and `switchOff()`. The result type is nested in the interface, so it adds no name of its own.
+- `ModelStepControl`: the interface the setup view answers: `refresh()` redraws the walk-through from the app's model providers, and `focusDownload()` answers true when the model step's download button is drawn and takes focus, and false when there is no button to focus (the model is ready, or nothing is drawn yet) or the button would not take focus. The app casts the view it gets from `createOnboardingView` to it.
 
 ## Depends On
 - android (registered in modules.toml)
@@ -30,7 +31,7 @@ screens render with ui-tokens; light/dark toggle persists (F25).
 - Only the microphone gates the switch. Overlay or accessibility missing shows a warning near the switch; notifications are optional and the switch works without them. The handler does not refuse "switch on" itself: the gate is the disabled button on the screen and the app's own `Refused`. Tested by: `SetupModelTest`, `SetupScreenTest`, `SetupIntentHandlerTest`.
 - The accessibility service is identified by a name the caller passes in as a String. The name is compared against the phone's list as a whole entry, case-sensitive, in either spelling of a class that starts with the package, and never as a part of a longer name. This module names no class of another module. Tested by: `AccessibilityListTest`, `SetupAdapterGateTest`.
 - android.* is named only in render/ and SettingsEntry.kt. Tested by: `AndroidConfinementGateTest`. The history screen (screen/history) imports no android package; its clipboard and its scheduling are seams that the render/ adapters implement.
-- The public surface is exactly the four declarations above. Tested by: `PublicSurfaceGateTest`, `ObserverBindingTest`, `SetupAdapterGateTest`.
+- The public surface is exactly the five declarations above. Tested by: `PublicSurfaceGateTest`, `ObserverBindingTest`, `SetupAdapterGateTest`.
 - Every button on the setup screen reports one of eight agreed action strings; an unknown string, or any other kind of intent, is not accepted and changes nothing; no branch over the intents falls back to a default. Tested by: `SetupScreenTest`, `SetupIntentHandlerTest`, `NodeModelTest`, `SettingsIntentHandlerSetupTest`.
 - Every button on the history screen reports one of four agreed action names (COPY, DELETE, UNDO, MORE) inside a History intent. The setup and settings handlers refuse a History intent they do not own; no test checks that yet. Tested by: `HistoryIntentHandlerTest` (an unknown id, action or row, and any other intent, is refused without a call).
 - All words the user reads on the setup screen live in one object, are plain ASCII and carry no process words. Tested by: `SetupTextsTest`.
@@ -57,12 +58,12 @@ screens render with ui-tokens; light/dark toggle persists (F25).
 - The accessibility service itself (its own module)
 - The overlay tile (the overlay module)
 - Storage of transcriptions and the 90-day purge (the history module)
-- Not built yet, ordered next: the speech model becomes the FIRST step of the setup walk-through, with the same
+- Built: the speech model is the FIRST step of the setup walk-through, with the same
   shape as the permission steps: a sentence, a status line "Not done yet" or "Done", and one button "Download the speech
-  model" that calls back into the app (the download itself, its progress and its sentences stay the app's). The app's
-  separate download button above the walk-through then goes. This is an interface change to
-  `createOnboardingView` (a model step parameter from the app), approved here.
-- Not built yet. Delete All and search are in the design but not built: Delete All (the port has no delete-all, and it needs type-to-confirm); search (the port has none, and the node model has no text input); the app route to the history screen; long-press delete; true paging (needs a port change).
+  model" that calls back into the app (the download itself, its progress and its sentences stay the app's). The view
+  answers `ModelStepControl`, so the app can redraw the step and focus its button while the download runs. The
+  interface change to `createOnboardingView` (the model step parameters from the app) is the approved one.
+- Not built yet. Delete All and search are in the design but not built: Delete All (the port has no delete-all, and it needs type-to-confirm); search (the port has none, and the node model has no text input); long-press delete; true paging (needs a port change). The app route to the history screen is built in the app: it draws the view through `createHistoryView`.
 
 ## Test Locations
 - Unit (Kotlin): `android/ui/src/test/kotlin/dev/breaker/dictation/ui/`. Run: `./gradlew :android:ui:test`. Test classes by folder:
