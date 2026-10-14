@@ -51,7 +51,7 @@ class TileCoordinator(
         { push(it) }, { sendPushed = false }, { generation }  // the one place push happens
     )
 
-    /** True while the last show answered SHOWN; a refused or failed show and a switch-off clear it. A take may begin only while it holds. */
+    /** True while the last show answered SHOWN; a refused or failed show and a switch-off clear it. A begin passes while it holds or while the user-closed flag holds. */
     private var tileShown: Boolean = false
 
     /** Remembers the user closed the tile; cleared on launcher visible (through arm) or switch off/on. */

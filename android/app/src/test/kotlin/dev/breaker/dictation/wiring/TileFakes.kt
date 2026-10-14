@@ -220,7 +220,6 @@ internal fun tileTranscription(text: String): Transcription =
 internal fun sentResult(outcome: CommitOutcome, detail: String?): SendResult =
     SendResult(CommitOutcomeResult(outcome, detail), DictationSession())
 
-/** The coordinator over the fakes. It is armed when built unless [arm] is false. */
 /** The clipboard as a test records every copy; an empty list means nothing was copied. */
 internal class RecordingClipboard : TakenClipboard {
     val copies = ArrayList<String>()
@@ -243,6 +242,7 @@ internal class RecordingHistory : HistoryStore {
     override fun delete(id: String): Boolean = false
 }
 
+/** The coordinator over the fakes. It is armed when built unless [arm] is false. */
 internal class TileRig(
     ready: Boolean = true,
     arm: Boolean = true,
