@@ -177,7 +177,7 @@ class ModelInstaller(
         val staged = (modelResult as ModelFetcher.Result.Fetched).file
 
         // Step 3: verify in staging
-        val stagingVerdict = ModelIntegrity.verify(staged, entry.sha256, checksums)
+        val stagingVerdict = ModelIntegrity.verify(staged, entry.sha256, checksums, entry.archiveName)
         if (stagingVerdict is ModelIntegrity.Verdict.Refused) {
             val removed = store.discardFailedDownload(staged)
             return refuse(
@@ -242,7 +242,8 @@ class ModelInstaller(
         }
 
         // Step 6: verify at final location
-        val finalVerdict = ModelIntegrity.verify(archiveFile, entry.sha256, checksums)
+        // Repeats the step 3 staging check on the same bytes as defence in depth; the archive name rule is enforced at step 3, not here.
+        val finalVerdict = ModelIntegrity.verify(archiveFile, entry.sha256, checksums, entry.archiveName)
         if (finalVerdict is ModelIntegrity.Verdict.Refused) {
             val removed = store.delete(entry.id)
             return refuse(

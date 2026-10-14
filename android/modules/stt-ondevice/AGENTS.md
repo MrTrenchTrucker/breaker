@@ -165,11 +165,11 @@ argument of `ModelLoader`; the default there is still `UnavailableRecognizerFact
 - Models from `shared/model-registry` (sizes + SHA-256 + per-model license terms).
 - Download once → app data dir → **verify against upstream checksum.txt + our
   SHA-256 before load** (N3, T1, T21) [2].
-- The check, as it is today: an archive is trusted only when the SHA-256 of
-  the downloaded archive equals our pin AND that pin appears in the upstream
-  checksum list. It does not yet check that the pin is the digest listed for
-  this archive's own name (see Known Gotchas). The archive is checked when it
-  is installed (in staging, and again after the move) and on every load.
+- The check: an archive is trusted only when the SHA-256 of the downloaded
+  archive equals our pin AND that pin appears in the upstream checksum list.
+  With a non-blank archive name (see Known Gotchas), the digest listed for
+  that name must equal the pin too. The archive is checked when it is
+  installed (in staging, and again after the move) and on every load.
 - A file that fails the check is deleted at once, never loaded, never kept, so
   the next attempt downloads it fresh. If the delete itself fails, the refusal
   stays: the result carries `leftOnDisk` and its fixed sentence says the file
@@ -289,6 +289,7 @@ it.
   public factory on a plain JVM: a failure result, not an exception). The preload change has
   `OnDeviceSttEnginePreloadBusyTest`, and the four-names check has `LocalModelStoreFourNamesTest`
   and `ModelLoaderFourNamesTest`. None of them runs the native engine or a real model.
+- The archive-name tests are `ModelIntegrityArchiveNameTest`, `ModelLoaderArchiveNameTest`, `ModelInstallerArchiveNameTest` and `ModelRegistryArchiveNamesTest`.
 - Contract: `tests/contract/test_stt_ondevice_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_stt_ondevice_contract.py`
 - Contract (decode bound pins): `tests/contract/stt_ondevice_bound_pins.py`, collected and run by the contract test above.
   It includes the pin that `preload` holds the busy guard.
@@ -335,12 +336,11 @@ agents, not required: an outside contributor may write the code themselves
   `ModelFamily` appear in the public signatures of `ModelFetcher`,
   `ModelInstaller` and `ModelLoader` here, so a module that calls them needs
   the same edge.
-- The per-archive check waits on a registry field. The registry's download
-  URLs end in numeric release-asset ids, so the archive's upstream file name
-  cannot be derived from the URL, and `ModelEntry` carries no file name.
-  `ModelIntegrity.verify` already takes an optional archive name (unused) for
-  the day the registry records it. Until then the check is the one under
-  Model lifecycle.
+- The per-archive check uses the archive name. `ModelEntry` carries `archiveName`, generated from `archive_name` in
+  the registry, never empty in production (the generator refuses empty names). `ModelIntegrity.verify` takes the
+  name: for a non-blank name, the digest listed for it in the upstream checksum file must equal the pin, or the
+  archive is refused. A null or blank name keeps the set match, which only hand-built test entries use. A test in
+  this module asserts that every entry in the registry has a non-blank archiveName.
 - A crash between moving the archive into place and writing the stored
   checksum list and the verified marker can leave an archive without them. The
   window is the span in `ModelInstaller` from the move to those two writes,
@@ -358,7 +358,7 @@ agents, not required: an outside contributor may write the code themselves
   have drifted apart; a model the loader could not start is shown as "could not transcribe"; the
   wrong-family sentence names a model family the code does not check; `loadedModelId` in the
   diagnostics is not cleared after a refusal; diagnostics on a closed engine reads on the caller's
-  thread; one salvaged test duplicates another; the `Outcome` enum is unused.
+  thread; one salvaged test duplicates another.
 - The download side (`HttpModelFetcher`), the unpack side (`ModelExtractor`) and the native adapter
   (`SherpaOnnxRecognizerFactory`) exist. The default factory of `ModelLoader` is still
   `UnavailableRecognizerFactory`, which refuses to create a recognizer. No production code constructs
@@ -492,7 +492,7 @@ agents, not required: an outside contributor may write the code themselves
 - The limit (30 seconds plus three times the clip length) is a recommended value, not a
   measurement. It has not been tried on a device.
 - Two source files are over the soft line cap of 300 lines and under the hard cap of 500:
-  `OnDeviceSttEngine.kt` at 308 lines and `LocalModelStore.kt` at 307 lines. Neither is split further
+  `OnDeviceSttEngine.kt` at 302 lines and `LocalModelStore.kt` at 307 lines. Neither is split further
   for now.
 - The test `test_build_file_adds_exactly_one_external_dependency` (in the unpack pins) is false by
   its own name, because the build file now adds two coordinates. It is to be renamed in a later
