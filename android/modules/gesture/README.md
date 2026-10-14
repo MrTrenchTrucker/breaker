@@ -4,7 +4,7 @@ Shake-to-wake: detect a shake gesture from accelerometer samples and fire a call
 
 ## What it does
 
-The module's public door is the `ShakeHandle` (`start()`/`stop()`), built on the `ShakeDetector`; the pure, JVM-testable core is still `ShakeDetector`. You feed it samples through `feed(...)`, and while it has been started with `start()` each sample advances an internal state machine; when the pattern matches, a callback fires. When stopped with `stop()`, samples are ignored entirely until `start()` is called again. There is no Android dependency in this file - every `Sample` can come from anywhere, which is what lets the algorithm be exercised off synthetic data.
+The module's public door is the `ShakeHandle`: `ShakeHandle.create(onShake, port: ShakePort)` wires a port to the detector, and `start(): Boolean` / `stop()` run it. The port is `ShakePort`; its `SensorManager`-backed implementation is `SensorManagerShakeSource`. `ShakeDetector` is module-internal - the pure, JVM-testable core the handle drives. The detector tests feed the detector directly; the handle tests pass a fake `ShakePort`. You feed it samples through `feed(...)`, and while it has been started with `start()` each sample advances an internal state machine; when the pattern matches, a callback fires. When stopped with `stop()`, samples are ignored entirely until `start()` is called again. `SensorManagerShakeSource.kt` is the only file that imports `android.*`; the rest of the module is plain Kotlin, so every `Sample` can come from anywhere - which is what lets the algorithm be exercised off synthetic data.
 
 ## How it works
 

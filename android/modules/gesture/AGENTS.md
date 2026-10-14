@@ -14,7 +14,7 @@ begins a take on each detection; `gesture` never imports `overlay` (ADR-001).
 - Shake detector: high-pass filter on acceleration magnitude; count threshold
   crossings in a 500 ms window -> fire.
 - Listener armed by app intent - the app arms the detector when a shake should mean something; while a take runs it ignores detections (a battery reason keeps the detector quiet).
-- Fallback: if the sensor is unavailable -> always-visible tile setting.
+- No accelerometer, or a registration the system refuses: `start()` returns false, the handle stays unstarted, and a later `start()` retries. Nothing else happens.
 
 - Rate: SENSOR_DELAY_GAME = 20,000 microseconds per sample = 50 per second. No permission needed at that rate (HIGH_SAMPLING_RATE_SENSORS is only for rates above 200 Hz on API 31+).
 
@@ -23,9 +23,8 @@ begins a take on each detection; `gesture` never imports `overlay` (ADR-001).
 ## Invariants
 - A detection begins a take reliably (tune threshold on target device).
 - Threshold (THRESHOLD_G): 0.65
-- Threshold checked against one measured hand shake (2.06 g raw) on one phone; other phones are a device check.
 - Fixtures (raw input amplitude -> reached AC): hand 8 Hz 1.0926 g -> ~0.98 g AC, softer 8 Hz 0.8762 g -> ~0.79 g AC, walking 2 Hz 0.8485 g -> ~0.53 g AC, bumpy 3 Hz 1.0817 g -> ~0.86 g AC, vibration 7 Hz 0.52 g -> ~0.47 g AC (assumed), rest/tilt. One phone, one person.
-- Tuned on one measured hand shake on one phone plus synthetic fixtures; the vibration amplitude is an assumption. Device checks: hand shake (keyboard up); walking 1 min with the phone in a pocket; phone in a truck cab mount while driving 10 min - no false start.
+- Tuned on one measured hand shake (2.06 g raw) on one phone plus synthetic fixtures; the vibration amplitude is an assumption; other phones are a device check. Device checks: hand shake (keyboard up); walking 1 min with the phone in a pocket; phone in a truck cab mount while driving 10 min - no false start.
 - No false wakes from normal walking (test on device).
 - A shake while a take runs is ignored by the app (the detector fires; the app decides - a battery reason keeps it quiet).
 

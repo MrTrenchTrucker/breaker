@@ -191,7 +191,7 @@ class ShakeDetectorTest {
     /** A light 3 Hz canary (0.8 g AC) below 1 g, no fold-over; a pin of the crossing-rate rule - it never fires. */
     @Test fun light_canary_never_fires() = expectFires(canary(50, 0.8), 0)
 
-    /** Guard: every fixture's timestamps strictly increase, so a producer that restarting its clock after a rest prefix cannot silently drop its burst (feed() ignores a sample not past the last accepted timestamp). */
+    /** Guard: every fixture's timestamps strictly increase, so a producer that restarts its clock after a rest prefix cannot silently drop its burst (feed() ignores a sample not past the last accepted timestamp). */
     @Test fun fixture_timestamps_strictly_increase() {
         for (fx in listOf(handShake(), softerShake(), walking(), bumpyRide(), vibration(), canary(50, 2.1), canary(50, 0.8))) {
             var prev = -1L
@@ -220,9 +220,6 @@ class ShakeDetectorTest {
      * NEVER fires at any threshold. */
     @Test fun bumpy_never_fires() = expectFires(bumpyRide(), 0)
 
-    /** Phone-in-truck vibration: 7 Hz, 0.52 g raw amplitude (reaches ~0.47 g AC) on a 1.2 g baseline sustained for 5 s
-     * plus a 400 ms rest prefix. A false-fire fixture; must NEVER fire at the threshold (the 0.45 mutant goes RED
-     * here). The 0.5 g is an ASSUMPTION, not a measurement - engine or rough road with the phone in a mount. */
     @Test fun vibration_never_fires_at_pick() = expectFires(vibration(), 0)
 
     /** Settle pin (two-sided): after a short motion the first resting sample's AC term is negative and bounded.
@@ -272,10 +269,11 @@ class ShakeDetectorTest {
         restAtBaseline(400.0) + sinusoidAt(freq_hz = 3.0, amp_g = 1.0817, ms = 5000.0, startMs = 400.0)
 
     /** Phone-in-truck vibration: 7 Hz, 0.52 g raw amplitude (reaches ~0.47 g AC) on a 1.2 g baseline sustained for 5 s
-     * plus a 400 ms rest prefix. A false-fire fixture; must NEVER fire at the threshold (the 0.45 mutant goes RED
-     * here). The 0.5 g is an ASSUMPTION, not a measurement - engine or rough road with the phone in a mount. */
+     * plus a 400 ms rest prefix. A false-fire fixture; must NEVER fire at the threshold (a 0.45 g threshold would fire
+     * here). The 0.52 g is an ASSUMPTION, not a measurement - engine or rough road with the phone in a mount. */
     private fun vibration(): List<ShakeDetector.Sample> =
         restAtBaseline(400.0) + sinusoidAt(freq_hz = 7.0, amp_g = 0.52, ms = 5000.0, startMs = 400.0)
+
     @Test fun rate_invariance_50hz() = expectFires(shake(50), 1)
     @Test fun rate_invariance_200hz() = expectFires(shake(200), 1)
     @Test fun gap_reset_then_burst_fires() =
