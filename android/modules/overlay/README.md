@@ -2,14 +2,14 @@
 
 The floating tile that appears over any app. It is a small draggable tile with a
 stand-in microphone glyph, and it is where dictation is started, watched and
-ended. The app tells the tile which of seven states to show, how loud the sound
+ended. The app tells the tile which of eight states to show, how loud the sound
 is, and what sentence to display; the tile reports taps back through callbacks.
 The microphone is a placeholder drawing until the final mic art comes later.
 The tile never records and never inserts text. It has no text input, and its
 window is asked to be not focusable, so the app underneath should keep focus and
 its keyboard; that is not checked on a device.
 
-## The seven states
+## The eight states
 
 The app pushes the state with `setState`. The tile never changes it, not even on
 a tap.
@@ -32,10 +32,10 @@ or when the screen turns off. The app drives nothing; with system animations off
 
 ## The busy pulse
 
-While the tile is MIC_BUSY and shown, the ring pulses slowly: a 3200 ms cycle
+While the tile is MIC_BUSY or SENDING and shown, the ring pulses slowly: a 3200 ms cycle
 with the alpha ranging from 0.6 to 1.0. It uses the same run conditions as the
 armed pulse (shown, attached, visible, lit screen, animations on). It stops
-when the state leaves MIC_BUSY, when the tile is hidden or detached, when the
+when the state leaves MIC_BUSY or SENDING, when the tile is hidden or detached, when the
 window is not visible, or when the screen turns off.
 
 ## The expanded tile and the meter

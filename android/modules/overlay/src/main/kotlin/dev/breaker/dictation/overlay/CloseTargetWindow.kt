@@ -92,9 +92,12 @@ internal class CloseTargetWindow(private val context: Context) {
 
     companion object {
         /**
-         * Compute the top-left corner and diameter of a circle centred at ([x], [y]) with
-         * radius [radiusPx]. Returns (left, top, diameter) where left = x - diameter / 2
-         * and top = y - diameter / 2.
+         * Compute the top-left corner and diameter of the window for a circle centred at
+         * ([x], [y]) with radius [radiusPx]. The frame is computed from the radius and
+         * truncated to whole pixels: the diameter is the radius times two, taken as a whole
+         * number of pixels, so the drawn circle is not necessarily exactly [radiusPx] in
+         * radius. Returns (left, top, diameter) where left = x - diameter / 2 and
+         * top = y - diameter / 2.
          */
         internal fun frameFor(x: Int, y: Int, radiusPx: Float): Triple<Int, Int, Int> {
             val diameter = (radiusPx * 2).toInt()

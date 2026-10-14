@@ -118,6 +118,7 @@ class TileControllerGestureRulesTest {
         square.window.move(380f, 360f)
         assertEquals("overlay: the drag should have moved the tile", listOf(PixelPoint(586, 1200)), square.window.moves)
         square.controller.showNotice("Turn dictation on first")
+        assertEquals("overlay: a cut drag must hide the close target", 1, square.window.closeTargetHideCount)
         assertEquals("overlay: the new shape should save the dragged position at once", 1, square.store.saveCount)
         assertEquals(
             "overlay: the wide window should surround the dragged tile",
@@ -132,6 +133,7 @@ class TileControllerGestureRulesTest {
         wide.window.down(cancel.first, cancel.second)
         wide.window.move(cancel.first, cancel.second + 100f)
         wide.controller.setState(TileState.SENDING)
+        assertEquals("overlay: a cut slide on a button must not hide a target that was never shown", 0, wide.window.closeTargetHideCount)
         assertEquals("overlay: a slide on a button should not be saved when the shape changes", 0, wide.store.saveCount)
         wide.window.up(cancel.first, cancel.second + 100f)
         assertTrue("overlay: the release after the cut should move nothing", wide.window.moves.isEmpty())
