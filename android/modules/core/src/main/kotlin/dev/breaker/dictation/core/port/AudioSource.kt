@@ -28,7 +28,9 @@ interface AudioSource {
 /**
  * Receives audio frames.
  *
- * [onFrame] is called on the capture thread with 16 kHz mono PCM. A frame that
+ * [onFrame] is called with 16 kHz mono PCM on a thread the source chooses (this
+ * module calls it the capture thread); a listener must not assume it is the
+ * thread that called start. A frame that
  * is shorter than a single sample period means capture stopped, so the
  * implementation reports that rather than handing over a frame of silence.
  */

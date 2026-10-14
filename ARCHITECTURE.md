@@ -176,8 +176,8 @@ admins.
       that the text is being processed: the ring takes a colour of its own and
       pulses on its own rhythm; there is no spinner (ADR-024).
 - F40. **Loudness bar:** while recording, the bar above the microphone follows how
-      loud the voice is; the audio module reports the level and the app passes it on
-      (ADR-024).
+      loud the voice is; the app works out the level from the audio it already
+      receives and passes it to the tile (ADR-024).
 - F41. **Hide without a keyboard:** the tile appears by itself when a text input
       opens or the keyboard comes up, and hides when it goes away. A shake still
       brings it back (F4, F38). A temporary developer setting (off, field focus,
@@ -284,7 +284,8 @@ Android SDK. **Gradle distribution SHA-256 pinned** (Security Review fix #4) [1]
 imports) · `ui` (views) · `modules/*` (adapters).
 
 **Threading:** ASR inference is blocking → it runs one decode at a time on a single-slot
-coroutine dispatcher, never the UI thread (`AGENTS.md` section 6). Audio capture on a separate high-priority thread.
+coroutine dispatcher, never the UI thread (`AGENTS.md` section 6). Audio capture runs on its own
+thread at default priority, and a second thread hands the frames to their consumer.
 
 ## 5. On-Device STT Engine (fallback)
 

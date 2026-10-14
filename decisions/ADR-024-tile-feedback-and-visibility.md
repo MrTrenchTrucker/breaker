@@ -1,6 +1,6 @@
 # ADR-024: The tile shows busy and loudness, and hides itself when no keyboard is in use
 
-**Status:** accepted, amended 2026-10-12 (busy cue: no spinner; shake, keyboard and battery)
+**Status:** accepted, amended 2026-10-12 (busy cue: no spinner; shake, keyboard and battery), amended 2026-10-14 (level feed)
 **Date:** 2026-10-12
 
 ## Context
@@ -17,10 +17,12 @@ tile has no animated texture yet.
    ring takes a colour of its own from the palette and pulses on its own
    rhythm. There is no spinner; any further motion belongs to the animated
    texture in item 4, in the art phase.
-2. **Level feed.** While capturing, the audio module reports a loudness value;
-   the app passes it to the tile at a limited rate. The tile owns no clock and
-   never reads the microphone itself. The exact interface is proposed in a
-   design note and approved by a maintainer before any code.
+2. **Level feed.** While a take is recording, the app works out a loudness
+   value from the same audio frames it passes to `core`, and passes it to the
+   tile at a limited rate. The audio module and the `core` ports do not change
+   for it. The tile owns no clock and never reads the microphone itself. The
+   interface (one new method on the app's tile port) was proposed in a design
+   note and approved by a maintainer on 2026-10-14, before any code.
 3. **Keyboard-aware visibility.** The tile can hide while no text input is in
    use and return when one is. Which signal decides (a focused text field, or a
    visible keyboard) is chosen by a temporary developer setting with three
@@ -39,7 +41,8 @@ is doing. Items 1 and 2 are small and mechanical; item 3 depends on how
 Android reports keyboards, which is cheaper to test than to argue.
 
 ## Consequences
-- The overlay, audio and app modules each change; the overlay changes first.
+- The overlay and app modules change; the overlay changes first. The audio
+  module does not change for the level feed (item 2 is worked out in the app).
 - The developer setting is the only deliberately temporary piece; the code
   change that adds it also adds a release check and a removal list for it.
 - The texture needs the art phase before it can ship.
@@ -55,3 +58,10 @@ hidden; the tile appears when a text input opens or the keyboard comes up; and
 the app tells the user to allow unrestricted battery use, because the system
 may stop listening for a shake in the background (F12). Item 2 is unchanged:
 the bar follows the voice live.
+
+Amended 2026-10-14: item 2 is worked out in the app, not reported by the audio
+module, and only while a take is recording, not for any capture. The app already
+holds every frame it passes to `core`, so a tap there gives the level with no
+change to the audio module or a `core` port. Limiting it to recording keeps the
+bar dark while the microphone is open only to listen for the wake phrase. The
+rate limit counts audio samples, not a clock.
