@@ -27,7 +27,7 @@ internal class AppLayoutGateTest {
         "service/ServiceStartDecision.kt", "service/ServiceStartHandler.kt", "service/ServiceTypes.kt",
         "wiring/DictationComponent.kt", "wiring/DictationRunner.kt", "wiring/Insets.kt", "wiring/LazyHistoryStore.kt",
         "wiring/UnavailableSlots.kt", "wiring/UuidIdSource.kt",
-        "wiring/TilePorts.kt", "wiring/TileStateMap.kt", "wiring/TileCoordinator.kt", "wiring/TakePortAdapter.kt", "wiring/NoopPorts.kt",
+        "wiring/TilePorts.kt", "wiring/TileStateMap.kt", "wiring/TileCoordinator.kt", "wiring/UserClosedHandler.kt", "wiring/TakePortAdapter.kt", "wiring/NoopPorts.kt",
         "wiring/ArmedSwitch.kt", "wiring/LaunchRule.kt", "wiring/OffStore.kt", "wiring/ModelSupport.kt", "wiring/Swaps.kt",
         "wiring/BreakerSwitchAdapter.kt", "wiring/ForwardingDownloadNotice.kt",
         "wiring/TakeYield.kt", "wiring/TakenClipboard.kt",

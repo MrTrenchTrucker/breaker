@@ -2,6 +2,7 @@ package dev.breaker.dictation.wiring
 
 import dev.breaker.dictation.overlay.TileState
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -86,5 +87,168 @@ internal class TileCoordinatorShownTest {
         rig.coordinator.onBegin()
         rig.settle()
         assertEquals("app: a begin after a re-arm whose show throws must not reach the take", 0, rig.take.beginCalls)
+    }
+
+    @Test
+    fun `onCloseRequested hides the tile and remembers the close`() {
+        val rig = TileRig()
+        rig.coordinator.onCloseRequested()
+        assertEquals("app: a close request must hide the tile", "hide", rig.tile.calls.last())
+        // The close is remembered: the next begin shows the tile again instead of using the one on screen.
+        rig.tile.calls.clear()
+        rig.coordinator.onBegin()
+        assertEquals("app: a begin after a close request must show the tile again", "show", rig.tile.calls.first())
+    }
+
+    @Test
+    fun `a begin after a close request shows the tile and reaches the take`() {
+        val rig = TileRig()
+        rig.tile.calls.clear()
+        rig.coordinator.onCloseRequested()
+        rig.coordinator.onBegin()
+        rig.settle()
+        assertEquals("app: a close request must hide the tile", "hide", rig.tile.calls.first())
+        assertEquals("app: a begin after a close request must show the tile again", 1, rig.tile.calls.count { it == "show" })
+        assertEquals("app: a begin after a close request must reach the take once", 1, rig.take.beginCalls)
+    }
+
+    @Test
+    fun `a begin whose re-show is refused after a close request does not reach the take`() {
+        val rig = TileRig()
+        rig.tile.showResult = TileShow.FAILED
+        rig.coordinator.onCloseRequested()
+        rig.coordinator.onBegin()
+        rig.settle()
+        // The refused re-show begins nothing and throws nothing; the close stays remembered for the next arm.
+        assertEquals("app: a begin whose re-show is refused must not reach the take", 0, rig.take.beginCalls)
+        assertEquals("app: a refused re-show must say the tile is unavailable", "tileUnavailable", rig.notice.calls.last())
+    }
+
+    @Test
+    fun `a refused show leaves the flag set so the next begin works`() {
+        val rig = TileRig()
+        rig.tile.showResult = TileShow.FAILED
+        rig.coordinator.onCloseRequested()
+        rig.coordinator.onBegin()
+        rig.settle()
+        assertEquals("app: a begin whose re-show is refused must not reach the take", 0, rig.take.beginCalls)
+        rig.tile.showResult = TileShow.SHOWN
+        rig.tile.calls.clear()
+        rig.coordinator.onBegin()
+        rig.settle()
+        assertEquals("app: the next begin must show the tile again", "show", rig.tile.calls.first())
+        assertEquals("app: the next begin after a refused re-show must reach the take once", 1, rig.take.beginCalls)
+    }
+
+    @Test
+    fun `launcher visible through onArmedChanged clears the close`() {
+        val rig = TileRig()
+        rig.coordinator.onCloseRequested()
+        rig.coordinator.onArmedChanged(true)
+        rig.tile.calls.clear()
+        rig.coordinator.onBegin()
+        rig.settle()
+        assertEquals("app: a begin after the launcher is visible must not show the tile again", 0, rig.tile.calls.count { it == "show" })
+        assertEquals("app: a begin after the launcher is visible must reach the take once", 1, rig.take.beginCalls)
+    }
+
+    @Test
+    fun `switching the tile on again clears the close so a begin does not show it again`() {
+        val rig = TileRig()
+        rig.coordinator.onCloseRequested()
+        // A re-arm clears the close, so the next begin does not show the tile again.
+        rig.coordinator.onArmedChanged(true)
+        rig.tile.calls.clear()
+        rig.coordinator.onBegin()
+        rig.settle()
+        assertEquals("app: a begin after the tile is switched on again must not show it again", 0, rig.tile.calls.count { it == "show" })
+        assertEquals("app: a begin after the tile is switched on again must reach the take once", 1, rig.take.beginCalls)
+    }
+
+    @Test
+    fun `a fresh coordinator has no close to clear`() {
+        val rig = TileRig(arm = false)
+        val fresh = TileCoordinator(rig.tile, rig.main, rig.background, rig.take, rig.model, rig.notice, rig.opener)
+        fresh.onArmedChanged(true)
+        fresh.onBegin()
+        rig.settle()
+        assertEquals("app: a fresh coordinator must show the tile when it is switched on", 1, rig.tile.calls.count { it == "show" })
+        assertEquals("app: a fresh coordinator must reach the take on its first begin", 1, rig.take.beginCalls)
+    }
+
+    @Test
+    fun `a begin while the tile is on screen does not show it again`() {
+        val rig = TileRig()
+        rig.tile.calls.clear()
+        rig.coordinator.onBegin()
+        rig.settle()
+        assertEquals("app: a begin while the tile is on screen must not show it again", 0, rig.tile.calls.count { it == "show" })
+        assertEquals("app: a begin while the tile is on screen must reach the take once", 1, rig.take.beginCalls)
+    }
+
+    @Test
+    fun `a begin after a close request whose show throws does not reach the take`() {
+        val rig = TileRig()
+        rig.tile.showThrows = true
+        rig.coordinator.onCloseRequested()
+        rig.coordinator.onBegin()  // must not throw
+        rig.settle()
+        assertEquals("app: a begin whose show throws must not reach the take", 0, rig.take.beginCalls)
+        assertEquals("app: a begin whose show throws must say the tile is unavailable", "tileUnavailable", rig.notice.calls.last())
+    }
+
+    @Test
+    fun `disarm clears the close flag`() {
+        val rig = TileRig()
+        rig.coordinator.onCloseRequested()
+        rig.coordinator.onArmedChanged(false)  // disarm
+        assertEquals("app: a disarm must clear the close flag", false, rig.coordinator.userClosedHandler.isClosed)
+    }
+
+    @Test
+    fun `a refused re-show is not reported as shown`() {
+        val rig = TileRig()
+        rig.tile.showResult = TileShow.FAILED
+        val statesBefore = rig.tile.states.size
+        rig.coordinator.onCloseRequested()
+        rig.coordinator.onBegin()
+        rig.settle()
+        // After a refused re-show, the tile must NOT have been pushed to a shown state
+        assertEquals("app: a refused re-show must not push a state", statesBefore, rig.tile.states.size)
+        assertEquals("app: a refused re-show must say the tile is unavailable", "tileUnavailable", rig.notice.calls.last())
+    }
+
+    @Test
+    fun `a successful show clears the flag`() {
+        val rig = TileRig()
+        rig.tile.calls.clear()
+        rig.coordinator.onCloseRequested()
+        rig.coordinator.onBegin()
+        rig.settle()
+        assertEquals("app: a begin after a close must show the tile once", 1, rig.tile.calls.count { it == "show" })
+        assertEquals("app: a begin after a close must reach the take once", 1, rig.take.beginCalls)
+        // Flag is cleared: isClosed is false after a successful show
+        assertEquals("app: a successful show must clear the close flag", false, rig.coordinator.userClosedHandler.isClosed)
+    }
+
+    @Test
+    fun `a close request whose hide throws does not reach the caller`() {
+        val rig = TileRig()
+        rig.tile.hideThrows = true
+        rig.coordinator.onCloseRequested()  // must not throw
+        assertEquals("app: the close flag must stay set even if hide throws", true, rig.coordinator.userClosedHandler.isClosed)
+    }
+
+    @Test
+    fun `a begin after a close with no model pushes armed and shows missing`() {
+        val rig = TileRig(ready = false)
+        rig.tile.calls.clear()
+        rig.coordinator.onCloseRequested()
+        rig.coordinator.onBegin()
+        rig.settle()
+        val showIdx = rig.tile.calls.indexOf("show")
+        val armedIdx = rig.tile.calls.indexOf("state:ARMED")
+        assertTrue("app: a begin after a close must push ARMED after showing", showIdx >= 0 && armedIdx > showIdx)
+        assertEquals("app: a begin after a close with no model must show missing", "missing", rig.notice.calls.last())
     }
 }

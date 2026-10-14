@@ -60,6 +60,7 @@ internal class TileHost(
         onBegin = { toCoordinator { it.onBegin() } },
         onCancel = { toCoordinator { it.onCancel() } },
         onSend = { toCoordinator { it.onSend() } },
+        onCloseRequested = { toCoordinator { it.onCloseRequested() } },
     )
 
     private val coordinator: TileCoordinator by lazy {
