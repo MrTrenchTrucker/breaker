@@ -163,7 +163,119 @@ class ShakeDetectorTest {
         }
     }
 
-    @Test fun light_vibration_never_fires() = expectFires(canary(50, 2.1), 0)
+    // ---- Producers (fixed deterministic inputs), helpers shared above them ----
+
+    /** Rest prefix: a burst is preceded by this so the low-pass converges to the baseline before the AC part. */
+    private fun restAtBaseline(ms: Double): List<ShakeDetector.Sample> {
+         val dt = 1.0 / 100.0
+         return (0 until Math.ceil(ms / 1000.0 / dt).toInt()).map { i ->
+             ShakeDetector.Sample((BASELINE_G * G).toFloat(), 0f, 0f, (Math.floor(i * dt * 1000 + 0.5)).toLong())
+         }
+    }
+
+    /** One sinusoid burst on the x axis: (baseline + amp*sin(2*PI*f*i*dt)) * G m/s^2, times in ms rounded. */
+    private fun sinusoidAt(freq_hz: Double, amp_g: Double, ms: Double, startMs: Double = 0.0): List<ShakeDetector.Sample> {
+         val dt = 1.0 / 100.0
+         return (0 until Math.ceil(ms / 1000.0 / dt).toInt()).map { i ->
+             ShakeDetector.Sample(((BASELINE_G + amp_g * sin(2.0 * PI * freq_hz * i * dt)) * G).toFloat(), 0f, 0f, (Math.floor((startMs + i * dt * 1000) + 0.5)).toLong())
+         }
+    }
+
+    // ---- Tests ----
+
+    /** A strong 3 Hz swing (2.1 g AC) along gravity. The detector reads the magnitude |a|, so a swing
+     * larger than 1 g folds over each cycle and gives about twice the crossing rate (3 Hz input -> ~6 Hz of
+     * crossings). That is a real shake, not light vibration (sustained 2 g is not road vibration), so it FIRES. */
+    @Test fun strong_swing_fires() = expectFires(canary(50, 2.1), 1)
+
+    /** A light 3 Hz canary (0.8 g AC) below 1 g, no fold-over; a pin of the crossing-rate rule - it never fires. */
+    @Test fun light_canary_never_fires() = expectFires(canary(50, 0.8), 0)
+
+    /** Guard: every fixture's timestamps strictly increase, so a producer that restarting its clock after a rest prefix cannot silently drop its burst (feed() ignores a sample not past the last accepted timestamp). */
+    @Test fun fixture_timestamps_strictly_increase() {
+        for (fx in listOf(handShake(), softerShake(), walking(), bumpyRide(), vibration(), canary(50, 2.1), canary(50, 0.8))) {
+            var prev = -1L
+            for (s in fx) {
+                assertTrue("a fixture timestamp must strictly increase, got $prev then ${s.timestampMs}", s.timestampMs > prev)
+                prev = s.timestampMs
+            }
+        }
+    }
+
+    /** Fast wrist flick: 8 Hz, 1.0926 g raw amplitude on a 1.2 g baseline over a 400 ms burst after a 400 ms rest
+     * at baseline (reaches ~0.98 g AC after the one-pole low-pass). Fires exactly once at the threshold. */
+    @Test fun hand_shake_fires_once() = expectFires(handShake(), 1)
+
+    /** A softer fast wrist flick: 8 Hz, 0.8762 g raw amplitude on a 1.2 g baseline over a 400 ms burst after a 400 ms
+     * rest at baseline (reaches ~0.79 g AC). Fires exactly once at the threshold. */
+    @Test fun softer_shake_fires_once() = expectFires(softerShake(), 1)
+
+    /** Steady walking: 2 Hz, 0.8485 g raw amplitude (reaches ~0.53 g AC) on a 1.2 g baseline sustained for 5 s plus a
+     * 400 ms rest prefix. Crossing-rate pin: at 2 Hz there is about one crossing per 500 ms, never three, so it
+     * NEVER fires at any threshold. */
+    @Test fun walking_never_fires() = expectFires(walking(), 0)
+
+    /** Bumpy ride: 3 Hz, 1.0817 g raw amplitude (reaches ~0.86 g AC) on a 1.2 g baseline sustained for 5 s plus a
+     * 400 ms rest prefix. Crossing-rate pin: at 3 Hz there is never three crossings within a 500 ms window, so it
+     * NEVER fires at any threshold. */
+    @Test fun bumpy_never_fires() = expectFires(bumpyRide(), 0)
+
+    /** Phone-in-truck vibration: 7 Hz, 0.52 g raw amplitude (reaches ~0.47 g AC) on a 1.2 g baseline sustained for 5 s
+     * plus a 400 ms rest prefix. A false-fire fixture; must NEVER fire at the threshold (the 0.45 mutant goes RED
+     * here). The 0.5 g is an ASSUMPTION, not a measurement - engine or rough road with the phone in a mount. */
+    @Test fun vibration_never_fires_at_pick() = expectFires(vibration(), 0)
+
+    /** Settle pin (two-sided): after a short motion the first resting sample's AC term is negative and bounded.
+     *  A stale (prevMag) term, a zeroed (lastMag deleted) term, or an lpMag that started at 0 all fall outside. */
+    @Test fun lp_mag_start_settles() {
+        val det = ShakeDetector.create { }
+        det.start()
+        for (i in 0 until 20) {
+            val m = 1.2 + 0.4 * sin(2.0 * PI * 8.0 * i * 0.01)
+            det.feed(ShakeDetector.Sample((m * G).toFloat(), 0f, 0f, (i * 10).toLong()))
+        }
+        det.feed(ShakeDetector.Sample((1.0 * G).toFloat(), 0f, 0f, 200L))
+        assertTrue("the first resting sample's AC term after motion must be negative and bounded, got ${det.lastAcTerm}",
+            det.lastAcTerm > -0.4 && det.lastAcTerm < -0.17
+        )
+    }
+
+    /** The low-pass starts at one g, a resting phone, and is not seeded from the first sample: a first
+     *  sample at 2 g reads as motion (about 0.94 g AC after one filter step), not as rest. */
+    @Test fun first_sample_is_measured_against_rest() {
+        val det = ShakeDetector.create { }
+        det.start()
+        det.feed(ShakeDetector.Sample((2.0 * G).toFloat(), 0f, 0f, 0L))
+        assertTrue("a first sample at 2 g must read well above rest, got ${det.lastAcTerm}", det.lastAcTerm > 0.5)
+    }
+
+    /** Fast wrist flick: 8 Hz, 1.0926 g raw amplitude on a 1.2 g baseline over a 400 ms burst after a 400 ms rest
+     * at baseline (reaches ~0.98 g AC after the one-pole low-pass). */
+    private fun handShake(): List<ShakeDetector.Sample> =
+        restAtBaseline(400.0) + sinusoidAt(freq_hz = 8.0, amp_g = 1.0926, ms = 400.0, startMs = 400.0)
+
+    /** A softer fast wrist flick: 8 Hz, 0.8762 g raw amplitude on a 1.2 g baseline over a 400 ms burst after a 400 ms
+     * rest at baseline (reaches ~0.79 g AC). */
+    private fun softerShake(): List<ShakeDetector.Sample> =
+        restAtBaseline(400.0) + sinusoidAt(freq_hz = 8.0, amp_g = 0.8762, ms = 400.0, startMs = 400.0)
+
+    /** Steady walking: 2 Hz, 0.8485 g raw amplitude (reaches ~0.53 g AC) on a 1.2 g baseline sustained for 5 s plus
+     * a 400 ms rest prefix. Crossing-rate pin: at 2 Hz there is about one crossing per 500 ms, never three, so it
+     * NEVER fires at any threshold. */
+    private fun walking(): List<ShakeDetector.Sample> =
+        restAtBaseline(400.0) + sinusoidAt(freq_hz = 2.0, amp_g = 0.8485, ms = 5000.0, startMs = 400.0)
+
+    /** Bumpy ride: 3 Hz, 1.0817 g raw amplitude (reaches ~0.86 g AC) on a 1.2 g baseline sustained for 5 s plus a
+     * 400 ms rest prefix. Crossing-rate pin: at 3 Hz there is never three crossings within a 500 ms window, so it
+     * NEVER fires at any threshold. */
+    private fun bumpyRide(): List<ShakeDetector.Sample> =
+        restAtBaseline(400.0) + sinusoidAt(freq_hz = 3.0, amp_g = 1.0817, ms = 5000.0, startMs = 400.0)
+
+    /** Phone-in-truck vibration: 7 Hz, 0.52 g raw amplitude (reaches ~0.47 g AC) on a 1.2 g baseline sustained for 5 s
+     * plus a 400 ms rest prefix. A false-fire fixture; must NEVER fire at the threshold (the 0.45 mutant goes RED
+     * here). The 0.5 g is an ASSUMPTION, not a measurement - engine or rough road with the phone in a mount. */
+    private fun vibration(): List<ShakeDetector.Sample> =
+        restAtBaseline(400.0) + sinusoidAt(freq_hz = 7.0, amp_g = 0.52, ms = 5000.0, startMs = 400.0)
     @Test fun rate_invariance_50hz() = expectFires(shake(50), 1)
     @Test fun rate_invariance_200hz() = expectFires(shake(200), 1)
     @Test fun gap_reset_then_burst_fires() =

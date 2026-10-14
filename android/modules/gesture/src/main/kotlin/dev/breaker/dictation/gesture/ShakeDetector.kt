@@ -37,11 +37,13 @@ internal class ShakeDetector private constructor(
     private var started = false
     private var prevAbove = false
     private var prevMag: Double? = null
+    private var lastMag: Double = 0.0
     private var lastTimestamp: Long? = null
     private var coolUntil: Long? = null
     private val crossings = ArrayDeque<Long>()
     // Low-pass value on the magnitude (g), state carried across samples.
-    private var lpMag = 0.0
+    // One g, resting - initialized to 1.0 so a resting phone's AC term starts at zero rather than drifting high for ~300 ms.
+    private var lpMag = 1.0
 
 
     private val gravity: Double get() = 9.81
@@ -116,6 +118,7 @@ internal class ShakeDetector private constructor(
         }
 
         val mag = sampleMagnitude(sample)
+        lastMag = mag
 
         // First sample (or the one right after a reset): seed the low-pass term.
         if (prevMag == null) {
@@ -176,7 +179,7 @@ internal class ShakeDetector private constructor(
      * term settle to zero; production code never reads it.
      */
     internal val lastAcTerm: Double
-        get() = if (prevMag == null) 0.0 else prevMag!! - lpMag
+        get() = if (prevMag == null) 0.0 else lastMag - lpMag
 
     companion object {
         /** Factory for a detector wired with [onShake]; the DI entry point. */
@@ -192,7 +195,7 @@ internal class ShakeDetector private constructor(
 
         /** The filtered (high-pass) magnitude threshold, in g's, that counts as a
          * positive-going crossing. */
-        const val THRESHOLD_G = 2.0
+        const val THRESHOLD_G = 0.65
 
         /** Number of positive-high crossings required inside the window to declare a shake. */
         const val CROSSING_COUNT = 3
