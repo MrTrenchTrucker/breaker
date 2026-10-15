@@ -1,6 +1,7 @@
 package dev.breaker.dictation.stt.ondevice
 
 import dev.breaker.shared.models.ModelEntry
+import java.io.File
 import java.io.IOException
 
 /**
@@ -93,7 +94,10 @@ class ModelInstaller(
         /** The phone could not unpack the archive (a write or the final move failed); the model was deleted. */
         EXTRACT_FAILED,
 
-        /** There was not enough free space to unpack the archive; the model was deleted. */
+        /**
+         * There was not enough free space on the phone to download the archive or
+         * to unpack it; nothing usable is left installed.
+         */
         NO_SPACE,
     }
 
@@ -126,9 +130,11 @@ class ModelInstaller(
 
         // Step 1: fetch checksums. The fetcher writes into staging, so an
         // IOException here is a staging failure, not a network one (a network
-        // failure comes back as Result.Failed).
+        // failure comes back as Result.Failed), and a no-space failure is told apart.
         val checksumsResult = try {
             fetcher.fetchChecksums(stagingDir)
+        } catch (e: NoSpaceException) {
+            return refuseFetchNoSpace(stagingDir, e)
         } catch (e: IOException) {
             return refuse(
                 Refusal.STAGING_FAILED,
@@ -161,9 +167,11 @@ class ModelInstaller(
             )
         }
 
-        // Step 2: fetch model archive. Same staging-write reasoning as step 1.
+        // Step 2: fetch model archive. Same staging-write reasoning as step 1, with the no-space case told apart.
         val modelResult = try {
             fetcher.fetchModel(entry, stagingDir)
+        } catch (e: NoSpaceException) {
+            return refuseFetchNoSpace(stagingDir, e)
         } catch (e: IOException) {
             return refuse(
                 Refusal.STAGING_FAILED,
@@ -294,6 +302,16 @@ class ModelInstaller(
         }
         return refuse(refusal, sentence, "${rejected.reason.name}: ${rejected.detail}", leftOnDisk = !removed)
     }
+
+    /**
+     * Refuse a fetch that stopped on the free-space check. The check runs before
+     * any byte is written, so the fetch left no partial file behind.
+     */
+    private fun refuseFetchNoSpace(stagingDir: File, e: NoSpaceException): InstallResult.Refused = refuse(
+        Refusal.NO_SPACE,
+        ModelMessages.DOWNLOAD_NO_SPACE,
+        "not enough free space to fetch into ${stagingDir.absolutePath}: ${e.message}",
+    )
 
     /**
      * Build a refusal: [userSentence] is what the result carries, [technical]

@@ -2,6 +2,7 @@ package dev.breaker.dictation.stt.ondevice
 
 import dev.breaker.shared.models.ModelEntry
 import java.io.File
+import java.io.IOException
 
 /**
  * The module's ONLY network boundary.
@@ -42,3 +43,10 @@ interface ModelFetcher {
      */
     fun fetchChecksums(stagingDir: File): Result
 }
+
+/**
+ * Thrown by a fetcher when the free-space check fails before any byte is
+ * written. It is an IOException, so a caller that only knows the port still
+ * treats it as a staging problem.
+ */
+internal class NoSpaceException(message: String = "not enough space") : IOException(message)

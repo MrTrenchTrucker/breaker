@@ -122,8 +122,9 @@ argument of `ModelLoader`; the default there is still `UnavailableRecognizerFact
   per chunk of a body. A read already blocked in the socket ends at the read timeout.
 - A network problem is a failure result with a short reason that never carries an address, path or
   query. The installer sends that reason to the debug sink only; the user sees one fixed sentence.
-  Only a problem writing the staging file (a full disk included) is thrown, as an `IOException`,
-  and the partial file is deleted first.
+  A problem writing the staging file (a full disk included) is thrown, as an `IOException`,
+  and the partial file is deleted first. A failed free-space check is raised before any byte is
+  written, as a `NoSpaceException`, which is also an `IOException`.
 - The fetcher never hashes. The installer's digest check is the judge of the bytes.
 
 **Unpack side:**
@@ -156,6 +157,8 @@ argument of `ModelLoader`; the default there is still `UnavailableRecognizerFact
 - New installer refusal values: `UNSUPPORTED_MODEL`, `EXTRACT_REFUSED`, `EXTRACT_FAILED`, `NO_SPACE`.
   Three new user sentences: the archive could not be unpacked safely, the phone could not unpack it,
   and there is not enough free space to unpack it.
+- Known gotcha: a disk that fills up while the model is being downloaded, after the free-space check passed (for example another app takes the space), is still filed as `STAGING_FAILED`, because telling it apart from other write errors would mean reading exception text, which is fragile.
+- `NO_SPACE` also covers a download that cannot start for lack of free space: at the checksum step and at the model step the user sees `ModelMessages.DOWNLOAD_NO_SPACE` ("There is not enough free space on the phone to download the model.") and nothing is left installed.
 - The loader answers not-installed, and keeps the archive, when the archive verifies but `files/` does
   not hold all four profile files, each a regular file of at least one byte. That check comes after
   the archive check, so a tampered archive is still judged and deleted first. The loader hands the
@@ -290,6 +293,7 @@ it.
   `OnDeviceSttEnginePreloadBusyTest`, and the four-names check has `LocalModelStoreFourNamesTest`
   and `ModelLoaderFourNamesTest`. None of them runs the native engine or a real model.
 - The archive-name tests are `ModelIntegrityArchiveNameTest`, `ModelLoaderArchiveNameTest`, `ModelInstallerArchiveNameTest` and `ModelRegistryArchiveNamesTest`.
+- The download no-space tests are `HttpModelFetcherNoSpaceTest`, `ModelInstallerNoSpaceTest` and `ModelNoSpaceSymbolsTest`. They use a scripted opener, no network and no real archive.
 - Contract: `tests/contract/test_stt_ondevice_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_stt_ondevice_contract.py`
 - Contract (decode bound pins): `tests/contract/stt_ondevice_bound_pins.py`, collected and run by the contract test above.
   It includes the pin that `preload` holds the busy guard.
