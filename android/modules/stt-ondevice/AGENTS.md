@@ -73,7 +73,7 @@ argument of `ModelLoader`; the default there is still `UnavailableRecognizerFact
   open and at decode, so the loader and the engine see an engine failure and not an `Error`. Any
   other `Error` passes through the adapter (the engine has its own arms for out of memory and stack
   overflow). The thread count is a constructor argument, at least 1, default 2.
-- `SherpaOnnxWordStreamFactory` is the public factory for the word stream: `create()` returns a `FedWordStream`. Its public constructor takes the thread count (at least 1, default 2, the same default as the recognizer factory); an internal constructor takes the native opener, so a test can use a fake one. `create(model: SherpaModel)` refuses a model with no streaming profile, and a model whose files are missing or empty, by throwing `SherpaTranscriptionException` with the same two fixed messages as the recognizer factory; neither message carries a path, a file name or a model id. `create()` opens nothing and loads no native code: the native engine is opened by the stream's `start()`, on the stream's own slot. The module adds no thread for it; the stream runs on the single slot over the IO pool, as the `OnDeviceWordStream` bullet below says.
+- `SherpaOnnxWordStreamFactory` is the public factory for the word stream: `create()` returns a `FedWordStream`. Its public constructor takes the thread count (at least 1, default 2, the same default as the recognizer factory); an internal constructor takes the native opener, so a test can use a fake one. `create(model: SherpaModel)` refuses a model with no streaming profile, and a model whose files are missing or empty, or whose unpacked-file stamp is missing or does not match the files, by throwing `SherpaTranscriptionException` with the same two fixed messages as the recognizer factory; neither message carries a path, a file name or a model id. The stamp check reads plain files: it never hashes and deletes nothing. `create()` opens nothing and loads no native code: the native engine is opened by the stream's `start()`, on the stream's own slot. The module adds no thread for it; the stream runs on the single slot over the IO pool, as the `OnDeviceWordStream` bullet below says.
 - `TransducerFileLocator` picks the files by which names are present, not from a fixed list: the
   encoder prefers the int8 file, the decoder and the joiner prefer the plain file, and each falls
   back to the other kind. A name belongs to a role when it starts with the role word followed by a
@@ -149,7 +149,7 @@ argument of `ModelLoader`; the default there is still `UnavailableRecognizerFact
   damaged stream or header, a truncated archive, a second top directory, duplicate names, a missing
   or empty needed file, and too little free space. A refusal deletes the work directory, creates no
   target and never touches the archive.
-- The installer unpacks after the second check and the metadata writes, and only then reports
+- The installer unpacks after the second check and the metadata writes, then writes the stamp, and only then reports
   `Installed`. On any refusal it deletes the whole model directory; a failed delete is reported
   through the could-not-delete sentence variant (`leftOnDisk`). A model with no profile is refused
   before anything is downloaded. An install over an existing one removes the earlier unpacked files
@@ -165,6 +165,12 @@ argument of `ModelLoader`; the default there is still `UnavailableRecognizerFact
   not hold all four profile files, each a regular file of at least one byte. That check comes after
   the archive check, so a tampered archive is still judged and deleted first. The loader hands the
   engine factory the `files/` directory.
+- After the unpack, the installer writes a stamp, the file `.unpacked-stamp` in `files/`. It records the
+  archive digest and, for each of the four files, its size, modified time and SHA-256. It is written only
+  after the archive verified and the unpack succeeded, so a refused install never writes one. If the
+  stamp cannot be measured or written, the install is refused and the model is deleted. A torn or
+  malformed stamp reads as absent. The loader (through `LocalModelStore.readStamp`) and the word stream
+  factory both read it through `UnpackedStamp.read`.
 
 **Model lifecycle:**
 - Models from `shared/model-registry` (sizes + SHA-256 + per-model license terms).
@@ -174,7 +180,7 @@ argument of `ModelLoader`; the default there is still `UnavailableRecognizerFact
   archive equals our pin AND that pin appears in the upstream checksum list.
   With a non-blank archive name (see Known Gotchas), the digest listed for
   that name must equal the pin too. The archive is checked when it is
-  installed (in staging, and again after the move) and on every load.
+  installed (in staging, and again after the move). A load verifies it too, except when a stamp for the pinned model is present (see the load rules below).
 - A file that fails the check is deleted at once, never loaded, never kept, so
   the next attempt downloads it fresh. If the delete itself fails, the refusal
   stays: the result carries `leftOnDisk` and its fixed sentence says the file
@@ -183,12 +189,26 @@ argument of `ModelLoader`; the default there is still `UnavailableRecognizerFact
   model is loaded, nothing was judged. The archive is kept and never loaded,
   the recognizer factory is never called, the user is told the model could not
   be checked right now, and it is checked again on the next load.
+- Load with a stamp: when the stamp for the pinned model is present and the four files are there, the archive is
+  not hashed. The sizes and modified times of the four unpacked files are compared with the stamp. A size that
+  differs refuses the load at once, deletes that file and answers not installed, before the engine is opened. When
+  every size and every modified time matches, the load proceeds with no hashing. When the sizes match but a modified
+  time differs, the loader hashes the four files (not the archive) against the recorded digests: when all of them
+  match, the load proceeds and the stored times are refreshed on a best-effort basis; when one differs, that file is
+  deleted and the load answers not installed.
+- Load without a usable stamp (missing, unreadable, malformed, or for another pin): the archive is verified once, as
+  before, the unpacked-file check follows, and then the stamp is written from the files as they are. That write is
+  best effort: a failure only writes a debug line and never fails the load. The stamp is never written before the
+  archive has verified.
+- An `OutOfMemoryError` while the engine is created is caught and refused with the existing engine sentence
+  (`ModelMessages.ENGINE_COULD_NOT_START`). The model stays installed, because nothing about it was judged wrong.
+  Other `Error`s still reach the caller.
 - What the user sees: one fixed plain sentence per kind of problem
   (`ModelMessages`). Paths, exception text and digests go to a debug sink the
   caller supplies (`ModelDebugSink`; the default drops them). A load or install
   refusal never carries a path or an exception class name.
 - `preload(modelId)` loads the model once and releases the recognizer before it returns, so a
-  settings screen can report a bad model early. It holds nothing, and each `transcribe` verifies and
+  settings screen can report a bad model early. It holds nothing, and each `transcribe` checks the model and
   starts its own recognizer again, so preload does not shorten the next start. Load at startup (or
   lazy per setting) remains the app's wiring decision.
 
@@ -245,6 +265,11 @@ it.
 - Offline dictation E2E: tap → speak → send → text (F1).
 - Tamper test: corrupt model file → load refused and the file deleted, so a retry
   downloads it fresh (T1, T21).
+- Stamp: a load that finds the stamp for the pinned model refuses an unpacked file whose size changed, or whose
+  content no longer matches the recorded digest, before the engine is opened, and deletes that file. It does not
+  hash the archive. Tested by: `ModelLoaderStampTest` (the loader refusals and the no-hash path) and `UnpackedStampCheckTest` (the check rules).
+- The word stream factory refuses a model whose stamp is missing or does not match the files, before it opens
+  anything. Tested by: `SherpaOnnxWordStreamFactoryStampTest`.
 - Start latency < 1 s with preload (N1).
 - **No model installed + local mode → clear "No model installed" error** (fix #1).
 - One slot runs the recognizer, the stream and every update, the final one included, in order. Each start delivers at most one final (`finalDone`), only at stop, with the whole hypothesis even when unchanged; none on the deadline path, after a stop from inside an update, after an abandoned open, after a native failure, or after the update callback throws. Tested by: `OnDeviceWordStreamTest`, `OnDeviceWordStreamStopTest`, `OnDeviceWordStreamDeadlineTest`, `OnDeviceWordStreamRaceTest`, `OnDeviceWordStreamBoundsTest`, `OnDeviceWordStreamReleaseTest`
@@ -295,6 +320,7 @@ it.
   `OnDeviceSttEnginePreloadBusyTest`, `SlotOrderRecordTest` and the other `OnDeviceSttEngine*Test` classes (no native engine), and the four-names check has `LocalModelStoreFourNamesTest`
   and `ModelLoaderFourNamesTest`. None of them runs the native engine or a real model.
 - `SherpaOnnxWordStreamFactoryTest` tests the word-stream factory with a fake opener and no native library. It feeds the stream it gets from the factory through the `FedWordStream` type that `create()` returns. It proves that a model with no streaming profile, and a model directory with missing or empty files, each fail with `SherpaTranscriptionException` and the fixed text; that the fixed text carries no path, file name or model id; that `create()` makes no call to the opener; that a thread count below 1 is refused; that a started stream opens the engine exactly once, with the four files the locator picked and the given thread count, and delivers its final words with start times in milliseconds; and that two `create()` calls give two separate streams, where starting one leaves the other stopped.
+- The stamp tests are `UnpackedStampTest`, `UnpackedStampCheckTest`, `LocalModelStoreStampTest`, `ModelInstallerStampTest`, `ModelLoaderStampTest`, `ModelLoaderStampMissingTest`, `ModelLoaderOutOfMemoryTest` and `SherpaOnnxWordStreamFactoryStampTest`. They use the existing fakes, no network and no native library.
 - `FedWordStreamFeedTest` (a new test file of this change) tests `feed` through the `FedWordStream` type that the factory returns. It proves: a chunk fed before start is dropped, and the engine takes only the chunk fed after start; a chunk fed after stop has returned is ignored and not counted; a chunk fed to a full queue is dropped and counted with its samples; feed returns at once on a full queue and counts each of five chunks; an empty array is ignored and is not counted even when the queue is full.
 - The archive-name tests are `ModelIntegrityArchiveNameTest`, `ModelLoaderArchiveNameTest`, `ModelInstallerArchiveNameTest` and `ModelRegistryArchiveNamesTest`.
 - The download no-space tests are `HttpModelFetcherNoSpaceTest`, `ModelInstallerNoSpaceTest` and `ModelNoSpaceSymbolsTest`. They use a scripted opener, no network and no real archive.
@@ -355,13 +381,12 @@ agents, not required: an outside contributor may write the code themselves
   and it includes the second check of the archive. The loader then keeps the
   archive and refuses it with the "could not be checked right now" sentence on
   every load, because the stored checksum list is missing; installing the
-  model again heals it.
-- The start target (N1) is not met by the engine as it stands: every call hashes the whole archive
-  and creates a recognizer, and preload keeps neither. Model sizes in the registry range from 122 MB
+  model again heals it. The window now also runs from the unpack to the stamp write: a crash there leaves the
+  archive, the unpacked files and no stamp, and the loader then verifies the archive once and writes the stamp.
+  A torn stamp reads as absent, because its final `end` line is missing.
+- The start target (N1) is not met by the engine as it stands: every call creates a recognizer, and preload keeps neither. Model sizes in the registry range from 122 MB
   to 1818 MB. This has not been measured on a device.
-- Engine behaviour not changed yet: an `Error` (not an `Exception`) from the loader reaches the
-  caller, except a native link failure, which the on-device adapter reports as an engine failure;
-  the decode catch policy names two `Error` types and not others; a recognizer release
+- Engine behaviour not changed yet: the decode catch policy names two `Error` types and not others; a recognizer release
   that throws replaces the result; the engine and the loader keep two sets of user sentences that
   have drifted apart; a model the loader could not start is shown as "could not transcribe"; the
   wrong-family sentence names a model family the code does not check; `loadedModelId` in the
@@ -448,9 +473,21 @@ agents, not required: an outside contributor may write the code themselves
   keeps the archive. The check looks at names, file kind and size above zero only: it does not
   hash the four files (see the next bullet), and the locator checks the same four again before the
   engine opens them.
-- The loader hashes only the archive, on every load, and never the four unpacked files. A change to
-  an unpacked file after install is not detected, so the invariant "corrupt model file: load refused
-  and the file deleted" holds for the archive only.
+- The loader hashes the archive only on a load with no usable stamp. With a stamp it hashes the four unpacked
+  files, and only when a size matches and a modified time differs. A size that changed is refused at once, so
+  the invariant "corrupt model file: load refused and the file deleted" holds for size changes and for content
+  changes that the hash sees. The quick check does not see a file damaged in place with the same size and the
+  same modified time (see the next three bullets).
+- Storage rot: a file damaged in place with the same size and the same modified time is not detected by the quick
+  check. The loader does not hash the four files while the sizes and modified times match, so that damage is found
+  only by installing the model again, or by the native library failing on it, which can end the process.
+- A restore or copy that resets modified times changes no size, so the loader hashes the four unpacked files once
+  and refreshes the stamp. That costs one hash of the four files, not of the archive.
+- The word stream factory never hashes. After a restore that resets modified times, it refuses the model until the
+  loader has run once: the loader hashes the four files and refreshes the stamp, and the next open then succeeds.
+- The first load after an upgrade has no stamp: the archive is verified once, and the stamp is then written from the
+  unpacked files as they are. The unpacked files are trusted once, as they stand on that load; every later load uses
+  the stamp.
 - The unpack side adds a library to the module: the archive library (`commons-compress`,
   Apache-2.0) at the version in `gradle/libs.versions.toml`, which carries the dated source line.
   Gradle also resolves three libraries it declares: `commons-codec`, `commons-io` and
@@ -487,7 +524,7 @@ agents, not required: an outside contributor may write the code themselves
 - Not exercised yet: the real TLS handshake, Android's own `HttpURLConnection` behaviour (the tests
   run on the JDK's) and a full-size download on mobile data. A device check is owed before anyone
   says downloads work.
-- The decode deadline does not cover loading the model: the registry lookup, hashing the archive and
+- The decode deadline does not cover loading the model: the registry lookup, hashing the archive or the unpacked files, and
   creating the recognizer are not bounded, so a load that never returns still holds the slot and
   every call queued behind it waits.
 - An abandoned decode (one that passed its deadline) can leak one worker thread and one recognizer,
@@ -499,9 +536,9 @@ agents, not required: an outside contributor may write the code themselves
   native call keeps using CPU and battery until it ends.
 - The limit (30 seconds plus three times the clip length) is a recommended value, not a
   measurement. It has not been tried on a device.
-- Four source files under `src/main` are over the soft line cap of 300 lines and under the hard cap of 500:
-  `OnDeviceWordStream.kt` at 450 lines, `ModelInstaller.kt` at 356 lines, `LocalModelStore.kt` at 307 lines
-  and `OnDeviceSttEngine.kt` at 302 lines. None is split further for now.
+- Five source files under `src/main` are over the soft line cap of 300 lines and under the hard cap of 500:
+  `OnDeviceWordStream.kt` at 450 lines, `ModelInstaller.kt` at 388 lines, `ModelLoader.kt` at 356 lines,
+  `LocalModelStore.kt` at 337 lines and `OnDeviceSttEngine.kt` at 302 lines. None is split further for now.
 - The test `test_build_file_adds_exactly_one_external_dependency` (in the unpack pins) is false by
   its own name, because the build file now adds two coordinates. It is to be renamed in a later
   change.

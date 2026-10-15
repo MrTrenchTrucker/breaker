@@ -169,7 +169,8 @@ class ModelLoaderUnpackTest {
         assertEquals(files, ready.model.directory)
         assertNotEquals("not the model directory", r.store.directoryFor(modelId), ready.model.directory)
         assertEquals("the factory saw the same model", listOf(ready.model), r.factory.models)
-        assertEquals(fourFiles.sorted(), ready.model.directory.list()!!.sorted())
+        // The stamp is expected here: the load found the four files and wrote the stamp from them.
+        assertEquals((fourFiles + UnpackedStamp.FILE_NAME).sorted(), ready.model.directory.list()!!.sorted())
         assertEquals(digest, ready.model.digest)
     }
 

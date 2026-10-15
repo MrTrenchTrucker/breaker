@@ -3,6 +3,8 @@ package dev.breaker.dictation.stt.ondevice
 import dev.breaker.shared.models.ModelEntry
 import dev.breaker.shared.models.ModelFamily
 import dev.breaker.shared.models.ModelRegistry
+import java.io.File
+import java.io.IOException
 
 /**
  * The port the engine depends on: load a model by id.
@@ -18,10 +20,12 @@ fun interface ModelLoaderPort {
 /**
  * Loads a verified model from the local store and creates a recognizer.
  *
- * The loader verifies the archive on EVERY load. The stored verified digest
- * is a record for diagnostics and change-detection, never a substitute for
- * the check, because the file on disk can be replaced between one load and
- * the next.
+ * A load trusts the unpacked files through the install stamp (see
+ * [UnpackedStamp]) when one exists for the pinned model: sizes and modified
+ * times decide, and the four files are hashed only when a modified time
+ * differs. A changed file is deleted and refused before the engine opens.
+ * Without a stamp the archive is verified once, and the stamp is written from
+ * the files as they are.
  *
  * The family check lives here - there is no separate catalogue type. Only
  * [ModelFamily.SHERPA_ONNX] models are accepted; other families are refused.
@@ -45,6 +49,11 @@ class ModelLoader(
      * exception text, the integrity check's reason). The default drops it.
      */
     private val debug: ModelDebugSink = NoDebugSink,
+    /** The archive check. The default is the real one; a test may replace it to count calls. */
+    private val verify: (File, String, UpstreamChecksums.Checksums, String?) -> ModelIntegrity.Verdict =
+        { file, pin, checksums, archiveName -> ModelIntegrity.verify(file, pin, checksums, archiveName) },
+    /** Digests one unpacked file. The default is the real hash; a test may replace it. */
+    private val digestOf: (File) -> String? = ModelIntegrity::sha256,
 ) : ModelLoaderPort {
 
     /**
@@ -174,38 +183,59 @@ class ModelLoader(
             )
         }
 
-        // Step 5: archive verification
-        val verdict = verifyArchive(modelId, entry, checksums)
-        if (verdict is ModelIntegrity.Verdict.Refused) {
-            val removed = store.delete(modelId)
-            return refuse(
-                Refusal.VERIFICATION_REFUSED,
-                if (removed) ModelMessages.CHECK_FAILED_DELETED else ModelMessages.CHECK_FAILED_NOT_DELETED,
-                "${verdict.refusal.name}: ${verdict.detail}",
-                leftOnDisk = !removed,
-            )
-        }
-        val digest = (verdict as ModelIntegrity.Verdict.Verified).digest
+        // Step 5: the unpacked files and the archive digest. An install stamp for
+        // this pin decides by sizes and modified times, so the archive is not
+        // hashed. Without one, the archive is verified here, once, and the stamp
+        // is written in step 5b after the unpacked files were found.
+        val profile = ExtractionProfiles.forModel(modelId)
+        val stamp = store.readStamp(modelId)?.takeIf { profile != null && it.isFor(entry.sha256, profile.files) }
+        val digest: String
+        if (stamp != null) {
+            if (!store.isExtracted(modelId)) {
+                return refuse(
+                    Refusal.NOT_INSTALLED,
+                    ModelMessages.MODEL_NOT_INSTALLED,
+                    "model '$modelId' has no unpacked files",
+                )
+            }
+            stampRefusal(modelId, stamp)?.let { return it }
+            digest = stamp.archiveDigest
+        } else {
+            val verdict = verifyArchive(modelId, entry, checksums)
+            if (verdict is ModelIntegrity.Verdict.Refused) {
+                val removed = store.delete(modelId)
+                return refuse(
+                    Refusal.VERIFICATION_REFUSED,
+                    if (removed) ModelMessages.CHECK_FAILED_DELETED else ModelMessages.CHECK_FAILED_NOT_DELETED,
+                    "${verdict.refusal.name}: ${verdict.detail}",
+                    leftOnDisk = !removed,
+                )
+            }
+            digest = (verdict as ModelIntegrity.Verdict.Verified).digest
 
-        // Step 5b: the engine opens the unpacked files, not the archive. A
-        // verified archive without them (an install that stopped before the
-        // unpack) is kept, because nothing about it was wrong; installing again
-        // unpacks it. This comes after step 5, so a tampered archive is still
-        // judged and deleted first.
-        if (!store.isExtracted(modelId)) {
-            return refuse(
-                Refusal.NOT_INSTALLED,
-                ModelMessages.MODEL_NOT_INSTALLED,
-                "model '$modelId' is verified but has no unpacked files",
-            )
+            // Step 5b: the engine opens the unpacked files, not the archive. A
+            // verified archive without them (an install that stopped before the
+            // unpack) is kept, because nothing about it was wrong; installing again
+            // unpacks it. This comes after the archive check, so a tampered archive
+            // is still judged and deleted first. The stamp is written only after
+            // both passed.
+            if (!store.isExtracted(modelId)) {
+                return refuse(
+                    Refusal.NOT_INSTALLED,
+                    ModelMessages.MODEL_NOT_INSTALLED,
+                    "model '$modelId' is verified but has no unpacked files",
+                )
+            }
+            writeFirstStamp(modelId, profile, digest)
         }
 
         // Step 6: engine creation. Any Exception from the factory (checked or
         // not, including SherpaTranscriptionException) is a refusal. The real
         // factory turns a native library that fails to link into a
         // SherpaTranscriptionException, so that case arrives here as a
-        // refusal. Any other Error (out of memory, for example) is not caught:
-        // it is not an engine refusal and must reach the caller.
+        // refusal. An OutOfMemoryError from the engine creation is refused the
+        // same way. Any other Error is not caught: it is not an engine refusal
+        // and must reach the caller.
         val model = SherpaModel(modelId, store.extractedDirectory(modelId), digest)
         val recognizer: SherpaRecognizer = try {
             factory.create(model)
@@ -214,6 +244,12 @@ class ModelLoader(
                 Refusal.ENGINE_UNUSABLE,
                 ModelMessages.ENGINE_COULD_NOT_START,
                 "engine failed: ${e.message}",
+            )
+        } catch (e: OutOfMemoryError) {
+            return refuse(
+                Refusal.ENGINE_UNUSABLE,
+                ModelMessages.ENGINE_COULD_NOT_START,
+                "engine failed: out of memory",
             )
         }
 
@@ -252,6 +288,69 @@ class ModelLoader(
         checksums: UpstreamChecksums.Checksums,
     ): ModelIntegrity.Verdict {
         val archive = store.archiveFile(modelId)
-        return ModelIntegrity.verify(archive, entry.sha256, checksums, entry.archiveName)
+        return verify(archive, entry.sha256, checksums, entry.archiveName)
+    }
+
+    /**
+     * The stamp path of step 5: null when the unpacked files pass, else the
+     * refusal. Sizes and modified times decide without hashing. When only the
+     * modified times differ, the four files are hashed against the recorded
+     * digests (never the archive), and a stamp that still matches is refreshed.
+     */
+    private fun stampRefusal(modelId: String, stamp: UnpackedStamp): LoadResult.Refused? {
+        val directory = store.extractedDirectory(modelId)
+        return when (val check = stamp.check(directory)) {
+            is UnpackedStamp.Check.Mismatch -> refuseUnpacked(
+                modelId,
+                check.name,
+                "an unpacked file changed since install (${check.name})",
+            )
+            UnpackedStamp.Check.Match -> null
+            UnpackedStamp.Check.NeedsHash -> {
+                val bad = stamp.hashesMatch(directory, digestOf)
+                if (bad != null) {
+                    return refuseUnpacked(modelId, bad, "an unpacked file does not match its recorded digest ($bad)")
+                }
+                refreshStamp(modelId, stamp, directory)
+                null
+            }
+        }
+    }
+
+    /** Deletes the one unpacked file that failed and builds the refusal; the file stays only when the delete failed. */
+    private fun refuseUnpacked(modelId: String, name: String, technical: String): LoadResult.Refused {
+        val removed = store.deleteUnpackedFile(modelId, name)
+        return refuse(
+            Refusal.NOT_INSTALLED,
+            ModelMessages.MODEL_NOT_INSTALLED,
+            technical,
+            leftOnDisk = !removed,
+        )
+    }
+
+    /** Rewrites the stamp with the current modified times; a failed write costs only the refresh. */
+    private fun refreshStamp(modelId: String, stamp: UnpackedStamp, directory: File) {
+        stamp.refreshed(directory)?.let {
+            try {
+                store.writeStamp(modelId, it)
+            } catch (e: IOException) {
+                debug.debug("could not refresh the unpacked-file stamp")
+            }
+        }
+    }
+
+    /**
+     * The missing-stamp path, after the archive verified and the unpacked files
+     * were found: writes a stamp from the files as they are. A failed measure or
+     * write costs only the stamp; it never fails the load.
+     */
+    private fun writeFirstStamp(modelId: String, profile: ExtractionProfile?, digest: String) {
+        val directory = store.extractedDirectory(modelId)
+        val fresh = profile?.let { UnpackedStamp.measure(directory, it.files, digest, digestOf) } ?: return
+        try {
+            store.writeStamp(modelId, fresh)
+        } catch (e: IOException) {
+            debug.debug("could not write the unpacked-file stamp")
+        }
     }
 }

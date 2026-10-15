@@ -8,8 +8,8 @@ import java.io.File
  *
  * [modelId] is the registry id (e.g. "tiny"), [directory] is the directory that
  * holds the unpacked model files, and [digest] is the SHA-256 hex string that pins
- * the verified archive; the archive is checked against it when it is installed
- * and again on every load.
+ * the verified archive; the archive is checked against it when it is installed,
+ * and a load trusts the unpacked files through their install stamp instead.
  */
 data class SherpaModel(val modelId: String, val directory: File, val digest: String)
 

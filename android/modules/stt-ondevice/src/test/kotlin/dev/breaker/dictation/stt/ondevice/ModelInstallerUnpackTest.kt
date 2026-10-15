@@ -59,7 +59,8 @@ class ModelInstallerUnpackTest : ModelInstallerUnpackFixture() {
         val fetcher = ArchiveFetcher(tinyBytes, "model.archive\t$tinyPin")
         val result = ModelInstaller(store, fetcher, extractor = observing).install(entry())
         assertEquals(ModelInstaller.InstallResult.Installed("tiny", tinyPin), result)
-        assertFilesHold(store, TarFixtures.TINY_FILES) { TarFixtures.contentOf(it, 48) }
+        // The stamp is expected here: a successful install records it last, after the unpack.
+        assertFilesHold(store, TarFixtures.TINY_FILES, withStamp = true) { TarFixtures.contentOf(it, 48) }
         assertTrue(store.isExtracted("tiny"))
         assertTrue("the archive stays for the load check", store.isInstalled("tiny"))
         assertFalse("the work directory is gone", store.extractionWorkDirectory("tiny").exists())
@@ -78,7 +79,8 @@ class ModelInstallerUnpackTest : ModelInstallerUnpackFixture() {
         val fetcher = ArchiveFetcher(tinyBytes, "model.archive\t$tinyPin")
         val result = ModelInstaller(store, fetcher).install(entry())
         assertEquals(ModelInstaller.InstallResult.Installed("tiny", tinyPin), result)
-        assertFilesHold(store, TarFixtures.TINY_FILES) { TarFixtures.contentOf(it, 48) }
+        // The stamp is expected here: a successful install records it last, after the unpack.
+        assertFilesHold(store, TarFixtures.TINY_FILES, withStamp = true) { TarFixtures.contentOf(it, 48) }
     }
 
     @Test
@@ -86,7 +88,8 @@ class ModelInstallerUnpackTest : ModelInstallerUnpackFixture() {
         val store = newStore()
         val result = run(TarFixtures.smallArchive(), store, id = "small")
         assertEquals("small", installedOf(result).modelId)
-        assertEquals(TarFixtures.SMALL_FILES.sorted(), store.extractedDirectory("small").list()!!.sorted())
+        // The stamp is expected here: the small install unpacked its files and then recorded the stamp.
+        assertEquals((TarFixtures.SMALL_FILES + UnpackedStamp.FILE_NAME).sorted(), store.extractedDirectory("small").list()!!.sorted())
         assertTrue(store.isExtracted("small"))
     }
 
