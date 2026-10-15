@@ -46,6 +46,7 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
             downloadLine = { downloadSentence },
             modelDownloadMb = { ModelCatalog.byId(app.settingsStore.load().modelSize)?.sizeMb?.let(ModelSentences::mibToMb) ?: ModelSentences.mibToMb(ModelRegistry.SMALL.sizeMb) },
             onDownloadModel = { app.tileHost.requestDownload() },
+            settings = app.settingsStore,
         )
         onboardingView = onboarding
         val history = Button(this)

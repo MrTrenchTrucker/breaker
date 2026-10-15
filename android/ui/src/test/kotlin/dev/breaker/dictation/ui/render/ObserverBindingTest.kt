@@ -31,7 +31,7 @@ class ObserverBindingTest {
     private val ONBOARDING_SIGNATURE =
         "fun createOnboardingView(context: android.content.Context, " +
             "switch: BreakerSwitch, accessibilityServiceComponent: String, " +
-            "modelReady: () -> Boolean, downloadLine: () -> String?, modelDownloadMb: () -> Int, onDownloadModel: () -> Unit): android.view.View"
+            "modelReady: () -> Boolean, downloadLine: () -> String?, modelDownloadMb: () -> Int, onDownloadModel: () -> Unit, settings: dev.breaker.dictation.core.port.SettingsStore): android.view.View"
 
     /** The public declaration of the history view, written on one line. */
     private val HISTORY_SIGNATURE =

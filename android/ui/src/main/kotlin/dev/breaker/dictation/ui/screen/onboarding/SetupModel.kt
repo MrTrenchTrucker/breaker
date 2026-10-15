@@ -38,6 +38,8 @@ internal data class PlatformStatus(
     val notifications: Boolean,
     val accessibility: Boolean,
     val sdkInt: Int,
+    /** True when the system says it would still show the microphone dialog after an earlier refusal. */
+    val microphoneRationale: Boolean = false,
 )
 
 /** What a button can do: ask in a dialog, or open a page of the phone's settings. */
@@ -145,14 +147,16 @@ internal data class SetupState(
      * The button [step] offers, or null when the step is already granted.
      *
      * Android may not show a refused microphone or notification prompt again, so
-     * after the first ask the button opens a settings page instead.
+     * after the first ask the notification button opens a settings page instead. The
+     * microphone button opens the page only when the prompt was asked before and the
+     * system would not show it again; otherwise it asks.
      */
     fun actionFor(step: SetupStep): OpenAction? {
         if (isGranted(step)) return null
         return when (step) {
             SetupStep.OVERLAY -> OpenAction.OVERLAY_PAGE
             SetupStep.MICROPHONE ->
-                if (micAskedBefore) OpenAction.APP_INFO else OpenAction.REQUEST_MICROPHONE
+                if (micAskedBefore && !status.microphoneRationale) OpenAction.APP_INFO else OpenAction.REQUEST_MICROPHONE
             SetupStep.NOTIFICATIONS ->
                 if (canPromptForNotifications) OpenAction.REQUEST_NOTIFICATIONS else OpenAction.NOTIFICATION_PAGE
             SetupStep.ACCESSIBILITY -> OpenAction.ACCESSIBILITY_LIST

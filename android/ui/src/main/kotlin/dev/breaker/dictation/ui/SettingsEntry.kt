@@ -66,15 +66,15 @@ fun createSettingsView(context: android.content.Context, settings: dev.breaker.d
  * The screen walks the user through the permissions Breaker needs and holds the
  * switch that turns Breaker on and off. What is granted is read from the phone
  * each time the screen is drawn, and again when the user comes back from a system
- * page or a permission dialog, so the screen shows what is true now. Nothing is
- * stored by this module: whether Breaker is on is read from [switch]. The screen
- * remembers, in memory and only for as long as the view lives, which permission
- * prompts it has already shown, so that the next tap on the same button opens a
- * settings page instead of asking again.
+ * page or a permission dialog, so the screen shows what is true now. This module
+ * stores nothing itself: whether Breaker is on is read from [switch], and the flag
+ * that the microphone prompt was asked is kept in [settings], written once the prompt
+ * has come back. The notification prompt is remembered in memory only, for as long as
+ * the view lives. So the next tap on the same button opens a settings page instead
+ * of asking again.
  *
- * This screen has no settings store, so it follows the phone's own light or dark
- * mode, which is read from [context] once, here. A mode that reports neither
- * night nor day counts as light.
+ * The screen's colours follow the phone's own light or dark mode, which is read from
+ * [context] once, here. A mode that reports neither night nor day counts as light.
  *
  * @param context the context the views are built with, normally an activity's.
  * @param switch the switch the app provides for turning Breaker on and off.
@@ -93,6 +93,7 @@ fun createSettingsView(context: android.content.Context, settings: dev.breaker.d
  *   line shows; read again on every refresh.
  * @param onDownloadModel asks the app to download the speech model; the download
  *   itself stays the app's.
+ * @param settings the store the app owns; the microphone prompt flag is kept in it.
  * @return a view that shows the setup steps and the switch and can be put in a
  *   layout as it stands. The view also answers [ModelStepControl], which the app
  *   calls to refresh the model step and to focus its download button.
@@ -106,11 +107,12 @@ fun createOnboardingView(
     downloadLine: () -> String?,
     modelDownloadMb: () -> Int,
     onDownloadModel: () -> Unit,
+    settings: dev.breaker.dictation.core.port.SettingsStore,
 ): android.view.View {
     val phoneIsDark = isNightMode(context.resources.configuration.uiMode)
     val theme = Themes.of(shownMode(StoredThemeMode.SYSTEM, phoneIsDark))
     val platform = AndroidSetupPlatform(context, accessibilityServiceComponent)
-    val handler = SetupIntentHandler(platform, switch, modelReady, downloadLine, modelDownloadMb, onDownloadModel, SetupScreen())
+    val handler = SetupIntentHandler(platform, switch, modelReady, downloadLine, modelDownloadMb, onDownloadModel, SetupScreen(), settings)
     return SetupHostView(context, handler, theme, ScreenRenderer(context))
 }
 
@@ -121,7 +123,7 @@ fun createOnboardingView(
  * on each row. A deletion can be undone for a short time: the row leaves [history]
  * only when that time has passed, or when the view leaves the window.
  *
- * Like the setup screen, this screen has no settings store, so it follows the phone's
+ * This screen has no settings store, so it follows the phone's
  * own light or dark mode, which is read from [context] once, here. A mode that reports
  * neither night nor day counts as light. The screen reads and deletes only through
  * [history], and copies text only to the system clipboard.

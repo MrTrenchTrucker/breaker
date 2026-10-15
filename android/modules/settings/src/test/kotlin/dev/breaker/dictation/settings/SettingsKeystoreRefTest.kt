@@ -91,7 +91,7 @@ class SettingsKeystoreRefTest {
 
         store(file, FakeKeystore()).save(minimalSettings(plantedRef))
 
-        assertEquals("the saved key set", THE_NINE_KEYS, rawKeysOf(file))
+        assertEquals("the saved key set", THE_TEN_KEYS, rawKeysOf(file))
         assertTrue(
             "a credential-like key was written: ${rawKeysOf(file)}",
             credentialLikeKeysIn(rawKeysOf(file)).isEmpty(),
@@ -103,7 +103,7 @@ class SettingsKeystoreRefTest {
         // A file that carries an api_key key anyway — hand-edited, restored
         // from a backup, written by an older build. Load must ignore it.
         val props = Properties()
-        THE_NINE_KEYS.forEach { props.setProperty(it, "irrelevant") }
+        THE_TEN_KEYS.forEach { props.setProperty(it, "irrelevant") }
         props.setProperty("api_key", plantedRef)
         val file = newFile()
         file.outputStream().use { props.store(it, "test") }
@@ -306,6 +306,6 @@ class SettingsKeystoreRefTest {
 
         assertNull(reloaded.apiKeyRef)
         assertTrue("nothing should have been stored: ${keystore.storedRefs}", keystore.storedRefs.isEmpty())
-        assertEquals(THE_NINE_KEYS, rawKeysOf(file))
+        assertEquals(THE_TEN_KEYS, rawKeysOf(file))
     }
 }
