@@ -32,7 +32,7 @@ internal class AppLayoutGateTest {
         "wiring/BreakerSwitchAdapter.kt", "wiring/ForwardingDownloadNotice.kt",
         "wiring/TakeYield.kt", "wiring/TakenClipboard.kt",
         "wiring/TakenSentences.kt",
-        "wiring/LevelMap.kt", "wiring/LevelMeter.kt", "wiring/LevelFeed.kt", "wiring/LevelTap.kt",
+        "wiring/LevelMap.kt", "wiring/LevelMeter.kt", "wiring/LevelFeed.kt", "wiring/LevelTap.kt", "wiring/NoiseFloor.kt",
     )
 
     /** Main files that are the layer over the platform and name Android types. */

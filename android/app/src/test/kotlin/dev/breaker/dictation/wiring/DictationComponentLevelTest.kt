@@ -9,7 +9,6 @@ import kotlinx.coroutines.CompletableDeferred
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotSame
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** Records each level it is handed, with the thread that handed it over, and completes on the first one. */
@@ -54,7 +53,8 @@ internal class DictationComponentLevelTest {
         component.runner.cancel()
 
         val level = awaitBounded("a level from the take", sink.first)
-        assertTrue("app: the level was $level, expected above 0 and at most 1", level > 0f && level <= 1f)
+        // A constant input fills the first window, which seeds the floor, so the level reads 0.
+        assertEquals("app: the whole first window is the floor, so a constant input reads 0", 0f, level, 0f)
         assertNotSame("app: the level was handed over on the test thread", Thread.currentThread(), sink.threads.first())
 
         val capture = awaitBounded("the capture thread to read", mic.firstReadThread)
