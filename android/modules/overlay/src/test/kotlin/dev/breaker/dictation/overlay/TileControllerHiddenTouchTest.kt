@@ -10,7 +10,7 @@ import org.junit.Test
  * again after a theme change, and act on a touch that came while the tile was hidden.
  *
  * The screen is the one in [TestData]: the saved centre puts the square tile at (506, 1140), 100 pixels
- * square. While recording the window is 300 by 150 pixels with its top-left corner at (406, 1090): the
+ * square. While recording the window is 300 by 100 pixels with its top-left corner at (406, 1140): the
  * cancel button is x 406..506, the microphone x 506..606 and the send button x 606..706, all in
  * y 1140..1240.
  */

@@ -72,7 +72,7 @@ class TileControllerHideTest {
 
         val face = rig.window.appliedFaces.last()
         assertEquals("overlay: show should draw the recording state kept through hide", TileState.RECORDING, face.state)
-        assertEquals("overlay: show should draw the level kept through hide, half of 12 segments", 6, face.litSegments)
+        assertEquals("overlay: show should draw the level kept through hide, half of 6 segments", 3, face.litSegments)
     }
 
     /** If this fails, a sentence pushed while the tile is off screen is dropped instead of kept for the next show. */

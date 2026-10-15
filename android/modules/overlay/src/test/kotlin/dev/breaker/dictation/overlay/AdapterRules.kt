@@ -188,7 +188,12 @@ internal object AdapterRules {
     )
     private const val LOOK = "(?:face\\.)?look\\.\\w+"
     private val colourAssignment = Regex("\\.color\\s*=\\s*([^\\n]*)")
-    private val colourAssignmentOk = Regex("color|$LOOK|if\\s*\\([^)\\n]*\\)\\s*$LOOK\\s+else\\s+$LOOK|when\\s*\\([^)\\n]*\\)\\s*\\{|ringDrawColor\\(color, pulseAlpha\\)")
+    /**
+     * The values a colour assignment may take in the view: the bare colour parameter, a look field, a look field chosen by an
+     * if or a when, the ring colour at the pulse alpha, and the glow colour of one layer at the pulse alpha and the layer alpha.
+     * The two pulse forms are matched with their exact arguments, so any other argument in their place is reported.
+     */
+    private val colourAssignmentOk = Regex("color|$LOOK|if\\s*\\([^)\\n]*\\)\\s*$LOOK\\s+else\\s+$LOOK|when\\s*\\([^)\\n]*\\)\\s*\\{|ringDrawColor\\(color, pulseAlpha\\)|glowDrawColor\\(color, pulseAlpha, glowAlpha\\(layer\\)\\)")
     private val lookOnly = Regex(LOOK)
     private val colourFunctions = listOf("drawRing", "drawCancel", "drawSend")
     private val colourCall = Regex("\\b(?:${colourFunctions.joinToString("|")})\\s*\\(")

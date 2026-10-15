@@ -6,28 +6,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The stand-in glyph, its colours and its sizes.
+ * The tile's colours and its fixed sizes: the picture colours for each palette, the touch target, the corner
+ * radius and the outline width. The picture itself is art data and is checked in the art tests.
  *
  * Colours are compared with the token values written out as hex literals (surface, primary and trim
  * of each palette), so a change in either side shows up here.
  */
 class TileGlyphTest {
     private fun hex(argb: Int): String = "0x" + Integer.toHexString(argb).uppercase()
-
-    /** A failure means a glyph rectangle sticks out of the unit square, is flipped or empty, or the glyph has no rectangles at all. */
-    @Test
-    fun `every glyph rectangle lies inside the unit square and has an area`() {
-        val rects = TileGlyph.rects
-        assertTrue("android_overlay: the glyph expected at least one rectangle", rects.isNotEmpty())
-        for ((index, rect) in rects.withIndex()) {
-            assertTrue("android_overlay: rectangle $index expected left >= 0: $rect", rect.left >= 0f)
-            assertTrue("android_overlay: rectangle $index expected top >= 0: $rect", rect.top >= 0f)
-            assertTrue("android_overlay: rectangle $index expected right <= 1: $rect", rect.right <= 1f)
-            assertTrue("android_overlay: rectangle $index expected bottom <= 1: $rect", rect.bottom <= 1f)
-            assertTrue("android_overlay: rectangle $index expected left < right (a width): $rect", rect.left < rect.right)
-            assertTrue("android_overlay: rectangle $index expected top < bottom (a height): $rect", rect.top < rect.bottom)
-        }
-    }
 
     /** A failure means a tile colour is not the palette's surface (background), primary (glyph) or trim (outline), in light or dark. */
     @Test
@@ -67,61 +53,5 @@ class TileGlyphTest {
         assertTrue("android_overlay: the corner radius expected not negative", TileMetrics.CORNER_RADIUS_DP >= 0)
         assertEquals("android_overlay: the corner radius expected 4 dp", 4, TileMetrics.CORNER_RADIUS_DP)
         assertEquals("android_overlay: the outline width expected 2 dp", 2, TileMetrics.OUTLINE_DP)
-    }
-
-    /** A failure means a glyph role (body, grille, outline or slash) has no rectangle, so part of the picture is never drawn, or a role was added or removed. */
-    @Test
-    fun `every glyph role is drawn at least once`() {
-        assertEquals(
-            "android_overlay: the glyph roles expected BODY, GRILLE, OUTLINE, SLASH in that order",
-            listOf(GlyphRole.BODY, GlyphRole.GRILLE, GlyphRole.OUTLINE, GlyphRole.SLASH),
-            GlyphRole.values().toList(),
-        )
-        for (role in GlyphRole.values()) {
-            val count = TileGlyph.rects.count { it.role == role }
-            assertTrue("android_overlay: the role $role expected at least one rectangle, found $count", count >= 1)
-        }
-    }
-
-    /** A failure means the outline lines are not the outline width over the tile size in the unit square, so they draw too thick or too thin. */
-    @Test
-    fun `the outline thickness is the outline width over the tile size`() {
-        // 2 dp over 56 dp is 2 / 56 = 0.0357142857 of the unit square; the literal is used here, not the production sum.
-        val expected = 0.0357143f
-        assertEquals("android_overlay: the literal expected equal to 2 / 56", 2f / 56f, expected, 0.00001f)
-
-        val outlines = TileGlyph.rects.filter { it.role == GlyphRole.OUTLINE }
-        assertEquals("android_overlay: expected 7 outline rectangles (4 for the head, 3 for the handle)", 7, outlines.size)
-        for ((index, rect) in outlines.withIndex()) {
-            val width = rect.right - rect.left
-            val height = rect.bottom - rect.top
-            val thickness = minOf(width, height)
-            assertEquals(
-                "android_overlay: outline $index expected a thickness of 0.0357143 (2 / 56) but the rectangle is $rect",
-                expected,
-                thickness,
-                0.00001f,
-            )
-        }
-    }
-
-    /** A failure means the busy slash is not eight connected steps from corner to corner of the tile, or it is drawn under the microphone. */
-    @Test
-    fun `the slash runs corner to corner in eight steps on top of the microphone`() {
-        val slash = TileGlyph.rects.filter { it.role == GlyphRole.SLASH }
-        assertEquals("android_overlay: the slash expected 8 steps", 8, slash.size)
-        assertEquals("android_overlay: the first step expected at the top left corner (left)", 0f, slash.first().left, 0.0001f)
-        assertEquals("android_overlay: the first step expected at the top left corner (top)", 0f, slash.first().top, 0.0001f)
-        assertEquals("android_overlay: the last step expected at the bottom right corner (right)", 1f, slash.last().right, 0.0001f)
-        assertEquals("android_overlay: the last step expected at the bottom right corner (bottom)", 1f, slash.last().bottom, 0.0001f)
-        for (i in 1 until slash.size) {
-            assertTrue("android_overlay: step $i expected to move right of step ${i - 1}", slash[i].left > slash[i - 1].left)
-            assertTrue("android_overlay: step $i expected to move down from step ${i - 1}", slash[i].top > slash[i - 1].top)
-            assertTrue("android_overlay: step $i expected to touch step ${i - 1} across", slash[i].left <= slash[i - 1].right)
-            assertTrue("android_overlay: step $i expected to touch step ${i - 1} down", slash[i].top <= slash[i - 1].bottom)
-        }
-        val lastPicture = TileGlyph.rects.indexOfLast { it.role != GlyphRole.SLASH }
-        val firstSlash = TileGlyph.rects.indexOfFirst { it.role == GlyphRole.SLASH }
-        assertTrue("android_overlay: the slash expected after the picture so it lies on top", firstSlash > lastPicture)
     }
 }

@@ -5,17 +5,18 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The drawing rules of the tile view, checked on its source text because the view cannot run on a
- * plain JVM: which meter segments are lit, which side the cells are cut from, which cell holds which
- * control, which shape draws what, and how the notice is wrapped and cut.
+ * The drawing rules of the tile view, checked on its source text because the view cannot run on a plain JVM:
+ * which side the cells are cut from, which cell holds which control and how often, which branch draws what,
+ * how the notice is wrapped and cut, and (in the art) which grille slots are lit and how they are coloured.
  *
- * Every test runs its rule first on short made-up samples (a flipped line must be reported with the
- * right words, a correct one must not, even with other names) and only then on the real file. A
- * construct that cannot be found is a violation, never a pass. Comments are blanked, strings are kept.
+ * Every test runs its rule first on short made-up samples (a flipped line must be reported with the right words,
+ * a correct one must not, even with other names) and only then on the real file. A construct that cannot be found
+ * is a violation, never a pass. Comments are blanked, strings are kept.
  */
 class TileViewDrawingGateTest {
 
     private val view = "TileView.kt"
+    private val art = "TileArtDraw.kt"
 
     private fun assertFires(what: String, problems: List<String>, part: String) =
         assertTrue("overlay: control: $what must be reported with '$part', got $problems", problems.any { it.contains(part) })
@@ -36,15 +37,12 @@ class TileViewDrawingGateTest {
 
     private val sideDecl = Regex("""\bval\s+(\w+)\s*=\s*if\s*\(\s*(?:this\.)?(?:face\.)?shape\s*==\s*TileShape\.COLLAPSED\s*\)\s*height\s+else\s+width\s*/\s*3\b""")
     private val micCall = Regex("""TileLayout\.micCell\(\s*(?:this\.)?(?:face\.)?shape\s*,\s*(\w+)\s*\)""")
-    private val litChoice = Regex("""if\s*\(\s*(\w+)\s*<\s*(?:face\.)?litSegments\s*\)\s*(?:face\.)?look\.litSegment\s+else\s+(?:face\.)?look\.unlitSegment""")
-    private val indexName = Regex("""(?:\(\s*|\{\s*)(\w+)\s*,\s*\w+\s*(?:\)\s*in\b|->)""")
-    private val segmentSource = Regex("""TileLayout\.segmentRects\(\s*(?:face\.)?segments\s*,\s*TileLayout\.meterRect\(\s*(\w+)\s*\)\s*\)""")
     private val cancelCall = Regex("""\bdrawCancel\s*\(\s*canvas\s*,\s*TileLayout\.cancelCell\(\s*(\w+)\s*\)\s*,""")
     private val sendCall = Regex("""\bdrawSend\s*\(\s*canvas\s*,\s*TileLayout\.sendCell\(\s*(\w+)\s*\)\s*,""")
     private val recordingHead = Regex("""TileShape\.RECORDING\s*->\s*\{""")
     private val noticeBranch = Regex("""TileShape\.NOTICE\s*->\s*drawNotice\s*\(""")
-    private val noticeArea = Regex("""\bval\s+(\w+)\s*=\s*TileLayout\.noticeRect\(\s*(\w+)\s*\)""")
     private val widthOf = Regex("""\bval\s+(\w+)\s*=\s*(\w+)\.width\b""")
+    private val noticeArea = Regex("""\bval\s+(\w+)\s*=\s*TileLayout\.noticeRect\(\s*(\w+)\s*\)""")
     private val layoutWidth = Regex("""StaticLayout\.Builder\.obtain\(\s*[^,]+,\s*[^,]+,\s*[^,]+,\s*[^,]+,\s*(\w+)\s*\)""")
     private val maxLines = Regex("""\.setMaxLines\(\s*(\w+)\s*\)""")
     private val ellipsize = Regex("""\.setEllipsize\(\s*TextUtils\.TruncateAt\.END\s*\)""")
@@ -75,26 +73,17 @@ class TileViewDrawingGateTest {
         )
     }
 
-    private fun meterProblems(source: String): List<String> {
-        val code = SourceText.code(source)
-        val side = sideOf(code)
-        val lit = litChoice.find(code)
-        val indexNames = indexName.findAll(code).map { it.groupValues[1] }.toSet()
-        val sources = segmentSource.findAll(code).map { it.groupValues[1] }.toList()
-        return listOfNotNull(
-            "the meter does not light the segments below litSegments in the lit colour and the rest in the unlit colour".takeIf { lit == null },
-            "the lit test compares '${lit?.groupValues?.get(1)}', which is not the segment index of the loop".takeIf { lit != null && lit.groupValues[1] !in indexNames },
-            "the meter segments are not cut from the face's segments over the meter area".takeIf { sources.isEmpty() || sources.any { it != side } },
-            "the meter segments are not inset by the gap".takeUnless { code.contains("SEGMENT_GAP_PX") },
-        )
-    }
-
     private fun recordingBranch(code: String): String? {
         val head = recordingHead.find(code) ?: return null
         val close = SourceText.closeOf(code, head.range.last)
         return if (close < 0) null else code.substring(head.range.last, close + 1)
     }
 
+    /**
+     * Each button is called twice, the halo pass and the control pass, each with its cell from the side of the cell.
+     * The recording branch draws both buttons twice each, and the notice branch draws the notice.
+     * The order and the colours of the two passes are checked by the halo rules.
+     */
     private fun controlProblems(source: String): List<String> {
         val code = SourceText.code(source)
         val side = sideOf(code)
@@ -102,10 +91,10 @@ class TileViewDrawingGateTest {
         val send = callsOf(code, "drawSend")
         val recording = recordingBranch(code)
         return listOfNotNull(
-            "drawCancel is not called once with the cancel cell".takeUnless { cancel.size == 1 && cancelCall.find(cancel[0])?.groupValues?.get(1) == side },
-            "drawSend is not called once with the send cell".takeUnless { send.size == 1 && sendCall.find(send[0])?.groupValues?.get(1) == side },
-            "the recording branch does not draw the meter and both controls".takeUnless {
-                recording != null && listOf("drawMeter", "drawCancel", "drawSend").all { Regex("""\b$it\s*\(""").containsMatchIn(recording) }
+            "drawCancel is not called twice with the cancel cell".takeUnless { cancel.size == 2 && cancel.all { cancelCall.find(it)?.groupValues?.get(1) == side } },
+            "drawSend is not called twice with the send cell".takeUnless { send.size == 2 && send.all { sendCall.find(it)?.groupValues?.get(1) == side } },
+            "the recording branch does not draw the two buttons, each twice".takeUnless {
+                recording != null && listOf("drawCancel", "drawSend").all { name -> Regex("""\b$name\s*\(""").findAll(recording).count() == 2 }
             },
             "the notice branch does not draw the notice".takeUnless { noticeBranch.containsMatchIn(code) },
         )
@@ -139,16 +128,13 @@ class TileViewDrawingGateTest {
         "TileShape.COLLAPSED -> Unit",
         "TileShape.NOTICE -> drawNotice(canvas, s, face)",
         "TileShape.RECORDING -> {",
-        "drawMeter(canvas, s, face)",
+        "haloExtraPx = 2 * ArtMetrics.HALO_DP * density",
+        "drawCancel(canvas, TileLayout.cancelCell(s), look.background)",
+        "drawSend(canvas, TileLayout.sendCell(s), look.background)",
+        "haloExtraPx = 0f",
         "drawCancel(canvas, TileLayout.cancelCell(s), look.control)",
         "drawSend(canvas, TileLayout.sendCell(s), look.control)",
         "}",
-        "}",
-        "}",
-        "private fun drawMeter(canvas: Canvas, s: Int, face: TileFace) {",
-        "val gap = TileMetrics.SEGMENT_GAP_PX.toFloat()",
-        "for ((index, cell) in TileLayout.segmentRects(face.segments, TileLayout.meterRect(s)).withIndex()) {",
-        "paint.color = if (index < face.litSegments) face.look.litSegment else face.look.unlitSegment",
         "}",
         "}",
         "private fun drawCancel(canvas: Canvas, cell: TileRect, color: Int) { }",
@@ -167,7 +153,7 @@ class TileViewDrawingGateTest {
         "}",
     ).joinToString("\n") + "\n"
 
-    private val allRules = listOf(this::sideProblems, this::meterProblems, this::controlProblems, this::noticeProblems)
+    private val allRules = listOf(this::sideProblems, this::controlProblems, this::noticeProblems)
 
     /** A failure here means the picture and the touch zones are cut from different sides, so a button is drawn where it does not answer. */
     @Test
@@ -187,32 +173,26 @@ class TileViewDrawingGateTest {
         assertEquals("overlay: $view must cut its cells from height when square and width / 3 when wide", emptyList<String>(), inView(this::sideProblems))
     }
 
-    /** A failure here means the meter shows the wrong part of the sound level: the lit and the unlit segments are swapped, shifted or cut from the wrong list. */
+    /**
+     * A failure here means the meter shows the wrong part of the sound level. The meter is now the six grille slots
+     * of the art: the slots are walked in order, each is lit by slotLit with the face's lit count, and its body and
+     * its strip are coloured by slotColor. This re-points the old meter rule to the art's drawing of the slots.
+     */
     @Test
-    fun `the view lights the segments below the lit count in the lit colour`() {
-        val lit = "if (index < face.litSegments) face.look.litSegment else face.look.unlitSegment"
-        assertFires("the compare reversed", meterProblems(edit(sample, "index < face.litSegments", "index >= face.litSegments")), "does not light the segments")
-        assertFires("the compare made inclusive", meterProblems(edit(sample, "index < face.litSegments", "index <= face.litSegments")), "does not light the segments")
-        assertFires("the compare shifted by one", meterProblems(edit(sample, "index < face.litSegments", "index < face.litSegments + 1")), "does not light the segments")
-        assertFires("the compare with the count on the left", meterProblems(edit(sample, "index < face.litSegments", "index > face.litSegments")), "does not light the segments")
-        assertFires("the two colours swapped", meterProblems(edit(sample, lit, "if (index < face.litSegments) face.look.unlitSegment else face.look.litSegment")), "does not light the segments")
-        assertFires("a lit test against the cell", meterProblems(edit(sample, "if (index <", "if (cell <")), "not the segment index")
-        assertFires("segments cut from the lit count", meterProblems(edit(sample, "segmentRects(face.segments,", "segmentRects(face.litSegments,")), "not cut from the face's segments")
-        assertFires("segments cut over another area", meterProblems(edit(sample, "meterRect(s)", "noticeRect(s)")), "not cut from the face's segments")
-        assertFires("no gap", meterProblems(edit(sample, "TileMetrics.SEGMENT_GAP_PX.toFloat()", "1f")), "not inset by the gap")
-        assertFires("the choice only in a comment", meterProblems(edit(sample, lit, "// $lit")), "does not light the segments")
-        val loop = "for ((index, cell) in TileLayout.segmentRects(face.segments, TileLayout.meterRect(s)).withIndex()) {"
-        val another = edit(sample, loop, "TileLayout.segmentRects(face.segments, TileLayout.meterRect(s)).forEachIndexed { i, cell ->")
-        assertQuiet(
-            "an index loop of another form, other names and the look without face",
-            meterProblems(edit(edit(edit(another, "index < face.litSegments", "i < litSegments"), "face.look.litSegment", "look.litSegment"), "else face.look.unlitSegment", "else look.unlitSegment")),
-        )
-        assertQuiet("the flipped line in a comment next to the right one", meterProblems("// if (index >= face.litSegments)\n" + sample))
+    fun `the art lights the grille slots below the lit count in the lit colour`() {
+        val real = ModuleFiles.mainTexts().getValue(art)
+        assertQuiet("the real art", ViewDrawingRules.slotProblems(real))
+        assertFires("the lit test replaced by the index compare", ViewDrawingRules.slotProblems(edit(real, "slotLit(face.state, index, face.litSegments)", "index >= face.litSegments")), "slotLit")
+        assertFires("the lit test given no lit count", ViewDrawingRules.slotProblems(edit(real, "slotLit(face.state, index, face.litSegments)", "slotLit(face.state, index, 0)")), "slotLit")
+        assertFires("the strip in the body colour", ViewDrawingRules.slotProblems(edit(real, "fillShape(canvas, paint, slot.top, slotColor(true, lit, look))", "fillShape(canvas, paint, slot.top, slotColor(false, lit, look))")), "strip")
+        assertFires("the body in the strip colour", ViewDrawingRules.slotProblems(edit(real, "fillShape(canvas, paint, slot.body, slotColor(false, lit, look))", "fillShape(canvas, paint, slot.body, slotColor(true, lit, look))")), "body")
+        assertFires("the slots not taken from TileArt.slots", ViewDrawingRules.slotProblems(edit(real, "TileArt.slots.withIndex()", "TileArt.bodyShapes.withIndex()")), "walk TileArt.slots")
+        assertQuiet("the index under another name", ViewDrawingRules.slotProblems(edit(edit(real, "(index, slot) in", "(i, slot) in"), "slotLit(face.state, index,", "slotLit(face.state, i,")))
 
-        assertEquals("overlay: $view must light the segments below the lit count in the lit colour", emptyList<String>(), inView(this::meterProblems))
+        assertEquals("overlay: $art must light the grille slots below the lit count in the lit colour", emptyList<String>(), ViewDrawingRules.slotProblems(real))
     }
 
-    /** A failure here means a control is drawn in a cell that does not answer it, or a shape draws what belongs to another. */
+    /** A failure here means a control is drawn in a cell that does not answer it, or a button is drawn once where it is drawn twice. */
     @Test
     fun `the view draws the cancel cross left and the check right and only when recording`() {
         val cancel = "drawCancel(canvas, TileLayout.cancelCell(s), look.control)"
@@ -220,17 +200,16 @@ class TileViewDrawingGateTest {
         assertFires("the cross in the send cell", controlProblems(edit(sample, cancel, "drawCancel(canvas, TileLayout.sendCell(s), look.control)")), "drawCancel")
         assertFires("the check in the cancel cell", controlProblems(edit(sample, send, "drawSend(canvas, TileLayout.cancelCell(s), look.control)")), "drawSend")
         assertFires("the cross in the microphone cell", controlProblems(edit(sample, cancel, "drawCancel(canvas, TileLayout.micCell(face.shape, s), look.control)")), "drawCancel")
-        assertFires("the cross drawn twice", controlProblems(edit(sample, cancel, "$cancel\n$cancel")), "drawCancel")
+        assertFires("the cross drawn three times", controlProblems(edit(sample, cancel, "$cancel\n$cancel")), "drawCancel")
         assertFires("no check", controlProblems(edit(sample, "$send\n", "")), "drawSend")
         assertFires("the cross in a cell cut from another side", controlProblems(edit(sample, "cancelCell(s)", "cancelCell(height)")), "drawCancel")
-        assertFires("no meter in the recording branch", controlProblems(edit(sample, "drawMeter(canvas, s, face)\n", "")), "recording branch")
         assertFires("the check outside the recording branch", controlProblems(edit(edit(sample, "$send\n", ""), "TileShape.COLLAPSED -> Unit", "TileShape.COLLAPSED -> $send")), "recording branch")
         assertFires("the notice in the wrong branch", controlProblems(edit(sample, "TileShape.NOTICE -> drawNotice(canvas, s, face)", "TileShape.NOTICE -> Unit")), "notice branch")
         assertFires("no recording branch", controlProblems(edit(sample, "TileShape.RECORDING -> {", "TileShape.RECORDING -> run {")), "recording branch")
         assertQuiet("the side under another name", controlProblems(edit(edit(edit(sample, "val s =", "val side ="), "cancelCell(s)", "cancelCell(side)"), "sendCell(s)", "sendCell(side)")))
         assertQuiet("the arguments on separate lines", controlProblems(edit(sample, cancel, "drawCancel(\n canvas,\n TileLayout.cancelCell(s),\n look.control,\n)")))
 
-        assertEquals("overlay: $view must draw the cross in the cancel cell, the check in the send cell, only when recording", emptyList<String>(), inView(this::controlProblems))
+        assertEquals("overlay: $view must draw the cross in the cancel cell and the check in the send cell, only when recording", emptyList<String>(), inView(this::controlProblems))
     }
 
     /** A failure here means a long notice runs over the strip: it is not wrapped to the strip, not limited to two lines or not cut with an ellipsis. */

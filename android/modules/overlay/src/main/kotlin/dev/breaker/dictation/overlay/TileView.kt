@@ -11,13 +11,13 @@ import android.view.MotionEvent
 import android.view.View
 
 /**
- * The floating tile as one Android view: it draws one [TileFace] (a background, the microphone glyph
- * with a ring, then the level meter with buttons or the notice text) and nothing else.
+ * The floating tile as one Android view: it draws one [TileFace] (the microphone with its glowing
+ * outline and its six grille slots, then the buttons or the notice text) and nothing else.
  *
  * T4: overlay spoofing. The view asks the system to drop touches that arrive while another window
  * covers it ([setFilterTouchesWhenObscured]). The tile is tap-only: no text input, no focus.
- * Every colour comes from the face's [TileLook], every position from [TileLayout] and every glyph
- * shape from [TileGlyph]. Touches go to the [TouchSink] in screen coordinates and the view decides
+ * Every colour comes from the face's [TileLook], every position from [TileLayout] and every shape of
+ * the picture from [TileArtDraw]. Touches go to the [TouchSink] in screen coordinates and the view decides
  * nothing itself; only the finger that went down is followed. Call it from the UI looper only.
  * **What this class cannot prove.** Nothing here runs without a device: how it looks at real
  * density, how the notice text wraps, what an accessibility service reads, how a drag feels,
@@ -34,9 +34,12 @@ internal class TileView(
         private set
 
     private val density: Float = context.resources.displayMetrics.density
-    private val cornerRadiusPx: Float = TileMetrics.CORNER_RADIUS_DP * density
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeCap = Paint.Cap.ROUND }
     private val textPaint = TextPaint(Paint.ANTI_ALIAS_FLAG)
+    private val artDraw = TileArtDraw()
+
+    /** Extra stroke width in pixels for the control strokes: the halo pass sets it, and it is 0 otherwise. */
+    private var haloExtraPx: Float = 0f
 
     /** Id of the pointer that owns the current gesture, or [NO_POINTER] when none does. */
     private var activePointerId: Int = NO_POINTER
@@ -112,78 +115,31 @@ internal class TileView(
         val s = if (face.shape == TileShape.COLLAPSED) height else width / 3
         if (s <= 0) return
 
-        paint.style = Paint.Style.FILL
-        paint.color = look.background
-        canvas.drawRoundRect(0f, 0f, width.toFloat(), height.toFloat(), cornerRadiusPx, cornerRadiusPx, paint)
-
         val mic = TileLayout.micCell(face.shape, s)
-        drawGlyph(canvas, mic, look, face.state)
+        artDraw.drawGlow(canvas, mic, paint, look.ring, pulseAlpha, density)
         drawRing(canvas, mic, look.ring)
+        artDraw.drawArt(canvas, mic, paint, face, pulseAlpha)
         when (face.shape) {
             TileShape.COLLAPSED -> Unit
             TileShape.NOTICE -> drawNotice(canvas, s, face)
             TileShape.RECORDING -> {
-                drawMeter(canvas, s, face)
+                haloExtraPx = 2 * ArtMetrics.HALO_DP * density
+                drawCancel(canvas, TileLayout.cancelCell(s), look.background)
+                drawSend(canvas, TileLayout.sendCell(s), look.background)
+                haloExtraPx = 0f
                 drawCancel(canvas, TileLayout.cancelCell(s), look.control)
                 drawSend(canvas, TileLayout.sendCell(s), look.control)
             }
         }
     }
 
-    /** The glyph's rectangles scaled into [cell], each in the colour of its role; the slash only for MIC_BUSY. */
-    private fun drawGlyph(canvas: Canvas, cell: TileRect, look: TileLook, state: TileState) {
-        paint.style = Paint.Style.FILL
-        val w = cell.width.toFloat()
-        val h = cell.height.toFloat()
-        for (rect in TileGlyph.rects) {
-            if (rect.role == GlyphRole.SLASH && state != TileState.MIC_BUSY) continue
-            paint.color = when (rect.role) {
-                GlyphRole.BODY -> look.glyph
-                GlyphRole.GRILLE -> look.glyphOutline
-                GlyphRole.OUTLINE -> look.glyphOutline
-                GlyphRole.SLASH -> look.ring
-            }
-            canvas.drawRect(
-                cell.left + rect.left * w,
-                cell.top + rect.top * h,
-                cell.left + rect.right * w,
-                cell.top + rect.bottom * h,
-                paint,
-            )
-        }
-    }
-
-    /** The ring just inside the edge of [cell]. */
+    /** The outline band of the microphone: its silhouette stroked RING_DP wide in the ring colour at the pulse alpha. */
     private fun drawRing(canvas: Canvas, cell: TileRect, color: Int) {
         val stroke = TileMetrics.RING_DP * density
-        val half = stroke / 2f
         paint.style = Paint.Style.STROKE
         paint.strokeWidth = stroke
         paint.color = ringDrawColor(color, pulseAlpha)
-        canvas.drawRoundRect(
-            cell.left + half,
-            cell.top + half,
-            cell.right - half,
-            cell.bottom - half,
-            cornerRadiusPx,
-            cornerRadiusPx,
-            paint,
-        )
-    }
-
-    /** The meter: one box per segment, the first lit ones in the lit colour and the rest in the unlit colour. */
-    private fun drawMeter(canvas: Canvas, s: Int, face: TileFace) {
-        val gap = TileMetrics.SEGMENT_GAP_PX.toFloat()
-        paint.style = Paint.Style.FILL
-        for ((index, cell) in TileLayout.segmentRects(face.segments, TileLayout.meterRect(s)).withIndex()) {
-            val left = cell.left + gap
-            val top = cell.top + gap
-            val right = cell.right - gap
-            val bottom = cell.bottom - gap
-            if (right <= left || bottom <= top) continue
-            paint.color = if (index < face.litSegments) face.look.litSegment else face.look.unlitSegment
-            canvas.drawRect(left, top, right, bottom, paint)
-        }
+        artDraw.strokeOutline(canvas, cell, paint)
     }
 
     /** The cancel button: a cross made of two strokes, inset in [cell]. */
@@ -211,7 +167,7 @@ internal class TileView(
 
     private fun strokeControl(color: Int) {
         paint.style = Paint.Style.STROKE
-        paint.strokeWidth = CONTROL_STROKE_DP * density
+        paint.strokeWidth = CONTROL_STROKE_DP * density + haloExtraPx
         paint.color = color
     }
 
@@ -222,7 +178,6 @@ internal class TileView(
         val pad = area.height / NOTICE_PAD_DIVISOR
         val textWidth = area.width - 2 * pad
         if (textWidth <= 0) return
-        textPaint.color = face.look.control
         textPaint.textSize = area.height * NOTICE_TEXT_FRACTION
         val layout = StaticLayout.Builder.obtain(text, 0, text.length, textPaint, textWidth)
             .setMaxLines(NOTICE_MAX_LINES)
@@ -232,6 +187,12 @@ internal class TileView(
             .build()
         canvas.save()
         canvas.translate((area.left + pad).toFloat(), area.top + (area.height - layout.height) / 2f)
+        textPaint.style = Paint.Style.STROKE
+        textPaint.strokeWidth = 2 * ArtMetrics.HALO_DP * density
+        textPaint.color = face.look.background
+        layout.draw(canvas)
+        textPaint.style = Paint.Style.FILL
+        textPaint.color = face.look.control
         layout.draw(canvas)
         canvas.restore()
     }

@@ -1,10 +1,10 @@
 # Overlay - README
 
-The floating tile that appears over any app. It is a small draggable tile with a
-stand-in microphone glyph, and it is where dictation is started, watched and
+The floating tile that appears over any app. It is a small draggable tile with the
+CB mic drawn from path data, and it is where dictation is started, watched and
 ended. The app tells the tile which of eight states to show, how loud the sound
 is, and what sentence to display; the tile reports taps back through callbacks.
-The microphone is a placeholder drawing until the final mic art comes later.
+The microphone is the approved CB mic art. How it looks on a phone is not verified yet.
 The tile never records and never inserts text. It has no text input, and its
 window is asked to be not focusable, so the app underneath should keep focus and
 its keyboard; that is not checked on a device.
@@ -16,23 +16,23 @@ a tap.
 
 | State | What the tile shows | A tap on the microphone calls |
 |---|---|---|
-| `IDLE` | the microphone with a plain ring | `onTap` |
-| `ARMED` | the microphone with a pulsing ring | `onBegin` |
+| `IDLE` | the microphone with a plain outline | `onTap` |
+| `ARMED` | the microphone with a pulsing outline | `onBegin` |
 | `RECORDING` | the expanded tile, below | `onSend` |
 | `SENDING` | the microphone; taps do nothing | nothing |
-| `FAILED` | the ring turns to the failure colour | `onTap` |
-| `SENT` | the ring turns green: the text is committed | `onTap` |
-| `SENT_LOCAL` | the ring turns orange: the phone model committed it after the server failed | `onTap` |
-| `MIC_BUSY` | the microphone with a red slash (danger colour), pulsing slowly | `onTap` |
+| `FAILED` | the outline turns to the failure colour | `onTap` |
+| `SENT` | the outline turns green: the text is committed | `onTap` |
+| `SENT_LOCAL` | the outline turns orange: the phone model committed it after the server failed | `onTap` |
+| `MIC_BUSY` | the microphone with a red circle and slash (danger colour), pulsing slowly | `onTap` |
 
-The armed ring pulses while the state is `ARMED` and the tile is shown: a platform animator
-lowers and raises the ring's brightness from a quarter to full strength over 1.6 seconds. It stops
+The armed outline pulses while the state is `ARMED` and the tile is shown: a platform animator
+lowers and raises the outline's brightness from a quarter to full strength over 1.6 seconds. It stops
 when the state leaves `ARMED`, when the tile is hidden or detached, when the window is not visible,
-or when the screen turns off. The app drives nothing; with system animations off the ring stays steady.
+or when the screen turns off. The app drives nothing; with system animations off the outline stays steady.
 
 ## The busy pulse
 
-While the tile is MIC_BUSY or SENDING and shown, the ring pulses slowly: a 3200 ms cycle
+While the tile is MIC_BUSY or SENDING and shown, the outline pulses slowly: a 3200 ms cycle
 with the alpha ranging from 0.6 to 1.0. It uses the same run conditions as the
 armed pulse (shown, attached, visible, lit screen, animations on). It stops
 when the state leaves MIC_BUSY or SENDING, when the tile is hidden or detached, when the
@@ -40,13 +40,24 @@ window is not visible, or when the screen turns off.
 
 ## The expanded tile and the meter
 
-While the state is `RECORDING` the tile widens to three tiles: an X (cancel) on
-the left, the microphone in the middle with the LED bar meter directly above it,
-and a check (send) on the right. The meter has 12 segments. The app pushes the
-sound level with `setLevel` (0.0 to 1.0); a value outside the range is held to it,
-and the tile redraws only when the number of lit segments changes. The expanded
-tile cannot be dragged; only the small tile moves, and its saved position is
-never changed by the wide one.
+While the state is `RECORDING` the tile widens to three tiles by one: an X (cancel) on
+the left, the microphone in the middle, and a check (send) on the right. The
+microphone's grille is the level meter: six slots, lit from the left. Silence leaves
+all six unlit. The app pushes the sound level with `setLevel` (0.0 to 1.0); a value
+outside the range is held to it, and the tile redraws only when the number of lit
+slots changes. Outside recording the six slots show the lit colour, because they are
+part of the grille. The expanded tile cannot be dragged; only the small tile moves,
+and its saved position is never changed by the wide one.
+
+## The microphone
+
+The microphone is the approved CB mic: straight-line shaded faces, a trigger bar, a
+head with a tapered lower body, a cord stub, a frame with the six grille slots, a
+ledge, and the word BREAKER as outlines. It is drawn from numeric path data copied
+from the art, with no font file. A glowing outline runs along its silhouette and
+takes the same colour per state as the ring did before. The tile draws no fill
+behind the mic in any state, so only the mic and its glow show over the app. The
+glow is a few stroke layers, not a blur.
 
 ## How dictation ends
 
@@ -59,7 +70,7 @@ pushes `SENDING`; the app must tolerate a repeat.
 
 ## The notice
 
-`showNotice(text)` shows a sentence from the app above the microphone, for
+`showNotice(text)` shows a sentence from the app in the strip above the microphone, for
 example why a tap did nothing. Line breaks and tabs become spaces, the text is
 trimmed and cut to 80 characters, and it is ignored while recording. It stays
 until the app calls `clearNotice()` or pushes a different state: the module has
@@ -89,7 +100,6 @@ the app's, not this module's.
 
 ## Not built yet
 
-- The final microphone art (the glyph stays a placeholder until then).
 - The app pushing `SENT` and `SENT_LOCAL`, and the state it pushes after a
   commit that only reached the clipboard (open: the app's decision).
 - Sound or haptics, a time limit on the notice, and the window-ownership check.

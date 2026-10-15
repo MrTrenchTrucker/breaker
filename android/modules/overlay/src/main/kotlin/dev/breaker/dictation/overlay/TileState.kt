@@ -9,8 +9,8 @@ package dev.breaker.dictation.overlay
  * [ARMED]: dictation is switched on and ready. A tap on the microphone starts recording. The ring
  * pulses gently while the tile is shown and the view is attached, visible and on a lit screen.
  *
- * [RECORDING]: the microphone is open. The tile widens to show a cancel button, the level meter
- * above the microphone, and a send button.
+ * [RECORDING]: the microphone is open. The tile widens to show a cancel button, the microphone and a
+ * send button. The level meter is the six grille slots of the microphone itself, lit from the left.
  *
  * [SENDING]: recording is over and the text is on its way. The tile ignores taps.
  *

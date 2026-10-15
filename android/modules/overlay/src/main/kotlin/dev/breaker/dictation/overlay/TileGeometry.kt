@@ -19,8 +19,8 @@ internal data class TileRect(val left: Int, val top: Int, val right: Int, val bo
  * The shape of the tile window.
  *
  * [COLLAPSED] is the plain square tile. [NOTICE] is the wide window with a strip of text above the
- * microphone. [RECORDING] is the wide window with the cancel button, the level meter and the send
- * button.
+ * microphone. [RECORDING] is the window three tiles wide and one tile high, with the cancel button,
+ * the microphone (its six grille slots are the level meter) and the send button, and no strip.
  */
 internal enum class TileShape { COLLAPSED, NOTICE, RECORDING }
 

@@ -27,6 +27,17 @@ internal fun ringDrawColor(color: Int, pulseAlpha: Float): Int {
     return (alpha shl 24) or (color shl 8 ushr 8)
 }
 
+/**
+ * The colour one glow layer is drawn with: [color] at the pulse alpha times the layer alpha, by the same rule as
+ * [ringDrawColor]. A pulse alpha that is not finite counts as full strength. A layer alpha that is not finite
+ * gives no alpha at all; a finite layer alpha is held to 0 to 1 first.
+ */
+internal fun glowDrawColor(color: Int, pulseAlpha: Float, layerAlpha: Float): Int {
+    if (!layerAlpha.isFinite()) return ringDrawColor(color, 0f)
+    val pulse = if (pulseAlpha.isFinite()) pulseAlpha else 1f
+    return ringDrawColor(color, pulse * layerAlpha.coerceIn(0f, 1f))
+}
+
 /** The app wants a pulse: only an ARMED tile that we show. */
 internal fun pulseWanted(state: TileState, shown: Boolean): Boolean = state == TileState.ARMED && shown
 

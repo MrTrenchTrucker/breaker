@@ -13,7 +13,7 @@ import org.junit.Test
  * and the tile keeps working for the next one.
  *
  * The screen is the one in [TestData]: the saved centre puts the square tile at (506, 1140), 100 pixels square.
- * While recording the window is 300 by 150 pixels with its top-left corner at (406, 1090), so the cancel button
+ * While recording the window is 300 by 100 pixels with its top-left corner at (406, 1140), so the cancel button
  * is x 406..506, the microphone x 506..606 and the send button x 606..706, all at y 1140..1240.
  */
 class TileControllerCallbackTest {
