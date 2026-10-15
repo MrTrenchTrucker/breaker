@@ -4,6 +4,8 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.view.View
+import android.view.accessibility.AccessibilityNodeInfo
+import android.widget.Switch
 import dev.breaker.dictation.ui.controls.ControlPart
 import dev.breaker.dictation.ui.controls.ControlsFactors
 import dev.breaker.dictation.ui.controls.ControlsGeometry
@@ -12,9 +14,12 @@ import dev.breaker.dictation.ui.render.touchTargetPx
 import dev.breaker.dictation.ui.theme.Theme
 
 /**
- * The on/off switch as one Android view: a track with its thumb — the primary
- * track and the on thumb while on, the surface track with the muted outline
- * and the muted thumb while off.
+ * The on/off switch as one Android view: a track with its thumb, the primary
+ * track and the on thumb while on, the surface track with the muted outline and
+ * the muted thumb while off.
+ *
+ * A tap flips the switch and calls [onToggled] once with the new value. A value
+ * set from code changes the drawing and calls nothing.
  *
  * The view draws only what [ControlsGeometry.switch] returns: the track and
  * the thumb are the art's own, sized by [trackW] and [trackH] from the caller,
@@ -22,8 +27,9 @@ import dev.breaker.dictation.ui.theme.Theme
  * the caption belongs to the row the switch sits in.
  *
  * **What this class cannot prove.** Nothing here runs without a device: how the
- * thumb sits in the track at real density, and whether the track's corners land
- * on the art's radius on a given screen.
+ * thumb sits in the track at real density, whether the track's corners land
+ * on the art's radius on a given screen, and how a screen reader announces the
+ * switch.
  */
 internal class SwitchView(
     context: Context,
@@ -40,7 +46,7 @@ internal class SwitchView(
     private val density: Float = context.resources.displayMetrics.density
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
-    /** Whether the switch is on. Set it from the touch that flips it. */
+    /** Whether the switch is on. A tap flips it; setting it from code does not call [onToggled]. */
     var on: Boolean = false
         set(value) {
             if (field == value) return
@@ -48,8 +54,26 @@ internal class SwitchView(
             invalidate()
         }
 
+    /** Called once with the new value after a tap flips the switch. Not called when [on] is set from code. */
+    var onToggled: ((Boolean) -> Unit)? = null
+
     init {
         contentDescription = label
+        isClickable = true
+    }
+
+    override fun performClick(): Boolean {
+        on = !on
+        val handled = super.performClick()
+        onToggled?.invoke(on)
+        return handled
+    }
+
+    override fun onInitializeAccessibilityNodeInfo(info: AccessibilityNodeInfo) {
+        super.onInitializeAccessibilityNodeInfo(info)
+        info.className = Switch::class.java.name
+        info.isCheckable = true
+        info.isChecked = on
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -80,15 +104,16 @@ internal class SwitchView(
                 corner,
                 paint,
             )
-            if (!on) {
+            val outline = parts.outline
+            if (outline != null) {
                 paint.style = Paint.Style.STROKE
                 paint.strokeWidth = ControlsGeometry.OUTLINE_DP
                 paint.color = ControlsPalette.partColor(ControlPart.OUTLINE, theme)
                 canvas.drawRoundRect(
-                    parts.track.x,
-                    parts.track.y,
-                    parts.track.x + parts.track.width,
-                    parts.track.y + parts.track.height,
+                    outline.x,
+                    outline.y,
+                    outline.x + outline.width,
+                    outline.y + outline.height,
                     corner,
                     corner,
                     paint,
@@ -101,8 +126,8 @@ internal class SwitchView(
                 parts.thumb.y,
                 parts.thumb.x + parts.thumb.width,
                 parts.thumb.y + parts.thumb.height,
-                corner,
-                corner,
+                ControlsGeometry.THUMB_CORNER_DP,
+                ControlsGeometry.THUMB_CORNER_DP,
                 paint,
             )
         }

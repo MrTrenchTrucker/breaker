@@ -27,16 +27,12 @@ class ControlsGeometryTest {
         val parts = ControlsGeometry.button(170f, 48f, pressed = false)
         assertEquals("controls: the face expected the top of the button above the lip", Rect(0f, 0f, 170f, 44f), parts.face)
         assertEquals("controls: the lip expected the bottom 4 dp of the button", Rect(0f, 44f, 170f, 4f), parts.lip)
-        assertEquals(
-            "controls: the lit line expected the art's inset and offset",
-            Rect(
-                ControlsGeometry.LIT_INSET_DP,
-                ControlsGeometry.LIT_OFFSET_DP,
-                170f - 2f * ControlsGeometry.LIT_INSET_DP,
-                ControlsFactors.LIT_DP,
-            ),
-            parts.litLine,
-        )
+        val lit = parts.litLine
+        assertNotNull("controls: the lit line expected a rectangle", lit)
+        assertEquals("controls: the lit line expected 2 px in from each side", 4f / 3f, lit!!.x, 0.0001f)
+        assertEquals("controls: the lit line expected 1 px down from the top", 2f / 3f, lit.y, 0.0001f)
+        assertEquals("controls: the lit line expected the face less 2 px each side", 170f - 8f / 3f, lit.width, 0.0001f)
+        assertEquals("controls: the lit line expected 3 px thick", 2f, lit.height, 0.0001f)
         assertEquals("controls: light face expected 0xFF1E7A46", 0xFF1E7A46.toInt(), ControlsPalette.partColor(ControlPart.FACE, light))
         assertEquals("controls: dark face expected 0xFF2E9E5B", 0xFF2E9E5B.toInt(), ControlsPalette.partColor(ControlPart.FACE, dark))
         assertEquals("controls: light lip expected 0xFF134F2D", 0xFF134F2D.toInt(), ControlsPalette.partColor(ControlPart.LIP, light))
@@ -51,18 +47,14 @@ class ControlsGeometryTest {
         val parts = ControlsGeometry.button(170f, 48f, pressed = true)
         assertEquals("controls: the pressed face expected 4 dp down", 4f, parts.face.y, 0f)
         assertNull("controls: the pressed button expected no lip", parts.lip)
-        assertEquals(
-            "controls: the pressed top line expected the art's inset at the pressed top",
-            Rect(
-                ControlsGeometry.LIT_INSET_DP,
-                4f + ControlsGeometry.LIT_OFFSET_DP,
-                170f - 2f * ControlsGeometry.LIT_INSET_DP,
-                ControlsFactors.LIT_DP,
-            ),
-            parts.litLine,
-        )
-        assertEquals("controls: light shadow line expected 0xFF134F2D", 0xFF134F2D.toInt(), ControlsPalette.partColor(ControlPart.SHADOW_LINE, light))
-        assertEquals("controls: dark shadow line expected 0xFF1E673B", 0xFF1E673B.toInt(), ControlsPalette.partColor(ControlPart.SHADOW_LINE, dark))
+        val lit = parts.litLine
+        assertNotNull("controls: the pressed top line expected a rectangle", lit)
+        assertEquals("controls: the pressed top line expected 2 px in from each side", 4f / 3f, lit!!.x, 0.0001f)
+        assertEquals("controls: the pressed top line expected 4 dp plus 1 px down", 14f / 3f, lit.y, 0.0001f)
+        assertEquals("controls: the pressed top line expected the face less 2 px each side", 170f - 8f / 3f, lit.width, 0.0001f)
+        assertEquals("controls: the pressed top line expected 3 px thick", 2f, lit.height, 0.0001f)
+        assertEquals("controls: light shadow line expected 0xFF0E3E26", 0xFF0E3E26.toInt(), ControlsPalette.partColor(ControlPart.SHADOW_LINE, light))
+        assertEquals("controls: dark shadow line expected 0xFF267B47", 0xFF267B47.toInt(), ControlsPalette.partColor(ControlPart.SHADOW_LINE, dark))
     }
 
     /** A failure means the disabled button draws a lip or a lit line, or its outline and label are not muted. */
@@ -136,16 +128,11 @@ class ControlsGeometryTest {
     fun `the switch is the primary track and on thumb while on`() {
         val parts = ControlsGeometry.switch(on = true, w = 48f, h = 80f / 3f)
         assertEquals("controls: the track expected the switch's box", Rect(0f, 0f, 48f, 80f / 3f), parts.track)
-        assertEquals(
-            "controls: the thumb expected the art's on offset and size",
-            Rect(
-                ControlsGeometry.THUMB_ON_OFFSET_DP,
-                (80f / 3f - ControlsGeometry.THUMB_ON_SIZE_DP) / 2f,
-                ControlsGeometry.THUMB_ON_SIZE_DP,
-                ControlsGeometry.THUMB_ON_SIZE_DP,
-            ),
-            parts.thumb,
-        )
+        val thumb = parts.thumb
+        assertEquals("controls: the on thumb expected 36 px from the left", 24f, thumb.x, 0.0001f)
+        assertEquals("controls: the on thumb expected 4 px from the top", 8f / 3f, thumb.y, 0.0001f)
+        assertEquals("controls: the on thumb expected 32 px across", 64f / 3f, thumb.width, 0.0001f)
+        assertEquals("controls: the on thumb expected 32 px high", 64f / 3f, thumb.height, 0.0001f)
         assertEquals("controls: light track expected 0xFF1E7A46", 0xFF1E7A46.toInt(), ControlsPalette.partColor(ControlPart.TRACK, light))
         assertEquals("controls: dark track expected 0xFF2E9E5B", 0xFF2E9E5B.toInt(), ControlsPalette.partColor(ControlPart.TRACK, dark))
         assertEquals("controls: light thumb expected 0xFFFFFFFF", 0xFFFFFFFF.toInt(), ControlsPalette.partColor(ControlPart.THUMB, light))
@@ -156,16 +143,11 @@ class ControlsGeometryTest {
     @Test
     fun `the switch is the surface track and muted thumb while off`() {
         val parts = ControlsGeometry.switch(on = false, w = 48f, h = 80f / 3f)
-        assertEquals(
-            "controls: the thumb expected the art's off offset and size",
-            Rect(
-                ControlsGeometry.THUMB_OFF_OFFSET_DP,
-                (80f / 3f - ControlsGeometry.THUMB_OFF_SIZE_DP) / 2f,
-                ControlsGeometry.THUMB_OFF_SIZE_DP,
-                ControlsGeometry.THUMB_OFF_SIZE_DP,
-            ),
-            parts.thumb,
-        )
+        val thumb = parts.thumb
+        assertEquals("controls: the off thumb expected 5 px from the left", 10f / 3f, thumb.x, 0.0001f)
+        assertEquals("controls: the off thumb expected 5 px from the top", 10f / 3f, thumb.y, 0.0001f)
+        assertEquals("controls: the off thumb expected 30 px across", 20f, thumb.width, 0.0001f)
+        assertEquals("controls: the off thumb expected 30 px high", 20f, thumb.height, 0.0001f)
         assertEquals("controls: light track expected 0xFFF4F6F4", 0xFFF4F6F4.toInt(), ControlsPalette.partColor(ControlPart.TRACK_OFF, light))
         assertEquals("controls: dark track expected 0xFF161B1E", 0xFF161B1E.toInt(), ControlsPalette.partColor(ControlPart.TRACK_OFF, dark))
         assertEquals("controls: light thumb expected 0xFF5A6368", 0xFF5A6368.toInt(), ControlsPalette.partColor(ControlPart.THUMB_OFF, light))

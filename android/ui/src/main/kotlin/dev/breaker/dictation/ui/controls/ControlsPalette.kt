@@ -9,6 +9,7 @@ import dev.breaker.dictation.ui.theme.Theme
  */
 internal enum class ControlPart {
     FACE,             // the filled face of a raised button
+    FACE_PRESSED,     // the filled face of a raised button while it is pushed down
     FACE_DANGER,      // the filled face of a destructive button
     FACE_WARNING,     // the filled face of a warning badge
     FACE_SURFACE,     // the flat surface fill
@@ -37,6 +38,20 @@ internal enum class ControlPart {
 }
 
 /**
+ * Which of the three status badges a badge is; the kind picks the fill.
+ */
+internal enum class BadgeKind {
+    /** Dictation is ready: the primary fill. */
+    READY,
+
+    /** Committed by the phone model after the server path failed: the warning fill. */
+    PHONE_ONLY,
+
+    /** The last try did not work: the danger fill. */
+    FAILED,
+}
+
+/**
  * The colour of one [ControlPart] in [theme], and the only place a slot becomes a value. Every part
  * maps to a slot of the palette; the lip, the lit line and the shadow line shade the face they sit on
  * by the named factors, and the label on a filled face takes the on slot.
@@ -45,9 +60,11 @@ internal object ControlsPalette {
 
     fun partColor(part: ControlPart, theme: Theme): Int {
         val face = theme.color(PaletteSlot.PRIMARY).argb
+        val hover = theme.color(PaletteSlot.PRIMARY_HOVER).argb
         val danger = theme.color(PaletteSlot.DANGER).argb
         return when (part) {
             ControlPart.FACE -> face
+            ControlPart.FACE_PRESSED -> hover
             ControlPart.FACE_DANGER -> danger
             ControlPart.FACE_WARNING -> theme.color(PaletteSlot.STATE_WARNING).argb
             ControlPart.FACE_SURFACE -> theme.color(PaletteSlot.SURFACE).argb
@@ -58,7 +75,7 @@ internal object ControlsPalette {
             ControlPart.LIP_ACCENT -> shade(theme.color(PaletteSlot.ACCENT).argb, ControlsFactors.LIP)
             ControlPart.LIT_LINE -> shade(face, ControlsFactors.LIT_LINE)
             ControlPart.LIT_LINE_DANGER -> shade(danger, ControlsFactors.LIT_LINE)
-            ControlPart.SHADOW_LINE -> shade(face, ControlsFactors.LIP)
+            ControlPart.SHADOW_LINE -> shade(hover, ControlsFactors.LIP)
             ControlPart.LABEL -> theme.color(PaletteSlot.ON).argb
             ControlPart.LABEL_NEUTRAL -> theme.color(PaletteSlot.TEXT).argb
             ControlPart.LABEL_DISABLED -> theme.color(PaletteSlot.TEXT_MUTED).argb
@@ -74,5 +91,12 @@ internal object ControlsPalette {
             ControlPart.STEP_DONE -> theme.color(PaletteSlot.ACCENT).argb
             ControlPart.STEP_TODO -> theme.color(PaletteSlot.TEXT_MUTED).argb
         }
+    }
+
+    /** The fill part a badge of [kind] takes, read from the palette by part. */
+    fun badgeFacePart(kind: BadgeKind): ControlPart = when (kind) {
+        BadgeKind.READY -> ControlPart.FACE
+        BadgeKind.PHONE_ONLY -> ControlPart.FACE_WARNING
+        BadgeKind.FAILED -> ControlPart.FACE_DANGER
     }
 }
