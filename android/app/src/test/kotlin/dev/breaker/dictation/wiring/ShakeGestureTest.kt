@@ -45,7 +45,7 @@ internal fun shakeReadings(offsetMs: Long = 0L, restMs: Long = 0L): List<Reading
  * A sensor port that counts its registrations and can refuse them. It keeps the sample callback it was
  * given, even after a stop, so a test can feed it afterwards and see that the gesture ignores the feed.
  */
-internal class FakeShakePort : ShakePort {
+internal open class FakeShakePort : ShakePort {
     var startCalls: Int = 0
         private set
     var stopCalls: Int = 0
@@ -70,6 +70,18 @@ internal class FakeShakePort : ShakePort {
     /** Delivers one reading to the callback the gesture gave the port; nothing happens if the port never got one. */
     fun feed(reading: Reading) {
         onSample?.invoke(reading.x, reading.y, reading.z, reading.t)
+    }
+}
+
+/**
+ * A port that delivers a pending shake from inside its own [stop], before the base stop. The
+ * gesture's stop clears the trigger before calling handle.stop, so a sample delivered during
+ * stop never begins a take.
+ */
+internal class StopFeedPort(private val shake: List<Reading>) : FakeShakePort() {
+    override fun stop() {
+        shake.forEach { feed(it) }
+        super.stop()
     }
 }
 
@@ -181,5 +193,26 @@ internal class ShakeGestureTest {
         for (reading in shakeReadings()) port.feed(reading)
         assertEquals("app: the replaced trigger must not be called", 0, first)
         assertEquals("app: the new trigger must be called once", 1, second)
+    }
+
+    @Test
+    fun `a refused start clears the trigger, so a shake fed afterwards fires nothing`() {
+        val port = FakeShakePort()
+        port.allowStart = false
+        var triggers = 0
+        val gesture = ShakeGesture(port)
+        gesture.start { triggers += 1 }
+        for (reading in shakeReadings()) port.feed(reading)
+        assertEquals("app: a refused start must clear the trigger, so a shake fed afterwards fires nothing", 0, triggers)
+    }
+
+    @Test
+    fun `a sample delivered during stop never begins a take`() {
+        val port = StopFeedPort(shakeReadings())
+        var triggers = 0
+        val gesture = ShakeGesture(port)
+        gesture.start { triggers += 1 }
+        gesture.stop()
+        assertEquals("app: a sample delivered during stop must not begin a take", 0, triggers)
     }
 }
