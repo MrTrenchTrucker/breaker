@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import dev.breaker.dictation.R
 import dev.breaker.dictation.SettingsLauncherActivity
 import dev.breaker.dictation.wiring.ModelDownloadNotice
 import dev.breaker.dictation.wiring.ModelNotice
@@ -30,11 +31,11 @@ import dev.breaker.dictation.wiring.ModelSentences
 internal class ModelNotifications(private val context: Context) : ModelNotice, ModelDownloadNotice {
 
     override fun showMissing() {
-        show(MISSING_ID, MISSING_REQUEST, android.R.drawable.ic_btn_speak_now, MODEL_TITLE, ModelSentences.NO_MODEL, NotificationRoute.ROUTE_MODEL, false)
+        show(MISSING_ID, MISSING_REQUEST, R.drawable.ic_notification_mic, MODEL_TITLE, ModelSentences.NO_MODEL, NotificationRoute.ROUTE_MODEL, false)
     }
 
     override fun showTileUnavailable() {
-        show(UNAVAILABLE_ID, UNAVAILABLE_REQUEST, android.R.drawable.ic_btn_speak_now, TILE_TITLE, TILE_UNAVAILABLE, null, false)
+        show(UNAVAILABLE_ID, UNAVAILABLE_REQUEST, R.drawable.ic_notification_mic, TILE_TITLE, TILE_UNAVAILABLE, null, false)
     }
 
     override fun clear() {
@@ -43,20 +44,20 @@ internal class ModelNotifications(private val context: Context) : ModelNotice, M
     }
 
     override fun downloading(sentence: String) {
-        show(DOWNLOAD_ID, DOWNLOAD_REQUEST, android.R.drawable.stat_sys_download, MODEL_TITLE, sentence, null, true)
+        show(DOWNLOAD_ID, DOWNLOAD_REQUEST, R.drawable.ic_notification_mic, MODEL_TITLE, sentence, null, true)
     }
 
     override fun progress(sentence: String, doneMb: Int, totalMb: Int) {
-        show(DOWNLOAD_ID, DOWNLOAD_REQUEST, android.R.drawable.stat_sys_download, MODEL_TITLE, sentence, null, true, doneMb, totalMb)
+        show(DOWNLOAD_ID, DOWNLOAD_REQUEST, R.drawable.ic_notification_mic, MODEL_TITLE, sentence, null, true, doneMb, totalMb)
     }
 
     override fun done() {
         cancel(MISSING_ID)
-        show(DOWNLOAD_ID, DOWNLOAD_REQUEST, android.R.drawable.stat_sys_download_done, MODEL_TITLE, MODEL_READY, null, false)
+        show(DOWNLOAD_ID, DOWNLOAD_REQUEST, R.drawable.ic_notification_mic, MODEL_TITLE, MODEL_READY, null, false)
     }
 
     override fun failed(sentence: String) {
-        show(DOWNLOAD_ID, DOWNLOAD_REQUEST, android.R.drawable.stat_notify_error, MODEL_TITLE, sentence, null, false)
+        show(DOWNLOAD_ID, DOWNLOAD_REQUEST, R.drawable.ic_notification_mic, MODEL_TITLE, sentence, null, false)
     }
 
     private fun show(id: Int, request: Int, icon: Int, title: String, text: String, route: String?, working: Boolean, doneMb: Int = 0, totalMb: Int = 0) {

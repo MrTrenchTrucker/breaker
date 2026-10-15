@@ -7,7 +7,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The app manifest declares six permissions, the launcher activity and the one
+ * The app manifest declares six permissions, the two icons, the launcher activity and the one
  * microphone service, and nothing else.
  *
  * Adding a permission, a receiver, a provider, a second service, an export, an
@@ -40,7 +40,9 @@ internal class ManifestGateTest {
         android:name=".BreakerApp"
         android:label="@string/app_name"
         android:networkSecurityConfig="@xml/network_security_config"
-        android:usesCleartextTraffic="false">
+        android:usesCleartextTraffic="false"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round">
         <activity
             android:name=".SettingsLauncherActivity"
             android:exported="true"
@@ -66,6 +68,8 @@ internal class ManifestGateTest {
                 "android:label" to "@string/app_name",
                 "android:networkSecurityConfig" to "@xml/network_security_config",
                 "android:usesCleartextTraffic" to "false",
+                "android:icon" to "@mipmap/ic_launcher",
+                "android:roundIcon" to "@mipmap/ic_launcher_round",
             ),
             children = listOf(
                 XmlExpect(
@@ -135,13 +139,13 @@ internal class ManifestGateTest {
         XmlSample("a debuggable attribute", "android:name=\".BreakerApp\"", "android:name=\".BreakerApp\"\n        android:debuggable=\"true\"", "has the attribute android:debuggable"),
         XmlSample("an allowBackup attribute", "android:name=\".BreakerApp\"", "android:name=\".BreakerApp\"\n        android:allowBackup=\"true\"", "has the attribute android:allowBackup"),
         XmlSample("a testOnly attribute", "android:name=\".BreakerApp\"", "android:name=\".BreakerApp\"\n        android:testOnly=\"true\"", "has the attribute android:testOnly"),
-        XmlSample("an icon attribute", "android:name=\".BreakerApp\"", "android:name=\".BreakerApp\"\n        android:icon=\"@mipmap/x\"", "has the attribute android:icon"),
+        XmlSample("an icon attribute pointing at the wrong mipmap", "android:icon=\"@mipmap/ic_launcher\"", "android:icon=\"@mipmap/x\"", "attribute android:icon is"),
         XmlSample("a package attribute on the manifest", "<manifest ", "<manifest package=\"x.y\" ", "has the attribute package"),
         XmlSample("a second namespace declaration", "<manifest ", "<manifest xmlns:tools=\"http://schemas.android.com/tools\" ", "has the attribute xmlns:tools"),
         XmlSample("an attribute on the launcher activity", "android:exported=\"true\"", "android:exported=\"true\" android:permission=\"x\"", "has the attribute android:permission"),
         XmlSample("a second filter on the launcher activity", "</activity>", "<intent-filter><action android:name=\"android.intent.action.VIEW\" /></intent-filter>\n        </activity>", "holds the element <intent-filter>"),
         XmlSample("a second category in the launcher filter", "<category android:name=\"android.intent.category.LAUNCHER\" />", "<category android:name=\"android.intent.category.LAUNCHER\" />\n                <category android:name=\"android.intent.category.DEFAULT\" />", "holds the element <category>"),
-        XmlSample("character data in the application", "android:usesCleartextTraffic=\"false\">", "android:usesCleartextTraffic=\"false\">text", "holds character data"),
+        XmlSample("character data in the application", "android:roundIcon=\"@mipmap/ic_launcher_round\">", "android:roundIcon=\"@mipmap/ic_launcher_round\">text", "holds character data"),
     )
 
     private val changed: List<XmlSample> = listOf(
@@ -154,7 +158,7 @@ internal class ManifestGateTest {
         XmlSample("another service class", ".service.DictationForegroundService", ".service.Other", "attribute android:name is \".service.Other\""),
         XmlSample("no service", "        <service\n            android:name=\".service.DictationForegroundService\"\n            android:exported=\"false\"\n            android:foregroundServiceType=\"microphone\" />\n", "", "lacks the element <service>"),
         XmlSample("clear text allowed", "android:usesCleartextTraffic=\"false\"", "android:usesCleartextTraffic=\"true\"", "attribute android:usesCleartextTraffic is \"true\""),
-        XmlSample("clear text not stated", "\n        android:usesCleartextTraffic=\"false\">", ">", "lacks the attribute android:usesCleartextTraffic"),
+        XmlSample("clear text not stated", "\n        android:usesCleartextTraffic=\"false\"", "", "lacks the attribute android:usesCleartextTraffic"),
         XmlSample("no network config", "\n        android:networkSecurityConfig=\"@xml/network_security_config\"", "", "lacks the attribute android:networkSecurityConfig"),
         XmlSample("another network config", "@xml/network_security_config", "@xml/other_config", "attribute android:networkSecurityConfig is \"@xml/other_config\""),
         XmlSample("another application class", "android:name=\".BreakerApp\"", "android:name=\".Other\"", "attribute android:name is \".Other\""),
