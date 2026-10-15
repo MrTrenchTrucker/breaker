@@ -12,6 +12,12 @@ package dev.breaker.dictation.ui.screen.history
 internal object HistoryTexts {
     const val TITLE = "History"
     const val EMPTY = "Nothing here yet. What you dictate will show up here."
+
+    /** The heading of the empty state: the first sentence of EMPTY, with its full stop. */
+    val EMPTY_HEADING: String = EMPTY.substringBefore(". ") + "."
+
+    /** The hint of the empty state: the rest of EMPTY after the heading. */
+    val EMPTY_HINT: String = EMPTY.substringAfter(". ")
     const val TAG_LOCAL = "Phone"
     const val TAG_SERVER = "Server"
     const val BUTTON_COPY = "Copy"
@@ -25,4 +31,6 @@ internal object HistoryTexts {
     const val NOTICE_LIST_FAILED = "Could not load history."
     const val BUTTON_UNDO = "Undo"
     const val LIMIT_NOTE = "Showing the 300 most recent."
+    const val BUTTON_SHOW_ALL = "Show all"
+    const val BUTTON_HIDE = "Hide"
 }

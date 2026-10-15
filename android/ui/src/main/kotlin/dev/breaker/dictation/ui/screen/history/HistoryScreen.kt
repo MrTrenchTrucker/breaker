@@ -3,11 +3,14 @@ package dev.breaker.dictation.ui.screen.history
 import dev.breaker.dictation.core.model.TranscriptionSource
 import dev.breaker.dictation.ui.screen.Action
 import dev.breaker.dictation.ui.screen.Box
+import dev.breaker.dictation.ui.screen.CollapsibleText
 import dev.breaker.dictation.ui.screen.Emphasis
 import dev.breaker.dictation.ui.screen.HistoryActions
+import dev.breaker.dictation.ui.screen.KitLook
 import dev.breaker.dictation.ui.screen.Label
 import dev.breaker.dictation.ui.screen.Screen
 import dev.breaker.dictation.ui.screen.ScreenIntent
+import dev.breaker.dictation.ui.screen.TagPill
 import dev.breaker.dictation.ui.screen.TypeRole
 import dev.breaker.dictation.ui.theme.PaletteSlot
 
@@ -16,7 +19,7 @@ import dev.breaker.dictation.ui.theme.PaletteSlot
  *
  * The tree is built from a [HistoryState] and a notice and from nothing else: no
  * phone, no store and no clock. Each row is one block with its time, its source,
- * its text and two actions. A row whose Undo window is open is replaced, in the
+ * its text and its actions. A row whose Undo window is open is replaced, in the
  * same place, by a block that offers Undo.
  */
 
@@ -24,6 +27,7 @@ private const val SCREEN_ID = "history"
 private const val TITLE_ID = "history.title"
 private const val NOTICE_ID = "history.notice"
 private const val EMPTY_ID = "history.empty"
+private const val EMPTY_HINT_ID = "history.empty.hint"
 private const val LIMIT_ID = "history.limit"
 private const val MORE_ID = "history.more"
 
@@ -59,10 +63,11 @@ internal class HistoryScreen {
                 val message = notice ?: if (failedFirst) HistoryNotice.LIST_FAILED else null
                 if (message != null) add(Label(NOTICE_ID, message.text, TypeRole.BODY, message.color))
                 if (state.rows.isEmpty() && !state.listFailed) {
-                    add(Label(EMPTY_ID, HistoryTexts.EMPTY, TypeRole.BODY, PaletteSlot.TEXT_MUTED))
+                    add(Label(EMPTY_ID, HistoryTexts.EMPTY_HEADING, TypeRole.BODY, PaletteSlot.TEXT_MUTED))
+                    add(Label(EMPTY_HINT_ID, HistoryTexts.EMPTY_HINT, TypeRole.BODY, PaletteSlot.TEXT_MUTED))
                 }
                 state.rows.forEach { row ->
-                    add(if (row.id in state.pending) undoBlock(row.id) else rowBlock(row))
+                    add(if (row.id in state.pending) undoBlock(row.id) else rowBlock(row, row.id in state.opened))
                 }
                 if (state.fullPage && state.shown >= ROW_CAP) {
                     add(Label(LIMIT_ID, HistoryTexts.LIMIT_NOTE, TypeRole.BODY, PaletteSlot.TEXT_MUTED))
@@ -72,14 +77,18 @@ internal class HistoryScreen {
                             id = MORE_ID,
                             text = HistoryTexts.BUTTON_LOAD_MORE,
                             intent = ScreenIntent.History(HistoryActions.MORE),
+                            kit = KitLook.NEUTRAL,
                         ),
                     )
                 }
             },
         )
 
-    /** One saved transcription: its time, its source, its text and the two actions on it. */
-    private fun rowBlock(row: HistoryRow): Box {
+    /**
+     * One saved transcription: its time, its source, its text and the actions on it. The toggle
+     * is always in the tree; the view shows it only when the collapse decision asks for a middle button.
+     */
+    private fun rowBlock(row: HistoryRow, opened: Boolean): Box {
         val prefix = "history.row.${row.id}"
         val blank = row.text.isBlank()
         return Box(
@@ -87,23 +96,41 @@ internal class HistoryScreen {
             background = PaletteSlot.SURFACE,
             children = listOf(
                 Label("$prefix.time", row.time, TypeRole.MONO, PaletteSlot.TEXT_MUTED),
-                Label("$prefix.tag", tagOf(row.source), TypeRole.BODY, PaletteSlot.TEXT_MUTED),
-                Label(
+                TagPill("$prefix.tag", tagOf(row.source)),
+                CollapsibleText(
                     "$prefix.text",
                     if (blank) HistoryTexts.BLANK_TEXT else row.text,
-                    TypeRole.BODY,
                     if (blank) PaletteSlot.TEXT_MUTED else PaletteSlot.TEXT,
+                    opened,
                 ),
-                Action(
-                    id = "$prefix.copy",
-                    text = HistoryTexts.BUTTON_COPY,
-                    intent = ScreenIntent.History(HistoryActions.COPY, row.id),
-                ),
-                Action(
-                    id = "$prefix.delete",
-                    text = HistoryTexts.BUTTON_DELETE,
-                    emphasis = Emphasis.DESTRUCTIVE,
-                    intent = ScreenIntent.History(HistoryActions.DELETE, row.id),
+                Box(
+                    id = "$prefix.buttons",
+                    background = PaletteSlot.SURFACE,
+                    children = listOf(
+                        Action(
+                            id = "$prefix.copy",
+                            text = HistoryTexts.BUTTON_COPY,
+                            intent = ScreenIntent.History(HistoryActions.COPY, row.id),
+                            kit = KitLook.RAISED,
+                        ),
+                        Action(
+                            id = "$prefix.toggle",
+                            text = if (opened) HistoryTexts.BUTTON_HIDE else HistoryTexts.BUTTON_SHOW_ALL,
+                            intent = ScreenIntent.History(
+                                if (opened) HistoryActions.HIDE else HistoryActions.SHOW_ALL,
+                                row.id,
+                            ),
+                            kit = KitLook.OUTLINED,
+                        ),
+                        Action(
+                            id = "$prefix.delete",
+                            text = HistoryTexts.BUTTON_DELETE,
+                            emphasis = Emphasis.DESTRUCTIVE,
+                            intent = ScreenIntent.History(HistoryActions.DELETE, row.id),
+                            kit = KitLook.DANGER,
+                        ),
+                    ),
+                    horizontal = true,
                 ),
             ),
         )
@@ -122,6 +149,7 @@ internal class HistoryScreen {
                     text = HistoryTexts.BUTTON_UNDO,
                     emphasis = Emphasis.PRIMARY,
                     intent = ScreenIntent.History(HistoryActions.UNDO, id),
+                    kit = KitLook.RAISED,
                 ),
             ),
         )

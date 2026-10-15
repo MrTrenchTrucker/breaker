@@ -30,7 +30,7 @@ internal data class HistoryRow(
 /**
  * The rows last read, in the order the store gave them, with the ids whose Undo
  * window is open, the number of rows asked for, whether that read came back
- * full, and whether the last read failed.
+ * full, whether the last read failed, and the ids of the rows opened in full.
  */
 internal data class HistoryState(
     val rows: List<HistoryRow>,
@@ -38,6 +38,7 @@ internal data class HistoryState(
     val shown: Int,
     val fullPage: Boolean,
     val listFailed: Boolean = false,
+    val opened: Set<String> = emptySet(),
 )
 
 /** A message left by one action. It is drawn once, above the rows. */

@@ -2,12 +2,14 @@ package dev.breaker.dictation.ui.screen.history
 
 import dev.breaker.dictation.core.model.TranscriptionSource
 import dev.breaker.dictation.ui.screen.Action
+import dev.breaker.dictation.ui.screen.CollapsibleText
 import dev.breaker.dictation.ui.screen.Emphasis
 import dev.breaker.dictation.ui.screen.HistoryActions
 import dev.breaker.dictation.ui.screen.Label
 import dev.breaker.dictation.ui.screen.Node
 import dev.breaker.dictation.ui.screen.Screen
 import dev.breaker.dictation.ui.screen.ScreenIntent
+import dev.breaker.dictation.ui.screen.TagPill
 import dev.breaker.dictation.ui.screen.flatten
 import dev.breaker.dictation.ui.theme.PaletteSlot
 import org.junit.Assert.assertEquals
@@ -50,10 +52,20 @@ class HistoryScreenTest {
     private fun action(s: Screen, id: String): Action =
         node(s, id) as? Action ?: throw AssertionError("history: no Action with id $id in ${nodesOf(s).map { it.id }}")
 
+    private fun pill(s: Screen, id: String): TagPill =
+        node(s, id) as? TagPill ?: throw AssertionError("history: no TagPill with id $id in ${nodesOf(s).map { it.id }}")
+
+    private fun collapsible(s: Screen, id: String): CollapsibleText =
+        node(s, id) as? CollapsibleText ?: throw AssertionError("history: no CollapsibleText with id $id")
+
     @Test
     fun `an empty list shows the empty line and no row`() {
         val s = render(state())
-        assertEquals("history: empty line", HistoryTexts.EMPTY, label(s, "history.empty").text)
+        assertEquals(
+            "history: empty heading and hint",
+            HistoryTexts.EMPTY,
+            label(s, "history.empty").text + " " + label(s, "history.empty.hint").text,
+        )
         assertTrue("history: no row when the list is empty", nodesOf(s).none { it.id.startsWith("history.row.") })
         assertNull("history: no Load more on an empty list", node(s, "history.more"))
     }
@@ -73,16 +85,16 @@ class HistoryScreenTest {
         val local = row("l", source = TranscriptionSource.LOCAL)
         val server = row("s", source = TranscriptionSource.SERVER)
         val s = render(state(rows = listOf(local, server)))
-        assertEquals("history: local tag", HistoryTexts.TAG_LOCAL, label(s, "history.row.l.tag").text)
-        assertEquals("history: server tag", HistoryTexts.TAG_SERVER, label(s, "history.row.s.tag").text)
+        assertEquals("history: local tag", HistoryTexts.TAG_LOCAL, pill(s, "history.row.l.tag").text)
+        assertEquals("history: server tag", HistoryTexts.TAG_SERVER, pill(s, "history.row.s.tag").text)
     }
 
     @Test
     fun `a blank or spaces-only text shows the placeholder and any other text is shown as it is`() {
         val s = render(state(rows = listOf(row("e", text = ""), row("w", text = "   "), row("t", text = "hello"))))
-        assertEquals("history: empty text", HistoryTexts.BLANK_TEXT, label(s, "history.row.e.text").text)
-        assertEquals("history: spaces only", HistoryTexts.BLANK_TEXT, label(s, "history.row.w.text").text)
-        assertEquals("history: real text", "hello", label(s, "history.row.t.text").text)
+        assertEquals("history: empty text", HistoryTexts.BLANK_TEXT, collapsible(s, "history.row.e.text").text)
+        assertEquals("history: spaces only", HistoryTexts.BLANK_TEXT, collapsible(s, "history.row.w.text").text)
+        assertEquals("history: real text", "hello", collapsible(s, "history.row.t.text").text)
     }
 
     @Test
@@ -188,6 +200,8 @@ class HistoryScreenTest {
             HistoryTexts.NOTICE_LIST_FAILED,
             HistoryTexts.BUTTON_UNDO,
             HistoryTexts.LIMIT_NOTE,
+            HistoryTexts.BUTTON_SHOW_ALL,
+            HistoryTexts.BUTTON_HIDE,
         )
         val s = render(
             state(

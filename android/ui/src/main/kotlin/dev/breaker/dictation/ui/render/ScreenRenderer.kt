@@ -9,17 +9,34 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
+import dev.breaker.dictation.ui.render.controls.Button3dView
+import dev.breaker.dictation.ui.render.controls.DeleteButtonView
+import dev.breaker.dictation.ui.render.controls.NeutralButtonView
+import dev.breaker.dictation.ui.render.controls.OutlinedButtonView
 import dev.breaker.dictation.ui.screen.Action
 import dev.breaker.dictation.ui.screen.Box
+import dev.breaker.dictation.ui.screen.CollapsibleText
+import dev.breaker.dictation.ui.screen.KitLook
 import dev.breaker.dictation.ui.screen.Label
 import dev.breaker.dictation.ui.screen.Node
 import dev.breaker.dictation.ui.screen.Screen
 import dev.breaker.dictation.ui.screen.ScreenIntent
+import dev.breaker.dictation.ui.screen.SegmentedRow
+import dev.breaker.dictation.ui.screen.SwitchRow
+import dev.breaker.dictation.ui.screen.TagPill
 import dev.breaker.dictation.ui.screen.TextAlign
 import dev.breaker.dictation.ui.screen.TrimStripe
 import dev.breaker.dictation.ui.screen.TypeRole
+import dev.breaker.dictation.ui.screen.ValueField
+import dev.breaker.dictation.ui.screen.history.Middle
 import dev.breaker.dictation.ui.theme.PaletteSlot
 import dev.breaker.dictation.ui.theme.Theme
+
+/** The suffix of a collapsible text's id; its toggle id replaces it. */
+private const val TEXT_SUFFIX = ".text"
+
+/** The suffix that names a row's toggle, from the id of its collapsible text. */
+private const val TOGGLE_SUFFIX = ".toggle"
 
 /**
  * Turns a described screen into Android views.
@@ -52,17 +69,29 @@ internal class ScreenRenderer(private val context: Context) {
         when (node) {
             is Box -> boxOf(node, theme, onIntent)
             is Label -> labelOf(node, theme)
-            is Action -> actionOf(node, theme, onIntent)
+            is Action -> {
+                val kit = node.kit
+                if (kit == null) actionOf(node, theme, onIntent) else kitActionOf(kit, node, theme, onIntent)
+            }
             is TrimStripe -> stripeOf(theme)
+            is TagPill -> TagPillView(context, node.text, node.color, theme).apply { layoutParams = wrapParams() }
+            is CollapsibleText -> collapsibleOf(node, theme)
+            is SegmentedRow -> SegmentedRowView(context, node, theme, onIntent).apply { layoutParams = rowParams() }
+            is SwitchRow -> SwitchRowView(context, node, theme, onIntent).apply { layoutParams = rowParams() }
+            is ValueField -> valueFieldView(context, node, theme).apply { layoutParams = rowParams() }
         }.apply { tag = node.id }
 
-    /** A vertical layout in the box's background slot, holding its children in order. */
+    /**
+     * A layout in the box's background slot, holding its children in order. A horizontal box
+     * shares its width equally among its children; a collapsible text in it gets its toggle linked.
+     */
     private fun boxOf(node: Box, theme: Theme, onIntent: (ScreenIntent) -> Unit): View =
         LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
+            orientation = if (node.horizontal) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
             setBackgroundColor(theme.argbOf(node.background))
             layoutParams = rowParams()
-            node.children.forEach { addView(viewOf(it, theme, onIntent)) }
+            node.children.forEach { addView(childOf(it, node.horizontal, theme, onIntent)) }
+            node.children.filterIsInstance<CollapsibleText>().forEach { linkToggle(this, it.id) }
         }
 
     /**
@@ -124,6 +153,69 @@ internal class ScreenRenderer(private val context: Context) {
     /** Full width, as tall as its content. */
     private fun rowParams(): LinearLayout.LayoutParams =
         LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+
+    /** As wide and as tall as its content. */
+    private fun wrapParams(): LinearLayout.LayoutParams =
+        LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+
+    /** The view for [node] inside a box; in a horizontal box each child takes an equal share of the width. */
+    private fun childOf(node: Node, horizontal: Boolean, theme: Theme, onIntent: (ScreenIntent) -> Unit): View {
+        val view = viewOf(node, theme, onIntent)
+        if (horizontal) view.layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        return view
+    }
+
+    /**
+     * Ties the collapsible text [textId] in [row] to its toggle, the view tagged with the same id
+     * and the suffix replaced. The toggle shows only while the decision names one.
+     */
+    private fun linkToggle(row: ViewGroup, textId: String) {
+        val text = findTagged(row, textId) as? CollapsibleTextView ?: return
+        val toggleId = textId.removeSuffix(TEXT_SUFFIX) + TOGGLE_SUFFIX
+        text.onMiddle = { middle ->
+            val toggle = findTagged(row, toggleId)
+            val wanted = if (middle == Middle.NONE) View.GONE else View.VISIBLE
+            if (toggle != null && toggle.visibility != wanted) toggle.visibility = wanted
+        }
+    }
+
+    /** The first view under [root] whose tag is [id], the root included, or null. */
+    private fun findTagged(root: View, id: String): View? {
+        if (root.tag == id) return root
+        val group = root as? ViewGroup ?: return null
+        for (index in 0 until group.childCount) {
+            val found = findTagged(group.getChildAt(index), id)
+            if (found != null) return found
+        }
+        return null
+    }
+
+    /** A text view that folds to the collapse rule's line count, in the body role and the node's slot colour. */
+    private fun collapsibleOf(node: CollapsibleText, theme: Theme): View =
+        CollapsibleTextView(context, node.opened).apply {
+            setTextAppearance(appearanceOf(TypeRole.BODY))
+            typeface = typefaceOf(TypeRole.BODY, theme)
+            setTextColor(theme.argbOf(node.color))
+            text = node.text
+            layoutParams = rowParams()
+        }
+
+    /**
+     * The kit button for an action whose [kit] names its look. The words and the enabled state come
+     * from the node, and a click reports the node's intent while the button is enabled.
+     */
+    private fun kitActionOf(kit: KitLook, node: Action, theme: Theme, onIntent: (ScreenIntent) -> Unit): View {
+        val view: View = when (kit) {
+            KitLook.RAISED -> Button3dView(context, node.text, theme)
+            KitLook.NEUTRAL -> NeutralButtonView(context, node.text, theme)
+            KitLook.DANGER -> DeleteButtonView(context, node.text, theme)
+            KitLook.OUTLINED -> OutlinedButtonView(context, node.text, theme)
+        }
+        view.isEnabled = node.enabled
+        if (node.enabled) view.setOnClickListener { onIntent(node.intent) }
+        view.layoutParams = rowParams()
+        return view
+    }
 
     /** The platform text appearance for a role: large for display text, medium otherwise. */
     private fun appearanceOf(role: TypeRole): Int = when (role) {
