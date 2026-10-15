@@ -240,9 +240,12 @@ internal class BoundRig private constructor(
 
     val parkUntil = CompletableDeferred<Unit>()
     val log = Channel<String>(Channel.UNLIMITED)
+
+    /** The slot record of [watcher]: "dispatch" per hand-over, "complete" per call that [awaitSlotTask] watched. */
+    val slotTrace = Channel<String>(Channel.UNLIMITED)
     val parked = makeParked(parkUntil, log)
     val loader = QueueLoader(if (parkFirst) listOf<SherpaRecognizer>(parked) + later else later)
-    val watcher = newSlotWatcher()
+    val watcher = newSlotWatcher(slotTrace)
     val deadline = FakeDeadline()
     val workers = RecordingWorkers()
     val engine = OnDeviceSttEngine(loader, watcher, deadline, workers)
@@ -254,17 +257,21 @@ internal class BoundRig private constructor(
     }
 
     /**
-     * Waits for the engine to hand [call] to its slot and consumes that report. A call that
-     * returns first fails with [what]. Use it for a blocking call made on another scope.
+     * Waits for the engine to hand [call] to its slot and consumes that report. The call's own
+     * "complete" record is registered here, so a call that returns before any hand-over fails
+     * with [what]. Use it for a blocking call made on another scope.
      */
     fun <T> awaitSlotTask(call: Deferred<T>, what: String) {
-        val reported = runBlocking {
-            select<Boolean> {
-                watcher.dispatched.onReceive { true }
-                call.onAwait { false }
-            }
-        }
-        assertTrue(what, reported)
+        call.invokeOnCompletion { slotTrace.trySend("complete") }
+        val first = runBlocking { slotTrace.receive() }
+        assertTrue(what, first == "dispatch")
+        assertTrue(what, watcher.dispatched.tryReceive().isSuccess)
+    }
+
+    /** Consumes the "complete" record of the call that [awaitSlotTask] last watched, and fails with [what] otherwise. */
+    fun awaitCompletion(what: String) {
+        val next = runBlocking { slotTrace.receive() }
+        assertTrue(what, next == "complete")
     }
 
     /**

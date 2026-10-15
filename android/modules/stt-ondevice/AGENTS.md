@@ -290,7 +290,7 @@ it.
   ids, and the locator picks the files the unpack writes), `SherpaOnnxRecognizerWiringTest` (a real
   loader and engine over the real factory, with a fake opener) and `SherpaOnnxRealBindingTest` (the
   public factory on a plain JVM: a failure result, not an exception). The preload change has
-  `OnDeviceSttEnginePreloadBusyTest`, and the four-names check has `LocalModelStoreFourNamesTest`
+  `OnDeviceSttEnginePreloadBusyTest`, `SlotOrderRecordTest` and the other `OnDeviceSttEngine*Test` classes (no native engine), and the four-names check has `LocalModelStoreFourNamesTest`
   and `ModelLoaderFourNamesTest`. None of them runs the native engine or a real model.
 - The archive-name tests are `ModelIntegrityArchiveNameTest`, `ModelLoaderArchiveNameTest`, `ModelInstallerArchiveNameTest` and `ModelRegistryArchiveNamesTest`.
 - The download no-space tests are `HttpModelFetcherNoSpaceTest`, `ModelInstallerNoSpaceTest` and `ModelNoSpaceSymbolsTest`. They use a scripted opener, no network and no real archive.

@@ -70,7 +70,9 @@ class OnDeviceSttEngineBoundTest {
     private fun transcribeOffThread(rig: BoundRig, claim: String, samples: Int = 16_000): SttResult {
         val call = callers.async { callOrFail(claim) { rig.engine.transcribe(clipRequest(samples = samples)) } }
         rig.awaitSlotTask(call, "$claim must be handed to the engine's slot")
-        return awaitUnlessStuck(call, rig.watcher, "$claim handed a second task to its slot")
+        val result = awaitUnlessStuck(call, rig.watcher, "$claim handed a second task to its slot")
+        rig.awaitCompletion("$claim: the call must end after its one hand-over")
+        return result
     }
 
     @Test
@@ -154,6 +156,7 @@ class OnDeviceSttEngineBoundTest {
         val first = callers.async { rig.engine.transcribe(clipRequest()) }
         rig.awaitSlotTask(first, "the first transcribe must be handed to the engine's slot")
         rig.expireWhileParked(first, "the first transcribe")
+        rig.awaitCompletion("the abandoned first transcribe must return before the second is made")
 
         val second = callers.async { rig.engine.transcribe(clipRequest()) }
         rig.awaitSlotTask(second, "the second transcribe must be handed to the engine's slot")

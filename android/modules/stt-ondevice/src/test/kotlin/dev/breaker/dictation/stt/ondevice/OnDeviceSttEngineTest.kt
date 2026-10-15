@@ -112,8 +112,9 @@ class OnDeviceSttEngineTest {
     fun `transcribeAsync serialises decode calls on single-threaded dispatcher`() {
         val release = CompletableDeferred<Unit>()
         val log = Channel<String>(Channel.UNLIMITED)
-        val recognizer = HoldingRecognizer(release, log)
-        val watcher = newSlotWatcher()
+        val trace = Channel<String>(Channel.UNLIMITED)
+        val recognizer = HoldingRecognizer(release, log, trace)
+        val watcher = newSlotWatcher(trace)
         val engine = OnDeviceSttEngine(readyLoader(recognizer), watcher)
 
         val firstStart = startOffThread(callers) { engine.transcribeAsync(validRequest()) }
@@ -121,7 +122,7 @@ class OnDeviceSttEngineTest {
         val (first, second) = try {
             expectSlotBeforeDecode(
                 watcher,
-                log,
+                trace,
                 "transcribeAsync serialises decode calls on single-threaded dispatcher: " +
                     "the decode started without the call being handed to the engine's own dispatcher",
             )
@@ -226,23 +227,20 @@ class OnDeviceSttEngineTest {
             }
             override fun release() {}
         }
-        val watcher = newSlotWatcher()
+        val trace = Channel<String>(Channel.UNLIMITED)
+        val watcher = newSlotWatcher(trace)
         engine = OnDeviceSttEngine(readyLoader(recognizer), watcher)
 
         // transcribe blocks, so it runs off the test thread. Its own hand-off to the
         // dispatcher always happens; a second one means the inner call was not refused.
         val outer = callers.async { engine!!.transcribe(validRequest()) }
-        runBlocking {
-            select<Unit> {
-                watcher.dispatched.onReceive { }
-                outer.onAwait {
-                    throw AssertionError(
-                        "transcribe refuses reentrant call from inside decode: the outer call returned " +
-                            "without handing a task to the dispatcher",
-                    )
-                }
-            }
-        }
+        outer.invokeOnCompletion { trace.trySend("complete") }
+        expectSlotBeforeDecode(
+            watcher,
+            trace,
+            "transcribe refuses reentrant call from inside decode: the outer call returned " +
+                "without handing a task to the dispatcher",
+        )
         val result = runBlocking {
             select<SttResult> {
                 outer.onAwait { it }

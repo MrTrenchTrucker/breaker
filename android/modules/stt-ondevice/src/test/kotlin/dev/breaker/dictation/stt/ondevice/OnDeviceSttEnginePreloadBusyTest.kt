@@ -59,6 +59,7 @@ class OnDeviceSttEnginePreloadBusyTest {
         val first = callers.async { rig.engine.transcribe(clipRequest()) }
         rig.awaitSlotTask(first, "the first transcribe must be handed to the engine's slot")
         rig.expireWhileParked(first, "the first transcribe")
+        rig.awaitCompletion("the abandoned first transcribe must return before the preload is made")
 
         // Arm one: the decode is abandoned and its worker is still inside the native call.
         val during = callers.async { callOrFail("preload during an abandoned decode") { rig.engine.preload("tiny") } }

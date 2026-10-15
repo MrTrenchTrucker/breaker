@@ -185,10 +185,11 @@ class OnDeviceSttEngineGuardTest {
 
     @Test
     fun `a preload queued behind a running decode returns the closed failure when the engine closes while it waits`() {
-        val watcher = newSlotWatcher()
+        val trace = Channel<String>(Channel.UNLIMITED)
+        val watcher = newSlotWatcher(trace)
         val holdUntil = CompletableDeferred<Unit>()
         val log = Channel<String>(Channel.UNLIMITED)
-        val loader = CountingLoader(readyLoader(HoldingRecognizer(holdUntil, log)))
+        val loader = CountingLoader(readyLoader(HoldingRecognizer(holdUntil, log, trace)))
         val engine = track(OnDeviceSttEngine(loader, watcher))
 
         runBlocking<Unit> {
@@ -196,7 +197,7 @@ class OnDeviceSttEngineGuardTest {
                 val started = startOffThread(callers) { engine.transcribeAsync(validSlotRequest()) }
                 expectSlotBeforeDecode(
                     watcher,
-                    log,
+                    trace,
                     "the running call must be handed to the engine's own dispatcher before its decode starts",
                 )
                 val running = started.await()
