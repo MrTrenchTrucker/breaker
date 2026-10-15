@@ -13,7 +13,8 @@ Full module card: `AGENTS.md` in this folder.
    (or a throw), the parent copies the text to the clipboard instead.
 2. The resolver (`NodeFocusedField`) turns an empty text away first, without looking at
    the screen. Otherwise it asks for the field that has input focus in the active window
-   at that moment. Nothing is tracked from events; each call looks again.
+   at that moment. Nothing is tracked from events; each call looks again. When no field
+   has input focus, it answers `NO_FIELD` and the parent copies the text to the clipboard.
 3. It refuses a node that is no longer valid, a field of this app's own package, a
    password field, a field that is not editable and a field that is not enabled. The
    flags are read in that order and a refused field's text is never read.

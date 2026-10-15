@@ -38,6 +38,8 @@ This module owns:
 - Refusing, so the parent falls back to the clipboard: an empty text, a field
   of this app's own package, a field that is not editable or not enabled, and
   a node that is no longer valid.
+- Answering `NO_FIELD` when no field has input focus, so the parent copies the
+  text to the clipboard.
 - Refusing to insert into password fields: a field is a password when the platform flag
   (`isPassword`) is set, or when its input type is a password type (see Invariants).
 - Publishing the focused field into the parent's `FocusedFieldHolder` registry

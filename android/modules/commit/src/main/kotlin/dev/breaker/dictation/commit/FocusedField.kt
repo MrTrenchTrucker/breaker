@@ -1,7 +1,12 @@
 package dev.breaker.dictation.commit
 
 /** What a focused field did with the text it was handed. */
-enum class FieldCommit { ACCEPTED, REFUSED }
+enum class FieldCommit {
+    ACCEPTED,
+    REFUSED,
+    /** No focused field was found at commit time. */
+    NO_FIELD,
+}
 
 /**
  * A text field that a text-insert mechanism (ADR-022) has published as

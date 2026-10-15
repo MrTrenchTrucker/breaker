@@ -21,6 +21,24 @@ internal class CommitServiceClipboardTest {
     }
 
     @Test
+    fun `a field that answers NO_FIELD is copied with no detail, like no field at all`() {
+        val rig = Rig(sdkInt = 32)
+        rig.field.answer = FieldCommit.NO_FIELD
+
+        val result = rig.service.commit(Texts.request())
+
+        assertEquals("commit: NO_FIELD must give COPIED", CommitOutcome.COPIED, result.outcome)
+        assertNull("commit: a NO_FIELD copy carries no detail", result.detail)
+        assertEquals("commit: exactly one clipboard write", 1, rig.clipboard.writes.size)
+        assertEquals(
+            "commit: the clipboard must get the exact text with the sensitive flag set",
+            listOf(Pair(Texts.SECRET, true)),
+            rig.clipboard.writes,
+        )
+        assertEquals("commit: sdk 32 must show our notice once", 1, rig.notice.shown)
+    }
+
+    @Test
     fun `the copy is marked sensitive`() {
         val rig = Rig(withField = false)
 

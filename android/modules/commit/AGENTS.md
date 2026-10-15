@@ -34,7 +34,9 @@ Implements `commit(request: CommitRequest): CommitOutcomeResult`.
 - `FocusedField` and `FieldCommit` are public: a text-insert mechanism built as
   its own Gradle module (`commit/accessibility`, ADR-022) implements
   `FocusedField` and reports `FieldCommit`, and Kotlin `internal` does not
-  cross a module boundary. `adapter.FocusedFieldHolder.publish(field:
+  cross a module boundary. `FieldCommit` has three answers: `ACCEPTED`,
+  `REFUSED`, and `NO_FIELD` (no focused field was found at commit time).
+  `adapter.FocusedFieldHolder.publish(field:
   FocusedField): AutoCloseable` is the one public seam such a sub-module
   publishes through; closing the returned handle clears that publish (a stale
   or repeated close is a no-op). The seam is publish-only on purpose: there is
@@ -53,7 +55,7 @@ Implements `commit(request: CommitRequest): CommitOutcomeResult`.
 | Outcome | detail | When |
 |---|---|---|
 | `COMMITTED` | none | A focused field accepted the text. |
-| `COPIED` | none | There was no focused field, and the clipboard took the text. |
+| `COPIED` | none | There was no focused field, or the service found no input focus, and the clipboard took the text. |
 | `COPIED` | `The field did not accept the text, so it was copied instead.` | A field was focused but refused the text or threw, and the clipboard took the text. |
 | `FAILED` | `The text could not be put anywhere.` | No field took the text and the clipboard was unavailable or threw. |
 | `FAILED` | `The screen was not responding, so the text was not sent.` | The block did not start in time or the main thread refused it, or the caller was interrupted while waiting. |
