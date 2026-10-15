@@ -47,7 +47,8 @@ settings screen and the history screen, the manifest, and the Gradle build.
   landed or only reached the clipboard, and FAILED with its sentence when the
   commit failed. It keeps that until the next action.
 - **The user's switch-off.** When the user switches dictation off (the
-  notification's "Switch off" button), the app keeps that in a small file in its
+  notification's "Switch off" button, or the walk-through's
+  "Switch Breaker off" button), the app keeps that in a small file in its
   files folder, and a start of the launcher from a notification or the tile no
   longer switches dictation on. Opening Breaker from its launcher icon switches
   it on again, once for each activity the icon opens; a tap on the icon while
@@ -101,19 +102,28 @@ the requests live in ui's screen.
 
 ## What is not built yet
 
-Parts that are not merged are filled with a stand-in that answers with a plain
-failure sentence, never a success:
+These are the main parts still not built in the app; the Known Gotchas section
+of `AGENTS.md` lists the smaller open items.
 
-- the real microphone driver (the audio module's work), so listening fails with a
-  sentence for now;
-- the server speech engine (the on-device engine with its recognizer, its model
-  store and the download are built; the recognizer has not been tried on a
-  device);
-- asking the user for the microphone, notification and draw-over-other-apps
-  permissions (onboarding), the switch-on screen and the spoken off word.
+- The server speech engine. Its slot holds a stand-in that answers with a plain
+  failure sentence and never a success: "Server transcription is not available
+  yet." (`SERVER_UNAVAILABLE_DETAIL` in `wiring/UnavailableSlots.kt`, wired at
+  `BreakerCompositionRoot.kt` `serverEngine = UnavailableSttEngine(`). The
+  on-device engine with its recognizer, its model store and the download are
+  built; the recognizer has not been tried on a device.
+- The spoken off word. The phrases module has its card and its build file, but
+  no source code yet, and the app does not use it.
+- The secret-resolving device Keystore. The app keeps only the reference to the
+  credential (`FileCredentialRefHolder`), never a secret; the Keystore that
+  resolves the reference is not built and not verified.
 
-So the first build cannot produce text yet: the microphone slot cannot be opened
-and the text commit fails.
+The real microphone (`appMicSource(audioManager)` in `wiring/AndroidSwaps.kt`,
+which returns `AndroidMicSource.create`), the permission walk-through with its
+on/off switch (`createOnboardingView` in the ui module, with the switch in
+`wiring/BreakerSwitchAdapter.kt`) and the text commit (`appTextCommitter` in
+`wiring/AndroidSwaps.kt`) are built. All three have run on a phone in test builds;
+the cases not yet checked on a device are in the "Not verified" section of this
+README and the Known Gotchas section of `AGENTS.md`.
 
 The server formatter slot holds the on-device rule-based formatter, and the
 server path is not reached while the server engine slot fails.
@@ -133,10 +143,11 @@ still prints OK.
 
 ## Not verified
 
-Nothing here has been run on a device or an emulator. The list of what is not
-verified (the service in the background, the restart from the notification,
-whether Android lets the tile start the service when it is off, the tile on screen,
-the model download on a phone, the first run through the three permissions, and
+Test builds have run on one phone: the tile on screen, the model download, the
+permission walk-through, the level bar and a take transcribed on the phone. Nothing
+has run on an emulator, and most edge cases have not been checked on a device. The
+list of what is not verified (the service in the background, the restart from the
+notification, whether Android lets the tile start the service when it is off, and
 more) is in the Known Gotchas section of `AGENTS.md`.
 
-The shake of the phone is not verified on a device either. Its device checks are the DEVICE CHECK LIST in the same section of `AGENTS.md`.
+A shake has been seen on a phone in an earlier test build; the current rule (a shake only shows the tile) has not been checked on a device. Its device checks are the DEVICE CHECK LIST in the same section of `AGENTS.md`.
