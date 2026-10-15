@@ -45,6 +45,9 @@ class LevelTapTest {
         main: MainPost = ManualMain(),
     ): LevelTap = LevelTap(source, LevelFeed(tile, main) { true })
 
+    /** The lead-in: eight frames of 1067 samples at -50 dBFS, which seed the noise floor at -50 before a test's own input. */
+    private fun lead(): List<FloatArray> = List(8) { FloatArray(1067) { 0.0031622777f } }
+
     @Test
     fun `every frame reaches the listener as the same array and in the order it came`() {
         val source = LevelTapSource()
@@ -86,6 +89,9 @@ class LevelTapTest {
         val tail = FloatArray(100) { 1f }
         val received = ArrayList<FloatArray>()
         tap.start(AudioListener { frame -> received.add(frame) })
+        lead().forEach { source.deliver(it) }
+        main.drain()
+        tile.levels.clear()
         source.deliver(full)
         assertTrue("app: 1000 samples must not post a level yet", main.pending == 0)
         source.deliver(tail)
@@ -118,6 +124,9 @@ class LevelTapTest {
             threads.add(Thread.currentThread())
         })
         tap.start(AudioListener { })
+        lead().forEach { source.deliver(it) }
+        levels.clear()
+        threads.clear()
         source.deliver(FloatArray(1067) { 1f })
         assertEquals("app: one loud window must reach the sink directly as 1", listOf(1f), levels)
         assertSame("app: the sink must be called on the calling thread", testThread, threads.single())
@@ -156,12 +165,16 @@ class LevelTapTest {
         val main = ManualMain()
         val tap = tapWith(source, tile, main)
         tap.start(AudioListener { })
+        lead().forEach { source.deliver(it) }
         source.deliver(FloatArray(1067) { 1f })
+        main.drain()
+        tile.levels.clear()
         tap.stop()
         tap.start(AudioListener { })
+        lead().forEach { source.deliver(it) }
         source.deliver(FloatArray(1067) { 0f })
         main.drain()
-        assertEquals("app: the second take must start from 0, not fall from the first take's 1", listOf(1f, 0f), tile.levels)
+        assertEquals("app: the second take must start from 0, not fall from the first take's 1", List(9) { 0f }, tile.levels)
     }
 
     @Test
@@ -173,12 +186,22 @@ class LevelTapTest {
         val tap = tapWith(source, tile, main)
         tap.start(AudioListener { })
         val workerThread = CompletableDeferred<Thread>()
+        val leadDone = CompletableDeferred<Unit>()
+        val drained = CompletableDeferred<Unit>()
         val scope = CoroutineScope(Dispatchers.Default)
         val worker = scope.launch {
             workerThread.complete(Thread.currentThread())
+            lead().forEach { source.deliver(it) }
+            leadDone.complete(Unit)
+            drained.await()
             source.deliver(FloatArray(1067) { 1f })
         }
         val driver = awaitBounded("the frame worker to start", workerThread)
+        awaitBounded("the lead-in on the frame worker", leadDone)
+        main.drain()
+        tile.levels.clear()
+        tile.threads.clear()
+        drained.complete(Unit)
         joinBounded("the frame worker", worker)
         scope.cancel()
         assertEquals("app: the worker's frame must post one level to the main queue", 1, main.pending)
