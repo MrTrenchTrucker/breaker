@@ -11,9 +11,9 @@ import org.junit.Test
  * What a touch means for each state and each part of the tile, and where the window is when it is read.
  *
  * The screen is the one in [TestData]: the saved centre puts the square tile at (506, 1140), 100 pixels
- * square. While recording (or showing a notice) the window is 300 by 150 pixels with its top-left corner
- * at (406, 1090): the cancel button is x 406..506 and the send button x 606..706, both y 1140..1240; the
- * microphone is x 506..606 (the square tile's own place); the strip is y 1090..1140.
+ * square. While recording the window is 300 by 100 pixels with its top-left corner at (406, 1140): the
+ * cancel button is x 406..506, the microphone x 506..606 (the square tile's own place) and the send button
+ * x 606..706, all in y 1140..1240. A notice window is 300 by 150 pixels at (406, 1090), its strip y 1090..1140.
  */
 class TileControllerButtonsTest {
 
@@ -21,6 +21,7 @@ class TileControllerButtonsTest {
     private val cancel = 456f to 1190f
     private val send = 656f to 1190f
     private val strip = 556f to 1110f
+    private val above = 556f to 1139f
     private val outside = 900f to 1190f
 
     private class Rig(seed: AppSettings = AppSettings()) {
@@ -92,14 +93,14 @@ class TileControllerButtonsTest {
         assertEquals("overlay: the tap should not resize the window", 0, rig.window.frames.size)
     }
 
-    /** If this fails, recording does not send on the microphone or the check, does not cancel on the X, or reacts in the strip or beside the window. */
+    /** If this fails, recording does not send on the microphone or the check, does not cancel on the X, or reacts just above or beside the window. */
     @Test
     fun `recording sends on the microphone and the check, cancels on the X and ignores the rest`() {
         val rig = Rig().shown(TileState.RECORDING)
         assertEquals("overlay: the microphone should send", listOf("send"), rig.tapped(mic))
         assertEquals("overlay: the check should send", listOf("send"), rig.tapped(send))
         assertEquals("overlay: the X should cancel", listOf("cancel"), rig.tapped(cancel))
-        assertEquals("overlay: the strip should do nothing", emptyList<String>(), rig.tapped(strip))
+        assertEquals("overlay: a point just above the window should do nothing", emptyList<String>(), rig.tapped(above))
         assertEquals("overlay: a point beside the window should do nothing", emptyList<String>(), rig.tapped(outside))
         assertEquals("overlay: the taps should not change the state", TileState.RECORDING, rig.controller.state)
         assertTrue("overlay: the taps should move nothing", rig.window.moves.isEmpty())
@@ -113,7 +114,7 @@ class TileControllerButtonsTest {
         assertEquals("overlay: the microphone should do nothing while sending", emptyList<String>(), rig.tapped(mic))
         rig.controller.showNotice("Please wait")
         assertEquals("overlay: the microphone should do nothing while sending with a notice", emptyList<String>(), rig.tapped(mic))
-        assertEquals("overlay: the strip should do nothing while sending", emptyList<String>(), rig.tapped(strip))
+        assertEquals("overlay: a point above the tile should do nothing while sending", emptyList<String>(), rig.tapped(above))
     }
 
     /** If this fails, a failed tile does not pass the microphone tap to the app like an idle one. */
@@ -191,7 +192,7 @@ class TileControllerButtonsTest {
         assertEquals("overlay: the app's push inside the callback should take effect", TileState.RECORDING, rig.controller.state)
         assertEquals(
             "overlay: the window should widen once, for the recording shape",
-            listOf(FakeTileWindow.Frame(406, 1090, 300, 150)),
+            listOf(FakeTileWindow.Frame(406, 1140, 300, 100)),
             rig.window.frames,
         )
         assertEquals("overlay: the next tap should send", listOf("send"), rig.tapped(mic))
@@ -207,7 +208,7 @@ class TileControllerButtonsTest {
         wide.window.bounds = PixelBounds(0, 0, 1200, 2200)
         wide.window.sizePx = 200
         wide.controller.onDisplayChanged()
-        assertEquals("overlay: the wide window should be placed again once", listOf(FakeTileWindow.Frame(50, 1400, 600, 300)), wide.window.frames)
+        assertEquals("overlay: the wide window should be placed again once", listOf(FakeTileWindow.Frame(50, 1500, 600, 200)), wide.window.frames)
         assertTrue("overlay: the wide window should not be moved as a square tile", wide.window.moves.isEmpty())
 
         val square = Rig(seed).shown(TileState.ARMED)
@@ -227,7 +228,7 @@ class TileControllerButtonsTest {
         rig.window.bounds = PixelBounds(0, 0, 1200, 2200)
         rig.window.sizePx = 200
         rig.controller.onDisplayChanged()
-        assertEquals("overlay: the wide window should be placed again", listOf(FakeTileWindow.Frame(300, 900, 600, 300)), rig.window.frames)
+        assertEquals("overlay: the wide window should be placed again", listOf(FakeTileWindow.Frame(300, 1000, 600, 200)), rig.window.frames)
     }
 
     /** If this fails, a tap near the screen edge is read against the place the window would have had, not the place it has. */
@@ -235,7 +236,7 @@ class TileControllerButtonsTest {
     fun `a tap is read against the window as it was kept on screen`() {
         val rig = Rig(TestData.settings(TilePosition(1.0f, 1.0f))).shown(TileState.IDLE)
         rig.controller.setState(TileState.RECORDING)
-        assertEquals("overlay: the window should be pulled in from the right edge", listOf(FakeTileWindow.Frame(796, 2150, 300, 150)), rig.window.frames)
+        assertEquals("overlay: the window should be pulled in from the right edge", listOf(FakeTileWindow.Frame(796, 2200, 300, 100)), rig.window.frames)
         // The square tile is at (996, 2200), so the microphone is x 896..996 and the cancel button x 796..896.
         assertEquals("overlay: x 946 is the microphone", listOf("send"), rig.tapped(946f to 2250f))
         assertEquals("overlay: x 846 is the cancel button", listOf("cancel"), rig.tapped(846f to 2250f))
@@ -250,7 +251,7 @@ class TileControllerButtonsTest {
         assertEquals("overlay: half a pixel left of the window is outside it", emptyList<String>(), rig.tapped(405.5f to 1190f))
         assertEquals("overlay: x 505.9 is still the cancel button", listOf("cancel"), rig.tapped(505.9f to 1190f))
         assertEquals("overlay: x 506 is the first pixel of the microphone", listOf("send"), rig.tapped(506f to 1190f))
-        assertEquals("overlay: y 1139.9 is still the strip", emptyList<String>(), rig.tapped(456f to 1139.9f))
+        assertEquals("overlay: y 1139.9 is just above the recording window", emptyList<String>(), rig.tapped(456f to 1139.9f))
         assertEquals("overlay: y 1140 is the first row of the cancel button", listOf("cancel"), rig.tapped(456f to 1140f))
         assertEquals("overlay: x 705.9 is still the check", listOf("send"), rig.tapped(705.9f to 1190f))
         assertEquals("overlay: x 706 is outside the window", emptyList<String>(), rig.tapped(706f to 1190f))

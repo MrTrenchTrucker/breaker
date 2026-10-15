@@ -10,16 +10,16 @@ import org.junit.Test
  * Which gestures may move the tile, and what a tap on the square tile means wherever it is read.
  *
  * The screen is the one in [TestData]: the saved centre puts the square tile at (506, 1140), 100 pixels
- * square. While recording (or showing a notice) the window is 300 by 150 pixels with its top-left corner
- * at (406, 1090): the cancel button is x 406..506 and the send button x 606..706, both y 1140..1240; the
- * microphone is x 506..606 (the square tile's own place); the strip is y 1090..1140.
+ * square. While recording the window is 300 by 100 pixels with its top-left corner at (406, 1140): the
+ * cancel button is x 406..506, the microphone x 506..606 (the square tile's own place) and the send button
+ * x 606..706, all in y 1140..1240. A notice window is 300 by 150 pixels at (406, 1090), its strip y 1090..1140.
  */
 class TileControllerGestureRulesTest {
 
     private val mic = 556f to 1190f
     private val cancel = 456f to 1190f
     private val send = 656f to 1190f
-    private val strip = 556f to 1110f
+    private val above = 556f to 1139f
     private val far = 300f to 300f
 
     private class Rig(seed: AppSettings = AppSettings()) {
@@ -66,7 +66,7 @@ class TileControllerGestureRulesTest {
     /** If this fails, a slide that starts on a button or the microphone of the wide tile moves it or saves a position. */
     @Test
     fun `a slide on the wide tile never moves it or saves`() {
-        val starts = listOf(cancel, mic, send, strip)
+        val starts = listOf(cancel, mic, send, above)
         starts.forEach { start ->
             val rig = Rig().shown(TileState.RECORDING)
             rig.window.down(start.first, start.second)

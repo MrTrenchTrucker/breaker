@@ -34,16 +34,15 @@ class TileLayoutZonesTest {
     /** A failure means a point inside the cancel, mic or send cell, or on one of their edges, lands in the wrong zone while recording. */
     @Test
     fun `recording buttons and their half-open edges`() {
-        check(TileShape.RECORDING, TileZone.CANCEL, 0 to 50, 99 to 149, 0 to 149, 99 to 50, 50 to 100)
-        check(TileShape.RECORDING, TileZone.MIC, 100 to 50, 199 to 149, 100 to 149, 199 to 50, 150 to 100)
-        check(TileShape.RECORDING, TileZone.SEND, 200 to 50, 299 to 149, 200 to 149, 299 to 50, 250 to 100)
+        check(TileShape.RECORDING, TileZone.CANCEL, 0 to 0, 99 to 99, 0 to 99, 99 to 0, 50 to 50)
+        check(TileShape.RECORDING, TileZone.MIC, 100 to 0, 199 to 99, 100 to 99, 199 to 0, 150 to 50)
+        check(TileShape.RECORDING, TileZone.SEND, 200 to 0, 299 to 99, 200 to 99, 299 to 0, 250 to 50)
     }
 
-    /** A failure means the strip above the buttons, the meter's area included, is not the strip while recording, or its edges are off. */
+    /** A failure means the recording window has a strip, or a pixel just outside it answers for a button. */
     @Test
-    fun `recording strip and the pixels around the window`() {
-        check(TileShape.RECORDING, TileZone.STRIP, 0 to 0, 299 to 0, 0 to 49, 299 to 49, 150 to 0, 150 to 49, 100 to 49, 199 to 25, 50 to 25, 250 to 25)
-        check(TileShape.RECORDING, TileZone.NONE, 300 to 100, 300 to 149, 300 to 50, 299 to 150, 0 to 150, 150 to 150, -1 to 100, 150 to -1, -1 to -1, 300 to 150, 300 to 0)
+    fun `recording has no strip and the pixels outside the window are nothing`() {
+        check(TileShape.RECORDING, TileZone.NONE, 300 to 0, 300 to 50, 299 to 100, 0 to 100, 150 to 100, 150 to 150, -1 to 50, 150 to -1, -1 to -1, 300 to 100)
     }
 
     // ---- notice ----
@@ -58,18 +57,18 @@ class TileLayoutZonesTest {
 
     // ---- an odd side ----
 
-    /** A failure means the zones are wrong when the side is odd and the strip is half the side with the fraction dropped. */
+    /** A failure means the zones are wrong when the side is odd: the recording cells are cut from an odd side, and the notice strip is half the side with the fraction dropped. */
     @Test
     fun `an odd tile side`() {
-        // Side 101: strip 50, window 303 by 151, cells cancel 0..100, mic 101..201, send 202..302, all from y 50.
-        assertEquals("overlay: odd side, last cancel pixel", TileZone.CANCEL, TileLayout.zoneAt(100, 150, TileShape.RECORDING, 101))
-        assertEquals("overlay: odd side, first mic pixel", TileZone.MIC, TileLayout.zoneAt(101, 50, TileShape.RECORDING, 101))
-        assertEquals("overlay: odd side, last mic pixel", TileZone.MIC, TileLayout.zoneAt(201, 150, TileShape.RECORDING, 101))
-        assertEquals("overlay: odd side, first send pixel", TileZone.SEND, TileLayout.zoneAt(202, 50, TileShape.RECORDING, 101))
-        assertEquals("overlay: odd side, last send pixel", TileZone.SEND, TileLayout.zoneAt(302, 150, TileShape.RECORDING, 101))
-        assertEquals("overlay: odd side, past the right edge", TileZone.NONE, TileLayout.zoneAt(303, 150, TileShape.RECORDING, 101))
-        assertEquals("overlay: odd side, past the bottom edge", TileZone.NONE, TileLayout.zoneAt(150, 151, TileShape.RECORDING, 101))
-        assertEquals("overlay: odd side, last strip row", TileZone.STRIP, TileLayout.zoneAt(150, 49, TileShape.RECORDING, 101))
+        // Side 101: the recording window is 303 by 101, cells cancel 0..100, mic 101..201, send 202..302, all from y 0 to 100.
+        assertEquals("overlay: odd side, last cancel pixel", TileZone.CANCEL, TileLayout.zoneAt(100, 100, TileShape.RECORDING, 101))
+        assertEquals("overlay: odd side, first mic pixel", TileZone.MIC, TileLayout.zoneAt(101, 0, TileShape.RECORDING, 101))
+        assertEquals("overlay: odd side, last mic pixel", TileZone.MIC, TileLayout.zoneAt(201, 100, TileShape.RECORDING, 101))
+        assertEquals("overlay: odd side, first send pixel", TileZone.SEND, TileLayout.zoneAt(202, 0, TileShape.RECORDING, 101))
+        assertEquals("overlay: odd side, last send pixel", TileZone.SEND, TileLayout.zoneAt(302, 100, TileShape.RECORDING, 101))
+        assertEquals("overlay: odd side, past the right edge", TileZone.NONE, TileLayout.zoneAt(303, 100, TileShape.RECORDING, 101))
+        assertEquals("overlay: odd side, past the bottom edge", TileZone.NONE, TileLayout.zoneAt(150, 101, TileShape.RECORDING, 101))
+        assertEquals("overlay: odd side, notice last strip row", TileZone.STRIP, TileLayout.zoneAt(150, 49, TileShape.NOTICE, 101))
         assertEquals("overlay: odd side, collapsed, last pixel", TileZone.MIC, TileLayout.zoneAt(100, 100, TileShape.COLLAPSED, 101))
         assertEquals("overlay: odd side, collapsed, past the edge", TileZone.NONE, TileLayout.zoneAt(101, 100, TileShape.COLLAPSED, 101))
     }
@@ -106,8 +105,8 @@ class TileLayoutZonesTest {
             assertEquals("overlay: side $side recording mic pixels", side * side, recording[TileZone.MIC] ?: 0)
             assertEquals("overlay: side $side recording cancel pixels", side * side, recording[TileZone.CANCEL] ?: 0)
             assertEquals("overlay: side $side recording send pixels", side * side, recording[TileZone.SEND] ?: 0)
-            assertEquals("overlay: side $side recording strip pixels", 3 * side * strip, recording[TileZone.STRIP] ?: 0)
-            assertEquals("overlay: side $side recording other pixels", grid - 3 * side * side - 3 * side * strip, recording[TileZone.NONE] ?: 0)
+            assertEquals("overlay: side $side recording strip pixels expected none", 0, recording[TileZone.STRIP] ?: 0)
+            assertEquals("overlay: side $side recording other pixels", grid - 3 * side * side, recording[TileZone.NONE] ?: 0)
         }
     }
 }

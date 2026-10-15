@@ -10,10 +10,10 @@ import org.junit.Test
 
 /**
  * The pure-logic parts of the MIC_BUSY face that can be tested on the JVM without Android:
- * the ring colour, the shape, the tap routing, the pulse parameterization and the slash glyph.
+ * the ring colour, the shape, the tap routing, the pulse parameterization and the busy sign.
  *
  * MIC_BUSY is the state where the microphone is not available. The tile shows a collapsed square
- * with a danger-coloured ring and a slash across the microphone head. A tap on the microphone is
+ * with a danger-coloured ring and a circle with a slash across the microphone. A tap on the microphone is
  * passed to the app like a tap in IDLE.
  */
 class MicBusyFaceTest {
@@ -207,28 +207,19 @@ class MicBusyFaceTest {
         )
     }
 
-    // ---- TileGlyph (slash rect) ----
+    // ---- The busy sign (drawn by TileArtDraw as a circle and a slash, not as a glyph rectangle) ----
 
-    /** A failure means the glyph has no SLASH-role rectangle. */
+    /** A failure means the busy sign is drawn outside the MIC_BUSY test, or by more than one call in the art drawing. */
     @Test
-    fun `TileGlyph rects contains a SLASH-role rect`() {
-        assertTrue(
-            "overlay: TileGlyph.rects expected at least one SLASH-role rect",
-            TileGlyph.rects.any { it.role == GlyphRole.SLASH },
-        )
-    }
-
-    /** A failure means the SLASH rect lies outside the unit square. */
-    @Test
-    fun `SLASH rect lies inside the unit square`() {
-        val slash = TileGlyph.rects.filter { it.role == GlyphRole.SLASH }
-        assertTrue("overlay: expected at least one SLASH rect", slash.isNotEmpty())
-        for ((index, rect) in slash.withIndex()) {
-            assertTrue("overlay: SLASH rect $index left expected >= 0: $rect", rect.left >= 0f)
-            assertTrue("overlay: SLASH rect $index top expected >= 0: $rect", rect.top >= 0f)
-            assertTrue("overlay: SLASH rect $index right expected <= 1: $rect", rect.right <= 1f)
-            assertTrue("overlay: SLASH rect $index bottom expected <= 1: $rect", rect.bottom <= 1f)
-        }
+    fun `the busy sign is drawn in TileArtDraw only under the MIC_BUSY test`() {
+        val guard = Regex("""if\s*\(\s*face\.state\s*==\s*TileState\.MIC_BUSY\s*\)\s*drawBusy\s*\(""")
+        assertTrue("overlay: control: a call under MIC_BUSY must match the guard", guard.containsMatchIn("if (face.state == TileState.MIC_BUSY) drawBusy(c)"))
+        assertTrue("overlay: control: a call with no MIC_BUSY test must not match the guard", !guard.containsMatchIn("drawBusy(c)"))
+        val source = ModuleFiles.mainTexts()["TileArtDraw.kt"]
+        assertTrue("overlay: TileArtDraw.kt must be found among the main sources", source != null)
+        val code = SourceText.code(source!!)
+        assertTrue("overlay: the busy sign must be drawn under face.state == TileState.MIC_BUSY", guard.containsMatchIn(code))
+        assertEquals("overlay: drawBusy must be declared once and called once", 2, Regex("""\bdrawBusy\s*\(""").findAll(code).count())
     }
 
     // ---- No text on the tile ----

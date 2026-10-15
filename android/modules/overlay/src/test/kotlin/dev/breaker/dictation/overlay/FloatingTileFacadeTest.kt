@@ -127,7 +127,7 @@ class FloatingTileFacadeTest {
 
         tile.setLevel(0.5f)
 
-        assertEquals("overlay: expected half a level to light 6 segments", 6, window.appliedFaces.last().litSegments)
+        assertEquals("overlay: expected half a level to light 3 segments", 3, window.appliedFaces.last().litSegments)
     }
 
     /** If this fails, showNotice or clearNotice on the facade does not reach the controller. */

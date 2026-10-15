@@ -10,8 +10,8 @@ import kotlin.math.ceil
  * is smoothed and nothing decays; the same level always gives the same count.
  */
 internal object LedMeter {
-    /** How many segments the meter has. The design allows 12 to 16. */
-    const val SEGMENTS: Int = 12
+    /** How many segments the meter has: the six slots of the microphone's grille. */
+    const val SEGMENTS: Int = 6
 
     /**
      * The number of lit segments, from 0 to [segments], for a [level] from 0.0 (silence) to 1.0 (full).

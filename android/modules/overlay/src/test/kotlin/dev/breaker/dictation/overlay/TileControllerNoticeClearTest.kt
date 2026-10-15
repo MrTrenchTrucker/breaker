@@ -11,7 +11,7 @@ import org.junit.Test
  * into recording, which has no room for a sentence.
  *
  * The screen is the one in [TestData]: the saved centre puts the square tile at (506, 1140), 100 pixels
- * square, so the wide window of 300 by 150 pixels has its top-left corner at (406, 1090).
+ * square, so the recording window of 300 by 100 pixels has its top-left corner at (406, 1140).
  */
 class TileControllerNoticeClearTest {
 
@@ -34,7 +34,7 @@ class TileControllerNoticeClearTest {
         }
     }
 
-    private val wideFrame = FakeTileWindow.Frame(406, 1090, 300, 150)
+    private val recordingFrame = FakeTileWindow.Frame(406, 1140, 300, 100)
 
     /** If this fails, a sentence shown before recording is carried into the recording face. */
     @Test
@@ -46,7 +46,7 @@ class TileControllerNoticeClearTest {
         rig.controller.setState(TileState.RECORDING)
 
         assertEquals("overlay: recording should size the window then draw", listOf("setFrame", "applyFace"), rig.window.calls)
-        assertEquals("overlay: recording should have the wide frame", listOf(wideFrame), rig.window.frames)
+        assertEquals("overlay: recording should have the recording frame", listOf(recordingFrame), rig.window.frames)
         val face = rig.window.appliedFaces.single()
         assertEquals("overlay: the face should have the recording shape, not the notice shape", TileShape.RECORDING, face.shape)
         assertNull("overlay: the recording face should carry no sentence", face.notice)

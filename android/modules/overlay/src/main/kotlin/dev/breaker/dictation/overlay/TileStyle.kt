@@ -6,8 +6,8 @@ import kotlin.math.floor
 /**
  * The colours one tile state is drawn with, as opaque ARGB ints.
  *
- * [background] fills the tile. [glyph] and [glyphOutline] colour the microphone picture. [ring] is the
- * ring around the microphone. [litSegment] and [unlitSegment] are the meter's segments that are on and
+ * [background] is the surface colour: the halo under the buttons and the notice text is drawn in it, and the body colour is chosen between it and [control]; nothing is filled with it. [glyph] and [glyphOutline] colour the microphone picture. [ring] is the
+ * glowing outline along the edge of the microphone. [litSegment] and [unlitSegment] are the meter's six slots in the grille that are on and
  * off; an off segment has the colour of the page background, so it differs from an on segment by
  * lightness and not by hue alone. [control] is the cancel and send buttons and the notice text.
  */

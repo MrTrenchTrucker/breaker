@@ -13,7 +13,8 @@ import org.junit.Test
  * in return: which calls, in which order, and when none at all.
  *
  * The screen is the one in [TestData]: the saved centre puts the square tile at (506, 1140), 100 pixels
- * square, so the wide window of 300 by 150 pixels has its top-left corner at (406, 1090).
+ * square, so the notice window of 300 by 150 pixels has its top-left corner at (406, 1090), and the
+ * recording window of 300 by 100 pixels has its top-left corner at (406, 1140).
  */
 class TileControllerStateTest {
 
@@ -42,6 +43,7 @@ class TileControllerStateTest {
 
     private val collapsedFrame = FakeTileWindow.Frame(506, 1140, 100, 100)
     private val wideFrame = FakeTileWindow.Frame(406, 1090, 300, 150)
+    private val recordingFrame = FakeTileWindow.Frame(406, 1140, 300, 100)
 
     /** If this fails, a tile that was never told anything starts in a state other than idle. */
     @Test
@@ -54,7 +56,7 @@ class TileControllerStateTest {
         assertEquals("overlay: the first face should be idle", TileState.IDLE, face.state)
         assertEquals("overlay: the first face should be the square tile", TileShape.COLLAPSED, face.shape)
         assertEquals("overlay: nothing is lit while idle", 0, face.litSegments)
-        assertEquals("overlay: the meter has 12 segments", 12, face.segments)
+        assertEquals("overlay: the meter has 6 segments", 6, face.segments)
         assertNull("overlay: the first face has no notice", face.notice)
         assertNull("overlay: the first face has no description", face.description)
         assertEquals("overlay: the first face uses the light theme", TileStyle.look(TileState.IDLE, TruckingTokens.palette(ThemeMode.LIGHT)), face.look)
@@ -95,7 +97,7 @@ class TileControllerStateTest {
         recording.controller.setState(TileState.RECORDING)
         recording.controller.show()
         assertEquals("overlay: recording should be sized after the draw", listOf("add", "applyFace", "setFrame"), recording.window.calls)
-        assertEquals("overlay: the recording window should surround the square tile", listOf(wideFrame), recording.window.frames)
+        assertEquals("overlay: the recording window should be the recording frame, level with the square tile", listOf(recordingFrame), recording.window.frames)
         assertEquals("overlay: the recording face should be drawn", TileShape.RECORDING, recording.window.appliedFaces.single().shape)
 
         val square = Rig()
@@ -128,7 +130,7 @@ class TileControllerStateTest {
         val rig = Rig().shown()
         rig.controller.setState(TileState.RECORDING)
         rig.controller.setLevel(1.0f)
-        assertEquals("overlay: a full level should light every segment", 12, rig.lit())
+        assertEquals("overlay: a full level should light every segment", 6, rig.lit())
 
         rig.controller.setState(TileState.ARMED)
         assertEquals("overlay: nothing is lit outside recording", 0, rig.lit())
@@ -145,7 +147,7 @@ class TileControllerStateTest {
         assertEquals("overlay: a level pushed while idle should not light the first recording face", 0, rig.lit())
 
         rig.controller.setLevel(0.5f)
-        assertEquals("overlay: a level pushed while recording should light the meter", 6, rig.lit())
+        assertEquals("overlay: a level pushed while recording should light the meter", 3, rig.lit())
     }
 
     /** If this fails, a level pushed outside recording lights the meter or redraws the tile. */
@@ -170,7 +172,7 @@ class TileControllerStateTest {
 
         rig.controller.setLevel(0.5f)
         assertEquals("overlay: half a level should draw once", listOf("applyFace"), rig.window.calls)
-        assertEquals("overlay: half a level should light 6 segments", 6, rig.lit())
+        assertEquals("overlay: half a level should light 3 segments", 3, rig.lit())
 
         rig.controller.setLevel(0.45f)
         rig.controller.setLevel(0.46f)
@@ -178,7 +180,7 @@ class TileControllerStateTest {
 
         rig.controller.setLevel(0.51f)
         assertEquals("overlay: a level in the next segment should draw once more", listOf("applyFace", "applyFace"), rig.window.calls)
-        assertEquals("overlay: 0.51 should light 7 segments", 7, rig.lit())
+        assertEquals("overlay: 0.51 should light 4 segments", 4, rig.lit())
         assertTrue("overlay: a level should never resize the window", rig.window.frames.isEmpty())
     }
 
@@ -189,8 +191,8 @@ class TileControllerStateTest {
         rig.controller.setState(TileState.RECORDING)
 
         val steps = listOf(
-            0.5f to 6, Float.NaN to 0, 0.5f to 6, -0.5f to 0, 2.0f to 12,
-            Float.NEGATIVE_INFINITY to 0, Float.POSITIVE_INFINITY to 12, 0.0f to 0, 1.0f to 12, 0.01f to 1,
+            0.5f to 3, Float.NaN to 0, 0.5f to 3, -0.5f to 0, 2.0f to 6,
+            Float.NEGATIVE_INFINITY to 0, Float.POSITIVE_INFINITY to 6, 0.0f to 0, 1.0f to 6, 0.01f to 1,
         )
         steps.forEach { (level, expected) ->
             rig.controller.setLevel(level)
@@ -268,9 +270,9 @@ class TileControllerStateTest {
         )
         val face = rig.window.appliedFaces.last()
         assertEquals("overlay: show should draw the kept state", TileState.RECORDING, face.state)
-        assertEquals("overlay: show should draw the level pushed while hidden", 11, face.litSegments)
+        assertEquals("overlay: show should draw the level pushed while hidden", 6, face.litSegments)
         assertEquals("overlay: show should draw the kept description", "Recording", face.description)
-        assertEquals("overlay: show should size the wide window around the square tile", listOf(wideFrame), rig.window.frames)
+        assertEquals("overlay: show should size the recording window level with the square tile", listOf(recordingFrame), rig.window.frames)
     }
 
     /** If this fails, show draws only a face that differs from the one drawn before hide, so a window added again stays blank. */

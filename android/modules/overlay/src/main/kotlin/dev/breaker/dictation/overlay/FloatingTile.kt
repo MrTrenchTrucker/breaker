@@ -19,7 +19,7 @@ import dev.breaker.shared.tokens.ThemeMode
  * **What a tap does**
  * - Idle, failed, or busy: a tap on the microphone calls `onTap`. In busy the tile shows a mic glyph with a red circle and diagonal slash (danger colour), pulsing slowly.
  * - Armed: a tap on the microphone calls `onBegin`.
- * - Recording: the tile widens to a cancel button, the level meter above the microphone, and a send
+ * - Recording: the tile widens to a cancel button, the microphone with the level in its grille, and a send
  *   button. A tap on the send button or on the microphone calls `onSend`; a tap on the cancel button
  *   calls `onCancel`. The widened tile cannot be dragged.
  * - Sending: taps do nothing.
