@@ -5,8 +5,9 @@
 - **F2** Server-first: when Local Server is reachable over ZeroTier, transcribe + format there.
 - **F3** On-device fallback: server unreachable → local transcription + rule-based
   formatting. Dictation never stops.
-- **F4** **"Breaker Breaker"** (voice phrase) OR shake → floating tile appears AND
-  **recording starts automatically**.
+- **F4** **"Breaker Breaker"** (voice phrase) → floating tile appears AND
+  **recording starts automatically**. A **shake** only brings the tile up; it never
+  starts recording. A tap on the tile starts recording.
 - **F5** **"And I'm Gone"** (voice phrase) OR tap tile → stop + send → commit text
   to focused field.
 - **F6** If no text field is focused, or the accessibility insert is refused →

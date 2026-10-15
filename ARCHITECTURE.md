@@ -70,10 +70,12 @@ admins.
 - F2. Server-first: when Local Server is reachable over ZeroTier, transcribe + format there.
 - F3. On-device fallback: when the server is unreachable, transcribe locally (with
       rule-based formatting) so dictation never stops.
-- F4. **"Breaker Breaker"** (voice phrase) OR shake → floating tile appears AND
-      **recording starts automatically**. A shake works from any app and with the
-      keyboard open, and keeps working whether or not the tile is on screen, for as
-      long as dictation is switched on.
+- F4. **"Breaker Breaker"** (voice phrase) → floating tile appears AND
+      **recording starts automatically**. A **shake** only brings the floating tile
+      up: it never starts recording and never opens the microphone, so a bump in a
+      moving vehicle cannot start a recording. A tap on the tile starts recording.
+      A shake works from any app and with the keyboard open, and keeps working
+      whether or not the tile is on screen, for as long as dictation is switched on.
 - F5. **"And I'm Gone"** (voice phrase) OR tap tile → stop + send → commit text to
       focused field.
 - F6. If no text field is focused, or the accessibility insert is refused →
@@ -169,8 +171,8 @@ admins.
       into the field (ADR-022).
 - F38. **Close the tile by dragging:** dragging the small tile shows a close
       target (an X in a circle) near the bottom of the screen; dropping the tile on
-      it hides the tile. Dictation stays switched on, so a shake or "Breaker Breaker"
-      brings the tile back and starts recording (F4); opening Breaker from its icon
+      it hides the tile. Dictation stays switched on, so a shake brings the tile back,
+      and "Breaker Breaker" brings it back and starts recording (F4); opening Breaker from its icon
       shows it again. Switching dictation off stays in the notification and the app.
 - F39. **Busy cue:** from the check tap until the final outcome the tile shows
       that the text is being processed: the ring takes a colour of its own and
@@ -380,7 +382,7 @@ routes it, so no audio waits on a probe and none is dropped (ADR-002).
 **Gesture (shake-to-wake):** `SensorManager` accelerometer; shake = high-pass
 filtered magnitude threshold crossings in a 500 ms window. The detector stays
 registered for as long as dictation is switched on, whatever the tile shows and
-whether or not the keyboard is up; a detection always means "begin" (F4). Only
+whether or not the keyboard is up; a detection always means "show the tile" and never begins a recording (F4). Only
 switching dictation off, or the system stopping the app in the background (F12),
 ends it.
 

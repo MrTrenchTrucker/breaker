@@ -66,7 +66,7 @@
 > the store per-user or for everyone.
 
 ## Step 5 — Go
-- Say **"Breaker Breaker"** (or shake) → dictate → **"And I'm Gone"** (or tap send).
+- Say **"Breaker Breaker"** (or shake to bring up the tile, then tap it) → dictate → **"And I'm Gone"** (or tap send).
 - Transcriptions appear in the focused field (or clipboard) AND in the app history.
 - Everything syncs to the server; view/search/copy from the web FE on any device.
 
