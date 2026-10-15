@@ -35,8 +35,9 @@
 
 ## Step 4 — First-run onboarding
 1. **Register** (username + password) — one time.
-2. **Grant permissions** (F11): the app asks for mic, sensor, overlay/foreground
-   service, and notifications — approve all.
+2. **Grant permissions** (F11): after a short welcome, the app asks for the
+   microphone, display over other apps, notifications and the accessibility
+   service, one screen each — approve all.
 3. **Enable high-power mode** (F12): if Android power-saving is on, the app prompts
    you to switch to high-performance mode.
 4. **Train your phrases** (F16, optional but recommended): record the wake phrase

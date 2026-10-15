@@ -19,8 +19,10 @@
   (audio trimmed at phrase onset).
 - **F10** Settings: mode, model size, server URL/API key, voice phrases on/off,
   shake on/off, formatting on/off, tile position, language.
-- **F11** On startup, the app prompts for ALL permissions it needs at once (mic,
-  sensor, overlay/foreground service, notifications).
+- **F11** On first open, the app shows a short welcome (its content is not fixed
+  here), then asks for each permission it needs (microphone, display over other
+  apps, notifications, accessibility service) on a screen of its own that says
+  why it is needed, with a button to grant it.
 - **F12** High-power mode: the app detects Android power-saving state and prompts
   the user to enable high-performance mode.
 - **F13** **Sync:** every transcription syncs to the server — even local-only

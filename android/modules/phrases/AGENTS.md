@@ -50,8 +50,8 @@ does not buffer or cut the dictation audio itself (see Audio handling).
 IDLE. Manual shake/tap can enter/exit the same states (shared with `gesture` +
 `overlay`).
 
-**Permissions (F11):** mic, sensor, overlay/foreground service, and notification
-permissions are requested together at first startup.
+**Permissions (F11):** microphone, display over other apps, notifications and the
+accessibility service are asked for at first start, one screen per permission.
 **High-power mode (F12):** verify Android power-saving is off; prompt user to
 enable high-performance mode if not.
 
@@ -66,7 +66,7 @@ enable high-performance mode if not.
 - Wake listening hears audio only while the app runs it: Breaker armed, wake
   listening switched on, and the microphone not given up to another app. The
   app decides when it comes back (F37, ADR-022) (not built yet).
-- Startup permission prompt grants all required permissions (F11).
+- The first-start permission screens grant all required permissions (F11).
 
 ## Depends On
 - android (registered in modules.toml)
