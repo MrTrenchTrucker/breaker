@@ -72,7 +72,7 @@ as described in ADR-022 as amended:
   already running. Sending, cancelling or an error ends the recording; the service
   stays on. The app shows the tile while the service is on and hides it when the
   service ends or the user switches off.
-- A shake of the phone, read from the accelerometer, goes through the same check as a tap: it begins a recording only while the tile shows the armed or the sent state, and the sensor runs only while the service is on. Whether a shake does nothing with no tile shown is a device check, not a verified fact (see the Known Gotchas section of `AGENTS.md`).
+- A shake of the phone, read from the accelerometer, never begins a recording. It goes to the tile: with the tile closed or hidden it brings the tile back, and with the tile on screen or during a recording it does nothing. The sensor runs only while the service is on. Whether a shake brings the tile back with no overlay permission is a device check, not a verified fact (see the Known Gotchas section of `AGENTS.md`).
 - The service stops when the user switches dictation off, when the part that owns
   the dictation is closed, or when it is started with nothing switched on. If it
   ends on its own, the dictation under way is dropped.

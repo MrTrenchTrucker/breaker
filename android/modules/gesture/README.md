@@ -1,6 +1,6 @@
 # Gesture - README
 
-Shake-to-wake: detect a shake gesture from accelerometer samples and fire a callback. The detector turns a stream of raw `Sample` values into the single event "a shake happened", and begins a take via the app's wiring - that wiring lives outside this module.
+Shake-to-wake: detect a shake gesture from accelerometer samples and fire a callback. The detector turns a stream of raw `Sample` values into the single event "a shake happened", and hands the callback to the app's wiring, which decides what a shake does - that wiring lives outside this module.
 
 ## What it does
 

@@ -23,9 +23,9 @@ fun appTextCommitter(context: Context): TextCommitter = CommitServices.create(co
 fun appMicSource(audioManager: AudioManager): MicSource = AndroidMicSource.create(audioManager)
 
 /**
- * The gesture that starts a dictation: a shake of the phone, read from the accelerometer through
+ * The gesture that brings the tile back: a shake of the phone, read from the accelerometer through
  * the gesture module. Building it registers nothing; the sensor is registered only by
- * [ShakeGesture.start] and released by [ShakeGesture.stop]. Main thread only.
+ * [ShakeGesture.start] and released by [ShakeGesture.stop]. A shake starts no recording. Main thread only.
  */
 fun appGesture(context: Context): GesturePort {
     val sensors: SensorManager = context.getSystemService(SensorManager::class.java) ?: return NoGesture()

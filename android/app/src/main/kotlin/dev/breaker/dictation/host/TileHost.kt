@@ -33,9 +33,10 @@ import dev.breaker.dictation.wiring.modelInstallPortFor
  * the same model store the speech engine reads from. [requestDownload] is the one entry point; the
  * settings button calls it and a later first-run step calls the same method.
  *
- * The gesture that starts a take is started when the service goes on and stopped when it goes off,
+ * The shake gesture is started when the service goes on and stopped when it goes off,
  * both on the main looper and in the order the changes happened; its trigger reaches the coordinator
- * through the same post as a tap on the tile. [onLauncherVisible] shows the tile again when the
+ * through the same post as a tap on the tile. A shake only shows the tile.
+ * [onLauncherVisible] shows the tile again when the
  * launcher comes to the front while the switch is on, because the permission to draw over other
  * apps may have been given since the tile could not be shown; showing a tile that is shown is safe.
  * The switch is read on the main looper before the coordinator is touched, so a launcher start with
@@ -116,7 +117,7 @@ internal class TileHost(
 
     /** Shows the tile when the service goes on and hides it when the service goes off. Any thread. */
     fun onArmedChanged(armed: Boolean) {
-        main.post { if (armed) gesture.start { toCoordinator { it.onBegin() } } else gesture.stop() }
+        main.post { if (armed) gesture.start { toCoordinator { it.onShake() } } else gesture.stop() }
         toCoordinator { it.onArmedChanged(armed) }
     }
 
