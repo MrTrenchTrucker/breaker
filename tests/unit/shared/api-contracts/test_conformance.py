@@ -94,6 +94,18 @@ class ConformanceTest(unittest.TestCase):
             "Error schema <-> ApiError must compare clean through the production comparator"
         )
 
+    def test_sync_push_fields_match_spec(self):
+        """SyncPush fields match the spec's SyncPush schema (production comparator)."""
+        self._compare("SyncPush")
+
+    def test_transcription_record_fields_match_spec(self):
+        """TranscriptionRecord fields match the spec (production comparator)."""
+        self._compare("TranscriptionRecord")
+
+    def test_pending_sealed_fields_match_spec(self):
+        """PendingSealed fields match the spec (production comparator)."""
+        self._compare("PendingSealed")
+
     def test_job_status_enum_matches_named_schema(self):
         """The named JobStatus schema's enum values match the Kotlin JobStatus enum."""
         js_schema = self.schemas.get("JobStatus", {})

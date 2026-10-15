@@ -318,6 +318,153 @@ paths:
               example:
                 error: "not_found"
                 message: "Agent token not found"
+  /v1/sync:
+    post:
+      summary: Push transcriptions
+      description: >-
+        Push a transcription for the authenticated account. Idempotent on
+        the pair (client_id, key_version), not on client_id alone: the same
+        pair is a no-op; the same client_id at a higher key_version is an
+        atomic replace (the stored row is swapped and the old row deleted in
+        the same transaction, once the new one has landed); the same
+        client_id at a lower key_version, or a brand-new client_id below the
+        account's current key_version, is refused (409). A pending-sealed
+        re-upload sends client_id = the pending record's id at the
+        account's current key_version (a new record, not a replace).
+      operationId: syncPush
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SyncPush"
+            example:
+              client_id: "0f9c4d1e-6a2b-4c3d-9e8f-1a2b3c4d5e6f"
+              key_version: 1
+              encrypted: "aGVsbG8tYWVzLTI1Ni1nY20tc2FtcGxl"
+      responses:
+        "204":
+          description: Pushed (stored, replaced, or the no-op of the same pair already on file)
+        "401":
+          description: Missing or invalid user session token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing user session token"
+        "403":
+          description: Forbidden - a valid token of the wrong kind
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "forbidden"
+                message: "User session token required; an agent token is refused"
+        "409":
+          description: Version refused
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "conflict"
+                message: "A lower key_version is refused for this client_id"
+  /v1/transcriptions:
+    get:
+      summary: Pull the account's transcriptions
+      description: >-
+        Pull the authenticated account's transcriptions, each with its own
+        key_version so a client can tell which of its own rows still need
+        replacing after an interrupted migration or re-key.
+      operationId: listTranscriptions
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: The account's transcription records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TranscriptionRecord"
+              example:
+                - client_id: "0f9c4d1e-6a2b-4c3d-9e8f-1a2b3c4d5e6f"
+                  key_version: 1
+                  encrypted: "aGVsbG8tYWVzLTI1Ni1nY20tc2FtcGxl"
+                  created_at: "2026-10-11T12:00:00Z"
+        "401":
+          description: Missing or invalid user session token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing user session token"
+        "403":
+          description: Forbidden - a valid token of the wrong kind
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "forbidden"
+                message: "User session token required; an agent token is refused"
+  /v1/sync/pending-sealed:
+    get:
+      summary: List the owner's still-sealed results
+      description: >-
+        The authenticated owner's still-sealed agent-token job results: a
+        list of sealed boxes. The owner's client unseals each with its box
+        private key and re-uploads it via POST /v1/sync with client_id =
+        that record's id at the account's current key_version (a new record,
+        not a replace); the server deletes the pending record once a synced
+        transcription with that client id lands. Honest limit: this endpoint
+        returns whatever the pending-sealed store holds; it has no way to
+        tell a sealed box whisper-server actually produced from one a
+        database writer inserted directly - both are equally well-formed
+        crypto_box_seal output, and the owner's client converts either kind
+        the same way.
+      operationId: listPendingSealed
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: The owner's pending-sealed records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PendingSealed"
+              example:
+                - id: "3b2c9f0a-7d4e-4a1b-8c5d-6e7f8091a2b3"
+                  sealed_box: "cmVwbGFjZS13aXRoLXNhbXBsZS1zZWFsZWQtYm94"
+                  created_at: "2026-10-11T12:00:00Z"
+        "401":
+          description: Missing or invalid user session token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing user session token"
+        "403":
+          description: Forbidden - a valid token of the wrong kind
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "forbidden"
+                message: "User session token required; an agent token is refused"
   /health:
     get:
       summary: Health check
@@ -597,3 +744,56 @@ components:
         message:
           type: string
           description: A human-readable error message
+    SyncPush:
+      type: object
+      required:
+        - client_id
+        - key_version
+        - encrypted
+      properties:
+        client_id:
+          type: string
+          description: The transcription's client id (a UUID)
+        key_version:
+          type: integer
+          minimum: 0
+          description: The account's DEK generation the encrypted body was sealed under (0 before the first bootstrap)
+        encrypted:
+          type: string
+          description: The transcription encrypted with the account's DEK under AES-256-GCM, base64
+    TranscriptionRecord:
+      type: object
+      required:
+        - client_id
+        - key_version
+        - encrypted
+        - created_at
+      properties:
+        client_id:
+          type: string
+          description: The transcription's client id (a UUID)
+        key_version:
+          type: integer
+          description: The key_version this row was stored under
+        encrypted:
+          type: string
+          description: The transcription encrypted with the account's DEK under AES-256-GCM, base64
+        created_at:
+          type: string
+          description: When the row was stored (RFC 3339)
+    PendingSealed:
+      type: object
+      required:
+        - id
+        - sealed_box
+        - created_at
+      properties:
+        id:
+          type: string
+          description: The client id the re-upload must carry (the transcription this sealed box will become)
+        sealed_box:
+          type: string
+          description: The sealed box (crypto_box_seal output), base64
+        created_at:
+          type: string
+          description: When the box was sealed (RFC 3339)
