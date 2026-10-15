@@ -87,8 +87,10 @@ admins.
       trimmed at phrase onset).
 - F10. Settings: mode, model size, server URL/API key, voice phrases on/off,
       shake on/off, formatting on/off, tile position, language.
-- F11. On startup, the app prompts for ALL permissions it needs at once (mic,
-      sensor, overlay/foreground service, notifications) with clear explanations.
+- F11. On first open, the app shows a short welcome (its content is not fixed
+      here), then asks for each permission it needs (microphone, display over
+      other apps, notifications, accessibility service) on a screen of its
+      own that says why it is needed, with a button to grant it.
 - F12. High-power mode: the app detects Android power-saving state and prompts
       the user to enable high-performance mode. The battery-optimization
       exemption that keeps wake listening alive while the phone sleeps is
@@ -406,9 +408,9 @@ ends it.
   it is taken again). A recording is never restarted on its own; a recording
   cut this way is ended, not cancelled: what was captured is transcribed, saved
   to history and copied to the clipboard, never typed into the field.
-- **Permissions (F11):** mic, sensor, overlay, notifications requested
-  together at first startup. The accessibility service isn't part of that
-  runtime prompt — it has no system dialog to request; onboarding leads the
+- **Permissions (F11):** after the welcome, one screen per permission:
+  microphone, overlay, notifications and the accessibility service. The
+  accessibility service has no system dialog to request; its screen leads the
   user to its Settings toggle instead (ADR-022). **High-power mode (F12):**
   verify power-saving off.
 
@@ -832,8 +834,8 @@ See `docs/04-build-order.md`. Summary:
 - D8. Voice control = two phrases in v1 (streaming ASR + phrase matching);
       per-user trained KWS model as upgrade path.
 - D9. Wake phrase = "Breaker Breaker" (CB pairing; low false-positive risk).
-- D10. Permissions + power explicit: all permissions at startup (F11); high-power
-      mode verified (F12).
+- D10. Permissions + power explicit: every permission explained and asked for
+      at first start (F11); high-power mode verified (F12).
 - D11. **Sync = offline-first queue, idempotent push** — no data loss, even in
       local-only mode.
 - D12. **Training = server-side container** (phone records, server trains).
@@ -892,7 +894,7 @@ See `docs/04-build-order.md`. Summary:
 
 **Risks:**
 - R1. Overlay focus limits on newer Android (tile is tap-only by design).
-- R2. Sensor permission denied (fallback: always-visible tile).
+- R2. Shake sensor missing or stopped by the system (fallback: always-visible tile).
 - R3. On-device model accuracy vs speed (S25 Ultra 16 GB → small/medium fine).
 - R4. ZeroTier flakiness on mobile networks (probe TTL + auto-fallback).
 - R5. Accessibility-service permission UX friction, including the Android 13+

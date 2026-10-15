@@ -55,8 +55,9 @@ false-positive risk than "Hey" (a common speech word). The wake phrase IS the
 product name, said the CB way.
 
 **D10 — Permissions + power are explicit.**
-The app requests ALL permissions at startup (F11) and verifies high-power mode
-(F12). Battery is a non-issue by design — the user runs plugged in.
+The app explains and asks for every permission at first start, one screen per
+permission (F11), and verifies high-power mode (F12). Battery is a non-issue by
+design — the user runs plugged in.
 
 **D11 — Sync = offline-first queue, idempotent push.**
 Every transcription syncs to the server when reachable — even local-only mode.
@@ -209,7 +210,7 @@ failed → local fallback, **red** = complete failure (F36).
 | # | Risk | Impact | Mitigation |
 |---|------|--------|------------|
 | R1 | Overlay focus limits on newer Android | Med | Tile is tap-only; dictation happens in place on the tile — no window takes focus (ADR-022) |
-| R2 | Sensor permission denied on some devices | Med | Fallback: always-visible tile toggle |
+| R2 | Shake sensor missing or stopped by the system on some devices | Med | Fallback: always-visible tile toggle |
 | R3 | On-device model accuracy vs speed | Low | S25 Ultra 16 GB → small/medium fine; size is a setting |
 | R4 | ZeroTier flakiness on mobile networks | Med | Probe TTL + auto-fallback to local; never block on server |
 | R5 | Accessibility-service permission UX friction, including the Android 13+ "restricted setting" step for sideloaded apps | Low | Onboarding screen walks the user to the accessibility settings and through the restricted-setting step |

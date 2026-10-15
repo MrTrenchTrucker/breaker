@@ -55,8 +55,9 @@ The app now drives `setLevel` while recording: it works out the level from the m
 - Reference: LexiSharp Keyboard's overlay management (WindowManager API,
   permissions, lifecycle, multi-window coordination).
 - Draggable tile (only the square one; the wide window of a notice or of recording cannot be dragged); position persisted to settings.
-- Permissions: the app asks for its permissions together at startup (F11): microphone, sensor, overlay (drawing
-  over other apps), foreground service and notifications, and it has internet access for the server. This module
+- Permissions: the app asks for its permissions at first start, one screen per permission (F11): microphone, overlay (drawing
+  over other apps), notifications and the accessibility service. The foreground service permission is granted
+  at install, with no screen, and the app has internet access for the server. This module
   adds only `SYSTEM_ALERT_WINDOW`, declared in its own manifest; the others belong to other parts of the app. The
   foreground service that keeps the process alive while the tile is up belongs to the app, not to this module.
 
