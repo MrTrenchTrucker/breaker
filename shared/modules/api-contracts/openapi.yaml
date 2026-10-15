@@ -161,7 +161,7 @@ paths:
                 $ref: "#/components/schemas/Error"
               example:
                 error: "invalid_field"
-                message: "kdf_params below floor"
+                message: "kdf_params below floor or salt length invalid"
         "409":
           description: Username taken
           content:
@@ -460,8 +460,8 @@ components:
           description: The account username (ASCII [A-Za-z0-9._-], 1-64 chars)
         salt:
           type: string
-          pattern: "^[A-Za-z0-9+/]{43}=$"
-          description: The salt, base64 padded, 32 bytes after decode
+          pattern: "^[A-Za-z0-9+/]{22}==$"
+          description: The salt, base64 padded, 16 bytes after decode
         kdf_params:
           $ref: "#/components/schemas/KdfParams"
         kdf_version:
@@ -502,8 +502,8 @@ components:
       properties:
         salt:
           type: string
-          pattern: "^[A-Za-z0-9+/]{43}=$"
-          description: The salt, base64 padded, 32 bytes after decode
+          pattern: "^[A-Za-z0-9+/]{22}==$"
+          description: The salt, base64 padded, 16 bytes after decode
         kdf_params:
           $ref: "#/components/schemas/KdfParams"
         kdf_version:
