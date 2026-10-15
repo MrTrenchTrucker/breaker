@@ -18,12 +18,25 @@ Each rank has two skills:
 | IT manager | Splits one module into slices, gives each slice to a worker, and checks every piece of work before it moves on. | `it-manager/module-sop-itm`, `it-manager/parrot-protocol-itm` |
 | Worker | Writes one slice of one module, with tests, inside that module's card. | `worker/module-sop-worker`, `worker/parrot-protocol-worker` |
 
+One more skill is shared by every rank:
+
+- **`shared/subagent-plan-file`**: how an agent hands work to a sub-agent (a
+  helper agent it starts and waits for). Each sub-agent gets one plan file: the
+  files it must read, proven with exact quotes; a reading certificate it signs
+  before it changes anything; work steps it ticks with evidence; and a closing
+  certificate. Only the sub-agent marks its plan file; a tick or signature
+  written by anyone else doesn't count.
+
 ## Which rank do I need?
 
 - **One agent helping you write code:** give it the worker pair. You act as its
   IT manager: you give the order, check its readback, and review its work.
 - **One agent building a whole module for you:** give it the IT manager pair.
-  If it uses sub-agents to write the code, give them the worker pair.
+  If it uses sub-agents to write the code, also give it `subagent-plan-file`,
+  and give its sub-agents the worker pair.
+- **Any agent that starts sub-agents**, at any rank: give it
+  `subagent-plan-file`. The sub-agents don't need it; their plan file tells
+  them what to do.
 - **The project leader pair** is for maintainers. Most contributors don't need it.
 
 ## Install
@@ -31,9 +44,11 @@ Each rank has two skills:
 1. Copy each `SKILL.md` you need into your agent's skills folder, in a folder
    named after the `name:` line at the top of the file, not after the rank
    folder here. For example, `worker/module-sop-worker/SKILL.md` goes to
-   `<your skills folder>/module-sop-worker/SKILL.md`.
-2. Have the agent load both skills of its rank at the start of every session
-   and before every task.
+   `<your skills folder>/module-sop-worker/SKILL.md`, and
+   `shared/subagent-plan-file/SKILL.md` goes to
+   `<your skills folder>/subagent-plan-file/SKILL.md`.
+2. Have the agent load both skills of its rank, and `subagent-plan-file` if it
+   starts sub-agents, at the start of every session and before every task.
 3. Don't edit your installed copies. If a rule looks wrong, open an issue.
 
 These are standard `SKILL.md` files: YAML front matter (`name`, `description`)
@@ -66,10 +81,12 @@ its instructions.
 
 ## Where the skills come from
 
-They are unchanged copies of the project owner's module SOP and Parrot Protocol
-skill sets, published at https://github.com/MrTrenchTrucker/module-sop.
-`SKILLS.sha256` pins every file, and the contract test fails if a
-copy changes. The skills are MIT-licensed (see `LICENSE` in this folder). The
+They are unchanged copies of the skills in the project owner's Module SOP,
+version 1.1.0 (the module SOP and Parrot Protocol skills for each rank, and the
+shared plan-file skill), published at https://github.com/MrTrenchTrucker/module-sop.
+Only the skill files are copied here; the Module SOP's own tools, tests and
+decision records stay in that repository. `SKILLS.sha256` pins every file, and
+the contract test fails if a copy changes. The skills are MIT-licensed (see `LICENSE` in this folder). The
 rest of Breaker is Apache-2.0.
 
 To update a skill, replace the file from its source, update `SKILLS.sha256`,

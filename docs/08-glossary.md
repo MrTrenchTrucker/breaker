@@ -179,7 +179,8 @@ same information under its `public` field.
 (owns the plan and the module structure), **IT manager** (splits one module
 into slices, gates every worker's piece), or **worker** (writes one slice,
 with tests, inside that module's card). Each rank has its own module-SOP and
-readback skill pair (`agent-skills/README.md`).
+readback skill pair; any rank that starts sub-agents also loads the shared
+plan-file skill (`agent-skills/README.md`).
 
 **Readback (Parrot Protocol)** — Before starting a work order, the agent
 restates in its own words what it must not do and what the finished work

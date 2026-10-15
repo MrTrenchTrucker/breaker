@@ -37,7 +37,8 @@ Requirement in every module card).
 
 Setting up your own AI agents to contribute? Start with
 [`agent-skills/README.md`](agent-skills/README.md). It holds the skills this
-project's agents run, one pair per rank, and says which rank to give which agent.
+project's agents run, one pair per rank plus one shared plan-file skill, and
+says which rank to give which agent.
 
 ## Quick start
 

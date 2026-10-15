@@ -1,10 +1,10 @@
 """Contract test for the `agent_skills` module.
 
-On top of the structural contract every module carries, this pins the three
+On top of the structural contract every module carries, this pins the four
 invariants the module card states: each skill file matches its hash in
 `SKILLS.sha256`, each skill sits in a folder named after its own front-matter
-`name`, and each rank holds exactly one module SOP skill and one readback
-skill.
+`name`, each rank holds exactly one module SOP skill and one readback skill,
+and the `shared` folder holds only skills that no single rank owns.
 """
 import hashlib
 import os
@@ -15,6 +15,8 @@ import contract_support
 
 MODULE_DIR = os.path.join(contract_support.ROOT, "agent-skills")
 RANKS = ("project-leader", "it-manager", "worker")
+SHARED = "shared"
+RANK_KINDS = ("module-sop", "parrot-protocol")
 
 
 def _shipped_skills():
@@ -79,17 +81,32 @@ class AgentSkillsContractTest(contract_support.ModuleContractTest):
             )
 
     def test_each_rank_has_one_module_sop_and_one_readback_skill(self):
-        by_rank = {}
+        by_folder = {}
         for rel in _shipped_skills():
-            rank, skill = rel.split("/")[0], rel.split("/")[1]
-            by_rank.setdefault(rank, []).append(skill)
-        self.assertEqual(sorted(by_rank), sorted(RANKS), "agent-skills must hold exactly the three ranks")
-        for rank, skills in by_rank.items():
+            folder, skill = rel.split("/")[0], rel.split("/")[1]
+            by_folder.setdefault(folder, []).append(skill)
+        self.assertEqual(
+            sorted(by_folder), sorted(RANKS + (SHARED,)),
+            "agent-skills must hold exactly the three rank folders and the shared folder",
+        )
+        for rank in RANKS:
+            skills = by_folder[rank]
             kinds = sorted(s.split("-")[0] + "-" + s.split("-")[1] for s in skills)
             self.assertEqual(
-                kinds, ["module-sop", "parrot-protocol"],
+                kinds, sorted(RANK_KINDS),
                 f"agent-skills/{rank} holds {sorted(skills)}; each rank needs "
                 f"exactly one module-sop-* and one parrot-protocol-* skill",
+            )
+
+    def test_shared_folder_holds_no_rank_skill(self):
+        for rel in _shipped_skills():
+            folder, name = rel.split("/")[0], rel.split("/")[1]
+            if folder != SHARED:
+                continue
+            self.assertFalse(
+                name.startswith(tuple(kind + "-" for kind in RANK_KINDS)),
+                f"agent-skills/{SHARED}/{name} is a rank skill; module-sop-* and "
+                f"parrot-protocol-* skills belong in their rank's folder",
             )
 
 
