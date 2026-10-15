@@ -32,7 +32,8 @@ One more skill is shared by every rank:
 - **One agent helping you write code:** give it the worker pair. You act as its
   IT manager: you give the order, check its readback, and review its work.
 - **One agent building a whole module for you:** give it the IT manager pair.
-  If it uses sub-agents to write the code, also give it `subagent-plan-file`.
+  If it uses sub-agents to write the code, also give it `subagent-plan-file`,
+  and give its sub-agents the worker pair.
 - **Any agent that starts sub-agents**, at any rank: give it
   `subagent-plan-file`. The sub-agents don't need it; their plan file tells
   them what to do.
