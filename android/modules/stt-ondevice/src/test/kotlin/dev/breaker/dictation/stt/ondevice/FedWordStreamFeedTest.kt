@@ -40,11 +40,17 @@ class FedWordStreamFeedTest {
         callers.cancel()
     }
 
+    /** A model folder with the four files and the install stamp that covers them, as an install leaves it. */
     private fun modelDir(): File {
         val dir = tmp.newFolder()
-        for (name in listOf("encoder-epoch-99-avg-1.int8.onnx", "decoder-epoch-99-avg-1.onnx", "joiner-epoch-99-avg-1.int8.onnx", "tokens.txt")) {
+        val names = listOf("encoder-epoch-99-avg-1.int8.onnx", "decoder-epoch-99-avg-1.onnx", "joiner-epoch-99-avg-1.int8.onnx", "tokens.txt")
+        for (name in names) {
             File(dir, name).writeText("x")
         }
+        val choice = checkNotNull(TransducerFileLocator.choose(names))
+        val picked = listOf(choice.encoder, choice.decoder, choice.joiner, choice.tokens)
+        val stamp = checkNotNull(UnpackedStamp.measure(dir, picked, Fixtures.VALID_PIN) { ModelIntegrity.sha256(it) })
+        File(dir, UnpackedStamp.FILE_NAME).writeText(stamp.encode())
         return dir
     }
 

@@ -304,4 +304,34 @@ class LocalModelStore(
         if (!dir.exists()) return true
         return remove(dir)
     }
+
+    /**
+     * Returns the stamp recorded for the unpacked files of [modelId], or null when there is
+     * none, it cannot be read or does not parse, or the id is unsafe.
+     */
+    internal fun readStamp(modelId: String): UnpackedStamp? {
+        if (!isSafeName(modelId)) return null
+        return UnpackedStamp.read(extractedDirectory(modelId))
+    }
+
+    /**
+     * Writes [stamp] as the stamp file of the unpacked directory of [modelId]. An IOException
+     * is thrown to the caller, as [markVerified] does. An unsafe id does nothing.
+     */
+    internal fun writeStamp(modelId: String, stamp: UnpackedStamp) {
+        if (!isSafeName(modelId)) return
+        File(extractedDirectory(modelId), UnpackedStamp.FILE_NAME).writeText(stamp.encode())
+    }
+
+    /**
+     * Deletes one unpacked file of [modelId] through the same [discard] function as the other
+     * deletes. Returns false for an unsafe id, for a [name] that is not one of the model's
+     * profile file names, or when the delete fails; true when the file is gone.
+     */
+    internal fun deleteUnpackedFile(modelId: String, name: String): Boolean {
+        if (!isSafeName(modelId)) return false
+        val profile = ExtractionProfiles.forModel(modelId) ?: return false
+        if (name !in profile.files) return false
+        return discardFailedDownload(File(extractedDirectory(modelId), name))
+    }
 }

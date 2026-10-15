@@ -97,8 +97,19 @@ abstract class ModelInstallerUnpackFixture {
         return result as ModelInstaller.InstallResult.Refused
     }
 
-    internal fun assertFilesHold(store: LocalModelStore, names: List<String>, contentOf: (String) -> ByteArray) {
-        assertEquals(names.sorted(), store.extractedDirectory("tiny").list()!!.sorted())
+    /**
+     * Checks the unpacked folder of "tiny": it holds exactly [names], plus the stamp file when [withStamp]
+     * is true, and each named file has the bytes [contentOf] gives it. [withStamp] defaults to true because
+     * a successful install writes the stamp. It sits before [contentOf] so that a trailing lambda still compiles.
+     */
+    internal fun assertFilesHold(
+        store: LocalModelStore,
+        names: List<String>,
+        withStamp: Boolean = true,
+        contentOf: (String) -> ByteArray,
+    ) {
+        val expected = if (withStamp) names + UnpackedStamp.FILE_NAME else names
+        assertEquals(expected.sorted(), store.extractedDirectory("tiny").list()!!.sorted())
         for (name in names) {
             assertArrayEquals("bytes of $name", contentOf(name), File(store.extractedDirectory("tiny"), name).readBytes())
         }
@@ -146,7 +157,8 @@ class ModelInstallerUnpackReinstallTest : ModelInstallerUnpackFixture() {
         }
         installedOf(run(second, store, wrap = observing))
         assertEquals("the old files are removed before the new archive is moved in", false, filesAtMove)
-        assertFilesHold(store, TarFixtures.TINY_FILES) { TarFixtures.contentOf("v2-$it", 48) }
+        // The stamp is expected here: the second install unpacked again and recorded a new stamp.
+        assertFilesHold(store, TarFixtures.TINY_FILES, withStamp = true) { TarFixtures.contentOf("v2-$it", 48) }
         assertArrayEquals(second, store.archiveFile("tiny").readBytes())
     }
 
@@ -168,7 +180,8 @@ class ModelInstallerUnpackReinstallTest : ModelInstallerUnpackFixture() {
         assertEquals(listOf(store.extractedDirectory("tiny")), asked)
         assertTrue(sink.single(), sink.single().contains("cannot remove the earlier unpacked files"))
         assertArrayEquals("the earlier archive is untouched", archiveBefore, store.archiveFile("tiny").readBytes())
-        assertFilesHold(store, TarFixtures.TINY_FILES) { TarFixtures.contentOf(it, 48) }
+        // The stamp is expected here: the first install wrote it, and this refused install did not remove the files.
+        assertFilesHold(store, TarFixtures.TINY_FILES, withStamp = true) { TarFixtures.contentOf(it, 48) }
 
         // The staged file that cannot be discarded either is reported.
         val stuck = LocalModelStore(tmp.newFolder(), remove = { false }, discard = { false })
@@ -217,7 +230,8 @@ class ModelInstallerUnpackReinstallTest : ModelInstallerUnpackFixture() {
         assertEquals(ModelInstaller.Refusal.MOVE_FAILED, refused.refusal)
         assertTrue(sink.single(), sink.single().contains("destination is not a file"))
         assertTrue("the unpacked files must not be removed first: $asked", asked.isEmpty())
-        assertFilesHold(store, TarFixtures.TINY_FILES) { TarFixtures.contentOf(it, 48) }
+        // The stamp is expected here: the first install wrote it, and the refusal came before any removal.
+        assertFilesHold(store, TarFixtures.TINY_FILES, withStamp = true) { TarFixtures.contentOf(it, 48) }
         assertTrue("the directory at the archive path stays", store.archiveFile("tiny").isDirectory)
     }
 }

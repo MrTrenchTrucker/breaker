@@ -18,7 +18,9 @@ import java.io.IOException
  *
  * After the second check the archive is unpacked into the few files the engine
  * opens (see [ModelExtractor]). The install result is Installed only once that
- * has finished. The store's isInstalled answers for the archive alone, and the
+ * has finished. Last of all the four unpacked files are measured and their stamp
+ * (see [UnpackedStamp]) is written, so a refused install never leaves one. The
+ * store's isInstalled answers for the archive alone, and the
  * loader answers not installed when the unpacked files are missing. An archive
  * that cannot be unpacked is deleted with the rest of the model, and the refusal
  * says whether the archive was at fault, the phone was, or the space ran out. A
@@ -37,6 +39,7 @@ class ModelInstaller(
     private val fetcher: ModelFetcher,
     private val debug: ModelDebugSink = NoDebugSink,
     private val extractor: ModelExtractor = ModelExtractor(),
+    private val digestOf: (File) -> String? = ModelIntegrity::sha256,
 ) {
 
     /**
@@ -301,13 +304,42 @@ class ModelInstaller(
             )
         }
 
-        // Step 8: unpack. Only now is the model complete: the archive has been
-        // verified twice, its metadata is recorded, and its files appear in one
-        // move. A refusal deletes the whole model so nothing half-installed stays.
+        // Step 8: unpack, then record the stamp. Only now is the model complete: the
+        // archive has been verified twice, its metadata is recorded, and its files
+        // appear in one move. The stamp is recorded last, from the unpacked files as
+        // they are now, and only after a successful unpack. A refusal deletes the
+        // whole model so nothing half-installed stays.
         return when (val unpacked = extractor.extract(archiveFile, entry.id, store)) {
-            is ExtractionOutcome.Extracted -> InstallResult.Installed(entry.id, digest)
+            is ExtractionOutcome.Extracted -> recordStamp(entry, digest)
             is ExtractionOutcome.Rejected -> refuseUnpack(entry.id, unpacked)
         }
+    }
+
+    /**
+     * Measures the four unpacked files of [entry] and writes their stamp, then reports the
+     * install as Installed. When a file cannot be measured or the stamp cannot be written, the
+     * whole model is deleted and the install is refused, the same way a failed metadata write is.
+     */
+    private fun recordStamp(entry: ModelEntry, digest: String): InstallResult {
+        val profile = ExtractionProfiles.forModel(entry.id)
+        val directory = store.extractedDirectory(entry.id)
+        val stamp = profile?.let { UnpackedStamp.measure(directory, it.files, digest, digestOf) }
+        val written = stamp != null && try {
+            store.writeStamp(entry.id, stamp)
+            true
+        } catch (e: IOException) {
+            false
+        }
+        if (!written) {
+            val removed = store.delete(entry.id)
+            return refuse(
+                Refusal.STAGING_FAILED,
+                ModelMessages.SAVE_FAILED,
+                "cannot record the unpacked-file stamp",
+                leftOnDisk = !removed,
+            )
+        }
+        return InstallResult.Installed(entry.id, digest)
     }
 
     /**

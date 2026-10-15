@@ -44,9 +44,19 @@ class SherpaOnnxWordStreamFactoryTest {
     private val tokens = "tokens.txt"
     private val smallNames = listOf(encoderInt8, decoderPlain, joinerInt8, tokens)
 
-    private fun modelDir(names: List<String> = smallNames): File {
+    /**
+     * A model folder holding [names]. When [stamped] is true the install stamp is written after the files,
+     * so the folder reads as an installed model; the refusal fixtures pass false.
+     */
+    private fun modelDir(names: List<String> = smallNames, stamped: Boolean = true): File {
         val dir = tmp.newFolder()
         for (name in names) File(dir, name).writeText("x")
+        if (stamped) {
+            val choice = checkNotNull(TransducerFileLocator.choose(names))
+            val picked = listOf(choice.encoder, choice.decoder, choice.joiner, choice.tokens)
+            val stamp = checkNotNull(UnpackedStamp.measure(dir, picked, Fixtures.VALID_PIN) { ModelIntegrity.sha256(it) })
+            File(dir, UnpackedStamp.FILE_NAME).writeText(stamp.encode())
+        }
         return dir
     }
 
@@ -83,7 +93,7 @@ class SherpaOnnxWordStreamFactoryTest {
         val opener = RecordingOpener(fake)
         val factory = SherpaOnnxWordStreamFactory(opener, 2)
         for (id in listOf("base", "medium", "unknown", "", "Small", "TINY", "small ")) {
-            val dir = modelDir()
+            val dir = modelDir(stamped = false)
             val refused = refusal("id [$id]") { factory.create(model(id, dir)) }
             assertEquals("id [$id]: the fixed message", "no streaming profile for this model", refused.message)
             assertNoLeak("id [$id]", refused.message, dir, id)
@@ -98,12 +108,14 @@ class SherpaOnnxWordStreamFactoryTest {
         val opener = RecordingOpener(fake)
         val factory = SherpaOnnxWordStreamFactory(opener, 2)
         for (victim in smallNames) {
-            val missing = modelDir(smallNames.filter { it != victim })
+            // No stamp here: this folder must be refused for the missing file itself.
+            val missing = modelDir(smallNames.filter { it != victim }, stamped = false)
             val gone = refusal("$victim missing") { factory.create(model("small", missing)) }
             assertEquals("$victim missing: the fixed message", "the model files are missing or empty", gone.message)
             assertNoLeak("$victim missing", gone.message, missing, "small")
 
-            val empty = modelDir()
+            // No stamp here: this folder must be refused for the empty file itself.
+            val empty = modelDir(stamped = false)
             File(empty, victim).writeText("")
             val blank = refusal("$victim empty") { factory.create(model("small", empty)) }
             assertEquals("$victim empty: the fixed message", "the model files are missing or empty", blank.message)
