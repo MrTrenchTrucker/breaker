@@ -53,7 +53,7 @@ internal object DictationNotification {
      */
     private fun builder(context: Context, armed: Boolean, textLine: () -> String): Notification {
         ensureChannel(context)
-        val icon = android.R.drawable.ic_btn_speak_now
+        val icon = R.drawable.ic_notification_mic
         val notice = Notification.Builder(context, CHANNEL_ID)
             .setSmallIcon(icon)
             .setContentTitle(context.getString(R.string.dictation_notification_title))

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One drawable solid: the background fill taken verbatim from docs/brand/breaker-icon.svg (the full-square path, fill #0e1113). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#0E1113" />
+</shape>
