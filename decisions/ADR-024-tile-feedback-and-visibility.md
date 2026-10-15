@@ -1,6 +1,6 @@
 # ADR-024: The tile shows busy and loudness, and hides itself when no keyboard is in use
 
-**Status:** accepted, amended 2026-10-12 (busy cue: no spinner; shake, keyboard and battery), amended 2026-10-14 (level feed)
+**Status:** accepted, amended 2026-10-12 (busy cue: no spinner; shake, keyboard and battery), amended 2026-10-14 (level feed), amended 2026-10-15 (a shake only shows the tile)
 **Date:** 2026-10-12
 
 ## Context
@@ -28,8 +28,8 @@ tile has no animated texture yet.
    visible keyboard) is chosen by a temporary developer setting with three
    values: off, field focus, keyboard visible. The setting exists only to test
    both ways. It is removed before release, after the project owner picks one.
-   A shake still brings the tile back and starts
-   dictation while it is hidden this way (F4, F38).
+   A shake still brings the tile back while it is hidden this way, and never
+   starts dictation (F4, F38).
 4. **Animated texture.** The tile gets an animated texture while it is
    listening and busy; the project owner suggested radio waves. This is graphics
    work: it waits for the art phase and lives in the design tokens and the
@@ -65,3 +65,11 @@ holds every frame it passes to `core`, so a tap there gives the level with no
 change to the audio module or a `core` port. Limiting it to recording keeps the
 bar dark while the microphone is open only to listen for the wake phrase. The
 rate limit counts audio samples, not a clock.
+
+Amended 2026-10-15: the fourth device test showed a shake starting a recording
+by itself, which is a problem while driving: a bump in a moving vehicle could
+open the microphone. A shake now only brings the tile up (when it is closed or
+hidden, or after a show that failed) and never starts a recording or opens the
+microphone. A tap on the tile starts recording. The wake phrase is unchanged: it
+brings the tile up and starts recording, because it is a deliberate spoken
+command.
