@@ -89,6 +89,9 @@ class BreakerCompositionRoot(
     /** Takes the level of each microphone frame. Set by the tile host. */
     var levelSink: LevelSink? = null
 
+    /** Takes a device failure, with the fallback that the take end runs. Set by the tile host. */
+    var onDeviceFailure: ((() -> Unit) -> Unit)? = null
+
     /** The dictation parts, built on first use. */
     val dictation: DictationComponent by lazy {
         DictationComponent(
@@ -111,6 +114,7 @@ class BreakerCompositionRoot(
             onTakeEnded = { onTakeEnded?.invoke() },
             onMicTaken = { onMicTaken?.invoke() },
             levelSink = LevelSink { level -> levelSink?.publish(level) },
+            onDeviceFailure = { fallback -> onDeviceFailure?.invoke(fallback) ?: fallback() },
         )
     }
 }

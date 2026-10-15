@@ -3,7 +3,9 @@ package dev.breaker.dictation.host
 import android.os.Handler
 import android.os.Looper
 import dev.breaker.dictation.wiring.Background
+import dev.breaker.dictation.wiring.DelayedPost
 import dev.breaker.dictation.wiring.MainPost
+import dev.breaker.dictation.wiring.PostHandle
 import java.util.concurrent.Executors
 
 /**
@@ -12,14 +14,25 @@ import java.util.concurrent.Executors
  * hold the whole app to that.
  *
  * [MainLooperPost] runs a block on the main looper. A block is always queued, even when the caller
- * is already on the main thread, so a post never runs inline inside the caller.
+ * is already on the main thread, so a post never runs inline inside the caller. It also queues a
+ * block to run after a delay, on the same handler, and takes that block back when it is cancelled.
  */
-internal class MainLooperPost : MainPost {
+internal class MainLooperPost : MainPost, DelayedPost {
 
     private val handler = Handler(Looper.getMainLooper())
 
     override fun post(block: () -> Unit) {
         handler.post { block() }
+    }
+
+    override fun postDelayed(delayMs: Long, block: () -> Unit): PostHandle {
+        val task = Runnable { block() }
+        handler.postDelayed(task, delayMs)
+        return object : PostHandle {
+            override fun cancel() {
+                handler.removeCallbacks(task)
+            }
+        }
     }
 }
 

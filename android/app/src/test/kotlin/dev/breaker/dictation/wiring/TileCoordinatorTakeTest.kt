@@ -213,7 +213,7 @@ class TileCoordinatorTakeTest {
         assertEquals("app: a blank text must not be sent", 0, rig.take.sendCalls)
         assertEquals("app: a blank text should drop the take once", 1, rig.take.cancelCalls)
         assertEquals("app: a blank text should end on ARMED", TileState.ARMED, rig.tile.states.last())
-        assertEquals("app: a blank text shows no notice", emptyList<String>(), rig.tile.notices)
+        assertEquals("app: a blank text shows the nothing heard notice", listOf(RunnerSentences.NOTHING_HEARD), rig.tile.notices)
     }
 
     @Test

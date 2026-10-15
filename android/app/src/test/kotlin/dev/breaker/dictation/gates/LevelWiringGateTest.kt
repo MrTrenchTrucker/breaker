@@ -37,7 +37,7 @@ internal class LevelWiringGateTest {
         rx("COMPONENT_TAKES_A_QUIET_LEVEL_SINK_BY_DEFAULT", "component", """\bprivate\s+val\s+levelSink\s*:\s*LevelSink\s*=\s*LevelSink\s*\{\s*\}"""),
         rx("ROOT_HOLDS_A_LEVEL_HOOK_THE_HOST_SETS", "root", """\bvar\s+levelSink\s*:\s*LevelSink\?\s*=\s*null\b"""),
         rx("ROOT_FORWARDS_ITS_LEVEL_HOOK_INTO_THE_COMPONENT", "root", """\blevelSink\s*=\s*LevelSink\s*\{\s*level\s*->\s*levelSink\s*\?\.\s*publish\s*\(\s*level\s*\)\s*\}"""),
-        rx("HOST_FEEDS_THE_HOOK_BY_A_MAIN_POST_OF_THE_TAKE_STATE", "host", """\broot\s*\.\s*levelSink\s*=\s*LevelFeed\s*\(\s*tile\s*,\s*main\s*\)\s*\{\s*root\s*\.\s*dictation\s*\.\s*runner\s*\.\s*sessionState\s*==\s*DictationState\s*\.\s*RECORDING\s*\}"""),
+        rx("HOST_FEEDS_THE_HOOK_BY_A_MAIN_POST_OF_THE_TAKE_STATE", "host", """\broot\s*\.\s*levelSink\s*=\s*LevelFeed\s*\(\s*noticePort\s*,\s*main\s*\)\s*\{\s*root\s*\.\s*dictation\s*\.\s*runner\s*\.\s*sessionState\s*==\s*DictationState\s*\.\s*RECORDING\s*\}"""),
         rx("HOST_READS_THE_TAKE_STATE_IN_ONE_PLACE", "host", """\bsessionState\s*==\s*DictationState\s*\.\s*RECORDING"""),
     )
 
@@ -53,9 +53,9 @@ internal class LevelWiringGateTest {
         Sample("ROOT_HOLDS_A_LEVEL_HOOK_THE_HOST_SETS", "var levelSink: LevelSink? = null", "var levelSink: LevelSink? = LevelSink {}"),
         Sample("ROOT_FORWARDS_ITS_LEVEL_HOOK_INTO_THE_COMPONENT", "levelSink = LevelSink { level -> levelSink?.publish(level) },", "levelSink = null,"),
         Sample("ROOT_FORWARDS_ITS_LEVEL_HOOK_INTO_THE_COMPONENT", "levelSink?.publish(level) }", "levelSink?.publish(0f) }"),
-        Sample("HOST_FEEDS_THE_HOOK_BY_A_MAIN_POST_OF_THE_TAKE_STATE", "LevelFeed(tile, main) { root.dictation.runner.sessionState == DictationState.RECORDING }", "LevelFeed(tile, main) { root.dictation.runner.sessionState == DictationState.TRANSCRIBING }"),
-        Sample("HOST_FEEDS_THE_HOOK_BY_A_MAIN_POST_OF_THE_TAKE_STATE", "root.levelSink = LevelFeed(tile, main)", "root.levelSink = LevelFeed(tile, null)"),
-        Sample("HOST_READS_THE_TAKE_STATE_IN_ONE_PLACE", "root.levelSink = LevelFeed(tile, main)", "if (root.dictation.runner.sessionState == DictationState.RECORDING) Unit\n        root.levelSink = LevelFeed(tile, main)"),
+        Sample("HOST_FEEDS_THE_HOOK_BY_A_MAIN_POST_OF_THE_TAKE_STATE", "LevelFeed(noticePort, main) { root.dictation.runner.sessionState == DictationState.RECORDING }", "LevelFeed(noticePort, main) { root.dictation.runner.sessionState == DictationState.TRANSCRIBING }"),
+        Sample("HOST_FEEDS_THE_HOOK_BY_A_MAIN_POST_OF_THE_TAKE_STATE", "root.levelSink = LevelFeed(noticePort, main)", "root.levelSink = LevelFeed(tile, null)"),
+        Sample("HOST_READS_THE_TAKE_STATE_IN_ONE_PLACE", "root.levelSink = LevelFeed(noticePort, main)", "if (root.dictation.runner.sessionState == DictationState.RECORDING) Unit\n        root.levelSink = LevelFeed(noticePort, main)"),
         Sample("HOST_READS_THE_TAKE_STATE_IN_ONE_PLACE", "DictationState.RECORDING }", "DictationState.TRANSCRIBING }"),
     )
 
@@ -65,7 +65,7 @@ internal class LevelWiringGateTest {
         Quiet("component", "LevelTap(", "/* LevelTap(MicCapture(reporting), levelSink) */ LevelTap("),
         Quiet("root", "var levelSink: LevelSink? = null", "var levelSink: LevelSink? = null // val levelSink: LevelSink? = null"),
         Quiet("root", "levelSink?.publish(level) },", "levelSink?.publish(level) }, // levelSink = null"),
-        Quiet("host", "root.levelSink = LevelFeed(tile, main)", "// root.levelSink = LevelFeed(tile, null)\n        root.levelSink = LevelFeed(tile, main)"),
+        Quiet("host", "root.levelSink = LevelFeed(noticePort, main)", "// root.levelSink = LevelFeed(tile, null)\n        root.levelSink = LevelFeed(noticePort, main)"),
         Quiet("host", "DictationState.RECORDING }", "DictationState.RECORDING } // DictationState.TRANSCRIBING"),
     )
 

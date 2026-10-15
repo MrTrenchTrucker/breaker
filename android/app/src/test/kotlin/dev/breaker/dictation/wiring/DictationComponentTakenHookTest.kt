@@ -35,8 +35,9 @@ class DictationComponentTakenHookTest {
 
     @Test
     fun `a device failure keeps the existing end, not the taken hook`() {
-        // Not a taken take: the else path runs the capture-ended call and the tile end; the taken hook
-        // is never reached. Same rig shape as the taken test but with no taken reason.
+        // Not a taken take: no device failure handler is installed here, so the fallback (the capture-ended
+        // call and the tile end, the old end) runs; the taken hook is never reached. The handler path is
+        // pinned in DictationComponentDeviceFailureTest.
         var micTakenCount = 0
         var takeEndedCount = 0
         val mic = ScriptedMic()

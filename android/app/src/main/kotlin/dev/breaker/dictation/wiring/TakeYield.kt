@@ -1,22 +1,23 @@
 package dev.breaker.dictation.wiring
 
 import dev.breaker.dictation.core.model.DictationState
-import dev.breaker.dictation.core.port.HistoryStore
 import java.util.concurrent.atomic.AtomicBoolean
 
-// wiring/TakeYield.kt - no android.* names, no platform naming.
-// The file's own copy of the empty-take sentence (the module convention:
-// TileCoordinator keeps its own private copy at :9; a private const is not
-// visible across files, so this file declares its own - same string, no
-// import, no touch to the coordinator's).
-private const val EMPTY_TAKE_SENTENCE: String = "No audio was captured"
+/** The lines a taken take settles with: the taken words, one set for the whole taken branch. */
+private val TAKEN_LINES: OutcomeLines = OutcomeLines(
+    TakenSentences.SAVED_AND_COPIED,
+    TakenSentences.COPIED_NOT_SAVED,
+    TakenSentences.TAKEN_NOTHING_HEARD,
+    TakenSentences.TAKEN_NOTHING_HEARD,
+    TakenSentences.NOT_CONVERTED,
+)
 
+// wiring/TakeYield.kt - no android.* names, no platform naming.
 internal class TakeYieldController(
     private val background: Background,
     private val main: MainPost,
     private val take: TakePort,
-    private val history: HistoryStore?,
-    private val clipboard: TakenClipboard,
+    private val settle: TakeSettle,
     private val takenNotice: (String?) -> Unit,
     private val pushState: (DictationState) -> Unit,
     private val onSettled: () -> Unit,
@@ -58,13 +59,7 @@ internal class TakeYieldController(
                 // cannot skip the settle. The result is an immutable
                 // local value, made before main.post and captured by
                 // the lambda; main never reads a shared variable.
-                val saveFailed: Boolean =
-                    if (finished is FinishResult.ReadyToSend &&
-                        finished.transcription.text.isNotBlank() &&
-                        history != null) {
-                        try { history.save(finished.transcription); false }
-                        catch (e: Exception) { true }
-                    } else false
+                val saveFailed: Boolean = settle.save(finished)
                 main.post {
                     if (epoch == generation()) yieldSettle(finished, saveFailed)
                 }
@@ -91,29 +86,8 @@ internal class TakeYieldController(
     /** The settle of the taken take (on main; its three outcomes, the
      *  PER-OUTCOME line: the full outcome line replaces the LEAD). */
     private fun yieldSettle(finished: FinishResult?, saveFailed: Boolean) {
-        val line: String = when {
-            finished is FinishResult.ReadyToSend &&
-                finished.transcription.text.isNotBlank() -> {
-                // The save already ran on the background; the copy is on
-                // main (the Android clipboard is main-thread).
-                try { clipboard.copy(finished.transcription.text) }
-                catch (e: Exception) {
-                    // A clipboard that throws must not stop the settle
-                    // (the coordinator's guarded{} pattern).
-                }
-                if (saveFailed) TakenSentences.COPIED_NOT_SAVED   // copied, save failed
-                else TakenSentences.SAVED_AND_COPIED   // saved and copied
-            }
-            finished is FinishResult.ReadyToSend ->
-                TakenSentences.TAKEN_NOTHING_HEARD   // blank: nothing was heard
-            finished is FinishResult.Failed &&
-                finished.sentence == EMPTY_TAKE_SENTENCE ->
-                TakenSentences.TAKEN_NOTHING_HEARD   // the empty-take sentence (the
-                // coordinator's own split, finishTake :195)
-            else ->
-                TakenSentences.NOT_CONVERTED   // any other Failed (could not be
-                // converted), a throw or null - never the engine detail
-        }
+        // The copy is on main (the Android clipboard is main-thread); the save already ran on the background.
+        val line: String = settle.line(finished, saveFailed, TAKEN_LINES)
         yieldRunning.set(false)
         onSettled()   // the coordinator clears its sendPushed
         pushState(DictationState.IDLE)

@@ -24,12 +24,17 @@ interface ServiceHost {
  * The first thing done is [ServiceHost.enterForeground], on every path, even when the service is
  * about to stop again: the platform wants a service that was started as a foreground service to
  * reach the foreground within a few seconds, and ending without that can bring the whole app down.
- * If the foreground is refused, the switch is marked off, the service ends and nothing is thrown.
- * Only then is the request read: [ServiceStartDecisions.decide] says whether to stay on or stop at once.
+ * If the foreground is refused, [onRefused] is given [ServiceSentences.ARM_REFUSED] first, then the
+ * switch is marked off and the service ends. A failure in [onRefused] is not allowed to stop the rest,
+ * and nothing is thrown. Only then is the request read: [ServiceStartDecisions.decide] says whether to
+ * stay on or stop at once.
+ *
+ * @param onRefused told the sentence of a refused foreground, before the switch goes off.
  */
 class ServiceStartHandler(
     private val controller: DictationServiceController,
     private val host: ServiceHost,
+    private val onRefused: (String) -> Unit = {},
 ) {
 
     /** Handles one start request; [actionText] is the action of the start intent, or null. */
@@ -37,6 +42,10 @@ class ServiceStartHandler(
         try {
             host.enterForeground()
         } catch (e: RuntimeException) {
+            try {
+                onRefused(ServiceSentences.ARM_REFUSED)
+            } catch (failure: Exception) {
+            }
             controller.serviceEnded()
             host.stopWithoutForeground()
             return

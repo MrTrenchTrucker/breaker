@@ -27,12 +27,13 @@ internal class AppLayoutGateTest {
         "service/ServiceStartDecision.kt", "service/ServiceStartHandler.kt", "service/ServiceTypes.kt",
         "wiring/DictationComponent.kt", "wiring/DictationRunner.kt", "wiring/Insets.kt", "wiring/LazyHistoryStore.kt",
         "wiring/UnavailableSlots.kt", "wiring/UuidIdSource.kt",
-        "wiring/TilePorts.kt", "wiring/TileStateMap.kt", "wiring/TileCoordinator.kt", "wiring/TileShowGuard.kt", "wiring/TakePortAdapter.kt", "wiring/NoopPorts.kt",
+        "wiring/TilePorts.kt", "wiring/DelayedPost.kt", "wiring/NoticeClearingTilePort.kt", "wiring/TileStateMap.kt", "wiring/TileCoordinator.kt", "wiring/TileShowGuard.kt", "wiring/TakePortAdapter.kt", "wiring/NoopPorts.kt",
         "wiring/ArmedSwitch.kt", "wiring/LaunchRule.kt", "wiring/IconLaunchOnce.kt", "wiring/OffStore.kt", "wiring/ModelSupport.kt", "wiring/Swaps.kt",
         "wiring/BreakerSwitchAdapter.kt", "wiring/ForwardingDownloadNotice.kt",
         "wiring/TakeYield.kt", "wiring/TakenClipboard.kt",
-        "wiring/TakenSentences.kt",
+        "wiring/TakenSentences.kt", "wiring/TakeSettle.kt", "wiring/DeviceFailureSentences.kt", "wiring/DeviceFailureYield.kt", "wiring/TakeFinisher.kt",
         "wiring/LevelMap.kt", "wiring/LevelMeter.kt", "wiring/LevelFeed.kt", "wiring/LevelTap.kt", "wiring/NoiseFloor.kt",
+        "host/ServiceRefusalNotice.kt",
     )
 
     /** Main files that are the layer over the platform and name Android types. */

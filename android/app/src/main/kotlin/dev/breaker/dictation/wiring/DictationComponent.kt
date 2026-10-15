@@ -53,6 +53,11 @@ class DictationComponent(
     private val onMicTaken: () -> Unit = {},
     /** Takes the level of each microphone frame; the frames themselves go on unchanged. */
     private val levelSink: LevelSink = LevelSink {},
+    /**
+     * Takes a device failure (the microphone failed in the middle of a take). It gets the fallback that
+     * the take end runs; without a handler the fallback runs at once.
+     */
+    private val onDeviceFailure: ((() -> Unit) -> Unit)? = null,
 ) : AutoCloseable {
 
     private val runnerHolder = AtomicReference<DictationRunner?>(null)
@@ -89,8 +94,12 @@ class DictationComponent(
                             (failure as? MicSourceException)?.reason == MicSourceException.Reason.MICROPHONE_TAKEN ->
                                 onMicTaken()
                             else -> {  // a device failure, a null-reason failure, any other throwable
-                                runnerHolder.get()?.onCaptureEnded()
-                                onTakeEnded()
+                                val fallback: () -> Unit = {
+                                    runnerHolder.get()?.onCaptureEnded()
+                                    onTakeEnded()
+                                }
+                                val handler: ((() -> Unit) -> Unit)? = onDeviceFailure
+                                if (handler != null) handler(fallback) else fallback()
                             }
                         }
                     },

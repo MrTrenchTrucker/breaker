@@ -107,6 +107,11 @@ internal class SetupHostView(
         return button.requestFocus()
     }
 
+    /** Draws a switch-on that the app refused, through the handler, as the walk-through's notice. */
+    override fun showSwitchRefused(sentence: String) {
+        show(handler.switchRefused(sentence))
+    }
+
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         // Drawn again on attachment: what the phone grants, or the model's state,

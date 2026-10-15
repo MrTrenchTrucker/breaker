@@ -15,9 +15,11 @@ import dev.breaker.dictation.ui.write.writeThrough
  * in the phone's settings, or a switch turned off elsewhere, shows as it now is.
  *
  * The handler stores nothing itself. It remembers, for as long as it lives, whether it
- * asked for notifications and the last answers it got. The microphone flag is kept in
- * the settings store it is given, and in memory too, so a tap still opens the app's page
- * when the store cannot be written.
+ * asked for notifications and the last answers it got, so that a failed read can fall
+ * back on them. The microphone flag is kept in the settings store it is given, and in
+ * memory too, so a tap still opens the app's page when the store cannot be written. It
+ * also keeps, in memory only, a refusal the app reports for the switch, until a tap or a
+ * read clears it.
  */
 
 /** What the phone is taken to say before it has said anything: nothing granted, version unknown. */
@@ -38,9 +40,12 @@ private val NOTHING_KNOWN = PlatformStatus(
  * arrive (or nothing granted and the switch off, if none ever did) and adds a
  * notice that the screen may be out of date.
  *
- * A notice is drawn once. The next drawing has none unless something fails again.
- * When an action fails and a read fails in the same drawing, the notice for the
- * action is the one shown; the next drawing shows the other.
+ * A notice is drawn once, and the next drawing has none unless something fails again.
+ * The one exception is the refusal the app reports through [switchRefused]: it is
+ * pinned, and each drawing that is not a tap draws it again, until a tap or a read
+ * that finds the switch on clears it. When an action fails and a read fails in the
+ * same drawing, the notice for the action is the one shown; the pinned refusal wins
+ * over a failed read; the next drawing shows the other.
  *
  * Call it from the main thread only; it does no locking.
  *
@@ -84,12 +89,30 @@ internal class SetupIntentHandler(
     private var micAskPending: Boolean = false
 
     /**
-     * The screen as the phone and the switch say it is right now. A pending microphone
-     * answer is written first, so the first drawing after the system prompt writes the flag.
+     * The refusal the app reported outside the walk-through, drawn again on each drawing
+     * that is not a tap. Set only by [switchRefused]; cleared by any [handle] call once its
+     * own drawing is made, and by a read that finds the switch on. Process memory only.
+     */
+    private var pinned: SetupNotice? = null
+
+    /**
+     * The screen as the phone and the switch say it is right now, with the pinned refusal if
+     * there is one. A pending microphone answer is written first, so the first drawing after
+     * the system prompt writes the flag.
      */
     fun current(): Screen {
         commitPendingAsk()
-        return show(notice = null, fresh = true)
+        return show(notice = null, fresh = true, redraw = true)
+    }
+
+    /**
+     * The screen as it is drawn after a switch-on that the app refused outside this walk-through, with the
+     * same notice a refused tap gets. The notice is pinned (see [pinned]).
+     */
+    fun switchRefused(sentence: String): Screen {
+        val notice = refusalNotice(sentence)
+        pinned = notice
+        return show(notice = notice, fresh = true)
     }
 
     /**
@@ -112,7 +135,9 @@ internal class SetupIntentHandler(
             is ScreenIntent.History,
             -> SetupNotice.NOT_ACCEPTED
         }
-        return show(notice = notice, fresh = notice != SetupNotice.NOT_ACCEPTED)
+        val drawn = show(notice = notice, fresh = notice != SetupNotice.NOT_ACCEPTED)
+        pinned = null
+        return drawn
     }
 
     /** Does what the action string asks and returns the notice it leaves, or null. */
@@ -215,10 +240,13 @@ internal class SetupIntentHandler(
         }
         return when (result) {
             BreakerSwitch.Result.On, BreakerSwitch.Result.AlreadyOn -> null
-            is BreakerSwitch.Result.Refused ->
-                if (result.sentence.isBlank()) SetupNotice.SWITCH_FAILED else SetupNotice.Refused(result.sentence)
+            is BreakerSwitch.Result.Refused -> refusalNotice(result.sentence)
         }
     }
+
+    /** The notice for a refused switch-on: the app's sentence as given, or the fixed failure when it is blank. */
+    private fun refusalNotice(sentence: String): SetupNotice =
+        if (sentence.isBlank()) SetupNotice.SWITCH_FAILED else SetupNotice.Refused(sentence)
 
     /** Asks the switch to turn Breaker off. Already being off is not a failure. */
     private fun switchOff(): SetupNotice? {
@@ -236,12 +264,17 @@ internal class SetupIntentHandler(
      * With [fresh] the phone and the switch are asked again. Without it, the state
      * drawn last is drawn again; if nothing was drawn yet, they are asked as for a
      * fresh drawing, and a read that fails leaves nothing granted and the switch off.
+     *
+     * [redraw] is true for a drawing that is not a tap: it draws the pinned refusal when
+     * there is no notice of its own. A read that finds the switch on clears the pin first.
      */
-    private fun show(notice: SetupNotice?, fresh: Boolean): Screen {
+    private fun show(notice: SetupNotice?, fresh: Boolean, redraw: Boolean = false): Screen {
         val kept = if (fresh) null else held
         val readFailed = kept == null && readSeams()
         val state = kept ?: build().also { held = it }
-        val shown = notice ?: if (readFailed) SetupNotice.COULD_NOT_CHECK else null
+        if (kept == null && state.switchedOn) pinned = null
+        val pinnedNow = if (redraw) pinned else null
+        val shown = notice ?: pinnedNow ?: if (readFailed) SetupNotice.COULD_NOT_CHECK else null
         return screen.render(state, shown)
     }
 

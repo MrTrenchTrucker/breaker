@@ -63,7 +63,7 @@ internal class PlatformNotificationGateTest {
                 has(
                     s.code,
                     """\bfun\s+withText\s*\(\s*context\s*:\s*Context\s*,\s*text\s*:\s*String\s*\)\s*:\s*Notification\s*=""" +
-                        """\s*builder\s*\(\s*context\s*\)\s*\{\s*text\s*\}""",
+                        """\s*builder\s*\(\s*context\s*,\s*armed\s*=\s*true\s*\)\s*\{\s*text\s*\}""",
                 )
         },
         Rule("ACTION_LABEL_FROM_RESOURCE") { s ->
@@ -109,9 +109,9 @@ internal class PlatformNotificationGateTest {
             ".setContentText(textLine()) => .setContentText(context.getString(R.string.dictation_notification_text))",
             ".setContentText(textLine()) => .setContentText(context.getString(R.string.dictation_action_off))",
             ".setContentText(textLine()) => ",
-            "builder(context) { text } => builder(context) { \"Tap the tile\" }",
-            "builder(context) { text } => builder(context) { context.getString(R.string.dictation_action_off) }",
-            "builder(context) { text } => builder(context) { text + context.getString(R.string.dictation_action_off) }",
+            "builder(context, armed = true) { text } => builder(context, armed = true) { \"Tap the tile\" }",
+            "builder(context, armed = true) { text } => builder(context, armed = true) { context.getString(R.string.dictation_action_off) }",
+            "builder(context, armed = true) { text } => builder(context, armed = true) { text + context.getString(R.string.dictation_action_off) }",
         ),
         "ACTION_LABEL_FROM_RESOURCE" to listOf("context.getString(R.string.dictation_action_off) => \"Switch off\""),
         "CHANNEL_ID_IS_THE_ONLY_LITERAL" to listOf(
@@ -132,7 +132,7 @@ internal class PlatformNotificationGateTest {
         "withText(context, context.getString(R.string.dictation_notification_text)) => withText(\n" +
             "            context,\n            context.getString(R.string.dictation_notification_text),\n        )",
         ".setContentText(textLine()) => .setContentText(\n                textLine(),\n            )",
-        "builder(context) { text } => builder(context) {\n            text\n        }",
+        "builder(context, armed = true) { text } => builder(context, armed = true) {\n            text\n        }",
     )
 
     @Test

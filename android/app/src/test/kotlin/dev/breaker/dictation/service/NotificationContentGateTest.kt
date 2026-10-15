@@ -124,7 +124,7 @@ internal class NotificationContentGateTest {
     )
 
     /** The names of the rules [source] breaks, in the order of [rules]. */
-    private fun problems(source: String): List<String> {
+    internal fun problems(source: String): List<String> {
         val code = strip(source)
         val bad: MutableList<String> = ArrayList()
         val activityCalls = callsOf(code, activityHead)
@@ -132,11 +132,11 @@ internal class NotificationContentGateTest {
         val intent: String = activity.getOrNull(2) ?: ""
         val flags: String = activity.getOrNull(3) ?: ""
 
-        val contentArg: String? = callsOf(code, contentHead).singleOrNull()?.singleOrNull()
-        val direct = contentArg != null && activityHead.find(contentArg)?.range?.first == 0
-        val named = contentArg != null && Regex("[A-Za-z_]\\w*").matches(contentArg) &&
-            Regex("\\bval\\s+" + Regex.escape(contentArg) + "\\s*=\\s*PendingIntent\\s*\\.\\s*getActivity\\s*\\(").containsMatchIn(code)
-        if (activityCalls.size != 1 || !(direct || named)) bad.add("CONTENT_INTENT")
+        // Each content intent is the pending activity, a name bound to it, or the shared tap function (openHistoryTap).
+        val contentArgs: List<String> = callsOf(code, contentHead).map { it.singleOrNull() ?: "" }
+        val tapFunction = Regex("\\bfun\\s+openHistoryTap\\s*\\(\\s*context\\s*:\\s*Context\\s*\\)\\s*:\\s*PendingIntent\\s*\\{").containsMatchIn(code)
+        val tapOk = contentArgs.isNotEmpty() && contentArgs.all { arg -> activityHead.find(arg)?.range?.first == 0 || (Regex("[A-Za-z_]\\w*").matches(arg) && Regex("\\bval\\s+" + Regex.escape(arg) + "\\s*=\\s*PendingIntent\\s*\\.\\s*getActivity\\s*\\(").containsMatchIn(code)) || (tapFunction && arg == "openHistoryTap(context)") }
+        if (activityCalls.size != 1 || !tapOk) bad.add("CONTENT_INTENT")
 
         val explicit = explicitIntent.containsMatchIn(intent) && anyIntent.findAll(intent).count() == 1 && !actionText.containsMatchIn(intent)
         if (!explicit) bad.add("INTENT_EXPLICIT")
@@ -162,7 +162,7 @@ internal class NotificationContentGateTest {
         return bad
     }
 
-    private val sample = """
+    internal val sample = """
         package x
         internal object DictationNotification {
             fun build(context: Context): Notification {

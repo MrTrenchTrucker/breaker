@@ -72,13 +72,13 @@ internal class OverlayTilePortGateTest {
         Sample(
             "OVERLAY_TILE_PORT_PASSES_EVERY_HELD_CALLBACK_TO_CREATE",
             port,
-            "            onSend = onSend,\n            onCloseRequested = onCloseRequested,\n        )",
+            "            onSend = onSend,\n            onCloseRequested = onCloseRequested,\n            onNoticeDismissed = onNoticeDismissed,\n        )",
             "            onSend = onSend,\n        )",
         ),
         Sample(
             "OVERLAY_TILE_PORT_PASSES_EVERY_HELD_CALLBACK_TO_CREATE",
             port,
-            "            onCloseRequested = onCloseRequested,\n        )",
+            "            onCloseRequested = onCloseRequested,\n            onNoticeDismissed = onNoticeDismissed,\n        )",
             "        )",
         ),
         Sample(
