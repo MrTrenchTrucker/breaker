@@ -81,6 +81,11 @@ internal class OverlayTilePort(
         tile?.clearNotice()
     }
 
+    /** Tells the tile that the display changed (a turn or a fold); does nothing until the tile has been shown once. */
+    fun onDisplayChanged() {
+        tile?.onDisplayChanged()
+    }
+
     private fun currentTheme(): TileTheme = when (settings.load().themeMode) {
         ThemeMode.LIGHT -> TileTheme.LIGHT
         ThemeMode.DARK -> TileTheme.DARK
