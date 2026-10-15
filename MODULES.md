@@ -84,7 +84,7 @@ commands ("copy #27") deferred to v1.2.
 | `model-registry` | Model sizes, URLs, SHA-256 pins, per-model licenses | `shared/modules/model-registry/` | Orchestration |
 | `format-prompts` | Strict non-destructive formatting prompts for the server LLM | `shared/modules/format-prompts/` | Orchestration |
 | `ui-tokens` | Trucking design tokens: colors (light/dark), typography, spacing, breakpoints — shared by web FE + Android app | `shared/modules/ui-tokens/` | Orchestration |
-| `agent-skills` | Working rules and readback skills for AI agents, one pair per rank (ADR-019) | `agent-skills/` | Orchestration |
+| `agent-skills` | Working rules and readback skills for AI agents, one pair per rank, plus the shared plan-file skill (ADR-019) | `agent-skills/` | Orchestration |
 
 ## Conventions
 

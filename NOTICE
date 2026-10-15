@@ -31,9 +31,10 @@ Vendored code and dependencies:
      license records [1][2].
 
 4. Agent skills (agent-skills/)
-   - The six SKILL.md files under agent-skills/ are copied unchanged from the
-     project owner's module SOP and Parrot Protocol skill sets and remain
-     under the MIT License. See agent-skills/LICENSE.
+   - The seven SKILL.md files under agent-skills/ are copied unchanged from
+     the project owner's Module SOP (its module SOP, Parrot Protocol and
+     shared plan-file skills) and remain under the MIT License. See
+     agent-skills/LICENSE.
 
 5. Oswald typeface (letter outlines only)
    - The word BREAKER and the tagline in the logo and icon files under

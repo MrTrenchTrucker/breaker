@@ -46,4 +46,4 @@
 ## agent-skills/ — set up AI agents to work here
 | Module | Path | Job |
 |--------|------|-----|
-| `agent-skills` | `agent-skills/` | Working rules and readback skills for AI agents, one pair per rank (project leader, IT manager, worker) |
+| `agent-skills` | `agent-skills/` | Working rules and readback skills for AI agents, one pair per rank (project leader, IT manager, worker), and the plan-file skill any rank uses with sub-agents |

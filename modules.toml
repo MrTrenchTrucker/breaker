@@ -269,8 +269,8 @@ card = "shared/modules/ui-tokens/AGENTS.md"
 
 [module.agent_skills]
 path = "agent-skills"
-owns = "Working rules and readback skills for AI agents, one pair per rank (project leader, IT manager, worker); their pinned hashes and install guide."
+owns = "Working rules and readback skills for AI agents, one pair per rank (project leader, IT manager, worker), and the plan-file skill any rank uses with sub-agents; their pinned hashes and install guide."
 does_not_own = "The project's own rules (ARCHITECTURE.md, module cards, ADRs); the contributing guide; any code."
 depends_on = []
-public = "Six SKILL.md files, agent-skills/README.md"
+public = "Seven SKILL.md files (six rank skills, one shared), agent-skills/README.md"
 card = "agent-skills/AGENTS.md"

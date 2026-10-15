@@ -88,8 +88,12 @@ recommended, not required (`.github/CONTRIBUTING.md`).
   `AGENTS.md` and `README.md`, and every ADR they cite, before planning.
 - Look over the job and read the work order first, then write one plan file
   per sub-agent: what to build, what to read, the tests that must fail first,
-  and a checklist of "done". The sub-agent reads it first and ticks each item
-  as it finishes it; the owner checks the result against it.
+  and a checklist of "done". Before changing any file, the sub-agent proves
+  its reading with an exact quote from each file and signs a reading
+  certificate; it ticks each item as it finishes it. Only the sub-agent marks
+  its plan file: a tick or signature the owner writes for it is void. The
+  owner checks the result against it
+  (`agent-skills/shared/subagent-plan-file/SKILL.md`).
 - Sub-agents write the code. The owner plans and verifies, sends wrong work
   back down, and makes no edit larger than one line itself.
 - A whole-module owner plans at the module level; its sub-agents work at the

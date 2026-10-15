@@ -228,9 +228,13 @@ AI agents are welcome under the same rules as people. If you're an agent:
     standard operating procedure
   - `agent-skills/worker/parrot-protocol-worker/SKILL.md` — the worker's
     readback skill
+  - `agent-skills/shared/subagent-plan-file/SKILL.md` — for any rank that
+    starts sub-agents: the plan file each sub-agent gets
   The module SOP skills set out how each rank runs its part of a module
   build. The parrot protocol skills set out the readback rule: restate the
-  task and its limits before starting, and stop to ask when unsure.
+  task and its limits before starting, and stop to ask when unsure. The
+  plan-file skill sets out how a sub-agent proves it read what it must read
+  before it changes anything.
 - Before starting, restate the task and its limits in your first message.
 - Stop and ask when unsure — don't guess.
 - Never publish unfinished work. "The agent produced it" is not proof of
