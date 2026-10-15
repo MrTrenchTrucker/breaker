@@ -24,8 +24,8 @@ internal class TakenSentencesTest {
         assertEquals("Recording stopped for a call or another app. The speech could not be converted.", TakenSentences.NOT_CONVERTED)
         assertEquals(79, TakenSentences.NOT_CONVERTED.length)
 
-        assertEquals("Another app still has the microphone. Breaker listens again once it is free.", TakenSentences.STILL_TAKEN)
-        assertEquals(76, TakenSentences.STILL_TAKEN.length)
+        assertEquals("Another app still has the microphone. Tap the tile again when it is free.", TakenSentences.STILL_TAKEN)
+        assertEquals(73, TakenSentences.STILL_TAKEN.length)
 
         assertEquals("Recording stopped for a call or another app. Text copied, but not saved to History.", TakenSentences.COPIED_NOT_SAVED)
         assertEquals(83, TakenSentences.COPIED_NOT_SAVED.length)
