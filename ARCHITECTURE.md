@@ -687,9 +687,11 @@ This is Security Review fix #2 done right: the broken updater (pointed at the or
 author's releases, plaintext signing key) is deleted [1], and the new one points
 at OUR server with the signing key stored securely (never in git) [1].
 
-**Model hosting (F30):** the web-fe also serves the on-device model + checksums
-(licensing permitting) so the phone downloads it from the Breaker container
-instead of upstream — consistent with "treat every .onnx as untrusted" [2].
+**Model hosting (F30, planned, not built):** the web-fe may later serve the
+on-device model + checksums (licensing permitting) so the phone downloads it from
+the Breaker container instead of upstream. Until then the phone downloads it from
+GitHub and treats it as untrusted until checked (F43, ADR-025, [2]); moving the
+host changes the model registry and ADR-025 together.
 **Update rollback (D28):** the updater keeps the previous APK; a rollback button
 restores it if a release misbehaves.
 
