@@ -32,7 +32,7 @@ internal class LauncherScrollGateTest {
         Rule(name, file) { Regex(first).findAll(it).count() == 1 && Regex(second).findAll(it).count() == 1 }
 
     private val rules: List<Rule> = listOf(
-        rx("ONBOARDING_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "activity", """\bcreateOnboardingView[\s\S]*\([\s\S]*this[\s\S]*,[\s\S]*BreakerSwitchAdapter[\s\S]*\([\s\S]*app[\s\S]*\.[\s\S]*armedSwitch[\s\S]*\)[\s\S]*,[\s\S]*ACCESSIBILITY_SERVICE_COMPONENT[\s\S]*,[\s\S]*modelReady[\s\S]*=[\s\S]*\{[\s\S]*modelReady[\s\S]*\.[\s\S]*isReady[\s\S]*\([\s\S]*\)[\s\S]*\}[\s\S]*,[\s\S]*downloadLine[\s\S]*=[\s\S]*\{[\s\S]*downloadSentence[\s\S]*\}[\s\S]*,[\s\S]*modelDownloadMb[\s\S]*=[\s\S]*\{[\s\S]*\}[\s\S]*,[\s\S]*onDownloadModel[\s\S]*=[\s\S]*\{[\s\S]*app[\s\S]*\.[\s\S]*tileHost[\s\S]*\.[\s\S]*requestDownload[\s\S]*\([\s\S]*\)[\s\S]*\}[\s\S]*\)"""),
+        rx("ONBOARDING_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "activity", """\bcreateOnboardingView\s*\(\s*this\s*,\s*BreakerSwitchAdapter\s*\(\s*app\s*\.\s*armedSwitch\s*\)\s*,\s*ACCESSIBILITY_SERVICE_COMPONENT\s*,\s*modelReady\s*=\s*\{\s*modelReady\s*\.\s*isReady\s*\(\s*\)\s*\}\s*,\s*downloadLine\s*=\s*\{\s*downloadSentence\s*\}\s*,\s*modelDownloadMb\s*=\s*\{[^{}]*\}\s*,\s*onDownloadModel\s*=\s*\{\s*app\s*\.\s*tileHost\s*\.\s*requestDownload\s*\(\s*\)\s*\}"""),
         rx("MODEL_READY_IS_A_LIVE_PROVIDER", "activity", """\bmodelReady\s*=\s*\{\s*modelReady\s*\.\s*isReady\s*\(\s*\)\s*\}"""),
         rx("DOWNLOAD_LINE_IS_A_LIVE_PROVIDER", "activity", """\bdownloadLine\s*=\s*\{\s*downloadSentence\s*\}"""),
         rx("ON_DOWNLOAD_CALLS_REQUEST_DOWNLOAD", "activity", """\bonDownloadModel\s*=\s*\{\s*app\s*\.\s*tileHost\s*\.\s*requestDownload\s*\(\s*\)\s*\}"""),
@@ -65,6 +65,11 @@ internal class LauncherScrollGateTest {
     private val firing: List<Sample> = listOf(
         Sample("ONBOARDING_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "modelReady = { modelReady.isReady() },", "modelReady = { true },"),
         Sample("ONBOARDING_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "downloadLine = { downloadSentence },", "downloadLine = { null },"),
+        Sample("ONBOARDING_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "this,\n            BreakerSwitchAdapter(app.armedSwitch),", "null,\n            BreakerSwitchAdapter(app.armedSwitch),"),
+        Sample("ONBOARDING_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "BreakerSwitchAdapter(app.armedSwitch),", "BreakerSwitchAdapter(null),"),
+        Sample("ONBOARDING_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "ACCESSIBILITY_SERVICE_COMPONENT,\n            modelReady", "null,\n            modelReady"),
+        Sample("ONBOARDING_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "modelDownloadMb = {", "modelDownloadSize = {"),
+        Sample("ONBOARDING_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "onDownloadModel = { app.tileHost.requestDownload() }", "onDownloadModel = { }"),
         Sample("MODEL_READY_IS_A_LIVE_PROVIDER", "modelReady = { modelReady.isReady() }", "modelReady = { true }"),
         Sample("MODEL_READY_IS_A_LIVE_PROVIDER", "modelReady = { modelReady.isReady() }", "modelReady = { modelReady.isReady().also { } }"),
         Sample("DOWNLOAD_LINE_IS_A_LIVE_PROVIDER", "downloadLine = { downloadSentence }", "downloadLine = { null }"),
@@ -130,6 +135,8 @@ internal class LauncherScrollGateTest {
         Quiet("activity", "ScrollView(this)", "ScrollView(  this  )"),
         Quiet("activity", "modelReady = { modelReady.isReady() },", "modelReady = { modelReady.isReady() }, // live"),
         Quiet("activity", "downloadLine = { downloadSentence },", "downloadLine = { downloadSentence }, // live"),
+        Quiet("activity", "?.sizeMb?.let(", "?.sizeMb\n                ?.let("),
+        Quiet("activity", "BreakerSwitchAdapter(app.armedSwitch),", "BreakerSwitchAdapter(  app.armedSwitch  ),"),
         Quiet("insets", "fun paddingFor(bars: Insets, cutout: Insets): Padding", "fun paddingFor(  bars: Insets, cutout: Insets  ): Padding"),
         Quiet("insets", "left = maxOf(bars.left, cutout.left)", "left = maxOf(bars.left, cutout.left) // max"),
     )
