@@ -164,6 +164,11 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         (onboardingView as? ModelStepControl)?.refresh()
     }
 
+    override fun progress(sentence: String, doneMb: Int, totalMb: Int) {
+        // The launcher line shows the progress sentence the same way as the first one.
+        downloading(sentence)
+    }
+
     private fun applyInsets(view: android.view.View) {
         val rootInsets = view.rootWindowInsets
         if (rootInsets != null) {

@@ -365,8 +365,8 @@ agents, not required: an outside contributor may write the code themselves
   thread; one salvaged test duplicates another.
 - The download side (`HttpModelFetcher`), the unpack side (`ModelExtractor`) and the native adapter
   (`SherpaOnnxRecognizerFactory`) exist. The default factory of `ModelLoader` is still
-  `UnavailableRecognizerFactory`, which refuses to create a recognizer. No production code constructs
-  `ModelInstaller` or `ModelLoader`. The engine takes the loader through `ModelLoaderPort`, and the
+  `UnavailableRecognizerFactory`, which refuses to create a recognizer. The app constructs
+  `ModelInstaller` in `wiring/ModelSupport.kt` and `ModelLoader` in `BreakerCompositionRoot.kt`. The engine takes the loader through `ModelLoaderPort`, and the
   app's wiring supplies it later, so the module cannot transcribe real audio until the app builds the
   loader with a `SherpaOnnxRecognizerFactory` and adds the release file (next bullet). The adapter, the
   release-file build route and their tests compile, and the tests run.
@@ -495,9 +495,9 @@ agents, not required: an outside contributor may write the code themselves
   native call keeps using CPU and battery until it ends.
 - The limit (30 seconds plus three times the clip length) is a recommended value, not a
   measurement. It has not been tried on a device.
-- Two source files are over the soft line cap of 300 lines and under the hard cap of 500:
-  `OnDeviceSttEngine.kt` at 302 lines and `LocalModelStore.kt` at 307 lines. Neither is split further
-  for now.
+- Four source files are over the soft line cap of 300 lines and under the hard cap of 500:
+  `OnDeviceSttEngine.kt` at 302 lines, `LocalModelStore.kt` at 307 lines, `ModelInstaller.kt` at 356
+  lines and `OnDeviceWordStream.kt` at 450 lines. None is split further for now.
 - The test `test_build_file_adds_exactly_one_external_dependency` (in the unpack pins) is false by
   its own name, because the build file now adds two coordinates. It is to be renamed in a later
   change.
@@ -508,3 +508,5 @@ agents, not required: an outside contributor may write the code themselves
 - Device-only and not verified: whether the offset lands on the word "and" on a real capture, the start latency (the model load at start), the CPU use and the flush deadline value.
 - The port has no error channel: an Exception from a native call, or one from the update callback, ends the word stream quietly, with nothing thrown and no final update, and `failures` counts it. A link failure (a LinkageError) from the native open ends the run the same way and is counted. Any other Error (an AssertionError or an OutOfMemoryError, for example, or a LinkageError from a later native call) is not caught: it leaves the worker once the native objects are released, and it reaches the uncaught-exception handler of the scope. A release that throws an Exception is counted in `failures` and swallowed; an Error from a release propagates only after both releases have run (if both throw an Error, the recogniser's replaces the stream's). Coroutine cancellation is rethrown and not counted.
 - `onUpdate` must never wait on the thread that calls `stop`: the final update is delivered while that caller is blocked in `stop`, so the app posts each update to its own queue and never blocks.
+- `ModelFetcher.fetchModel` has a three-argument form with a progress callback (bytes received, total from the final reply or -1 when unknown). The two-argument form stays abstract, so a fetcher that only knows it keeps working; the installer guards the callback.
+- Nothing in production can cancel a download. The fetcher's `cancelled` function is polled, but the app builds the fetcher with the default `{ false }`; a cancel would end the fetch as a Failed("cancelled") result.

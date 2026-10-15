@@ -37,6 +37,23 @@ interface ModelFetcher {
     fun fetchModel(entry: ModelEntry, stagingDir: File): Result
 
     /**
+     * Fetch the model archive for [entry] into [stagingDir], reporting progress.
+     *
+     * [onProgress] receives the bytes written so far and the total from the final
+     * reply's length, or -1 when that length is unknown. It is called on the thread
+     * that runs the fetch. MB in this project means 1,000,000 bytes. The fetcher
+     * does not guard the callback; ModelInstaller does.
+     *
+     * The default body ignores progress and calls the two-argument form, so a
+     * fetcher that only implements that form keeps working.
+     */
+    fun fetchModel(
+        entry: ModelEntry,
+        stagingDir: File,
+        onProgress: (received: Long, total: Long) -> Unit,
+    ): Result = fetchModel(entry, stagingDir)
+
+    /**
      * Fetch the upstream checksum file into [stagingDir].
      *
      * @return [Result.Fetched] with the staged checksum file, or [Result.Failed].

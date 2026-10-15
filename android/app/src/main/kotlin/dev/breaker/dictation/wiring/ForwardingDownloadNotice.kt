@@ -20,6 +20,11 @@ class ForwardingDownloadNotice(
         listener?.downloading(sentence)
     }
 
+    override fun progress(sentence: String, doneMb: Int, totalMb: Int) {
+        notifications.progress(sentence, doneMb, totalMb)
+        listener?.progress(sentence, doneMb, totalMb)
+    }
+
     override fun done() {
         notifications.done()
         listener?.done()
