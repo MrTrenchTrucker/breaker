@@ -35,4 +35,13 @@ Vendored code and dependencies:
      project owner's module SOP and Parrot Protocol skill sets and remain
      under the MIT License. See agent-skills/LICENSE.
 
+5. Oswald typeface (letter outlines only)
+   - The word BREAKER and the tagline in the logo and icon files under
+     docs/brand/, and any drawing of the word made from the same outlines
+     elsewhere in this repository, are outlines taken from the Oswald
+     typeface, Copyright 2016 The Oswald Project Authors
+     (https://github.com/googlefonts/OswaldFont), licensed under the SIL Open
+     Font License, Version 1.1. The licence text is in docs/brand/OFL.txt.
+     No font file is included in this repository.
+
 This product is distributed under the Apache License, Version 2.0. See LICENSE.

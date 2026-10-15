@@ -13,6 +13,8 @@ and green.
 
 ## 2. Design DNA
 
+The full style guide, with the approved logo and lettering rules, is `docs/09-style-guide.md`.
+
 - **Palette:** white/black/green (light mode); near-black/green (dark mode);
   black trim. Full token tables in `shared/ui-tokens`.
 - **Type:** Anton/Oswald display (condensed, uppercase, truck-lettering) ·
