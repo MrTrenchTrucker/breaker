@@ -15,7 +15,7 @@ import dev.breaker.dictation.wiring.ModelSentences
  * The notifications about the speech model, on a channel of their own that makes no sound.
  *
  * There are four: the model is missing (a tap opens the launcher on [NotificationRoute.ROUTE_MODEL]),
- * the model is downloading (an endless progress bar, because the download reports no progress), the
+ * the model is downloading (the bar fills when the total is known and is endless when it is not), the
  * download is done or failed, and the tile could not be shown (a tap opens the launcher). The words are
  * constants, some in this file and the model ones in `ModelSentences`, in plain words for the user. The three model notices carry the title
  * "Speech model"; the tile one carries the name of the product, since it is not about the model.
@@ -46,6 +46,10 @@ internal class ModelNotifications(private val context: Context) : ModelNotice, M
         show(DOWNLOAD_ID, DOWNLOAD_REQUEST, android.R.drawable.stat_sys_download, MODEL_TITLE, sentence, null, true)
     }
 
+    override fun progress(sentence: String, doneMb: Int, totalMb: Int) {
+        show(DOWNLOAD_ID, DOWNLOAD_REQUEST, android.R.drawable.stat_sys_download, MODEL_TITLE, sentence, null, true, doneMb, totalMb)
+    }
+
     override fun done() {
         cancel(MISSING_ID)
         show(DOWNLOAD_ID, DOWNLOAD_REQUEST, android.R.drawable.stat_sys_download_done, MODEL_TITLE, MODEL_READY, null, false)
@@ -55,7 +59,7 @@ internal class ModelNotifications(private val context: Context) : ModelNotice, M
         show(DOWNLOAD_ID, DOWNLOAD_REQUEST, android.R.drawable.stat_notify_error, MODEL_TITLE, sentence, null, false)
     }
 
-    private fun show(id: Int, request: Int, icon: Int, title: String, text: String, route: String?, working: Boolean) {
+    private fun show(id: Int, request: Int, icon: Int, title: String, text: String, route: String?, working: Boolean, doneMb: Int = 0, totalMb: Int = 0) {
         try {
             val manager = context.getSystemService(NotificationManager::class.java)
             if (!manager.areNotificationsEnabled()) return
@@ -67,7 +71,12 @@ internal class ModelNotifications(private val context: Context) : ModelNotice, M
                 .setContentIntent(openLauncher(request, route))
                 .setOnlyAlertOnce(true)
             if (working) {
-                notification.setOngoing(true).setCategory(Notification.CATEGORY_PROGRESS).setProgress(0, 0, true)
+                notification.setOngoing(true).setCategory(Notification.CATEGORY_PROGRESS)
+                if (totalMb > 0) {
+                    notification.setProgress(totalMb, doneMb, false)
+                } else {
+                    notification.setProgress(0, 0, true)
+                }
             } else {
                 notification.setAutoCancel(true)
             }

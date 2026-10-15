@@ -107,9 +107,16 @@ class ModelInstaller(
      * Each step has its own refusal category so the caller can distinguish
      * a network failure from a verification failure from a filesystem failure.
      *
+     * [onProgress] receives the progress of the model fetch only; the checksum
+     * fetch does not report. A RuntimeException thrown by it is swallowed: the
+     * first one is logged to the debug sink by class name, and the download goes on.
+     *
      * @return [InstallResult.Installed] on success, [InstallResult.Refused] otherwise.
      */
-    fun install(entry: ModelEntry): InstallResult {
+    fun install(
+        entry: ModelEntry,
+        onProgress: (received: Long, total: Long) -> Unit = { _, _ -> },
+    ): InstallResult {
         // Step 0: ensure the staging directory exists before any fetch.
         // A path that exists but is not a directory cannot receive the staged
         // files, and must be refused here rather than letting a write into it
@@ -167,9 +174,23 @@ class ModelInstaller(
             )
         }
 
+        // The progress callback is guarded: a RuntimeException from it is logged
+        // once by class name, and the download goes on.
+        var failureLogged = false
+        val guarded: (Long, Long) -> Unit = { received, total ->
+            try {
+                onProgress(received, total)
+            } catch (e: RuntimeException) {
+                if (!failureLogged) {
+                    failureLogged = true
+                    debug.debug("progress listener failed: " + e.javaClass.simpleName)
+                }
+            }
+        }
+
         // Step 2: fetch model archive. Same staging-write reasoning as step 1, with the no-space case told apart.
         val modelResult = try {
-            fetcher.fetchModel(entry, stagingDir)
+            fetcher.fetchModel(entry, stagingDir, guarded)
         } catch (e: NoSpaceException) {
             return refuseFetchNoSpace(stagingDir, e)
         } catch (e: IOException) {

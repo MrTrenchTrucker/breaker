@@ -27,6 +27,11 @@ import javax.net.ssl.SSLException
  *
  * [cancelled] is polled before every request and once per chunk of a body.
  * A read that is already blocked in the socket ends at the read timeout.
+ *
+ * The progress callback of the three-argument fetchModel is not guarded here.
+ * A RuntimeException thrown by it is caught by the generic handler in fetchTo
+ * and comes back as Failed("unexpected"). ModelInstaller guards the callback,
+ * so on the install path the download goes on instead.
  */
 class HttpModelFetcher internal constructor(
     private val limits: DownloadLimits,
@@ -49,27 +54,40 @@ class HttpModelFetcher internal constructor(
         { it.usableSpace },
     )
 
-    override fun fetchModel(entry: ModelEntry, stagingDir: File): ModelFetcher.Result {
+    override fun fetchModel(entry: ModelEntry, stagingDir: File): ModelFetcher.Result =
+        fetchModel(entry, stagingDir, NO_PROGRESS)
+
+    override fun fetchModel(
+        entry: ModelEntry,
+        stagingDir: File,
+        onProgress: (received: Long, total: Long) -> Unit,
+    ): ModelFetcher.Result {
         if (!LocalModelStore.isSafeName(entry.id)) return ModelFetcher.Result.Failed("model id not allowed")
         val target = File(stagingDir, entry.id + DOWNLOAD_SUFFIX)
-        return fetchTo(entry.url, target, limits.modelCapBytes(entry), stagingDir)
+        return fetchTo(entry.url, target, limits.modelCapBytes(entry), stagingDir, onProgress)
     }
 
     override fun fetchChecksums(stagingDir: File): ModelFetcher.Result {
         val target = File(stagingDir, CHECKSUMS_NAME)
-        return fetchTo(limits.checksumsUrl, target, limits.checksumsMaxBytes, stagingDir)
+        return fetchTo(limits.checksumsUrl, target, limits.checksumsMaxBytes, stagingDir, NO_PROGRESS)
     }
 
     /**
      * Fetch [startUrl] into [target]. The partial file is deleted on every path
      * except a complete, checked download.
      */
-    private fun fetchTo(startUrl: String, target: File, capBytes: Long, stagingDir: File): ModelFetcher.Result {
+    private fun fetchTo(
+        startUrl: String,
+        target: File,
+        capBytes: Long,
+        stagingDir: File,
+        onProgress: (received: Long, total: Long) -> Unit,
+    ): ModelFetcher.Result {
         val startedAt = elapsedMillis()
         target.delete()
         var completed = false
         try {
-            val result = transfer(startUrl, target, capBytes, stagingDir, startedAt)
+            val result = transfer(startUrl, target, capBytes, stagingDir, startedAt, onProgress)
             if (result is ModelFetcher.Result.Fetched) completed = true
             return result
         } catch (e: StagingWriteException) {
@@ -94,6 +112,7 @@ class HttpModelFetcher internal constructor(
         capBytes: Long,
         stagingDir: File,
         startedAt: Long,
+        onProgress: (received: Long, total: Long) -> Unit,
     ): ModelFetcher.Result {
         var current: URI = parseAddress(startUrl) ?: return ModelFetcher.Result.Failed("address refused: invalid")
         var hop = 0
@@ -118,7 +137,7 @@ class HttpModelFetcher internal constructor(
                     current = next
                     continue
                 }
-                return readReply(reply, target, capBytes, stagingDir, startedAt)
+                return readReply(reply, target, capBytes, stagingDir, startedAt, onProgress)
             } finally {
                 closeQuietly(reply)
             }
@@ -132,6 +151,7 @@ class HttpModelFetcher internal constructor(
         capBytes: Long,
         stagingDir: File,
         startedAt: Long,
+        onProgress: (received: Long, total: Long) -> Unit,
     ): ModelFetcher.Result {
         if (reply.status != 200) return ModelFetcher.Result.Failed("http " + reply.status)
         val contentType = reply.contentType
@@ -145,6 +165,7 @@ class HttpModelFetcher internal constructor(
         val output = openStaging(target)
         try {
             var total = 0L
+            var reported = 0L
             val buffer = ByteArray(CHUNK_BYTES)
             while (true) {
                 if (cancelled()) return ModelFetcher.Result.Failed("cancelled")
@@ -154,12 +175,17 @@ class HttpModelFetcher internal constructor(
                 total += count
                 if (total > capBytes) return ModelFetcher.Result.Failed("too large")
                 writeChunk(output, buffer, count)
+                if (total - reported >= limits.progressStepBytes) {
+                    reported = total
+                    onProgress(total, declared)
+                }
             }
             finishOutput(output)
             if (declared >= 0L) {
                 if (total != declared) return ModelFetcher.Result.Failed("truncated")
             }
             if (total == 0L) return ModelFetcher.Result.Failed("empty")
+            if (total != reported) onProgress(total, declared)
             return ModelFetcher.Result.Fetched(target)
         } finally {
             closeQuietly(output)
@@ -244,6 +270,7 @@ class HttpModelFetcher internal constructor(
         const val ENCODING_VALUE = "identity"
         const val AGENT_HEADER = "User-Agent"
         const val AGENT_VALUE = "dictation-model-fetcher"
+        val NO_PROGRESS: (Long, Long) -> Unit = { _, _ -> }
         val REDIRECT_STATUSES: Set<Int> = setOf(301, 302, 303, 307, 308)
         val REQUEST_HEADERS: Map<String, String> = mapOf(
             ACCEPT_HEADER to ACCEPT_VALUE,

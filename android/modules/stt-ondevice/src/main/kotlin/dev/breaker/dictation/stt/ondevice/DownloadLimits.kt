@@ -18,6 +18,7 @@ import java.net.URI
  * @property firstHopHosts hosts the first request may go to.
  * @property redirectHosts hosts a redirect may go to.
  * @property checksumsUrl address of the upstream checksum list.
+ * @property progressStepBytes bytes received between two progress reports (4 MiB).
  */
 data class DownloadLimits(
     val connectTimeoutMillis: Int = 15_000,
@@ -28,6 +29,7 @@ data class DownloadLimits(
     val firstHopHosts: Set<String> = setOf("api.github.com"),
     val redirectHosts: Set<String> = setOf("release-assets.githubusercontent.com"),
     val checksumsUrl: String = "https://api.github.com/repos/k2-fsa/sherpa-onnx/releases/assets/424735889",
+    val progressStepBytes: Long = 4_194_304L,
 ) {
     /**
      * The largest body accepted for [entry].

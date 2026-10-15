@@ -60,14 +60,14 @@ internal class ModelSupportTest {
     @Test
     fun `every model sentence is short plain ASCII without the words the notification texts avoid`() {
         val forbidden = Regex("""\b(?:accessibility|overlay|foreground|service|permission|debug)\w*|\b(?:api|sdk)s?\b""", RegexOption.IGNORE_CASE)
-        val all = listOf(ModelSentences.NO_MODEL, ModelSentences.downloadingFor(349), ModelSentences.DOWNLOAD_FAILED, ModelSentences.DOWNLOAD_NO_SPACE)
+        val all = listOf(ModelSentences.NO_MODEL, ModelSentences.downloadingFor(349), ModelSentences.DOWNLOAD_FAILED, ModelSentences.DOWNLOAD_NO_SPACE, ModelSentences.progressFor(120, 366), ModelSentences.progressUnknownFor(120), ModelSentences.CHECKING)
         for (sentence in all) {
             assertTrue("app: '$sentence' is over 63 characters", sentence.length <= 63)
             assertTrue("app: '$sentence' is not ASCII", sentence.all { it.code in 32..126 })
             assertFalse("app: '$sentence' holds a word the notification texts avoid", forbidden.containsMatchIn(sentence))
             assertTrue("app: '$sentence' must end like a sentence", sentence.endsWith("."))
         }
-        assertEquals("app: the four sentences are different", 4, all.toSet().size)
+        assertEquals("app: the seven sentences are different", 7, all.toSet().size)
     }
 
     @Test
