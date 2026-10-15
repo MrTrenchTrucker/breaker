@@ -47,7 +47,7 @@ path = "android/modules/stt-ondevice"
 owns = "sherpa-onnx local transcription (fallback engine), model lifecycle, checksum verify."
 does_not_own = "Server transcription (stt-server); model catalog (shared/model-registry)."
 depends_on = ["android", "android_core", "shared_model_registry"]
-public = "SttEngine (local path)"
+public = "SttEngine (local path), SherpaOnnxWordStreamFactory (word stream), FedWordStream (fed word stream)"
 card = "android/modules/stt-ondevice/AGENTS.md"
 
 [module.android_stt_server]

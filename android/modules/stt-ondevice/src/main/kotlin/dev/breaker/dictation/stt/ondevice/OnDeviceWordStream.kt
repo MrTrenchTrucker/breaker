@@ -96,7 +96,7 @@ internal class OnDeviceWordStream(
     private val onStopWaiting: () -> Unit = {},
     private val onUncaught: CoroutineExceptionHandler? = null,
     private val beforeStartClaim: () -> Unit = {},
-) : WordStream {
+) : FedWordStream {
 
     private val capacity: Int = queueCapacity
 
@@ -278,7 +278,7 @@ internal class OnDeviceWordStream(
     }
 
     /** Offers a copy of [samples] (16 kHz mono) to the worker. Never blocks; a full queue drops the chunk and counts it. */
-    fun feed(samples: FloatArray) {
+    override fun feed(samples: FloatArray) {
         if (samples.isEmpty()) return
         val run = current.get() ?: return
         val sent = run.channel.trySend(samples.copyOf())

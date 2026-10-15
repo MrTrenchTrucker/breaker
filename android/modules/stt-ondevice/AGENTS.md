@@ -19,7 +19,7 @@ sherpa-onnx local transcription (fallback engine), model lifecycle, checksum ver
 
 **In:** 16 kHz mono PCM float32.
 **Out:** `SttResult(text, segments, language)` or a failure result: `SttError.LOCAL_MODEL_MISSING` for model problems, `SttError.OTHER` for audio, engine and store problems. The engine class is `OnDeviceSttEngine`; user sentences come from `ErrorMapping`. A decode that does not finish before its deadline is an `OTHER` failure too (see Engine notes).
-The one public class for the native engine is `SherpaOnnxRecognizerFactory`, a `SherpaRecognizerFactory`.
+The public classes for the native engine are `SherpaOnnxRecognizerFactory`, a `SherpaRecognizerFactory`, and `SherpaOnnxWordStreamFactory`, which creates a `FedWordStream`. `FedWordStream` is a public interface: a core `WordStream` that also takes audio through `feed(samples: FloatArray)`.
 The app passes `SherpaOnnxRecognizerFactory()` (optionally with a thread count) as the `factory`
 argument of `ModelLoader`; the default there is still `UnavailableRecognizerFactory`, which refuses.
 
@@ -64,7 +64,7 @@ argument of `ModelLoader`; the default there is still `UnavailableRecognizerFact
   not be deleted instead of saying it was deleted.
 
 **Native adapter side:**
-- `SherpaOnnxRecognizerFactory` is the one public class here. `create(model)` refuses a model id
+- `SherpaOnnxRecognizerFactory` is a public class here. `create(model)` refuses a model id
   with no streaming profile (`StreamingProfiles`: `small` and `tiny`, both English), asks
   `TransducerFileLocator` for the four files, and only then opens the engine, so a refusal leaves
   nothing to release. Every refusal and every failure to open is a `SherpaTranscriptionException`
@@ -73,6 +73,7 @@ argument of `ModelLoader`; the default there is still `UnavailableRecognizerFact
   open and at decode, so the loader and the engine see an engine failure and not an `Error`. Any
   other `Error` passes through the adapter (the engine has its own arms for out of memory and stack
   overflow). The thread count is a constructor argument, at least 1, default 2.
+- `SherpaOnnxWordStreamFactory` is the public factory for the word stream: `create()` returns a `FedWordStream`. Its public constructor takes the thread count (at least 1, default 2, the same default as the recognizer factory); an internal constructor takes the native opener, so a test can use a fake one. `create(model: SherpaModel)` refuses a model with no streaming profile, and a model whose files are missing or empty, by throwing `SherpaTranscriptionException` with the same two fixed messages as the recognizer factory; neither message carries a path, a file name or a model id. `create()` opens nothing and loads no native code: the native engine is opened by the stream's `start()`, on the stream's own slot. The module adds no thread for it; the stream runs on the single slot over the IO pool, as the `OnDeviceWordStream` bullet below says.
 - `TransducerFileLocator` picks the files by which names are present, not from a fixed list: the
   encoder prefers the int8 file, the decoder and the joiner prefer the plain file, and each falls
   back to the other kind. A name belongs to a role when it starts with the role word followed by a
@@ -96,12 +97,13 @@ argument of `ModelLoader`; the default there is still `UnavailableRecognizerFact
   It never loads a native library itself; the library's own classes do that on first use.
 - `RefusalMapping.kt` holds `mapRefusal` (a loader refusal to a failure result). It was moved out of
   `OnDeviceSttEngine.kt` with its text unchanged except for visibility (`internal`).
-- `OnDeviceWordStream` (internal) implements the core `WordStream` port over the same native seam. It
+- `OnDeviceWordStream` (internal) implements `FedWordStream` (the core `WordStream` port plus `feed`) over the same native seam. It
   runs on its own single slot (`singleSlot(Dispatchers.IO)`, not the batch decode slot): native calls and
   updates run one at a time, in order, and may run on different IO threads. `start` opens the recognizer
   and one stream there, `feed` takes 16 kHz mono float samples (a copy, never blocking) and `stop` ends the
-  run. Each update carries the whole hypothesis of words with capture-relative start times. It is internal
-  here: a later change in the app adds the public bridge.
+  run. Each update carries the whole hypothesis of words with capture-relative start times. It stays internal:
+  `SherpaOnnxWordStreamFactory` is the public way to build it, and the app is to build its stream through that factory.
+- `FedWordStream.feed` (implemented by `OnDeviceWordStream`) takes 16 kHz mono float samples. It copies them and never blocks: the copy is offered to the run's queue without waiting. It may be called from any thread. Audio fed before the first `start()` call, or after `stop()`, or after the run ended by itself or by a failure, is ignored: it is not queued and not counted. Audio fed once `start()` has claimed the stream is queued for the worker. A chunk fed at the same moment as `stop()` may be queued, and is then discarded without reaching the engine. An empty array is ignored. A full queue drops the chunk and counts it (`droppedChunks` and `droppedSamples` in `OnDeviceWordStream`, reset at each `start()`).
 
 **Download side:**
 - `HttpModelFetcher` is the real `ModelFetcher`. It is built on the platform's `HttpURLConnection`,
@@ -249,7 +251,7 @@ it.
 - Stop from another thread, never from the stream's own slot, waits, with no bound, for the update already running and for the worker to reach the tail flush; then the tail flush (tail padding zeros, input end, bounded drain) is bounded by the flush deadline. A stop while the native open is still running returns at once and abandons the run: the worker releases the recogniser when the open returns and delivers nothing. Chunks still queued at stop are discarded and never reach the recognizer; no update is delivered after stop returns. NOT HANDLED yet: if the thread that calls stop is interrupted while it waits, stop returns early and the running update or tail flush may still finish after it returned. Tested by: `OnDeviceWordStreamStopTest`, `OnDeviceWordStreamDeadlineTest`
 - Stop from inside an update returns at once: no tail flush, no final, and that update is the last one this run delivers; a stop from inside an update acts on the run that made it. Tested by: `OnDeviceWordStreamStopTest`, `OnDeviceWordStreamRaceTest`
 - The tail flush has a deadline (`flushDeadline`, default 2 seconds because stop() may block the main thread (Android's not-responding limit is 5 s for input), NOT MEASURED on a device (the device check measures the real tail decode time)). Past it no final is delivered, `flushTimeouts` counts it and stop returns; the deadline does not bound the wait for a running update, and a native open is not waited for at all (see the abandoned-open rule above). Tested by: `OnDeviceWordStreamStopTest`, `OnDeviceWordStreamDeadlineTest`
-- Feed never blocks: a chunk that does not fit the queue is dropped and counted, and the call returns at once; feed before start and after stop is ignored and not counted. Tested by: `OnDeviceWordStreamTest`, `OnDeviceWordStreamStopTest`
+- Feed never blocks: a chunk that does not fit the queue is dropped and counted, and the call returns at once; feed before start and after stop is ignored and not counted. Tested by: `OnDeviceWordStreamTest`, `OnDeviceWordStreamStopTest`, `FedWordStreamFeedTest`
 - A word starts at the piece that opens it, at that piece's time in 16 kHz samples divided by 16 with the fraction dropped (0.12 s gives 120 ms); the origin is the first sample fed after start, or the first sample accepted when the queue overflowed (see the overflow gotcha). Tested by: `WordMergeTest`, `OnDeviceWordStreamTest`
 - The word stream never opens or holds the microphone; it only hears the audio
   the capture gives it. When the microphone yields to another app it gets no
@@ -288,10 +290,12 @@ it.
   over `FakeNative.kt`, a scripted native engine), `SherpaOnnxRecognizerFactoryTest`,
   `TransducerFileLocatorTest`, `StreamingProfilesConsistencyTest` (the streaming ids equal the unpack
   ids, and the locator picks the files the unpack writes), `SherpaOnnxRecognizerWiringTest` (a real
-  loader and engine over the real factory, with a fake opener) and `SherpaOnnxRealBindingTest` (the
-  public factory on a plain JVM: a failure result, not an exception). The preload change has
+  loader and engine over the real recognizer factory, with a fake opener) and `SherpaOnnxRealBindingTest` (the
+  public recognizer factory on a plain JVM: a failure result, not an exception). The preload change has
   `OnDeviceSttEnginePreloadBusyTest`, `SlotOrderRecordTest` and the other `OnDeviceSttEngine*Test` classes (no native engine), and the four-names check has `LocalModelStoreFourNamesTest`
   and `ModelLoaderFourNamesTest`. None of them runs the native engine or a real model.
+- `SherpaOnnxWordStreamFactoryTest` tests the word-stream factory with a fake opener and no native library. It feeds the stream it gets from the factory through the `FedWordStream` type that `create()` returns. It proves that a model with no streaming profile, and a model directory with missing or empty files, each fail with `SherpaTranscriptionException` and the fixed text; that the fixed text carries no path, file name or model id; that `create()` makes no call to the opener; that a thread count below 1 is refused; that a started stream opens the engine exactly once, with the four files the locator picked and the given thread count, and delivers its final words with start times in milliseconds; and that two `create()` calls give two separate streams, where starting one leaves the other stopped.
+- `FedWordStreamFeedTest` (a new test file of this change) tests `feed` through the `FedWordStream` type that the factory returns. It proves: a chunk fed before start is dropped, and the engine takes only the chunk fed after start; a chunk fed after stop has returned is ignored and not counted; a chunk fed to a full queue is dropped and counted with its samples; feed returns at once on a full queue and counts each of five chunks; an empty array is ignored and is not counted even when the queue is full.
 - The archive-name tests are `ModelIntegrityArchiveNameTest`, `ModelLoaderArchiveNameTest`, `ModelInstallerArchiveNameTest` and `ModelRegistryArchiveNamesTest`.
 - The download no-space tests are `HttpModelFetcherNoSpaceTest`, `ModelInstallerNoSpaceTest` and `ModelNoSpaceSymbolsTest`. They use a scripted opener, no network and no real archive.
 - Contract: `tests/contract/test_stt_ondevice_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_stt_ondevice_contract.py`
@@ -392,8 +396,8 @@ agents, not required: an outside contributor may write the code themselves
   version); which build the project ships is decided outside this module. At run time the module's
   network use is unchanged: it still reaches the network only to download a pinned model.
 - What the build has shown: the adapter and the build route compile, the release file resolves and
-  its SHA-256 is checked by the build, and the module tests pass (684 of 684) on a single core and
-  in parallel. Not verified: the minimum SDK of the release file. None of this says the library
+  its SHA-256 is checked by the build, and the module tests passed (684 of 684) on a single core and
+  in parallel when that was last measured; the count with the word-stream factory tests has not been measured here. Not verified: the minimum SDK of the release file. None of this says the library
   loads or runs on a device (see the items below).
 - `numThreads` defaults to 2 (`SherpaOnnxRecognizerFactory.DEFAULT_NUM_THREADS`) and the silence fed
   after the clip is 10,560 samples, 0.66 s (`SherpaOnnxRecognizer.TAIL_PADDING_SAMPLES`). Both are
@@ -495,9 +499,9 @@ agents, not required: an outside contributor may write the code themselves
   native call keeps using CPU and battery until it ends.
 - The limit (30 seconds plus three times the clip length) is a recommended value, not a
   measurement. It has not been tried on a device.
-- Four source files are over the soft line cap of 300 lines and under the hard cap of 500:
-  `OnDeviceSttEngine.kt` at 302 lines, `LocalModelStore.kt` at 307 lines, `ModelInstaller.kt` at 356
-  lines and `OnDeviceWordStream.kt` at 450 lines. None is split further for now.
+- Four source files under `src/main` are over the soft line cap of 300 lines and under the hard cap of 500:
+  `OnDeviceWordStream.kt` at 450 lines, `ModelInstaller.kt` at 356 lines, `LocalModelStore.kt` at 307 lines
+  and `OnDeviceSttEngine.kt` at 302 lines. None is split further for now.
 - The test `test_build_file_adds_exactly_one_external_dependency` (in the unpack pins) is false by
   its own name, because the build file now adds two coordinates. It is to be renamed in a later
   change.
