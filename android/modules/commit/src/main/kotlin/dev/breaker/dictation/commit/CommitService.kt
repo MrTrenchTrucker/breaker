@@ -70,6 +70,7 @@ class CommitService internal constructor(
                         FieldCommit.ACCEPTED ->
                             return Attempt(CommitOutcomeResult(CommitOutcome.COMMITTED), interrupted)
                         FieldCommit.REFUSED -> refused = true
+                        FieldCommit.NO_FIELD -> Unit
                     }
                 }
             } catch (e: Exception) {

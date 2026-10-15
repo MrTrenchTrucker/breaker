@@ -35,7 +35,7 @@ internal class NodeFocusedField(
     /** Look the field up, insert into it, and give the node back on every way out. */
     private fun findAndInsert(text: String): FieldCommit {
         if (text.isEmpty()) return FieldCommit.REFUSED
-        val node: FieldNode = finder.findInputFocus() ?: return FieldCommit.REFUSED
+        val node: FieldNode = finder.findInputFocus() ?: return FieldCommit.NO_FIELD
         try {
             return insertInto(node, text)
         } finally {

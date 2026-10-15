@@ -5,14 +5,15 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * Every way [NodeFocusedField] turns a text away before the insert rules run (no text, no
- * focused field, a node that is no longer valid, this app's own field, a password field, a
- * field that is not editable or not enabled), with the counters of the node double: the
- * check that refuses must be the last member touched, and nothing after it may be read or
- * written. In particular the field's text is never read for a field that is turned away.
- * The refusals by the insert rules and by the setText and setSelection calls are in
- * `NodeFocusedFieldSetTextRefusalTest`. The expected counts and call lists are worked out
- * by hand from the order of the checks.
+ * Every way [NodeFocusedField] turns a text away before the insert rules run (no text, a
+ * node that is no longer valid, this app's own field, a password field, a field that is
+ * not editable or not enabled), with the counters of the node double: the check that
+ * refuses must be the last member touched, and nothing after it may be read or written.
+ * In particular the field's text is never read for a field that is turned away.
+ * A field with no input focus is not a refusal: it answers NO_FIELD, the text goes on to
+ * the clipboard, and there is no node to give back. The refusals by the insert rules and
+ * by the setText and setSelection calls are in `NodeFocusedFieldSetTextRefusalTest`. The
+ * expected counts and call lists are worked out by hand from the order of the checks.
  */
 internal class NodeFocusedFieldRefusalTest {
 
@@ -97,13 +98,13 @@ internal class NodeFocusedFieldRefusalTest {
     }
 
     @Test
-    fun `no focused field is a refusal and there is nothing to release`() {
+    fun `no focused field is NO_FIELD and there is nothing to release`() {
         val rig = Rig()
         rig.finder.node = null
 
         val result: FieldCommit = rig.field.commitText("X")
 
-        assertEquals("commit/accessibility: no focused field must be refused", FieldCommit.REFUSED, result)
+        assertEquals("commit/accessibility: no focused field must be NO_FIELD", FieldCommit.NO_FIELD, result)
         assertEquals("commit/accessibility: the finder must be asked once", 1, rig.finder.findCalls)
         assertEquals("commit/accessibility: no node came back, so none may be touched", counts(), rig.node.counts())
         assertEquals(
