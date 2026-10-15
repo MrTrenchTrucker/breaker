@@ -9,6 +9,7 @@ import dev.breaker.dictation.core.model.DictationState
 import dev.breaker.dictation.service.ModelNotifications
 import dev.breaker.dictation.service.DictationNotification
 import dev.breaker.dictation.service.NotificationRoute
+import dev.breaker.dictation.wiring.DisplayWatch
 import dev.breaker.dictation.wiring.ForwardingDownloadNotice
 import dev.breaker.dictation.wiring.LevelFeed
 import dev.breaker.dictation.wiring.ModelDownloadNotice
@@ -37,6 +38,8 @@ import dev.breaker.dictation.wiring.modelInstallPortFor
  * The shake gesture is started when the service goes on and stopped when it goes off,
  * both on the main looper and in the order the changes happened; its trigger reaches the coordinator
  * through the same post as a tap on the tile. A shake only shows the tile.
+ * The display-change listener is started when the service goes on and stopped when it goes off, on the main
+ * looper beside the shake gesture, and tells the tile once per real change of the default display.
  * [onLauncherVisible] shows the tile again when the
  * launcher comes to the front while the switch is on, because the permission to draw over other
  * apps may have been given since the tile could not be shown; showing a tile that is shown is safe.
@@ -69,6 +72,8 @@ internal class TileHost(
     )
 
     private val noticePort = NoticeClearingTilePort(tile, main, onDismissed = { setNotificationLine(null) })
+
+    private val displayWatch: DisplayWatch = DisplayWatch(DisplayChangeAndroid(context, main)) { tile.onDisplayChanged() }
 
     private val coordinator: TileCoordinator by lazy {
         TileCoordinator(
@@ -123,6 +128,7 @@ internal class TileHost(
     /** Shows the tile when the service goes on and hides it when the service goes off. Any thread. */
     fun onArmedChanged(armed: Boolean) {
         main.post { if (armed) gesture.start { toCoordinator { it.onShake() } } else gesture.stop() }
+        main.post { if (armed) displayWatch.start() else displayWatch.stop() }
         toCoordinator { it.onArmedChanged(armed) }
     }
 

@@ -1,5 +1,6 @@
 package dev.breaker.dictation.host
 
+import android.hardware.display.DisplayManager
 import android.os.Handler
 import android.os.Looper
 import dev.breaker.dictation.wiring.Background
@@ -33,6 +34,11 @@ internal class MainLooperPost : MainPost, DelayedPost {
                 handler.removeCallbacks(task)
             }
         }
+    }
+
+    /** Registers [listener] with [manager] so that its callbacks run on the main looper. */
+    fun registerOnMain(manager: DisplayManager, listener: DisplayManager.DisplayListener) {
+        manager.registerDisplayListener(listener, handler)
     }
 }
 
