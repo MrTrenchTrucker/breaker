@@ -21,6 +21,8 @@ Three screens are built.
 
 Below the steps is the on/off switch for Breaker. Only the microphone gates it. A missing overlay or accessibility step shows a warning next to the switch and does not block it. A "Check again" button draws the screen afresh. The screen also draws itself again whenever its window gets focus back, so a permission given on a system page shows when the user returns.
 
+**Controls kit.** The shared look for the new screens, internal to this module and not used by any screen yet: the main button (a raised face with a lit top line and a darker lip; pushed down with no lip while pressed; flat and muted while disabled), the neutral Cancel button, the red Delete button, the full-width button, the switch, the Ready, Phone only and Failed badges, the text field (a drawn look only: it takes no typing) and the slanted step marks. Every colour comes from the theme. The geometry and the colours are plain Kotlin with JVM tests (`ui/controls/`); the views in `ui/render/controls/` only draw what that code returns.
+
 ## Public declarations
 
 The module offers exactly five, all in three files:
@@ -46,7 +48,9 @@ The walk-through writes one thing: whether the microphone prompt was asked, into
 
 ## What is not unit-tested
 
-How the views are measured, laid out and painted, and how taps are routed inside the host views, are not unit-tested. The same holds for `AndroidSetupPlatform` (reads the permission state and opens the settings pages), `SetupHostView` (the scrolling container for the setup screen) and `createOnboardingView`. They are pinned by text scans in the test tree and by the device checklist in the card. Nothing in this module has run on a device.
+How the views are measured, laid out and painted, and how taps are routed inside the host views, are not unit-tested. The same holds for `AndroidSetupPlatform` (reads the permission state and opens the settings pages), `SetupHostView` (the scrolling container for the setup screen) and `createOnboardingView`. They are pinned by text scans in the test tree and by the device checklist in the card. The setup walk-through has run on a phone in the test builds; the device checklist in AGENTS.md lists what is still unchecked.
+
+The controls kit's views (`ui/render/controls/`) are not unit-tested either: how they measure, press and paint is pinned by text scans in the test tree and by the device checklist.
 
 The history screen has unit tests: `HistoryIntentHandlerTest` and `HistoryScreenTest` drive the handler and the drawn tree with a fake store, clipboard and scheduler, so the 5-second Undo is checked by firing its window by hand, not by real time. `HistoryRenderCheckTest` reads the source text for the hand-off of pending deletes on detach, the clipboard's sensitive mark and the scheduling adapter (`ViewDelayedWork`); it does not run them. No test runs the real timer, the real clipboard or a real rotation; those are on the device checklist in AGENTS.md.
 

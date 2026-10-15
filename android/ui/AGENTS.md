@@ -10,7 +10,7 @@ screen.
 **Build phase:** Phase 1 (the app shell's first screens). Each screen arrives with its feature's phase, and the Trucking theme with Phase 22. Needs first: `core` and `shared/ui-tokens` (both on `main`).
 
 ## Owns
-screen components; the setup walk-through (the model step, then one step per permission, then Breaker's on/off switch) and the thin adapters in render/ that read the phone's permission state and open its settings pages; the history screen (the list, copy, delete with a 5-second Undo, load more) and its thin adapters in render/ for the clipboard and the delayed work; every store and clipboard call runs on one process-wide serial dispatcher (screen/history/HistoryDispatcher.kt), and while a read is out the screen shows the last drawn state; consumes `shared/ui-tokens` (Trucking theme).
+screen components; the setup walk-through (the model step, then one step per permission, then Breaker's on/off switch) and the thin adapters in render/ that read the phone's permission state and open its settings pages; the history screen (the list, copy, delete with a 5-second Undo, load more) and its thin adapters in render/ for the clipboard and the delayed work; every store and clipboard call runs on one process-wide serial dispatcher (screen/history/HistoryDispatcher.kt), and while a read is out the screen shows the last drawn state; consumes `shared/ui-tokens` (Trucking theme); the controls kit, all of it internal - the main, neutral, destructive and full-width buttons, the switch, the three badges, the text field and the four slanted step marks, over their plain-Kotlin geometry, palette and shade factors (`ui/controls/` and `ui/render/controls/`).
 
 ## Public Interface
 Five declarations; everything else in the module is internal or private.
