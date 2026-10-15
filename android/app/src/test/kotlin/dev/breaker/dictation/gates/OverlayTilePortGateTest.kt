@@ -147,4 +147,22 @@ internal class OverlayTilePortGateTest {
         }
         assertTrue("app: the failure must name the lost text, got ${thrown.message}", thrown.message!!.contains("no such text"))
     }
+
+    /** The level member as the port writes it: the same value goes to the tile's setLevel through a safe call. */
+    private val levelForward: Regex = Regex(
+        """override\s+fun\s+level\s*\(\s*level\s*:\s*Float\s*\)\s*\{\s*tile\s*\?\.\s*setLevel\s*\(\s*level\s*\)\s*\}""",
+    )
+
+    @Test
+    fun `the port passes a level to the tile setLevel with the same value and keeps the safe call`() {
+        assertTrue("app: $port does not pass level to setLevel with the same value", levelForward.containsMatchIn(codeOf()))
+        val changed: List<String> = listOf(
+            codeOf("tile?.setLevel(level)", "tile?.setLevel(0f)"),
+            codeOf("tile?.setLevel(level)", "tile!!.setLevel(level)"),
+            codeOf("tile?.setLevel(level)", ""),
+        )
+        for (code in changed) {
+            assertFalse("app: $port must not change the level or force the tile on the way to setLevel", levelForward.containsMatchIn(code))
+        }
+    }
 }

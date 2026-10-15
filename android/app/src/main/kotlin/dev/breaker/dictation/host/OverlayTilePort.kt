@@ -67,6 +67,10 @@ internal class OverlayTilePort(
         tile?.setState(state)
     }
 
+    override fun level(level: Float) {
+        tile?.setLevel(level)
+    }
+
     override fun showNotice(text: String) {
         tile?.showNotice(text)
     }

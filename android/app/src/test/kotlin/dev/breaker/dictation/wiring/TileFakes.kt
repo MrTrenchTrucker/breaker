@@ -72,6 +72,7 @@ internal class RecordingTile : TilePort {
     val calls: MutableList<String> = ArrayList()
     val states: MutableList<TileState> = ArrayList()
     val notices: MutableList<String> = ArrayList()
+    val levels: MutableList<Float> = ArrayList()
     var showResult: TileShow = TileShow.SHOWN
     var throwing: Boolean = false
     /** When set, only [show] throws; the other calls stay calm. */
@@ -96,6 +97,11 @@ internal class RecordingTile : TilePort {
     override fun setState(state: TileState) {
         calls.add("state:$state")
         states.add(state)
+        gate()
+    }
+
+    override fun level(level: Float) {
+        levels.add(level)
         gate()
     }
 

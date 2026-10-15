@@ -51,6 +51,8 @@ class DictationComponent(
     private val controller: DictationServiceController,
     private val onTakeEnded: () -> Unit = {},
     private val onMicTaken: () -> Unit = {},
+    /** Takes the level of each microphone frame; the frames themselves go on unchanged. */
+    private val levelSink: LevelSink = LevelSink {},
 ) : AutoCloseable {
 
     private val runnerHolder = AtomicReference<DictationRunner?>(null)
@@ -78,19 +80,22 @@ class DictationComponent(
         val built = DictationRunner(
             dictate,
             SendUseCase(committer, history),
-            MicCapture(
-                reporting,
-                onTakeEnded = { failure ->
-                    when {
-                        failure == null -> {}  // a user stop or a stop without a failure is not a take end
-                        (failure as? MicSourceException)?.reason == MicSourceException.Reason.MICROPHONE_TAKEN ->
-                            onMicTaken()
-                        else -> {  // a device failure, a null-reason failure, any other throwable
-                            runnerHolder.get()?.onCaptureEnded()
-                            onTakeEnded()
+            LevelTap(
+                MicCapture(
+                    reporting,
+                    onTakeEnded = { failure ->
+                        when {
+                            failure == null -> {}  // a user stop or a stop without a failure is not a take end
+                            (failure as? MicSourceException)?.reason == MicSourceException.Reason.MICROPHONE_TAKEN ->
+                                onMicTaken()
+                            else -> {  // a device failure, a null-reason failure, any other throwable
+                                runnerHolder.get()?.onCaptureEnded()
+                                onTakeEnded()
+                            }
                         }
-                    }
-                },
+                    },
+                ),
+                levelSink,
             ),
             controller,
             reporting,
