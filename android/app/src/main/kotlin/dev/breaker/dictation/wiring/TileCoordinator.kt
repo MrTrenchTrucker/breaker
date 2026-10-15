@@ -99,6 +99,10 @@ class TileCoordinator(
         }
     }
 
+    /** A shake shows the tile when it is off screen or closed, and never begins a take. Main thread only. */
+    fun onShake() = tileShowGuard.onShake(armed && !beginPending && !sendPushed && !yield.yieldRunning() && pushed != TileState.RECORDING, tileShown) { shown ->
+        tileShown = (shown == TileShow.SHOWN); if (shown == TileShow.SHOWN) push() }
+
     /** The user cancelled the take: drop it and show the armed tile. */
     fun onCancel() {
         if (!armed || yield.yieldRunning()) return
@@ -126,11 +130,7 @@ class TileCoordinator(
 
     /** The tile was tapped while it is off or failed: clear the failure and open the launcher. */
     fun onTap() {
-        if (armed && pushed == TileState.MIC_BUSY) {
-            onBegin()
-            return
-        }
-        if (armed && pushed == TileState.SENT) {
+        if (armed && (pushed == TileState.MIC_BUSY || pushed == TileState.SENT)) {
             onBegin()
             return
         }
