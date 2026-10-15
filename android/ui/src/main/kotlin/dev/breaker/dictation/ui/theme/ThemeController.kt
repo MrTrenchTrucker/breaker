@@ -88,6 +88,9 @@ internal class ThemeController(
     /** Stores "follow the phone". */
     fun useSystem(): ThemeOutcome = write(StoredThemeMode.SYSTEM)
 
+    /** Stores [mode] exactly as it is given, which may be "follow the phone", light or dark. */
+    fun set(mode: StoredThemeMode): ThemeOutcome = write(mode)
+
     /** Calls [observer] with the new state after each saved change; not at once. Adding the same instance twice has no effect. */
     fun addObserver(observer: (ThemeState) -> Unit) {
         if (observer !in observers) observers.add(observer)

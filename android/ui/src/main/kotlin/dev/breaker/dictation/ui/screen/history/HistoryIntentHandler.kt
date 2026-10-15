@@ -39,6 +39,7 @@ internal class HistoryIntentHandler(
     private var shown: Int = PAGE_SIZE
     private var notice: HistoryNotice? = null
     private val pending = LinkedHashMap<String, Cancellation>()
+    private val opened = LinkedHashSet<String>()
 
     /**
      * Draws the screen again when a window ends on its own, after its row has been
@@ -66,6 +67,7 @@ internal class HistoryIntentHandler(
         ScreenIntent.UseSystemTheme,
         is ScreenIntent.SetRoutingMode,
         is ScreenIntent.SetSetting,
+        is ScreenIntent.SetThemeMode,
         is ScreenIntent.Setup,
         -> draw()
     }
@@ -88,6 +90,8 @@ internal class HistoryIntentHandler(
         HistoryActions.DELETE -> delete(intent.id)
         HistoryActions.UNDO -> undo(intent.id)
         HistoryActions.MORE -> more()
+        HistoryActions.SHOW_ALL -> show(intent.id, open = true)
+        HistoryActions.HIDE -> show(intent.id, open = false)
         else -> draw()
     }
 
@@ -112,6 +116,14 @@ internal class HistoryIntentHandler(
 
     private fun more(): Screen {
         if (shown < ROW_CAP) reload(minOf(shown + PAGE_SIZE, ROW_CAP))
+        return draw()
+    }
+
+    /** Opens or closes the row [id] in full. A row not held changes nothing. Draws the screen either way. */
+    private fun show(id: String, open: Boolean): Screen {
+        if (held.any { it.id == id }) {
+            if (open) opened.add(id) else opened.remove(id)
+        }
         return draw()
     }
 
@@ -163,6 +175,7 @@ internal class HistoryIntentHandler(
             shown = shown,
             fullPage = fullPage,
             listFailed = listFailed,
+            opened = opened.toSet(),
         )
         val drawn = notice
         notice = null

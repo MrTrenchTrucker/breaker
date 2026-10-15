@@ -6,6 +6,9 @@ import dev.breaker.dictation.core.model.ThemeMode as StoredThemeMode
 import dev.breaker.dictation.ui.screen.Action
 import dev.breaker.dictation.ui.screen.Label
 import dev.breaker.dictation.ui.screen.Node
+import dev.breaker.dictation.ui.screen.SegmentCell
+import dev.breaker.dictation.ui.screen.SegmentedRow
+import dev.breaker.dictation.ui.screen.SwitchRow
 import dev.breaker.dictation.ui.screen.ScreenIntent
 import dev.breaker.dictation.ui.screen.flatten
 import dev.breaker.dictation.ui.testing.FakeSettingsStore
@@ -54,6 +57,15 @@ class SettingsIntentHandlerTest {
 
     /** Every id in the tree, so a missing row is visible as a missing id. */
     private fun Rendered.ids(): List<String> = screen.nodes.flatMap { it.flatten() }.map(Node::id)
+
+    /** The segment cell with this id in any segmented row of the tree, or null when there is none. */
+    private fun Rendered.cell(id: String): SegmentCell? =
+        screen.nodes.flatMap { it.flatten() }.filterIsInstance<SegmentedRow>()
+            .flatMap { it.cells }.firstOrNull { it.id == id }
+
+    /** The state of the switch row with this id, or null when the tree has no such row. */
+    private fun Rendered.switchOn(id: String): Boolean? =
+        screen.nodes.flatMap { it.flatten() }.filterIsInstance<SwitchRow>().firstOrNull { it.id == id }?.on
 
     private class Row(
         val intent: ScreenIntent,
@@ -146,19 +158,21 @@ class SettingsIntentHandlerTest {
     fun `the screen and the scheme are built from the state after the write not before it`() {
         val fixture = Fixture(darkLight)
         val before = fixture.handler.current()
-        assertEquals("Scheme: dark, chosen here", before.textOf("settings.theme"))
+        assertEquals(true, before.cell("settings.theme.dark")?.selected)
         val after = fixture.handler.handle(ScreenIntent.ToggleTheme)
-        assertEquals("Scheme: light, chosen here", after.textOf("settings.theme"))
+        assertEquals(true, after.cell("settings.theme.light")?.selected)
+        assertEquals(false, after.cell("settings.theme.dark")?.selected)
         assertEquals(ShownThemeMode.LIGHT, after.theme.mode)
         assertEquals(Themes.of(ShownThemeMode.LIGHT).palette.bg, after.theme.color(PaletteSlot.BACKGROUND))
-        assertEquals("Preload model: off", after.textOf("settings.preloadModel"))
+        assertEquals(false, after.switchOn("settings.preloadModel"))
     }
 
     @Test
     fun `a settings change is on the screen that is handed back`() {
         val fixture = Fixture(darkLight)
         val after = fixture.handler.handle(ScreenIntent.SetRoutingMode("LOCAL"))
-        assertEquals("Mode: On this phone", after.textOf("settings.routing"))
+        assertEquals(true, after.cell("settings.routing.LOCAL")?.selected)
+        assertEquals(false, after.cell("settings.routing.SERVER")?.selected)
         assertEquals(SttMode.LOCAL, fixture.store.current.mode)
     }
 
@@ -182,15 +196,15 @@ class SettingsIntentHandlerTest {
         val result = handler.current()
         assertEquals(Notice.COULD_NOT_READ, noticeIn(result))
         assertEquals(0, store.saveAttempts)
-        assertFalse("no value row may be drawn from settings that were not read", result.ids().contains("settings.modelSize"))
-        assertFalse(result.ids().contains("settings.serverUrl"))
+        assertFalse("no value row may be drawn from settings that were not read", result.ids().contains("settings.model.value"))
+        assertFalse(result.ids().contains("settings.server.field"))
         assertTrue("the theme rows do not need the settings", result.ids().contains("settings.theme"))
-        assertNotNull(result.textOf("settings.theme"))
+        assertNotNull(result.textOf("settings.theme.heading"))
         store.failLoad = false
         val after = handler.handle(ScreenIntent.SetSetting("preloadModel", "true"))
         assertNull("the message must go once an action succeeds", noticeIn(after))
         assertEquals(NONDEFAULT.copy(preloadModel = true), store.current)
-        assertEquals("Preload model: on", after.textOf("settings.preloadModel"))
+        assertEquals(true, after.switchOn("settings.preloadModel"))
     }
 
     @Test

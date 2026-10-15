@@ -132,6 +132,7 @@ internal class SetupIntentHandler(
             ScreenIntent.UseSystemTheme,
             is ScreenIntent.SetRoutingMode,
             is ScreenIntent.SetSetting,
+            is ScreenIntent.SetThemeMode,
             is ScreenIntent.History,
             -> SetupNotice.NOT_ACCEPTED
         }

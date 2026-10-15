@@ -2,11 +2,16 @@ package dev.breaker.dictation.ui.screen.onboarding
 
 import dev.breaker.dictation.ui.screen.Action
 import dev.breaker.dictation.ui.screen.Box
+import dev.breaker.dictation.ui.screen.CollapsibleText
 import dev.breaker.dictation.ui.screen.Label
 import dev.breaker.dictation.ui.screen.Node
 import dev.breaker.dictation.ui.screen.Screen
 import dev.breaker.dictation.ui.screen.ScreenIntent
+import dev.breaker.dictation.ui.screen.SegmentedRow
+import dev.breaker.dictation.ui.screen.SwitchRow
+import dev.breaker.dictation.ui.screen.TagPill
 import dev.breaker.dictation.ui.screen.TrimStripe
+import dev.breaker.dictation.ui.screen.ValueField
 import dev.breaker.dictation.ui.screen.flatten
 import dev.breaker.dictation.ui.theme.PaletteSlot
 import org.junit.Assert.assertEquals
@@ -402,6 +407,8 @@ class SetupScreenTest {
                     }
                     is Box -> assertTrue("slot ${n.background} on box ${n.id}", n.background in allowed)
                     is Action, is TrimStripe -> Unit
+                    is TagPill, is CollapsibleText, is SegmentedRow, is SwitchRow, is ValueField ->
+                        throw AssertionError("the set-up screen draws no ${n.id}")
                 }
             }
         }
@@ -432,6 +439,8 @@ class SetupScreenTest {
                     is Label -> n.text
                     is Action -> n.text
                     is Box, is TrimStripe -> continue
+                    is TagPill, is CollapsibleText, is SegmentedRow, is SwitchRow, is ValueField ->
+                        throw AssertionError("the set-up screen draws no ${n.id}")
                 }
                 assertTrue("'$text' on ${n.id} is not a constant of the texts object", isSettledText(text, constants))
             }
