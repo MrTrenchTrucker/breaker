@@ -48,6 +48,7 @@ internal class Theme(
         PaletteSlot.STATE_SENT -> palette.sent
         PaletteSlot.STATE_WARNING -> palette.warning
         PaletteSlot.STATE_DANGER -> palette.danger
+        PaletteSlot.ON -> palette.bg
     }
 
     /** Every slot with its colour in this mode. */
@@ -76,6 +77,11 @@ internal enum class PaletteSlot {
     STATE_SENT,
     STATE_WARNING,
     STATE_DANGER,
+    /**
+     * The page background colour, used for labels on primary: it exposes the palette's
+     * background value (light #FFFFFF, dark #0E1113).
+     */
+    ON,
 }
 
 /** Builds the theme for a mode. */
