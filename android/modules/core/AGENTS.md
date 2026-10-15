@@ -163,7 +163,7 @@ thread's interrupt flag, which is what the re-arm restores:
   An `Error` is not an adapter failure and still propagates.
 - A move (`transitionTo`, `arm`, `cancel`, ...) never carries an error or a
   transcription into a state that cannot use it.
-- A committed dictation, an empty one and a failed one are all saved to history.
+- A committed dictation, an empty one and a failed one are all saved to history; the app never sends or saves an empty take; the core saves what it is given.
 - No core type prints dictated text. The values that hold it (`Transcription`,
   `CommitRequest`, `SttSegment`, `SttResult.Success`, `DictationSession`,
   `DictationResult.Success`, `SendResult`) print ids, states and lengths, and

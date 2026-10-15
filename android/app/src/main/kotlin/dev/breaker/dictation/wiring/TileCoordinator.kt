@@ -3,11 +3,7 @@ package dev.breaker.dictation.wiring
 import dev.breaker.dictation.core.model.CommitOutcome
 import dev.breaker.dictation.core.model.DictationState
 import dev.breaker.dictation.core.port.HistoryStore
-import dev.breaker.dictation.core.usecase.SendResult
 import dev.breaker.dictation.overlay.TileState
-
-/** What core answers with for a take that held no audio (a double tap): it is not a failure. */
-private const val EMPTY_TAKE_SENTENCE: String = "No audio was captured"
 
 /**
  * Drives the floating tile from the taps on it and from the switch: it decides what each tap does
@@ -47,22 +43,23 @@ class TileCoordinator(
 
     /** The taken-entry controller (the MIC_BUSY face and its settle). */
     internal val yield = TakeYieldController(
-        background, main, take, history, clipboard, takenNotice,
+        background, main, take, TakeSettle(history, clipboard), takenNotice,
         { push(it) }, { sendPushed = false }, { generation }  // the one place push happens
     )
+
+    /** The device failure entry: the cut is transcribed, saved and copied, with one sentence and no busy face. */
+    internal val deviceFailure: DeviceFailureYield = DeviceFailureYield(
+        background, main, take, TakeSettle(history, clipboard), { generation }
+    ) { fail(it) }
+
+    /** The background side of a finish: the take's finish and its one send. */
+    private val finisher: TakeFinisher = TakeFinisher(take)
 
     /** True while the last show answered SHOWN; a refused or failed show and a switch-off clear it. A begin passes while it holds or while the user-closed flag holds. */
     private var tileShown: Boolean = false
 
     /** Remembers the user closed the tile; cleared on launcher visible (through arm) or switch off/on. */
     internal val tileShowGuard: TileShowGuard = TileShowGuard(tile, modelNotice)
-
-    /** How a take that was told to finish came out. */
-    private sealed class End {
-        object Back : End()
-        class Sent(val outcome: CommitOutcome) : End()
-        class Failure(val sentence: String) : End()
-    }
 
     /** The switch changed: show the tile when it is on, and take it away when it is off. */
     fun onArmedChanged(armed: Boolean) {
@@ -71,7 +68,7 @@ class TileCoordinator(
 
     /** The microphone on an armed tile was tapped: start a take, if the speech model is there. */
     fun onBegin() {
-        if (!armed || (!tileShown && !tileShowGuard.isClosed) || beginPending || yield.yieldRunning() ||
+        if (!armed || (!tileShown && !tileShowGuard.isClosed) || beginPending || yield.yieldRunning() || deviceFailure.running() ||
             (pushed != TileState.ARMED && pushed != TileState.SENT && pushed != TileState.MIC_BUSY)) return
         val wasSent: Boolean = pushed == TileState.SENT
         lastCommit = null
@@ -100,12 +97,12 @@ class TileCoordinator(
     }
 
     /** A shake shows the tile when it is off screen or closed, and never begins a take. Main thread only. */
-    fun onShake() = tileShowGuard.onShake(armed && !beginPending && !sendPushed && !yield.yieldRunning() && pushed != TileState.RECORDING, tileShown) { shown ->
+    fun onShake() = tileShowGuard.onShake(armed && !beginPending && !sendPushed && !yield.yieldRunning() && !deviceFailure.running() && pushed != TileState.RECORDING, tileShown) { shown ->
         tileShown = (shown == TileShow.SHOWN); if (shown == TileShow.SHOWN) push() }
 
     /** The user cancelled the take: drop it and show the armed tile. */
     fun onCancel() {
-        if (!armed || yield.yieldRunning()) return
+        if (!armed || yield.yieldRunning() || deviceFailure.running()) return
         lastFailed = false
         sendPushed = false
         lastCommit = null
@@ -122,7 +119,7 @@ class TileCoordinator(
         push()
         val epoch: Int = generation
         val queued: Boolean = submit {
-            val end: End = finishTake()
+            val end: TakeEnd = finisher.finishTake()
             main.post { if (epoch == generation) settle(end) }
         }
         if (!queued) fail(RunnerSentences.COULD_NOT_FINISH)
@@ -157,6 +154,23 @@ class TileCoordinator(
         yield.onTakeEndedCleared()
     }
 
+    /**
+     * The microphone ended a take by itself with a device failure: transcribe what was captured, save and
+     * copy it, then show one sentence. Main thread only. False when the tile does not take the cut, and the
+     * caller ends the take the plain way.
+     */
+    fun onTakeFailed(): Boolean {
+        if (!armed || sendPushed || deviceFailure.running() || sessionNow() != DictationState.RECORDING) return false
+        sendPushed = true
+        push()
+        if (!deviceFailure.start()) {
+            sendPushed = false
+            push()
+            return false
+        }
+        return true
+    }
+
     private fun arm() {
         tileShowGuard.clear()
         // A tile that was off has no take: the one cancel queued when it went off may not have run yet.
@@ -189,6 +203,7 @@ class TileCoordinator(
         lastCommit = null
         push()
         yield.disarmCleared()
+        deviceFailure.clear()
         submit { guarded { take.cancel() } }
         guarded { tile.hide() }
     }
@@ -203,52 +218,14 @@ class TileCoordinator(
         }
     }
 
-    private fun settle(end: End) {
+    private fun settle(end: TakeEnd) {
         sendPushed = false
         when (end) {
-            is End.Back -> push()
-            is End.Sent -> { lastCommit = end.outcome; push(); guarded { tile.clearNotice() } }
-            is End.Failure -> fail(end.sentence)
+            is TakeEnd.Back -> push()
+            is TakeEnd.NothingHeard -> { push(); guarded { tile.showNotice(RunnerSentences.NOTHING_HEARD) } }
+            is TakeEnd.Sent -> { lastCommit = end.outcome; push(); guarded { tile.clearNotice() } }
+            is TakeEnd.Failure -> fail(end.sentence)
         }
-    }
-
-    /** Runs on the background: finishes the take and, when there is text, sends it once. */
-    private fun finishTake(): End {
-        val finished: FinishResult = try {
-            take.finish()
-        } catch (e: Exception) {
-            return dropTake(RunnerSentences.COULD_NOT_FINISH)
-        }
-        return when (finished) {
-            is FinishResult.Failed ->
-                if (finished.sentence == EMPTY_TAKE_SENTENCE) End.Back else End.Failure(finished.sentence)
-            is FinishResult.ReadyToSend -> sendText(finished)
-        }
-    }
-
-    /** Sends the text once; clipboard-only text counts as sent, so a real committer needs its own sentence. */
-    private fun sendText(ready: FinishResult.ReadyToSend): End {
-        if (ready.transcription.text.isBlank()) {
-            // Nothing was said: there is nothing to commit and nothing worth keeping in history.
-            guarded { take.cancel() }
-            return End.Back
-        }
-        val sent: SendResult? = try {
-            take.send()
-        } catch (e: Exception) {
-            return dropTake(RunnerSentences.COULD_NOT_FINISH)
-        }
-        return when {
-            sent == null -> End.Failure(RunnerSentences.COULD_NOT_FINISH)
-            sent.outcome.isSuccess -> End.Sent(sent.outcome.outcome)
-            else -> End.Failure(sent.outcome.detail?.takeIf { it.isNotBlank() } ?: RunnerSentences.COULD_NOT_FINISH)
-        }
-    }
-
-    /** A take that threw is dropped, so the next begin starts clean. */
-    private fun dropTake(sentence: String): End {
-        guarded { take.cancel() }
-        return End.Failure(sentence)
     }
 
     private fun fail(sentence: String) {

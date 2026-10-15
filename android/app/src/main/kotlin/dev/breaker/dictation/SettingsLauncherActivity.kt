@@ -29,6 +29,7 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
     private var historyShown: Boolean = false
     private var backCallback: android.window.OnBackInvokedCallback? = null
     private var downloadSentence: String? = null
+    private var pendingRefusal: String? = null
     private lateinit var iconLaunch: IconLaunchOnce
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -81,6 +82,7 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
             isIconLaunch(launch?.action, launch?.categories.orEmpty(), launch?.getStringExtra(NotificationRoute.EXTRA_ROUTE)),
             { app.armedSwitch.switchOn() },
             { app.armedSwitch.armAtStart() },
+            { sentence -> pendingRefusal = sentence },
         )
         app.tileHost.onLauncherVisible()
     }
@@ -95,6 +97,10 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         val app = applicationContext as BreakerApp
         app.tileHost.setDownloadListener(this)
         (onboardingView as? ModelStepControl)?.refresh()
+        val held = app.refusalHold.take()
+        val refusal = pendingRefusal ?: held
+        pendingRefusal = null
+        refusal?.let { (onboardingView as? ModelStepControl)?.showSwitchRefused(it) }
     }
 
     override fun onPause() {

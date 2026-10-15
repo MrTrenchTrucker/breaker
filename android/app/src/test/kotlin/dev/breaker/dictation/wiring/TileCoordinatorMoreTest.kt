@@ -22,7 +22,7 @@ class TileCoordinatorMoreTest {
     }
 
     @Test
-    fun `a transcription with only blanks drops the take and leaves the tile armed with no extra calls`() {
+    fun `a transcription with only blanks drops the take, leaves the tile armed and shows the nothing heard notice`() {
         val rig = TileRig()
         rig.take.finishResult = FinishResult.ReadyToSend(tileTranscription("  \n "))
         rig.startRecording()
@@ -30,8 +30,9 @@ class TileCoordinatorMoreTest {
         rig.coordinator.onSend()
         rig.settle()
         assertEquals("app: a blank text must not be sent", 0, rig.take.sendCalls)
-        assertEquals("app: a blank text should go SENDING then ARMED and clear nothing", listOf("state:SENDING", "state:ARMED"), rig.tile.calls)
+        assertEquals("app: a blank text drops the take once", 1, rig.take.cancelCalls)
+        assertEquals("app: a blank text should go SENDING, then ARMED, then show the notice", listOf("state:SENDING", "state:ARMED", "notice"), rig.tile.calls)
         assertEquals("app: a blank text should end on ARMED", TileState.ARMED, rig.tile.states.last())
-        assertEquals("app: a blank text shows no notice", emptyList<String>(), rig.tile.notices)
+        assertEquals("app: a blank text shows the nothing heard notice", listOf(RunnerSentences.NOTHING_HEARD), rig.tile.notices)
     }
 }

@@ -51,7 +51,7 @@ internal class ServiceShapeGateTest {
         val head = body?.let { guardHead.find(it) }
         val caught = if (body != null && head != null) ServiceGateSource.blockAfter(body, head.range.last) else null
         val right = caught != null &&
-            ServiceGateSource.squash(caught) == "controller.serviceEnded() host.stopWithoutForeground() return"
+            ServiceGateSource.squash(caught) == "try { onRefused(ServiceSentences.ARM_REFUSED) } catch (failure: Exception) { } controller.serviceEnded() host.stopWithoutForeground() return"
         if (!right) bad.add("HANDLER_FIRST")
         return bad
     }
@@ -88,11 +88,15 @@ internal class ServiceShapeGateTest {
     private val sampleHandler = lines(
         "package x",
         "import dev.breaker.dictation.audio.Other",
-        "class ServiceStartHandler(private val controller: DictationServiceController, private val host: ServiceHost) {",
+        "class ServiceStartHandler(private val controller: DictationServiceController, private val host: ServiceHost, private val onRefused: (String) -> Unit = {}) {",
         "fun onStart(actionText: String?) {",
         "try {",
         "host.enterForeground()",
         "} catch (e: RuntimeException) {",
+        "try {",
+        "onRefused(ServiceSentences.ARM_REFUSED)",
+        "} catch (failure: Exception) {",
+        "}",
         "controller.serviceEnded()",
         "host.stopWithoutForeground()",
         "return",
@@ -109,7 +113,7 @@ internal class ServiceShapeGateTest {
 
     private val leavePair = "stopForeground(STOP_FOREGROUND_REMOVE)\nstopSelf()"
     private val stopMember = "override fun stopWithoutForeground() {\nstopSelf()\n}"
-    private val guardText = "try {\nhost.enterForeground()\n} catch (e: RuntimeException) {\ncontroller.serviceEnded()\nhost.stopWithoutForeground()\nreturn\n}"
+    private val guardText = "try {\nhost.enterForeground()\n} catch (e: RuntimeException) {\ntry {\nonRefused(ServiceSentences.ARM_REFUSED)\n} catch (failure: Exception) {\n}\ncontroller.serviceEnded()\nhost.stopWithoutForeground()\nreturn\n}"
 
     @Test
     fun `the service start member only passes the action to the handler and returns START_NOT_STICKY`() {
@@ -181,6 +185,8 @@ internal class ServiceShapeGateTest {
             "HANDLER_FIRST (no switch off)" to handlerProblems(edit(sampleHandler, "controller.serviceEnded()\n", "")),
             "HANDLER_FIRST (wrong stop)" to handlerProblems(edit(sampleHandler, "host.stopWithoutForeground()", "host.leaveForegroundAndStop()")),
             "HANDLER_FIRST (no return)" to handlerProblems(edit(sampleHandler, "host.stopWithoutForeground()\nreturn", "host.stopWithoutForeground()")),
+            "HANDLER_FIRST (no sink)" to handlerProblems(edit(sampleHandler, "try {\nonRefused(ServiceSentences.ARM_REFUSED)\n} catch (failure: Exception) {\n}", "onRefused(ServiceSentences.ARM_REFUSED)")),
+            "HANDLER_FIRST (other sentence)" to handlerProblems(edit(sampleHandler, "ServiceSentences.ARM_REFUSED", "ServiceSentences.COLD_START_REFUSED")),
             "HANDLER_FIRST (enter after)" to handlerProblems(edit(edit(sampleHandler, guardText, ""), "else -> Unit", "else -> Unit\n$guardText")),
         )
         for ((label, keys) in found) {

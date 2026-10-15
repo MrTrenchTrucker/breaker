@@ -6,9 +6,12 @@ import dev.breaker.dictation.core.port.HistoryStore
 import dev.breaker.dictation.core.port.SettingsStore
 import dev.breaker.dictation.core.port.TextCommitter
 import dev.breaker.dictation.history.SqliteHistoryStore
+import dev.breaker.dictation.host.RefusalHold
+import dev.breaker.dictation.host.ServiceRefusalNotice
 import dev.breaker.dictation.host.TileHost
 import dev.breaker.dictation.service.AndroidMicPermission
 import dev.breaker.dictation.service.AndroidServiceLauncher
+import dev.breaker.dictation.service.DictationNotification
 import dev.breaker.dictation.service.DictationServiceController
 import dev.breaker.dictation.wiring.ArmedSwitch
 import dev.breaker.dictation.wiring.FileOffStore
@@ -82,6 +85,18 @@ class BreakerApp : android.app.Application() {
     /** The floating tile and the speech model download, built on first use. */
     internal val tileHost: TileHost by lazy {
         TileHost(applicationContext, compositionRoot, armedSwitch::isOn)
+    }
+
+    /** The refusal a refused foreground leaves for the launcher activity to show on its next resume. */
+    internal val refusalHold: RefusalHold = RefusalHold()
+
+    /** What a refused foreground leaves: the held sentence, and a notice when the user permits notifications. */
+    internal val serviceRefusal: ServiceRefusalNotice by lazy {
+        ServiceRefusalNotice(
+            hold = { sentence -> refusalHold.set(sentence) },
+            notificationPermitted = { DictationNotification.notificationsPermitted(this) },
+            postNotice = { sentence -> DictationNotification.postRefusal(this, sentence) },
+        )
     }
 
     /** The app's settings, proxied through the lazily-built composition root. */

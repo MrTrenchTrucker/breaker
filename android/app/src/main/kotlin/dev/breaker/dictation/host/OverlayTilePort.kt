@@ -20,7 +20,7 @@ import dev.breaker.shared.tokens.ThemeMode as TileTheme
  * the coordinator decides what the tile shows next. A dropped position that could not be saved is
  * not reported: the tile stays where it was dropped. A drag of the collapsed tile onto the close
  * target calls [onCloseRequested], which the app answers by hiding the tile and remembering that
- * the user closed it.
+ * the user closed it. A tap on a notice strip calls [onNoticeDismissed].
  *
  * The tile draws in light or dark. A theme of [ThemeMode.SYSTEM] follows the phone's night mode as it
  * is when [show] is called.
@@ -33,6 +33,7 @@ internal class OverlayTilePort(
     private val onCancel: () -> Unit,
     private val onSend: () -> Unit,
     private val onCloseRequested: () -> Unit,
+    private val onNoticeDismissed: () -> Unit,
 ) : TilePort {
 
     private var tile: FloatingTile? = null
@@ -48,6 +49,7 @@ internal class OverlayTilePort(
             onCancel = onCancel,
             onSend = onSend,
             onCloseRequested = onCloseRequested,
+            onNoticeDismissed = onNoticeDismissed,
         )
         tile = made
         made.setTheme(theme)

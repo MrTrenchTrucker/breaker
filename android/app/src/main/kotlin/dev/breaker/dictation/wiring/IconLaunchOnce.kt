@@ -22,15 +22,30 @@ internal class IconLaunchOnce(restoredDone: Boolean) {
     /**
      * Called each time the activity becomes visible. [isIconLaunch] says whether the launcher icon
      * started it, [switchOn] makes the switch-on request and [armAtStart] makes the start-up request.
+     * A refused switch-on is handed to [onRefused] with its sentence; the rule stays open, and a failure
+     * in [onRefused] does not escape this call.
      */
-    fun onStart(isIconLaunch: Boolean, switchOn: () -> SwitchOn, armAtStart: () -> Unit) {
+    fun onStart(
+        isIconLaunch: Boolean,
+        switchOn: () -> SwitchOn,
+        armAtStart: () -> Unit,
+        onRefused: (String) -> Unit = {},
+    ) {
         if (!isIconLaunch || isDone) {
             armAtStart()
             return
         }
-        when (switchOn()) {
+        when (val answer = switchOn()) {
             SwitchOn.On, SwitchOn.AlreadyOn -> isDone = true
-            is SwitchOn.Refused -> Unit
+            is SwitchOn.Refused -> refused(answer.sentence, onRefused)
+        }
+    }
+
+    /** Hands the refusal to [onRefused]. A failure there is skipped so the start goes on. */
+    private fun refused(sentence: String, onRefused: (String) -> Unit) {
+        try {
+            onRefused(sentence)
+        } catch (failure: Exception) {
         }
     }
 }

@@ -38,7 +38,7 @@ class DictationForegroundService : Service() {
 
     // Built on first use: the application is not reachable before the service is attached.
     private val handler: ServiceStartHandler by lazy(LazyThreadSafetyMode.NONE) {
-        ServiceStartHandler(controller, host)
+        ServiceStartHandler(controller, host, { sentence -> (application as BreakerApp).serviceRefusal.refuse(sentence) })
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

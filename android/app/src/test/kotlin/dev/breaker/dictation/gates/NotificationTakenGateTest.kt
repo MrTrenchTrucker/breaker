@@ -34,6 +34,7 @@ internal class NotificationTakenGateTest {
         rx("WITHTEXT_EXISTS", "notification", """\bfun\s+withText\s*\(\s*context\s*:\s*Context\s*,\s*text\s*:\s*String\s*\)\s*:\s*Notification\s*="""),
         rx("ONE_PARAMETERIZED_BUILDER", "notification", """.setContentText\("""),
         rx("BUILD_SIGNATURE_UNCHANGED", "notification", """\bfun\s+build\s*\(\s*context\s*:\s*Context\s*\)\s*:\s*Notification\s*="""),
+        rx("REFUSAL_MAKER", "notification", """\bfun\s+refusal\s*\(\s*context\s*:\s*Context\s*,\s*text\s*:\s*String\s*\)\s*:\s*Notification\s*=\s*builder\s*\(\s*context\s*,\s*armed\s*=\s*false\s*\)\s*\{\s*text\s*\}"""),
     )
 
     private val firing: List<Sample> = listOf(
@@ -51,6 +52,8 @@ internal class NotificationTakenGateTest {
         Sample("ONE_PARAMETERIZED_BUILDER", ".setContentText(textLine())", ".setContentTitle(context.getString(R.string.dictation_notification_title))"),
         Sample("BUILD_SIGNATURE_UNCHANGED", "fun build(context: Context): Notification =", "removedBuild(context: Context): Notification ="),
         Sample("BUILD_SIGNATURE_UNCHANGED", "fun build(context: Context): Notification =", "withText(context, context.getString(R.string.dictation_notification_text))"),
+        Sample("REFUSAL_MAKER", "fun refusal(context: Context, text: String): Notification =", "fun refusal(context: Context, text: String): Any ="),
+        Sample("REFUSAL_MAKER", "builder(context, armed = false) { text }", "builder(context, armed = true) { text }"),
     )
 
     private val quiet: List<Quiet> = listOf(
@@ -61,8 +64,8 @@ internal class NotificationTakenGateTest {
             "fun withText(context: Context, text: String): Notification =",
             "fun withText(context: Context, text: String): Notification = // a doc comment on the builder line"),
         Quiet("notification",
-            "private fun builder(context: Context, textLine: () -> String): Notification {",
-            "/** A shared builder for build and withText. */\n    private fun builder(context: Context, textLine: () -> String): Notification {"),
+            "private fun builder(context: Context, armed: Boolean, textLine: () -> String): Notification {",
+            "/** A shared builder for build and withText. */\n    private fun builder(context: Context, armed: Boolean, textLine: () -> String): Notification {"),
         Quiet("notification",
             "fun build(context: Context): Notification =",
             "fun build(context: Context): Notification = // a doc comment on the signature"),

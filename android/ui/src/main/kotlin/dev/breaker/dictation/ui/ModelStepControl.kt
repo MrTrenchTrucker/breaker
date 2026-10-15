@@ -31,4 +31,14 @@ interface ModelStepControl {
      * step has no button because the model is already ready.
      */
     fun focusDownload(): Boolean
+
+    /**
+     * Draws a switch-on that the app refused, as the notice of the walk-through.
+     *
+     * The notice is the app's [sentence] as given, or the fixed switch-failed notice when the sentence is
+     * blank, the same notice the switch button draws for its own refusal. The notice stays through
+     * every drawing that follows no tap, until the user acts on the walk-through or a later drawing finds
+     * the switch on.
+     */
+    fun showSwitchRefused(sentence: String)
 }

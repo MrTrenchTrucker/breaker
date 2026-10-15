@@ -13,6 +13,7 @@ import dev.breaker.dictation.wiring.ForwardingDownloadNotice
 import dev.breaker.dictation.wiring.LevelFeed
 import dev.breaker.dictation.wiring.ModelDownloadNotice
 import dev.breaker.dictation.wiring.ModelDownloader
+import dev.breaker.dictation.wiring.NoticeClearingTilePort
 import dev.breaker.dictation.wiring.Opener
 import dev.breaker.dictation.wiring.StoreModelReady
 import dev.breaker.dictation.wiring.TakePortAdapter
@@ -56,7 +57,7 @@ internal class TileHost(
     private val gesture = appGesture(context)
     private val selectedId: () -> String = { root.settingsStore.load().modelSize }
 
-    private val tile = OverlayTilePort(
+    private val tile: OverlayTilePort = OverlayTilePort(
         context = context,
         settings = root.settingsStore,
         onTap = { toCoordinator { it.onTap() } },
@@ -64,11 +65,14 @@ internal class TileHost(
         onCancel = { toCoordinator { it.onCancel() } },
         onSend = { toCoordinator { it.onSend() } },
         onCloseRequested = { toCoordinator { it.onCloseRequested() } },
+        onNoticeDismissed = { main.post { noticePort.onNoticeDismissed() } },
     )
+
+    private val noticePort = NoticeClearingTilePort(tile, main, onDismissed = { setNotificationLine(null) })
 
     private val coordinator: TileCoordinator by lazy {
         TileCoordinator(
-            tile,
+            noticePort,
             main,
             SerialBackground("breaker-dictation"),
             TakePortAdapter(root.dictation.runner),
@@ -84,7 +88,8 @@ internal class TileHost(
     init {
         root.onTakeEnded = { toCoordinator { it.onTakeEnded() } }
         root.onMicTaken = { toCoordinator { it.onTakeMicTaken() } }
-        root.levelSink = LevelFeed(tile, main) { root.dictation.runner.sessionState == DictationState.RECORDING }
+        root.onDeviceFailure = { fallback -> toCoordinator { if (!it.onTakeFailed()) fallback() } }
+        root.levelSink = LevelFeed(noticePort, main) { root.dictation.runner.sessionState == DictationState.RECORDING }
     }
 
     private val forwardingNotice = ForwardingDownloadNotice(notifications)
