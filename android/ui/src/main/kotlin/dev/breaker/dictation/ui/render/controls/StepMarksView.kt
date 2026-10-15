@@ -13,9 +13,9 @@ import dev.breaker.dictation.ui.render.touchTargetPx
 import dev.breaker.dictation.ui.theme.Theme
 
 /**
- * The permission steps as one Android view: [count] slanted marks, the first
- * in the accent colour and the rest in the muted one, each [markW] wide and
- * [markH] tall and slanted by the geometry's own angle.
+ * The permission steps as one Android view: [count] slanted marks, the ones the
+ * current step has reached in the accent colour and the rest in the muted one,
+ * each [markW] wide and [markH] tall and slanted by the geometry's own angle.
  *
  * The view draws only what [ControlsGeometry.stepMarks] returns: the marks and
  * their numbers, painted by [ControlsPalette.partColor] in [theme]. The marks
@@ -29,6 +29,8 @@ internal class StepMarksView(
     context: Context,
     /** How many marks to draw. */
     private val count: Int,
+    /** The step the flow is on, one-based: the marks up to and including it are lit. */
+    private val current: Int,
     /** Each mark's width in dp, the art's own. */
     private val markW: Float,
     /** Each mark's height in dp, the art's own. */
@@ -59,11 +61,11 @@ internal class StepMarksView(
         val h = height / density
         if (w > 0f && h > 0f) {
             val marks = ControlsGeometry.stepMarks(count, markW, markH)
-            // two paths, one per colour: the first mark is done, the rest are still to do
+            // two paths, one per colour: the marks the current step has reached are done, the rest are still to do
             val done = Path()
             val todo = Path()
             for ((index, mark) in marks.withIndex()) {
-                val path = if (index == 0) done else todo
+                val path = if (ControlsGeometry.isStepLit(index, current)) done else todo
                 // a parallelogram: the top edge shifted right by the mark's slant
                 path.moveTo(mark.x + mark.slant, mark.y)
                 path.lineTo(mark.x + mark.slant + mark.width, mark.y)

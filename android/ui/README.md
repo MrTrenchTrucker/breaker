@@ -50,7 +50,7 @@ The walk-through writes one thing: whether the microphone prompt was asked, into
 
 How the views are measured, laid out and painted, and how taps are routed inside the host views, are not unit-tested. The same holds for `AndroidSetupPlatform` (reads the permission state and opens the settings pages), `SetupHostView` (the scrolling container for the setup screen) and `createOnboardingView`. They are pinned by text scans in the test tree and by the device checklist in the card. The setup walk-through has run on a phone in the test builds; the device checklist in AGENTS.md lists what is still unchecked.
 
-The controls kit's views (`ui/render/controls/`) are not unit-tested either: how they measure, press and paint is pinned by text scans in the test tree and by the device checklist.
+The controls kit's views (`ui/render/controls/`) are not unit-tested either: how they measure, press and paint is pinned by text scans in the test tree and by the device checklist. The decisions the views make (a badge's fill, a button's width, the full-width width, the switch outline, which step marks are lit, where the badge pill sits) are plain Kotlin with their own JVM tests.
 
 The history screen has unit tests: `HistoryIntentHandlerTest` and `HistoryScreenTest` drive the handler and the drawn tree with a fake store, clipboard and scheduler, so the 5-second Undo is checked by firing its window by hand, not by real time. `HistoryRenderCheckTest` reads the source text for the hand-off of pending deletes on detach, the clipboard's sensitive mark and the scheduling adapter (`ViewDelayedWork`); it does not run them. No test runs the real timer, the real clipboard or a real rotation; those are on the device checklist in AGENTS.md.
 

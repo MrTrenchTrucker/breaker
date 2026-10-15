@@ -23,6 +23,18 @@ import dev.breaker.dictation.ui.theme.Theme
 internal fun half(v: Float): Float = v / (1f + 1f)
 
 /**
+ * The width of a button carrying [label], in this view's pixels. The label is measured in the
+ * kit's own text size and default face; the button is that width plus its side room, and never
+ * below the art's own button width. The answer is taken up to whole pixels.
+ */
+internal fun buttonWidthPx(paint: TextPaint, label: String, density: Float): Int {
+    paint.textSize = ControlsGeometry.LABEL_CAP_DP
+    paint.typeface = Typeface.DEFAULT
+    val measured = paint.measureText(drawnLabel(label))
+    return touchTargetPx(ControlsGeometry.buttonWidth(measured), density)
+}
+
+/**
  * The main button as one Android view: a raised face with the lit line along
  * its top and the darker lip under it, pushed down into the lip while the touch
  * presses it, and flat and muted while disabled.
@@ -44,7 +56,8 @@ internal fun half(v: Float): Float = v / (1f + 1f)
  * lip and the lit line read at real density, how the default typeface's own
  * metrics place the label, whether the corners land on the art's radius on a
  * given screen, whether the press reads as real touch feedback under a finger,
- * and how the press ripple falls on hardware.
+ * and how the press ripple falls on hardware. Nor can it show that a label measured at real
+ * density gives the button width the art draws.
  */
 internal open class Button3dView(
     context: Context,
@@ -72,6 +85,9 @@ internal open class Button3dView(
     /** The face's part: the primary face, or the danger face on the destructive button. The button presses itself from the touch; the caller sets no pressed state. */
     protected open fun facePart(): ControlPart = ControlPart.FACE
 
+    /** The face's part while the touch presses the button: the pressed face, which the destructive button keeps in its danger colour. */
+    protected open fun pressedFacePart(): ControlPart = ControlPart.FACE_PRESSED
+
     /** The lip's part under the face. */
     protected open fun lipPart(): ControlPart = ControlPart.LIP
 
@@ -87,11 +103,13 @@ internal open class Button3dView(
     /** The touch-target floor, in this view's pixels. */
     private fun target(): Int = touchTargetPx(ControlsFactors.TOUCH_MIN_DP, density)
 
+    /** The width the label alone asks for, in this view's pixels, measured the way the button's own width is. */
+    protected fun labelWidthPx(): Int = buttonWidthPx(textPaint, label, density)
+
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        val target = target()
         setMeasuredDimension(
-            resolveSize(target, widthMeasureSpec),
-            resolveSize(target, heightMeasureSpec),
+            resolveSize(buttonWidthPx(textPaint, label, density), widthMeasureSpec),
+            resolveSize(target(), heightMeasureSpec),
         )
     }
 
@@ -118,7 +136,7 @@ internal open class Button3dView(
             paint.color = ControlsPalette.partColor(lipPart(), theme)
             canvas.drawRoundRect(0f, 0f, w, h, corner, corner, paint)
         }
-        paint.color = ControlsPalette.partColor(facePart(), theme)
+        paint.color = ControlsPalette.partColor(if (isPressed) pressedFacePart() else facePart(), theme)
         canvas.drawRoundRect(
             parts.face.x,
             parts.face.y,

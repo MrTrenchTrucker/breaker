@@ -47,7 +47,7 @@ internal class NeutralButtonView(
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val target = touchTargetPx(ControlsFactors.TOUCH_MIN_DP, density)
         setMeasuredDimension(
-            resolveSize(target, widthMeasureSpec),
+            resolveSize(buttonWidthPx(textPaint, label, density), widthMeasureSpec),
             resolveSize(target, heightMeasureSpec),
         )
     }

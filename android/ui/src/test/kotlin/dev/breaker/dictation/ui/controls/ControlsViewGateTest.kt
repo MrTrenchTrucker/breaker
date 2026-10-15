@@ -195,6 +195,7 @@ class ControlsViewGateTest {
         assertTrue("controls: the touch floor expected at least 48f, found $factor", factor >= 48f)
         VIEW_FILES.forEach { name ->
             val text = viewText(name)
+            if (name in DISPLAY_ONLY) return@forEach
             // Delete and full width build on the main button, so the floor and the
             // geometry reach them through the class they extend, not their own text.
             if (name in INHERITING) {
@@ -252,10 +253,11 @@ class ControlsViewGateTest {
         /** The directory the views live in, relative to this module's package. */
         const val VIEW_DIRECTORY = "render/controls"
 
-        /** The eight view files, by their path relative to this module's package. */
+        /** The nine view files, by their path relative to this module's package. */
         val VIEW_FILES = listOf(
             "render/controls/Button3dView.kt",
             "render/controls/NeutralButtonView.kt",
+            "render/controls/OutlinedButtonView.kt",
             "render/controls/DeleteButtonView.kt",
             "render/controls/FullWidthButtonView.kt",
             "render/controls/SwitchView.kt",
@@ -275,6 +277,7 @@ class ControlsViewGateTest {
         val LABELLED_VIEWS = listOf(
             "Button3dView",
             "NeutralButtonView",
+            "OutlinedButtonView",
             "DeleteButtonView",
             "FullWidthButtonView",
             "SwitchView",
@@ -291,5 +294,7 @@ class ControlsViewGateTest {
             "render/controls/DeleteButtonView.kt",
             "render/controls/FullWidthButtonView.kt",
         )
+        /** The one display-only view, by its path: it takes no touch, so it has no floor to stand at. */
+        val DISPLAY_ONLY = listOf("render/controls/BadgeView.kt")
     }
 }

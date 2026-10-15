@@ -21,6 +21,9 @@ import dev.breaker.dictation.ui.theme.Theme
  * box and its numbers, painted by [ControlsPalette.partColor] in [theme]. The
  * words are [label], a parameter: the field holds no text of its own.
  *
+ * The field is a drawn look only: it takes no typing and no touch of its own. A
+ * screen that needs a real text box paints one with FIELD and FIELD_OUTLINE.
+ *
  * **What this class cannot prove.** Nothing here runs without a device: how the
  * accent outline reads against the surface at real density, and how the default
  * typeface's own metrics place the words.
@@ -67,7 +70,7 @@ internal class TextFieldView(
             canvas.drawRoundRect(0f, 0f, field.width, field.height, corner, corner, paint)
             textPaint.color = ControlsPalette.partColor(ControlPart.LABEL_NEUTRAL, theme)
             textPaint.textSize = ControlsGeometry.LABEL_CAP_DP
-            textPaint.typeface = Typeface.DEFAULT
+            textPaint.typeface = Typeface.MONOSPACE
             textPaint.textAlign = Paint.Align.LEFT
             // the words stand one corner in from the field's edge, centred on its height
             val labelTop = half(field.height - ControlsGeometry.LABEL_CAP_DP)

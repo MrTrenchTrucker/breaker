@@ -28,9 +28,10 @@ internal data class ButtonParts(
 )
 
 /**
- * The parts of a switch, in dp: the track and the thumb.
+ * The parts of a switch, in dp: the track, the thumb, and the outline, which is the track while the switch
+ * is off and null while it is on.
  */
-internal data class SwitchParts(val track: Rect, val thumb: Rect)
+internal data class SwitchParts(val track: Rect, val thumb: Rect, val outline: Rect?)
 
 /**
  * One step mark, in dp: a parallelogram [width] wide and [height] tall whose top edge is shifted right
@@ -49,7 +50,7 @@ internal object ControlsGeometry {
     const val LIT_INSET_DP: Float = 4f / 3f
     /** The lit line's offset from the face's top edge: 1 px. */
     const val LIT_OFFSET_DP: Float = 2f / 3f
-    /** The label's cap height: 20 px. */
+    /** The label text size the art passes as its "cap" parameter: 20 px. Used as the text size, not a measured cap height. */
     const val LABEL_CAP_DP: Float = 40f / 3f
     /** The pressed label sits this far below the raised one: 1 px. */
     const val LABEL_LIFT_DP: Float = 2f / 3f
@@ -69,12 +70,18 @@ internal object ControlsGeometry {
     const val BADGE_PAD_DP: Float = 80f / 3f
     /** The badge's width per character of its text: 13 px. */
     const val BADGE_CHAR_DP: Float = 26f / 3f
-    /** The badge label's cap height: 15 px. */
+    /** The badge label text size the art passes as its "cap" parameter: 15 px. Used as the text size, not a measured cap height. */
     const val BADGE_CAP_DP: Float = 10f
     /** The first step mark's left edge: 30 px. */
     const val STEP_INSET_DP: Float = 20f
     /** The gap between two step marks: 12 px. */
     const val STEP_GAP_DP: Float = 8f
+    /** The side padding of a button, 16 dp each side: the art has no padding rule (its buttons are a fixed 170 px wide); 16 dp each side is the kit's own choice. */
+    const val BUTTON_SIDE_DP: Float = 16f
+    /** The width the art draws every button that is not full width: 170 px. */
+    const val BUTTON_MIN_WIDTH_DP: Float = 340f / 3f
+    /** The corner radius of both thumbs: 3 px. */
+    const val THUMB_CORNER_DP: Float = 2f
 
     /**
      * The parts of the raised button, [w] wide and [h] tall, at the origin. The normal state carries
@@ -141,12 +148,40 @@ internal object ControlsGeometry {
         } else {
             Rect(THUMB_OFF_OFFSET_DP, (h - THUMB_OFF_SIZE_DP) / 2f, THUMB_OFF_SIZE_DP, THUMB_OFF_SIZE_DP)
         }
-        return SwitchParts(track = Rect(0f, 0f, w, h), thumb = thumb)
+        val track = Rect(0f, 0f, w, h)
+        return SwitchParts(track = track, thumb = thumb, outline = if (on) null else track)
     }
 
     /** The badge for [text]: the art's height, and its width the padding plus the text at the art's per-character width. */
     fun badge(text: String): Rect =
         Rect(0f, 0f, BADGE_PAD_DP + BADGE_CHAR_DP * text.length, BADGE_H_DP)
+
+    /**
+     * The width of a button for a label [labelWidthDp] wide: the art's 170 px, or the label plus the side
+     * padding on each side when that is wider.
+     */
+    fun buttonWidth(labelWidthDp: Float): Float = maxOf(BUTTON_MIN_WIDTH_DP, labelWidthDp + 2f * BUTTON_SIDE_DP)
+
+    /**
+     * The width in px of a full width button: the measured row when the parent measured one, else the label's
+     * own width, and never below [floorPx].
+     */
+    fun fullWidthPx(rowPx: Int?, labelPx: Int, floorPx: Int): Int =
+        if (rowPx != null) maxOf(rowPx, floorPx) else maxOf(labelPx, floorPx)
+
+    /** Whether step mark [index] (0-based) is lit when the current step is [current] (1-based). */
+    fun isStepLit(index: Int, current: Int): Boolean = index < current
+
+    /** The pill of [text], centred in a box [boxW] wide and [boxH] tall, never starting left of or above the box. */
+    fun badgePill(text: String, boxW: Float, boxH: Float): Rect {
+        val pill = badge(text)
+        return Rect(
+            x = maxOf(0f, (boxW - pill.width) / 2f),
+            y = maxOf(0f, (boxH - pill.height) / 2f),
+            width = pill.width,
+            height = pill.height,
+        )
+    }
 
     /** The text field, [w] wide and [h] tall: the surface fill with the accent outline. */
     fun textField(w: Float, h: Float): Rect = Rect(0f, 0f, w, h)

@@ -10,7 +10,7 @@ screen.
 **Build phase:** Phase 1 (the app shell's first screens). Each screen arrives with its feature's phase, and the Trucking theme with Phase 22. Needs first: `core` and `shared/ui-tokens` (both on `main`).
 
 ## Owns
-screen components; the setup walk-through (the model step, then one step per permission, then Breaker's on/off switch) and the thin adapters in render/ that read the phone's permission state and open its settings pages; the history screen (the list, copy, delete with a 5-second Undo, load more) and its thin adapters in render/ for the clipboard and the delayed work; every store and clipboard call runs on one process-wide serial dispatcher (screen/history/HistoryDispatcher.kt), and while a read is out the screen shows the last drawn state; consumes `shared/ui-tokens` (Trucking theme); the controls kit, all of it internal - the main, neutral, destructive and full-width buttons, the switch, the three badges, the text field and the four slanted step marks, over their plain-Kotlin geometry, palette and shade factors (`ui/controls/` and `ui/render/controls/`).
+screen components; the setup walk-through (the model step, then one step per permission, then Breaker's on/off switch) and the thin adapters in render/ that read the phone's permission state and open its settings pages; the history screen (the list, copy, delete with a 5-second Undo, load more) and its thin adapters in render/ for the clipboard and the delayed work; every store and clipboard call runs on one process-wide serial dispatcher (screen/history/HistoryDispatcher.kt), and while a read is out the screen shows the last drawn state; consumes `shared/ui-tokens` (Trucking theme); the controls kit, all of it internal - the main, neutral, outlined, destructive and full-width buttons, the switch, the three badges, the text field and the four slanted step marks, over their plain-Kotlin geometry, palette and shade factors (`ui/controls/` and `ui/render/controls/`); the switch toggles on a tap and reports the new value through onToggled, and a screen reader is told it is a switch with its checked state; the step marks light the current step; a button is as wide as its label plus 16 dp each side, and never narrower than the art's 170 px; the text field draws in the monospace face.
 
 ## Public Interface
 Five declarations; everything else in the module is internal or private.
@@ -127,4 +127,9 @@ code.
   - the history screen: the 5000 ms Undo window in practice, a rotation carrying out pending deletes once, right after, on the serial dispatcher, the clip marked sensitive on Android 13 and later, the phone's short date and time in each language, and the scroll position after Load more;
   - the store reads and deletes no longer run on the main thread; owed on a device: the real Dispatchers.IO serial queue, the clipboard write and View.postDelayed called from the serial thread, rotation under load;
   - TalkBack, large font and the largest display size;
-  - dark mode, including the contrast of the done and not-done words on the surface.
+  - dark mode, including the contrast of the done and not-done words on the surface;
+  - the controls kit: a press reads under a finger and the face redraws on release;
+  - the controls kit: labels sit centred in their face at real density, in the light and the dark theme;
+  - the controls kit: the switch flips on a tap and a screen reader says on or off;
+  - the controls kit: a status badge sits centred in its row;
+  - the controls kit: the step marks light the current step.

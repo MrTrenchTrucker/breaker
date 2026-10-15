@@ -22,6 +22,8 @@ internal class DeleteButtonView(
 
     override fun facePart(): ControlPart = ControlPart.FACE_DANGER
 
+    override fun pressedFacePart(): ControlPart = ControlPart.FACE_DANGER
+
     override fun lipPart(): ControlPart = ControlPart.LIP_DANGER
 
     override fun litLinePart(): ControlPart = ControlPart.LIT_LINE_DANGER
