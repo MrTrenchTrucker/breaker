@@ -76,7 +76,7 @@ internal open class FakeShakePort : ShakePort {
 /**
  * A port that delivers a pending shake from inside its own [stop], before the base stop. The
  * gesture's stop clears the trigger before calling handle.stop, so a sample delivered during
- * stop never begins a take.
+ * stop never fires the trigger.
  */
 internal class StopFeedPort(private val shake: List<Reading>) : FakeShakePort() {
     override fun stop() {
@@ -207,12 +207,12 @@ internal class ShakeGestureTest {
     }
 
     @Test
-    fun `a sample delivered during stop never begins a take`() {
+    fun `a sample delivered during stop never fires the trigger`() {
         val port = StopFeedPort(shakeReadings())
         var triggers = 0
         val gesture = ShakeGesture(port)
         gesture.start { triggers += 1 }
         gesture.stop()
-        assertEquals("app: a sample delivered during stop must not begin a take", 0, triggers)
+        assertEquals("app: a sample delivered during stop must not fire the trigger", 0, triggers)
     }
 }
