@@ -224,11 +224,25 @@ class SettingsFileStore internal constructor(
      * in one step is ever not possible, it fails loudly with an exception instead
      * of quietly copying and leaving a half-written live file.
      *
-     * A failure at any step, of any exception type, leaves the previous file
-     * untouched, removes the temp file and propagates the exception. The keystore
-     * is told about the new reference only after the file is in place, and not at
-     * all when the save failed. There is no fsync, so a power cut during the move
-     * is outside what this guarantees.
+     * An exception while writing or moving leaves the previous file untouched,
+     * removes the temp file and propagates the exception, and the keystore is not
+     * told the new reference.
+     *
+     * The keystore is told about the new reference only after the file is in place,
+     * under the same lock. The previous reference is read before anything is written.
+     * If the keystore call throws, the save puts back what it changed: first the previous
+     * file, or its absence, and then the previous reference, but only when it was
+     * read before the save and the port now holds a different one. Each step runs on
+     * its own, so a failure in one never skips the other. A restore failure is added
+     * to the original exception as a suppressed exception. The original exception, the
+     * same instance, is what the save throws. Only exceptions are handled: an Error
+     * from the keystore call passes through with no restore.
+     *
+     * The limit: if the reference cannot be put back, or cannot be read back to be
+     * checked, the file is still restored, the original exception is thrown with the
+     * second failure attached, and the reference stays as the port left it. There is no
+     * fsync, so a power cut or a crash during the move or the restore is outside what
+     * this guarantees.
      *
      * The reference is handed over after the file is written, so a store that
      * persisted it first and then failed to write would leave the port
@@ -244,8 +258,9 @@ class SettingsFileStore internal constructor(
      * load will honour, and the load path, unlike this one, cannot refuse —
      * it can only fall the key back to the default.
      *
-     * **Propagates.** An [IOException] from opening or writing the file leaves
-     * this method, uncaught and unswallowed.
+     * **Propagates.** An [IOException] from reading the previous file, or from opening
+     * or writing the file, leaves this method, uncaught and unswallowed. A failure to
+     * read the previous file happens before anything has changed.
      */
     override fun save(settings: AppSettings) {
         SettingsValidation.requireRegistryModelSize(settings.modelSize)
@@ -254,6 +269,14 @@ class SettingsFileStore internal constructor(
         // suspend function. It runs on the main thread through the SettingsStore
         // port, and a Mutex can only be taken by suspending.
         synchronized(AtomicFileReplace.lock) {
+            val previousBytes = AtomicFileReplace.readIfPresent(file)
+            var refKnown = true
+            val previousRef = try {
+                keystore.activeRef()
+            } catch (readFailure: Exception) {
+                refKnown = false
+                null
+            }
             file.parentFile?.mkdirs()
             val temp = AtomicFileReplace.tempFileFor(file)
             var moved = false
@@ -264,7 +287,38 @@ class SettingsFileStore internal constructor(
             } finally {
                 if (!moved) AtomicFileReplace.deleteQuietly(temp)
             }
-            keystore.setActiveRef(settings.apiKeyRef)
+            try {
+                keystore.setActiveRef(settings.apiKeyRef)
+            } catch (failure: Exception) {
+                restoreAfterKeystoreFailure(previousBytes, refKnown, previousRef, failure)
+                throw failure
+            }
+        }
+    }
+
+    /**
+     * Puts back what [save] changed before the keystore call threw: the previous file,
+     * or its absence, and then the previous reference, when it was read and the port
+     * now holds a different one. The two steps run on their own, so a failure in the
+     * first never skips the second. A failure in either is added to [failure] as a
+     * suppressed exception; [failure] itself is never replaced. Called under the lock.
+     */
+    private fun restoreAfterKeystoreFailure(
+        previousBytes: ByteArray?,
+        refKnown: Boolean,
+        previousRef: String?,
+        failure: Exception,
+    ) {
+        try {
+            AtomicFileReplace.putBack(file, previousBytes, moveOver)
+        } catch (restoreFailure: Exception) {
+            if (restoreFailure !== failure) failure.addSuppressed(restoreFailure)
+        }
+        if (!refKnown) return
+        try {
+            if (keystore.activeRef() != previousRef) keystore.setActiveRef(previousRef)
+        } catch (restoreFailure: Exception) {
+            if (restoreFailure !== failure) failure.addSuppressed(restoreFailure)
         }
     }
 
