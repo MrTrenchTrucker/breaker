@@ -19,7 +19,7 @@ If two samples arrive far apart, the state that would have been carried forward 
 
 | Name | Value | Role |
 | --- | --- | --- |
-| `THRESHOLD_G` | `2.0` | Magnitude, in g, above which a positive-going step counts as a crossing. |
+| `THRESHOLD_G` | `0.65` | Magnitude, in g, above which a positive-going step counts as a crossing. |
 | `CROSSING_COUNT` | `3` | Crossings needed within the window to fire. |
 | `WINDOW_MS` | `500` | Window span (inclusive: an exact 500 ms span still counts). Crossings older than this are pruned before a decision. |
 | `COOLDOWN_MS` | `2000` | Refractory after a fire; one shake fires once. |

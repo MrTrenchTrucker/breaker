@@ -43,12 +43,13 @@ import java.io.File
  * over it, so reading the settings or the keystore never builds the database. A store handed in as
  * a value is exposed as it is.
  *
- * The on-device engine is the real one over [modelStore], with the real recognizer from the swap
- * point in `Swaps.kt`. The text committer and (unless one is handed in) the microphone also come from
- * swap points there, which hold the "unavailable" placeholders until the real parts exist: each fails
- * with a plain sentence. A real microphone source can also be handed in through [micSource]. The server engine
- * slot is the "unavailable" one. Both formatter slots take the rule-based formatter: the server
- * path is never reached while the server engine slot fails, and the text stays on the phone.
+ * The on-device engine is the real one over [modelStore], with the real recognizer from the swap point in
+ * `Swaps.kt`. The text committer has no default: the app hands in the real one, made by appTextCommitter in
+ * AndroidSwaps.kt. The microphone defaults to the unavailable placeholder from the swap point in `Swaps.kt`,
+ * whose open fails with a plain sentence. The app hands in the real microphone, made by appMicSource(audioManager)
+ * in AndroidSwaps.kt, and a microphone can be handed in through [micSource]. The server engine slot is the
+ * "unavailable" one: server mode ends at that slot with its sentence. Both formatter slots take the rule-based
+ * formatter.
  */
 class BreakerCompositionRoot(
     filesDir: File,
