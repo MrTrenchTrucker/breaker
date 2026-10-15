@@ -3,7 +3,7 @@ package dev.breaker.dictation.settings
 /**
  * The port that owns the credential *reference* the settings point at.
  *
- * A settings file holds nine plain values and no `api_key` key, so the
+ * A settings file holds ten plain values and no `api_key` key, so the
  * reference has to live somewhere else — here. That is what this port is for
  * here and now: [setActiveRef] and [activeRef] are how a reference survives a
  * restart, and no file is involved on either side of that. [activeRef] is asked

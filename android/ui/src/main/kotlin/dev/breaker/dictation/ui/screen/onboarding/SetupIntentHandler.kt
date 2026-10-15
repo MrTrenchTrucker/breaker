@@ -1,8 +1,10 @@
 package dev.breaker.dictation.ui.screen.onboarding
 
+import dev.breaker.dictation.core.port.SettingsStore
 import dev.breaker.dictation.ui.BreakerSwitch
 import dev.breaker.dictation.ui.screen.Screen
 import dev.breaker.dictation.ui.screen.ScreenIntent
+import dev.breaker.dictation.ui.write.writeThrough
 
 /*
  * The set-up screen's memory, and the one place a tap is acted on.
@@ -12,9 +14,10 @@ import dev.breaker.dictation.ui.screen.ScreenIntent
  * phone and the switch afresh each time it draws, so a permission the user changed
  * in the phone's settings, or a switch turned off elsewhere, shows as it now is.
  *
- * Nothing is stored. The handler remembers, for as long as it lives, whether it has
- * already asked for the microphone or for notifications, and the last answers it
- * got, so that a failed read can fall back on them.
+ * The handler stores nothing itself. It remembers, for as long as it lives, whether it
+ * asked for notifications and the last answers it got. The microphone flag is kept in
+ * the settings store it is given, and in memory too, so a tap still opens the app's page
+ * when the store cannot be written.
  */
 
 /** What the phone is taken to say before it has said anything: nothing granted, version unknown. */
@@ -56,6 +59,7 @@ private val NOTHING_KNOWN = PlatformStatus(
  * @param onDownloadModel asks the app to download the speech model; the download
  *   itself, its progress and its sentences stay the app's.
  * @param screen the pure screen.
+ * @param settings the store the microphone flag is kept in; null keeps it in memory only.
  */
 internal class SetupIntentHandler(
     private val platform: SetupPlatform,
@@ -65,6 +69,7 @@ internal class SetupIntentHandler(
     private val modelDownloadMb: () -> Int,
     private val onDownloadModel: () -> Unit,
     private val screen: SetupScreen,
+    private val settings: SettingsStore? = null,
 ) {
     private var lastStatus: PlatformStatus? = null
     private var lastSwitchOn: Boolean = false
@@ -75,8 +80,17 @@ internal class SetupIntentHandler(
     private var notificationsAsked: Boolean = false
     private var held: SetupState? = null
 
-    /** The screen as the phone and the switch say it is right now. */
-    fun current(): Screen = show(notice = null, fresh = true)
+    /** A microphone prompt was handed to the system and its answer is not yet written; see [commitPendingAsk]. */
+    private var micAskPending: Boolean = false
+
+    /**
+     * The screen as the phone and the switch say it is right now. A pending microphone
+     * answer is written first, so the first drawing after the system prompt writes the flag.
+     */
+    fun current(): Screen {
+        commitPendingAsk()
+        return show(notice = null, fresh = true)
+    }
 
     /**
      * Acts on [intent] and returns the screen as it stands afterwards.
@@ -129,14 +143,16 @@ internal class SetupIntentHandler(
     }
 
     /**
-     * Asks the phone to open what the button the user tapped stood for.
-     *
-     * The target is worked out from the state that was on screen, not from a new
-     * read, so the tap does what its button said. A prompt or settings page that
-     * opened is remembered only when it was a prompt, because only a prompt is not
-     * shown a second time.
+     * Asks the phone to open what the tapped button stood for, resolved against the state on
+     * screen, so the tap does what its button said. A prompt or settings page that opened is
+     * remembered only when it was a prompt. A pending microphone answer is written first
+     * ([commitPendingAsk]). The microphone string resolves through the memory flag that
+     * [remember] set in the last drawing, so once the prompt was asked the tap opens the app's
+     * page. In the one case where the system answers at once and no drawing follows, the first
+     * tap does nothing visible and the next opens the page; that is reported, not hidden.
      */
     private fun open(action: String): SetupNotice? {
+        commitPendingAsk()
         val target = SetupActions.openActionFor(action, held ?: build()) ?: return null
         val result = try {
             platform.open(target)
@@ -152,10 +168,17 @@ internal class SetupIntentHandler(
         }
     }
 
-    /** Notes that a prompt was shown, so the next button for it opens a settings page instead. */
+    /**
+     * Notes that a prompt was shown, so the next button for it opens a settings page instead.
+     *
+     * A microphone prompt is also marked pending; [commitPendingAsk] writes its answer later.
+     */
     private fun remember(target: OpenAction) {
         when (target) {
-            OpenAction.REQUEST_MICROPHONE -> micAsked = true
+            OpenAction.REQUEST_MICROPHONE -> {
+                micAsked = true
+                micAskPending = true
+            }
             OpenAction.REQUEST_NOTIFICATIONS -> notificationsAsked = true
             OpenAction.OVERLAY_PAGE,
             OpenAction.NOTIFICATION_PAGE,
@@ -163,6 +186,24 @@ internal class SetupIntentHandler(
             OpenAction.APP_INFO,
             -> Unit
         }
+    }
+
+    /**
+     * Writes the microphone flag to the settings store once the system prompt has come back,
+     * never when the prompt is handed over. Run at the start of [current] and [open]: if the
+     * microphone is still not granted the flag is written, and if it is granted nothing is.
+     * A failed phone read keeps the pending mark; a failed write keeps the memory flag and shows
+     * no notice.
+     */
+    private fun commitPendingAsk() {
+        if (!micAskPending) return
+        val granted = try {
+            platform.status().microphone
+        } catch (failure: Exception) {
+            return
+        }
+        micAskPending = false
+        if (!granted && settings != null) writeThrough(settings) { it.copy(microphoneAsked = true) }
     }
 
     /** Asks the switch to turn Breaker on. A refusal is shown in the app's own words. */
@@ -204,7 +245,11 @@ internal class SetupIntentHandler(
         return screen.render(state, shown)
     }
 
-    /** Asks the phone, the switch and the model providers, keeping the last answers for any that fail. Returns true if one failed. */
+    /**
+     * Asks the phone, the switch and the model providers, keeping the last answers for any that
+     * fail; returns true if one failed. The stored microphone flag only ever sets the memory flag,
+     * and a failed read of it is not a failed seam.
+     */
     private fun readSeams(): Boolean {
         var failed = false
         try {
@@ -231,6 +276,11 @@ internal class SetupIntentHandler(
             lastModelDownloadMb = modelDownloadMb()
         } catch (failure: Exception) {
             failed = true
+        }
+        try {
+            if (settings != null && settings.load().microphoneAsked) micAsked = true
+        } catch (failure: Exception) {
+            // Not a failed seam: the memory flag stays as it is, and no notice is shown.
         }
         return failed
     }

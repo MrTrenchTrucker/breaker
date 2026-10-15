@@ -52,7 +52,8 @@ internal object SetupActions {
      *
      * Asking for notifications and opening the notification settings share one
      * string, because the user sees one notifications step; [openActionFor] tells
-     * them apart from the state.
+     * them apart from the state. The microphone string is resolved the same way: a tap
+     * on it opens the app's page once the microphone prompt was asked.
      */
     fun stringFor(action: OpenAction): String = when (action) {
         OpenAction.REQUEST_MICROPHONE -> OPEN_MICROPHONE
@@ -66,14 +67,15 @@ internal object SetupActions {
     /**
      * What the phone is asked to do for the opening string [action], or null.
      *
-     * Null for a string that does not open anything, and for the notifications
-     * string once notifications are granted, when there is nothing left to open.
-     * The notifications string is resolved against [state], the state the user was
-     * looking at when they tapped.
+     * Null for a string that does not open anything, and for the notifications or
+     * microphone string once that step is granted, when there is nothing left to open.
+     * The notifications and microphone strings are resolved against [state], the state
+     * the user was looking at when they tapped: once the microphone prompt was asked,
+     * the microphone string opens the app's page.
      */
     fun openActionFor(action: String, state: SetupState): OpenAction? {
         if (action == OPEN_OVERLAY) return OpenAction.OVERLAY_PAGE
-        if (action == OPEN_MICROPHONE) return OpenAction.REQUEST_MICROPHONE
+        if (action == OPEN_MICROPHONE) return state.actionFor(SetupStep.MICROPHONE)
         if (action == OPEN_ACCESSIBILITY) return OpenAction.ACCESSIBILITY_LIST
         if (action == OPEN_APP_INFO) return OpenAction.APP_INFO
         if (action == OPEN_NOTIFICATIONS) return state.actionFor(SetupStep.NOTIFICATIONS)

@@ -35,7 +35,8 @@ private val SIGNATURE = Regex(
     """fun\s+createOnboardingView\(\s*context\s*:\s*[\w.]+,\s*switch\s*:\s*BreakerSwitch\s*,""" +
         """\s*accessibilityServiceComponent\s*:\s*String\s*,\s*modelReady\s*:\s*\(\s*\)\s*->\s*Boolean\s*,""" +
         """\s*downloadLine\s*:\s*\(\s*\)\s*->\s*String\?\s*,\s*modelDownloadMb\s*:\s*\(\s*\)\s*->\s*Int\s*,""" +
-        """\s*onDownloadModel\s*:\s*\(\s*\)\s*->\s*Unit\s*,?\s*\)\s*:\s*[\w.]+""",
+        """\s*onDownloadModel\s*:\s*\(\s*\)\s*->\s*Unit\s*,""" +
+        """\s*settings\s*:\s*[\w.]+\s*,?\s*\)\s*:\s*[\w.]+""",
 )
 
 /** The signature and the body of the setup entry function, with comments and strings removed. */
@@ -90,7 +91,7 @@ private fun handlerVarIn(body: String): String? {
     val platform = platformVarIn(body) ?: return null
     return Regex(
         """\bval\s+(\w+)\s*=\s*SetupIntentHandler\(\s*""" + Regex.escape(platform) +
-            """\s*,\s*switch\s*,\s*modelReady\s*,\s*downloadLine\s*,\s*modelDownloadMb\s*,\s*onDownloadModel\s*,\s*SetupScreen\(\)\s*\)""" + LINE_END,
+            """\s*,\s*switch\s*,\s*modelReady\s*,\s*downloadLine\s*,\s*modelDownloadMb\s*,\s*onDownloadModel\s*,\s*SetupScreen\(\)\s*,\s*settings\s*\)""" + LINE_END,
     ).find(body)?.groupValues?.get(1)
 }
 
@@ -120,7 +121,7 @@ private fun platformProblemsIn(text: String): List<String> {
 private fun handlerProblemsIn(text: String): List<String> {
     val body = entryOf(text)?.body ?: return listOf(MISSING)
     val once = times(body, "SetupIntentHandler(") == 1 && times(body, "SetupScreen(") == 1
-    return if (once && handlerVarIn(body) != null) emptyList() else listOf("the handler is not built from the platform, the switch given and a new screen")
+    return if (once && handlerVarIn(body) != null) emptyList() else listOf("the handler is not built from the platform, the switch given, a new screen and the settings store")
 }
 
 private fun hostProblemsIn(text: String): List<String> {
@@ -172,6 +173,7 @@ class SetupEntryGateTest {
         assertFires("the switch weakened", signatureProblemsIn(editEntry(entry, "switch: BreakerSwitch", "switch: Any")), "does not take")
         assertFires("the component weakened", signatureProblemsIn(editEntry(entry, "accessibilityServiceComponent: String", "accessibilityServiceComponent: Any")), "does not take")
         assertFires("the switch renamed", signatureProblemsIn(editEntry(entry, "switch: BreakerSwitch", "toggle: BreakerSwitch")), "does not take")
+        assertFires("the settings store dropped from the signature", signatureProblemsIn(editEntry(entry, "settings: dev.breaker.dictation.core.port.SettingsStore,", "")), "does not take")
     }
 
     @Test
@@ -209,14 +211,16 @@ class SetupEntryGateTest {
     @Test
     fun `the switch and the model providers that were given are handed to the handler with the platform and a new screen`() {
         assertEquals("createOnboardingView handler: ", emptyList<String>(), handlerProblemsIn(entry))
-        val build = "SetupIntentHandler(platform, switch, modelReady, downloadLine, modelDownloadMb, onDownloadModel, SetupScreen())"
-        assertFires("another switch", handlerProblemsIn(editEntry(entry, build, "SetupIntentHandler(platform, noSwitch, modelReady, downloadLine, onDownloadModel, SetupScreen())")), "handler")
-        assertFires("another platform", handlerProblemsIn(editEntry(entry, build, "SetupIntentHandler(otherPlatform, switch, modelReady, downloadLine, onDownloadModel, SetupScreen())")), "handler")
-        assertFires("the arguments swapped", handlerProblemsIn(editEntry(entry, build, "SetupIntentHandler(switch, platform, modelReady, downloadLine, onDownloadModel, SetupScreen())")), "handler")
-        assertFires("a screen that is not new", handlerProblemsIn(editEntry(entry, build, "SetupIntentHandler(platform, switch, modelReady, downloadLine, onDownloadModel, sharedScreen)")), "handler")
-        assertFires("the model-ready provider dropped", handlerProblemsIn(editEntry(entry, build, "SetupIntentHandler(platform, switch, downloadLine, onDownloadModel, SetupScreen())")), "handler")
-        assertFires("the size provider dropped", handlerProblemsIn(editEntry(entry, build, "SetupIntentHandler(platform, switch, modelReady, downloadLine, onDownloadModel, SetupScreen())")), "handler")
-        assertFires("the download callback dropped", handlerProblemsIn(editEntry(entry, build, "SetupIntentHandler(platform, switch, modelReady, downloadLine, modelDownloadMb, SetupScreen())")), "handler")
+        val build = "SetupIntentHandler(platform, switch, modelReady, downloadLine, modelDownloadMb, onDownloadModel, SetupScreen(), settings)"
+        assertFires("another switch", handlerProblemsIn(editEntry(entry, build, "SetupIntentHandler(platform, noSwitch, modelReady, downloadLine, onDownloadModel, SetupScreen(), settings)")), "handler")
+        assertFires("another platform", handlerProblemsIn(editEntry(entry, build, "SetupIntentHandler(otherPlatform, switch, modelReady, downloadLine, onDownloadModel, SetupScreen(), settings)")), "handler")
+        assertFires("the arguments swapped", handlerProblemsIn(editEntry(entry, build, "SetupIntentHandler(switch, platform, modelReady, downloadLine, onDownloadModel, SetupScreen(), settings)")), "handler")
+        assertFires("a screen that is not new", handlerProblemsIn(editEntry(entry, build, "SetupIntentHandler(platform, switch, modelReady, downloadLine, onDownloadModel, sharedScreen, settings)")), "handler")
+        assertFires("the model-ready provider dropped", handlerProblemsIn(editEntry(entry, build, "SetupIntentHandler(platform, switch, downloadLine, onDownloadModel, SetupScreen(), settings)")), "handler")
+        assertFires("the size provider dropped", handlerProblemsIn(editEntry(entry, build, "SetupIntentHandler(platform, switch, modelReady, downloadLine, onDownloadModel, SetupScreen(), settings)")), "handler")
+        assertFires("the download callback dropped", handlerProblemsIn(editEntry(entry, build, "SetupIntentHandler(platform, switch, modelReady, downloadLine, modelDownloadMb, SetupScreen(), settings)")), "handler")
+        assertFires("the settings store dropped from the handler", handlerProblemsIn(editEntry(entry, build, "SetupIntentHandler(platform, switch, modelReady, downloadLine, modelDownloadMb, onDownloadModel, SetupScreen())")), "handler")
+        assertFires("another store passed to the handler", handlerProblemsIn(editEntry(entry, build, "SetupIntentHandler(platform, switch, modelReady, downloadLine, modelDownloadMb, onDownloadModel, SetupScreen(), app.settingsStore)")), "handler")
     }
 
     @Test

@@ -56,16 +56,22 @@ internal class AndroidSetupPlatform(
      * Notifications are read as "the user can see this app's notices", which also
      * covers a user who turned them off in the settings on a phone older than the
      * prompt. A phone that offers no notification service counts as not granted.
+     *
+     * The microphone rationale is asked only while the microphone is not granted and
+     * an activity is found; the system then says whether it would still show the
+     * dialog after an earlier refusal. Without an activity the answer is false.
      */
     override fun status(): PlatformStatus {
         val enabled = Settings.Secure.getString(context.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
         val notices = context.getSystemService(NotificationManager::class.java)
+        val micDenied = context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_DENIED
         return PlatformStatus(
             overlay = Settings.canDrawOverlays(context),
             microphone = context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED,
             notifications = notices?.areNotificationsEnabled() ?: false,
             accessibility = AccessibilityList.contains(enabled, accessibilityServiceComponent),
             sdkInt = Build.VERSION.SDK_INT,
+            microphoneRationale = micDenied && (activityOf(context)?.shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO) ?: false),
         )
     }
 

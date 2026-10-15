@@ -55,7 +55,8 @@ modules implement, and the use cases that run a dictation.
   (IDLE|ARMED|RECORDING|TRANSCRIBING|SENDING|ERROR), and `DictationResult` (Success|Failure)
 - `AppSettings(mode: AUTO|LOCAL|SERVER, modelSize, serverUrl, apiKeyRef,
   wakeGestureEnabled, tilePosition, language, preloadModel, formattingEnabled,
-  themeMode: SYSTEM|LIGHT|DARK)`, `SttMode`, `ThemeMode`, `TilePosition`
+  themeMode: SYSTEM|LIGHT|DARK, microphoneAsked)`, `SttMode`, `ThemeMode`, `TilePosition`
+  `microphoneAsked` is bookkeeping: whether the system microphone prompt was shown once. It is not a user setting.
 - `SttRequest`, `SttResult`, `SttSegment`, `AudioFormat` (16 kHz, one channel), and
   `SttError(LOCAL_MODEL_MISSING, SERVER_UNREACHABLE, TIMEOUT, OTHER)`
 - `CommitRequest` (never empty) and `CommitOutcome(COMMITTED|COPIED|FAILED)`
