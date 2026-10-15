@@ -32,12 +32,12 @@ settings screen and the history screen, the manifest, and the Gradle build.
   address and the checksum come from the model registry. A tap on the tile's
   microphone with no model installed starts nothing and says so, in a
   notification and in a sentence beside the tile. The recognizer behind the
-  engine is the real one, over the engine library the app packages; it has not
-  been tried on a device yet.
+  engine is the real one, over the engine library the app packages; it has run on a
+  phone in test builds.
 - **Text commit.** Dictated text is committed through the commit module's
   accessibility service. The app creates that committer once per process, from
   the application context, and hands it to the composition root. The service
-  entry comes from the library's manifest. It has not been tried on a device.
+  entry comes from the library's manifest. It has run on a phone in test builds.
 - **The floating tile.** While the microphone service is on, the app shows the
   floating tile of the overlay module and decides what each tap does and which
   state the tile shows. It hides the tile when the service goes off. Showing it
@@ -110,9 +110,9 @@ of `AGENTS.md` lists the smaller open items.
   yet." (`SERVER_UNAVAILABLE_DETAIL` in `wiring/UnavailableSlots.kt`, wired at
   `BreakerCompositionRoot.kt` `serverEngine = UnavailableSttEngine(`). The
   on-device engine with its recognizer, its model store and the download are
-  built; the recognizer has not been tried on a device.
-- The spoken off word. The phrases module has its card and its build file, but
-  no source code yet, and the app does not use it.
+  built; the recognizer has run on a phone in test builds.
+- The spoken phrases. The phrases module detects the wake and send phrases in
+  heard words, but the app does not use it yet, and no spoken off word is built.
 - The secret-resolving device Keystore. The app keeps only the reference to the
   credential (`FileCredentialRefHolder`), never a secret; the Keystore that
   resolves the reference is not built and not verified.
