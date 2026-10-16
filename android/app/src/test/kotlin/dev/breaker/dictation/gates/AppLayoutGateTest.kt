@@ -25,7 +25,7 @@ internal class AppLayoutGateTest {
         "AppStartPurge.kt", "BreakerCompositionRoot.kt", "FileCredentialRefHolder.kt", "PurgeScope.kt", "SystemClockAdapter.kt",
         "service/DictationServiceController.kt", "service/NotificationRoute.kt", "service/ReportingMicSource.kt",
         "service/ServiceStartDecision.kt", "service/ServiceStartHandler.kt", "service/ServiceTypes.kt",
-        "wiring/DictationComponent.kt", "wiring/DictationRunner.kt", "wiring/Insets.kt", "wiring/LazyHistoryStore.kt",
+        "wiring/DictationComponent.kt", "wiring/DictationRunner.kt", "wiring/Insets.kt", "wiring/LazyHistoryStore.kt", "wiring/FirstRunDoneStore.kt",
         "wiring/UnavailableSlots.kt", "wiring/UuidIdSource.kt",
         "wiring/TilePorts.kt", "wiring/DelayedPost.kt", "wiring/NoticeClearingTilePort.kt", "wiring/TileStateMap.kt", "wiring/TileCoordinator.kt", "wiring/TileShowGuard.kt", "wiring/TakePortAdapter.kt", "wiring/NoopPorts.kt",
         "wiring/ArmedSwitch.kt", "wiring/DisplayWatch.kt", "wiring/LaunchRule.kt", "wiring/IconLaunchOnce.kt", "wiring/OffStore.kt", "wiring/ModelSupport.kt", "wiring/Swaps.kt",

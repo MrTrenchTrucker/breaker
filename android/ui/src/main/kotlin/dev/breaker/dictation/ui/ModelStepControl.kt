@@ -41,4 +41,16 @@ interface ModelStepControl {
      * the switch on.
      */
     fun showSwitchRefused(sentence: String)
+
+    /**
+     * Bytes are arriving: [doneMb] is the megabytes the app already shows, and [totalMb] is the total in
+     * megabytes, or 0 when the total is not known.
+     */
+    fun downloadProgress(doneMb: Int, totalMb: Int) {}
+
+    /** Every byte is in and the archive is being checked; the view draws the checking line. */
+    fun downloadChecking() {}
+
+    /** The download ended, either done or failed; the view reads the model and the line again. */
+    fun downloadStopped() {}
 }

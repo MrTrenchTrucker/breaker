@@ -161,9 +161,9 @@ internal class HostGateNotifyTest {
         Sample("MODEL_STEP_CONTROL_IS_CALLED_ON_RESUME", "override fun onResume() {", "override fun onResumeLater() {"),
         Sample("MODEL_STEP_CONTROL_IS_CALLED_ON_DOWNLOADING", "override fun downloading(sentence: String) {\n        downloadSentence = sentence\n        downloadStatus.text = sentence\n        (onboardingView as? ModelStepControl)?.refresh()", "override fun downloading(sentence: String) {\n        downloadSentence = sentence\n        downloadStatus.text = sentence"),
         Sample("MODEL_STEP_CONTROL_IS_CALLED_ON_DOWNLOADING", "override fun downloading(sentence: String) {", "override fun downloadingLater(sentence: String) {"),
-        Sample("MODEL_STEP_CONTROL_IS_CALLED_ON_DONE", "downloadStatus.text = \"\"\n        (onboardingView as? ModelStepControl)?.refresh()", ""),
+        Sample("MODEL_STEP_CONTROL_IS_CALLED_ON_DONE", "downloadStatus.text = \"\"\n        (onboardingView as? ModelStepControl)?.downloadStopped()\n        (onboardingView as? ModelStepControl)?.refresh()", "downloadStatus.text = \"\"\n        (onboardingView as? ModelStepControl)?.downloadStopped()"),
         Sample("MODEL_STEP_CONTROL_IS_CALLED_ON_DONE", "override fun done() {", "override fun doneLater() {"),
-        Sample("MODEL_STEP_CONTROL_IS_CALLED_ON_FAILED", "override fun failed(sentence: String) {\n        downloadSentence = sentence\n        downloadStatus.text = sentence\n        (onboardingView as? ModelStepControl)?.refresh()", "override fun failed(sentence: String) {\n        downloadSentence = sentence\n        downloadStatus.text = sentence"),
+        Sample("MODEL_STEP_CONTROL_IS_CALLED_ON_FAILED", "override fun failed(sentence: String) {\n        downloadSentence = sentence\n        downloadStatus.text = sentence\n        (onboardingView as? ModelStepControl)?.downloadStopped()\n        (onboardingView as? ModelStepControl)?.refresh()", "override fun failed(sentence: String) {\n        downloadSentence = sentence\n        downloadStatus.text = sentence\n        (onboardingView as? ModelStepControl)?.downloadStopped()"),
         Sample("MODEL_STEP_CONTROL_IS_CALLED_ON_FAILED", "override fun failed(sentence: String) {", "override fun failedLater(sentence: String) {"),
     )
 

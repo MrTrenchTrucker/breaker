@@ -44,7 +44,11 @@ internal class ModelProgressGateTest {
         ),
         Rule(
             "LAUNCHER_PROGRESS_SHOWS_THE_SENTENCE_LIKE_THE_FIRST_ONE", "activity",
-            Regex("""\boverride\s+fun\s+progress\s*\(\s*sentence\s*:\s*String\s*,\s*doneMb\s*:\s*Int\s*,\s*totalMb\s*:\s*Int\s*\)\s*\{\s*downloading\s*\(\s*sentence\s*\)\s*\}"""),
+            Regex("""\boverride\s+fun\s+progress\s*\(\s*sentence\s*:\s*String\s*,\s*doneMb\s*:\s*Int\s*,\s*totalMb\s*:\s*Int\s*\)\s*\{\s*downloading\s*\(\s*sentence\s*\)"""),
+        ),
+        Rule(
+            "PROGRESS_FORWARDS_THE_NUMBERS_TO_THE_MODEL_STEP", "activity",
+            Regex("""\bdownloading\s*\(\s*sentence\s*\)\s*\(\s*onboardingView\s+as\?\s+ModelStepControl\s*\)\s*\?\.\s*let\s*\{\s*control\s*->\s*if\s*\(\s*sentence\s*==\s*ModelSentences\s*\.\s*CHECKING\s*\)\s*control\s*\.\s*downloadChecking\s*\(\s*\)\s*else\s*control\s*\.\s*downloadProgress\s*\(\s*doneMb\s*,\s*totalMb\s*\)\s*\}"""),
         ),
         Rule(
             "FORWARDING_PROGRESS_REACHES_THE_NOTIFICATION_THEN_THE_LISTENER", "forward",
@@ -74,8 +78,8 @@ internal class ModelProgressGateTest {
         Sample("CHECKING_NEEDS_A_KNOWN_TOTAL_THAT_IS_REACHED", "model",
             "notice.progress(ModelSentences.CHECKING, 0, 0)", "notice.progress(ModelSentences.progressFor(0, 0), 0, 0)"),
         Sample("LAUNCHER_PROGRESS_SHOWS_THE_SENTENCE_LIKE_THE_FIRST_ONE", "activity",
-            "downloading(sentence)\n    }",
-            "\n    }"),
+            "downloading(sentence)\n        (onboardingView",
+            "(onboardingView"),
         Sample("LAUNCHER_PROGRESS_SHOWS_THE_SENTENCE_LIKE_THE_FIRST_ONE", "activity",
             "downloading(sentence)", "failed(sentence)"),
         Sample("LAUNCHER_PROGRESS_SHOWS_THE_SENTENCE_LIKE_THE_FIRST_ONE", "activity",
@@ -85,6 +89,10 @@ internal class ModelProgressGateTest {
         Sample("FORWARDING_PROGRESS_REACHES_THE_NOTIFICATION_THEN_THE_LISTENER", "forward",
             "notifications.progress(sentence, doneMb, totalMb)\n        listener?.progress(sentence, doneMb, totalMb)",
             "listener?.progress(sentence, doneMb, totalMb)\n        notifications.progress(sentence, doneMb, totalMb)"),
+        Sample("PROGRESS_FORWARDS_THE_NUMBERS_TO_THE_MODEL_STEP", "activity",
+            "if (sentence == ModelSentences.CHECKING) control.downloadChecking() else", "if (sentence == ModelSentences.CHECKING) control.downloadChecking() or"),
+        Sample("PROGRESS_FORWARDS_THE_NUMBERS_TO_THE_MODEL_STEP", "activity",
+            "control.downloadProgress(doneMb, totalMb)", "control.downloadProgress(totalMb, doneMb)"),
         Sample("PROGRESS_NOTICE_PASSES_THE_NUMBERS_TO_THE_BAR", "notif",
             "null, true, doneMb, totalMb)", "null, true, 0, 0)"),
         Sample("PROGRESS_NOTICE_PASSES_THE_NUMBERS_TO_THE_BAR", "notif",
@@ -98,6 +106,8 @@ internal class ModelProgressGateTest {
         Quiet("activity", "override fun progress(sentence: String, doneMb: Int, totalMb: Int) {", "override fun progress(sentence: String, doneMb: Int, totalMb: Int) { // the line"),
         Quiet("forward", "listener?.progress(sentence, doneMb, totalMb)", "listener?.progress( sentence, doneMb, totalMb )"),
         Quiet("notif", "null, true, doneMb, totalMb)", "null, true, doneMb, totalMb) // the bar"),
+        Quiet("activity", "if (sentence == ModelSentences.CHECKING)", "if ( sentence == ModelSentences.CHECKING )"),
+        Quiet("activity", "{ control ->", "{ control -> // the control"),
     )
 
     private fun edit(text: String, old: String, new: String): String {
