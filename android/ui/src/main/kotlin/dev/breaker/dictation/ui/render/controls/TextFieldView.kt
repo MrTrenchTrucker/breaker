@@ -34,6 +34,11 @@ internal class TextFieldView(
     val label: String,
     /** The theme the parts are painted in. */
     private val theme: Theme,
+    /**
+     * Draws the words in the muted colour; the fill and the outline do not change.
+     * The art does not draw a muted field, so this is the smallest look from existing tokens.
+     */
+    private val muted: Boolean = false,
 ) : View(context) {
 
     private val density: Float = context.resources.displayMetrics.density
@@ -68,7 +73,8 @@ internal class TextFieldView(
             paint.strokeWidth = ControlsGeometry.OUTLINE_DP
             paint.color = ControlsPalette.partColor(ControlPart.FIELD_OUTLINE, theme)
             canvas.drawRoundRect(0f, 0f, field.width, field.height, corner, corner, paint)
-            textPaint.color = ControlsPalette.partColor(ControlPart.LABEL_NEUTRAL, theme)
+            val wordsPart = if (muted) ControlPart.FIELD_TEXT_MUTED else ControlPart.LABEL_NEUTRAL
+            textPaint.color = ControlsPalette.partColor(wordsPart, theme)
             textPaint.textSize = ControlsGeometry.LABEL_CAP_DP
             textPaint.typeface = Typeface.MONOSPACE
             textPaint.textAlign = Paint.Align.LEFT

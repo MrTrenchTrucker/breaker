@@ -8,11 +8,12 @@ import dev.breaker.dictation.ui.theme.Theme
 
 /**
  * The display-only field for a value: the kit's text field showing the node's text, with no
- * typing and no touch. The kit field draws its words in one colour, so the node's muted flag is
- * not drawn yet; that needs a kit change.
+ * typing and no touch. A muted value (nothing set yet) has its words in the muted colour; the fill
+ * and the outline do not change. The art does not draw a muted field, so this is the smallest look
+ * from existing tokens.
  */
 internal fun valueFieldView(context: Context, node: ValueField, theme: Theme): View =
-    TextFieldView(context, node.text, theme).apply {
+    TextFieldView(context, node.text, theme, node.muted).apply {
         isFocusable = false
         isClickable = false
     }

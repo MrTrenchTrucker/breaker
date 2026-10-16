@@ -33,6 +33,7 @@ internal enum class ControlPart {
     THUMB_OFF,        // the thumb while off
     FIELD,            // the field fill
     FIELD_OUTLINE,    // the field outline
+    FIELD_TEXT_MUTED, // the words of a muted field; the art is silent about it
     STEP_DONE,        // a done step mark
     STEP_TODO,        // a todo step mark
 }
@@ -88,6 +89,7 @@ internal object ControlsPalette {
             ControlPart.THUMB_OFF -> theme.color(PaletteSlot.TEXT_MUTED).argb
             ControlPart.FIELD -> theme.color(PaletteSlot.SURFACE).argb
             ControlPart.FIELD_OUTLINE -> theme.color(PaletteSlot.ACCENT).argb
+            ControlPart.FIELD_TEXT_MUTED -> theme.color(PaletteSlot.TEXT_MUTED).argb
             ControlPart.STEP_DONE -> theme.color(PaletteSlot.ACCENT).argb
             ControlPart.STEP_TODO -> theme.color(PaletteSlot.TEXT_MUTED).argb
         }

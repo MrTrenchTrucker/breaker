@@ -143,6 +143,9 @@ code.
   - the controls kit: the switch flips on a tap and a screen reader says on or off;
   - the controls kit: a status badge sits centred in its row;
   - the controls kit: the step marks light the current step.
+  - the controls kit: a disabled neutral or outlined button reads flat, with the muted outline and the muted label, in the light and the dark theme;
+  - the controls kit: the muted words of the Settings server line read muted but legible in the light and the dark theme;
+  - the controls kit: a settings switch row has its track centred on the row's label and help text; by hand the track sits about 10.7 dp above the row centre, so check it by eye.
   - the history screen: a long one-paragraph dictation shows 6 lines with an ellipsis and a Show all button;
   - the history screen: Hide folds it back;
   - the history screen: a text of 6 lines or fewer shows no middle button.
