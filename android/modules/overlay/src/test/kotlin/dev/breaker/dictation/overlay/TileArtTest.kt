@@ -44,7 +44,7 @@ class TileArtTest {
         Row(ArtPart.LEDGE_FACE, 5, 8, 4012.000),
         Row(ArtPart.LEDGE_END_LEFT, 4, 6, 2404.000),
         Row(ArtPart.LEDGE_END_RIGHT, 4, 6, 3556.000),
-        Row(ArtPart.LETTERS, 137, 438, 248237.406),
+        Row(ArtPart.LETTERS, 137, 438, 248412.272),
     )
 
     private fun numberSum(shape: ArtShape): Double = shape.xy.fold(0.0) { acc, v -> acc + v }
@@ -152,7 +152,7 @@ class TileArtTest {
     @Test
     fun `the lettering is twelve contours that span the expected x range`() {
         assertEquals("overlay: the letters expected 12 contours", 12, TileArt.letters.ops.count { it == TileArt.OP_MOVE })
-        assertTrue("overlay: the letters expected a left edge at 345.591", abs(lowest(TileArt.letters, 0) - 345.591f) <= 0.01f)
-        assertTrue("overlay: the letters expected a right edge at 679.409", abs(highest(TileArt.letters, 0) - 679.409f) <= 0.01f)
+        assertTrue("overlay: the letters expected a left edge at 332.5", abs(lowest(TileArt.letters, 0) - 332.5f) <= 0.01f)
+        assertTrue("overlay: the letters expected a right edge at 692.87", abs(highest(TileArt.letters, 0) - 692.87f) <= 0.01f)
     }
 }

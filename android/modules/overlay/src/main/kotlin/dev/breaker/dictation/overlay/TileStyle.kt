@@ -6,15 +6,18 @@ import kotlin.math.floor
 /**
  * The colours one tile state is drawn with, as opaque ARGB ints.
  *
- * [background] is the surface colour: the halo under the buttons and the notice text is drawn in it, and the body colour is chosen between it and [control]; nothing is filled with it. [glyph] and [glyphOutline] colour the microphone picture. [ring] is the
+ * [background] is the surface colour: the halo under the notice text only is drawn in it, and the body colour is chosen between it and [control]; nothing is filled with it. [glyph] and [glyphOutline] colour the microphone picture (the letters at a 12 degree slant from the brand art). [ring] is the
  * glowing outline along the edge of the microphone. [litSegment] and [unlitSegment] are the meter's six slots in the grille that are on and
  * off; an off segment has the colour of the page background, so it differs from an on segment by
- * lightness and not by hue alone. [control] is the cancel and send buttons and the notice text.
+ * lightness and not by hue alone. The recording buttons read [danger]/[primary] with a [glyphOutline] outline around each shape, no glow.
  */
 internal data class TileLook(
     val background: Int,
     val glyph: Int,
     val glyphOutline: Int,
+    val danger: Int,
+    val primary: Int,
+    val busyOutline: Int,
     val ring: Int,
     val litSegment: Int,
     val unlitSegment: Int,
@@ -50,6 +53,9 @@ internal object TileStyle {
         background = palette.surface.argb,
         glyph = palette.primary.argb,
         glyphOutline = palette.trim.argb,
+        danger = palette.danger.argb,
+        primary = palette.primary.argb,
+        busyOutline = shade(palette.danger.argb, ArtFactors.BUSY_OUTLINE_SHADE),
         ring = ringColor(state, palette),
         litSegment = palette.primary.argb,
         unlitSegment = palette.bg.argb,

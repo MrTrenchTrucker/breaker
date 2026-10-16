@@ -23,7 +23,7 @@ a tap.
 | `FAILED` | the outline turns to the failure colour | `onTap` |
 | `SENT` | the outline turns green: the text is committed | `onTap` |
 | `SENT_LOCAL` | the outline turns orange: the phone model committed it after the server failed | `onTap` |
-| `MIC_BUSY` | the microphone with a red circle and slash (danger colour), pulsing slowly | `onTap` |
+| `MIC_BUSY` | the microphone with a red circle and slash (danger colour) over a dark outline; the circle and slash pulse slowly | `onTap` |
 
 The armed outline pulses while the state is `ARMED` and the tile is shown: a platform animator
 lowers and raises the outline's brightness from a quarter to full strength over 1.6 seconds. It stops
@@ -40,8 +40,8 @@ window is not visible, or when the screen turns off.
 
 ## The expanded tile and the meter
 
-While the state is `RECORDING` the tile widens to three tiles by one: an X (cancel) on
-the left, the microphone in the middle, and a check (send) on the right. The
+While the state is `RECORDING` the tile widens to three tiles by one: a red X (cancel) on
+the left, the microphone in the middle, and a green check (send) on the right. The X is drawn in the danger colour and the check in the primary colour, each as a filled shape with a trim outline. The
 microphone's grille is the level meter: six slots, lit from the left. Silence leaves
 all six unlit. The app pushes the sound level with `setLevel` (0.0 to 1.0); a value
 outside the range is held to it, and the tile redraws only when the number of lit

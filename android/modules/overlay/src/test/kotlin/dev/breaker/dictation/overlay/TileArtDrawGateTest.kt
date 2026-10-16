@@ -34,7 +34,7 @@ class TileArtDrawGateTest {
     private fun real(name: String): String = ModuleFiles.mainTexts().getValue(name)
 
     private val fillLine = "private fun fillShape(canvas: Canvas, paint: Paint, shape: ArtShape, color: Int) {"
-    private val busyLine = "private fun drawBusy(canvas: Canvas, paint: Paint, color: Int, pulseAlpha: Float) {"
+    private val busyLine = "private fun drawBusy(canvas: Canvas, paint: Paint, look: TileLook, pulseAlpha: Float) {"
 
     /** A failure here means a call paints the whole window, which the mic never does: the window is translucent and only the art is drawn. */
     @Test
@@ -67,11 +67,11 @@ class TileArtDrawGateTest {
         assertQuiet("the real art", ViewDrawingRules.artColourProblems(artText))
         assertQuiet("the real calls in the view", ViewDrawingRules.helperCallProblems(real(view)))
         assertFires("a hex literal in a helper", ViewDrawingRules.artColourProblems(edit(artText, fillLine, "$fillLine\nval tint = 0xFF112233.toInt()")), "a hex literal")
-        assertFires("a Color constant set as the colour", ViewDrawingRules.artColourProblems(edit(artText, "paint.color = ringDrawColor(color, pulseAlpha)", "paint.color = Color.RED")), "Color.RED")
+        assertFires("a Color constant set as the colour", ViewDrawingRules.artColourProblems(edit(artText, "paint.color = ringDrawColor(look.ring, pulseAlpha)", "paint.color = Color.RED")), "Color.RED")
         assertFires("a hex literal set as the colour", ViewDrawingRules.artColourProblems(edit(artText, "paint.color = color", "paint.color = 0xFF112233.toInt()")), "0xFF112233.toInt()")
         assertFires("a setAlpha call on the paint", ViewDrawingRules.artColourProblems(edit(artText, busyLine, "$busyLine\npaint.setAlpha(128)")), "a paint alpha")
         assertFires("a glow colour made from a number", ViewDrawingRules.artColourProblems(edit(artText, "glowDrawColor(color, pulseAlpha, glowAlpha(layer))", "glowDrawColor(7, pulseAlpha, glowAlpha(layer))")), "glowDrawColor(7")
-        assertFires("a bare colour passed to a helper", ViewDrawingRules.artColourProblems(edit(artText, "drawBusy(canvas, paint, look.ring, pulseAlpha)", "drawBusy(canvas, paint, color, pulseAlpha)")), "argument 2")
+        assertFires("a bare colour passed to a helper", ViewDrawingRules.artColourProblems(edit(artText, "drawBusy(canvas, paint, look, pulseAlpha)", "drawBusy(canvas, paint, color, pulseAlpha)")), "argument 2")
         assertFires("a number passed as a fill colour", ViewDrawingRules.artColourProblems(edit(artText, "fillShape(canvas, paint, slot.body, slotColor(false, lit, look))", "fillShape(canvas, paint, slot.body, 7)")), "argument 3")
         assertFires("a local colour passed as a fill colour", ViewDrawingRules.artColourProblems(edit(artText, "fillShape(canvas, paint, slot.top, slotColor(true, lit, look))", "fillShape(canvas, paint, slot.top, color)")), "argument 3")
         assertFires("a local named color", ViewDrawingRules.artColourProblems(edit(artText, fillLine, "$fillLine\nval color = 7")), "a local named color")

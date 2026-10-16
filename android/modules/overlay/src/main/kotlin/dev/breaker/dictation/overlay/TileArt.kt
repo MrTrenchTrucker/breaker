@@ -2,7 +2,8 @@ package dev.breaker.dictation.overlay
 
 /**
  * The parts of the microphone art, one per drawn shape. The art is numeric path data taken from the
- * approved svg (1024 by 1024 units); each part names the svg line it comes from.
+ * approved svg (1024 by 1024 units); each part names the svg line it comes from. The last two parts are the
+ * recording buttons, drawn by TileArtDraw.drawControl, and are not in TileArt.all.
  */
 internal enum class ArtPart {
     TRIGGER_BODY,      // svg line 19 (silhouette, outlined)
@@ -24,6 +25,8 @@ internal enum class ArtPart {
     LEDGE_END_LEFT,    // svg line 45
     LEDGE_END_RIGHT,   // svg line 46
     LETTERS,           // svg line 47 (BREAKER, one shape, 12 contours)
+    CANCEL_CROSS,      // svg file breaker_btn_cancel (the recording buttons)
+    SEND_CHECK,        // svg file breaker_btn_send (the recording buttons)
 }
 
 /**

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Floating tile = CB mic drawn from path data, with a glowing outline and a six-slot level meter in its grille (WindowManager overlay, F36). The floating tile that appears over any app and is where dictation is started, watched and ended. A tap on the microphone calls the app's `onTap` (idle or failed) or `onBegin` (armed), and the app decides whether that starts or stops dictation. The tile draws the approved CB mic from numeric path data (`TileArt.kt` and `TileLetters.kt`), not a stand-in glyph. How it looks on a phone is not verified (see Not verified on a device).
+Floating tile = CB mic drawn from path data, with a glowing outline and a six-slot level meter in its grille (WindowManager overlay, F36). The floating tile that appears over any app and is where dictation is started, watched and ended. A tap on the microphone calls the app's `onTap` (idle or failed) or `onBegin` (armed), and the app decides whether that starts or stops dictation. The tile draws the approved CB mic from numeric path data (`TileArt.kt` and `TileLetters.kt`), and the X and the check from path data in `TileControlArt.kt`, not a stand-in glyph. How it looks on a phone is not verified (see Not verified on a device).
 
 **What is built now:**
 - A small draggable tile (56 dp) with the CB mic drawn from path data and no fill behind it, shown above other apps.
@@ -19,7 +19,7 @@ Floating tile = CB mic drawn from path data, with a glowing outline and a six-sl
 - A description (`setDescription`) that the view gives to screen readers as its content description.
 - The callbacks `onTap`, `onBegin`, `onCancel`, `onSend` and `onNoticeDismissed`.
 - A tap on the strip of a notice window clears the notice and collapses the tile, calling `onNoticeDismissed` once (not `onTap`). The module has no timer.
-- MIC_BUSY: the microphone is not available. The app decides when to show it. The tile shows a mic glyph with a red circle and diagonal slash (danger colour), pulsing slowly. No text. A tap reports like IDLE.
+- MIC_BUSY: the microphone is not available. The app decides when to show it. The tile shows a mic glyph with a red circle and diagonal slash (danger colour) over a dark outline (the danger colour shaded toward black). The circle and slash pulse slowly; the outline does not pulse. No text. A tap reports like IDLE.
 - Close target (F38): while a small tile is dragged, a close target (an X in a circle, palette colours only, placeholder art) is shown centred near the bottom of the usable area; it goes when the drag ends. A drop with the tile's centre inside the target hides the tile, calls `onCloseRequested` (no arguments, null by default) and does not save the position; a drop elsewhere saves as today. A tap never closes. The target is shown in the same overlay window type and is not focusable and not touchable.
 
 **How dictation ends:** while the state is `RECORDING`, the check, or a tap on the microphone, calls `onSend`, and the X
@@ -92,13 +92,13 @@ factors in `ArtFactors`): the body is dark in both themes. Its shapes, the grill
 body colour (`bodyColor(look)`: the text colour in the light theme, the surface colour in the dark theme). The frame and
 ledge faces shade the trim colour. The BREAKER letters are primary, the outline is trim (idle), primary (armed, recording),
 warning (sending), danger (failed), the palette's `sent` field (SENT) or its `warning` field (SENT_LOCAL), the lit grille
-slots are primary and the unlit ones the page background colour (bg). Text for the X, the check and the notice is drawn
-over a halo of the surface colour (`look.background`). The window draws no fill, so no surface is drawn behind the mic.
+slots are primary and the unlit ones the page background colour (bg). The notice text is drawn over a halo of the surface
+colour (`look.background`). The X and the check are filled shapes with a trim outline (`look.glyphOutline`) and have no halo. The window draws no fill, so no surface is drawn behind the mic.
 No colour value is written in this module's sources.
 
 **Glyph:** the approved CB mic: straight-line shaded faces, a trigger bar, a head with a tapered lower body, a cord stub,
 a frame with six grille slots, a ledge, and the word BREAKER as outlines. The shapes are numeric path data copied from the
-art's SVG (`TileArt.kt`, and the BREAKER outlines in `TileLetters.kt`); there is no font file. The busy sign, the glow widths and the art-to-cell frame are worked out in `TileArtGeometry.kt`, which has no android names, and `TileArtDraw.kt` only draws them. The art is drawn at 90 percent
+art's SVG (`TileArt.kt`, and the BREAKER outlines in `TileLetters.kt`); the X and the check paths are in `TileControlArt.kt`; there is no font file. The busy sign, the glow widths and the art-to-cell frame are worked out in `TileArtGeometry.kt`, which has no android names, and `TileArtDraw.kt` only draws them. The art is drawn at 90 percent
 of the 56 dp cell (`ART_FILL`) so the glow fits, and the tile is 56 dp square with no fill, so no corner is drawn.
 The outline is 2 dp thick and runs along the silhouette of the trigger bar, the head and lower body, and the cord stub. Outside
 it are three glow layers, 4, 6 and 8 dp wide, with alpha 0.45, 0.25 and 0.12 going outward. The glow is approximate stroke
@@ -142,7 +142,7 @@ get darker and are flat, and white in the dark theme. They sit on the dark body.
 - No focus stealing; other apps keep focus while tile is shown (the window is asked to be not focusable; not checked on a device).
 - T4: the tile is tap-only and drops touches while covered. It does not verify window ownership.
 - Tile renders the CB mic from path data, with no fill behind it in any state; the six grille slots are the level meter while recording (F36).
-  Tested by: `TileArtTest`, `TileArtGeometryTest`, `TileRecordingLayoutTest`, and the view's source-text rule for the fill (re-pointed; see Test Locations).
+  Tested by: `TileArtTest`, `TileArtGeometryTest`, `TileRecordingLayoutTest`, `ControlArtSvgTest` (the X and check path numbers, held as svg element text in the test, against `ControlArt` and Kotlin literals), `ControlDrawGateTest` (the fill and outline passes, with the rules in `ControlDrawRules`), and the view's source-text rule for the fill (re-pointed; see Test Locations).
 - Faces and glow take their colours only from `TileLook` fields: `shade()` with the named factors in `ArtFactors` (the body colour from `bodyColor(look)`), and the glow through `glowDrawColor` with the outline colour and the pulse alpha. The glow is three stroke layers.
   Tested by: `TileArtFacesTest`, `TileArtRulesTest`, `PulseRulesTest`.
 - State colors: a failure turns the outline to the danger colour (F36). SENT is green (the palette's `sent` field) and
@@ -154,7 +154,7 @@ get darker and are flat, and white in the dark theme. They sit on the dark body.
   Tested by: `ModuleHygieneTest`, `TileViewGateTest`, `PulseRulesTest`.
 - The busy ring pulse: while the tile is MIC_BUSY or SENDING and shown, the outline pulses slowly (period 3200 ms, alpha min 0.6). It stops when the state leaves MIC_BUSY or SENDING, when the tile is hidden or detached, when the window is not visible, or when the screen turns off; the same run conditions as the armed pulse.
 - Colours are palette fields only: every colour the tile draws is a ui-tokens palette field; no colour value and no new token is written in this module.
-  Tested by: `TileStyleTest`, `TileGlyphTest`, `TileViewGateTest`, `TileViewMappingGateTest`, `TileViewDrawingGateTest`, `AdapterGateTest`.
+  Tested by: `TileStyleTest`, `TileGlyphTest`, `TileViewGateTest`, `TileViewMappingGateTest`, `TileViewDrawingGateTest`, `ControlDrawGateTest`, `AdapterGateTest`.
 - The module holds no words of its own: the notice and the description come from the app.
   Tested by: `MainSourceWordsGateTest`, `TileAdapterWiringGateTest`.
 - Only a collapsed tile drags and saves its position: the wide window (a notice, or recording) cannot be dragged, and a slide that starts on a button or in the strip moves nothing and saves nothing.
@@ -199,7 +199,7 @@ FloatingTile (via create), ShowResult, TileState
   - `onCloseRequested`: optional, no arguments, null by default. Called when a drag of the collapsed tile ends on the close target.
   - A callback that is null makes the tap do nothing. An exception thrown by any callback is not caught by the module.
 - `FloatingTile.show(): ShowResult`, `hide()`, `setTheme(theme)`, `onDisplayChanged()`, the property `isShown`, the pushes from the app `setState(state)`, `setLevel(level)`, `showNotice(text)`, `clearNotice()` and `setDescription(text)`, and the property `state`.
-  - `TileState.MIC_BUSY` — public; the overlay face when the microphone is not available. The app decides when to show it. The tile shows a mic glyph with a red circle and diagonal slash (danger colour), pulsing slowly. No text. A tap reports like IDLE.
+  - `TileState.MIC_BUSY` - public; the overlay face when the microphone is not available. The app decides when to show it. The tile shows a mic glyph with a red circle and diagonal slash (danger colour) over a dark outline. The circle and slash pulse slowly; the outline does not pulse. No text. A tap reports like IDLE.
   - `setTheme`: while the tile is shown it is repainted at once; while hidden the choice is kept for the next `show()`.
   - `onDisplayChanged`: call it when the screen size, density or insets change. While shown and not being dragged
     the tile moves to where its saved fraction falls on the new screen (a wide window is placed again around it);
@@ -237,7 +237,7 @@ FloatingTile (via create), ShowResult, TileState
     calls `onTap`, as in `IDLE`.
   - `SENT_LOCAL`: the text is committed by the phone model after the server path failed. The outline is in the `warning`
     colour (orange). A tap on the microphone calls `onTap`, as in `IDLE`.
-  - `MIC_BUSY` — the microphone is not available. The app decides when to show it. The tile shows a mic glyph with a red circle and diagonal slash (danger colour), pulsing slowly. No text. A tap reports like IDLE.
+  - `MIC_BUSY` - the microphone is not available. The app decides when to show it. The tile shows a mic glyph with a red circle and diagonal slash (danger colour) over a dark outline. The circle and slash pulse slowly; the outline does not pulse. No text. A tap reports like IDLE.
 - Everything else is `internal`.
 
 ## Depends On
@@ -327,7 +327,7 @@ FloatingTile (via create), ShowResult, TileState
   argument); the add is inside a try that catches a refusal and answers `REFUSED`; the covered-touch filter is
   switched on and not undone; no text input word; no colour literal; the manifest declares exactly the one
   permission; the permission answer comes from the system and never from a literal `true`.
-- The tile view and the window adapter are read as text too (`TileViewGateTest`, `TileViewDrawingGateTest`,
+- The tile view and the window adapter are read as text too (`TileViewGateTest`, `TileViewDrawingGateTest`, `TileViewHaloGateTest`, `ControlDrawGateTest`,
   `MainSourceWordsGateTest`): `setFrame` sets x, y, width and height and calls `updateViewLayout`; the window flags are the
   three of the plain tile and are never changed; the add has three catches, the last a `RuntimeException`, and answers
   `REFUSED`; the view takes every colour from the face's look and sets none through a setter; it starts no timer or
@@ -336,9 +336,9 @@ FloatingTile (via create), ShowResult, TileState
   the right and only while recording, and wraps the notice to the strip in at most two lines with an ellipsis; no main
   source holds a literal with words of its own.
 - What each part of the tile view is painted with and where (the view's mapping rules, re-pointed to the path-data mic):
-  each mic face, slot and letter, the outline, the X and the check, and the notice text take their own colour of the look;
+  each mic face, slot and letter, the outline, the X and the check (each with its trim outline, `look.glyphOutline`), and the notice text take their own colour of the look;
   the window draws no fill of any kind; the mic and the outline are drawn into the microphone cell; the X and the check are
-  two different strokes each, over a halo of the surface colour (`look.background`); the draw stops when the cell side is not positive;
+  two filled shapes, each with a trim outline (`look.glyphOutline`) and no halo; the draw stops when the cell side is not positive;
   the outline is as thick as `RING_DP`; no colour is made from numbers and no literal is given to a colour call.
 - The hand-overs between values in the window adapter and the view (`TileAdapterWiringGateTest`): `setFrame` copies x,
   y, width and height each into the window parameter of the same name and a move keeps the size; a good add keeps the
@@ -358,6 +358,9 @@ FloatingTile (via create), ShowResult, TileState
   slots rise strictly in x, have equal width and sit inside the well; every coordinate is inside the 1024 box, and the scaled
   box stays inside the cell.
 - `TileArtGeometryTest`: the busy sign's centre, radius, stroke and slash ends, the glow widths 4, 6 and 8 dp, and the art-to-cell frame (scale, centre and origin) for a square and a non-square cell; plain JVM, no android names.
+- `ControlArtSvgTest`: holds the svg element text of the two buttons as strings in the test (it does not read an art file) and checks the parsed path numbers against `ControlArt` and against Kotlin literals; checks the outline width (22) and miter limit (10) against `ArtMetrics`, the bounds and corners of each shape, the danger and primary face colours, that neither part is in `TileArt.all`, and the placement of the 396 unit box in a 200 unit cell; plain JVM.
+- `ControlDrawRules`: holds the text rules for `drawControl` (two passes on one path, the fill in the face colour of its part, the outline in `look.glyphOutline` with the miter join, butt cap, the control miter limit and outline width, the paint join, miter and cap read before the first pass and put back after the cell block, both passes inside the cell block) and for the two constants and the two face arms. It is a rules file, not a test; `ControlDrawGateTest` runs it.
+- `ControlDrawGateTest`: runs the `ControlDrawRules` checks first on edited copies of the real source (each edit fails by name when its text is missing) and then on the real `TileArtDraw.kt` and `TileArtRules.kt`; reads text only, does not run the view.
 - `TileArtRulesTest`: the shade arithmetic (identity at 0, white at 1, black at -1, alpha kept, NaN and out-of-range held);
   `slotLit` for each lit count from 0 to 6 in `RECORDING`, and all lit outside it; the glow alphas.
 - `TileArtFacesTest`: one test per face with its literal ARGB in the light and in the dark palette; the faces that shade the
@@ -439,7 +442,7 @@ agents, not required: an outside contributor may write the code themselves
 - A level pushed outside `RECORDING` is stored but not lit, and the meter starts empty when `RECORDING` is entered.
 - While `SENDING` the tile shows the warning outline and pulses slowly (the busy pulse, same as MIC_BUSY); the app's description is the only cue.
 - `SENDING` and `SENT_LOCAL` share the warning outline. They are told apart only by the pulse: it runs while sending and stops at `SENT_LOCAL`. This is interim, for the first test build; the final colours come in the art phase.
-- The MIC_BUSY circle-and-slash is the art's own geometry, drawn from its numbers: a circle and a 45-degree slash, stroked 70 art units wide with a margin of 60, in the danger colour, with the busy pulse. Its look on a device is not checked.
+- The MIC_BUSY circle-and-slash is the art's own geometry, drawn from its numbers: a red ring 92 art units wide (mid radius 394, centre 512, 500 in the 1024 box), and a 45-degree slash 92 units wide through the centre. Under them a dark outline 124 units wide (92 plus 16 on each side), in the danger colour shaded toward black, not pulsing. The ring and the slash pulse with the busy pulse. Its look on a device is not checked.
 - No text is drawn on the tile in any MIC_BUSY state. The accessibility label is the only content description.
 - A tap on a MIC_BUSY tile reports a tap exactly like IDLE. The app decides what to do.
 - `hide()` while the tile is expanded or recording removes the window and calls no callback; the pushed state, level and notice are kept and the next `show()` draws them.
@@ -454,11 +457,11 @@ agents, not required: an outside contributor may write the code themselves
   - The X and the check have no accessibility node of their own: the tile is one view with one description, so a screen reader cannot reach the X; what a screen reader does with a double tap on the tile is not known.
   - The window jumps at a screen edge when it expands: next to an edge the window is moved to stay on screen, so the microphone appears at a different place, and a window wider than the usable area loses part of the send cell.
   - A CR LF pair in a notice shows as two spaces.
-  - Colour pair choices: the contrast of the outline, the grille slots, the X, the check and the notice text against the wallpaper and the body colour was not measured on a device.
+  - Colour pair choices: the contrast of the outline, the grille slots, the X, the check, their trim outlines and the notice text against the wallpaper and the body colour was not measured on a device.
 - Frame and ledge faces: they shade the trim colour. In the light theme the trim is black, so they cannot get darker and are flat at black. In the dark theme the trim is white, and they shade toward black. In both themes they sit on the dark body (`bodyColor(look)`).
 - The glow is an approximation: three stroke layers of falling alpha (0.45, 0.25, 0.12) at 4, 6 and 8 dp, not a blur. How it reads at tile size, on a light or a dark wallpaper, is not checked on a device.
 - The outline is 2 dp on the silhouette edge at tile size. Whether it reads on a phone is not checked.
 - The ui-tokens card still says 12 to 16 segments for the LED bar. The tile does not use that range: it has six grille slots (`LedMeter.SEGMENTS` = 6). The range belongs to the token owner, who moves it later.
-- The notice text, the X and the check have no plate behind them. Each is drawn over a halo of the surface colour (`look.background`), `HALO_DP` wider and drawn first. The halo is a stroke, not a plate.
+- The notice text has no plate behind it. It is drawn over a halo of the surface colour (`look.background`), `HALO_DP` wider and drawn first. The halo is a stroke, not a plate. The X and the check have no halo: they are filled shapes with a trim outline.
 - The code keeps the names `drawRing`, `ringDrawColor` and `RING_DP` for the outline, so the pinned rules keep holding. This card says outline.
 - **Not verified on a device (the close target).** The look and touch of the circle (ring, X, vendor touch delivery) are NOT verified without a device: the ring and X are drawn with palette colours only, the vendor touch delivery of the overlay window is not checked on a device, and the look of the placeholder art (an X in a circle) is not measured.

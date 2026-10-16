@@ -37,8 +37,8 @@ class TileViewDrawingGateTest {
 
     private val sideDecl = Regex("""\bval\s+(\w+)\s*=\s*if\s*\(\s*(?:this\.)?(?:face\.)?shape\s*==\s*TileShape\.COLLAPSED\s*\)\s*height\s+else\s+width\s*/\s*3\b""")
     private val micCall = Regex("""TileLayout\.micCell\(\s*(?:this\.)?(?:face\.)?shape\s*,\s*(\w+)\s*\)""")
-    private val cancelCall = Regex("""\bdrawCancel\s*\(\s*canvas\s*,\s*TileLayout\.cancelCell\(\s*(\w+)\s*\)\s*,""")
-    private val sendCall = Regex("""\bdrawSend\s*\(\s*canvas\s*,\s*TileLayout\.sendCell\(\s*(\w+)\s*\)\s*,""")
+    private val cancelControl = Regex("""\bdrawControl\s*\(\s*canvas\s*,\s*TileLayout\.cancelCell\(\s*(\w+)\s*\)\s*,\s*paint\s*,\s*ControlArt\.cancel\s*,""")
+    private val sendControl = Regex("""\bdrawControl\s*\(\s*canvas\s*,\s*TileLayout\.sendCell\(\s*(\w+)\s*\)\s*,\s*paint\s*,\s*ControlArt\.send\s*,""")
     private val recordingHead = Regex("""TileShape\.RECORDING\s*->\s*\{""")
     private val noticeBranch = Regex("""TileShape\.NOTICE\s*->\s*drawNotice\s*\(""")
     private val widthOf = Regex("""\bval\s+(\w+)\s*=\s*(\w+)\.width\b""")
@@ -80,21 +80,22 @@ class TileViewDrawingGateTest {
     }
 
     /**
-     * Each button is called twice, the halo pass and the control pass, each with its cell from the side of the cell.
-     * The recording branch draws both buttons twice each, and the notice branch draws the notice.
-     * The order and the colours of the two passes are checked by the halo rules.
+     * Each button is drawn once by drawControl, with its cell cut from the side of the cell: the cross in the cancel
+     * cell and the check in the send cell. The recording branch holds the two calls, and the notice branch draws the
+     * notice. The fill, the outline and the colours are checked by the button rules.
      */
     private fun controlProblems(source: String): List<String> {
         val code = SourceText.code(source)
         val side = sideOf(code)
-        val cancel = callsOf(code, "drawCancel")
-        val send = callsOf(code, "drawSend")
+        val controls = callsOf(code, "drawControl")
+        val cancel = controls.filter { cancelControl.containsMatchIn(it) }
+        val send = controls.filter { sendControl.containsMatchIn(it) }
         val recording = recordingBranch(code)
         return listOfNotNull(
-            "drawCancel is not called twice with the cancel cell".takeUnless { cancel.size == 2 && cancel.all { cancelCall.find(it)?.groupValues?.get(1) == side } },
-            "drawSend is not called twice with the send cell".takeUnless { send.size == 2 && send.all { sendCall.find(it)?.groupValues?.get(1) == side } },
-            "the recording branch does not draw the two buttons, each twice".takeUnless {
-                recording != null && listOf("drawCancel", "drawSend").all { name -> Regex("""\b$name\s*\(""").findAll(recording).count() == 2 }
+            "the cross is not drawn once into the cancel cell".takeUnless { cancel.size == 1 && cancelControl.find(cancel[0])?.groupValues?.get(1) == side },
+            "the check is not drawn once into the send cell".takeUnless { send.size == 1 && sendControl.find(send[0])?.groupValues?.get(1) == side },
+            "the recording branch does not draw the two controls, one call each".takeUnless {
+                recording != null && Regex("""\bdrawControl\s*\(""").findAll(recording).count() == 2
             },
             "the notice branch does not draw the notice".takeUnless { noticeBranch.containsMatchIn(code) },
         )
@@ -128,17 +129,11 @@ class TileViewDrawingGateTest {
         "TileShape.COLLAPSED -> Unit",
         "TileShape.NOTICE -> drawNotice(canvas, s, face)",
         "TileShape.RECORDING -> {",
-        "haloExtraPx = 2 * ArtMetrics.HALO_DP * density",
-        "drawCancel(canvas, TileLayout.cancelCell(s), look.background)",
-        "drawSend(canvas, TileLayout.sendCell(s), look.background)",
-        "haloExtraPx = 0f",
-        "drawCancel(canvas, TileLayout.cancelCell(s), look.control)",
-        "drawSend(canvas, TileLayout.sendCell(s), look.control)",
+        "artDraw.drawControl(canvas, TileLayout.cancelCell(s), paint, ControlArt.cancel, look)",
+        "artDraw.drawControl(canvas, TileLayout.sendCell(s), paint, ControlArt.send, look)",
         "}",
         "}",
         "}",
-        "private fun drawCancel(canvas: Canvas, cell: TileRect, color: Int) { }",
-        "private fun drawSend(canvas: Canvas, cell: TileRect, color: Int) { }",
         "private fun drawNotice(canvas: Canvas, s: Int, face: TileFace) {",
         "val area = TileLayout.noticeRect(s)",
         "val textWidth = area.width - 2 * pad",
@@ -192,22 +187,23 @@ class TileViewDrawingGateTest {
         assertEquals("overlay: $art must light the grille slots below the lit count in the lit colour", emptyList<String>(), ViewDrawingRules.slotProblems(real))
     }
 
-    /** A failure here means a control is drawn in a cell that does not answer it, or a button is drawn once where it is drawn twice. */
+    /** A failure here means a button is drawn into a cell that does not answer it, drawn more or fewer than once, or drawn outside the recording branch. */
     @Test
     fun `the view draws the cancel cross left and the check right and only when recording`() {
-        val cancel = "drawCancel(canvas, TileLayout.cancelCell(s), look.control)"
-        val send = "drawSend(canvas, TileLayout.sendCell(s), look.control)"
-        assertFires("the cross in the send cell", controlProblems(edit(sample, cancel, "drawCancel(canvas, TileLayout.sendCell(s), look.control)")), "drawCancel")
-        assertFires("the check in the cancel cell", controlProblems(edit(sample, send, "drawSend(canvas, TileLayout.cancelCell(s), look.control)")), "drawSend")
-        assertFires("the cross in the microphone cell", controlProblems(edit(sample, cancel, "drawCancel(canvas, TileLayout.micCell(face.shape, s), look.control)")), "drawCancel")
-        assertFires("the cross drawn three times", controlProblems(edit(sample, cancel, "$cancel\n$cancel")), "drawCancel")
-        assertFires("no check", controlProblems(edit(sample, "$send\n", "")), "drawSend")
-        assertFires("the cross in a cell cut from another side", controlProblems(edit(sample, "cancelCell(s)", "cancelCell(height)")), "drawCancel")
+        val cancel = "artDraw.drawControl(canvas, TileLayout.cancelCell(s), paint, ControlArt.cancel, look)"
+        val send = "artDraw.drawControl(canvas, TileLayout.sendCell(s), paint, ControlArt.send, look)"
+        assertFires("the cross in the send cell", controlProblems(edit(sample, cancel, "artDraw.drawControl(canvas, TileLayout.sendCell(s), paint, ControlArt.cancel, look)")), "the cross")
+        assertFires("the check in the cancel cell", controlProblems(edit(sample, send, "artDraw.drawControl(canvas, TileLayout.cancelCell(s), paint, ControlArt.send, look)")), "the check")
+        assertFires("the cross with the check shape", controlProblems(edit(sample, cancel, "artDraw.drawControl(canvas, TileLayout.cancelCell(s), paint, ControlArt.send, look)")), "the cross")
+        assertFires("the cross in the microphone cell", controlProblems(edit(sample, cancel, "artDraw.drawControl(canvas, TileLayout.micCell(face.shape, s), paint, ControlArt.cancel, look)")), "the cross")
+        assertFires("the cross drawn three times", controlProblems(edit(sample, cancel, "$cancel\n$cancel")), "the cross")
+        assertFires("no check", controlProblems(edit(sample, "$send\n", "")), "the check")
+        assertFires("the cross in a cell cut from another side", controlProblems(edit(sample, "cancelCell(s)", "cancelCell(height)")), "the cross")
         assertFires("the check outside the recording branch", controlProblems(edit(edit(sample, "$send\n", ""), "TileShape.COLLAPSED -> Unit", "TileShape.COLLAPSED -> $send")), "recording branch")
         assertFires("the notice in the wrong branch", controlProblems(edit(sample, "TileShape.NOTICE -> drawNotice(canvas, s, face)", "TileShape.NOTICE -> Unit")), "notice branch")
         assertFires("no recording branch", controlProblems(edit(sample, "TileShape.RECORDING -> {", "TileShape.RECORDING -> run {")), "recording branch")
         assertQuiet("the side under another name", controlProblems(edit(edit(edit(sample, "val s =", "val side ="), "cancelCell(s)", "cancelCell(side)"), "sendCell(s)", "sendCell(side)")))
-        assertQuiet("the arguments on separate lines", controlProblems(edit(sample, cancel, "drawCancel(\n canvas,\n TileLayout.cancelCell(s),\n look.control,\n)")))
+        assertQuiet("the arguments on separate lines", controlProblems(edit(sample, cancel, "artDraw.drawControl(\n canvas,\n TileLayout.cancelCell(s),\n paint,\n ControlArt.cancel,\n look,\n)")))
 
         assertEquals("overlay: $view must draw the cross in the cancel cell and the check in the send cell, only when recording", emptyList<String>(), inView(this::controlProblems))
     }

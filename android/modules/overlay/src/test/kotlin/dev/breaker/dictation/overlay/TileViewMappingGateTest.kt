@@ -5,10 +5,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * What the tile view paints with which colour and where: which colour of the look the ring, the buttons and the
- * notice text use, which rectangle the ring is drawn into, how many strokes the cross and the check are made of,
- * and the guard of the view and the width of the ring. The art, its faces and its halo passes are checked by their
- * own rules. The view cannot run on a plain JVM, so these rules read its source text.
+ * What the tile view paints with which colour and where: which colour of the look the ring and the notice text use,
+ * which rectangle the ring is drawn into, and the guard of the view and the width of the ring. The buttons are filled
+ * shapes drawn by drawControl, and their colours are checked by the face rules and the outline rules. The art, its
+ * faces and its halo passes are checked by their own rules. The view cannot run on a plain JVM, so these rules read
+ * its source text.
  *
  * Every test runs its rule first on short made-up samples (a wrong line must be reported with the right words, a
  * correct one must not, even with other names) and only then on the real file. A construct that cannot be found
@@ -38,7 +39,6 @@ class TileViewMappingGateTest {
     // ---- The rules, each from source text to a list of violations ----
 
     private val endsWithRing = Regex(""",\s*(?:face\.)?look\.ring\s*,?\s*\)\z""")
-    private val endsWithControl = Regex(""",\s*(?:face\.)?look\.control\s*,?\s*\)\z""")
     private val noticeColour = Regex("""\btextPaint\.color\s*=\s*(?:face\.)?look\.control[ \t]*(?:\n|\z)""")
     private val micCell = Regex("""\bval\s+(\w+)\s*=\s*TileLayout\.micCell\(""")
     private val cellArg = Regex("""\(\s*canvas\s*,\s*(TileLayout\.micCell\([^()]*\)|\w+)\s*,""")
@@ -59,18 +59,14 @@ class TileViewMappingGateTest {
         }.toList()
 
     /**
-     * The ring is drawn with look.ring, the two buttons are drawn twice each with the halo colour first and the
-     * control colour last, and the notice text is drawn with look.control. The halo passes are checked in detail by
-     * the halo rules; here only the claim that a button ends in the control colour, and no other colour, is kept.
+     * The ring is drawn with look.ring and the notice text with look.control. The button part is retired: the colour of
+     * each button is held by faceSpec in ViewDrawingRules (the fill) and by ControlDrawGateTest (the outline).
      */
     private fun colourRoleProblems(source: String): List<String> {
         val code = SourceText.code(source)
         val ring = callsOf(code, "drawRing")
-        val buttons = callsOf(code, "drawCancel") + callsOf(code, "drawSend")
         return listOfNotNull(
             "the ring is not drawn with look.ring".takeUnless { ring.size == 1 && endsWithRing.containsMatchIn(ring[0]) },
-            "a button is not drawn with its halo colour first and look.control last"
-                .takeUnless { buttons.size == 4 && buttons.withIndex().all { (i, call) -> endsWithControl.containsMatchIn(call) == (i % 2 == 1) } },
             "the notice text is not drawn with look.control".takeUnless { noticeColour.containsMatchIn(code) },
         )
     }
@@ -83,18 +79,6 @@ class TileViewMappingGateTest {
         return listOfNotNull(
             "drawRing is not called once with the microphone cell".takeUnless { arg != null && (arg in mics || arg.startsWith("TileLayout.micCell(")) },
         )
-    }
-
-    private fun strokeProblems(source: String): List<String> {
-        val code = SourceText.code(source)
-        return listOf("drawCancel" to "cross", "drawSend" to "check mark").flatMap { (name, picture) ->
-            val body = AdapterRules.blockBodyOf(code, name)
-            val lines = body?.let { callsOf(it, "drawLine") }.orEmpty().map { line -> line.filterNot { it.isWhitespace() } }
-            listOfNotNull(
-                "$name does not draw the $picture as two different strokes".takeUnless { lines.size == 2 && lines[0] != lines[1] },
-                "$name does not set up its stroke with strokeControl(color)".takeUnless { body != null && Regex("""\bstrokeControl\s*\(\s*color\s*\)""").containsMatchIn(body) },
-            )
-        }
     }
 
     /** The guards of the view: the draw stops for a side that is not positive, and the ring is as thick as RING_DP. */
@@ -121,31 +105,15 @@ class TileViewMappingGateTest {
         "artDraw.drawGlow(canvas, mic, paint, look.ring, pulseAlpha, density)",
         "drawRing(canvas, mic, look.ring)",
         "artDraw.drawArt(canvas, mic, paint, face, pulseAlpha)",
-        "haloExtraPx = 2 * ArtMetrics.HALO_DP * density",
-        "drawCancel(canvas, TileLayout.cancelCell(s), look.background)",
-        "drawSend(canvas, TileLayout.sendCell(s), look.background)",
-        "haloExtraPx = 0f",
-        "drawCancel(canvas, TileLayout.cancelCell(s), look.control)",
-        "drawSend(canvas, TileLayout.sendCell(s), look.control)",
+        "artDraw.drawControl(canvas, TileLayout.cancelCell(s), paint, ControlArt.cancel, look)",
+        "artDraw.drawControl(canvas, TileLayout.sendCell(s), paint, ControlArt.send, look)",
         "}",
         "private fun drawRing(canvas: Canvas, cell: TileRect, color: Int) {",
         "val stroke = TileMetrics.RING_DP * density",
         "paint.strokeWidth = stroke",
         "paint.color = color",
         "}",
-        "private fun drawCancel(canvas: Canvas, cell: TileRect, color: Int) {",
-        "strokeControl(color)",
-        "canvas.drawLine(left, top, right, bottom, paint)",
-        "canvas.drawLine(right, top, left, bottom, paint)",
-        "}",
-        "private fun drawSend(canvas: Canvas, cell: TileRect, color: Int) {",
-        "strokeControl(color)",
-        "canvas.drawLine(a, b, footX, footY, paint)",
-        "canvas.drawLine(footX, footY, c, d, paint)",
-        "}",
-        "private fun strokeControl(color: Int) {",
-        "paint.color = color",
-        "}",
+
         "private fun drawNotice(canvas: Canvas, s: Int, face: TileFace) {",
         "textPaint.color = face.look.control",
         "}",
@@ -153,27 +121,22 @@ class TileViewMappingGateTest {
     ).joinToString("\n") + "\n"
 
     private val allRules = listOf(
-        this::colourRoleProblems, this::cellProblems, this::strokeProblems, this::guardProblems, AdapterRules::viewColourProblems,
+        this::colourRoleProblems, this::cellProblems, this::guardProblems, AdapterRules::viewColourProblems,
     )
 
     /** A failure here means a part of the tile is painted with another part's colour, for example the ring no longer shows the state. */
     @Test
-    fun `the view paints the ring and the buttons and the notice text with their own colours of the look`() {
+    fun `the view paints the ring and the notice text with their own colours of the look`() {
         assertQuiet("the sample, under every rule", allRules.flatMap { it(sample) })
         assertFires("the ring in the glyph colour", colourRoleProblems(edit(sample, "mic, look.ring)", "mic, look.glyph)")), "look.ring")
         assertFires("the ring in the button colour", colourRoleProblems(edit(sample, "mic, look.ring)", "mic, look.control)")), "look.ring")
         assertFires("the ring call only in a comment", colourRoleProblems(edit(sample, "drawRing(canvas, mic, look.ring)", "// drawRing(canvas, mic, look.ring)")), "look.ring")
         assertFires("the notice in a segment colour", colourRoleProblems(edit(sample, "textPaint.color = face.look.control", "textPaint.color = face.look.litSegment")), "notice text")
         assertFires("the notice in the unlit colour", colourRoleProblems(edit(sample, "textPaint.color = face.look.control", "textPaint.color = face.look.unlitSegment")), "notice text")
-        assertFires("the cross in the glyph colour", colourRoleProblems(edit(sample, "cancelCell(s), look.control)", "cancelCell(s), look.glyph)")), "a button")
-        assertFires("the check in the glyph colour", colourRoleProblems(edit(sample, "sendCell(s), look.control)", "sendCell(s), look.glyph)")), "a button")
-        assertFires("no check drawn", colourRoleProblems(edit(sample, "drawSend(canvas, TileLayout.sendCell(s), look.control)\n", "")), "a button")
-        assertFires("a halo pass drawn in the control colour", colourRoleProblems(edit(sample, "drawSend(canvas, TileLayout.sendCell(s), look.background)", "drawSend(canvas, TileLayout.sendCell(s), look.control)")), "a button")
         assertQuiet("the look through the face, and the notice without it", colourRoleProblems(edit(edit(sample, "mic, look.ring)", "mic, face.look.ring)"), "textPaint.color = face.look.control", "textPaint.color = look.control")))
-        assertQuiet("the arguments on separate lines with a trailing comma", colourRoleProblems(edit(sample, "drawCancel(canvas, TileLayout.cancelCell(s), look.control)", "drawCancel(\n canvas,\n TileLayout.cancelCell(s),\n look.control,\n)")))
         assertQuiet("a wrong ring colour in a comment next to the right one", colourRoleProblems(edit(sample, "drawRing(canvas, mic, look.ring)", "// drawRing(canvas, mic, look.glyph)\ndrawRing(canvas, mic, look.ring)")))
 
-        assertEquals("overlay: $view must paint the ring, the buttons and the notice text with their own colours of the look", emptyList<String>(), inView(this::colourRoleProblems))
+        assertEquals("overlay: $view must paint the ring and the notice text with their own colours of the look", emptyList<String>(), inView(this::colourRoleProblems))
     }
 
     /** A failure here means the ring is drawn into a rectangle other than the microphone cell, while taps still answer in that cell. */
@@ -190,28 +153,6 @@ class TileViewMappingGateTest {
         assertQuiet("the cell under another name", cellProblems(edit(edit(sample, "val mic =", "val cell ="), "drawRing(canvas, mic,", "drawRing(canvas, cell,")))
 
         assertEquals("overlay: $view must draw the ring into the microphone cell", emptyList<String>(), inView(this::cellProblems))
-    }
-
-    /** A failure here means the cross or the check is no longer made of two different strokes, so a button is drawn as a bare slash. */
-    @Test
-    fun `the view draws the cross and the check as two strokes each`() {
-        val xFirst = "canvas.drawLine(left, top, right, bottom, paint)"
-        val xSecond = "canvas.drawLine(right, top, left, bottom, paint)"
-        val checkFirst = "canvas.drawLine(a, b, footX, footY, paint)"
-        val checkSecond = "canvas.drawLine(footX, footY, c, d, paint)"
-        assertFires("the second stroke of the cross removed", strokeProblems(edit(sample, "$xSecond\n", "")), "drawCancel does not draw the cross")
-        assertFires("the first stroke of the cross removed", strokeProblems(edit(sample, "$xFirst\n", "")), "drawCancel does not draw the cross")
-        assertFires("the cross drawn as one stroke twice", strokeProblems(edit(sample, xSecond, xFirst)), "drawCancel does not draw the cross")
-        assertFires("the second stroke of the check removed", strokeProblems(edit(sample, "$checkSecond\n", "")), "drawSend does not draw the check mark")
-        assertFires("the first stroke of the check removed", strokeProblems(edit(sample, "$checkFirst\n", "")), "drawSend does not draw the check mark")
-        assertFires("a third stroke on the check", strokeProblems(edit(sample, checkSecond, "$checkSecond\n$xFirst")), "drawSend does not draw the check mark")
-        assertFires("a stroke only in a comment", strokeProblems(edit(sample, checkSecond, "// $checkSecond")), "drawSend does not draw the check mark")
-        assertFires("no stroke set-up for the check", strokeProblems(edit(sample, "color: Int) {\nstrokeControl(color)\n$checkFirst", "color: Int) {\n$checkFirst")), "drawSend does not set up")
-        assertFires("no cross function", strokeProblems(edit(sample, "private fun drawCancel(", "private fun drawCancelled(")), "drawCancel does not draw")
-        assertQuiet("the strokes with their arguments on separate lines", strokeProblems(edit(sample, xFirst, "canvas.drawLine(\n left,\n top,\n right,\n bottom,\n paint,\n)")))
-        assertQuiet("a comment between the two strokes", strokeProblems(edit(sample, xSecond, "// back stroke\n$xSecond")))
-
-        assertEquals("overlay: $view must draw the cross and the check as two different strokes each", emptyList<String>(), inView(this::strokeProblems))
     }
 
     /** A failure here means the guard of the view or the width of the ring was dropped: a zero side draws, or the ring loses its width. */

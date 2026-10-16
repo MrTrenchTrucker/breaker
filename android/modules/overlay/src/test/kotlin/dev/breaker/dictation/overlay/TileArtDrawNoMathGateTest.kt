@@ -51,9 +51,11 @@ class TileArtDrawNoMathGateTest {
         "draw(frame.scale)\n" +
         "canvas.restore()\n" +
         "}\n" +
-        "private fun drawBusy(canvas: Canvas, paint: Paint, color: Int, pulseAlpha: Float) {\n" +
+        "private fun drawBusy(canvas: Canvas, paint: Paint, look: TileLook, pulseAlpha: Float) {\n" +
         "val busy = ArtGeometry.busySign()\n" +
-        "canvas.drawCircle(busy.centre, busy.centre, busy.radius, paint)\n" +
+        "paint.color = look.busyOutline\n" +
+        "canvas.drawCircle(busy.centreX, busy.centreY, busy.radius, paint)\n" +
+        "paint.color = ringDrawColor(look.ring, pulseAlpha)\n" +
         "canvas.drawLine(busy.slashFromX, busy.slashFromY, busy.slashToX, busy.slashToY, paint)\n" +
         "}\n"
 

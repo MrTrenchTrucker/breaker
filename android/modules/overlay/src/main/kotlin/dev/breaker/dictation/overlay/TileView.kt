@@ -38,9 +38,6 @@ internal class TileView(
     private val textPaint = TextPaint(Paint.ANTI_ALIAS_FLAG)
     private val artDraw = TileArtDraw()
 
-    /** Extra stroke width in pixels for the control strokes: the halo pass sets it, and it is 0 otherwise. */
-    private var haloExtraPx: Float = 0f
-
     /** Id of the pointer that owns the current gesture, or [NO_POINTER] when none does. */
     private var activePointerId: Int = NO_POINTER
 
@@ -123,12 +120,8 @@ internal class TileView(
             TileShape.COLLAPSED -> Unit
             TileShape.NOTICE -> drawNotice(canvas, s, face)
             TileShape.RECORDING -> {
-                haloExtraPx = 2 * ArtMetrics.HALO_DP * density
-                drawCancel(canvas, TileLayout.cancelCell(s), look.background)
-                drawSend(canvas, TileLayout.sendCell(s), look.background)
-                haloExtraPx = 0f
-                drawCancel(canvas, TileLayout.cancelCell(s), look.control)
-                drawSend(canvas, TileLayout.sendCell(s), look.control)
+                artDraw.drawControl(canvas, TileLayout.cancelCell(s), paint, ControlArt.cancel, look)
+                artDraw.drawControl(canvas, TileLayout.sendCell(s), paint, ControlArt.send, look)
             }
         }
     }
@@ -140,35 +133,6 @@ internal class TileView(
         paint.strokeWidth = stroke
         paint.color = ringDrawColor(color, pulseAlpha)
         artDraw.strokeOutline(canvas, cell, paint)
-    }
-
-    /** The cancel button: a cross made of two strokes, inset in [cell]. */
-    private fun drawCancel(canvas: Canvas, cell: TileRect, color: Int) {
-        strokeControl(color)
-        val pad = cell.width * CONTROL_INSET
-        val left = cell.left + pad
-        val top = cell.top + pad
-        val right = cell.right - pad
-        val bottom = cell.bottom - pad
-        canvas.drawLine(left, top, right, bottom, paint)
-        canvas.drawLine(right, top, left, bottom, paint)
-    }
-
-    /** The send button: a check mark made of two strokes, inside [cell]. */
-    private fun drawSend(canvas: Canvas, cell: TileRect, color: Int) {
-        strokeControl(color)
-        val w = cell.width.toFloat()
-        val h = cell.height.toFloat()
-        val footX = cell.left + w * CHECK_FOOT_X
-        val footY = cell.top + h * CHECK_FOOT_Y
-        canvas.drawLine(cell.left + w * CHECK_START_X, cell.top + h * CHECK_START_Y, footX, footY, paint)
-        canvas.drawLine(footX, footY, cell.left + w * CHECK_END_X, cell.top + h * CHECK_END_Y, paint)
-    }
-
-    private fun strokeControl(color: Int) {
-        paint.style = Paint.Style.STROKE
-        paint.strokeWidth = CONTROL_STROKE_DP * density + haloExtraPx
-        paint.color = color
     }
 
     /** The app's notice across the strip: wrapped to the strip, at most two lines, the end cut with an ellipsis. */
@@ -234,20 +198,6 @@ internal class TileView(
 
     private companion object {
         const val NO_POINTER = -1
-
-        /** Thickness of the strokes of the cancel and send buttons. */
-        const val CONTROL_STROKE_DP = 3
-
-        /** Space kept free on each side of the cross, as a fraction of the button's width. */
-        const val CONTROL_INSET = 0.28f
-
-        /** The check mark's three points as fractions of the button's width and height. */
-        const val CHECK_START_X = 0.24f
-        const val CHECK_START_Y = 0.54f
-        const val CHECK_FOOT_X = 0.42f
-        const val CHECK_FOOT_Y = 0.72f
-        const val CHECK_END_X = 0.76f
-        const val CHECK_END_Y = 0.30f
 
         /** The notice text's size as a fraction of the strip's height, and its side padding as a part of it. */
         const val NOTICE_TEXT_FRACTION = 0.36f

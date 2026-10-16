@@ -6,7 +6,7 @@ import android.graphics.Path
 
 /**
  * Draws the microphone art into one cell of the tile. The paths are built once, from [TileArt], the first
- * time they are needed. Every colour comes from [faceColor], [slotColor], [ringDrawColor], [glowDrawColor]
+ * time they are needed; the two recording buttons take theirs from [ControlArt]. Every colour comes from [faceColor], [slotColor], [ringDrawColor], [glowDrawColor]
  * or the look. Nothing here fills the cell: only the art is painted.
  *
  * The art box is centred in the cell and sized by [ArtGeometry.frame], which gives the scale and the
@@ -21,6 +21,10 @@ internal class TileArtDraw {
 
     private val paths: Map<ArtShape, Path> by lazy {
         TileArt.all.associateWith { shape -> Path().also { addShape(it, shape) } }
+    }
+
+    private val controlPaths: Map<ArtShape, Path> by lazy {
+        listOf(ControlArt.cancel, ControlArt.send).associateWith { shape -> Path().also { addShape(it, shape) } }
     }
 
     /**
@@ -71,17 +75,55 @@ internal class TileArtDraw {
             }
             for (shape in TileArt.ledgeShapes) fillShape(canvas, paint, shape, faceColor(shape.part, look))
             fillShape(canvas, paint, TileArt.letters, faceColor(ArtPart.LETTERS, look))
-            if (face.state == TileState.MIC_BUSY) drawBusy(canvas, paint, look.ring, pulseAlpha)
+            if (face.state == TileState.MIC_BUSY) drawBusy(canvas, paint, look, pulseAlpha)
         }
     }
 
-    /** The circle of the busy sign and its slash, in art units, centred in the box and reaching the circle. */
-    private fun drawBusy(canvas: Canvas, paint: Paint, color: Int, pulseAlpha: Float) {
+    /**
+     * Draws one recording button: the fill of [shape] in its face colour, then its trim outline on the same
+     * Path, inside the art frame of [cell]. Widths are in art units, so the outline is
+     * [ArtMetrics.CONTROL_OUTLINE_UNITS] wide and centred on the edge, joined with a miter limited by
+     * [ArtMetrics.CONTROL_MITER_LIMIT]. The paint's join, miter and cap are put back afterwards.
+     */
+    fun drawControl(canvas: Canvas, cell: TileRect, paint: Paint, shape: ArtShape, look: TileLook) {
+        val join = paint.strokeJoin
+        val miter = paint.strokeMiter
+        val cap = paint.strokeCap
+        val path = controlPaths.getValue(shape)
+        inCell(canvas, cell) {
+            paint.style = Paint.Style.FILL
+            paint.color = faceColor(shape.part, look)
+            canvas.drawPath(path, paint)
+            paint.style = Paint.Style.STROKE
+            paint.strokeJoin = Paint.Join.MITER
+            paint.strokeCap = Paint.Cap.BUTT
+            paint.strokeMiter = ArtMetrics.CONTROL_MITER_LIMIT
+            paint.strokeWidth = ArtMetrics.CONTROL_OUTLINE_UNITS
+            paint.color = look.glyphOutline
+            canvas.drawPath(path, paint)
+        }
+        paint.strokeJoin = join
+        paint.strokeMiter = miter
+        paint.strokeCap = cap
+    }
+
+    /**
+     * The busy sign in art units, drawn off-centre on the approved point: the dark outline first, in
+     * [look.busyOutline] (the danger role shaded by [ArtFactors.BUSY_OUTLINE_SHADE]) with the outline
+     * stroke and no pulse, then the red ring and slash in [look.ring] with the ring stroke, pulsing with
+     * [pulseAlpha]. No geometry of its own: every number comes from the busy sign.
+     */
+    private fun drawBusy(canvas: Canvas, paint: Paint, look: TileLook, pulseAlpha: Float) {
         val busy = ArtGeometry.busySign()
         paint.style = Paint.Style.STROKE
+        paint.color = look.busyOutline
+        paint.strokeWidth = busy.outlineStroke
+        canvas.drawCircle(busy.centreX, busy.centreY, busy.radius, paint)
+        paint.strokeCap = Paint.Cap.BUTT
+        canvas.drawLine(busy.slashFromX, busy.slashFromY, busy.slashToX, busy.slashToY, paint)
+        paint.color = ringDrawColor(look.ring, pulseAlpha)
         paint.strokeWidth = busy.stroke
-        paint.color = ringDrawColor(color, pulseAlpha)
-        canvas.drawCircle(busy.centre, busy.centre, busy.radius, paint)
+        canvas.drawCircle(busy.centreX, busy.centreY, busy.radius, paint)
         paint.strokeCap = Paint.Cap.BUTT
         canvas.drawLine(busy.slashFromX, busy.slashFromY, busy.slashToX, busy.slashToY, paint)
         paint.strokeCap = Paint.Cap.ROUND
