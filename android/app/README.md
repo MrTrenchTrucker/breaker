@@ -14,7 +14,7 @@ screen, the settings screen and the history screen, the manifest, and the Gradle
 
 ## What it puts together
 
-- **The home screen.** The launcher opens on the Home screen the ui module builds, after the first-run view on a phone with no speech model: an on/off card with the switch, the speech model row (Ready, or "Not downloaded"), the server row ("Not available") and the last dictation; a big mic; the last transcript with a Copy button; and a menu with History, Settings, How it works and About. History and Settings open their screens. How it works and About answer in place with "Not available yet." The big mic has no action yet, so the Home take is not wired.
+- **The home screen.** The launcher opens on the Home screen the ui module builds, after the first-run view on a phone with no speech model: an on/off card with the switch, the speech model row (Ready, or "Not downloaded"), the server row ("Not available") and the last dictation; a big mic; the last transcript with a Copy button, which is drawn only while there is a transcript; and a menu with History, Settings, How it works and About. History and Settings open their screens. How it works and About answer in place with "Not available yet." A tap on the big mic starts a take (or answers why it cannot), and a second tap ends a take that the Home tap began; the take's line shows below the last transcript, and the mic takes the recording look while it records.
 - **Settings and the credential reference.** The settings store is built over
   the app's files folder, together with a small file that holds the reference to
   the user's credential (never the secret itself).
@@ -72,14 +72,14 @@ as described in ADR-022 as amended:
   transcriptions. The launcher shows the history screen that the ui module
   builds.
 - A tap on the floating tile only begins a recording inside the service that is
-  already running. Sending, cancelling or an error ends the recording; the service
+  already running. Sending, cancelling, an error or a second tap on the Home big mic (for a take the Home tap began) ends the recording; the service
   stays on. The app shows the tile while the service is on and hides it when the
   service ends or the user switches off.
 - A shake of the phone, read from the accelerometer, never begins a recording. It goes to the tile: with the tile closed or hidden it brings the tile back, and with the tile on screen or during a recording it does nothing. The sensor runs only while the service is on. Whether a shake brings the tile back with no overlay permission is a device check, not a verified fact (see the Known Gotchas section of `AGENTS.md`).
 - The service stops when the user switches dictation off, when the part that owns
   the dictation is closed, or when it is started with nothing switched on. If it
   ends on its own, the dictation under way is dropped.
-- If the tile is tapped while the service is off, the app tries once to start it.
+- If the tile is tapped while the service is off, the app tries once to start it; a tap on the Home big mic does the same when a model is ready, unless the user switched dictation off, and then it shows the off sentence.
   If Android refuses, the answer is the sentence "Open Breaker once to switch
   dictation on."
 
@@ -92,14 +92,14 @@ these permissions: internet, record audio, foreground service, foreground servic
 of the microphone type, post notifications, and draw over other apps (six in all).
 None of them is asked for while the app runs in app code: the user grants the
 three that need it by hand in the system settings, or through the walk-through
-in the settings screen.
+in the settings column.
 
 ## Walk-through and download status
 
 The settings column, which the Settings item on Home opens, shows the setup walk-through
 (permissions: overlay, microphone, notifications, accessibility), with the speech model
-step first. Under it, a status line (downloading / failed / ready) uses ModelSentences
-words. The app asks for no permission at run time in app code;
+step first. Under the whole walk-through, a status line (downloading or failed) uses ModelSentences
+words, and is blank once the model is ready (there is no ready sentence). The app asks for no permission at run time in app code;
 the requests live in ui's screen.
 
 ## What is not built yet

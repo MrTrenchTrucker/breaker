@@ -75,6 +75,11 @@ internal class FakeHomeTake(
         resetCount += 1
         session = DictationState.IDLE
     }
+
+    /** Puts the take into RECORDING as another path would, with no begin from the adapter. */
+    fun listeningElsewhere() {
+        session = DictationState.RECORDING
+    }
 }
 
 /** A [TextCommitter] that counts its calls; the Home take must never reach it. */

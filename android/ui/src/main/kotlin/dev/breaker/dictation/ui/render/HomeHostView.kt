@@ -1,8 +1,12 @@
 package dev.breaker.dictation.ui.render
 
 import android.content.Context
+import android.view.View
+import android.view.ViewGroup
+import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.ScrollView
 import dev.breaker.dictation.ui.BreakerSwitch
+import dev.breaker.dictation.ui.HomeControl
 import dev.breaker.dictation.ui.screen.Screen
 import dev.breaker.dictation.ui.screen.ScreenIntent
 import dev.breaker.dictation.ui.screen.flatten
@@ -10,6 +14,7 @@ import dev.breaker.dictation.ui.screen.home.HomeActions
 import dev.breaker.dictation.ui.screen.home.HomeIntentHandler
 import dev.breaker.dictation.ui.screen.home.HomeNodeIds
 import dev.breaker.dictation.ui.screen.home.HomeState
+import dev.breaker.dictation.ui.screen.home.HomeTexts
 import dev.breaker.dictation.ui.theme.PaletteSlot
 import dev.breaker.dictation.ui.theme.Theme
 
@@ -47,6 +52,7 @@ import dev.breaker.dictation.ui.theme.Theme
  * @param onCopy asks the app to copy the transcript on display to the clipboard.
  * @param onHistory asks the app to show the history screen.
  * @param onSettings asks the app to show the settings screen.
+ * @param onTap asks the app to start a take from the big mic on the screen.
  * @param theme the colours and sizes the screen is drawn in.
  * @param renderer draws a described screen into views.
  */
@@ -61,14 +67,21 @@ internal class HomeHostView(
     private val onCopy: (String) -> Unit,
     private val onHistory: () -> Unit,
     private val onSettings: () -> Unit,
+    private val onTap: () -> Unit,
     private val theme: Theme,
     private val renderer: ScreenRenderer,
-) : ScrollView(context) {
+) : ScrollView(context), HomeControl {
     /** The screen drawn last, so the drawer's state can be carried into the next drawing. */
     private var drawn: Screen? = null
 
     /** The app's facts as they were last pulled, so Copy copies the transcript on display. */
     private var state: HomeState = HomeState()
+
+    /** The line the app last gave, drawn below the last-transcript box, or null for none. */
+    private var line: String? = null
+
+    /** Whether the big mic shows the recording look. */
+    private var recording: Boolean = false
 
     init {
         // A screen is taller than a short window in landscape, and without this
@@ -86,9 +99,11 @@ internal class HomeHostView(
     fun show(screen: Screen) {
         val held = scrollY
         removeAllViews()
-        addView(renderer.render(screen, theme, ::onIntent))
+        val rendered = renderer.render(screen, theme, ::onIntent)
+        addView(rendered)
         setBackgroundColor(theme.color(PaletteSlot.BACKGROUND).argb)
         scrollTo(0, held)
+        findTagged(rendered, HomeNodeIds.MIC)?.let { attachMic(it) }
     }
 
     /**
@@ -111,6 +126,9 @@ internal class HomeHostView(
      * The drawer is the handler's own state and cannot be read out of it, so it is
      * read off a screen the handler drew: the one just acted on, or the one on
      * display when the view is attached or the window regains focus.
+     *
+     * The line and the recording look are the ones last given through showLine and
+     * showRecording, which are kept in this view.
      */
     private fun merged(source: Screen?): HomeState = HomeState(
         switchOn = switch.isOn(),
@@ -118,6 +136,8 @@ internal class HomeHostView(
         lastDictation = lastDictation(),
         lastTranscript = lastTranscript(),
         transcriptTime = transcriptTime(),
+        line = line,
+        recording = recording,
         menuOpen = source?.nodes?.flatMap { it.flatten() }?.any { it.id == HomeNodeIds.DRAWER_PANEL } ?: false,
         notice = handler.notice(),
     )
@@ -143,6 +163,7 @@ internal class HomeHostView(
             HomeActions.COPY -> onCopy(state.lastTranscript ?: "")
             HomeActions.HISTORY -> onHistory()
             HomeActions.SETTINGS -> onSettings()
+            HomeActions.MIC -> onTap()
         }
     }
 
@@ -160,5 +181,43 @@ internal class HomeHostView(
             // have changed while the view was off screen.
             draw(merged(drawn))
         }
+    }
+
+    /** Shows [line] below the last-transcript box, or nothing when it is null, and draws the screen again. */
+    override fun showLine(line: String?) {
+        this.line = line
+        draw(merged(drawn))
+    }
+
+    /** Shows the recording look on the big mic while [recording] is true, and draws the screen again. */
+    override fun showRecording(recording: Boolean) {
+        this.recording = recording
+        draw(merged(drawn))
+    }
+
+    /** Makes the big mic a button: it takes a tap, is announced as a button, and carries its words. */
+    private fun attachMic(mic: View) {
+        mic.isClickable = true
+        mic.isFocusable = true
+        mic.contentDescription = HomeTexts.TAP_TO_TALK
+        mic.minimumHeight = touchTargetPx(theme.metrics.minTouchTargetDp.toFloat(), resources.displayMetrics.density)
+        mic.setAccessibilityDelegate(object : View.AccessibilityDelegate() {
+            override fun onInitializeAccessibilityNodeInfo(host: View, info: AccessibilityNodeInfo) {
+                super.onInitializeAccessibilityNodeInfo(host, info)
+                info.className = "android.widget.Button"
+            }
+        })
+        mic.setOnClickListener { onIntent(ScreenIntent.Home(HomeActions.MIC)) }
+    }
+
+    /** The first view under [root] whose tag is [id], the root included, or null. */
+    private fun findTagged(root: View, id: String): View? {
+        if (root.tag == id) return root
+        val group = root as? ViewGroup ?: return null
+        for (index in 0 until group.childCount) {
+            val found = findTagged(group.getChildAt(index), id)
+            if (found != null) return found
+        }
+        return null
     }
 }

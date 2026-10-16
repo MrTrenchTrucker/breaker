@@ -82,8 +82,8 @@ internal class HostGateTest {
         rx("TILE_SHOW_NOTICE_PASSES_THE_TEXT", "tile", """\boverride\s+fun\s+showNotice\s*\(\s*text\s*:\s*String\s*\)\s*\{\s*tile\s*\?\.\s*showNotice\s*\(\s*text\s*\)\s*\}"""),
         rx("TILE_CLEAR_NOTICE_CLEARS_THE_NOTICE", "tile", """\boverride\s+fun\s+clearNotice\s*\(\s*\)\s*\{\s*tile\s*\?\.\s*clearNotice\s*\(\s*\)\s*\}"""),
         rx("DOWNLOADER_GETS_THE_FORWARDING_NOTICE", "host", """\bnotice\s*=\s*forwardingNotice\s*,"""),
-        rx("TAKE_ENDED_IS_WIRED_THROUGH_THE_POST", "host", """\broot\.onTakeEnded\s*=\s*\{\s*toCoordinator\s*\{\s*it\.onTakeEnded\(\)\s*\}\s*\}"""),
-        rx("TAKEN_HOOK_IS_WIRED_THROUGH_THE_POST", "host", """\broot\.onMicTaken\s*=\s*\{\s*toCoordinator\s*\{\s*it\.onTakeMicTaken\(\)\s*\}\s*\}"""),
+        rx("TAKE_ENDED_IS_WIRED_THROUGH_THE_POST", "host", """\broot\.onTakeEnded\s*=\s*\{\s*toCoordinator\s*\{\s*takeOwner\.settled\(\)\s*;\s*it\.onTakeEnded\(\)\s*\}\s*\}"""),
+        rx("TAKEN_HOOK_IS_WIRED_THROUGH_THE_POST", "host", """\broot\.onMicTaken\s*=\s*\{\s*toCoordinator\s*\{\s*takeOwner\.settled\(\)\s*;\s*it\.onTakeMicTaken\(\)\s*\}\s*\}"""),
     )
     private val firing: List<Sample> = listOf(
         Sample("MAIN_POST_USES_THE_MAIN_LOOPER", "Handler(Looper.getMainLooper())", "Handler(Looper.myLooper()!!)"),
@@ -143,7 +143,7 @@ internal class HostGateTest {
         Sample("DOWNLOAD_AND_TILE_SHARE_ONE_MODEL_STORE", "installer = modelInstallPortFor(root.modelStore),", "installer = modelInstallPortFor(LocalModelStore(java.io.File(\"x\"))),"),
         Sample("DOWNLOAD_AND_TILE_SHARE_ONE_MODEL_STORE", "StoreModelReady(root.modelStore, selectedId)", "StoreModelReady(other, selectedId)"),
         Sample("TWO_BACKGROUNDS", "background = SerialBackground(\"breaker-model-download\"),", "background = main,"),
-        Sample("TWO_BACKGROUNDS", "            main,\n            SerialBackground(\"breaker-dictation\"),", "            main,\n            SerialBackground(\"breaker-dictation\"),\n            SerialBackground(\"breaker-extra\"),"),
+        Sample("TWO_BACKGROUNDS", "            main,\n            takeWorker,", "            main,\n            takeWorker,\n            SerialBackground(\"breaker-extra\"),"),
         Sample("LAUNCHER_OPENS_AS_A_NEW_TASK", "Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP", "Intent.FLAG_ACTIVITY_CLEAR_TOP"),
         Sample("LAUNCHER_OPENS_AS_A_NEW_TASK", "SettingsLauncherActivity::class.java", "OtherActivity::class.java"),
         Sample("LAUNCHER_GETS_THE_ROUTE", "intent.putExtra(NotificationRoute.EXTRA_ROUTE, route)", "intent.putExtra(\"route\", route)"),
@@ -187,10 +187,12 @@ internal class HostGateTest {
         Sample("TILE_CLEAR_NOTICE_CLEARS_THE_NOTICE", "tile?.clearNotice()", "tile?.showNotice(\"\")"),
         Sample("DOWNLOADER_GETS_THE_FORWARDING_NOTICE", "notice = forwardingNotice,", "notice = notifications,"),
         Sample("DOWNLOADER_GETS_THE_FORWARDING_NOTICE", "notice = forwardingNotice,", "notice = otherNotice,"),
-        Sample("TAKE_ENDED_IS_WIRED_THROUGH_THE_POST", "root.onTakeEnded = { toCoordinator { it.onTakeEnded() } }", "root.onTakeEnded = null"),
-        Sample("TAKEN_HOOK_IS_WIRED_THROUGH_THE_POST", "root.onMicTaken = { toCoordinator { it.onTakeMicTaken() } }", "root.onMicTaken = null"),
-        Sample("TAKEN_HOOK_IS_WIRED_THROUGH_THE_POST", "root.onMicTaken = { toCoordinator { it.onTakeMicTaken() } }", "root.onMicTaken = { }"),
-        Sample("TAKE_ENDED_IS_WIRED_THROUGH_THE_POST", "root.onTakeEnded = { toCoordinator { it.onTakeEnded() } }", "root.onTakeEnded = { }"),
+        Sample("TAKE_ENDED_IS_WIRED_THROUGH_THE_POST", "root.onTakeEnded = { toCoordinator { takeOwner.settled(); it.onTakeEnded() } }", "root.onTakeEnded = null"),
+        Sample("TAKEN_HOOK_IS_WIRED_THROUGH_THE_POST", "root.onMicTaken = { toCoordinator { takeOwner.settled(); it.onTakeMicTaken() } }", "root.onMicTaken = null"),
+        Sample("TAKEN_HOOK_IS_WIRED_THROUGH_THE_POST", "root.onMicTaken = { toCoordinator { takeOwner.settled(); it.onTakeMicTaken() } }", "root.onMicTaken = { }"),
+        Sample("TAKE_ENDED_IS_WIRED_THROUGH_THE_POST", "root.onTakeEnded = { toCoordinator { takeOwner.settled(); it.onTakeEnded() } }", "root.onTakeEnded = { }"),
+        Sample("TAKE_ENDED_IS_WIRED_THROUGH_THE_POST", "root.onTakeEnded = { toCoordinator { takeOwner.settled(); it.onTakeEnded() } }", "root.onTakeEnded = { toCoordinator { it.onTakeEnded() } }"),
+        Sample("TAKEN_HOOK_IS_WIRED_THROUGH_THE_POST", "root.onMicTaken = { toCoordinator { takeOwner.settled(); it.onTakeMicTaken() } }", "root.onMicTaken = { toCoordinator { it.onTakeMicTaken() } }"),
     )
 
     private val quiet: List<Quiet> = listOf(
@@ -203,8 +205,8 @@ internal class HostGateTest {
         Quiet("host", "selectedId = selectedId,", "selectedId = selectedId, // { \"small\" }"),
         Quiet("host", "StoreModelReady(root.modelStore, selectedId)", "StoreModelReady( root.modelStore,\n            selectedId )"),
         Quiet("tile", "tile?.clearNotice()", "tile\n            ?.clearNotice() // tile?.hide()"),
-        Quiet("host", "root.onTakeEnded = { toCoordinator { it.onTakeEnded() } }", "root.onTakeEnded = { toCoordinator { it.onTakeEnded() } } // comment"),
-        Quiet("host", "root.onMicTaken = { toCoordinator { it.onTakeMicTaken() } }", "root.onMicTaken = { toCoordinator { it.onTakeMicTaken() } } // the taken cut"),
+        Quiet("host", "root.onTakeEnded = { toCoordinator { takeOwner.settled(); it.onTakeEnded() } }", "root.onTakeEnded = { toCoordinator { takeOwner.settled(); it.onTakeEnded() } } // comment"),
+        Quiet("host", "root.onMicTaken = { toCoordinator { takeOwner.settled(); it.onTakeMicTaken() } }", "root.onMicTaken = { toCoordinator { takeOwner.settled(); it.onTakeMicTaken() } } // the taken cut"),
     )
 
     private fun edit(text: String, old: String, new: String): String {

@@ -31,11 +31,11 @@ internal class DeviceFailureWiringGateTest {
         Rule(name, file) { Regex(pattern).findAll(it).count() == times }
 
     private val hostLine: String =
-        "root.onDeviceFailure = { fallback -> toCoordinator { if (!it.onTakeFailed()) fallback() } }"
+        "root.onDeviceFailure = { fallback -> toCoordinator { takeOwner.settled(); if (!it.onTakeFailed()) fallback() } }"
 
     private val rules: List<Rule> = listOf(
         rx("DEVICE_FAILURE_IS_OFFERED_TO_THE_COORDINATOR", "host",
-            """\broot\s*\.\s*onDeviceFailure\s*=\s*\{\s*fallback\s*->\s*toCoordinator\s*\{\s*if\s*\(\s*!\s*it\s*\.\s*onTakeFailed\s*\(\s*\)\s*\)\s*fallback\s*\(\s*\)\s*\}\s*\}"""),
+            """\broot\s*\.\s*onDeviceFailure\s*=\s*\{\s*fallback\s*->\s*toCoordinator\s*\{\s*takeOwner\s*\.\s*settled\s*\(\s*\)\s*;\s*if\s*\(\s*!\s*it\s*\.\s*onTakeFailed\s*\(\s*\)\s*\)\s*fallback\s*\(\s*\)\s*\}\s*\}"""),
         rx("DEVICE_FAILURE_HANDLER_GETS_THE_FALLBACK", "component",
             """\bval\s+handler\s*:\s*\(\(\(\)\s*->\s*Unit\)\s*->\s*Unit\)\?\s*=\s*onDeviceFailure\s+if\s*\(\s*handler\s*!=\s*null\s*\)\s*handler\s*\(\s*fallback\s*\)\s*else\s*fallback\s*\(\s*\)"""),
         rx("DEVICE_FAILURE_FALLBACK_IS_THE_OLD_END", "component",

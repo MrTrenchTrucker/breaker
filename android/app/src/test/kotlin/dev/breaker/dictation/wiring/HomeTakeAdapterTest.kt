@@ -21,6 +21,7 @@ internal class HomeTakeAdapterTest {
     private val store = InMemoryHistoryStore(log)
     private val clipboard = FakeTakenClipboard()
     private val take = FakeHomeTake(committer, log)
+    private val owner = TakeOwner()
     private val settle = TakeSettle(store, clipboard)
     private val background = FakeBackground()
     private val main = FakeMainPost()
@@ -31,7 +32,8 @@ internal class HomeTakeAdapterTest {
         lines.clear()
         states.clear()
         return HomeTakeAdapter(
-            take = take,
+            take = OwnedTakePort(take, owner, TakeOwnerKind.HOME),
+            owner = owner,
             settle = settle,
             switch = switch,
             background = background,
@@ -98,6 +100,69 @@ internal class HomeTakeAdapterTest {
         assertEquals("app: home: a thrown finish ends IDLE", DictationState.IDLE, states.last())
     }
 
+    /** Fails if the Home tap finishes a take the tile began: the tap must try to begin, and the runner's busy line answers it. */
+    @Test
+    fun `a tap on a take the Home did not begin answers the runner line and finishes nothing`() {
+        take.listeningElsewhere()
+        owner.begun(TakeOwnerKind.TILE)
+        take.beginResult = BeginResult.Refused(RunnerSentences.BUSY)
+        adapter(homeSwitch(off = false).switch).onTap()
+        assertEquals("app: home: the runner's busy line must answer the tap", listOf<String?>(RunnerSentences.BUSY), lines)
+        assertEquals("app: home: a take the Home did not begin must not be finished", 0, take.finishCount)
+        assertEquals("app: home: the tap must try to begin", 1, take.beginCount)
+    }
+
+    /** Fails if the Home keeps the owner after its own finish: a later take the tile began must not be finished by the Home. */
+    @Test
+    fun `after the Home finishes its take a take the tile began is not finished by the Home`() {
+        val a = adapter(homeSwitch(off = false).switch)
+        a.onTap()
+        a.onTap()
+        take.beginResult = BeginResult.Refused(RunnerSentences.BUSY)
+        take.listeningElsewhere()
+        owner.begun(TakeOwnerKind.TILE)
+        a.onTap()
+        assertEquals("app: home: only the Home's own take is finished", 1, take.finishCount)
+        assertEquals("app: home: the later tap must try to begin", 2, take.beginCount)
+        assertEquals("app: home: the later tap answers the runner line", RunnerSentences.BUSY, lines.last())
+    }
+
+    /** Fails if a tap sent while the finish is still queued on the background finishes the take a second time. */
+    @Test
+    fun `a tap while the finish is queued does not finish the take a second time`() {
+        val queued = QueuedBackground()
+        val a = HomeTakeAdapter(
+            take = OwnedTakePort(take, owner, TakeOwnerKind.HOME),
+            owner = owner,
+            settle = settle,
+            switch = homeSwitch(off = false).switch,
+            background = queued,
+            main = main,
+            onLine = { line -> lines.add(line) },
+            onState = { state -> states.add(state) },
+        )
+        a.onTap()
+        a.onTap()
+        take.beginResult = BeginResult.Refused(RunnerSentences.BUSY)
+        a.onTap()
+        assertEquals("app: a tap while the finish is queued must not finish again", 0, take.finishCount)
+        queued.runAll()
+        assertEquals("app: the queued finish must run once", 1, take.finishCount)
+    }
+
     /** The switch the adapter is given, with the launcher it must never have to call. */
     private class HomeSwitch(val switch: ArmedSwitch, val launcher: FakeLauncher)
+}
+
+/** Holds the blocks it is given until [runAll], so a tap can arrive while a finish is still queued. */
+private class QueuedBackground : Background {
+    private val queue: MutableList<() -> Unit> = ArrayList()
+
+    override fun submit(block: () -> Unit) {
+        queue.add(block)
+    }
+
+    fun runAll() {
+        while (queue.isNotEmpty()) queue.removeAt(0)()
+    }
 }

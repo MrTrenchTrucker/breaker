@@ -18,6 +18,7 @@ internal class LauncherScrollGateTest {
     private val files: Map<String, String> = mapOf(
         "activity" to dir + "SettingsLauncherActivity.kt",
         "insets" to dir + "wiring/Insets.kt",
+        "insetsFile" to dir + "wiring/AndroidInsets.kt",
     )
 
     private class Rule(val name: String, val file: String, val holds: (String) -> Boolean)
@@ -33,7 +34,7 @@ internal class LauncherScrollGateTest {
 
     private val rules: List<Rule> = listOf(
         rx("ONBOARDING_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "activity", """\bcreateOnboardingView\s*\(\s*this\s*,\s*BreakerSwitchAdapter\s*\(\s*app\s*\.\s*armedSwitch\s*\)\s*,\s*ACCESSIBILITY_SERVICE_COMPONENT\s*,\s*modelReady\s*=\s*\{\s*modelReady\s*\.\s*isReady\s*\(\s*\)\s*\}\s*,\s*downloadLine\s*=\s*\{\s*downloadSentence\s*\}\s*,\s*modelDownloadMb\s*=\s*\{[^{}]*\}\s*,\s*onDownloadModel\s*=\s*\{\s*app\s*\.\s*tileHost\s*\.\s*requestDownload\s*\(\s*\)\s*\}"""),
-        rx("MODEL_READY_IS_A_LIVE_PROVIDER", "activity", """\bmodelReady\s*=\s*\{\s*modelReady\s*\.\s*isReady\s*\(\s*\)\s*\}""", 2),
+        rx("MODEL_READY_IS_A_LIVE_PROVIDER", "activity", """\bmodelReady\s*=\s*\{\s*modelReady\s*\.\s*isReady\s*\(\s*\)\s*\}""", 3),
         rx("DOWNLOAD_LINE_IS_A_LIVE_PROVIDER", "activity", """\bdownloadLine\s*=\s*\{\s*downloadSentence\s*\}"""),
         rx("ON_DOWNLOAD_CALLS_REQUEST_DOWNLOAD", "activity", """\bonDownloadModel\s*=\s*\{\s*app\s*\.\s*tileHost\s*\.\s*requestDownload\s*\(\s*\)\s*\}"""),
         rx("COLUMN_IS_VERTICAL", "activity", """\bcolumn\s*\.\s*orientation\s*=\s*LinearLayout\s*\.\s*VERTICAL"""),
@@ -42,10 +43,10 @@ internal class LauncherScrollGateTest {
         rx("INSETS_ARE_APPLIED_ON_THE_SETTINGS_ROOT", "activity", """\bsetContentView\s*\(\s*settingsScroll\s*\)\s+applyInsets\s*\(\s*settingsScroll\s*\)""", 2),
         rx("INSETS_HELPER_IS_USED_FOR_THE_SETTINGS_ROOT", "activity", """\bapplyInsets\s*\(\s*settingsScroll\s*\)""", 2),
         rx("INSETS_ARE_APPLIED_ON_THE_HISTORY_ROOT", "activity", """\bapplyInsets\s*\(\s*historyView\s*\)"""),
-        rx("PADDING_FOR_IS_CALLED", "activity", """\bpaddingFor\s*\("""),
-        rx("SYSTEM_BAR_INSETS_ARE_READ", "activity", """\bWindowInsets\s*\.\s*Type\s*\.\s*systemBars\s*\(\s*\)"""),
-        rx("DISPLAY_CUTOUT_INSETS_ARE_READ", "activity", """\bWindowInsets\s*\.\s*Type\s*\.\s*displayCutout\s*\(\s*\)"""),
-        rx("ON_APPLY_WINDOW_INSETS_LISTENER_IS_SET", "activity", """\bsetOnApplyWindowInsetsListener\s*\{\s*v\s*,\s*insets\s*->"""),
+        rx("PADDING_FOR_IS_CALLED", "insetsFile", """\bpaddingFor\s*\("""),
+        rx("SYSTEM_BAR_INSETS_ARE_READ", "insetsFile", """\bWindowInsets\s*\.\s*Type\s*\.\s*systemBars\s*\(\s*\)"""),
+        rx("DISPLAY_CUTOUT_INSETS_ARE_READ", "insetsFile", """\bWindowInsets\s*\.\s*Type\s*\.\s*displayCutout\s*\(\s*\)"""),
+        rx("ON_APPLY_WINDOW_INSETS_LISTENER_IS_SET", "insetsFile", """\bsetOnApplyWindowInsetsListener\s*\{\s*v\s*,\s*insets\s*->"""),
         rx("INSETS_HELPER_EXISTS", "insets", """\bfun\s+paddingFor\s*\(\s*bars\s*:\s*Insets\s*,\s*cutout\s*:\s*Insets\s*\)\s*:\s*Padding"""),
         rx("INSETS_DATA_CLASS_EXISTS", "insets", """\bdata\s+class\s+Insets\s*\(\s*val\s+left\s*:\s*Int\s*,\s*val\s+top\s*:\s*Int\s*,\s*val\s+right\s*:\s*Int\s*,\s*val\s+bottom\s*:\s*Int\s*\)"""),
         rx("PADDING_DATA_CLASS_EXISTS", "insets", """\bdata\s+class\s+Padding\s*\(\s*val\s+left\s*:\s*Int\s*,\s*val\s+top\s*:\s*Int\s*,\s*val\s+right\s*:\s*Int\s*,\s*val\s+bottom\s*:\s*Int\s*\)"""),
@@ -58,8 +59,8 @@ internal class LauncherScrollGateTest {
         rx("STATUS_LINE_SHOWS_FAILED", "activity", """\boverride\s+fun\s+failed\s*\(\s*sentence\s*:\s*String\s*\)\s*\{[^}]*downloadStatus\s*\.\s*text\s*=\s*sentence[^}]*\}"""),
         rx("CLOSE_HISTORY_REBUILDS_THE_SCROLL_VIEW", "activity", """\bcloseHistory\s*\(\s*\)\s*\{[^}]*setContentView\s*\(\s*settingsScroll\s*\)\s+applyInsets\s*\(\s*settingsScroll\s*\)[^}]*\}"""),
         rx("MODEL_ROUTE_FOCUSES_THE_MODEL_STEP", "activity", """\bif\s*\(\s*intent\s*\?\s*\.\s*getStringExtra\s*\(\s*NotificationRoute\s*\.\s*EXTRA_ROUTE\s*\)\s*==\s*NotificationRoute\s*\.\s*ROUTE_MODEL\s*\)\s*\{\s*\(onboarding\s*as\s*\?\s*ModelStepControl\s*\)\s*\?\s*\.\s*focusDownload\s*\(\s*\)\s*\}"""),
-        rx("ALL_PADDING_SIDES_APPLIED", "activity", """\bsetPadding\s*\(\s*padding\s*\.\s*left\s*,\s*padding\s*\.\s*top\s*,\s*padding\s*\.\s*right\s*,\s*padding\s*\.\s*bottom\s*\)"""),
-        rx("INSETS_WIRED_PER_SIDE", "activity", """\bInsets\s*\(\s*bars\s*\.\s*left\s*,\s*bars\s*\.\s*top\s*,\s*bars\s*\.\s*right\s*,\s*bars\s*\.\s*bottom\s*\)"""),
+        rx("ALL_PADDING_SIDES_APPLIED", "insetsFile", """\bsetPadding\s*\(\s*padding\s*\.\s*left\s*,\s*padding\s*\.\s*top\s*,\s*padding\s*\.\s*right\s*,\s*padding\s*\.\s*bottom\s*\)"""),
+        rx("INSETS_WIRED_PER_SIDE", "insetsFile", """\bInsets\s*\(\s*bars\s*\.\s*left\s*,\s*bars\s*\.\s*top\s*,\s*bars\s*\.\s*right\s*,\s*bars\s*\.\s*bottom\s*\)"""),
     )
 
     private val firing: List<Sample> = listOf(
@@ -127,6 +128,9 @@ internal class LauncherScrollGateTest {
     )
 
     private val quiet: List<Quiet> = listOf(
+        Quiet("insetsFile", "val rootInsets = view.rootWindowInsets", "val rootInsets = view.rootWindowInsets // WindowInsets.Type.systemBars()"),
+        Quiet("insetsFile", "internal fun applyInsets(view: android.view.View) {", "internal fun applyInsets(  view: android.view.View  ) {"),
+        Quiet("insetsFile", "private fun applyPadding(view: android.view.View, insets: WindowInsets) {", "private fun applyPadding(  view: android.view.View, insets: WindowInsets  ) {"),
         Quiet("activity", "column.addView(onboarding)", "column.addView(  onboarding  )"),
         Quiet("activity", "downloadSentence = null\n        downloadStatus.text = \"\"", "downloadSentence = null\n        downloadStatus.text = \"\" // cleared"),
         Quiet("activity", "applyInsets(settingsScroll)\n        registerBack()", "applyInsets(  settingsScroll  )\n        registerBack()"),
