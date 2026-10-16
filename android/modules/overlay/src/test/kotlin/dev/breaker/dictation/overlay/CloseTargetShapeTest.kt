@@ -208,4 +208,44 @@ class CloseTargetShapeTest {
         assertEquals("overlay: the box window height comes from CloseTargetShape", CloseTargetShape.windowHeightPx(bounds), shown.heightPx)
         assertEquals("overlay: the box is drawn from the dark palette in both modes", TruckingTokens.DARK, shown.palette)
     }
+
+    @Test
+    fun `window size keeps the same box when turned to landscape`() {
+        // The window width comes from the short side of the bounds and its height from the long side, so
+        // turning the screen does not change it. Portrait 1080 x 2400 (see above) is 507 by 141; a landscape
+        // 2400 x 1080 must be the same box: width = int(0.47 * minOf(2400, 1080)) = int(0.47 * 1080) = 507,
+        // height = int(0.059 * maxOf(2400, 1080)) = int(0.059 * 2400) = 141.
+        val landscape = PixelBounds(100, 200, 2500, 1280)
+        assertEquals("overlay: the landscape window width is 507", 507, CloseTargetShape.windowWidthPx(landscape))
+        assertEquals("overlay: the landscape window height is 141", 141, CloseTargetShape.windowHeightPx(landscape))
+    }
+
+    @Test
+    fun `the landscape box stays inside its bounds`() {
+        // Landscape 800 x 480: width = int(0.47 * minOf(800, 480)) = int(0.47 * 480) = 225 and height =
+        // int(0.059 * maxOf(800, 480)) = int(0.059 * 800) = 47, both within the bounds' own size. The box is
+        // never wider or taller than the screen it sits in.
+        val small = PixelBounds(100, 200, 900, 680)
+        assertTrue(
+            "overlay: the landscape window width must not exceed the bounds width",
+            CloseTargetShape.windowWidthPx(small) <= small.width,
+        )
+        assertTrue(
+            "overlay: the landscape window height must not exceed the bounds height",
+            CloseTargetShape.windowHeightPx(small) <= small.height,
+        )
+    }
+
+    @Test
+    fun `window size clamps to the bounds when the box would not fit`() {
+        // A very wide, short bounds: width 3000, height 100. The short side is 100, the long side is 3000.
+        // Unclamped width  = 0.47f * minOf(3000, 100) = 0.47f * 100 = 47f (truncated to 47; fits in 3000).
+        // Unclamped height = 0.059f * maxOf(3000, 100) = 0.059f * 3000 = 177f (> 100, would exceed the bounds height).
+        // The clamp keeps the box inside the bounds: width minOf(47, 3000) = 47, height minOf(177, 100) = 100.
+        val wide = PixelBounds(0, 0, 3000, 100)
+        assertEquals("overlay: the clamped window width is 47 (0.47 of the short side 100, truncated)", 47, CloseTargetShape.windowWidthPx(wide))
+        assertEquals("overlay: the clamped window height is 100 (0.059 of the long side 3000 is 177, clamped to the bounds height)", 100, CloseTargetShape.windowHeightPx(wide))
+        assertTrue("overlay: the window width never exceeds the bounds width", CloseTargetShape.windowWidthPx(wide) <= wide.width)
+        assertTrue("overlay: the window height never exceeds the bounds height", CloseTargetShape.windowHeightPx(wide) <= wide.height)
+    }
 }

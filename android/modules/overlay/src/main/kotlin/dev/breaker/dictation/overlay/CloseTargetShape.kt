@@ -22,11 +22,18 @@ internal object CloseTargetShape {
     const val WIDTH_FRACTION: Float = 0.47f
     const val HEIGHT_FRACTION: Float = 0.059f
 
-    /** The target window width in pixels for [bounds]: the width fraction of the usable width, truncated. */
-    fun windowWidthPx(bounds: PixelBounds): Int = (WIDTH_FRACTION * bounds.width).toInt()
+    /** The target window width in pixels for [bounds]: the WIDTH_FRACTION of the shorter side (the portrait
+     * width), truncated, clamped to the bounds width. From the short side, not the orientation's own width, so
+     * it is the same in both orientations.
+     */
+    fun windowWidthPx(bounds: PixelBounds): Int = minOf((WIDTH_FRACTION * minOf(bounds.width, bounds.height)).toInt(), bounds.width)
 
-    /** The target window height in pixels for [bounds]: the height fraction of the usable height, truncated. */
-    fun windowHeightPx(bounds: PixelBounds): Int = (HEIGHT_FRACTION * bounds.height).toInt()
+    /** The target window height in pixels for [bounds]: the HEIGHT_FRACTION of the longer side (the portrait
+     * height), truncated, clamped to the bounds height. From the long side, so it is the same in both
+     * orientations; with the width the box - and the target drawn in it - is the same. The clamp keeps the box
+     * inside a very wide, short bounds; scale() still guards degenerate bounds.
+     */
+    fun windowHeightPx(bounds: PixelBounds): Int = minOf((HEIGHT_FRACTION * maxOf(bounds.width, bounds.height)).toInt(), bounds.height)
 
     /**
      * The uniform scale from art units to pixels for a window of the given sides: the smaller of the

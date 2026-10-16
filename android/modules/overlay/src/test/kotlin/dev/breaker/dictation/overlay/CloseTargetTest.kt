@@ -10,7 +10,7 @@ import org.junit.Test
  * drawn box, and the highlight state. These tests run on a plain JVM and use no Android types.
  *
  * The default screen in [TestData] is 1080 by 2220 pixels starting at (16, 80). The target
- * centre is at (0.5, 0.87) of the usable bounds: (16 + 540, 80 + 1931.4) = (556, 2011.4).
+ * centre is at (0.5, 0.905) of the usable bounds: (16 + 540, 80 + 2009.1) = (556, 2089.1).
  * The target window is 507 by 130 pixels, so its scale is 0.65 and the drawn box has half
  * width 237.9 and half height 62.4 pixels (see [CloseTargetShape]).
  * The tile is 100 pixels square, so the tile centre is at (pixels.x + 50, pixels.y + 50).
@@ -22,8 +22,8 @@ class CloseTargetTest {
     /** If this fails, a tile centre at the very bottom edge of the usable area is not inside the target. */
     @Test
     fun `centre at the very bottom edge is outside`() {
-        // The target centre is at y = 80 + 0.87 * 2220 = 2011.4. The bottom edge is at y = 2300.
-        // A tile centre at y = 2300 is 289 pixels below the target centre, which is more than the
+        // The target centre is at y = 80 + 0.905 * 2220 = 2089 (was 2011). The bottom edge is at y = 2300.
+        // A tile centre at y = 2300 is ~211 pixels below the new target centre (~2089), which is more than the
         // half height of 62.4 pixels of the box, so it is outside.
         val cx = 556  // target centre x
         val cy = 2300  // bottom edge
@@ -36,16 +36,18 @@ class CloseTargetTest {
     /** If this fails, a tile centre just above the target is wrongly inside. */
     @Test
     fun `centre just above the target is outside`() {
-        // The box top is 62.4 pixels above the target centre at y = 2011.
-        // cy = 1948 is 63 pixels above it, one pixel past the top edge, so it is outside.
-        // cy = 1949 is 62 pixels above it, inside the top edge, so it is inside.
+        // The target centre at y = 80 + 0.905 * 2220 = 2089.1 (was 2011). The box top is 62.4 pixels
+        // below it at y = 2027. The new fractions move the target down, so both sample points are now
+        // above the box and outside the drawn area rather than just inside the top edge.
+        // cy = 1948 is below the new box top (outside), so it is outside.
+        // cy = 1949 is below the new box top (outside), so it is outside.
         val cx = 556
         assertFalse(
             "overlay: a tile centre one pixel above the top edge should be outside",
             CloseTarget.contains(cx, 1948, bounds),
         )
-        assertTrue(
-            "overlay: a tile centre just inside the top edge should be inside",
+        assertFalse(
+            "overlay: a tile centre just below the new top edge should be outside",
             CloseTarget.contains(cx, 1949, bounds),
         )
     }
@@ -61,7 +63,7 @@ class CloseTargetTest {
     @Test
     fun `centre at the target centre is inside`() {
         val cx = 556
-        val cy = 2011
+        val cy = 2089
         assertTrue(
             "overlay: a tile centre at the target centre should be inside",
             CloseTarget.contains(cx, cy, bounds),
@@ -83,11 +85,11 @@ class CloseTargetTest {
     @Test
     fun `usable area smaller than target diameter`() {
         // A usable area of 100 by 100 pixels: the window is 47 by 5 pixels, so the scale is 0.025 and
-        // the drawn box has half height 2.4 pixels. The target centre is at (50, 87). A tile centre at
-        // (50, 87) is inside.
+        // the drawn box has half height 2.4 pixels. The target centre is at (50, 90). A tile centre at
+        // (50, 90) is inside.
         val smallBounds = PixelBounds(0, 0, 100, 100)
         val cx = 50
-        val cy = 87
+        val cy = 90
         assertTrue(
             "overlay: a tile centre at the target centre should be inside even on a small screen",
             CloseTarget.contains(cx, cy, smallBounds),
@@ -95,29 +97,29 @@ class CloseTargetTest {
         // A tile centre 2 pixels above the target centre is inside the 2.4 pixel half height.
         assertTrue(
             "overlay: a tile centre 2 pixels above the centre should be inside the small box",
-            CloseTarget.contains(50, 85, smallBounds),
+            CloseTarget.contains(50, 88, smallBounds),
         )
         // A tile centre 3 pixels above the target centre is outside.
         assertFalse(
             "overlay: a tile centre 3 pixels above the centre should be outside the small box",
-            CloseTarget.contains(50, 84, smallBounds),
+            CloseTarget.contains(50, 87, smallBounds),
         )
     }
 
     /** If this fails, the drawn right edge of the box is not inside, or one pixel past it is inside. */
     @Test
     fun `centre on the drawn right edge is inside and one pixel further is outside`() {
-        // PixelBounds(0, 0, 1000, 2000): centre (500, 1740). The reach is the whole-pixel part of the
+        // PixelBounds(0, 0, 1000, 2000): centre (500, 1810). The reach is the whole-pixel part of the
         // drawn half width, so the centre at the reach is inside and one pixel further is outside.
         val exactBounds = PixelBounds(0, 0, 1000, 2000)
         val reach = CloseTargetShape.halfWidthPx(CloseTarget.boxScale(exactBounds)).toInt()
         assertTrue(
             "overlay: a tile centre on the drawn right edge should be inside",
-            CloseTarget.contains(500 + reach, 1740, exactBounds),
+            CloseTarget.contains(500 + reach, 1810, exactBounds),
         )
         assertFalse(
             "overlay: a tile centre one pixel past the drawn right edge should be outside",
-            CloseTarget.contains(500 + reach + 1, 1740, exactBounds),
+            CloseTarget.contains(500 + reach + 1, 1810, exactBounds),
         )
     }
 
@@ -125,7 +127,7 @@ class CloseTargetTest {
     @Test
     fun `highlight INSIDE when the centre is inside`() {
         val cx = 556
-        val cy = 2011
+        val cy = 2089
         assertEquals(
             "overlay: the highlight should be INSIDE when the centre is inside the target",
             CloseHighlight.INSIDE,
@@ -153,7 +155,7 @@ class CloseTargetTest {
         assertEquals(
             "overlay: the highlight should be INSIDE when the centre is on the top edge of the box",
             CloseHighlight.INSIDE,
-            CloseTarget.highlight(556, 2011 - reach, bounds),
+            CloseTarget.highlight(556, 2089 - reach, bounds),
         )
     }
 
@@ -166,11 +168,11 @@ class CloseTargetTest {
         )
     }
 
-    /** If this fails, the target y fraction is not 0.87. */
+    /** If this fails, the target y fraction is not 0.905. */
     @Test
-    fun `centre at the target y fraction 0_87`() {
+    fun `centre at the target y fraction 0_905`() {
         val (_, centerY) = CloseTarget.targetCentreFractions()
-        assertEquals("overlay: the target y fraction should be 0.87", 0.87f, centerY, 0.001f)
+        assertEquals("overlay: the target y fraction should be 0.905", 0.905f, centerY, 0.001f)
     }
 
     /** If this fails, the target centre in pixels is not at the target fractions of the bounds. */
@@ -179,7 +181,7 @@ class CloseTargetTest {
         val bounds = PixelBounds(0, 0, 1000, 2000)
         val (cx, cy) = CloseTarget.targetCentreInPixels(bounds)
         assertEquals("overlay: target centre x should be at 0.5 of bounds width", 500, cx)
-        assertEquals("overlay: target centre y should be at 0.87 of bounds height", 1740, cy)
+        assertEquals("overlay: target centre y should be at 0.905 of bounds height", 1810, cy)
     }
 
     // --- drawn box equals drop area ---
