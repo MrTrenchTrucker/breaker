@@ -184,8 +184,8 @@ internal class WindowManagerTileWindow(private val context: Context) : TileWindo
         view.applyFace(face.copy(look = TileStyle.look(face.state, palette)))
     }
 
-    override fun showCloseTarget(x: Int, y: Int, radiusPx: Float, palette: TruckingPalette): Boolean {
-        return closeTargetWindow.show(x, y, radiusPx, palette)
+    override fun showCloseTarget(x: Int, y: Int, widthPx: Int, heightPx: Int, palette: TruckingPalette): Boolean {
+        return closeTargetWindow.show(x, y, widthPx, heightPx, palette)
     }
 
     override fun hideCloseTarget() {

@@ -5,12 +5,13 @@ import dev.breaker.shared.tokens.TruckingPalette
 import dev.breaker.shared.tokens.TruckingTokens
 
 /**
- * The close target: a circular drop zone shown while a drag of the collapsed tile is in progress.
+ * The close target: a see-through dark box shown while a drag of the collapsed tile is in progress.
  *
- * The target is centred horizontally and sits near the bottom of the usable area. Its radius is
- * targetRadiusFraction() (0.15) times the smaller of the usable bounds' width and height. The
+ * The target is centred horizontally and sits near the bottom of the usable area. Its size is set by
+ * [CloseTargetShape]: a window of [CloseTargetShape.windowWidthPx] by [CloseTargetShape.windowHeightPx]
+ * pixels. The drop area is the drawn box, and the corners that its arcs cut off are outside it. The
  * target is a separate overlay window of the same type as the tile itself; it is not focusable and
- * not touchable. It is drawn with palette colours only.
+ * not touchable. It is drawn from the dark palette in both themes.
  *
  * This object holds the geometry rules only: where the target sits, whether a tile centre is inside
  * it, and the highlight state. It has no Android types, no state and no window.
@@ -39,38 +40,31 @@ internal object CloseTarget {
     }
 
     /**
-     * The radius of the target in pixels for the given [bounds].
+     * The art scale of the drawn box for the given [bounds].
      *
-     * This is the same value used by [contains] for the hit test and by the window for drawing,
-     * so the drawn circle and the hit area are always the same size.
+     * This is the scale [contains] uses for the hit test, so the drawn box and the drop area are
+     * always the same size.
      */
-    fun hitRadiusPx(bounds: PixelBounds): Float =
-        targetRadiusFraction() * minOf(bounds.width, bounds.height)
-
-    /**
-     * The radius of the target as a fraction of the smaller dimension of the usable bounds.
-     *
-     * The radius is targetRadiusFraction() (0.15) times the smaller of the usable bounds' width and
-     * height. This function returns that fraction, so the caller can compute the radius in pixels
-     * as `targetRadiusFraction() * min(bounds.width, bounds.height)`.
-     */
-    fun targetRadiusFraction(): Float = 0.15f
+    fun boxScale(bounds: PixelBounds): Float =
+        CloseTargetShape.scale(CloseTargetShape.windowWidthPx(bounds), CloseTargetShape.windowHeightPx(bounds))
 
     /**
      * Whether the tile centre at ([tileCenterX], [tileCenterY]) pixels is inside the target.
      *
      * The tile centre is the centre of the tile in pixels, relative to the usable bounds. The
-     * target centre is computed from [targetCentreFractions] and the bounds. The target radius is
-     * computed from [targetRadiusFraction] and the smaller dimension of the bounds.
+     * target centre is computed from [targetCentreFractions] and the bounds. The test is the hit
+     * test of the drawn box, see [CloseTargetShape.contains]: the four corners that the arcs cut
+     * off are outside.
      *
-     * A tile centre exactly on the edge of the target is inside.
+     * A tile centre exactly on the edge of the box is inside.
      */
     fun contains(tileCenterX: Int, tileCenterY: Int, bounds: PixelBounds): Boolean {
         val (targetCenterX, targetCenterY) = targetCentreInPixels(bounds)
-        val targetRadius = hitRadiusPx(bounds)
-        val dx = tileCenterX - targetCenterX
-        val dy = tileCenterY - targetCenterY
-        return dx * dx + dy * dy <= targetRadius * targetRadius
+        return CloseTargetShape.contains(
+            (tileCenterX - targetCenterX).toFloat(),
+            (tileCenterY - targetCenterY).toFloat(),
+            boxScale(bounds),
+        )
     }
 
     /**
@@ -85,12 +79,20 @@ internal object CloseTarget {
     /**
      * Show the close target at the drop zone.
      *
-     * The target is shown once, at the target centre computed from the usable bounds. The highlight
-     * is set later by [TileController.dragBy] after the tile moves.
+     * The target is shown once, at the target centre computed from the usable bounds, with the window
+     * size of [CloseTargetShape]. The theme parameter is not used: the box is drawn from the dark
+     * palette in both modes. The highlight is set later by [TileController.dragBy] after the tile moves.
      */
     internal fun onDragStep(window: TileWindow, theme: ThemeMode) {
-        val (cx, cy) = targetCentreInPixels(window.usableBounds())
-        window.showCloseTarget(cx, cy, hitRadiusPx(window.usableBounds()), TruckingTokens.palette(theme))
+        val bounds = window.usableBounds()
+        val (cx, cy) = targetCentreInPixels(bounds)
+        window.showCloseTarget(
+            cx,
+            cy,
+            CloseTargetShape.windowWidthPx(bounds),
+            CloseTargetShape.windowHeightPx(bounds),
+            TruckingTokens.DARK,
+        )
     }
 
     /**

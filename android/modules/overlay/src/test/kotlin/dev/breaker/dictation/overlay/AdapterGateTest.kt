@@ -342,7 +342,7 @@ class AdapterGateTest {
         return listOfNotNull(
             "show() does not set params.x = left".takeUnless { Regex("params\\.x\\s*=\\s*left").containsMatchIn(noComments) },
             "show() does not set params.y = top".takeUnless { Regex("params\\.y\\s*=\\s*top").containsMatchIn(noComments) },
-            "show() does not call frameFor(x, y, radiusPx)".takeUnless { body.contains("frameFor(x, y, radiusPx)") },
+            "show() does not call frameFor(x, y, widthPx, heightPx)".takeUnless { body.contains("frameFor(x, y, widthPx, heightPx)") },
         )
     }
 
@@ -350,24 +350,24 @@ class AdapterGateTest {
     @Test
     fun `show uses frameFor left and top`() {
         assertFires("no show", showFrameForProblems("val x = 1\n"), "no show function")
-        assertFires("missing params.x = left", showFrameForProblems("fun show(x: Int, y: Int, radiusPx: Float) {\n val (left, top, d) = frameFor(x, y, radiusPx)\n params.y = top\n}\n"), "params.x = left")
-        assertFires("params.x = x instead of left", showFrameForProblems("fun show(x: Int, y: Int, radiusPx: Float) {\n val (left, top, d) = frameFor(x, y, radiusPx)\n params.x = x\n params.y = top\n}\n"), "params.x = left")
-        assertFires("missing params.y = top", showFrameForProblems("fun show(x: Int, y: Int, radiusPx: Float) {\n val (left, top, d) = frameFor(x, y, radiusPx)\n params.x = left\n}\n"), "params.y = top")
-        assertFires("params.y = y instead of top", showFrameForProblems("fun show(x: Int, y: Int, radiusPx: Float) {\n val (left, top, d) = frameFor(x, y, radiusPx)\n params.x = left\n params.y = y\n}\n"), "params.y = top")
-        assertFires("params.x = left in comment only", showFrameForProblems("fun show(x: Int, y: Int, radiusPx: Float) {\n val (left, top, d) = frameFor(x, y, radiusPx)\n // params.x = left\n params.y = top\n}\n"), "params.x = left")
-        assertFires("params.y = top in comment only", showFrameForProblems("fun show(x: Int, y: Int, radiusPx: Float) {\n val (left, top, d) = frameFor(x, y, radiusPx)\n params.x = left\n // params.y = top\n}\n"), "params.y = top")
-        assertFires("no frameFor call", showFrameForProblems("fun show(x: Int, y: Int, radiusPx: Float) {\n params.x = left\n params.y = top\n}\n"), "frameFor")
-        assertQuiet("correct show()", showFrameForProblems("fun show(x: Int, y: Int, radiusPx: Float) {\n val (left, top, d) = frameFor(x, y, radiusPx)\n params.x = left\n params.y = top\n}\n"))
+        assertFires("missing params.x = left", showFrameForProblems("fun show(x: Int, y: Int, widthPx: Int, heightPx: Int) {\n val (left, top, d) = frameFor(x, y, widthPx, heightPx)\n params.y = top\n}\n"), "params.x = left")
+        assertFires("params.x = x instead of left", showFrameForProblems("fun show(x: Int, y: Int, widthPx: Int, heightPx: Int) {\n val (left, top, d) = frameFor(x, y, widthPx, heightPx)\n params.x = x\n params.y = top\n}\n"), "params.x = left")
+        assertFires("missing params.y = top", showFrameForProblems("fun show(x: Int, y: Int, widthPx: Int, heightPx: Int) {\n val (left, top, d) = frameFor(x, y, widthPx, heightPx)\n params.x = left\n}\n"), "params.y = top")
+        assertFires("params.y = y instead of top", showFrameForProblems("fun show(x: Int, y: Int, widthPx: Int, heightPx: Int) {\n val (left, top, d) = frameFor(x, y, widthPx, heightPx)\n params.x = left\n params.y = y\n}\n"), "params.y = top")
+        assertFires("params.x = left in comment only", showFrameForProblems("fun show(x: Int, y: Int, widthPx: Int, heightPx: Int) {\n val (left, top, d) = frameFor(x, y, widthPx, heightPx)\n // params.x = left\n params.y = top\n}\n"), "params.x = left")
+        assertFires("params.y = top in comment only", showFrameForProblems("fun show(x: Int, y: Int, widthPx: Int, heightPx: Int) {\n val (left, top, d) = frameFor(x, y, widthPx, heightPx)\n params.x = left\n // params.y = top\n}\n"), "params.y = top")
+        assertFires("no frameFor call", showFrameForProblems("fun show(x: Int, y: Int, widthPx: Int, heightPx: Int) {\n params.x = left\n params.y = top\n}\n"), "frameFor")
+        assertQuiet("correct show()", showFrameForProblems("fun show(x: Int, y: Int, widthPx: Int, heightPx: Int) {\n val (left, top, d) = frameFor(x, y, widthPx, heightPx)\n params.x = left\n params.y = top\n}\n"))
 
         assertEquals("android_overlay: CloseTargetWindow.kt show must use frameFor left and top", emptyList<String>(), inFile(ModuleFiles.mainTexts(), "CloseTargetWindow.kt", this::showFrameForProblems))
     }
 
     @Test
     fun `show frameFor wiring fires controls`() {
-        val firesX = "fun show(x: Int, y: Int, radiusPx: Float) {\n val (left, top, d) = frameFor(x, y, radiusPx)\n params.x = x\n params.y = top\n}\n"
-        val firesY = "fun show(x: Int, y: Int, radiusPx: Float) {\n val (left, top, d) = frameFor(x, y, radiusPx)\n params.x = left\n params.y = y\n}\n"
-        val firesComment = "fun show(x: Int, y: Int, radiusPx: Float) {\n val (left, top, d) = frameFor(x, y, radiusPx)\n // params.x = left\n params.y = top\n}\n"
-        val quiet = "fun show(x: Int, y: Int, radiusPx: Float) {\n val (left, top, d) = frameFor(x, y, radiusPx)\n params.x = left\n params.y = top\n}\n"
+        val firesX = "fun show(x: Int, y: Int, widthPx: Int, heightPx: Int) {\n val (left, top, d) = frameFor(x, y, widthPx, heightPx)\n params.x = x\n params.y = top\n}\n"
+        val firesY = "fun show(x: Int, y: Int, widthPx: Int, heightPx: Int) {\n val (left, top, d) = frameFor(x, y, widthPx, heightPx)\n params.x = left\n params.y = y\n}\n"
+        val firesComment = "fun show(x: Int, y: Int, widthPx: Int, heightPx: Int) {\n val (left, top, d) = frameFor(x, y, widthPx, heightPx)\n // params.x = left\n params.y = top\n}\n"
+        val quiet = "fun show(x: Int, y: Int, widthPx: Int, heightPx: Int) {\n val (left, top, d) = frameFor(x, y, widthPx, heightPx)\n params.x = left\n params.y = top\n}\n"
         assertFires("params.x = x instead of left", showFrameForProblems(firesX), "params.x = left")
         assertFires("params.y = y instead of top", showFrameForProblems(firesY), "params.y = top")
         assertFires("comment-only params.x = left", showFrameForProblems(firesComment), "params.x = left")

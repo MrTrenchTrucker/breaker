@@ -101,8 +101,8 @@ internal interface TileWindow {
      * conditions of the view hold (attached, visible, screen on, system animations on); false stops it. */
     fun setBusyPulse(on: Boolean)
 
-    /** Show the close target at ([x], [y]) pixels with radius [radiusPx], drawn with [palette]. Returns true when added. */
-    fun showCloseTarget(x: Int, y: Int, radiusPx: Float, palette: TruckingPalette): Boolean
+    /** Show the close target box centred at ([x], [y]) pixels, [widthPx] by [heightPx] pixels, drawn with [palette]. Returns true when added. */
+    fun showCloseTarget(x: Int, y: Int, widthPx: Int, heightPx: Int, palette: TruckingPalette): Boolean
 
     /** Hide the close target. Quietly does nothing when it is not there. */
     fun hideCloseTarget()
