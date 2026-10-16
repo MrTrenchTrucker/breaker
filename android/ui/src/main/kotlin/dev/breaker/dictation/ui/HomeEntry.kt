@@ -53,6 +53,7 @@ import dev.breaker.dictation.ui.theme.shownMode
  * @param onCopy asks the app to copy the transcript on display to the clipboard.
  * @param onHistory asks the app to show the history screen.
  * @param onSettings asks the app to show the settings screen.
+ * @param onTap asks the app to start a take from the big mic on the screen.
  * @return a view that shows the home screen and can be put in a layout as it
  *   stands.
  */
@@ -67,6 +68,7 @@ fun createHomeView(
     onCopy: (String) -> Unit,
     onHistory: () -> Unit,
     onSettings: () -> Unit,
+    onTap: () -> Unit,
 ): android.view.View {
     val phoneIsDark = isNightMode(context.resources.configuration.uiMode)
     val theme = Themes.of(shownMode(StoredThemeMode.SYSTEM, phoneIsDark))
@@ -82,7 +84,21 @@ fun createHomeView(
         onCopy,
         onHistory,
         onSettings,
+        onTap,
         theme,
         ScreenRenderer(context),
     )
+}
+
+/**
+ * What the view from [createHomeView] answers to the app: the line that is drawn below
+ * the last-transcript box, and whether the big mic shows the recording look. Both are called on the
+ * main thread; each stores its value and draws the screen again.
+ */
+interface HomeControl {
+    /** Shows [line] below the last-transcript box, or nothing when it is null. */
+    fun showLine(line: String?)
+
+    /** Shows the recording look on the big mic while [recording] is true. */
+    fun showRecording(recording: Boolean)
 }

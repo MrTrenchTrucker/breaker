@@ -16,7 +16,10 @@ import dev.breaker.dictation.wiring.ModelDownloadNotice
 import dev.breaker.dictation.wiring.ModelDownloader
 import dev.breaker.dictation.wiring.NoticeClearingTilePort
 import dev.breaker.dictation.wiring.Opener
+import dev.breaker.dictation.wiring.OwnedTakePort
 import dev.breaker.dictation.wiring.StoreModelReady
+import dev.breaker.dictation.wiring.TakeOwner
+import dev.breaker.dictation.wiring.TakeOwnerKind
 import dev.breaker.dictation.wiring.TakePortAdapter
 import dev.breaker.dictation.wiring.TileCoordinator
 import dev.breaker.dictation.wiring.appGesture
@@ -75,12 +78,18 @@ internal class TileHost(
 
     private val displayWatch: DisplayWatch = DisplayWatch(DisplayChangeAndroid(context, main)) { tile.onDisplayChanged() }
 
+    /** The one serial worker of the dictation take: the tile coordinator and the Home take both run on it. */
+    internal val takeWorker: SerialBackground by lazy { SerialBackground("breaker-dictation") }
+
+    /** Which path holds the running take: a begin that records sets it, and every settle of the take clears it. */
+    internal val takeOwner: TakeOwner = TakeOwner()
+
     private val coordinator: TileCoordinator by lazy {
         TileCoordinator(
             noticePort,
             main,
-            SerialBackground("breaker-dictation"),
-            TakePortAdapter(root.dictation.runner),
+            takeWorker,
+            OwnedTakePort(TakePortAdapter(root.dictation.runner), takeOwner, TakeOwnerKind.TILE),
             StoreModelReady(root.modelStore, selectedId),
             notifications,
             this,
@@ -91,9 +100,9 @@ internal class TileHost(
     }
 
     init {
-        root.onTakeEnded = { toCoordinator { it.onTakeEnded() } }
-        root.onMicTaken = { toCoordinator { it.onTakeMicTaken() } }
-        root.onDeviceFailure = { fallback -> toCoordinator { if (!it.onTakeFailed()) fallback() } }
+        root.onTakeEnded = { toCoordinator { takeOwner.settled(); it.onTakeEnded() } }
+        root.onMicTaken = { toCoordinator { takeOwner.settled(); it.onTakeMicTaken() } }
+        root.onDeviceFailure = { fallback -> toCoordinator { takeOwner.settled(); if (!it.onTakeFailed()) fallback() } }
         root.levelSink = LevelFeed(noticePort, main) { root.dictation.runner.sessionState == DictationState.RECORDING }
     }
 

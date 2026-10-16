@@ -18,9 +18,10 @@ import dev.breaker.dictation.ui.theme.PaletteSlot
  * The tree carries no colour and no geometry: a slot names a palette role and
  * the host draws it, so the whole screen is checkable in a plain JVM test.
  *
- * The mic's slot follows the switch, as the agreed rule for the two faces says: the on mic
- * is the art's accent glow and the off mic the flat not-ready face, and the
- * tree tells the two apart by the slot alone.
+ * The mic's slot follows the switch while no take is recording, as the agreed rule for
+ * the two faces says: the on mic is the art's accent glow and the off mic the flat
+ * not-ready face, and the tree tells the two apart by the slot alone. While recording
+ * the slot is the primary face.
  */
 internal class HomeScreen {
 
@@ -39,6 +40,7 @@ internal class HomeScreen {
             add(mic(state))
             add(transcript(state))
             state.notice?.let { add(Label(HomeNodeIds.NOTICE, it, TypeRole.BODY, PaletteSlot.TEXT)) }
+            state.line?.let { add(Label(HomeNodeIds.LINE, it, TypeRole.BODY, PaletteSlot.TEXT)) }
             stripeNodes().forEach { add(it) }
             if (state.menuOpen) addAll(drawer())
         },
@@ -100,7 +102,7 @@ internal class HomeScreen {
     /**
      * One status row: the key always, the value when there is a ruled word for it.
      * The key is muted and the value the plainer text, both as the art draws them;
-     * the dictation value is the phone's own short time in the mono face.
+     * the dictation value is the text of the last dictation, not a time, in the mono face.
      */
     private fun statusRow(row: String, key: String, value: String?, valueRole: TypeRole): List<Node> = buildList {
         add(Label("$row.key", key, TypeRole.BODY, PaletteSlot.TEXT_MUTED))
@@ -112,15 +114,23 @@ internal class HomeScreen {
     /**
      * The big mic: the slot follows the switch, so the tree carries the two
      * faces apart: the on mic is the accent glow, the off mic the muted face.
+     * While a take is recording the mic takes the primary face instead.
      */
     private fun mic(state: HomeState): Box = Box(
         id = HomeNodeIds.MIC,
-        background = if (state.switchOn) PaletteSlot.ACCENT else PaletteSlot.TEXT_MUTED,
+        background = micSlot(state),
         children = listOf(
             Label(HomeNodeIds.MIC_WORD, HomeTexts.TAP_TO_TALK, TypeRole.DISPLAY, PaletteSlot.TEXT),
             Label(HomeNodeIds.MIC_HINT, HomeTexts.TAP_HINT, TypeRole.BODY, PaletteSlot.TEXT_MUTED),
         ),
     )
+
+    /** The mic's slot: the primary face while recording, else the switch's accent or muted face. */
+    private fun micSlot(state: HomeState): PaletteSlot = when {
+        state.recording -> PaletteSlot.PRIMARY
+        state.switchOn -> PaletteSlot.ACCENT
+        else -> PaletteSlot.TEXT_MUTED
+    }
 
     /**
      * The last-transcript box: the heading, the time when there is one, the text
@@ -207,6 +217,7 @@ internal object HomeNodeIds {
     const val TRANSCRIPT_TEXT = "home.transcript.text"
     const val COPY = "home.transcript.copy"
     const val NOTICE = "home.notice"
+    const val LINE = "home.line"
     const val STRIPES = "home.stripe"
     const val DRAWER_DIM = "home.drawer.dim"
     const val DRAWER_PANEL = "home.drawer.panel"

@@ -116,10 +116,10 @@ internal class FirstRunSeamGateTest {
             count(code, """\bcreateOnboardingView\s*\(""") == 1 &&
                 !bodyOf(code, showHeader).contains("createOnboardingView(")
         },
-        // Four switch uses: Home's adapter, the onboarding adapter and the two calls in onStart.
+        // Five switch uses: the Home take wiring, Home's adapter, the onboarding adapter and the two calls in onStart.
         // The first-run block adds none of its own.
         Rule("THE_SWITCH_WORD_COUNT_IS_UNCHANGED") { code ->
-            count(code, switchWord) == 4
+            count(code, switchWord) == 5
         },
     )
 

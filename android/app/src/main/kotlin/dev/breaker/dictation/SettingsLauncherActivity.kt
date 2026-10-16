@@ -6,11 +6,11 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.os.Bundle
 import android.view.ViewGroup
-import android.view.WindowInsets
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import dev.breaker.dictation.host.MainLooperPost
 import dev.breaker.dictation.service.NotificationRoute
 import dev.breaker.dictation.settings.ModelCatalog
 import dev.breaker.dictation.ui.ModelStepControl
@@ -19,13 +19,16 @@ import dev.breaker.dictation.wiring.ACCESSIBILITY_SERVICE_COMPONENT
 import dev.breaker.dictation.wiring.BreakerSwitchAdapter
 import dev.breaker.dictation.wiring.FirstRunDoneStore
 import dev.breaker.dictation.wiring.FirstRunGate
+import dev.breaker.dictation.wiring.HomeTakeWiring
 import dev.breaker.dictation.wiring.IconLaunchOnce
 import dev.breaker.dictation.wiring.ModelDownloadNotice
 import dev.breaker.dictation.wiring.ModelSentences
 import dev.breaker.dictation.wiring.StoreModelReady
+import dev.breaker.dictation.wiring.TakePortAdapter
 import dev.breaker.shared.models.ModelRegistry
+import dev.breaker.dictation.wiring.appTakenClipboard
+import dev.breaker.dictation.wiring.applyInsets
 import dev.breaker.dictation.wiring.isIconLaunch
-import dev.breaker.dictation.wiring.paddingFor
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -57,6 +60,16 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
             FirstRunGate.Decision.MARK_DONE_QUIETLY -> firstRunDone.markDone()
             FirstRunGate.Decision.NORMAL -> Unit
         }
+        val takeWiring = HomeTakeWiring(
+            take = { TakePortAdapter(app.compositionRoot.dictation.runner) },
+            history = { app.historyStore },
+            clipboard = appTakenClipboard(this),
+            switch = app.armedSwitch,
+            owner = app.tileHost.takeOwner,
+            background = app.tileHost.takeWorker,
+            main = MainLooperPost(),
+            modelReady = { modelReady.isReady() },
+        )
         val home = createHomeView(
             this,
             BreakerSwitchAdapter(app.armedSwitch),
@@ -67,8 +80,10 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
             onCopy = { sentence -> copyToClipboard(sentence) },
             onHistory = { openHistory() },
             onSettings = { openSettings() },
+            onTap = { takeWiring.onTap() },
         )
         homeView = home
+        takeWiring.attach(home as dev.breaker.dictation.ui.HomeControl)
         setContentView(home)
         applyInsets(home)
         val onboarding = dev.breaker.dictation.ui.createOnboardingView(
@@ -262,27 +277,6 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         (onboardingView as? ModelStepControl)?.let { control ->
             if (sentence == ModelSentences.CHECKING) control.downloadChecking() else control.downloadProgress(doneMb, totalMb)
         }
-    }
-
-    private fun applyInsets(view: android.view.View) {
-        val rootInsets = view.rootWindowInsets
-        if (rootInsets != null) {
-            applyPadding(view, rootInsets)
-        }
-        view.setOnApplyWindowInsetsListener { v, insets ->
-            applyPadding(v, insets)
-            insets
-        }
-    }
-
-    private fun applyPadding(view: android.view.View, insets: WindowInsets) {
-        val bars = insets.getInsets(WindowInsets.Type.systemBars())
-        val cutout = insets.getInsets(WindowInsets.Type.displayCutout())
-        val padding = paddingFor(
-            dev.breaker.dictation.wiring.Insets(bars.left, bars.top, bars.right, bars.bottom),
-            dev.breaker.dictation.wiring.Insets(cutout.left, cutout.top, cutout.right, cutout.bottom),
-        )
-        view.setPadding(padding.left, padding.top, padding.right, padding.bottom)
     }
 
     private fun copyToClipboard(text: String) {

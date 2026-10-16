@@ -39,12 +39,38 @@ class HomeIntentHandlerTest {
     /** A failure means a tap on something that is not a control reports an intent. */
     @Test
     fun `a tap on a node that is not a control reports nothing`() {
-        assertNull(handler.intentFor("home.mic"))
+        assertNull(handler.intentFor("home.mic.hint"))
         assertNull(handler.intentFor("home.mic.word"))
         assertNull(handler.intentFor("home.background"))
         assertNull(handler.intentFor("home.card.word"))
         assertNull(handler.intentFor("home.card.row.model.key"))
         assertNull(handler.intentFor("home.stripe.1"))
+    }
+
+    /** A failure means a tap on the big mic does not report the MIC string the host acts on. */
+    @Test
+    fun `the big mic tap reports the MIC string`() {
+        assertEquals(ScreenIntent.Home(HomeActions.MIC), handler.intentFor("home.mic"))
+    }
+
+    /** A failure means a mic tap changes the drawer the screen holds, shut or open. */
+    @Test
+    fun `a mic tap changes no screen-local state with the drawer shut or open`() {
+        val shut = handler.current()
+        assertEquals("home: a mic tap with the drawer shut", shut, handler.tap("home.mic"))
+        handler.tap("home.topbar.menu")
+        val open = handler.current()
+        assertEquals("home: a mic tap with the drawer open", open, handler.tap("home.mic"))
+        assertTrue("home: the drawer is still open", "home.drawer.panel" in ids(open))
+    }
+
+    /** A failure means a mic tap clears the notice a HOW IT WORKS tap left on the screen. */
+    @Test
+    fun `a mic tap keeps the notice on the screen`() {
+        handler.tap("home.drawer.item.how")
+        val noticed = handler.current()
+        assertEquals("home: a mic tap keeps the notice", noticed, handler.tap("home.mic"))
+        assertEquals("home: the notice text is kept", HomeTexts.MENU_NOT_BUILT, noticeIn(noticed)?.text)
     }
 
     /** A failure means the menu does not open the drawer, or a drawer item does not close it. */

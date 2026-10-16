@@ -6,9 +6,10 @@ import dev.breaker.dictation.ui.screen.ScreenIntent
 /**
  * The strings a tap on the home screen reports: the contract with the host.
  *
- * One per control the screen draws: the menu, the switch, the copy and the four
- * drawer items. Every Action in the tree carries [ScreenIntent.Home] with one of
- * these, and the handler answers the same string for the control's id.
+ * One per control the screen draws: the menu, the switch, the copy, the four
+ * drawer items and the big mic. Every Action in the tree carries [ScreenIntent.Home]
+ * with one of these, and the handler answers the same string for the control's id.
+ * The big mic is not an Action: the host attaches its tap and reports this string.
  */
 internal object HomeActions {
     const val MENU = "MENU"
@@ -18,6 +19,7 @@ internal object HomeActions {
     const val SETTINGS = "SETTINGS"
     const val HOW_IT_WORKS = "HOW_IT_WORKS"
     const val ABOUT = "ABOUT"
+    const val MIC = "MIC"
 }
 
 /**
@@ -64,6 +66,7 @@ internal class HomeIntentHandler(private val screen: HomeScreen) {
         HomeNodeIds.MENU -> ScreenIntent.Home(HomeActions.MENU)
         HomeNodeIds.SWITCH -> ScreenIntent.Home(HomeActions.SWITCH)
         HomeNodeIds.COPY -> ScreenIntent.Home(HomeActions.COPY)
+        HomeNodeIds.MIC -> ScreenIntent.Home(HomeActions.MIC)
         HomeNodeIds.DRAWER_HISTORY -> ScreenIntent.Home(HomeActions.HISTORY)
         HomeNodeIds.DRAWER_SETTINGS -> ScreenIntent.Home(HomeActions.SETTINGS)
         HomeNodeIds.DRAWER_HOW -> ScreenIntent.Home(HomeActions.HOW_IT_WORKS)

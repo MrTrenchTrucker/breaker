@@ -5,14 +5,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /*
- * Seven declarations, offered on purpose.
+ * Eight declarations, offered on purpose.
  *
- * This module hands an app five views, a switch to implement and a control for the
- * model step, and nothing else: the app owns the activity, the manifest entry, the
- * settings store and what turns Breaker on, so everything else is an implementation
- * detail a later change may rename. Every top level declaration carries `internal` or
- * `private`, except the five functions that build a view, the switch interface and
- * the model-step control, each in a fixed shape.
+ * This module hands an app five views, a switch to implement, and two controls, for the
+ * model step and the home screen, and nothing else: the app owns the activity, the
+ * manifest entry, the settings store and what turns Breaker on, so everything else
+ * is an implementation detail a later change may rename. Every top level declaration carries `internal` or
+ * `private`, except the five functions that build a view, the switch interface, the
+ * model-step control and the home control, each in a fixed shape.
  *
  * A declaration is read as top level when it starts in the first column, so a
  * name inside a body is not offered. How a declaration is read out of a file
@@ -61,12 +61,16 @@ private const val SETTLED_HOME = "fun createHomeView(context: android.content.Co
     "transcriptTime: () -> String?, " +
     "onCopy: (String) -> Unit, " +
     "onHistory: () -> Unit, " +
-    "onSettings: () -> Unit): android.view.View"
+    "onSettings: () -> Unit, " +
+    "onTap: () -> Unit): android.view.View"
+
+/** The home control, as written in its file. */
+private const val SETTLED_HOME_CONTROL = "interface HomeControl"
 
 /** Each offered file with the one shape it offers: nothing more, nothing less, nothing elsewhere. */
 private val SETTLED_SURFACE = setOf(
     ENTRY_FILE to SETTLED_ENTRY, ENTRY_FILE to SETTLED_ONBOARDING, ENTRY_FILE to SETTLED_HISTORY,
-    HOME_ENTRY_FILE to SETTLED_HOME,
+    HOME_ENTRY_FILE to SETTLED_HOME, HOME_ENTRY_FILE to SETTLED_HOME_CONTROL,
     SWITCH_FILE to SETTLED_SWITCH, MODEL_CONTROL_FILE to SETTLED_MODEL_CONTROL, FIRST_RUN_FILE to SETTLED_FIRST_RUN,
 )
 
@@ -79,7 +83,7 @@ private val OFFERED: List<Pair<String, String>> = MAIN_SOURCES.flatMap { (path, 
 }
 
 /**
- * Nothing is offered but the five entry functions and the switch interface, and
+ * Nothing is offered but the five entry functions, the switch interface and the two controls, and
  * each is the shape the app was promised.
  */
 class PublicSurfaceGateTest {
@@ -90,7 +94,7 @@ class PublicSurfaceGateTest {
             setOf(ENTRY_FILE, FIRST_RUN_FILE, HOME_ENTRY_FILE, SWITCH_FILE, MODEL_CONTROL_FILE),
             OFFERED.map { it.first }.toSet(),
         )
-        assertEquals("declarations offered: $OFFERED", 7, OFFERED.size)
+        assertEquals("declarations offered: $OFFERED", 8, OFFERED.size)
     }
 
     @Test
@@ -101,7 +105,7 @@ class PublicSurfaceGateTest {
     @Test
     fun `an eighth declaration, a changed shape and a declaration in the wrong file are caught`() {
         assertTrue("the real surface must pass its own check", isSettled(OFFERED))
-        assertTrue("an eighth offered declaration passed", !isSettled(OFFERED + (ENTRY_FILE to "fun createThirdView(): android.view.View")))
+        assertTrue("a ninth offered declaration passed", !isSettled(OFFERED + (ENTRY_FILE to "fun createThirdView(): android.view.View")))
         assertTrue("a missing declaration passed", !isSettled(OFFERED.drop(1)))
         assertTrue("a weakened parameter passed", !isSettled(OFFERED.map { (p, d) -> p to d.replace("switch: BreakerSwitch", "switch: Any") }))
         assertTrue("a renamed interface passed", !isSettled(OFFERED.map { (p, d) -> p to d.replace("interface BreakerSwitch", "interface BreakerToggle") }))

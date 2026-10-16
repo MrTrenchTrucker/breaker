@@ -22,6 +22,7 @@ internal class HomeTakeAdapterSettleTest {
     private val store = InMemoryHistoryStore(log)
     private val clipboard = FakeTakenClipboard()
     private val take = FakeHomeTake(committer, log)
+    private val owner = TakeOwner()
     private val settle = TakeSettle(store, clipboard)
     private val background = FakeBackground()
     private val main = FakeMainPost()
@@ -32,7 +33,8 @@ internal class HomeTakeAdapterSettleTest {
         lines.clear()
         states.clear()
         return HomeTakeAdapter(
-            take = take,
+            take = OwnedTakePort(take, owner, TakeOwnerKind.HOME),
+            owner = owner,
             settle = settle,
             switch = switch,
             background = background,

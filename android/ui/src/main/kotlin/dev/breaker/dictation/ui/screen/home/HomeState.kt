@@ -15,4 +15,6 @@ internal data class HomeState(
     val transcriptTime: String? = null,
     val menuOpen: Boolean = false,
     val notice: String? = null,
+    val line: String? = null,
+    val recording: Boolean = false,
 )
