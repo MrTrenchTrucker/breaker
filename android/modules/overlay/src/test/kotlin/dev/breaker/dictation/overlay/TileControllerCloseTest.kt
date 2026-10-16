@@ -353,9 +353,9 @@ class TileControllerCloseTest {
         rig.window.move(150f, 150f)
         rig.window.up(150f, 150f)
         assertTrue("overlay: close target should be shown", rig.window.closeTargetShows.isNotEmpty())
-        val (showX, showY, _) = rig.window.closeTargetShows.first()
+        val shown = rig.window.closeTargetShows.first()
         val (targetCx, targetCy) = CloseTarget.targetCentreInPixels(rig.window.usableBounds())
-        assertEquals("overlay: close target x should be at target centre", targetCx, showX)
-        assertEquals("overlay: close target y should be at target centre", targetCy, showY)
+        assertEquals("overlay: close target x should be at target centre", targetCx, shown.x)
+        assertEquals("overlay: close target y should be at target centre", targetCy, shown.y)
     }
 }

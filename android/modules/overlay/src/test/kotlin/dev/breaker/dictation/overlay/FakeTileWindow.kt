@@ -2,6 +2,15 @@ package dev.breaker.dictation.overlay
 
 import dev.breaker.shared.tokens.TruckingPalette
 
+/** One recorded call of [TileWindow.showCloseTarget]: the centre, the box size and the palette. */
+internal data class CloseTargetShown(
+    val x: Int,
+    val y: Int,
+    val widthPx: Int,
+    val heightPx: Int,
+    val palette: TruckingPalette,
+)
+
 /**
  * A [TileWindow] that records every call and lets a test play the finger.
  *
@@ -126,14 +135,14 @@ internal class FakeTileWindow(
     }
 
     /** Every [showCloseTarget] call, in order. */
-    val closeTargetShows = ArrayList<Triple<Int, Int, Float>>()
+    val closeTargetShows = ArrayList<CloseTargetShown>()
     /** Every [hideCloseTarget] call, in order. */
     var closeTargetHideCount = 0
     /** Every [setCloseTargetHighlight] call, in order. */
     val closeTargetHighlights = ArrayList<CloseHighlight>()
 
-    override fun showCloseTarget(x: Int, y: Int, radiusPx: Float, palette: TruckingPalette): Boolean {
-        closeTargetShows.add(Triple(x, y, radiusPx))
+    override fun showCloseTarget(x: Int, y: Int, widthPx: Int, heightPx: Int, palette: TruckingPalette): Boolean {
+        closeTargetShows.add(CloseTargetShown(x, y, widthPx, heightPx, palette))
         return true
     }
 
