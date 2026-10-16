@@ -26,6 +26,7 @@ settings screen and the history screen, the manifest, and the Gradle build.
   connectivity probe of the transport module and the dictation use cases of the
   core module. `DictationRunner` drives one dictation at a time: begin, finish,
   send, cancel.
+- **First run.** A phone with no speech model sees a first-run view (a welcome, the permission pages and a download page with a bar) in place of the settings column. The app keeps a small done marker in its files folder, written when the model is on the phone at the end of the first run, so the first run does not come back.
 - **Speech engine and model.** The on-device speech engine reads its models from
   a model store in the app's files folder. Two buttons sit on the launcher screen.
   "Download the speech model", downloads the model the settings select; the
@@ -149,5 +150,7 @@ has run on an emulator, and most edge cases have not been checked on a device. T
 list of what is not verified (the service in the background, the restart from the
 notification, whether Android lets the tile start the service when it is off, and
 more) is in the Known Gotchas section of `AGENTS.md`.
+
+The first-run view has not run on a phone; the JVM tests and the source-text rules check it only.
 
 A shake has been seen on a phone in an earlier test build; the current rule (a shake only shows the tile) has not been checked on a device. Its device checks are the DEVICE CHECK LIST in the same section of `AGENTS.md`.

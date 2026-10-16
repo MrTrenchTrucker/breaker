@@ -53,18 +53,18 @@ private val FRAMEWORK_PACKAGE = Regex("""\bandroidx?\.""")
  * directory is not in it either.
  */
 private fun mayNameFramework(relative: String): Boolean =
-    mayName(relative, RENDER_DIRECTORY, ENTRY_FILE)
+    mayName(relative, RENDER_DIRECTORY, ENTRY_FILE, FIRST_RUN_ENTRY_FILE)
 
 /**
- * Whether [relative] is the single file [entryFile], or a file inside [directory].
+ * Whether [relative] is one of the files [entryFiles], or a file inside [directory].
  *
  * The directory is compared as one whole path segment rather than as a prefix of
  * the text, so `renderer/Control.kt` is not `render` and `render/../theme/Control.kt`
  * is not `render` once the `..` is resolved.
  */
-private fun mayName(relative: String, directory: String, entryFile: String): Boolean {
+private fun mayName(relative: String, directory: String, vararg entryFiles: String): Boolean {
     val path = Paths.get(relative).normalize()
-    return (path.nameCount > 0 && path.getName(0).toString() == directory) || relative == entryFile
+    return (path.nameCount > 0 && path.getName(0).toString() == directory) || relative in entryFiles
 }
 
 /** The framework packages named in the code of [text]. */
@@ -72,7 +72,7 @@ private fun frameworkNamesIn(text: String): List<String> =
     FRAMEWORK_PACKAGE.findAll(withoutCommentsAndStrings(text)).map { it.value }.distinct().toList()
 
 /** The framework packages named in [text], unless [relative] may name them. */
-private fun forbiddenNamesIn(relative: String, text: String): List<String> =
+internal fun forbiddenNamesIn(relative: String, text: String): List<String> =
     if (mayNameFramework(relative)) emptyList() else frameworkNamesIn(text)
 
 /**
@@ -89,7 +89,7 @@ private fun frameworkPackagesIn(bytes: String): List<String> =
 
 /** The framework packages in a class that may not name them, or nothing. */
 private fun forbiddenPackagesIn(relative: String, bytes: String): List<String> =
-    if (mayName(relative, RENDER_DIRECTORY, ENTRY_CLASS)) {
+    if (mayName(relative, RENDER_DIRECTORY, ENTRY_CLASS, FIRST_RUN_ENTRY_CLASS)) {
         emptyList()
     } else {
         frameworkPackagesIn(bytes)
@@ -105,7 +105,7 @@ class AndroidConfinementGateTest {
     @Test
     fun `the main tree names the framework only in the renderer and the entry`() {
         val found = MAIN_SOURCES.flatMap { (path, text) -> forbiddenNamesIn(path, text) }
-        assertEquals("framework references outside $RENDER_DIRECTORY/ and $ENTRY_FILE", emptyList<String>(), found)
+        assertEquals("framework references outside $RENDER_DIRECTORY/ and $ENTRY_FILE, $FIRST_RUN_ENTRY_FILE", emptyList<String>(), found)
     }
 
     @Test

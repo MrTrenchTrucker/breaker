@@ -330,4 +330,11 @@ internal class SetupIntentHandler(
             downloadLine = lastDownloadLine,
             modelDownloadMb = lastModelDownloadMb,
         )
+
+    /**
+     * The state the last drawing used, or the state the phone and the switch are taken to be
+     * in before anything was drawn. A caller that needs to know what the screen showed reads it
+     * here; it asks the phone and the switch nothing.
+     */
+    internal fun lastState(): SetupState = held ?: build()
 }

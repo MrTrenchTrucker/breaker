@@ -13,6 +13,8 @@ import dev.breaker.dictation.settings.ModelCatalog
 import dev.breaker.dictation.ui.ModelStepControl
 import dev.breaker.dictation.wiring.ACCESSIBILITY_SERVICE_COMPONENT
 import dev.breaker.dictation.wiring.BreakerSwitchAdapter
+import dev.breaker.dictation.wiring.FirstRunDoneStore
+import dev.breaker.dictation.wiring.FirstRunGate
 import dev.breaker.dictation.wiring.IconLaunchOnce
 import dev.breaker.dictation.wiring.ModelDownloadNotice
 import dev.breaker.dictation.wiring.ModelSentences
@@ -20,6 +22,7 @@ import dev.breaker.dictation.wiring.StoreModelReady
 import dev.breaker.shared.models.ModelRegistry
 import dev.breaker.dictation.wiring.isIconLaunch
 import dev.breaker.dictation.wiring.paddingFor
+import java.io.File
 
 class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
 
@@ -39,6 +42,12 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         downloadStatus = TextView(this)
         downloadStatus.text = ""
         val modelReady = StoreModelReady(app.compositionRoot.modelStore) { app.settingsStore.load().modelSize }
+        val firstRunDone = FirstRunDoneStore(File(app.filesDir, FirstRunDoneStore.FILE_NAME))
+        when (FirstRunGate.decide(firstRunDone.isDone(), modelReady.isReady())) {
+            FirstRunGate.Decision.FIRST_RUN -> { showFirstRun(app, modelReady, firstRunDone); return }
+            FirstRunGate.Decision.MARK_DONE_QUIETLY -> firstRunDone.markDone()
+            FirstRunGate.Decision.NORMAL -> Unit
+        }
         val onboarding = dev.breaker.dictation.ui.createOnboardingView(
             this,
             BreakerSwitchAdapter(app.armedSwitch),
@@ -73,6 +82,27 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
             openHistory()
         }
     }
+
+    private fun showFirstRun(app: BreakerApp, modelReady: StoreModelReady, done: FirstRunDoneStore) {
+        val view = dev.breaker.dictation.ui.createFirstRunView(
+            this,
+            ACCESSIBILITY_SERVICE_COMPONENT,
+            modelReady = modelReady::isReady,
+            downloadLine = this::pendingDownloadLine,
+            modelDownloadMb = { selectedModelMb(app) },
+            onDownloadModel = app.tileHost::requestDownload,
+            settings = app.settingsStore,
+            onFinished = { done.markDone(); recreate() },
+        )
+        onboardingView = view
+        setContentView(view)
+        applyInsets(view)
+    }
+
+    private fun pendingDownloadLine(): String? = downloadSentence
+
+    private fun selectedModelMb(app: BreakerApp): Int =
+        ModelCatalog.byId(app.settingsStore.load().modelSize)?.sizeMb?.let(ModelSentences::mibToMb) ?: ModelSentences.mibToMb(ModelRegistry.SMALL.sizeMb)
 
     override fun onStart() {
         super.onStart()
@@ -162,18 +192,23 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
     override fun done() {
         downloadSentence = null
         downloadStatus.text = ""
+        (onboardingView as? ModelStepControl)?.downloadStopped()
         (onboardingView as? ModelStepControl)?.refresh()
     }
 
     override fun failed(sentence: String) {
         downloadSentence = sentence
         downloadStatus.text = sentence
+        (onboardingView as? ModelStepControl)?.downloadStopped()
         (onboardingView as? ModelStepControl)?.refresh()
     }
 
     override fun progress(sentence: String, doneMb: Int, totalMb: Int) {
         // The launcher line shows the progress sentence the same way as the first one.
         downloading(sentence)
+        (onboardingView as? ModelStepControl)?.let { control ->
+            if (sentence == ModelSentences.CHECKING) control.downloadChecking() else control.downloadProgress(doneMb, totalMb)
+        }
     }
 
     private fun applyInsets(view: android.view.View) {

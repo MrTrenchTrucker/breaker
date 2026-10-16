@@ -5,13 +5,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /*
- * Five declarations, offered on purpose.
+ * Six declarations, offered on purpose.
  *
- * This module hands an app three views, a switch to implement and a control for the
+ * This module hands an app four views, a switch to implement and a control for the
  * model step, and nothing else: the app owns the activity, the manifest entry, the
  * settings store and what turns Breaker on, so everything else is an implementation
  * detail a later change may rename. Every top level declaration carries `internal` or
- * `private`, except the three functions that build a view, the switch interface and
+ * `private`, except the four functions that build a view, the switch interface and
  * the model-step control, each in a fixed shape.
  *
  * A declaration is read as top level when it starts in the first column, so a name
@@ -51,7 +51,7 @@ private const val SETTLED_MODEL_CONTROL = "interface ModelStepControl"
 /** Each offered file with the one shape it offers: nothing more, nothing less, nothing elsewhere. */
 private val SETTLED_SURFACE = setOf(
     ENTRY_FILE to SETTLED_ENTRY, ENTRY_FILE to SETTLED_ONBOARDING, ENTRY_FILE to SETTLED_HISTORY,
-    SWITCH_FILE to SETTLED_SWITCH, MODEL_CONTROL_FILE to SETTLED_MODEL_CONTROL,
+    SWITCH_FILE to SETTLED_SWITCH, MODEL_CONTROL_FILE to SETTLED_MODEL_CONTROL, FIRST_RUN_FILE to SETTLED_FIRST_RUN,
 )
 
 private fun isSettled(offered: List<Pair<String, String>>): Boolean =
@@ -63,18 +63,18 @@ private val OFFERED: List<Pair<String, String>> = MAIN_SOURCES.flatMap { (path, 
 }
 
 /**
- * Nothing is offered but the three entry functions and the switch interface, and each
+ * Nothing is offered but the four entry functions and the switch interface, and each
  * is the shape the app was promised.
  */
 class PublicSurfaceGateTest {
     @Test
     fun `the entry functions, the switch and the model control are the only declarations offered`() {
         assertEquals(
-            "declarations offered outside $ENTRY_FILE, $SWITCH_FILE and $MODEL_CONTROL_FILE: $OFFERED",
-            setOf(ENTRY_FILE, SWITCH_FILE, MODEL_CONTROL_FILE),
+            "declarations offered outside $ENTRY_FILE, $FIRST_RUN_FILE, $SWITCH_FILE and $MODEL_CONTROL_FILE: $OFFERED",
+            setOf(ENTRY_FILE, FIRST_RUN_FILE, SWITCH_FILE, MODEL_CONTROL_FILE),
             OFFERED.map { it.first }.toSet(),
         )
-        assertEquals("declarations offered: $OFFERED", 5, OFFERED.size)
+        assertEquals("declarations offered: $OFFERED", 6, OFFERED.size)
     }
 
     @Test
@@ -85,7 +85,7 @@ class PublicSurfaceGateTest {
     @Test
     fun `a sixth declaration, a changed shape and a declaration in the wrong file are caught`() {
         assertTrue("the real surface must pass its own check", isSettled(OFFERED))
-        assertTrue("a sixth offered declaration passed", !isSettled(OFFERED + (ENTRY_FILE to "fun createThirdView(): android.view.View")))
+        assertTrue("a seventh offered declaration passed", !isSettled(OFFERED + (ENTRY_FILE to "fun createThirdView(): android.view.View")))
         assertTrue("a missing declaration passed", !isSettled(OFFERED.drop(1)))
         assertTrue("a weakened parameter passed", !isSettled(OFFERED.map { (p, d) -> p to d.replace("switch: BreakerSwitch", "switch: Any") }))
         assertTrue("a renamed interface passed", !isSettled(OFFERED.map { (p, d) -> p to d.replace("interface BreakerSwitch", "interface BreakerToggle") }))
@@ -109,7 +109,7 @@ class PublicSurfaceGateTest {
     @Test
     fun `every other file marks its declarations internal or private`() {
         val marked = MAIN_SOURCES
-            .filter { (path, _) -> path != ENTRY_FILE && path != SWITCH_FILE && path != MODEL_CONTROL_FILE }
+            .filter { (path, _) -> path != ENTRY_FILE && path != FIRST_RUN_FILE && path != SWITCH_FILE && path != MODEL_CONTROL_FILE }
             .flatMap { (path, text) -> topLevelDeclarationsIn(text).map { path to it } }
         assertTrue("no other file in the module declares anything at the top level", marked.isNotEmpty())
         val unmarked = marked.filterNot { (_, declaration) ->

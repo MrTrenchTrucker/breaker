@@ -26,7 +26,7 @@ class ControlsViewGateTest {
     private val VIEW_SOURCES: Map<String, String> =
         MAIN_SOURCES.filter { (path, _) -> path.startsWith("$VIEW_DIRECTORY/") }.toMap()
 
-    /** The three plain-Kotlin files of the kit, by the same path. */
+    /** The four plain-Kotlin files of the kit, by the same path. */
     private val PLAIN_SOURCES: Map<String, String> =
         MAIN_SOURCES.filter { (path, _) -> path in PLAIN_FILES }.toMap()
 
@@ -243,6 +243,8 @@ class ControlsViewGateTest {
             val text = viewText(name)
             if (name in INHERITING) {
                 assertTrue("$name never builds on the main button", text.contains("Button3dView("))
+            } else if (name in MATH_DRAWN) {
+                assertTrue("$name never draws what DownloadBarMath returns", text.contains("DownloadBarMath."))
             } else {
                 assertTrue("$name never draws what ControlsGeometry returns", text.contains("ControlsGeometry."))
             }
@@ -252,26 +254,6 @@ class ControlsViewGateTest {
     private companion object {
         /** The directory the views live in, relative to this module's package. */
         const val VIEW_DIRECTORY = "render/controls"
-
-        /** The nine view files, by their path relative to this module's package. */
-        val VIEW_FILES = listOf(
-            "render/controls/Button3dView.kt",
-            "render/controls/NeutralButtonView.kt",
-            "render/controls/OutlinedButtonView.kt",
-            "render/controls/DeleteButtonView.kt",
-            "render/controls/FullWidthButtonView.kt",
-            "render/controls/SwitchView.kt",
-            "render/controls/BadgeView.kt",
-            "render/controls/TextFieldView.kt",
-            "render/controls/StepMarksView.kt",
-        )
-
-        /** The plain-Kotlin files of the kit, by their path relative to this module's package. */
-        val PLAIN_FILES = listOf(
-            "controls/ControlsFactors.kt",
-            "controls/ControlsGeometry.kt",
-            "controls/ControlsPalette.kt",
-        )
 
         /** The views that carry words, as their file names. */
         val LABELLED_VIEWS = listOf(
@@ -294,7 +276,5 @@ class ControlsViewGateTest {
             "render/controls/DeleteButtonView.kt",
             "render/controls/FullWidthButtonView.kt",
         )
-        /** The one display-only view, by its path: it takes no touch, so it has no floor to stand at. */
-        val DISPLAY_ONLY = listOf("render/controls/BadgeView.kt")
     }
 }
