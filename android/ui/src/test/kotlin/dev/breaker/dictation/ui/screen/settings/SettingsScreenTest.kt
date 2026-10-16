@@ -72,6 +72,7 @@ class SettingsScreenTest {
         is ScreenIntent.SetThemeMode -> listOf(intent.mode)
         is ScreenIntent.Setup -> listOf(intent.action)
         is ScreenIntent.History -> listOf(intent.action, intent.id)
+        is ScreenIntent.Home -> listOf(intent.action)
         ScreenIntent.ToggleTheme, ScreenIntent.UseSystemTheme -> emptyList()
     }
 

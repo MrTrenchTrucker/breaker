@@ -9,26 +9,27 @@ Full module card: `AGENTS.md` in this folder.
 ## What the app is
 
 The Android application. It owns the one place where the modules are put
-together (`BreakerCompositionRoot`), the launcher activity that shows the
-settings screen and the history screen, the manifest, and the Gradle build.
+together (`BreakerCompositionRoot`), the launcher activity that shows the home
+screen, the settings screen and the history screen, the manifest, and the Gradle build.
 
 ## What it puts together
 
+- **The home screen.** The launcher opens on the Home screen the ui module builds, after the first-run view on a phone with no speech model: an on/off card with the switch, the speech model row (Ready, or "Not downloaded"), the server row ("Not available") and the last dictation; a big mic; the last transcript with a Copy button; and a menu with History, Settings, How it works and About. History and Settings open their screens. How it works and About answer in place with "Not available yet." The big mic has no action yet, so the Home take is not wired.
 - **Settings and the credential reference.** The settings store is built over
   the app's files folder, together with a small file that holds the reference to
   the user's credential (never the secret itself).
 - **History.** The history database opens on its first use, which is the one
   start-up clean-up of old rows. That clean-up runs on the background (I/O)
-  dispatcher, never on the main thread. The launcher has a History button, and a
-  tap on the notification opens the same screen.
+  dispatcher, never on the main thread. The Home menu and the settings column each open
+  the history screen, and a tap on the notification opens the same screen.
 - **Dictation.** A `DictationComponent` joins the microphone capture of the audio
   module, the on-device rule-based formatter of the format module, the
   connectivity probe of the transport module and the dictation use cases of the
   core module. `DictationRunner` drives one dictation at a time: begin, finish,
   send, cancel.
-- **First run.** A phone with no speech model sees a first-run view (a welcome, the permission pages and a download page with a bar) in place of the settings column. The app keeps a small done marker in its files folder, written when the model is on the phone at the end of the first run, so the first run does not come back.
+- **First run.** A phone with no speech model sees a first-run view (a welcome, the permission pages and a download page with a bar) in place of the home screen and the settings column. The app keeps a small done marker in its files folder, written when the model is on the phone at the end of the first run, so the first run does not come back.
 - **Speech engine and model.** The on-device speech engine reads its models from
-  a model store in the app's files folder. Two buttons sit on the launcher screen.
+  a model store in the app's files folder. Its download button sits in the walk-through, in the settings column that the Settings item on Home opens.
   "Download the speech model", downloads the model the settings select; the
   address and the checksum come from the model registry. A tap on the tile's
   microphone with no model installed starts nothing and says so, in a
@@ -49,7 +50,7 @@ settings screen and the history screen, the manifest, and the Gradle build.
   commit failed. It keeps that until the next action.
 - **The user's switch-off.** When the user switches dictation off (the
   notification's "Switch off" button, or the walk-through's
-  "Switch Breaker off" button), the app keeps that in a small file in its
+  "Switch Breaker off" button, or the switch on the Home card), the app keeps that in a small file in its
   files folder, and a start of the launcher from a notification or the tile no
   longer switches dictation on. Opening Breaker from its launcher icon switches
   it on again, once for each activity the icon opens; a tap on the icon while
@@ -95,10 +96,10 @@ in the settings screen.
 
 ## Walk-through and download status
 
-The settings screen shows the setup walk-through (permissions: overlay,
-microphone, notifications, accessibility) under the Download button. The
-Download button shows a status line (downloading / failed / ready) using
-ModelSentences words. The app asks for no permission at run time in app code;
+The settings column, which the Settings item on Home opens, shows the setup walk-through
+(permissions: overlay, microphone, notifications, accessibility), with the speech model
+step first. Under it, a status line (downloading / failed / ready) uses ModelSentences
+words. The app asks for no permission at run time in app code;
 the requests live in ui's screen.
 
 ## What is not built yet

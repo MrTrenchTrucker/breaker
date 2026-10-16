@@ -134,6 +134,7 @@ internal class SetupIntentHandler(
             is ScreenIntent.SetSetting,
             is ScreenIntent.SetThemeMode,
             is ScreenIntent.History,
+            is ScreenIntent.Home,
             -> SetupNotice.NOT_ACCEPTED
         }
         val drawn = show(notice = notice, fresh = notice != SetupNotice.NOT_ACCEPTED)

@@ -128,9 +128,9 @@ class NodeModelTest {
     }
 
     @Test
-    fun `there are exactly seven kinds of intent`() {
+    fun `there are exactly eight kinds of intent`() {
         assertEquals(
-            setOf("ToggleTheme", "UseSystemTheme", "SetRoutingMode", "SetSetting", "Setup", "History", "SetThemeMode"),
+            setOf("ToggleTheme", "UseSystemTheme", "SetRoutingMode", "SetSetting", "Setup", "History", "SetThemeMode", "Home"),
             permittedNames(ScreenIntent::class.java),
         )
     }

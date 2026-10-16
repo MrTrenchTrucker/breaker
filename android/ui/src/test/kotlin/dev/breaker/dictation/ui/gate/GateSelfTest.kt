@@ -17,10 +17,8 @@ import java.io.File
  * on the machine. And it needs a control, a piece of text the rule must catch,
  * which each gate file carries for its own rule.
  *
- * This file holds the first two, once, and checks that the gate list has not lost
- * a member: six rules, six files, each of them a test class of its own.
+ * This file holds the first two, once, and checks the list: eight rules, eight files, each a test class of its own.
  */
-
 /** The marker that identifies this module: the package's own source directory. */
 private const val MODULE_MARKER = "src/main/kotlin/dev/breaker/dictation/ui"
 
@@ -37,7 +35,7 @@ private const val PACKAGE_PATH = "dev/breaker/dictation/ui"
 
 /** The names of the class files a gate test is expected to find. */
 private val GATE_FILES = listOf(
-    "AndroidConfinementGateTest.kt", "NoColourGateTest.kt", "NoPrivateSpacingGateTest.kt", "PublicSurfaceGateTest.kt", "PersistenceGateTest.kt", "FirstRunViewsGateTest.kt",
+    "AndroidConfinementGateTest.kt", "NoColourGateTest.kt", "NoPrivateSpacingGateTest.kt", "PublicSurfaceGateTest.kt", "PersistenceGateTest.kt", "FirstRunViewsGateTest.kt", "DeclarationReadingGateTest.kt", "FrameworkReferenceReadingGateTest.kt",
 )
 
 /**
@@ -162,7 +160,7 @@ class GateSelfTest {
             assertTrue("the gate file $gate is missing from ${present}", gate in present)
         }
         assertEquals(
-            "the gate package holds files beyond the six gates and this one: $present",
+            "the package holds files beyond the eight rule files and this one: $present",
             (GATE_FILES + "GateSelfTest.kt").sorted(),
             present,
         )
