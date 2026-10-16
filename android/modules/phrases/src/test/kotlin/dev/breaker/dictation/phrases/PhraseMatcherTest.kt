@@ -92,6 +92,21 @@ class PhraseMatcherTest {
     }
 
     @Test
+    fun `send offset is the owning heard word's start when and is mid-word`() {
+        val events = PhraseMatcher().accept(
+            WordUpdate(
+                listOf(HeardWord("hello and", 1_000L), HeardWord("i'm", 1_400L), HeardWord("gone", 1_900L)),
+                false,
+            ),
+        )
+        assertEquals(
+            "the offset is the owning heard word's start (1000L), not the i'm token's start (1400L) or gone's (1900L)",
+            listOf(PhraseEvent.Send(1_000L)),
+            events,
+        )
+    }
+
+    @Test
     fun `send without and is nothing`() {
         val events = PhraseMatcher().accept(update(false, "i'm" to 0L, "gone" to 300L))
         assertEquals("the send phrase starts with and", emptyList<PhraseEvent>(), events)

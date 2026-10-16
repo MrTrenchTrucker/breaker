@@ -45,6 +45,20 @@ class PhraseDetectorTest {
     }
 
     @Test
+    fun `a start on a stream someone else already started reports listening and delivers nothing`() {
+        val stream = ScriptedWordStream()
+        stream.start { }
+        val detector = PhraseDetector(stream)
+        val got = mutableListOf<PhraseEvent>()
+
+        detector.start { got += it }
+
+        assertTrue("isListening is true even though someone else started the stream", detector.isListening)
+        stream.feed(breakers())
+        assertTrue("no event arrives because someone else started the stream", got.isEmpty())
+    }
+
+    @Test
     fun `stop when not listening is safe and does not stop the stream`() {
         val stream = ScriptedWordStream()
         val detector = PhraseDetector(stream)

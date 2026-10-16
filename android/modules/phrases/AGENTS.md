@@ -84,6 +84,8 @@ not by this module.
   Tested by: `PhraseMatcherTest`, `PhraseMatcherFixTest`.
 - No report reaches the callback after `stop`, and a `stop` called from inside the callback returns safely.
   Tested by: `PhraseDetectorTest`.
+- A PhraseDetector owns its WordStream: nobody else starts or stops that stream; detector.stop() stops it (by design).
+  Tested by: `PhraseDetectorTest`.
 - The module has no Android import, no thread, timer or clock, and its only imports are core and `java.util.Locale`.
   Tested by: `ModuleHygieneTest`.
 
@@ -135,3 +137,4 @@ agents, not required: an outside contributor may write the code themselves
 - Device-only and NOT verified: that the Send offset lands on the word "and" on a real capture; false positives (N10); start latency (N1).
 - Matching is exact word adjacency: no filler words and no fuzzy matching yet.
 - The word source exists in `stt-ondevice` (`SherpaOnnxWordStreamFactory` gives a `FedWordStream`), but no app wiring is on main, so the detector cannot run on a device yet.
+- On a stream someone else started, `isListening` is true but no event arrives.
