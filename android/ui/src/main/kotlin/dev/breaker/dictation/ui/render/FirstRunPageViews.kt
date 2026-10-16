@@ -10,7 +10,9 @@ import android.widget.TextView
 import dev.breaker.dictation.ui.render.controls.FullWidthButtonView
 import dev.breaker.dictation.ui.render.controls.NeutralButtonView
 import dev.breaker.dictation.ui.render.controls.StepMarksView
+import dev.breaker.dictation.ui.screen.KitLook
 import dev.breaker.dictation.ui.screen.firstrun.FirstRunLayout
+import dev.breaker.dictation.ui.screen.firstrun.FirstRunNext
 import dev.breaker.dictation.ui.screen.firstrun.FirstRunPages
 import dev.breaker.dictation.ui.screen.firstrun.FirstRunPictures
 import dev.breaker.dictation.ui.screen.firstrun.FirstRunShown
@@ -99,12 +101,13 @@ internal class PageBuilder(val context: Context, val theme: Theme) {
             layoutParams = rowParams(true)
         }
 
-    /** The Next button at the foot of a page. */
-    fun nextButton(onTap: () -> Unit): NeutralButtonView =
-        NeutralButtonView(context, FirstRunTexts.NEXT, theme).apply {
-            setOnClickListener { onTap() }
-            layoutParams = rowParams(true)
+    /** The Next button at the foot of a page: green once its step is granted, grey otherwise. */
+    fun nextButton(look: KitLook, onTap: () -> Unit): View {
+        when (look) {
+            KitLook.RAISED -> return FullWidthButtonView(context, FirstRunTexts.NEXT, theme).apply { setOnClickListener { onTap() }; layoutParams = rowParams(true) }
+            else -> return NeutralButtonView(context, FirstRunTexts.NEXT, theme).apply { setOnClickListener { onTap() }; layoutParams = rowParams(true) }
         }
+    }
 
     /**
      * One permission page, top to bottom: the step marks, the notice, the picture, the heading,
@@ -122,12 +125,12 @@ internal class PageBuilder(val context: Context, val theme: Theme) {
         FirstRunWords.heading(shown.page)?.let { page.addView(headingText(it)) }
         FirstRunWords.why(shown.page)?.let { page.addView(bodyText(it)) }
         for (extra in FirstRunWords.extras(shown.page, shown.state)) page.addView(mutedText(extra))
-        val granted = shown.missing.none { it.page == shown.page }
+        val granted = FirstRunNext.ready(shown)
         page.addView(bodyText(FirstRunWords.status(granted)))
         if (!FirstRunPages.isLastPermission(shown.page)) shown.missing.firstOrNull { it.page == shown.page }?.let { item ->
             page.addView(fullButton(FirstRunWords.buttonFor(item.action)) { onTap(item.action) })
         }
-        page.addView(nextButton(onNext))
+        page.addView(nextButton(FirstRunNext.look(shown), onNext))
         if (FirstRunPages.isLastPermission(shown.page)) addMissing(page, shown, onTap)
         return page
     }
