@@ -523,7 +523,7 @@ enforced server-side** (N13) — never trust client-side scoping.
 
 **Roles (F22):** two roles — `admin` and `user`. The **first account to register**
 is **admin by default**. Admins can: assign/revoke admin on other accounts,
-trigger an immediate update check on their own device (Settings → About → Check for updates — the same daily-poll endpoint, called on demand; this is not a push to other users' devices), and see server health. Users have
+trigger an immediate update check on their own device (Home menu → About → Check for updates — the same daily-poll endpoint, called on demand; this is not a push to other users' devices), and see server health. Users have
 isolated data and no admin powers. Roles are stored server-side and enforced by
 the API (N13).
 
