@@ -66,6 +66,10 @@ internal object ControlsGeometry {
     const val THUMB_OFF_SIZE_DP: Float = 20f
     /** The badge's height: 40 px. */
     const val BADGE_H_DP: Float = 80f / 3f
+    /** The switch track's width: the art's own 72 by 40 px track at 1.5 px per dp, 48 dp. */
+    const val TRACK_W_DP: Float = 48f
+    /** The switch track's height: the art's own 72 by 40 px track at 1.5 px per dp, 40 px, 80 / 3 dp. */
+    const val TRACK_H_DP: Float = 80f / 3f
     /** The badge's width before its text: 40 px. */
     const val BADGE_PAD_DP: Float = 80f / 3f
     /** The badge's width per character of its text: 13 px. */

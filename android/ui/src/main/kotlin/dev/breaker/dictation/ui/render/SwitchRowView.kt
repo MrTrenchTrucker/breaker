@@ -7,7 +7,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
-import dev.breaker.dictation.ui.controls.ControlsFactors
 import dev.breaker.dictation.ui.controls.ControlsGeometry
 import dev.breaker.dictation.ui.render.controls.SwitchView
 import dev.breaker.dictation.ui.screen.ScreenIntent
@@ -30,12 +29,12 @@ internal class SwitchRowView(
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
         addView(columnOf(row), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        // the kit has no switch track constant of its own, so the track takes the kit values that match the art
+        // the track takes the art's own size from the kit's switch track constants
         val toggle = SwitchView(
             context,
             row.label,
-            ControlsFactors.TOUCH_MIN_DP,
-            ControlsGeometry.BADGE_H_DP,
+            ControlsGeometry.TRACK_W_DP,
+            ControlsGeometry.TRACK_H_DP,
             theme,
         ).apply {
             on = row.on
