@@ -31,7 +31,7 @@ class TileGlyphTest {
         assertEquals("android_overlay: dark outline expected the trim 0xFFFFFFFF", "0xFFFFFFFF", hex(dark.outline))
     }
 
-    /** A failure means the tile is smaller than the smallest touch target, or is not the documented 56 dp. */
+    /** A failure means the tile is smaller than the smallest touch target, or is not the documented 64 dp. */
     @Test
     fun `the tile is at least the minimum touch target`() {
         val minimum = TruckingTokens.metrics.minTouchTargetDp
@@ -39,7 +39,7 @@ class TileGlyphTest {
             "android_overlay: the tile size ${TileMetrics.TILE_SIZE_DP} dp expected at least the minimum touch target $minimum dp",
             TileMetrics.TILE_SIZE_DP >= minimum,
         )
-        assertEquals("android_overlay: the tile size expected 56 dp", 56, TileMetrics.TILE_SIZE_DP)
+        assertEquals("android_overlay: the tile size expected 64 dp", 64, TileMetrics.TILE_SIZE_DP)
     }
 
     /** A failure means the tile corners are rounder than the hard-edge limit, or the corner and outline sizes are not the documented 4 dp and 2 dp. */

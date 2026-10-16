@@ -32,7 +32,7 @@ internal fun tileColors(palette: TruckingPalette): TileColors = TileColors(
  */
 internal object TileMetrics {
     /** Width and height of the tile. */
-    const val TILE_SIZE_DP = 56
+    const val TILE_SIZE_DP = 64
 
     /** Radius of the tile's corners. */
     const val CORNER_RADIUS_DP = 4

@@ -5,7 +5,7 @@
 Floating tile = CB mic drawn from path data, with a glowing outline and a six-slot level meter in its grille (WindowManager overlay, F36). The floating tile that appears over any app and is where dictation is started, watched and ended. A tap on the microphone calls the app's `onTap` (idle or failed) or `onBegin` (armed), and the app decides whether that starts or stops dictation. The tile draws the approved CB mic from numeric path data (`TileArt.kt` and `TileLetters.kt`), and the X and the check from path data in `TileControlArt.kt`, not a stand-in glyph. How it looks on a phone is not verified (see Not verified on a device).
 
 **What is built now:**
-- A small draggable tile (56 dp) with the CB mic drawn from path data and no fill behind it, shown above other apps.
+- A small draggable tile (64 dp) with the CB mic drawn from path data and no fill behind it, shown above other apps.
 - Eight states, pushed by the app with `setState`: `IDLE`, `ARMED`, `RECORDING`, `SENDING`, `FAILED`, `SENT`, `SENT_LOCAL` and `MIC_BUSY`. The tile never
   changes the state itself, not even on a tap. The outline around the microphone takes its colour from the state. The
   outline pulses while the tile is ARMED and shown (the armed ring pulse, see Invariants). The app drives nothing: the pulse
@@ -99,7 +99,7 @@ No colour value is written in this module's sources.
 **Glyph:** the approved CB mic: straight-line shaded faces, a trigger bar, a head with a tapered lower body, a cord stub,
 a frame with six grille slots, a ledge, and the word BREAKER as outlines. The shapes are numeric path data copied from the
 art's SVG (`TileArt.kt`, and the BREAKER outlines in `TileLetters.kt`); the X and the check paths are in `TileControlArt.kt`; there is no font file. The busy sign, the glow widths and the art-to-cell frame are worked out in `TileArtGeometry.kt`, which has no android names, and `TileArtDraw.kt` only draws them. The art is drawn at 90 percent
-of the 56 dp cell (`ART_FILL`) so the glow fits, and the tile is 56 dp square with no fill, so no corner is drawn.
+of the 64 dp cell (`ART_FILL`) so the glow fits, and the tile is 64 dp square with no fill, so no corner is drawn.
 The outline is 2 dp thick and runs along the silhouette of the trigger bar, the head and lower body, and the cord stub. Outside
 it are three glow layers, 4, 6 and 8 dp wide, with alpha 0.45, 0.25 and 0.12 going outward. The glow is approximate stroke
 layers, not a blur.
@@ -293,8 +293,8 @@ FloatingTile (via create), ShowResult, TileState
 - Theme (`TileThemeTest`): at construction, set before show, set while shown (applied once), set while hidden
   (no window call).
 - The glyph and the sizes (`TileGlyphTest`, until the art replaces its rectangles): every rectangle inside the unit square with an area, every role drawn,
-  the colours from the palette in light and dark, the 56 dp tile at least the minimum touch target, the 4 dp corner
-  within the hard-edge limit, the 2 dp outline width, and every outline line being 2 over 56 of the unit square.
+  the colours from the palette in light and dark, the 64 dp tile at least the minimum touch target, the 4 dp corner
+  within the hard-edge limit, the 2 dp outline width, and every outline line being 2 over 64 of the unit square.
 - Pushes from the app (`TileControllerStateTest`, `TileControllerHideTest`, `TileControllerNoticeTest`,
   `TileControllerNoticeClearTest`, `TileControllerHiddenTouchTest`): the tile starts
   idle; pushes while hidden touch no window and the next `show()` draws them; `show()` adds, then draws, then resizes
@@ -366,7 +366,7 @@ FloatingTile (via create), ShowResult, TileState
 - `TileArtFacesTest`: one test per face with its literal ARGB in the light and in the dark palette; the faces that shade the
   trim are flat in the light theme.
 - `TileRecordingLayoutTest`: the recording window is three tiles wide and one tile high, with no strip; the notice window keeps
-  its strip; the mic, cancel and send cells keep the 56 dp side.
+  its strip; the mic, cancel and send cells keep the 64 dp side.
 - `TileOutlineColourTest`: the outline colour in each of the eight states equals the old ring mapping, as a literal table in
   both themes.
 - The glow arithmetic (`glowDrawColor`) is in `PulseRulesTest`.
@@ -428,7 +428,9 @@ agents, not required: an outside contributor may write the code themselves
 - Make one `FloatingTile` with `create` per use and keep it. Each one owns its own window, so two tiles made for the
   same job would show two windows.
 - An exception thrown by any of the app's callbacks (`onTap`, `onBegin`, `onCancel`, `onSend`) is not caught by the module.
-- The tile is 56 dp square, and the outline is 2 dp thick. The notice window is three tiles wide and one and a half tiles high; the recording window is three tiles wide and one tile high.
+- The tile is 64 dp square, and the outline is 2 dp thick. The notice window is three tiles wide and one and a half tiles high; the recording window is three tiles wide and one tile high.
+- The close-target box centre sits at 0.905 of the usable height, tuned under a Galaxy S25 Ultra keyboard so a dropped tile lands in the box while the field stays reachable.
+- The close-target box keeps the same size in landscape as in portrait: its window width comes from the screen's short side and its height from the long side, clamped to the bounds, so it is not half-size in landscape.
 - A display change (rotation, fold) while a finger is dragging is ignored and is not replayed when the drag ends:
   the tile is placed again at the next `show()` or the next `onDisplayChanged()`, and a further drag move also
   clamps it to the new screen.
@@ -452,7 +454,7 @@ agents, not required: an outside contributor may write the code themselves
   - Focus with the user's keyboard up: that the wide window, like the square one, leaves the field underneath focused and the keyboard on screen.
   - The expanded window over other apps, and partial covers (another window over only part of the tile, and what the system does with the touches there).
   - Meter legibility: the unlit slot is the page background colour (bg), drawn on the body, which is the text colour in the light theme and the surface colour in the dark theme. The contrast of the lit and unlit slots on that body was not measured on a device.
-  - Touch size of the X, the check and the microphone (each cell is one tile, 56 dp), and the feel of a tap on the wide tile.
+  - Touch size of the X, the check and the microphone (each cell is one tile, 64 dp), and the feel of a tap on the wide tile.
   - The notice text size and fit: it is drawn in at most two lines with the end cut by an ellipsis, so a sentence of 80 characters may not show whole.
   - The X and the check have no accessibility node of their own: the tile is one view with one description, so a screen reader cannot reach the X; what a screen reader does with a double tap on the tile is not known.
   - The window jumps at a screen edge when it expands: next to an edge the window is moved to stay on screen, so the microphone appears at a different place, and a window wider than the usable area loses part of the send cell.

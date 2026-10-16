@@ -12,7 +12,7 @@ import org.junit.Test
  * ends elsewhere saves as today; a tap never closes.
  *
  * The screen is the one in [TestData]: the saved centre puts the square tile at (506, 1140), 100
- * pixels square. The target centre is at (556, 2011) with a radius of 162 pixels. The tile centre
+ * pixels square. The target centre is at (556, 2089) with a radius of 162 pixels. The tile centre
  * during a drag is at (pixels.x + 50, pixels.y + 50).
  */
 class TileControllerCloseTest {
@@ -86,8 +86,8 @@ class TileControllerCloseTest {
     fun `drag to target calls onCloseRequested once`() {
         var count = 0
         val rig = Rig(onCloseRequested = { count++ }).shown()
-        // Drag the tile centre to the target centre (556, 2011)
-        rig.dragToCentre(556, 2011)
+        // Drag the tile centre to the target centre (556, 2089)
+        rig.dragToCentre(556, 2089)
         assertEquals("overlay: onCloseRequested should be called once", 1, count)
         assertEquals("overlay: the callback should log once", listOf("close"), rig.log)
     }
@@ -96,7 +96,7 @@ class TileControllerCloseTest {
     @Test
     fun `drag to target hides the tile`() {
         val rig = Rig().shown()
-        rig.dragToCentre(556, 2011)
+        rig.dragToCentre(556, 2089)
         assertFalse("overlay: the tile should be hidden after a drop on the target", rig.controller.isShown)
         assertTrue("overlay: the window should have been removed", rig.window.removeCount > 0)
     }
@@ -105,7 +105,7 @@ class TileControllerCloseTest {
     @Test
     fun `drag to target does not save the position`() {
         val rig = Rig().shown()
-        rig.dragToCentre(556, 2011)
+        rig.dragToCentre(556, 2089)
         assertEquals("overlay: a drop on the target should not save the position", 0, rig.store.saveCount)
     }
 
@@ -172,7 +172,7 @@ class TileControllerCloseTest {
         val rig = Rig(onCloseRequested = { count++ }).shown()
         rig.controller.setState(TileState.MIC_BUSY)
         rig.forget()
-        rig.dragToCentre(556, 2011)
+        rig.dragToCentre(556, 2089)
         assertEquals("overlay: a MIC_BUSY collapsed drag to the target should call onCloseRequested", 1, count)
     }
 
@@ -222,8 +222,8 @@ class TileControllerCloseTest {
         val startY = 1190f
         window.down(startX, startY)
         window.move(startX + TestData.SLOP_PX + 1, startY)
-        window.move(556f, 2011f)
-        window.up(556f, 2011f)
+        window.move(556f, 2089f)
+        window.up(556f, 2089f)
         // The tile should be hidden (the close gesture still hides, just without the callback)
         assertFalse("overlay: the tile should be hidden after a drop on the target", controller.isShown)
     }
@@ -234,7 +234,7 @@ class TileControllerCloseTest {
         val rig = Rig().shown()
         // The tile starts at (506, 1140) with fraction (0.5, 0.5)
         // Drag to the target
-        rig.dragToCentre(556, 2011)
+        rig.dragToCentre(556, 2089)
         // The saved position should still be (0.5, 0.5), not the dragged-to position
         val saved = rig.store.saved
         assertTrue("overlay: no position should be saved on a close", saved.isEmpty())
@@ -320,7 +320,7 @@ class TileControllerCloseTest {
     fun `close target highlight is INSIDE when the tile is over the target`() {
         val rig = Rig().shown()
         // Drag the tile centre to the target centre
-        rig.dragToCentre(556, 2011)
+        rig.dragToCentre(556, 2089)
         // The last highlight should be INSIDE
         assertEquals(
             "overlay: the close target highlight should be INSIDE when the tile is over the target",

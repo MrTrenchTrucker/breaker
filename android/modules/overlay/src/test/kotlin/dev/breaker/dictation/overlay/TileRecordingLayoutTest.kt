@@ -67,10 +67,10 @@ class TileRecordingLayoutTest {
 
     /** A failure means a touch cell is not one tile square at the tile size, or the tile size is below the 48 dp minimum touch target. */
     @Test
-    fun `the touch cells are one tile square at the minimum size`() {
+    fun `the touch cells are one tile square at the tile size`() {
         val side = TileMetrics.TILE_SIZE_DP
         assertTrue("overlay: the tile size $side dp expected at least 48 dp", side >= 48)
-        assertEquals("overlay: the tile size expected 56 dp", 56, side)
+        assertEquals("overlay: the tile size expected 64 dp", 64, side)
         val cells = listOf(TileLayout.micCell(TileShape.RECORDING, side), TileLayout.cancelCell(side), TileLayout.sendCell(side))
         cells.forEach { cell ->
             assertEquals("overlay: a touch cell width expected $side", side, cell.width)

@@ -38,10 +38,10 @@ class TilePlacementTest {
         assertEquals("android_overlay: movable width of a 100 wide area with a 40 tile expected 60", 60, TilePlacement.movableWidth(small, 40))
         assertEquals("android_overlay: movable height of a 200 high area with a 40 tile expected 160", 160, TilePlacement.movableHeight(small, 40))
 
-        // 500 - 0 = 500, minus 56 = 444; 300 - 0 = 300, minus 56 = 244.
-        val phone = PixelBounds(0, 0, 500, 300)
-        assertEquals("android_overlay: movable width of a 500 wide area with a 56 tile expected 444", 444, TilePlacement.movableWidth(phone, 56))
-        assertEquals("android_overlay: movable height of a 300 high area with a 56 tile expected 244", 244, TilePlacement.movableHeight(phone, 56))
+        // 500 - 0 = 500, minus 64 = 436; 300 - 0 = 300, minus 64 = 236.
+         val phone = PixelBounds(0, 0, 500, 300)
+         assertEquals("android_overlay: movable width of a 500 wide area with a 64 tile expected 436", 436, TilePlacement.movableWidth(phone, 64))
+         assertEquals("overlay: movable height of a 300 high area with a 64 tile expected 236", 236, TilePlacement.movableHeight(phone, 64))
     }
 
     /** A failure means a fraction no longer lands on the origin plus its share of the movable range. */

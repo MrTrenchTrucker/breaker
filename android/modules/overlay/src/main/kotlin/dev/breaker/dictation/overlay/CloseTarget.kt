@@ -21,10 +21,11 @@ internal object CloseTarget {
     /**
      * The centre of the target as fractions of the usable bounds.
      *
-     * The target is centred horizontally (0.5) and sits near the bottom (0.87). The fractions are of
-     * the usable bounds, not of the movable range.
+     * The target is centred horizontally (0.5) and sits near the bottom (0.905), tuned under a Galaxy S25 Ultra
+     * keyboard so a dropped tile lands in the box while the field stays reachable. The fractions are of the usable
+     * bounds, not of the movable range.
      */
-    fun targetCentreFractions(): Pair<Float, Float> = 0.5f to 0.87f
+    fun targetCentreFractions(): Pair<Float, Float> = 0.5f to 0.905f
 
     /**
      * The centre of the target in pixels for the given [bounds].

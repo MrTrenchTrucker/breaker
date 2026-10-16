@@ -60,38 +60,38 @@ class TileArtGeometryTest {
         assertEquals("overlay: the layer 2 glow expected 8 dp", 8f, ArtGeometry.glowWidthDp(2), 0f)
     }
 
-    /** A failure means the frame scale of a 56 pixel cell is not the cell width times 0.90 over 1024, which is 0.04921875. */
+    /** A failure means the frame scale of a 64 pixel cell is not the cell width times 0.90 over 1024, which is 0.05625. */
     @Test
-    fun `the frame scale of a 56 pixel cell comes from the art fill and the box`() {
-        assertEquals("overlay: the scale at 0 0 expected 0.04921875", 0.04921875f, ArtGeometry.frame(TileRect(0, 0, 56, 56)).scale, 0.000001f)
-        assertEquals("overlay: the scale at 10 20 expected 0.04921875", 0.04921875f, ArtGeometry.frame(TileRect(10, 20, 66, 76)).scale, 0.000001f)
+    fun `the frame scale of a 64 pixel cell comes from the art fill and the box`() {
+        assertEquals("overlay: the scale at 0 0 expected 0.05625", 0.05625f, ArtGeometry.frame(TileRect(0, 0, 64, 64)).scale, 0.000001f)
+        assertEquals("overlay: the scale at 10 20 expected 0.05625", 0.05625f, ArtGeometry.frame(TileRect(10, 20, 74, 84)).scale, 0.000001f)
     }
 
     /** A failure means the art is not centred on the cell: the centre is the cell left or top plus half its width or height. */
     @Test
     fun `the frame centre is the middle of the cell`() {
-        val at0 = ArtGeometry.frame(TileRect(0, 0, 56, 56))
-        assertEquals("overlay: the centre x at 0 0 expected 28", 28f, at0.centreX, 0f)
-        assertEquals("overlay: the centre y at 0 0 expected 28", 28f, at0.centreY, 0f)
-        val at10 = ArtGeometry.frame(TileRect(10, 20, 66, 76))
-        assertEquals("overlay: the centre x at 10 20 expected 38", 38f, at10.centreX, 0f)
-        assertEquals("overlay: the centre y at 10 20 expected 48", 48f, at10.centreY, 0f)
+        val at0 = ArtGeometry.frame(TileRect(0, 0, 64, 64))
+        assertEquals("overlay: the centre x at 0 0 expected 32", 32f, at0.centreX, 0f)
+        assertEquals("overlay: the centre y at 0 0 expected 32", 32f, at0.centreY, 0f)
+        val at10 = ArtGeometry.frame(TileRect(10, 20, 74, 84))
+        assertEquals("overlay: the centre x at 10 20 expected 42", 42f, at10.centreX, 0f)
+        assertEquals("overlay: the centre y at 10 20 expected 52", 52f, at10.centreY, 0f)
     }
 
     /** A failure means the art box is not moved back by half its 1024 size on both axes. */
     @Test
     fun `the frame origin is minus half the art box on both axes`() {
-        val frame = ArtGeometry.frame(TileRect(0, 0, 56, 56))
+        val frame = ArtGeometry.frame(TileRect(0, 0, 64, 64))
         assertEquals("overlay: the origin x expected -512", -512f, frame.originX, 0f)
         assertEquals("overlay: the origin y expected -512", -512f, frame.originY, 0f)
     }
 
-    /** A failure means a cell that is not square takes its scale from the height, or its centre from the wrong edges. */
+    /** A failure means a cell that is not square takes its scale from the width, or its centre from the wrong edges. */
     @Test
     fun `a non square cell takes its scale from the width and its centre from both edges`() {
-        val frame = ArtGeometry.frame(TileRect(5, 7, 61, 47))
-        assertEquals("overlay: the scale expected 0.04921875 from the width 56", 0.04921875f, frame.scale, 0.000001f)
-        assertEquals("overlay: the centre x expected 33", 33f, frame.centreX, 0f)
+        val frame = ArtGeometry.frame(TileRect(5, 7, 69, 47))
+        assertEquals("overlay: the scale expected 0.05625 from the width 64", 0.05625f, frame.scale, 0.000001f)
+        assertEquals("overlay: the centre x expected 37", 37f, frame.centreX, 0f)
         assertEquals("overlay: the centre y expected 27", 27f, frame.centreY, 0f)
     }
 }
