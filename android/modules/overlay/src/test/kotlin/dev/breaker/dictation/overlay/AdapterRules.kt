@@ -195,13 +195,23 @@ internal object AdapterRules {
      */
     private val colourAssignmentOk = Regex("color|$LOOK|if\\s*\\([^)\\n]*\\)\\s*$LOOK\\s+else\\s+$LOOK|when\\s*\\([^)\\n]*\\)\\s*\\{|ringDrawColor\\(color, pulseAlpha\\)|glowDrawColor\\(color, pulseAlpha, glowAlpha\\(layer\\)\\)")
     private val lookOnly = Regex(LOOK)
-    private val colourFunctions = listOf("drawRing", "drawCancel", "drawSend")
+    private val colourFunctions = listOf("drawRing", "drawControl")
     private val colourCall = Regex("\\b(?:${colourFunctions.joinToString("|")})\\s*\\(")
     private val colourSetter = Regex("\\b(set\\w*Colou?r\\w*|set\\w*Tint\\w*|draw(?:Colou?r|ARGB|RGB)|setARGB|setShadowLayer)\\s*\\(([^)\\n]*)\\)")
     private val bareColourAssignment = Regex("(?<![\\w.])color\\s*=(?!=)\\s*([^\\n]*)")
     private val colourParameter = Regex("\\bfun\\s+(\\w+)\\s*\\([^)]*\\bcolor\\s*:\\s*Int")
     private val strokeCall = Regex("\\bstrokeControl\\s*\\(([^)\\n]*)\\)")
     private val colourCallOk = Regex(",\\s*$LOOK\\s*\\)\\s*\\z")
+    /** A button call (drawControl) ends in the whole look, never in a colour. */
+    private val controlCallOk = Regex(",\\s*(?:face\\.)?look\\s*\\)\\s*\\z")
+
+    /** True when a call line ends in the look: a button call (drawControl) by controlCallOk, any other call by colourCallOk. */
+    private fun callEndsInLook(line: String): Boolean {
+        if (line.contains("drawControl")) {
+            return controlCallOk.containsMatchIn(line)
+        }
+        return colourCallOk.containsMatchIn(line)
+    }
 
     /** The problems with where the tile view takes its colours from: only the face's look, never a palette, a Color constant or a number. */
     fun viewColourProblems(source: String): List<String> {
@@ -221,7 +231,7 @@ internal object AdapterRules {
         val badAssignments = (assignments + bare).map { it.groupValues[1].trim() }.filterNot { colourAssignmentOk.matches(it) }
             .map { "a colour is set from '$it', not from the face's look" }
         val calls = code.lines().filter { colourCall.containsMatchIn(it) && !it.contains("fun ") }
-        val badCalls = calls.filterNot { colourCallOk.containsMatchIn(it.trim()) }.map { "a draw call passes a colour that is not a value of the face's look: ${it.trim()}" }
+        val badCalls = calls.filterNot { callEndsInLook(it.trim()) }.map { "a draw call passes a colour that is not a value of the face's look: ${it.trim()}" }
         val badSetters = colourSetter.findAll(code).map { it.groupValues[1] to it.groupValues[2].split(',').last().trim() }
             .filterNot { (_, value) -> lookOnly.matches(value) }.map { (name, value) -> "the colour setter $name is given '$value', not a value of the face's look" }.toList()
         val unchecked = colourParameter.findAll(code).map { it.groupValues[1] }.filterNot { it in colourFunctions || it == "strokeControl" }
