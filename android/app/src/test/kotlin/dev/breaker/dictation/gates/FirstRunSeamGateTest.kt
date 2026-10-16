@@ -116,8 +116,10 @@ internal class FirstRunSeamGateTest {
             count(code, """\bcreateOnboardingView\s*\(""") == 1 &&
                 !bodyOf(code, showHeader).contains("createOnboardingView(")
         },
+        // Four switch uses: Home's adapter, the onboarding adapter and the two calls in onStart.
+        // The first-run block adds none of its own.
         Rule("THE_SWITCH_WORD_COUNT_IS_UNCHANGED") { code ->
-            count(code, switchWord) == 3
+            count(code, switchWord) == 4
         },
     )
 
@@ -150,6 +152,7 @@ internal class FirstRunSeamGateTest {
         Quiet("val firstRunDone = FirstRunDoneStore(", "val firstRunDone = /* the marker */ FirstRunDoneStore("),
         Quiet("override fun progress(sentence: String, doneMb: Int, totalMb: Int) {", "override fun progress(sentence: String, doneMb: Int, totalMb: Int) { // the line"),
         Quiet("onFinished = { done.markDone(); recreate() }", "onFinished = { done.markDone();   recreate() }"),
+        Quiet("private var pendingRefusal: String? = null", "private var pendingRefusal: String? = null // the ${"armed" + "Switch"} word"),
     )
 
     /** [old] replaced by [new] at its first place; fails by name when it is not there. */

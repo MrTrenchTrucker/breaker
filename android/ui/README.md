@@ -1,11 +1,13 @@
 # Ui — README
 
-Screens: history, settings, auth, training, and the setup walk-through for the
+Screens: home, history, settings, auth, training, and the setup walk-through for the
 permissions Breaker needs.
 
 ## What it does now
 
-Three screens are built, and a first-run flow runs first on a phone with no speech model.
+Four screens are built, and a first-run flow runs first on a phone with no speech model.
+
+**Home.** The launcher opens on this screen, after the first-run flow on a phone with no speech model: an on/off card with the switch, the speech model row (Ready, or "Not downloaded"), the server row ("Not available") and the last dictation; a big mic that says "Tap to talk"; the last transcript with a Copy button; and a menu with History, Settings, How it works and About. History and Settings open their screens through the app. How it works and About answer in place with "Not available yet." The big mic has no action yet.
 
 **Settings.** The appearance choice (System, Light or Dark), the routing mode, the three switches and the model and server lines, which are read only. While no server is set, the server line shows "(not set)" in the muted colour; the art does not draw a muted field, so that look is the smallest one from the theme's own tokens. Every change is written through the settings store the app passes in.
 
@@ -27,8 +29,9 @@ Below the steps is the on/off switch for Breaker. Only the microphone gates it. 
 
 ## Public declarations
 
-The module offers exactly six, all in four files:
+The module offers exactly seven, all in five files:
 
+- `createHomeView(context, switch, modelReady, lastDictation, lastTranscript, transcriptTime, onCopy, onHistory, onSettings)` builds the home view. The app passes the switch, the answers for the model, the last dictation and the last transcript, the phone's time for the transcript, the copy request and the two screen requests; every fact is read again on each drawing.
 - `createSettingsView(context, settings)` builds the settings view.
 - `createOnboardingView(context, switch, accessibilityServiceComponent, modelReady, downloadLine, modelDownloadMb, onDownloadModel, settings)` builds the setup view. The four parameters after the accessibility service's name carry the speech model step: `modelReady` says whether the model is on the phone, `downloadLine` gives the sentence under its button (or null), `modelDownloadMb` gives the download size in decimal megabytes, and `onDownloadModel` asks the app to start the download. `settings` is the app's settings store, in which the walk-through keeps whether the microphone prompt was asked.
 - `createFirstRunView(context, accessibilityServiceComponent, modelReady, downloadLine, modelDownloadMb, onDownloadModel, settings, onFinished)` builds the first-run view described above. `onFinished` is called once, when the model is on the phone on the download page. The other parameters are as for the setup view.

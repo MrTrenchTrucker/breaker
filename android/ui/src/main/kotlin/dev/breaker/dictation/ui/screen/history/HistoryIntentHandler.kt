@@ -69,6 +69,7 @@ internal class HistoryIntentHandler(
         is ScreenIntent.SetSetting,
         is ScreenIntent.SetThemeMode,
         is ScreenIntent.Setup,
+        is ScreenIntent.Home,
         -> draw()
     }
 

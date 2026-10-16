@@ -91,6 +91,7 @@ internal class SettingsIntentHandler(
             // The setup walk-through has its own screen and handler; this screen offers no such control.
             is ScreenIntent.Setup -> notice = Notice.NOT_ACCEPTED
             is ScreenIntent.History -> notice = Notice.NOT_ACCEPTED
+            is ScreenIntent.Home -> notice = Notice.NOT_ACCEPTED
         }
         return render()
     }

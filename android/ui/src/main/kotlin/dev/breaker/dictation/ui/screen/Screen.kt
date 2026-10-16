@@ -111,6 +111,9 @@ internal sealed class ScreenIntent {
 
     /** Do the step of the history screen named by [action] (see [HistoryActions]) on the row [id]. */
     data class History(val action: String, val id: String = "") : ScreenIntent()
+
+    /** Do the step of the home screen named by [action] (see home's HomeActions). */
+    data class Home(val action: String) : ScreenIntent()
 }
 
 /** The action names a [ScreenIntent.History] may carry. */

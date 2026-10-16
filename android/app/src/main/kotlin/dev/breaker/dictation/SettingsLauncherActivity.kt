@@ -1,6 +1,9 @@
 package dev.breaker.dictation
 
 import android.annotation.SuppressLint
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.os.Bundle
 import android.view.ViewGroup
 import android.view.WindowInsets
@@ -11,6 +14,7 @@ import android.widget.TextView
 import dev.breaker.dictation.service.NotificationRoute
 import dev.breaker.dictation.settings.ModelCatalog
 import dev.breaker.dictation.ui.ModelStepControl
+import dev.breaker.dictation.ui.createHomeView
 import dev.breaker.dictation.wiring.ACCESSIBILITY_SERVICE_COMPONENT
 import dev.breaker.dictation.wiring.BreakerSwitchAdapter
 import dev.breaker.dictation.wiring.FirstRunDoneStore
@@ -23,13 +27,18 @@ import dev.breaker.shared.models.ModelRegistry
 import dev.breaker.dictation.wiring.isIconLaunch
 import dev.breaker.dictation.wiring.paddingFor
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
 
     private lateinit var downloadStatus: TextView
     private lateinit var settingsColumn: LinearLayout
     private lateinit var settingsScroll: ScrollView
+    private var homeView: android.view.View? = null
     private var historyShown: Boolean = false
+    private var settingsShown: Boolean = false
     private var backCallback: android.window.OnBackInvokedCallback? = null
     private var downloadSentence: String? = null
     private var pendingRefusal: String? = null
@@ -48,6 +57,20 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
             FirstRunGate.Decision.MARK_DONE_QUIETLY -> firstRunDone.markDone()
             FirstRunGate.Decision.NORMAL -> Unit
         }
+        val home = createHomeView(
+            this,
+            BreakerSwitchAdapter(app.armedSwitch),
+            modelReady = { modelReady.isReady() },
+            lastDictation = { app.historyStore.list(1).firstOrNull()?.text },
+            lastTranscript = { app.historyStore.list(1).firstOrNull()?.text },
+            transcriptTime = { app.historyStore.list(1).firstOrNull()?.createdAt?.let { formatTime(it) } },
+            onCopy = { sentence -> copyToClipboard(sentence) },
+            onHistory = { openHistory() },
+            onSettings = { openSettings() },
+        )
+        homeView = home
+        setContentView(home)
+        applyInsets(home)
         val onboarding = dev.breaker.dictation.ui.createOnboardingView(
             this,
             BreakerSwitchAdapter(app.armedSwitch),
@@ -71,10 +94,8 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         column.addView(settings, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         val scroll = ScrollView(this)
         scroll.addView(column, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        setContentView(scroll)
         settingsColumn = column
         settingsScroll = scroll
-        applyInsets(scroll)
         if (intent?.getStringExtra(NotificationRoute.EXTRA_ROUTE) == NotificationRoute.ROUTE_MODEL) {
             (onboarding as? ModelStepControl)?.focusDownload()
         }
@@ -139,10 +160,14 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         app.tileHost.setDownloadListener(null)
     }
 
-    // Older Back path; Android 13 and newer Back goes through the callback registered while history shows.
+    // Older Back path; Android 13 and newer Back goes through the callback registered while an overlay shows.
     @SuppressLint("GestureBackNavigation")
     override fun onBackPressed() {
-        if (historyShown) closeHistory() else super.onBackPressed()
+        when {
+            historyShown -> closeHistory()
+            settingsShown -> closeSettings()
+            else -> super.onBackPressed()
+        }
     }
 
     private lateinit var onboardingView: android.view.View
@@ -157,17 +182,45 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         registerBack()
     }
 
+    /** One back callback serves both overlays. History returns to where it was opened from. */
     private fun closeHistory() {
         if (!historyShown) return
         historyShown = false
-        unregisterBack()
+        if (settingsShown) {
+            setContentView(settingsScroll)
+            applyInsets(settingsScroll)
+        } else {
+            unregisterBack()
+            setContentView(homeView)
+            applyInsets(homeView!!)
+        }
+    }
+
+    private fun openSettings() {
+        if (settingsShown) return
+        settingsShown = true
         setContentView(settingsScroll)
         applyInsets(settingsScroll)
+        registerBack()
+    }
+
+    private fun closeSettings() {
+        if (!settingsShown) return
+        settingsShown = false
+        if (!historyShown) unregisterBack()
+        setContentView(homeView)
+        applyInsets(homeView!!)
     }
 
     private fun registerBack() {
+        if (backCallback != null) return
         if (android.os.Build.VERSION.SDK_INT >= 33) {
-            val callback = android.window.OnBackInvokedCallback { closeHistory() }
+            val callback = android.window.OnBackInvokedCallback {
+                when {
+                    historyShown -> closeHistory()
+                    settingsShown -> closeSettings()
+                }
+            }
             backCallback = callback
             onBackInvokedDispatcher.registerOnBackInvokedCallback(
                 android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
@@ -231,6 +284,14 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         )
         view.setPadding(padding.left, padding.top, padding.right, padding.bottom)
     }
+
+    private fun copyToClipboard(text: String) {
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("Breaker", text))
+    }
+
+    private fun formatTime(epochMs: Long): String =
+        SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(epochMs))
 
     private companion object {
         const val HISTORY_LABEL: String = "History"

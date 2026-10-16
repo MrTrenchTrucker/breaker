@@ -61,6 +61,13 @@ class ArmedSwitch(
     fun armAtStart(): StartResult? = if (userSwitchedOff()) null else controller.arm()
 
     /**
+     * The stored-off check the Home take shares with [armAtStart]: the very same check, exposed so a
+     * tap on Home answers the off without turning the switch on. A store that cannot be read counts
+     * as not off, exactly as the launcher's start-up rule does.
+     */
+    fun isUserSwitchedOff(): Boolean = userSwitchedOff()
+
+    /**
      * The controller's state observer. Turning on clears the off choice; turning off because the user
      * said so ([DisarmReason.USER_WORD]) stores it; any other change leaves it as it was. A store that
      * fails is ignored and the state is not touched.

@@ -27,7 +27,7 @@ internal class AppWiringGateTest {
     private val host: String = "kotlin/dev/breaker/dictation/host/TileHost.kt"
 
     /** The pattern must match the code of [file] exactly [times] times. */
-    private class Rule(val name: String, val file: String, val pattern: String, val times: Int = 1) {
+    internal class Rule(val name: String, val file: String, val pattern: String, val times: Int = 1) {
         fun holds(code: String): Boolean = Regex(pattern).findAll(code).count() == times
     }
 
@@ -35,9 +35,9 @@ internal class AppWiringGateTest {
     private class Sample(val rule: String, val file: String, val old: String, val new: String)
 
     /** An edit of [file] that leaves everything a rule reads as it was. */
-    private class Quiet(val file: String, val old: String, val new: String)
+    internal class Quiet(val file: String, val old: String, val new: String)
 
-    private val rules: List<Rule> = listOf(
+    internal val rules: List<Rule> = listOf(
         Rule("HISTORY_HANDED_AS_SUPPLIER", app, """\bBreakerCompositionRoot\s*\(\s*filesDir\s*=\s*filesDir\s*,\s*history\s*=\s*\{\s*history\s*\}\s*,\s*serviceController\s*=\s*dictationServiceController\s*,\s*committer\s*=\s*textCommitter\s*,\s*micSource\s*=\s*realMicSource\s*,?\s*\)"""),
         Rule("CONTROLLER_BUILT_FROM_ANDROID_ADAPTERS", app, """\bDictationServiceController\s*\(\s*AndroidMicPermission\s*\(\s*applicationContext\s*\)\s*,\s*AndroidServiceLauncher\s*\(\s*applicationContext\s*\)\s*,?\s*\)"""),
         Rule("CONTROLLER_IS_BUILT_LAZILY", app, """\bval\s+dictationServiceController\s*:\s*DictationServiceController\s+by\s+lazy\s*\{"""),
@@ -56,7 +56,7 @@ internal class AppWiringGateTest {
         Rule("ACTIVITY_REACHES_THE_TILE_HOST_ONLY_TO_DOWNLOAD_SHOW_AGAIN_AND_SET_THE_DOWNLOAD_LISTENER", activity, """\btileHost\s*\.\s*(?!requestDownload\b|onLauncherVisible\b|setDownloadListener\b)\w+""", times = 0),
         Rule("CREATE_ONBOARDING_VIEW_HAS_EIGHT_ARGUMENTS", activity, """\bcreateOnboardingView\s*\(\s*this\s*,\s*BreakerSwitchAdapter\s*\(\s*app\s*\.\s*armedSwitch\s*\)\s*,\s*ACCESSIBILITY_SERVICE_COMPONENT\s*,\s*modelReady\s*=\s*\{\s*modelReady\s*\.\s*isReady\s*\(\s*\)\s*\}\s*,\s*downloadLine\s*=\s*\{\s*downloadSentence\s*\}\s*,\s*modelDownloadMb\s*=\s*\{[^{}]*\}\s*,\s*onDownloadModel\s*=\s*\{\s*app\s*\.\s*tileHost\s*\.\s*requestDownload\s*\(\s*\)\s*\}\s*,\s*settings\s*=\s*app\s*\.\s*settingsStore\s*,?\s*\)"""),
         Rule("ARM_AT_START_IS_CALLED_ONCE", activity, """\barmAtStart\s*\("""),
-        Rule("SWITCH_IS_REACHED_IN_THE_TWO_BRANCHES_AND_BY_THE_ONBOARDING_ADAPTER", activity, """\barmedSwitch\b""", times = 3),
+        Rule("SWITCH_IS_REACHED_IN_THE_TWO_BRANCHES_AND_BY_THE_ONBOARDING_ADAPTER", activity, """\barmedSwitch\b""", times = 4),
         Rule("SWITCH_ON_IS_CALLED_ONCE", activity, """\bswitchOn\s*\("""),
         Rule("NO_UNCONDITIONAL_ARM_IN_THE_ACTIVITY", activity, """\barm\s*\(""", times = 0),
         Rule("CONTROLLER_IS_NOT_REACHED_BY_THE_ACTIVITY", activity, """\bdictationServiceController\b""", times = 0),
@@ -154,6 +154,7 @@ internal class AppWiringGateTest {
         Sample("ACTIVITY_REACHES_THE_TILE_HOST_ONLY_TO_DOWNLOAD_SHOW_AGAIN_AND_SET_THE_DOWNLOAD_LISTENER", activity, "app.tileHost.requestDownload()", "app.tileHost.openLauncher(null)"),
         Sample("SWITCH_IS_REACHED_IN_THE_TWO_BRANCHES_AND_BY_THE_ONBOARDING_ADAPTER", activity, "override fun onStart() {", stopSwitch),
         Sample("SWITCH_IS_REACHED_IN_THE_TWO_BRANCHES_AND_BY_THE_ONBOARDING_ADAPTER", activity, "super.onCreate(savedInstanceState)", "super.onCreate(savedInstanceState)\n        $onStartArm.hashCode()"),
+        Sample("SWITCH_IS_REACHED_IN_THE_TWO_BRANCHES_AND_BY_THE_ONBOARDING_ADAPTER", activity, "BreakerSwitchAdapter(app.armedSwitch),\n            modelReady = { modelReady.isReady() },\n            lastDictation", "modelReady = { modelReady.isReady() },\n            lastDictation"),
         Sample("NO_UNCONDITIONAL_ARM_IN_THE_ACTIVITY", activity, "super.onCreate(savedInstanceState)", "super.onCreate(savedInstanceState)\n        arm()"),
         Sample("NO_UNCONDITIONAL_ARM_IN_THE_ACTIVITY", activity, "armedSwitch.armAtStart()", "armedSwitch.armAtStart()\n        controller.arm()"),
         Sample("CONTROLLER_IS_NOT_REACHED_BY_THE_ACTIVITY", activity, "override fun onStart() {", "override fun onStop() {\n        (applicationContext as BreakerApp).dictationServiceController.disarm(null)\n    }\n\n    override fun onStart() {"),
@@ -192,7 +193,7 @@ internal class AppWiringGateTest {
         Sample("TILE_HOST_WIRES_ONCLOSE_REQUESTED", host, "onCloseRequested = { toCoordinator { it.onCloseRequested() } }", "onCloseRequested = { toCoordinator { it.onCancel() } }"),
     )
 
-    private val quiet: List<Quiet> = listOf(
+    internal val quiet: List<Quiet> = listOf(
         Quiet(app, "{ history }", "{   history   }"),
         Quiet(app, "createPurgeScope()", "createPurgeScope( ) // Dispatchers CoroutineScope( history }"),
         Quiet(app, "super.onCreate()", "super . onCreate ( )"),
@@ -228,7 +229,7 @@ internal class AppWiringGateTest {
         return text.substring(0, at) + new + text.substring(at + old.length)
     }
 
-    private fun codeOf(file: String, old: String? = null, new: String = ""): String {
+    internal fun codeOf(file: String, old: String? = null, new: String = ""): String {
         val text = AppSourceFiles.mainFile(file)
         return AppSourceFiles.strip(if (old == null) text else edit(text, old, new)).code
     }

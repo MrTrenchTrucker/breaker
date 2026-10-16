@@ -78,6 +78,7 @@ internal class SettingsScreen {
         is ScreenIntent.Setup,
         -> null
         is ScreenIntent.History -> null
+        is ScreenIntent.Home -> null
     }
 
     /**
@@ -120,7 +121,7 @@ internal class SettingsScreen {
     }
 
     /** Identity of this screen and its title. */
-    private companion object {
+    internal companion object {
         const val SCREEN_ID = "settings"
         const val TITLE = "Settings"
     }
