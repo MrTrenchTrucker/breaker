@@ -1,0 +1,112 @@
+package dev.breaker.dictation.overlay
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import kotlin.math.abs
+import kotlin.math.atan2
+
+/**
+ * The committed slanted word is an exact copy of the word path of the brand SVG `docs/brand/breaker-mic-tile.svg`
+ * (that file's single word path). This test re-derives, from that path's `d` attribute (embedded verbatim below,
+ * sha256 d7e0519dadc5b5c5633c4485147ac71e6aea9638947d212282e08811c5df14bc, verified byte-identical to the repo file when the slice was cut), the op codes and the coordinate
+ * list, and asserts they equal the committed [TileLetters.ops] and [TileLetters.xy]. It also checks that the
+ * first stem tilts 12 degrees from vertical, that every coordinate stays inside the 1024 by 1024 art box, and
+ * that an old upright copy of the word is not present. The JVM cannot reach the repo file at test time, so the
+ * path is embedded verbatim and that limitation is noted in TEST_EVIDENCE.md.
+ */
+class TileWordSlantGateTest {
+
+    private val svgPath = "M332.5 694.091 L347.63 622.909 L366.173 622.909 C369.219 622.909 372.055 623.143 374.68 623.612 C377.304 624.08 379.531 624.974 381.36 626.292 C383.189 627.61 384.445 629.485 385.13 631.916 C385.814 634.348 385.733 637.555 384.886 641.539 C384.276 644.41 383.337 646.827 382.07 648.789 C380.804 650.752 379.27 652.319 377.468 653.491 C375.666 654.663 373.638 655.454 371.383 655.864 C374.062 656.215 376.186 657.109 377.756 658.544 C379.326 659.979 380.339 661.898 380.795 664.3 C381.251 666.702 381.118 669.602 380.396 673 C379.611 676.691 378.452 679.869 376.919 682.535 C375.386 685.201 373.53 687.383 371.353 689.082 C369.176 690.781 366.667 692.041 363.827 692.861 C360.987 693.681 357.839 694.091 354.382 694.091 Z M350.565 683.106 L353.905 683.106 C357.361 683.106 359.936 682.227 361.627 680.47 C363.319 678.712 364.526 676.135 365.248 672.736 C365.821 670.042 365.983 667.903 365.733 666.321 C365.484 664.739 364.763 663.582 363.571 662.85 C362.379 662.118 360.641 661.752 358.356 661.752 L355.104 661.752 Z M357.309 651.382 L360.384 651.382 C362.786 651.382 364.68 651.016 366.066 650.283 C367.452 649.551 368.515 648.482 369.253 647.076 C369.991 645.67 370.572 643.971 370.995 641.979 C371.394 640.104 371.39 638.537 370.984 637.277 C370.578 636.017 369.784 635.065 368.603 634.421 C367.422 633.777 365.835 633.454 363.843 633.454 L361.119 633.454 Z M388.128 694.091 L403.258 622.909 L422.855 622.909 C427.659 622.909 431.707 623.436 434.998 624.491 C438.289 625.545 440.626 627.435 442.01 630.159 C443.393 632.883 443.556 636.735 442.497 641.715 C441.875 644.644 441.086 647.251 440.132 649.536 C439.178 651.821 437.893 653.798 436.279 655.468 C434.664 657.138 432.567 658.529 429.987 659.642 L432.419 694.091 L416.161 694.091 L415.121 662.191 L410.639 662.191 L403.858 694.091 Z M412.563 653.139 L416.957 653.139 C419.183 653.139 420.995 652.744 422.394 651.953 C423.792 651.162 424.899 650.02 425.715 648.526 C426.53 647.032 427.162 645.23 427.611 643.121 C428.258 640.075 428.206 637.702 427.454 636.003 C426.702 634.304 424.832 633.454 421.844 633.454 L416.747 633.454 Z M444.81 694.091 L459.94 622.909 L491.929 622.909 L489.65 633.63 L473.392 633.63 L469.637 651.294 L482.028 651.294 L479.712 662.191 L467.321 662.191 L462.801 683.458 L479.234 683.458 L476.974 694.091 Z M484.62 694.091 L513.195 622.909 L531.123 622.909 L529.262 694.091 L514.762 694.091 L515.584 679.064 L505.126 679.064 L499.471 694.091 Z M508.531 669.661 L516.088 669.661 L518.212 641.891 Z M540.423 694.091 L555.553 622.909 L571.284 622.909 L565.101 651.997 L583.235 622.909 L598.614 622.909 L578.596 655.073 L584.099 694.091 L568.105 694.091 L564.51 662.63 L562.243 665.442 L556.154 694.091 Z M594.205 694.091 L609.336 622.909 L641.324 622.909 L639.045 633.63 L622.787 633.63 L619.033 651.294 L631.424 651.294 L629.107 662.191 L616.716 662.191 L612.196 683.458 L628.63 683.458 L626.369 694.091 Z M637.442 694.091 L652.572 622.909 L672.17 622.909 C676.974 622.909 681.021 623.436 684.312 624.491 C687.603 625.545 689.941 627.435 691.324 630.159 C692.708 632.883 692.87 636.735 691.812 641.715 C691.189 644.644 690.401 647.251 689.446 649.536 C688.492 651.821 687.208 653.798 685.593 655.468 C683.978 657.138 681.881 658.529 679.301 659.642 L681.733 694.091 L665.476 694.091 L664.435 662.191 L659.953 662.191 L653.173 694.091 Z M661.877 653.139 L666.271 653.139 C668.497 653.139 670.31 652.744 671.708 651.953 C673.107 651.162 674.214 650.02 675.029 648.526 C675.845 647.032 676.477 645.23 676.925 643.121 C677.572 640.075 677.52 637.702 676.768 636.003 C676.016 634.304 674.146 633.454 671.158 633.454 L666.061 633.454 Z"
+
+    /** The op codes of the SVG path: each letter stands for one op, and a run of letters stands for that many ops. */
+    private fun decodeOps(d: String): IntArray {
+        val ops = ArrayList<Int>()
+        var i = 0
+        while (i < d.length) {
+            val c = d[i]
+            if (c.isLetter()) {
+                var j = i + 1
+                while (j < d.length && d[j].isLetter()) j++
+                for (k in i until j) ops.add(when (d[k]) { 'M' -> 0; 'L' -> 1; 'C' -> 2; 'Z' -> 3; else -> error("overlay: unexpected letter ${d[k]} in the SVG path") })
+                i = j
+            } else i++
+        }
+        return ops.toIntArray()
+    }
+
+    /** The coordinate tokens of the SVG path, in order. */
+    private fun decodeNumbers(d: String): List<Float> {
+        val got = ArrayList<Float>()
+        var i = 0
+        while (i < d.length) {
+            val c = d[i]
+            if (c.isDigit() || c == '.') {
+                var j = i + 1
+                while (j < d.length && (d[j].isDigit() || d[j] == '.')) j++
+                got.add(d.substring(i, j).toFloat())
+                i = j
+            } else i++
+        }
+        return got
+    }
+
+    private fun tileXY(i: Int): Float = TileLetters.xy[i]
+
+    /** A failure means the committed op sequence is not an exact copy of the SVG word path's op codes. */
+    @Test
+    fun `the committed ops equal the SVG path op sequence`() {
+        val expected = decodeOps(svgPath)
+        assertEquals("overlay: TileLetters.ops must be 137", 137, TileLetters.ops.size)
+        for (k in expected.indices) {
+            assertEquals("overlay: op $k expected ${expected[k]}", expected[k], TileLetters.ops[k])
+        }
+    }
+
+    /** A failure means the committed coordinates are not exactly the SVG word path's numbers. */
+    @Test
+    fun `the committed xy equals the SVG path numbers`() {
+        val expected = decodeNumbers(svgPath)
+        assertEquals("overlay: SVG path has 438 coordinate tokens", 438, expected.size)
+        for (k in expected.indices) {
+            assertEquals("overlay: xy[$k] expected ${expected[k]}", expected[k], TileLetters.xy[k], 0.001f)
+        }
+    }
+
+    /** A failure means the first stem's tilt from the vertical is not 12 degrees: the word would be upright or over-slanted. */
+    @Test
+    fun `the first stem tilts 12 degrees from vertical`() {
+        val dx = tileXY(2) - tileXY(0)
+        val dy = tileXY(3) - tileXY(1)
+        val tiltDeg = Math.toDegrees(atan2(dx, abs(dy)).toDouble())
+        assertEquals("overlay: first stem slope from vertical", 12.0, tiltDeg, 0.05)
+    }
+
+    /** A failure means a word coordinate escapes the 1024 by 1024 art box, so the word would clip. */
+    @Test
+    fun `the word bbox is inside the art box`() {
+        var minX = Float.POSITIVE_INFINITY
+        var maxX = Float.NEGATIVE_INFINITY
+        var minY = Float.POSITIVE_INFINITY
+        var maxY = Float.NEGATIVE_INFINITY
+        for (k in TileLetters.xy.indices step 2) {
+            val x = TileLetters.xy[k]
+            val y = TileLetters.xy[k + 1]
+            minX = minOf(minX, x)
+            maxX = maxOf(maxX, x)
+            minY = minOf(minY, y)
+            maxY = maxOf(maxY, y)
+        }
+        assertTrue("overlay: minimum x expected inside the art box", minX >= 0f)
+        assertTrue("overlay: maximum x expected inside the art box", maxX <= 1024f)
+        assertTrue("overlay: minimum y expected inside the art box", minY >= 0f)
+        assertTrue("overlay: maximum y expected inside the art box", maxY <= 1024f)
+    }
+
+    /** A failure means an old upright copy of the word is present: an upright word's first stem stands vertical, so its move and its first line share one x. */
+    @Test
+    fun `no old upright word`() {
+        assertFalse("overlay: the first stem must not stand vertical", tileXY(2) == tileXY(0))
+    }
+}

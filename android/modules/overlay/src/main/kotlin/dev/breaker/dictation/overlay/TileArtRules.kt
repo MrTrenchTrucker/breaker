@@ -21,6 +21,7 @@ internal object ArtFactors {
     const val LEDGE_FACE: Float = -0.30f       // of look.glyphOutline
     const val LEDGE_END: Float = -0.50f        // of look.glyphOutline (both ends)
     const val SLOT_TOP: Float = -0.24f         // of the slot colour (lit or unlit)
+    const val BUSY_OUTLINE_SHADE: Float = -0.85f // of look.danger: the dark outline under the red ring and slash (near black, not a fixed hex)
 }
 
 /** Sizes of the art and of its glow. */
@@ -28,9 +29,15 @@ internal object ArtMetrics {
     const val ART_FILL: Float = 0.90f          // the 1024 box is drawn this fraction of the cell side, centred in the cell
     const val GLOW_LAYERS: Int = 3
     const val GLOW_STEP_DP: Float = 1f         // each glow layer reaches this many dp further out on each side than the one before (its stroke is twice this wider)
-    const val BUSY_STROKE_UNITS: Float = 70f   // circle-and-slash stroke, in art units
-    const val BUSY_MARGIN_UNITS: Float = 60f   // gap between the circle and the edge of the art box, in art units
-    const val HALO_DP: Float = 2f              // the halo under the notice text and the X and check strokes reaches this many dp beyond the stroke on each side (its stroke is twice this wider than the stroke it sits under)
+    const val BUSY_CENTRE_X: Float = 512f      // the busy sign's centre x, in art units (the approved sign sits on the mic, off the box centre)
+    const val BUSY_CENTRE_Y: Float = 500f      // the busy sign's centre y, in art units
+    const val BUSY_RADIUS: Float = 394f        // the busy circle's radius: the ring's mid radius (outer 440, inner 348), in art units
+    const val BUSY_STROKE: Float = 92f         // the ring and the slash width, in art units
+    const val BUSY_OUTLINE_STROKE: Float = 124f // the black outline width: the stroke plus the 16 outline on each side, in art units
+    const val BUSY_SLASH_REACH: Float = 252.073f // the slash centre-line's half length from the centre, in art units (the inner radius over root two, plus the 6 the bar clears the ring)
+    const val CONTROL_OUTLINE_UNITS: Float = 22f // the trim outline around the X and the check, in art units, centred on the shape's edge
+    const val CONTROL_MITER_LIMIT: Float = 10f // the miter limit of the svg outline (stroke-miterlimit 10)
+    const val HALO_DP: Float = 2f              // the halo under the notice text only (the X and the check have no halo): it reaches this many dp beyond the text stroke on each side (its stroke is twice this wider than the stroke it sits under)
 }
 
 /**
@@ -109,6 +116,8 @@ internal fun faceColor(part: ArtPart, look: TileLook): Int = when (part) {
     ArtPart.SLOT -> look.litSegment
     ArtPart.SLOT_TOP -> shade(look.litSegment, ArtFactors.SLOT_TOP)
     ArtPart.LETTERS -> look.glyph
+    ArtPart.CANCEL_CROSS -> look.danger
+    ArtPart.SEND_CHECK -> look.primary
 }
 
 /**

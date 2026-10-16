@@ -45,7 +45,7 @@ class TileStyleTest {
     }
 
     private fun fields(look: TileLook): List<Int> =
-        listOf(look.background, look.glyph, look.glyphOutline, look.ring, look.litSegment, look.unlitSegment, look.control)
+        listOf(look.background, look.glyph, look.glyphOutline, look.danger, look.primary, look.busyOutline, look.ring, look.litSegment, look.unlitSegment, look.control)
 
     /** A failure means a state's colour is not the palette field the tile is meant to use, in the light theme, the dark theme or a palette of eleven different colours. */
     @Test
@@ -58,6 +58,9 @@ class TileStyleTest {
                 assertEquals("overlay: $what background expected the surface colour", p.surface.argb, look.background)
                 assertEquals("overlay: $what glyph expected the primary colour", p.primary.argb, look.glyph)
                 assertEquals("overlay: $what glyph outline expected the trim colour", p.trim.argb, look.glyphOutline)
+                assertEquals("overlay: $what danger expected the danger colour", p.danger.argb, look.danger)
+                assertEquals("overlay: $what primary expected the primary colour", p.primary.argb, look.primary)
+                assertEquals("overlay: $what busy outline expected the danger shaded by BUSY_OUTLINE_SHADE", shade(p.danger.argb, ArtFactors.BUSY_OUTLINE_SHADE), look.busyOutline)
                 assertEquals("overlay: $what ring", ring(state, p), look.ring)
                 assertEquals("overlay: $what lit segment expected the primary colour", p.primary.argb, look.litSegment)
                 assertEquals("overlay: $what unlit segment expected the background colour", p.bg.argb, look.unlitSegment)
@@ -151,22 +154,25 @@ class TileStyleTest {
         )
     }
 
-    /** A failure means the look gained or lost a colour, or one of its seven colours is not the palette field the tile is meant to use. */
+    /** A failure means the look gained or lost a colour, or one of its ten colours is not the palette field the tile is meant to use. */
     @Test
-    fun `the look is exactly seven colours in the expected order from distinct palette fields`() {
+    fun `the look is exactly ten colours in the expected order from distinct palette fields`() {
         val stored = TileLook::class.java.declaredFields.count { !Modifier.isStatic(it.modifiers) }
-        assertEquals("overlay: the look should hold exactly seven colours", 7, stored)
+        assertEquals("overlay: the look should hold exactly ten colours", 10, stored)
         val expected = listOf(
             distinct.surface.argb,
             distinct.primary.argb,
             distinct.trim.argb,
+            distinct.danger.argb,
+            distinct.primary.argb,
+            shade(distinct.danger.argb, ArtFactors.BUSY_OUTLINE_SHADE),
             distinct.trim.argb,
             distinct.primary.argb,
             distinct.bg.argb,
             distinct.text.argb,
         )
         assertEquals(
-            "overlay: the idle look should be surface, primary, trim, trim, primary, background, text",
+            "overlay: the idle look should be surface, primary, trim, danger, primary, shaded danger, trim, primary, background, text",
             expected,
             fields(TileStyle.look(TileState.IDLE, distinct)),
         )

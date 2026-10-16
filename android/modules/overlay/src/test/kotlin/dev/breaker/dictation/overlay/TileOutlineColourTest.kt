@@ -87,8 +87,8 @@ class TileOutlineColourTest {
                 .takeUnless { Regex("""\bdrawRing\s*\(\s*canvas\s*,\s*mic\s*,\s*look\.ring\s*\)""").containsMatchIn(view) },
             "TileView does not glow with look.ring"
                 .takeUnless { Regex("""\bartDraw\.drawGlow\s*\(\s*canvas\s*,\s*mic\s*,\s*paint\s*,\s*look\.ring\s*,""").containsMatchIn(view) },
-            "TileArtDraw does not draw the busy sign with look.ring"
-                .takeUnless { Regex("""\bdrawBusy\s*\(\s*canvas\s*,\s*paint\s*,\s*look\.ring\s*,""").containsMatchIn(art) },
+            "TileArtDraw does not draw the busy sign with the look field"
+                .takeUnless { Regex("""\bdrawBusy\s*\(\s*canvas\s*,\s*paint\s*,\s*look\s*,\s*pulseAlpha\s*\)""").containsMatchIn(art) }
         )
     }
 
@@ -97,7 +97,7 @@ class TileOutlineColourTest {
         "drawRing(canvas, mic, look.ring)\n" +
         "}\n"
 
-    private val artSample = "if (face.state == TileState.MIC_BUSY) drawBusy(canvas, paint, look.ring, pulseAlpha)\n"
+    private val artSample = "if (face.state == TileState.MIC_BUSY) drawBusy(canvas, paint, look, pulseAlpha)\n"
 
     /** A failure means the band, the glow or the busy sign takes a colour other than the look's ring. */
     @Test
@@ -115,7 +115,7 @@ class TileOutlineColourTest {
         )
         assertTrue(
             "overlay: control: a busy sign in a fixed token must be reported",
-            ringSourceProblems(viewSample, edit(artSample, "drawBusy(canvas, paint, look.ring, pulseAlpha)", "drawBusy(canvas, paint, palette.danger.argb, pulseAlpha)"))
+            ringSourceProblems(viewSample, edit(artSample, "drawBusy(canvas, paint, look, pulseAlpha)", "drawBusy(canvas, paint, palette.danger.argb, pulseAlpha)"))
                 .any { it.contains("does not draw the busy sign") },
         )
         val texts = ModuleFiles.mainTexts()

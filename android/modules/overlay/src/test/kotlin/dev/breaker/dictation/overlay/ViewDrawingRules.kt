@@ -2,9 +2,10 @@ package dev.breaker.dictation.overlay
 
 /**
  * Source-text rules for the drawing of the tile: no call paints the whole window, the art and every call that
- * passes a colour take their colours from a face colour or the look, the buttons and the notice text are drawn
- * with a halo pass, the grille slots are lit and coloured as the face says, the faces of the mic take their look
- * field, and each picture is drawn into the microphone cell.
+ * passes a colour take their colours from a face colour or the look, the buttons are filled shapes drawn by
+ * drawControl with a trim outline, the notice text is drawn with a halo pass, the grille slots are lit and coloured
+ * as the face says, the faces of
+ * the mic take their look field, and each picture is drawn into the microphone cell.
  *
  * Each rule is a pure function from source text to a list of problems. Comments are blanked and string literals
  * are kept, as in [SourceText.code]: a rule word in a comment is not a use of it, and a rule word in a string is.
@@ -34,12 +35,12 @@ internal object ViewDrawingRules {
 
     /** The values a paint colour may be set from in the art: the bare colour parameter, a look field, or a colour function of the art. */
     private val artAssignment = Regex(
-        """color|(?:face\.)?look\.\w+|ringDrawColor\(color, pulseAlpha\)|glowDrawColor\(color, pulseAlpha, glowAlpha\(layer\)\)|faceColor\([^()]*\)|slotColor\([^()]*\)""",
+        """color|(?:face\.)?look(?:\.\w+)?|ringDrawColor\((?:color|look\.ring),\s*pulseAlpha\)|glowDrawColor\(color, pulseAlpha, glowAlpha\(layer\)\)|faceColor\([^()]*\)|slotColor\([^()]*\)""",
     )
 
     /** The values a colour argument may take at a call: a look field or one of the colour functions. */
     private val callColour = Regex(
-        """(?:face\.)?look\.\w+|faceColor\([^()]*\)|slotColor\([^()]*\)|ringDrawColor\(color, pulseAlpha\)|glowDrawColor\(color, pulseAlpha, glowAlpha\(layer\)\)""",
+        """(?:face\.)?look(?:\.\w+)?|faceColor\([^()]*\)|slotColor\([^()]*\)|ringDrawColor\((?:color|look\.ring),\s*pulseAlpha\)|glowDrawColor\(color, pulseAlpha, glowAlpha\(layer\)\)""",
     )
 
     /** Each helper that takes a colour, with the position of that colour among its arguments (the first is 0). */
@@ -78,42 +79,58 @@ internal object ViewDrawingRules {
         }
     }
 
-    private val haloOn = Regex("""2\s*\*\s*ArtMetrics\.HALO_DP\s*\*\s*density""")
-    private val haloSet = Regex("""\bhaloExtraPx\s*=\s*([^\n]+)""")
-
     /**
-     * The buttons of onDraw in [source]: each of drawCancel and drawSend is called twice, first with look.background
-     * as the halo and then with look.control, each into its own cell; the halo is set above zero before the first
-     * pair and set back to 0f between the two pairs.
+     * The buttons of onDraw in [source]: each button is one drawControl call with its own cell and shape, the cross with
+     * ControlArt.cancel in TileLayout.cancelCell(s) and the check with ControlArt.send in TileLayout.sendCell(s), each
+     * with the canvas, the paint and the look; the cross comes first. drawControl makes the fill and the trim outline,
+     * so the buttons are filled shapes with a trim outline, and the old drawCancel, drawSend and drawLine calls are
+     * reported wherever they are drawn in onDraw.
      */
     fun buttonProblems(source: String): List<String> {
         val body = AdapterRules.blockBodyOf(SourceText.code(source), "onDraw")
             ?: return listOf("TileView has no onDraw function with a block body")
-        val cancel = callsAt(body, "drawCancel")
-        val send = callsAt(body, "drawSend")
-        val halo = haloSet.findAll(body).map { it.range.first to it.groupValues[1].trim() }.toList()
         val problems = ArrayList<String>()
-        listOf("drawCancel" to cancel, "drawSend" to send).forEach { (name, calls) ->
-            val cell = if (name == "drawCancel") "TileLayout.cancelCell(s)" else "TileLayout.sendCell(s)"
-            if (calls.size != 2) {
-                problems.add("$name is not called exactly twice in onDraw")
-            } else {
-                if (argsOf(calls[0].second).getOrNull(2) != "look.background") problems.add("the first call of $name is not drawn with look.background")
-                if (argsOf(calls[1].second).getOrNull(2) != "look.control") problems.add("the last call of $name is not drawn with look.control")
+        listOf("drawCancel", "drawSend", "drawLine").forEach { name ->
+            if (callsAt(body, name).isNotEmpty()) {
+                problems.add("$name is still drawn in onDraw")
             }
-            calls.filter { argsOf(it.second).getOrNull(1) != cell }.forEach { problems.add("$name is not drawn into $cell") }
         }
-        if (cancel.size == 2 && send.size == 2) {
-            val firstPair = minOf(cancel[0].first, send[0].first)
-            val firstPairEnd = maxOf(cancel[0].first, send[0].first)
-            val secondPair = minOf(cancel[1].first, send[1].first)
-            val before = halo.lastOrNull { it.first < firstPair }
-            if (before == null || !haloOn.matches(before.second)) problems.add("the halo is not set above zero before the first pair of buttons")
-            if (halo.none { it.first > firstPairEnd && it.first < secondPair && it.second == "0f" }) {
-                problems.add("the halo is not set back to 0f between the two pairs of buttons")
-            }
+        val calls = callsAt(body, "drawControl")
+        calls.forEach { call -> problems.addAll(controlCallProblems(call.second)) }
+        val cancel = calls.filter { argsOf(it.second).getOrNull(3) == "ControlArt.cancel" }
+        val send = calls.filter { argsOf(it.second).getOrNull(3) == "ControlArt.send" }
+        if (cancel.size != 1) {
+            problems.add("the cross is not drawn exactly once with drawControl in onDraw")
+        }
+        if (send.size != 1) {
+            problems.add("the check is not drawn exactly once with drawControl in onDraw")
+        }
+        if (cancel.size == 1 && send.size == 1 && cancel[0].first > send[0].first) {
+            problems.add("the check is drawn before the cross in onDraw")
         }
         return problems
+    }
+
+    /** The problems of one drawControl call: its shape must be a button, drawn into that button's cell, with canvas, paint and look. */
+    private fun controlCallProblems(call: String): List<String> {
+        val args = argsOf(call).filter { it.isNotEmpty() }
+        val shape = args.getOrNull(3)
+        val cell = buttonCell(shape)
+        val name = if (shape == "ControlArt.cancel") "the cross" else "the check"
+        return when {
+            cell == null -> listOf("drawControl draws a shape that is not a button: ${oneLine(call)}")
+            args.getOrNull(1) != cell -> listOf("$name is not drawn into $cell")
+            args != listOf("canvas", cell, "paint", shape, "look") ->
+                listOf("$name is not drawn with canvas, cell, paint, shape and look: ${oneLine(call)}")
+            else -> emptyList()
+        }
+    }
+
+    /** The cell a button is drawn into, from its shape; null for a shape that is not a button. */
+    private fun buttonCell(shape: String?): String? = when (shape) {
+        "ControlArt.cancel" -> "TileLayout.cancelCell(s)"
+        "ControlArt.send" -> "TileLayout.sendCell(s)"
+        else -> null
     }
 
     private val noticeHalo = Regex(
@@ -168,7 +185,8 @@ internal object ViewDrawingRules {
      * The colour each part of the mic takes in faceColor. The body shapes and the well take bodyColor(look); the
      * shaded body faces take it shaded by their own factor name; the frame, the ledge face and the ledge ends take
      * the glyph outline, shaded by their own factor name; the slots and the letters take a look field, unshaded
-     * except the slot strip, which is shaded by SLOT_TOP.
+     * except the slot strip, which is shaded by SLOT_TOP. The cross and the check take the danger and the primary
+     * colour unshaded, as their fill.
      */
     private val faceSpec = mapOf(
         "TRIGGER_BODY" to FaceSpec("bodyColor(look)", null), "HEAD_BODY" to FaceSpec("bodyColor(look)", null),
@@ -182,6 +200,7 @@ internal object ViewDrawingRules {
         "LEDGE_END_LEFT" to FaceSpec("look.glyphOutline", "LEDGE_END"), "LEDGE_END_RIGHT" to FaceSpec("look.glyphOutline", "LEDGE_END"),
         "SLOT" to FaceSpec("look.litSegment", null), "SLOT_TOP" to FaceSpec("look.litSegment", "SLOT_TOP"),
         "LETTERS" to FaceSpec("look.glyph", null),
+        "CANCEL_CROSS" to FaceSpec("look.danger", null), "SEND_CHECK" to FaceSpec("look.primary", null),
     )
     private val faceArm = Regex("""(?m)^\s*((?:ArtPart\.\w+,?\s*)+)->\s*(\S.*?)\s*$""")
     private val faceExpression = Regex("""^(?:shade\((look\.\w+|bodyColor\(look\)), ArtFactors\.(\w+)\)|(look\.\w+|bodyColor\(look\)))$""")

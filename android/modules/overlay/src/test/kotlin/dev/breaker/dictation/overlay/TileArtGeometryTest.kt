@@ -3,54 +3,53 @@ package dev.breaker.dictation.overlay
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import kotlin.math.sqrt
-
 /**
  * The plain geometry of the art: the busy sign, the glow widths and the art-to-cell frame. Every expected
- * number is a literal worked out by awk; the commands are in the notes. The busy radius is 512 minus 60
- * minus half of 70, which is 417. The slash reach is 417 over the square root of 2, which is 294.863528 to
- * six decimals, so the slash runs from 217.136472 to 806.863528 on both axes.
+ * number is a literal worked out from the named ArtMetrics constants. The busy ring is centred on the
+ * approved point 512, 500, its radius is the ring mid radius 394, the red ring and slash are 92 art units
+ * wide and the dark outline 124. The slash reach is the named 252.073, so the bar runs from 512 minus
+ * 252.073, which is 259.927, and 500 minus 252.073, which is 247.927, to 764.073 and 752.073.
  */
 class TileArtGeometryTest {
 
     private val busy = ArtGeometry.busySign()
 
-    /** A failure means the busy circle is not centred at 512 with radius 417 and stroke 70 art units. */
+    /** A failure means the busy ring is not centred at 512 500 with radius 394, red stroke 92 and dark outline 124 art units. */
     @Test
-    fun `the busy circle is centred at 512 with radius 417 and stroke 70`() {
-        assertEquals("overlay: the busy centre expected 512", 512f, busy.centre, 0f)
-        assertEquals("overlay: the busy radius expected 417", 417f, busy.radius, 0f)
-        assertEquals("overlay: the busy stroke expected 70", 70f, busy.stroke, 0f)
+    fun `the busy ring is centred at 512 500 with radius 394 stroke 92 and outline 124`() {
+        assertEquals("overlay: the busy centre x expected 512", 512f, busy.centreX, 0f)
+        assertEquals("overlay: the busy centre y expected 500", 500f, busy.centreY, 0f)
+        assertEquals("overlay: the busy radius expected 394", 394f, busy.radius, 0f)
+        assertEquals("overlay: the busy stroke expected 92", 92f, busy.stroke, 0f)
+        assertEquals("overlay: the busy outline stroke expected 124", 124f, busy.outlineStroke, 0f)
     }
 
-    /** A failure means the slash ends are not at the literal reach, or the two ends are not mirror images through the centre. */
+    /** A failure means the slash ends are not at the named reach on the 45 degree line, or the two ends are not mirror images through the centre. */
     @Test
     fun `the slash runs along the 45 degree line through the centre`() {
-        assertEquals("overlay: the slash from x expected 217.136472", 217.136472f, busy.slashFromX, 0.001f)
-        assertEquals("overlay: the slash from y expected 217.136472", 217.136472f, busy.slashFromY, 0.001f)
-        assertEquals("overlay: the slash to x expected 806.863528", 806.863528f, busy.slashToX, 0.001f)
-        assertEquals("overlay: the slash to y expected 806.863528", 806.863528f, busy.slashToY, 0.001f)
-        assertEquals("overlay: the from offsets expected equal in x and y", busy.slashFromX - busy.centre, busy.slashFromY - busy.centre, 0.001f)
-        assertEquals("overlay: the to offsets expected equal in x and y", busy.slashToX - busy.centre, busy.slashToY - busy.centre, 0.001f)
-        assertEquals("overlay: the to end expected the mirror of the from end", busy.centre - busy.slashFromX, busy.slashToX - busy.centre, 0.001f)
+        assertEquals("overlay: the slash from x expected 259.927", 259.927f, busy.slashFromX, 0.001f)
+        assertEquals("overlay: the slash from y expected 247.927", 247.927f, busy.slashFromY, 0.001f)
+        assertEquals("overlay: the slash to x expected 764.073", 764.073f, busy.slashToX, 0.001f)
+        assertEquals("overlay: the slash to y expected 752.073", 752.073f, busy.slashToY, 0.001f)
+        assertEquals("overlay: the from offsets expected equal in x and y", busy.slashFromX - busy.centreX, busy.slashFromY - busy.centreY, 0.001f)
+        assertEquals("overlay: the to offsets expected equal in x and y", busy.slashToX - busy.centreX, busy.slashToY - busy.centreY, 0.001f)
+        assertEquals("overlay: the to end expected the mirror of the from end", busy.centreX - busy.slashFromX, busy.slashToX - busy.centreX, 0.001f)
     }
 
-    /** A failure means an end of the slash is not the radius from the centre: without the square root of 2 each end sits 589.7 away. */
+    /** A failure means a slash end does not sit the named reach from the centre: the bar would clear or bury the ring wrongly. */
     @Test
-    fun `each end of the slash lies on the busy circle`() {
-        val dxFrom = busy.slashFromX - busy.centre
-        val dyFrom = busy.slashFromY - busy.centre
-        val dxTo = busy.slashToX - busy.centre
-        val dyTo = busy.slashToY - busy.centre
-        assertEquals("overlay: the from end expected the radius from the centre", busy.radius, sqrt(dxFrom * dxFrom + dyFrom * dyFrom), 0.001f)
-        assertEquals("overlay: the to end expected the radius from the centre", busy.radius, sqrt(dxTo * dxTo + dyTo * dyTo), 0.001f)
+    fun `each end of the slash sits the named reach from the centre`() {
+        assertEquals("overlay: the from reach expected the named reach", busy.slashReach, busy.centreX - busy.slashFromX, 0.001f)
+        assertEquals("overlay: the from reach in y expected the named reach", busy.slashReach, busy.centreY - busy.slashFromY, 0.001f)
+        assertEquals("overlay: the to reach expected the named reach", busy.slashReach, busy.slashToX - busy.centreX, 0.001f)
+        assertEquals("overlay: the to reach in y expected the named reach", busy.slashReach, busy.slashToY - busy.centreY, 0.001f)
     }
 
     /** A failure means the slash runs the other way: its start is not up and left of the centre, or its end is not down and right. */
     @Test
     fun `the slash starts up left of the centre and ends down right of it`() {
-        assertTrue("overlay: the slash start expected up and left of the centre", busy.slashFromX < busy.centre && busy.slashFromY < busy.centre)
-        assertTrue("overlay: the slash end expected down and right of the centre", busy.slashToX > busy.centre && busy.slashToY > busy.centre)
+        assertTrue("overlay: the slash start expected up and left of the centre", busy.slashFromX < busy.centreX && busy.slashFromY < busy.centreY)
+        assertTrue("overlay: the slash end expected down and right of the centre", busy.slashToX > busy.centreX && busy.slashToY > busy.centreY)
     }
 
     /** A failure means a glow layer is not 4, 6 or 8 dp wide: the ring width plus the layer step on each side. */

@@ -1,16 +1,18 @@
 package dev.breaker.dictation.overlay
 
-import kotlin.math.sqrt
-
 /**
- * The busy sign in art units: a circle centred in the art box, and a flat slash from one side of the circle
- * to the other, along the diagonal. [stroke] is the width of both the circle and the slash. Each end of the
- * slash lies on the circle, so each end is [radius] from the centre.
+ * The busy sign in art units: a circle at ([centreX], [centreY]) and a flat slash along the diagonal through it.
+ * [stroke] is the width of the red ring and the red slash; [outlineStroke] is the width of the dark outline that
+ * wraps them (the stroke plus the outline on each side). The slash centre line runs from ([slashFromX],
+ * [slashFromY]) to ([slashToX], [slashToY]), each end [slashReach] from the centre along the 45 degree diagonal.
  */
 internal class BusySign(
-    val centre: Float,
+    val centreX: Float,
+    val centreY: Float,
     val radius: Float,
     val stroke: Float,
+    val outlineStroke: Float,
+    val slashReach: Float,
     val slashFromX: Float,
     val slashFromY: Float,
     val slashToX: Float,
@@ -36,19 +38,25 @@ internal class ArtFrame(
  */
 internal object ArtGeometry {
 
-    /** The busy sign: the circle is centred in the art box and kept clear of its edge by the margin and half the stroke. */
+    /**
+     * The busy sign: the ring is centred on the approved point in the art box (off the box centre), its radius is
+     * the ring's mid radius and its stroke the ring width, and the dark outline is the stroke plus the outline on
+     * each side. The slash is a bar along the 45 degree diagonal through the centre, each end [ArtMetrics.BUSY_SLASH_REACH]
+     * from the centre, so it clears the ring by the 6 the generator leaves between the bar and the ring.
+     */
     fun busySign(): BusySign {
-        val centre = TileArt.BOX / 2f
-        val radius = centre - ArtMetrics.BUSY_MARGIN_UNITS - ArtMetrics.BUSY_STROKE_UNITS / 2f
-        val reach = radius / sqrt(2f)
+        val reach = ArtMetrics.BUSY_SLASH_REACH
         return BusySign(
-            centre = centre,
-            radius = radius,
-            stroke = ArtMetrics.BUSY_STROKE_UNITS,
-            slashFromX = centre - reach,
-            slashFromY = centre - reach,
-            slashToX = centre + reach,
-            slashToY = centre + reach,
+            centreX = ArtMetrics.BUSY_CENTRE_X,
+            centreY = ArtMetrics.BUSY_CENTRE_Y,
+            radius = ArtMetrics.BUSY_RADIUS,
+            stroke = ArtMetrics.BUSY_STROKE,
+            outlineStroke = ArtMetrics.BUSY_OUTLINE_STROKE,
+            slashReach = reach,
+            slashFromX = ArtMetrics.BUSY_CENTRE_X - reach,
+            slashFromY = ArtMetrics.BUSY_CENTRE_Y - reach,
+            slashToX = ArtMetrics.BUSY_CENTRE_X + reach,
+            slashToY = ArtMetrics.BUSY_CENTRE_Y + reach,
         )
     }
 

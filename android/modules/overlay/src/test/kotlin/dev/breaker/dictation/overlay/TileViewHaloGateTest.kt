@@ -5,10 +5,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The halo passes of the tile view, read as text: each button is drawn twice, first in the background colour as a
- * halo and then in the control colour, with the halo width set above zero before the first pair and set back to 0f
- * before the second; and the notice text is drawn as a stroke halo in the background colour before its fill in the
- * control colour, on one layout. Each rule runs first on edited copies of the real source, then on the real file.
+ * The buttons and the notice text of the tile view, read as text: each button is one drawControl call into its own
+ * cell, the cross first, and drawControl draws the button as a filled shape with a trim outline. The notice text is
+ * drawn as a stroke halo in the background colour before its fill in the control colour, on one layout. Only the
+ * notice has a halo. Each rule runs first on edited copies of the real source, then on the real file.
  */
 class TileViewHaloGateTest {
 
@@ -26,45 +26,52 @@ class TileViewHaloGateTest {
         return text.replace(old, new)
     }
 
-    /** A failure here means a button is drawn without its halo, or a halo pass is drawn in the control colour, so the buttons read on no wallpaper. */
+    /**
+     * A failure here means a button is drawn into the other cell, with the other shape, out of order, twice or not at
+     * all, or beside an old drawCancel, drawSend or drawLine call, so a button reads in the wrong place or not at all.
+     */
     @Test
-    fun `each button is drawn twice with the halo colour first and the control colour last`() {
+    fun `each button is one drawControl call into its own cell and the cross comes first`() {
         val real = ModuleFiles.mainTexts().getValue(view)
+        val cancelCall = "artDraw.drawControl(canvas, TileLayout.cancelCell(s), paint, ControlArt.cancel, look)"
+        val sendCall = "artDraw.drawControl(canvas, TileLayout.sendCell(s), paint, ControlArt.send, look)"
         assertQuiet("the real view", ViewDrawingRules.buttonProblems(real))
-        assertFires("the first pass in the control colour", ViewDrawingRules.buttonProblems(edit(real, "drawCancel(canvas, TileLayout.cancelCell(s), look.background)", "drawCancel(canvas, TileLayout.cancelCell(s), look.control)")), "first call of drawCancel")
-        assertFires("the last pass in the halo colour", ViewDrawingRules.buttonProblems(edit(real, "drawSend(canvas, TileLayout.sendCell(s), look.control)", "drawSend(canvas, TileLayout.sendCell(s), look.background)")), "last call of drawSend")
-        assertFires("the halo reset dropped", ViewDrawingRules.buttonProblems(edit(real, "haloExtraPx = 0f\n", "")), "back to 0f")
-        assertFires("the halo not set before the first pair", ViewDrawingRules.buttonProblems(edit(real, "haloExtraPx = 2 * ArtMetrics.HALO_DP * density\n", "")), "above zero")
-        assertFires("the send button drawn once", ViewDrawingRules.buttonProblems(edit(real, "drawSend(canvas, TileLayout.sendCell(s), look.control)\n", "")), "drawSend is not called exactly twice")
-        assertFires("the cross in the send cell", ViewDrawingRules.buttonProblems(edit(real, "drawCancel(canvas, TileLayout.cancelCell(s), look.control)", "drawCancel(canvas, TileLayout.sendCell(s), look.control)")), "drawCancel is not drawn into")
-        assertQuiet("a commented halo reset next to the real one", ViewDrawingRules.buttonProblems(edit(real, "haloExtraPx = 0f\n", "// haloExtraPx = 0f\nhaloExtraPx = 0f\n")))
+        assertFires("the cross in the send cell", ViewDrawingRules.buttonProblems(edit(real, cancelCall, "artDraw.drawControl(canvas, TileLayout.sendCell(s), paint, ControlArt.cancel, look)")), "is not drawn into TileLayout.cancelCell(s)")
+        assertFires("the check in the cancel cell", ViewDrawingRules.buttonProblems(edit(real, sendCall, "artDraw.drawControl(canvas, TileLayout.cancelCell(s), paint, ControlArt.send, look)")), "is not drawn into TileLayout.sendCell(s)")
+        assertFires("the cross with the check shape", ViewDrawingRules.buttonProblems(edit(real, sendCall, "artDraw.drawControl(canvas, TileLayout.sendCell(s), paint, ControlArt.cancel, look)")), "the check is not drawn exactly once")
+        assertFires("the check call dropped", ViewDrawingRules.buttonProblems(edit(real, sendCall + "\n", "")), "the check is not drawn exactly once")
+        assertFires("the cross call tripled", ViewDrawingRules.buttonProblems(edit(real, cancelCall, "$cancelCall\n$cancelCall")), "the cross is not drawn exactly once")
+        assertFires("the cross after the check", ViewDrawingRules.buttonProblems(edit(edit(real, cancelCall + "\n", ""), sendCall, "$sendCall\n$cancelCall")), "the check is drawn before the cross")
+        assertFires("an old drawCancel call left in", ViewDrawingRules.buttonProblems(edit(real, cancelCall, "$cancelCall\ndrawCancel(canvas, TileLayout.cancelCell(s), CANCEL_STROKE_UNITS, look.danger)")), "drawCancel is still drawn in onDraw")
+        assertQuiet("a commented call next to the real one", ViewDrawingRules.buttonProblems(edit(real, cancelCall, "// $cancelCall\n$cancelCall")))
+        assertQuiet("the arguments on separate lines with a trailing comma", ViewDrawingRules.buttonProblems(edit(real, cancelCall, "artDraw.drawControl(\n canvas,\n TileLayout.cancelCell(s),\n paint,\n ControlArt.cancel,\n look,\n)")))
 
-        assertEquals("overlay: $view must draw each button with its halo first and its control colour last", emptyList<String>(), ViewDrawingRules.buttonProblems(real))
+        assertEquals("overlay: $view must draw each button once with drawControl into its own cell, the cross first", emptyList<String>(), ViewDrawingRules.buttonProblems(real))
     }
 
     /**
-     * A failure here means a button called once is not reported by its count alone, so the halo rule runs on a broken
-     * pair, or a button called three times is not reported, so an extra pass slips past the count.
+     * A failure here means a button drawn once is not reported by its count alone, so the halo rule runs on a broken
+     * pair, or a button drawn three times is not reported, so an extra call slips past the count.
      */
     @Test
-    fun `a button called once or three times is reported by its count alone`() {
+    fun `a button drawn once or three times by drawControl is reported by its count alone`() {
         val real = ModuleFiles.mainTexts().getValue(view)
-        val cancelControl = "drawCancel(canvas, TileLayout.cancelCell(s), look.control)"
-        val sendControl = "drawSend(canvas, TileLayout.sendCell(s), look.control)"
+        val cancelCall = "artDraw.drawControl(canvas, TileLayout.cancelCell(s), paint, ControlArt.cancel, look)"
+        val sendCall = "artDraw.drawControl(canvas, TileLayout.sendCell(s), paint, ControlArt.send, look)"
         assertEquals(
-            "overlay: control: a send button called once must be reported by its count alone",
-            listOf("drawSend is not called exactly twice in onDraw"),
-            ViewDrawingRules.buttonProblems(edit(real, sendControl + "\n", "")),
+            "overlay: control: a check drawn once must be reported by its count alone",
+            listOf("the check is not drawn exactly once with drawControl in onDraw"),
+            ViewDrawingRules.buttonProblems(edit(real, sendCall + "\n", "")),
         )
         assertEquals(
-            "overlay: control: a cancel button called three times must be reported by its count alone",
-            listOf("drawCancel is not called exactly twice in onDraw"),
-            ViewDrawingRules.buttonProblems(edit(real, cancelControl, "$cancelControl\n$cancelControl")),
+            "overlay: control: a cross drawn three times must be reported by its count alone",
+            listOf("the cross is not drawn exactly once with drawControl in onDraw"),
+            ViewDrawingRules.buttonProblems(edit(real, cancelCall, "$cancelCall\n$cancelCall")),
         )
         assertEquals(
-            "overlay: control: a send button called three times must be reported by its count alone",
-            listOf("drawSend is not called exactly twice in onDraw"),
-            ViewDrawingRules.buttonProblems(edit(real, sendControl, "$sendControl\n$sendControl")),
+            "overlay: control: a check drawn three times must be reported by its count alone",
+            listOf("the check is not drawn exactly once with drawControl in onDraw"),
+            ViewDrawingRules.buttonProblems(edit(real, sendCall, "$sendCall\n$sendCall")),
         )
     }
 
