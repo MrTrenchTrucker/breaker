@@ -8,12 +8,13 @@ import org.junit.Test
 /**
  * Reads the module's main sources as text and checks the rules that keep the phrases
  * module on the core ports alone: no Android import, no import of another module's
- * package, and no thread primitive, executor, timer, coroutine, clock read, sleep or
- * synchronized block.
+ * package, no thread primitive, executor, timer, coroutine, clock read, sleep or
+ * synchronized block, and - the allowed-import rule's import half - an allowed import set of
+ * `dev.breaker.dictation.core.*` and `java.util.Locale` alone.
  *
- * The rule logic is one function over source text. Each rule has a RED sample that it
- * must flag and a CLEAN sample it must not flag, and both run before the real files are
- * read. Comments are not scanned; string literals are.
+ * Each check is one function over source text. Every rule has a RED sample that it
+ * must flag and a CLEAN sample it must not flag, and both run before the real files
+ * are read. Comments are not scanned; string literals are.
  */
 class ModuleHygieneTest {
 
@@ -39,6 +40,23 @@ class ModuleHygieneTest {
         val code = codeOnly(source)
         return rules.filter { it.second.containsMatchIn(code) }.map { it.first }
     }
+
+    /**
+     * The import lines of [source] that fall outside the allowed-import rule's allowed import set,
+     * trimmed, in source order: an import is allowed iff it is `dev.breaker.dictation.core.*`
+     * or `java.util.Locale`, so any other import line is returned. Comments are not scanned.
+     */
+    private fun outsideAllowedImports(source: String): List<String> {
+        val code = codeOnly(source)
+        return Regex("""(?m)^[ \t]*import[ \t]+(\S+)""").findAll(code)
+            .filterNot { isAllowedImport(it.groupValues[1]) }
+            .map { it.value.trim() }
+            .toList()
+    }
+
+    /** Invariant 12's allowed import set: core, and `java.util.Locale` alone from the JDK. */
+    private fun isAllowedImport(imported: String): Boolean =
+        imported.startsWith("dev.breaker.dictation.core.") || imported == "java.util.Locale"
 
     /**
      * [source] with line comments and block comments replaced by spaces (line breaks kept),
@@ -142,6 +160,38 @@ class ModuleHygieneTest {
         val texts = mainTexts()
         for ((name, text) in texts) {
             assertEquals("android_phrases: $name breaks a hygiene rule", emptyList<String>(), hygieneViolations(text))
+        }
+    }
+
+    @Test
+    fun `an import outside core and java util Locale fires (the allowed-import rule)`() {
+        assertEquals(
+            "the allowed-import rule: import android.os.SystemClock must fire the allowed-import check",
+            listOf("import android.os.SystemClock"),
+            outsideAllowedImports("import android.os.SystemClock\nclass A\n"),
+        )
+        assertEquals(
+            "the allowed-import rule: import java.util.concurrent.Executors must fire the allowed-import check",
+            listOf("import java.util.concurrent.Executors"),
+            outsideAllowedImports("import java.util.concurrent.Executors\nclass A\n"),
+        )
+    }
+
+    @Test
+    fun `allowed imports and comment words do not fire (the allowed-import rule)`() {
+        val allowed = "// import android.os.SystemClock, Thread and Handler are only words here\n" +
+            "import dev.breaker.dictation.core.model.WordUpdate\n" +
+            "import dev.breaker.dictation.core.port.WordStream\n" +
+            "import java.util.Locale\n" +
+            "val x = 1\n"
+        assertEquals("the allowed-import rule: core and java.util.Locale imports are allowed", emptyList<String>(), outsideAllowedImports(allowed))
+    }
+
+    @Test
+    fun `the real main sources stay inside the allowed import set (the allowed-import rule)`() {
+        val texts = mainTexts()
+        for ((name, text) in texts) {
+            assertEquals("android_phrases: $name imports outside core and java.util.Locale", emptyList<String>(), outsideAllowedImports(text))
         }
     }
 

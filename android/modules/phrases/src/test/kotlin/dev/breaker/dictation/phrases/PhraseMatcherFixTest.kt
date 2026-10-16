@@ -24,7 +24,7 @@ class PhraseMatcherFixTest {
     }
 
     @Test
-    fun `a non-breaking space is not treated as a word boundary for the wake`() {
+    fun `a non-breaking space inside one heard word still separates the two wake words`() {
         // A non-breaking space ends a piece like a space, so one heard word holding two "breaker"
         // words still wakes.
         val events = PhraseMatcher().accept(update(false, "breaker\u00A0breaker" to 0L))
