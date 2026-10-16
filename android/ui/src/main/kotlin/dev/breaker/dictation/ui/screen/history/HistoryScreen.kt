@@ -34,8 +34,8 @@ private const val MORE_ID = "history.more"
 /** The id of a notice carried over from a read whose draw was dropped, so it can be told from the notice. */
 internal const val CARRIED_NOTICE_ID = "history.notice.carried"
 
-/** The notice label of this screen, or null when it has none. */
-internal fun Screen.noticeLabel(): Label? = nodes.firstOrNull { it.id == NOTICE_ID } as? Label
+/** The first notice this screen shows, or null when it has none: the primary notice or the carried one, whichever the tree holds first. The callers that decide what to carry forward (AsyncHistory, withCarriedNotice) see only raw screens, which never hold a carried node, so broadening changes nothing for them. */
+internal fun Screen.noticeLabel(): Label? = nodes.firstOrNull { it.id == NOTICE_ID || it.id == CARRIED_NOTICE_ID } as? Label
 
 /**
  * This screen with [carried] added once: right after the notice, or right after the title when

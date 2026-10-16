@@ -59,6 +59,26 @@ class HistoryNoticeCarryTest {
     }
 
     @Test
+    fun `a screen with only the carried notice reports a notice`() {
+        val s = screenOf(listOf(title(), Label(CARRIED_NOTICE_ID, HistoryTexts.NOTICE_LIST_FAILED, TypeRole.BODY, PaletteSlot.TEXT)))
+        assertEquals(
+            "history: a screen with only the carried notice did not report it",
+            HistoryTexts.NOTICE_LIST_FAILED,
+            s.noticeLabel()?.text,
+        )
+    }
+
+    @Test
+    fun `noticeLabel answers the primary notice when the screen holds both`() {
+        val s = screenOf(listOf(title(), notice(HistoryTexts.NOTICE_COPIED), Label(CARRIED_NOTICE_ID, HistoryTexts.NOTICE_LIST_FAILED, TypeRole.BODY, PaletteSlot.TEXT)))
+        assertEquals(
+            "history: noticeLabel should return the primary notice first",
+            HistoryTexts.NOTICE_COPIED,
+            s.noticeLabel()?.text,
+        )
+    }
+
+    @Test
     fun `noticeLabel finds the notice label and returns null without one`() {
         assertEquals(
             "history: noticeLabel did not find the notice label",

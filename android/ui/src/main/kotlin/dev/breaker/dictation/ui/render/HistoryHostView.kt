@@ -10,6 +10,7 @@ import dev.breaker.dictation.ui.screen.history.Cancellation
 import dev.breaker.dictation.ui.screen.history.ClipboardSink
 import dev.breaker.dictation.ui.screen.history.DelayedWork
 import dev.breaker.dictation.ui.screen.history.HistoryScreen
+import dev.breaker.dictation.ui.screen.history.noticeLabel
 import dev.breaker.dictation.ui.screen.history.TimestampFormat
 import dev.breaker.dictation.ui.theme.PaletteSlot
 import dev.breaker.dictation.ui.theme.Theme
@@ -25,9 +26,6 @@ import kotlinx.coroutines.CoroutineDispatcher
  * AsyncHistory then carries out the pending deletes once, after the view is gone, on
  * the serial dispatcher.
  */
-
-/** The id of the notice node, as the history screen names it. */
-private const val NOTICE_ID = "history.notice"
 
 /**
  * A scrolling container that shows the history screen and keeps it up to date.
@@ -85,10 +83,10 @@ internal class HistoryHostView(
      * Replaces the rows with [screen], keeping the position on the screen.
      *
      * The position is read before the child goes away and asked for again afterwards.
-     * A screen that holds the notice is drawn from the top, so the notice is in sight.
+     * A screen that shows a notice - its own or the carried one - is drawn from the top, so the notice is in sight.
      */
     fun show(screen: Screen) {
-        val held = if (screen.nodes.any { it.id == NOTICE_ID }) 0 else scrollY
+        val held = if (screen.noticeLabel() != null) 0 else scrollY
         removeAllViews()
         addView(renderer.render(screen, theme, ::onIntent))
         setBackgroundColor(theme.color(PaletteSlot.BACKGROUND).argb)
