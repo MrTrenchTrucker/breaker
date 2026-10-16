@@ -2,12 +2,16 @@ package dev.breaker.dictation.stt.ondevice
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertArrayEquals
+import org.junit.Assert.fail
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.File
+import java.io.IOException
 
 /** The store members that read, write and delete the unpacked-file stamp, and the checks that must not change for it. */
 class LocalModelStoreStampTest {
@@ -38,6 +42,14 @@ class LocalModelStoreStampTest {
         },
     )
 
+    private fun differentStampOf(dir: File): UnpackedStamp = UnpackedStamp(
+        hex('c'),
+        tinyNames.map { name ->
+            val file = File(dir, name)
+            StampedFile(name, file.length() + 1, file.lastModified(), hex('d'))
+        },
+    )
+
     @Test
     fun `a written stamp is read back`() {
         val store = LocalModelStore(tmp.newFolder())
@@ -46,6 +58,41 @@ class LocalModelStoreStampTest {
         store.writeStamp("tiny", written)
         assertTrue("the stamp file is in the files folder", File(dir, UnpackedStamp.FILE_NAME).isFile)
         assertEquals(written.encode(), store.readStamp("tiny")?.encode())
+    }
+
+    @Test
+    fun `a failed move leaves the old stamp intact, says so, and leaves no temporary file`() {
+        val root = tmp.newFolder()
+        val dir = unpacked(LocalModelStore(root))
+        val written = stampOf(dir)
+        LocalModelStore(root).writeStamp("tiny", written)
+        val before = File(dir, UnpackedStamp.FILE_NAME).readBytes()
+        val store = LocalModelStore(root, beforeMove = { throw IOException("forced") })
+        try {
+            store.writeStamp("tiny", differentStampOf(dir))
+            fail("a forced move failure must reach the caller")
+        } catch (e: IOException) {
+            // the failure reaches the caller
+        }
+        val after = File(dir, UnpackedStamp.FILE_NAME).takeIf { it.isFile }
+        assertNotNull("the stamp file is still there after a failed move", after)
+        assertArrayEquals("the old stamp is byte-for-byte intact", before, after!!.readBytes())
+        assertNull("no temporary file is left behind", dir.listFiles()?.firstOrNull { it.name.endsWith(".tmp") })
+    }
+
+    @Test
+    fun `a failed write of a new stamp leaves no stamp and no temporary file`() {
+        val root = tmp.newFolder()
+        val store = LocalModelStore(root, beforeMove = { throw IOException("forced") })
+        val dir = unpacked(store)
+        try {
+            store.writeStamp("tiny", stampOf(dir))
+            fail("a forced move failure must reach the caller")
+        } catch (e: IOException) {
+            // the failure reaches the caller
+        }
+        assertFalse("no stamp is created", File(dir, UnpackedStamp.FILE_NAME).exists())
+        assertNull("no temporary file is left behind", dir.listFiles()?.firstOrNull { it.name.endsWith(".tmp") })
     }
 
     @Test
