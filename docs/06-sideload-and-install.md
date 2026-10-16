@@ -89,7 +89,7 @@
   release is available you'll get a notification: **"Breaker X.Y.Z is available —
   update?"** → tap to download and install. Your data and settings are preserved.
 - **Admins:** the first account to register is admin by default and has a
-  **force-check** button (Settings → About → Check for updates) for immediate checks.
+  **force-check** button (Home menu → About → Check for updates) for immediate checks.
 - Updates are **signed APKs** verified against the published SHA-256 before
   install — if the signature or hash doesn't match, the update is refused.
 

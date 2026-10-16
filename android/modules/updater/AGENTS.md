@@ -16,7 +16,7 @@ Daily update check + admin force-check, signed APK verify, rollback.
 **Check schedule (F20):**
 - Automatic: once per day (on app start if > 24 h since last check, plus a
   background timer). Checks `GET /v1/updates/latest.json`.
-- Force check (F21): admin-only button (Settings → About → Check for updates)
+- Force check (F21): admin-only button (Home menu → About → Check for updates)
   triggers an immediate check.
 
 **Update flow:**
@@ -32,7 +32,7 @@ Daily update check + admin force-check, signed APK verify, rollback.
 `auth-client`); non-admins see the daily check only.
 
 **Rollback (D28):** keep the previous APK after an update; a **rollback button**
-(Settings → About → Roll back) restores it if a release misbehaves.
+(Home menu → About → Roll back) restores it if a release misbehaves.
 
 ## Invariants
 - Daily check fires once per day; no network if server unreachable (silent retry).
