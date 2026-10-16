@@ -54,6 +54,15 @@ class UnpackedStampTest {
     }
 
     @Test
+    fun `text after the end line reads as no stamp, with or without its own line break or a blank line`() {
+        val text = stamp().encode()
+        assertNotNull("control: the untouched text parses", UnpackedStamp.parse(text))
+        assertNull("text after the end line, without its own line break", UnpackedStamp.parse(text + "junk"))
+        assertNull("text after the end line, with its own line break", UnpackedStamp.parse(text + "junk\n"))
+        assertNull("an extra blank line after the end line", UnpackedStamp.parse(text + "\n"))
+    }
+
+    @Test
     fun `text without the end line reads as no stamp`() {
         val torn = stamp().encode().removeSuffix("end\n")
         assertNull("a torn stamp with no end line", UnpackedStamp.parse(torn))

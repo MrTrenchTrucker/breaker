@@ -2,6 +2,8 @@ package dev.breaker.dictation.stt.ondevice
 
 import java.io.File
 import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 /**
  * Manages the on-disk layout of installed models.
@@ -31,14 +33,17 @@ import java.io.IOException
  *
  * @param remove deletes a model directory tree for [delete] and reports whether
  *   it is gone; it can be replaced so a test can make that delete fail.
- * @param discard deletes one file for [discardFailedDownload] and reports whether
- *   it is gone; the default does not remove a non-empty directory, and it can be
- *   replaced so a test can make that delete fail.
+ * @param discard deletes one file for [discardFailedDownload] and for the temporary
+ *   file of a failed [writeStamp]; the default does not remove a non-empty
+ *   directory, and it can be replaced so a test can make that delete fail.
+ * @param beforeMove runs between the temporary file's write and the atomic move of
+ *   [writeStamp]; a test can make the move fail.
  */
 class LocalModelStore(
     private val root: File,
     private val remove: (File) -> Boolean = { it.deleteRecursively() },
     private val discard: (File) -> Boolean = { it.delete() },
+    private val beforeMove: (File) -> Unit = {},
 ) {
 
     companion object {
@@ -59,6 +64,9 @@ class LocalModelStore(
 
         /** Suffix of the work directory (inside the staging directory) while a model is being unpacked. */
         const val EXTRACTING_SUFFIX: String = ".extracting"
+
+        /** Suffix of the temporary stamp file, in the same folder as the stamp. */
+        const val TEMP_SUFFIX: String = ".tmp"
 
         /**
          * Returns true when [name] is safe to use as a model id.
@@ -320,7 +328,16 @@ class LocalModelStore(
      */
     internal fun writeStamp(modelId: String, stamp: UnpackedStamp) {
         if (!isSafeName(modelId)) return
-        File(extractedDirectory(modelId), UnpackedStamp.FILE_NAME).writeText(stamp.encode())
+        val dir = extractedDirectory(modelId)
+        val temp = File(dir, UnpackedStamp.FILE_NAME + TEMP_SUFFIX)
+        try {
+            temp.writeText(stamp.encode())
+            beforeMove(temp)
+            Files.move(temp.toPath(), File(dir, UnpackedStamp.FILE_NAME).toPath(), StandardCopyOption.ATOMIC_MOVE)
+        } catch (e: IOException) {
+            discard(temp)
+            throw e
+        }
     }
 
     /**
