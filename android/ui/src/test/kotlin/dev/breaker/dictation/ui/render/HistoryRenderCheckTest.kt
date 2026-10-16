@@ -329,7 +329,7 @@ class HistoryRenderCheckTest {
         val plantedInit = code.replace("init {", "init {\n        asyncHistory.load()")
         assertTrue("history: a load planted in init was not seen", memberBody(plantedInit, "init {").orEmpty().contains("asyncHistory.load()"))
         assertTrue("history: a tap is not handed to the model", code.contains("asyncHistory.tap(intent)") && code.contains("::onIntent"))
-        val noticeLine = "val held = if (screen.nodes.any { it.id == NOTICE_ID }) 0 else scrollY"
+        val noticeLine = "val held = if (screen.noticeLabel() != null) 0 else scrollY"
         assertTrue("the notice does not send the view to the top", code.contains(noticeLine))
         assertFalse("a host with no way to the top passed", code.replace(noticeLine, "val held = scrollY").contains(noticeLine))
         assertTrue("the scroll position is not put back", code.contains("scrollTo(0, held)"))
