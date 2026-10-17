@@ -117,6 +117,28 @@ class MicCapture(
     private val bufferSamples: Int = DEFAULT_BUFFER_SAMPLES,
     /** How long [stop] waits for the threads before giving up and reporting it. */
     private val joinTimeoutMs: Long = DEFAULT_JOIN_TIMEOUT_MS,
+    /**
+     * Told once per take, when the take is over, whether it ended because [stop]
+     * was called or because the capture ended by itself (the device failed,
+     * stopped producing audio, or the frame listener threw). The argument is the
+     * failure recorded so far, or null. It is a snapshot: a failure that [stop]
+     * records afterwards is only in [failure].
+     *
+     * It runs on the dispatch thread, after the take's last frame has been
+     * delivered, so every frame of the take comes before it. Do not call [stop]
+     * from inside it: [stop] waits for the dispatch thread, which is the thread
+     * running the callback, so hop to another thread first. The callback runs
+     * inside the dispatch thread that [stop] joins, so keep it short: a slow
+     * callback can make [stop] report that the thread did not finish. A capture
+     * that ended by itself leaves the device open and the indicator lit until
+     * the caller calls [stop], so the callback must not call [start] while
+     * such a take is still owed its [stop]. A take that was replaced by a later
+     * [start] stays silent, and a start that never got as far as running threads
+     * does not call it. A throw from it is recorded in [failure] when nothing is
+     * recorded yet and is never raised to the caller. Null, the default, means
+     * nobody is told.
+     */
+    private val onTakeEnded: ((Throwable?) -> Unit)? = null,
 ) : AudioSource {
 
     init {
@@ -217,6 +239,7 @@ class MicCapture(
         stopRequested = stopRequested,
         session = session,
         failureRef = failureRef,
+        onTakeEnded = onTakeEnded,
     )
 
     /**

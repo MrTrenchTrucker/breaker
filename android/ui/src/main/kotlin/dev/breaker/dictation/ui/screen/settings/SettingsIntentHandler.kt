@@ -1,6 +1,7 @@
 package dev.breaker.dictation.ui.screen.settings
 
 import dev.breaker.dictation.core.model.AppSettings
+import dev.breaker.dictation.core.model.ThemeMode as StoredThemeMode
 import dev.breaker.dictation.core.port.SettingsStore
 import dev.breaker.dictation.ui.screen.Screen
 import dev.breaker.dictation.ui.screen.ScreenIntent
@@ -84,8 +85,13 @@ internal class SettingsIntentHandler(
         when (intent) {
             ScreenIntent.ToggleTheme -> notice = themeNotice(themes.toggle())
             ScreenIntent.UseSystemTheme -> notice = themeNotice(themes.useSystem())
+            is ScreenIntent.SetThemeMode -> notice = setThemeNotice(intent.mode)
             is ScreenIntent.SetRoutingMode -> writeSetting(intent)
             is ScreenIntent.SetSetting -> writeSetting(intent)
+            // The setup walk-through has its own screen and handler; this screen offers no such control.
+            is ScreenIntent.Setup -> notice = Notice.NOT_ACCEPTED
+            is ScreenIntent.History -> notice = Notice.NOT_ACCEPTED
+            is ScreenIntent.Home -> notice = Notice.NOT_ACCEPTED
         }
         return render()
     }
@@ -100,6 +106,17 @@ internal class SettingsIntentHandler(
         ThemeOutcome.CHANGED, ThemeOutcome.UNCHANGED -> null
         ThemeOutcome.COULD_NOT_READ -> Notice.COULD_NOT_READ
         ThemeOutcome.COULD_NOT_SAVE -> Notice.COULD_NOT_SAVE
+    }
+
+    /**
+     * Stores the scheme named [name], which must be exactly the name of one stored mode.
+     *
+     * A name that is not one of them is refused before the store is touched, as a
+     * setting the screen does not offer is.
+     */
+    private fun setThemeNotice(name: String): Notice? {
+        val mode = StoredThemeMode.entries.firstOrNull { it.name == name } ?: return Notice.NOT_ACCEPTED
+        return themeNotice(themes.set(mode))
     }
 
     /**

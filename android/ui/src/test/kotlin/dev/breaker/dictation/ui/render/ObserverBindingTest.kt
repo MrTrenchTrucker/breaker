@@ -27,6 +27,17 @@ class ObserverBindingTest {
         "fun createSettingsView(context: android.content.Context, " +
             "settings: dev.breaker.dictation.core.port.SettingsStore): android.view.View"
 
+    /** The second public declaration of the entry file, written on one line. */
+    private val ONBOARDING_SIGNATURE =
+        "fun createOnboardingView(context: android.content.Context, " +
+            "switch: BreakerSwitch, accessibilityServiceComponent: String, " +
+            "modelReady: () -> Boolean, downloadLine: () -> String?, modelDownloadMb: () -> Int, onDownloadModel: () -> Unit, settings: dev.breaker.dictation.core.port.SettingsStore): android.view.View"
+
+    /** The public declaration of the history view, written on one line. */
+    private val HISTORY_SIGNATURE =
+        "fun createHistoryView(context: android.content.Context, " +
+            "history: dev.breaker.dictation.core.port.HistoryStore): android.view.View"
+
     /** A controller over a store holding a light scheme, with the phone in light mode. */
     private class Fixture {
         val store = FakeSettingsStore(NONDEFAULT.copy(themeMode = StoredThemeMode.LIGHT))
@@ -145,18 +156,20 @@ class ObserverBindingTest {
     }
 
     @Test
-    fun `the entry file offers one declaration and it is the settings view`() {
+    fun `the entry file offers three declarations of settings view, setup view and history view`() {
         val offered = offeredDeclarations(sourceOf("SettingsEntry.kt"))
-        assertEquals("exactly one declaration may be offered to an app", 1, offered.size)
-        assertTrue("the offered declaration must be the settings view", offered.single().startsWith("fun createSettingsView("))
+        assertEquals("exactly three declarations may be offered by the entry file", 3, offered.size)
+        assertTrue("the first offered declaration must be the settings view", offered.any { it.startsWith("fun createSettingsView(") })
+        assertTrue("the second offered declaration must be the setup view", offered.any { it.startsWith("fun createOnboardingView(") })
+        assertTrue("the third offered declaration must be the history view", offered.any { it.startsWith("fun createHistoryView(") })
 
-        val control = offeredDeclarations(CONTROL_WITH_TWO_OFFERED)
-        assertEquals("the scan must catch a second offered declaration", 2, control.size)
+        val control = offeredDeclarations(CONTROL_WITH_THREE_OFFERED)
+        assertEquals("the scan must catch a third offered declaration", 3, control.size)
     }
 
     @Test
     fun `the settings view takes a context and a settings store and gives back a view`() {
-        val flattened = sourceOf("SettingsEntry.kt").replace(ANY_WHITESPACE, " ")
+        val flattened = flattenedOf(sourceOf("SettingsEntry.kt"))
         assertTrue(
             "the pinned declaration must be there with both parameter types",
             flattened.contains(ENTRY_SIGNATURE),
@@ -167,10 +180,56 @@ class ObserverBindingTest {
         )
     }
 
+    @Test
+    fun `the setup view takes a context, a switch and a component name and gives back a view`() {
+        val flattened = flattenedOf(sourceOf("SettingsEntry.kt"))
+        assertTrue(
+            "the pinned declaration must be there with all six parameter types",
+            flattened.contains(ONBOARDING_SIGNATURE),
+        )
+        assertFalse(
+            "the scan must not accept a switch parameter that has been weakened",
+            CONTROL_WEAK_SWITCH.contains(ONBOARDING_SIGNATURE),
+        )
+    }
+
+    @Test
+    fun `the history view takes a context and a history store and gives back a view`() {
+        val flattened = flattenedOf(sourceOf("SettingsEntry.kt"))
+        assertTrue(
+            "the pinned declaration must be there with both parameter types",
+            flattened.contains(HISTORY_SIGNATURE),
+        )
+        assertFalse(
+            "the scan must not accept a history parameter that has been weakened",
+            CONTROL_WEAK_HISTORY.contains(HISTORY_SIGNATURE),
+        )
+    }
+
     /** Any android or androidx type name, imported or written out. */
     private val ANDROID_TYPE = Regex("\\bandroidx?\\.[A-Za-z]")
 
     private val ANY_WHITESPACE = Regex("\\s+")
+
+    /** A comma just before a closing bracket: Kotlin's trailing comma, which says nothing about a signature. */
+    private val TRAILING_COMMA = Regex("""\s*,\s*([])}])""")
+
+    /** Whitespace just before a closing bracket, which says nothing about a signature. */
+    private val SPACE_BEFORE_BRACKET = Regex("""\s+([)\]}])""")
+
+    /** Whitespace just after an opening bracket, which says nothing about a signature. */
+    private val SPACE_AFTER_BRACKET = Regex("""([(\[{])\s+""")
+
+    /**
+     * [text] with line breaks and spacing flattened and Kotlin's trailing comma dropped,
+     * so a signature written across lines, with a comma on its last parameter, matches a
+     * pin written on one line without it.
+     */
+    private fun flattenedOf(text: String): String =
+        text.replace(ANY_WHITESPACE, " ")
+            .replace(SPACE_BEFORE_BRACKET, "$1")
+            .replace(SPACE_AFTER_BRACKET, "$1")
+            .replace(TRAILING_COMMA, "$1")
 
     /** The words that open a top level declaration, followed by the declaration itself. */
     private val DECLARATION_START =
@@ -213,12 +272,16 @@ class ObserverBindingTest {
         import android.view.View
         """.trimIndent()
 
-    /** Two declarations offered to an app, where the entry file may offer one. */
-    private val CONTROL_WITH_TWO_OFFERED =
+    /** Three declarations offered to an app, where the entry file may offer two. */
+    private val CONTROL_WITH_THREE_OFFERED =
         """
         package dev.breaker.dictation.ui
 
         fun createSettingsView(context: android.content.Context, settings: dev.breaker.dictation.core.port.SettingsStore): android.view.View {
+            return View(context)
+        }
+
+        fun createOnboardingView(context: android.content.Context, switch: BreakerSwitch, accessibilityServiceComponent: String, modelReady: () -> Boolean, downloadLine: () -> String?, modelDownloadMb: () -> Int, onDownloadModel: () -> Unit): android.view.View {
             return View(context)
         }
 
@@ -230,4 +293,13 @@ class ObserverBindingTest {
     /** A settings view that takes any object, which is not the declaration this module offers. */
     private val CONTROL_WEAK_PARAMETER =
         "fun createSettingsView(context: android.content.Context, settings: Any): android.view.View"
+
+    /** A setup view that takes any object for its switch, which is not the declaration this module offers. */
+    private val CONTROL_WEAK_SWITCH =
+        "fun createOnboardingView(context: android.content.Context, switch: Any, accessibilityServiceComponent: String, " +
+            "modelReady: () -> Boolean, downloadLine: () -> String?, modelDownloadMb: () -> Int, onDownloadModel: () -> Unit): android.view.View"
+
+    /** A history view that takes any object for its store, which is not the declaration this module offers. */
+    private val CONTROL_WEAK_HISTORY =
+        "fun createHistoryView(context: android.content.Context, history: Any): android.view.View"
 }

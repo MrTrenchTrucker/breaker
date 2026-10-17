@@ -17,8 +17,8 @@ interface NoiseSuppressor {
     /**
      * True when this suppressor actually does something.
      *
-     * The capture pipeline reports it so a take can say it was not suppressed,
-     * rather than leaving a caller to guess from the audio.
+     * The capture does not surface this on a take: which suppressor a take ran
+     * through is wiring inside the capture, not something the take reports.
      */
     val isActive: Boolean
 
@@ -39,8 +39,7 @@ interface NoiseSuppressor {
  *
  * This is what runs when the native library carries no neural suppressor. It is
  * a real object rather than a null check at the call site so the capture code
- * has one path, and so a take can report `isActive == false` instead of the
- * pipeline guessing whether it skipped a step.
+ * has one path.
  */
 object PassThroughNoiseSuppressor : NoiseSuppressor {
     override val isActive: Boolean = false

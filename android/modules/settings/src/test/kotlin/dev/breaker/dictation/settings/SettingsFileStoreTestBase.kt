@@ -13,7 +13,7 @@ import java.util.Properties
 /**
  * The on-disk contract these tests assume, in one place.
  *
- * The file is a `java.util.Properties` document keyed by the nine keys below;
+ * The file is a `java.util.Properties` document keyed by the ten keys below;
  * `api_key` is deliberately NOT among them (see `SettingsKeystoreRefTest`).
  * `Properties.store()` writes a timestamp comment first and is an unordered
  * hashtable, so nothing here compares whole-file bytes or key order.
@@ -27,9 +27,13 @@ internal const val KEY_LANGUAGE = "language"
 internal const val KEY_PRELOAD_MODEL = "preload_model"
 internal const val KEY_FORMATTING = "formatting_enabled"
 internal const val KEY_THEME_MODE = "theme_mode"
+internal const val KEY_MICROPHONE_ASKED = "microphone_asked"
 
-/** Every key a saved settings file may carry. Nothing else is allowed. */
-internal val THE_NINE_KEYS: Set<String> = setOf(
+/**
+ * Every key a saved settings file carries: the nine settings keys and the
+ * microphone prompt flag. Nothing else is allowed.
+ */
+internal val THE_TEN_KEYS: Set<String> = setOf(
     KEY_MODE,
     KEY_MODEL_SIZE,
     KEY_SERVER_URL,
@@ -39,6 +43,7 @@ internal val THE_NINE_KEYS: Set<String> = setOf(
     KEY_PRELOAD_MODEL,
     KEY_FORMATTING,
     KEY_THEME_MODE,
+    KEY_MICROPHONE_ASKED,
 )
 
 /**

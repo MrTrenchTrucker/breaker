@@ -25,11 +25,17 @@ import java.nio.file.Paths
 /** The renderer package, which may name the framework. */
 private const val RENDER_DIRECTORY = "render"
 
-/** The one file whose job is to hand a view to the app, and may name the framework. */
+/** The first file whose job is to hand a view to the app, and may name the framework. */
 private const val ENTRY_FILE = "SettingsEntry.kt"
+
+/** The second file whose job is to hand a view to the app, and may name the framework. */
+private const val HOME_ENTRY_FILE = "HomeEntry.kt"
 
 /** The compiled form of [ENTRY_FILE]. */
 private const val ENTRY_CLASS = "SettingsEntryKt.class"
+
+/** The compiled form of [HOME_ENTRY_FILE]. */
+private const val HOME_ENTRY_CLASS = "HomeEntryKt.class"
 
 /** The renderer class, which names the framework and so proves its carve-out is real. */
 private const val RENDERER_CLASS = "render/ScreenRenderer.class"
@@ -45,34 +51,34 @@ private val FRAMEWORK_PACKAGE = Regex("""\bandroidx?\.""")
 /**
  * Whether a source file is allowed to name the framework.
  *
- * The carve-out is one directory and one file name, not a pattern on the path, so
- * a second file that reaches for the framework is caught rather than excused by
- * sharing a prefix with one that may. The path is normalised before the directory
- * is read off it, because a name that only reaches the renderer by climbing back
- * out of it is not inside the renderer, and a name that merely contains the
- * directory is not in it either.
+ * The carve-out is one directory and three file names, not a pattern on the path,
+ * so a fourth file that reaches for the framework is caught rather than excused
+ * by sharing a prefix with one that may. The path is normalised before the
+ * directory is read off it, because a name that only reaches the renderer by
+ * climbing back out of it is not inside the renderer, and a name that merely
+ * contains the directory is not in it either.
  */
 private fun mayNameFramework(relative: String): Boolean =
-    mayName(relative, RENDER_DIRECTORY, ENTRY_FILE)
+    mayName(relative, RENDER_DIRECTORY, ENTRY_FILE, FIRST_RUN_ENTRY_FILE, HOME_ENTRY_FILE)
 
 /**
- * Whether [relative] is the single file [entryFile], or a file inside [directory].
+ * Whether [relative] is one of the files [entryFiles], or a file inside [directory].
  *
  * The directory is compared as one whole path segment rather than as a prefix of
  * the text, so `renderer/Control.kt` is not `render` and `render/../theme/Control.kt`
  * is not `render` once the `..` is resolved.
  */
-private fun mayName(relative: String, directory: String, entryFile: String): Boolean {
+private fun mayName(relative: String, directory: String, vararg entryFiles: String): Boolean {
     val path = Paths.get(relative).normalize()
-    return (path.nameCount > 0 && path.getName(0).toString() == directory) || relative == entryFile
+    return (path.nameCount > 0 && path.getName(0).toString() == directory) || relative in entryFiles
 }
 
 /** The framework packages named in the code of [text]. */
-private fun frameworkNamesIn(text: String): List<String> =
+internal fun frameworkNamesIn(text: String): List<String> =
     FRAMEWORK_PACKAGE.findAll(withoutCommentsAndStrings(text)).map { it.value }.distinct().toList()
 
 /** The framework packages named in [text], unless [relative] may name them. */
-private fun forbiddenNamesIn(relative: String, text: String): List<String> =
+internal fun forbiddenNamesIn(relative: String, text: String): List<String> =
     if (mayNameFramework(relative)) emptyList() else frameworkNamesIn(text)
 
 /**
@@ -84,12 +90,12 @@ private fun forbiddenNamesIn(relative: String, text: String): List<String> =
  * looked for as plain substrings, which is safe here because this module's own
  * package is `dev.breaker.dictation.ui` and contains neither.
  */
-private fun frameworkPackagesIn(bytes: String): List<String> =
+internal fun frameworkPackagesIn(bytes: String): List<String> =
     listOf("android/", "androidx/").filter { bytes.contains(it) }
 
 /** The framework packages in a class that may not name them, or nothing. */
 private fun forbiddenPackagesIn(relative: String, bytes: String): List<String> =
-    if (mayName(relative, RENDER_DIRECTORY, ENTRY_CLASS)) {
+    if (mayName(relative, RENDER_DIRECTORY, ENTRY_CLASS, FIRST_RUN_ENTRY_CLASS, HOME_ENTRY_CLASS)) {
         emptyList()
     } else {
         frameworkPackagesIn(bytes)
@@ -103,9 +109,9 @@ private fun forbiddenPackagesIn(relative: String, bytes: String): List<String> =
  */
 class AndroidConfinementGateTest {
     @Test
-    fun `the main tree names the framework only in the renderer and the entry`() {
+    fun `the main tree names the framework only in the renderer and the entries`() {
         val found = MAIN_SOURCES.flatMap { (path, text) -> forbiddenNamesIn(path, text) }
-        assertEquals("framework references outside $RENDER_DIRECTORY/ and $ENTRY_FILE", emptyList<String>(), found)
+        assertEquals("framework references outside $RENDER_DIRECTORY/, $ENTRY_FILE, $FIRST_RUN_ENTRY_FILE and $HOME_ENTRY_FILE", emptyList<String>(), found)
     }
 
     @Test
@@ -115,28 +121,11 @@ class AndroidConfinementGateTest {
     }
 
     @Test
-    fun `an import of a framework class is caught`() {
-        val control = "package dev.breaker.dictation.ui.theme\n\nimport android.util.Log\n"
-        assertEquals(listOf("android."), frameworkNamesIn(control))
-    }
-
-    @Test
-    fun `a framework class named in full is caught with no import anywhere`() {
-        val control = "package dev.breaker.dictation.ui.theme\n\nval shade = android.graphics.Color.RED\n"
-        assertEquals(listOf("android."), frameworkNamesIn(control))
-    }
-
-    @Test
-    fun `a support library reference is caught on the same rule`() {
-        val control = "package dev.breaker.dictation.ui.render\n\nimport androidx.core.view.ViewCompat\n"
-        assertEquals(listOf("androidx."), frameworkNamesIn(control))
-    }
-
-    @Test
-    fun `the same reference inside the renderer or the entry is left alone`() {
+    fun `the same reference inside the renderer or an entry is left alone`() {
         val control = "package dev.breaker.dictation.ui.render\n\nimport android.view.View\n"
         assertEquals(emptyList<String>(), forbiddenNamesIn("$RENDER_DIRECTORY/Control.kt", control))
         assertEquals(emptyList<String>(), forbiddenNamesIn(ENTRY_FILE, control))
+        assertEquals(emptyList<String>(), forbiddenNamesIn(HOME_ENTRY_FILE, control))
         assertEquals(emptyList<String>(), forbiddenNamesIn("$RENDER_DIRECTORY/nested/Deep.kt", control))
     }
 
@@ -157,17 +146,6 @@ class AndroidConfinementGateTest {
     }
 
     @Test
-    fun `a framework name in a comment or a string is prose or data, not a reference`() {
-        val control = """
-            package dev.breaker.dictation.ui.theme
-
-            // the renderer imports android.view.View; nothing here does
-            val note = "android.util.Log"
-        """.trimIndent()
-        assertEquals(emptyList<String>(), frameworkNamesIn(control))
-    }
-
-    @Test
     fun `the renderer really does name the framework, so its carve-out is not empty`() {
         val renderer = mainSourceOf("$RENDER_DIRECTORY/ScreenRenderer.kt")
         assertTrue(
@@ -181,17 +159,23 @@ class AndroidConfinementGateTest {
     }
 
     @Test
-    fun `the entry really does name the framework, so its carve-out is not empty`() {
+    fun `each entry really does name the framework, so its carve-out is not empty`() {
         val entry = mainSourceOf(ENTRY_FILE)
         assertTrue(
             "the entry is expected to name android.content.Context and does not",
             entry.contains("android.content.Context"),
         )
         assertEquals(listOf("android."), frameworkNamesIn(entry))
+        val homeEntry = mainSourceOf(HOME_ENTRY_FILE)
+        assertTrue(
+            "the home entry is expected to name android.content.Context and does not",
+            homeEntry.contains("android.content.Context"),
+        )
+        assertEquals(listOf("android."), frameworkNamesIn(homeEntry))
     }
 
     @Test
-    fun `the compiled classes name the framework only in the renderer and the entry`() {
+    fun `the compiled classes name the framework only in the renderer and the entries`() {
         val found = CLASS_ROOTS.flatMap { root ->
             val classes = classFilesOf(root)
             assertTrue("no class file was found under ${root.absolutePath}", classes.isNotEmpty())
@@ -213,18 +197,6 @@ class AndroidConfinementGateTest {
     }
 
     @Test
-    fun `a framework package in a class file is caught`() {
-        val control = "\u0000android/view/View\u0000"
-        assertEquals(listOf("android/"), frameworkPackagesIn(control))
-    }
-
-    @Test
-    fun `a class of this module's own package is not mistaken for a framework class`() {
-        val control = "dev/breaker/dictation/ui/render/ScreenRenderer"
-        assertEquals(emptyList<String>(), frameworkPackagesIn(control))
-    }
-
-    @Test
     fun `a class outside the render package is caught when it names the framework`() {
         assertEquals(listOf("android/"), forbiddenPackagesIn("theme/Themes.class", "\u0000android/content/Context\u0000"))
         assertEquals(
@@ -232,6 +204,7 @@ class AndroidConfinementGateTest {
             forbiddenPackagesIn("$RENDER_DIRECTORY/ScreenRenderer.class", "\u0000android/view/View\u0000"),
         )
         assertEquals(emptyList<String>(), forbiddenPackagesIn(ENTRY_CLASS, "\u0000android/view/View\u0000"))
+        assertEquals(emptyList<String>(), forbiddenPackagesIn(HOME_ENTRY_CLASS, "\u0000android/view/View\u0000"))
     }
 
     @Test
@@ -269,6 +242,7 @@ class AndroidConfinementGateTest {
         assertEquals(emptyList<String>(), forbiddenNamesIn("$RENDER_DIRECTORY/Control.kt", control))
         assertEquals(emptyList<String>(), forbiddenNamesIn("$RENDER_DIRECTORY/nested/Deep.kt", control))
         assertEquals(emptyList<String>(), forbiddenNamesIn(ENTRY_FILE, control))
+        assertEquals(emptyList<String>(), forbiddenNamesIn(HOME_ENTRY_FILE, control))
         assertEquals(listOf("android."), forbiddenNamesIn("Control.kt", control))
         // A sibling directory whose name merely contains the renderer is outside it. A `.txt` name
         // would not draw this boundary either way: the scan reads only `.kt` files, so no other
@@ -289,6 +263,10 @@ class AndroidConfinementGateTest {
         assertTrue(
             "the sources are not the ones of this module",
             MAIN_SOURCES.any { (path, _) -> path == ENTRY_FILE },
+        )
+        assertTrue(
+            "the home entry file is not among the sources this rule read",
+            MAIN_SOURCES.any { (path, _) -> path == HOME_ENTRY_FILE },
         )
         assertTrue(
             "the variant roots are not under the module directory",

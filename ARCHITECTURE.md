@@ -70,8 +70,12 @@ admins.
 - F2. Server-first: when Local Server is reachable over ZeroTier, transcribe + format there.
 - F3. On-device fallback: when the server is unreachable, transcribe locally (with
       rule-based formatting) so dictation never stops.
-- F4. **"Breaker Breaker"** (voice phrase) OR shake → floating tile appears AND
-      **recording starts automatically**.
+- F4. **"Breaker Breaker"** (voice phrase) → floating tile appears AND
+      **recording starts automatically**. A **shake** only brings the floating tile
+      up: it never starts recording and never opens the microphone, so a bump in a
+      moving vehicle cannot start a recording. A tap on the tile starts recording.
+      A shake works from any app and with the keyboard open, and keeps working
+      whether or not the tile is on screen, for as long as dictation is switched on.
 - F5. **"And I'm Gone"** (voice phrase) OR tap tile → stop + send → commit text to
       focused field.
 - F6. If no text field is focused, or the accessibility insert is refused →
@@ -83,10 +87,18 @@ admins.
       trimmed at phrase onset).
 - F10. Settings: mode, model size, server URL/API key, voice phrases on/off,
       shake on/off, formatting on/off, tile position, language.
-- F11. On startup, the app prompts for ALL permissions it needs at once (mic,
-      sensor, overlay/foreground service, notifications) with clear explanations.
+- F11. On first open, the app shows a short welcome (its content is not fixed
+      here), then asks for each permission it needs (microphone, display over
+      other apps, notifications, accessibility service) on a screen of its
+      own that says why it is needed, with a button to grant it.
 - F12. High-power mode: the app detects Android power-saving state and prompts
-      the user to enable high-performance mode.
+      the user to enable high-performance mode. The battery-optimization
+      exemption that keeps wake listening alive while the phone sleeps is
+      explained at first start and can be revoked any time in Settings; when it
+      is off, the app says wake listening may stop while the phone sleeps. The app
+      also tells the user to set its battery use to unrestricted (the system's
+      wording differs by phone maker), because a phone can stop listening for a
+      shake in the background otherwise; shown at first start and in Settings.
 - F13. **Sync:** every transcription syncs to the server — even local-only mode —
       pushed when connectivity returns. No data loss on offline dictation.
 - F14. **Multi-user:** username/password accounts; each user's data (transcriptions,
@@ -153,10 +165,45 @@ admins.
       state — **green** = sent (copy confirmed), **orange** = server failed →
       local fallback, **red** = complete failure; the LED bar (digital
       Cobra-style segment display) fills above the floating mic while recording.
+- F37. **Microphone sharing:** when any other app or a phone call wants the
+      microphone, Breaker releases it at once, with no prompt. Wake listening
+      starts again only after the microphone has been free for 30 seconds in a
+      row; a recording is never restarted on its own. A recording cut this way
+      is transcribed, saved to history and copied to the clipboard, never typed
+      into the field (ADR-022).
+- F38. **Close the tile by dragging:** dragging the small tile shows a close
+      target (an X in a circle) near the bottom of the screen; dropping the tile on
+      it hides the tile. Dictation stays switched on, so a shake brings the tile back,
+      and "Breaker Breaker" brings it back and starts recording (F4); opening Breaker from its icon
+      shows it again. Switching dictation off stays in the notification and the app.
+- F39. **Busy cue:** from the check tap until the final outcome the tile shows
+      that the text is being processed: the ring takes a colour of its own and
+      pulses on its own rhythm; there is no spinner (ADR-024).
+- F40. **Loudness bar:** while recording, the bar above the microphone follows how
+      loud the voice is; the app works out the level from the audio it already
+      receives and passes it to the tile (ADR-024).
+- F41. **Hide without a keyboard:** the tile appears by itself when a text input
+      opens or the keyboard comes up, and hides when it goes away. A shake still
+      brings it back (F4, F38). A temporary developer setting (off, field focus,
+      keyboard visible) picks the signal and is removed before release (ADR-024).
+- F42. **Normal-looking text:** a transcript the speech engine prints entirely in
+      capitals is turned into lower case, with the capital "I" restored, before it
+      is formatted (ADR-023).
+- F43. **Say where the model comes from:** the model step and the download notice
+      state that the speech model is downloaded from GitHub, the public page of the
+      speech library makers, that the Local Server is not used, and that the file is
+      checked before use; the size shown comes from the registry (ADR-025).
+- F44. **App menu:** the app opens on Home. A menu button (three lines) at the top
+      left of Home opens a menu with Settings, History, How it works and About;
+      each one opens as a screen of its own, and Back returns to Home. Settings
+      holds only settings, including the speech model download; the first-run
+      walk-through is not repeated inside it, and History is reached from the
+      menu, not from Settings.
 
 **Non-functional**
 - N1. Dictation starts < 1 s after wake phrase (models preloaded where possible).
-- N2. No telemetry; the only network calls are to Local Server.
+- N2. No telemetry; the app's network calls are to the Local Server and, once per
+      model, the speech-model download from GitHub (F43, N3).
 - N3. Model files **pinned to immutable release-asset ids** and verified against
       upstream's published checksum.txt (SHA-256) before use [2].
 - N4. Battery-friendly: sensor + overlay listeners idle when not dictating.
@@ -246,8 +293,9 @@ Android SDK. **Gradle distribution SHA-256 pinned** (Security Review fix #4) [1]
 **Layering (hexagonal):** `core` (pure Kotlin ports + use cases, no Android
 imports) · `ui` (views) · `modules/*` (adapters).
 
-**Threading:** ASR inference is blocking → it runs on a single-threaded coroutine
-dispatcher, never the UI thread (`AGENTS.md` section 6). Audio capture on a separate high-priority thread.
+**Threading:** ASR inference is blocking → it runs one decode at a time on a single-slot
+coroutine dispatcher, never the UI thread (`AGENTS.md` section 6). Audio capture runs on its own
+thread at default priority, and a second thread hands the frames to their consumer.
 
 ## 5. On-Device STT Engine (fallback)
 
@@ -340,7 +388,11 @@ routes it, so no audio waits on a probe and none is dropped (ADR-002).
 ## 8. Gesture, Voice Phrases & Overlay
 
 **Gesture (shake-to-wake):** `SensorManager` accelerometer; shake = high-pass
-filtered magnitude threshold crossings in a 500 ms window.
+filtered magnitude threshold crossings in a 500 ms window. The detector stays
+registered for as long as dictation is switched on, whatever the tile shows and
+whether or not the keyboard is up; a detection always means "show the tile" and never begins a recording (F4). Only
+switching dictation off, or the system stopping the app in the background (F12),
+ends it.
 
 **Voice phrases (CB slang):**
 - **v1 mechanism — streaming on-device ASR + phrase matching.** sherpa-onnx ASR in
@@ -350,13 +402,28 @@ filtered magnitude threshold crossings in a 500 ms window.
   container fine-tunes a small KWS model from the user's own recordings.
 - "Breaker Breaker" (idle) → tile + auto-record (F4). "And I'm Gone" (recording)
   → stop + **trim audio at phrase onset** (F9) + dispatch (F5).
-- **Permissions (F11):** mic, sensor, overlay, notifications requested
-  together at first startup. The accessibility service isn't part of that
-  runtime prompt — it has no system dialog to request; onboarding leads the
+- **Wake listening:** while Breaker is armed, the microphone stays open for the
+  word stream only, so the wake phrase can be heard; nothing is stored or sent
+  until the wake phrase starts a normal recording. A Settings switch turns wake
+  listening off (the send phrase is unaffected). Android shows its microphone
+  indicator the whole time (ADR-022, amended 2026-10-09).
+- **Microphone sharing (F37):** Breaker never competes for the microphone. When
+  any other app or a phone call wants it, Breaker releases it at once, with no
+  prompt and no retry while it is in use. Wake listening comes back only after
+  the microphone has been free for 30 seconds in a row (the count restarts if
+  it is taken again). A recording is never restarted on its own; a recording
+  cut this way is ended, not cancelled: what was captured is transcribed, saved
+  to history and copied to the clipboard, never typed into the field.
+- **Permissions (F11):** after the welcome, one screen per permission:
+  microphone, overlay, notifications and the accessibility service. The
+  accessibility service has no system dialog to request; its screen leads the
   user to its Settings toggle instead (ADR-022). **High-power mode (F12):**
   verify power-saving off.
+- **Screens (F44):** Home (on/off card, big mic, last transcript), plus Settings,
+  History, How it works and About, each its own screen opened from the Home
+  menu; Back from any of them returns to Home.
 
-**Overlay (floating tile):** `WindowManager` + `TYPE_APPLICATION_OVERLAY` with `FLAG_NOT_FOCUSABLE` (Android 11+). Tile is **tap-only**; tapping it starts dictation in place, on the tile — no Activity opens, so the app the user is typing in keeps focus and the user's own keyboard stays up (ADR-022). The tile IS the **CB mic glyph** — tap to talk. While recording, a digital Cobra-style **LED bar meter** fills directly above it, with a small cancel control; tap again (or the send phrase) to send (F36). Permission set: `SYSTEM_ALERT_WINDOW` (tile), mic, internet, foreground service, notifications (F11), plus the accessibility service — a Settings toggle onboarding leads the user to, not a runtime prompt (ADR-022) [1].
+**Overlay (floating tile):** `WindowManager` + `TYPE_APPLICATION_OVERLAY` with `FLAG_NOT_FOCUSABLE` (Android 11+). Tile has no long press: a tap starts dictation, a drag moves the tile or hides it (F38); tapping it starts dictation in place, on the tile — no Activity opens, so the app the user is typing in keeps focus and the user's own keyboard stays up (ADR-022). The tile IS the **CB mic glyph** — tap to talk. While recording, a digital Cobra-style **LED bar meter** fills directly above it, with a small cancel control; tap again (or the send phrase) to send (F36). A notice on the tile (a sentence from the app, such as a missing speech model) widens it for a moment: it collapses back to the small tile on its own after 4 seconds, and a tap anywhere on it collapses it at once; the timer is the app's, the tile has no clock. Dragging the small tile shows the close target (F38). After the check tap the tile shows a busy cue until the outcome (F39), the LED bar follows the voice level (F40), and the tile may hide while no text input is in use (F41, ADR-024). Permission set: `SYSTEM_ALERT_WINDOW` (tile), mic, internet, foreground service, notifications (F11), plus the accessibility service — a Settings toggle onboarding leads the user to, not a runtime prompt (ADR-022) [1].
 
 ## 9. Formatting
 
@@ -456,7 +523,7 @@ enforced server-side** (N13) — never trust client-side scoping.
 
 **Roles (F22):** two roles — `admin` and `user`. The **first account to register**
 is **admin by default**. Admins can: assign/revoke admin on other accounts,
-trigger an immediate update check on their own device (Settings → About → Check for updates — the same daily-poll endpoint, called on demand; this is not a push to other users' devices), and see server health. Users have
+trigger an immediate update check on their own device (Home menu → About → Check for updates — the same daily-poll endpoint, called on demand; this is not a push to other users' devices), and see server health. Users have
 isolated data and no admin powers. Roles are stored server-side and enforced by
 the API (N13).
 
@@ -629,9 +696,11 @@ This is Security Review fix #2 done right: the broken updater (pointed at the or
 author's releases, plaintext signing key) is deleted [1], and the new one points
 at OUR server with the signing key stored securely (never in git) [1].
 
-**Model hosting (F30):** the web-fe also serves the on-device model + checksums
-(licensing permitting) so the phone downloads it from the Breaker container
-instead of upstream — consistent with "treat every .onnx as untrusted" [2].
+**Model hosting (F30, planned, not built):** the web-fe may later serve the
+on-device model + checksums (licensing permitting) so the phone downloads it from
+the Breaker container instead of upstream. Until then the phone downloads it from
+GitHub and treats it as untrusted until checked (F43, ADR-025, [2]); moving the
+host changes the model registry and ADR-025 together.
 **Update rollback (D28):** the updater keeps the previous APK; a rollback button
 restores it if a release misbehaves.
 
@@ -776,8 +845,8 @@ See `docs/04-build-order.md`. Summary:
 - D8. Voice control = two phrases in v1 (streaming ASR + phrase matching);
       per-user trained KWS model as upgrade path.
 - D9. Wake phrase = "Breaker Breaker" (CB pairing; low false-positive risk).
-- D10. Permissions + power explicit: all permissions at startup (F11); high-power
-      mode verified (F12).
+- D10. Permissions + power explicit: every permission explained and asked for
+      at first start (F11); high-power mode verified (F12).
 - D11. **Sync = offline-first queue, idempotent push** — no data loss, even in
       local-only mode.
 - D12. **Training = server-side container** (phone records, server trains).
@@ -836,7 +905,7 @@ See `docs/04-build-order.md`. Summary:
 
 **Risks:**
 - R1. Overlay focus limits on newer Android (tile is tap-only by design).
-- R2. Sensor permission denied (fallback: always-visible tile).
+- R2. Shake sensor missing or stopped by the system (fallback: always-visible tile).
 - R3. On-device model accuracy vs speed (S25 Ultra 16 GB → small/medium fine).
 - R4. ZeroTier flakiness on mobile networks (probe TTL + auto-fallback).
 - R5. Accessibility-service permission UX friction, including the Android 13+

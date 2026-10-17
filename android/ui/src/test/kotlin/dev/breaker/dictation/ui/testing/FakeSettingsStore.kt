@@ -28,6 +28,7 @@ internal val NONDEFAULT: AppSettings = AppSettings(
     preloadModel = false,
     formattingEnabled = false,
     themeMode = ThemeMode.LIGHT,
+    microphoneAsked = true,
 )
 
 /**

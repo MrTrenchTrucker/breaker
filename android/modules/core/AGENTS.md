@@ -28,6 +28,15 @@ modules implement, and the use cases that run a dictation.
   `PhraseEvent`. Core pins its half of this: given an offset the capture is cut there, and
   no offset keeps it whole.
 - `PhraseTraining` — `recordSample`, `upload`, `downloadModel`
+- `WordStream` — `isRunning`, `start(onUpdate)`, `stop()`; the callback gets a
+  `WordUpdate` (the words heard since the last endpoint, `final` set when the
+  recogniser closed that utterance). Start while running is a no-op: the first
+  callback stays and no second stream starts. Stop is safe when stopped.
+  Calls arrive one at a time and in order, possibly on different threads, and none arrives
+  after `stop()` returns. Each call happens-before the next, so everything one call wrote is
+  seen by the next; the adapter's single-slot dispatcher gives that ordering.
+  Word times are capture-relative (see `HeardWord`). An adapter in another module
+  implements it, and the app wires it.
 - `AuthService` — `register`, `login`, `logout`, `currentSession`
 - `CryptoService` — `unwrapDek`, `encrypt`, `decrypt`, `toEncryptedText`
 - `KeyDerivation` — `deriveKeys(password, salt, kdfParams)`: derives the
@@ -46,7 +55,8 @@ modules implement, and the use cases that run a dictation.
   (IDLE|ARMED|RECORDING|TRANSCRIBING|SENDING|ERROR), and `DictationResult` (Success|Failure)
 - `AppSettings(mode: AUTO|LOCAL|SERVER, modelSize, serverUrl, apiKeyRef,
   wakeGestureEnabled, tilePosition, language, preloadModel, formattingEnabled,
-  themeMode: SYSTEM|LIGHT|DARK)`, `SttMode`, `ThemeMode`, `TilePosition`
+  themeMode: SYSTEM|LIGHT|DARK, microphoneAsked)`, `SttMode`, `ThemeMode`, `TilePosition`
+  `microphoneAsked` is bookkeeping: whether the system microphone prompt was shown once. It is not a user setting.
 - `SttRequest`, `SttResult`, `SttSegment`, `AudioFormat` (16 kHz, one channel), and
   `SttError(LOCAL_MODEL_MISSING, SERVER_UNREACHABLE, TIMEOUT, OTHER)`
 - `CommitRequest` (never empty) and `CommitOutcome(COMMITTED|COPIED|FAILED)`
@@ -66,6 +76,14 @@ modules implement, and the use cases that run a dictation.
   IllegalArgumentException that carries one
 - `PhraseKind`, `PhraseEvent(Wake|Send(trimBeforeMs))`, `PhraseModel`, `PhraseSample`,
   `TrainedPhraseModel`
+- `HeardWord(text, startMs)` and `WordUpdate(words, final)`: a heard word refuses
+  blank text and a negative `startMs`. `startMs` is milliseconds from the start of
+  the ACTIVE capture, counted from the decoded sample count on the 16 kHz grid and
+  rounded down, never a wall clock; the source owns that origin and resets it when
+  a capture starts, and a word has no null time. `WordUpdate` keeps a copy of the
+  list it is built from and is built through its companion `invoke`; an empty list
+  is a valid hypothesis. Both are data classes; their `toString` prints counts,
+  `final` and times, never the text.
 - `AuthSession`, `UserRole`, `TokenScope`
 - `SyncState`, `SyncReport`
 - `ReleaseInfo`, `UpdateCheckResult`
@@ -82,8 +100,10 @@ modules implement, and the use cases that run a dictation.
   is new and required, with no default, so a caller has to decide what runs on the phone.
   A move the state machine
   refuses is a wiring bug and throws; anything an adapter throws after that comes back
-  as a `DictationResult.Failure` (`SttError.OTHER`, the detail is the exception's class
-  name, never its message; an `Error` still propagates). `stopCapture` refuses a negative `trimBeforeMs` with an
+  as a `DictationResult.Failure` (`SttError.OTHER`, the detail is the one fixed sentence
+  "The speech could not be converted.", never the exception's class name or message: a
+  class name means nothing to the user and a message can carry the dictated text; an
+  `Error` still propagates). `stopCapture` refuses a negative `trimBeforeMs` with an
   `IllegalArgumentException` before it stops the source or discards any audio; an offset at
   or past the end of the capture keeps the whole capture, however large. `cancel` stops the
   source, drops the buffered audio and returns an IDLE session.
@@ -116,7 +136,7 @@ where these sites record the failure and return, and it does not set the calling
 thread's interrupt flag, which is what the re-arm restores:
 - `DictateUseCase`, the adapter fold — an `InterruptedException` from the settings
   store, the probe, the WAV encoder, an engine, a formatter, the id source or the
-  clock is folded into `DictationResult.Failure(OTHER, <class>)`; the flag is
+  clock is folded into `DictationResult.Failure(OTHER, <fixed sentence>)`; the flag is
   re-armed because the interruption belongs to whatever runs next on the caller's
   thread, not to the dictation. Pinned by `DictateUseCaseAdapterFailureTest` (a
   checked exception leaves the flag clear; an `InterruptedException` restores it).
@@ -143,7 +163,7 @@ thread's interrupt flag, which is what the re-arm restores:
   An `Error` is not an adapter failure and still propagates.
 - A move (`transitionTo`, `arm`, `cancel`, ...) never carries an error or a
   transcription into a state that cannot use it.
-- A committed dictation, an empty one and a failed one are all saved to history.
+- A committed dictation, an empty one and a failed one are all saved to history; the app never sends or saves an empty take; the core saves what it is given.
 - No core type prints dictated text. The values that hold it (`Transcription`,
   `CommitRequest`, `SttSegment`, `SttResult.Success`, `DictationSession`,
   `DictationResult.Success`, `SendResult`) print ids, states and lengths, and
@@ -166,6 +186,10 @@ Domain models, ports, use cases
 ## Test Locations
 - Unit: `src/test/kotlin/dev/breaker/dictation/core/` — plain JUnit 4, run with
   `./gradlew :android:modules:core:test`
+- Word stream tests: `model/WordsTest.kt` (the two types), `port/WordStreamFakeTest.kt`
+  (the port contract on a synchronous fake), `port/PortContractTest.kt` (one additive
+  test that the port is writable against the domain) and `model/TranscriptRedactionTest.kt`
+  (both types registered in the scan). They run with the same command as above.
 - Contract: `tests/contract/test_core_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_core_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
@@ -198,3 +222,7 @@ code.
 - `DictateUseCase` has no default for `localFormatter`. The composition root passes the
   on-device formatter (a pass-through until a real one exists); it must not call out to a
   network.
+- `WordUpdate` is built through its companion `invoke`, and its generated `copy()` is
+  private, so every `WordUpdate` holds its own copy of the list.
+- `HeardWord` and `WordUpdate` print counts and times only: the hand-written `toString`
+  keeps dictated words out of logs, and `TranscriptRedactionTest` registers both types.

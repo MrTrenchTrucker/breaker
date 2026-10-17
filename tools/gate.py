@@ -206,6 +206,17 @@ def _included_projects(root):
     return projects, reasons
 
 
+def _dead_modules(root):
+    """Dead-module paths from modules.toml (status == "dead")."""
+    reg = os.path.join(root, "modules.toml")
+    if not os.path.isfile(reg):
+        return set()
+    import tomllib
+    with open(reg, "rb") as fh:
+        modules = tomllib.load(fh).get("module", {})
+    return {m["path"] for m in modules.values() if m.get("status") == "dead"}
+
+
 def _has_source(folder, exts):
     if not os.path.isdir(folder):
         return False
@@ -439,6 +450,8 @@ def run_gate(root, skip_gradle=False, max_workers=None):
     else:
         projects, inc_reasons = _included_projects(root)
         reasons.extend(inc_reasons)
+        # a dead module is never built or counted, even if include()d by mistake (that mistake is a check_repo/contract RED)
+        projects = [p for p in projects if p not in _dead_modules(root)]
         before = _snapshot_xml(root, projects)
         code, gradle_note = step_gradle(root, out, max_workers)
         if code != 0:

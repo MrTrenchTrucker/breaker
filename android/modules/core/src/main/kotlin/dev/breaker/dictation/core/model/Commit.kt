@@ -3,7 +3,7 @@ package dev.breaker.dictation.core.model
 /**
  * What happened to the text when the app tried to put it where the user wanted.
  *
- * `COMMITTED` — the text went into the focused field through the keyboard.
+ * `COMMITTED` — the text went into the focused field.
  * `COPIED` — there was no field to type into, so the text went to the
  * clipboard instead and the user was told.
  * `FAILED` — neither worked.

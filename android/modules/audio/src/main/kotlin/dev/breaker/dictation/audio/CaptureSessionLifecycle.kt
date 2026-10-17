@@ -47,7 +47,12 @@ internal class CaptureSessionLifecycle(
     private val session: AtomicLong,
     /** The owning capture's failure record. Shared, for the same reason. */
     private val failureRef: AtomicReference<Throwable?>,
+    /** Told once per take that its dispatcher finished; null when nobody listens. */
+    private val onTakeEnded: ((Throwable?) -> Unit)? = null,
 ) {
+
+    /** Close-once guard: the device is closed exactly once, whoever gets here first. */
+    private val deviceClosed = AtomicBoolean(false)
 
     /**
      * The take this lifecycle last opened, if any.
@@ -110,7 +115,9 @@ internal class CaptureSessionLifecycle(
             throw gaveUp
         }
         try {
-            markLiveAndOpen(current)
+            // A new take can close its own device once.
+            deviceClosed.set(false)
+            liveOpen.markLiveAndOpen(current)
             // The handshake, taken under the same lock stop() takes the threads
             // under: a stop that has already been through this lock is one this
             // start must not spin a session up behind, and a stop that has not is
@@ -140,7 +147,7 @@ internal class CaptureSessionLifecycle(
                 // end that take before its first frame — the mirror of the hole
                 // this closes, on the other side of the race.
                 if (session.get() == current) running.set(false)
-                closeQuietly()
+                closeDeviceOnce()
                 indicator.markRecordingStopped()
                 return
             }
@@ -157,6 +164,7 @@ internal class CaptureSessionLifecycle(
                 session = session,
                 failureRef = failureRef,
                 readBufferSamples = readBufferSamples,
+                releaseOnTaken = { c -> releaseForTaken(c) },
             )
             val dispatch = DispatchLoop(
                 frameSize = frameSize,
@@ -169,64 +177,19 @@ internal class CaptureSessionLifecycle(
                     isDaemon = true
                     start()
                 }
-                dispatchThread = Thread({ dispatch.run(mine, listener, current) }, MicCapture.DISPATCH_THREAD_NAME).apply {
+                dispatchThread = Thread({
+                    try {
+                        dispatch.run(mine, listener, current)
+                    } finally {
+                        announceTakeEnd(current)
+                    }
+                }, MicCapture.DISPATCH_THREAD_NAME).apply {
                     isDaemon = true
                     start()
                 }
             }
         } finally {
             deviceGate.unlock()
-        }
-    }
-
-    /**
-     * Mark the indicator live and open the device, as ONE guarded step.
-     *
-     * The mark goes live BEFORE the device is opened, so there is no window in
-     * which the microphone is open and the screen says nothing.
-     *
-     * Both calls are under one `try`, and that is load-bearing. The mark calls
-     * somebody else's code — on Android a view touched off the main thread
-     * throws — and a throw from it used to escape `start()` with the session
-     * flag still up and the indicator live: every later start refused as
-     * "already running" and every stop finding no session threads to join, so
-     * the capture was stuck until the process died. Under one guard a broken
-     * listener is indistinguishable, to the session, from a device that would
-     * not open, and the path below undoes the session either way.
-     */
-    private fun markLiveAndOpen(current: Long) {
-        try {
-            indicator.markRecordingStarted()
-            source.open()
-        } catch (e: Throwable) {
-            // Only while this call is still the current session: a start issued
-            // after a stop already claimed the next session and raised the flag
-            // FOR IT, and clearing it now would end that take before its first
-            // frame.
-            if (session.get() == current) running.set(false)
-            // Recorded where a caller reads it, not only thrown: capture runs on
-            // threads of its own, so an exception raised on one of them has
-            // nowhere to go, and a caller that only saw a null would believe the
-            // microphone opened cleanly. compareAndSet, so an EARLIER real
-            // failure is the one reported — a listener throwing on the way to
-            // recording must not overwrite a device failure already recorded.
-            // And under the session guard, so a straggler from a take that has
-            // been replaced cannot stamp its own failure on the next take, which
-            // reads a clean failure as its own history.
-            if (session.get() == current) failureRef.compareAndSet(null, e)
-            // The indicator is the one thing this path still owes: the mark above
-            // set it live before the listener threw, and a screen left showing
-            // "recording" for a microphone nobody holds is the exact abuse the
-            // indicator exists to prevent. A throw from the way DOWN is attached
-            // to the one already on its way out rather than replacing it — the
-            // caller still learns the original cause, and the second is not lost
-            // either.
-            try {
-                indicator.markRecordingStopped()
-            } catch (down: Throwable) {
-                e.addSuppressed(down)
-            }
-            throw e
         }
     }
 
@@ -342,7 +305,7 @@ internal class CaptureSessionLifecycle(
                 running.set(false)
                 return
             }
-            closeQuietly()
+            closeDeviceOnce()
 
             // Giving up here is legitimate: a listener that blocks past the
             // timeout leaves its dispatcher running, and that dispatcher is
@@ -412,11 +375,37 @@ internal class CaptureSessionLifecycle(
         false
     }
 
-    private fun closeQuietly() {
+    /** Close the device once, whoever gets here first. */
+    private fun closeDeviceOnce() {
+        if (deviceClosed.compareAndSet(false, true)) {
+            try { source.close() } catch (e: Throwable) { failureRef.compareAndSet(null, e) }
+        }
+    }
+
+    /**
+     * Release the device at once because another app or a call took the microphone.
+     * Runs on the capture thread, for the taken reason only. Safe to race stop():
+     * the close is guarded once and the indicator mark is idempotent, so a later
+     * stop() and a caller's own close are both no-ops.
+     */
+    fun releaseForTaken(current: Long) {
+        if (session.get() != current) return
+        closeDeviceOnce()
+        indicator.markRecordingStopped()
+    }
+
+    /**
+     * Tells the end callback this take is over, on the dispatch thread after the
+     * take's last frame. A replaced take stays silent. The callback is somebody
+     * else's code, so a throw is recorded and never raised.
+     */
+    private fun announceTakeEnd(current: Long) {
+        val end = onTakeEnded ?: return
+        if (session.get() != current) return
         try {
-            source.close()
+            end(failureRef.get())
         } catch (e: Throwable) {
-            failureRef.compareAndSet(null, e)
+            if (session.get() == current) failureRef.compareAndSet(null, e)
         }
     }
 
@@ -488,6 +477,8 @@ internal class CaptureSessionLifecycle(
 
     /** Serialises taking the session threads, so only one stop() tears down. */
     private val teardownLock = Any()
+
+    private val liveOpen = IndicatorLiveOpen(indicator, source, running, session, failureRef)
 
     private companion object {
         private const val READ_BUFFER_MULTIPLIER = 4

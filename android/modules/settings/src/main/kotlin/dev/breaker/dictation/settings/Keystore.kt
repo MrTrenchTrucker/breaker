@@ -3,7 +3,7 @@ package dev.breaker.dictation.settings
 /**
  * The port that owns the credential *reference* the settings point at.
  *
- * A settings file holds nine plain values and no `api_key` key, so the
+ * A settings file holds ten plain values and no `api_key` key, so the
  * reference has to live somewhere else — here. That is what this port is for
  * here and now: [setActiveRef] and [activeRef] are how a reference survives a
  * restart, and no file is involved on either side of that. [activeRef] is asked
@@ -16,7 +16,9 @@ package dev.breaker.dictation.settings
  * [SettingsFileStore.save] calls [setActiveRef] *after* the file has been
  * written and closed, so a save that throws cannot leave the port advertising a
  * reference that was never stored — `SettingsWriteFailureTest` proves both the
- * propagation and the ordering.
+ * propagation and the ordering. If [setActiveRef] itself throws, [SettingsFileStore.save]
+ * puts the previous reference back when the port changed it, and the exception still
+ * propagates.
  *
  * **This port cannot receive or return a secret.** There is no method here that
  * takes one or hands one back; only a reference moves through it. The component
@@ -47,6 +49,9 @@ interface Keystore {
      * carries it, so a store that forgot to call this would drop the
      * credential pointer on every save — `SettingsKeystoreRefTest` is the
      * proof that the call happens and that a null really does clear.
+     *
+     * A call that throws should leave the reference as it was; if it did not, the
+     * store puts the previous one back.
      */
     fun setActiveRef(ref: String?)
 

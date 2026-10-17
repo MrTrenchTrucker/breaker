@@ -27,7 +27,18 @@ this repo without being told by a person first.
    ever passes proves nothing.
 5. **Registry and tree must agree.** Every entry in `modules.toml` has a real
    folder with `AGENTS.md` + `README.md`; every parent README names its
-   sub-modules. Run `tools/check_repo.py` after any structural change.
+   sub-modules. Run `tools/check_repo.py` after any structural change. A
+   module may also be `status = "dead"` in `modules.toml`: it keeps its
+   folder, card, README and a non-empty `DEAD_CODE.md`, is NOT `include()`d
+   in `settings.gradle.kts`, and no module — live or dead — lists it in
+   `depends_on` or carries a `project()` edge to it. A dead module's
+   `build.gradle.kts` is neither required nor forbidden; the include list is
+   the boundary between registered and built, and it is checked in both
+   `tools/check_repo.py` and the contract tests. A sub-module is named in
+   the README of its nearest ancestor folder that carries a `**Sub-modules:**`
+   line — a nested module is named in its direct parent's README, not the
+   top-level one. Revival is two tool-checked edits: remove the `status`
+   line and add the `include()` line.
 6. **Security gates are load-bearing.** The forked base app is not on `main`
    yet and has not passed its build and smoke test [1][2]. Modules may be
    built, reviewed and merged before the gates are signed off; the gates
@@ -60,7 +71,7 @@ These hold in every module, every session, every lane.
 - Before you add or bump any version, run `sh tools/latest.sh` and paste its line. Do not write a version from memory. Your memory is a snapshot from before the newest release; the registry is not.
   - A library the script does not cover: `curl -s https://repo1.maven.org/maven2/<group path>/<artifact>/maven-metadata.xml` (AndroidX: `https://dl.google.com/dl/android/maven2/<group path>/<artifact>/maven-metadata.xml`). Take the highest `<version>` with no `alpha`, `beta`, `rc`. Then add that library to `tools/latest.sh` in the same PR, so the next worker does not have to know this.
 - Every version in `gradle/libs.versions.toml` has `# read YYYY-MM-DD from <url>` beside it. A pin with no date and URL is a pin from memory; the reviewer sends it back.
-- Use `kotlinx.coroutines` for every concurrent thing. Do not use `Thread`, `synchronized`, `CountDownLatch`, `AtomicReference`, or `Thread.sleep`.
+- Use `kotlinx.coroutines` for every concurrent thing. Do not use `Thread`, `synchronized`, `CountDownLatch`, or `Thread.sleep`. The `java.util.concurrent.atomic` types (`AtomicBoolean`, `AtomicInteger`, `AtomicLong`, `AtomicReference`) are fine for one shared value read and written from more than one thread or coroutine, such as a flag, a counter or a compare-and-set hand-off (the kotlinx.coroutines guide recommends them for shared mutable state); never use one as a lock or to wait (no spin or busy loops).
 - A module may keep a raw `Thread`, a lock, or `Thread.sleep` where a coroutines primitive cannot reproduce something the module genuinely needs: a dedicated OS thread's priority, a timed or reentrant lock that must not throw where the design records a failure and returns, or a cancellation path that depends on being interrupt-driven rather than exception-driven. State the specific reason next to the site; "this is simpler" and "this is how it was written" are not reasons. A module does not get this by default: it argues each site, as the audio module's card does.
 - A test waits on a signal. A test never waits on a clock.
 - Every test, and the code it tests, must pass on a weak machine (one core, one thread, little memory, like a busy hosted CI runner) and also when the tests run in parallel on many cores. So: a timeout is only a generous safety net, never the thing being measured; no test depends on the number of cores, on thread scheduling order, or on which other test classes ran before it; any shared state between test classes is reset, and the reset is proven; production code never assumes a second core is free. A test that passes on one of those machines and fails on the other has found a defect, not a flake. Reviewers run each module's tests both ways: once limited to one core (`--max-workers=1` in a container with one CPU and about 2 GB of memory) and once with the normal parallel settings.
@@ -77,12 +88,16 @@ recommended, not required (`.github/CONTRIBUTING.md`).
   `AGENTS.md` and `README.md`, and every ADR they cite, before planning.
 - Look over the job and read the work order first, then write one plan file
   per sub-agent: what to build, what to read, the tests that must fail first,
-  and a checklist of "done". The sub-agent reads it first and ticks each item
-  as it finishes it; the owner checks the result against it.
+  and a checklist of "done". Before changing any file, the sub-agent proves
+  its reading with an exact quote from each file and signs a reading
+  certificate; it ticks each item as it finishes it. Only the sub-agent marks
+  its plan file: a tick or signature the owner writes for it is void. The
+  owner checks the result against it
+  (`agent-skills/shared/subagent-plan-file/SKILL.md`).
 - Sub-agents write the code. The owner plans and verifies, sends wrong work
   back down, and makes no edit larger than one line itself.
 - A whole-module owner plans at the module level; its sub-agents work at the
-  sub-module level. Sub-agents run on Claude Sonnet (an agent on another
-  harness uses its configured sub-agent model).
+  sub-module level. Sub-agents run on whatever sub-agent model the
+  maintainers configure for their harness.
 - Reviews judge the code: correct, tested work is not rejected for how it was
   written; the review records it and reminds the owner of the method.

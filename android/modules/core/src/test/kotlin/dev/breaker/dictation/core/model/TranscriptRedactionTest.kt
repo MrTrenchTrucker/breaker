@@ -87,6 +87,22 @@ class TranscriptRedactionTest {
     }
 
     @Test
+    fun `a heard word prints its length and start but not its text`() {
+        val word = HeardWord(secret, 120L)
+        assertEquals("the secret must really be in the value", secret, word.text)
+
+        assertRedacted("HeardWord", word, "${secret.length} chars", "startMs=120")
+    }
+
+    @Test
+    fun `a word update prints its word count and final flag but not the words`() {
+        val update = WordUpdate(listOf(HeardWord(segmentSecret, 0L), HeardWord(secret, 500L)), true)
+        assertEquals("the secret must really be in the value", secret, update.words[1].text)
+
+        assertRedacted("WordUpdate", update, "2 words", "final=true")
+    }
+
+    @Test
     fun `a session that carries a transcription prints its state but not the text`() {
         val session = sessionCarrying()
         assertEquals("the secret must really be in the value", secret, session.lastTranscription?.text)
@@ -177,6 +193,8 @@ class TranscriptRedactionTest {
             "DictationSession" to (DictationSession::class.java to listOf("lastTranscription=")),
             "DictationResult.Success" to (DictationResult.Success::class.java to listOf("session=", "transcription=")),
             "SendResult" to (SendResult::class.java to listOf("session=", "outcome=")),
+            "HeardWord" to (HeardWord::class.java to listOf("text=")),
+            "WordUpdate" to (WordUpdate::class.java to listOf("words=")),
         )
         assertEquals("this table must cover exactly the types that override toString", overridesToString, labelsOfTheHoldingProperty.keys)
 
@@ -202,6 +220,8 @@ class TranscriptRedactionTest {
         "DictationSession",
         "DictationResult.Success",
         "SendResult",
+        "HeardWord",
+        "WordUpdate",
     )
 
     /**

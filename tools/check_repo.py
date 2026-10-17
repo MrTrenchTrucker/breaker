@@ -38,6 +38,61 @@ def _sub_modules_named_in(readme_text):
     return None
 
 
+# --- Gradle / build-file helpers -----------------------------------------
+
+def _gradle_path(path):
+    # Convert a filesystem module path (":a:b") via "/".replace(":").
+    return ":" + path.replace("/", ":")
+
+
+def _settings_includes():
+    """Set of project paths declared with include(":a:b") in settings.gradle.kts.
+
+    Empty set when the file is absent (never crash on a tree without Gradle).
+    """
+    try:
+        text = open(os.path.join(ROOT, "settings.gradle.kts"), encoding="utf-8").read()
+    except FileNotFoundError:
+        return set()
+    return set(re.findall(r'include\("(:[^"]+)"\)', text))
+
+
+def _project_deps(rel):
+    """Set of project(":a:b") dependencies declared in one build.gradle.kts.
+
+    Empty set when the file is absent.
+    """
+    try:
+        text = open(os.path.join(ROOT, rel), encoding="utf-8").read()
+    except FileNotFoundError:
+        return set()
+    return set(re.findall(r'project\("(:[^"]+)"\)', text))
+
+
+def _all_build_files():
+    """Every build.gradle.kts reachable from the repo root, as a relative path."""
+    found = []
+    for _, dirs, files in os.walk(ROOT):
+        if "build.gradle.kts" in files:
+            rel = os.path.relpath(os.path.join(_, "build.gradle.kts"), ROOT)
+            found.append(rel)
+    return sorted(found)
+
+
+def _naming_home(path):
+    # nearest ancestor folder (from dirname(P) up to ROOT) with a README that has a Sub-modules line
+    d = os.path.dirname(path)
+    while True:
+        readme = os.path.join(ROOT, d, "README.md") if d != "." else os.path.join(ROOT, "README.md")
+        if os.path.isfile(readme):
+            text = open(readme, encoding="utf-8").read()
+            if _sub_modules_named_in(text) is not None:   # has a **Sub-modules:** line
+                return d
+        if d == "." or d == "":
+            return None   # no ancestor carries a Sub-modules list
+        d = os.path.dirname(d)
+
+
 def main():
     with open(os.path.join(ROOT, "modules.toml"), "rb") as f:
         reg = tomllib.load(f)
@@ -47,6 +102,18 @@ def main():
     if not modules:
         errors.append("modules.toml: no [module.*] entries found")
         sys.exit(1)
+
+    # status scan: register dead modules so their extra checks run below.
+    # A status other than "dead" or None is an invalid registry value.
+    dead = {}
+    for key, m in modules.items():
+        status = m.get("status")
+        if status is None:
+            continue
+        if status == "dead":
+            dead[key] = m
+        else:
+            errors.append(f"{key}: unknown status {status!r} (expected 'dead' or absent)")
 
     for key, m in modules.items():
         path = m["path"]
@@ -68,6 +135,42 @@ def main():
         for dep in m.get("depends_on", []):
             if dep not in modules:
                 errors.append(f"{key}: depends_on '{dep}' not a registered module")
+
+        # Dead-module guards: only run for modules whose registry status == "dead".
+        # A dead module is neither required to have a build file nor forbidden from
+        # one; the only coupling allowed is that
+        # nothing may include() it or carry a project() edge TO it.
+        if key in dead:
+            # (a) DEAD_CODE.md must exist and be non-empty.
+            dc = os.path.join(folder, "DEAD_CODE.md")
+            if not os.path.isfile(dc):
+                errors.append(f"{key}: dead module has no DEAD_CODE.md -> {path}/DEAD_CODE.md")
+            else:
+                with open(dc, encoding="utf-8") as dfh:
+                    dc_text = dfh.read()
+                if not dc_text.strip():
+                    errors.append(f"{key}: DEAD_CODE.md is empty -> {path}/DEAD_CODE.md")
+
+            # (b) exact whole-match, never prefix/substring.
+            if _gradle_path(m["path"]) in _settings_includes():
+                errors.append(
+                    f"{key}: dead module is include()d in settings.gradle.kts "
+                    f"({_gradle_path(m['path'])}) — a dead module is not built"
+                )
+
+            # (c) nothing may depend_on a dead module via the registry.
+            for ok, ov in modules.items():
+                if key in ov.get("depends_on", []):
+                    errors.append(
+                        f"{ok}: depends_on names dead module {key} — nothing may depend on a dead module"
+                    )
+
+            # (d) exact whole-match, never prefix/substring.
+            for bf in _all_build_files():
+                if _gradle_path(m["path"]) in _project_deps(bf):
+                    errors.append(
+                        f"{bf}: project() edge to dead module {key} — nothing may depend on a dead module"
+                    )
 
     # dependency cycle check (DFS)
     #
@@ -102,43 +205,69 @@ def main():
             if rel != "." and not any(m["path"] == rel for m in modules.values()):
                 errors.append(f"unregistered module folder: {rel}")
 
-    # parent READMEs name their sub-modules.
-    #
-    # A child is named only if it is an ELEMENT of the parent README's
-    # `**Sub-modules:**` list (the three parent READMEs all carry that one
-    # line: comma-separated, before the " — each with ..." tail). Prose
-    # anywhere else does not count: the android README's "Kotlin, native
-    # Android app ..." sentence names "app" without naming the module, and a
-    # substring test let an omitted list entry pass because of it. Direct
-    # children (android/app, android/ui) are elements like any other.
-    for parent in ("android", "server", "shared"):
-        readme = os.path.join(ROOT, parent, "README.md")
-        if os.path.isfile(readme):
-            with open(readme) as fh:
+    # Sub-module naming: each module is named in the README of its NEAREST
+    # ANCESTOR folder that carries a `**Sub-modules:**` line, NOT necessarily
+    # the android/server/shared top README. A sub-module (commit/ime) must be
+    # named in commit/README.md; the top android/README is only the home when
+    # no nearer ancestor carries the list. Dead sub-modules are registered too,
+    # so they carry the same naming obligation (a dead module is still a module).
+    for key, m in modules.items():
+        if not (m["path"].startswith("android/") or
+                m["path"].startswith("server/") or
+                m["path"].startswith("shared/")):
+            continue
+        home = _naming_home(m["path"])
+        if home is None:
+            errors.append(
+                f"{key}: no ancestor README carries a '**Sub-modules:**' list "
+                f"to name '{m['path'].split('/')[-1]}'"
+            )
+            continue
+        home_readme = os.path.join(ROOT, home, "README.md")
+        try:
+            with open(home_readme) as fh:
                 rt = fh.read()
-            expected = {
-                m["path"].split("/")[-1]
-                for m in modules.values()
-                if m["path"].startswith(parent + "/")
-            }
-            named = _sub_modules_named_in(rt)
-            if named is None:
-                errors.append(
-                    f"{parent}/README.md has no '**Sub-modules:**' line "
-                    f"naming its sub-modules"
-                )
+        except FileNotFoundError:
+            errors.append(f"{key}: naming home {home} has no README.md")
+            continue
+        named = _sub_modules_named_in(rt)
+        leaf = m["path"].split("/")[-1]
+        if leaf not in (named or []):
+            errors.append(
+                f"{home}/README.md does not name sub-module '{leaf}' "
+                f"in its **Sub-modules:** list"
+            )
+
+    # Stale-list check: every name in any home README's **Sub-modules:** list must be
+    # the leaf of a registered module whose own naming home is that same home.
+    # A home is any folder (under android/, server or shared/) whose README carries
+    # the line — including nested homes like commit/ once they gain a list. This
+    # replaces the old two-loop over top-3 parents only, which both emitted an error
+    # per stale name and never checked nested homes.
+    def _homes():
+        hs = []
+        for dirpath, _dirs, files in os.walk(ROOT):
+            if "README.md" not in files:
                 continue
-            named_set = set(named)
-            for child in sorted(expected - named_set):
+            rel = os.path.relpath(dirpath, ROOT)
+            if rel == ".":
+                continue
+            if not (rel.startswith("android") or rel.startswith("server") or rel.startswith("shared")):
+                continue
+            with open(os.path.join(dirpath, "README.md"), encoding="utf-8") as fh:
+                if _sub_modules_named_in(fh.read()) is not None:
+                    hs.append(rel)
+        return sorted(hs)
+
+    for home in _homes():
+        with open(os.path.join(ROOT, home, "README.md"), encoding="utf-8") as fh:
+            named = _sub_modules_named_in(fh.read()) or []
+        for name in sorted(set(named)):
+            leaf_modules = [m["path"] for m in modules.values() if m["path"].split("/")[-1] == name]
+            if not any(_naming_home(p) == home for p in leaf_modules):
                 errors.append(
-                    f"{parent}/README.md does not name sub-module '{child}' "
-                    f"in its **Sub-modules:** list"
-                )
-            for stale in sorted(named_set - expected):
-                errors.append(
-                    f"{parent}/README.md names '{stale}' in its "
-                    f"**Sub-modules:** list, which is not a registered "
-                    f"sub-module of {parent}"
+                    f"{home}/README.md names '{name}' in its **Sub-modules:** list, "
+                    f"which no registered sub-module of {home} carries"
                 )
 
     # README doc references resolve.

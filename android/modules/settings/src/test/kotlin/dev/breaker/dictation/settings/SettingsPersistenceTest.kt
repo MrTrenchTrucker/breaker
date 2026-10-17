@@ -11,7 +11,7 @@ import java.util.Properties
 
 /**
  * Durability: a value written by one store instance comes back from a *different*
- * instance over the same file, and the saved file carries exactly the nine keys.
+ * instance over the same file, and the saved file carries exactly the ten keys.
  *
  * The fixture — the temporary folder, the store, the non-default settings value
  * and the raw read-back — is in [SettingsFileStoreTestBase].
@@ -68,13 +68,13 @@ class SettingsPersistenceTest : SettingsFileStoreTestBase() {
     }
 
     @Test
-    fun `a saved file carries exactly the nine keys and no credential key`() {
+    fun `a saved file carries exactly the ten keys and no credential key`() {
         val file = newFile()
         store(file).save(validSettings())
 
         val keys = rawPropertiesOf(file).stringPropertyNames()
 
-        assertEquals("the saved key set", THE_NINE_KEYS, keys)
+        assertEquals("the saved key set", THE_TEN_KEYS, keys)
         assertTrue(
             "a credential-like key was written: $keys",
             credentialLikeKeysIn(keys).isEmpty(),
@@ -82,13 +82,13 @@ class SettingsPersistenceTest : SettingsFileStoreTestBase() {
     }
 
     @Test
-    fun `the nine keys are all actually written, none silently skipped`() {
+    fun `the ten keys are all actually written, none silently skipped`() {
         val file = newFile()
         store(file).save(validSettings())
 
         val raw = rawPropertiesOf(file)
 
-        for (key in THE_NINE_KEYS) {
+        for (key in THE_TEN_KEYS) {
             assertNotNull("no value was written under $key", raw.getProperty(key))
         }
     }
@@ -98,14 +98,14 @@ class SettingsPersistenceTest : SettingsFileStoreTestBase() {
         // Guards the other direction: a file carrying an extra key must not make
         // the store adopt it as a setting on load.
         val props = Properties()
-        THE_NINE_KEYS.forEach { key ->
+        THE_TEN_KEYS.forEach { key ->
             props.setProperty(
                 key,
                 when (key) {
                     KEY_MODE -> SttMode.SERVER.name
                     KEY_THEME_MODE -> ThemeMode.DARK.name
                     KEY_TILE_POSITION -> "0.25,0.75"
-                    KEY_WAKE_GESTURE, KEY_PRELOAD_MODEL, KEY_FORMATTING -> "false"
+                    KEY_WAKE_GESTURE, KEY_PRELOAD_MODEL, KEY_FORMATTING, KEY_MICROPHONE_ASKED -> "false"
                     KEY_MODEL_SIZE -> "medium"
                     KEY_SERVER_URL -> "https://box.local"
                     else -> "de"

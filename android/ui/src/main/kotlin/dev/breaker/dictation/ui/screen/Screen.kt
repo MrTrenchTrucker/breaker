@@ -26,6 +26,8 @@ internal data class Box(
     override val id: String,
     val background: PaletteSlot,
     val children: List<Node> = emptyList(),
+    /** Lays the children out in a row rather than a column. */
+    val horizontal: Boolean = false,
 ) : Node()
 
 /** A run of text in one of the three type roles, painted in one palette slot. */
@@ -45,10 +47,33 @@ internal data class Action(
     val emphasis: Emphasis = Emphasis.SECONDARY,
     /** What the screen reports back when this control is chosen. */
     val intent: ScreenIntent,
+    /** The kit control this action is drawn as, or null for the plain button. */
+    val kit: KitLook? = null,
 ) : Node()
 
 /** A single horizontal rule in the trim colour. */
 internal data class TrimStripe(override val id: String) : Node()
+
+/** A short word in an outlined pill, such as a source tag. */
+internal data class TagPill(override val id: String, val text: String, val color: PaletteSlot = PaletteSlot.TEXT_MUTED) : Node()
+
+/** A run of text that is cut to a few lines while it is closed, and shown whole while it is open. */
+internal data class CollapsibleText(override val id: String, val text: String, val color: PaletteSlot, val opened: Boolean) : Node()
+
+/** One cell of a [SegmentedRow]: data, not a node, so it is never drawn as a child. */
+internal data class SegmentCell(val id: String, val text: String, val selected: Boolean, val intent: ScreenIntent)
+
+/** A row of cells where exactly one is selected. */
+internal data class SegmentedRow(override val id: String, val cells: List<SegmentCell>) : Node()
+
+/** A label, a help sentence and a switch on one row. */
+internal data class SwitchRow(override val id: String, val label: String, val help: String, val on: Boolean, val intent: ScreenIntent) : Node()
+
+/** A text shown in a field that the user cannot edit. */
+internal data class ValueField(override val id: String, val text: String, val muted: Boolean) : Node()
+
+/** The look of a kit control: the raised face, the neutral face, the danger face or the outlined face. */
+internal enum class KitLook { RAISED, NEUTRAL, DANGER, OUTLINED }
 
 /** The three type roles the design names. */
 internal enum class TypeRole { DISPLAY, BODY, MONO }
@@ -75,8 +100,30 @@ internal sealed class ScreenIntent {
     /** Change the transcription routing mode to [mode], named by the mode's enum name. */
     data class SetRoutingMode(val mode: String) : ScreenIntent()
 
+    /** Set the theme to the stored mode [mode], named by its enum name: SYSTEM, LIGHT or DARK. */
+    data class SetThemeMode(val mode: String) : ScreenIntent()
+
     /** Change the setting named [key] to [value], given as text. */
     data class SetSetting(val key: String, val value: String) : ScreenIntent()
+
+    /** Do the step of the setup walk-through named by [action], such as opening a page or switching on. */
+    data class Setup(val action: String) : ScreenIntent()
+
+    /** Do the step of the history screen named by [action] (see [HistoryActions]) on the row [id]. */
+    data class History(val action: String, val id: String = "") : ScreenIntent()
+
+    /** Do the step of the home screen named by [action] (see home's HomeActions). */
+    data class Home(val action: String) : ScreenIntent()
+}
+
+/** The action names a [ScreenIntent.History] may carry. */
+internal object HistoryActions {
+    const val COPY = "COPY"
+    const val DELETE = "DELETE"
+    const val UNDO = "UNDO"
+    const val MORE = "MORE"
+    const val SHOW_ALL = "SHOW_ALL"
+    const val HIDE = "HIDE"
 }
 
 /** A whole screen: an identity, a title and the tree that makes it up. */

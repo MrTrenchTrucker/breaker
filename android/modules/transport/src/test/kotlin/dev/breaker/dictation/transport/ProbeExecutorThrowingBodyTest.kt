@@ -36,8 +36,9 @@ import java.util.concurrent.atomic.AtomicInteger
  * suspects for one failure. The wait between the halves is what makes that
  * separation exact: a body's OWN `finally` counts down its `ended` latch, so a
  * body can be over while the submitted wrapper has not yet returned the pool's
- * counters, and reading the pool in that gap would report a hand-back still in
- * progress as a leak.
+ * counters. The per-throw wait guards exactly this gap: each submit is preceded
+ * by awaiting that admission's counters to return, so any read below sees a leak
+ * only when the pool is genuinely still short rather than a hand-back still in progress.
  *
  * **Why three throws and not one.** One throw is not more than the cap, so it
  * cannot be distinguished from a body that had legitimately released its
@@ -106,13 +107,19 @@ class ProbeExecutorThrowingBodyTest : ProbePoolIsolation() {
             // cannot skip it. This is the only statement in the body that is
             // guaranteed to run.
             val ended = CountDownLatch(1)
-            ProbeExecutor.execute {
+            val refused = ProbeExecutor.executeReporting {
                 try {
                     throw IllegalStateException("probe body $throwNumber of $throwCount fails on purpose")
                 } finally {
                     ended.countDown()
                 }
             }
+            assertTrue(
+                cardFailure(
+                    "probe body $throwNumber of $throwCount was refused (${refused?.name}) before its body could run, so the pool never took a slot for it; naming this refusal is what turns the old silent drop into an assertion in this iteration",
+                ),
+                refused == null,
+            )
             assertTrue(
                 cardFailure(
                     "probe body $throwNumber of $throwCount threw and must still reach the end of its own body, which is what returns its counters; " +
@@ -122,6 +129,13 @@ class ProbeExecutorThrowingBodyTest : ProbePoolIsolation() {
                         "admissions are what would show it",
                 ),
                 ended.await(THROW_END_BOUND_MS, TimeUnit.MILLISECONDS),
+            )
+            // The pool offers no release callback, so this bounded counter read is the
+            // only observable signal: it completes the instant the counters return, and
+            // its bound only converts a leak into a named failure - a signal wait, not
+            // a clock deciding the assertion.
+            awaitProbePoolIdle(
+                context = "throw $throwNumber of $throwCount ended; its counters must be back before the next submit",
             )
         }
 

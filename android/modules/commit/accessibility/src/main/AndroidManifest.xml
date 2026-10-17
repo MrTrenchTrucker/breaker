@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Card: android/modules/commit/accessibility/AGENTS.md   Registry: modules.toml [module.android_commit_accessibility]
+
+  Declares the one accessibility service of this module and nothing else: the
+  service entry, bound only by the system through the bind permission, with the
+  service config that limits what it may see. The service class is named here
+  relative to the module's namespace.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <service
+            android:name=".adapter.BreakerAccessibilityService"
+            android:exported="true"
+            android:label="@string/commit_accessibility_service_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/commit_accessibility_service_config" />
+        </service>
+    </application>
+</manifest>

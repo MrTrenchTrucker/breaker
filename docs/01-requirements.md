@@ -5,8 +5,9 @@
 - **F2** Server-first: when Local Server is reachable over ZeroTier, transcribe + format there.
 - **F3** On-device fallback: server unreachable → local transcription + rule-based
   formatting. Dictation never stops.
-- **F4** **"Breaker Breaker"** (voice phrase) OR shake → floating tile appears AND
-  **recording starts automatically**.
+- **F4** **"Breaker Breaker"** (voice phrase) → floating tile appears AND
+  **recording starts automatically**. A **shake** only brings the tile up; it never
+  starts recording. A tap on the tile starts recording.
 - **F5** **"And I'm Gone"** (voice phrase) OR tap tile → stop + send → commit text
   to focused field.
 - **F6** If no text field is focused, or the accessibility insert is refused →
@@ -18,8 +19,10 @@
   (audio trimmed at phrase onset).
 - **F10** Settings: mode, model size, server URL/API key, voice phrases on/off,
   shake on/off, formatting on/off, tile position, language.
-- **F11** On startup, the app prompts for ALL permissions it needs at once (mic,
-  sensor, overlay/foreground service, notifications).
+- **F11** On first open, the app shows a short welcome (its content is not fixed
+  here), then asks for each permission it needs (microphone, display over other
+  apps, notifications, accessibility service) on a screen of its own that says
+  why it is needed, with a button to grant it.
 - **F12** High-power mode: the app detects Android power-saving state and prompts
   the user to enable high-performance mode.
 - **F13** **Sync:** every transcription syncs to the server — even local-only

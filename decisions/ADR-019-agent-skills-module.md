@@ -42,3 +42,9 @@ a card, a README that serves as the install guide, a `base`-plugin build file
   them to Breaker's own equivalents: the module cards, `ARCHITECTURE.md` and the
   contributing guide.
 - The contributing guide points agent users at `agent-skills/README.md`.
+
+Amended 2026-10-15: the module also ships the shared plan-file skill
+(`agent-skills/shared/subagent-plan-file/`) from Module SOP 1.1.0, for any rank
+that starts sub-agents. It is copied and pinned the same way as the six rank
+skills. Only the skill files are copied; the Module SOP's own tools, tests and
+decision records stay in its own repository.

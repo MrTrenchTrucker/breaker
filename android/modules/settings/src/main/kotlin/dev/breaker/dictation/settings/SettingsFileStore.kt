@@ -5,7 +5,6 @@ import dev.breaker.dictation.core.port.SettingsStore
 import java.io.File
 import java.io.IOException
 import java.io.InputStreamReader
-import java.io.OutputStreamWriter
 import java.io.StringReader
 import java.nio.charset.StandardCharsets
 import java.util.Properties
@@ -13,13 +12,14 @@ import java.util.Properties
 /**
  * The settings store, backed by a [java.util.Properties] file on disk.
  *
- * **Construction.** Both the [file] and the [keystore] port are required and
- * have no default: `SettingsNoFallbackTest` asserts that a store cannot be
- * built without the secret port, so there is no constructor path that quietly
- * persists settings while dropping the credential reference. There is
- * deliberately no secondary constructor and no no-argument factory.
+ * **Construction.** The public constructor takes the [file] and the [keystore]
+ * port, and both are required with no default: `SettingsNoFallbackTest` asserts
+ * that a store cannot be built without the secret port. There is no constructor
+ * without the keystore. An internal constructor also takes the write and move
+ * steps, so a test can make either one fail; the public constructor supplies
+ * the real steps.
  *
- * **What this store holds.** Nine property keys of plain settings. It holds
+ * **What this store holds.** Ten property keys of plain settings. It holds
  * **no secret**, and it does not put the key reference in the file either —
  * but it does persist that reference, through the [keystore] port rather than
  * on disk. [save] hands `apiKeyRef` to [Keystore.setActiveRef] and [load] reads
@@ -38,11 +38,11 @@ import java.util.Properties
  * way the test can tell a stored `false` from an absent key.
  *
  * **Missing file.** When [file] is not there — the first-run case, not an
- * error — [load] yields core's own defaults for the nine file-backed keys *and*
+ * error - [load] yields core's own defaults for the ten file-backed keys *and*
  * the reference the [keystore] port remembers. A file that does not exist says
  * nothing about the credential, so the port answers for it;
  * `SettingsDefaultsTest.a missing file still reports the reference the port
- * remembers` is the proof, and it asserts the nine defaults in the same breath.
+ * remembers` is the proof, and it asserts core's defaults for the keys it names in the same breath.
  *
  * **IO failures propagate.** [save] does not catch, swallow or log-and-continue
  * an [IOException]: a settings write that silently failed would leave the user
@@ -50,25 +50,30 @@ import java.util.Properties
  * itself, having been told it happened. [load] holds to the same rule — see
  * [readProperties].
  *
- * **Character set: UTF-8, symmetric.** Writes go out through an
- * [OutputStreamWriter] over [StandardCharsets.UTF_8] and come back through a
- * matching [InputStreamReader]. [Properties.store] escapes what it must and
+ * **Character set: UTF-8, symmetric.** Writes go out through [AtomicFileReplace.write],
+ * which uses [StandardCharsets.UTF_8], and come back through a matching
+ * [InputStreamReader]. [Properties.store] escapes what it must and
  * writes the rest literally, so non-ASCII text in a language tag or a URL
  * survives a round trip; the same choice is made on both sides on purpose.
  * Decoding uses [Properties.load] and never `org.json`, whose JVM stubs would
  * make the tests pass or fail for reasons that have nothing to do with this
  * code.
  */
-class SettingsFileStore(
+class SettingsFileStore internal constructor(
     val file: File,
     val keystore: Keystore,
+    private val writeFile: (File, Properties) -> Unit,
+    private val moveOver: (File, File) -> Unit,
 ) : SettingsStore {
 
+    constructor(file: File, keystore: Keystore) :
+        this(file, keystore, AtomicFileReplace::write, AtomicFileReplace::move)
+
     /**
-     * The stored settings, or core's defaults for the nine file-backed keys when
+     * The stored settings, or core's defaults for the ten file-backed keys when
      * nothing is stored yet.
      *
-     * A missing [file] yields core's defaults for those nine keys *and* the
+     * A missing [file] yields core's defaults for those ten keys *and* the
      * reference the [keystore] port remembers — the file cannot supply the
      * reference, so the port does, on this path and on every other one. A
      * present but damaged file is read key by key: an unparsable value, one
@@ -212,6 +217,33 @@ class SettingsFileStore(
      * Write [settings] to [file], replacing what was there, and point the
      * [keystore] at the settings' credential reference.
      *
+     * The document is written to a temp file in the same folder, and that file
+     * is then moved over the live file in one atomic move. Saves are serialized
+     * by one lock for the whole process, so two store instances over the same
+     * file never interleave. The move asks for ATOMIC_MOVE on purpose: if a rename
+     * in one step is ever not possible, it fails loudly with an exception instead
+     * of quietly copying and leaving a half-written live file.
+     *
+     * An exception while writing or moving leaves the previous file untouched,
+     * removes the temp file and propagates the exception, and the keystore is not
+     * told the new reference.
+     *
+     * The keystore is told about the new reference only after the file is in place,
+     * under the same lock. The previous reference is read before anything is written.
+     * If the keystore call throws, the save puts back what it changed: first the previous
+     * file, or its absence, and then the previous reference, but only when it was
+     * read before the save and the port now holds a different one. Each step runs on
+     * its own, so a failure in one never skips the other. A restore failure is added
+     * to the original exception as a suppressed exception. The original exception, the
+     * same instance, is what the save throws. Only exceptions are handled: an Error
+     * from the keystore call passes through with no restore.
+     *
+     * The limit: if the reference cannot be put back, or cannot be read back to be
+     * checked, the file is still restored, the original exception is thrown with the
+     * second failure attached, and the reference stays as the port left it. There is no
+     * fsync, so a power cut or a crash during the move or the restore is outside what
+     * this guarantees.
+     *
      * The reference is handed over after the file is written, so a store that
      * persisted it first and then failed to write would leave the port
      * claiming a save that never happened.
@@ -226,26 +258,71 @@ class SettingsFileStore(
      * load will honour, and the load path, unlike this one, cannot refuse —
      * it can only fall the key back to the default.
      *
-     * **Propagates.** An [IOException] from opening or writing the file leaves
-     * this method, uncaught and unswallowed.
+     * **Propagates.** An [IOException] from reading the previous file, or from opening
+     * or writing the file, leaves this method, uncaught and unswallowed. A failure to
+     * read the previous file happens before anything has changed.
      */
     override fun save(settings: AppSettings) {
         SettingsValidation.requireRegistryModelSize(settings.modelSize)
         val properties = SettingsPropertiesCodec.encode(settings)
-        file.parentFile?.mkdirs()
-        OutputStreamWriter(
-            file.outputStream(),
-            StandardCharsets.UTF_8,
-        ).use { writer ->
-            properties.store(writer, HEADER_COMMENT)
+        // A monitor, not a coroutines Mutex: save() is a blocking call, not a
+        // suspend function. It runs on the main thread through the SettingsStore
+        // port, and a Mutex can only be taken by suspending.
+        synchronized(AtomicFileReplace.lock) {
+            val previousBytes = AtomicFileReplace.readIfPresent(file)
+            var refKnown = true
+            val previousRef = try {
+                keystore.activeRef()
+            } catch (readFailure: Exception) {
+                refKnown = false
+                null
+            }
+            file.parentFile?.mkdirs()
+            val temp = AtomicFileReplace.tempFileFor(file)
+            var moved = false
+            try {
+                writeFile(temp, properties)
+                moveOver(temp, file)
+                moved = true
+            } finally {
+                if (!moved) AtomicFileReplace.deleteQuietly(temp)
+            }
+            try {
+                keystore.setActiveRef(settings.apiKeyRef)
+            } catch (failure: Exception) {
+                restoreAfterKeystoreFailure(previousBytes, refKnown, previousRef, failure)
+                throw failure
+            }
         }
-        keystore.setActiveRef(settings.apiKeyRef)
+    }
+
+    /**
+     * Puts back what [save] changed before the keystore call threw: the previous file,
+     * or its absence, and then the previous reference, when it was read and the port
+     * now holds a different one. The two steps run on their own, so a failure in the
+     * first never skips the second. A failure in either is added to [failure] as a
+     * suppressed exception; [failure] itself is never replaced. Called under the lock.
+     */
+    private fun restoreAfterKeystoreFailure(
+        previousBytes: ByteArray?,
+        refKnown: Boolean,
+        previousRef: String?,
+        failure: Exception,
+    ) {
+        try {
+            AtomicFileReplace.putBack(file, previousBytes, moveOver)
+        } catch (restoreFailure: Exception) {
+            if (restoreFailure !== failure) failure.addSuppressed(restoreFailure)
+        }
+        if (!refKnown) return
+        try {
+            if (keystore.activeRef() != previousRef) keystore.setActiveRef(previousRef)
+        } catch (restoreFailure: Exception) {
+            if (restoreFailure !== failure) failure.addSuppressed(restoreFailure)
+        }
     }
 
     private companion object {
-        /** Properties comment on save; a timestamp follows it on disk. */
-        const val HEADER_COMMENT = "Breaker settings"
-
         /** A UTF-8 byte-order mark, carried by some editors and none of our keys. */
         const val BOM = "\uFEFF"
 

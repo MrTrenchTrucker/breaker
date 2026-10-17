@@ -29,6 +29,7 @@ dependencies {
     implementation(libs.sqlite.jdbc)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.ktor.server.core)
+    implementation(project(":shared:modules:api-contracts"))
     testImplementation(libs.junit)
     testImplementation(libs.ktor.server.test.host)
 }

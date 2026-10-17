@@ -42,6 +42,7 @@ internal object SettingsPropertiesCodec {
     private const val KEY_PRELOAD_MODEL = "preload_model"
     private const val KEY_FORMATTING_ENABLED = "formatting_enabled"
     private const val KEY_THEME_MODE = "theme_mode"
+    private const val KEY_MICROPHONE_ASKED = "microphone_asked"
 
     /** The keys this module writes, in no particular order on disk. */
     private val WRITTEN_KEYS = arrayOf(
@@ -54,6 +55,7 @@ internal object SettingsPropertiesCodec {
         KEY_PRELOAD_MODEL,
         KEY_FORMATTING_ENABLED,
         KEY_THEME_MODE,
+        KEY_MICROPHONE_ASKED,
     )
 
     /** Every key this codec writes; used by tests to prove nothing extra is written. */
@@ -76,6 +78,7 @@ internal object SettingsPropertiesCodec {
         properties[KEY_PRELOAD_MODEL] = settings.preloadModel.toString()
         properties[KEY_FORMATTING_ENABLED] = settings.formattingEnabled.toString()
         properties[KEY_THEME_MODE] = settings.themeMode.name
+        properties[KEY_MICROPHONE_ASKED] = settings.microphoneAsked.toString()
         return properties
     }
 
@@ -118,6 +121,9 @@ internal object SettingsPropertiesCodec {
             ),
             themeMode = SettingsValidation.enumOrFallback(
                 properties.getProperty(KEY_THEME_MODE), ThemeMode.entries.toTypedArray(), defaults.themeMode,
+            ),
+            microphoneAsked = SettingsValidation.booleanOrFallback(
+                properties.getProperty(KEY_MICROPHONE_ASKED), defaults.microphoneAsked,
             ),
         )
     }

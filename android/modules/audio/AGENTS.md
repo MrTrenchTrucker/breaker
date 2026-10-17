@@ -25,10 +25,12 @@ order and spelling:
 - `Pcm16WavEncoder`
 - `MicSource`
 - `MicSourceException`
+- `MicSourceException.Reason`
 - `NoiseSuppressor`
 - `PassThroughNoiseSuppressor`
 - `AdaptiveGateSuppressor`
 - `RecordingIndicator`
+- `AndroidMicSource`
 
 **Components** — public first, then implementation-only (`internal`: not part of
 the registry line, and not reachable from outside the module):
@@ -36,7 +38,10 @@ the registry line, and not reachable from outside the module):
 - `MicCapture` — public; AudioRecorder/MediaRecorder session; drives a
   default-priority capture thread
 - `MicSource` — public; the capture source seam the capture session is driven through
-- `MicSourceException` — public; raised when a source fails or stops producing audio
+- `MicSourceException` — public; raised when a source fails or stops producing audio.
+  It carries a `reason`: `DEVICE_FAILED` by default, or `MICROPHONE_TAKEN` when another
+  app or a call took the microphone. It stays final; the reason is read as a value
+  (`e.reason`), not by type.
 - `NoiseSuppressor` — public; an optional neural suppressor (none chosen yet);
   skip if the AAR is not built with one
 - `PassThroughNoiseSuppressor` — public; the no-op `NoiseSuppressor` used when no neural
@@ -44,6 +49,9 @@ the registry line, and not reachable from outside the module):
 - `AdaptiveGateSuppressor` — public; gate-based suppression
 - `RecordingIndicator` — public; mic indicator surfaced in UI while recording
 - `Pcm16WavEncoder` — public; PCM → WAV (for server upload)
+- `AndroidMicSource` - public; the one factory for a `MicSource` over the phone's recording
+  inputs: it prefers a Bluetooth microphone, then a wired or USB one, then the phone's own,
+  and falls back silently, also in the middle of a take
 - `PcmRingBuffer` — internal; bounded buffer between capture and consumer
 - `AudioResampler` — internal; resamples to the 16 kHz mono contract at the boundary
 - `ChannelDownmixer` — internal; folds input channels to mono
@@ -60,6 +68,23 @@ the registry line, and not reachable from outside the module):
   racing stops both mean "the microphone is shut" by the time both return, the
   capture and dispatch thread references, and `openAndPublish`, `stop`,
   `joinWithin` and `closeQuietly`. `MicCapture` keeps what a take IS.
+- `IndicatorLiveOpen` - internal (the class and its one operation are both `internal`); the first step of bringing a take up (mark the indicator
+  live, then open the device, as one guarded step that undoes itself on a failure). It was
+  moved out of `CaptureSessionLifecycle` unchanged in logic so that file stays under its size cap.
+- The microphone selection seam, three types and one policy:
+  - `MicDevice`, `MicDeviceKind`, `MicDeviceSupplier` - internal; a recording input (its kind and
+    platform id), the three kinds (`BLUETOOTH`, `WIRED`, `BUILT_IN`), and the list of inputs that
+    can record right now
+  - `MicRoutePolicy` - internal; the choice itself, a pure function: first Bluetooth, else first
+    wired, else first built-in, else none
+  - `RoutedMicSource` - internal; the `MicSource` that applies the policy at open and again when a
+    device goes away, over a `MicInputPort`. `MicRoutePolicy` and `RoutedMicSource` together are
+    the selection seam: everything that decides which microphone is used is here, in plain
+    Kotlin that a JVM test drives
+  - `MicInputPort` - internal; the seam below `RoutedMicSource`: one recording device at a time
+  - `AudioRecordMicPort` - internal; the `MicInputPort` over the platform's `AudioRecord`, in the
+    file that also holds `AndroidMicSource`. It is the only file in the module that names the
+    platform framework
 
 **Threading:** capture runs on one dedicated `Thread` at default priority —
 nothing raises it — and consumers are fed by a second, separate plain `Thread`.
@@ -94,6 +119,73 @@ real gain to be had: the recording flag the indicator publishes is a plain
 `dispatchThread` references are a different case and stay for the first reason
 above, not for this one.
 
+## Choosing the microphone
+
+`AndroidMicSource.create(audioManager)` returns a `MicSource`. It is the only public type that
+touches the platform, and it asks the platform for 16 kHz mono 16-bit PCM; nothing is resampled in
+the driver, and a platform that refuses that format raises `MicSourceException`.
+
+- **Order.** A Bluetooth microphone first, then a wired one (wired headset, USB headset, USB
+  device), then the phone's own microphone. Two of a kind: the one listed first wins. This is
+  `MicRoutePolicy`, applied by `RoutedMicSource`.
+- **Silent fallback at open.** If opening the chosen device fails and it was not the phone's own
+  microphone, the source tries the phone's own microphone once (the system default input if none is
+  listed). There is no prompt, no error, no callback and no log on a fallback. Only when that also
+  fails does `open()` throw `MicSourceException`.
+- **Silent fallback in the middle of a take.** A device that goes away is absorbed inside `read()`:
+  the source lists the inputs again, picks again, closes the old input, opens the new one and reads
+  from it in the same call. The take does not end and no negative or empty read comes out of a switch.
+  A negative read is treated as the same loss when the device in use is no longer listed (or the port
+  says the route was lost), once per call. Any other negative read, a second failure in the same call,
+  or a failure on the system default input ends the take with `MicSourceException`.
+- **The switch on a vanished device.** A read that fails with a negative driver code while the chosen
+  device is gone from the device list (or the route-lost flag is set) is absorbed: the source closes,
+  re-picks and reopens once and reads again in the same call. A second failure, a failure with the
+  device still listed, or a failure on the system default input is a real failure
+  (`MicSourceException`).
+- **Permissions are the caller's.** `RECORD_AUDIO` is needed to record at all. A Bluetooth microphone
+  also needs `BLUETOOTH_CONNECT`; without it the platform lists no Bluetooth input, so the wired or
+  phone microphone is used, silently. Asking the user for either permission is onboarding's job, not
+  this module's.
+- **Bluetooth routing.** On API 31 and above the chosen input is set as the communication device and
+  cleared at close; on API 30 the Bluetooth link is started with `startBluetoothSco` and stopped at
+  close.
+
+## End of a take
+
+`MicCapture` takes an optional trailing constructor parameter `onTakeEnded: ((Throwable?) -> Unit)?`,
+default null (nobody is told, and behaviour is exactly as before). It adds no public type and is on
+`MicCapture` only: code that holds a plain `AudioSource` does not see it.
+
+- **When.** Once per take that got as far as running threads, on the dispatch thread, after the
+  take's last frame has been delivered. It fires both when the caller called `stop()` and when the
+  take ended by itself (the device failed, stopped producing audio, or the frame listener threw).
+- **What it carries.** The failure recorded so far, or null. It is a snapshot: a failure that
+  `stop()` records afterwards is only in `MicCapture.failure`.
+- **Not called** for a start that threw, for a `stop()` that landed inside the device open, or for a
+  take that a later `start()` has replaced.
+- **A take that ends by itself does not release anything.** The device stays open and the indicator
+  stays lit until the caller calls `stop()`. The callback only tells the caller that the stop is owed.
+- **The one exception: a take the platform takes.** When the reason is
+  `MICROPHONE_TAKEN` — another app or a call has taken the microphone — the capture
+  releases the device at once, on the capture thread, and marks the indicator dark,
+  without waiting for the caller's `stop()`. The audio already captured is still
+  delivered, so the take stays whole. The release is observed within about one check
+  interval of the platform silencing us (see below). Every other self-end reason keeps
+  the rule above: the device stays open until the caller's `stop()`.
+- **How the take notices.** The capture asks the recorder itself, at a bounded rate —
+  about once per 100 ms of audio, counted in samples read, not by a clock — whether the
+  platform is silencing this recorder (`AudioRecord.getActiveRecordingConfiguration()`,
+  then `isClientSilenced()`, API 29). The pull is rate-limited because it is a call into
+  the system audio service. When the recorder reports no configuration of its own, that
+  is NOT a signal: the take continues.
+- **Threads.** The callback runs on the thread that `stop()` joins, so it must hop to another thread
+  before it calls `stop()`; calling `stop()` inline makes `stop()` wait for itself until the join
+  time-out and then record a false failure. Keep the callback short, for the same reason. It must not
+  call `start()` while a self-ended take is still owed its `stop()`.
+- **A throwing callback** is recorded in `failure` when nothing is recorded yet, and is never raised.
+  The thread ends normally and `stop()` is unaffected.
+
 ## Invariants
 - Record → clean PCM/WAV. VAD trim is built and tested inside this module
   but is NOT applied to a take today: `Vad` and `TrimResult` are `internal`,
@@ -107,6 +199,15 @@ above, not for this one.
   A real microphone, a real resampler and real device timing are not covered by
   this test; do not read it as on-device verification.
 - Mic indicator surfaced in UI while recording (privacy, T5).
+- The microphone yields to every other app: when any other app or a phone call
+  wants it, the capture releases it at once and reports why, with no prompt and
+  no retry while it is in use (F37, ADR-022) (built: the capture notices the platform silencing
+  it and releases the device at once, reporting `MICROPHONE_TAKEN`; proven on the JVM against a fake. Still owed: a device
+  check for an incoming call, an outgoing call, another recording app, and an incoming
+  call with the app's accessibility service on).
+- No `android.*` class is named anywhere in the module except `AudioRecordMicPort.kt`; this is
+  checked by `AudioConfinementGateTest` on the source text, on the test sources, and on the
+  compiled classes.
 
 ## Depends On
 - android (registered in modules.toml)
@@ -119,6 +220,16 @@ above, not for this one.
 ## Test Locations
 - Unit: `android/modules/audio/src/test/kotlin/dev/breaker/dictation/audio/`
   — plain JUnit 4, run with `./gradlew :android:modules:audio:test`
+  Added for the microphone choice, the end-of-take callback and the stop-after-read rule: `MicRoutePolicyTest`, `RoutedMicSourceSelectionTest`,
+  `RoutedMicSourceFallbackTest`, `RoutedMicSourceVanishTest`, `RoutedMicSourceSwitchLimitTest`,
+  `RoutedMicSourceFailureTest` (helpers: `RoutedMicTestSupport`), `AudioConfinementGateTest` (rules:
+  `AudioConfinementRules`), `MicCaptureTakeEndTest`, `MicCaptureTakeEndContainmentTest`,
+  `MicCaptureTakeEndReplacedTest` (helpers: `MicCaptureTakeEndSupport`), `MicCaptureNoCallbackThreadTest`,
+  `MicCaptureStopDuringReadTest`, `MicCaptureStopDuringReadErrorTest` (fake: `ThrowingAfterCloseMicSource`),
+  `RoutedMicSourceIdentityTest`, `CaptureLoopInterruptTest`, `RoutedMicSourceTakenTest`,
+  `MicCaptureTakenReleaseTest`.
+  `RoutedMicSourceIdentityTest` checks that the source follows the device it really opened, and that a replaced device with a new id counts as gone.
+  `CaptureLoopInterruptTest` checks that an interrupt raised inside a read is handed back to the capture thread, also when a stop is closing the read.
 - Contract: `tests/contract/test_audio_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_audio_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
@@ -145,6 +256,13 @@ code.
 
 ## Known Gotchas
 - 16 kHz mono PCM is the contract — resample at the boundary, not downstream.
+- A `stop()` closes the device while the capture thread may be inside `read()`, and a real device
+  then fails that read, by throwing or by returning a negative code. `CaptureLoop` treats a read
+  that fails after a stop was requested as the clean end of the take, and records nothing. With no
+  stop requested the same failure is recorded in `failure` as before. The rule is on the read call
+  and its return code only: the failure for 500 consecutive empty reads is not hidden by a stop.
+  `stop()` sets the stop flag before it closes the device, so a failure caused by the close always
+  sees the flag. Proven on the JVM with a fake that fails its read when the device is closed.
 
 - A take ends short by half a filter kernel unless the resampler is drained.
   The windowed sinc reaches half its width ahead of the read point as well as
@@ -234,3 +352,40 @@ code.
   still the right length to within one sample, and the difference is
   accumulated rounding at a rate that is not exactly representable, not a
   leak.
+- **A recorder with no configuration of its own is not a signal.** The take notices a
+  taken microphone by asking the recorder for its own active configuration; when the
+  recorder reports none (not open, or the platform reports none), the capture treats
+  that as "not taken" and keeps recording. This is deliberate: a missing answer must
+  not be read as "another app has the microphone", or an ordinary start would end
+  itself. The taken case is a configuration that is present and silenced.
+- **An accessibility service may not be silenced during a call.** The platform lets an
+  accessibility service keep capturing during a call, and this app ships an
+  accessibility service for text insertion. Whether that exempts this capture from
+  call silencing is a device question and is not claimed here; until it is measured, a
+  call is covered only by the general silencing path, which the same device check
+  verifies.
+
+## Not verified on a device
+
+Everything above about microphone choice and end of take is proven on the JVM against fakes. The
+adapter (`AudioRecordMicPort.kt`) cannot run there, so these are by reading only and need a phone:
+
+- Bluetooth start on API 30: `startBluetoothSco` is asynchronous, so the first reads may still come
+  from the phone's microphone until the link is up.
+- `setCommunicationDevice` (API 31 and above) accepting the chosen input; the code looks up the
+  matching device in the platform's communication list first and falls back to the input itself, and
+  ignores a refusal.
+- Wired detection: which platform input types the phone reports for a real headset, against the types
+  that are mapped (wired headset, USB headset, USB device).
+- The Android 12 and above communication-device path as a whole.
+- The fallback on a real headset unplug: whether the device callback or a negative read comes first,
+  and that either way the take continues on the next device.
+- Whether a caller `stop()` on a real device ends the take cleanly (the stop-after-read rule above).
+- `AudioDeviceCallback` calls arriving on the main looper, and a callback queued before `close()` arriving
+  after the next `open()`.
+- The 16 kHz request on real hardware, and what a refusal looks like.
+- The wording of a permission failure: a missing `RECORD_AUDIO` shows up as the platform refusing the
+  format, so the message may mislead.
+- An incoming call while the app's accessibility service is running: whether the call
+  silences this capture (the general path) or the accessibility service is exempt, and
+  that the release fires either way.

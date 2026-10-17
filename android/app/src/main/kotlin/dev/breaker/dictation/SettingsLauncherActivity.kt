@@ -1,0 +1,294 @@
+package dev.breaker.dictation
+
+import android.annotation.SuppressLint
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.os.Bundle
+import android.view.ViewGroup
+import android.widget.Button
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.TextView
+import dev.breaker.dictation.host.MainLooperPost
+import dev.breaker.dictation.service.NotificationRoute
+import dev.breaker.dictation.settings.ModelCatalog
+import dev.breaker.dictation.ui.ModelStepControl
+import dev.breaker.dictation.ui.createHomeView
+import dev.breaker.dictation.wiring.ACCESSIBILITY_SERVICE_COMPONENT
+import dev.breaker.dictation.wiring.BreakerSwitchAdapter
+import dev.breaker.dictation.wiring.FirstRunDoneStore
+import dev.breaker.dictation.wiring.FirstRunGate
+import dev.breaker.dictation.wiring.HomeTakeWiring
+import dev.breaker.dictation.wiring.IconLaunchOnce
+import dev.breaker.dictation.wiring.ModelDownloadNotice
+import dev.breaker.dictation.wiring.ModelSentences
+import dev.breaker.dictation.wiring.StoreModelReady
+import dev.breaker.dictation.wiring.TakePortAdapter
+import dev.breaker.shared.models.ModelRegistry
+import dev.breaker.dictation.wiring.appTakenClipboard
+import dev.breaker.dictation.wiring.applyInsets
+import dev.breaker.dictation.wiring.isIconLaunch
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
+
+    private lateinit var downloadStatus: TextView
+    private lateinit var settingsColumn: LinearLayout
+    private lateinit var settingsScroll: ScrollView
+    private var homeView: android.view.View? = null
+    private var historyShown: Boolean = false
+    private var settingsShown: Boolean = false
+    private var backCallback: android.window.OnBackInvokedCallback? = null
+    private var downloadSentence: String? = null
+    private var pendingRefusal: String? = null
+    private lateinit var iconLaunch: IconLaunchOnce
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        iconLaunch = IconLaunchOnce(savedInstanceState?.getBoolean(ICON_LAUNCH_DONE_KEY, false) ?: false)
+        val app = applicationContext as BreakerApp
+        downloadStatus = TextView(this)
+        downloadStatus.text = ""
+        val modelReady = StoreModelReady(app.compositionRoot.modelStore) { app.settingsStore.load().modelSize }
+        val firstRunDone = FirstRunDoneStore(File(app.filesDir, FirstRunDoneStore.FILE_NAME))
+        when (FirstRunGate.decide(firstRunDone.isDone(), modelReady.isReady())) {
+            FirstRunGate.Decision.FIRST_RUN -> { showFirstRun(app, modelReady, firstRunDone); return }
+            FirstRunGate.Decision.MARK_DONE_QUIETLY -> firstRunDone.markDone()
+            FirstRunGate.Decision.NORMAL -> Unit
+        }
+        val takeWiring = HomeTakeWiring(
+            take = { TakePortAdapter(app.compositionRoot.dictation.runner) },
+            history = { app.historyStore },
+            clipboard = appTakenClipboard(this),
+            switch = app.armedSwitch,
+            owner = app.tileHost.takeOwner,
+            background = app.tileHost.takeWorker,
+            main = MainLooperPost(),
+            modelReady = { modelReady.isReady() },
+        )
+        val home = createHomeView(
+            this,
+            BreakerSwitchAdapter(app.armedSwitch),
+            modelReady = { modelReady.isReady() },
+            lastDictation = { app.historyStore.list(1).firstOrNull()?.text },
+            lastTranscript = { app.historyStore.list(1).firstOrNull()?.text },
+            transcriptTime = { app.historyStore.list(1).firstOrNull()?.createdAt?.let { formatTime(it) } },
+            onCopy = { sentence -> copyToClipboard(sentence) },
+            onHistory = { openHistory() },
+            onSettings = { openSettings() },
+            onTap = { takeWiring.onTap() },
+        )
+        homeView = home
+        takeWiring.attach(home as dev.breaker.dictation.ui.HomeControl)
+        setContentView(home)
+        applyInsets(home)
+        val onboarding = dev.breaker.dictation.ui.createOnboardingView(
+            this,
+            BreakerSwitchAdapter(app.armedSwitch),
+            ACCESSIBILITY_SERVICE_COMPONENT,
+            modelReady = { modelReady.isReady() },
+            downloadLine = { downloadSentence },
+            modelDownloadMb = { ModelCatalog.byId(app.settingsStore.load().modelSize)?.sizeMb?.let(ModelSentences::mibToMb) ?: ModelSentences.mibToMb(ModelRegistry.SMALL.sizeMb) },
+            onDownloadModel = { app.tileHost.requestDownload() },
+            settings = app.settingsStore,
+        )
+        onboardingView = onboarding
+        val history = Button(this)
+        history.text = HISTORY_LABEL
+        history.setOnClickListener { openHistory() }
+        val column = LinearLayout(this)
+        column.orientation = LinearLayout.VERTICAL
+        column.addView(onboarding)
+        column.addView(downloadStatus)
+        column.addView(history)
+        val settings = dev.breaker.dictation.ui.createSettingsView(this, app.settingsStore)
+        column.addView(settings, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        val scroll = ScrollView(this)
+        scroll.addView(column, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        settingsColumn = column
+        settingsScroll = scroll
+        if (intent?.getStringExtra(NotificationRoute.EXTRA_ROUTE) == NotificationRoute.ROUTE_MODEL) {
+            (onboarding as? ModelStepControl)?.focusDownload()
+        }
+        if (savedInstanceState == null && NotificationRoute.opensHistory(intent?.getStringExtra(NotificationRoute.EXTRA_ROUTE))) {
+            openHistory()
+        }
+    }
+
+    private fun showFirstRun(app: BreakerApp, modelReady: StoreModelReady, done: FirstRunDoneStore) {
+        val view = dev.breaker.dictation.ui.createFirstRunView(
+            this,
+            ACCESSIBILITY_SERVICE_COMPONENT,
+            modelReady = modelReady::isReady,
+            downloadLine = this::pendingDownloadLine,
+            modelDownloadMb = { selectedModelMb(app) },
+            onDownloadModel = app.tileHost::requestDownload,
+            settings = app.settingsStore,
+            onFinished = { done.markDone(); recreate() },
+        )
+        onboardingView = view
+        setContentView(view)
+        applyInsets(view)
+    }
+
+    private fun pendingDownloadLine(): String? = downloadSentence
+
+    private fun selectedModelMb(app: BreakerApp): Int =
+        ModelCatalog.byId(app.settingsStore.load().modelSize)?.sizeMb?.let(ModelSentences::mibToMb) ?: ModelSentences.mibToMb(ModelRegistry.SMALL.sizeMb)
+
+    override fun onStart() {
+        super.onStart()
+        val app = applicationContext as BreakerApp
+        val launch = intent
+        iconLaunch.onStart(
+            isIconLaunch(launch?.action, launch?.categories.orEmpty(), launch?.getStringExtra(NotificationRoute.EXTRA_ROUTE)),
+            { app.armedSwitch.switchOn() },
+            { app.armedSwitch.armAtStart() },
+            { sentence -> pendingRefusal = sentence },
+        )
+        app.tileHost.onLauncherVisible()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(ICON_LAUNCH_DONE_KEY, iconLaunch.isDone)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val app = applicationContext as BreakerApp
+        app.tileHost.setDownloadListener(this)
+        (onboardingView as? ModelStepControl)?.refresh()
+        val held = app.refusalHold.take()
+        val refusal = pendingRefusal ?: held
+        pendingRefusal = null
+        refusal?.let { (onboardingView as? ModelStepControl)?.showSwitchRefused(it) }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        val app = applicationContext as BreakerApp
+        app.tileHost.setDownloadListener(null)
+    }
+
+    // Older Back path; Android 13 and newer Back goes through the callback registered while an overlay shows.
+    @SuppressLint("GestureBackNavigation")
+    override fun onBackPressed() {
+        when {
+            historyShown -> closeHistory()
+            settingsShown -> closeSettings()
+            else -> super.onBackPressed()
+        }
+    }
+
+    private lateinit var onboardingView: android.view.View
+
+    private fun openHistory() {
+        if (historyShown) return
+        historyShown = true
+        val app = applicationContext as BreakerApp
+        val historyView = dev.breaker.dictation.ui.createHistoryView(this, app.historyStore)
+        setContentView(historyView)
+        applyInsets(historyView)
+        registerBack()
+    }
+
+    /** One back callback serves both overlays. History returns to where it was opened from. */
+    private fun closeHistory() {
+        if (!historyShown) return
+        historyShown = false
+        if (settingsShown) {
+            setContentView(settingsScroll)
+            applyInsets(settingsScroll)
+        } else {
+            unregisterBack()
+            setContentView(homeView)
+            applyInsets(homeView!!)
+        }
+    }
+
+    private fun openSettings() {
+        if (settingsShown) return
+        settingsShown = true
+        setContentView(settingsScroll)
+        applyInsets(settingsScroll)
+        registerBack()
+    }
+
+    private fun closeSettings() {
+        if (!settingsShown) return
+        settingsShown = false
+        if (!historyShown) unregisterBack()
+        setContentView(homeView)
+        applyInsets(homeView!!)
+    }
+
+    private fun registerBack() {
+        if (backCallback != null) return
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            val callback = android.window.OnBackInvokedCallback {
+                when {
+                    historyShown -> closeHistory()
+                    settingsShown -> closeSettings()
+                }
+            }
+            backCallback = callback
+            onBackInvokedDispatcher.registerOnBackInvokedCallback(
+                android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+                callback,
+            )
+        }
+    }
+
+    private fun unregisterBack() {
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            backCallback?.let { onBackInvokedDispatcher.unregisterOnBackInvokedCallback(it) }
+            backCallback = null
+        }
+    }
+
+    override fun downloading(sentence: String) {
+        downloadSentence = sentence
+        downloadStatus.text = sentence
+        (onboardingView as? ModelStepControl)?.refresh()
+    }
+
+    override fun done() {
+        downloadSentence = null
+        downloadStatus.text = ""
+        (onboardingView as? ModelStepControl)?.downloadStopped()
+        (onboardingView as? ModelStepControl)?.refresh()
+    }
+
+    override fun failed(sentence: String) {
+        downloadSentence = sentence
+        downloadStatus.text = sentence
+        (onboardingView as? ModelStepControl)?.downloadStopped()
+        (onboardingView as? ModelStepControl)?.refresh()
+    }
+
+    override fun progress(sentence: String, doneMb: Int, totalMb: Int) {
+        // The launcher line shows the progress sentence the same way as the first one.
+        downloading(sentence)
+        (onboardingView as? ModelStepControl)?.let { control ->
+            if (sentence == ModelSentences.CHECKING) control.downloadChecking() else control.downloadProgress(doneMb, totalMb)
+        }
+    }
+
+    private fun copyToClipboard(text: String) {
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("Breaker", text))
+    }
+
+    private fun formatTime(epochMs: Long): String =
+        SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(epochMs))
+
+    private companion object {
+        const val HISTORY_LABEL: String = "History"
+        const val ICON_LAUNCH_DONE_KEY: String = "icon-launch-done"
+    }
+}

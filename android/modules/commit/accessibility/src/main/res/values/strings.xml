@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Card: android/modules/commit/accessibility/AGENTS.md   Registry: modules.toml [module.android_commit_accessibility]
+
+  The two texts Android shows for the service in its accessibility list: the
+  name, and a plain description of what the service does and does not do.
+-->
+<resources>
+    <string name="commit_accessibility_service_label">Breaker</string>
+    <string name="commit_accessibility_service_description">Breaker uses this to put the words you dictate into the field you are typing in. It acts only when you send. It finds that field and reads only its text, to place the new words. It never fills a password field, keeps nothing from your screen, and sends nothing off the phone.</string>
+</resources>
