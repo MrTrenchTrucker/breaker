@@ -60,9 +60,9 @@ private val COLOUR_STRING = Regex("""#[0-9a-fA-F]{6,8}\b""")
 /** Output, which the clipboard adapter must never reach. */
 private val LOGGING = Regex("""\b(?:Log|Timber)\.|\bprint(?:ln)?\(|\bSystem\.(?:out|err)\b|\bprintStackTrace\(""")
 
-/** The settled signature of the entry that builds the history view, as its code spells it. */
+/** The settled signature of the entry that builds the history view, as its code spells it, across its lines. */
 private val SETTLED_SIGNATURE = Regex(
-    """fun createHistoryView\(context: android\.content\.Context, history: dev\.breaker\.dictation\.core\.port\.HistoryStore\): android\.view\.View \{""",
+    """fun createHistoryView\(\s*context: android\.content\.Context,\s*history: dev\.breaker\.dictation\.core\.port\.HistoryStore,\s*settings: dev\.breaker\.dictation\.core\.port\.SettingsStore\s*,\s*\): android\.view\.View \{""",
 )
 
 /** The code of [relative] in the main tree, with comments and string literals removed. */
@@ -136,7 +136,7 @@ class HistoryRenderCheckTest {
         val body = topLevelBody(entry, "fun createHistoryView(").orEmpty()
         for (step in listOf(
             "isNightMode(context.resources.configuration.uiMode)",
-            "Themes.of(shownMode(StoredThemeMode.SYSTEM, phoneIsDark))",
+            "storedTheme(settings, isNightMode(context.resources.configuration.uiMode))",
             "AndroidClipboard(context)",
             "HistoryDispatcher.serial",
             "HistoryHostView(context, history, AndroidClipboard(context), format, work, HistoryDispatcher.serial, theme, ScreenRenderer(context))",

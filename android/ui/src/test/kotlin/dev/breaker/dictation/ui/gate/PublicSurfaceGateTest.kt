@@ -48,7 +48,7 @@ private const val SETTLED_ONBOARDING = "fun createOnboardingView(context: androi
     "switch: BreakerSwitch, accessibilityServiceComponent: String, " +
     "modelReady: () -> Boolean, downloadLine: () -> String?, modelDownloadMb: () -> Int, onDownloadModel: () -> Unit, settings: dev.breaker.dictation.core.port.SettingsStore): android.view.View"
 private const val SETTLED_HISTORY = "fun createHistoryView(context: android.content.Context, " +
-    "history: dev.breaker.dictation.core.port.HistoryStore): android.view.View"
+    "history: dev.breaker.dictation.core.port.HistoryStore, settings: dev.breaker.dictation.core.port.SettingsStore): android.view.View"
 private const val SETTLED_SWITCH = "interface BreakerSwitch"
 private const val SETTLED_MODEL_CONTROL = "interface ModelStepControl"
 
@@ -62,7 +62,8 @@ private const val SETTLED_HOME = "fun createHomeView(context: android.content.Co
     "onCopy: (String) -> Unit, " +
     "onHistory: () -> Unit, " +
     "onSettings: () -> Unit, " +
-    "onTap: () -> Unit): android.view.View"
+    "onTap: () -> Unit, " +
+    "settings: dev.breaker.dictation.core.port.SettingsStore): android.view.View"
 
 /** The home control, as written in its file. */
 private const val SETTLED_HOME_CONTROL = "interface HomeControl"

@@ -144,7 +144,7 @@ internal class FirstRunSeamGateTest {
         Sample("DONE_STOPS_THE_DOWNLOAD_BEFORE_THE_REFRESH", "override fun done() {", "override fun doneLater() {"),
         Sample("FAILED_STOPS_THE_DOWNLOAD_BEFORE_THE_REFRESH", "override fun failed(sentence: String) {", "override fun failedLater(sentence: String) {"),
         Sample("FAILED_STOPS_THE_DOWNLOAD_BEFORE_THE_REFRESH", "downloadStatus.text = sentence\n        (onboardingView as? ModelStepControl)?.downloadStopped()", "downloadStatus.text = sentence\n        (onboardingView as? ModelStepControl)?.refresh()\n        (onboardingView as? ModelStepControl)?.downloadStopped()"),
-        Sample("THE_NORMAL_CONTENT_STILL_BUILDS_THE_WALKTHROUGH", "val onboarding = dev.breaker.dictation.ui.createOnboardingView(", "val onboarding = dev.breaker.dictation.ui.createOnboardingScreen("),
+        Sample("THE_NORMAL_CONTENT_STILL_BUILDS_THE_WALKTHROUGH", "dev.breaker.dictation.ui.createOnboardingView(", "dev.breaker.dictation.ui.createOnboardingScreen("),
         Sample("THE_SWITCH_WORD_COUNT_IS_UNCHANGED", "private var pendingRefusal: String? = null", "private var pendingRefusal: String? = null\n    private var ${"armed" + "Switch"}: Int = 0"),
     )
 

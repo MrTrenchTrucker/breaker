@@ -41,7 +41,7 @@ internal class AppHostingGateTest {
 
     /** Harmless edits: each keeps every rule true. Comments, literal text and spacing only. */
     private val quiet: List<Quiet> = listOf(
-        Quiet("val home = createHomeView(", "val home = createHomeView ("),
+        Quiet("Rebuilt { createHomeView(", "Rebuilt { createHomeView ("),
         Quiet("onSettings = { openSettings() },", "onSettings = {\n                openSettings()\n            },"),
         Quiet("onCopy = { sentence -> copyToClipboard(sentence) },", "onCopy = {  sentence  ->  copyToClipboard(sentence) },"),
         Quiet("ClipData.newPlainText(\"Breaker\", text)", "ClipData.newPlainText(\"Breaker app\", text)"),
@@ -62,8 +62,8 @@ internal class AppHostingGateTest {
         Sample("ACTIVITY_RETURNS_HOME_FROM_OVERLAYS", "setContentView(homeView)\n            applyInsets(homeView!!)", "setContentView(settingsScroll)\n            applyInsets(settingsScroll)"),
         Sample(
             "ACTIVITY_RETURNS_HOME_FROM_OVERLAYS",
-            "unregisterBack()\n        setContentView(homeView)\n        applyInsets(homeView!!)",
-            "unregisterBack()",
+            "        setContentView(homeView)\n        applyInsets(homeView!!)",
+            "",
         ),
         Sample(
             "ACTIVITY_RETURNS_HOME_FROM_OVERLAYS",

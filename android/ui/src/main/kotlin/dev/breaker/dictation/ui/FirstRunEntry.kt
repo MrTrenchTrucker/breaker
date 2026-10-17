@@ -1,15 +1,13 @@
 package dev.breaker.dictation.ui
 
-import dev.breaker.dictation.core.model.ThemeMode as StoredThemeMode
 import dev.breaker.dictation.ui.render.AndroidSetupPlatform
 import dev.breaker.dictation.ui.render.FirstRunHostView
 import dev.breaker.dictation.ui.screen.firstrun.FirstRunController
 import dev.breaker.dictation.ui.screen.firstrun.NoSwitch
 import dev.breaker.dictation.ui.screen.onboarding.SetupIntentHandler
 import dev.breaker.dictation.ui.screen.onboarding.SetupScreen
-import dev.breaker.dictation.ui.theme.Themes
 import dev.breaker.dictation.ui.theme.isNightMode
-import dev.breaker.dictation.ui.theme.shownMode
+import dev.breaker.dictation.ui.theme.storedTheme
 
 /**
  * Builds the first-run view for [context]: the welcome, the permission pages and the model
@@ -44,7 +42,7 @@ fun createFirstRunView(
     onFinished: () -> Unit,
 ): android.view.View {
     val phoneIsDark = isNightMode(context.resources.configuration.uiMode)
-    val theme = Themes.of(shownMode(StoredThemeMode.SYSTEM, phoneIsDark))
+    val theme = storedTheme(settings, phoneIsDark)
     val platform = AndroidSetupPlatform(context, accessibilityServiceComponent)
     val handler = SetupIntentHandler(platform, NoSwitch, modelReady, downloadLine, modelDownloadMb, onDownloadModel, SetupScreen(), settings)
     val controller = FirstRunController(handler, modelReady, downloadLine, onDownloadModel, onFinished)
