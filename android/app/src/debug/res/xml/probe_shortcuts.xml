@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug build only: the shortcut to the keyboard signal probe page. A long press
+  on the Breaker icon shows it. The labels are string resources in the debug
+  values folder. The debug source set goes with the probe before release.
+-->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="probe"
+        android:enabled="true"
+        android:shortcutShortLabel="@string/probe_shortcut_short_label"
+        android:shortcutLongLabel="@string/probe_shortcut_long_label">
+        <intent
+            android:action="android.intent.action.MAIN"
+            android:targetPackage="dev.breaker.dictation"
+            android:targetClass="dev.breaker.dictation.probe.KeyboardProbeActivity" />
+    </shortcut>
+</shortcuts>

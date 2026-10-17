@@ -112,4 +112,13 @@ internal interface TileWindow {
 
     /** Take the window off screen. Quietly does nothing when it is not there. */
     fun remove()
+
+    /**
+     * Report changes of the bottom keyboard inset of the tile window to [listener], as the
+     * bottom in pixels and whether the keyboard is visible. Null turns the probe off.
+     *
+     * Probe only. The default body does nothing, so an implementation or fake without the
+     * probe still compiles; the real window overrides it.
+     */
+    fun setImeProbe(listener: ((Int, Boolean) -> Unit)?) {}
 }

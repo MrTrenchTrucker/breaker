@@ -37,6 +37,7 @@ internal class OverlayTilePort(
 ) : TilePort {
 
     private var tile: FloatingTile? = null
+    private var imeProbe: ((Int, Boolean) -> Unit)? = null
 
     override fun show(): TileShow {
         val theme = currentTheme()
@@ -52,6 +53,7 @@ internal class OverlayTilePort(
             onNoticeDismissed = onNoticeDismissed,
         )
         tile = made
+        if (imeProbe != null) made.setImeProbe(imeProbe)
         made.setTheme(theme)
         return when (made.show()) {
             ShowResult.SHOWN -> TileShow.SHOWN
@@ -84,6 +86,12 @@ internal class OverlayTilePort(
     /** Tells the tile that the display changed (a turn or a fold); does nothing until the tile has been shown once. */
     fun onDisplayChanged() {
         tile?.onDisplayChanged()
+    }
+
+    /** Probe only: remembers the keyboard inset listener and hands it to the tile; main thread only. */
+    fun setImeProbe(listener: ((Int, Boolean) -> Unit)?) {
+        imeProbe = listener
+        tile?.setImeProbe(listener)
     }
 
     private fun currentTheme(): TileTheme = when (settings.load().themeMode) {

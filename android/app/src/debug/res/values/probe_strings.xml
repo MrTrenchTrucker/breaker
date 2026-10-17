@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug build only: the labels of the probe shortcut. A shortcut label must be a
+  string resource, so the labels live here and not in the shortcut file.
+-->
+<resources>
+    <string name="probe_shortcut_short_label">Breaker probe</string>
+    <string name="probe_shortcut_long_label">Breaker probe</string>
+</resources>

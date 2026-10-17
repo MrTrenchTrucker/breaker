@@ -42,7 +42,7 @@ import dev.breaker.shared.tokens.TruckingTokens
  * @param onNoticeDismissed called when the strip of a notice window is tapped; null for none.
  */
 internal class TileController(
-    private val window: TileWindow,
+    internal val window: TileWindow,
     private val settings: SettingsStore,
     private val onTap: () -> Unit,
     theme: ThemeMode,

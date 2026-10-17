@@ -82,7 +82,7 @@ class PublicSurfaceTest {
     @Test
     fun `FloatingTile exposes exactly the documented public functions`() {
         val expected = listOf(
-            "clearNotice", "getState", "hide", "isShown", "onDisplayChanged", "setDescription", "setLevel", "setState", "setTheme", "show", "showNotice",
+            "clearNotice", "getState", "hide", "isShown", "onDisplayChanged", "setDescription", "setImeProbe", "setLevel", "setState", "setTheme", "show", "showNotice",
         )
         assertEquals("android_overlay: control: only the public functions of a class must be listed", listOf("other", "shown"), publicMethodNames(ControlSurface::class.java))
         assertNotEquals("android_overlay: control: a class with other functions must not match the documented ones", expected, publicMethodNames(ControlSurface::class.java))

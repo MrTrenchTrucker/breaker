@@ -166,7 +166,7 @@ internal object MappingGate {
 
     /** What is wrong with the service file's [source], by member name; empty when the whole class is the pinned one. */
     fun serviceProblems(source: String): List<String> {
-        val code: String = squash(SourceFiles.strip(source).code)
+        val code: String = squash(ProbeView.mapping(SourceFiles.strip(source).code))
         val bad: MutableList<String> = ArrayList()
         val service: Part? = partOf(code, "class BreakerAccessibilityService")
         checkPart(service, MappingExpected.SERVICE_HEADER, MappingExpected.service, "BreakerAccessibilityService", bad)

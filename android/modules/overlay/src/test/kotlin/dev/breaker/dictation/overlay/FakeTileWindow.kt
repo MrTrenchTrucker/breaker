@@ -128,6 +128,13 @@ internal class FakeTileWindow(
         busyPulseOn = on
     }
 
+    /** Every listener given to [setImeProbe], in order; a null entry is kept as null. */
+    val imeProbes = ArrayList<((Int, Boolean) -> Unit)?>()
+
+    override fun setImeProbe(listener: ((Int, Boolean) -> Unit)?) {
+        imeProbes.add(listener)
+    }
+
     override fun remove() {
         calls.add("remove")
         removeCount++

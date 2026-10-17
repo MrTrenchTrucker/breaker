@@ -12,7 +12,7 @@ code, kept out of the build (see its `DEAD_CODE.md`).
 
 Rule: the committed text never appears in any message, log or detail.
 
-Pure Kotlin (six files), in `src/main/kotlin/dev/breaker/dictation/commit/`:
+Pure Kotlin (seven files), in `src/main/kotlin/dev/breaker/dictation/commit/`:
 
 - `CommitService.kt` - the `core.TextCommitter`. `commit` blocks: one hop to the
   main thread, then the focused field (published by a text-insert mechanism),
@@ -26,6 +26,12 @@ Pure Kotlin (six files), in `src/main/kotlin/dev/breaker/dictation/commit/`:
   main thread or the deadline claims it (exactly one wins). A started block is
   waited for and reports what it did; a block not started at the deadline is
   dropped and the call fails as not responding.
+- `KeyboardProbeReadings.kt` - the probe's holder of the keyboard readings, probe only
+  and removed with the probe's selector. Its public members, one line each:
+  `setEnabled(on)` turns the probe on or off (off clears the readings);
+  `isEnabled()`; `publish(fieldFocus, imeWindow, lastEvent, time)` stores a reading
+  while the probe is on; `current()` returns the latest reading or null;
+  `recent()` returns a copy of the last 40 readings, oldest first.
 
 Android adapters (five files, the only ones that name Android classes), in
 `src/main/kotlin/dev/breaker/dictation/commit/adapter/`:
@@ -61,6 +67,6 @@ been tried on a device. Files: `CommitServiceFocusedFieldTest` (was
 `CommitServiceLateHopTest`, `CommitServiceInterruptTest`,
 `CommitServiceExplicitSendTest`; `PostedMainThreadTest`,
 `PostedMainThreadClaimTest`, `PostedMainThreadServiceTest` with `HopFakes.kt`;
-`NoticeGatingTest`, `FocusedFieldRegistryTest`, `FocusedFieldHandleTest`; the scans `PureFilesScanTest`, `FocusedFieldSeamScanTest`,
+`NoticeGatingTest`, `FocusedFieldRegistryTest`, `FocusedFieldHandleTest`, `KeyboardProbeReadingsTest`; the scans `PureFilesScanTest`, `FocusedFieldSeamScanTest`,
 `AndroidConfinementTest`, `ConcurrencyRuleScanTest`, `TestRulesScanTest` with
 `SourceFiles.kt`.

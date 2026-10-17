@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug build only: the keyboard signal probe. This file is the debug source
+  set's manifest, merged into the debug build and into no other build, so the
+  release build has no probe activity and no probe provider. The probe is
+  temporary and is removed with its selector before release; this file goes
+  with it.
+
+  The probe activity has no launcher icon of its own. The owner opens it by a
+  long press on the Breaker icon, which shows a shortcut labelled Breaker probe
+  (res/xml/probe_shortcuts.xml, hooked to the launcher activity below). The
+  provider holds no data: it starts the probe with the process, so the
+  accessibility service learns the probe setting before the page is opened. It
+  is not exported.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <activity
+            android:name=".probe.KeyboardProbeActivity"
+            android:exported="false"
+            android:label="Breaker probe"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
+        <activity
+            android:name=".SettingsLauncherActivity">
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/probe_shortcuts" />
+        </activity>
+        <provider
+            android:name=".probe.ProbeStartProvider"
+            android:authorities="${applicationId}.probe"
+            android:exported="false" />
+    </application>
+</manifest>
