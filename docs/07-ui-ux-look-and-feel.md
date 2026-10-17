@@ -39,13 +39,13 @@ with a black-outline variant for dark mode. One asset, three uses.
 
 ## 4. State system (the "copy" indicator)
 
-The mic glyph + **LED bar meter** show transmission state:
+The mic glyph + **level meter** show transmission state:
 
 | State | Visual | Meaning |
 |-------|--------|---------|
 | Idle | black mic on white ring (light) / white mic on green-tinted ring (dark) | waiting |
 | Armed | thin green ring pulses slowly | listening for "Breaker Breaker" — "on the air" |
-| Recording | **LED bar meter fills** with audio level (digital Cobra-style segments) | transmitting |
+| Recording | **level meter lights** the mic's grille slots with audio level (digital Cobra-style segments) | transmitting |
 | Queued / transcribing | green dot blinks / mono `TX` tag | job in the FIFO queue |
 | **Sent (copy)** | **GREEN** | transcription committed (pasted or copied) |
 | **Server failed → local fallback** | **ORANGE** | server path failed; local phone model succeeded |
@@ -58,12 +58,12 @@ The mic glyph + **LED bar meter** show transmission state:
 - **Red** = complete failure (e.g., no local model installed — a clear error,
   never a silent cloud attempt [1]).
 
-## 5. LED bar meter (digital Cobra display)
+## 5. Level meter (digital Cobra display)
 
 - A **segment display** (12–16 segments) that fills left→right with input
   level while recording — like a classic Cobra CB signal/modulation meter.
-- **Android:** sits **directly above the floating mic** when the mic is awake
-  and recording.
+- **Android:** the floating mic's six grille slots light from left to right
+  while recording.
 - **Color:** green segments while recording; the bar turns green on sent,
   orange on fallback, red on complete failure.
 - Web FE: the same meter appears on the dictation panel where relevant (it is
@@ -114,15 +114,16 @@ The mic glyph + **LED bar meter** show transmission state:
 ### Floating tile
 - The **CB mic glyph**, draggable, tap-only (overlay windows cannot take focus
   [1]). Tap starts dictation in place, on the tile — no screen opens, so the
-  app the user is typing in keeps focus (ADR-022). While recording, the meter
-  shows on the tile with a small cancel control; tap again (or say the send
-  phrase) to send. Permission set stays minimal: display over other apps (the
+  app the user is typing in keeps focus (ADR-022). While recording, the level meter
+  lights the mic's grille, and an X (cancel) and a check (send) sit either
+  side of the mic, each 90% of the mic's size and about 8 dp from it; the check
+  (or the send phrase) sends. Permission set stays minimal: display over other apps (the
   tile), mic, internet, foreground service, accessibility service [1].
 - While Breaker is switched on, an ongoing notification shows (the microphone
   service runs in the background; ADR-022). It records only between a tile
   tap and send, cancel or an error. Tapping the notification opens the Breaker
   app on its history of transcriptions (F7).
-- **LED bar meter above the mic** when awake and recording (F36).
+- **Level meter in the mic's grille** while recording (F36).
 - Status text in mono (`LISTENING…` / `QUEUED…` / `TRANSMITTING…`) with a
   green status dot, shown as a small label beside the tile.
 - State colors per section 4.
@@ -155,6 +156,6 @@ The mic glyph + **LED bar meter** show transmission state:
   adjacent (F35).
 - State colors correct: sent = green, server-fail→local fallback = orange,
   complete failure = red (F36).
-- LED bar fills while recording, directly above the floating mic on Android (F36).
+- The level meter lights the floating mic's grille while recording on Android (F36).
 - FE + app render identical tokens; light/dark toggle persists per user.
 - Contrast passes WCAG AA in both modes.

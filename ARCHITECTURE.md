@@ -161,10 +161,13 @@ admins.
 - F35. **Responsive web FE:** the container website renders landscape and
       portrait layouts based on device size/resolution (mobile-first
       breakpoints), matching the Android app's look.
-- F36. **State indicators:** the CB mic glyph + LED bar meter show transmission
+- F36. **State indicators:** the CB mic glyph + level meter show transmission
       state — **green** = sent (copy confirmed), **orange** = server failed →
-      local fallback, **red** = complete failure; the LED bar (digital
-      Cobra-style segment display) fills above the floating mic while recording.
+      local fallback, **red** = complete failure. While recording, the level
+      meter lights the mic's grille slots from left to right, and the X
+      (cancel) and the check (send) sit either side of the mic, each drawn at
+      90% of the mic's full width (side bar included), about 8 dp from it
+      (ADR-024).
 - F37. **Microphone sharing:** when any other app or a phone call wants the
       microphone, Breaker releases it at once, with no prompt. Wake listening
       starts again only after the microphone has been free for 30 seconds in a
@@ -179,7 +182,7 @@ admins.
 - F39. **Busy cue:** from the check tap until the final outcome the tile shows
       that the text is being processed: the ring takes a colour of its own and
       pulses on its own rhythm; there is no spinner (ADR-024).
-- F40. **Loudness bar:** while recording, the bar above the microphone follows how
+- F40. **Loudness bar:** while recording, the meter in the microphone's grille follows how
       loud the voice is; the app works out the level from the audio it already
       receives and passes it to the tile (ADR-024).
 - F41. **Hide without a keyboard:** the tile appears by itself when a text input
@@ -423,7 +426,7 @@ ends it.
   History, How it works and About, each its own screen opened from the Home
   menu; Back from any of them returns to Home.
 
-**Overlay (floating tile):** `WindowManager` + `TYPE_APPLICATION_OVERLAY` with `FLAG_NOT_FOCUSABLE` (Android 11+). Tile has no long press: a tap starts dictation, a drag moves the tile or hides it (F38); tapping it starts dictation in place, on the tile — no Activity opens, so the app the user is typing in keeps focus and the user's own keyboard stays up (ADR-022). The tile IS the **CB mic glyph** — tap to talk. While recording, a digital Cobra-style **LED bar meter** fills directly above it, with a small cancel control; tap again (or the send phrase) to send (F36). A notice on the tile (a sentence from the app, such as a missing speech model) widens it for a moment: it collapses back to the small tile on its own after 4 seconds, and a tap anywhere on it collapses it at once; the timer is the app's, the tile has no clock. Dragging the small tile shows the close target (F38). After the check tap the tile shows a busy cue until the outcome (F39), the LED bar follows the voice level (F40), and the tile may hide while no text input is in use (F41, ADR-024). Permission set: `SYSTEM_ALERT_WINDOW` (tile), mic, internet, foreground service, notifications (F11), plus the accessibility service — a Settings toggle onboarding leads the user to, not a runtime prompt (ADR-022) [1].
+**Overlay (floating tile):** `WindowManager` + `TYPE_APPLICATION_OVERLAY` with `FLAG_NOT_FOCUSABLE` (Android 11+). Tile has no long press: a tap starts dictation, a drag moves the tile or hides it (F38); tapping it starts dictation in place, on the tile — no Activity opens, so the app the user is typing in keeps focus and the user's own keyboard stays up (ADR-022). The tile IS the **CB mic glyph** — tap to talk. While recording, a **level meter** lights the mic's grille slots from left to right, and an X (cancel) and a check (send) sit either side of the mic, each 90% of the mic's size and about 8 dp from it; the check (or the send phrase) sends (F36). A notice on the tile (a sentence from the app, such as a missing speech model) widens it for a moment: it collapses back to the small tile on its own after 4 seconds, and a tap anywhere on it collapses it at once; the timer is the app's, the tile has no clock. Dragging the small tile shows the close target (F38). After the check tap the tile shows a busy cue until the outcome (F39), the level meter follows the voice level (F40), and the tile may hide while no text input is in use (F41, ADR-024). Permission set: `SYSTEM_ALERT_WINDOW` (tile), mic, internet, foreground service, notifications (F11), plus the accessibility service — a Settings toggle onboarding leads the user to, not a runtime prompt (ADR-022) [1].
 
 ## 9. Formatting
 
@@ -496,8 +499,8 @@ values) live in `shared/ui-tokens`:
   on desktop; the Android app consumes the same tokens so both look identical.
 - **CB mic motif + state colors (F36):** the CB mic glyph is the favicon, the
   floating tile, and the web FE's hero card (ComfyUI art: flat vector, white/green
-  + black-outline variant). A digital Cobra-style **LED bar meter** (segments
-  filling with audio level, directly above the floating mic on Android) shows
+  + black-outline variant). A digital Cobra-style **level meter** (segments
+  filling with audio level, in the floating mic's grille on Android) shows
   state: **green** = sent (copy confirmed), **orange** = server failed → local
   fallback succeeded, **red** = complete failure. Full spec in `docs/07`.
 
@@ -881,9 +884,9 @@ See `docs/04-build-order.md`. Summary:
       transcriptions only), tombstone-synced (F34).
 - D32. **Responsive web FE** — mobile-first breakpoints; landscape/portrait
       layouts; same tokens as the Android app (F35).
-- D33. **CB mic motif + LED bar state indicators** — CB mic glyph as
-      favicon/tile/hero (ComfyUI art); digital Cobra-style LED bar fills above
-      the floating mic while recording; green = sent, orange = server-fail →
+- D33. **CB mic motif + level meter state indicators** — CB mic glyph as
+      favicon/tile/hero (ComfyUI art); the level meter lights the floating
+      mic's grille while recording; green = sent, orange = server-fail →
       local fallback, red = complete failure (F36).
 - D21. **Configurable transcription service** — admin-configured endpoint
       (Docker/IP/external), server-side proxy, connectivity test (F26).

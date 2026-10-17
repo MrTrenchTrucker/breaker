@@ -1,6 +1,6 @@
 # ADR-024: The tile shows busy and loudness, and hides itself when no keyboard is in use
 
-**Status:** accepted, amended 2026-10-12 (busy cue: no spinner; shake, keyboard and battery), amended 2026-10-14 (level feed), amended 2026-10-15 (a shake only shows the tile)
+**Status:** accepted, amended 2026-10-12 (busy cue: no spinner; shake, keyboard and battery), amended 2026-10-14 (level feed), amended 2026-10-15 (a shake only shows the tile), amended 2026-10-17 (X and check size and spacing)
 **Date:** 2026-10-12
 
 ## Context
@@ -73,3 +73,11 @@ hidden, or after a show that failed) and never starts a recording or opens the
 microphone. A tap on the tile starts recording. The wake phrase is unchanged: it
 brings the tile up and starts recording, because it is a deliberate spoken
 command.
+
+Amended 2026-10-17: the fifth device test showed the X and the check too small
+and too far from the microphone while recording, so the three did not read as
+one control. Each is now drawn at 90% of the microphone's full width, side bar included,
+and each sits
+about 8 dp from the microphone's outline, which is two to three widths of the
+tile's glow. The recording window narrows to fit. Their shapes, colours and
+what each one does are unchanged.
