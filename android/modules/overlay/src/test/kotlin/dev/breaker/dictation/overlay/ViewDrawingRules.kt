@@ -81,7 +81,7 @@ internal object ViewDrawingRules {
 
     /**
      * The buttons of onDraw in [source]: each button is one drawControl call with its own cell and shape, the cross with
-     * ControlArt.cancel in TileLayout.cancelCell(s) and the check with ControlArt.send in TileLayout.sendCell(s), each
+     * ControlArt.cancel in ControlLayout.cancel(s) and the check with ControlArt.send in ControlLayout.send(s), each
      * with the canvas, the paint and the look; the cross comes first. drawControl makes the fill and the trim outline,
      * so the buttons are filled shapes with a trim outline, and the old drawCancel, drawSend and drawLine calls are
      * reported wherever they are drawn in onDraw.
@@ -128,8 +128,8 @@ internal object ViewDrawingRules {
 
     /** The cell a button is drawn into, from its shape; null for a shape that is not a button. */
     private fun buttonCell(shape: String?): String? = when (shape) {
-        "ControlArt.cancel" -> "TileLayout.cancelCell(s)"
-        "ControlArt.send" -> "TileLayout.sendCell(s)"
+        "ControlArt.cancel" -> "ControlLayout.cancel(s)"
+        "ControlArt.send" -> "ControlLayout.send(s)"
         else -> null
     }
 

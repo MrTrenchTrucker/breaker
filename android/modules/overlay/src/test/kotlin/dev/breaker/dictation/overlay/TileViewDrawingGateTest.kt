@@ -35,10 +35,10 @@ class TileViewDrawingGateTest {
 
     // ---- The rules, each from source text to a list of violations ----
 
-    private val sideDecl = Regex("""\bval\s+(\w+)\s*=\s*if\s*\(\s*(?:this\.)?(?:face\.)?shape\s*==\s*TileShape\.COLLAPSED\s*\)\s*height\s+else\s+width\s*/\s*3\b""")
+    private val sideDecl = Regex("""\bval\s+(\w+)\s*=\s*if\s*\(\s*(?:this\.)?(?:face\.)?shape\s*==\s*TileShape\.NOTICE\s*\)\s*width\s*/\s*3\s+else\s+height\b""")
     private val micCall = Regex("""TileLayout\.micCell\(\s*(?:this\.)?(?:face\.)?shape\s*,\s*(\w+)\s*\)""")
-    private val cancelControl = Regex("""\bdrawControl\s*\(\s*canvas\s*,\s*TileLayout\.cancelCell\(\s*(\w+)\s*\)\s*,\s*paint\s*,\s*ControlArt\.cancel\s*,""")
-    private val sendControl = Regex("""\bdrawControl\s*\(\s*canvas\s*,\s*TileLayout\.sendCell\(\s*(\w+)\s*\)\s*,\s*paint\s*,\s*ControlArt\.send\s*,""")
+    private val cancelControl = Regex("""\bdrawControl\s*\(\s*canvas\s*,\s*ControlLayout\.cancel\(\s*(\w+)\s*\)\s*,\s*paint\s*,\s*ControlArt\.cancel\s*,""")
+    private val sendControl = Regex("""\bdrawControl\s*\(\s*canvas\s*,\s*ControlLayout\.send\(\s*(\w+)\s*\)\s*,\s*paint\s*,\s*ControlArt\.send\s*,""")
     private val recordingHead = Regex("""TileShape\.RECORDING\s*->\s*\{""")
     private val noticeBranch = Regex("""TileShape\.NOTICE\s*->\s*drawNotice\s*\(""")
     private val widthOf = Regex("""\bval\s+(\w+)\s*=\s*(\w+)\.width\b""")
@@ -68,7 +68,7 @@ class TileViewDrawingGateTest {
         val side = sideOf(code)
         val mics = micCall.findAll(code).map { it.groupValues[1] }.toList()
         return listOfNotNull(
-            "the cell side is not height for a collapsed tile and width / 3 otherwise".takeIf { side == null },
+            "the cell side is not width / 3 for a notice and height otherwise".takeIf { side == null },
             "the microphone cell is not cut for the face's shape from the cell side".takeIf { mics.isEmpty() || mics.any { it != side } },
         )
     }
@@ -123,14 +123,14 @@ class TileViewDrawingGateTest {
         "internal class V {",
         "fun onDraw(canvas: Canvas) {",
         "val face = this.face",
-        "val s = if (face.shape == TileShape.COLLAPSED) height else width / 3",
+        "val s = if (face.shape == TileShape.NOTICE) width / 3 else height",
         "val mic = TileLayout.micCell(face.shape, s)",
         "when (face.shape) {",
         "TileShape.COLLAPSED -> Unit",
         "TileShape.NOTICE -> drawNotice(canvas, s, face)",
         "TileShape.RECORDING -> {",
-        "artDraw.drawControl(canvas, TileLayout.cancelCell(s), paint, ControlArt.cancel, look)",
-        "artDraw.drawControl(canvas, TileLayout.sendCell(s), paint, ControlArt.send, look)",
+        "artDraw.drawControl(canvas, ControlLayout.cancel(s), paint, ControlArt.cancel, look)",
+        "artDraw.drawControl(canvas, ControlLayout.send(s), paint, ControlArt.send, look)",
         "}",
         "}",
         "}",
@@ -154,9 +154,9 @@ class TileViewDrawingGateTest {
     @Test
     fun `the view cuts its cells from the height when square and a third of the width when wide`() {
         assertQuiet("the sample, under every rule", allRules.flatMap { it(sample) })
-        assertFires("a wide window cut from the height", sideProblems(edit(sample, "height else width / 3", "height else height")), "cell side")
-        assertFires("a square tile cut from the width", sideProblems(edit(sample, "COLLAPSED) height else", "COLLAPSED) width / 3 else")), "cell side")
-        assertFires("the test reversed", sideProblems(edit(sample, "== TileShape.COLLAPSED", "!= TileShape.COLLAPSED")), "cell side")
+        assertFires("a wide window cut from the height", sideProblems(edit(sample, "width / 3 else height", "height else height")), "cell side")
+        assertFires("a square tile cut from the width", sideProblems(edit(sample, "else height", "else width / 3")), "cell side")
+        assertFires("the test reversed", sideProblems(edit(sample, "== TileShape.NOTICE", "!= TileShape.NOTICE")), "cell side")
         assertFires("a half instead of a third", sideProblems(edit(sample, "width / 3", "width / 2")), "cell side")
         assertFires("the side line only in a comment", sideProblems("// " + sample.lines()[3] + "\n"), "cell side")
         assertFires("the microphone cell of the square shape always", sideProblems(edit(sample, "micCell(face.shape, s)", "micCell(TileShape.COLLAPSED, s)")), "microphone cell")
@@ -165,7 +165,7 @@ class TileViewDrawingGateTest {
         assertQuiet("the side under another name", sideProblems(edit(edit(sample, "val s =", "val side ="), "(face.shape, s)", "(face.shape, side)")))
         assertQuiet("the shape through this, and the line broken", sideProblems(edit(sample, "val s = if (face.shape ==", "val s = if (this.face.shape\n ==")))
 
-        assertEquals("overlay: $view must cut its cells from height when square and width / 3 when wide", emptyList<String>(), inView(this::sideProblems))
+        assertEquals("overlay: $view must cut its cells from height unless a notice and width / 3 for a notice", emptyList<String>(), inView(this::sideProblems))
     }
 
     /**
@@ -190,20 +190,20 @@ class TileViewDrawingGateTest {
     /** A failure here means a button is drawn into a cell that does not answer it, drawn more or fewer than once, or drawn outside the recording branch. */
     @Test
     fun `the view draws the cancel cross left and the check right and only when recording`() {
-        val cancel = "artDraw.drawControl(canvas, TileLayout.cancelCell(s), paint, ControlArt.cancel, look)"
-        val send = "artDraw.drawControl(canvas, TileLayout.sendCell(s), paint, ControlArt.send, look)"
-        assertFires("the cross in the send cell", controlProblems(edit(sample, cancel, "artDraw.drawControl(canvas, TileLayout.sendCell(s), paint, ControlArt.cancel, look)")), "the cross")
-        assertFires("the check in the cancel cell", controlProblems(edit(sample, send, "artDraw.drawControl(canvas, TileLayout.cancelCell(s), paint, ControlArt.send, look)")), "the check")
-        assertFires("the cross with the check shape", controlProblems(edit(sample, cancel, "artDraw.drawControl(canvas, TileLayout.cancelCell(s), paint, ControlArt.send, look)")), "the cross")
-        assertFires("the cross in the microphone cell", controlProblems(edit(sample, cancel, "artDraw.drawControl(canvas, TileLayout.micCell(face.shape, s), paint, ControlArt.cancel, look)")), "the cross")
+        val cancel = "artDraw.drawControl(canvas, ControlLayout.cancel(s), paint, ControlArt.cancel, look)"
+        val send = "artDraw.drawControl(canvas, ControlLayout.send(s), paint, ControlArt.send, look)"
+        assertFires("the cross in the send cell", controlProblems(edit(sample, cancel, "artDraw.drawControl(canvas, ControlLayout.send(s), paint, ControlArt.cancel, look)")), "the cross")
+        assertFires("the check in the cancel cell", controlProblems(edit(sample, send, "artDraw.drawControl(canvas, ControlLayout.cancel(s), paint, ControlArt.send, look)")), "the check")
+        assertFires("the cross with the check shape", controlProblems(edit(sample, cancel, "artDraw.drawControl(canvas, ControlLayout.cancel(s), paint, ControlArt.send, look)")), "the cross")
+        assertFires("the cross with the send placement", controlProblems(edit(sample, cancel, "artDraw.drawControl(canvas, ControlLayout.send(s), paint, ControlArt.cancel, look)")), "the cross")
         assertFires("the cross drawn three times", controlProblems(edit(sample, cancel, "$cancel\n$cancel")), "the cross")
         assertFires("no check", controlProblems(edit(sample, "$send\n", "")), "the check")
-        assertFires("the cross in a cell cut from another side", controlProblems(edit(sample, "cancelCell(s)", "cancelCell(height)")), "the cross")
+        assertFires("the cross in a cell cut from another side", controlProblems(edit(sample, "ControlLayout.cancel(s)", "ControlLayout.cancel(height)")), "the cross")
         assertFires("the check outside the recording branch", controlProblems(edit(edit(sample, "$send\n", ""), "TileShape.COLLAPSED -> Unit", "TileShape.COLLAPSED -> $send")), "recording branch")
         assertFires("the notice in the wrong branch", controlProblems(edit(sample, "TileShape.NOTICE -> drawNotice(canvas, s, face)", "TileShape.NOTICE -> Unit")), "notice branch")
         assertFires("no recording branch", controlProblems(edit(sample, "TileShape.RECORDING -> {", "TileShape.RECORDING -> run {")), "recording branch")
-        assertQuiet("the side under another name", controlProblems(edit(edit(edit(sample, "val s =", "val side ="), "cancelCell(s)", "cancelCell(side)"), "sendCell(s)", "sendCell(side)")))
-        assertQuiet("the arguments on separate lines", controlProblems(edit(sample, cancel, "artDraw.drawControl(\n canvas,\n TileLayout.cancelCell(s),\n paint,\n ControlArt.cancel,\n look,\n)")))
+        assertQuiet("the side under another name", controlProblems(edit(edit(edit(sample, "val s =", "val side ="), "ControlLayout.cancel(s)", "ControlLayout.cancel(side)"), "ControlLayout.send(s)", "ControlLayout.send(side)")))
+        assertQuiet("the arguments on separate lines", controlProblems(edit(sample, cancel, "artDraw.drawControl(\n canvas,\n ControlLayout.cancel(s),\n paint,\n ControlArt.cancel,\n look,\n)")))
 
         assertEquals("overlay: $view must draw the cross in the cancel cell and the check in the send cell, only when recording", emptyList<String>(), inView(this::controlProblems))
     }

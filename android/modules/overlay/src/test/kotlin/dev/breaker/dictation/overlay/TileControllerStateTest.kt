@@ -14,7 +14,7 @@ import org.junit.Test
  *
  * The screen is the one in [TestData]: the saved centre puts the square tile at (506, 1140), 100 pixels
  * square, so the notice window of 300 by 150 pixels has its top-left corner at (406, 1090), and the
- * recording window of 300 by 100 pixels has its top-left corner at (406, 1140).
+ * recording window of 225 by 100 pixels has its top-left corner at (440, 1140).
  */
 class TileControllerStateTest {
 
@@ -43,7 +43,7 @@ class TileControllerStateTest {
 
     private val collapsedFrame = FakeTileWindow.Frame(506, 1140, 100, 100)
     private val wideFrame = FakeTileWindow.Frame(406, 1090, 300, 150)
-    private val recordingFrame = FakeTileWindow.Frame(406, 1140, 300, 100)
+    private val recordingFrame = FakeTileWindow.Frame(440, 1140, 225, 100)
 
     /** If this fails, a tile that was never told anything starts in a state other than idle. */
     @Test

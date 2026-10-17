@@ -81,16 +81,16 @@ internal class TileArtDraw {
 
     /**
      * Draws one recording button: the fill of [shape] in its face colour, then its trim outline on the same
-     * Path, inside the art frame of [cell]. Widths are in art units, so the outline is
-     * [ArtMetrics.CONTROL_OUTLINE_UNITS] wide and centred on the edge, joined with a miter limited by
-     * [ArtMetrics.CONTROL_MITER_LIMIT]. The paint's join, miter and cap are put back afterwards.
+     * Path, inside [placement]: the art box is moved and scaled to where the button sits in the window. Widths are
+     * in art units, so the outline is [ArtMetrics.CONTROL_OUTLINE_UNITS] wide and centred on the edge, joined with a
+     * miter limited by [ArtMetrics.CONTROL_MITER_LIMIT]. The paint's join, miter and cap are put back afterwards.
      */
-    fun drawControl(canvas: Canvas, cell: TileRect, paint: Paint, shape: ArtShape, look: TileLook) {
+    fun drawControl(canvas: Canvas, placement: ControlPlacement, paint: Paint, shape: ArtShape, look: TileLook) {
         val join = paint.strokeJoin
         val miter = paint.strokeMiter
         val cap = paint.strokeCap
         val path = controlPaths.getValue(shape)
-        inCell(canvas, cell) {
+        inPlacement(canvas, placement) {
             paint.style = Paint.Style.FILL
             paint.color = faceColor(shape.part, look)
             canvas.drawPath(path, paint)
@@ -132,6 +132,15 @@ internal class TileArtDraw {
     private fun fillShape(canvas: Canvas, paint: Paint, shape: ArtShape, color: Int) {
         paint.color = color
         canvas.drawPath(paths.getValue(shape), paint)
+    }
+
+    /** Saves the canvas, moves and scales it to [placement] (the translation, then the scale), runs [draw], and restores. */
+    private inline fun inPlacement(canvas: Canvas, placement: ControlPlacement, draw: () -> Unit) {
+        canvas.save()
+        canvas.translate(placement.translateX, placement.translateY)
+        canvas.scale(placement.scale, placement.scale)
+        draw()
+        canvas.restore()
     }
 
     /** Saves the canvas, moves the art box to the cell (centred, scaled), runs [draw] with the scale, and restores. */

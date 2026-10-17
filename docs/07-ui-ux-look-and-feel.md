@@ -116,7 +116,7 @@ The mic glyph + **level meter** show transmission state:
   [1]). Tap starts dictation in place, on the tile — no screen opens, so the
   app the user is typing in keeps focus (ADR-022). While recording, the level meter
   lights the mic's grille, and an X (cancel) and a check (send) sit either
-  side of the mic, each 90% of the mic's size and about 8 dp from it; the check
+  side of the mic, each 90% of the mic's full width (side bar included) and about 8 dp from it; the check
   (or the send phrase) sends. Permission set stays minimal: display over other apps (the
   tile), mic, internet, foreground service, accessibility service [1].
 - While Breaker is switched on, an ongoing notification shows (the microphone

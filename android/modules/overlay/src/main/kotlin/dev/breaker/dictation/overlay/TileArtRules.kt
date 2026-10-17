@@ -37,6 +37,15 @@ internal object ArtMetrics {
     const val BUSY_SLASH_REACH: Float = 252.073f // the slash centre-line's half length from the centre, in art units (the inner radius over root two, plus the 6 the bar clears the ring)
     const val CONTROL_OUTLINE_UNITS: Float = 22f // the trim outline around the X and the check, in art units, centred on the shape's edge
     const val CONTROL_MITER_LIMIT: Float = 10f // the miter limit of the svg outline (stroke-miterlimit 10)
+    const val SILHOUETTE_LEFT: Float = 184f           // the left edge of the mic silhouette, in art units of the 1024 box
+    const val SILHOUETTE_RIGHT: Float = 768f          // the right edge of the mic silhouette, in art units
+    const val SILHOUETTE_CENTRE_Y: Float = 500f       // the vertical centre line of the mic silhouette, in art units
+    const val SILHOUETTE_CENTRE_X: Float = 476f       // the horizontal centre of the mic silhouette, in art units (the box centre is 512)
+    const val CONTROL_BOX_LEFT: Float = 314f          // the left edge of the X and the check path boxes, in art units
+    const val CONTROL_BOX_WIDTH: Float = 396f         // the width of the X and the check path boxes, in art units
+    const val CONTROL_BOX_CENTRE_Y: Float = 495f      // the vertical centre of the X and the check path boxes, in art units
+    const val CONTROL_WIDTH_FRACTION: Float = 0.90f   // the X and the check are this fraction of the mic's full width, side bar included
+    const val CONTROL_GAP_DP: Float = 8f              // the gap in dp between the nearest edge of the X or the check and the mic outline
     const val HALO_DP: Float = 2f              // the halo under the notice text only (the X and the check have no halo): it reaches this many dp beyond the text stroke on each side (its stroke is twice this wider than the stroke it sits under)
 }
 

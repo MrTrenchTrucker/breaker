@@ -109,7 +109,7 @@ internal class TileView(
         super.onDraw(canvas)
         val face = this.face
         val look = face.look
-        val s = if (face.shape == TileShape.COLLAPSED) height else width / 3
+        val s = if (face.shape == TileShape.NOTICE) width / 3 else height
         if (s <= 0) return
 
         val mic = TileLayout.micCell(face.shape, s)
@@ -120,8 +120,8 @@ internal class TileView(
             TileShape.COLLAPSED -> Unit
             TileShape.NOTICE -> drawNotice(canvas, s, face)
             TileShape.RECORDING -> {
-                artDraw.drawControl(canvas, TileLayout.cancelCell(s), paint, ControlArt.cancel, look)
-                artDraw.drawControl(canvas, TileLayout.sendCell(s), paint, ControlArt.send, look)
+                artDraw.drawControl(canvas, ControlLayout.cancel(s), paint, ControlArt.cancel, look)
+                artDraw.drawControl(canvas, ControlLayout.send(s), paint, ControlArt.send, look)
             }
         }
     }

@@ -34,15 +34,15 @@ class TileViewControlColourGateTest {
         "fun onDraw() {",
         "paint.color = look.background",
         "drawRing(canvas, mic, look.ring)",
-        "artDraw.drawControl(canvas, TileLayout.cancelCell(s), paint, ControlArt.cancel, look)",
-        "artDraw.drawControl(canvas, TileLayout.sendCell(s), paint, ControlArt.send, look)",
+        "artDraw.drawControl(canvas, ControlLayout.cancel(s), paint, ControlArt.cancel, look)",
+        "artDraw.drawControl(canvas, ControlLayout.send(s), paint, ControlArt.send, look)",
         "}",
         "}",
     ).joinToString("\n") + "\n"
 
     private val ringLine = "drawRing(canvas, mic, look.ring)\n"
-    private val cancelLine = "artDraw.drawControl(canvas, TileLayout.cancelCell(s), paint, ControlArt.cancel, look)\n"
-    private val sendLine = "artDraw.drawControl(canvas, TileLayout.sendCell(s), paint, ControlArt.send, look)\n"
+    private val cancelLine = "artDraw.drawControl(canvas, ControlLayout.cancel(s), paint, ControlArt.cancel, look)\n"
+    private val sendLine = "artDraw.drawControl(canvas, ControlLayout.send(s), paint, ControlArt.send, look)\n"
 
     /** A failure here means a button painted with a colour in place of the look is not reported by the colour rule. */
     @Test

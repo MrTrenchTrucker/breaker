@@ -260,16 +260,38 @@ class ControlDrawGateTest {
     fun `the whole draw sits inside the art cell block`() {
         assertQuiet("the real drawing", ControlDrawRules.drawControlProblems(realDraw()))
         assertFires(
-            "the passes without the inCell block",
+            "the passes without the inPlacement block",
             drawCopy(
-                "inCell(canvas, cell) {\n            paint.style = Paint.Style.FILL\n            paint.color = faceColor(shape.part, look)",
+                "inPlacement(canvas, placement) {\n            paint.style = Paint.Style.FILL\n            paint.color = faceColor(shape.part, look)",
                 "run {\n            paint.style = Paint.Style.FILL\n            paint.color = faceColor(shape.part, look)",
             ),
-            "inside inCell",
+            "inside inPlacement",
         )
         assertQuiet(
-            "the inCell call on two lines",
-            drawCopy("inCell(canvas, cell) {\n            paint.style = Paint.Style.FILL", "inCell(canvas,\n            cell) {\n            paint.style = Paint.Style.FILL"),
+            "the inPlacement call on two lines",
+            drawCopy("inPlacement(canvas, placement) {\n            paint.style = Paint.Style.FILL", "inPlacement(canvas,\n            placement) {\n            paint.style = Paint.Style.FILL"),
         )
+    }
+
+    /** The problems of inPlacement in the real file with [old] replaced by [new]. */
+    private fun placementCopy(old: String, new: String): List<String> =
+        ControlDrawRules.placementProblems(edit(realDraw(), old, new))
+
+    /**
+     * A failure here means the buttons are drawn at the wrong size or place: the canvas is not translated to the
+     * placement, the placement scale is not applied on both axes, the scale comes before the translate, the drawing
+     * falls outside the scale and the restore, or the canvas is not restored last.
+     */
+    @Test
+    fun `the buttons are moved and scaled to their placement`() {
+        assertQuiet("the real placement", ControlDrawRules.placementProblems(realDraw()))
+        assertFires("the save missing from the first call", placementCopy("canvas.save()\n        canvas.translate(placement.translateX, placement.translateY)", "val saved = 0\n        canvas.translate(placement.translateX, placement.translateY)"), "does not save")
+        assertFires("the translate removed", placementCopy("canvas.translate(placement.translateX, placement.translateY)", "val moved = placement.translateX"), "does not translate")
+        assertFires("the scale of 1f on both axes", placementCopy("canvas.scale(placement.scale, placement.scale)", "canvas.scale(1f, 1f)"), "both axes")
+        assertFires("the scale on the first axis only", placementCopy("canvas.scale(placement.scale, placement.scale)", "canvas.scale(placement.scale, 1f)"), "both axes")
+        assertFires("a commented correct scale next to a wrong one", placementCopy("canvas.scale(placement.scale, placement.scale)", "// canvas.scale(placement.scale, placement.scale)\n        canvas.scale(1f, 1f)"), "both axes")
+        assertFires("the translate and the scale swapped", placementCopy("canvas.translate(placement.translateX, placement.translateY)\n        canvas.scale(placement.scale, placement.scale)", "canvas.scale(placement.scale, placement.scale)\n        canvas.translate(placement.translateX, placement.translateY)"), "after it translates")
+        assertFires("the drawing moved after the restore", placementCopy("draw()\n        canvas.restore()", "canvas.restore()\n        draw()"), "between the scale")
+        assertFires("a canvas call after the restore", placementCopy("draw()\n        canvas.restore()", "draw()\n        canvas.restore()\n        canvas.save()"), "restore the canvas last")
     }
 }

@@ -42,7 +42,7 @@ class TileViewMappingGateTest {
     private val noticeColour = Regex("""\btextPaint\.color\s*=\s*(?:face\.)?look\.control[ \t]*(?:\n|\z)""")
     private val micCell = Regex("""\bval\s+(\w+)\s*=\s*TileLayout\.micCell\(""")
     private val cellArg = Regex("""\(\s*canvas\s*,\s*(TileLayout\.micCell\([^()]*\)|\w+)\s*,""")
-    private val sideDecl = Regex("""\bval\s+(\w+)\s*=\s*if\s*\([^)]*\)\s*height\s+else\s+width\s*/\s*3\b""")
+    private val sideDecl = Regex("""\bval\s+(\w+)\s*=\s*if\s*\([^)]*\)\s*width\s*/\s*3\s+else\s+height\b""")
     private val ringDecl = Regex("""\bval\s+(\w+)\s*=\s*TileMetrics\.RING_DP\s*\*\s*density\b""")
 
     /** The calls (not the declarations) of [name] in [code], each from its name to its closing bracket. */
@@ -99,14 +99,14 @@ class TileViewMappingGateTest {
         "internal class V {",
         "fun onDraw(canvas: Canvas) {",
         "val look = face.look",
-        "val s = if (face.shape == TileShape.COLLAPSED) height else width / 3",
+        "val s = if (face.shape == TileShape.NOTICE) width / 3 else height",
         "if (s <= 0) return",
         "val mic = TileLayout.micCell(face.shape, s)",
         "artDraw.drawGlow(canvas, mic, paint, look.ring, pulseAlpha, density)",
         "drawRing(canvas, mic, look.ring)",
         "artDraw.drawArt(canvas, mic, paint, face, pulseAlpha)",
-        "artDraw.drawControl(canvas, TileLayout.cancelCell(s), paint, ControlArt.cancel, look)",
-        "artDraw.drawControl(canvas, TileLayout.sendCell(s), paint, ControlArt.send, look)",
+        "artDraw.drawControl(canvas, ControlLayout.cancel(s), paint, ControlArt.cancel, look)",
+        "artDraw.drawControl(canvas, ControlLayout.send(s), paint, ControlArt.send, look)",
         "}",
         "private fun drawRing(canvas: Canvas, cell: TileRect, color: Int) {",
         "val stroke = TileMetrics.RING_DP * density",

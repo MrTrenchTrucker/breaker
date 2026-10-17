@@ -3,8 +3,9 @@ package dev.breaker.dictation.overlay
 /**
  * The drawing rules of the two recording buttons, read as text. drawControl fills the shape with the face colour of
  * its part, then strokes the same Path with the trim outline (look.glyphOutline, MITER join, BUTT cap, the control
- * miter limit and the control outline width), inside the art cell, and puts the paint's join, miter and cap back after
+ * miter limit and the control outline width), inside the placement, and puts the paint's join, miter and cap back after
  * the passes. controlConstantProblems reads the two constants and the two face arms the buttons are drawn with.
+ * placementProblems reads inPlacement, which saves the canvas, translates and scales it, runs the drawing and restores it.
  *
  * Each rule is a pure function from source text to a list of problems. Comments are blanked by [SourceText.code], and
  * a construct that cannot be found is a problem, never a pass.
@@ -15,13 +16,18 @@ internal object ControlDrawRules {
     private val colourPattern = Regex("""paint\.color\s*=\s*([^\n]*)""")
     private val drawPattern = Regex("""canvas\.drawPath\(""")
     private val namedDrawPattern = Regex("""canvas\.drawPath\(\s*(\w+)\s*,\s*paint\s*\)""")
-    private val inCellOpen = Regex("""inCell\(\s*canvas\s*,\s*cell\s*\)\s*\{""")
+    private val inPlacementOpen = Regex("""inPlacement\(\s*canvas\s*,\s*placement\s*\)\s*\{""")
     private val readJoin = Regex("""val\s+join\s*=\s*paint\.strokeJoin\b""")
     private val readMiter = Regex("""val\s+miter\s*=\s*paint\.strokeMiter\b""")
     private val readCap = Regex("""val\s+cap\s*=\s*paint\.strokeCap\b""")
     private val restoreJoin = Regex("""paint\.strokeJoin\s*=\s*join\b""")
     private val restoreMiter = Regex("""paint\.strokeMiter\s*=\s*miter\b""")
     private val restoreCap = Regex("""paint\.strokeCap\s*=\s*cap\b""")
+    private val canvasCallPattern = Regex("""canvas\.(\w+)\s*\(""")
+    private val placementTranslate = Regex("""canvas\.translate\(\s*placement\.translateX\s*,\s*placement\.translateY\s*\)""")
+    private val placementScale = Regex("""canvas\.scale\(\s*placement\.scale\s*,\s*placement\.scale\s*\)""")
+    private val drawCall = Regex("""\bdraw\(\s*\)""")
+    private val restoreCall = Regex("""canvas\.restore\(\s*\)""")
 
     /** The last match of [pattern] in [body] that starts before [index], or null. */
     private fun lastBefore(pattern: Regex, body: String, index: Int): MatchResult? =
@@ -49,8 +55,8 @@ internal object ControlDrawRules {
     /**
      * The problems of drawControl in [source]: the first pass is the fill (FILL style, faceColor of the part); the second
      * is the outline (STROKE style, look.glyphOutline, MITER join, BUTT cap, the control miter limit and outline width),
-     * on the same Path; the join, miter and cap are read before the first pass and put back after the inCell block;
-     * and both passes sit inside inCell(canvas, cell).
+     * on the same Path; the join, miter and cap are read before the first pass and put back after the inPlacement block;
+     * and both passes sit inside inPlacement(canvas, placement).
      */
     fun drawControlProblems(source: String): List<String> {
         val body = AdapterRules.blockBodyOf(SourceText.code(source), "drawControl")
@@ -62,8 +68,8 @@ internal object ControlDrawRules {
         val fill = draws[0]
         val outline = draws[1]
         val names = namedDrawPattern.findAll(body).map { it.groupValues[1] }.toList()
-        val inCell = inCellOpen.find(body)
-        val inCellClose = inCell?.let { SourceText.closeOf(body, it.range.last) }
+        val inPlacement = inPlacementOpen.find(body)
+        val inPlacementClose = inPlacement?.let { SourceText.closeOf(body, it.range.last) }
         return listOfNotNull(
             "the first drawPath is not preceded by the FILL style".takeUnless { styleBefore(body, fill) == "FILL" },
             "the fill colour is not faceColor(shape.part, look)".takeUnless { colourBefore(body, fill) == "faceColor(shape.part, look)" },
@@ -81,12 +87,36 @@ internal object ControlDrawRules {
             "drawControl does not save the paint join before the first pass".takeUnless { (firstAt(readJoin, body) ?: Int.MAX_VALUE) < fill },
             "drawControl does not save the paint miter limit before the first pass".takeUnless { (firstAt(readMiter, body) ?: Int.MAX_VALUE) < fill },
             "drawControl does not save the paint cap before the first pass".takeUnless { (firstAt(readCap, body) ?: Int.MAX_VALUE) < fill },
-            "drawControl does not restore the paint join after the inCell block".takeUnless { restoredAfter(body, restoreJoin, inCellClose) },
-            "drawControl does not restore the paint miter limit after the inCell block".takeUnless { restoredAfter(body, restoreMiter, inCellClose) },
-            "drawControl does not restore the paint cap after the inCell block".takeUnless { restoredAfter(body, restoreCap, inCellClose) },
-            "drawControl does not draw the fill and the outline inside inCell(canvas, cell)".takeUnless {
-                inCell != null && inCell.range.first < fill && inCellClose != null && inCellClose > outline
+            "drawControl does not restore the paint join after the inPlacement block".takeUnless { restoredAfter(body, restoreJoin, inPlacementClose) },
+            "drawControl does not restore the paint miter limit after the inPlacement block".takeUnless { restoredAfter(body, restoreMiter, inPlacementClose) },
+            "drawControl does not restore the paint cap after the inPlacement block".takeUnless { restoredAfter(body, restoreCap, inPlacementClose) },
+            "drawControl does not draw the fill and the outline inside inPlacement(canvas, placement)".takeUnless {
+                inPlacement != null && inPlacement.range.first < fill && inPlacementClose != null && inPlacementClose > outline
             },
+        )
+    }
+
+    /**
+     * The problems of inPlacement in [source]: the canvas is saved first, translated by the placement, scaled by the
+     * placement scale on both axes, the drawing runs between the scale and the restore, and the restore comes last.
+     */
+    fun placementProblems(source: String): List<String> {
+        val body = AdapterRules.blockBodyOf(SourceText.code(source), "inPlacement")
+            ?: return listOf("TileArtDraw has no inPlacement function with a block body")
+        val canvasCalls = canvasCallPattern.findAll(body).map { it.groupValues[1] }.toList()
+        val translate = firstAt(placementTranslate, body)
+        val scale = firstAt(placementScale, body)
+        val draw = firstAt(drawCall, body)
+        val restore = restoreCall.findAll(body).map { it.range.first }.lastOrNull()
+        return listOfNotNull(
+            "inPlacement does not save the canvas first".takeUnless { canvasCalls.firstOrNull() == "save" },
+            "inPlacement does not translate the canvas by placement.translateX and placement.translateY".takeIf { translate == null },
+            "inPlacement does not scale the canvas by placement.scale on both axes".takeIf { scale == null },
+            "inPlacement does not scale after it translates".takeUnless { translate != null && scale != null && translate < scale },
+            "inPlacement does not run the drawing between the scale and the restore".takeUnless {
+                scale != null && draw != null && restore != null && scale < draw && draw < restore
+            },
+            "inPlacement does not restore the canvas last".takeUnless { canvasCalls.lastOrNull() == "restore" },
         )
     }
 
