@@ -181,7 +181,7 @@ Floating tile = CB mic drawn from path data, with a glowing outline and a six-sl
 description the app pushes. Not built yet: nothing in the mic art; its look on a device is still to be checked.
 
 ## Public Interface
-FloatingTile (via create), ShowResult, TileState
+FloatingTile (via create), FloatingTile.setImeProbe, ShowResult, TileState
 
 - `FloatingTile`, built only through `FloatingTile.create(context, settings, onTap, theme, onSaveFailed, onBegin, onCancel, onSend, onNoticeDismissed, onCloseRequested)`:
   - `context`: any context; the tile keeps only the application context.
@@ -219,6 +219,7 @@ FloatingTile (via create), ShowResult, TileState
     different state; the module has no timer.
   - `clearNotice`: takes the sentence away; does nothing when there is none.
   - `setDescription`: the words a screen reader reads for the tile; null removes them.
+- `FloatingTile.setImeProbe(listener)`: probe only, removed with the keyboard-signal selector. A non-null listener is told the bottom keyboard inset and its visibility when they change; null turns it off. It never shows or hides the tile.
 - `ShowResult`, in this order, and what the app should do:
   - `SHOWN`: the tile is on screen. Nothing more to do.
   - `ALREADY_SHOWN`: it was already on screen. Nothing changed.
@@ -352,6 +353,7 @@ FloatingTile (via create), ShowResult, TileState
   public tile members are read by reflection; that every other top-level declaration is `internal` is read from the source text.
 
 - The armed ring pulse (`PulseRulesTest`, `PulseAlphaTest`, `TileControllerPulseTest`, `PulseGateTest`): the pure rules run only when all five conditions hold and only an armed, shown tile wants a pulse; a non-finite alpha is drawn at full strength; the controller asks for the pulse before each face, stops it on hide and on leaving armed, and gives the same tap answers with the pulse on or off; the animator is named in one file only, the view's four hooks reach the pure rule, and the view passes the system's animator switch as the fifth argument (`PulseGateTest`: the view asks the system whether animations are on). All of this is read as text, not run.
+- The inset probe (`InsetChangeFilterTest`, `FloatingTileImeProbeTest`): the filter accepts the first pair, a repeated pair once, a changed bottom or visibility, and the same pair again after `forget()`; the facade hands the listener to the window, a null listener reaches the window as null, a show and a hide make the same window calls with the probe on and off, and setting the probe changes no window call. `ImeProbeSourceGateTest` reads the window adapter as text: one attach of the inset listener, reached only with a listener, detached on null, asking the filter before it calls the listener, returning the view's own answer, `add()` keeping the plain tile's three flags, and no main file naming the keyboard signal setting.
 
 **Art and look (the new test files):**
 - `TileArtTest`: the shape, op and number counts and the coordinate sums equal the art's table; every shape is closed; the six

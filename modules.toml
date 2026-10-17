@@ -95,7 +95,7 @@ path = "android/modules/overlay"
 owns = "Floating tile = CB mic glyph + LED bar meter (WindowManager overlay, F36)."
 does_not_own = "Dictation itself: recording and putting the text into the target field (app, commit; ADR-022); gesture/voice triggers."
 depends_on = ["android", "android_core", "shared_ui_tokens"]
-public = "FloatingTile (via create), ShowResult, TileState"
+public = "FloatingTile (via create), FloatingTile.setImeProbe, ShowResult, TileState"
 card = "android/modules/overlay/AGENTS.md"
 
 [module.android_commit]
@@ -103,7 +103,7 @@ path = "android/modules/commit"
 owns = "CommitService: mechanism-neutral text commit (focused field gets the text, otherwise the clipboard) + toast."
 does_not_own = "Formatting (format); history storage (history); the text-insert mechanism itself (commit/accessibility, commit/ime)."
 depends_on = ["android", "android_core"]
-public = "CommitService, CommitServices, FocusedField, FieldCommit, FocusedFieldHolder.publish"
+public = "CommitService, CommitServices, FocusedField, FieldCommit, FocusedFieldHolder.publish, KeyboardProbeReadings (setEnabled/isEnabled/publish/current/recent), ProbeReading"
 card = "android/modules/commit/AGENTS.md"
 
 [module.android_commit_ime]

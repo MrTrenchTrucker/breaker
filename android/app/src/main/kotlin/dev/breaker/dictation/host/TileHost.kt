@@ -156,6 +156,13 @@ internal class TileHost(
         forwardingNotice.setListener(listener)
     }
 
+    /** Probe only: hands the keyboard inset listener to the tile on the main thread; nothing else calls it. */
+    fun setImeProbe(listener: ((Int, Boolean) -> Unit)?) {
+        main.post {
+            tile.setImeProbe(listener)
+        }
+    }
+
     override fun openLauncher(route: String?) {
         try {
             val intent = Intent(context, SettingsLauncherActivity::class.java)

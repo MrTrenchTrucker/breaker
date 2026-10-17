@@ -131,7 +131,7 @@ internal class AdapterGateTest {
     /** The keys of the rules that the two files break; empty when they break none. */
     private fun problems(nodeSource: String, serviceSource: String): List<String> {
         val node: String = SourceFiles.strip(nodeSource).code
-        val service: String = SourceFiles.strip(serviceSource).code
+        val service: String = ProbeView.adapter(SourceFiles.strip(serviceSource).code)
         val both: String = node + "\n" + service
         val bad: MutableList<String> = ArrayList()
         val eventBody: String? = bodyOf(service, "onAccessibilityEvent")

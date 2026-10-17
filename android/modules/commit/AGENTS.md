@@ -43,7 +43,16 @@ Implements `commit(request: CommitRequest): CommitOutcomeResult`.
   no public way to read or clear the current field from outside this module,
   so text can only ever be inserted through the commit service's own
   explicit-send flow.
-- Layout: six pure Kotlin files in the module's package (no Android class is
+- `KeyboardProbeReadings` is the probe's holder of the keyboard readings. It is probe
+  only and is removed together with the probe's setting selector before release.
+  Its public members, one line each:
+  - `setEnabled(on: Boolean)`: turns the probe on or off; turning it off clears the latest reading and the recent lines.
+  - `isEnabled(): Boolean`: whether the probe is on.
+  - `publish(fieldFocus: Boolean, imeWindow: Boolean, lastEvent: String, time: Long)`: stores a reading and appends it to the recent lines while the probe is on.
+  - `current(): ProbeReading?`: the latest reading, or null.
+  - `recent(): List<ProbeReading>`: a copy of the recent lines, oldest first, at most 40.
+  - `ProbeReading`: the data class of one reading.
+- Layout: seven pure Kotlin files in the module's package (no Android class is
   named in them) and five files in `adapter/`, the only place that names
   Android classes: `CommitServices.kt`, `AndroidClipboardWriter.kt`,
   `ToastNotice.kt`, `HandlerMainThread.kt`, and `FocusedFieldHolder.kt` (the
@@ -129,7 +138,7 @@ module to find, and every commit goes to the clipboard:
 - Unit (Kotlin): `android/modules/commit/src/test/kotlin/dev/breaker/dictation/commit/`. Run: `./gradlew :android:modules:commit:test`
   - Service tests: `CommitServiceFocusedFieldTest`, `CommitServiceClipboardTest`, `CommitServiceFailureTest`, `CommitServiceRedactionTest` (with the fakes in `Fakes.kt`). `CommitServiceFocusedFieldTest` was `CommitServiceImeTest` before the ADR-022 restructure; its test bodies are unchanged.
   - Hop tests: `CommitServiceThreadHopTest`, `CommitServiceLateHopTest`, `CommitServiceInterruptTest`, `CommitServiceExplicitSendTest`, and, for the wait itself, `PostedMainThreadTest`, `PostedMainThreadClaimTest`, `PostedMainThreadServiceTest` (with the fakes in `HopFakes.kt`).
-  - Other tests: `NoticeGatingTest`, `FocusedFieldRegistryTest`, `FocusedFieldHandleTest` (the `publishScoped` handle), `FocusedFieldSeamScanTest` (scans the public seam's exact shape).
+  - Other tests: `NoticeGatingTest`, `FocusedFieldRegistryTest`, `FocusedFieldHandleTest` (the `publishScoped` handle), `FocusedFieldSeamScanTest` (scans the public seam's exact shape), `KeyboardProbeReadingsTest` (the probe holder).
   - Scan tests (read the source text): `PureFilesScanTest`, `AndroidConfinementTest`, `ConcurrencyRuleScanTest`, `TestRulesScanTest` (with the helper `SourceFiles.kt`).
 - Contract: `tests/contract/test_commit_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_commit_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
@@ -167,10 +176,12 @@ agents, not required: an outside contributor may write the code themselves
   fixed constants in `CommitTexts`; keep it so when adding an outcome.
 - A step already running cannot be stopped, by the deadline or by the late-hop
   guard. The deadline only frees a caller whose block has not started.
-- The only process-wide holder is `adapter/FocusedFieldHolder`, shared by
+- Two process-wide holders exist. `adapter/FocusedFieldHolder` is shared by
   whatever text-insert mechanism publishes a focused field (today,
-  `commit/accessibility`, once built — ADR-022) and the commit service that
+  `commit/accessibility`, ADR-022, once built) and the commit service that
   reads it. No test touches it; every test builds its own registry.
+  `KeyboardProbeReadings` is the probe's holder, probe only and removed with the
+  selector; its test resets it before and after every test.
 - The holder's public seam is publish-only on purpose: `publish(field)` is its
   only public member, there is no public `current()` or `clearAll()`, so a
   sub-module can hand over a focused field but cannot read it back or peek at

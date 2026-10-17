@@ -23,6 +23,7 @@ internal class PureFilesScanTest {
         "CommitTexts.kt",
         "FocusedField.kt",
         "FocusedFieldRegistry.kt",
+        "KeyboardProbeReadings.kt",
         "PlatformSeams.kt",
         "PostedMainThread.kt",
     )

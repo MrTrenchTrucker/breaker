@@ -121,6 +121,14 @@ class FloatingTile internal constructor(private val controller: TileController) 
      */
     fun setDescription(text: String?) = controller.setDescription(text)
 
+    /**
+     * Report changes of the bottom keyboard inset on the tile's window to [listener], as the bottom
+     * in pixels and whether the keyboard is visible. It is called on the main looper, only when the
+     * pair differs from the last pair it was given. Null turns the probe off. Probe only: it never
+     * shows or hides the tile.
+     */
+    fun setImeProbe(listener: ((bottom: Int, visible: Boolean) -> Unit)?) = controller.window.setImeProbe(listener)
+
     companion object {
         /**
          * Make a tile for the app.

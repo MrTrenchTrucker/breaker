@@ -1,5 +1,7 @@
 # AGENTS.md — android/modules/commit/accessibility/
 
+> Scope: every statement in this card about what the service reads, requests or does describes the RELEASE build. The debug build adds a keyboard probe; "Debug probe build" below says what it adds and where it differs.
+
 ## Purpose
 
 The accessibility text-insert mechanism (ADR-022): an Android
@@ -91,6 +93,19 @@ From ADR-022, enforced by tests that read this module's own files:
   `canRetrieveWindowContent` — nothing broader than finding the focused field
   needs.
   - Tested by: `ConfigGateTest`, `ManifestGateTest`, `ModuleFilesGateTest`.
+- When the debug probe is on, the service only checks whether a keyboard window is open and reads which field has focus, never any text.
+  - Tested by: `ProbeReadGateTest`.
+
+## Debug probe build
+
+Temporary, debug build only. It goes before release. When the debug probe is on, the service only checks whether a keyboard window is open and reads which field has focus, never any text.
+
+- What it adds: a debug overlay of the service config (`android/app/src/debug/res/xml/commit_accessibility_service_config.xml`, the same file name, so in the debug build it replaces this module's file). It adds `flagRetrieveInteractiveWindows` (flag 0x40) and three event types: `typeViewFocused`, `typeWindowsChanged` and `typeWindowStateChanged`. This module's own config, manifest and gates are byte-identical to main, so the release build keeps the config described in the rest of this file.
+- When it runs: the probe path is compiled into every build, but it runs only while `KeyboardProbeReadings.isEnabled()` is true. Only debug code turns that on (the "Breaker probe" page and its start provider, in the app's debug source set). The first statement of `onAccessibilityEvent` returns at once when the event is null or the probe is off, before any read. With the debug config and the probe off, the system still sends the events and the handler returns at once.
+- What it reads when it is on: whether the active window's input-focused node is editable (the existing finder; the node is released once), whether the window list holds an input-method window (each listed window is recycled once), the event's name, and the time. It publishes these into the parent's `KeyboardProbeReadings` (memory only, the last 40 lines). It never reads text or content, and it changes nothing on the screen or about when the tile shows.
+- Release builds carry none of the debug parts: no probe page, no start provider, no selector, no debug config overlay. The app's `ProbeReleaseGateTest` pins that (release manifest, release sources, release resources hold no service config). The probe code in the service itself is compiled into release but cannot be turned on there: the same test pins that no file outside the debug source set calls `KeyboardProbeReadings.setEnabled`.
+- The insert rule, the refusals and the password rule above are not touched by it.
+- Tested by: `ProbeReadGateTest` (this module); `ProbeReleaseGateTest` (the app module: the release build holds none of the debug parts, and no file outside the debug source set turns the probe on) and `ProbeShowHideGateTest` (the probe cannot change when the tile shows or hides).
 
 ## Test Locations
 - Unit (Kotlin): `android/modules/commit/accessibility/src/test/kotlin/`. Run: `./gradlew :android:modules:commit:accessibility:test`
@@ -104,7 +119,7 @@ From ADR-022, enforced by tests that read this module's own files:
     `NodeFocusedFieldPrivacyTest`, `NodeFocusedFieldErrorTest`.
   - Gates that read the module's own files: `PureFilesScanTest`, `PrivacyScanTest`,
     `TestRulesScanTest`, `ManifestGateTest`, `ConfigGateTest`, `AdapterGateTest`,
-    `AdapterMappingGateTest`, `FieldStateFlagsGateTest`, `ModuleFilesGateTest` (with the helpers `SourceFiles.kt`,
+    `AdapterMappingGateTest`, `FieldStateFlagsGateTest`, `ProbeReadGateTest`, `ModuleFilesGateTest` (with the helpers `SourceFiles.kt`,
     `XmlFiles.kt` and the sample files `AdapterGateSamples.kt`, `AdapterMappingSamples.kt`).
 - Contract: `tests/contract/test_commit_accessibility_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_commit_accessibility_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
@@ -160,6 +175,8 @@ agents, not required: an outside contributor may write the code themselves
   never read.
 - The receiver names in the adapter (`node`, `root`, `service`, `found`) are pinned by
   `AdapterGateTest` and `AdapterMappingGateTest`; renaming one needs both gates updated.
+  Both gates read the service with the probe path cut out (`ProbeView`, in
+  `ProbeReadGateTest.kt`); `ProbeReadGateTest` pins the cut path.
 - Web views that set neither the password flag nor a password input type are not
   covered: a password field in one of them is not refused. This is not claimed to work;
   a device check is owed with Chrome and one other web view.

@@ -18,7 +18,7 @@ internal object AdapterAllowed {
         "node" to setOf(
             "packageName", "isPassword", "isEditable", "isEnabled", "isShowingHintText", "maxTextLength",
             "text", "textSelectionStart", "textSelectionEnd", "refresh", "performAction", "recycle",
-            "inputType",
+            "inputType", "release",
         ),
         "root" to setOf("findFocus", "recycle"),
         "service" to setOf("rootInActiveWindow"),

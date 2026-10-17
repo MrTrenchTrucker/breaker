@@ -53,6 +53,10 @@ internal class WindowManagerTileWindow(private val context: Context) : TileWindo
     private var layoutParams: WindowManager.LayoutParams? = null
     private val closeTargetWindow = CloseTargetWindow(context)
 
+    // The probe's listener for the bottom keyboard inset, or null while the probe is off.
+    private var imeProbeListener: ((Int, Boolean) -> Unit)? = null
+    private val imeChanges = InsetChangeFilter()
+
     override fun canDrawOverlays(): Boolean = Settings.canDrawOverlays(context)
 
     /**
@@ -126,6 +130,8 @@ internal class WindowManagerTileWindow(private val context: Context) : TileWindo
         }
         tileView = view
         layoutParams = params
+        val probe = imeProbeListener
+        if (probe != null) attachImeProbe(view, probe)
         return AddOutcome.ADDED
     }
 
@@ -199,6 +205,7 @@ internal class WindowManagerTileWindow(private val context: Context) : TileWindo
     override fun remove() {
         removeQuietly()
         hideCloseTarget()
+        imeChanges.forget()
     }
 
     private fun removeQuietly() {
@@ -210,5 +217,38 @@ internal class WindowManagerTileWindow(private val context: Context) : TileWindo
         }
         tileView = null
         layoutParams = null
+    }
+
+    /**
+     * Set or clear the probe's listener. A non-null listener is attached to the tile view now when
+     * the view exists, and to each view added later. Null detaches it and forgets the last pair.
+     */
+    override fun setImeProbe(listener: ((Int, Boolean) -> Unit)?) {
+        imeProbeListener = listener
+        if (listener != null) {
+            tileView?.let { attachImeProbe(it, listener) }
+        } else {
+            tileView?.setOnApplyWindowInsetsListener(null)
+            imeChanges.forget()
+        }
+    }
+
+    /**
+     * Attach the probe's listener to [view]. A dispatch of the window insets reports the bottom
+     * keyboard inset and its visibility when they changed, and the view handles the insets as it
+     * always does. A new attach reports the first inset again, even when it equals the last one
+     * reported before. The first dispatch is asked for at once.
+     */
+    private fun attachImeProbe(view: TileView, listener: (Int, Boolean) -> Unit) {
+        imeChanges.forget()
+        view.setOnApplyWindowInsetsListener { v, insets ->
+            val bottom = insets.getInsets(WindowInsets.Type.ime()).bottom
+            val visible = insets.isVisible(WindowInsets.Type.ime())
+            if (imeChanges.accept(bottom, visible)) {
+                listener(bottom, visible)
+            }
+            v.onApplyWindowInsets(insets)
+        }
+        view.requestApplyInsets()
     }
 }

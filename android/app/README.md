@@ -56,6 +56,8 @@ screen, the settings screen and the history screen, the manifest, and the Gradle
   it on again, once for each activity the icon opens; a tap on the icon while
   Breaker is still open does not switch it on.
 
+**Debug builds only.** The debug source set (`android/app/src/debug/`) holds the keyboard signal probe: a long-press shortcut on the Breaker icon labelled `Breaker probe`, a start provider that starts the probe with the process, a debug selector, and an accessibility config overlay that adds the interactive-windows flag and the two window events. None of it is in the release build. The app code adds two plumbing members for the probe, `OverlayTilePort.setImeProbe` and `TileHost.setImeProbe`, which only hand a listener to the tile and change nothing about when the tile shows or hides.
+
 ## The microphone service
 
 Android 14 and later do not let an app start a microphone service from the
