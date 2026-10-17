@@ -40,15 +40,15 @@ internal class OnboardingStoreGateTest {
 
     @Test
     fun `a walk-through call without the app's store, with another value or with an empty object is caught`() {
-        assertFalse("app: the store argument is missing", rule.containsMatchIn(codeOf("settings = app.settingsStore,", "")))
-        assertFalse("app: the store argument is another value", rule.containsMatchIn(codeOf("settings = app.settingsStore,", "settings = app.armedSwitch,")))
-        assertFalse("app: the store argument is an empty object", rule.containsMatchIn(codeOf("settings = app.settingsStore,", "settings = EmptySettings(),")))
+        assertFalse("app: the store argument is missing", rule.containsMatchIn(codeOf("onDownloadModel = { app.tileHost.requestDownload() },\n            settings = app.settingsStore,", "")))
+        assertFalse("app: the store argument is another value", rule.containsMatchIn(codeOf("onDownloadModel = { app.tileHost.requestDownload() },\n            settings = app.settingsStore,", "settings = app.armedSwitch,")))
+        assertFalse("app: the store argument is an empty object", rule.containsMatchIn(codeOf("onDownloadModel = { app.tileHost.requestDownload() },\n            settings = app.settingsStore,", "settings = EmptySettings(),")))
     }
 
     @Test
     fun `spacing and a trailing comment do not change the store argument`() {
-        assertTrue(rule.containsMatchIn(codeOf("settings = app.settingsStore,", "settings = app . settingsStore ,")))
-        assertTrue(rule.containsMatchIn(codeOf("settings = app.settingsStore,", "settings = app.settingsStore, // the store")))
+        assertTrue(rule.containsMatchIn(codeOf("onDownloadModel = { app.tileHost.requestDownload() },\n            settings = app.settingsStore,", "settings = app . settingsStore ,")))
+        assertTrue(rule.containsMatchIn(codeOf("onDownloadModel = { app.tileHost.requestDownload() },\n            settings = app.settingsStore,", "settings = app.settingsStore, // the store")))
     }
 
     @Test

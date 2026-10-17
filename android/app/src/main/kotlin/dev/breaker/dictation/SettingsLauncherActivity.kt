@@ -28,11 +28,10 @@ import dev.breaker.dictation.wiring.TakePortAdapter
 import dev.breaker.shared.models.ModelRegistry
 import dev.breaker.dictation.wiring.appTakenClipboard
 import dev.breaker.dictation.wiring.applyInsets
+import dev.breaker.dictation.wiring.formatTime
 import dev.breaker.dictation.wiring.isIconLaunch
+import dev.breaker.dictation.wiring.swapInColumn
 import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
 
@@ -46,6 +45,9 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
     private var downloadSentence: String? = null
     private var pendingRefusal: String? = null
     private lateinit var iconLaunch: IconLaunchOnce
+    private lateinit var takeWiring: HomeTakeWiring
+    private lateinit var homeRebuilt: dev.breaker.dictation.wiring.Rebuilt<android.view.View>
+    private lateinit var onboardingRebuilt: dev.breaker.dictation.wiring.Rebuilt<android.view.View>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,7 +62,7 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
             FirstRunGate.Decision.MARK_DONE_QUIETLY -> firstRunDone.markDone()
             FirstRunGate.Decision.NORMAL -> Unit
         }
-        val takeWiring = HomeTakeWiring(
+        takeWiring = HomeTakeWiring(
             take = { TakePortAdapter(app.compositionRoot.dictation.runner) },
             history = { app.historyStore },
             clipboard = appTakenClipboard(this),
@@ -70,7 +72,7 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
             main = MainLooperPost(),
             modelReady = { modelReady.isReady() },
         )
-        val home = createHomeView(
+        homeRebuilt = dev.breaker.dictation.wiring.Rebuilt { createHomeView(
             this,
             BreakerSwitchAdapter(app.armedSwitch),
             modelReady = { modelReady.isReady() },
@@ -81,12 +83,14 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
             onHistory = { openHistory() },
             onSettings = { openSettings() },
             onTap = { takeWiring.onTap() },
-        )
+            settings = app.settingsStore,
+        ) }
+        val home = homeRebuilt.current
         homeView = home
         takeWiring.attach(home as dev.breaker.dictation.ui.HomeControl)
         setContentView(home)
         applyInsets(home)
-        val onboarding = dev.breaker.dictation.ui.createOnboardingView(
+        onboardingRebuilt = dev.breaker.dictation.wiring.Rebuilt { dev.breaker.dictation.ui.createOnboardingView(
             this,
             BreakerSwitchAdapter(app.armedSwitch),
             ACCESSIBILITY_SERVICE_COMPONENT,
@@ -95,7 +99,8 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
             modelDownloadMb = { ModelCatalog.byId(app.settingsStore.load().modelSize)?.sizeMb?.let(ModelSentences::mibToMb) ?: ModelSentences.mibToMb(ModelRegistry.SMALL.sizeMb) },
             onDownloadModel = { app.tileHost.requestDownload() },
             settings = app.settingsStore,
-        )
+        ) }
+        val onboarding = onboardingRebuilt.current
         onboardingView = onboarding
         val history = Button(this)
         history.text = HISTORY_LABEL
@@ -191,7 +196,8 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         if (historyShown) return
         historyShown = true
         val app = applicationContext as BreakerApp
-        val historyView = dev.breaker.dictation.ui.createHistoryView(this, app.historyStore)
+        val historyView =
+            dev.breaker.dictation.ui.createHistoryView(this, app.historyStore, app.settingsStore)
         setContentView(historyView)
         applyInsets(historyView)
         registerBack()
@@ -223,6 +229,9 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         if (!settingsShown) return
         settingsShown = false
         if (!historyShown) unregisterBack()
+        homeView = homeRebuilt.again()
+        takeWiring.attach(homeView as dev.breaker.dictation.ui.HomeControl)
+        onboardingView = swapInColumn(settingsColumn, onboardingView, onboardingRebuilt.again())
         setContentView(homeView)
         applyInsets(homeView!!)
     }
@@ -283,9 +292,6 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboard.setPrimaryClip(ClipData.newPlainText("Breaker", text))
     }
-
-    private fun formatTime(epochMs: Long): String =
-        SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(epochMs))
 
     private companion object {
         const val HISTORY_LABEL: String = "History"

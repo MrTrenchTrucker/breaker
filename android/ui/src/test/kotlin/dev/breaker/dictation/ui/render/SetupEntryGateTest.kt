@@ -8,9 +8,9 @@ import org.junit.Test
 
 /*
  * The function that builds the setup view needs a real context and a real window, so no
- * unit test can run it. What it must do is five lines of wiring, and a wrong argument in
+ * unit test can run it. What it must do is four lines of wiring, and a wrong argument in
  * any of them compiles: the component name left empty makes accessibility look switched
- * off forever, the wrong theme mode draws the screen in the wrong colours, a switch that
+ * off forever, the wrong theme reading draws the screen in the wrong colours, a switch that
  * is not the one the app handed in turns the wrong thing on. So the body is pinned as
  * text. Each rule reads the body of the function with comments and string literals
  * removed, is run on the real file, and is also shown to fire: the failing sample is the
@@ -27,7 +27,7 @@ private const val LINE_END = """[ \t]*(?:\r?\n|$)"""
 
 /** Every function the body may call, and no other. */
 private val EXPECTED_CALLS = setOf(
-    "isNightMode", "Themes.of", "shownMode", "AndroidSetupPlatform",
+    "isNightMode", "storedTheme", "AndroidSetupPlatform",
     "SetupIntentHandler", "SetupScreen", "SetupHostView", "ScreenRenderer",
 )
 
@@ -71,17 +71,14 @@ private fun editEntry(text: String, old: String, new: String): String {
 
 private fun times(body: String, token: String): Int = Regex(Regex.escape(token)).findAll(body).count()
 
-private fun phoneVarIn(body: String): String? =
-    Regex("""\bval\s+(\w+)\s*=\s*isNightMode\(\s*context\.resources\.configuration\.uiMode\s*\)""" + LINE_END)
-        .find(body)?.groupValues?.get(1)
+/** The phone's own reading, written as it stands in the entry body (a bare call, not negated, not a literal). */
+private val PHONE_READING = """isNightMode(context.resources.configuration.uiMode)"""
 
-private fun themeVarIn(body: String): String? {
-    val phone = phoneVarIn(body) ?: return null
-    return Regex(
-        """\bval\s+(\w+)\s*=\s*Themes\.of\(\s*shownMode\(\s*StoredThemeMode\.SYSTEM\s*,\s*""" +
-            Regex.escape(phone) + """\s*\)\s*\)""" + LINE_END,
+/** The entry reads the shared reader [storedTheme] with the settings store and the phone's own reading. */
+private fun themeVarIn(body: String): String? =
+    Regex(
+        """\bval\s+(\w+)\s*=\s*storedTheme\s*\(\s*settings\s*,\s*""" + Regex.escape(PHONE_READING) + """\s*\)""" + LINE_END,
     ).find(body)?.groupValues?.get(1)
-}
 
 private fun platformVarIn(body: String): String? =
     Regex("""\bval\s+(\w+)\s*=\s*AndroidSetupPlatform\(\s*context\s*,\s*accessibilityServiceComponent\s*\)""" + LINE_END)
@@ -102,14 +99,15 @@ private fun signatureProblemsIn(text: String): List<String> {
 
 private fun phoneProblemsIn(text: String): List<String> {
     val body = entryOf(text)?.body ?: return listOf(MISSING)
-    val plain = times(body, "isNightMode(") == 1 && phoneVarIn(body) != null
+    val plain = times(body, "isNightMode(") == 1 && body.contains(PHONE_READING) &&
+        !Regex("""!\s*isNightMode\(""").containsMatchIn(body)
     return if (plain) emptyList() else listOf("the phone mode is not read once, as it stands, from the context")
 }
 
 private fun themeProblemsIn(text: String): List<String> {
     val body = entryOf(text)?.body ?: return listOf(MISSING)
-    val once = times(body, "Themes.of(") == 1 && times(body, "shownMode(") == 1 && times(body, "StoredThemeMode.") == 1
-    return if (once && themeVarIn(body) != null) emptyList() else listOf("the theme is not the system mode with the phone's own reading")
+    val once = times(body, "storedTheme(") == 1
+    return if (once && themeVarIn(body) != null) emptyList() else listOf("the theme is not the stored choice resolved with the phone's own reading")
 }
 
 private fun platformProblemsIn(text: String): List<String> {
@@ -143,8 +141,8 @@ private fun reachProblemsIn(text: String): List<String> {
     val calls = Regex("""\b([A-Za-z_][\w.]*)\s*\(""").findAll(body).map { it.groupValues[1] }.toSet()
     if (calls != EXPECTED_CALLS) problems.add("the body calls ${calls - EXPECTED_CALLS} and no longer calls ${EXPECTED_CALLS - calls}")
     val statements = body.lines().map { it.trim() }.filter { it.isNotEmpty() }
-    val plain = statements.size == 5 && statements.all { it.startsWith("val ") || it.startsWith("return ") }
-    if (!plain) problems.add("the body is not five plain statements: $statements")
+    val plain = statements.size == 4 && statements.all { it.startsWith("val ") || it.startsWith("return ") }
+    if (!plain) problems.add("the body is not four plain statements: $statements")
     return problems
 }
 
@@ -188,13 +186,13 @@ class SetupEntryGateTest {
     }
 
     @Test
-    fun `the theme follows the phone through the system mode`() {
+    fun `the theme follows the stored choice resolved with the phone's own reading`() {
         assertEquals("createOnboardingView theme: ", emptyList<String>(), themeProblemsIn(entry))
-        assertFires("a light theme always", themeProblemsIn(editEntry(entry, "StoredThemeMode.SYSTEM", "StoredThemeMode.LIGHT")), "system mode")
-        assertFires("a dark theme always", themeProblemsIn(editEntry(entry, "StoredThemeMode.SYSTEM", "StoredThemeMode.DARK")), "system mode")
-        assertFires("the phone reading ignored", themeProblemsIn(editEntry(entry, "StoredThemeMode.SYSTEM, phoneIsDark", "StoredThemeMode.SYSTEM, false")), "system mode")
-        assertFires("the phone reading inverted", themeProblemsIn(editEntry(entry, "StoredThemeMode.SYSTEM, phoneIsDark", "StoredThemeMode.SYSTEM, !phoneIsDark")), "system mode")
-        assertFires("a second theme", themeProblemsIn(editEntry(entry, "Themes.of(shownMode(StoredThemeMode.SYSTEM, phoneIsDark))", "Themes.of(shownMode(StoredThemeMode.SYSTEM, phoneIsDark))\n    val other = Themes.of(shownMode(StoredThemeMode.SYSTEM, phoneIsDark))")), "system mode")
+        // The shared reader now reads the store, so no StoredThemeMode.SYSTEM literal is written into any create*View body.
+        assertTrue("a StoredThemeMode SYSTEM literal still reaches the entry", !entry.contains("StoredThemeMode.SYSTEM"))
+        // The theme line is the reader's own line: a different store or a dropped settings argument stops it matching.
+        assertFires("the stored choice no longer reads through the store", themeProblemsIn(editEntry(entry, "storedTheme(settings, isNightMode(context.resources.configuration.uiMode))", "storedTheme(app.settingsStore, false)")), "stored choice")
+        assertFires("the settings argument dropped", themeProblemsIn(editEntry(entry, "storedTheme(settings, isNightMode(context.resources.configuration.uiMode))", "storedTheme(phoneIsDark)")), "stored choice")
     }
 
     @Test
@@ -230,20 +228,20 @@ class SetupEntryGateTest {
         assertFires("the application context for the host", hostProblemsIn(editEntry(entry, build, "return SetupHostView(context.applicationContext, handler, theme, ScreenRenderer(context))")), "host")
         assertFires("the application context for the renderer", hostProblemsIn(editEntry(entry, build, "return SetupHostView(context, handler, theme, ScreenRenderer(context.applicationContext))")), "host")
         assertFires("the handler and theme swapped", hostProblemsIn(editEntry(entry, build, "return SetupHostView(context, theme, handler, ScreenRenderer(context))")), "host")
-        assertFires("a theme made on the spot", hostProblemsIn(editEntry(entry, build, "return SetupHostView(context, handler, Themes.of(shownMode(StoredThemeMode.LIGHT, false)), ScreenRenderer(context))")), "host")
+        assertFires("a theme made on the spot", hostProblemsIn(editEntry(entry, build, "return SetupHostView(context, handler, storedTheme(fakeStore, false), ScreenRenderer(context))")), "host")
         assertFires("a host that is not returned", hostProblemsIn(editEntry(entry, build, "SetupHostView(context, handler, theme, ScreenRenderer(context))\n    return null")), "host")
         assertFires("the handler built under another name", hostProblemsIn(editEntry(entry, "val handler = SetupIntentHandler(", "val other = SetupIntentHandler(")), "host")
     }
 
     @Test
-    fun `the setup entry function calls nothing that stores, logs or reaches beyond its five lines`() {
+    fun `the setup entry function calls nothing that stores, logs or reaches beyond its four lines`() {
         assertEquals("createOnboardingView reach: ", emptyList<String>(), reachProblemsIn(entry))
         val last = "val platform = AndroidSetupPlatform(context, accessibilityServiceComponent)"
         assertFires("a file written", reachProblemsIn(editEntry(entry, last, last + "\n    context.openFileOutput(\"flag\", 0).close()")), "body calls")
         assertFires("a preference written", reachProblemsIn(editEntry(entry, last, last + "\n    context.getSharedPreferences(\"ui\", 0).edit().putBoolean(\"dark\", phoneIsDark).apply()")), "body calls")
         assertFires("a log line", reachProblemsIn(editEntry(entry, last, last + "\n    Log.d(\"ui\", \"built\")")), "body calls")
         assertFires("a settings controller", reachProblemsIn(editEntry(entry, last, last + "\n    val themes = ThemeController(settings, phoneIsDark)")), "body calls")
-        assertFires("a line that is no call", reachProblemsIn(editEntry(entry, last, last + "\n    counter++")), "five plain statements")
+        assertFires("a line that is no call", reachProblemsIn(editEntry(entry, last, last + "\n    counter++")), "four plain statements")
         assertFires("a call dropped", reachProblemsIn(editEntry(entry, "ScreenRenderer(context))", "ScreenRenderer)")), "no longer calls")
         assertEquals("a comment in the body is not a call", emptyList<String>(), reachProblemsIn(editEntry(entry, last, last + "\n    // settings.save(theme)\n    /* Log.d(1) */")))
     }

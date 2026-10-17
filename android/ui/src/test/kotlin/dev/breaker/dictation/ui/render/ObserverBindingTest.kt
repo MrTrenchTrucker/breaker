@@ -36,7 +36,7 @@ class ObserverBindingTest {
     /** The public declaration of the history view, written on one line. */
     private val HISTORY_SIGNATURE =
         "fun createHistoryView(context: android.content.Context, " +
-            "history: dev.breaker.dictation.core.port.HistoryStore): android.view.View"
+            "history: dev.breaker.dictation.core.port.HistoryStore, settings: dev.breaker.dictation.core.port.SettingsStore): android.view.View"
 
     /** A controller over a store holding a light scheme, with the phone in light mode. */
     private class Fixture {

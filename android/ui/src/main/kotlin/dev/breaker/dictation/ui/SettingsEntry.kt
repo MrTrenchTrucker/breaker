@@ -1,6 +1,5 @@
 package dev.breaker.dictation.ui
 
-import dev.breaker.dictation.core.model.ThemeMode as StoredThemeMode
 import dev.breaker.dictation.ui.render.AndroidClipboard
 import dev.breaker.dictation.ui.render.AndroidSetupPlatform
 import dev.breaker.dictation.ui.render.HistoryHostView
@@ -15,9 +14,9 @@ import dev.breaker.dictation.ui.screen.onboarding.SetupScreen
 import dev.breaker.dictation.ui.screen.settings.SettingsIntentHandler
 import dev.breaker.dictation.ui.screen.settings.SettingsScreen
 import dev.breaker.dictation.ui.theme.ThemeController
-import dev.breaker.dictation.ui.theme.Themes
+import dev.breaker.dictation.core.port.SettingsStore
 import dev.breaker.dictation.ui.theme.isNightMode
-import dev.breaker.dictation.ui.theme.shownMode
+import dev.breaker.dictation.ui.theme.storedTheme
 import java.time.ZoneId
 
 /*
@@ -73,8 +72,9 @@ fun createSettingsView(context: android.content.Context, settings: dev.breaker.d
  * the view lives. So the next tap on the same button opens a settings page instead
  * of asking again.
  *
- * The screen's colours follow the phone's own light or dark mode, which is read from
- * [context] once, here. A mode that reports neither night nor day counts as light.
+ * The colours this screen draws in come from the shared reader [storedTheme], so it
+ * stays with the stored choice; its phone's own light or dark mode is resolved there.
+ * A mode that reports neither night nor day still counts as light once resolved.
  *
  * @param context the context the views are built with, normally an activity's.
  * @param switch the switch the app provides for turning Breaker on and off.
@@ -109,8 +109,7 @@ fun createOnboardingView(
     onDownloadModel: () -> Unit,
     settings: dev.breaker.dictation.core.port.SettingsStore,
 ): android.view.View {
-    val phoneIsDark = isNightMode(context.resources.configuration.uiMode)
-    val theme = Themes.of(shownMode(StoredThemeMode.SYSTEM, phoneIsDark))
+    val theme = storedTheme(settings, isNightMode(context.resources.configuration.uiMode))
     val platform = AndroidSetupPlatform(context, accessibilityServiceComponent)
     val handler = SetupIntentHandler(platform, switch, modelReady, downloadLine, modelDownloadMb, onDownloadModel, SetupScreen(), settings)
     return SetupHostView(context, handler, theme, ScreenRenderer(context))
@@ -123,9 +122,10 @@ fun createOnboardingView(
  * on each row. A deletion can be undone for a short time: the row leaves [history]
  * only when that time has passed, or when the view leaves the window.
  *
- * This screen has no settings store, so it follows the phone's
- * own light or dark mode, which is read from [context] once, here. A mode that reports
- * neither night nor day counts as light. The screen reads and deletes only through
+ * The colours this screen draws in come from the shared reader [storedTheme], so it
+ * stays with the stored choice; its phone's own light or dark mode is resolved there.
+ * A mode that reports neither night nor day still counts as light once resolved. The
+ * screen reads and deletes only through
  * [history], and copies text only to the system clipboard.
  *
  * @param context the context the views are built with, normally an activity's.
@@ -133,9 +133,12 @@ fun createOnboardingView(
  * @return a view that shows the history and can be put in a layout as it stands.
  */
 // The parameter types are written out in full, for the same reason as above.
-fun createHistoryView(context: android.content.Context, history: dev.breaker.dictation.core.port.HistoryStore): android.view.View {
-    val phoneIsDark = isNightMode(context.resources.configuration.uiMode)
-    val theme = Themes.of(shownMode(StoredThemeMode.SYSTEM, phoneIsDark))
+fun createHistoryView(
+    context: android.content.Context,
+    history: dev.breaker.dictation.core.port.HistoryStore,
+    settings: dev.breaker.dictation.core.port.SettingsStore,
+): android.view.View {
+    val theme = storedTheme(settings, isNightMode(context.resources.configuration.uiMode))
     val format = LocalizedTimestampFormat(context.resources.configuration.locales[0], ZoneId.systemDefault())
     val work = LateDelayedWork()
     val host = HistoryHostView(context, history, AndroidClipboard(context), format, work, HistoryDispatcher.serial, theme, ScreenRenderer(context))

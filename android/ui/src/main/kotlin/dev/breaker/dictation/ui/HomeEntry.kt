@@ -1,13 +1,12 @@
 package dev.breaker.dictation.ui
 
-import dev.breaker.dictation.core.model.ThemeMode as StoredThemeMode
 import dev.breaker.dictation.ui.render.HomeHostView
 import dev.breaker.dictation.ui.render.ScreenRenderer
 import dev.breaker.dictation.ui.screen.home.HomeIntentHandler
 import dev.breaker.dictation.ui.screen.home.HomeScreen
-import dev.breaker.dictation.ui.theme.Themes
 import dev.breaker.dictation.ui.theme.isNightMode
-import dev.breaker.dictation.ui.theme.shownMode
+import dev.breaker.dictation.ui.theme.storedTheme
+import dev.breaker.dictation.core.port.SettingsStore
 
 /*
  * The home screen's way in.
@@ -38,9 +37,10 @@ import dev.breaker.dictation.ui.theme.shownMode
  * and a menu item asks the app for the screen it names; the drawer those live
  * in is the screen's own and opens and closes with the taps.
  *
- * This screen has no settings store, so it follows the phone's own light or
- * dark mode, which is read from [context] once, here. A mode that reports
- * neither night nor day counts as light.
+ * The theme this screen draws in comes from the shared reader [storedTheme],
+ * so it stays with the stored choice and does not read the phone's own mode
+ * again for its colour here. A mode that reports neither night nor day still
+ * counts as light when it is resolved.
  *
  * @param context the context the views are built with, normally an activity's.
  * @param switch the switch the app offers for turning Breaker on and off.
@@ -53,6 +53,8 @@ import dev.breaker.dictation.ui.theme.shownMode
  * @param onCopy asks the app to copy the transcript on display to the clipboard.
  * @param onHistory asks the app to show the history screen.
  * @param onSettings asks the app to show the settings screen.
+ * @param settings the shared store, through which this screen's theme is read
+ *   once here instead of reading the phone's own mode again.
  * @param onTap asks the app to start a take from the big mic on the screen.
  * @return a view that shows the home screen and can be put in a layout as it
  *   stands.
@@ -69,9 +71,9 @@ fun createHomeView(
     onHistory: () -> Unit,
     onSettings: () -> Unit,
     onTap: () -> Unit,
+    settings: dev.breaker.dictation.core.port.SettingsStore,
 ): android.view.View {
-    val phoneIsDark = isNightMode(context.resources.configuration.uiMode)
-    val theme = Themes.of(shownMode(StoredThemeMode.SYSTEM, phoneIsDark))
+    val theme = storedTheme(settings, isNightMode(context.resources.configuration.uiMode))
     val handler = HomeIntentHandler(HomeScreen())
     return HomeHostView(
         context,
