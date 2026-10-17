@@ -88,10 +88,12 @@
 - **F35** **Responsive web FE:** the container website renders landscape and
   portrait layouts based on device size/resolution (mobile-first breakpoints),
   matching the Android app's look.
-- **F36** **State indicators:** the CB mic glyph + LED bar meter show
+- **F36** **State indicators:** the CB mic glyph + level meter show
   transmission state — **green** = sent (copy confirmed), **orange** = server
-  failed → local fallback, **red** = complete failure; the LED bar (digital
-  Cobra-style segment display) fills above the floating mic while recording.
+  failed → local fallback, **red** = complete failure. While recording, the
+  level meter lights the mic's grille slots from left to right, and the X
+  (cancel) and the check (send) sit either side of the mic, each drawn at 90%
+  of the mic's full width (side bar included), about 8 dp from it (ADR-024).
 
 ## Non-functional
 - **N1** Dictation starts < 1 s after wake phrase (models preloaded where possible).
