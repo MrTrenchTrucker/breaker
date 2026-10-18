@@ -7,8 +7,9 @@ import org.junit.Test
 
 /**
  * Pins the Home hosting the activity was ruled to build: Home as the content
- * view, the old column as what SETTINGS opens, the ui answering a HOW IT WORKS
- * or ABOUT tap in place (the activity passes neither callback), and the
+ * view, the old column as what SETTINGS opens, the activity passing a HOW IT
+ * WORKS and an ABOUT callback into the Home view, the activity returning Home
+ * from every overlay (settings, history and the info screens), and the
  * clipboard written on the main thread.
  *
  * Anchored to `AppWiringGateTest`: both read the real activity source and
@@ -29,9 +30,9 @@ internal class AppHostingGateTest {
     private val rules: List<Rule> = listOf(
         Rule("ACTIVITY_BUILDS_HOME_VIEW", """\bcreateHomeView\s*\("""),
         Rule("ACTIVITY_SWAPS_OPEN_SETTINGS", """\bonSettings\s*=\s*\{\s*openSettings\s*\(\)\s*\}"""),
-        Rule("ACTIVITY_RETURNS_HOME_FROM_OVERLAYS", """\bsetContentView\s*\(\s*homeView\s*\)""", times = 2),
-        Rule("ACTIVITY_PASSES_NO_HOW_IT_WORKS", """\bonHowItWorks\b""", times = 0),
-        Rule("ACTIVITY_PASSES_NO_ABOUT", """\bonAbout\b""", times = 0),
+        Rule("ACTIVITY_RETURNS_HOME_FROM_EVERY_OVERLAY", """\bsetContentView\s*\(\s*homeView\s*\)""", times = 3),
+        Rule("ACTIVITY_PASSES_HOW_IT_WORKS_TO_THE_HOME_VIEW", """\bonHowItWorks\s*=\s*\{"""),
+        Rule("ACTIVITY_PASSES_ABOUT_TO_THE_HOME_VIEW", """\bonAbout\s*=\s*\{"""),
         Rule("ACTIVITY_WIRES_ON_COPY", """\bonCopy\s*=\s*\{\s*sentence\s*->\s*copyToClipboard\s*\("""),
         Rule("ACTIVITY_WRITES_THE_CLIPBOARD", """\bsetPrimaryClip\s*\(\s*ClipData\.newPlainText\s*\("""),
         Rule("ACTIVITY_REACHES_THE_CLIPBOARD_MANAGER", """\bgetSystemService\s*\(\s*Context\.CLIPBOARD_SERVICE\s*\)\s+as\s+ClipboardManager"""),
@@ -47,8 +48,8 @@ internal class AppHostingGateTest {
         Quiet("ClipData.newPlainText(\"Breaker\", text)", "ClipData.newPlainText(\"Breaker app\", text)"),
         Quiet("as ClipboardManager", "as\n            ClipboardManager"),
         Quiet("app.tileHost.setDownloadListener(this)", "app.tileHost.setDownloadListener(this) // onHowItWorks"),
-        Quiet("history.text = HISTORY_LABEL", "history.text = HISTORY_LABEL // HomeNoticeControl"),
-        Quiet("const val HISTORY_LABEL: String = \"History\"", "const val HISTORY_LABEL: String = \"History onAbout\""),
+        Quiet("settingsRebuilt = dev.breaker.dictation.wiring.Rebuilt { dev.breaker.dictation.ui.createSettingsView(", "settingsRebuilt = dev.breaker.dictation.wiring.Rebuilt { dev.breaker.dictation.ui.createSettingsView( // the settings view"),
+        Quiet("const val ICON_LAUNCH_DONE_KEY: String = \"icon-launch-done\"", "const val ICON_LAUNCH_DONE_KEY: String = \"icon-launch-done\" // the key"),
         Quiet("private fun closeSettings() {", "private fun closeSettings() {\n        // setContentView(homeView) is restored below"),
         Quiet("private fun copyToClipboard(text: String) {", "// onAbout and onHowItWorks are only words in this comment\n    private fun copyToClipboard(text: String) {"),
     )
@@ -59,23 +60,23 @@ internal class AppHostingGateTest {
         Sample("ACTIVITY_BUILDS_HOME_VIEW", "createHomeView(", "createHomeView2("),
         Sample("ACTIVITY_SWAPS_OPEN_SETTINGS", "onSettings = { openSettings() },", "onSettings = { showSettings() },"),
         Sample("ACTIVITY_SWAPS_OPEN_SETTINGS", "onSettings = { openSettings() },", "onSettings = { },"),
-        Sample("ACTIVITY_RETURNS_HOME_FROM_OVERLAYS", "setContentView(homeView)\n            applyInsets(homeView!!)", "setContentView(settingsScroll)\n            applyInsets(settingsScroll)"),
+        Sample("ACTIVITY_RETURNS_HOME_FROM_EVERY_OVERLAY", "setContentView(homeView); applyInsets(homeView!!)", "setContentView(settingsScroll); applyInsets(settingsScroll)"),
+        Sample("ACTIVITY_RETURNS_HOME_FROM_EVERY_OVERLAY", "unregisterBack()\n            setContentView(homeView)\n            applyInsets(homeView!!)", "unregisterBack()"),
+        Sample("ACTIVITY_RETURNS_HOME_FROM_EVERY_OVERLAY", "setContentView(homeView)\n        applyInsets(homeView!!)", "setContentView(settingsScroll)\n        applyInsets(settingsScroll)"),
         Sample(
-            "ACTIVITY_RETURNS_HOME_FROM_OVERLAYS",
+            "ACTIVITY_RETURNS_HOME_FROM_EVERY_OVERLAY",
             "        setContentView(homeView)\n        applyInsets(homeView!!)",
             "",
         ),
         Sample(
-            "ACTIVITY_RETURNS_HOME_FROM_OVERLAYS",
+            "ACTIVITY_RETURNS_HOME_FROM_EVERY_OVERLAY",
             "unregisterBack()\n            setContentView(homeView)\n            applyInsets(homeView!!)",
             "unregisterBack()",
         ),
-        Sample("ACTIVITY_PASSES_NO_HOW_IT_WORKS", "onSettings = { openSettings() },", "onSettings = { openSettings() },\n            onHowItWorks = { },"),
-        Sample("ACTIVITY_PASSES_NO_HOW_IT_WORKS", "onSettings = { openSettings() },", "onSettings = { openSettings() },\n            onHowItWorks = { openHistory() },"),
-        Sample("ACTIVITY_PASSES_NO_HOW_IT_WORKS", "setContentView(home)", "setContentView(home)\n        val onHowItWorks = 1"),
-        Sample("ACTIVITY_PASSES_NO_ABOUT", "onSettings = { openSettings() },", "onSettings = { openSettings() },\n            onAbout = { },"),
-        Sample("ACTIVITY_PASSES_NO_ABOUT", "onSettings = { openSettings() },", "onSettings = { openSettings() },\n            onAbout = { openHistory() },"),
-        Sample("ACTIVITY_PASSES_NO_ABOUT", "setContentView(home)", "setContentView(home)\n        val onAbout = 1"),
+        Sample("ACTIVITY_PASSES_HOW_IT_WORKS_TO_THE_HOME_VIEW", "onHowItWorks = { openHowItWorks() },", ""),
+        Sample("ACTIVITY_PASSES_HOW_IT_WORKS_TO_THE_HOME_VIEW", "onHowItWorks = { openHowItWorks() }", "onHowItWorks = openHowItWorks()"),
+        Sample("ACTIVITY_PASSES_ABOUT_TO_THE_HOME_VIEW", "onAbout = { openAbout() },", ""),
+        Sample("ACTIVITY_PASSES_ABOUT_TO_THE_HOME_VIEW", "onAbout = { openAbout() }", "onAbout = openAbout()"),
         Sample("ACTIVITY_WIRES_ON_COPY", "onCopy = { sentence -> copyToClipboard(sentence) },", "onCopy = { sentence -> },"),
         Sample("ACTIVITY_WIRES_ON_COPY", "onCopy = { sentence -> copyToClipboard(sentence) },", "onCopy = { text -> copyToClipboard(text) },"),
         Sample("ACTIVITY_WRITES_THE_CLIPBOARD", "clipboard.setPrimaryClip(ClipData.newPlainText(\"Breaker\", text))", "clipboard.setPrimaryClip(clipboard.primaryClip)"),

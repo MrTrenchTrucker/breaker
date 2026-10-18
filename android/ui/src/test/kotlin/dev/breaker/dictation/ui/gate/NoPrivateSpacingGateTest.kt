@@ -7,12 +7,13 @@ import org.junit.Test
 /*
  * Every distance in this module comes from a token.
  *
- * The design gives two sizes and no spacing scale: the floor a control must reach
- * to be tappable, and the corner radius the surfaces are drawn with. There is no
- * padding token, no margin token and no gap between rows, which is why the rows
- * simply touch. A number written into the renderer is therefore either one of
- * those two tokens, the platform's own constants, or a private decision the design
- * never made, and the last of those is what this rule is for.
+ * The design gives two sizes and a five step spacing scale: the floor a control
+ * must reach to be tappable, the corner radius the surfaces are drawn with, and
+ * the scale names from Space.XS to Space.XL, each read from its own token. A box's
+ * padding and gap are those names too, so the renderer holds no padding or margin
+ * number. A number written into the renderer is therefore one of those seven
+ * tokens, the platform's own constants, or a private decision the design never
+ * made, and the last of those is what this rule is for.
  *
  * Zero and one are permitted because they are not distances: one is the hairline
  * the trim stripe is drawn with, the single literal the design discloses, and zero
@@ -24,8 +25,8 @@ import org.junit.Test
 /** The renderer package, the one place a size may be applied. */
 private const val RENDER_DIRECTORY = "render"
 
-/** The two sizes the design gives, which the renderer must read by name. */
-private val TOKEN_NAMES = listOf("minTouchTargetDp", "cornerRadiusDp")
+/** The seven tokens the design gives, which the renderer must read by name: two sizes and five spacing steps. */
+private val TOKEN_NAMES = listOf("minTouchTargetDp", "cornerRadiusDp", "spaceXsDp", "spaceSDp", "spaceMDp", "spaceLDp", "spaceXlDp")
 
 /**
  * A number in code.
@@ -75,8 +76,8 @@ private val RENDER_SOURCES: List<Pair<String, String>> =
 /**
  * No private distance in the renderer, and both token names read there.
  *
- * The file list is checked first, because a scan of nothing passes; and the two
- * token names are required, because a renderer that reached no token at all would
+ * The file list is checked first, because a scan of nothing passes; and every
+ * token name is required, because a renderer that reached no token at all would
  * satisfy "no private distance" while painting every row its own size.
  */
 class NoPrivateSpacingGateTest {
@@ -119,15 +120,26 @@ class NoPrivateSpacingGateTest {
         )
     }
 
+    /** The token names that no code in [sources] reads, once comments and string literals are taken out. */
+    private fun tokensMissingFrom(sources: List<Pair<String, String>>): List<String> {
+        val code = sources.joinToString("\n") { (_, text) -> withoutCommentsAndStrings(text) }
+        return TOKEN_NAMES.filterNot { code.contains(it) }
+    }
+
     @Test
     fun `the renderer really does take its sizes from the tokens`() {
-        val code = RENDER_SOURCES.joinToString("\n") { it.second }
-        for (token in TOKEN_NAMES) {
-            assertTrue(
-                "the renderer never reads $token, so nothing in it comes from the tokens",
-                code.contains(token),
-            )
-        }
+        assertEquals("the renderer never reads these tokens in code", emptyList<String>(), tokensMissingFrom(RENDER_SOURCES))
+    }
+
+    @Test
+    fun `a token named only in a comment or a string is not read by the renderer`() {
+        assertEquals(emptyList<String>(), tokensMissingFrom(RENDER_SOURCES))
+        val inComment = RENDER_SOURCES.map { (path, text) -> path to text.replace("metrics.spaceXsDp", "metrics.spaceSDp // metrics.spaceXsDp") }
+        assertEquals(listOf("spaceXsDp"), tokensMissingFrom(inComment))
+        val inString = RENDER_SOURCES.map { (path, text) -> path to text.replace("metrics.spaceXsDp", "\"metrics.spaceXsDp\"") }
+        assertEquals(listOf("spaceXsDp"), tokensMissingFrom(inString))
+        val noted = RENDER_SOURCES.map { (path, text) -> path to "// spaceXsDp\n" + text }
+        assertEquals(emptyList<String>(), tokensMissingFrom(noted))
     }
 
     @Test
@@ -148,6 +160,14 @@ class NoPrivateSpacingGateTest {
         assertEquals(listOf("1: the distance named PAD"), breaksIn(named))
         val neutral = "private const val gutter = 8\n"
         assertEquals("1: the number 8", breaksIn(neutral).first())
+    }
+
+    @Test
+    fun `a literal twelve written into a renderer file is caught`() {
+        val control = "view.setPadding(12, 12, 12, 12)\n"
+        assertEquals(listOf("1: the number 12, 12, 12, 12"), breaksIn(control))
+        val step = "params.topMargin = 12\n"
+        assertEquals(listOf("1: the number 12"), breaksIn(step))
     }
 
     @Test

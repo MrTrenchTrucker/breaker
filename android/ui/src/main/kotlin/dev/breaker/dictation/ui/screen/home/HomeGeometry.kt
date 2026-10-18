@@ -54,6 +54,9 @@ internal object HomeGeometry {
     // The top bar, in px: 108 tall; the clock at 22/32, size 20; the menu lines x 22..56 and
     // y 58 + i*12, 5 tall; the logo mic scale 0.052; the wordmark 214/56, cap 30; the rule 106..108.
     const val BAR_H_DP: Float = 108f / 1.5f
+
+    /** The top-bar logo's height: about 45 art px in the picture, so 30 dp, not the whole bar. */
+    const val LOGO_H_DP: Float = 45f / 1.5f
     const val CLOCK_X_DP: Float = 22f / 1.5f
     const val CLOCK_Y_DP: Float = 32f / 1.5f
     const val CLOCK_SIZE_DP: Float = 20f / 1.5f
@@ -162,6 +165,9 @@ internal object HomeGeometry {
     const val DRAWER_WORDMARK_X_DP: Float = 84f / 1.5f
     const val DRAWER_WORDMARK_TOP_DP: Float = 68f / 1.5f
     const val DRAWER_WORDMARK_CAP_DP: Float = 40f / 1.5f
+
+    /** The drawer's logo header: about 68 art px tall in the picture, so about 45 dp. */
+    const val DRAWER_LOGO_H_DP: Float = 68f / 1.5f
     const val DRAWER_RULE_Y0_DP: Float = 132f / 1.5f
     const val DRAWER_RULE_H_DP: Float = 2f / 1.5f
     const val ITEM_Y0_DP: Float = 170f / 1.5f
@@ -177,6 +183,12 @@ internal object HomeGeometry {
     const val DRAWER_STRIPE_Y0_DP: Float = 1100f / 1.5f
     const val DRAWER_STRIPE_STEP_DP: Float = 18f / 1.5f
     const val DRAWER_STRIPE_H_DP: Float = 10f / 1.5f
+
+    // The plain stripes of the Settings and History screens: the three bars of the drawer frame, in px:
+    // y0 1100 + i*18, 10 tall, at the x spans 0..260, 30..330 and 0..190.
+    const val PLAIN_STRIPE_Y0_DP: Float = 1100f / 1.5f
+    const val PLAIN_STRIPE_STEP_DP: Float = 18f / 1.5f
+    const val PLAIN_STRIPE_H_DP: Float = 10f / 1.5f
 
     /** The top bar, [w] wide: the art's 108 px bar with the clock, the menu button, the logo mic, the wordmark and the accent rule. */
     fun topBar(w: Float): HomeTopBar = HomeTopBar(
@@ -252,6 +264,20 @@ internal object HomeGeometry {
                 width = (span.second - span.first) / 1.5f,
                 height = STRIPE_H_DP,
                 slant = slantOf(STRIPE_H_DP),
+            )
+        }
+    }
+
+    /** The three plain stripes, top to bottom: the drawer frame's three bars, slanted the art's twelve degrees. */
+    fun plainStripes(): List<HomeStripe> {
+        val spans = listOf(0f to 260f, 30f to 330f, 0f to 190f)
+        return spans.mapIndexed { index, span ->
+            HomeStripe(
+                x = span.first / 1.5f,
+                y = PLAIN_STRIPE_Y0_DP + index * PLAIN_STRIPE_STEP_DP,
+                width = (span.second - span.first) / 1.5f,
+                height = PLAIN_STRIPE_H_DP,
+                slant = slantOf(PLAIN_STRIPE_H_DP),
             )
         }
     }

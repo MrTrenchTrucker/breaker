@@ -55,13 +55,22 @@ class TokenBandTest {
     @Test
     fun fractionalWidthsFollowTheBreakpointsOfTheMetricsTheyAreAskedOn() {
         // Not the shipped numbers, so a fractional path that hard-codes them is seen.
-        val custom = TruckingMetrics(cornerRadiusDp = 4, minTouchTargetDp = 48, mobileBreakpointDp = 100, tabletBreakpointDp = 200)
+        val custom = TruckingMetrics(cornerRadiusDp = 4, minTouchTargetDp = 48, mobileBreakpointDp = 100, tabletBreakpointDp = 200, gutterDp = 16, spaceXsDp = 4, spaceSDp = 8, spaceMDp = 12, spaceLDp = 16, spaceXlDp = 32)
         assertEquals(LayoutBand.MOBILE, custom.bandFor(99.5))
         assertEquals(LayoutBand.TABLET, custom.bandFor(100.0))
         assertEquals(LayoutBand.TABLET, custom.bandFor(199.5f))
         assertEquals(LayoutBand.TABLET, custom.bandFor(200.0))
         assertEquals(LayoutBand.DESKTOP, custom.bandFor(200.5))
         assertEquals(LayoutBand.DESKTOP, custom.bandFor(200.5f))
+    }
+
+    @Test
+    fun `aMetricsBuiltWithAGutterKeepsThatGutter`() {
+        // The custom breakpoints above are not the shipped numbers, so a band function that
+        // hard-codes 640 and 1024 is seen; the gutter is pinned here, so a metrics object
+        // that states its own gutter is seen too.
+        val custom = TruckingMetrics(cornerRadiusDp = 4, minTouchTargetDp = 48, mobileBreakpointDp = 100, tabletBreakpointDp = 200, gutterDp = 24, spaceXsDp = 4, spaceSDp = 8, spaceMDp = 12, spaceLDp = 16, spaceXlDp = 32)
+        assertEquals(24, custom.gutterDp)
     }
 
     @Test

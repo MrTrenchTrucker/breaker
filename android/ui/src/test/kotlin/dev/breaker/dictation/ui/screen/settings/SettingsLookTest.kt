@@ -64,7 +64,11 @@ class SettingsLookTest {
     fun `the blocks come in the agreed order and each block holds its rows in order`() {
         val s = screen.render(NONDEFAULT, themeOf(), notice = null)
         assertEquals(
-            listOf("settings.title", "settings.stripe", "settings.theme", "settings.routing", "settings.switches", "settings.values"),
+            listOf(
+                "settings.titlebar", "settings.rule", "settings.gap.head", "settings.theme",
+                "settings.gap.routing", "settings.routing", "settings.gap.switches", "settings.switches",
+                "settings.gap.values", "settings.values", "settings.stripe",
+            ),
             s.nodes.map { it.id },
         )
         assertEquals(
@@ -76,7 +80,10 @@ class SettingsLookTest {
             childIds(s, "settings.routing"),
         )
         assertEquals(
-            listOf("settings.switches.heading", "settings.preloadModel", "settings.wakeGestureEnabled", "settings.formattingEnabled"),
+            listOf(
+                "settings.switches.heading", "settings.preloadModel", "settings.hairline.preload",
+                "settings.wakeGestureEnabled", "settings.hairline.wake", "settings.formattingEnabled",
+            ),
             childIds(s, "settings.switches"),
         )
         assertEquals(
@@ -89,7 +96,7 @@ class SettingsLookTest {
     fun `each heading and help line carries its agreed words and colour`() {
         val s = screen.render(NONDEFAULT, themeOf(), notice = null)
         assertEquals("Appearance", labelOf(s, "settings.theme.heading").text)
-        assertEquals(TypeRole.BODY, labelOf(s, "settings.theme.heading").role)
+        assertEquals(TypeRole.DISPLAY, labelOf(s, "settings.theme.heading").role)
         assertEquals(PaletteSlot.TEXT_MUTED, labelOf(s, "settings.theme.heading").color)
         assertEquals("System matches your phone's light or dark setting.", labelOf(s, "settings.theme.help").text)
         assertEquals(PaletteSlot.TEXT_MUTED, labelOf(s, "settings.theme.help").color)
@@ -111,7 +118,9 @@ class SettingsLookTest {
         assertEquals("English, small", labelOf(english, "settings.model.value").text)
         val other = screen.render(NONDEFAULT, themeOf(), null)
         assertEquals("de, medium", labelOf(other, "settings.model.value").text)
-        assertTrue((node(other, "settings.model") as Box).horizontal)
+        val head = node(other, "settings.model.head") as Box
+        assertTrue(head.horizontal && head.spread)
+        assertFalse((node(other, "settings.model") as Box).horizontal)
     }
 
     @Test

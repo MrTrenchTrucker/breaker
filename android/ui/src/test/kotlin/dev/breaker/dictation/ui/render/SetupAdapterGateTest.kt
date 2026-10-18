@@ -16,7 +16,6 @@ import org.junit.Test
  */
 
 private const val PLATFORM = "render/AndroidSetupPlatform.kt"
-private const val HOST = "render/SetupHostView.kt"
 private const val ENTRY = "SettingsEntry.kt"
 private const val SWITCH = "BreakerSwitch.kt"
 
@@ -161,17 +160,6 @@ private fun accessibilityProblemsIn(text: String): List<String> {
     return problems
 }
 
-/** The host draws the current screen again when the window gains focus, and only then. */
-private fun focusProblemsIn(text: String): List<String> {
-    val code = withoutCommentsAndStrings(text)
-    val header = Regex("""override\s+fun\s+onWindowFocusChanged\(\s*(\w+)\s*:\s*Boolean\s*\)\s*\{""").find(code)
-        ?: return listOf("onWindowFocusChanged is not overridden")
-    val body = code.substring(header.range.last, closeOf(code, header.range.last))
-    val guard = Regex("""if\s*\(\s*""" + header.groupValues[1] + """\s*\)""").find(body)
-        ?: return listOf("the redraw is not guarded by the window gaining focus")
-    return if (body.substring(guard.range.last).contains("show(handler.current())")) emptyList() else listOf("gaining focus does not show the current screen")
-}
-
 /** What one way of opening must name (its own page or permission) and which helpers it must call. */
 private class Wiring(val names: Set<String>, val calls: Set<String>)
 
@@ -279,45 +267,17 @@ private fun statusProblemsIn(text: String): List<String> {
     return problems
 }
 
-/** The host draws on attachment, shows what the handler answers to a tap, and keeps its place. */
-private fun hostProblemsIn(text: String): List<String> {
-    val code = withoutCommentsAndStrings(text)
-    val problems = mutableListOf<String>()
-    val attach = Regex("""override\s+fun\s+onAttachedToWindow\(\s*\)\s*\{""").find(code)
-    val attachBody = attach?.let { code.substring(it.range.last, closeOf(code, it.range.last)) }
-    if (attachBody == null) {
-        problems.add("onAttachedToWindow is not overridden")
-    } else {
-        if (!attachBody.contains("super.onAttachedToWindow()")) problems.add("attachment does not call super")
-        if (!attachBody.contains("show(handler.current())")) problems.add("attachment does not show the current screen")
-    }
-    val tap = Regex("""fun\s+onIntent\(\s*(\w+)\s*:\s*ScreenIntent\s*\)\s*\{""").find(code)
-    val tapBody = tap?.let { code.substring(it.range.last, closeOf(code, it.range.last)) }
-    if (tap == null || tapBody == null || !tapBody.contains("show(handler.handle(" + tap.groupValues[1] + "))")) {
-        problems.add("the result of handling a tap is not shown")
-    }
-    val show = Regex("""fun\s+show\(\s*(\w+)\s*:\s*Screen\s*\)\s*\{""").find(code)
-    val showBody = show?.let { code.substring(it.range.last, closeOf(code, it.range.last)) }.orEmpty()
-    if (!Regex("""\bremoveAllViews\(\)[\s\S]*\baddView\(""").containsMatchIn(showBody)) problems.add("show does not replace the whole child")
-    val routed = Regex("""\baddView\(\s*renderer\.render\(\s*""" + show?.groupValues?.get(1) + """\s*,\s*theme\s*,\s*::onIntent\s*\)\s*\)""")
-    if (show == null || !routed.containsMatchIn(showBody)) problems.add("show does not route taps to onIntent")
-    val notice = """\s*=\s*if\s*\(\s*""" + show?.groupValues?.get(1) + """\.nodes\.any\s*\{\s*it\.id\s*==\s*SETUP_NOTICE_ID\s*\}\s*\)\s*0\s+else\s+scrollY\b"""
-    if (!Regex("""val\s+(\w+)""" + notice + """[\s\S]*\baddView\([\s\S]*\bscrollTo\(\s*0\s*,\s*\1\s*\)""").containsMatchIn(showBody)) problems.add("show does not put the scroll position back, or go to the top for the notice")
-    if (!Regex("""\binit\s*\{[^}]*\bshow\(handler\.current\(\)\)""").containsMatchIn(code)) problems.add("the first drawing is not made on construction")
-    return problems
-}
-
 /** What [text] does that no adapter may do: log, print, store, or start work of its own. */
 private fun forbiddenIn(text: String): List<String> =
     withoutCommentsAndStrings(text).let { code -> FORBIDDEN.filter { (_, shape) -> shape.containsMatchIn(code) }.map { it.first } }
 
-/** The first-column declarations of the three entry functions and the switch, which must be exactly the four promised. */
+/** The first-column declarations of the four entry functions and the switch, which must be exactly the five promised. */
 private fun surfaceProblemsIn(entry: String, switch: String): List<String> {
     val declared = { text: String ->
         withoutComments(text).lines().filter { FIRST_COLUMN.containsMatchIn(it) }.map { it.substringBefore("(").removeSuffix("{").trim() }
     }
     val problems = mutableListOf<String>()
-    if (declared(entry) != listOf("fun createSettingsView", "fun createOnboardingView", "fun createHistoryView")) problems.add("entry file declares ${declared(entry)}")
+    if (declared(entry) != listOf("fun createSettingsView", "fun createHistoryView", "fun createHowItWorksView", "fun createAboutView")) problems.add("entry file declares ${declared(entry)}")
     if (declared(switch) != listOf("interface BreakerSwitch")) problems.add("switch file declares ${declared(switch)}")
     return problems
 }
@@ -325,7 +285,6 @@ private fun surfaceProblemsIn(entry: String, switch: String): List<String> {
 /** The setup adapters and the entry, pinned as text. */
 class SetupAdapterGateTest {
     private val platform = mainSourceOf(PLATFORM)
-    private val host = mainSourceOf(HOST)
     private val entry = mainSourceOf(ENTRY)
     private val switch = mainSourceOf(SWITCH)
 
@@ -382,14 +341,6 @@ class SetupAdapterGateTest {
         assertFires("a class literal", accessibilityProblemsIn(platform + "\nval k = SomeService::class.java\n"), "class literals")
         assertFires("the owning module named in a string", accessibilityProblemsIn(platform + "\nval n = \"x/dev.commit.Service\"\n"), "is named")
         assertEquals("prose naming it is not a name", emptyList<String>(), accessibilityProblemsIn(platform + "\n// the commit module is not named in code\n"))
-    }
-
-    @Test
-    fun `the host draws the current screen again when the window gains focus`() {
-        assertEquals("SetupHostView focus: ", emptyList<String>(), focusProblemsIn(host))
-        assertFires("no override", focusProblemsIn(edit(host, "override fun onWindowFocusChanged", "fun onWindowFocusChangedLater")), "not overridden")
-        assertFires("the comparison reversed", focusProblemsIn(edit(host, "if (hasWindowFocus) {", "if (!hasWindowFocus) {")), "not guarded")
-        assertFires("nothing drawn", focusProblemsIn(edit(host, "show(handler.current())", "Unit")), "does not show")
     }
 
     @Test
@@ -454,25 +405,8 @@ class SetupAdapterGateTest {
     }
 
     @Test
-    fun `the host draws on attachment, shows what a tap leads to and keeps its place`() {
-        assertEquals("SetupHostView: ", emptyList<String>(), hostProblemsIn(host))
-        val attach = "override fun onAttachedToWindow()"
-        assertFires("no redraw on attachment", hostProblemsIn(editAfter(host, attach, "show(handler.current())", "Unit")), "attachment does not show")
-        assertFires("no call to super", hostProblemsIn(editAfter(host, attach, "super.onAttachedToWindow()", "Unit")), "does not call super")
-        assertFires("the result of a tap dropped", hostProblemsIn(edit(host, "show(handler.handle(intent))", "handler.handle(intent)")), "result of handling a tap")
-        assertFires("taps not routed", hostProblemsIn(edit(host, "::onIntent", "{ _ -> }")), "route taps")
-        assertFires("the scroll position lost", hostProblemsIn(edit(host, "scrollTo(0, held)", "scrollTo(0, 0)")), "scroll position")
-        val held = "val held = if (screen.nodes.any { it.id == SETUP_NOTICE_ID }) 0 else scrollY"
-        assertFires("no top for the notice", hostProblemsIn(edit(host, held, "val held = scrollY")), "to the top for the notice")
-        assertFires("the top for every other drawing", hostProblemsIn(edit(host, held, held.replace(") 0 else scrollY", ") scrollY else 0"))), "to the top for the notice")
-        assertFires("another row sends it to the top", hostProblemsIn(edit(host, held, held.replace("==", "!="))), "to the top for the notice")
-        assertFires("no first drawing on construction", hostProblemsIn(editAfter(host, "init {", "show(handler.current())", "Unit")), "on construction")
-        assertFires("the old child kept", hostProblemsIn(edit(host, "removeAllViews()", "Unit")), "replace the whole child")
-    }
-
-    @Test
     fun `the adapters and the entry log nothing, keep nothing and start no work of their own`() {
-        for ((path, text) in listOf(PLATFORM to platform, HOST to host, ENTRY to entry, SWITCH to switch)) {
+        for ((path, text) in listOf(PLATFORM to platform, ENTRY to entry, SWITCH to switch)) {
             assertEquals("$path breaks: ", emptyList<String>(), forbiddenIn(text))
         }
         val samples = mapOf(
@@ -484,9 +418,9 @@ class SetupAdapterGateTest {
     }
 
     @Test
-    fun `the module offers exactly the three entry functions and the switch interface, with the result nested`() {
+    fun `the module offers exactly the four entry functions and the switch interface, with the result nested`() {
         assertEquals("surface: ", emptyList<String>(), surfaceProblemsIn(entry, switch))
-        assertFires("a renamed setup entry", surfaceProblemsIn(edit(entry, "fun createOnboardingView(", "fun createOnboardingScreen("), switch), "entry file declares")
+        assertFires("a renamed settings entry", surfaceProblemsIn(edit(entry, "fun createSettingsView(", "fun createSettingsScreen("), switch), "entry file declares")
         assertFires("an extra function", surfaceProblemsIn(entry + "\nfun createThird(): Int = 1\n", switch), "entry file declares")
         assertFires("a renamed interface", surfaceProblemsIn(entry, edit(switch, "interface BreakerSwitch", "interface BreakerToggle")), "switch file declares")
         assertFires("the result lifted out of the interface", surfaceProblemsIn(entry, edit(switch, "    sealed class Result {", "sealed class Result {")), "switch file declares")

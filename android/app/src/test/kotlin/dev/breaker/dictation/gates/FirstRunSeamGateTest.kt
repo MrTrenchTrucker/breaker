@@ -42,16 +42,6 @@ internal class FirstRunSeamGateTest {
 
     private fun count(text: String, pattern: String): Int = Regex(pattern).findAll(text).count()
 
-    /** The index of the first match of [pattern] in [text], or -1 when there is none. */
-    private fun at(text: String, pattern: String): Int = Regex(pattern).find(text)?.range?.first ?: -1
-
-    /** The download stop comes once in the body and before the refresh. */
-    private fun stoppedBeforeRefresh(body: String): Boolean {
-        val stop: Int = at(body, """downloadStopped\s*\(\s*\)""")
-        val refresh: Int = at(body, """refresh\s*\(\s*\)""")
-        return stop >= 0 && refresh > stop && count(body, """downloadStopped\s*\(\s*\)""") == 1
-    }
-
     /** The word of the switch, written in pieces so that this file does not hold it. */
     private val switchWord: String = "\\barmed" + "Switch\\b"
 
@@ -65,7 +55,7 @@ internal class FirstRunSeamGateTest {
         Rule("THE_DECISION_IS_IN_ONCREATE_BEFORE_THE_NORMAL_CONTENT") { code ->
             val create: String = bodyOf(code, createHeader)
             val decideAt: Int = create.indexOf("FirstRunGate.decide(")
-            val normalAt: Int = create.indexOf("createOnboardingView(")
+            val normalAt: Int = create.indexOf("createSettingsView(")
             decideAt >= 0 && normalAt > decideAt
         },
         Rule("THE_THREE_BRANCHES_ARE_ALL_THERE") { code ->
@@ -95,8 +85,8 @@ internal class FirstRunSeamGateTest {
                 count(body, """modelDownloadMb\s*=\s*\{\s*selectedModelMb\s*\(\s*app\s*\)\s*\}""") == 1 &&
                 count(code, """private\s+fun\s+pendingDownloadLine\(\)\s*:\s*String\?\s*=\s*downloadSentence""") == 1
         },
-        Rule("PROGRESS_KEEPS_THE_DOWNLOADING_CALL") { code ->
-            count(bodyOf(code, progressHeader), """\bdownloading\s*\(\s*sentence\s*\)""") == 1
+        Rule("PROGRESS_KEEPS_THE_SENTENCE") { code ->
+            count(bodyOf(code, progressHeader), """\bdownloadSentence\s*=\s*sentence\b""") == 1
         },
         Rule("PROGRESS_FORWARDS_THE_NUMBERS_UNCHANGED") { code ->
             count(bodyOf(code, progressHeader), """\bdownloadProgress\s*\(\s*doneMb\s*,\s*totalMb\s*\)""") == 1
@@ -106,46 +96,59 @@ internal class FirstRunSeamGateTest {
             count(body, """sentence\s*==\s*ModelSentences\s*\.\s*CHECKING\b""") == 1 &&
                 count(body, """\bdownloadChecking\s*\(\s*\)""") == 1
         },
-        Rule("DONE_STOPS_THE_DOWNLOAD_BEFORE_THE_REFRESH") { code ->
-            stoppedBeforeRefresh(bodyOf(code, doneHeader))
+        // Each of done() and failed() stops the download exactly once, and onResume refreshes the screen.
+        Rule("DONE_STOPS_THE_DOWNLOAD_ONCE") { code ->
+            val doneBody: String = bodyOf(code, doneHeader)
+            count(doneBody, """downloadStopped\s*\(\s*\)""") == 1 &&
+                count(bodyOf(code, "override fun onResume()"), """refresh\s*\(\s*\)""") >= 1
         },
-        Rule("FAILED_STOPS_THE_DOWNLOAD_BEFORE_THE_REFRESH") { code ->
-            stoppedBeforeRefresh(bodyOf(code, failedHeader))
+        Rule("FAILED_STOPS_THE_DOWNLOAD_ONCE") { code ->
+            val failedBody: String = bodyOf(code, failedHeader)
+            count(failedBody, """downloadStopped\s*\(\s*\)""") == 1 &&
+                count(bodyOf(code, "override fun onResume()"), """refresh\s*\(\s*\)""") >= 1
         },
-        Rule("THE_NORMAL_CONTENT_STILL_BUILDS_THE_WALKTHROUGH") { code ->
-            count(code, """\bcreateOnboardingView\s*\(""") == 1 &&
-                !bodyOf(code, showHeader).contains("createOnboardingView(")
+        // The whole activity has exactly two stops: the one in done() and the one in failed().
+        Rule("THE_DOWNLOAD_IS_STOPPED_ONLY_BY_DONE_AND_FAILED") { code ->
+            count(code, """\bdownloadStopped\s*\(\s*\)""") == 2
         },
-        // Five switch uses: the Home take wiring, Home's adapter, the onboarding adapter and the two calls in onStart.
+        Rule("THE_ONBOARDING_VIEW_IS_RETIRED") { code ->
+            count(code, """\bcreateOnboardingView\s*\(""") == 0
+        },
+        // Four switch uses: the Home take wiring, Home's adapter and the two calls in onStart.
         // The first-run block adds none of its own.
         Rule("THE_SWITCH_WORD_COUNT_IS_UNCHANGED") { code ->
-            count(code, switchWord) == 5
+            count(code, switchWord) == 4
         },
     )
 
     private val firing: List<Sample> = listOf(
         Sample("THE_DECISION_IS_IN_ONCREATE_BEFORE_THE_NORMAL_CONTENT", "FirstRunGate.decide(", "FirstRunGate.judge("),
+        Sample("THE_DECISION_IS_IN_ONCREATE_BEFORE_THE_NORMAL_CONTENT", "dev.breaker.dictation.ui.createSettingsView(", "dev.breaker.dictation.ui.createSettingsScreen("),
         Sample("THE_THREE_BRANCHES_ARE_ALL_THERE", "FirstRunGate.Decision.NORMAL -> Unit", "FirstRunGate.Decision.NORMAL = Unit"),
         Sample("THE_FIRST_RUN_BRANCH_RETURNS", "showFirstRun(app, modelReady, firstRunDone); return }", "showFirstRun(app, modelReady, firstRunDone) }"),
         Sample("THE_MARKED_DONE_BRANCH_WRITES_THE_MARKER", "MARK_DONE_QUIETLY -> firstRunDone.markDone()", "MARK_DONE_QUIETLY -> Unit"),
         Sample("SHOW_FIRST_RUN_IS_CALLED_WITH_THE_MARKER", "showFirstRun(app, modelReady, firstRunDone); return }", "showFirstRunPage(app, modelReady, firstRunDone); return }"),
         Sample("ONFINISHED_MARKS_DONE_THEN_RECREATES", "onFinished = { done.markDone(); recreate() }", "onFinished = { recreate(); done.markDone() }"),
         Sample("ONFINISHED_MARKS_DONE_THEN_RECREATES", "onFinished = { done.markDone(); recreate() }", "onFinished = { done.markDone() }"),
-        Sample("CREATE_FIRST_RUN_VIEW_IS_CALLED_ONCE_INSIDE_SHOW", "        onboardingView = view\n", "        onboardingView = view\n        dev.breaker.dictation.ui.createFirstRunView(this)\n"),
+        Sample("CREATE_FIRST_RUN_VIEW_IS_CALLED_ONCE_INSIDE_SHOW", "        super.onCreate(savedInstanceState)", "        super.onCreate(savedInstanceState)\n        dev.breaker.dictation.ui.createFirstRunView(this)"),
         Sample("CREATE_FIRST_RUN_VIEW_IS_CALLED_ONCE_INSIDE_SHOW", "    override fun onStart() {", "    override fun onStart() {\n        dev.breaker.dictation.ui.createFirstRunView(this)"),
         Sample("PROVIDERS_ARE_PASSED_BY_REFERENCE_IN_SHOW", "downloadLine = this::pendingDownloadLine,", "downloadLine = { downloadSentence },"),
         Sample("PROVIDERS_ARE_PASSED_BY_REFERENCE_IN_SHOW", "onDownloadModel = app.tileHost::requestDownload,", "onDownloadModel = { app.tileHost.requestDownload() },"),
-        Sample("PROGRESS_KEEPS_THE_DOWNLOADING_CALL", "downloading(sentence)\n        (onboardingView", "(onboardingView"),
-        Sample("PROGRESS_FORWARDS_THE_NUMBERS_UNCHANGED", "control.downloadProgress(doneMb, totalMb)", "control.downloadProgress(doneMb, 0)"),
-        Sample("PROGRESS_FORWARDS_THE_NUMBERS_UNCHANGED", "control.downloadProgress(doneMb, totalMb)", "control.downloadProgress(totalMb, doneMb)"),
+        Sample("PROGRESS_KEEPS_THE_SENTENCE", "downloadSentence = sentence\n        val control", "val control"),
+        Sample("PROGRESS_KEEPS_THE_SENTENCE", "downloadSentence = sentence\n        val control", "downloadSentence = null\n        val control"),
+        Sample("PROGRESS_FORWARDS_THE_NUMBERS_UNCHANGED", "control?.downloadProgress(doneMb, totalMb)", "control?.downloadProgress(doneMb, 0)"),
+        Sample("PROGRESS_FORWARDS_THE_NUMBERS_UNCHANGED", "control?.downloadProgress(doneMb, totalMb)", "control?.downloadProgress(totalMb, doneMb)"),
         Sample("PROGRESS_TESTS_THE_CHECKING_CONSTANT", "sentence == ModelSentences.CHECKING", "sentence == \"Checking the speech model.\""),
         Sample("PROGRESS_TESTS_THE_CHECKING_CONSTANT", "sentence == ModelSentences.CHECKING", "sentence.isEmpty()"),
-        Sample("DONE_STOPS_THE_DOWNLOAD_BEFORE_THE_REFRESH", "(onboardingView as? ModelStepControl)?.downloadStopped()\n        (onboardingView as? ModelStepControl)?.refresh()", "(onboardingView as? ModelStepControl)?.refresh()\n        (onboardingView as? ModelStepControl)?.downloadStopped()"),
-        Sample("DONE_STOPS_THE_DOWNLOAD_BEFORE_THE_REFRESH", "override fun done() {", "override fun doneLater() {"),
-        Sample("FAILED_STOPS_THE_DOWNLOAD_BEFORE_THE_REFRESH", "override fun failed(sentence: String) {", "override fun failedLater(sentence: String) {"),
-        Sample("FAILED_STOPS_THE_DOWNLOAD_BEFORE_THE_REFRESH", "downloadStatus.text = sentence\n        (onboardingView as? ModelStepControl)?.downloadStopped()", "downloadStatus.text = sentence\n        (onboardingView as? ModelStepControl)?.refresh()\n        (onboardingView as? ModelStepControl)?.downloadStopped()"),
-        Sample("THE_NORMAL_CONTENT_STILL_BUILDS_THE_WALKTHROUGH", "dev.breaker.dictation.ui.createOnboardingView(", "dev.breaker.dictation.ui.createOnboardingScreen("),
+        Sample("DONE_STOPS_THE_DOWNLOAD_ONCE", "downloadSentence = null\n        downloadControl()?.downloadStopped()", "downloadSentence = null\n        downloadControl()?.refresh()"),
+        Sample("DONE_STOPS_THE_DOWNLOAD_ONCE", "override fun done() {", "override fun doneLater() {"),
+        Sample("FAILED_STOPS_THE_DOWNLOAD_ONCE", "override fun failed(sentence: String) {", "override fun failedLater(sentence: String) {"),
+        Sample("FAILED_STOPS_THE_DOWNLOAD_ONCE", "downloadSentence = sentence\n        downloadControl()?.downloadStopped()", "downloadSentence = sentence\n        downloadControl()?.refresh()"),
+        Sample("THE_DOWNLOAD_IS_STOPPED_ONLY_BY_DONE_AND_FAILED", "override fun done() {", "override fun done() {\n        downloadControl()?.downloadStopped()"),
+        Sample("THE_DOWNLOAD_IS_STOPPED_ONLY_BY_DONE_AND_FAILED", "downloadSentence = null\n        downloadControl()?.downloadStopped()", "downloadSentence = null\n        downloadControl()?.refresh()"),
         Sample("THE_SWITCH_WORD_COUNT_IS_UNCHANGED", "private var pendingRefusal: String? = null", "private var pendingRefusal: String? = null\n    private var ${"armed" + "Switch"}: Int = 0"),
+        Sample("THE_ONBOARDING_VIEW_IS_RETIRED", "override fun onStart() {", "override fun onStart() {\n        createOnboardingView(this)"),
+        Sample("THE_ONBOARDING_VIEW_IS_RETIRED", "private fun selectedModelMb(app: BreakerApp): Int =", "private fun selectedModelMb(app: BreakerApp): Int =\n        createOnboardingView(app)"),
     )
 
     private val quiet: List<Quiet> = listOf(

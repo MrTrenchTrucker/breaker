@@ -43,6 +43,7 @@ internal class AppLayoutGateTest {
         "service/AndroidServiceLauncher.kt", "service/DictationForegroundService.kt", "service/DictationNotification.kt",
         "service/ModelNotifications.kt", "host/AppThreads.kt", "host/OverlayTilePort.kt", "host/TileHost.kt", "host/DisplayChangeAndroid.kt",
         "wiring/AndroidSwaps.kt", "wiring/AndroidInsets.kt", "wiring/ThemedScreens.kt",
+        "wiring/InfoScreensWiring.kt",
         "host/TakenClipboardAndroid.kt",
     )
 

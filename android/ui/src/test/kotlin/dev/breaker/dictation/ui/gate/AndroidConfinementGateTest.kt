@@ -31,6 +31,12 @@ private const val ENTRY_FILE = "SettingsEntry.kt"
 /** The second file whose job is to hand a view to the app, and may name the framework. */
 private const val HOME_ENTRY_FILE = "HomeEntry.kt"
 
+/** The F44 host views, which are render-layer classes and may name the framework. */
+private val HOST_VIEW_FILES = setOf("screen/howitworks/HowItWorksHostView.kt", "screen/about/AboutHostView.kt")
+
+/** The compiled form of [HOST_VIEW_FILES]. */
+private val HOST_VIEW_CLASSES = HOST_VIEW_FILES.map { it.removeSuffix(".kt") + ".class" }.toSet()
+
 /** The compiled form of [ENTRY_FILE]. */
 private const val ENTRY_CLASS = "SettingsEntryKt.class"
 
@@ -51,15 +57,15 @@ private val FRAMEWORK_PACKAGE = Regex("""\bandroidx?\.""")
 /**
  * Whether a source file is allowed to name the framework.
  *
- * The carve-out is one directory and three file names, not a pattern on the path,
- * so a fourth file that reaches for the framework is caught rather than excused
+ * The carve-out is one directory and five file names, not a pattern on the path,
+ * so a sixth file that reaches for the framework is caught rather than excused
  * by sharing a prefix with one that may. The path is normalised before the
  * directory is read off it, because a name that only reaches the renderer by
  * climbing back out of it is not inside the renderer, and a name that merely
  * contains the directory is not in it either.
  */
 private fun mayNameFramework(relative: String): Boolean =
-    mayName(relative, RENDER_DIRECTORY, ENTRY_FILE, FIRST_RUN_ENTRY_FILE, HOME_ENTRY_FILE)
+    mayName(relative, RENDER_DIRECTORY, ENTRY_FILE, FIRST_RUN_ENTRY_FILE, HOME_ENTRY_FILE) || relative in HOST_VIEW_FILES
 
 /**
  * Whether [relative] is one of the files [entryFiles], or a file inside [directory].
@@ -95,7 +101,8 @@ internal fun frameworkPackagesIn(bytes: String): List<String> =
 
 /** The framework packages in a class that may not name them, or nothing. */
 private fun forbiddenPackagesIn(relative: String, bytes: String): List<String> =
-    if (mayName(relative, RENDER_DIRECTORY, ENTRY_CLASS, FIRST_RUN_ENTRY_CLASS, HOME_ENTRY_CLASS)) {
+    if (mayName(relative, RENDER_DIRECTORY, ENTRY_CLASS, FIRST_RUN_ENTRY_CLASS, HOME_ENTRY_CLASS) ||
+        relative in HOST_VIEW_CLASSES) {
         emptyList()
     } else {
         frameworkPackagesIn(bytes)

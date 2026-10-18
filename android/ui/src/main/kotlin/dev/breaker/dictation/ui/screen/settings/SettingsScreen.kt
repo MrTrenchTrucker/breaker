@@ -2,11 +2,15 @@ package dev.breaker.dictation.ui.screen.settings
 
 import dev.breaker.dictation.core.model.AppSettings
 import dev.breaker.dictation.core.model.SttMode
+import dev.breaker.dictation.ui.screen.BottomStripes
 import dev.breaker.dictation.ui.screen.Label
+import dev.breaker.dictation.ui.screen.Node
 import dev.breaker.dictation.ui.screen.Screen
 import dev.breaker.dictation.ui.screen.ScreenIntent
-import dev.breaker.dictation.ui.screen.TrimStripe
+import dev.breaker.dictation.ui.screen.Space
+import dev.breaker.dictation.ui.screen.Spacer
 import dev.breaker.dictation.ui.screen.TypeRole
+import dev.breaker.dictation.ui.screen.titleBar
 import dev.breaker.dictation.ui.theme.PaletteSlot
 import dev.breaker.dictation.ui.theme.ThemeState
 
@@ -27,31 +31,45 @@ import dev.breaker.dictation.ui.theme.ThemeState
  * value derived from them.
  */
 
+/** What the model row shows: whether the speech model is ready, and the sentence about a download, or null. */
+internal data class ModelRow(val ready: Boolean, val line: String?) {
+    internal companion object {
+        /** The row when the speech model is on the phone and no download runs. */
+        val READY: ModelRow = ModelRow(ready = true, line = null)
+    }
+}
+
 /** The settings shown on screen, and the changes it is willing to make. */
 internal class SettingsScreen {
     /**
      * Builds the tree for the settings in [settings].
      *
      * [settings] is null when they have never been read; [theme] is the theme as
-     * last read or saved, which is available even then, and [notice] is the
-     * message for a change that did not take effect, or null.
+     * last read or saved, which is available even then, [notice] is the message for
+     * a change that did not take effect, or null, and [model] is the speech model row.
      *
-     * Blocks are drawn in reading order and simply touch: the design gives no
-     * spacing scale, so every distance between blocks is the platform's own.
+     * The title bar comes first, then the blocks in reading order, each block set
+     * apart by a spacer named by its size, and the brand stripes last.
      */
-    fun render(settings: AppSettings?, theme: ThemeState, notice: Notice?): Screen =
+    fun render(settings: AppSettings?, theme: ThemeState, notice: Notice?, model: ModelRow = ModelRow.READY): Screen =
         Screen(
             id = SCREEN_ID,
             title = TITLE,
-            nodes = listOf(
-                titleNode(),
-                TrimStripe(SettingsIds.STRIPE_ID),
-                noticeNode(notice),
-                themeBlock(theme),
-                settings?.let { routingBlock(it) },
-                settings?.let { switchesBlock(it) },
-                settings?.let { valuesBlock(it) },
-            ).filterNotNull(),
+            nodes = buildList<Node> {
+                addAll(titleBar(SCREEN_ID, TITLE))
+                noticeNode(notice)?.let { add(it) }
+                add(Spacer(SettingsIds.GAP_HEAD, Space.L))
+                add(themeBlock(theme))
+                if (settings != null) {
+                    add(Spacer(SettingsIds.GAP_ROUTING, Space.L))
+                    add(routingBlock(settings))
+                    add(Spacer(SettingsIds.GAP_SWITCHES, Space.L))
+                    add(switchesBlock(settings))
+                    add(Spacer(SettingsIds.GAP_VALUES, Space.XL))
+                    add(valuesBlock(settings, model))
+                }
+                add(BottomStripes(SettingsIds.STRIPE_ID, plain = true))
+            },
         )
 
     /**
@@ -76,6 +94,7 @@ internal class SettingsScreen {
         ScreenIntent.UseSystemTheme,
         is ScreenIntent.SetThemeMode,
         is ScreenIntent.Setup,
+        ScreenIntent.Back,
         -> null
         is ScreenIntent.History -> null
         is ScreenIntent.Home -> null
@@ -102,13 +121,6 @@ internal class SettingsScreen {
             else -> null
         }
     }
-
-    private fun titleNode(): Label = Label(
-        id = SettingsIds.TITLE_ID,
-        text = TITLE,
-        role = TypeRole.DISPLAY,
-        color = PaletteSlot.TEXT,
-    )
 
     /** The message for a change that did not take effect, or nothing when there is none. */
     private fun noticeNode(notice: Notice?): Label? = notice?.let {

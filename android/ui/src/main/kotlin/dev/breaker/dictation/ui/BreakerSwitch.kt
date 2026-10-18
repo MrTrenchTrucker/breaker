@@ -4,7 +4,7 @@ package dev.breaker.dictation.ui
  * The switch that turns Breaker on and off, as the app offers it to the setup screen.
  *
  * The app implements this over whatever keeps the microphone running, and gives
- * the implementation to [createOnboardingView]. This module never learns how Breaker
+ * the implementation to [createHomeView]. This module never learns how Breaker
  * is switched on; it only asks, and shows the answer. Nothing about the switch is
  * kept here: whether Breaker is on is read from [isOn] each time the screen is
  * drawn, so a switch that was turned off elsewhere is shown as off.

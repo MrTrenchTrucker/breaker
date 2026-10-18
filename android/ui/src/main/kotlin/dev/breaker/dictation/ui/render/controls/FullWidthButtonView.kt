@@ -21,7 +21,9 @@ internal class FullWidthButtonView(
     label: String,
     /** The theme the parts are painted in. */
     theme: Theme,
-) : Button3dView(context, label, theme) {
+    /** Whether the button takes the compact floor, passed up to the main button. */
+    compact: Boolean = false,
+) : Button3dView(context, label, theme, compact) {
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val target = touchTargetPx(ControlsFactors.TOUCH_MIN_DP, density)

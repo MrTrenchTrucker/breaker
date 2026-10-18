@@ -136,6 +136,9 @@ internal class SetupIntentHandler(
             is ScreenIntent.History,
             is ScreenIntent.Home,
             -> SetupNotice.NOT_ACCEPTED
+            // The set-up screen has no back arrow. A Back draws the held screen again, keeping any pinned
+            // refusal, and leaves no new notice; it returns before the pin is cleared below.
+            ScreenIntent.Back -> return show(notice = null, fresh = false, redraw = true)
         }
         val drawn = show(notice = notice, fresh = notice != SetupNotice.NOT_ACCEPTED)
         pinned = null

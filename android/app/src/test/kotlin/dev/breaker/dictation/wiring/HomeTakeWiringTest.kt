@@ -227,4 +227,6 @@ private class FakeHomeControl : HomeControl {
     override fun showRecording(recording: Boolean) {
         recordings.add(recording)
     }
+
+    override fun refresh() {}
 }

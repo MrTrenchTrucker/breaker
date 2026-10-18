@@ -14,14 +14,14 @@ screen, the settings screen and the history screen, the manifest, and the Gradle
 
 ## What it puts together
 
-- **The home screen.** The launcher opens on the Home screen the ui module builds, after the first-run view on a phone with no speech model: an on/off card with the switch, the speech model row (Ready, or "Not downloaded"), the server row ("Not available") and the last dictation; a big mic; the last transcript with a Copy button, which is drawn only while there is a transcript; and a menu with History, Settings, How it works and About. History and Settings open their screens. How it works and About answer in place with "Not available yet." A tap on the big mic starts a take (or answers why it cannot), and a second tap ends a take that the Home tap began; the take's line shows below the last transcript, and the mic takes the recording look while it records.
+- **The home screen.** The launcher opens on the Home screen the ui module builds, after the first-run view on a phone with no speech model: an on/off card with the switch, the speech model row (Ready, or "Not downloaded"), the server row ("Not available") and the last dictation; a big mic; the last transcript with a Copy button, which is drawn only while there is a transcript; and a menu with History, Settings, How it works and About. History and Settings open their screens. How it works and About open their own screens. A tap on the big mic starts a take (or answers why it cannot), and a second tap ends a take that the Home tap began; the take's line shows below the last transcript, and the mic takes the recording look while it records. Apart from the first-run view, screens open only from this menu, and the two notification routes are the only other entries: the model route opens Settings and asks for its download button to be in focus (a device check is owed), and the history route opens History. On Home, Back closes an open menu first. Back from How it works, About or Settings returns to Home; Back from History returns to Settings when Settings is open, and to Home otherwise. `SettingsLauncherActivity.kt` is 300 lines, the limit for every Kotlin file of this module.
 - **Settings and the credential reference.** The settings store is built over
   the app's files folder, together with a small file that holds the reference to
   the user's credential (never the secret itself).
 - **History.** The history database opens on its first use, which is the one
   start-up clean-up of old rows. That clean-up runs on the background (I/O)
-  dispatcher, never on the main thread. The Home menu and the settings column each open
-  the history screen, and a tap on the notification opens the same screen.
+  dispatcher, never on the main thread. The Home menu opens the history screen, and a tap
+  on the notification opens the same screen.
 - **Dictation.** A `DictationComponent` joins the microphone capture of the audio
   module, the on-device rule-based formatter of the format module, the
   connectivity probe of the transport module and the dictation use cases of the
@@ -29,7 +29,7 @@ screen, the settings screen and the history screen, the manifest, and the Gradle
   send, cancel.
 - **First run.** A phone with no speech model sees a first-run view (a welcome, the permission pages and a download page with a bar) in place of the home screen and the settings column. The app keeps a small done marker in its files folder, written when the model is on the phone at the end of the first run, so the first run does not come back.
 - **Speech engine and model.** The on-device speech engine reads its models from
-  a model store in the app's files folder. Its download button sits in the walk-through, in the settings column that the Settings item on Home opens.
+  a model store in the app's files folder. Its download button sits in the settings view, in the settings column that the Settings item on Home opens.
   "Download the speech model", downloads the model the settings select; the
   address and the checksum come from the model registry. A tap on the tile's
   microphone with no model installed starts nothing and says so, in a
@@ -49,8 +49,7 @@ screen, the settings screen and the history screen, the manifest, and the Gradle
   landed or only reached the clipboard, and FAILED with its sentence when the
   commit failed. It keeps that until the next action.
 - **The user's switch-off.** When the user switches dictation off (the
-  notification's "Switch off" button, or the walk-through's
-  "Switch Breaker off" button, or the switch on the Home card), the app keeps that in a small file in its
+  notification's "Switch off" button, or the switch on the Home card), the app keeps that in a small file in its
   files folder, and a start of the launcher from a notification or the tile no
   longer switches dictation on. Opening Breaker from its launcher icon switches
   it on again, once for each activity the icon opens; a tap on the icon while
@@ -93,14 +92,14 @@ trusts only the system's certificate authorities. The manifest asks for exactly
 these permissions: internet, record audio, foreground service, foreground service
 of the microphone type, post notifications, and draw over other apps (six in all).
 None of them is asked for while the app runs in app code: the user grants the
-three that need it by hand in the system settings, or through the walk-through
-in the settings column.
+three that need it by hand in the system settings, or through the first-run flow
+on a phone with no speech model.
 
-## Walk-through and download status
+## Settings and download status
 
-The settings column, which the Settings item on Home opens, shows the setup walk-through
-(permissions: overlay, microphone, notifications, accessibility), with the speech model
-step first. Under the whole walk-through, a status line (downloading or failed) uses ModelSentences
+The settings column, which the Settings item on Home opens, holds only the settings view
+(`createSettingsView` in the ui module). Its model row holds the download button while the model is not on the phone; under that row,
+a status line (downloading or failed) uses ModelSentences
 words, and is blank once the model is ready (there is no ready sentence). The app asks for no permission at run time in app code;
 the requests live in ui's screen.
 
@@ -122,8 +121,8 @@ of `AGENTS.md` lists the smaller open items.
   resolves the reference is not built and not verified.
 
 The real microphone (`appMicSource(audioManager)` in `wiring/AndroidSwaps.kt`,
-which returns `AndroidMicSource.create`), the permission walk-through with its
-on/off switch (`createOnboardingView` in the ui module, with the switch in
+which returns `AndroidMicSource.create`), the first-run view (`createFirstRunView` in the ui module),
+and the on/off switch on Home (with the switch in
 `wiring/BreakerSwitchAdapter.kt`) and the text commit (`appTextCommitter` in
 `wiring/AndroidSwaps.kt`) are built. All three have run on a phone in test builds;
 the cases not yet checked on a device are in the "Not verified" section of this

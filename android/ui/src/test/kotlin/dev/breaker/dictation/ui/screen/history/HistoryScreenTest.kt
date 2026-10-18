@@ -1,6 +1,7 @@
 package dev.breaker.dictation.ui.screen.history
 
 import dev.breaker.dictation.core.model.TranscriptionSource
+import dev.breaker.dictation.ui.render.dropFinalPeriod
 import dev.breaker.dictation.ui.screen.Action
 import dev.breaker.dictation.ui.screen.CollapsibleText
 import dev.breaker.dictation.ui.screen.Emphasis
@@ -9,6 +10,8 @@ import dev.breaker.dictation.ui.screen.Label
 import dev.breaker.dictation.ui.screen.Node
 import dev.breaker.dictation.ui.screen.Screen
 import dev.breaker.dictation.ui.screen.ScreenIntent
+import dev.breaker.dictation.ui.screen.Space
+import dev.breaker.dictation.ui.screen.Spacer
 import dev.breaker.dictation.ui.screen.TagPill
 import dev.breaker.dictation.ui.screen.flatten
 import dev.breaker.dictation.ui.theme.PaletteSlot
@@ -63,7 +66,7 @@ class HistoryScreenTest {
         val s = render(state())
         assertEquals(
             "history: empty heading and hint",
-            HistoryTexts.EMPTY,
+            dropFinalPeriod(HistoryTexts.EMPTY_HEADING) + " " + HistoryTexts.EMPTY_HINT,
             label(s, "history.empty").text + " " + label(s, "history.empty.hint").text,
         )
         assertTrue("history: no row when the list is empty", nodesOf(s).none { it.id.startsWith("history.row.") })
@@ -75,9 +78,20 @@ class HistoryScreenTest {
         val s = render(state(rows = listOf(row("c"), row("a"), row("b"))))
         assertEquals(
             "history: order",
-            listOf("history.title", "history.row.c", "history.row.a", "history.row.b"),
+            listOf(
+                "history.titlebar", "history.rule", "history.gap.0", "history.row.c", "history.gap.1", "history.row.a",
+                "history.gap.2", "history.row.b", "history.stripes",
+            ),
             s.nodes.map { it.id },
         )
+    }
+
+    @Test
+    fun `each block below the title rule is set apart from the one before it by a gap of M`() {
+        val s = render(state(rows = listOf(row("c"), row("a"))))
+        assertEquals("history: the gap under the rule", "history.gap.0", s.nodes[2].id)
+        val gaps = s.nodes.filterIsInstance<Spacer>().filter { it.id.startsWith("history.gap.") }
+        assertEquals("history: one gap per row", listOf(Space.M, Space.M), gaps.map { it.size })
     }
 
     @Test
@@ -127,7 +141,10 @@ class HistoryScreenTest {
         val s = render(state(rows = listOf(row("a"), row("b"), row("c")), pending = setOf("b")))
         assertEquals(
             "history: order with the block in place",
-            listOf("history.title", "history.row.a", "history.undo.b", "history.row.c"),
+            listOf(
+                "history.titlebar", "history.rule", "history.gap.0", "history.row.a", "history.gap.1", "history.undo.b",
+                "history.gap.2", "history.row.c", "history.stripes",
+            ),
             s.nodes.map { it.id },
         )
         assertNull("history: the row itself is gone", node(s, "history.row.b"))
@@ -167,7 +184,7 @@ class HistoryScreenTest {
         val copied = render(state(listOf(row("a"))), HistoryNotice.COPIED)
         assertEquals("history: copied text", HistoryTexts.NOTICE_COPIED, label(copied, "history.notice").text)
         assertEquals("history: copied colour", PaletteSlot.STATE_SENT, label(copied, "history.notice").color)
-        assertEquals("history: notice position", "history.notice", copied.nodes[1].id)
+        assertEquals("history: notice position", "history.notice.box", copied.nodes[3].id)
 
         val failed = render(state(listOf(row("a"))), HistoryNotice.DELETE_FAILED)
         assertEquals("history: failed text", HistoryTexts.NOTICE_DELETE_FAILED, label(failed, "history.notice").text)

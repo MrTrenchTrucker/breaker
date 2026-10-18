@@ -91,6 +91,18 @@ data class TruckingMetrics(
     val mobileBreakpointDp: Int,
     /** Widths up to and including this are tablet; wider is desktop. */
     val tabletBreakpointDp: Int,
+    /** The outer gutter the host applies around every screen's content. */
+    val gutterDp: Int,
+    /** The extra-small spacing step, 4 dp. */
+    val spaceXsDp: Int,
+    /** The small spacing step, 8 dp. */
+    val spaceSDp: Int,
+    /** The medium spacing step, 12 dp. */
+    val spaceMDp: Int,
+    /** The large spacing step, 16 dp. */
+    val spaceLDp: Int,
+    /** The extra-large spacing step, 32 dp. */
+    val spaceXlDp: Int,
 ) {
     init {
         require(mobileBreakpointDp < tabletBreakpointDp) {
@@ -199,6 +211,12 @@ object TruckingTokens {
         minTouchTargetDp = 48,
         mobileBreakpointDp = 640,
         tabletBreakpointDp = 1024,
+        gutterDp = 16,
+        spaceXsDp = 4,
+        spaceSDp = 8,
+        spaceMDp = 12,
+        spaceLDp = 16,
+        spaceXlDp = 32,
     )
 
     val ledBar = TruckingLedBar(minSegments = 12, maxSegments = 16)

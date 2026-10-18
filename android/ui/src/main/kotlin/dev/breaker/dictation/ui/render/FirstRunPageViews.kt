@@ -38,13 +38,11 @@ private val APPEARANCE_MEDIUM: Int = android.R.style.TextAppearance_DeviceDefaul
 /** Builds the pieces of a first-run page in [theme]. */
 internal class PageBuilder(val context: Context, val theme: Theme) {
     private val density: Float = context.resources.displayMetrics.density
-    private val side: Int = FirstRunLayout.dpToPx(FirstRunLayout.PAGE_PADDING_DP, density)
     private val above: Int = FirstRunLayout.dpToPx(FirstRunLayout.GAP_DP, density)
 
-    /** A full-width column with the page padding on every side. */
+    /** A full-width column. The host pads the screen by the gutter, so the column adds no padding of its own. */
     fun column(): LinearLayout = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
-        setPadding(side, side, side, side)
         layoutParams = rowParams(false)
     }
 

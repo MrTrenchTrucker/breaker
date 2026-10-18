@@ -19,6 +19,8 @@ internal object ControlsFactors {
     const val CORNER_DP: Float = 4f       // radius; the style guide caps corners at 4 dp
     const val SLANT_DEG: Float = 12f      // the step marks' slant
     const val TOUCH_MIN_DP: Float = 48f   // the touch-target floor
+    const val STRIPE_SOFT_FACTOR_LIGHT: Float = 0.7f  // the pale mint stripe: the primary lightened toward white
+    const val STRIPE_SOFT_FACTOR_DARK: Float = -0.3f  // the deeper green stripe: the primary darkened toward black
 }
 
 /**
@@ -39,6 +41,20 @@ internal fun shade(color: Int, factor: Float): Int {
     val green = channel((color ushr 8) and 0xFF)
     val blue = channel(color and 0xFF)
     return ((color ushr 24) shl 24) or (red shl 16) or (green shl 8) or blue
+}
+
+/**
+ * [colour] with its alpha byte scaled by [alpha] (0 to 255); the colour channels are kept.
+ *
+ * A drawable's alpha scales what it paints without changing the colour it was given: a fully
+ * opaque colour at alpha 128 comes out at about half opacity.
+ */
+internal fun scaledAlpha(colour: Int, alpha: Int): Int {
+    val byteMask = (1 shl 8) - 1
+    val own = (colour ushr 24) and byteMask
+    val scaled = own * alpha / byteMask
+    val channels = colour and ((1 shl 24) - 1)
+    return channels or (scaled shl 24)
 }
 
 /**

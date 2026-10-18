@@ -89,6 +89,13 @@ class ThemeTest {
     }
 
     @Test
+    fun `the gutter metric of a theme is the 16 dp gutter`() {
+        for (mode in ThemeMode.entries) {
+            assertEquals("$mode gutter", 16, Themes.of(mode).metrics.gutterDp)
+        }
+    }
+
+    @Test
     fun `the type of a theme is the token type`() {
         for (mode in ThemeMode.entries) {
             assertSame(TruckingTokens.type, Themes.of(mode).type)

@@ -25,13 +25,14 @@ internal fun half(v: Float): Float = v / (1f + 1f)
 /**
  * The width of a button carrying [label], in this view's pixels. The label is measured in the
  * kit's own text size and default face; the button is that width plus its side room, and never
- * below the art's own button width. The answer is taken up to whole pixels.
+ * below the art's own button width, or the compact floor when [compact] is set. The answer is taken
+ * up to whole pixels.
  */
-internal fun buttonWidthPx(paint: TextPaint, label: String, density: Float): Int {
+internal fun buttonWidthPx(paint: TextPaint, label: String, density: Float, compact: Boolean = false): Int {
     paint.textSize = ControlsGeometry.LABEL_CAP_DP
     paint.typeface = Typeface.DEFAULT
     val measured = paint.measureText(drawnLabel(label))
-    return touchTargetPx(ControlsGeometry.buttonWidth(measured), density)
+    return touchTargetPx(ControlsGeometry.buttonWidth(measured, compact), density)
 }
 
 /**
@@ -65,6 +66,8 @@ internal open class Button3dView(
     val label: String,
     /** The theme the parts are painted in. */
     private val theme: Theme,
+    /** Whether the button takes the compact floor: only the History entry rows set it. */
+    private val compact: Boolean = false,
 ) : View(context) {
 
     protected val density: Float = context.resources.displayMetrics.density
@@ -104,11 +107,11 @@ internal open class Button3dView(
     private fun target(): Int = touchTargetPx(ControlsFactors.TOUCH_MIN_DP, density)
 
     /** The width the label alone asks for, in this view's pixels, measured the way the button's own width is. */
-    protected fun labelWidthPx(): Int = buttonWidthPx(textPaint, label, density)
+    protected fun labelWidthPx(): Int = buttonWidthPx(textPaint, label, density, compact)
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         setMeasuredDimension(
-            resolveSize(buttonWidthPx(textPaint, label, density), widthMeasureSpec),
+            resolveSize(buttonWidthPx(textPaint, label, density, compact), widthMeasureSpec),
             resolveSize(target(), heightMeasureSpec),
         )
     }

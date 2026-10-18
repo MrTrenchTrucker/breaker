@@ -26,8 +26,8 @@ private const val MERGED_HEADER = "    private fun merged(source: Screen?): Home
 private const val NOTICE_LINE = "notice = handler.notice(),"
 private const val NOTICE_LINE_WITH_INDENT = "        notice = handler.notice(),\n"
 private const val SWITCH_LINE = "        switchOn = switch.isOn(),"
-private const val COMMENT_WORDS = "and the notice the handler is showing:"
-private const val MERGED_ANCHOR = "    /** Acts on [intent] and draws the result. */"
+private val COMMENT_WORDS = "and the notice the handler is showing."
+private const val MERGED_ANCHOR = "    /**\n     * Acts on [intent] and draws the result."
 
 /** The problem the notice has when merged() does not pass the handler's own notice() as the notice. */
 private const val NOTICE_PROBLEM = "merged() does not give the handler's own notice() as the notice"

@@ -7,8 +7,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The app manifest declares six permissions, the two icons, the launcher activity and the one
- * microphone service, and nothing else.
+ * The app manifest declares six permissions, the two icons, the launcher activity with its
+ * no-title-bar theme and the one microphone service, and nothing else.
  *
  * Adding a permission, a receiver, a provider, a second service, an export, an
  * intent filter on the service, a clear-text setting or any attribute or element
@@ -46,6 +46,7 @@ internal class ManifestGateTest {
         <activity
             android:name=".SettingsLauncherActivity"
             android:exported="true"
+            android:theme="@android:style/Theme.Material.Light.NoActionBar"
             android:label="@string/app_name">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -74,7 +75,12 @@ internal class ManifestGateTest {
             children = listOf(
                 XmlExpect(
                     name = "activity",
-                    attributes = mapOf("android:name" to ".SettingsLauncherActivity", "android:exported" to "true", "android:label" to "@string/app_name"),
+                    attributes = mapOf(
+                        "android:name" to ".SettingsLauncherActivity",
+                        "android:exported" to "true",
+                        "android:theme" to "@android:style/Theme.Material.Light.NoActionBar",
+                        "android:label" to "@string/app_name",
+                    ),
                     children = listOf(
                         XmlExpect(
                             name = "intent-filter",
@@ -173,6 +179,8 @@ internal class ManifestGateTest {
         XmlSample("another namespace", "http://schemas.android.com/apk/res/android", "http://example.invalid/ns", "attribute xmlns:android"),
         XmlSample("the application label removed", "\n        android:label=\"@string/app_name\"", "", "lacks the attribute android:label"),
         XmlSample("the application label wrong", "@string/app_name", "@string/other_name", "attribute android:label is \"@string/other_name\""),
+        XmlSample("the launcher activity theme removed", "\n            android:theme=\"@android:style/Theme.Material.Light.NoActionBar\"", "", "lacks the attribute android:theme"),
+        XmlSample("the launcher activity theme wrong", "@android:style/Theme.Material.Light.NoActionBar", "@android:style/Theme.Material.Light", "attribute android:theme is"),
         XmlSample("the launcher activity label removed", "\n            android:label=\"@string/app_name\"", "", "lacks the attribute android:label"),
         XmlSample("the launcher activity label wrong", "@string/app_name", "@string/other_name", "attribute android:label is \"@string/other_name\""),
     )

@@ -1,14 +1,18 @@
 package dev.breaker.dictation.ui.render
 
 import android.content.Context
+import android.view.Gravity
+import android.widget.LinearLayout
 import android.widget.ScrollView
 import dev.breaker.dictation.core.port.HistoryStore
 import dev.breaker.dictation.ui.screen.Screen
 import dev.breaker.dictation.ui.screen.ScreenIntent
+import dev.breaker.dictation.ui.screen.home.HomeGeometry
 import dev.breaker.dictation.ui.screen.history.AsyncHistory
 import dev.breaker.dictation.ui.screen.history.Cancellation
 import dev.breaker.dictation.ui.screen.history.ClipboardSink
 import dev.breaker.dictation.ui.screen.history.DelayedWork
+import dev.breaker.dictation.ui.screen.history.EMPTY_ART_ID
 import dev.breaker.dictation.ui.screen.history.HistoryScreen
 import dev.breaker.dictation.ui.screen.history.noticeLabel
 import dev.breaker.dictation.ui.screen.history.TimestampFormat
@@ -19,7 +23,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 /*
  * The view the app puts on the display for the history screen.
  *
- * It does the job SetupHostView does for the setup steps, with two differences. A
+ * It does the job the first-run host does for the first-run steps, with two differences. A
  * row can be deleted, and a deletion waits for a short window before it happens, so
  * the screen changes when that wait ends and nothing else asks for it. And the
  * screen is closed when the view leaves the window, which ends every wait still open:
@@ -75,8 +79,9 @@ internal class HistoryHostView(
 
     init {
         // A screen is taller than a short window in landscape, and without this
-        // the colour of the child would stop short of the visible area.
-        isFillViewport = true
+        // the colour of the child would stop short of the visible area. The bleed
+        // call also lets the rule and the stripes reach past the host's padding.
+        openForBleed()
     }
 
     /**
@@ -89,8 +94,27 @@ internal class HistoryHostView(
         val held = if (screen.noticeLabel() != null) 0 else scrollY
         removeAllViews()
         addView(renderer.render(screen, theme, ::onIntent))
+        placeEmptyArt()
         setBackgroundColor(theme.color(PaletteSlot.BACKGROUND).argb)
         scrollTo(0, held)
+    }
+
+    /**
+     * Draws the brand mic art into the empty state's placeholder: the view takes the art's size, sits
+     * in the middle of the column and paints the mic. A screen without the placeholder is left as it is.
+     */
+    private fun placeEmptyArt() {
+        val slot = findTagged(getChildAt(0), EMPTY_ART_ID) ?: return
+        val drawable = context.resources.getDrawable(
+            context.resources.getIdentifier("breaker_mic_tile", "drawable", context.packageName),
+            context.theme,
+        )
+        val scale = HomeGeometry.bigMic().scale
+        slot.layoutParams = LinearLayout.LayoutParams(
+            (drawable.intrinsicWidth * scale).toInt(),
+            (drawable.intrinsicHeight * scale).toInt(),
+        ).apply { gravity = Gravity.CENTER }
+        slot.background = MicArtDrawable(context, theme)
     }
 
     /**
@@ -107,9 +131,15 @@ internal class HistoryHostView(
         }
     }
 
-    /** Hands a tap on this screen to the model, which draws the result. */
+    /**
+     * Hands a tap on this screen to the model, which draws the result. The back arrow asks the
+     * activity for its own back press, which closes this screen the way the system back does.
+     */
     private fun onIntent(intent: ScreenIntent) {
         if (intent is ScreenIntent.History) asyncHistory.tap(intent)
+        if (intent == ScreenIntent.Back) {
+            (context as? android.app.Activity)?.onBackPressed()
+        }
     }
 
     override fun onAttachedToWindow() {

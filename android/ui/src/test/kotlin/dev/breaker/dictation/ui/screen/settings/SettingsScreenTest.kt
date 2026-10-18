@@ -73,7 +73,7 @@ class SettingsScreenTest {
         is ScreenIntent.Setup -> listOf(intent.action)
         is ScreenIntent.History -> listOf(intent.action, intent.id)
         is ScreenIntent.Home -> listOf(intent.action)
-        ScreenIntent.ToggleTheme, ScreenIntent.UseSystemTheme -> emptyList()
+        ScreenIntent.ToggleTheme, ScreenIntent.UseSystemTheme, ScreenIntent.Back -> emptyList()
     }
 
     @Test
@@ -154,9 +154,9 @@ class SettingsScreenTest {
             assertEquals(TypeRole.BODY, label.role)
             assertEquals(PaletteSlot.DANGER, label.color)
             assertEquals(1, nodesOf(s).count { it.id == "settings.notice" })
-            // Directly after the stripe, so a reader meets it before any row.
+            // Directly after the title rule, so a reader meets it before any row.
             val ids = nodesOf(s).map { it.id }
-            assertEquals("settings.stripe", ids[ids.indexOf("settings.notice") - 1])
+            assertEquals("settings.rule", ids[ids.indexOf("settings.notice") - 1])
         }
         val without = screen.render(NONDEFAULT, themeOf(), notice = null)
         assertNull(node(without, "settings.notice"))

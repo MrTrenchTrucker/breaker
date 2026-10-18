@@ -66,13 +66,13 @@ class HistoryCardNodesTest {
         s.node(id) as? Label ?: throw AssertionError("history: no label $id in ${nodesOf(s).map { it.id }}")
 
     @Test
-    fun `a row is a surface block with its time, tag, text and button row in that order`() {
+    fun `a row is a surface card with its header row, its text and its button row in that order`() {
         val row = rowBox(Fixture(transcription("a")).handler.current(), "a")
         assertEquals("history: row background", PaletteSlot.SURFACE, row.background)
         assertFalse("history: the row stacks its children", row.horizontal)
         assertEquals(
             "history: row children",
-            listOf("history.row.a.time", "history.row.a.tag", "history.row.a.text", "history.row.a.buttons"),
+            listOf("history.row.a.header", "history.row.a.text", "history.row.a.buttons"),
             row.children.map { it.id },
         )
     }
@@ -221,11 +221,11 @@ class HistoryCardNodesTest {
     }
 
     @Test
-    fun `LOAD MORE is neutral under a full page below the cap`() {
+    fun `LOAD MORE is outlined under a full page below the cap`() {
         val rows = listOf(HistoryRow("a", "TIME", TranscriptionSource.LOCAL, "words"))
         val s = HistoryScreen().render(HistoryState(rows = rows, pending = emptySet(), shown = PAGE_SIZE, fullPage = true), null)
         val more = actionOf(s, "history.more")
-        assertEquals("history: load more look", KitLook.NEUTRAL, more.kit)
+        assertEquals("history: load more look", KitLook.OUTLINED, more.kit)
         assertEquals("history: load more emphasis", Emphasis.SECONDARY, more.emphasis)
         assertEquals("history: load more text", HistoryTexts.BUTTON_LOAD_MORE, more.text)
     }
@@ -246,22 +246,22 @@ class HistoryCardNodesTest {
         val s = HistoryScreen().render(HistoryState(emptyList(), emptySet(), PAGE_SIZE, false), null)
         val heading = labelOf(s, "history.empty")
         val hint = labelOf(s, "history.empty.hint")
-        assertEquals("history: heading and hint", HistoryTexts.EMPTY, heading.text + " " + hint.text)
+        assertEquals("history: heading and hint", dev.breaker.dictation.ui.render.dropFinalPeriod(HistoryTexts.EMPTY_HEADING) + " " + HistoryTexts.EMPTY_HINT, heading.text + " " + hint.text)
         assertEquals(
             "history: heading and hint as literals",
-            listOf("Nothing here yet.", "What you dictate will show up here."),
+            listOf("Nothing here yet", "What you dictate will show up here."),
             listOf(heading.text, hint.text),
         )
         assertEquals("history: EMPTY as a literal", "Nothing here yet. What you dictate will show up here.", HistoryTexts.EMPTY)
-        assertTrue("history: the heading ends its sentence", heading.text.endsWith("."))
+        assertTrue("history: the heading ends its sentence", HistoryTexts.EMPTY_HEADING.endsWith("."))
         val emptyIds = s.nodes.map { it.id }.filter { it.startsWith("history.empty") }
-        assertEquals("history: heading before hint", listOf("history.empty", "history.empty.hint"), emptyIds)
-        assertEquals("history: heading role", TypeRole.BODY, heading.role)
+        assertEquals("history: heading before hint", listOf("history.empty.art", "history.empty", "history.empty.hint"), emptyIds)
+        assertEquals("history: heading role", TypeRole.DISPLAY, heading.role)
         assertEquals("history: hint colour", PaletteSlot.TEXT_MUTED, hint.color)
     }
 
     @Test
-    fun `the history tree draws only in the surface, text and muted text slots`() {
+    fun `the history tree draws only in the surface, background, text and muted text slots`() {
         val rows = listOf(
             HistoryRow("a", "TIME", TranscriptionSource.LOCAL, "words"),
             HistoryRow("e", "TIME", TranscriptionSource.SERVER, ""),
@@ -279,7 +279,7 @@ class HistoryCardNodesTest {
         }.toSet()
         assertEquals(
             "history: the slots this tree draws in",
-            setOf(PaletteSlot.TEXT, PaletteSlot.TEXT_MUTED, PaletteSlot.SURFACE),
+            setOf(PaletteSlot.TEXT, PaletteSlot.TEXT_MUTED, PaletteSlot.SURFACE, PaletteSlot.BACKGROUND),
             used,
         )
     }

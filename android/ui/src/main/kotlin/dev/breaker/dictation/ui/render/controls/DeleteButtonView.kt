@@ -18,7 +18,9 @@ internal class DeleteButtonView(
     label: String,
     /** The theme the parts are painted in. */
     theme: Theme,
-) : Button3dView(context, label, theme) {
+    /** Whether the button takes the compact floor, passed up to the main button. */
+    compact: Boolean = false,
+) : Button3dView(context, label, theme, compact) {
 
     override fun facePart(): ControlPart = ControlPart.FACE_DANGER
 

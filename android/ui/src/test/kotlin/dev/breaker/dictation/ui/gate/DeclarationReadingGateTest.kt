@@ -167,8 +167,9 @@ class DeclarationReadingGateTest {
             package dev.breaker.dictation.ui
 
             fun $ENTRY_FUNCTION(context: android.content.Context, settings: dev.breaker.dictation.core.port.SettingsStore): android.view.View {
-                val built = build(context)
-                return SettingsHostView(context, built)
+                val view = SettingsHostView(context, handler, themes, renderer, modelReady, downloadLine, onDownloadModel)
+                (view as? dev.breaker.dictation.ui.DownloadControl)?.downloadStopped()
+                return view
             }
         """.trimIndent()
         assertEquals(SETTLED_ENTRY, shaped(offeredIn(control).single()))

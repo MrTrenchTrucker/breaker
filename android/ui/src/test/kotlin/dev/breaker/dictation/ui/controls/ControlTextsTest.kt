@@ -39,4 +39,9 @@ class ControlTextsTest {
     fun `the delete button's word is the history screen's own, not a copy`() {
         assertSame(HistoryTexts.BUTTON_DELETE, ControlTexts.BUTTON_DELETE)
     }
+
+    @Test
+    fun `the back arrow's name is the plain word Back`() {
+        assertEquals("Back", ControlTexts.BACK_ARROW)
+    }
 }
