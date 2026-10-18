@@ -36,6 +36,8 @@ data class ProbeReading(
  * them reach it here, the same way the text-insert mechanism reaches
  * [FocusedFieldHolder].
  *
+ * [shouldProcessEvent] decides whether an event from a package is worth recording: the
+ * probe's own package is skipped, so the probe never floods its own readings list.
  * [publish] is the writer's one write: the accessibility service calls it on
  * each wake event while the probe is on. [current] and [recent] are the
  * reader's: the debug page shows the latest reading and the recent lines,
@@ -52,7 +54,7 @@ data class ProbeReading(
 object KeyboardProbeReadings {
 
     /** The most recent lines kept for the reader; the oldest one is dropped when one more arrives. */
-    internal const val RECENT_LIMIT: Int = 40
+    internal const val RECENT_LIMIT: Int = 200
 
     /** The whole holder value. It is never changed in place: each change makes a new value. */
     private data class State(
@@ -82,6 +84,15 @@ object KeyboardProbeReadings {
      * off probe does no accessibility-tree work on a wake event.
      */
     fun isEnabled(): Boolean = state.value.enabled
+
+    /**
+     * Whether an event from [eventPackage] is worth recording. An event whose package is
+     * the probe's own [ownPackage] is the probe's own UI reacting to itself, so it is
+     * skipped; a null package, where the event names none, is kept. The service calls this
+     * before it reads anything, so the probe never floods its own readings list.
+     */
+    fun shouldProcessEvent(eventPackage: String?, ownPackage: String): Boolean =
+        eventPackage == null || eventPackage != ownPackage
 
     /**
      * Store [fieldFocus], [imeWindow], [lastEvent] and [time] as the latest reading

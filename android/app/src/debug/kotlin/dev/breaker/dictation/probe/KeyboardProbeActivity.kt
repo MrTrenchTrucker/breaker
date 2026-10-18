@@ -2,10 +2,13 @@ package dev.breaker.dictation.probe
 
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowInsets
+import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.RadioButton
@@ -91,6 +94,10 @@ class KeyboardProbeActivity : Activity() {
         val scroll = ScrollView(this)
         scroll.addView(recentText)
         column.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        val share = Button(this)
+        share.text = "Share log"
+        share.setOnClickListener { shareLog() }
+        column.addView(share)
         applyInsets(column)
         setContentView(column)
     }
@@ -154,6 +161,23 @@ class KeyboardProbeActivity : Activity() {
             refreshText()
             scheduleRefresh()
         }
+    }
+
+    /** Opens the share sheet with the probe log as plain text: the kept readings and insets, never a raw event name. */
+    private fun shareLog() {
+        val text = buildShareText(
+            setting = setting,
+            readings = KeyboardProbeReadings.recent(),
+            insets = ProbeState.insets.lines(),
+            model = Build.MODEL,
+            androidVersion = Build.VERSION.RELEASE,
+            clock = ::clockText,
+        )
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, text)
+        }
+        startActivity(Intent.createChooser(send, "Share the probe log"))
     }
 
     private fun clockText(time: Long): String = clockFormat.format(Date(time))
