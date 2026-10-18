@@ -14,27 +14,16 @@ import java.util.concurrent.locks.ReentrantLock
  *
  * [MicCapture] owns what a take IS - its ring buffer, its conversion pipeline,
  * and the flags that describe it. This owns WHEN a take touches the device and
- * WHEN it lets go of it, which is the half of the problem that is about other
- * calls rather than about audio: a start that finds a device already opening, a
- * stop that lands inside that open, a second stop arriving while the first is
- * still joining.
- *
- * ### Why the bookkeeping lives here rather than on MicCapture
- *
- * Every field below exists because of a race between two callers, and none of
- * them is about a take's content:
- *
- * - [deviceGate] is one microphone, one [MicSource.open] at a time.
- * - [stopEpoch] is a stop recorded as a COUNT rather than only as an action,
- *   because a start still inside the device's open has no session thread for a
- *   stop to take, and the start it raced has to be able to see the stop at all.
- * - [teardownInFlight] is the teardown a second [stop] must wait for, so that
- *   two legal stops both mean "the microphone is shut" by the time both return.
- *
- * They are one responsibility - the ordering between overlapping calls - and
- * splitting them from the take's own state keeps each half readable: this file
- * is entirely about two callers meeting, and MicCapture.kt is entirely about
- * what a capture is made of.
+ * WHEN it lets go of it: a start that finds a device already opening, a stop
+ * that lands inside that open, a second stop arriving while the first is still
+ * joining. Every field below exists because of a race between two callers and
+ * none of them is about a take's content — [deviceGate] is one microphone, one
+ * [MicSource.open] at a time; [stopEpoch] records a stop as a COUNT, because a
+ * start still inside the open has no session thread for a stop to take and the
+ * start it raced has to be able to see it at all; [teardownInFlight] is the
+ * teardown a second [stop] must wait for, so two legal stops both mean "the
+ * microphone is shut" by the time both return. They are one responsibility,
+ * and keeping them off the take's own state keeps each half readable.
  *
  * Internal on purpose. Nothing outside this module has any business sequencing
  * a start against a stop.
@@ -48,11 +37,22 @@ internal class CaptureSessionLifecycle(
     private val joinTimeoutMs: Long,
     /** The owning capture's session flag. Shared, not copied: both halves must see one take. */
     private val running: AtomicBoolean,
+    /**
+     * The owning capture's stop request, shared for the same reason. Set to ask
+     * the capture thread to end; that thread drops [running] after recovering
+     * the take's tail. See [MicCapture].
+     */
+    private val stopRequested: AtomicBoolean,
     /** The owning capture's session number. Shared, for the same reason. */
     private val session: AtomicLong,
     /** The owning capture's failure record. Shared, for the same reason. */
     private val failureRef: AtomicReference<Throwable?>,
+    /** Told once per take that its dispatcher finished; null when nobody listens. */
+    private val onTakeEnded: ((Throwable?) -> Unit)? = null,
 ) {
+
+    /** Close-once guard: the device is closed exactly once, whoever gets here first. */
+    private val deviceClosed = AtomicBoolean(false)
 
     /**
      * The take this lifecycle last opened, if any.
@@ -115,7 +115,9 @@ internal class CaptureSessionLifecycle(
             throw gaveUp
         }
         try {
-            markLiveAndOpen(current)
+            // A new take can close its own device once.
+            deviceClosed.set(false)
+            liveOpen.markLiveAndOpen(current)
             // The handshake, taken under the same lock stop() takes the threads
             // under: a stop that has already been through this lock is one this
             // start must not spin a session up behind, and a stop that has not is
@@ -145,7 +147,7 @@ internal class CaptureSessionLifecycle(
                 // end that take before its first frame — the mirror of the hole
                 // this closes, on the other side of the race.
                 if (session.get() == current) running.set(false)
-                closeQuietly()
+                closeDeviceOnce()
                 indicator.markRecordingStopped()
                 return
             }
@@ -158,9 +160,11 @@ internal class CaptureSessionLifecycle(
                 source = source,
                 pipeline = pipeline,
                 running = running,
+                stopRequested = stopRequested,
                 session = session,
                 failureRef = failureRef,
                 readBufferSamples = readBufferSamples,
+                releaseOnTaken = { c -> releaseForTaken(c) },
             )
             val dispatch = DispatchLoop(
                 frameSize = frameSize,
@@ -173,64 +177,19 @@ internal class CaptureSessionLifecycle(
                     isDaemon = true
                     start()
                 }
-                dispatchThread = Thread({ dispatch.run(mine, listener, current) }, MicCapture.DISPATCH_THREAD_NAME).apply {
+                dispatchThread = Thread({
+                    try {
+                        dispatch.run(mine, listener, current)
+                    } finally {
+                        announceTakeEnd(current)
+                    }
+                }, MicCapture.DISPATCH_THREAD_NAME).apply {
                     isDaemon = true
                     start()
                 }
             }
         } finally {
             deviceGate.unlock()
-        }
-    }
-
-    /**
-     * Mark the indicator live and open the device, as ONE guarded step.
-     *
-     * The mark goes live BEFORE the device is opened, so there is no window in
-     * which the microphone is open and the screen says nothing.
-     *
-     * Both calls are under one `try`, and that is load-bearing. The mark calls
-     * somebody else's code — on Android a view touched off the main thread
-     * throws — and a throw from it used to escape `start()` with the session
-     * flag still up and the indicator live: every later start refused as
-     * "already running" and every stop finding no session threads to join, so
-     * the capture was stuck until the process died. Under one guard a broken
-     * listener is indistinguishable, to the session, from a device that would
-     * not open, and the path below undoes the session either way.
-     */
-    private fun markLiveAndOpen(current: Long) {
-        try {
-            indicator.markRecordingStarted()
-            source.open()
-        } catch (e: Throwable) {
-            // Only while this call is still the current session: a start issued
-            // after a stop already claimed the next session and raised the flag
-            // FOR IT, and clearing it now would end that take before its first
-            // frame.
-            if (session.get() == current) running.set(false)
-            // Recorded where a caller reads it, not only thrown: capture runs on
-            // threads of its own, so an exception raised on one of them has
-            // nowhere to go, and a caller that only saw a null would believe the
-            // microphone opened cleanly. compareAndSet, so an EARLIER real
-            // failure is the one reported — a listener throwing on the way to
-            // recording must not overwrite a device failure already recorded.
-            // And under the session guard, so a straggler from a take that has
-            // been replaced cannot stamp its own failure on the next take, which
-            // reads a clean failure as its own history.
-            if (session.get() == current) failureRef.compareAndSet(null, e)
-            // The indicator is the one thing this path still owes: the mark above
-            // set it live before the listener threw, and a screen left showing
-            // "recording" for a microphone nobody holds is the exact abuse the
-            // indicator exists to prevent. A throw from the way DOWN is attached
-            // to the one already on its way out rather than replacing it — the
-            // caller still learns the original cause, and the second is not lost
-            // either.
-            try {
-                indicator.markRecordingStopped()
-            } catch (down: Throwable) {
-                e.addSuppressed(down)
-            }
-            throw e
         }
     }
 
@@ -328,16 +287,25 @@ internal class CaptureSessionLifecycle(
             }
         }
         try {
-            // BEFORE the early return, and on every path out. A stop that has
-            // returned has told the caller the capture is stopped, and
-            // isCapturing is where the caller reads that. Returning with the
-            // flag still up is what made a stop landing inside a start's open
-            // return having stopped nothing: the next start() was refused as
-            // "already running" by a session this very stop had ended, and the
-            // caller could not fix it because the only handle it has is stop().
-            running.set(false)
-            if (threads.isEmpty()) return
-            closeQuietly()
+            // Ask the capture thread to end; `running` is deliberately NOT
+            // dropped here on the path that has a capture thread. It is the
+            // signal the dispatcher reads to decide the take is finished, and
+            // the take is not finished until that thread has recovered the
+            // resampler's held-back tail and written it to the ring. Dropping it
+            // here let the dispatcher finish on an empty ring before the tail
+            // arrived, and the take came up short by exactly the tail — 15
+            // samples of a 400 ms take at 16 kHz — whenever the dispatcher's
+            // read lost that race. Which thread won was a coin flip, so the
+            // symptom was a flake.
+            stopRequested.set(true)
+            if (threads.isEmpty()) {
+                // No session thread exists to end the take and drop the flag,
+                // so this stop is the one that must: a stop that has returned
+                // has told the caller the capture is stopped.
+                running.set(false)
+                return
+            }
+            closeDeviceOnce()
 
             // Giving up here is legitimate: a listener that blocks past the
             // timeout leaves its dispatcher running, and that dispatcher is
@@ -350,6 +318,11 @@ internal class CaptureSessionLifecycle(
             val stuck = threads
                 .filter { it.isAlive }
                 .filterNot { joinWithin(it) }
+            // The joins above are the normal end of a take: the capture thread
+            // has drained its tail and dropped the flag itself. A thread that
+            // was given up on may not have, and stop() returning means
+            // isCapturing is false, so the flag is dropped here too.
+            running.set(false)
             // The indicator is told dead before the stuck-thread record is made,
             // but a throw from it must not cost this teardown its last statement.
             // The mark calls the screen's code, and that code is outside this
@@ -402,11 +375,37 @@ internal class CaptureSessionLifecycle(
         false
     }
 
-    private fun closeQuietly() {
+    /** Close the device once, whoever gets here first. */
+    private fun closeDeviceOnce() {
+        if (deviceClosed.compareAndSet(false, true)) {
+            try { source.close() } catch (e: Throwable) { failureRef.compareAndSet(null, e) }
+        }
+    }
+
+    /**
+     * Release the device at once because another app or a call took the microphone.
+     * Runs on the capture thread, for the taken reason only. Safe to race stop():
+     * the close is guarded once and the indicator mark is idempotent, so a later
+     * stop() and a caller's own close are both no-ops.
+     */
+    fun releaseForTaken(current: Long) {
+        if (session.get() != current) return
+        closeDeviceOnce()
+        indicator.markRecordingStopped()
+    }
+
+    /**
+     * Tells the end callback this take is over, on the dispatch thread after the
+     * take's last frame. A replaced take stays silent. The callback is somebody
+     * else's code, so a throw is recorded and never raised.
+     */
+    private fun announceTakeEnd(current: Long) {
+        val end = onTakeEnded ?: return
+        if (session.get() != current) return
         try {
-            source.close()
+            end(failureRef.get())
         } catch (e: Throwable) {
-            failureRef.compareAndSet(null, e)
+            if (session.get() == current) failureRef.compareAndSet(null, e)
         }
     }
 
@@ -457,23 +456,16 @@ internal class CaptureSessionLifecycle(
      * The thread that took [teardownInFlight], or null when none is in flight.
      *
      * Claimed and cleared under [teardownLock] alongside the latch, so the two
-     * cannot disagree about whether a teardown is running.
-     *
-     * It exists for one case that a latch alone cannot see. The indicator calls
-     * its listeners on the thread that made the change, so a listener that
-     * calls [stop] from inside `markRecordingStopped()` re-enters this class on
-     * the very thread already inside a teardown — the one whose `finally` will
-     * count the latch down. Awaiting that latch is not a slow wait, it is a
-     * wait that cannot succeed, and the timeout it would eventually hit records
-     * a failure about a second stop that does not exist. Identity, rather than
-     * "am I the owner", is what distinguishes that call from a genuine second
-     * stop on another thread, which must still wait: a real second stop has a
-     * teardown that is not its own and is owed a real wait.
-     *
-     * A stop() on the thread that already owns the in-flight teardown returns
-     * at once rather than waiting, so a listener calling stop() from inside
-     * markRecordingStopped() cannot self-wait on a latch its own caller is the
-     * only thread able to count down.
+     * cannot disagree about whether a teardown is running. It exists for one
+     * case a latch alone cannot see: the indicator calls its listeners on the
+     * thread that made the change, so a listener that calls [stop] from inside
+     * `markRecordingStopped()` re-enters this class on the very thread already
+     * inside a teardown — the one whose `finally` counts the latch down. Awaiting
+     * that latch is not a slow wait, it is a wait that cannot succeed, and its
+     * timeout would record a failure about a second stop that does not exist.
+     * Identity distinguishes that call from a genuine second stop on another
+     * thread, which must still wait: a stop() on the owning thread returns at
+     * once instead of waiting.
      */
     private var teardownOwner: Thread? = null
 
@@ -485,6 +477,8 @@ internal class CaptureSessionLifecycle(
 
     /** Serialises taking the session threads, so only one stop() tears down. */
     private val teardownLock = Any()
+
+    private val liveOpen = IndicatorLiveOpen(indicator, source, running, session, failureRef)
 
     private companion object {
         private const val READ_BUFFER_MULTIPLIER = 4

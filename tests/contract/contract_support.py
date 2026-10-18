@@ -342,12 +342,21 @@ class ModuleContractTest(unittest.TestCase):
 
     # ── the Gradle skeleton matches the registry ─────────────────────────
     def test_module_is_included_in_the_gradle_build(self):
-        assert _gradle_path(self.path) in _settings_includes(), (
-            f"settings.gradle.kts does not include '{_gradle_path(self.path)}' — "
-            f"every registered module must be wired into the build"
-        )
+        included = _gradle_path(self.path) in _settings_includes()
+        if self.entry.get("status") == "dead":
+            assert not included, (
+                f"settings.gradle.kts includes '{_gradle_path(self.path)}' — a dead "
+                f"module is not built"
+            )
+        else:
+            assert included, (
+                f"settings.gradle.kts does not include '{_gradle_path(self.path)}' — "
+                f"every registered module must be wired into the build"
+            )
 
     def test_module_has_a_build_file(self):
+        if self.entry.get("status") == "dead":
+            return  # dead module: build file neither required nor forbidden
         rel = os.path.join(self.path, "build.gradle.kts")
         assert os.path.isfile(os.path.join(ROOT, rel)), (
             f"{rel} missing — every registered module needs a build file"
@@ -362,6 +371,8 @@ class ModuleContractTest(unittest.TestCase):
         `test_gradle_declares_every_dependency_the_registry_requires`, and
         together they are a bijection.
         """
+        if self.entry.get("status") == "dead":
+            return  # dead module: build file neither required nor forbidden
         rel = os.path.join(self.path, "build.gradle.kts")
         if not os.path.isfile(os.path.join(ROOT, rel)):
             return  # reported by test_module_has_a_build_file
@@ -394,6 +405,8 @@ class ModuleContractTest(unittest.TestCase):
         would encode a build that cannot work. The rule is stated once, in the
         "what may be depended on" block above.
         """
+        if self.entry.get("status") == "dead":
+            return  # dead module: build file neither required nor forbidden
         rel = os.path.join(self.path, "build.gradle.kts")
         if not os.path.isfile(os.path.join(ROOT, rel)):
             return  # reported by test_module_has_a_build_file
@@ -447,6 +460,7 @@ class ModuleContractTest(unittest.TestCase):
         includes = _settings_includes()
         registered = {
             _gradle_path(entry["path"]) for entry in self.registry.values()
+            if entry.get("status") != "dead"
         }
         omitted = sorted(registered - includes)
         extra = sorted(includes - registered)
@@ -478,6 +492,8 @@ class ModuleContractTest(unittest.TestCase):
         }
         expected = {}
         for key, entry in self.registry.items():
+            if entry.get("status") == "dead":
+                continue  # a dead module is exempt from the contract-test bijection
             section = _card_section(_card_text(entry["card"]), "## Test Locations")
             named = set(re.findall(r"tests/contract/test_[a-z0-9_]+\.py", section))
             assert len(named) == 1, (

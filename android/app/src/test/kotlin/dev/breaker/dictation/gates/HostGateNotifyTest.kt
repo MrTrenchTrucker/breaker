@@ -1,0 +1,261 @@
+package dev.breaker.dictation.gates
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/**
+ * Pins the model notifications and the launcher activity's column, because no JVM test can run them:
+ * `service/ModelNotifications.kt` and `SettingsLauncherActivity.kt`. It is the other half of
+ * `HostGateTest` and works the same way: the rules read the real files with comments and literal text
+ * removed by the shared scanner, each rule holds on the real file, is broken by at least two edited
+ * samples, and stays quiet on harmless edits; an edit whose target text is missing fails by name, so a
+ * sample cannot go quiet by a typo.
+ */
+internal class HostGateNotifyTest {
+
+    private val dir: String = "kotlin/dev/breaker/dictation/"
+    private val files: Map<String, String> = mapOf(
+        "notif" to dir + "service/ModelNotifications.kt",
+        "activity" to dir + "SettingsLauncherActivity.kt",
+    )
+
+    private class Rule(val name: String, val file: String, val holds: (String) -> Boolean)
+    private class Sample(val rule: String, val old: String, val new: String)
+    private class Quiet(val file: String, val old: String, val new: String)
+
+    /** The pattern must match the code exactly [times] times. */
+    private fun rx(name: String, file: String, pattern: String, times: Int = 1) =
+        Rule(name, file) { Regex(pattern).findAll(it).count() == times }
+    /** The constants named `..._[suffix]: Int = n` are at least three, all different and all 2 or more. */
+    private fun codes(name: String, suffix: String) = Rule(name, "notif") { code ->
+        val values = Regex("""\bconst\s+val\s+\w+_$suffix\s*:\s*Int\s*=\s*(\d+)""").findAll(code).map { it.groupValues[1].toInt() }.toList()
+        values.size >= 3 && values.toSet().size == values.size && values.all { it >= 2 }
+    }
+
+    private val rules: List<Rule> = listOf(
+        rx("NOTICE_TAP_IS_AN_IMMUTABLE_ACTIVITY_INTENT", "notif", """\bPendingIntent\s*\.\s*getActivity\s*\(\s*context\s*,\s*request\s*,\s*intent\s*,\s*PendingIntent\s*\.\s*FLAG_IMMUTABLE\b"""),
+        rx("ONE_ACTIVITY_PENDING_INTENT", "notif", """\bgetActivity\s*\("""),
+        rx("NO_MUTABLE_FLAG", "notif", """\bFLAG_MUTABLE\b""", 0),
+        rx("ROUTE_IS_THE_ONLY_EXTRA", "notif", """\bputExtra\s*\("""),
+        rx("ROUTE_EXTRA_IS_THE_ROUTE_NAME", "notif", """\bputExtra\s*\(\s*NotificationRoute\s*\.\s*EXTRA_ROUTE\s*,\s*route\s*\)"""),
+        rx("MISSING_NOTICE_SAYS_THE_FIXED_SENTENCE_AND_OPENS_THE_MODEL_ROUTE", "notif", """\boverride\s+fun\s+showMissing\s*\(\s*\)\s*\{\s*show\s*\([^)]*\bModelSentences\s*\.\s*NO_MODEL\s*,\s*NotificationRoute\s*\.\s*ROUTE_MODEL\s*,\s*false\s*\)\s*\}"""),
+        rx("TILE_NOTICE_OPENS_THE_LAUNCHER_WITHOUT_A_ROUTE", "notif", """\boverride\s+fun\s+showTileUnavailable\s*\(\s*\)\s*\{\s*show\s*\([^)]*\bTILE_UNAVAILABLE\s*,\s*null\s*,\s*false\s*\)\s*\}"""),
+        rx("MODEL_ROUTE_IS_USED_ONCE", "notif", """\bROUTE_MODEL\b"""),
+        rx("CHANNEL_IS_QUIET", "notif", """\bNotificationManager\s*\.\s*IMPORTANCE_LOW\b"""),
+        rx("CHANNEL_HAS_NO_OTHER_IMPORTANCE", "notif", """\bIMPORTANCE_(?!LOW\b)\w+""", 0),
+        rx("DENIED_NOTIFICATIONS_SHOW_NOTHING", "notif", """\bareNotificationsEnabled\s*\(\s*\)\s*\)\s*return\b"""),
+        rx("PLATFORM_REFUSAL_IS_CAUGHT", "notif", """\bcatch\s*\(\s*\w+\s*:\s*RuntimeException\s*\)""", 2),
+        rx("DONE_TAKES_THE_MISSING_NOTICE_AWAY", "notif", """\boverride\s+fun\s+done\s*\(\s*\)\s*\{\s*cancel\s*\(\s*MISSING_ID\s*\)\s*show\s*\("""),
+        rx("UNKNOWN_TOTAL_BAR_IS_INDETERMINATE", "notif", """\bif\s*\(\s*totalMb\s*>\s*0\s*\)\s*\{\s*notification\s*\.\s*setProgress\s*\(\s*totalMb\s*,\s*doneMb\s*,\s*false\s*\)\s*\}\s*else\s*\{\s*notification\s*\.\s*setProgress\s*\(\s*0\s*,\s*0\s*,\s*true\s*\)\s*\}"""),
+        rx("ONGOING_DICTATION_NOTIFICATION_AND_RESOURCES_ARE_LEFT_ALONE", "notif", """\bDictationNotification\b|\bNOTIFICATION_ID\b|\bstartForeground\b|\bR\s*\.\s*string\b|\bgetString\b""", 0),
+        codes("REQUEST_CODES_DIFFER_AND_ARE_NOT_0_OR_1", "REQUEST"),
+        codes("NOTIFICATION_IDS_DIFFER_AND_ARE_NOT_1", "ID"),
+        rx("DOWNLOADING_NOTICE_IS_ONGOING", "notif", """\boverride\s+fun\s+downloading\s*\(\s*\w+\s*:\s*String\s*\)\s*\{\s*show\s*\([^)]*,\s*true\s*\)\s*\}"""),
+        rx("DONE_NOTICE_IS_NOT_ONGOING", "notif", """\boverride\s+fun\s+done\s*\(\s*\)\s*\{\s*cancel\s*\(\s*MISSING_ID\s*\)\s*show\s*\([^)]*,\s*false\s*\)\s*\}"""),
+        rx("TILE_NOTICE_HAS_THE_PRODUCT_TITLE", "notif", """\boverride\s+fun\s+showTileUnavailable\s*\(\s*\)\s*\{\s*show\s*\([^)]*\bTILE_TITLE\s*,\s*TILE_UNAVAILABLE\b"""),
+        rx("MODEL_NOTICES_HAVE_THE_MODEL_TITLE", "notif", """\bMODEL_TITLE\s*,""", 5),
+        rx("SHOWN_TITLE_IS_THE_ONE_PASSED_IN", "notif", """\.\s*setContentTitle\s*\(\s*title\s*\)"""),
+        rx("SHOWN_TEXT_IS_THE_ONE_PASSED_IN", "notif", """\.\s*setContentText\s*\(\s*text\s*\)"""),
+        rx("MISSING_NOTICE_HAS_ITS_OWN_ID_AND_REQUEST", "notif", """\boverride\s+fun\s+showMissing\s*\(\s*\)\s*\{\s*show\s*\(\s*MISSING_ID\s*,\s*MISSING_REQUEST\s*,"""),
+        rx("TILE_NOTICE_HAS_ITS_OWN_ID_AND_REQUEST", "notif", """\boverride\s+fun\s+showTileUnavailable\s*\(\s*\)\s*\{\s*show\s*\(\s*UNAVAILABLE_ID\s*,\s*UNAVAILABLE_REQUEST\s*,"""),
+        rx("DOWNLOAD_NOTICES_SHARE_THE_DOWNLOAD_ID_AND_REQUEST", "notif", """\bshow\s*\(\s*DOWNLOAD_ID\s*,\s*DOWNLOAD_REQUEST\s*,""", 4),
+        rx("DOWNLOAD_CALLBACK_WIRES_THE_TILE_HOST_ENTRY_POINT", "activity", """\bonDownloadModel\s*=\s*\{\s*app\s*\.\s*tileHost\s*\.\s*requestDownload\s*\(\s*\)\s*\}"""),
+        rx("NO_BUTTON_REMAINS", "activity", """\bButton\s*\(""", 0),
+        rx("NO_TEXTVIEW_REMAINS", "activity", """\bTextView\s*\(""", 0),
+        /** The route opens Settings, then focuses its download control. */
+        rx("MODEL_ROUTE_FOCUSES_THE_SETTINGS_DOWNLOAD", "activity", """\bgetStringExtra\s*\(\s*NotificationRoute\s*\.\s*EXTRA_ROUTE\s*\)\s*==\s*NotificationRoute\s*\.\s*ROUTE_MODEL\s*\)\s*\{\s*openSettings\s*\(\s*\)\s*\(settingsView\s+as\?\s+dev\s*\.\s*breaker\s*\.\s*dictation\s*\.\s*ui\s*\.\s*DownloadControl\s*\)\s*\?\s*\.\s*focusDownload\s*\(\s*\)\s*\}"""),
+        rx("COLUMN_HOLDS_ONLY_THE_SETTINGS_VIEW", "activity", """\bcolumn\s*\.\s*orientation\s*=\s*LinearLayout\s*\.\s*VERTICAL\s+column\s*\.\s*addView\s*\(\s*settingsView\s*,\s*LinearLayout\s*\.\s*LayoutParams\s*\(\s*ViewGroup\s*\.\s*LayoutParams\s*\.\s*MATCH_PARENT\s*,\s*ViewGroup\s*\.\s*LayoutParams\s*\.\s*WRAP_CONTENT\s*\)\s*\)"""),
+        rx("CONTENT_IS_SCROLLABLE", "activity", """\bScrollView\s*\(\s*this\s*\)\s+scroll\s*\.\s*addView\s*\(\s*column\s*,\s*ViewGroup\s*\.\s*LayoutParams\s*\(\s*ViewGroup\s*\.\s*LayoutParams\s*\.\s*MATCH_PARENT\s*,\s*ViewGroup\s*\.\s*LayoutParams\s*\.\s*WRAP_CONTENT\s*\)\s*\)\s+settingsColumn\s*=\s*column\s+settingsScroll\s*=\s*scroll\b"""),
+        rx("INSETS_ARE_APPLIED_ON_THE_SETTINGS_ROOT", "activity", """\bapplyInsets\s*\(\s*settingsScroll\s*\)""", 2),
+        rx("INSETS_ARE_APPLIED_ON_THE_HISTORY_ROOT", "activity", """\bapplyInsets\s*\(\s*historyView\s*\)"""),
+        rx("CLOSE_HISTORY_RESTORES_THE_SAVED_SCROLL", "activity", """\bcloseHistory\s*\(\s*\)\s*\{[^}]*setContentView\s*\(\s*settingsScroll\s*\)\s+applyInsets\s*\(\s*settingsScroll\s*\)"""),
+        rx("DOWNLOAD_STATE_WIRES_TO_THE_SETTINGS_VIEW", "activity", """\boverride\s+fun\s+downloading\s*\(\s*\w+\s*:\s*String\s*\)\s*\{[^}]*downloadControl\s*\(\s*\)\s*\?\s*\.\s*downloadProgress\s*\(\s*0\s*,\s*0\s*\)\s*\}\s+override\s+fun\s+done\s*\(\s*\)\s*\{[^}]*downloadControl\s*\(\s*\)\s*\?\s*\.\s*downloadStopped\s*\(\s*\)\s*\}\s+override\s+fun\s+failed\s*\(\s*sentence\s*:\s*String\s*\)\s*\{[^}]*downloadControl\s*\(\s*\)\s*\?\s*\.\s*downloadStopped\s*\(\s*\)\s*\}"""),
+        rx("DOWNLOAD_SENTENCE_IS_KEPT_FOR_THE_VIEW", "activity", """\bprivate\s+var\s+downloadSentence\s*:\s*String\?\s*=\s*null"""),
+        rx("DOWNLOAD_SENTENCE_IS_PASSED_AS_THE_DOWNLOAD_LINE", "activity", """\bdownloadLine\s*=\s*\{\s*downloadSentence\s*\}"""),
+        rx("DOWNLOAD_SENTENCE_IS_CLEARED_ON_DONE", "activity", """\boverride\s+fun\s+done\s*\(\s*\)\s*\{\s*downloadSentence\s*=\s*null"""),
+        rx("SETTINGS_VIEW_REFRESHES_ON_RESUME", "activity", """\bsettingsShown\s*->\s*\(settingsView\s+as\?\s+dev\s*\.\s*breaker\s*\.\s*dictation\s*\.\s*ui\s*\.\s*DownloadControl\s*\)\s*\?\s*\.\s*refresh\s*\(\s*\)"""),
+        rx("SETTINGS_VIEW_IS_CALLED_ON_DOWNLOADING", "activity", """\boverride\s+fun\s+downloading\s*\(\s*\w+\s*:\s*String\s*\)\s*\{[^}]*downloadControl\s*\(\s*\)\s*\?\s*\.\s*downloadProgress\s*\(\s*0\s*,\s*0\s*\)\s*\}"""),
+        rx("SETTINGS_VIEW_IS_CALLED_ON_DONE", "activity", """\boverride\s+fun\s+done\s*\(\s*\)\s*\{[^}]*downloadControl\s*\(\s*\)\s*\?\s*\.\s*downloadStopped\s*\(\s*\)\s*\}"""),
+        rx("SETTINGS_VIEW_IS_CALLED_ON_FAILED", "activity", """\boverride\s+fun\s+failed\s*\(\s*sentence\s*:\s*String\s*\)\s*\{[^}]*downloadControl\s*\(\s*\)\s*\?\s*\.\s*downloadStopped\s*\(\s*\)\s*\}"""),
+    )
+    private val firing: List<Sample> = listOf(
+        Sample("NOTICE_TAP_IS_AN_IMMUTABLE_ACTIVITY_INTENT", "PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT", "PendingIntent.FLAG_UPDATE_CURRENT"),
+        Sample("NOTICE_TAP_IS_AN_IMMUTABLE_ACTIVITY_INTENT", "PendingIntent.FLAG_IMMUTABLE or", "PendingIntent.FLAG_MUTABLE or"),
+        Sample("ONE_ACTIVITY_PENDING_INTENT", "private fun cancel(id: Int) {", "private fun second(): PendingIntent = PendingIntent.getActivity(context, 9, Intent(), PendingIntent.FLAG_IMMUTABLE)\n\n    private fun cancel(id: Int) {"),
+        Sample("ONE_ACTIVITY_PENDING_INTENT", "PendingIntent.getActivity(", "PendingIntent.getBroadcast("),
+        Sample("NO_MUTABLE_FLAG", "PendingIntent.FLAG_IMMUTABLE or", "PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_IMMUTABLE or"),
+        Sample("NO_MUTABLE_FLAG", "PendingIntent.FLAG_UPDATE_CURRENT)", "PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)"),
+        Sample("ROUTE_IS_THE_ONLY_EXTRA", "return PendingIntent.getActivity(", "intent.putExtra(\"text\", request)\n        return PendingIntent.getActivity("),
+        Sample("ROUTE_IS_THE_ONLY_EXTRA", "if (route != null) intent.putExtra(NotificationRoute.EXTRA_ROUTE, route)\n", ""),
+        Sample("ROUTE_EXTRA_IS_THE_ROUTE_NAME", "intent.putExtra(NotificationRoute.EXTRA_ROUTE, route)", "intent.putExtra(\"route\", route)"),
+        Sample("ROUTE_EXTRA_IS_THE_ROUTE_NAME", "intent.putExtra(NotificationRoute.EXTRA_ROUTE, route)", "intent.putExtra(NotificationRoute.EXTRA_ROUTE, request)"),
+        Sample("MISSING_NOTICE_SAYS_THE_FIXED_SENTENCE_AND_OPENS_THE_MODEL_ROUTE", "ModelSentences.NO_MODEL, NotificationRoute.ROUTE_MODEL", "ModelSentences.NO_MODEL, null"),
+        Sample("MISSING_NOTICE_SAYS_THE_FIXED_SENTENCE_AND_OPENS_THE_MODEL_ROUTE", "ModelSentences.NO_MODEL, NotificationRoute.ROUTE_MODEL", "MODEL_READY, NotificationRoute.ROUTE_MODEL"),
+        Sample("TILE_NOTICE_OPENS_THE_LAUNCHER_WITHOUT_A_ROUTE", "TILE_UNAVAILABLE, null, false", "TILE_UNAVAILABLE, NotificationRoute.ROUTE_MODEL, false"),
+        Sample("TILE_NOTICE_OPENS_THE_LAUNCHER_WITHOUT_A_ROUTE", "TILE_UNAVAILABLE, null, false", "TILE_UNAVAILABLE, null, true"),
+        Sample("MODEL_ROUTE_IS_USED_ONCE", "TILE_UNAVAILABLE, null, false", "TILE_UNAVAILABLE, NotificationRoute.ROUTE_MODEL, false"),
+        Sample("MODEL_ROUTE_IS_USED_ONCE", "ModelSentences.NO_MODEL, NotificationRoute.ROUTE_MODEL", "ModelSentences.NO_MODEL, NotificationRoute.ROUTE_HISTORY"),
+        Sample("CHANNEL_IS_QUIET", "NotificationManager.IMPORTANCE_LOW", "NotificationManager.IMPORTANCE_DEFAULT"),
+        Sample("CHANNEL_IS_QUIET", "NotificationManager.IMPORTANCE_LOW", "NotificationManager.IMPORTANCE_HIGH"),
+        Sample("CHANNEL_HAS_NO_OTHER_IMPORTANCE", "NotificationManager.IMPORTANCE_LOW))", "NotificationManager.IMPORTANCE_LOW))\n            NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_HIGH)"),
+        Sample("CHANNEL_HAS_NO_OTHER_IMPORTANCE", "NotificationManager.IMPORTANCE_LOW", "NotificationManager.IMPORTANCE_MIN"),
+        Sample("DENIED_NOTIFICATIONS_SHOW_NOTHING", "if (!manager.areNotificationsEnabled()) return\n", ""),
+        Sample("DENIED_NOTIFICATIONS_SHOW_NOTHING", "if (!manager.areNotificationsEnabled()) return", "if (!manager.areNotificationsEnabled()) throw IllegalStateException()"),
+        Sample("PLATFORM_REFUSAL_IS_CAUGHT", "} catch (e: RuntimeException) {\n            // The platform refused", "} catch (e: IllegalStateException) {\n            // The platform refused"),
+        Sample("PLATFORM_REFUSAL_IS_CAUGHT", "} catch (e: RuntimeException) {\n            // Nothing is left", "} finally {\n            // Nothing is left"),
+        Sample("DONE_TAKES_THE_MISSING_NOTICE_AWAY", "cancel(MISSING_ID)\n        show(DOWNLOAD_ID", "show(DOWNLOAD_ID"),
+        Sample("DONE_TAKES_THE_MISSING_NOTICE_AWAY", "cancel(MISSING_ID)\n        show(DOWNLOAD_ID", "cancel(UNAVAILABLE_ID)\n        show(DOWNLOAD_ID"),
+        Sample("UNKNOWN_TOTAL_BAR_IS_INDETERMINATE", "setProgress(0, 0, true)", "setProgress(100, 50, false)"),
+        Sample("UNKNOWN_TOTAL_BAR_IS_INDETERMINATE", ".setProgress(0, 0, true)", ""),
+        Sample("ONGOING_DICTATION_NOTIFICATION_AND_RESOURCES_ARE_LEFT_ALONE", "val manager = context.getSystemService(NotificationManager::class.java)\n            if", "val manager = context.getSystemService(NotificationManager::class.java)\n            DictationNotification.build(context)\n            if"),
+        Sample("ONGOING_DICTATION_NOTIFICATION_AND_RESOURCES_ARE_LEFT_ALONE", ".setContentTitle(title)", ".setContentTitle(context.getString(R.string.dictation_notification_title))"),
+        Sample("REQUEST_CODES_DIFFER_AND_ARE_NOT_0_OR_1", "UNAVAILABLE_REQUEST: Int = 3", "UNAVAILABLE_REQUEST: Int = 2"),
+        Sample("REQUEST_CODES_DIFFER_AND_ARE_NOT_0_OR_1", "DOWNLOAD_REQUEST: Int = 4", "DOWNLOAD_REQUEST: Int = 0"),
+        Sample("NOTIFICATION_IDS_DIFFER_AND_ARE_NOT_1", "MISSING_ID: Int = 2", "MISSING_ID: Int = 1"),
+        Sample("NOTIFICATION_IDS_DIFFER_AND_ARE_NOT_1", "DOWNLOAD_ID: Int = 4", "DOWNLOAD_ID: Int = 3"),
+        Sample("DOWNLOADING_NOTICE_IS_ONGOING", "sentence, null, true)", "sentence, null, false)"),
+        Sample("DOWNLOADING_NOTICE_IS_ONGOING", "sentence, null, true)", "sentence, null, working)"),
+        Sample("DONE_NOTICE_IS_NOT_ONGOING", "MODEL_READY, null, false)", "MODEL_READY, null, true)"),
+        Sample("DONE_NOTICE_IS_NOT_ONGOING", "MODEL_READY, null, false)", "MODEL_READY, null, !false)"),
+        Sample("TILE_NOTICE_HAS_THE_PRODUCT_TITLE", "TILE_TITLE, TILE_UNAVAILABLE", "MODEL_TITLE, TILE_UNAVAILABLE"),
+        Sample("TILE_NOTICE_HAS_THE_PRODUCT_TITLE", "TILE_TITLE, TILE_UNAVAILABLE", "TILE_UNAVAILABLE, TILE_TITLE"),
+        Sample("MODEL_NOTICES_HAVE_THE_MODEL_TITLE", "MISSING_REQUEST, R.drawable.ic_notification_mic, MODEL_TITLE", "MISSING_REQUEST, R.drawable.ic_notification_mic, TILE_TITLE"),
+        Sample("MODEL_NOTICES_HAVE_THE_MODEL_TITLE", "DOWNLOAD_REQUEST, R.drawable.ic_notification_mic, MODEL_TITLE, sentence, null, true)", "DOWNLOAD_REQUEST, R.drawable.ic_notification_mic, TILE_TITLE, sentence, null, true)"),
+        Sample("SHOWN_TITLE_IS_THE_ONE_PASSED_IN", ".setContentTitle(title)", ".setContentTitle(MODEL_TITLE)"),
+        Sample("SHOWN_TITLE_IS_THE_ONE_PASSED_IN", ".setContentTitle(title)", ""),
+        Sample("SHOWN_TEXT_IS_THE_ONE_PASSED_IN", ".setContentText(text)", ".setContentText(title)"),
+        Sample("SHOWN_TEXT_IS_THE_ONE_PASSED_IN", ".setContentText(text)", ".setContentText(MODEL_READY)"),
+        Sample("MISSING_NOTICE_HAS_ITS_OWN_ID_AND_REQUEST", "show(MISSING_ID, MISSING_REQUEST,", "show(UNAVAILABLE_ID, MISSING_REQUEST,"),
+        Sample("MISSING_NOTICE_HAS_ITS_OWN_ID_AND_REQUEST", "show(MISSING_ID, MISSING_REQUEST,", "show(MISSING_ID, DOWNLOAD_REQUEST,"),
+        Sample("TILE_NOTICE_HAS_ITS_OWN_ID_AND_REQUEST", "show(UNAVAILABLE_ID, UNAVAILABLE_REQUEST,", "show(MISSING_ID, UNAVAILABLE_REQUEST,"),
+        Sample("TILE_NOTICE_HAS_ITS_OWN_ID_AND_REQUEST", "show(UNAVAILABLE_ID, UNAVAILABLE_REQUEST,", "show(UNAVAILABLE_ID, MISSING_REQUEST,"),
+        Sample("DOWNLOAD_NOTICES_SHARE_THE_DOWNLOAD_ID_AND_REQUEST", "override fun downloading(sentence: String) {\n        show(DOWNLOAD_ID, DOWNLOAD_REQUEST,", "override fun downloading(sentence: String) {\n        show(MISSING_ID, DOWNLOAD_REQUEST,"),
+        Sample("DOWNLOAD_NOTICES_SHARE_THE_DOWNLOAD_ID_AND_REQUEST", "override fun progress(sentence: String, doneMb: Int, totalMb: Int) {\n        show(DOWNLOAD_ID, DOWNLOAD_REQUEST,", "override fun progress(sentence: String, doneMb: Int, totalMb: Int) {\n        show(DOWNLOAD_ID, MISSING_REQUEST,"),
+        Sample("DOWNLOAD_CALLBACK_WIRES_THE_TILE_HOST_ENTRY_POINT", "onDownloadModel = { app.tileHost.requestDownload() }", "onDownloadModel = { app.tileHost.openLauncher(null) }"),
+        Sample("DOWNLOAD_CALLBACK_WIRES_THE_TILE_HOST_ENTRY_POINT", "onDownloadModel = { app.tileHost.requestDownload() }", "onDownloadModel = { }"),
+        Sample("NO_BUTTON_REMAINS", "column.addView(settingsView", "column.addView(Button(this)"),
+        Sample("NO_BUTTON_REMAINS", "column.orientation = LinearLayout.VERTICAL", "column.orientation = LinearLayout.VERTICAL\n        val extra = Button(this)"),
+        Sample("NO_TEXTVIEW_REMAINS", "column.orientation = LinearLayout.VERTICAL", "column.orientation = LinearLayout.VERTICAL\n        val extra = TextView(this)"),
+        Sample("NO_TEXTVIEW_REMAINS", "settingsScroll = scroll", "settingsScroll = scroll\n        val extra = TextView(this)"),
+        Sample("MODEL_ROUTE_FOCUSES_THE_SETTINGS_DOWNLOAD", "(settingsView as? dev.breaker.dictation.ui.DownloadControl)?.focusDownload()", "settingsView.refresh()"),
+        Sample("MODEL_ROUTE_FOCUSES_THE_SETTINGS_DOWNLOAD", "NotificationRoute.ROUTE_MODEL) {", "NotificationRoute.ROUTE_HISTORY) {"),
+        Sample("COLUMN_HOLDS_ONLY_THE_SETTINGS_VIEW", "column.addView(settingsView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))", "column.addView(onboarding)"),
+        Sample("COLUMN_HOLDS_ONLY_THE_SETTINGS_VIEW", "column.addView(settingsView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))", "column.addView(downloadStatus)"),
+        Sample("CONTENT_IS_SCROLLABLE", "ScrollView(this)", "LinearLayout(this)"),
+        Sample("CONTENT_IS_SCROLLABLE", "scroll.addView(column, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))", "scroll.addView(column)"),
+        Sample("INSETS_ARE_APPLIED_ON_THE_SETTINGS_ROOT", "applyInsets(settingsScroll)\n        registerBack()", "registerBack()"),
+        Sample("INSETS_ARE_APPLIED_ON_THE_SETTINGS_ROOT", "applyInsets(settingsScroll)\n        } else {", "} else {"),
+        Sample("CLOSE_HISTORY_RESTORES_THE_SAVED_SCROLL", "if (settingsShown) {\n            setContentView(settingsScroll)", "if (settingsShown) {\n            val scroll = ScrollView(this)\n        scroll.addView(settingsColumn)\n        setContentView(scroll)"),
+        Sample("CLOSE_HISTORY_RESTORES_THE_SAVED_SCROLL", "applyInsets(settingsScroll)\n        } else {", "} else {"),
+        Sample("INSETS_ARE_APPLIED_ON_THE_HISTORY_ROOT", "applyInsets(historyView)", ""),
+        Sample("INSETS_ARE_APPLIED_ON_THE_HISTORY_ROOT", "applyInsets(historyView)", "historyView.setPadding(0, 0, 0, 0)"),
+        Sample("DOWNLOAD_STATE_WIRES_TO_THE_SETTINGS_VIEW", "override fun downloading(sentence: String) {\n        downloadSentence = sentence\n        downloadControl()?.downloadProgress(0, 0)", "override fun downloading(sentence: String) {\n        downloadSentence = sentence\n        downloadControl()?.downloadProgress(1, 1)"),
+        Sample("DOWNLOAD_STATE_WIRES_TO_THE_SETTINGS_VIEW", "override fun done() {", "override fun doneLater() {"),
+        Sample("DOWNLOAD_SENTENCE_IS_KEPT_FOR_THE_VIEW", "private var downloadSentence: String? = null", "private val downloadSentence: String? = null"),
+        Sample("DOWNLOAD_SENTENCE_IS_KEPT_FOR_THE_VIEW", "private var downloadSentence: String? = null", "private var downloadSentence: String = \"\""),
+        Sample("DOWNLOAD_SENTENCE_IS_PASSED_AS_THE_DOWNLOAD_LINE", "downloadLine = { downloadSentence }", "downloadLine = { null }"),
+        Sample("DOWNLOAD_SENTENCE_IS_PASSED_AS_THE_DOWNLOAD_LINE", "downloadLine = { downloadSentence }", "downloadLine = { \"\" }"),
+        Sample("DOWNLOAD_SENTENCE_IS_CLEARED_ON_DONE", "downloadSentence = null", "downloadSentence = sentence"),
+        Sample("DOWNLOAD_SENTENCE_IS_CLEARED_ON_DONE", "downloadSentence = null", "downloadSentence = \"\""),
+        Sample("SETTINGS_VIEW_IS_CALLED_ON_DOWNLOADING", "override fun downloading(sentence: String) {\n        downloadSentence = sentence\n        downloadControl()?.downloadProgress(0, 0)", "override fun downloading(sentence: String) {\n        downloadSentence = sentence"),
+        Sample("SETTINGS_VIEW_IS_CALLED_ON_DOWNLOADING", "override fun downloading(sentence: String) {", "override fun downloadingLater(sentence: String) {"),
+        Sample("SETTINGS_VIEW_IS_CALLED_ON_DONE", "override fun done() {\n        downloadSentence = null\n        downloadControl()?.downloadStopped()", "override fun done() {\n        downloadSentence = null"),
+        Sample("SETTINGS_VIEW_IS_CALLED_ON_DONE", "override fun done() {", "override fun doneLater() {"),
+        Sample("SETTINGS_VIEW_IS_CALLED_ON_FAILED", "override fun failed(sentence: String) {\n        downloadSentence = sentence\n        downloadControl()?.downloadStopped()", "override fun failed(sentence: String) {\n        downloadSentence = sentence"),
+        Sample("SETTINGS_VIEW_IS_CALLED_ON_FAILED", "override fun failed(sentence: String) {", "override fun failedLater(sentence: String) {"),
+        Sample("SETTINGS_VIEW_REFRESHES_ON_RESUME", "settingsShown -> (settingsView as? dev.breaker.dictation.ui.DownloadControl)?.refresh()", "settingsShown -> closeSettings()"),
+        Sample("SETTINGS_VIEW_REFRESHES_ON_RESUME", "settingsShown -> (settingsView as? dev.breaker.dictation.ui.DownloadControl)?.refresh()", "settingsShown -> (settingsView as? dev.breaker.dictation.ui.DownloadControl)?.refreshLater()"),
+    )
+
+    private val quiet: List<Quiet> = listOf(
+        Quiet("notif", "private fun cancel(id: Int) {", "/* getActivity( putExtra( FLAG_MUTABLE IMPORTANCE_HIGH R.string getString */\n    private fun cancel(id: Int) {"),
+        Quiet("notif", "const val MISSING_ID: Int = 2", "const val MISSING_ID: Int = 12"),
+        Quiet("notif", "MODEL_READY, null, false)", "MODEL_READY, null, false) // true"),
+        Quiet("notif", ".setContentTitle(title)", ".setContentTitle(  title  )"),
+        Quiet("notif", ".setContentText(text)", ".setContentText(  text  ) // setContentText(title)"),
+        Quiet("notif", "show(UNAVAILABLE_ID, UNAVAILABLE_REQUEST,", "show(UNAVAILABLE_ID, UNAVAILABLE_REQUEST, // MISSING_ID,\n            "),
+        Quiet("activity", "column.addView(settingsView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))", "column.addView(  settingsView  , LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))"),
+        Quiet("activity", "downloadSentence = null\n        downloadControl()?.downloadStopped()", "downloadSentence = null\n        downloadControl()?.downloadStopped() // cleared"),
+        Quiet("activity", "applyInsets(settingsScroll)\n        registerBack()", "applyInsets(  settingsScroll  )\n        registerBack()"),
+        Quiet("activity", "private var downloadSentence: String? = null", "private var downloadSentence: String? = null // the line"),
+        Quiet("activity", "onDownloadModel = { app.tileHost.requestDownload() }", "onDownloadModel = {\n            app.tileHost.requestDownload()\n        }"),
+        Quiet("activity", "ScrollView(this)", "ScrollView(  this  )"),
+    )
+
+    private fun edit(text: String, old: String, new: String): String {
+        val at = text.indexOf(old)
+        check(at >= 0) { "app: a host gate sample lost its text '$old'" }
+        return text.substring(0, at) + new + text.substring(at + old.length)
+    }
+    private fun raw(key: String): String = AppSourceFiles.mainFile(files.getValue(key))
+    private fun codeOf(key: String, old: String? = null, new: String = ""): String =
+        AppSourceFiles.strip(if (old == null) raw(key) else edit(raw(key), old, new)).code
+
+    /** The value of `const val [name]: String = "..."`, read from the raw text because the scanner blanks literals. */
+    private fun titleOf(text: String, name: String): String? =
+        Regex("""(?m)^\s*const\s+val\s+$name\s*:\s*String\s*=\s*"([^"]*)"""").find(text)?.groupValues?.get(1)
+    private fun titlesAreSeparate(text: String): Boolean {
+        val tile = titleOf(text, "TILE_TITLE")
+        val model = titleOf(text, "MODEL_TITLE")
+        return !tile.isNullOrBlank() && !model.isNullOrBlank() && tile != model && !model.contains(tile) && !tile.contains(model)
+    }
+
+    @Test
+    fun `the tile title and the model title are two different words`() {
+        assertTrue("app: the tile notice and the model notices must carry different titles", titlesAreSeparate(raw("notif")))
+        val edits = listOf(
+            "TILE_TITLE: String = \"Breaker\"" to "TILE_TITLE: String = \"Speech model\"",
+            "TILE_TITLE: String = \"Breaker\"" to "TILE_TITLE: String = \"\"",
+            "MODEL_TITLE: String = \"Speech model\"" to "MODEL_TITLE: String = \"Breaker\"",
+        )
+        for ((old, new) in edits) assertFalse("app: the titles must be flagged after '$old' => '$new'", titlesAreSeparate(edit(raw("notif"), old, new)))
+        val reworded = edit(raw("notif"), "TILE_TITLE: String = \"Breaker\"", "TILE_TITLE: String = \"Breaker app\"")
+        assertTrue("app: a different tile title is harmless", titlesAreSeparate(reworded))
+        val commented = edit(raw("notif"), "const val TILE_TITLE", "// const val TILE_TITLE: String = \"Speech model\"\n        const val TILE_TITLE")
+        assertTrue("app: a commented definition is not read", titlesAreSeparate(commented))
+    }
+
+    @Test
+    fun `every rule holds on the real files`() {
+        for (key in files.keys) assertTrue("app: ${files.getValue(key)} was read as empty", codeOf(key).isNotBlank())
+        for (rule in rules) assertTrue("app: ${files.getValue(rule.file)} breaks rule ${rule.name}", rule.holds(codeOf(rule.file)))
+    }
+
+    @Test
+    fun `the firing samples cover each rule at least twice`() {
+        val names = rules.map { it.name }
+        assertEquals("app: a host rule name is used twice", names.toSet().size, names.size)
+        assertEquals("app: a firing sample belongs to an unknown rule or a rule has none", names.toSet(), firing.map { it.rule }.toSet())
+        for (rule in rules) {
+            val count = firing.count { it.rule == rule.name }
+            assertTrue("app: host rule ${rule.name} needs at least two firing samples, has $count", count >= 2)
+        }
+    }
+
+    @Test
+    fun `every rule fires on each of its edited samples`() {
+        val byName = rules.associateBy { it.name }
+        for (sample in firing) {
+            val rule = byName.getValue(sample.rule)
+            assertFalse("app: host rule ${sample.rule} must fire on the edit '${sample.old}' => '${sample.new}'", rule.holds(codeOf(rule.file, sample.old, sample.new)))
+        }
+    }
+
+    @Test
+    fun `no rule fires on a harmless edit`() {
+        for (sample in quiet) {
+            for (rule in rules.filter { it.file == sample.file }) {
+                assertTrue("app: host rule ${rule.name} must stay quiet on the harmless edit '${sample.old}' => '${sample.new}'", rule.holds(codeOf(sample.file, sample.old, sample.new)))
+            }
+        }
+    }
+
+    @Test
+    fun `a sample whose target text is missing fails by name`() {
+        val thrown = assertThrows("app: a missing target must fail", IllegalStateException::class.java) { edit("val a = 1", "no such text", "x") }
+        assertTrue("app: the failure must name the lost text, got ${thrown.message}", thrown.message!!.contains("no such text"))
+    }
+}

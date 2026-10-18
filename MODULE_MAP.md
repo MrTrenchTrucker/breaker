@@ -7,7 +7,7 @@
 | Module | Path | Job |
 |--------|------|-----|
 | `app` | `android/app/` | Android entry, DI wiring, Gradle build |
-| `ui` | `android/ui/` | Screens: dictation, history, settings, auth, training |
+| `ui` | `android/ui/` | Screens: history, settings, auth, training; permission onboarding |
 | `core` | `android/modules/core/` | Domain models, ports, use cases (no Android deps) |
 | `audio` | `android/modules/audio/` | Mic capture, VAD, noise suppression, WAV encode |
 | `stt-ondevice` | `android/modules/stt-ondevice/` | sherpa-onnx local transcription (fallback) |
@@ -17,7 +17,7 @@
 | `phrases` | `android/modules/phrases/` | "Breaker Breaker" wake + "And I'm Gone" send |
 | `gesture` | `android/modules/gesture/` | Shake-to-wake (accelerometer) |
 | `overlay` | `android/modules/overlay/` | Floating tile = CB mic glyph + LED bar meter |
-| `commit` | `android/modules/commit/` | CommitService: IME commit + clipboard fallback |
+| `commit` | `android/modules/commit/` | CommitService: accessibility text insert + clipboard fallback |
 | `history` | `android/modules/history/` | SQLite history + 3-month TTL + tombstones |
 | `settings` | `android/modules/settings/` | Settings persistence + model registry access |
 | `sync` | `android/modules/sync/` | Offline-first sync queue (idempotent push) |
@@ -46,4 +46,4 @@
 ## agent-skills/ — set up AI agents to work here
 | Module | Path | Job |
 |--------|------|-----|
-| `agent-skills` | `agent-skills/` | Working rules and readback skills for AI agents, one pair per rank (project leader, IT manager, worker) |
+| `agent-skills` | `agent-skills/` | Working rules and readback skills for AI agents, one pair per rank (project leader, IT manager, worker), and the plan-file skill any rank uses with sub-agents |

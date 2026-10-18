@@ -5,19 +5,24 @@
 - **F2** Server-first: when Local Server is reachable over ZeroTier, transcribe + format there.
 - **F3** On-device fallback: server unreachable → local transcription + rule-based
   formatting. Dictation never stops.
-- **F4** **"Breaker Breaker"** (voice phrase) OR shake → floating tile appears AND
-  **recording starts automatically**.
+- **F4** **"Breaker Breaker"** (voice phrase) → floating tile appears AND
+  **recording starts automatically**. A **shake** only brings the tile up; it never
+  starts recording. A tap on the tile starts recording.
 - **F5** **"And I'm Gone"** (voice phrase) OR tap tile → stop + send → commit text
   to focused field.
-- **F6** If no text field is focused → copy to clipboard + toast.
+- **F6** If no text field is focused, or the accessibility insert is refused →
+  copy to clipboard, with a confirmation: our toast on Android 12 and below,
+  the system's own copy confirmation on Android 13+.
 - **F7** In-app transcription history with one-tap copy.
 - **F8** Whisper Flow-style formatting: numbered lists, punctuation, filler removal.
 - **F9** The send phrase "And I'm Gone" is **excluded** from the transcription
   (audio trimmed at phrase onset).
 - **F10** Settings: mode, model size, server URL/API key, voice phrases on/off,
   shake on/off, formatting on/off, tile position, language.
-- **F11** On startup, the app prompts for ALL permissions it needs at once (mic,
-  sensor, overlay/foreground service, notifications).
+- **F11** On first open, the app shows a short welcome (its content is not fixed
+  here), then asks for each permission it needs (microphone, display over other
+  apps, notifications, accessibility service) on a screen of its own that says
+  why it is needed, with a button to grant it.
 - **F12** High-power mode: the app detects Android power-saving state and prompts
   the user to enable high-performance mode.
 - **F13** **Sync:** every transcription syncs to the server — even local-only
@@ -83,10 +88,12 @@
 - **F35** **Responsive web FE:** the container website renders landscape and
   portrait layouts based on device size/resolution (mobile-first breakpoints),
   matching the Android app's look.
-- **F36** **State indicators:** the CB mic glyph + LED bar meter show
+- **F36** **State indicators:** the CB mic glyph + level meter show
   transmission state — **green** = sent (copy confirmed), **orange** = server
-  failed → local fallback, **red** = complete failure; the LED bar (digital
-  Cobra-style segment display) fills above the floating mic while recording.
+  failed → local fallback, **red** = complete failure. While recording, the
+  level meter lights the mic's grille slots from left to right, and the X
+  (cancel) and the check (send) sit either side of the mic, each drawn at 90%
+  of the mic's full width (side bar included), about 8 dp from it (ADR-024).
 
 ## Non-functional
 - **N1** Dictation starts < 1 s after wake phrase (models preloaded where possible).
@@ -94,7 +101,7 @@
 - **N3** Model files **pinned to immutable release-asset ids** and verified against
   upstream's published checksum.txt (SHA-256) before use [2].
 - **N4** Battery-friendly: sensor + overlay listeners idle when not dictating.
-- **N5** Android 11+ (`setFloating`), arm64-v8a primary target.
+- **N5** Android 11+ (min SDK 30), arm64-v8a primary target.
 - **N6** Audio never leaves the device in local/fallback mode (except user-initiated sync).
 - **N7** Server API is OpenAI-shaped but **asynchronous**: `POST /v1/audio/transcriptions`
   enqueues and returns `{ job_id, status: "queued" }`; the client polls

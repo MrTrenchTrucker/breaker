@@ -94,11 +94,16 @@ internal fun offeredIn(text: String): List<String> =
  * across four lines is the same shape as one written on one. A space after a comma
  * is kept, because two parameters separated by a comma and nothing else are a
  * different signature from two separated by a comma and a name.
+ *
+ * A trailing comma before the closing bracket goes, because Kotlin allows one on
+ * the last parameter and it says nothing about the signature: a declaration whose
+ * last parameter ends in a comma is the same declaration as one whose does not.
  */
 internal fun shaped(text: String): String = text
     .replace(WHITESPACE_RUN, " ")
     .replace(SPACE_BEFORE_BRACKET, "\$1")
     .replace(SPACE_AFTER_BRACKET, "\$1")
+    .replace(TRAILING_COMMA, "\$1")
     .trim()
 
 /** A run of whitespace, of any length. */
@@ -109,3 +114,6 @@ private val SPACE_BEFORE_BRACKET = Regex("""\s+([)\]}])""")
 
 /** Whitespace just after an opening bracket, which says nothing about the signature. */
 private val SPACE_AFTER_BRACKET = Regex("""([(\[{])\s+""")
+
+/** A comma just before a closing bracket: Kotlin's trailing comma, which says nothing about the signature. */
+private val TRAILING_COMMA = Regex("""\s*,\s*([])}])""")

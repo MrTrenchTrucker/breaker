@@ -26,7 +26,7 @@ INVARIANT_PHRASES = [
     "exactly the value the table gives",
     "identical values",
     "declared twice",
-    "no spacing scale",
+    "the spacing scale is exactly the five size names",
     "at most 4",
     "4.5:1",
     "text, text-muted, primary, primary-hover, danger, warning, accent and sent",

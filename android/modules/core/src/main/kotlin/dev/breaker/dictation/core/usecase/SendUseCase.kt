@@ -72,12 +72,10 @@ class SendUseCase(
         // throwing committer is: send() never throws after the commit. A
         // caller that retries the send would commit the text a second time, so
         // the failure is reported in the detail, not thrown.
-        val saveFailure = saveToHistory(transcription)
+        val saveFailed = saveToHistory(transcription)
         val detail = when {
-            saveFailure != null && outcome.isSuccess ->
-                "Sent, but not saved to history ($saveFailure)"
-            saveFailure != null ->
-                "The text could not be sent and was not saved ($saveFailure)"
+            saveFailed && outcome.isSuccess -> "Sent, but not saved to history."
+            saveFailed -> "The text could not be sent and was not saved."
             else -> outcome.detail
         }
         // The session follows the COMMIT, not the history save: the outcome
@@ -92,20 +90,20 @@ class SendUseCase(
 
     /**
      * Save [transcription] to history, containing a throwing store the same
-     * way a throwing committer is contained. Returns the exception's class
-     * name when the save threw (the class, never its message — the same
-     * redaction rule as the committer's catch), or null when the save ran.
-     * An [Error] is not an adapter failure and propagates.
+     * way a throwing committer is contained. Returns true when the save threw
+     * and false when it ran. The failure is not named in the detail: neither
+     * the exception's class nor its message is used, so the detail stays a
+     * fixed sentence. An [Error] is not an adapter failure and propagates.
      */
-    private fun saveToHistory(transcription: Transcription): String? {
+    private fun saveToHistory(transcription: Transcription): Boolean {
         return try {
             history.save(transcription)
-            null
+            false
         } catch (e: Exception) {
-            // Re-armed, not folded: an interrupted save is the thread's, not just a
-            // "not saved" class name (the threading rule in the root AGENTS.md).
+            // Re-armed, not folded: an interrupted save belongs to the thread, not to
+            // the detail (the threading rule in the root AGENTS.md).
             if (e is InterruptedException) Thread.currentThread().interrupt()
-            e::class.simpleName ?: "error"
+            true
         }
     }
 
@@ -120,12 +118,12 @@ class SendUseCase(
         return try {
             committer.commit(CommitRequest(text))
         } catch (e: Exception) {
-            // Re-armed, not folded: an interrupted commit is the thread's, not just a
-            // FAILED class name (the threading rule in the root AGENTS.md).
+            // Re-armed, not folded: an interrupted commit belongs to the thread, not to
+            // the FAILED outcome (the threading rule in the root AGENTS.md).
             if (e is InterruptedException) Thread.currentThread().interrupt()
-            // Name the failure, never its message: an adapter's message can
-            // carry the text it was asked to type.
-            CommitOutcomeResult(CommitOutcome.FAILED, "The text could not be sent (${e::class.simpleName ?: "error"})")
+            // The failure is not named and its message is not used, because an
+            // adapter's message can carry the text it was asked to type.
+            CommitOutcomeResult(CommitOutcome.FAILED, "The text could not be sent.")
         }
     }
 }

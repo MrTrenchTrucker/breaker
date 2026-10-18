@@ -117,6 +117,28 @@ class MicCapture(
     private val bufferSamples: Int = DEFAULT_BUFFER_SAMPLES,
     /** How long [stop] waits for the threads before giving up and reporting it. */
     private val joinTimeoutMs: Long = DEFAULT_JOIN_TIMEOUT_MS,
+    /**
+     * Told once per take, when the take is over, whether it ended because [stop]
+     * was called or because the capture ended by itself (the device failed,
+     * stopped producing audio, or the frame listener threw). The argument is the
+     * failure recorded so far, or null. It is a snapshot: a failure that [stop]
+     * records afterwards is only in [failure].
+     *
+     * It runs on the dispatch thread, after the take's last frame has been
+     * delivered, so every frame of the take comes before it. Do not call [stop]
+     * from inside it: [stop] waits for the dispatch thread, which is the thread
+     * running the callback, so hop to another thread first. The callback runs
+     * inside the dispatch thread that [stop] joins, so keep it short: a slow
+     * callback can make [stop] report that the thread did not finish. A capture
+     * that ended by itself leaves the device open and the indicator lit until
+     * the caller calls [stop], so the callback must not call [start] while
+     * such a take is still owed its [stop]. A take that was replaced by a later
+     * [start] stays silent, and a start that never got as far as running threads
+     * does not call it. A throw from it is recorded in [failure] when nothing is
+     * recorded yet and is never raised to the caller. Null, the default, means
+     * nobody is told.
+     */
+    private val onTakeEnded: ((Throwable?) -> Unit)? = null,
 ) : AudioSource {
 
     init {
@@ -130,6 +152,26 @@ class MicCapture(
     val frameSize: Int = frameSamples
 
     private val running = AtomicBoolean(false)
+
+    /**
+     * Set by [stop] to ask the capture thread to end, and read by that thread's
+     * loop.
+     *
+     * It is separate from [running] on purpose. [running] is the signal the
+     * dispatcher reads to decide the take is finished, and a take is not
+     * finished until the capture thread has recovered the tail the resampler is
+     * still holding back — the capture thread does that on its own way out and
+     * drops [running] there. A stop that dropped [running] itself would let the
+     * dispatcher finish on an empty ring before that tail arrived, and the take
+     * would come up short by exactly the tail: 15 samples of the 6 400 a 400 ms
+     * take at 16 kHz is promised. Which thread wins that race is a scheduling
+     * coin flip, so the symptom is a flake rather than a certainty. So the stop
+     * asks ([stopRequested]) and the capture thread answers (drops [running]),
+     * and the ordering that makes the tail whole is a fact rather than a coin
+     * flip.
+     */
+    private val stopRequested = AtomicBoolean(false)
+
     private val failureRef = AtomicReference<Throwable?>(null)
 
     /**
@@ -194,8 +236,10 @@ class MicCapture(
         frameSize = frameSize,
         joinTimeoutMs = joinTimeoutMs,
         running = running,
+        stopRequested = stopRequested,
         session = session,
         failureRef = failureRef,
+        onTakeEnded = onTakeEnded,
     )
 
     /**
@@ -271,6 +315,9 @@ class MicCapture(
         // condition is next evaluated.
         val current = session.incrementAndGet()
         failureRef.set(null)
+        // A request left over from a take that has ended must not end this one
+        // before its first read. Cleared before the threads that read it exist.
+        stopRequested.set(false)
         val mine = PcmRingBuffer(bufferSamples)
         ringRef.set(mine)
         // A pipeline per take, for the same reason the ring is per take. Both

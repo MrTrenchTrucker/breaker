@@ -1,7 +1,7 @@
 // android/modules/overlay — FloatingTile.
 //
 // Card: android/modules/overlay/AGENTS.md   Registry: modules.toml [module.android_overlay]
-// Owns: Floating tile = CB mic glyph + LED bar meter (WindowManager overlay, F36).
+// Owns: Floating tile = CB mic with a glowing outline and the level in its grille (WindowManager overlay, F36).
 // Depends on: android, android_core, shared_ui_tokens
 // Cross-module calls go through the core ports or the app's own
 // dependency wiring; this module never reaches into a sibling's code.

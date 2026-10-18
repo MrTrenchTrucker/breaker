@@ -1,5 +1,158 @@
 # App — README
 
-Android entry point, dependency injection wiring, Gradle build.
+**Status:** in progress by the maintainers' team (issue #1). This branch is the module's main PR; it stays open until the module is complete.
+
+Android entry point, dependency wiring, Gradle build.
 
 Full module card: `AGENTS.md` in this folder.
+
+## What the app is
+
+The Android application. It owns the one place where the modules are put
+together (`BreakerCompositionRoot`), the launcher activity that shows the home
+screen, the settings screen and the history screen, the manifest, and the Gradle build.
+
+## What it puts together
+
+- **The home screen.** The launcher opens on the Home screen the ui module builds, after the first-run view on a phone with no speech model: an on/off card with the switch, the speech model row (Ready, or "Not downloaded"), the server row ("Not available") and the last dictation; a big mic; the last transcript with a Copy button, which is drawn only while there is a transcript; and a menu with History, Settings, How it works and About. History and Settings open their screens. How it works and About open their own screens. A tap on the big mic starts a take (or answers why it cannot), and a second tap ends a take that the Home tap began; the take's line shows below the last transcript, and the mic takes the recording look while it records. Apart from the first-run view, screens open only from this menu, and the two notification routes are the only other entries: the model route opens Settings and asks for its download button to be in focus (a device check is owed), and the history route opens History. On Home, Back closes an open menu first. Back from How it works, About or Settings returns to Home; Back from History returns to Settings when Settings is open, and to Home otherwise. `SettingsLauncherActivity.kt` is 300 lines, the limit for every Kotlin file of this module.
+- **Settings and the credential reference.** The settings store is built over
+  the app's files folder, together with a small file that holds the reference to
+  the user's credential (never the secret itself).
+- **History.** The history database opens on its first use, which is the one
+  start-up clean-up of old rows. That clean-up runs on the background (I/O)
+  dispatcher, never on the main thread. The Home menu opens the history screen, and a tap
+  on the notification opens the same screen.
+- **Dictation.** A `DictationComponent` joins the microphone capture of the audio
+  module, the on-device rule-based formatter of the format module, the
+  connectivity probe of the transport module and the dictation use cases of the
+  core module. `DictationRunner` drives one dictation at a time: begin, finish,
+  send, cancel.
+- **First run.** A phone with no speech model sees a first-run view (a welcome, the permission pages and a download page with a bar) in place of the home screen and the settings column. The app keeps a small done marker in its files folder, written when the model is on the phone at the end of the first run, so the first run does not come back.
+- **Speech engine and model.** The on-device speech engine reads its models from
+  a model store in the app's files folder. Its download button sits in the settings view, in the settings column that the Settings item on Home opens.
+  "Download the speech model", downloads the model the settings select; the
+  address and the checksum come from the model registry. A tap on the tile's
+  microphone with no model installed starts nothing and says so, in a
+  notification and in a sentence beside the tile. The recognizer behind the
+  engine is the real one, over the engine library the app packages; it has run on a
+  phone in test builds.
+- **Text commit.** Dictated text is committed through the commit module's
+  accessibility service. The app creates that committer once per process, from
+  the application context, and hands it to the composition root. The service
+  entry comes from the library's manifest. It has run on a phone in test builds.
+- **The floating tile.** While the microphone service is on, the app shows the
+  floating tile of the overlay module and decides what each tap does and which
+  state the tile shows. It hides the tile when the service goes off. Showing it
+  needs the permission to draw over other apps; without it the app posts a
+  notification that opens Breaker, and tries to show the tile again the next time
+  Breaker comes to the front. After a send, the tile shows SENT when the text
+  landed or only reached the clipboard, and FAILED with its sentence when the
+  commit failed. It keeps that until the next action.
+- **The user's switch-off.** When the user switches dictation off (the
+  notification's "Switch off" button, or the switch on the Home card), the app keeps that in a small file in its
+  files folder, and a start of the launcher from a notification or the tile no
+  longer switches dictation on. Opening Breaker from its launcher icon switches
+  it on again, once for each activity the icon opens; a tap on the icon while
+  Breaker is still open does not switch it on.
+
+**Debug builds only.** The debug source set (`android/app/src/debug/`) holds the keyboard signal probe: a long-press shortcut on the Breaker icon labelled `Breaker probe`, a start provider that starts the probe with the process, a debug selector, and an accessibility config overlay that adds the interactive-windows flag and the two window events. None of it is in the release build. The app code adds two plumbing members for the probe, `OverlayTilePort.setImeProbe` and `TileHost.setImeProbe`, which only hand a listener to the tile and change nothing about when the tile shows or hides.
+
+## The microphone service
+
+Android 14 and later do not let an app start a microphone service from the
+background, so the app switches the service on ("arms" it) while it is visible,
+as described in ADR-022 as amended:
+
+- The launcher activity arms the service every time it becomes visible, unless
+  the user switched dictation off; opening it from the launcher icon switches
+  dictation on even then, once for each activity the icon opens; a tap on the
+  icon while Breaker is still open does not. The service can also be started
+  from its own notification.
+- While it is on, the service shows a quiet, ongoing notification with one
+  "Switch off" button. Tapping the notification opens Breaker on the history of
+  transcriptions. The launcher shows the history screen that the ui module
+  builds.
+- A tap on the floating tile only begins a recording inside the service that is
+  already running. Sending, cancelling, an error or a second tap on the Home big mic (for a take the Home tap began) ends the recording; the service
+  stays on. The app shows the tile while the service is on and hides it when the
+  service ends or the user switches off.
+- A shake of the phone, read from the accelerometer, never begins a recording. It goes to the tile: with the tile closed or hidden it brings the tile back, and with the tile on screen or during a recording it does nothing. The sensor runs only while the service is on. Whether a shake brings the tile back with no overlay permission is a device check, not a verified fact (see the Known Gotchas section of `AGENTS.md`).
+- The service stops when the user switches dictation off, when the part that owns
+  the dictation is closed, or when it is started with nothing switched on. If it
+  ends on its own, the dictation under way is dropped.
+- If the tile is tapped while the service is off, the app tries once to start it; a tap on the Home big mic does the same when a model is ready, unless the user switched dictation off, and then it shows the off sentence.
+  If Android refuses, the answer is the sentence "Open Breaker once to switch
+  dictation on."
+
+## Network
+
+Only encrypted (https) connections are allowed. Clear text is switched off in the
+manifest and in `res/xml/network_security_config.xml`, which has no exceptions and
+trusts only the system's certificate authorities. The manifest asks for exactly
+these permissions: internet, record audio, foreground service, foreground service
+of the microphone type, post notifications, and draw over other apps (six in all).
+None of them is asked for while the app runs in app code: the user grants the
+three that need it by hand in the system settings, or through the first-run flow
+on a phone with no speech model.
+
+## Settings and download status
+
+The settings column, which the Settings item on Home opens, holds only the settings view
+(`createSettingsView` in the ui module). Its model row holds the download button while the model is not on the phone; under that row,
+a status line (downloading or failed) uses ModelSentences
+words, and is blank once the model is ready (there is no ready sentence). The app asks for no permission at run time in app code;
+the requests live in ui's screen.
+
+## What is not built yet
+
+These are the main parts still not built in the app; the Known Gotchas section
+of `AGENTS.md` lists the smaller open items.
+
+- The server speech engine. Its slot holds a stand-in that answers with a plain
+  failure sentence and never a success: "Server transcription is not available
+  yet." (`SERVER_UNAVAILABLE_DETAIL` in `wiring/UnavailableSlots.kt`, wired at
+  `BreakerCompositionRoot.kt` `serverEngine = UnavailableSttEngine(`). The
+  on-device engine with its recognizer, its model store and the download are
+  built; the recognizer has run on a phone in test builds.
+- The spoken phrases. The phrases module detects the wake and send phrases in
+  heard words, but the app does not use it yet, and no spoken off word is built.
+- The secret-resolving device Keystore. The app keeps only the reference to the
+  credential (`FileCredentialRefHolder`), never a secret; the Keystore that
+  resolves the reference is not built and not verified.
+
+The real microphone (`appMicSource(audioManager)` in `wiring/AndroidSwaps.kt`,
+which returns `AndroidMicSource.create`), the first-run view (`createFirstRunView` in the ui module),
+and the on/off switch on Home (with the switch in
+`wiring/BreakerSwitchAdapter.kt`) and the text commit (`appTextCommitter` in
+`wiring/AndroidSwaps.kt`) are built. All three have run on a phone in test builds;
+the cases not yet checked on a device are in the "Not verified" section of this
+README and the Known Gotchas section of `AGENTS.md`.
+
+The server formatter slot holds the on-device rule-based formatter, and the
+server path is not reached while the server engine slot fails.
+
+## Running the tests
+
+The tests run on a plain JVM, with no Android classes:
+
+    ./gradlew :android:app:test
+
+The contract test for the module:
+
+    python3 -m unittest discover -s tests/contract -t tests/contract -p test_app_contract.py
+
+Check that a run reports more than 0 tests; a mistyped path runs nothing and
+still prints OK.
+
+## Not verified
+
+Test builds have run on one phone: the tile on screen, the model download, the
+permission walk-through, the level bar and a take transcribed on the phone. Nothing
+has run on an emulator, and most edge cases have not been checked on a device. The
+list of what is not verified (the service in the background, the restart from the
+notification, whether Android lets the tile start the service when it is off, and
+more) is in the Known Gotchas section of `AGENTS.md`.
+
+The first-run view has not run on a phone; the JVM tests and the source-text rules check it only.
+
+A shake has been seen on a phone in an earlier test build; the current rule (a shake only shows the tile) has not been checked on a device. Its device checks are the DEVICE CHECK LIST in the same section of `AGENTS.md`.

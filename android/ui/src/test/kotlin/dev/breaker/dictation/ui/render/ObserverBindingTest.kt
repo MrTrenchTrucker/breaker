@@ -8,7 +8,6 @@ import dev.breaker.dictation.ui.theme.ThemeOutcome
 import dev.breaker.dictation.ui.theme.ThemeState
 import java.io.File
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -20,13 +19,11 @@ import org.junit.Test
  * from the defaults, and every test checks the save really happened before it
  * checks what was told. An observer that hears nothing because nothing was saved
  * is a test that passes for the wrong reason.
+ *
+ * The module's entry surface is checked in `EntrySurfaceTest`; this file holds
+ * the binding's own tests and the android-type rule it keeps.
  */
 class ObserverBindingTest {
-    /** The public declaration this module offers an app, written on one line. */
-    private val ENTRY_SIGNATURE =
-        "fun createSettingsView(context: android.content.Context, " +
-            "settings: dev.breaker.dictation.core.port.SettingsStore): android.view.View"
-
     /** A controller over a store holding a light scheme, with the phone in light mode. */
     private class Fixture {
         val store = FakeSettingsStore(NONDEFAULT.copy(themeMode = StoredThemeMode.LIGHT))
@@ -144,59 +141,8 @@ class ObserverBindingTest {
         )
     }
 
-    @Test
-    fun `the entry file offers one declaration and it is the settings view`() {
-        val offered = offeredDeclarations(sourceOf("SettingsEntry.kt"))
-        assertEquals("exactly one declaration may be offered to an app", 1, offered.size)
-        assertTrue("the offered declaration must be the settings view", offered.single().startsWith("fun createSettingsView("))
-
-        val control = offeredDeclarations(CONTROL_WITH_TWO_OFFERED)
-        assertEquals("the scan must catch a second offered declaration", 2, control.size)
-    }
-
-    @Test
-    fun `the settings view takes a context and a settings store and gives back a view`() {
-        val flattened = sourceOf("SettingsEntry.kt").replace(ANY_WHITESPACE, " ")
-        assertTrue(
-            "the pinned declaration must be there with both parameter types",
-            flattened.contains(ENTRY_SIGNATURE),
-        )
-        assertFalse(
-            "the scan must not accept a parameter type that has been weakened",
-            CONTROL_WEAK_PARAMETER.contains(ENTRY_SIGNATURE),
-        )
-    }
-
     /** Any android or androidx type name, imported or written out. */
     private val ANDROID_TYPE = Regex("\\bandroidx?\\.[A-Za-z]")
-
-    private val ANY_WHITESPACE = Regex("\\s+")
-
-    /** The words that open a top level declaration, followed by the declaration itself. */
-    private val DECLARATION_START =
-        Regex("^(fun|val|var|class|object|interface|typealias|annotation class|enum class|sealed class|data class) ")
-
-    /**
-     * The top level declarations in [text] that are neither `internal` nor `private`.
-     *
-     * Comments go first: a line of prose that begins with one of these words is
-     * not a declaration, and one that must not be counted must not be able to
-     * hide one that should be.
-     */
-    private fun offeredDeclarations(text: String): List<String> =
-        withoutComments(text).lines()
-            // A declaration at the top level starts in the first column. A line
-            // inside a function body is indented, and trimming first would count
-            // every local val in the file as something offered to an app.
-            .filter { DECLARATION_START.containsMatchIn(it) }
-            .map { it.removeSuffix("{").trimEnd() }
-            .filterNot { it.startsWith("internal ") || it.startsWith("private ") }
-
-    /** Comments declare nothing, so a line of prose cannot open a declaration. */
-    private fun withoutComments(text: String): String =
-        text.lines()
-            .filterNot { it.trimStart().startsWith("//") || it.trimStart().startsWith("*") }
-            .joinToString("\n")
 
     /** The source at [relative] under this module, so the scan follows the module and not one machine. */
     private fun sourceOf(relative: String): String {
@@ -212,22 +158,4 @@ class ObserverBindingTest {
 
         import android.view.View
         """.trimIndent()
-
-    /** Two declarations offered to an app, where the entry file may offer one. */
-    private val CONTROL_WITH_TWO_OFFERED =
-        """
-        package dev.breaker.dictation.ui
-
-        fun createSettingsView(context: android.content.Context, settings: dev.breaker.dictation.core.port.SettingsStore): android.view.View {
-            return View(context)
-        }
-
-        fun createOtherView(context: android.content.Context): android.view.View {
-            return View(context)
-        }
-        """.trimIndent()
-
-    /** A settings view that takes any object, which is not the declaration this module offers. */
-    private val CONTROL_WEAK_PARAMETER =
-        "fun createSettingsView(context: android.content.Context, settings: Any): android.view.View"
 }

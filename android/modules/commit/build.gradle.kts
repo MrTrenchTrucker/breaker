@@ -1,7 +1,7 @@
 // android/modules/commit — CommitService.
 //
 // Card: android/modules/commit/AGENTS.md   Registry: modules.toml [module.android_commit]
-// Owns: CommitService: IME text commit + clipboard fallback + toast.
+// Owns: CommitService: mechanism-neutral text commit (focused field gets the text, otherwise the clipboard) + toast.
 // Depends on: android, android_core
 // Cross-module calls go through the core ports or the app's own
 // dependency wiring; this module never reaches into a sibling's code.
@@ -34,6 +34,7 @@ kotlin {
 
 dependencies {
     implementation(project(":android:modules:core"))
+    implementation(libs.kotlinx.coroutines.core)
 
     testImplementation(libs.junit)
 }

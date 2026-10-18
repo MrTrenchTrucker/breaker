@@ -79,3 +79,19 @@ agents, not required: an outside contributor may write the code themselves
 
 ## Known Gotchas
 - Formatting must be non-destructive (N9) — diff-check tests.
+
+## Deliberate limits of the rule-based formatter
+
+Three limits of the rule-based fallback are deliberate, not defects. They are
+documented here so they are not "fixed" by accident:
+
+- Empty and already-punctuated finals are left alone. `finalPunctuation` trims the
+  text and then adds a period only when it is non-empty and does not already end in
+  `.`, `?` or `!`: text that trims to empty gets no punctuation, and a final
+  sentence mark the speaker said is not duplicated.
+- A sentence end right after a digit is not a boundary. `SENTENCE_END` looks behind
+  the mark for a non-digit, so a mark after a mid-sentence number does not start a new
+  sentence: the next word is not capitalized after it.
+- A numbered run is only as good as its joins. `findRun` continues a run while each
+  next item is joined by exactly `", "` (comma plus one space); any other join ends
+  the run there and the rest is left as ordinary text.

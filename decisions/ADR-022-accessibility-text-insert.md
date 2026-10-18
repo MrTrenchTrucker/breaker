@@ -1,0 +1,129 @@
+# ADR-022: Text goes into the app through an accessibility service (supersedes ADR-005)
+
+**Status:** accepted
+**Date:** 2026-10-07
+**Approved by:** project owner
+
+## Context
+ADR-005 chose IME-first text commit: Breaker ships its own keyboard, and
+sends text through `InputMethodService.commitText(...)` when that keyboard is
+active and a field is focused. On review, before any of it shipped, this
+does not fit the product. An IME requires the user to switch away from whatever keyboard they already use —
+unlike Wispr Flow, which works with any keyboard. Worse, as soon as any
+screen opened (the dictation UI, a permission prompt, anything), the target
+field lost focus and IME commit could not fire, so the UX spec of "tap send →
+text lands in the focused field" broke in the most common case. The forked
+base app already used an accessibility service (`WhisperAccessibilityService`)
+for exactly this reason, and it works with the keyboard already on screen.
+
+## Decision
+Dictation happens in place from the floating tile. The tile is the CB mic
+glyph with the LED bar meter above it. Tap the tile to start; while recording
+the meter shows on the tile, with a small cancel control; tap again (or say
+the send phrase) to send. No Activity opens for dictation, so the app the
+user is typing in keeps focus and the user's own keyboard stays up. The app's
+screens remain for history, settings, onboarding.
+
+Text goes into the focused field through an Android accessibility service
+(`AccessibilityService`): it finds the focused editable node and inserts the
+text (`AccessibilityNodeInfo.ACTION_SET_TEXT` merging with the existing text
+at the cursor, or `ACTION_PASTE` from the clipboard). `ACTION_SET_TEXT`
+replaces a node's whole text, so the merge is the service's own job: it reads
+the field's current text and selection, builds the new text, sets it, then
+places the cursor after the inserted text. If there is no focused editable
+field, or the insert is refused, the text goes to the clipboard; on Android 12
+and below a toast says so, on Android 13+ the system's own copy confirmation
+is enough.
+
+This supersedes ADR-005. Breaker no longer ships its own keyboard.
+
+## Reasons
+- Works with whatever keyboard the user already uses (the way Wispr Flow
+  does) — no switch, no extra setup step beyond one permission grant.
+- An IME requires the user to switch keyboards, and as soon as any screen
+  opened the target field lost focus, so IME commit could not fire.
+- The forked base app already used an accessibility service
+  (`WhisperAccessibilityService`) for the same job, so the mechanism is not
+  new to this codebase (the base app itself was never built or run, see
+  `docs/03`).
+- Dictation in place, with no Activity opening, matches the product's own
+  hands-free design better than a window that can steal focus.
+
+## Consequences
+An accessibility service is a powerful permission; Android lets it read what
+is on screen. The limits we keep, stated honestly rather than left implicit:
+the service's config requests only what inserting text needs (focused-view
+events, `canRetrieveWindowContent` only because finding the focused field
+needs it); it never stores or logs screen content or field text; it never
+sends anything off the device; it acts only on an explicit send; it never
+inserts into password fields (`isPassword`). Onboarding explains the
+permission plainly before sending the user to Settings, and walks the
+Android 13+ "restricted setting" step: sideloaded apps show accessibility
+services as restricted until the user allows it in the app's info screen.
+
+Module boundaries: the `commit` module keeps the mechanism-neutral logic
+(focused field gets the text, otherwise the clipboard) and gains two
+sub-modules: `commit/accessibility`, which owns the accessibility service,
+finding the focused editable field, the insert and the password-field refusal;
+and `commit/ime`, which holds the keyboard adapter written for ADR-005. That
+adapter is no longer used: it is kept, marked dead with a `DEAD_CODE.md` file,
+and left out of the build, so it can never register a keyboard. The `ui`
+module no longer owns a dictation screen; it owns the onboarding for the
+permission. The `app` module owns the foreground service (microphone type)
+that keeps recording alive while another app is in front.
+
+Amended 2026-10-07 (project owner approved): the service is started while
+Breaker is switched on, not on each tile tap. On Android 14 and later a
+foreground service that uses the microphone may only be created while the app
+has a visible screen, or from one of a short list of exemptions (a tap on the
+app's own notification is one); a visible overlay window and an accessibility
+service are not on that list. So Breaker starts the service when the user
+switches Breaker on (from the app's own screen, or from the service's
+notification) and keeps it running, with a quiet, low-priority ongoing
+notification, until the
+user switches it off. A tile tap then only starts recording inside the running
+service. If the service is not running, a tile tap tries to start it once and,
+if Android refuses, tells the user to open Breaker once to switch dictation
+on. Recording happens only between a tap (or the wake phrase) and send, cancel, an
+error or the microphone yielding to another app. Without wake listening,
+Android's own microphone indicator shows only then;
+with wake listening on (amendment of 2026-10-09 below) it also shows while
+Breaker is armed and listening. Tapping the notification opens the
+Breaker app on its history of transcriptions. The shake listener needs a running
+service in the background too, so it can live in the same service.
+
+Amended 2026-10-09 (project owner approved): wake listening and microphone
+sharing. While Breaker is armed, the microphone may stay open for the word
+stream only, so the wake phrase can be heard; nothing is stored or sent until
+the wake phrase starts a normal recording, and a Settings switch turns wake
+listening off. The battery-optimization exemption that keeps it alive while
+the phone sleeps is explained at first start and can be revoked any time in
+Settings. Breaker never competes for the microphone: when any other app or a
+phone call wants it, Breaker releases it at once, with no prompt and no retry
+while it is in use, and wake listening comes back only after the microphone
+has been free for 30 seconds in a row. A recording is never restarted on its
+own. A recording cut this way is ended, not cancelled: what was captured is
+transcribed, saved to history and copied to the clipboard, never typed into
+the field, and the notification says another app needed the microphone. How a
+phone reports that another app wants the microphone is measured on real
+phones (an incoming call, an outgoing call, another recording app) before it
+is claimed to work.
+
+Rules in: the accessibility service as the text-insert mechanism; in-place
+dictation from the floating tile (no Activity opens while dictating);
+clipboard fallback when there is no focused field or the insert is refused;
+onboarding that covers both the permission grant and the restricted-setting
+step; the limits above (focused-view + window-content access only, no
+storage or logging of screen content, no network egress, explicit-send-only,
+never into password fields).
+
+The ongoing notification is the cost of this design: while Breaker is on,
+the user sees it in the notification shade, as with other dictation apps that
+work over other apps. Android also shows its own notice that Breaker is
+displaying over other apps; that notice comes from the system for every app
+with an overlay, not from Breaker. Whether a running accessibility service
+changes the microphone rule on a real phone is checked in the Phase 5 spike.
+
+Rules out: Breaker shipping its own keyboard/IME; a dictation Activity or any
+other window opening during dictation; reading or keeping any screen content
+beyond what one insert needs in the moment.

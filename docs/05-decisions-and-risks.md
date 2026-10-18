@@ -3,8 +3,9 @@
 ## Decisions (ADR-style)
 
 **D1 — Kotlin / native Android.**
-The base repo is already Kotlin/Android; IME (`InputMethodService`), overlay
-(`WindowManager`), and sensor access need native APIs.
+The base repo is already Kotlin/Android; the accessibility service
+(`AccessibilityService`), overlay (`WindowManager`), and sensor access need
+native APIs.
 
 **D2 — Base = swept OpenWhispr Android fork (`com.edib.openwhispr`).**
 Security Review gave a clean bill of health; Apache-2.0 permits the fork. Package id
@@ -23,9 +24,12 @@ Breaker's new `whisper-server` container, which async-queues jobs and forwards
 them to the admin-configured downstream service (default: Whisper X). **The
 only gap:** build that queue/forward container (Phase 4).
 
-**D5 — IME-first text commit with clipboard fallback.**
+**D5 — Accessibility-service text insert with clipboard fallback (supersedes
+IME-first, ADR-022).**
 Matches the user's UX spec exactly ("click to send; if it can't paste, copy to
-clipboard"). Text commit, not "injection."
+clipboard") while working with whatever keyboard the user already uses — no
+own IME to switch to, and no window to steal focus from the target field.
+Text commit, not "injection."
 
 **D6 — Server-primary with automatic local fallback.**
 Local Server is the primary transcription + formatting path; on-device is the
@@ -51,8 +55,9 @@ false-positive risk than "Hey" (a common speech word). The wake phrase IS the
 product name, said the CB way.
 
 **D10 — Permissions + power are explicit.**
-The app requests ALL permissions at startup (F11) and verifies high-power mode
-(F12). Battery is a non-issue by design — the user runs plugged in.
+The app explains and asks for every permission at first start, one screen per
+permission (F11), and verifies high-power mode (F12). Battery is a non-issue by
+design — the user runs plugged in.
 
 **D11 — Sync = offline-first queue, idempotent push.**
 Every transcription syncs to the server when reachable — even local-only mode.
@@ -195,7 +200,7 @@ Mobile-first breakpoints; landscape/portrait layouts by viewport; the Android
 app consumes the same `shared/ui-tokens` so both look identical (F35).
 
 **D33 — CB mic motif + LED bar state indicators.**
-The CB mic glyph is the favicon, floating tile, and dictation hero (ComfyUI
+The CB mic glyph is the favicon, floating tile, and web FE hero card (ComfyUI
 art). A digital Cobra-style LED bar meter fills above the floating mic while
 recording; state colors: **green** = sent (copy confirmed), **orange** = server
 failed → local fallback, **red** = complete failure (F36).
@@ -204,11 +209,11 @@ failed → local fallback, **red** = complete failure (F36).
 
 | # | Risk | Impact | Mitigation |
 |---|------|--------|------------|
-| R1 | Overlay focus limits on newer Android | Med | Tile is tap-only; dictation UI in a normal window |
-| R2 | Sensor permission denied on some devices | Med | Fallback: always-visible tile toggle |
+| R1 | Overlay focus limits on newer Android | Med | Tile is tap-only; dictation happens in place on the tile — no window takes focus (ADR-022) |
+| R2 | Shake sensor missing or stopped by the system on some devices | Med | Fallback: always-visible tile toggle |
 | R3 | On-device model accuracy vs speed | Low | S25 Ultra 16 GB → small/medium fine; size is a setting |
 | R4 | ZeroTier flakiness on mobile networks | Med | Probe TTL + auto-fallback to local; never block on server |
-| R5 | IME registration UX friction | Low | Onboarding screen linking to IME settings |
+| R5 | Accessibility-service permission UX friction, including the Android 13+ "restricted setting" step for sideloaded apps | Low | Onboarding screen walks the user to the accessibility settings and through the restricted-setting step |
 | R6 | **Missing server endpoint** — server path blocked until `/v1/audio/transcriptions` is added | High | Phase 4 first priority after Phase 0 |
 | R7 | **Base code never built/run** — compilation + runtime unverified | High | Phase 0 build + smoke-test gate |
 | R8 | ASR model upstream terms (outside Security Review audit) | Med | Per-model license recorded in model-registry |
@@ -224,7 +229,7 @@ failed → local fallback, **red** = complete failure (F36).
 | R18 | **Admin escalation / role abuse** | Med | First-account-is-admin bootstrap; audited role changes; no self-promotion (T16) |
 | R19 | **Queue backpressure / long waits under load** | Med | Job status UX ("queued…"), timeouts, per-user rate limits (T18) |
 | R20 | **Admin/agent-scoped reset destroys old data by design** | Med | Reset deletes the account's keys, transcriptions and any pending-sealed rows outright (ADR-018); whoever completes it holds the fresh keys until a password change is made by someone who does not pass the new password back to them, in practice the user's own change (every change re-keys, ADR-006, but one made by the admin keeps the admin's access), which bounds the exposure rather than leaving it permanent; the account records the reset and each re-key, and shows "reset on \<date\>" and "keys last changed on \<date\>", each when its date is new to the device, since the old password no longer working happens on every reset and cannot be relied on as a signal; no recovery-key option in v1 (F24) |
-| R21 | **Client-side crypto complexity (Android + web FE)** | Med | Shared spec + test vectors in api-contracts; one crypto module reused by both |
+| R21 | **Client-side crypto complexity (Android + web FE)** | Med | One shared spec (ADR-006, "Exact bytes") + test vectors; the vectors live in the crypto module's tests today and move to a shared file in api-contracts when the web FE's crypto is built (Phase 19) |
 | R22 | **Misconfigured transcription endpoint** | Med | Connectivity test + clear errors; queue fails jobs with visible status (F26) |
 | R23 | **Agent token leakage** | Med | Scoped + revocable tokens, rate-limited, optional expiry (T19) |
 | R24 | **sherpa-onnx transducer OOB write (issue #3983)** | Med | Pinned models + upstream checksum.txt; adopt upstream fix; revisit transducer path if fix doesn't land [2] |

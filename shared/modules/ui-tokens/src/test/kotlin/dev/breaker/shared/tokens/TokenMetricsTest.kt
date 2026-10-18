@@ -2,6 +2,7 @@ package dev.breaker.shared.tokens
 
 import java.lang.reflect.Modifier
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertSame
@@ -31,6 +32,41 @@ class TokenMetricsTest {
     }
 
     @Test
+    fun theGutterMetricIs16Dp() {
+        assertEquals(16, metrics.gutterDp)
+    }
+
+    @Test
+    fun theFiveSpacingValuesAreFixedHereNotCheckedAgainstAPicture() {
+        assertEquals(listOf(4, 8, 12, 16, 32), spaceSteps(metrics))
+    }
+
+    @Test
+    fun theSpacingScaleIsPositiveAndStrictlyIncreasing() {
+        assertTrue("the steps ${spaceSteps(metrics)} are not positive and increasing", orderedAndPositive(spaceSteps(metrics)))
+    }
+
+    @Test
+    fun theOrderingRuleRefusesABrokenScale() {
+        // Two samples the rule must refuse: a repeated step, and a step that is not positive.
+        assertFalse(orderedAndPositive(listOf(4, 8, 8, 16, 32)))
+        assertFalse(orderedAndPositive(listOf(0, 8, 12, 16, 32)))
+    }
+
+    @Test
+    fun aMetricsWithOneChangedStepIsADifferentScale() {
+        // Data class equality can say no: one changed step makes another metrics object.
+        assertTrue(metrics != metrics.copy(spaceMDp = 13))
+        assertEquals(metrics, metrics.copy())
+    }
+
+    private fun spaceSteps(m: TruckingMetrics): List<Int> =
+        listOf(m.spaceXsDp, m.spaceSDp, m.spaceMDp, m.spaceLDp, m.spaceXlDp)
+
+    private fun orderedAndPositive(steps: List<Int>): Boolean =
+        steps.first() > 0 && (0 until steps.size - 1).all { steps[it] < steps[it + 1] }
+
+    @Test
     fun bandsChangeExactlyAtTheBreakpoints() {
         assertEquals(LayoutBand.MOBILE, metrics.bandFor(0))
         assertEquals(LayoutBand.MOBILE, metrics.bandFor(639))
@@ -42,7 +78,7 @@ class TokenMetricsTest {
     @Test
     fun bandsFollowTheBreakpointsOfTheMetricsTheyAreAskedOn() {
         // Not the shipped numbers, so a band function that hard-codes them is seen.
-        val custom = TruckingMetrics(cornerRadiusDp = 4, minTouchTargetDp = 48, mobileBreakpointDp = 100, tabletBreakpointDp = 200)
+        val custom = TruckingMetrics(cornerRadiusDp = 4, minTouchTargetDp = 48, mobileBreakpointDp = 100, tabletBreakpointDp = 200, gutterDp = 16, spaceXsDp = 4, spaceSDp = 8, spaceMDp = 12, spaceLDp = 16, spaceXlDp = 32)
         assertEquals(LayoutBand.MOBILE, custom.bandFor(99))
         assertEquals(LayoutBand.TABLET, custom.bandFor(100))
         assertEquals(LayoutBand.TABLET, custom.bandFor(200))
@@ -59,10 +95,10 @@ class TokenMetricsTest {
     @Test
     fun breakpointsMustBeInOrder() {
         assertThrows(IllegalArgumentException::class.java) {
-            TruckingMetrics(cornerRadiusDp = 4, minTouchTargetDp = 48, mobileBreakpointDp = 1024, tabletBreakpointDp = 640)
+            TruckingMetrics(cornerRadiusDp = 4, minTouchTargetDp = 48, mobileBreakpointDp = 1024, tabletBreakpointDp = 640, gutterDp = 16, spaceXsDp = 4, spaceSDp = 8, spaceMDp = 12, spaceLDp = 16, spaceXlDp = 32)
         }
         assertThrows(IllegalArgumentException::class.java) {
-            TruckingMetrics(cornerRadiusDp = 4, minTouchTargetDp = 48, mobileBreakpointDp = 640, tabletBreakpointDp = 640)
+            TruckingMetrics(cornerRadiusDp = 4, minTouchTargetDp = 48, mobileBreakpointDp = 640, tabletBreakpointDp = 640, gutterDp = 16, spaceXsDp = 4, spaceSDp = 8, spaceMDp = 12, spaceLDp = 16, spaceXlDp = 32)
         }
     }
 
@@ -144,7 +180,10 @@ class TokenMetricsTest {
             instanceFields(TruckingPalette::class.java),
         )
         assertEquals(
-            setOf("cornerRadiusDp", "minTouchTargetDp", "mobileBreakpointDp", "tabletBreakpointDp"),
+            setOf(
+                "cornerRadiusDp", "minTouchTargetDp", "mobileBreakpointDp", "tabletBreakpointDp", "gutterDp",
+                "spaceXsDp", "spaceSDp", "spaceMDp", "spaceLDp", "spaceXlDp",
+            ),
             instanceFields(TruckingMetrics::class.java),
         )
         assertEquals(

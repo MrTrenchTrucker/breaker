@@ -15,7 +15,7 @@ Every refusal names the entry and the line, e.g.:
 
 Entry checks (all of them, before any write):
 * required fields: id, family, params, size_mb, url, sha256, upstream_commit,
-  tamper_verified, hosted — plus either license, or both license_name and
+  tamper_verified, hosted, archive_name — plus either license, or both license_name and
   license_link (notes is optional; anything else is an unknown field);
 * id: lowercase alphanumerics starting with a letter, unique across the
   registry (the generated Kotlin names a `val` after it, and a Kotlin
@@ -42,7 +42,11 @@ Entry checks (all of them, before any write):
   (module card, Known Gotchas: the downloader resolves it via the GitHub API
   asset route); tags and "latest" are refused;
 * license: an SPDX id (a single token), or, when absent, both license_name
-  and license_link (an https URL).
+  and license_link (an https URL);
+* archive_name: present, a non-empty plain file name (no `/` or `\\` anywhere),
+  and its (archive_name, sha256) pair a line of the committed fixture
+  fixtures/upstream-checksum-excerpt.txt - the byte-exact upstream
+  checksum.txt excerpt the module carries (checked offline, no network).
 """
 import os
 import re
@@ -62,10 +66,12 @@ OUTPUT_KOTLIN = os.path.join(
     MODULE_DIR, "src", "main", "kotlin", "dev", "breaker", "shared", "models",
     "ModelRegistry.kt",
 )
+FIXTURE = os.path.join(
+    MODULE_DIR, "fixtures", "upstream-checksum-excerpt.txt")
 
 REQUIRED_FIELDS = (
     "id", "family", "params", "size_mb", "url", "sha256",
-    "upstream_commit", "tamper_verified", "hosted",
+    "upstream_commit", "tamper_verified", "hosted", "archive_name",
 )
 OPTIONAL_FIELDS = ("license", "license_name", "license_link", "notes")
 KNOWN_FIELDS = set(REQUIRED_FIELDS) | set(OPTIONAL_FIELDS)
@@ -124,26 +130,70 @@ def _entry_spans(text):
             starts.append(i + 1)
     return [(s, e) for s, e in zip(starts, starts[1:] + [len(lines) + 1])]
 
+def _fixture_pairs():
+    """The (archive_name, sha256) data lines of the committed fixture, in file
+    order: the offline, byte-exact copy of the upstream checksum.txt lines
+    (the module's provenance record, module card Invariants). The generator
+    reads the fixture file itself, strictly; a fixture it cannot hold is the
+    same as a missing one."""
+    try:
+        with open(FIXTURE, "r", encoding="utf-8") as fh:
+            text = fh.read()
+    except OSError as err:
+        raise RegistryError(
+            f"the fixture cannot be read: {err}") from None
+    if not text.strip():
+        raise RegistryError("the fixture is empty")
+    pairs = []
+    for raw in text.splitlines():
+        if raw.startswith("#") or not raw.strip():
+            continue
+        parts = raw.split("\t")
+        if len(parts) != 2 or not HEX64.match(parts[1]):
+            raise RegistryError(
+                "the fixture carries a malformed data line (must be "
+                f"filename<TAB>64-lowercase-hex): {raw!r}")
+        pairs.append((parts[0], parts[1]))
+    if not pairs:
+        raise RegistryError("the fixture carries no data line")
+    return pairs
+
 
 def _field_line(lines, span, field):
-    """Line of `field:` inside the entry span; the span start when absent."""
+    """Line of `field:` inside the entry span; the span start when absent.
+    A body line of a block scalar (a `notes: >-` block) is prose: a wrapped
+    line that happens to read like `field:` is not the field."""
     start, end = span
+    block_indent = None
     for i in range(start, end):
-        if re.match(rf"^\s*{field}\s*:", lines[i - 1]):
+        line = lines[i - 1]
+        if block_indent is not None:
+            if not line.strip() or len(line) - len(line.lstrip()) > block_indent:
+                continue  # a body line of the scalar open above
+            block_indent = None
+        scalar = BLOCK_SCALAR.match(line)
+        if scalar:
+            block_indent = len(scalar.group(1))
+            continue
+        if re.match(rf"^\s*{field}\s*:", line):
             return i
     return start
 
 
 def _where(raw, span, lines, field=None):
     """The `entry '<id>' line <n>` prefix a refusal carries: the entry named by
-    its id when the id is a usable non-empty scalar, and by the line it starts
-    on otherwise (an absent or empty id is itself the thing being refused, so
-    there is no id to name it by). `field` points the line at that field
-    instead of at the entry's sequence marker."""
+    its id when the id is a usable non-empty scalar, and by a line otherwise
+    (an absent or empty id is itself the thing being refused, so there is no
+    id to name it by). When the refusal is about a named field and the id is
+    unusable, the line is that field's line - the entry's sequence marker when
+    the field has none of its own (it is absent); otherwise the entry's
+    sequence marker."""
     eid = raw.get("id")
     if isinstance(eid, str) and eid:
         line = _field_line(lines, span, field) if field else span[0]
         return f"entry '{eid}' line {line}"
+    if field:
+        return f"entry at line {_field_line(lines, span, field)}"
     return f"entry at line {span[0]}"
 
 
@@ -283,6 +333,19 @@ def _check_entry(raw, span, lines):
                 f"license_link must be an https URL")
     if "notes" in keys:
         value("notes")
+    # The archive-name checks run after the entry's own field checks, so an
+    # entry that already fails one of them keeps that first refusal.
+    archive = value("archive_name")
+    if "/" in archive or "\\" in archive:
+        raise RegistryError(
+            f"{label}line {_field_line(lines, span, 'archive_name')}: "
+            f"archive_name must be a plain file name without a path separator "
+            f"(got '{archive}')")
+    if (archive, sha) not in _fixture_pairs():
+        raise RegistryError(
+            f"{label}line {_field_line(lines, span, 'archive_name')}: "
+            f"archive_name '{archive}' does not pair with the entry's sha256 "
+            f"in the upstream fixture")
 
     return {
         "id": eid,
@@ -295,6 +358,7 @@ def _check_entry(raw, span, lines):
         "tamper_verified": raw["tamper_verified"] == "true",
         "hosted": raw["hosted"] == "true",
         "licence": raw.get("license") or raw.get("license_name", ""),
+        "archive_name": archive,
     }
 
 
@@ -366,6 +430,7 @@ def render_kotlin(entries):
         "    val sizeMb: Int,",
         "    val licence: String,",
         "    val hosted: Boolean,",
+        '    val archiveName: String = "",',
         ")",
         "",
         "object ModelRegistry {",
@@ -381,6 +446,7 @@ def render_kotlin(entries):
             f"        sizeMb = {e['size_mb']},",
             f"        licence = {_kotlin_str(e['licence'])},",
             f"        hosted = {str(e['hosted']).lower()},",
+            f"        archiveName = {_kotlin_str(e['archive_name'])},",
             "    )",
             "",
         ]

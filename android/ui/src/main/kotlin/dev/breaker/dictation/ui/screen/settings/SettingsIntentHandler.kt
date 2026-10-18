@@ -1,6 +1,7 @@
 package dev.breaker.dictation.ui.screen.settings
 
 import dev.breaker.dictation.core.model.AppSettings
+import dev.breaker.dictation.core.model.ThemeMode as StoredThemeMode
 import dev.breaker.dictation.core.port.SettingsStore
 import dev.breaker.dictation.ui.screen.Screen
 import dev.breaker.dictation.ui.screen.ScreenIntent
@@ -71,6 +72,14 @@ internal class SettingsIntentHandler(
 
     private var notice: Notice? = if (known == null || !themes.state.loaded) Notice.COULD_NOT_READ else null
 
+    /** The speech model row to draw with the next screen; the host sets it before it asks for a screen. */
+    private var model: ModelRow = ModelRow.READY
+
+    /** Sets the speech model row that the screens drawn from now on show. */
+    fun showing(row: ModelRow) {
+        model = row
+    }
+
     /** The screen as it stands now, without acting on anything. */
     fun current(): Rendered = render()
 
@@ -84,8 +93,15 @@ internal class SettingsIntentHandler(
         when (intent) {
             ScreenIntent.ToggleTheme -> notice = themeNotice(themes.toggle())
             ScreenIntent.UseSystemTheme -> notice = themeNotice(themes.useSystem())
+            is ScreenIntent.SetThemeMode -> notice = setThemeNotice(intent.mode)
             is ScreenIntent.SetRoutingMode -> writeSetting(intent)
             is ScreenIntent.SetSetting -> writeSetting(intent)
+            // The setup walk-through has its own screen and handler; this screen offers no such control.
+            is ScreenIntent.Setup -> notice = Notice.NOT_ACCEPTED
+            is ScreenIntent.History -> notice = Notice.NOT_ACCEPTED
+            is ScreenIntent.Home -> notice = Notice.NOT_ACCEPTED
+            // The settings screen has no back control: a Back changes neither the settings nor the message.
+            ScreenIntent.Back -> Unit
         }
         return render()
     }
@@ -100,6 +116,17 @@ internal class SettingsIntentHandler(
         ThemeOutcome.CHANGED, ThemeOutcome.UNCHANGED -> null
         ThemeOutcome.COULD_NOT_READ -> Notice.COULD_NOT_READ
         ThemeOutcome.COULD_NOT_SAVE -> Notice.COULD_NOT_SAVE
+    }
+
+    /**
+     * Stores the scheme named [name], which must be exactly the name of one stored mode.
+     *
+     * A name that is not one of them is refused before the store is touched, as a
+     * setting the screen does not offer is.
+     */
+    private fun setThemeNotice(name: String): Notice? {
+        val mode = StoredThemeMode.entries.firstOrNull { it.name == name } ?: return Notice.NOT_ACCEPTED
+        return themeNotice(themes.set(mode))
     }
 
     /**
@@ -147,7 +174,7 @@ internal class SettingsIntentHandler(
      */
     private fun render(): Rendered =
         Rendered(
-            screen = screen.render(known, themes.state, notice),
+            screen = screen.render(known, themes.state, notice, model),
             theme = Themes.of(themes.state.shown),
         )
 }

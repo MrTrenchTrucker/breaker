@@ -14,9 +14,10 @@ fallthrough, NOTICE added.
 transcription + formatting path; on-device sherpa-onnx is the fallback.
 
 **Voice control (v1):** "Breaker Breaker" (wake + auto-record) and "And I'm Gone"
-(send) via sherpa-onnx KWS. Shake + tap remain the manual fallbacks.
+(send) via streaming ASR + phrase matching; a per-user trained KWS model is the
+upgrade path (ARCHITECTURE section 8). Shake + tap remain the manual fallbacks.
 
-**Build:** Gradle (pinned distribution SHA-256). Android SDK API 30+ (Android 11+; matches gradle/libs.versions.toml minSdk). SQLite via Room.
+**Build:** Gradle (pinned distribution SHA-256). Android SDK API 30+ (Android 11+; matches gradle/libs.versions.toml minSdk). SQLite through the history module's own adapter on the platform API (no Room).
 
 **Lanes:** Orchestration owns `core`; Coding owns `modules/*` and `ui`.
 
@@ -29,10 +30,10 @@ transcription + formatting path; on-device sherpa-onnx is the fallback.
 - `stt-server` — client for Breaker's own `whisper-server` job queue (primary)
 - `transport` — connectivity probe: is the Local Server reachable (core routes on the answer); no cloud path
 - `format` — Whisper Flow-style formatting (server LLM + rule-based local)
-- `phrases` — KWS: "Breaker Breaker" wake + "And I'm Gone" send
+- `phrases` — streaming ASR + phrase matching: "Breaker Breaker" wake + "And I'm Gone" send
 - `gesture` — shake-to-wake (accelerometer)
 - `overlay` — floating tile (WindowManager)
-- `commit` — CommitService: IME commit + clipboard fallback
+- `commit` — CommitService: accessibility insert + clipboard fallback
 - `history` — SQLite transcription history + 3-month TTL + tombstones
 - `settings` — settings persistence
 - `sync` — offline-first sync queue (idempotent push)
@@ -96,4 +97,4 @@ agents, not required: an outside contributor may write the code themselves
 (`.github/CONTRIBUTING.md`).
 
 ## Known Gotchas
-- Kotlin + native Android — IME and overlay need native APIs, not Flutter.
+- Kotlin + native Android — accessibility service and overlay need native APIs, not Flutter.

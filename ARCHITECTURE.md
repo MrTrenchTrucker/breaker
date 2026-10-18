@@ -51,7 +51,7 @@ admins.
 7. [Transport & Fallback](#7-transport--fallback)
 8. [Gesture, Voice Phrases & Overlay](#8-gesture-voice-phrases--overlay)
 9. [Formatting](#9-formatting)
-10. [Text Commit (IME + Clipboard)](#10-text-commit-ime--clipboard)
+10. [Text Commit (Accessibility Service + Clipboard)](#10-text-commit-accessibility-service--clipboard)
 11. [History, Sync & Web Access](#11-history-sync--web-access)
 12. [Multi-User & Auth](#12-multi-user--auth)
 13. [Voice Phrase Training](#13-voice-phrase-training)
@@ -70,21 +70,35 @@ admins.
 - F2. Server-first: when Local Server is reachable over ZeroTier, transcribe + format there.
 - F3. On-device fallback: when the server is unreachable, transcribe locally (with
       rule-based formatting) so dictation never stops.
-- F4. **"Breaker Breaker"** (voice phrase) OR shake → floating tile appears AND
-      **recording starts automatically**.
+- F4. **"Breaker Breaker"** (voice phrase) → floating tile appears AND
+      **recording starts automatically**. A **shake** only brings the floating tile
+      up: it never starts recording and never opens the microphone, so a bump in a
+      moving vehicle cannot start a recording. A tap on the tile starts recording.
+      A shake works from any app and with the keyboard open, and keeps working
+      whether or not the tile is on screen, for as long as dictation is switched on.
 - F5. **"And I'm Gone"** (voice phrase) OR tap tile → stop + send → commit text to
       focused field.
-- F6. If no text field is focused → copy to clipboard + toast.
+- F6. If no text field is focused, or the accessibility insert is refused →
+      copy to clipboard, with a confirmation: our toast on Android 12 and
+      below, the system's own copy confirmation on Android 13+.
 - F7. In-app transcription history with one-tap copy.
 - F8. Whisper Flow-style formatting: numbered lists, punctuation, filler removal.
 - F9. The send phrase "And I'm Gone" is excluded from the transcription (audio
       trimmed at phrase onset).
 - F10. Settings: mode, model size, server URL/API key, voice phrases on/off,
       shake on/off, formatting on/off, tile position, language.
-- F11. On startup, the app prompts for ALL permissions it needs at once (mic,
-      sensor, overlay/foreground service, notifications) with clear explanations.
+- F11. On first open, the app shows a short welcome (its content is not fixed
+      here), then asks for each permission it needs (microphone, display over
+      other apps, notifications, accessibility service) on a screen of its
+      own that says why it is needed, with a button to grant it.
 - F12. High-power mode: the app detects Android power-saving state and prompts
-      the user to enable high-performance mode.
+      the user to enable high-performance mode. The battery-optimization
+      exemption that keeps wake listening alive while the phone sleeps is
+      explained at first start and can be revoked any time in Settings; when it
+      is off, the app says wake listening may stop while the phone sleeps. The app
+      also tells the user to set its battery use to unrestricted (the system's
+      wording differs by phone maker), because a phone can stop listening for a
+      shake in the background otherwise; shown at first start and in Settings.
 - F13. **Sync:** every transcription syncs to the server — even local-only mode —
       pushed when connectivity returns. No data loss on offline dictation.
 - F14. **Multi-user:** username/password accounts; each user's data (transcriptions,
@@ -147,18 +161,56 @@ admins.
 - F35. **Responsive web FE:** the container website renders landscape and
       portrait layouts based on device size/resolution (mobile-first
       breakpoints), matching the Android app's look.
-- F36. **State indicators:** the CB mic glyph + LED bar meter show transmission
+- F36. **State indicators:** the CB mic glyph + level meter show transmission
       state — **green** = sent (copy confirmed), **orange** = server failed →
-      local fallback, **red** = complete failure; the LED bar (digital
-      Cobra-style segment display) fills above the floating mic while recording.
+      local fallback, **red** = complete failure. While recording, the level
+      meter lights the mic's grille slots from left to right, and the X
+      (cancel) and the check (send) sit either side of the mic, each drawn at
+      90% of the mic's full width (side bar included), about 8 dp from it
+      (ADR-024).
+- F37. **Microphone sharing:** when any other app or a phone call wants the
+      microphone, Breaker releases it at once, with no prompt. Wake listening
+      starts again only after the microphone has been free for 30 seconds in a
+      row; a recording is never restarted on its own. A recording cut this way
+      is transcribed, saved to history and copied to the clipboard, never typed
+      into the field (ADR-022).
+- F38. **Close the tile by dragging:** dragging the small tile shows a close
+      target (an X in a circle) near the bottom of the screen; dropping the tile on
+      it hides the tile. Dictation stays switched on, so a shake brings the tile back,
+      and "Breaker Breaker" brings it back and starts recording (F4); opening Breaker from its icon
+      shows it again. Switching dictation off stays in the notification and the app.
+- F39. **Busy cue:** from the check tap until the final outcome the tile shows
+      that the text is being processed: the ring takes a colour of its own and
+      pulses on its own rhythm; there is no spinner (ADR-024).
+- F40. **Loudness bar:** while recording, the meter in the microphone's grille follows how
+      loud the voice is; the app works out the level from the audio it already
+      receives and passes it to the tile (ADR-024).
+- F41. **Hide without a keyboard:** the tile appears by itself when a text input
+      opens or the keyboard comes up, and hides when it goes away. A shake still
+      brings it back (F4, F38). A temporary developer setting (off, field focus,
+      keyboard visible) picks the signal and is removed before release (ADR-024).
+- F42. **Normal-looking text:** a transcript the speech engine prints entirely in
+      capitals is turned into lower case, with the capital "I" restored, before it
+      is formatted (ADR-023).
+- F43. **Say where the model comes from:** the model step and the download notice
+      state that the speech model is downloaded from GitHub, the public page of the
+      speech library makers, that the Local Server is not used, and that the file is
+      checked before use; the size shown comes from the registry (ADR-025).
+- F44. **App menu:** the app opens on Home. A menu button (three lines) at the top
+      left of Home opens a menu with Settings, History, How it works and About;
+      each one opens as a screen of its own, and Back returns to Home. Settings
+      holds only settings, including the speech model download; the first-run
+      walk-through is not repeated inside it, and History is reached from the
+      menu, not from Settings.
 
 **Non-functional**
 - N1. Dictation starts < 1 s after wake phrase (models preloaded where possible).
-- N2. No telemetry; the only network calls are to Local Server.
+- N2. No telemetry; the app's network calls are to the Local Server and, once per
+      model, the speech-model download from GitHub (F43, N3).
 - N3. Model files **pinned to immutable release-asset ids** and verified against
       upstream's published checksum.txt (SHA-256) before use [2].
 - N4. Battery-friendly: sensor + overlay listeners idle when not dictating.
-- N5. Android 11+ (`setFloating`), arm64-v8a primary target.
+- N5. Android 11+ (min SDK 30), arm64-v8a primary target.
 - N6. Audio never leaves the device in local/fallback mode (except user-initiated sync).
 - N7. Server API is OpenAI-shaped but **asynchronous**: `POST /v1/audio/transcriptions`
       enqueues and returns `{ job_id, status: "queued" }`; the client polls
@@ -188,8 +240,8 @@ admins.
 │     └─ server down ──▶ stt-ondevice (sherpa-onnx) ──raw text──▶               │
 │                          format (rule-based) ──formatted text──▶ commit       │
 │                                                                               │
-│  commit ──IME active?──▶ InputMethodService commit ──▶ focused field          │
-│       └── no field ──▶ clipboard + toast                                      │
+│  commit ──accessibility insert──▶ focused field                               │
+│       └── no field / refused ──▶ clipboard                                    │
 │  history ◀── every transcription (text, source, timestamp)                    │
 │  sync ──queue──▶ push to server when reachable (even local-only mode)         │
 │  training-client ──record samples──▶ upload──▶ download trained model         │
@@ -198,7 +250,7 @@ admins.
                               │  ZeroTier VPN (TLS via self-hosted CA)
                               ▼
 ┌─────────────────────────────── Local Server ──────────────────────────────────┐
-│  whisper-server ── /v1/audio/transcriptions (GAP: to add)                     │
+│  whisper-server ── /v1/audio/transcriptions                                   │
 │  sync-api ── /v1/sync (push/pull transcriptions) + /v1/auth (users, tokens)   │
 │  web-fe ── Debian container: website (view/search/copy) + APK + cert hosting  │
 │  training ── per-user voice phrase model training container                   │
@@ -244,8 +296,9 @@ Android SDK. **Gradle distribution SHA-256 pinned** (Security Review fix #4) [1]
 **Layering (hexagonal):** `core` (pure Kotlin ports + use cases, no Android
 imports) · `ui` (views) · `modules/*` (adapters).
 
-**Threading:** ASR inference is blocking → dedicated single-thread executor, never
-the UI thread. Audio capture on a separate high-priority thread.
+**Threading:** ASR inference is blocking → it runs one decode at a time on a single-slot
+coroutine dispatcher, never the UI thread (`AGENTS.md` section 6). Audio capture runs on its own
+thread at default priority, and a second thread hands the frames to their consumer.
 
 ## 5. On-Device STT Engine (fallback)
 
@@ -307,8 +360,10 @@ priority in v1 — strict FIFO. Timeouts + failure states surface in the app
 ("queued…", "transcribing…").
 
 **Retry + audio lifecycle (F28):** a failed transcription job auto-retries
-**3× at 10 s intervals** before failing; the audio file is deleted once the job
-finishes (success or final failure) — audio never persists on the server.
+**3× at 10 s intervals** before failing; the queued audio is held in the job
+store only while the job is queued or running and is erased when the job
+finishes (success or final failure) — audio never outlives its job on the
+server (ADR-010).
 
 **Configurable transcription service (F26):** the transcription endpoint is
 **not hardcoded** — admins configure it in the web FE (name, base URL, optional
@@ -336,7 +391,11 @@ routes it, so no audio waits on a probe and none is dropped (ADR-002).
 ## 8. Gesture, Voice Phrases & Overlay
 
 **Gesture (shake-to-wake):** `SensorManager` accelerometer; shake = high-pass
-filtered magnitude threshold crossings in a 500 ms window.
+filtered magnitude threshold crossings in a 500 ms window. The detector stays
+registered for as long as dictation is switched on, whatever the tile shows and
+whether or not the keyboard is up; a detection always means "show the tile" and never begins a recording (F4). Only
+switching dictation off, or the system stopping the app in the background (F12),
+ends it.
 
 **Voice phrases (CB slang):**
 - **v1 mechanism — streaming on-device ASR + phrase matching.** sherpa-onnx ASR in
@@ -346,10 +405,28 @@ filtered magnitude threshold crossings in a 500 ms window.
   container fine-tunes a small KWS model from the user's own recordings.
 - "Breaker Breaker" (idle) → tile + auto-record (F4). "And I'm Gone" (recording)
   → stop + **trim audio at phrase onset** (F9) + dispatch (F5).
-- **Permissions (F11):** mic, sensor, overlay, notifications requested together
-  at first startup. **High-power mode (F12):** verify power-saving off.
+- **Wake listening:** while Breaker is armed, the microphone stays open for the
+  word stream only, so the wake phrase can be heard; nothing is stored or sent
+  until the wake phrase starts a normal recording. A Settings switch turns wake
+  listening off (the send phrase is unaffected). Android shows its microphone
+  indicator the whole time (ADR-022, amended 2026-10-09).
+- **Microphone sharing (F37):** Breaker never competes for the microphone. When
+  any other app or a phone call wants it, Breaker releases it at once, with no
+  prompt and no retry while it is in use. Wake listening comes back only after
+  the microphone has been free for 30 seconds in a row (the count restarts if
+  it is taken again). A recording is never restarted on its own; a recording
+  cut this way is ended, not cancelled: what was captured is transcribed, saved
+  to history and copied to the clipboard, never typed into the field.
+- **Permissions (F11):** after the welcome, one screen per permission:
+  microphone, overlay, notifications and the accessibility service. The
+  accessibility service has no system dialog to request; its screen leads the
+  user to its Settings toggle instead (ADR-022). **High-power mode (F12):**
+  verify power-saving off.
+- **Screens (F44):** Home (on/off card, big mic, last transcript), plus Settings,
+  History, How it works and About, each its own screen opened from the Home
+  menu; Back from any of them returns to Home.
 
-**Overlay (floating tile):** `WindowManager` + `TYPE_APPLICATION_OVERLAY` + `setFloating(true)` (Android 11+). Tile is **tap-only**; tapping it launches the dictation UI as a normal in-app Activity (no special overlay window type — only the floating tile itself needs `TYPE_APPLICATION_OVERLAY`). The tile IS the **CB mic glyph** — tap to talk. While awake and recording, a digital Cobra-style **LED bar meter** fills directly above it (F36). Permission set: `SYSTEM_ALERT_WINDOW` (tile), mic, internet, foreground service, notifications (F11) [1].
+**Overlay (floating tile):** `WindowManager` + `TYPE_APPLICATION_OVERLAY` with `FLAG_NOT_FOCUSABLE` (Android 11+). Tile has no long press: a tap starts dictation, a drag moves the tile or hides it (F38); tapping it starts dictation in place, on the tile — no Activity opens, so the app the user is typing in keeps focus and the user's own keyboard stays up (ADR-022). The tile IS the **CB mic glyph** — tap to talk. While recording, a **level meter** lights the mic's grille slots from left to right, and an X (cancel) and a check (send) sit either side of the mic, each 90% of the mic's size and about 8 dp from it; the check (or the send phrase) sends (F36). A notice on the tile (a sentence from the app, such as a missing speech model) widens it for a moment: it collapses back to the small tile on its own after 4 seconds, and a tap anywhere on it collapses it at once; the timer is the app's, the tile has no clock. Dragging the small tile shows the close target (F38). After the check tap the tile shows a busy cue until the outcome (F39), the level meter follows the voice level (F40), and the tile may hide while no text input is in use (F41, ADR-024). Permission set: `SYSTEM_ALERT_WINDOW` (tile), mic, internet, foreground service, notifications (F11), plus the accessibility service — a Settings toggle onboarding leads the user to, not a runtime prompt (ADR-022) [1].
 
 ## 9. Formatting
 
@@ -363,16 +440,23 @@ filtered magnitude threshold crossings in a 500 ms window.
 - Golden test: "I have 3 things... one is file a, two is file b, three is file c"
   → numbered list. Diff-check test enforces N9.
 
-## 10. Text Commit (IME + Clipboard)
+## 10. Text Commit (Accessibility Service + Clipboard)
 
 **CommitService** — *text commit*, not "injection."
-1. IME active + field focused → `InputMethodService.commitText(...)` inline.
-2. Else → clipboard copy + toast.
-3. Optional candidate-bar preview.
+1. Focused editable field found → the accessibility service (`AccessibilityService`)
+   inserts the text (`AccessibilityNodeInfo.ACTION_SET_TEXT` merging with the
+   existing text at the cursor, or `ACTION_PASTE` from the clipboard).
+   `ACTION_SET_TEXT` replaces the node's whole text, so the merge is the
+   service's own job: read the current text + selection, build the new text,
+   set it, then place the cursor after the inserted text.
+2. No focused field, or the insert is refused → clipboard copy, with a
+   confirmation: our toast on Android 12 and below, the system's own copy
+   confirmation on Android 13+.
+3. Optional preview before send.
 
 ## 11. History, Sync & Web Access
 
-**History (Android):** SQLite (Room). Rows: id, text, raw_text, source
+**History (Android):** SQLite through the history module's own adapter on the platform API (no Room). Rows: id, text, raw_text, source
 (`local`|`server`), model, duration_ms, created_at, audio_path (optional). What
 is still to push lives in the sync module's own queue, not on history's rows.
 Tap-to-copy, search, delete.
@@ -414,9 +498,9 @@ values) live in `shared/ui-tokens`:
 - **Responsive (F35):** mobile-first breakpoints; bottom nav on phones, sidebar
   on desktop; the Android app consumes the same tokens so both look identical.
 - **CB mic motif + state colors (F36):** the CB mic glyph is the favicon, the
-  floating tile, and the dictation hero (ComfyUI art: flat vector, white/green
-  + black-outline variant). A digital Cobra-style **LED bar meter** (segments
-  filling with audio level, directly above the floating mic on Android) shows
+  floating tile, and the web FE's hero card (ComfyUI art: flat vector, white/green
+  + black-outline variant). A digital Cobra-style **level meter** (segments
+  filling with audio level, in the floating mic's grille on Android) shows
   state: **green** = sent (copy confirmed), **orange** = server failed → local
   fallback succeeded, **red** = complete failure. Full spec in `docs/07`.
 
@@ -442,7 +526,7 @@ enforced server-side** (N13) — never trust client-side scoping.
 
 **Roles (F22):** two roles — `admin` and `user`. The **first account to register**
 is **admin by default**. Admins can: assign/revoke admin on other accounts,
-trigger an immediate update check on their own device (Settings → About → Check for updates — the same daily-poll endpoint, called on demand; this is not a push to other users' devices), and see server health. Users have
+trigger an immediate update check on their own device (Home menu → About → Check for updates — the same daily-poll endpoint, called on demand; this is not a push to other users' devices), and see server health. Users have
 isolated data and no admin powers. Roles are stored server-side and enforced by
 the API (N13).
 
@@ -615,9 +699,11 @@ This is Security Review fix #2 done right: the broken updater (pointed at the or
 author's releases, plaintext signing key) is deleted [1], and the new one points
 at OUR server with the signing key stored securely (never in git) [1].
 
-**Model hosting (F30):** the web-fe also serves the on-device model + checksums
-(licensing permitting) so the phone downloads it from the Breaker container
-instead of upstream — consistent with "treat every .onnx as untrusted" [2].
+**Model hosting (F30, planned, not built):** the web-fe may later serve the
+on-device model + checksums (licensing permitting) so the phone downloads it from
+the Breaker container instead of upstream. Until then the phone downloads it from
+GitHub and treats it as untrusted until checked (F43, ADR-025, [2]); moving the
+host changes the model registry and ADR-025 together.
 **Update rollback (D28):** the updater keeps the previous APK; a rollback button
 restores it if a release misbehaves.
 
@@ -730,7 +816,7 @@ See `docs/04-build-order.md`. Summary:
 | 4 | **whisper-server (async queue) + VPN wiring** — Breaker's own container adds `/v1/audio/transcriptions` (async enqueue) + `/v1/jobs/{id}` (poll), forwarding to the admin-configured service (default: existing Whisper X container, unmodified). Absorbs former Phase 18. | Coding + Bug Hunt |
 | 5 | `stt-server` client + `transport` (connectivity probe; core routes) | Coding |
 | 6 | `overlay` + `gesture` | Coding |
-| 7 | `commit` (IME + clipboard) | Coding |
+| 7 | `commit` (accessibility + clipboard) | Coding |
 | 8 | `format` (server LLM + rule-based) | Coding |
 | 9 | E2E test, bench, security review | Bug Hunt |
 | 10 | `phrases` — streaming ASR + phrase matching | Coding |
@@ -750,20 +836,20 @@ See `docs/04-build-order.md`. Summary:
 ## 18. Decisions & Risks
 
 **Decisions:**
-- D1. Kotlin / native Android (base is already Kotlin; IME + overlay need native).
+- D1. Kotlin / native Android (base is already Kotlin; accessibility service + overlay need native).
 - D2. Base = swept OpenWhispr Android fork (com.edib.openwhispr) [1].
 - D3. On-device engine = sherpa-onnx (in base, swept); whisper.cpp fallback only.
 - D4. Server = reuse existing Local Server pipeline via a new **Breaker-owned
       `whisper-server` container** that adds the async `/v1/audio/transcriptions`
       job queue and forwards to it — Whisper X itself is not patched [1].
-- D5. IME-first text commit with clipboard fallback.
+- D5. Accessibility-service text insert with clipboard fallback (supersedes IME-first, ADR-022).
 - D6. Server-primary with automatic local fallback; no silent cloud fallthrough.
 - D7. Formatting = server LLM + rule-based local, one `format` interface.
 - D8. Voice control = two phrases in v1 (streaming ASR + phrase matching);
       per-user trained KWS model as upgrade path.
 - D9. Wake phrase = "Breaker Breaker" (CB pairing; low false-positive risk).
-- D10. Permissions + power explicit: all permissions at startup (F11); high-power
-      mode verified (F12).
+- D10. Permissions + power explicit: every permission explained and asked for
+      at first start (F11); high-power mode verified (F12).
 - D11. **Sync = offline-first queue, idempotent push** — no data loss, even in
       local-only mode.
 - D12. **Training = server-side container** (phone records, server trains).
@@ -798,9 +884,9 @@ See `docs/04-build-order.md`. Summary:
       transcriptions only), tombstone-synced (F34).
 - D32. **Responsive web FE** — mobile-first breakpoints; landscape/portrait
       layouts; same tokens as the Android app (F35).
-- D33. **CB mic motif + LED bar state indicators** — CB mic glyph as
-      favicon/tile/hero (ComfyUI art); digital Cobra-style LED bar fills above
-      the floating mic while recording; green = sent, orange = server-fail →
+- D33. **CB mic motif + level meter state indicators** — CB mic glyph as
+      favicon/tile/hero (ComfyUI art); the level meter lights the floating
+      mic's grille while recording; green = sent, orange = server-fail →
       local fallback, red = complete failure (F36).
 - D21. **Configurable transcription service** — admin-configured endpoint
       (Docker/IP/external), server-side proxy, connectivity test (F26).
@@ -822,10 +908,11 @@ See `docs/04-build-order.md`. Summary:
 
 **Risks:**
 - R1. Overlay focus limits on newer Android (tile is tap-only by design).
-- R2. Sensor permission denied (fallback: always-visible tile).
+- R2. Shake sensor missing or stopped by the system (fallback: always-visible tile).
 - R3. On-device model accuracy vs speed (S25 Ultra 16 GB → small/medium fine).
 - R4. ZeroTier flakiness on mobile networks (probe TTL + auto-fallback).
-- R5. IME registration UX friction (onboarding screen).
+- R5. Accessibility-service permission UX friction, including the Android 13+
+      "restricted setting" step for sideloaded apps (onboarding screen).
 - R6. **Missing server endpoint** — server path blocked until `/v1/audio/transcriptions` [1].
 - R7. **Base code never built/run** — Phase 0 gate [1].
 - R8. ASR model upstream terms (outside Security Review audit) [1].
@@ -856,8 +943,10 @@ See `docs/04-build-order.md`. Summary:
       \<date\>" and "keys last changed on \<date\>" notices the app and web
       FE show instead, each when its date is new (ADR-006, ADR-018). No
       recovery-key option in v1 (F24).
-- R21. **Client-side crypto complexity (Android + web FE)** — shared spec +
-      test vectors in api-contracts; one crypto module reused by both.
+- R21. **Client-side crypto complexity (Android + web FE)** — one shared spec
+      (ADR-006, "Exact bytes") + test vectors; the vectors live in the crypto
+      module's tests today and move to a shared file in api-contracts when the
+      web FE's crypto is built (Phase 19).
 - R22. **Misconfigured transcription endpoint** — connectivity test + clear
       errors; queue fails jobs with a visible status (F26).
 - R23. **Agent token leakage** — scoped + revocable tokens, rate-limited (T19).

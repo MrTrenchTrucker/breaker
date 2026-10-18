@@ -35,16 +35,23 @@
 
 ## Step 4 — First-run onboarding
 1. **Register** (username + password) — one time.
-2. **Grant permissions** (F11): the app asks for mic, sensor, overlay/foreground
-   service, and notifications — approve all.
+2. **Grant permissions** (F11): after a short welcome, the app asks for the
+   microphone, display over other apps, notifications and the accessibility
+   service, one screen each — approve all.
 3. **Enable high-power mode** (F12): if Android power-saving is on, the app prompts
    you to switch to high-performance mode.
 4. **Train your phrases** (F16, optional but recommended): record the wake phrase
    ("Breaker Breaker") and end phrase ("And I'm Gone") 10–20 times each in your
    environment (car, home, etc.). The server trains your personal model; the phone
    downloads it.
-5. **Enable the IME** (one time): Settings → Keyboards → enable **Breaker IME**
-   (needed for text commit into any app).
+5. **Enable Breaker's accessibility service** (one time): Settings →
+   Accessibility → Installed apps → **Breaker** → turn it on. This is what
+   lets Breaker put your dictated text into whatever app you're typing in; it
+   never reads, stores, or sends anywhere any screen content beyond what one
+   insert needs in the moment (ADR-022). On Android 13+, a sideloaded app's
+   accessibility entry shows as a **restricted setting** at first: open
+   Settings → Apps → Breaker → the three-dot menu → **Allow restricted
+   settings**, then go back and turn the service on.
 
 > **Privacy:** your transcriptions are encrypted with a key derived from your
 > password — the server stores them as ciphertext, so a passive admin
@@ -60,7 +67,7 @@
 > the store per-user or for everyone.
 
 ## Step 5 — Go
-- Say **"Breaker Breaker"** (or shake) → dictate → **"And I'm Gone"** (or tap send).
+- Say **"Breaker Breaker"** (or shake to bring up the tile, then tap it) → dictate → **"And I'm Gone"** (or tap send).
 - Transcriptions appear in the focused field (or clipboard) AND in the app history.
 - Everything syncs to the server; view/search/copy from the web FE on any device.
 
@@ -82,7 +89,7 @@
   release is available you'll get a notification: **"Breaker X.Y.Z is available —
   update?"** → tap to download and install. Your data and settings are preserved.
 - **Admins:** the first account to register is admin by default and has a
-  **force-check** button (Settings → About → Check for updates) for immediate checks.
+  **force-check** button (Home menu → About → Check for updates) for immediate checks.
 - Updates are **signed APKs** verified against the published SHA-256 before
   install — if the signature or hash doesn't match, the update is refused.
 
@@ -92,5 +99,5 @@
 | "Connection not private" | Install the Breaker CA cert (Step 1) |
 | APK won't install | Enable "Install unknown apps" for your browser (Step 2) |
 | Wake phrase not responding | Train your phrases (Step 4.4); check mic permission |
-| Text not landing in apps | Enable the Breaker IME (Step 4.5) |
+| Text goes to the clipboard instead of the field | The accessibility service is off or restricted (Step 4.5), or the field is a password field (never filled, by design) |
 | Sync stuck | Confirm ZeroTier connectivity; sync retries automatically |

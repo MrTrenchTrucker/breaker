@@ -14,8 +14,8 @@
 │     └─ server down ──▶ stt-ondevice (sherpa-onnx) ──raw text──▶               │
 │                          format (rule-based) ──formatted text──▶ commit       │
 │                                                                               │
-│  commit ──IME active?──▶ InputMethodService commit ──▶ focused field          │
-│       └── no field ──▶ clipboard + toast                                      │
+│  commit ──accessibility insert──▶ focused field                               │
+│       └── no field / refused ──▶ clipboard                                    │
 │  history ◀── every transcription (text, source, timestamp)                    │
 │  sync ──queue──▶ push to server when reachable (even local-only mode)         │
 │  crypto ──keys+DEK (Argon2id+HKDF, AES-GCM) ──▶ encrypt before upload         │
@@ -26,7 +26,7 @@
                               │  ZeroTier VPN (TLS via self-hosted CA)
                               ▼
 ┌─── Local Server ───────────────────────────────────────────────────────────────────┐
-│  whisper-server ── /v1/audio/transcriptions + FIFO queue (GAP: to add)       │
+│  whisper-server ── /v1/audio/transcriptions + FIFO queue                     │
 │                   ──▶ forwards to admin-configured service (Docker/IP/ext)    │
 │  sync-api ── /v1/sync + /v1/auth (users, roles, agent tokens) + updates      │
 │  web-fe ── Debian container: website (client-side decrypt) + APK + cert +    │
@@ -42,7 +42,7 @@
 3. User dictates. "And I'm Gone" detected → stop + trim at phrase onset.
 4. Transport probes Local Server → audio → POST /v1/audio/transcriptions (enqueue) → poll GET /v1/jobs/{id} → raw text →
    formatter (existing LLM) → formatted text.
-5. CommitService: IME commit inline, else clipboard.
+5. CommitService: accessibility insert into the focused field, else clipboard.
 6. Transcription row written to history, and queued for sync.
 7. Sync queue pushes to `/v1/sync` → server stores under the user's namespace.
 

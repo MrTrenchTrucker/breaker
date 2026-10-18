@@ -99,12 +99,13 @@ class DictateUseCaseAdapterFailureTest {
         localFormatter = localFormatter,
     )
 
-    private fun assertFailedCleanly(result: DictationResult, expectedDetail: String) {
+    private fun assertFailedCleanly(result: DictationResult, thrownClass: String) {
         assertTrue("expected a failure, got $result", result is DictationResult.Failure)
         result as DictationResult.Failure
         assertEquals(SttError.OTHER, result.error)
-        assertEquals("the detail names the exception's class and nothing else", expectedDetail, result.detail)
+        assertEquals("the detail is the fixed sentence", "The speech could not be converted.", result.detail)
         assertFalse("the exception message leaked into the detail", result.detail!!.contains("SECRET"))
+        assertFalse("the exception class name leaked into the detail", result.detail.contains(thrownClass))
         assertEquals(DictationState.ERROR, result.session.state)
         assertEquals(SttError.OTHER, result.session.lastError)
         assertEquals("the caller can carry on from the error", DictationState.IDLE, result.session.cancel().state)

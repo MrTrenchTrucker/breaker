@@ -16,6 +16,7 @@ data class ModelEntry(
     val sizeMb: Int,
     val licence: String,
     val hosted: Boolean,
+    val archiveName: String = "",
 )
 
 object ModelRegistry {
@@ -27,6 +28,7 @@ object ModelRegistry {
         sizeMb = 349,
         licence = "Apache-2.0",
         hosted = false,
+        archiveName = "sherpa-onnx-streaming-zipformer-en-2023-06-21-mobile.tar.bz2",
     )
 
     val TINY: ModelEntry = ModelEntry(
@@ -37,6 +39,7 @@ object ModelRegistry {
         sizeMb = 122,
         licence = "Apache-2.0",
         hosted = false,
+        archiveName = "sherpa-onnx-streaming-zipformer-en-20M-2023-02-17.tar.bz2",
     )
 
     val BASE: ModelEntry = ModelEntry(
@@ -47,6 +50,7 @@ object ModelRegistry {
         sizeMb = 199,
         licence = "MIT",
         hosted = false,
+        archiveName = "sherpa-onnx-whisper-base.en.tar.bz2",
     )
 
     val MEDIUM: ModelEntry = ModelEntry(
@@ -57,6 +61,7 @@ object ModelRegistry {
         sizeMb = 1818,
         licence = "MIT",
         hosted = false,
+        archiveName = "sherpa-onnx-whisper-medium.en.tar.bz2",
     )
 
     val ALL: List<ModelEntry> = listOf(SMALL, TINY, BASE, MEDIUM)

@@ -23,6 +23,7 @@ nesting-doll model. Every level is documented the same complete way:
 | Decision records | `decisions/ADR-NNN-<slug>.md` | Why we chose what we chose. Index, template and how to propose one: `decisions/README.md`. |
 | Requirements / build order / security / UI | `docs/00`–`docs/07` | The numbered specs. |
 | Glossary | `docs/08-glossary.md` | Plain-language definitions of the terms these docs use. |
+| Style guide | `docs/09-style-guide.md` | Colours, lettering, logo and how each piece of the app is drawn; logo files in `docs/brand/`. |
 | Consistency checker | `tools/check_repo.py` | Fails if the tree drifts from the registry. Run it after any structural change. |
 | Repo gate | `tools/gate.py` | One command that runs every test tier (check_repo, contract, unit, Gradle build, JUnit counts, NUL check, orphan check) and fails loudly: `python3 tools/gate.py`. `--skip-gradle` is a local shortcut that never reads as a pass. |
 
@@ -36,7 +37,8 @@ Requirement in every module card).
 
 Setting up your own AI agents to contribute? Start with
 [`agent-skills/README.md`](agent-skills/README.md). It holds the skills this
-project's agents run, one pair per rank, and says which rank to give which agent.
+project's agents run, one pair per rank plus one shared plan-file skill, and
+says which rank to give which agent.
 
 ## Quick start
 

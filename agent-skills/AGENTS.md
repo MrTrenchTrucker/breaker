@@ -3,14 +3,17 @@
 ## Purpose
 
 The working rules and readback skills for AI agents that contribute to Breaker,
-one pair per rank (project leader, IT manager, worker), so any contributor can
-set up their agents to work the way the project is built (ADR-019).
+one pair per rank (project leader, IT manager, worker), plus the plan-file
+skill any rank uses when it starts sub-agents, so any contributor can set up
+their agents to work the way the project is built (ADR-019).
 
 **Build phase:** Not a build module: it ships instruction files. It is on main.
 
 ## Owns
 - The six rank skill files: one module SOP skill and one readback skill each for
   project leader, IT manager and worker.
+- The shared skill files in `shared/`, for any rank. Today there is one:
+  `subagent-plan-file`, the plan file an agent gives each sub-agent it starts.
 - Their pinned hashes (`SKILLS.sha256`).
 - The install guide (`README.md`).
 - Their license notice (`LICENSE`, MIT).
@@ -22,9 +25,11 @@ set up their agents to work the way the project is built (ADR-019).
 - Any code. Nothing here is compiled or imported.
 
 ## Public Interface
-- `agent-skills/<rank>/<skill-name>/SKILL.md`: the six skill files, where
+- `agent-skills/<rank>/<skill-name>/SKILL.md`: the six rank skill files, where
   `<rank>` is `project-leader`, `it-manager` or `worker`, and `<skill-name>` is
   the skill's own front-matter `name`.
+- `agent-skills/shared/<skill-name>/SKILL.md`: the shared skill files, today
+  `shared/subagent-plan-file/SKILL.md`.
 - `agent-skills/README.md`: which rank to give which agent, and how to install
   the skills.
 
@@ -35,8 +40,11 @@ set up their agents to work the way the project is built (ADR-019).
 - Every `SKILL.md` matches its hash in `SKILLS.sha256` exactly. The skills are
   copied unchanged from their source, never edited here.
 - Every skill sits in a folder named after its front-matter `name`.
+- The module holds exactly four skill folders: the three ranks and `shared`.
 - Each rank folder holds exactly one `module-sop-*` skill and one
   `parrot-protocol-*` skill, and no other skills.
+- The `shared` folder never holds a `module-sop-*` or `parrot-protocol-*`
+  skill; those belong to a rank.
 - Nothing here names a private person, host, service or credential. The files
   are scanned for that before every change.
 
@@ -82,3 +90,6 @@ agents, not required: an outside contributor may write the code themselves
   README says so.
 - Never fix a skill in place: the hash test fails. Replace the file from its
   source and update `SKILLS.sha256` in the same pull request.
+- `subagent-plan-file` goes into the agent that starts sub-agents, whatever its
+  rank. The sub-agents themselves don't load it: their plan file and the five
+  instruction lines the skill gives them carry what they need.

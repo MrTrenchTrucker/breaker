@@ -153,6 +153,26 @@ class TokensCssParityTest {
     }
 
     @Test
+    fun theSpacingScaleMatches() {
+        val root = sheet().root
+        val m = TruckingTokens.metrics
+        assertEquals("${m.spaceXsDp}px", root["space-xs"])
+        assertEquals("${m.spaceSDp}px", root["space-s"])
+        assertEquals("${m.spaceMDp}px", root["space-m"])
+        assertEquals("${m.spaceLDp}px", root["space-l"])
+        assertEquals("${m.spaceXlDp}px", root["space-xl"])
+    }
+
+    @Test
+    fun theSpacingCheckCanSayNoOnTheRealText() {
+        // One edit each to the real file: a changed value and a renamed step. A failed edit
+        // leaves the old value in place, so the assert then fails rather than passes.
+        val real = TokensCssParityTest::class.java.getResourceAsStream("/tokens.css")!!.bufferedReader(Charsets.UTF_8).use { it.readText() }
+        assertEquals("9px", parse(real.replaceFirst("--space-s: 8px;", "--space-s: 9px;")).root["space-s"])
+        assertTrue(parse(real.replaceFirst("--space-xl: 32px;", "--space-xx: 32px;")).root.keys != parse(real).root.keys)
+    }
+
+    @Test
     fun ledSegmentRangeMatches() {
         val root = sheet().root
         assertEquals(TruckingTokens.ledBar.minSegments.toString(), root["led-segments-min"])
@@ -174,6 +194,7 @@ class TokensCssParityTest {
             setOf(
                 "font-display", "font-body", "font-mono", "radius", "touch-target-min",
                 "breakpoint-mobile", "breakpoint-tablet", "led-segments-min", "led-segments-max",
+                "space-xs", "space-s", "space-m", "space-l", "space-xl",
             )
         assertEquals(expected, sheet().root.keys)
     }

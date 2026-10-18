@@ -1,6 +1,6 @@
 # ADR-005: Text commit = IME-first with clipboard fallback
 
-**Status:** accepted
+**Status:** superseded by ADR-022
 **Date:** 2026-09-29
 
 ## Context

@@ -103,5 +103,8 @@ class SettingsScreenEditTest {
     fun `the theme intents belong to the theme controller, not to this screen`() {
         assertNull(screen.editFor(ScreenIntent.ToggleTheme))
         assertNull(screen.editFor(ScreenIntent.UseSystemTheme))
+        for (mode in listOf("SYSTEM", "LIGHT", "DARK")) {
+            assertNull("theme mode $mode", screen.editFor(ScreenIntent.SetThemeMode(mode)))
+        }
     }
 }

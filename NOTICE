@@ -7,14 +7,18 @@ provided in accordance with the Apache License, Version 2.0, Section 4.
 Vendored code and dependencies:
 
 1. sherpa-onnx
-   - Vendored from XIAOMI CORPORATION (upstream: k2-fsa/sherpa-onnx),
-     Apache License 2.0.
-   - This distribution includes modified files from the original sherpa-onnx
-     sources. Modifications are limited to integration with Breaker.
+   - Upstream: k2-fsa/sherpa-onnx, Copyright XIAOMI Corporation, Apache
+     License 2.0. No sherpa-onnx source files are copied into this repository
+     or modified; the app uses a prebuilt package (see the last bullet).
    - Security note: the pinned sherpa-onnx tree carries an open upstream
      decoder bug (GitHub issue #3983, transducer greedy-search OOB write).
      Breaker mitigates per the Security Review audit: models are pinned to immutable release-asset ids and verified against upstream checksum.txt, and sherpa-onnx
      is kept off the server's network-exposed path [2].
+   - The phone app's on-device speech engine is Breaker's own ASR-only build of
+     this sherpa-onnx AAR (text-to-speech and speaker diarization compiled out),
+     together with the other components it bundles (onnxruntime and several
+     smaller Apache-2.0/MIT/BSD libraries). The build recipe and every bundled
+     component's licence text are in `tools/sherpa-asr/` (see its NOTICE.md).
 
 2. OpenWhispr Android fork (base application)
    - Derived from the OpenWhispr Android project (com.edib.openwhispr),
@@ -27,8 +31,18 @@ Vendored code and dependencies:
      license records [1][2].
 
 4. Agent skills (agent-skills/)
-   - The six SKILL.md files under agent-skills/ are copied unchanged from the
-     project owner's module SOP and Parrot Protocol skill sets and remain
-     under the MIT License. See agent-skills/LICENSE.
+   - The seven SKILL.md files under agent-skills/ are copied unchanged from
+     the project owner's Module SOP (its module SOP, Parrot Protocol and
+     shared plan-file skills) and remain under the MIT License. See
+     agent-skills/LICENSE.
+
+5. Oswald typeface (letter outlines only)
+   - The word BREAKER and the tagline in the logo and icon files under
+     docs/brand/, and any drawing of the word made from the same outlines
+     elsewhere in this repository, are outlines taken from the Oswald
+     typeface, Copyright 2016 The Oswald Project Authors
+     (https://github.com/googlefonts/OswaldFont), licensed under the SIL Open
+     Font License, Version 1.1. The licence text is in docs/brand/OFL.txt.
+     No font file is included in this repository.
 
 This product is distributed under the Apache License, Version 2.0. See LICENSE.

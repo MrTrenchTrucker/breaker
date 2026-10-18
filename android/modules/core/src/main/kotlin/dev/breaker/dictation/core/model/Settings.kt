@@ -41,10 +41,14 @@ data class TilePosition(val x: Float, val y: Float) {
  * does not decide where formatting runs: an on-device dictation is never
  * formatted by a cloud service, whatever this says.
  *
+ * [microphoneAsked] records whether the system microphone prompt was shown
+ * once. It is bookkeeping for the set-up walk-through, not a user setting: the
+ * Settings screen never shows it, and no Settings control changes it.
+ *
  * Defaults match the documented behaviour: server-primary routing, the small
  * on-device model, the model preloaded so a wake phrase can start a dictation
  * within a second, formatting on, the theme following the phone
- * ([ThemeMode.SYSTEM]), and the tile centred.
+ * ([ThemeMode.SYSTEM]), the tile centred, and the microphone prompt not yet shown.
  */
 data class AppSettings(
     val mode: SttMode = SttMode.AUTO,
@@ -57,6 +61,7 @@ data class AppSettings(
     val preloadModel: Boolean = true,
     val formattingEnabled: Boolean = true,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val microphoneAsked: Boolean = false,
 ) {
     init {
         require(modelSize.isNotBlank()) { "modelSize cannot be blank" }

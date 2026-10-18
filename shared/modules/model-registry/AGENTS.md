@@ -36,9 +36,12 @@ model cards), `license_name` and `license_link` (required when the license has n
 SPDX id, such as a custom or non-commercial model license), `upstream_commit` (the
 upstream source revision the model file was built or converted from, recorded
 separately from `url`), `tamper_verified` (true only after the tamper test has been
-run against this entry and watched refusing a corrupted copy), hosted, notes.
+run against this entry and watched refusing a corrupted copy), archive_name
+(the upstream file name the entry's sha256 is checked against - a plain file
+name, its (archive_name, sha256) pair a line of the committed fixture),
+hosted, notes.
 Required in every entry:
-id, family, params, size_mb, url, sha256, upstream_commit, tamper_verified, hosted,
+id, family, params, size_mb, url, sha256, upstream_commit, tamper_verified, hosted, archive_name,
 and either `license` or both `license_name` and `license_link`; only `notes` is
 optional. The generated `licence` constant (ADR-016) carries the SPDX id, or
 `license_name` when there is none. `models.yaml` is the hand-edited source of
@@ -61,7 +64,10 @@ the license check result (R26).
   upstream line are recorded in `fixtures/upstream-checksum-excerpt.txt`;
   each entry's own `notes` field carries the rest of its provenance.
 - The generator checks every entry before it writes anything, and fails on a
-  missing required field, an unknown field, a sha256 that is not 64 hex
+  missing required field (archive_name is among them), an unknown field, an
+  archive_name that is not a plain file name or whose (archive_name, sha256)
+  pair is not a line of the committed upstream-checksum fixture, a sha256
+  that is not 64 hex
   characters, a url that is neither a release-asset id URL
   (`.../releases/assets/<numeric id>`) nor a URL naming a full 40-character commit,
   or a license with neither an SPDX id nor a `license_name` and `license_link`.

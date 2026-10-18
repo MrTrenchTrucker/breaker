@@ -12,8 +12,8 @@ phase number. Agents build from `AGENTS.md` files in each module.
 | 3 | **stt-ondevice** — sherpa-onnx local mode, model download **pinned to immutable release-asset ids + verified against upstream checksum.txt** [2], transcribe; clear error when no model (fix #1) | Coding | Offline dictation E2E on device (F3, N1, N3, N8); tamper test (T21) |
 | 4 | **whisper-server (async queue) + VPN wiring** — build Breaker's own `whisper-server` container: `POST /v1/audio/transcriptions` (enqueue) + `GET /v1/jobs/{job_id}` (poll), single FIFO worker forwarding audio to the admin-configured transcription service (default target: the existing Whisper X container, unmodified); TLS + API key; ZT bind check. **Absorbs former Phase 18** (see that row). | Coding + Bug Hunt | `curl` enqueue + poll works from phone over ZT; two concurrent jobs serialize FIFO; restart resumes the queue; port scan shows ZT-only bind |
 | 5 | **stt-server + transport** — OpenAI-compatible client; **server-primary** probe + fallback | Coding | Server-primary: server when reachable, local when not (F1, F2, F3) |
-| 6 | **overlay + gesture** — floating tile (WindowManager), shake-to-wake (accelerometer) | Coding | Shake → tile → tap → dictation UI (F4, F5) |
-| 7 | **commit** — CommitService: IME commit + clipboard fallback + toast | Coding | Send → text in focused field; no field → clipboard (F5, F6) |
+| 6 | **overlay + gesture** — floating tile (WindowManager), shake-to-wake (accelerometer) | Coding | Shake → tile → tap → dictation on the tile (no screen opens) (F4, F5) |
+| 7 | **commit** — CommitService: accessibility insert + clipboard fallback (+ toast on Android 12 and below) | Coding | Send → text in focused field; no field → clipboard (F5, F6) |
 | 8 | **format** — server LLM formatter (via existing chat completions) + rule-based local formatter; non-destructive tests | Coding | Numbered-list example formats correctly (F8, N9); offline formatting works |
 | 9 | **E2E + bench + security review** — full flow test, on-device model bench, threat-model checklist | Bug Hunt | All F/N requirements in scope for Phases 0–8 met; docs/03 checklist items tagged for that scope signed off (items tagged with a later phase sign off at their own phase — see docs/03 phase tags) |
 | 10 | **phrases** — streaming ASR + phrase matching: "Breaker Breaker" wake + auto-record; "And I'm Gone" send + audio trim | Coding | Wake phrase starts recording; send phrase sends; phrase excluded from text (F4, F5, F9, N10) |
@@ -27,7 +27,7 @@ phase number. Agents build from `AGENTS.md` files in each module.
 | 18 | **(absorbed into Phase 4 — see that row.)** Kept as a numbered slot so Phase 19-22 references elsewhere don't shift; no separate deliverable here. | — | — |
 | 19 | **Encryption by default, part 2** — per-user DEK generation/wrap/unwrap (AES-256-GCM) + the ADR-018 X25519 box keypair and sealed-box unseal, client crypto (Android + web FE); the `key_version` field and `POST /v1/sync`'s atomic-replace path it drives (ADR-006). Any account still keyless (registered in Phases 11–18, or just reset) gets its DEK + keypair generated and uploaded at its next login (ADR-006 first-login bootstrap). **`change-password` ships here too, and re-keys on every call** — new DEK, new box keypair, new `key_version`, re-encrypt-and-replace of every record still below it (ADR-006) — there is no separate, lighter re-wrap path and no special case for a password change that happens to follow a reset | Coding + Bug Hunt | Ciphertext at rest; server can't decrypt without the password; re-login unwraps; keyless accounts bootstrap on next login; a password change always replaces the DEK and box keypair and advances `key_version`, re-encrypting the account's own records (F24, T17) |
 | 20 | **Admin config** — transcription service endpoint + connectivity test (web FE + sync-api) + agent tokens + the owner's sealed copy of agent-token results (ADR-018: `whisper-server` seals, `sync-api` stores it and serves `GET /v1/sync/pending-sealed`, Android `sync` and the web FE convert it at login) + admin account reset (F31, ADR-018: `POST /v1/admin/reset-account`, `POST /v1/auth/complete-reset`) | Coding + Bug Hunt | Admin configures service; test reports reachable; agent token transcribes via queue; the owner's next login turns a sealed result into an ordinary transcription; a reset account logs in with its one-time code and gets fresh keys at that login, same as any keyless account (F26, F27, F31) |
-| 21 | **Data lifecycle** — retention TTL (3 months), audio delete-on-success, 3× retry @10 s, store clear (per-user/all), log policy | Coding + Bug Hunt | Old transcriptions purge; audio never persists; retries succeed; logs have no plaintext (F28, F29, F32) |
+| 21 | **Data lifecycle** — retention TTL (3 months), store clear (per-user/all), log policy; audio erased when a job finishes and the 3× retry @10 s are built with whisper-server's queue (Phase 4) and checked here | Coding + Bug Hunt | Old transcriptions purge; audio never outlives its job; retries succeed; logs have no plaintext (F28, F29, F32) |
 | 22 | **UI/UX** — Trucking theme (white/black/green, light/dark), responsive FE (landscape/portrait), CB mic motif + LED bar state colors, account management + user transcription delete screens | Coding | FE + app share tokens; light/dark toggle; mobile layout on phones; state colors green/orange/red; delete-account rules hold (F25, F33–F36) |
 
 ## Gates and releases
@@ -94,8 +94,11 @@ ever meets development data.
   the admin panel (12) — build after 20.
 - Phase 22 (UI/UX) consumes `shared/ui-tokens` — build the tokens first, then
   apply to the FE (12) and the Android app shell (1).
-- Phase 7 (IME) has the most platform risk — start a spike in Phase 5 to validate
-  `InputMethodService` on the S25 Ultra.
+- Phase 7 (accessibility insert) has the most platform risk — start a spike in
+  Phase 5 to validate two things on the S25 Ultra: `AccessibilityService`
+  text insert into the focused field, and a running microphone foreground
+  service (started while Breaker is switched on, ADR-022) recording on a tile
+  tap while another app is in front.
 
 ## Definition of Done (repo-wide)
 - Every module has an `AGENTS.md` that matches reality.

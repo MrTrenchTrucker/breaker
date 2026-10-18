@@ -55,7 +55,22 @@ KDF version as the Android app, and this page refuses to derive against
 weaker parameters if the server ever hands them back) and HKDF-splits it
 into a KEK and an auth verifier; it sends only the verifier to log in,
 unwraps the DEK locally with the KEK, and decrypts with AES-256-GCM **in the
-browser**. The registration form enforces a 12-character minimum password and
+browser**. The browser does exactly what Android does. It normalises the
+password to Unicode NFC with `String.prototype.normalize('NFC')` and encodes it
+as UTF-8, with no case folding, no trimming and nothing else, so a password
+typed composed or decomposed still logs in. Before it derives anything it
+checks the parameters: memory 64 to 256 MiB, iterations 3 to 10, parallelism 1
+to 4, output length exactly 32 bytes, whatever `kdf_version` is claimed (login
+hands the stored values back, and a buggy or hostile one must not make the page
+try to allocate it); a `kdf_version` other than 1 is refused after those
+checks; the output length is fixed at 32 bytes by kdf_version 1 and is not sent.
+The HKDF step is HKDF-SHA256 Extract with an empty salt (RFC 5869
+treats it as 32 zero bytes) over the 32-byte Argon2id output, then Expand with
+`info` set to the ASCII bytes of the label (`breaker-kek-v1` or
+`breaker-auth-verifier-v1`) and length 32. The KEK and the auth verifier are
+each exactly 32 bytes, the page sends exactly 32 verifier bytes, and how they
+are written on the wire (base64 or hex) is decided in api-contracts. The
+registration form enforces a 12-character minimum password and
 warns further on common/weak ones (ADR-006) — libsodium.js runs the
 sealed-box unseal (ADR-018) the same way. The server never receives the
 password or the KEK over the wire — but see the honest limit below, which is

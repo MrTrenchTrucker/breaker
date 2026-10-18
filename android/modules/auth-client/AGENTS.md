@@ -14,8 +14,8 @@ Login/register, token storage (Android Keystore), roles/scopes.
 
 **Flow (ADR-006):**
 - **Register** (`POST /v1/auth/register`): sends `{username, salt, kdf_params,
-  kdf_version, auth_verifier}` — key derivation (Argon2id + HKDF) happens in
-  `core.CryptoService`, never here; this module never sees the password
+  kdf_version, auth_verifier}` — key derivation (Argon2id + HKDF) runs behind
+  `core.KeyDerivation`, never here; this module never sees the password
   itself, only what crypto hands it to upload. First account ever = **admin**
   (F22).
 - **Salt lookup** (`POST /v1/auth/salt`): asks for `{salt, kdf_params,
@@ -133,8 +133,8 @@ agents, not required: an outside contributor may write the code themselves
 
 ## Known Gotchas
 - Tokens in the Android Keystore, never plaintext; roles server-enforced.
-- Anything it needs from crypto reaches it as `core.CryptoService`, wired by `android/app` (ADR-001); it never imports `crypto`.
-- `core.CryptoService` gains the derivation calls this module needs
-  (`deriveKeys`, etc.) when Phase 11 builds them, and the DEK/box-keypair
-  calls when Phase 19 builds them (ADR-006, ADR-018) — this card describes
-  the module's target flow, not a port that exists yet.
+- Key derivation reaches it as `core.KeyDerivation` (`deriveKeys`), wired by `android/app` (ADR-001); it never imports `crypto`.
+- `core.KeyDerivation` (`deriveKeys`, implemented by the crypto module) comes
+  when Phase 11 builds it; the DEK/box-keypair calls stay on
+  `core.CryptoService` and come when Phase 19 builds them (ADR-006, ADR-018) —
+  this card describes the module's target flow, not a port that exists yet.

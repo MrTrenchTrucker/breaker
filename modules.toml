@@ -14,16 +14,16 @@ card = "android/AGENTS.md"
 path = "android/app"
 owns = "Android entry point, dependency injection wiring, Gradle build."
 does_not_own = "Screen implementations (ui); domain logic (core)."
-depends_on = ["android", "android_core", "android_ui"]
+depends_on = ["android", "android_core", "android_ui", "android_settings", "android_history", "android_audio", "android_format", "android_transport", "android_overlay", "android_stt_ondevice", "shared_ui_tokens", "shared_model_registry", "android_commit", "android_commit_accessibility", "android_gesture"]
 public = "App entry, DI container"
 card = "android/app/AGENTS.md"
 
 [module.android_ui]
 path = "android/ui"
-owns = "Screens: dictation, history, settings, auth, training. Consumes ui-tokens."
+owns = "Screens: history, settings, auth, training, and the first-run flow for the permissions (accessibility service, overlay). Consumes ui-tokens."
 does_not_own = "Business logic (core); platform adapters (modules/*)."
 depends_on = ["android", "android_core", "shared_ui_tokens"]
-public = "createSettingsView"
+public = "createSettingsView, createFirstRunView, createHistoryView, BreakerSwitch, createHomeView, HomeControl, createHowItWorksView, createAboutView, DownloadControl, ModelStepControl"
 card = "android/ui/AGENTS.md"
 
 [module.android_core]
@@ -31,7 +31,7 @@ path = "android/modules/core"
 owns = "Domain models, ports, use cases. No Android imports."
 does_not_own = "Android platform code; adapters."
 depends_on = ["android"]
-public = "Domain models, ports, use cases"
+public = "Domain models (including HeardWord, WordUpdate), ports (including KeyDerivation, WordStream), use cases"
 card = "android/modules/core/AGENTS.md"
 
 [module.android_audio]
@@ -39,7 +39,7 @@ path = "android/modules/audio"
 owns = "Mic capture, VAD, noise suppression, WAV encode (16 kHz mono PCM)."
 does_not_own = "Transcription (stt-*); phrase matching (phrases)."
 depends_on = ["android", "android_core"]
-public = "MicCapture, Pcm16WavEncoder, MicSource, MicSourceException, NoiseSuppressor, PassThroughNoiseSuppressor, AdaptiveGateSuppressor, RecordingIndicator"
+public = "MicCapture, Pcm16WavEncoder, MicSource, MicSourceException, NoiseSuppressor, PassThroughNoiseSuppressor, AdaptiveGateSuppressor, RecordingIndicator, AndroidMicSource"
 card = "android/modules/audio/AGENTS.md"
 
 [module.android_stt_ondevice]
@@ -47,7 +47,7 @@ path = "android/modules/stt-ondevice"
 owns = "sherpa-onnx local transcription (fallback engine), model lifecycle, checksum verify."
 does_not_own = "Server transcription (stt-server); model catalog (shared/model-registry)."
 depends_on = ["android", "android_core", "shared_model_registry"]
-public = "SttEngine (local path)"
+public = "SttEngine (local path), SherpaOnnxWordStreamFactory (word stream), FedWordStream (fed word stream)"
 card = "android/modules/stt-ondevice/AGENTS.md"
 
 [module.android_stt_server]
@@ -87,24 +87,41 @@ path = "android/modules/gesture"
 owns = "Shake-to-wake (accelerometer)."
 does_not_own = "Voice wake (phrases); tile (overlay)."
 depends_on = ["android", "android_core"]
-public = "ShakeDetector"
+public = "ShakeHandle, ShakePort, SensorManagerShakeSource"
 card = "android/modules/gesture/AGENTS.md"
 
 [module.android_overlay]
 path = "android/modules/overlay"
 owns = "Floating tile = CB mic glyph + LED bar meter (WindowManager overlay, F36)."
-does_not_own = "Dictation UI (ui); gesture/voice triggers."
+does_not_own = "Dictation itself: recording and putting the text into the target field (app, commit; ADR-022); gesture/voice triggers."
 depends_on = ["android", "android_core", "shared_ui_tokens"]
-public = "FloatingTile"
+public = "FloatingTile (via create), FloatingTile.setImeProbe, ShowResult, TileState"
 card = "android/modules/overlay/AGENTS.md"
 
 [module.android_commit]
 path = "android/modules/commit"
-owns = "CommitService: IME text commit + clipboard fallback + toast."
-does_not_own = "Formatting (format); history storage (history)."
+owns = "CommitService: mechanism-neutral text commit (focused field gets the text, otherwise the clipboard) + toast."
+does_not_own = "Formatting (format); history storage (history); the text-insert mechanism itself (commit/accessibility, commit/ime)."
 depends_on = ["android", "android_core"]
-public = "CommitService"
+public = "CommitService, CommitServices, FocusedField, FieldCommit, FocusedFieldHolder.publish, KeyboardProbeReadings (setEnabled/isEnabled/publish/current/recent), ProbeReading"
 card = "android/modules/commit/AGENTS.md"
+
+[module.android_commit_ime]
+path = "android/modules/commit/ime"
+owns = "Dead code: a keyboard (IME) adapter that published the focused field for the commit service, written for ADR-005. Superseded by ADR-022; kept out of the build on purpose. See DEAD_CODE.md."
+does_not_own = "The live text-insert mechanism (commit/accessibility); the mechanism-neutral commit logic (commit)."
+depends_on = ["android_commit"]
+public = ""
+card = "android/modules/commit/ime/AGENTS.md"
+status = "dead"
+
+[module.android_commit_accessibility]
+path = "android/modules/commit/accessibility"
+owns = "The accessibility text-insert mechanism (ADR-022): finds the focused editable field, inserts text (ACTION_SET_TEXT merging at the cursor; ACTION_PASTE is not built yet), refuses password fields, publishes the focused field into the parent's holder."
+does_not_own = "The mechanism-neutral commit logic (commit); the dead keyboard adapter (commit/ime); the first-run flow for the permission (ui)."
+depends_on = ["android_commit"]
+public = "BreakerAccessibilityService"
+card = "android/modules/commit/accessibility/AGENTS.md"
 
 [module.android_history]
 path = "android/modules/history"
@@ -231,7 +248,7 @@ path = "shared/modules/model-registry"
 owns = "Model sizes, immutable release-asset URLs, upstream checksum.txt, licenses, hosted flag."
 does_not_own = "Download/verify logic (android/stt-ondevice)."
 depends_on = ["shared"]
-public = "ModelRegistry, ModelEntry, ModelFamily (generated, ADR-016)"
+public = "ModelRegistry, ModelEntry (archiveName), ModelFamily (generated, ADR-016)"
 card = "shared/modules/model-registry/AGENTS.md"
 
 [module.shared_format_prompts]
@@ -252,8 +269,8 @@ card = "shared/modules/ui-tokens/AGENTS.md"
 
 [module.agent_skills]
 path = "agent-skills"
-owns = "Working rules and readback skills for AI agents, one pair per rank (project leader, IT manager, worker); their pinned hashes and install guide."
+owns = "Working rules and readback skills for AI agents, one pair per rank (project leader, IT manager, worker), and the plan-file skill any rank uses with sub-agents; their pinned hashes and install guide."
 does_not_own = "The project's own rules (ARCHITECTURE.md, module cards, ADRs); the contributing guide; any code."
 depends_on = []
-public = "Six SKILL.md files, agent-skills/README.md"
+public = "Seven SKILL.md files (six rank skills, one shared), agent-skills/README.md"
 card = "agent-skills/AGENTS.md"

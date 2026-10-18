@@ -55,7 +55,7 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-002](ADR-002-server-primary-fallback.md) | Server-primary transcription with automatic local fallback | accepted, amended 2026-09-30 |
 | [ADR-003](ADR-003-sherpa-onnx.md) | On-device engine = sherpa-onnx (pinned + verified) | accepted |
 | [ADR-004](ADR-004-two-phrases.md) | Voice control = two phrases ("Breaker Breaker" / "And I'm Gone") | accepted |
-| [ADR-005](ADR-005-ime-commit.md) | Text commit = IME-first with clipboard fallback | accepted |
+| [ADR-005](ADR-005-ime-commit.md) | Text commit = IME-first with clipboard fallback | superseded by ADR-022 |
 | [ADR-006](ADR-006-encryption.md) | Encryption by default — per-user DEK, password-wrapped | accepted, amended 2026-09-30 and 2026-10-01 |
 | [ADR-007](ADR-007-fifo-queue.md) | FIFO transcription queue | accepted |
 | [ADR-008](ADR-008-configurable-service.md) | Admin-configurable transcription service | accepted |
@@ -71,5 +71,10 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-018](ADR-018-owner-sealed-box.md) | Owner sealed box for agent-token job results; account reset | accepted |
 | [ADR-019](ADR-019-agent-skills-module.md) | Agent skills ship in the repo as their own module | accepted |
 | [ADR-020](ADR-020-ci-concurrency-and-caching.md) | CI runs are deduplicated per commit and cache Gradle dependencies | accepted |
+| [ADR-021](ADR-021-module-build-method.md) | The maintainers' team builds each module through sub-agents that write the code | accepted, amended 2026-10-07 and 2026-10-08 |
+| [ADR-022](ADR-022-accessibility-text-insert.md) | Text goes into the app through an accessibility service (supersedes ADR-005) | accepted |
+| [ADR-023](ADR-023-transcript-case-at-the-source.md) | A speech engine that prints capitals is fixed in the speech module, not in the formatter | accepted |
+| [ADR-024](ADR-024-tile-feedback-and-visibility.md) | The tile shows busy and loudness, and hides itself when no keyboard is in use | accepted, amended 2026-10-12, 2026-10-14, 2026-10-15, 2026-10-17 |
+| [ADR-025](ADR-025-say-where-the-speech-model-comes-from.md) | The app tells the user where the speech model is downloaded from | accepted |
 
-Next free number: **ADR-021**.
+Next free number: **ADR-026**.
