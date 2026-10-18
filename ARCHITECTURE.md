@@ -202,6 +202,18 @@ admins.
       holds only settings, including the speech model download; the first-run
       walk-through is not repeated inside it, and History is reached from the
       menu, not from Settings.
+- F45. **Home mic works like the tile:** the mic on Home is the floating tile's
+      mic, drawn and driven by the same code, sized so the whole Home screen
+      fits without scrolling, and shown as a button. One tap records; while it
+      records the grille follows the voice level and an X (left) and a check
+      (right) sit beside it, as on the tile. The check, or a second tap on the
+      mic, ends the recording; the text is saved to history and copied to the
+      clipboard. The X cancels, saves nothing and releases the microphone
+      (ADR-026).
+- F46. **Full-screen pages:** every app screen fills the whole screen in its own
+      background colour, in light and dark mode, with no strip of another colour
+      at the edges, and its content stays clear of the status bar and the
+      navigation bar.
 
 **Non-functional**
 - N1. Dictation starts < 1 s after wake phrase (models preloaded where possible).
@@ -422,11 +434,11 @@ ends it.
   accessibility service has no system dialog to request; its screen leads the
   user to its Settings toggle instead (ADR-022). **High-power mode (F12):**
   verify power-saving off.
-- **Screens (F44):** Home (on/off card, big mic, last transcript), plus Settings,
+- **Screens (F44):** Home (on/off card, the tile's mic (F45), last transcript), plus Settings,
   History, How it works and About, each its own screen opened from the Home
   menu; Back from any of them returns to Home.
 
-**Overlay (floating tile):** `WindowManager` + `TYPE_APPLICATION_OVERLAY` with `FLAG_NOT_FOCUSABLE` (Android 11+). Tile has no long press: a tap starts dictation, a drag moves the tile or hides it (F38); tapping it starts dictation in place, on the tile — no Activity opens, so the app the user is typing in keeps focus and the user's own keyboard stays up (ADR-022). The tile IS the **CB mic glyph** — tap to talk. While recording, a **level meter** lights the mic's grille slots from left to right, and an X (cancel) and a check (send) sit either side of the mic, each 90% of the mic's size and about 8 dp from it; the check (or the send phrase) sends (F36). A notice on the tile (a sentence from the app, such as a missing speech model) widens it for a moment: it collapses back to the small tile on its own after 4 seconds, and a tap anywhere on it collapses it at once; the timer is the app's, the tile has no clock. Dragging the small tile shows the close target (F38). After the check tap the tile shows a busy cue until the outcome (F39), the level meter follows the voice level (F40), and the tile may hide while no text input is in use (F41, ADR-024). Permission set: `SYSTEM_ALERT_WINDOW` (tile), mic, internet, foreground service, notifications (F11), plus the accessibility service — a Settings toggle onboarding leads the user to, not a runtime prompt (ADR-022) [1].
+**Overlay (floating tile):** `WindowManager` + `TYPE_APPLICATION_OVERLAY` with `FLAG_NOT_FOCUSABLE` (Android 11+). Tile has no long press: a tap starts dictation, a drag moves the tile or hides it (F38); tapping it starts dictation in place, on the tile — no Activity opens, so the app the user is typing in keeps focus and the user's own keyboard stays up (ADR-022). The tile IS the **CB mic glyph** — tap to talk. While recording, a **level meter** lights the mic's grille slots from left to right, and an X (cancel) and a check (send) sit either side of the mic, each 90% of the mic's size and about 8 dp from it; the check (or the send phrase) sends (F36). A notice on the tile (a sentence from the app, such as a missing speech model) widens it for a moment: it collapses back to the small tile on its own after 4 seconds, and a tap anywhere on it collapses it at once; the timer is the app's, the tile has no clock. Dragging the small tile shows the close target (F38). After the check tap the tile shows a busy cue until the outcome (F39), the level meter follows the voice level (F40), and the tile may hide while no text input is in use (F41, ADR-024). The overlay module also provides the same mic for an app screen, with no window, no drag and no notice strip; the app places it on Home (F45, ADR-026). Permission set: `SYSTEM_ALERT_WINDOW` (tile), mic, internet, foreground service, notifications (F11), plus the accessibility service — a Settings toggle onboarding leads the user to, not a runtime prompt (ADR-022) [1].
 
 ## 9. Formatting
 
