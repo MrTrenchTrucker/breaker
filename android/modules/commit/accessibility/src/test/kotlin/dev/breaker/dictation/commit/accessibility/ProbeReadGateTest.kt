@@ -7,17 +7,25 @@ import org.junit.Test
 
 /**
  * The service as the adapter checks read it. The debug probe path adds one window-list read, one
- * publish into the probe holder, one guard, two imports and the recycling of the windows; each is
- * removed here, and only here, so the older checks keep reading everything else in the service.
+ * publish into the probe holder, one guard, one package decision, two imports and the recycling of
+ * the windows; each is removed here, and only here, so the older checks keep reading everything
+ * else in the service.
  */
 internal object ProbeView {
     const val HANDLER: String = "onAccessibilityEvent"
     const val FIELD_FUNCTION: String = "findFieldFocus"
     const val WINDOW_FUNCTION: String = "hasInputMethodWindow"
+    const val PACKAGE_DECISION: String = "shouldProcessEvent"
+
+    /** The event reads the probe path may make: the event's type and its package, and nothing else. */
+    val allowedEventReads: Regex = Regex("""\bevent\s*\.\s*(eventType|packageName)\b""")
 
     /** The probe guard as the first statement of the handler, at the start of the handler text. */
     val guardStart: Regex = Regex("""^\s*if\s*\(\s*event\s*==\s*null\s*\|\|\s*!\s*KeyboardProbeReadings\s*\.\s*isEnabled\s*\(\s*\)\s*\)\s*return\b""")
     private val guard: Regex = Regex("""if\s*\(\s*event\s*==\s*null\s*\|\|\s*!\s*KeyboardProbeReadings\s*\.\s*isEnabled\s*\(\s*\)\s*\)\s*return""")
+    private val decisionGuard: Regex = Regex(
+        """if\s*\(\s*!\s*KeyboardProbeReadings\s*\.\s*shouldProcessEvent\s*\([^()]*(?:\([^()]*\)[^()]*)*\)\s*\)\s*return""",
+    )
     val probePublish: Regex = Regex("""KeyboardProbeReadings\s*\.\s*publish\s*\(""")
     private val probeImport: Regex = Regex("""(?m)^\s*import\s+(android\.view\.accessibility\.AccessibilityWindowInfo|dev\.breaker\.dictation\.commit\.KeyboardProbeReadings)\s*$""")
     private val windowRead: Regex = Regex("""\bgetWindows\s*\(\s*\)|\bwindows\b|\brecycle\s*\(\s*\)""")
@@ -67,9 +75,10 @@ internal object ProbeView {
         return handler.substring(found.range.first, closeAfter(handler, found.range.last))
     }
 
-    /** The service for the adapter checks: the probe guard, the probe publish, the probe imports and the window-list reads removed. */
+    /** The service for the adapter checks: the probe guard, the package decision, the probe publish, the probe imports and the window-list reads removed. */
     fun adapter(code: String): String {
-        val plain: String = probeImport.replace(withoutCall(guard.replaceFirst(code, ""), probePublish), "")
+        val guarded: String = decisionGuard.replace(guard.replaceFirst(code, ""), "")
+        val plain: String = probeImport.replace(withoutCall(guarded, probePublish), "")
         val window: String = body(plain, WINDOW_FUNCTION) ?: return plain
         if (window.isBlank()) return plain
         return plain.replace(window, windowRead.replace(window, ""))
@@ -88,6 +97,9 @@ internal class ProbeReadGateTest {
     private val publishCall: Regex = Regex("""\bpublish\s*\(""")
     private val windowType: Regex = Regex("""\bAccessibilityWindowInfo\b""")
     private val readsText: Regex = Regex("""\b(getText|text|getContentDescription|contentDescription|performAction)\b""")
+
+    /** Any event member read outside the allowed two. */
+    private val otherEventMembers: Regex = Regex("""\bevent\s*\.\s*\w+""")
 
     private fun real(path: String): String {
         val text: String = SourceFiles.mainSources()[path] ?: ""
@@ -127,6 +139,41 @@ internal class ProbeReadGateTest {
         assertFalse(
             "commit/accessibility: a read before the probe guard was accepted",
             ProbeView.guardStart.containsMatchIn(readFirst),
+        )
+    }
+
+    @Test
+    fun `the service calls the package decision before any read`() {
+        val handler: String = ProbeView.body(code(real(serviceFile)), ProbeView.HANDLER).orEmpty()
+        assertTrue("commit/accessibility: the event handler has no body", handler.isNotBlank())
+        val decision: Int = handler.indexOf(ProbeView.PACKAGE_DECISION)
+        assertTrue(
+            "commit/accessibility: the event handler does not call the package decision",
+            decision >= 0,
+        )
+        val publish: Int = handler.indexOf("KeyboardProbeReadings.publish")
+        assertTrue(
+            "commit/accessibility: the package decision is not called before the publish",
+            decision < publish,
+        )
+    }
+
+    @Test
+    fun `the probe reads the event package and the event type, and no other event member`() {
+        val handler: String = ProbeView.body(code(real(serviceFile)), ProbeView.HANDLER).orEmpty()
+        assertTrue(
+            "commit/accessibility: the probe path does not read the event package",
+            handler.contains("packageName"),
+        )
+        assertTrue(
+            "commit/accessibility: the probe path does not read the event type",
+            handler.contains("eventType"),
+        )
+        val other: String = handler.replace(ProbeView.allowedEventReads, "")
+        assertEquals(
+            "commit/accessibility: the probe path names an event member outside the allowed two",
+            0,
+            count(otherEventMembers, other),
         )
     }
 

@@ -44,10 +44,35 @@ fun recentLines(
         return emptyList()
     }
     val rows: List<Pair<Long, String>> =
-        readings.map { reading -> Pair(reading.time, readingRow(reading, clock)) } +
+        collapseReadings(readings).map { run ->
+            Pair(run.second.time, readingRow(run.second, clock, run.first))
+        } +
             insets.map { line -> Pair(line.time, insetRow(line, clock)) }
     return rows.sortedBy { it.first }.map { it.second }.takeLast(RECENT_SHOWN)
 }
+
+/** Collapse consecutive identical readings into runs of (count, reading), oldest first. A run is
+ * one line; a change of the two signals or of the event name starts a new run. */
+internal fun collapseReadings(readings: List<ProbeReading>): List<Pair<Int, ProbeReading>> {
+    val runs: MutableList<Pair<Int, ProbeReading>> = mutableListOf()
+    for (reading in readings) {
+        val last: Pair<Int, ProbeReading>? = runs.lastOrNull()
+        if (last != null && sameReading(last.second, reading)) {
+            runs[runs.lastIndex] = (last.first + 1) to last.second
+        } else {
+            runs.add(1 to reading)
+        }
+    }
+    return runs
+}
+
+/**
+ * Whether two readings are the same change: the two signals and the event name agree, time apart.
+ */
+private fun sameReading(first: ProbeReading, second: ProbeReading): Boolean =
+    first.fieldFocus == second.fieldFocus &&
+        first.imeWindow == second.imeWindow &&
+        first.lastEvent == second.lastEvent
 
 private fun keyboardLine(reading: ProbeReading?, clock: (Long) -> String): String {
     if (reading == null) {
@@ -80,13 +105,21 @@ private fun eventLine(reading: ProbeReading?, clock: (Long) -> String): String {
     return "Last event: ${reading.lastEvent} at ${clock(reading.time)}"
 }
 
-private fun readingRow(reading: ProbeReading, clock: (Long) -> String): String {
+private fun readingRow(reading: ProbeReading, clock: (Long) -> String, count: Int = 1): String {
     val field: String = if (reading.fieldFocus) "yes" else "no"
     val keyboard: String = if (reading.imeWindow) "yes" else "no"
-    return "${clock(reading.time)} service field focus $field, keyboard window $keyboard, event ${reading.lastEvent}"
+    val base: String =
+        "${clock(reading.time)} service field focus $field, keyboard window $keyboard, event ${reading.lastEvent}"
+    return if (count > 1) "$base (x$count)" else base
 }
 
 private fun insetRow(line: InsetLine, clock: (Long) -> String): String {
     val shown: String = if (line.visible) "visible" else "hidden"
     return "${clock(line.time)} ${line.source} bottom ${line.bottom}, $shown"
 }
+
+/**
+ * The share text lives in [ProbeShareText], the next file in this folder: the share summary,
+ * the share builder and the share rows, with the share's own two-signal collapse and its own
+ * line and byte caps. This file keeps the debug page's lines.
+ */

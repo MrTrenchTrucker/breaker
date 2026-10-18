@@ -80,18 +80,42 @@ internal class KeyboardProbeReadingsTest {
     }
 
     @Test
-    fun `the recent list drops the oldest line at the forty first`() {
+    fun `the recent list drops the oldest line at the two hundred first`() {
         KeyboardProbeReadings.setEnabled(true)
-        for (time in 1L..41L) {
+        for (time in 1L..201L) {
             publishAt(time)
         }
 
         val times: List<Long> = KeyboardProbeReadings.recent().map { it.time }
-        assertEquals("commit: the recent list must hold at most forty lines", 40, times.size)
+        assertEquals("commit: the recent list must hold at most 200 lines", 200, times.size)
         assertEquals(
             "commit: the recent list must drop the oldest line, so the first line kept is the second one published",
-            (2L..41L).toList(),
+            (2L..201L).toList(),
             times,
+        )
+    }
+
+    @Test
+    fun `shouldProcessEvent returns false for Breaker's own package`() {
+        assertFalse(
+            "commit: an event from Breaker's own package must be skipped",
+            KeyboardProbeReadings.shouldProcessEvent("dev.breaker.dictation", "dev.breaker.dictation"),
+        )
+    }
+
+    @Test
+    fun `shouldProcessEvent returns true for a foreign package`() {
+        assertTrue(
+            "commit: an event from a foreign package must be processed",
+            KeyboardProbeReadings.shouldProcessEvent("com.other.app", "dev.breaker.dictation"),
+        )
+    }
+
+    @Test
+    fun `shouldProcessEvent returns true for a null package`() {
+        assertTrue(
+            "commit: an event with no package info must be processed",
+            KeyboardProbeReadings.shouldProcessEvent(null, "dev.breaker.dictation"),
         )
     }
 
@@ -108,7 +132,7 @@ internal class KeyboardProbeReadingsTest {
 
     @Test
     fun `the public members are exactly the documented ones`() {
-        val documented: List<String> = listOf("current", "isEnabled", "publish", "recent", "setEnabled")
+        val documented: List<String> = listOf("current", "isEnabled", "publish", "recent", "setEnabled", "shouldProcessEvent")
         assertEquals(
             "commit: the public functions of KeyboardProbeReadings must be exactly the documented ones",
             documented,
@@ -149,7 +173,7 @@ internal class KeyboardProbeReadingsTest {
     }
 
     @Test
-    fun `the limit is forty`() {
-        assertEquals("commit: the recent limit must be forty", 40, KeyboardProbeReadings.RECENT_LIMIT)
+    fun `the limit is two hundred`() {
+        assertEquals("commit: the recent limit must be 200", 200, KeyboardProbeReadings.RECENT_LIMIT)
     }
 }

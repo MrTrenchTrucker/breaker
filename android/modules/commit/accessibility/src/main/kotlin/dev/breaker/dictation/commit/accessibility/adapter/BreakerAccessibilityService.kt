@@ -35,6 +35,8 @@ class BreakerAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         // Probe path only: with the probe off, this returns before any read.
         if (event == null || !KeyboardProbeReadings.isEnabled()) return
+        // An event from Breaker's own package is the probe's own UI reacting to itself: skip it.
+        if (!KeyboardProbeReadings.shouldProcessEvent(event.packageName?.toString(), packageName)) return
         KeyboardProbeReadings.publish(
             fieldFocus = findFieldFocus(),
             imeWindow = hasInputMethodWindow(),
