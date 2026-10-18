@@ -12,6 +12,7 @@ minSdk = "30"
 junit = "4.13.2"
 sqlite-jdbc = "3.53.4.0"
 kotlinx-coroutines = "1.11.0"   # read 2026-10-05 from https://repo1.maven.org/maven2/org/jetbrains/kotlinx/kotlinx-coroutines-core/maven-metadata.xml (newest stable; core artifact only)
+ktor = "3.6.0"   # read 2026-10-07 from https://repo1.maven.org/maven2/io/ktor/ktor-server-core/maven-metadata.xml (release 3.6.0, published 2026-09-16)
 commons-compress = "1.28.0"   # read 2026-10-07 from https://repo1.maven.org/maven2/org/apache/commons/commons-compress/maven-metadata.xml
 # Pulled in by commons-compress, version resolved by Gradle (no entry here): commons-codec 1.19.0   # read 2026-10-07 from https://repo1.maven.org/maven2/commons-codec/commons-codec/maven-metadata.xml
 # Pulled in by commons-compress, version resolved by Gradle (no entry here): commons-io 2.20.0   # read 2026-10-07 from https://repo1.maven.org/maven2/commons-io/commons-io/maven-metadata.xml
@@ -20,9 +21,12 @@ sherpa-onnx = "1.13.8"   # read 2026-10-08 from https://github.com/MrTrenchTruck
 
 [libraries]
 junit = { module = "junit:junit", version.ref = "junit" }
-# JVM unit tests only (real SQLite for HistorySql); must never be a non-test dependency.
+# Test-only in the android modules (real SQLite for HistorySql on the desktop JVM, never shipped there); the runtime driver in server/modules/sync-api.
 sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite-jdbc" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
+ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }
+ktor-server-cio = { module = "io.ktor:ktor-server-cio", version.ref = "ktor" }
+ktor-server-test-host = { module = "io.ktor:ktor-server-test-host", version.ref = "ktor" }
 # Unpacks the model archive (tar inside bzip2); imported by ModelExtractor.kt only.
 commons-compress = { module = "org.apache.commons:commons-compress", version.ref = "commons-compress" }
 
