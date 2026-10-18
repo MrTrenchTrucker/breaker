@@ -30,7 +30,8 @@ private val KNOWN_ENTRIES = listOf(
     "createHomeView",
     "createFirstRunView",
     "createSettingsView",
-    "createOnboardingView",
+    "createHowItWorksView",
+    "createAboutView",
     "createHistoryView",
 )
 
@@ -93,7 +94,7 @@ private fun edit(text: String, old: String, new: String): String {
 class StoredThemeSourceRuleTest {
 
     @Test
-    fun `the scan finds the five known entries`() {
+    fun `the scan finds the six known entries`() {
         assertTrue(
             "entryFiles: the scan found fewer than three entry files, so the rules below would pass on nothing",
             entryFiles().size >= 3,

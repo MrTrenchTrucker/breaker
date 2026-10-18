@@ -9,8 +9,9 @@ here, each with the reason it is pinned.
   so the attribute on any other element does nothing.
 * A width handed to `bandFor` is not rounded first. No rounding direction is right
   at both 640 and 1024, so the docs must not tell a caller to round.
-* The card says no spacing scale exists, once, under Known Gotchas, and the files
-  do not define one. Its first Purpose line stays the registry's `owns` text.
+* The card carries the spacing line once, under Known Gotchas, and the files define
+  only the five named spacing steps and the gutter. Its first Purpose line stays the
+  registry's `owns` text.
 
 Module card: shared/modules/ui-tokens/AGENTS.md
 
@@ -25,12 +26,21 @@ import tokens_support as ts
 CARD = ts.CARD_POINTER
 README = ts.MODULE / "README.md"
 
-# The card's line on spacing, as ruled: there is no scale, and a consumer that needs
-# one proposes it as a card change.
+# The card's line on spacing: a scale of five size names with its values, proposed from
+# the approved mock-ups and pending the owner's confirmation. A consumer that needs
+# another step proposes it as a card change.
 SPACING_LINE = (
-    "Spacing: no scale defined yet. When a consumer needs one, it is proposed as a "
-    "card change, and its values go to the project owner (design values are theirs)."
+    "Spacing: a scale of five size names, in dp: spaceXsDp 4, spaceSDp 8, spaceMDp 12, "
+    "spaceLDp 16, spaceXlDp 32 (tokens.kt); --space-xs 4px, --space-s 8px, --space-m 12px, "
+    "--space-l 16px, --space-xl 32px (tokens.css). The values are proposed from the approved "
+    "mock-ups, pending the owner's confirmation; a change goes to the owner as a card change."
 )
+
+# The one spacing-looking name besides the five scale steps: the host's fixed outer
+# gutter, a single metric. Every other spacing-looking name is refused.
+GUTTER_METRIC = "gutterDp"
+SPACE_KOTLIN = ["spaceXsDp", "spaceSDp", "spaceMDp", "spaceLDp", "spaceXlDp"]
+SPACE_CSS = ["space-xs", "space-s", "space-m", "space-l", "space-xl"]
 
 # Sentences that told a caller to round a width first. Wrong at one of the two edges.
 ROUNDING_ADVICE = (
@@ -112,7 +122,7 @@ class BandForIsNotToldToRoundTest(unittest.TestCase):
 
 
 class SpacingTest(unittest.TestCase):
-    """The card says no spacing scale exists, and it is true."""
+    """The card carries the five-step spacing line, and the files define exactly those steps and the gutter."""
 
     def _card_lines(self):
         return ts.read_text(ts.CARD).splitlines()
@@ -149,15 +159,28 @@ class SpacingTest(unittest.TestCase):
             f"ui-tokens: the card's first Purpose line must start with the registry's owns text, word for word ({CARD})",
         )
 
-    def test_the_files_define_no_spacing_scale(self):
+    def test_the_files_define_only_the_named_spacing_names(self):
         css_names = set(ts.read_css()["root"])
         kotlin_names, kotlin_types = ts.kotlin_declarations(ts.read_text(ts.KOTLIN))
-        for name in css_names | kotlin_names | kotlin_types:
-            with self.subTest(name=name):
-                self.assertIsNone(
-                    re.search(r"spac|gap|gutter|margin|padding", name, flags=re.I),
-                    f"ui-tokens: {name} looks like a spacing token; the card says none is defined ({CARD})",
-                )
+        spacing = {name for name in css_names | kotlin_names | kotlin_types
+                   if re.search(r"spac|gap|gutter|margin|padding", name, flags=re.I)}
+        expected = set(SPACE_CSS) | set(SPACE_KOTLIN) | {GUTTER_METRIC}
+        self.assertEqual(
+            spacing, expected,
+            f"ui-tokens: the spacing-looking names are {sorted(spacing)}; the card gives the "
+            f"five scale steps and the one gutter, nothing else ({CARD})",
+        )
+
+    def test_the_spacing_metrics_are_the_one_fixed_gutter_and_the_five_steps(self):
+        # The design fixes one host gutter and five named steps, and no screen adds its
+        # own outer padding, so exactly these names are allowed.
+        metrics = ts.read_kotlin()["metrics"]
+        spacing = sorted(name for name in metrics if re.search(r"spac|gap|gutter|margin|padding", name, flags=re.I))
+        self.assertEqual(
+            spacing, sorted([GUTTER_METRIC] + SPACE_KOTLIN),
+            f"ui-tokens: the spacing-looking metrics are {spacing}; only the fixed gutter "
+            f"{GUTTER_METRIC} and the five scale steps are allowed ({CARD})",
+        )
 
 
 if __name__ == "__main__":

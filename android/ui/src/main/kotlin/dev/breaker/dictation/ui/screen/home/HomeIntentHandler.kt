@@ -20,6 +20,9 @@ internal object HomeActions {
     const val HOW_IT_WORKS = "HOW_IT_WORKS"
     const val ABOUT = "ABOUT"
     const val MIC = "MIC"
+    const val CLOSE_MENU = "CLOSE_MENU"
+    const val SHOW_ALL = "SHOW_ALL"
+    const val HIDE = "HIDE"
 }
 
 /**
@@ -39,6 +42,15 @@ internal class HomeIntentHandler(private val screen: HomeScreen) {
 
     private var state: HomeState = HomeState()
 
+    /** The drawer's own actions: the four items and the dim. */
+    private val DRAWER_ACTIONS = setOf(
+        HomeActions.HISTORY,
+        HomeActions.SETTINGS,
+        HomeActions.HOW_IT_WORKS,
+        HomeActions.ABOUT,
+        HomeActions.CLOSE_MENU,
+    )
+
     /** The screen as the state stands now. */
     fun current(): Screen = screen.render(state)
 
@@ -48,7 +60,7 @@ internal class HomeIntentHandler(private val screen: HomeScreen) {
         return screen.render(state)
     }
 
-    /** The notice this screen is showing: the answer to a HOW IT WORKS or ABOUT tap. */
+    /** The notice this screen is showing, or null when there is none. */
     fun notice(): String? = state.notice
 
     /**
@@ -66,7 +78,9 @@ internal class HomeIntentHandler(private val screen: HomeScreen) {
         HomeNodeIds.MENU -> ScreenIntent.Home(HomeActions.MENU)
         HomeNodeIds.SWITCH -> ScreenIntent.Home(HomeActions.SWITCH)
         HomeNodeIds.COPY -> ScreenIntent.Home(HomeActions.COPY)
+        HomeNodeIds.TOGGLE -> ScreenIntent.Home(if (state.opened) HomeActions.HIDE else HomeActions.SHOW_ALL)
         HomeNodeIds.MIC -> ScreenIntent.Home(HomeActions.MIC)
+        HomeNodeIds.DRAWER_DIM -> ScreenIntent.Home(HomeActions.CLOSE_MENU)
         HomeNodeIds.DRAWER_HISTORY -> ScreenIntent.Home(HomeActions.HISTORY)
         HomeNodeIds.DRAWER_SETTINGS -> ScreenIntent.Home(HomeActions.SETTINGS)
         HomeNodeIds.DRAWER_HOW -> ScreenIntent.Home(HomeActions.HOW_IT_WORKS)
@@ -86,19 +100,26 @@ internal class HomeIntentHandler(private val screen: HomeScreen) {
 
     /**
      * The screen-local half of a tap: the menu toggles the drawer, a drawer item
-     * closes it, and a HOW IT WORKS or ABOUT tap answers in place with the
-     * not-built notice: the host does nothing for those two. The switch and the
-     * copy are acted on above, which pushes the new state back through [show].
+     * closes it, and a tap on the drawer dim closes it. While the menu is open,
+     * any tap that is not a drawer item closes it and does nothing else. The
+     * switch and the copy are acted on above. SHOW_ALL and HIDE flip the
+     * transcript card's opened flag.
      */
     private fun act(action: String): Screen {
+        if (state.menuOpen && action !in DRAWER_ACTIONS) {
+            state = state.copy(menuOpen = false)
+            return screen.render(state)
+        }
         when (action) {
             HomeActions.MENU -> state = state.copy(menuOpen = !state.menuOpen)
             HomeActions.HISTORY,
             HomeActions.SETTINGS,
-            -> state = state.copy(menuOpen = false)
             HomeActions.HOW_IT_WORKS,
             HomeActions.ABOUT,
-            -> state = state.copy(menuOpen = false, notice = HomeTexts.MENU_NOT_BUILT)
+            -> state = state.copy(menuOpen = false)
+            HomeActions.CLOSE_MENU -> state = state.copy(menuOpen = false)
+            HomeActions.SHOW_ALL -> state = state.copy(opened = true)
+            HomeActions.HIDE -> state = state.copy(opened = false)
         }
         return screen.render(state)
     }

@@ -37,6 +37,8 @@ internal class OutlinedButtonView(
     val label: String,
     /** The theme the parts are painted in. */
     private val theme: Theme,
+    /** Whether the button takes the compact floor: only the History entry rows set it. */
+    private val compact: Boolean = false,
 ) : View(context) {
 
     private val density: Float = context.resources.displayMetrics.density
@@ -56,7 +58,7 @@ internal class OutlinedButtonView(
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val target = touchTargetPx(ControlsFactors.TOUCH_MIN_DP, density)
         setMeasuredDimension(
-            resolveSize(buttonWidthPx(textPaint, label, density), widthMeasureSpec),
+            resolveSize(buttonWidthPx(textPaint, label, density, compact), widthMeasureSpec),
             resolveSize(target, heightMeasureSpec),
         )
     }

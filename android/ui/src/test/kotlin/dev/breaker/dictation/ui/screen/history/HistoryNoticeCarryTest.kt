@@ -2,6 +2,7 @@ package dev.breaker.dictation.ui.screen.history
 
 import dev.breaker.dictation.ui.screen.Label
 import dev.breaker.dictation.ui.screen.Node
+import dev.breaker.dictation.ui.screen.Rule
 import dev.breaker.dictation.ui.screen.Screen
 import dev.breaker.dictation.ui.screen.TypeRole
 import dev.breaker.dictation.ui.theme.PaletteSlot
@@ -23,6 +24,8 @@ class HistoryNoticeCarryTest {
 
     private fun empty() = Label("history.empty", HistoryTexts.EMPTY, TypeRole.BODY, PaletteSlot.TEXT_MUTED)
 
+    private fun rule() = Rule("history.rule", PaletteSlot.ACCENT)
+
     private fun screenOf(nodes: List<Node>) = Screen("history", HistoryTexts.TITLE, nodes)
 
     private fun idsOf(s: Screen): List<String> = s.nodes.map { it.id }
@@ -43,11 +46,11 @@ class HistoryNoticeCarryTest {
     }
 
     @Test
-    fun `a carried notice goes right after the title when there is no notice`() {
-        val s = screenOf(listOf(title(), empty()))
+    fun `a carried notice goes right after the title block when there is no notice`() {
+        val s = screenOf(listOf(title(), rule(), empty()))
         assertEquals(
-            "history: the carried notice is not right after the title",
-            listOf("history.title", CARRIED_NOTICE_ID, "history.empty"),
+            "history: the carried notice is not right after the title block",
+            listOf("history.title", "history.rule", CARRIED_NOTICE_ID, "history.empty"),
             idsOf(s.withCarriedNotice(carried)),
         )
     }

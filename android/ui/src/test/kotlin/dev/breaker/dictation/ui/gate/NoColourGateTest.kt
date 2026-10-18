@@ -64,8 +64,19 @@ private fun colourLinesIn(text: String): List<String> =
         colourIn(line)?.let { shape -> "${number + 1}: $shape" }
     }
 
-/** The compiled form of the framework colour type, as a class file spells it. */
-private const val FRAMEWORK_COLOUR_CLASS = "android/graphics/Color"
+/**
+ * The compiled form of the framework colour type, as a class file spells it.
+ *
+ * The boundaries are the point. A class file names every type it touches in
+ * full, so the colour filter `android/graphics/ColorFilter` is its own string
+ * in the constant pool, and a pin ending at `Color` names the filter as well
+ * as the colour: a drawable that overrides setColorFilter would read as a
+ * class holding a colour. The trailing boundary is what keeps the filter out.
+ */
+private val FRAMEWORK_COLOUR_CLASS = Regex("""\bandroid/graphics/Color\b""")
+
+/** The name that pin answers to in a message, so a failure says what was sought. */
+private const val FRAMEWORK_COLOUR_CLASS_NAME = "android.graphics.Color"
 
 /**
  * No colour literal in the module's own text, and none in the classes it compiles
@@ -84,10 +95,10 @@ class NoColourGateTest {
     fun `no compiled class names the framework colour`() {
         val found = CLASS_ROOTS.flatMap { root ->
             classFilesOf(root)
-                .filter { (_, bytes) -> bytes.contains(FRAMEWORK_COLOUR_CLASS) }
+                .filter { (_, bytes) -> FRAMEWORK_COLOUR_CLASS.containsMatchIn(bytes) }
                 .map { (path, _) -> path }
         }
-        assertEquals("classes naming ${FRAMEWORK_COLOUR_CLASS.replace('/', '.')}", emptyList<String>(), found)
+        assertEquals("classes naming $FRAMEWORK_COLOUR_CLASS_NAME", emptyList<String>(), found)
     }
 
     @Test

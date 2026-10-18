@@ -4,11 +4,11 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * Tests for the pure insets arithmetic in [paddingFor].
+ * Tests for the pure insets arithmetic in [paddingFor] and the gutter conversion in [gutterPx].
  *
- * Each side of the result is the max of the bar inset and the cutout inset
+ * Each side of the padding result is the max of the bar inset and the cutout inset
  * for that side, so a display cutout that reaches past the system bars is
- * still cleared.
+ * still cleared. The gutter is the outer margin added to every side.
  */
 internal class InsetsTest {
 
@@ -66,5 +66,25 @@ internal class InsetsTest {
         assertEquals(Padding(0, 12, 24, 0), padding)
     }
 
+    @Test
+    fun `gutter in px on a 3x phone is 48`() {
+        assertEquals(48, gutterPx(16, 3.0f))
+    }
+
+    @Test
+    fun `gutter in px on a 2x phone is 32`() {
+        assertEquals(32, gutterPx(16, 2.0f))
+    }
+
+    @Test
+    fun `gutter in px on a 1x phone is 16`() {
+        assertEquals(16, gutterPx(16, 1.0f))
+    }
+
+    @Test
+    fun `gutter in px rounds up so it is never below its dp`() {
+        // 16 dp at 1.1x density = 17.6 px, rounded up to 18
+        assertEquals(18, gutterPx(16, 1.1f))
+    }
 
 }

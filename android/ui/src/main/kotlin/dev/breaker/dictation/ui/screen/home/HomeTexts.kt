@@ -23,8 +23,14 @@ internal object HomeTexts {
     /** The model row's not-ready value. */
     const val STATUS_MODEL_MISSING = "Not downloaded"
 
-    /** The server row's only approved word. */
+    /** The server row's word while no server is set. */
+    const val STATUS_NOT_SET = "Not set"
+
+    /** The server row's word when it cannot be reached. */
     const val STATUS_NOT_AVAILABLE = "Not available"
+
+    val BUTTON_SHOW_ALL: String get() = HistoryTexts.BUTTON_SHOW_ALL
+    val BUTTON_HIDE: String get() = HistoryTexts.BUTTON_HIDE
 
     const val MENU_HOW_IT_WORKS = "How it works" // home_menu_how_it_works
     const val MENU_ABOUT = "About" // home_menu_about

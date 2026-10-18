@@ -42,13 +42,17 @@ internal class RefusalWiringGateTest {
         rx("SERVICE_SENDS_ITS_REFUSAL_TO_THE_APP_NOTICE", "service",
             """\bServiceStartHandler\s*\(\s*controller\s*,\s*host\s*,\s*\{\s*sentence\s*->\s*\(\s*application\s+as\s+BreakerApp\s*\)\s*\.\s*serviceRefusal\s*\.\s*refuse\s*\(\s*sentence\s*\)\s*\}\s*\)"""),
         rx("ONRESUME_TAKES_THE_HELD_REFUSAL_AFTER_THE_REFRESH_AND_SHOWS_IT_ONCE", "activity",
-            """\(onboardingView\s*as\s*\?\s*ModelStepControl\s*\)\s*\?\.\s*refresh\s*\(\s*\)\s*val\s+held\s*=\s*app\s*\.\s*refusalHold\s*\.\s*take\s*\(\s*\)\s*val\s+refusal\s*=\s*pendingRefusal\s*\?:\s*held\s*pendingRefusal\s*=\s*null\s*refusal\s*\?\.\s*let\s*\{\s*\(onboardingView\s*as\s*\?\s*ModelStepControl\s*\)\s*\?\.\s*showSwitchRefused\s*\(\s*it\s*\)\s*\}\s*\}"""),
+            """\belse\s*->\s*\(\s*homeView\s*as\s*\?\s*dev\s*\.\s*breaker\s*\.\s*dictation\s*\.\s*ui\s*\.\s*HomeControl\s*\)\s*\?\.\s*refresh\s*\(\s*\)\s*\}\s*val\s+refusal\s*=\s*pendingRefusal\s*\?:\s*app\s*\.\s*refusalHold\s*\.\s*take\s*\(\s*\)\s*if\s*\(\s*refusal\s*!=\s*null\s*\)\s*\{\s*pendingRefusal\s*=\s*null\s*\(\s*homeView\s*as\s*\?\s*dev\s*\.\s*breaker\s*\.\s*dictation\s*\.\s*ui\s*\.\s*HomeControl\s*\)\s*\?\.\s*showLine\s*\(\s*refusal\s*\)"""),
+        rx("ONRESUME_REGISTERS_THE_DOWNLOAD_LISTENER", "activity",
+            """\boverride\s+fun\s+onResume\s*\(\s*\)\s*\{\s*super\s*\.\s*onResume\s*\(\s*\)\s*val\s+app\s*=\s*applicationContext\s+as\s+BreakerApp\s+app\s*\.\s*tileHost\s*\.\s*setDownloadListener\s*\(\s*this\s*\)"""),
     )
 
     private val firing: List<Sample> = listOf(
-        Sample("ONRESUME_TAKES_THE_HELD_REFUSAL_AFTER_THE_REFRESH_AND_SHOWS_IT_ONCE", "activity", "(onboardingView as? ModelStepControl)?.refresh()\n        val held = app.refusalHold.take()", "val held = app.refusalHold.take()\n        (onboardingView as? ModelStepControl)?.refresh()"),
+        Sample("ONRESUME_TAKES_THE_HELD_REFUSAL_AFTER_THE_REFRESH_AND_SHOWS_IT_ONCE", "activity", "val refusal = pendingRefusal ?: app.refusalHold.take()", "val refusal = pendingRefusal"),
         Sample("ONRESUME_TAKES_THE_HELD_REFUSAL_AFTER_THE_REFRESH_AND_SHOWS_IT_ONCE", "activity", "pendingRefusal = null\n", ""),
-        Sample("ONRESUME_TAKES_THE_HELD_REFUSAL_AFTER_THE_REFRESH_AND_SHOWS_IT_ONCE", "activity", "refusal?.let { (onboardingView as? ModelStepControl)?.showSwitchRefused(it) }", ""),
+        Sample("ONRESUME_TAKES_THE_HELD_REFUSAL_AFTER_THE_REFRESH_AND_SHOWS_IT_ONCE", "activity", "(homeView as? dev.breaker.dictation.ui.HomeControl)?.showLine(refusal)", ""),
+        Sample("ONRESUME_REGISTERS_THE_DOWNLOAD_LISTENER", "activity", "app.tileHost.setDownloadListener(this)", "app.tileHost.setDownloadListener(null)"),
+        Sample("ONRESUME_REGISTERS_THE_DOWNLOAD_LISTENER", "activity", "override fun onResume() {", "override fun onResumeLater() {"),
         Sample("POST_NOTIFIES_THE_REFUSAL_UNDER_THE_ONGOING_ID", "notif", "notify(NOTIFICATION_ID, refusal(context, sentence))", "Unit"),
         Sample("POST_NOTIFIES_THE_REFUSAL_UNDER_THE_ONGOING_ID", "notif", "notify(NOTIFICATION_ID, refusal(context, sentence))", "notify(MISSING_ID, refusal(context, sentence))"),
         Sample("PERMISSION_IS_THE_NOTIFICATION_MANAGERS_ANSWER", "notif", "areNotificationsEnabled()", "areNotificationsEnabled(context)"),

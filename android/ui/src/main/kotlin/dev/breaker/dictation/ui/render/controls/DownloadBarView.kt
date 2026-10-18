@@ -30,7 +30,7 @@ import dev.breaker.dictation.ui.theme.Theme
 internal class DownloadBarView(
     context: Context,
     /** The theme the parts are painted in. */
-    private val theme: Theme,
+    private var theme: Theme,
 ) : View(context) {
 
     private val density: Float = context.resources.displayMetrics.density
@@ -55,6 +55,12 @@ internal class DownloadBarView(
     /** Shows the full bar of the checking state. */
     fun setChecking() {
         checking = true
+        invalidate()
+    }
+
+    /** Paints the parts in [theme] from the next draw on, so a bar kept on screen follows a theme change. */
+    fun setTheme(theme: Theme) {
+        this.theme = theme
         invalidate()
     }
 

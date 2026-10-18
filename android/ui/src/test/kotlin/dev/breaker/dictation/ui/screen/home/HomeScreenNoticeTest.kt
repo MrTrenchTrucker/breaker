@@ -36,7 +36,7 @@ internal class HomeScreenNoticeTest {
         val ids = rendered.nodes.map { it.id }
         val transcriptIndex = ids.indexOf(HomeNodeIds.TRANSCRIPT)
         val noticeIndex = ids.indexOf(HomeNodeIds.NOTICE)
-        val stripeIndex = ids.indexOf("${HomeNodeIds.STRIPES}.1")
+        val stripeIndex = ids.indexOf(HomeNodeIds.STRIPES)
         assertTrue("notice must come after the transcript", noticeIndex > transcriptIndex)
         assertTrue("notice must come before the stripes", noticeIndex < stripeIndex)
     }

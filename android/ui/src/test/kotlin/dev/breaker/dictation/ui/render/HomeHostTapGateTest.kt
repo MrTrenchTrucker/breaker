@@ -75,7 +75,7 @@ private fun tapProblemsIn(text: String): List<String> {
     val spaced = spacedCode(text)
     val raw = withoutComments(text).replace(WHITESPACE_RUNS, "")
     val problems = mutableListOf<String>()
-    if (!flat.contains("):ScrollView(context),HomeControl{")) problems += "HomeHostView does not implement HomeControl"
+    if (!flat.contains("):FrameLayout(context),HomeControl{")) problems += "HomeHostView does not implement HomeControl"
     if (!flat.contains("findTagged(rendered,HomeNodeIds.MIC)?.let{attachMic(it)}")) {
         problems += "the mic is not found by its tag"
     }
@@ -91,7 +91,7 @@ private fun tapProblemsIn(text: String): List<String> {
     }
     if (!raw.contains("info.className=\"android.widget.Button\"")) problems += "the mic is not announced as a button"
     if (occurrenceCount(flat, "onTap()") != 1) problems += "onTap is not called exactly once"
-    if (!flat.contains("HomeActions.MIC->onTap()")) problems += "the MIC action does not call onTap"
+    if (!flat.contains("HomeActions.MIC->if(state.menuOpen)onIntent(ScreenIntent.Home(HomeActions.CLOSE_MENU))elseonTap()")) problems += "the MIC action does not call onTap"
     if (!spaced.contains("override fun showLine(line: String?) { this.line = line draw(merged(drawn)) }")) {
         problems += "showLine does not store the line and draw again"
     }
@@ -144,11 +144,11 @@ class HomeHostTapGateTest {
 
     @Test
     fun `a view that does not implement HomeControl is reported`() {
-        val edited = replaceOnce(real, ") : ScrollView(context), HomeControl {", ") : ScrollView(context) {")
+        val edited = replaceOnce(real, ") : FrameLayout(context), HomeControl {", ") : FrameLayout(context) {")
         assertFires("the missing interface", tapProblemsIn(edited), "does not implement HomeControl")
         assertClean(
             "the header split over lines",
-            replaceOnce(real, ") : ScrollView(context), HomeControl {", ")\n    : ScrollView(context),\n    HomeControl {"),
+            replaceOnce(real, ") : FrameLayout(context), HomeControl {", ")\n    : FrameLayout(context),\n    HomeControl {"),
         )
     }
 
@@ -164,13 +164,13 @@ class HomeHostTapGateTest {
 
     @Test
     fun `a click on a second view or on another node is reported`() {
-        val second = replaceOnce(real, "        scrollTo(0, held)\n", "        scrollTo(0, held)\n        rendered.setOnClickListener { }\n")
+        val second = replaceOnce(real, "        content.scrollTo(0, held)\n", "        content.scrollTo(0, held)\n        rendered.setOnClickListener { }\n")
         assertFires("a second click", tapProblemsIn(second), "attached to another view")
         val moved = replaceOnce(real, "mic.setOnClickListener {", "rendered.setOnClickListener {")
         assertFires("the click on the row", tapProblemsIn(moved), "not on the mic view")
         assertFires(
             "a second attach",
-            tapProblemsIn(replaceOnce(real, "        scrollTo(0, held)\n", "        scrollTo(0, held)\n        attachMic(rendered)\n")),
+            tapProblemsIn(replaceOnce(real, "        content.scrollTo(0, held)\n", "        content.scrollTo(0, held)\n        attachMic(rendered)\n")),
             "attached to another view",
         )
         assertClean(
@@ -216,12 +216,12 @@ class HomeHostTapGateTest {
 
     @Test
     fun `a MIC action that calls onTap other than once is reported`() {
-        val twice = replaceOnce(real, "HomeActions.MIC -> onTap()", "HomeActions.MIC -> { onTap(); onTap() }")
+        val twice = replaceOnce(real, "HomeActions.MIC -> if (state.menuOpen) onIntent(ScreenIntent.Home(HomeActions.CLOSE_MENU)) else onTap()", "HomeActions.MIC -> if (state.menuOpen) onIntent(ScreenIntent.Home(HomeActions.CLOSE_MENU)) else { onTap(); onTap() }")
         assertFires("two calls", tapProblemsIn(twice), "exactly once")
-        val none = replaceOnce(real, "HomeActions.MIC -> onTap()", "HomeActions.MIC -> Unit")
+        val none = replaceOnce(real, "HomeActions.MIC -> if (state.menuOpen) onIntent(ScreenIntent.Home(HomeActions.CLOSE_MENU)) else onTap()", "HomeActions.MIC -> if (state.menuOpen) onIntent(ScreenIntent.Home(HomeActions.CLOSE_MENU)) else Unit")
         assertFires("no call", tapProblemsIn(none), "exactly once")
         assertFires("no call on the branch", tapProblemsIn(none), "does not call onTap")
-        assertClean("the branch split over lines", replaceOnce(real, "HomeActions.MIC -> onTap()", "HomeActions.MIC ->\n                onTap()"))
+        assertClean("the branch split over lines", replaceOnce(real, "HomeActions.MIC -> if (state.menuOpen) onIntent(ScreenIntent.Home(HomeActions.CLOSE_MENU)) else onTap()", "HomeActions.MIC -> if (state.menuOpen) onIntent(ScreenIntent.Home(HomeActions.CLOSE_MENU)) else\n                onTap()"))
     }
 
     @Test

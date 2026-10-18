@@ -72,6 +72,14 @@ internal class SettingsIntentHandler(
 
     private var notice: Notice? = if (known == null || !themes.state.loaded) Notice.COULD_NOT_READ else null
 
+    /** The speech model row to draw with the next screen; the host sets it before it asks for a screen. */
+    private var model: ModelRow = ModelRow.READY
+
+    /** Sets the speech model row that the screens drawn from now on show. */
+    fun showing(row: ModelRow) {
+        model = row
+    }
+
     /** The screen as it stands now, without acting on anything. */
     fun current(): Rendered = render()
 
@@ -92,6 +100,8 @@ internal class SettingsIntentHandler(
             is ScreenIntent.Setup -> notice = Notice.NOT_ACCEPTED
             is ScreenIntent.History -> notice = Notice.NOT_ACCEPTED
             is ScreenIntent.Home -> notice = Notice.NOT_ACCEPTED
+            // The settings screen has no back control: a Back changes neither the settings nor the message.
+            ScreenIntent.Back -> Unit
         }
         return render()
     }
@@ -164,7 +174,7 @@ internal class SettingsIntentHandler(
      */
     private fun render(): Rendered =
         Rendered(
-            screen = screen.render(known, themes.state, notice),
+            screen = screen.render(known, themes.state, notice, model),
             theme = Themes.of(themes.state.shown),
         )
 }

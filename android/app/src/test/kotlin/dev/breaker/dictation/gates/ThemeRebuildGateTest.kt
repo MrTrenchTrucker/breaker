@@ -5,7 +5,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Pins the rebuild of Home and of the setup block when Settings closes, because no JVM test can run the
+ * Pins the rebuild of Home and of the settings view when Settings closes, because no JVM test can run the
  * activity. The rules read `SettingsLauncherActivity.kt` through the shared scanner, so comments and
  * literal text are not read, and they look only at the body of `closeSettings`.
  */
@@ -16,8 +16,13 @@ internal class ThemeRebuildGateTest {
     /** A rule with its name. [holds] reads the comment-free code of the activity. */
     private class Rule(val name: String, val holds: (String) -> Boolean)
 
-    private val rebuildCall: Regex = Regex("""\bagain\s*\(\s*\)""")
     private val recreateCall: Regex = Regex("""\brecreate\s*\(""")
+    private val homeRebuild: Regex = Regex("""\bhomeView\s*=\s*homeRebuilt\s*\.\s*again\s*\(\s*\)""")
+    private val settingsSwap: Regex =
+        Regex("""\bsettingsView\s*=\s*swapInColumn\s*\(\s*settingsColumn\s*,\s*settingsView\s*,\s*settingsRebuilt\s*\.\s*again\s*\(\s*\)\s*\)""")
+    private val homeRebuildThenAttach: Regex = Regex(
+        """\bhomeView\s*=\s*homeRebuilt\s*\.\s*again\s*\(\s*\)\s*takeWiring\s*\.\s*attach\s*\(\s*homeView\s+as\s+dev\s*\.\s*breaker\s*\.\s*dictation\s*\.\s*ui\s*\.\s*HomeControl\s*\)""",
+    )
 
     /** The text of `private fun closeSettings()`, from its opening brace to the matching brace. Empty when absent. */
     private fun closeSettingsBody(code: String): String {
@@ -36,11 +41,11 @@ internal class ThemeRebuildGateTest {
     }
 
     private val rules: List<Rule> = listOf(
-        Rule("CLOSE_SETTINGS_REBUILDS_HOME_AND_THE_SETUP_BLOCK") { code ->
-            rebuildCall.findAll(closeSettingsBody(code)).count() >= 2
+        Rule("CLOSE_SETTINGS_REBUILDS_HOME_AND_THE_SETTINGS_VIEW") { code ->
+            homeRebuild.containsMatchIn(closeSettingsBody(code)) && settingsSwap.containsMatchIn(closeSettingsBody(code))
         },
         Rule("CLOSE_SETTINGS_ATTACHES_THE_TAKE_WIRING") { code ->
-            closeSettingsBody(code).contains("takeWiring.attach(")
+            homeRebuildThenAttach.containsMatchIn(closeSettingsBody(code))
         },
         Rule("CLOSE_SETTINGS_NEVER_RECREATES_THE_ACTIVITY") { code ->
             !recreateCall.containsMatchIn(closeSettingsBody(code))
@@ -62,16 +67,16 @@ internal class ThemeRebuildGateTest {
     private fun rule(name: String): Rule = rules.single { it.name == name }
 
     @Test
-    fun `closing settings builds home and the setup block again`() {
+    fun `closing settings builds home and the settings view again`() {
         val code: String = codeOf()
-        assertTrue("app: closeSettings must build Home and the setup block again", rule("CLOSE_SETTINGS_REBUILDS_HOME_AND_THE_SETUP_BLOCK").holds(code))
+        assertTrue("app: closeSettings must build Home and the settings view again", rule("CLOSE_SETTINGS_REBUILDS_HOME_AND_THE_SETTINGS_VIEW").holds(code))
         assertTrue("app: closeSettings must attach the take wiring to the rebuilt Home", rule("CLOSE_SETTINGS_ATTACHES_THE_TAKE_WIRING").holds(code))
     }
 
     @Test
     fun `closing settings does not recreate the activity`() {
         val code: String = codeOf()
-        assertTrue("app: closeSettings must keep the rebuild calls in its body", rule("CLOSE_SETTINGS_REBUILDS_HOME_AND_THE_SETUP_BLOCK").holds(code))
+        assertTrue("app: closeSettings must keep the rebuild calls in its body", rule("CLOSE_SETTINGS_REBUILDS_HOME_AND_THE_SETTINGS_VIEW").holds(code))
         assertTrue("app: closeSettings must not call recreate", rule("CLOSE_SETTINGS_NEVER_RECREATES_THE_ACTIVITY").holds(code))
     }
 
@@ -79,6 +84,24 @@ internal class ThemeRebuildGateTest {
     fun `a closeSettings without the rebuild breaks the rule`() {
         val lost: String = edit(AppSourceFiles.mainFile(activity), "        homeView = homeRebuilt.again()\n", "")
         val code: String = AppSourceFiles.strip(lost).code
-        assertFalse("app: a closeSettings without the Home rebuild must break the rebuild rule", rule("CLOSE_SETTINGS_REBUILDS_HOME_AND_THE_SETUP_BLOCK").holds(code))
+        assertFalse("app: a closeSettings without the Home rebuild must break the rebuild rule", rule("CLOSE_SETTINGS_REBUILDS_HOME_AND_THE_SETTINGS_VIEW").holds(code))
+    }
+
+    @Test
+    fun `a closeSettings that swaps one holder for the other breaks the rebuild rule`() {
+        val text: String = AppSourceFiles.mainFile(activity)
+        val homeFromSettings: String = edit(text, "        homeView = homeRebuilt.again()\n", "        homeView = settingsRebuilt.again()\n")
+        val settingsFromHome: String =
+            edit(text, "swapInColumn(settingsColumn, settingsView, settingsRebuilt.again())", "swapInColumn(settingsColumn, settingsView, homeRebuilt.again())")
+        assertFalse("app: the Home rebuild must read the Home holder", rule("CLOSE_SETTINGS_REBUILDS_HOME_AND_THE_SETTINGS_VIEW").holds(AppSourceFiles.strip(homeFromSettings).code))
+        assertFalse("app: the settings swap must read the settings holder", rule("CLOSE_SETTINGS_REBUILDS_HOME_AND_THE_SETTINGS_VIEW").holds(AppSourceFiles.strip(settingsFromHome).code))
+    }
+
+    @Test
+    fun `a take wiring attach behind a false guard breaks the attach rule`() {
+        val text: String = AppSourceFiles.mainFile(activity)
+        val guarded: String =
+            edit(text, "        takeWiring.attach(homeView as dev.breaker.dictation.ui.HomeControl)\n", "        if (false) takeWiring.attach(homeView as dev.breaker.dictation.ui.HomeControl)\n")
+        assertFalse("app: an attach behind a false guard must break the attach rule", rule("CLOSE_SETTINGS_ATTACHES_THE_TAKE_WIRING").holds(AppSourceFiles.strip(guarded).code))
     }
 }

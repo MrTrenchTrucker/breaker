@@ -126,7 +126,7 @@ agents, not required: an outside contributor may write the code themselves
 
 ## Known Gotchas
 - Light + dark tokens must both pass WCAG AA; one-file swap.
-- Spacing: no scale defined yet. When a consumer needs one, it is proposed as a card change, and its values go to the project owner (design values are theirs).
+- Spacing: a scale of five size names, in dp: spaceXsDp 4, spaceSDp 8, spaceMDp 12, spaceLDp 16, spaceXlDp 32 (tokens.kt); --space-xs 4px, --space-s 8px, --space-m 12px, --space-l 16px, --space-xl 32px (tokens.css). The values are proposed from the approved mock-ups, pending the owner's confirmation; a change goes to the owner as a card change.
 
 ## Invariants
 - Every token in the palette and state tables above is present in both `tokens.kt`
@@ -134,15 +134,17 @@ agents, not required: an outside contributor may write the code themselves
   implemented as written, so `sent` and `accent` are separate tokens and are not
   aliased.
 - `tokens.kt` and `tokens.css` carry identical values: colors, type families,
-  corner radius, touch target, breakpoints and the LED segment range.
+  corner radius, touch target, breakpoints and the LED segment range. The gutter is in `tokens.kt` only.
 - In `tokens.css` the light palette is in `:root`, and the dark palette is
   declared twice with identical values: under the system dark preference unless
   `data-theme="light"` is set, and under `data-theme="dark"`.
-- Neither file declares a value this card does not give: no spacing scale, no
+- Neither file declares a value this card does not give: the spacing scale is
+  exactly the five size names spaceXsDp to spaceXlDp (tokens.kt) and --space-xs
+  to --space-xl (tokens.css), equal in both files and strictly increasing; no
   letter-spacing, no chosen LED segment count.
 - Corner radius is at most 4, the minimum touch target is at least 48, and the
   breakpoints are exactly 640 and 1024 (mobile below 640, tablet from 640
-  through 1024, desktop above 1024).
+  through 1024, desktop above 1024). The gutter is the one fixed host gutter (16 dp), in `tokens.kt`; it is not a spacing scale.
 - Text roles (text, text-muted, primary, primary-hover, danger, warning, accent and
   sent) reach WCAG AA 4.5:1 on bg and on surface, and trim reaches 3:1, in both
   modes. A pair below its minimum is pinned as an expected failure with its

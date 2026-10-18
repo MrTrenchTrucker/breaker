@@ -4,13 +4,18 @@ import android.content.Context
 import android.view.View
 import android.view.ViewGroup
 import android.view.accessibility.AccessibilityNodeInfo
+import android.widget.FrameLayout
+import android.widget.LinearLayout
 import android.widget.ScrollView
 import dev.breaker.dictation.ui.BreakerSwitch
 import dev.breaker.dictation.ui.HomeControl
+import dev.breaker.dictation.ui.screen.CollapsibleText
+import dev.breaker.dictation.ui.screen.Node
 import dev.breaker.dictation.ui.screen.Screen
 import dev.breaker.dictation.ui.screen.ScreenIntent
 import dev.breaker.dictation.ui.screen.flatten
 import dev.breaker.dictation.ui.screen.home.HomeActions
+import dev.breaker.dictation.ui.screen.home.HomeGeometry
 import dev.breaker.dictation.ui.screen.home.HomeIntentHandler
 import dev.breaker.dictation.ui.screen.home.HomeNodeIds
 import dev.breaker.dictation.ui.screen.home.HomeState
@@ -21,8 +26,8 @@ import dev.breaker.dictation.ui.theme.Theme
 /*
  * The view the app puts on the display for the home screen.
  *
- * It does the job SetupHostView does for the setup steps, with one difference:
- * where the screen's facts come from. The setup screen's are the handler's own,
+ * It does the job the first-run host does for the first-run steps, with one difference:
+ * where the screen's facts come from. The first-run screen's are the handler's own,
  * reached through the platform and the switch it was given; the home screen's are
  * the app's, and this module keeps no store of them and core has no port to read
  * them through. So the app offers them as functions: whether Breaker is on
@@ -46,11 +51,13 @@ import dev.breaker.dictation.ui.theme.Theme
  * @param handler turns intents into the screen to draw next and owns the drawer.
  * @param switch the switch the app offers for turning Breaker on and off.
  * @param modelReady answers whether the speech model is on the phone right now.
- * @param lastDictation answers the last thing that was dictated, or null.
+ * @param lastDictationAt answers the epoch-millis time of the last dictation, or null.
  * @param lastTranscript answers the last transcript to copy, or null.
  * @param transcriptTime answers the phone's own short time for the transcript.
  * @param onCopy asks the app to copy the transcript on display to the clipboard.
  * @param onHistory asks the app to show the history screen.
+ * @param onHowItWorks asks the app to show the How it works screen.
+ * @param onAbout asks the app to show the About screen.
  * @param onSettings asks the app to show the settings screen.
  * @param onTap asks the app to start a take from the big mic on the screen.
  * @param theme the colours and sizes the screen is drawn in.
@@ -61,16 +68,36 @@ internal class HomeHostView(
     private val handler: HomeIntentHandler,
     private val switch: BreakerSwitch,
     private val modelReady: () -> Boolean,
-    private val lastDictation: () -> String?,
+    private val lastDictationAt: () -> Long?,
     private val lastTranscript: () -> String?,
     private val transcriptTime: () -> String?,
     private val onCopy: (String) -> Unit,
     private val onHistory: () -> Unit,
+    private val onHowItWorks: () -> Unit,
+    private val onAbout: () -> Unit,
     private val onSettings: () -> Unit,
     private val onTap: () -> Unit,
     private val theme: Theme,
     private val renderer: ScreenRenderer,
-) : ScrollView(context), HomeControl {
+) : FrameLayout(context), HomeControl {
+    /** The page: the screen's rows and their bleed layers, scrolled as one. Made in init. */
+    private var page: ScrollView? = null
+
+    /** The drawer's overlay: the dim and the panel, over the page only while the menu is open. */
+    private val overlay = FrameLayout(context)
+
+    /** The top inset the host was padded by, kept for the top of the drawer's panel. */
+    private var panelTop: Int = 0
+
+    /** The drawer's own actions: the four items and the dim. Any other tap while the menu is open only closes it. */
+    private val drawerActions = setOf(
+        HomeActions.HISTORY,
+        HomeActions.SETTINGS,
+        HomeActions.HOW_IT_WORKS,
+        HomeActions.ABOUT,
+        HomeActions.CLOSE_MENU,
+    )
+
     /** The screen drawn last, so the drawer's state can be carried into the next drawing. */
     private var drawn: Screen? = null
 
@@ -83,11 +110,26 @@ internal class HomeHostView(
     /** Whether the big mic shows the recording look. */
     private var recording: Boolean = false
 
+    /** The Back callback held while the menu is open, or null when it is not held. */
+    private var backCallback: android.window.OnBackInvokedCallback? = null
+
+    /** The dispatcher the callback went to, kept so the callback can be taken off after the view leaves its window. */
+    private var backDispatcher: android.window.OnBackInvokedDispatcher? = null
+
     init {
+        val scroll = ScrollView(context)
         // A screen is taller than a short window in landscape, and without this
         // the background of the child would stop short of the visible area.
-        isFillViewport = true
+        scroll.openForBleed()
+        page = scroll
+        addView(scroll, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         draw(merged(null))
+    }
+
+    /** The host's padding is the page's, the one padding place for the screen; the top inset is kept for the panel. */
+    override fun setPadding(left: Int, top: Int, right: Int, bottom: Int) {
+        panelTop = top
+        page?.setPadding(left, top, right, bottom)
     }
 
     /**
@@ -97,13 +139,52 @@ internal class HomeHostView(
      * afterwards, and the platform limits it to the height of the new content.
      */
     fun show(screen: Screen) {
-        val held = scrollY
-        removeAllViews()
-        val rendered = renderer.render(screen, theme, ::onIntent)
-        addView(rendered)
-        setBackgroundColor(theme.color(PaletteSlot.BACKGROUND).argb)
-        scrollTo(0, held)
+        val content = checkNotNull(page)
+        val held = content.scrollY
+        val split = screen.nodes.partition { it.id == HomeNodeIds.DRAWER_DIM || it.id == HomeNodeIds.DRAWER_PANEL }
+        content.removeAllViews()
+        val rendered = renderer.render(Screen(screen.id, screen.title, split.second), theme, ::onIntent)
+        applyBrandArt(rendered, context, theme)
+        content.addView(rendered)
+        content.setBackgroundColor(theme.color(PaletteSlot.BACKGROUND).argb)
+        content.scrollTo(0, held)
         findTagged(rendered, HomeNodeIds.MIC)?.let { attachMic(it) }
+        showOverlay(split.first, screen)
+        menuBack(split.first.isNotEmpty())
+    }
+
+    /**
+     * Draws the drawer's [nodes] over the page. The dim covers the whole host at the dim's alpha, and
+     * the panel stands at the left at the panel's width, its top moved down by the top inset. The
+     * overlay is on the host only while there are nodes for it, that is while the menu is open.
+     */
+    private fun showOverlay(nodes: List<Node>, screen: Screen) {
+        overlay.removeAllViews()
+        if (nodes.isEmpty()) {
+            if (overlay.parent === this) removeView(overlay)
+            return
+        }
+        val dimRoot = renderer.render(Screen(screen.id, screen.title, nodes.filter { it.id == HomeNodeIds.DRAWER_DIM }), theme, ::onIntent)
+        val panelRoot = renderer.render(Screen(screen.id, screen.title, nodes.filter { it.id == HomeNodeIds.DRAWER_PANEL }), theme, ::onIntent)
+        applyBrandArt(panelRoot, context, theme)
+        findTagged(dimRoot, HomeNodeIds.DRAWER_DIM)?.let { dim ->
+            dim.alpha = HomeGeometry.DRAWER_DIM
+            dim.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        }
+        findTagged(panelRoot, HomeNodeIds.DRAWER_PANEL)?.let { panel ->
+            panel.layoutParams = LinearLayout.LayoutParams((HomeGeometry.PANEL_W_DP * resources.displayMetrics.density).toInt(), ViewGroup.LayoutParams.MATCH_PARENT)
+            panel.setPadding(0, panelTop, 0, 0)
+        }
+        overlay.addView(layerOf(dimRoot))
+        overlay.addView(layerOf(panelRoot))
+        if (overlay.parent !== this) addView(overlay, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+    }
+
+    /** A layer over the page: the root takes the host's size and no background of its own, so the page shows through. */
+    private fun layerOf(root: View): View {
+        root.background = null
+        root.layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        return root
     }
 
     /**
@@ -120,8 +201,7 @@ internal class HomeHostView(
 
     /**
      * The state to draw next: the app's facts as the app offers them now, the
-     * drawer as [source] last drew it, and the notice the handler is showing:
-     * the answer to a HOW IT WORKS or ABOUT tap, which the host does not act on.
+     * drawer as [source] last drew it, and the notice the handler is showing.
      *
      * The drawer is the handler's own state and cannot be read out of it, so it is
      * read off a screen the handler drew: the one just acted on, or the one on
@@ -133,17 +213,25 @@ internal class HomeHostView(
     private fun merged(source: Screen?): HomeState = HomeState(
         switchOn = switch.isOn(),
         modelReady = modelReady(),
-        lastDictation = lastDictation(),
+        lastDictationAt = lastDictationAt(),
         lastTranscript = lastTranscript(),
         transcriptTime = transcriptTime(),
         line = line,
         recording = recording,
         menuOpen = source?.nodes?.flatMap { it.flatten() }?.any { it.id == HomeNodeIds.DRAWER_PANEL } ?: false,
+        opened = source?.nodes?.flatMap { it.flatten() }?.filterIsInstance<CollapsibleText>()?.any { it.opened } ?: false,
         notice = handler.notice(),
     )
 
-    /** Acts on [intent] and draws the result. */
+    /**
+     * Acts on [intent] and draws the result. While the menu is open, a tap that is not a drawer item
+     * only closes the menu: the check comes before any action, and nothing else happens.
+     */
     private fun onIntent(intent: ScreenIntent) {
+        if (intent is ScreenIntent.Home && state.menuOpen && intent.action !in drawerActions) {
+            draw(merged(handler.handle(ScreenIntent.Home(HomeActions.CLOSE_MENU))))
+            return
+        }
         if (intent is ScreenIntent.Home) act(intent.action)
         val handled = handler.handle(intent)
         draw(merged(handled))
@@ -151,7 +239,8 @@ internal class HomeHostView(
 
     /**
      * The app's own actions. The drawer and its items are the handler's to act on;
-     * the switch and the copy and the four destinations are the app's.
+     * the switch and the copy and the six destinations are the app's.
+     * While the menu is open, a tap on the mic closes the menu instead of starting a take.
      */
     private fun act(action: String) {
         when (action) {
@@ -163,7 +252,9 @@ internal class HomeHostView(
             HomeActions.COPY -> onCopy(state.lastTranscript ?: "")
             HomeActions.HISTORY -> onHistory()
             HomeActions.SETTINGS -> onSettings()
-            HomeActions.MIC -> onTap()
+            HomeActions.HOW_IT_WORKS -> onHowItWorks()
+            HomeActions.ABOUT -> onAbout()
+            HomeActions.MIC -> if (state.menuOpen) onIntent(ScreenIntent.Home(HomeActions.CLOSE_MENU)) else onTap()
         }
     }
 
@@ -172,6 +263,11 @@ internal class HomeHostView(
         // Drawn again on attachment: a take may have finished while this view
         // was off screen, and the transcript it left is the app's to show.
         draw(merged(drawn))
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        releaseMenuBack()
     }
 
     override fun onWindowFocusChanged(hasWindowFocus: Boolean) {
@@ -193,6 +289,43 @@ internal class HomeHostView(
     override fun showRecording(recording: Boolean) {
         this.recording = recording
         draw(merged(drawn))
+    }
+
+    /** Re-reads the app's facts and draws the screen again. */
+    override fun refresh() {
+        draw(merged(drawn))
+    }
+
+    /** Closes the menu when it is open, through the same intent the dim sends, and answers whether it was open. */
+    override fun closeMenu(): Boolean {
+        val wasOpen = state.menuOpen
+        if (wasOpen) onIntent(ScreenIntent.Home(HomeActions.CLOSE_MENU))
+        return wasOpen
+    }
+
+    /** Takes the Back callback on while the menu is open, and takes it off when the menu shuts. */
+    private fun menuBack(open: Boolean) {
+        if (open) registerMenuBack() else releaseMenuBack()
+    }
+
+    /** Registers the Back callback on the view's own dispatcher, once, and keeps the dispatcher for taking it off. */
+    private fun registerMenuBack() {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) return
+        val dispatcher = findOnBackInvokedDispatcher() ?: return
+        if (backCallback != null) return
+        val callback = android.window.OnBackInvokedCallback { closeMenu() }
+        dispatcher.registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, callback)
+        backCallback = callback
+        backDispatcher = dispatcher
+    }
+
+    /** Takes the Back callback off the dispatcher it went to, when it is held. */
+    private fun releaseMenuBack() {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) return
+        val callback = backCallback ?: return
+        backDispatcher?.unregisterOnBackInvokedCallback(callback)
+        backCallback = null
+        backDispatcher = null
     }
 
     /** Makes the big mic a button: it takes a tap, is announced as a button, and carries its words. */

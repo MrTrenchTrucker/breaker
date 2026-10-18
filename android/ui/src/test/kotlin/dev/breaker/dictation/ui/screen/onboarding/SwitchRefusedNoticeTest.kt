@@ -107,11 +107,11 @@ class SwitchRefusedNoticeTest {
 
     @Test
     fun `the view answers the member by drawing the refusal the handler gives`() {
-        val file = File("src/main/kotlin/dev/breaker/dictation/ui/render/SetupHostView.kt")
+        val file = File("src/main/kotlin/dev/breaker/dictation/ui/render/FirstRunHostView.kt")
         assertTrue("the view source was not found at ${file.absolutePath}", file.isFile)
         assertTrue(
             "app: the view must draw the refusal through the handler",
-            file.readText().contains("override fun showSwitchRefused(sentence: String) {\n        show(handler.switchRefused(sentence))\n    }"),
+            file.readText().contains("override fun showSwitchRefused(sentence: String) {\n        controller.switchRefused(sentence)\n        draw()\n    }"),
         )
     }
 }

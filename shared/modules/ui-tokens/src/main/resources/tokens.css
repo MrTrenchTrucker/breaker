@@ -39,6 +39,13 @@
   --breakpoint-mobile: 640px;
   --breakpoint-tablet: 1024px;
 
+  /* spacing scale, named by size (the gutter is Kotlin only) */
+  --space-xs: 4px;
+  --space-s: 8px;
+  --space-m: 12px;
+  --space-l: 16px;
+  --space-xl: 32px;
+
   /* LED bar meter segment range */
   --led-segments-min: 12;
   --led-segments-max: 16;

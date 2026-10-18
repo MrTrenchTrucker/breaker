@@ -3,10 +3,13 @@ package dev.breaker.dictation.ui
 import dev.breaker.dictation.ui.render.HomeHostView
 import dev.breaker.dictation.ui.render.ScreenRenderer
 import dev.breaker.dictation.ui.screen.home.HomeIntentHandler
+import dev.breaker.dictation.ui.screen.home.LocalizedTimeFormat
 import dev.breaker.dictation.ui.screen.home.HomeScreen
 import dev.breaker.dictation.ui.theme.isNightMode
 import dev.breaker.dictation.ui.theme.storedTheme
 import dev.breaker.dictation.core.port.SettingsStore
+import java.util.Locale
+import java.time.ZoneId
 
 /*
  * The home screen's way in.
@@ -45,13 +48,15 @@ import dev.breaker.dictation.core.port.SettingsStore
  * @param context the context the views are built with, normally an activity's.
  * @param switch the switch the app offers for turning Breaker on and off.
  * @param modelReady answers whether the speech model is on the phone right now.
- * @param lastDictation answers the last thing that was dictated, or null when
+ * @param lastDictationAt answers the epoch-millis time of the last dictation, or null when
  *   there is none.
  * @param lastTranscript answers the last transcript, or null when there is
  *   none; it is what a tap on Copy copies.
  * @param transcriptTime answers the phone's own short time for the transcript.
  * @param onCopy asks the app to copy the transcript on display to the clipboard.
  * @param onHistory asks the app to show the history screen.
+ * @param onHowItWorks asks the app to show the How it works screen.
+ * @param onAbout asks the app to show the About screen.
  * @param onSettings asks the app to show the settings screen.
  * @param settings the shared store, through which this screen's theme is read
  *   once here instead of reading the phone's own mode again.
@@ -64,27 +69,33 @@ fun createHomeView(
     context: android.content.Context,
     switch: BreakerSwitch,
     modelReady: () -> Boolean,
-    lastDictation: () -> String?,
+    lastDictationAt: () -> Long?,
     lastTranscript: () -> String?,
     transcriptTime: () -> String?,
     onCopy: (String) -> Unit,
     onHistory: () -> Unit,
+    onHowItWorks: () -> Unit,
+    onAbout: () -> Unit,
     onSettings: () -> Unit,
     onTap: () -> Unit,
     settings: dev.breaker.dictation.core.port.SettingsStore,
 ): android.view.View {
     val theme = storedTheme(settings, isNightMode(context.resources.configuration.uiMode))
-    val handler = HomeIntentHandler(HomeScreen())
+    val handler = HomeIntentHandler(
+        HomeScreen(LocalizedTimeFormat(Locale.getDefault(), ZoneId.systemDefault()))
+    )
     return HomeHostView(
         context,
         handler,
         switch,
         modelReady,
-        lastDictation,
+        lastDictationAt,
         lastTranscript,
         transcriptTime,
         onCopy,
         onHistory,
+        onHowItWorks,
+        onAbout,
         onSettings,
         onTap,
         theme,
@@ -103,4 +114,13 @@ interface HomeControl {
 
     /** Shows the recording look on the big mic while [recording] is true. */
     fun showRecording(recording: Boolean)
+
+    /** Re-reads the app's facts and draws the screen again. */
+    fun refresh()
+
+    /**
+     * Closes the drawer when it is open and answers true when it did. False means the drawer was
+     * already shut, so the Back press is left to the caller.
+     */
+    fun closeMenu(): Boolean = false
 }

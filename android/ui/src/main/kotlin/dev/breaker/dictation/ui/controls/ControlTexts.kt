@@ -15,6 +15,9 @@ internal object ControlTexts {
     const val BADGE_PHONE_ONLY = "Phone only"
     const val BADGE_FAILED = "Failed"
 
+    /** The words a screen reader says for a back arrow, such as the one in a title bar. */
+    const val BACK_ARROW = "Back"
+
     /** The destructive button's word, already the history screen's. */
     val BUTTON_DELETE: String get() = HistoryTexts.BUTTON_DELETE
 }

@@ -19,9 +19,11 @@ and with each other, so a change made to one and not the others fails.
 
 The module carries only the values its card gives. The LED bar is the card's
 range of 12 to 16 segments, and the radius and touch target are its bounds (a
-corner radius of at most 4, a touch target of at least 48). There is no spacing
-scale, no letter-spacing and no LED pixel size, and font files are not bundled:
-only family names.
+corner radius of at most 4, a touch target of at least 48). The spacing scale is
+five size names, spaceXsDp to spaceXlDp (4, 8, 12, 16 and 32 dp), with --space-xs
+to --space-xl in CSS, equal in both files. There is no letter-spacing and no LED
+pixel size, and font files are not bundled: only family names. The one fixed host
+gutter is `gutterDp` (16 dp), and it is in Kotlin only.
 
 ## Using the tokens
 
@@ -45,7 +47,9 @@ are there for scripts and other consumers.
 
 `TruckingTokens.palette(mode)` returns the light or dark `TruckingPalette`, and
 `TruckingTokens.toggled(mode)` gives the other mode. `TruckingTokens.metrics`
-holds the corner radius, the minimum touch target and the two breakpoints, and
+holds the corner radius, the minimum touch target, the two breakpoints, the one
+fixed host gutter (`gutterDp`, 16 dp) and the five spacing steps (`spaceXsDp` to
+`spaceXlDp`), and
 `metrics.bandFor(widthDp)` says which band a width falls in: mobile below 640,
 tablet from 640 through 1024, desktop above 1024. `TruckingTokens.type` holds the
 family names and `TruckingTokens.ledBar` the range of LED bar segments.

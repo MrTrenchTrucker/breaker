@@ -20,10 +20,10 @@ card = "android/app/AGENTS.md"
 
 [module.android_ui]
 path = "android/ui"
-owns = "Screens: history, settings, auth, training, and the onboarding for the permissions (accessibility service, overlay). Consumes ui-tokens."
+owns = "Screens: history, settings, auth, training, and the first-run flow for the permissions (accessibility service, overlay). Consumes ui-tokens."
 does_not_own = "Business logic (core); platform adapters (modules/*)."
 depends_on = ["android", "android_core", "shared_ui_tokens"]
-public = "createSettingsView, createOnboardingView, createFirstRunView, createHistoryView, BreakerSwitch, createHomeView, HomeControl"
+public = "createSettingsView, createFirstRunView, createHistoryView, BreakerSwitch, createHomeView, HomeControl, createHowItWorksView, createAboutView, DownloadControl, ModelStepControl"
 card = "android/ui/AGENTS.md"
 
 [module.android_core]
@@ -118,7 +118,7 @@ status = "dead"
 [module.android_commit_accessibility]
 path = "android/modules/commit/accessibility"
 owns = "The accessibility text-insert mechanism (ADR-022): finds the focused editable field, inserts text (ACTION_SET_TEXT merging at the cursor; ACTION_PASTE is not built yet), refuses password fields, publishes the focused field into the parent's holder."
-does_not_own = "The mechanism-neutral commit logic (commit); the dead keyboard adapter (commit/ime); onboarding for the permission (ui)."
+does_not_own = "The mechanism-neutral commit logic (commit); the dead keyboard adapter (commit/ime); the first-run flow for the permission (ui)."
 depends_on = ["android_commit"]
 public = "BreakerAccessibilityService"
 card = "android/modules/commit/accessibility/AGENTS.md"

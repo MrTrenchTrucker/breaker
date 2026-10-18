@@ -128,17 +128,17 @@ class NodeModelTest {
     }
 
     @Test
-    fun `there are exactly eight kinds of intent`() {
+    fun `there are exactly nine kinds of intent`() {
         assertEquals(
-            setOf("ToggleTheme", "UseSystemTheme", "SetRoutingMode", "SetSetting", "Setup", "History", "SetThemeMode", "Home"),
+            setOf("ToggleTheme", "UseSystemTheme", "SetRoutingMode", "SetSetting", "Setup", "History", "SetThemeMode", "Home", "Back"),
             permittedNames(ScreenIntent::class.java),
         )
     }
 
     @Test
-    fun `there are exactly nine kinds of node`() {
+    fun `there are exactly seventeen kinds of node`() {
         assertEquals(
-            setOf("Box", "Label", "Action", "TrimStripe", "TagPill", "CollapsibleText", "SegmentedRow", "SwitchRow", "ValueField"),
+            setOf("Box", "Label", "Action", "TrimStripe", "TagPill", "CollapsibleText", "SegmentedRow", "SwitchRow", "ValueField", "MenuIcon", "Switch", "Rule", "BottomStripes", "BackArrow", "Spacer", "Dot", "TouchGap"),
             permittedNames(Node::class.java),
         )
     }

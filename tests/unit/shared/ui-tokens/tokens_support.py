@@ -40,7 +40,7 @@ EXPECTED_CSS_COLOR_VARS = {"color-" + t for t in COLOR_TOKENS}
 EXPECTED_CSS_OTHER_VARS = {
     "font-display", "font-body", "font-mono",
     "radius", "touch-target-min", "breakpoint-mobile", "breakpoint-tablet",
-    "led-segments-min", "led-segments-max",
+    "led-segments-min", "led-segments-max", "space-xs", "space-s", "space-m", "space-l", "space-xl",
 }
 EXPECTED_CSS_VARS = EXPECTED_CSS_COLOR_VARS | EXPECTED_CSS_OTHER_VARS
 
@@ -49,7 +49,7 @@ EXPECTED_KOTLIN_PALETTE_FIELDS = {
     "accent", "danger", "trim", "sent", "warning",
 }
 EXPECTED_KOTLIN_METRICS_FIELDS = {
-    "cornerRadiusDp", "minTouchTargetDp", "mobileBreakpointDp", "tabletBreakpointDp",
+    "cornerRadiusDp", "minTouchTargetDp", "mobileBreakpointDp", "tabletBreakpointDp", "gutterDp", "spaceXsDp", "spaceSDp", "spaceMDp", "spaceLDp", "spaceXlDp",
 }
 EXPECTED_KOTLIN_TYPE_FIELDS = {
     "displayFamily", "displayAlternateFamily", "bodyFamily", "monoFamily",

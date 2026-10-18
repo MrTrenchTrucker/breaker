@@ -115,7 +115,7 @@ internal class SetupScreen {
      * [notice] is the message for an action that did not work, or null; it is the
      * first node under the title's rule. The screen cannot move the view, so it is
      * the view that scrolls to the top when it draws a screen holding this node
-     * (see SetupHostView.show), and that is what puts the message in sight after a
+     * (see the host's show), and that is what puts the message in sight after a
      * tap lower down the page.
      */
     fun render(state: SetupState, notice: SetupNotice?): Screen =

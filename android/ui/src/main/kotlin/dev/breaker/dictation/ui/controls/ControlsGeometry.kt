@@ -84,6 +84,11 @@ internal object ControlsGeometry {
     const val BUTTON_SIDE_DP: Float = 16f
     /** The width the art draws every button that is not full width: 170 px. */
     const val BUTTON_MIN_WIDTH_DP: Float = 340f / 3f
+    /**
+     * The floor of a compact button, the one the History entry rows use: 140 px at 1.5 px per dp, the width
+     * the History mock-up breaker_history_long.png draws its COPY, SHOW ALL and DELETE buttons at, 93.33 dp.
+     */
+    const val BUTTON_COMPACT_MIN_WIDTH_DP: Float = 140f / 1.5f
     /** The corner radius of both thumbs: 3 px. */
     const val THUMB_CORNER_DP: Float = 2f
 
@@ -162,9 +167,10 @@ internal object ControlsGeometry {
 
     /**
      * The width of a button for a label [labelWidthDp] wide: the art's 170 px, or the label plus the side
-     * padding on each side when that is wider.
+     * padding on each side when that is wider. A [compact] button takes the compact floor instead of the art's.
      */
-    fun buttonWidth(labelWidthDp: Float): Float = maxOf(BUTTON_MIN_WIDTH_DP, labelWidthDp + 2f * BUTTON_SIDE_DP)
+    fun buttonWidth(labelWidthDp: Float, compact: Boolean = false): Float =
+        maxOf(if (compact) BUTTON_COMPACT_MIN_WIDTH_DP else BUTTON_MIN_WIDTH_DP, labelWidthDp + 2f * BUTTON_SIDE_DP)
 
     /**
      * The width in px of a full width button: the measured row when the parent measured one, else the label's

@@ -6,14 +6,11 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.os.Bundle
 import android.view.ViewGroup
-import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
-import android.widget.TextView
 import dev.breaker.dictation.host.MainLooperPost
 import dev.breaker.dictation.service.NotificationRoute
 import dev.breaker.dictation.settings.ModelCatalog
-import dev.breaker.dictation.ui.ModelStepControl
 import dev.breaker.dictation.ui.createHomeView
 import dev.breaker.dictation.wiring.ACCESSIBILITY_SERVICE_COMPONENT
 import dev.breaker.dictation.wiring.BreakerSwitchAdapter
@@ -21,6 +18,7 @@ import dev.breaker.dictation.wiring.FirstRunDoneStore
 import dev.breaker.dictation.wiring.FirstRunGate
 import dev.breaker.dictation.wiring.HomeTakeWiring
 import dev.breaker.dictation.wiring.IconLaunchOnce
+import dev.breaker.dictation.wiring.InfoScreensWiring
 import dev.breaker.dictation.wiring.ModelDownloadNotice
 import dev.breaker.dictation.wiring.ModelSentences
 import dev.breaker.dictation.wiring.StoreModelReady
@@ -35,26 +33,27 @@ import java.io.File
 
 class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
 
-    private lateinit var downloadStatus: TextView
     private lateinit var settingsColumn: LinearLayout
     private lateinit var settingsScroll: ScrollView
     private var homeView: android.view.View? = null
     private var historyShown: Boolean = false
     private var settingsShown: Boolean = false
+    private var firstRunShown: Boolean = false
+    private var firstRunView: android.view.View? = null
     private var backCallback: android.window.OnBackInvokedCallback? = null
     private var downloadSentence: String? = null
     private var pendingRefusal: String? = null
     private lateinit var iconLaunch: IconLaunchOnce
     private lateinit var takeWiring: HomeTakeWiring
     private lateinit var homeRebuilt: dev.breaker.dictation.wiring.Rebuilt<android.view.View>
-    private lateinit var onboardingRebuilt: dev.breaker.dictation.wiring.Rebuilt<android.view.View>
+    private lateinit var settingsRebuilt: dev.breaker.dictation.wiring.Rebuilt<android.view.View>
+    private lateinit var infoScreens: InfoScreensWiring
+    private lateinit var settingsView: android.view.View
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         iconLaunch = IconLaunchOnce(savedInstanceState?.getBoolean(ICON_LAUNCH_DONE_KEY, false) ?: false)
         val app = applicationContext as BreakerApp
-        downloadStatus = TextView(this)
-        downloadStatus.text = ""
         val modelReady = StoreModelReady(app.compositionRoot.modelStore) { app.settingsStore.load().modelSize }
         val firstRunDone = FirstRunDoneStore(File(app.filesDir, FirstRunDoneStore.FILE_NAME))
         when (FirstRunGate.decide(firstRunDone.isDone(), modelReady.isReady())) {
@@ -76,48 +75,41 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
             this,
             BreakerSwitchAdapter(app.armedSwitch),
             modelReady = { modelReady.isReady() },
-            lastDictation = { app.historyStore.list(1).firstOrNull()?.text },
+            lastDictationAt = { app.historyStore.list(1).firstOrNull()?.createdAt },
             lastTranscript = { app.historyStore.list(1).firstOrNull()?.text },
             transcriptTime = { app.historyStore.list(1).firstOrNull()?.createdAt?.let { formatTime(it) } },
             onCopy = { sentence -> copyToClipboard(sentence) },
             onHistory = { openHistory() },
             onSettings = { openSettings() },
+            onHowItWorks = { openHowItWorks() },
+            onAbout = { openAbout() },
             onTap = { takeWiring.onTap() },
             settings = app.settingsStore,
         ) }
         val home = homeRebuilt.current
         homeView = home
+        infoScreens = InfoScreensWiring(this, app.settingsStore, { homeView }) { setContentView(homeView); applyInsets(homeView!!) }
         takeWiring.attach(home as dev.breaker.dictation.ui.HomeControl)
         setContentView(home)
         applyInsets(home)
-        onboardingRebuilt = dev.breaker.dictation.wiring.Rebuilt { dev.breaker.dictation.ui.createOnboardingView(
+        settingsRebuilt = dev.breaker.dictation.wiring.Rebuilt { dev.breaker.dictation.ui.createSettingsView(
             this,
-            BreakerSwitchAdapter(app.armedSwitch),
-            ACCESSIBILITY_SERVICE_COMPONENT,
+            app.settingsStore,
             modelReady = { modelReady.isReady() },
             downloadLine = { downloadSentence },
-            modelDownloadMb = { ModelCatalog.byId(app.settingsStore.load().modelSize)?.sizeMb?.let(ModelSentences::mibToMb) ?: ModelSentences.mibToMb(ModelRegistry.SMALL.sizeMb) },
             onDownloadModel = { app.tileHost.requestDownload() },
-            settings = app.settingsStore,
         ) }
-        val onboarding = onboardingRebuilt.current
-        onboardingView = onboarding
-        val history = Button(this)
-        history.text = HISTORY_LABEL
-        history.setOnClickListener { openHistory() }
+        settingsView = settingsRebuilt.current
         val column = LinearLayout(this)
         column.orientation = LinearLayout.VERTICAL
-        column.addView(onboarding)
-        column.addView(downloadStatus)
-        column.addView(history)
-        val settings = dev.breaker.dictation.ui.createSettingsView(this, app.settingsStore)
-        column.addView(settings, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        column.addView(settingsView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         val scroll = ScrollView(this)
         scroll.addView(column, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         settingsColumn = column
         settingsScroll = scroll
         if (intent?.getStringExtra(NotificationRoute.EXTRA_ROUTE) == NotificationRoute.ROUTE_MODEL) {
-            (onboarding as? ModelStepControl)?.focusDownload()
+            openSettings()
+            (settingsView as? dev.breaker.dictation.ui.DownloadControl)?.focusDownload()
         }
         if (savedInstanceState == null && NotificationRoute.opensHistory(intent?.getStringExtra(NotificationRoute.EXTRA_ROUTE))) {
             openHistory()
@@ -135,12 +127,22 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
             settings = app.settingsStore,
             onFinished = { done.markDone(); recreate() },
         )
-        onboardingView = view
+        firstRunView = view
+        firstRunShown = true
         setContentView(view)
         applyInsets(view)
     }
 
     private fun pendingDownloadLine(): String? = downloadSentence
+
+    /** The download control of the screen that is showing: first run's while it is up, the settings' otherwise. */
+    private fun downloadControl(): dev.breaker.dictation.ui.DownloadControl? {
+        return if (firstRunShown) {
+            firstRunView as? dev.breaker.dictation.ui.DownloadControl
+        } else {
+            settingsView as? dev.breaker.dictation.ui.DownloadControl
+        }
+    }
 
     private fun selectedModelMb(app: BreakerApp): Int =
         ModelCatalog.byId(app.settingsStore.load().modelSize)?.sizeMb?.let(ModelSentences::mibToMb) ?: ModelSentences.mibToMb(ModelRegistry.SMALL.sizeMb)
@@ -167,11 +169,16 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         super.onResume()
         val app = applicationContext as BreakerApp
         app.tileHost.setDownloadListener(this)
-        (onboardingView as? ModelStepControl)?.refresh()
-        val held = app.refusalHold.take()
-        val refusal = pendingRefusal ?: held
-        pendingRefusal = null
-        refusal?.let { (onboardingView as? ModelStepControl)?.showSwitchRefused(it) }
+        when {
+            firstRunShown -> (firstRunView as? dev.breaker.dictation.ui.DownloadControl)?.refresh()
+            settingsShown -> (settingsView as? dev.breaker.dictation.ui.DownloadControl)?.refresh()
+            else -> (homeView as? dev.breaker.dictation.ui.HomeControl)?.refresh()
+        }
+        val refusal = pendingRefusal ?: app.refusalHold.take()
+        if (refusal != null) {
+            pendingRefusal = null
+            (homeView as? dev.breaker.dictation.ui.HomeControl)?.showLine(refusal)
+        }
     }
 
     override fun onPause() {
@@ -184,20 +191,18 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
     @SuppressLint("GestureBackNavigation")
     override fun onBackPressed() {
         when {
+            this::infoScreens.isInitialized && infoScreens.isInfoShown() -> infoScreens.closeInfo()
             historyShown -> closeHistory()
             settingsShown -> closeSettings()
-            else -> super.onBackPressed()
+            else -> if ((homeView as? dev.breaker.dictation.ui.HomeControl)?.closeMenu() != true) super.onBackPressed()
         }
     }
-
-    private lateinit var onboardingView: android.view.View
 
     private fun openHistory() {
         if (historyShown) return
         historyShown = true
         val app = applicationContext as BreakerApp
-        val historyView =
-            dev.breaker.dictation.ui.createHistoryView(this, app.historyStore, app.settingsStore)
+        val historyView = dev.breaker.dictation.ui.createHistoryView(this, app.historyStore, app.settingsStore)
         setContentView(historyView)
         applyInsets(historyView)
         registerBack()
@@ -231,24 +236,25 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         if (!historyShown) unregisterBack()
         homeView = homeRebuilt.again()
         takeWiring.attach(homeView as dev.breaker.dictation.ui.HomeControl)
-        onboardingView = swapInColumn(settingsColumn, onboardingView, onboardingRebuilt.again())
+        settingsView = swapInColumn(settingsColumn, settingsView, settingsRebuilt.again())
         setContentView(homeView)
         applyInsets(homeView!!)
     }
-
+    private fun openHowItWorks() = infoScreens.openHowItWorks()
+    private fun openAbout() = infoScreens.openAbout()
     private fun registerBack() {
         if (backCallback != null) return
         if (android.os.Build.VERSION.SDK_INT >= 33) {
             val callback = android.window.OnBackInvokedCallback {
                 when {
+                    infoScreens.isInfoShown() -> infoScreens.closeInfo()
                     historyShown -> closeHistory()
                     settingsShown -> closeSettings()
                 }
             }
             backCallback = callback
             onBackInvokedDispatcher.registerOnBackInvokedCallback(
-                android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
-                callback,
+                android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, callback,
             )
         }
     }
@@ -259,42 +265,36 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
             backCallback = null
         }
     }
-
     override fun downloading(sentence: String) {
         downloadSentence = sentence
-        downloadStatus.text = sentence
-        (onboardingView as? ModelStepControl)?.refresh()
+        downloadControl()?.downloadProgress(0, 0)
     }
 
     override fun done() {
         downloadSentence = null
-        downloadStatus.text = ""
-        (onboardingView as? ModelStepControl)?.downloadStopped()
-        (onboardingView as? ModelStepControl)?.refresh()
+        downloadControl()?.downloadStopped()
     }
 
     override fun failed(sentence: String) {
         downloadSentence = sentence
-        downloadStatus.text = sentence
-        (onboardingView as? ModelStepControl)?.downloadStopped()
-        (onboardingView as? ModelStepControl)?.refresh()
+        downloadControl()?.downloadStopped()
     }
 
     override fun progress(sentence: String, doneMb: Int, totalMb: Int) {
-        // The launcher line shows the progress sentence the same way as the first one.
-        downloading(sentence)
-        (onboardingView as? ModelStepControl)?.let { control ->
-            if (sentence == ModelSentences.CHECKING) control.downloadChecking() else control.downloadProgress(doneMb, totalMb)
+        downloadSentence = sentence
+        val control = downloadControl()
+        if (sentence == ModelSentences.CHECKING) {
+            control?.downloadChecking()
+        } else {
+            control?.downloadProgress(doneMb, totalMb)
         }
     }
-
     private fun copyToClipboard(text: String) {
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboard.setPrimaryClip(ClipData.newPlainText("Breaker", text))
     }
 
     private companion object {
-        const val HISTORY_LABEL: String = "History"
         const val ICON_LAUNCH_DONE_KEY: String = "icon-launch-done"
     }
 }

@@ -33,8 +33,8 @@ import dev.breaker.dictation.ui.theme.Theme
  */
 internal class SwitchView(
     context: Context,
-    /** The caption the row carries beside the switch, read by screen readers. */
-    val label: String,
+    /** The words a screen reader says for the switch, or null for none. */
+    val label: String?,
     /** The track's width in dp, the art's own. */
     private val trackW: Float,
     /** The track's height in dp, the art's own. */
