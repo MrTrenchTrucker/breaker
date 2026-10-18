@@ -242,6 +242,44 @@ completes it by rotating the DEK at the account's next password change
   `client_id` as a duplicate, and never treats a lower one as an update — the
   first replaces, the second is refused (test: push both orders, confirm the
   replace and the 409).
+- A username is 1 to 64 characters from `A-Z a-z 0-9 . _ -` only. It is
+  stored as typed; uniqueness and every lookup use its lower-case form, so
+  "Bob" and "bob" cannot both exist and a lookup under another case finds the
+  account (test: register both, expect the second refused; look up under a
+  different case).
+- The auth verifier is exactly 32 bytes; any other length is refused before
+  any hashing. The server keeps only a salted hash of it (PBKDF2-HMAC-SHA256,
+  600,000 iterations by default, a fresh 16-byte salt per account, the
+  algorithm id and iteration count stored in the row so the cost can be
+  raised later) and compares hashes in constant time.
+- The server stores only the SHA-256 of a token's 43-character text, never the
+  token itself, and a token never appears in any log. Looking a token up is an
+  indexed equality on that hash (test: issue a token, search the database file
+  for its text and confirm it is not there; resolve the token and confirm the
+  row is found through its hash).
+- A session token never expires (session expiry is out of scope for this
+  product). An agent token has an optional expiry and is dead at its expiry
+  instant, not after it (test: issue an agent token that expires in the
+  future, resolve it just before and exactly at that instant, expect found and
+  then no; resolve a session token far in the future, expect found).
+- A token never carries more than its owner's role (ADR-009). Minting an
+  admin-scoped agent token for an owner who is not an admin is refused. When a
+  token is resolved, the effective scope is `transcribe` whenever the owner is
+  no longer an admin, even if the stored scope is `admin`; routes must use the
+  effective scope, not the stored one (test: mint an admin-scoped token for an
+  admin, demote the owner, resolve, expect stored `admin` and effective
+  `transcribe`; mint one for a plain user, expect the refusal).
+- Revocation: `change-password` revokes every OTHER live session token of that
+  account, keeping the one that presented it, and never touches agent tokens.
+  A reset revokes every live token of the account, of both kinds. Deleting an
+  agent token revokes only that agent token. Deleting an account removes its
+  tokens (test: give an account two sessions and an agent token, keep one
+  session and expect the other session revoked and the agent token still
+  live; revoke all and expect none live; revoke one agent token and expect
+  the rest live; delete the account and expect its tokens gone).
+- An unknown, malformed, expired or revoked token all resolve to the same
+  plain "no": nothing tells the caller which of the four it was (test: resolve
+  one of each, expect the same empty answer every time).
 
 ## Owns
 Auth (users, roles, agent tokens), sync, updates, retention, store clear, log policy.
@@ -258,7 +296,7 @@ AuthApi, SyncApi, AdminApi
 - UI (web-fe)
 
 ## Test Locations
-- Unit (Kotlin/Ktor, ADR-017): `server/modules/sync-api/src/test/kotlin/`, created with the module's first code. Run: `./gradlew :server:modules:sync-api:test` once this module's build file applies the Kotlin plugin (today it applies `base` only, so there is no test task yet).
+- Unit (Kotlin/Ktor, ADR-017): `server/modules/sync-api/src/test/kotlin/`. Run: `./gradlew :server:modules:sync-api:test`. The entry point `main` is not covered by unit tests, because it needs a real socket; every function it calls is.
 - Contract: `tests/contract/test_sync_api_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_sync_api_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
@@ -303,3 +341,59 @@ agents, not required: an outside contributor may write the code themselves
 - `change-password`'s `old_auth_verifier` field is the only thing standing
   between "holds a live session token" and "can replace this account's
   keys" — do not let the Bearer token alone satisfy this endpoint.
+- The server-side hash adds no guessing resistance beyond the client's key
+  derivation: the verifier is 32 pseudorandom bytes, and the hash is there so
+  that a stolen row is not a usable login.
+- An unknown username is refused without running the hash, so it costs less
+  time than a wrong verifier. That is by design: there is no decoy, and
+  account existence is already public at the salt step.
+- No logging binding is on the classpath yet, so Ktor prints a notice about a
+  no-op logger in tests.
+- `sqlite-jdbc` unpacks a native library into the temporary directory at
+  first use, so the container needs a writable one.
+- Hashing at 600,000 iterations takes a noticeable fraction of a second per
+  register or login. It runs off the database lane.
+- The database holds one connection, and every transaction runs on one
+  single-lane coroutine dispatcher.
+- The token store knows no caller: a route must check the token's `kind` and
+  its effective scope itself. Which endpoint takes which token:
+  - `POST /v1/auth/keys`, `POST /v1/auth/change-password`, `POST /v1/sync` and
+    `GET /v1/sync/pending-sealed` need a session token; an agent token is
+    refused.
+  - `POST /v1/audio/transcriptions` and `GET /v1/jobs/{id}` accept an agent
+    token or a session token.
+  - The admin endpoints need role admin for a session token and effective
+    scope admin for an agent token.
+- There is no logout and no session expiry yet, so a session row stays until
+  `change-password`, a reset or the deletion of the account removes it. Rows
+  that are revoked or expired are never purged yet.
+- A revoked row is kept (a soft revoke), so a token id is never reused and
+  revoking twice changes nothing.
+- An agent token's label is 1 to 64 characters with no control characters. It
+  may repeat for one owner and is stored as typed.
+- A token's text carries 256 random bits, so a fast unsalted hash is enough: no
+  password-style stretching is needed. No timing-safe comparison is needed
+  either, because the database compares one hash to another and the caller
+  controls only the text that is hashed.
+
+## Third-Party Dependencies
+
+This is a licence check and an advisory-database lookup, not a source audit.
+Licences were read from each artifact's POM on 2026-10-07. Each version is the
+newest stable release on Maven Central on 2026-10-07; the read dates and URLs
+for the Ktor and coroutines versions are in `gradle/libs.versions.toml`.
+Password hashing uses the JDK's `javax.crypto.Mac`, so it adds no
+dependency (Bouncy Castle was considered for Argon2id and not used).
+
+| Dependency | Version | Scope | Licence | Security note |
+|---|---|---|---|---|
+| `io.ktor:ktor-server-core` | 3.6.0 | main | Apache-2.0 | 0 advisories in the OSV database on 2026-10-07. |
+| `io.ktor:ktor-server-cio` | 3.6.0 | main | Apache-2.0 | 0 advisories. Pure Kotlin, no native code. |
+| `io.ktor:ktor-server-test-host` | 3.6.0 | test | Apache-2.0 | 0 advisories. |
+| `org.xerial:sqlite-jdbc` | 3.53.4.0 | main here | Apache-2.0 | 0 advisories. Ships native code. The catalog entry is test-only in the android modules and the runtime driver here. |
+| `org.jetbrains.kotlinx:kotlinx-coroutines-core` | 1.11.0 | main | Apache-2.0 | 0 advisories. |
+| `junit:junit` | 4.13.2 | test | EPL-1.0 | 0 advisories. |
+| `org.slf4j:slf4j-api` | 2.0.19, transitive via Ktor | main | MIT (the project's licence; its POM has no licence element) | No logging binding is added. |
+
+A control query on the same date for a known-vulnerable library (log4j-core
+2.14.1) returned 7 advisories, so the lookup works.
