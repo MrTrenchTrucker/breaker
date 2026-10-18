@@ -13,7 +13,7 @@ Floating tile = CB mic drawn from path data, with a glowing outline and a six-sl
 - A level meter of six segments: the six grille slots of the microphone. The app feeds it with `setLevel` (0.0 to 1.0);
   the slots are lit from the left while the state is `RECORDING`, and silence leaves all six unlit.
 - The expanded tile while `RECORDING`: [X cancel] [microphone with the meter in its grille] [check = send], in one window
-  three tiles wide and one tile high. The expanded tile cannot be dragged.
+  three 48 dp touch zones wide and one tile high (144 x 64 dp at the tile size): cancel, mic and send. The X and the check are each 90% of the mic's full width (side bar included), with their nearest path edge 8 dp from the mic silhouette path and centred on the silhouette's centre line; the placement is in `TileControlLayout.kt`. The mic zone (`TileLayout.micZone`) is centred on the silhouette. The expanded tile cannot be dragged.
 - A notice: a sentence from the app (`showNotice`) drawn in the strip above the microphone, in the wide window (three tiles wide and one and a half tiles high), until the app
   clears it (`clearNotice`) or pushes a different state. The module holds no words of its own.
 - A description (`setDescription`) that the view gives to screen readers as its content description.
@@ -74,8 +74,8 @@ The app now drives `setLevel` while recording: it works out the level from the m
 - A failed save is swallowed: the tile stays where it was dropped, and `onSaveFailed` (optional, no arguments) is
   called once for that drag end. The next drag end tries again.
 - The usable area and the tile size are read again at every move and at `onDisplayChanged()`, never kept.
-- The wide window (a notice, or recording) is placed around the square tile: its microphone cell lies over the square
-  tile where the screen allows (a notice window starts one strip above the tile's top, a recording window starts at the tile's own top), and the window is moved only as far as needed to stay inside the usable area. It never
+- The wide window (a notice, or recording) is placed around the square tile: for a notice its microphone cell lies over the square
+  tile where the screen allows (a notice window starts one strip above the tile's top, a recording window starts at the tile's own top and keeps the mic silhouette over the square tile, with the mic zone centred on it), and the window is moved only as far as needed to stay inside the usable area. It never
   changes the saved position. Next to a screen edge the microphone therefore appears at a different place when the
   window opens. A tap on the wide window is read against the place the module asked the window to have.
 
@@ -177,7 +177,7 @@ get darker and are flat, and white in the dark theme. They sit on the dark body.
   order, or depends on another test class having run.
 
 ## Owns
-Floating tile = CB mic drawn from path data, with a glowing outline and a six-slot level meter in its grille (WindowManager overlay, F36). Built: the draggable tile with the CB mic, the eight states, the armed ring pulse (one platform animator), the six-slot level meter, the expanded recording tile with cancel and send, and the notice and
+Floating tile = CB mic drawn from path data, with a glowing outline and a six-slot level meter in its grille (WindowManager overlay, F36). Built: the draggable tile with the CB mic, the eight states, the armed ring pulse (one platform animator), the six-slot level meter, the expanded recording tile with cancel and send (zones placed by `TileControlLayout.kt`), and the notice and
 description the app pushes. Not built yet: nothing in the mic art; its look on a device is still to be checked.
 
 ## Public Interface
@@ -230,7 +230,7 @@ FloatingTile (via create), FloatingTile.setImeProbe, ShowResult, TileState
 - `TileState`, in this order, and what the tile shows:
   - `IDLE`: dictation is off or not ready. The microphone with a plain outline. A tap on the microphone calls `onTap`.
   - `ARMED`: dictation is on and ready. The outline pulses (the armed ring pulse, see Invariants) and is steady when animations are off. A tap on the microphone calls `onBegin`.
-  - `RECORDING`: the microphone is open. The tile widens to three tiles by one: the X, the microphone with the six grille slots lit as the level meter, and the check.
+  - `RECORDING`: the microphone is open. The window is three 48 dp touch zones wide and one tile high: the X, the microphone with the six grille slots lit as the level meter, and the check.
   - `SENDING`: recording is over and the text is on its way. The tile shows the warning outline and pulses
     slowly (the busy pulse, same as MIC_BUSY). Taps do nothing.
   - `FAILED`: the last try did not work. The outline is in the danger colour. A tap on the microphone calls `onTap`.
@@ -315,9 +315,9 @@ FloatingTile (via create), FloatingTile.setImeProbe, ShowResult, TileState
   wobble is one call; `hide()`, `show()` and the pushes call no callback; an exception from a callback reaches the caller
   and the tile keeps working; a slide on the wide tile never moves it or saves; a change of shape under a pressed finger
   ends the gesture; `hide()` while recording clears it; a tap anywhere on the square tile is a tap on the microphone;
-  on the wide tile a point less than a pixel above or left of the window is outside it, not the first row or column.
+  on the wide tile a point less than a pixel above or left of the window is outside it, not the first row or column; on the recording window a tap is read against the three 48 dp zones (cancel, mic, send), so a tap in the mic zone is the microphone.
 - Layout, meter, notice text and colours (`TileLayoutTest`, `TileLayoutZonesTest`, `LedMeterTest`, `NoticeRulesTest`,
-  `TileStyleTest`): window sizes and cell places per shape and tile size, with half-open edges; the wide window sits over
+  `TileStyleTest`): window sizes and cell places per shape and tile size, with half-open edges, and the recording zones (cancel, mic, send) at 48 dp each that tile the window; the wide window sits over
   the square tile and is moved only as far as needed to stay on screen; the six grille slots are lit left to right and never more than six (`TileArtRulesTest`);
   the lit count is linear, goes up to the next whole segment and never goes down as the level rises; the notice rules
   (null and blank give nothing, breaks and tabs become spaces, trimmed, cut at 80 without splitting a surrogate pair);
@@ -333,7 +333,7 @@ FloatingTile (via create), FloatingTile.setImeProbe, ShowResult, TileState
   three of the plain tile and are never changed; the add has three catches, the last a `RuntimeException`, and answers
   `REFUSED`; the view takes every colour from the face's look and sets none through a setter; it starts no timer or
   animation and writes no log; it sets the content description from the face; it lights the six grille slots through `slotLit`,
-  cuts its cells from the height when square and a third of the width when wide, draws the X on the left and the check on
+  cuts its cells from the height when collapsed or recording and a third of the width for a notice, draws the X on the left and the check on
   the right and only while recording, and wraps the notice to the strip in at most two lines with an ellipsis; no main
   source holds a literal with words of its own.
 - What each part of the tile view is painted with and where (the view's mapping rules, re-pointed to the path-data mic):
@@ -367,8 +367,9 @@ FloatingTile (via create), FloatingTile.setImeProbe, ShowResult, TileState
   `slotLit` for each lit count from 0 to 6 in `RECORDING`, and all lit outside it; the glow alphas.
 - `TileArtFacesTest`: one test per face with its literal ARGB in the light and in the dark palette; the faces that shade the
   trim are flat in the light theme.
-- `TileRecordingLayoutTest`: the recording window is three tiles wide and one tile high, with no strip; the notice window keeps
-  its strip; the mic, cancel and send cells keep the 64 dp side.
+- `TileRecordingLayoutTest`: the recording window is three 48 dp zones wide and one tile high, with no strip; the notice window keeps
+  its strip; the mic art cell keeps the 64 dp side, and the cancel, mic and send zones are 48 dp each.
+- `TileControlPlacementTest`: the X and the check in the recording window (`ControlLayout` in `TileControlLayout.kt`): each is 90% of the silhouette's full width within 0.01 px, its nearest path edge is 8 dp from the silhouette outline, it is centred on the silhouette's centre line and lies inside its own 48 dp zone (cancel or send); the window width, the mic zone centring, and the button art extents match the art data.
 - `TileOutlineColourTest`: the outline colour in each of the eight states equals the old ring mapping, as a literal table in
   both themes.
 - The glow arithmetic (`glowDrawColor`) is in `PulseRulesTest`.
@@ -430,7 +431,8 @@ agents, not required: an outside contributor may write the code themselves
 - Make one `FloatingTile` with `create` per use and keep it. Each one owns its own window, so two tiles made for the
   same job would show two windows.
 - An exception thrown by any of the app's callbacks (`onTap`, `onBegin`, `onCancel`, `onSend`) is not caught by the module.
-- The tile is 64 dp square, and the outline is 2 dp thick. The notice window is three tiles wide and one and a half tiles high; the recording window is three tiles wide and one tile high.
+- The tile is 64 dp square, and the outline is 2 dp thick. The notice window is three tiles wide and one and a half tiles high; the recording window is three 48 dp touch zones wide and one tile high.
+- The mic art cell is no longer the mic zone: the art cell (64 dp at the tile size) can overlap the cancel and send zones beside it, and touch only follows the zones (`TileLayout.micZone` is the mic's touch zone), not the art.
 - The close-target box centre sits at 0.905 of the usable height, tuned under a Galaxy S25 Ultra keyboard so a dropped tile lands in the box while the field stays reachable.
 - The close-target box keeps the same size in landscape as in portrait: its window width comes from the screen's short side and its height from the long side, clamped to the bounds, so it is not half-size in landscape.
 - A display change (rotation, fold) while a finger is dragging is ignored and is not replayed when the drag ends:
@@ -456,10 +458,10 @@ agents, not required: an outside contributor may write the code themselves
   - Focus with the user's keyboard up: that the wide window, like the square one, leaves the field underneath focused and the keyboard on screen.
   - The expanded window over other apps, and partial covers (another window over only part of the tile, and what the system does with the touches there).
   - Meter legibility: the unlit slot is the page background colour (bg), drawn on the body, which is the text colour in the light theme and the surface colour in the dark theme. The contrast of the lit and unlit slots on that body was not measured on a device.
-  - Touch size of the X, the check and the microphone (each cell is one tile, 64 dp), and the feel of a tap on the wide tile.
+  - Touch size of the X, the check and the microphone (each zone is 48 dp wide and one tile, 64 dp, high), and the feel of a tap on the wide tile.
   - The notice text size and fit: it is drawn in at most two lines with the end cut by an ellipsis, so a sentence of 80 characters may not show whole.
   - The X and the check have no accessibility node of their own: the tile is one view with one description, so a screen reader cannot reach the X; what a screen reader does with a double tap on the tile is not known.
-  - The window jumps at a screen edge when it expands: next to an edge the window is moved to stay on screen, so the microphone appears at a different place, and a window wider than the usable area loses part of the send cell.
+  - The window jumps at a screen edge when it expands: next to an edge the window is moved to stay on screen, so the microphone appears at a different place, and a window wider than the usable area loses part of the send zone.
   - A CR LF pair in a notice shows as two spaces.
   - Colour pair choices: the contrast of the outline, the grille slots, the X, the check, their trim outlines and the notice text against the wallpaper and the body colour was not measured on a device.
 - Frame and ledge faces: they shade the trim colour. In the light theme the trim is black, so they cannot get darker and are flat at black. In the dark theme the trim is white, and they shade toward black. In both themes they sit on the dark body (`bodyColor(look)`).

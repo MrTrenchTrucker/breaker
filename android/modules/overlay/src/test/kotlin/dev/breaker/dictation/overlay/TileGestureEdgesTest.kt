@@ -6,8 +6,8 @@ import org.junit.Test
 /**
  * Which part of a wide window a finger went down on, read at the edges of the window.
  *
- * The recording window is a tile 100 pixels square with its top-left corner at (406, 1140): it is 300 by
- * 100 pixels, the cancel button is x 406..506, the microphone x 506..606 and the send button x 606..706,
+ * The recording window is 100 pixels high with its top-left corner at (406, 1140): it is 225 by 100
+ * pixels, the cancel button is x 406..481, the microphone x 481..556 and the send button x 556..631,
  * all in y 1140..1240. The notice window has its top-left corner at (406, 1090): it is 300 by 150
  * pixels, its top 50 rows are the strip and its microphone is x 506..606, y 1140..1240.
  *
@@ -34,7 +34,7 @@ class TileGestureEdgesTest {
     fun `a point above the top edge is outside the window`() {
         listOf(TileShape.RECORDING, TileShape.NOTICE).forEach { shape ->
             val top = originOf(shape).y.toFloat()
-            listOf(456f, 556f, 656f).forEach { x ->
+            listOf(456f, 556f, 606f).forEach { x ->
                 assertEquals("overlay: half a pixel above the $shape window at x $x is outside it", TileZone.NONE, zoneOf(x, top - 0.5f, shape))
                 assertEquals("overlay: a hundredth of a pixel above the $shape window at x $x is outside it", TileZone.NONE, zoneOf(x, top - 0.99f, shape))
             }
@@ -51,7 +51,7 @@ class TileGestureEdgesTest {
     fun `a point left of the window is outside it`() {
         assertEquals("overlay: half a pixel left of the window is outside it", TileZone.NONE, zoneOf(405.5f, 1190f))
         assertEquals("overlay: x 406 is the first column of the cancel button", TileZone.CANCEL, zoneOf(406f, 1190f))
-        assertEquals("overlay: x 505.9 is still the cancel button", TileZone.CANCEL, zoneOf(505.9f, 1190f))
-        assertEquals("overlay: x 506 is the first column of the microphone", TileZone.MIC, zoneOf(506f, 1190f))
+        assertEquals("overlay: x 480.9 is still the cancel button", TileZone.CANCEL, zoneOf(480.9f, 1190f))
+        assertEquals("overlay: x 481 is the first column of the microphone", TileZone.MIC, zoneOf(481f, 1190f))
     }
 }

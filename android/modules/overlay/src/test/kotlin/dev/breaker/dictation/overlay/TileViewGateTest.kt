@@ -153,7 +153,7 @@ class TileViewGateTest {
         "paint.color = if (i < face.litSegments) face.look.litSegment else face.look.unlitSegment",
         "textPaint.color = face.look.control",
         "drawRing(canvas, mic, look.ring)",
-        "artDraw.drawControl(canvas, TileLayout.cancelCell(s), paint, ControlArt.cancel, look)",
+        "artDraw.drawControl(canvas, ControlLayout.cancel(s), paint, ControlArt.cancel, look)",
         "}",
         "private fun drawRing(canvas: Canvas, cell: TileRect, color: Int) {",
         "paint.color = color",
@@ -179,7 +179,7 @@ class TileViewGateTest {
         assertFires("a ring drawn in a number", AdapterRules.viewColourProblems(edit(colourSample, "drawRing(canvas, mic, look.ring)", "drawRing(canvas, mic, 123)")), "a draw call passes a colour")
         assertFires("a cross drawn in a variable", AdapterRules.viewColourProblems(edit(colourSample, "ControlArt.cancel, look)", "ControlArt.cancel, tint)")), "a draw call passes a colour")
         assertFires("no colour assignment", AdapterRules.viewColourProblems("class V\n"), "no colour assignment")
-        assertFires("no draw call with a colour", AdapterRules.viewColourProblems(edit(edit(colourSample, "drawRing(canvas, mic, look.ring)\n", ""), "artDraw.drawControl(canvas, TileLayout.cancelCell(s), paint, ControlArt.cancel, look)\n", "")), "no draw call with a colour")
+        assertFires("no draw call with a colour", AdapterRules.viewColourProblems(edit(edit(colourSample, "drawRing(canvas, mic, look.ring)\n", ""), "artDraw.drawControl(canvas, ControlLayout.cancel(s), paint, ControlArt.cancel, look)\n", "")), "no draw call with a colour")
         assertFires("a pulse alpha written as a number", AdapterRules.viewColourProblems(edit(colourSample, "paint.color = color", "paint.color = ringDrawColor(color, 7)")), "a colour is set from 'ringDrawColor(color, 7)'")
         assertFires("a pulse-scaled colour written as a number", AdapterRules.viewColourProblems(edit(colourSample, "paint.color = color", "paint.color = ringDrawColor(7, pulseAlpha)")), "a colour is set from 'ringDrawColor(7, pulseAlpha)'")
         assertQuiet("the pulse-scaled colour of the ring", AdapterRules.viewColourProblems(edit(colourSample, "paint.color = color", "paint.color = ringDrawColor(color, pulseAlpha)")))

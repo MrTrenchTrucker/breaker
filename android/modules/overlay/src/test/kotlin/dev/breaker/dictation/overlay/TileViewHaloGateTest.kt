@@ -33,18 +33,18 @@ class TileViewHaloGateTest {
     @Test
     fun `each button is one drawControl call into its own cell and the cross comes first`() {
         val real = ModuleFiles.mainTexts().getValue(view)
-        val cancelCall = "artDraw.drawControl(canvas, TileLayout.cancelCell(s), paint, ControlArt.cancel, look)"
-        val sendCall = "artDraw.drawControl(canvas, TileLayout.sendCell(s), paint, ControlArt.send, look)"
+        val cancelCall = "artDraw.drawControl(canvas, ControlLayout.cancel(s), paint, ControlArt.cancel, look)"
+        val sendCall = "artDraw.drawControl(canvas, ControlLayout.send(s), paint, ControlArt.send, look)"
         assertQuiet("the real view", ViewDrawingRules.buttonProblems(real))
-        assertFires("the cross in the send cell", ViewDrawingRules.buttonProblems(edit(real, cancelCall, "artDraw.drawControl(canvas, TileLayout.sendCell(s), paint, ControlArt.cancel, look)")), "is not drawn into TileLayout.cancelCell(s)")
-        assertFires("the check in the cancel cell", ViewDrawingRules.buttonProblems(edit(real, sendCall, "artDraw.drawControl(canvas, TileLayout.cancelCell(s), paint, ControlArt.send, look)")), "is not drawn into TileLayout.sendCell(s)")
-        assertFires("the cross with the check shape", ViewDrawingRules.buttonProblems(edit(real, sendCall, "artDraw.drawControl(canvas, TileLayout.sendCell(s), paint, ControlArt.cancel, look)")), "the check is not drawn exactly once")
+        assertFires("the cross in the send cell", ViewDrawingRules.buttonProblems(edit(real, cancelCall, "artDraw.drawControl(canvas, ControlLayout.send(s), paint, ControlArt.cancel, look)")), "is not drawn into ControlLayout.cancel(s)")
+        assertFires("the check in the cancel cell", ViewDrawingRules.buttonProblems(edit(real, sendCall, "artDraw.drawControl(canvas, ControlLayout.cancel(s), paint, ControlArt.send, look)")), "is not drawn into ControlLayout.send(s)")
+        assertFires("the cross with the check shape", ViewDrawingRules.buttonProblems(edit(real, sendCall, "artDraw.drawControl(canvas, ControlLayout.send(s), paint, ControlArt.cancel, look)")), "the check is not drawn exactly once")
         assertFires("the check call dropped", ViewDrawingRules.buttonProblems(edit(real, sendCall + "\n", "")), "the check is not drawn exactly once")
         assertFires("the cross call tripled", ViewDrawingRules.buttonProblems(edit(real, cancelCall, "$cancelCall\n$cancelCall")), "the cross is not drawn exactly once")
         assertFires("the cross after the check", ViewDrawingRules.buttonProblems(edit(edit(real, cancelCall + "\n", ""), sendCall, "$sendCall\n$cancelCall")), "the check is drawn before the cross")
         assertFires("an old drawCancel call left in", ViewDrawingRules.buttonProblems(edit(real, cancelCall, "$cancelCall\ndrawCancel(canvas, TileLayout.cancelCell(s), CANCEL_STROKE_UNITS, look.danger)")), "drawCancel is still drawn in onDraw")
         assertQuiet("a commented call next to the real one", ViewDrawingRules.buttonProblems(edit(real, cancelCall, "// $cancelCall\n$cancelCall")))
-        assertQuiet("the arguments on separate lines with a trailing comma", ViewDrawingRules.buttonProblems(edit(real, cancelCall, "artDraw.drawControl(\n canvas,\n TileLayout.cancelCell(s),\n paint,\n ControlArt.cancel,\n look,\n)")))
+        assertQuiet("the arguments on separate lines with a trailing comma", ViewDrawingRules.buttonProblems(edit(real, cancelCall, "artDraw.drawControl(\n canvas,\n ControlLayout.cancel(s),\n paint,\n ControlArt.cancel,\n look,\n)")))
 
         assertEquals("overlay: $view must draw each button once with drawControl into its own cell, the cross first", emptyList<String>(), ViewDrawingRules.buttonProblems(real))
     }
@@ -56,8 +56,8 @@ class TileViewHaloGateTest {
     @Test
     fun `a button drawn once or three times by drawControl is reported by its count alone`() {
         val real = ModuleFiles.mainTexts().getValue(view)
-        val cancelCall = "artDraw.drawControl(canvas, TileLayout.cancelCell(s), paint, ControlArt.cancel, look)"
-        val sendCall = "artDraw.drawControl(canvas, TileLayout.sendCell(s), paint, ControlArt.send, look)"
+        val cancelCall = "artDraw.drawControl(canvas, ControlLayout.cancel(s), paint, ControlArt.cancel, look)"
+        val sendCall = "artDraw.drawControl(canvas, ControlLayout.send(s), paint, ControlArt.send, look)"
         assertEquals(
             "overlay: control: a check drawn once must be reported by its count alone",
             listOf("the check is not drawn exactly once with drawControl in onDraw"),

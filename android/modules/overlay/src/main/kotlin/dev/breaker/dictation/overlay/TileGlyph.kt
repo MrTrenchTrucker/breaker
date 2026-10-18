@@ -34,6 +34,9 @@ internal object TileMetrics {
     /** Width and height of the tile. */
     const val TILE_SIZE_DP = 64
 
+    /** Width of each of the three touch zones of the recording window: the smallest touch target the design allows. */
+    const val TOUCH_ZONE_DP = 48
+
     /** Radius of the tile's corners. */
     const val CORNER_RADIUS_DP = 4
 

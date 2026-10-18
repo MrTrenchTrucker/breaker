@@ -40,8 +40,8 @@ window is not visible, or when the screen turns off.
 
 ## The expanded tile and the meter
 
-While the state is `RECORDING` the tile widens to three tiles by one: a red X (cancel) on
-the left, the microphone in the middle, and a green check (send) on the right. The X is drawn in the danger colour and the check in the primary colour, each as a filled shape with a trim outline. The
+While the state is `RECORDING` the tile widens to a window three 48 dp touch zones wide and one tile high: a red X (cancel) on
+the left, the microphone in the middle, and a green check (send) on the right. The X is drawn in the danger colour and the check in the primary colour, each as a filled shape with a trim outline. The X and the check are each 90% of the mic's full width (side bar included), with their nearest path edge 8 dp from the mic outline and centred on the silhouette's centre line; `TileControlLayout.kt` holds that placement, and the mic zone is centred on the silhouette. The
 microphone's grille is the level meter: six slots, lit from the left. Silence leaves
 all six unlit. The app pushes the sound level with `setLevel` (0.0 to 1.0); a value
 outside the range is held to it, and the tile redraws only when the number of lit

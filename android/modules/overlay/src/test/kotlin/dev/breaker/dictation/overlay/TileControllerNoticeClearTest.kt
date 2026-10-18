@@ -11,7 +11,7 @@ import org.junit.Test
  * into recording, which has no room for a sentence.
  *
  * The screen is the one in [TestData]: the saved centre puts the square tile at (506, 1140), 100 pixels
- * square, so the recording window of 300 by 100 pixels has its top-left corner at (406, 1140).
+ * square, so the recording window of 225 by 100 pixels has its top-left corner at (440, 1140).
  */
 class TileControllerNoticeClearTest {
 
@@ -34,7 +34,7 @@ class TileControllerNoticeClearTest {
         }
     }
 
-    private val recordingFrame = FakeTileWindow.Frame(406, 1140, 300, 100)
+    private val recordingFrame = FakeTileWindow.Frame(440, 1140, 225, 100)
 
     /** If this fails, a sentence shown before recording is carried into the recording face. */
     @Test

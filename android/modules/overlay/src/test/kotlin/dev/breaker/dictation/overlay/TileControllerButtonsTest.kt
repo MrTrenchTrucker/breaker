@@ -11,9 +11,10 @@ import org.junit.Test
  * What a touch means for each state and each part of the tile, and where the window is when it is read.
  *
  * The screen is the one in [TestData]: the saved centre puts the square tile at (506, 1140), 100 pixels
- * square. While recording the window is 300 by 100 pixels with its top-left corner at (406, 1140): the
- * cancel button is x 406..506, the microphone x 506..606 (the square tile's own place) and the send button
- * x 606..706, all in y 1140..1240. A notice window is 300 by 150 pixels at (406, 1090), its strip y 1090..1140.
+ * square. While recording the window is 225 by 100 pixels with its top-left corner at (440, 1140): the
+ * cancel button is x 440..515, the microphone x 515..590 and the check x 590..665, all in y 1140..1240.
+ * The microphone's art cell is x 506..606, over the square tile's own place. A notice window is 300 by
+ * 150 pixels at (406, 1090), its strip y 1090..1140.
  */
 class TileControllerButtonsTest {
 
@@ -192,7 +193,7 @@ class TileControllerButtonsTest {
         assertEquals("overlay: the app's push inside the callback should take effect", TileState.RECORDING, rig.controller.state)
         assertEquals(
             "overlay: the window should widen once, for the recording shape",
-            listOf(FakeTileWindow.Frame(406, 1140, 300, 100)),
+            listOf(FakeTileWindow.Frame(440, 1140, 225, 100)),
             rig.window.frames,
         )
         assertEquals("overlay: the next tap should send", listOf("send"), rig.tapped(mic))
@@ -208,7 +209,7 @@ class TileControllerButtonsTest {
         wide.window.bounds = PixelBounds(0, 0, 1200, 2200)
         wide.window.sizePx = 200
         wide.controller.onDisplayChanged()
-        assertEquals("overlay: the wide window should be placed again once", listOf(FakeTileWindow.Frame(50, 1500, 600, 200)), wide.window.frames)
+        assertEquals("overlay: the wide window should be placed again once", listOf(FakeTileWindow.Frame(119, 1500, 450, 200)), wide.window.frames)
         assertTrue("overlay: the wide window should not be moved as a square tile", wide.window.moves.isEmpty())
 
         val square = Rig(seed).shown(TileState.ARMED)
@@ -228,7 +229,7 @@ class TileControllerButtonsTest {
         rig.window.bounds = PixelBounds(0, 0, 1200, 2200)
         rig.window.sizePx = 200
         rig.controller.onDisplayChanged()
-        assertEquals("overlay: the wide window should be placed again", listOf(FakeTileWindow.Frame(300, 1000, 600, 200)), rig.window.frames)
+        assertEquals("overlay: the wide window should be placed again", listOf(FakeTileWindow.Frame(369, 1000, 450, 200)), rig.window.frames)
     }
 
     /** If this fails, a tap near the screen edge is read against the place the window would have had, not the place it has. */
@@ -236,24 +237,24 @@ class TileControllerButtonsTest {
     fun `a tap is read against the window as it was kept on screen`() {
         val rig = Rig(TestData.settings(TilePosition(1.0f, 1.0f))).shown(TileState.IDLE)
         rig.controller.setState(TileState.RECORDING)
-        assertEquals("overlay: the window should be pulled in from the right edge", listOf(FakeTileWindow.Frame(796, 2200, 300, 100)), rig.window.frames)
-        // The square tile is at (996, 2200), so the microphone is x 896..996 and the cancel button x 796..896.
-        assertEquals("overlay: x 946 is the microphone", listOf("send"), rig.tapped(946f to 2250f))
-        assertEquals("overlay: x 846 is the cancel button", listOf("cancel"), rig.tapped(846f to 2250f))
-        assertEquals("overlay: x 1046 is the check", listOf("send"), rig.tapped(1046f to 2250f))
+        assertEquals("overlay: the window should be pulled in from the right edge", listOf(FakeTileWindow.Frame(871, 2200, 225, 100)), rig.window.frames)
+        // The square tile is at (996, 2200), its art cell x 937..1037; the cancel zone is x 871..946, the microphone zone x 946..1021 and the check zone x 1021..1096.
+        assertEquals("overlay: x 983 is the microphone", listOf("send"), rig.tapped(983f to 2250f))
+        assertEquals("overlay: x 908 is the cancel button", listOf("cancel"), rig.tapped(908f to 2250f))
+        assertEquals("overlay: x 1058 is the check", listOf("send"), rig.tapped(1058f to 2250f))
     }
 
     /** If this fails, the cell edges are read wrong: the left edge is inside, the right edge is outside, and a point left of the window is outside. */
     @Test
     fun `cell edges are half open and a fraction left of the window is outside`() {
         val rig = Rig().shown(TileState.RECORDING)
-        assertEquals("overlay: x 406 is the first pixel of the cancel button", listOf("cancel"), rig.tapped(406f to 1190f))
-        assertEquals("overlay: half a pixel left of the window is outside it", emptyList<String>(), rig.tapped(405.5f to 1190f))
-        assertEquals("overlay: x 505.9 is still the cancel button", listOf("cancel"), rig.tapped(505.9f to 1190f))
-        assertEquals("overlay: x 506 is the first pixel of the microphone", listOf("send"), rig.tapped(506f to 1190f))
+        assertEquals("overlay: x 440 is the first pixel of the cancel button", listOf("cancel"), rig.tapped(440f to 1190f))
+        assertEquals("overlay: half a pixel left of the window is outside it", emptyList<String>(), rig.tapped(439.5f to 1190f))
+        assertEquals("overlay: x 514.9 is still the cancel button", listOf("cancel"), rig.tapped(514.9f to 1190f))
+        assertEquals("overlay: x 515 is the first pixel of the microphone", listOf("send"), rig.tapped(515f to 1190f))
         assertEquals("overlay: y 1139.9 is just above the recording window", emptyList<String>(), rig.tapped(456f to 1139.9f))
         assertEquals("overlay: y 1140 is the first row of the cancel button", listOf("cancel"), rig.tapped(456f to 1140f))
-        assertEquals("overlay: x 705.9 is still the check", listOf("send"), rig.tapped(705.9f to 1190f))
-        assertEquals("overlay: x 706 is outside the window", emptyList<String>(), rig.tapped(706f to 1190f))
+        assertEquals("overlay: x 664.9 is still the check", listOf("send"), rig.tapped(664.9f to 1190f))
+        assertEquals("overlay: x 665 is outside the window", emptyList<String>(), rig.tapped(665f to 1190f))
     }
 }
