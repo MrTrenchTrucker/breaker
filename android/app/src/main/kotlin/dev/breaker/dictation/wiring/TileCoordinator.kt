@@ -68,7 +68,8 @@ class TileCoordinator(
 
     /** The microphone on an armed tile was tapped: start a take, if the speech model is there. */
     fun onBegin() {
-        if (!armed || (!tileShown && !tileShowGuard.isClosed) || beginPending || yield.yieldRunning() || deviceFailure.running() ||
+        if (failureBarrier()) return
+        if (!armed || (!tileShown && !tileShowGuard.isClosed) || beginPending || yield.yieldRunning() ||
             (pushed != TileState.ARMED && pushed != TileState.SENT && pushed != TileState.MIC_BUSY)) return
         val wasSent: Boolean = pushed == TileState.SENT
         lastCommit = null
@@ -102,7 +103,8 @@ class TileCoordinator(
 
     /** The user cancelled the take: drop it and show the armed tile. */
     fun onCancel() {
-        if (!armed || yield.yieldRunning() || deviceFailure.running()) return
+        if (failureBarrier()) return
+        if (!armed || yield.yieldRunning()) return
         lastFailed = false
         sendPushed = false
         lastCommit = null
@@ -114,6 +116,7 @@ class TileCoordinator(
 
     /** The user ended the take: finish, transcribe and send it. A repeat before the tile shows sending is ignored. */
     fun onSend() {
+        if (failureBarrier()) return
         if (!armed || sendPushed) return
         sendPushed = true
         push()
@@ -142,6 +145,7 @@ class TileCoordinator(
 
     /** The microphone was taken by another app: cut the take and show the busy face. */
     fun onTakeMicTaken() {
+        if (failureBarrier()) return
         if (!armed || sendPushed) return
         sendPushed = true
         yield.onTakeMicTaken()
@@ -149,6 +153,7 @@ class TileCoordinator(
 
     /** A take ended by itself (the microphone stopped): the tile goes back to armed. */
     fun onTakeEnded() {
+        if (failureBarrier()) return
         if (!armed || sendPushed) return
         push()
         yield.onTakeEndedCleared()
@@ -160,7 +165,8 @@ class TileCoordinator(
      * caller ends the take the plain way.
      */
     fun onTakeFailed(): Boolean {
-        if (!armed || sendPushed || deviceFailure.running() || sessionNow() != DictationState.RECORDING) return false
+        if (failureBarrier()) return false
+        if (!armed || sendPushed || sessionNow() != DictationState.RECORDING) return false
         sendPushed = true
         push()
         if (!deviceFailure.start()) {
@@ -170,6 +176,9 @@ class TileCoordinator(
         }
         return true
     }
+
+    /** While a device failure is transcribed, the entries that start, end or change a take do nothing, but disarm and fail are not barred. */
+    private fun failureBarrier(): Boolean = deviceFailure.running()
 
     private fun arm() {
         tileShowGuard.clear()

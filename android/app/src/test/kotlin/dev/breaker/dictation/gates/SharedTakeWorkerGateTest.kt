@@ -33,7 +33,7 @@ internal class SharedTakeWorkerGateTest {
     private val tileWrap: Regex = Regex("""OwnedTakePort\s*\(\s*TakePortAdapter\s*\(\s*root\s*\.\s*dictation\s*\.\s*runner\s*\)\s*,\s*takeOwner\s*,\s*TakeOwnerKind\s*\.\s*TILE\s*\)""")
 
     /** Each take hook clears the owner inside its post, before the coordinator is told. */
-    private val settledHooks: Regex = Regex("""toCoordinator\s*\{\s*takeOwner\s*\.\s*settled\s*\(\s*\)\s*;""")
+    private val settledHooks: Regex = Regex("""toCoordinator\s*\{\s*takeOwner\s*\.\s*settledIf\s*\(\s*m\s*\)\s*;""")
 
     /** The Home port is wrapped with the owner as the Home, in the wiring. */
     private val homeWrap: Regex = Regex("""OwnedTakePort\s*\(\s*take\s*\(\s*\)\s*,\s*owner\s*,\s*TakeOwnerKind\s*\.\s*HOME\s*\)""")
@@ -140,7 +140,7 @@ internal class SharedTakeWorkerGateTest {
     fun `a dropped owner clear and an activity owner of its own are reported`() {
         val host = AppSourceFiles.mainFile("kotlin/dev/breaker/dictation/" + hostKey)
         val activity = AppSourceFiles.mainFile("kotlin/dev/breaker/dictation/" + activityKey)
-        val dropped = edit(host, "takeOwner.settled(); it.onTakeEnded()", "it.onTakeEnded()")
+        val dropped = edit(host, "takeOwner.settledIf(m); it.onTakeEnded()", "it.onTakeEnded()")
         assertEquals("app: a take hook without its clear must be counted", 2, settledHooks.findAll(codeOf(dropped)).count())
         val copied = edit(activity, "owner = app.tileHost.takeOwner,", "owner = TakeOwner(),")
         assertEquals("app: an activity owner of its own must be counted", 1, Regex("""\bTakeOwner\s*\(""").findAll(codeOf(copied)).count())

@@ -100,9 +100,9 @@ internal class TileHost(
     }
 
     init {
-        root.onTakeEnded = { toCoordinator { takeOwner.settled(); it.onTakeEnded() } }
-        root.onMicTaken = { toCoordinator { takeOwner.settled(); it.onTakeMicTaken() } }
-        root.onDeviceFailure = { fallback -> toCoordinator { takeOwner.settled(); if (!it.onTakeFailed()) fallback() } }
+        root.onTakeEnded = { val m = takeOwner.mark(); toCoordinator { takeOwner.settledIf(m); it.onTakeEnded() } }
+        root.onMicTaken = { val m = takeOwner.mark(); toCoordinator { takeOwner.settledIf(m); it.onTakeMicTaken() } }
+        root.onDeviceFailure = { fallback -> val m = takeOwner.mark(); toCoordinator { takeOwner.settledIf(m); if (!it.onTakeFailed()) fallback() } }
         root.levelSink = LevelFeed(noticePort, main) { root.dictation.runner.sessionState == DictationState.RECORDING }
     }
 
