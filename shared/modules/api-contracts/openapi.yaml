@@ -374,6 +374,107 @@ paths:
               example:
                 error: "conflict"
                 message: "A lower key_version is refused for this client_id"
+  /v1/admin/agent-tokens:
+    post:
+      summary: Create an agent token
+      description: >-
+        The account admin creates an agent token for its owner account.
+        The token value is returned only in this response and never again;
+        the list endpoint never returns token values. An agent token may
+        call POST /v1/audio/transcriptions and GET /v1/jobs/{job_id};
+        expires_at null means no expiry; scope (transcribe or admin)
+        defaults to transcribe when omitted.
+      operationId: adminCreateAgentToken
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentTokenCreateRequest"
+            example:
+              name: "Syn transcription token"
+              owner_username: "alice@example.com"
+              scope: transcribe
+              expires_at: null
+      responses:
+        "201":
+          description: Agent token created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentToken"
+              example:
+                token: "atk_abc123"
+                name: "Syn transcription token"
+                owner_username: "alice@example.com"
+                scope: transcribe
+                expires_at: null
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing token"
+        "403":
+          description: Forbidden (non-admin)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "forbidden"
+                message: "Admin role required"
+    get:
+      summary: List agent tokens
+      description: >-
+        Lists the account's agent tokens (id, name, owner, scope, expiry);
+        the token value is returned only at creation, never here.
+      operationId: adminListAgentTokens
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Agent tokens
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AgentTokenEntry"
+              example:
+                - id: 1
+                  name: "Syn transcription token"
+                  owner_username: "alice@example.com"
+                  scope: transcribe
+                  expires_at: null
+                - id: 2
+                  name: "Admin transcription token"
+                  owner_username: "alice@example.com"
+                  scope: admin
+                  expires_at: null
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing token"
+        "403":
+          description: Forbidden (non-admin)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "forbidden"
+                message: "Admin role required"
   /v1/transcriptions:
     get:
       summary: Pull the account's transcriptions
@@ -797,3 +898,73 @@ components:
         created_at:
           type: string
           description: When the box was sealed (RFC 3339)
+
+    AgentTokenScope:
+      type: string
+      enum:
+        - transcribe
+        - admin
+      description: >-
+        The token's scope. `transcribe` lets it call the transcription
+        endpoints, `admin` additionally the admin group.
+    AgentTokenCreateRequest:
+      type: object
+      required:
+        - name
+        - owner_username
+      properties:
+        name:
+          type: string
+        owner_username:
+          type: string
+        scope:
+          allOf:
+            - $ref: "#/components/schemas/AgentTokenScope"
+          nullable: true
+          default: transcribe
+          description: the token's scope; defaults to transcribe
+        expires_at:
+          type: string
+          nullable: true
+          description: null for no expiry
+    AgentToken:
+      type: object
+      required:
+        - token
+        - name
+        - owner_username
+        - scope
+      properties:
+        token:
+          type: string
+          description: the token value, returned only here, never again
+        name:
+          type: string
+        owner_username:
+          type: string
+        scope:
+          $ref: "#/components/schemas/AgentTokenScope"
+        expires_at:
+          type: string
+          nullable: true
+    AgentTokenEntry:
+      type: object
+      required:
+        - id
+        - name
+        - owner_username
+        - scope
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: the token id, the value the revoke path's {id} takes
+        name:
+          type: string
+        owner_username:
+          type: string
+        scope:
+          $ref: "#/components/schemas/AgentTokenScope"
+        expires_at:
+          type: string
+          nullable: true

@@ -106,6 +106,35 @@ class ConformanceTest(unittest.TestCase):
         """PendingSealed fields match the spec (production comparator)."""
         self._compare("PendingSealed")
 
+    def test_agent_token_create_request_fields_match_spec(self):
+        """AgentTokenCreateRequest fields match the spec (production comparator)."""
+        self._compare("AgentTokenCreateRequest")
+
+    def test_agent_token_fields_match_spec(self):
+        """AgentToken fields match the spec (production comparator)."""
+        self._compare("AgentToken")
+
+    def test_agent_token_entry_fields_match_spec(self):
+        """AgentTokenEntry fields match the spec (production comparator)."""
+        self._compare("AgentTokenEntry")
+
+    def test_agent_token_scope_enum_matches_named_schema(self):
+        """The named AgentTokenScope schema's enum values match the Kotlin AgentTokenScope enum."""
+        scope_schema = self.schemas.get("AgentTokenScope", {})
+        spec_enum = scope_schema.get("enum", [])
+        self.assertEqual(sorted(spec_enum), ["admin", "transcribe"],
+                         "Spec AgentTokenScope must have exactly 2 enum values")
+
+        agent_token_scope = self.kotlin.get("AgentTokenScope", {})
+        self.assertEqual(agent_token_scope.get("type"), "enum",
+                         "AgentTokenScope must be an enum in Kotlin")
+        kotlin_values = agent_token_scope.get("values", [])
+
+        self.assertEqual(sorted(spec_enum), sorted(kotlin_values),
+                         "spec -> kotlin: AgentTokenScope enum differs")
+        self.assertEqual(sorted(kotlin_values), sorted(spec_enum),
+                         "kotlin -> spec: AgentTokenScope enum differs")
+
     def test_job_status_enum_matches_named_schema(self):
         """The named JobStatus schema's enum values match the Kotlin JobStatus enum."""
         js_schema = self.schemas.get("JobStatus", {})
