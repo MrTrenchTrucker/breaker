@@ -26,6 +26,7 @@ kotlin {
 }
 
 dependencies {
+    implementation(project(":shared:modules:api-contracts"))
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.cio)
     implementation(libs.sqlite.jdbc)
