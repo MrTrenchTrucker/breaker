@@ -76,5 +76,6 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-023](ADR-023-transcript-case-at-the-source.md) | A speech engine that prints capitals is fixed in the speech module, not in the formatter | accepted |
 | [ADR-024](ADR-024-tile-feedback-and-visibility.md) | The tile shows busy and loudness, and hides itself when no keyboard is in use | accepted, amended 2026-10-12, 2026-10-14, 2026-10-15, 2026-10-17 |
 | [ADR-025](ADR-025-say-where-the-speech-model-comes-from.md) | The app tells the user where the speech model is downloaded from | accepted |
+| [ADR-026](ADR-026-home-mic-is-the-tile-mic.md) | The Home mic is the floating tile's mic, drawn and driven by the same code | accepted |
 
-Next free number: **ADR-026**.
+Next free number: **ADR-027**.
