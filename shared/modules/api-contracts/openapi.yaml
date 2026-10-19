@@ -475,6 +475,326 @@ paths:
               example:
                 error: "forbidden"
                 message: "Admin role required"
+  /v1/admin/roles:
+    post:
+      summary: Set an account's admin role
+      description: >-
+        Admin-only: grant or revoke another account's admin role. An admin
+        assigns the admin role to a fresh account so it can bootstrap; revoke
+        it to demote a former admin back to user.
+      operationId: adminSetRole
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleUpdateRequest"
+            example:
+              username: "alice@example.com"
+              admin: true
+      responses:
+        "200":
+          description: Role updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoleUpdateResponse"
+              example:
+                username: "alice@example.com"
+                role: "admin"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing token"
+        "403":
+          description: Forbidden (non-admin)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "forbidden"
+                message: "Admin role required"
+  /v1/admin/health:
+    get:
+      summary: Read the admin service health and git tag
+      description: >-
+        Admin-only, unauthenticated-health-safe. Reports the in-process status
+        (ready, starting up, degraded) and the released GIT tag that built it.
+      operationId: adminHealth
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Service health
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminHealth"
+              example:
+                status: "ok"
+                git_tag: "1.2.3"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing token"
+        "403":
+          description: Forbidden (non-admin)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "forbidden"
+                message: "Admin role required"
+  /v1/admin/transcription-service:
+    get:
+      summary: Read the configured transcription service
+      description: >-
+        Admin-only. Reports the configured name, base_url and enabled flag, plus
+        api_key_set — a boolean reporting whether an API key is stored. The key
+        value itself is never returned here.
+      operationId: adminGetTranscriptionService
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Configured transcription service
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TranscriptionService"
+              example:
+                name: "whisper-server"
+                base_url: "https://example.com"
+                api_key_set: true
+                enabled: true
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing token"
+        "403":
+          description: Forbidden (non-admin)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "forbidden"
+                message: "Admin role required"
+    put:
+      summary: Configure the transcription service
+      description: >-
+        Admin-only, last-write-wins. Updates name/base_url/enabled; api_key is
+        optional and write-only — omit it or send null to leave the stored key
+        unchanged. The returned resource never echoes the key.
+      operationId: adminPutTranscriptionService
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TranscriptionServiceUpdate"
+            example:
+              name: "whisper-server"
+              base_url: "https://example.com"
+              enabled: true
+              api_key: "tok_abc123"
+      responses:
+        "200":
+          description: Configured transcription service
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TranscriptionService"
+              example:
+                name: "whisper-server"
+                base_url: "https://example.com"
+                api_key_set: true
+                enabled: true
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing token"
+        "403":
+          description: Forbidden (non-admin)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "forbidden"
+                message: "Admin role required"
+  /v1/admin/test-service:
+    post:
+      summary: Probe the transcription service connectivity
+      description: >-
+        Admin-only. Runs a connectivity probe against the configured
+        transcription service (a GET against base_url) and reports whether it is
+        reachable. The URL is validated before any
+        network attempt, so an unparseable or disallowed base_url fails fast
+        without contacting hostnames the admin did not intend to reach.
+      operationId: adminTestService
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Connectivity probe result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestServiceResult"
+              example:
+                reachable: true
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing token"
+        "403":
+          description: Forbidden (non-admin)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "forbidden"
+                message: "Admin role required"
+  /v1/admin/reset-account:
+    post:
+      summary: Reset an account's keys and data with a one-time code
+      description: >-
+        Admin-only: resets an account by deleting that account's keys,
+        deletes its transcriptions outright, deletes any still-unfetched
+        pending-sealed rows for it, revokes its tokens, and issues a one-time
+        reset code (at least 128 random bits, single use, 24-hour expiry) for
+        the admin to pass to the user out of band. Callable with an admin session
+        token OR an admin-scoped agent token — the single bearerAuth scheme
+        cannot distinguish these two callers, so both are accepted.
+      operationId: adminResetAccount
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetAccountRequest"
+            example:
+              username: "alice@example.com"
+      responses:
+        "200":
+          description: Reset code issued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResetAccountResponse"
+              example:
+                reset_code: "rc_abc123"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing token"
+        "403":
+          description: Forbidden (non-admin)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "forbidden"
+                message: "Admin role required"
+        "404":
+          description: Account not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "not_found"
+                message: "Account not found"
+  /v1/admin/clear-store:
+    post:
+      summary: Clear the transcription store for one or all users
+      description: >-
+        Admin-only: clears stored transcriptions either per-user or, when
+        username is null or omitted, for all users. confirm must be true — a
+        false/absent value is refused with 400 to prevent accidental mass-clears.
+      operationId: adminClearStore
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClearStoreRequest"
+            example:
+              username: "alice@example.com"
+              confirm: true
+      responses:
+        "200":
+          description: Store cleared
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing token"
+        "403":
+          description: Forbidden (non-admin)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "forbidden"
+                message: "Admin role required"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "bad_request"
+                message: "confirm must be true"
   /v1/transcriptions:
     get:
       summary: Pull the account's transcriptions
@@ -968,3 +1288,97 @@ components:
         expires_at:
           type: string
           nullable: true
+    RoleUpdateRequest:
+      type: object
+      required:
+        - username
+        - admin
+      properties:
+        username:
+          type: string
+        admin:
+          type: boolean
+    RoleUpdateResponse:
+      type: object
+      required:
+        - username
+        - role
+      properties:
+        username:
+          type: string
+        role:
+          type: string
+          description: The account role ("admin" or "user")
+    AdminHealth:
+      type: object
+      required:
+        - status
+        - git_tag
+      properties:
+        status:
+          type: string
+        git_tag:
+          type: string
+    TranscriptionService:
+      type: object
+      required:
+        - name
+        - base_url
+        - api_key_set
+        - enabled
+      properties:
+        name:
+          type: string
+        base_url:
+          type: string
+        api_key_set:
+          type: boolean
+        enabled:
+          type: boolean
+    TranscriptionServiceUpdate:
+      type: object
+      required:
+        - name
+        - base_url
+        - enabled
+      properties:
+        name:
+          type: string
+        base_url:
+          type: string
+        enabled:
+          type: boolean
+        api_key:
+          type: string
+          nullable: true
+    TestServiceResult:
+      type: object
+      required:
+        - reachable
+      properties:
+        reachable:
+          type: boolean
+    ResetAccountRequest:
+      type: object
+      required:
+        - username
+      properties:
+        username:
+          type: string
+    ResetAccountResponse:
+      type: object
+      required:
+        - reset_code
+      properties:
+        reset_code:
+          type: string
+    ClearStoreRequest:
+      type: object
+      required:
+        - confirm
+      properties:
+        username:
+          type: string
+          nullable: true
+        confirm:
+          type: boolean
