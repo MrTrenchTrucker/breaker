@@ -53,7 +53,7 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         iconLaunch = IconLaunchOnce(savedInstanceState?.getBoolean(ICON_LAUNCH_DONE_KEY, false) ?: false)
-        val app = applicationContext as BreakerApp
+        val app = applicationContext as BreakerApp; dev.breaker.dictation.wiring.paintWindowBackground(this, app.settingsStore.load().themeMode)
         val modelReady = StoreModelReady(app.compositionRoot.modelStore) { app.settingsStore.load().modelSize }
         val firstRunDone = FirstRunDoneStore(File(app.filesDir, FirstRunDoneStore.FILE_NAME))
         when (FirstRunGate.decide(firstRunDone.isDone(), modelReady.isReady())) {

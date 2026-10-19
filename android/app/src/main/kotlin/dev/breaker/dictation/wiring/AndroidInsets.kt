@@ -1,9 +1,13 @@
 package dev.breaker.dictation.wiring
 
+import android.app.Activity
+import android.graphics.drawable.ColorDrawable
+import android.view.ViewGroup
 import android.view.WindowInsets
+import dev.breaker.dictation.core.model.ThemeMode
 import dev.breaker.shared.tokens.TruckingTokens
 
-/** Pads [view] by the system bars, the display cutout and the gutter, now and whenever its insets change. */
+/** Sets [view]'s margins to the system bars and the cutout, and its padding to the gutter, now and whenever its insets change. */
 internal fun applyInsets(view: android.view.View) {
     val rootInsets = view.rootWindowInsets
     if (rootInsets != null) {
@@ -23,10 +27,34 @@ private fun applyPadding(view: android.view.View, insets: WindowInsets) {
         dev.breaker.dictation.wiring.Insets(cutout.left, cutout.top, cutout.right, cutout.bottom),
     )
     val gutter = gutterPx(TruckingTokens.metrics.gutterDp, view.resources.displayMetrics.density)
-    view.setPadding(
-        padding.left + gutter,
-        padding.top + gutter,
-        padding.right + gutter,
-        padding.bottom + gutter,
+    val (clear, inner) = layoutFor(padding, gutter)
+    val lp = view.layoutParams as? ViewGroup.MarginLayoutParams
+    if (lp != null) {
+        lp.setMargins(clear.left, clear.top, clear.right, clear.bottom)
+        view.layoutParams = lp
+        view.setPadding(inner.left, inner.top, inner.right, inner.bottom)
+    } else {
+        view.setPadding(
+            clear.left + inner.left,
+            clear.top + inner.top,
+            clear.right + inner.right,
+            clear.bottom + inner.bottom,
+        )
+    }
+}
+
+/**
+ * Paints [activity]'s window background from the palette for [mode].
+ *
+ * Painted when the activity is created; a theme switched inside Settings is not
+ * repainted until the app is reopened.
+ */
+internal fun paintWindowBackground(
+    activity: Activity,
+    mode: ThemeMode,
+) {
+    val night = isNight(activity.resources.configuration.uiMode)
+    activity.window.setBackgroundDrawable(
+        ColorDrawable(windowColorFor(mode, night)),
     )
 }
