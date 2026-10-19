@@ -3,7 +3,7 @@
 OpenAPI 3 spec for the transcription-job contract (slice 1) — the single contract
 both the Android client (`stt-server`) and the server (`whisper-server`) implement.
 
-**Status:** the transcription-job and auth contracts, plus the sync group and the agent-token endpoints:
+**Status:** the transcription-job and auth contracts, plus the sync group, the agent-token endpoints, and the admin group:
 - `POST /v1/audio/transcriptions` — enqueue a transcription job
 - `GET /v1/jobs/{job_id}` — poll job status and result
 - `GET /health` — service health check
@@ -19,5 +19,12 @@ both the Android client (`stt-server`) and the server (`whisper-server`) impleme
 - the two new agent-token endpoints:
   - `POST /v1/admin/agent-tokens` — create an agent token (the token value is returned only here)
   - `GET /v1/admin/agent-tokens` — list the account's agent tokens (ids, names, owners, scopes, expiries - never the token values)
+- the admin group:
+  - `POST /v1/admin/roles` — grant or revoke an account's admin role
+  - `GET /v1/admin/health` — the server's health and the released GIT tag (admin only)
+  - `GET /v1/admin/transcription-service` / `PUT /v1/admin/transcription-service` — read or reconfigure the transcription service (the API key is never echoed; PUT is last-write-wins and the key is optional/write-only)
+  - `POST /v1/admin/test-service` — probe the configured transcription service's connectivity (admin only)
+  - `POST /v1/admin/reset-account` — reset an account: the server deletes its keys, transcriptions, unfetched pending-sealed rows and revokes its tokens, and issues a one-time reset code
+  - `POST /v1/admin/clear-store` — clear the transcription store for one user or all users (confirm required)
 
 Full module card: `AGENTS.md` in this folder.

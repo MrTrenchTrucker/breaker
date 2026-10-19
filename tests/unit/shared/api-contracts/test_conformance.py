@@ -118,6 +118,42 @@ class ConformanceTest(unittest.TestCase):
         """AgentTokenEntry fields match the spec (production comparator)."""
         self._compare("AgentTokenEntry")
 
+    def test_role_update_request_fields_match_spec(self):
+        """RoleUpdateRequest fields match the spec (production comparator)."""
+        self._compare("RoleUpdateRequest")
+
+    def test_role_update_response_fields_match_spec(self):
+        """RoleUpdateResponse fields match the spec (production comparator)."""
+        self._compare("RoleUpdateResponse")
+
+    def test_admin_health_fields_match_spec(self):
+        """AdminHealth fields match the spec (production comparator)."""
+        self._compare("AdminHealth")
+
+    def test_transcription_service_fields_match_spec(self):
+        """TranscriptionService fields match the spec (production comparator)."""
+        self._compare("TranscriptionService")
+
+    def test_transcription_service_update_fields_match_spec(self):
+        """TranscriptionServiceUpdate fields match the spec (production comparator)."""
+        self._compare("TranscriptionServiceUpdate")
+
+    def test_test_service_result_fields_match_spec(self):
+        """TestServiceResult fields match the spec (production comparator)."""
+        self._compare("TestServiceResult")
+
+    def test_reset_account_request_fields_match_spec(self):
+        """ResetAccountRequest fields match the spec (production comparator)."""
+        self._compare("ResetAccountRequest")
+
+    def test_reset_account_response_fields_match_spec(self):
+        """ResetAccountResponse fields match the spec (production comparator)."""
+        self._compare("ResetAccountResponse")
+
+    def test_clear_store_request_fields_match_spec(self):
+        """ClearStoreRequest fields match the spec (production comparator)."""
+        self._compare("ClearStoreRequest")
+
     def test_agent_token_scope_enum_matches_named_schema(self):
         """The named AgentTokenScope schema's enum values match the Kotlin AgentTokenScope enum."""
         scope_schema = self.schemas.get("AgentTokenScope", {})
