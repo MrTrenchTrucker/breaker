@@ -12,6 +12,50 @@ import org.junit.Test
  */
 internal class InsetsTest {
 
+    // ── layoutFor ──────────────────────────────────────────────────────────────
+
+    @Test
+    fun `layoutFor returns clear as margins and gutter as padding on all sides`() {
+        val clear = Padding(left = 10, top = 20, right = 30, bottom = 40)
+        val gutter = 16
+        val (margins, padding) = layoutFor(clear, gutter)
+        assertEquals("margins are the clear insets", clear, margins)
+        assertEquals("padding is gutter on all sides", Padding(16, 16, 16, 16), padding)
+    }
+
+    @Test
+    fun `layoutFor with zero gutter gives zero padding`() {
+        val clear = Padding(5, 10, 15, 20)
+        val (margins, padding) = layoutFor(clear, gutter = 0)
+        assertEquals("margins are the clear insets", clear, margins)
+        assertEquals("padding is zero", Padding(0, 0, 0, 0), padding)
+    }
+
+    @Test
+    fun `layoutFor with zero clear gives zero margins`() {
+        val clear = Padding(0, 0, 0, 0)
+        val (margins, padding) = layoutFor(clear, gutter = 8)
+        assertEquals("margins are zero", Padding(0, 0, 0, 0), margins)
+        assertEquals("padding is gutter on all sides", Padding(8, 8, 8, 8), padding)
+    }
+
+    @Test
+    fun `layoutFor with asymmetric clear preserves each side`() {
+        val clear = Padding(left = 0, top = 24, right = 0, bottom = 48)
+        val (margins, padding) = layoutFor(clear, gutter = 16)
+        assertEquals("margins preserve the asymmetric clear", clear, margins)
+        assertEquals("padding is gutter on every side regardless", Padding(16, 16, 16, 16), padding)
+    }
+
+    @Test
+    fun `layoutFor does not mutate the input clear`() {
+        val clear = Padding(1, 2, 3, 4)
+        layoutFor(clear, gutter = 8)
+        assertEquals("clear is unchanged after layoutFor", Padding(1, 2, 3, 4), clear)
+    }
+
+    // ── paddingFor ─────────────────────────────────────────────────────────────
+
     @Test
     fun `each side is the max of bar and cutout`() {
         val bars = Insets(left = 10, top = 20, right = 30, bottom = 40)
@@ -64,6 +108,39 @@ internal class InsetsTest {
     fun `one side zero while the other is not`() {
         val padding = paddingFor(Insets(0, 12, 0, 0), Insets(0, 0, 24, 0))
         assertEquals(Padding(0, 12, 24, 0), padding)
+    }
+
+    @Test
+    fun `layoutFor puts the clear amount in the margins and the gutter in the padding`() {
+        val clear = Padding(left = 10, top = 20, right = 30, bottom = 40)
+        val (margins, padding) = layoutFor(clear, 16)
+        assertEquals("margins are the clear amount", Padding(10, 20, 30, 40), margins)
+        assertEquals("padding is the gutter on every side", Padding(16, 16, 16, 16), padding)
+    }
+
+    @Test
+    fun `layoutFor keeps a zero gutter as zero padding`() {
+        val (margins, padding) = layoutFor(Padding(4, 5, 6, 7), 0)
+        assertEquals(Padding(4, 5, 6, 7), margins)
+        assertEquals(Padding(0, 0, 0, 0), padding)
+    }
+
+    @Test
+    fun `layoutFor hands back the same clear amount it was given`() {
+        val clear = Padding(1, 2, 3, 4)
+        assertEquals("the clear amount is not copied or rebuilt", clear, layoutFor(clear, 48).first)
+    }
+
+    @Test
+    fun `layoutFor gives a view without margins the whole amount as padding`() {
+        val clear = Padding(10, 20, 30, 40)
+        val gutter = 16
+        val (margins, padding) = layoutFor(clear, gutter)
+        // The fallback adds the two halves of each side, so it is never below either.
+        assertEquals(margins.left + padding.left, clear.left + gutter)
+        assertEquals(margins.top + padding.top, clear.top + gutter)
+        assertEquals(margins.right + padding.right, clear.right + gutter)
+        assertEquals(margins.bottom + padding.bottom, clear.bottom + gutter)
     }
 
     @Test
