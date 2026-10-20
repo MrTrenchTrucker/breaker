@@ -1,6 +1,7 @@
 package dev.breaker.dictation.ui.render
 
 import android.content.Context
+import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -145,6 +146,7 @@ internal class HomeHostView(
      * afterwards, and the platform limits it to the height of the new content.
      */
     fun show(screen: Screen) {
+        probeLogged("show ${screen.id} recording=true")
         val content = checkNotNull(page)
         val held = content.scrollY
         val split = screen.nodes.partition { it.id == HomeNodeIds.DRAWER_DIM || it.id == HomeNodeIds.DRAWER_PANEL }
@@ -242,6 +244,12 @@ internal class HomeHostView(
         if (intent is ScreenIntent.Home) act(intent.action)
         val handled = handler.handle(intent)
         draw(merged(handled))
+    }
+
+    /** Logs a probe line, only while the big mic records. DIAGNOSTIC kit; removed with the probe before release. */
+    private fun probeLogged(line: String) {
+        if (!recording) return
+        Log.d("BreakerMicProbe", line)
     }
 
     /**
@@ -356,6 +364,7 @@ internal class HomeHostView(
      * the window height left after the system bars (ADR-026).
      */
     private fun attachMicSlot(root: View) {
+        probeLogged("attachMicSlot re-parent recording=true")
         val slot = findTagged(root, HomeNodeIds.MIC) ?: return
         val parent = slot.parent as? ViewGroup ?: return
         val index = parent.indexOfChild(slot)

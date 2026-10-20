@@ -84,17 +84,17 @@ internal class ScreenMicView(
     label: String,
     private val cancelLabel: String,
     private val sendLabel: String,
-    private val onTap: () -> Unit,
-    private val onBegin: (() -> Unit)?,
-    private val onCancel: (() -> Unit)?,
-    private val onSend: (() -> Unit)?,
+    internal val onTap: () -> Unit,
+    internal val onBegin: (() -> Unit)?,
+    internal val onCancel: (() -> Unit)?,
+    internal val onSend: (() -> Unit)?,
     slopPx: Int,
-) : View(context) {
+) : View(context), ScreenMicProbe {
 
-    private val model = TileModel()
+    internal val model = TileModel()
     private var theme: ThemeMode = initialTheme
     private val interpreter = TouchInterpreter(slopPx)
-    private val gesture = TileGesture()
+    internal val gesture = TileGesture()
     private val density: Float = context.resources.displayMetrics.density
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeCap = Paint.Cap.ROUND }
     private val artDraw = TileArtDraw()
@@ -140,6 +140,12 @@ internal class ScreenMicView(
         contentDescription = text
         sendA11y(AccessibilityNodeProvider.HOST_VIEW_ID, AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)
     }
+
+    /** Debug-probe handle on the mic: push [state] to the mic exactly the way the app pushes state (the same setModelState path, on the main thread); the push always succeeds, so this always returns true. */
+    override fun probeSetState(state: TileState): Boolean = run { setModelState(state); true }
+
+    /** Debug-probe handle on the mic's touch path; storing [log] resumes it, null stops it. */
+    override fun probeTouchLog(log: ((String) -> Unit)?) = ScreenMicProbeKit.logSink(log)
 
     /** Report [type] for the host or a virtual child; a content change is a subtree change. */
     private fun sendA11y(virtualId: Int, type: Int) {
@@ -205,6 +211,7 @@ internal class ScreenMicView(
                 val y = event.getY(index)
                 interpreter.down(x, y)
                 gesture.begin(x, y, model.shape)
+                ScreenMicProbeKit.downLog(model.shape, model.state, x, y, height)
             }
             MotionEvent.ACTION_UP -> {
                 val index = event.findPointerIndex(activePointerId)
@@ -226,15 +233,7 @@ internal class ScreenMicView(
 
     /** Run what a tap means for the state and for the part of the view the finger went down on. */
     private fun route() {
-        val side = height
-        val zone = gesture.zone(PixelPoint(0, 0), side)
-        when (TileRouting.action(model.state, zone)) {
-            TileAction.TAP -> onTap()
-            TileAction.BEGIN -> onBegin?.invoke()
-            TileAction.CANCEL -> onCancel?.invoke()
-            TileAction.SEND -> onSend?.invoke()
-            else -> Unit
-        }
+        ScreenMicProbeKit.route(this)
     }
 
     /** The accessibility provider backing this view: one host node plus, while recording, two clickable virtual children. */
@@ -279,7 +278,7 @@ internal class ScreenMicView(
         override fun performAction(virtualId: Int, action: Int, arguments: Bundle?): Boolean {
             if (virtualId == HOST_VIEW_ID) {
                 if (action != AccessibilityNodeInfo.ACTION_CLICK) return view.performAccessibilityAction(action, arguments)
-                view.route()
+                ScreenMicProbeKit.hostAction(view)
                 return true
             }
             val node = nodeFor(virtualId) ?: return false

@@ -30,5 +30,16 @@
             android:name=".probe.ProbeStartProvider"
             android:authorities="${applicationId}.probe"
             android:exported="false" />
+        <receiver
+            android:name=".probe.MicProbeReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="dev.breaker.debug.MIC" />
+            </intent-filter>
+        </receiver>
+        <provider
+            android:name=".probe.MicProbeBootstrap"
+            android:authorities="${applicationId}.micprobe"
+            android:exported="false" />
     </application>
 </manifest>

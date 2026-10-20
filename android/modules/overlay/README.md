@@ -102,7 +102,7 @@ the app's, not this module's.
 
 ## ScreenMic: the same mic on an app screen
 
-`ScreenMic.create(context, theme, label, cancelLabel, sendLabel, onTap, onBegin, onCancel, onSend)` makes the mic as a plain view with no window, no drag, no close target and no notice strip; the app places it on Home (F45, ADR-026). It takes the same states and routes taps the same way as the tile. The three labels are passed in by the app (ui's `HomeControl`); this module holds none. A screen reader finds one button, and while recording two more: cancel and send, each at least 48 dp (`MicAccessibility`). It has no pulse. Whoever places it must take it out of its old parent before adding it again.
+`ScreenMic.create(context, theme, label, cancelLabel, sendLabel, onTap, onBegin, onCancel, onSend)` makes the mic as a plain view with no window, no drag, no close target and no notice strip; the app places it on Home (F45, ADR-026). It takes the same states and routes taps the same way as the tile. The three labels are passed in by the app (ui's `HomeControl`); this module holds none. A screen reader finds one button, and while recording two more: cancel and send, each at least 48 dp (`MicAccessibility`). It has no pulse. Whoever places it must take it out of its old parent before adding it again. The view also implements the public `ScreenMicProbe` interface: the app's debug source set reaches the mic only through it (push a state, route the touch path's log lines); it carries no behaviour of its own.
 
 ## Not built yet
 
