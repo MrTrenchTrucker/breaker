@@ -9,9 +9,11 @@ import dev.breaker.dictation.core.model.DictationState
 import dev.breaker.dictation.service.ModelNotifications
 import dev.breaker.dictation.service.DictationNotification
 import dev.breaker.dictation.service.NotificationRoute
+import dev.breaker.dictation.wiring.CompositeLevelSink
 import dev.breaker.dictation.wiring.DisplayWatch
 import dev.breaker.dictation.wiring.ForwardingDownloadNotice
 import dev.breaker.dictation.wiring.LevelFeed
+import dev.breaker.dictation.wiring.LevelSink
 import dev.breaker.dictation.wiring.ModelDownloadNotice
 import dev.breaker.dictation.wiring.ModelDownloader
 import dev.breaker.dictation.wiring.NoticeClearingTilePort
@@ -84,6 +86,9 @@ internal class TileHost(
     /** Which path holds the running take: a begin that records sets it, and every settle of the take clears it. */
     internal val takeOwner: TakeOwner = TakeOwner()
 
+    /** The composite level sink: the tile's feed is already there; the Home mic adds its own. */
+    private val compositeLevelSink = CompositeLevelSink()
+
     private val coordinator: TileCoordinator by lazy {
         TileCoordinator(
             noticePort,
@@ -103,7 +108,18 @@ internal class TileHost(
         root.onTakeEnded = { val m = takeOwner.mark(); toCoordinator { takeOwner.settledIf(m); it.onTakeEnded() } }
         root.onMicTaken = { val m = takeOwner.mark(); toCoordinator { takeOwner.settledIf(m); it.onTakeMicTaken() } }
         root.onDeviceFailure = { fallback -> val m = takeOwner.mark(); toCoordinator { takeOwner.settledIf(m); if (!it.onTakeFailed()) fallback() } }
-        root.levelSink = LevelFeed(noticePort, main) { root.dictation.runner.sessionState == DictationState.RECORDING }
+        root.levelSink = compositeLevelSink
+        compositeLevelSink.add(LevelFeed(noticePort, main) { root.dictation.runner.sessionState == DictationState.RECORDING })
+    }
+
+    /** Adds a level sink for the Home mic to the composite sink. The tile's sink is already there. */
+    fun addHomeLevelSink(sink: LevelSink) {
+        compositeLevelSink.add(sink)
+    }
+
+    /** Removes a Home level sink added with [addHomeLevelSink]. */
+    fun removeHomeLevelSink(sink: LevelSink) {
+        compositeLevelSink.remove(sink)
     }
 
     private val forwardingNotice = ForwardingDownloadNotice(notifications)

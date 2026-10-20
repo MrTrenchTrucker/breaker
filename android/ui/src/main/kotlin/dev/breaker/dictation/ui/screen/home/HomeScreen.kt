@@ -154,22 +154,14 @@ internal class HomeScreen(private val format: TimestampFormat = TimestampFormat 
     )
 
     /**
-     * The big mic: the slot follows the switch, so the tree carries the two faces apart: the on mic is
-     * the accent glow, the off mic the muted face. While a take is recording the mic takes the primary
-     * face instead. The host draws the art into this box and gives the box the art's height; the words
-     * are their own nodes below it.
+     * The big mic: a slot the host fills with the overlay-built mic view (ADR-026).
+     * The box carries no background and no drawing of its own; the host places
+     * [micView] inside it and gives the box the mic view's height. The words are
+     * their own nodes below it.
      */
     private fun mic(state: HomeState): Box = Box(
         id = HomeNodeIds.MIC,
-        background = micSlot(state),
     )
-
-    /** The mic's slot: the primary face while recording, else the switch's accent or muted face. */
-    private fun micSlot(state: HomeState): PaletteSlot = when {
-        state.recording -> PaletteSlot.PRIMARY
-        state.switchOn -> PaletteSlot.ACCENT
-        else -> PaletteSlot.TEXT_MUTED
-    }
 
     /**
      * The last-transcript box: the shared outlined card, with a header row (the

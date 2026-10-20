@@ -59,7 +59,7 @@ internal fun drawerLogo(context: Context, theme: Theme): ImageView {
     }
 }
 
-/** The big mic art: the brand vector at MIC_SCALE, with a glow on dark. */
+/** The bottom stripes: one parallelogram per HomeGeometry.stripes() entry. */
 internal class MicArtDrawable(
     private val ctx: Context,
     private val theme: Theme,
@@ -108,7 +108,6 @@ internal class MicArtDrawable(
     }
 }
 
-/** The bottom stripes: one parallelogram per HomeGeometry.stripes() entry. */
 internal class StripesView(context: Context, private val theme: Theme) : View(context) {
     private val density: Float = context.resources.displayMetrics.density
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -159,8 +158,9 @@ internal class CardLipView(context: Context, private val theme: Theme) : View(co
 }
 
 /**
- * Applies the brand art to the rendered view tree: the top-bar logo, the mic
- * art, the stripes and the card's lip.
+ * Applies the brand art to the rendered view tree: the top-bar logo, the
+ * stripes and the card's lip. The mic slot is filled by the host with the
+ * overlay-built mic view (ADR-026).
  */
 internal fun applyBrandArt(root: View, context: Context, theme: Theme) {
     findTagged(root, HomeNodeIds.TOP_BAR_WORD)?.let { word ->
@@ -180,12 +180,6 @@ internal fun applyBrandArt(root: View, context: Context, theme: Theme) {
             parent.removeViewAt(index)
             parent.addView(drawerLogo(context, theme), index)
         }
-    }
-
-    findTagged(root, HomeNodeIds.MIC)?.let { mic ->
-        val art = MicArtDrawable(context, theme)
-        mic.background = art
-        mic.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, art.intrinsicHeight)
     }
 
     val stripeTags = listOf(

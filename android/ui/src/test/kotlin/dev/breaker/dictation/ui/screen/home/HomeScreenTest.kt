@@ -84,9 +84,9 @@ class HomeScreenTest {
         assertEquals("home: the bar's accent rule", PaletteSlot.ACCENT, tree(full).filterIsInstance<Rule>().first { it.id == "home.topbar.trim" }.color)
         assertEquals("home: the card", PaletteSlot.SURFACE, box(full, "home.card").background)
         assertEquals("home: the card's accent edge", PaletteSlot.ACCENT, box(full, "home.card").edge)
-        // the mic's slot follows the switch: the on mic is the accent glow, the off mic the flat face
-        assertEquals("home: the on mic", PaletteSlot.ACCENT, box(full, "home.mic").background)
-        assertEquals("home: the off mic", PaletteSlot.TEXT_MUTED, box(HomeState(), "home.mic").background)
+        // the mic is a slot with no background of its own (ADR-026)
+        assertEquals("home: the mic slot", PaletteSlot.BACKGROUND, box(full, "home.mic").background)
+        assertEquals("home: the off mic slot", PaletteSlot.BACKGROUND, box(HomeState(), "home.mic").background)
         assertEquals("home: the transcript box", PaletteSlot.SURFACE, box(full, "home.transcript").background)
         assertEquals("home: the page stripes are the four-bar Home look", false, tree(full).filterIsInstance<BottomStripes>().first().plain)
         assertEquals("home: the top bar word", HomeTexts.LOGO, label(full, "home.topbar.word").text)
@@ -251,16 +251,16 @@ class HomeScreenTest {
         assertTrue("home: the line comes before the stripes", lineIndex < stripeIndex)
     }
 
-    /** A failure means the mic is not the primary face while recording, or is the primary face when not. */
+    /** A failure means the mic slot carries a background of its own (ADR-026: it is a transparent slot). */
     @Test
-    fun `the mic takes the primary face while recording and the switch face when not`() {
+    fun `the mic slot carries no background in any state`() {
         val recordingOn = HomeState(switchOn = true, recording = true)
-        assertEquals("home: the mic while recording, switch on", PaletteSlot.PRIMARY, box(recordingOn, "home.mic").background)
+        assertEquals("home: the mic slot while recording, switch on", PaletteSlot.BACKGROUND, box(recordingOn, "home.mic").background)
         val recordingOff = HomeState(switchOn = false, recording = true)
-        assertEquals("home: the mic while recording, switch off", PaletteSlot.PRIMARY, box(recordingOff, "home.mic").background)
+        assertEquals("home: the mic slot while recording, switch off", PaletteSlot.BACKGROUND, box(recordingOff, "home.mic").background)
         val idleOn = HomeState(switchOn = true, recording = false)
-        assertEquals("home: the mic not recording, switch on", PaletteSlot.ACCENT, box(idleOn, "home.mic").background)
+        assertEquals("home: the mic slot not recording, switch on", PaletteSlot.BACKGROUND, box(idleOn, "home.mic").background)
         val idleOff = HomeState(switchOn = false, recording = false)
-        assertEquals("home: the mic not recording, switch off", PaletteSlot.TEXT_MUTED, box(idleOff, "home.mic").background)
+        assertEquals("home: the mic slot not recording, switch off", PaletteSlot.BACKGROUND, box(idleOff, "home.mic").background)
     }
 }

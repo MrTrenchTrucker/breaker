@@ -49,4 +49,10 @@ internal object HomeTexts {
     val SWITCH_ON: String get() = SetupTexts.SWITCH_ON_STATE
     val SWITCH_OFF: String get() = SetupTexts.SWITCH_OFF_STATE
     val STATUS_MODEL_READY: String get() = ControlTexts.BADGE_READY
+
+    /** The cancel action on the recording mic. */
+    const val CANCEL = "Cancel"
+
+    /** The done action on the recording mic. */
+    const val DONE = "Done"
 }

@@ -36,9 +36,9 @@ internal class SettingsColumnTest {
         Rule("NO_BUTTON_IN_THE_ACTIVITY", """\bButton\s*\(""", 0),
         /** The route opens Settings, then focuses its download control. */
         Rule("MODEL_ROUTE_FOCUSES_THE_SETTINGS_DOWNLOAD", """\bgetStringExtra\s*\(\s*NotificationRoute\s*\.\s*EXTRA_ROUTE\s*\)\s*==\s*NotificationRoute\s*\.\s*ROUTE_MODEL\s*\)\s*\{\s*openSettings\s*\(\s*\)\s*\(settingsView\s+as\?\s+dev\s*\.\s*breaker\s*\.\s*dictation\s*\.\s*ui\s*\.\s*DownloadControl\s*\)\s*\?\s*\.\s*focusDownload\s*\(\s*\)\s*\}"""),
-        Rule("DOWNLOAD_STATE_WIRES_TO_THE_SETTINGS_VIEW", """\boverride\s+fun\s+downloading\s*\(\s*\w+\s*:\s*String\s*\)\s*\{[^}]*downloadControl\s*\(\s*\)\s*\?\s*\.\s*downloadProgress\s*\(\s*0\s*,\s*0\s*\)\s*\}"""),
-        Rule("SETTINGS_VIEW_IS_CALLED_ON_DONE", """\boverride\s+fun\s+done\s*\(\s*\)\s*\{[^}]*downloadControl\s*\(\s*\)\s*\?\s*\.\s*downloadStopped\s*\(\s*\)\s*\}"""),
-        Rule("SETTINGS_VIEW_IS_CALLED_ON_FAILED", """\boverride\s+fun\s+failed\s*\(\s*sentence\s*:\s*String\s*\)\s*\{[^}]*downloadControl\s*\(\s*\)\s*\?\s*\.\s*downloadStopped\s*\(\s*\)\s*\}"""),
+        Rule("DOWNLOAD_STATE_WIRES_TO_THE_SETTINGS_VIEW", """\boverride\s+fun\s+downloading\s*\(\s*\w+\s*:\s*String\s*\)\s*\{[^}]*downloadControlOf\s*\(\s*firstRunShown\s*,\s*firstRunView\s*,\s*settingsView\s*\)\s*\?\s*\.\s*downloadProgress\s*\(\s*0\s*,\s*0\s*\)\s*\}"""),
+        Rule("SETTINGS_VIEW_IS_CALLED_ON_DONE", """\boverride\s+fun\s+done\s*\(\s*\)\s*\{[^}]*downloadControlOf\s*\(\s*firstRunShown\s*,\s*firstRunView\s*,\s*settingsView\s*\)\s*\?\s*\.\s*downloadStopped\s*\(\s*\)\s*\}"""),
+        Rule("SETTINGS_VIEW_IS_CALLED_ON_FAILED", """\boverride\s+fun\s+failed\s*\(\s*sentence\s*:\s*String\s*\)\s*\{[^}]*downloadControlOf\s*\(\s*firstRunShown\s*,\s*firstRunView\s*,\s*settingsView\s*\)\s*\?\s*\.\s*downloadStopped\s*\(\s*\)\s*\}"""),
         Rule("SETTINGS_VIEW_IS_CALLED_ON_PROGRESS", """\boverride\s+fun\s+progress\s*\(\s*sentence\s*:\s*String\s*,\s*doneMb\s*:\s*Int\s*,\s*totalMb\s*:\s*Int\s*\)\s*\{[\s\S]*control\s*\?\s*\.\s*downloadProgress\s*\(\s*doneMb\s*,\s*totalMb\s*\)\s*\}"""),
         Rule("SETTINGS_VIEW_IS_CALLED_ON_CHECKING", """\boverride\s+fun\s+progress\s*\(\s*sentence\s*:\s*String\s*,\s*doneMb\s*:\s*Int\s*,\s*totalMb\s*:\s*Int\s*\)\s*\{[^}]*control\s*\?\s*\.\s*downloadChecking\s*\(\s*\)\s*\}"""),
     )
@@ -56,11 +56,11 @@ internal class SettingsColumnTest {
         Sample("NO_BUTTON_IN_THE_ACTIVITY", "settingsScroll = scroll", "settingsScroll = scroll\n        val extra = Button(this)"),
         Sample("MODEL_ROUTE_FOCUSES_THE_SETTINGS_DOWNLOAD", "(settingsView as? dev.breaker.dictation.ui.DownloadControl)?.focusDownload()", "settingsView.refresh()"),
         Sample("MODEL_ROUTE_FOCUSES_THE_SETTINGS_DOWNLOAD", "NotificationRoute.ROUTE_MODEL) {", "NotificationRoute.ROUTE_HISTORY) {"),
-        Sample("DOWNLOAD_STATE_WIRES_TO_THE_SETTINGS_VIEW", "downloadControl()?.downloadProgress(0, 0)", "downloadControl()?.downloadProgress(1, 1)"),
+        Sample("DOWNLOAD_STATE_WIRES_TO_THE_SETTINGS_VIEW", "downloadControlOf(firstRunShown, firstRunView, settingsView)?.downloadProgress(0, 0)", "downloadControlOf(firstRunShown, firstRunView, settingsView)?.downloadProgress(1, 1)"),
         Sample("DOWNLOAD_STATE_WIRES_TO_THE_SETTINGS_VIEW", "override fun downloading(sentence: String) {", "override fun downloadingLater(sentence: String) {"),
-        Sample("SETTINGS_VIEW_IS_CALLED_ON_DONE", "override fun done() {\n        downloadSentence = null\n        downloadControl()?.downloadStopped()", "override fun done() {\n        downloadSentence = null\n        settingsView.refresh()"),
+        Sample("SETTINGS_VIEW_IS_CALLED_ON_DONE", "override fun done() {\n        downloadSentence = null\n        downloadControlOf(firstRunShown, firstRunView, settingsView)?.downloadStopped()", "override fun done() {\n        downloadSentence = null\n        settingsView.refresh()"),
         Sample("SETTINGS_VIEW_IS_CALLED_ON_DONE", "override fun done() {", "override fun doneLater() {"),
-        Sample("SETTINGS_VIEW_IS_CALLED_ON_FAILED", "override fun failed(sentence: String) {\n        downloadSentence = sentence\n        downloadControl()?.downloadStopped()", "override fun failed(sentence: String) {\n        downloadSentence = sentence"),
+        Sample("SETTINGS_VIEW_IS_CALLED_ON_FAILED", "override fun failed(sentence: String) {\n        downloadSentence = sentence\n        downloadControlOf(firstRunShown, firstRunView, settingsView)?.downloadStopped()", "override fun failed(sentence: String) {\n        downloadSentence = sentence"),
         Sample("SETTINGS_VIEW_IS_CALLED_ON_FAILED", "override fun failed(sentence: String) {", "override fun failedLater(sentence: String) {"),
         Sample("SETTINGS_VIEW_IS_CALLED_ON_PROGRESS", "control?.downloadProgress(doneMb, totalMb)", "control?.downloadProgress(0, 0)"),
         Sample("SETTINGS_VIEW_IS_CALLED_ON_PROGRESS", "override fun progress(sentence: String, doneMb: Int, totalMb: Int) {", "override fun progressLater(sentence: String, doneMb: Int, totalMb: Int) {"),
@@ -70,8 +70,8 @@ internal class SettingsColumnTest {
 
     private val quiet: List<Quiet> = listOf(
         Quiet("column.addView(settingsView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))", "column.addView(  settingsView  , LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))"),
-        Quiet("downloadControl()?.downloadProgress(0, 0)", "downloadControl()?.downloadProgress( 0 , 0 )"),
-        Quiet("downloadControl()?.downloadStopped()", "downloadControl()?.downloadStopped( )"),
+        Quiet("downloadControlOf(firstRunShown, firstRunView, settingsView)?.downloadProgress(0, 0)", "downloadControlOf(firstRunShown, firstRunView, settingsView)?.downloadProgress( 0 , 0 )"),
+        Quiet("downloadControlOf(firstRunShown, firstRunView, settingsView)?.downloadStopped()", "downloadControlOf(firstRunShown, firstRunView, settingsView)?.downloadStopped( )"),
         Quiet("(settingsView as? dev.breaker.dictation.ui.DownloadControl)?.focusDownload()", "(settingsView as? dev.breaker.dictation.ui.DownloadControl)?.focusDownload( )"),
         Quiet("override fun downloading(sentence: String) {", "override fun downloading( sentence: String ) {"),
     )

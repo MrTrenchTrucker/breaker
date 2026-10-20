@@ -3,6 +3,7 @@ package dev.breaker.dictation.ui
 import dev.breaker.dictation.ui.render.HomeHostView
 import dev.breaker.dictation.ui.render.ScreenRenderer
 import dev.breaker.dictation.ui.screen.home.HomeIntentHandler
+import dev.breaker.dictation.ui.screen.home.HomeTexts
 import dev.breaker.dictation.ui.screen.home.LocalizedTimeFormat
 import dev.breaker.dictation.ui.screen.home.HomeScreen
 import dev.breaker.dictation.ui.theme.isNightMode
@@ -58,9 +59,12 @@ import java.time.ZoneId
  * @param onHowItWorks asks the app to show the How it works screen.
  * @param onAbout asks the app to show the About screen.
  * @param onSettings asks the app to show the settings screen.
+ * @param onTap asks the app to start a take from the big mic on the screen.
  * @param settings the shared store, through which this screen's theme is read
  *   once here instead of reading the phone's own mode again.
- * @param onTap asks the app to start a take from the big mic on the screen.
+ * @param micView the overlay-built mic view the host places in the mic slot (ADR-026).
+ * @param usableHeightDp the window height left after the system bars, in dp, that the mic slot
+ *   is sized from.
  * @return a view that shows the home screen and can be put in a layout as it
  *   stands.
  */
@@ -79,6 +83,8 @@ fun createHomeView(
     onSettings: () -> Unit,
     onTap: () -> Unit,
     settings: dev.breaker.dictation.core.port.SettingsStore,
+    micView: android.view.View,
+    usableHeightDp: Float,
 ): android.view.View {
     val theme = storedTheme(settings, isNightMode(context.resources.configuration.uiMode))
     val handler = HomeIntentHandler(
@@ -99,6 +105,8 @@ fun createHomeView(
         onSettings,
         onTap,
         theme,
+        micView,
+        usableHeightDp,
         ScreenRenderer(context),
     )
 }
@@ -123,4 +131,16 @@ interface HomeControl {
      * already shut, so the Back press is left to the caller.
      */
     fun closeMenu(): Boolean = false
+
+    /** The words the app hands the Home mic, read from the screen's own texts so they exist once. */
+    companion object {
+        /** What a screen reader reads for the idle mic. */
+        val TAP_TO_TALK: String get() = HomeTexts.TAP_TO_TALK
+
+        /** What a screen reader reads for the cancel button of the recording mic. */
+        val CANCEL: String get() = HomeTexts.CANCEL
+
+        /** What a screen reader reads for the send button of the recording mic. */
+        val DONE: String get() = HomeTexts.DONE
+    }
 }

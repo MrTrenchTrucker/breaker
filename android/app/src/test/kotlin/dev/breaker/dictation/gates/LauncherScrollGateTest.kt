@@ -35,7 +35,8 @@ internal class LauncherScrollGateTest {
     private val rules: List<Rule> = listOf(
         rx("SETTINGS_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "activity", """\bcreateSettingsView\s*\(\s*this\s*,\s*app\s*\.\s*settingsStore\s*,\s*modelReady\s*=\s*\{\s*modelReady\s*\.\s*isReady\s*\(\s*\)\s*\}\s*,\s*downloadLine\s*=\s*\{\s*downloadSentence\s*\}\s*,\s*onDownloadModel\s*=\s*\{\s*app\s*\.\s*tileHost\s*\.\s*requestDownload\s*\(\s*\)\s*\}\s*,?\s*\)"""),
         rx("MODEL_READY_IS_A_LIVE_PROVIDER", "activity", """\bmodelReady\s*=\s*\{\s*modelReady\s*\.\s*isReady\s*\(\s*\)\s*\}""", 3),
-        rx("DOWNLOAD_LINE_IS_A_LIVE_PROVIDER", "activity", """\bdownloadLine\s*=\s*\{\s*downloadSentence\s*\}"""),
+        // downloadLine = { downloadSentence } is passed to both createSettingsView and createFirstRunView
+        rx("DOWNLOAD_LINE_IS_A_LIVE_PROVIDER", "activity", """\bdownloadLine\s*=\s*\{\s*downloadSentence\s*\}""", 2),
         rx("ON_DOWNLOAD_CALLS_REQUEST_DOWNLOAD", "activity", """\bonDownloadModel\s*=\s*\{\s*app\s*\.\s*tileHost\s*\.\s*requestDownload\s*\(\s*\)\s*\}"""),
         rx("COLUMN_IS_VERTICAL", "activity", """\bcolumn\s*\.\s*orientation\s*=\s*LinearLayout\s*\.\s*VERTICAL"""),
         rx("SETTINGS_VIEW_HAS_WRAP_CONTENT_HEIGHT", "activity", """\bcolumn\s*\.\s*addView\s*\(\s*settingsView\s*,\s*LinearLayout\s*\.\s*LayoutParams\s*\(\s*ViewGroup\s*\.\s*LayoutParams\s*\.\s*MATCH_PARENT\s*,\s*ViewGroup\s*\.\s*LayoutParams\s*\.\s*WRAP_CONTENT\s*\)\s*\)"""),
@@ -107,7 +108,7 @@ internal class LauncherScrollGateTest {
         Sample("DOWNLOAD_BUTTON_IS_GONE", "column.addView(settingsView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))", "val download = Button(this)\n        column.addView(settingsView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))"),
         Sample("DOWNLOAD_LABEL_IS_GONE", "const val ICON_LAUNCH_DONE_KEY", "const val DOWNLOAD_LABEL\n        const val ICON_LAUNCH_DONE_KEY"),
         Sample("DOWNLOAD_LABEL_IS_GONE", "ICON_LAUNCH_DONE_KEY: String = \"icon-launch-done\"", "DOWNLOAD_LABEL: String = \"Download\"\n        ICON_LAUNCH_DONE_KEY: String = \"icon-launch-done\""),
-        Sample("DOWNLOAD_STATUS_LINE_IS_GONE", "downloadSentence = null\n        downloadControl()?.downloadStopped()", "downloadSentence = null\n        downloadStatus.text = \"\"\n        downloadControl()?.downloadStopped()"),
+        Sample("DOWNLOAD_STATUS_LINE_IS_GONE", "downloadSentence = null\n        downloadControlOf(firstRunShown, firstRunView, settingsView)?.downloadStopped()", "downloadSentence = null\n        downloadStatus.text = \"\"\n        downloadControlOf(firstRunShown, firstRunView, settingsView)?.downloadStopped()"),
         Sample("DOWNLOAD_STATUS_LINE_IS_GONE", "override fun done() {", "override fun done() {\n        downloadStatus.text = \"\""),
         Sample("MODEL_ROUTE_FOCUSES_THE_SETTINGS_DOWNLOAD", "(settingsView as? dev.breaker.dictation.ui.DownloadControl)?.focusDownload()", "settingsView.refresh()"),
         Sample("MODEL_ROUTE_FOCUSES_THE_SETTINGS_DOWNLOAD", "NotificationRoute.ROUTE_MODEL) {", "NotificationRoute.ROUTE_HISTORY) {"),
@@ -132,7 +133,7 @@ internal class LauncherScrollGateTest {
         Quiet("insetsFile", "internal fun applyInsets(view: android.view.View) {", "internal fun applyInsets(  view: android.view.View  ) {"),
         Quiet("insetsFile", "private fun applyPadding(view: android.view.View, insets: WindowInsets) {", "private fun applyPadding(  view: android.view.View, insets: WindowInsets  ) {"),
         Quiet("activity", "column.addView(settingsView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))", "column.addView(  settingsView  , LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))"),
-        Quiet("activity", "downloadSentence = null\n        downloadControl()?.downloadStopped()", "downloadSentence = null\n        downloadControl()?.downloadStopped() // cleared"),
+        Quiet("activity", "downloadSentence = null\n        downloadControlOf(firstRunShown, firstRunView, settingsView)?.downloadStopped()", "downloadSentence = null\n        downloadControlOf(firstRunShown, firstRunView, settingsView)?.downloadStopped() // cleared"),
         Quiet("activity", "applyInsets(settingsScroll)\n        registerBack()", "applyInsets(  settingsScroll  )\n        registerBack()"),
         Quiet("activity", "private var downloadSentence: String? = null", "private var downloadSentence: String? = null // the line"),
         Quiet("activity", "onDownloadModel = { app.tileHost.requestDownload() }", "onDownloadModel = {\n            app.tileHost.requestDownload()\n        }"),
@@ -141,7 +142,7 @@ internal class LauncherScrollGateTest {
         Quiet("activity", "downloadLine = { downloadSentence },", "downloadLine = { downloadSentence }, // live"),
         Quiet("insets", "fun paddingFor(bars: Insets, cutout: Insets): Padding", "fun paddingFor(  bars: Insets, cutout: Insets  ): Padding"),
         Quiet("insets", "left = maxOf(bars.left, cutout.left)", "left = maxOf(bars.left, cutout.left) // max"),
-        Quiet("activity", "?.sizeMb?.let(", "?.sizeMb?.let ("),
+        Quiet("activity", "modelDownloadMb = { selectedModelMb(app) }", "modelDownloadMb = {  selectedModelMb(app) }"),
         Quiet("activity", "BreakerSwitchAdapter(app.armedSwitch),", "BreakerSwitchAdapter( app.armedSwitch ),"),
     )
 

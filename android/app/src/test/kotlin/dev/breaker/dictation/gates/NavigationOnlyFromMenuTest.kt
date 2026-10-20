@@ -150,15 +150,15 @@ class NavigationOnlyFromMenuTest {
     fun `the launcher builds no stock button or text view`() {
         val source = activitySource()
         assertEquals("no stock widget is built", emptyList<String>(), widgetProblems(codeOf(source)))
-        val button = edit("button", source, "private fun copyToClipboard(text: String) {", "private fun copyToClipboard(text: String) {\n        val probe = Button(this)")
+        val button = edit("button", source, "super.onCreate(savedInstanceState)", "super.onCreate(savedInstanceState)\n        val probe = Button(this)")
         assertTrue("a stock Button is reported", widgetProblems(codeOf(button)).any { it.contains("Button(") })
-        val text = edit("text view", source, "private fun copyToClipboard(text: String) {", "private fun copyToClipboard(text: String) {\n        val probe = TextView(this)")
+        val text = edit("text view", source, "super.onCreate(savedInstanceState)", "super.onCreate(savedInstanceState)\n        val probe = TextView(this)")
         assertTrue("a stock TextView is reported", widgetProblems(codeOf(text)).any { it.contains("TextView(") })
-        val qualifiedButton = edit("qualified button", source, "private fun copyToClipboard(text: String) {", "private fun copyToClipboard(text: String) {\n        val probe = android.widget.Button(this)")
+        val qualifiedButton = edit("qualified button", source, "super.onCreate(savedInstanceState)", "super.onCreate(savedInstanceState)\n        val probe = android.widget.Button(this)")
         assertTrue("a qualified stock Button is reported", widgetProblems(codeOf(qualifiedButton)).any { it.contains("android.widget.Button") })
-        val qualifiedText = edit("qualified text view", source, "private fun copyToClipboard(text: String) {", "private fun copyToClipboard(text: String) {\n        val probe = android.widget.TextView(this)")
+        val qualifiedText = edit("qualified text view", source, "super.onCreate(savedInstanceState)", "super.onCreate(savedInstanceState)\n        val probe = android.widget.TextView(this)")
         assertTrue("a qualified stock TextView is reported", widgetProblems(codeOf(qualifiedText)).any { it.contains("android.widget.TextView") })
-        val quiet = edit("string", source, "private fun copyToClipboard(text: String) {", "private fun copyToClipboard(text: String) {\n        val label = \"Button(\"")
+        val quiet = edit("string", source, "super.onCreate(savedInstanceState)", "super.onCreate(savedInstanceState)\n        val label = \"Button(\"")
         assertEquals("a word in a string is not a widget", emptyList<String>(), widgetProblems(codeOf(quiet)))
     }
 }

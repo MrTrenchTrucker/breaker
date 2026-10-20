@@ -80,10 +80,9 @@ internal class FirstRunSeamGateTest {
         Rule("PROVIDERS_ARE_PASSED_BY_REFERENCE_IN_SHOW") { code ->
             val body: String = bodyOf(code, showHeader)
             count(body, """modelReady\s*=\s*modelReady::isReady\s*,""") == 1 &&
-                count(body, """downloadLine\s*=\s*this\s*::\s*pendingDownloadLine\s*,""") == 1 &&
+                count(body, """downloadLine\s*=\s*\{\s*downloadSentence\s*\}\s*,""") == 1 &&
                 count(body, """onDownloadModel\s*=\s*app\s*\.\s*tileHost::requestDownload\s*,""") == 1 &&
-                count(body, """modelDownloadMb\s*=\s*\{\s*selectedModelMb\s*\(\s*app\s*\)\s*\}""") == 1 &&
-                count(code, """private\s+fun\s+pendingDownloadLine\(\)\s*:\s*String\?\s*=\s*downloadSentence""") == 1
+                count(body, """modelDownloadMb\s*=\s*\{\s*selectedModelMb\s*\(\s*app\s*\)\s*\}""") == 1
         },
         Rule("PROGRESS_KEEPS_THE_SENTENCE") { code ->
             count(bodyOf(code, progressHeader), """\bdownloadSentence\s*=\s*sentence\b""") == 1
@@ -132,7 +131,7 @@ internal class FirstRunSeamGateTest {
         Sample("ONFINISHED_MARKS_DONE_THEN_RECREATES", "onFinished = { done.markDone(); recreate() }", "onFinished = { done.markDone() }"),
         Sample("CREATE_FIRST_RUN_VIEW_IS_CALLED_ONCE_INSIDE_SHOW", "        super.onCreate(savedInstanceState)", "        super.onCreate(savedInstanceState)\n        dev.breaker.dictation.ui.createFirstRunView(this)"),
         Sample("CREATE_FIRST_RUN_VIEW_IS_CALLED_ONCE_INSIDE_SHOW", "    override fun onStart() {", "    override fun onStart() {\n        dev.breaker.dictation.ui.createFirstRunView(this)"),
-        Sample("PROVIDERS_ARE_PASSED_BY_REFERENCE_IN_SHOW", "downloadLine = this::pendingDownloadLine,", "downloadLine = { downloadSentence },"),
+        Sample("PROVIDERS_ARE_PASSED_BY_REFERENCE_IN_SHOW", "modelReady = modelReady::isReady,\n            downloadLine = { downloadSentence },", "modelReady = modelReady::isReady,\n            downloadLine = { null },"),
         Sample("PROVIDERS_ARE_PASSED_BY_REFERENCE_IN_SHOW", "onDownloadModel = app.tileHost::requestDownload,", "onDownloadModel = { app.tileHost.requestDownload() },"),
         Sample("PROGRESS_KEEPS_THE_SENTENCE", "downloadSentence = sentence\n        val control", "val control"),
         Sample("PROGRESS_KEEPS_THE_SENTENCE", "downloadSentence = sentence\n        val control", "downloadSentence = null\n        val control"),
@@ -140,15 +139,15 @@ internal class FirstRunSeamGateTest {
         Sample("PROGRESS_FORWARDS_THE_NUMBERS_UNCHANGED", "control?.downloadProgress(doneMb, totalMb)", "control?.downloadProgress(totalMb, doneMb)"),
         Sample("PROGRESS_TESTS_THE_CHECKING_CONSTANT", "sentence == ModelSentences.CHECKING", "sentence == \"Checking the speech model.\""),
         Sample("PROGRESS_TESTS_THE_CHECKING_CONSTANT", "sentence == ModelSentences.CHECKING", "sentence.isEmpty()"),
-        Sample("DONE_STOPS_THE_DOWNLOAD_ONCE", "downloadSentence = null\n        downloadControl()?.downloadStopped()", "downloadSentence = null\n        downloadControl()?.refresh()"),
+        Sample("DONE_STOPS_THE_DOWNLOAD_ONCE", "downloadSentence = null\n        downloadControlOf(firstRunShown, firstRunView, settingsView)?.downloadStopped()", "downloadSentence = null\n        downloadControlOf(firstRunShown, firstRunView, settingsView)?.refresh()"),
         Sample("DONE_STOPS_THE_DOWNLOAD_ONCE", "override fun done() {", "override fun doneLater() {"),
         Sample("FAILED_STOPS_THE_DOWNLOAD_ONCE", "override fun failed(sentence: String) {", "override fun failedLater(sentence: String) {"),
-        Sample("FAILED_STOPS_THE_DOWNLOAD_ONCE", "downloadSentence = sentence\n        downloadControl()?.downloadStopped()", "downloadSentence = sentence\n        downloadControl()?.refresh()"),
-        Sample("THE_DOWNLOAD_IS_STOPPED_ONLY_BY_DONE_AND_FAILED", "override fun done() {", "override fun done() {\n        downloadControl()?.downloadStopped()"),
-        Sample("THE_DOWNLOAD_IS_STOPPED_ONLY_BY_DONE_AND_FAILED", "downloadSentence = null\n        downloadControl()?.downloadStopped()", "downloadSentence = null\n        downloadControl()?.refresh()"),
+        Sample("FAILED_STOPS_THE_DOWNLOAD_ONCE", "downloadSentence = sentence\n        downloadControlOf(firstRunShown, firstRunView, settingsView)?.downloadStopped()", "downloadSentence = sentence\n        downloadControlOf(firstRunShown, firstRunView, settingsView)?.refresh()"),
+        Sample("THE_DOWNLOAD_IS_STOPPED_ONLY_BY_DONE_AND_FAILED", "override fun done() {", "override fun done() {\n        downloadControlOf(firstRunShown, firstRunView, settingsView)?.downloadStopped()"),
+        Sample("THE_DOWNLOAD_IS_STOPPED_ONLY_BY_DONE_AND_FAILED", "downloadSentence = null\n        downloadControlOf(firstRunShown, firstRunView, settingsView)?.downloadStopped()", "downloadSentence = null\n        downloadControlOf(firstRunShown, firstRunView, settingsView)?.refresh()"),
         Sample("THE_SWITCH_WORD_COUNT_IS_UNCHANGED", "private var pendingRefusal: String? = null", "private var pendingRefusal: String? = null\n    private var ${"armed" + "Switch"}: Int = 0"),
         Sample("THE_ONBOARDING_VIEW_IS_RETIRED", "override fun onStart() {", "override fun onStart() {\n        createOnboardingView(this)"),
-        Sample("THE_ONBOARDING_VIEW_IS_RETIRED", "private fun selectedModelMb(app: BreakerApp): Int =", "private fun selectedModelMb(app: BreakerApp): Int =\n        createOnboardingView(app)"),
+        Sample("THE_ONBOARDING_VIEW_IS_RETIRED", "override fun onCreate(savedInstanceState: Bundle?) {", "override fun onCreate(savedInstanceState: Bundle?) {\n        createOnboardingView(this)"),
     )
 
     private val quiet: List<Quiet> = listOf(

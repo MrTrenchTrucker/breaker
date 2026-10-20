@@ -178,10 +178,10 @@ get darker and are flat, and white in the dark theme. They sit on the dark body.
 
 ## Owns
 Floating tile = CB mic drawn from path data, with a glowing outline and a six-slot level meter in its grille (WindowManager overlay, F36). Built: the draggable tile with the CB mic, the eight states, the armed ring pulse (one platform animator), the six-slot level meter, the expanded recording tile with cancel and send (zones placed by `TileControlLayout.kt`), and the notice and
-description the app pushes. Not built yet: nothing in the mic art; its look on a device is still to be checked.
+description the app pushes. ScreenMic = the same mic for an app screen, with no window, no drag and no notice strip; the app places it on Home (F45, ADR-026). ScreenMic reports itself as a button; while recording it exposes two virtual accessibility children, cancel and send, each at least 48 dp, named by labels the app passes in (the pure model is `MicAccessibility`, focus and hover memory is `MicA11yState`; the focus, hover and content-changed events are device behaviour, not unit tested). Not built yet: nothing in the mic art; its look on a device is still to be checked.
 
 ## Public Interface
-FloatingTile (via create), FloatingTile.setImeProbe, ShowResult, TileState
+FloatingTile (via create), FloatingTile.setImeProbe, ShowResult, TileState, ScreenMic (via create)
 
 - `FloatingTile`, built only through `FloatingTile.create(context, settings, onTap, theme, onSaveFailed, onBegin, onCancel, onSend, onNoticeDismissed, onCloseRequested)`:
   - `context`: any context; the tile keeps only the application context.
@@ -323,7 +323,7 @@ FloatingTile (via create), FloatingTile.setImeProbe, ShowResult, TileState
   (null and blank give nothing, breaks and tabs become spaces, trimmed, cut at 80 without splitting a surrogate pair);
   every colour is an opaque palette field and only the outline depends on the state.
 - The Android adapter cannot run on a JVM. Its source text is read by `AdapterGateTest`, which checks: android
-  names only in the seven adapter files: WindowManagerTileWindow, TileView, FloatingTile, ArmedPulse, CloseTargetView, CloseTargetWindow and TileArtDraw; the overlay window type and no legacy type; the names `FLAG_NOT_FOCUSABLE`
+  names only in the eight adapter files: WindowManagerTileWindow, TileView, FloatingTile, ArmedPulse, CloseTargetView, CloseTargetWindow, TileArtDraw and ScreenMic; the overlay window type and no legacy type; the names `FLAG_NOT_FOCUSABLE`
   and `FLAG_LAYOUT_IN_SCREEN` are used in the window code (not that they are combined into the layout flags
   argument); the add is inside a try that catches a refusal and answers `REFUSED`; the covered-touch filter is
   switched on and not undone; no text input word; no colour literal; the manifest declares exactly the one

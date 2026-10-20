@@ -8,14 +8,16 @@ import org.junit.Test
 
 /*
  * Source-text rules for the Home art: the top-bar logo shares the bar with the menu icon and takes the
- * logo's height; the mic art is centred in its box and the box takes the art's height; the Home host
- * opens its padding for the full-width layers when it is built; and the page stripes come last on the
- * page. Each rule reads comment-stripped text, passes on the real file, and fires on an edited copy.
+ * logo's height; the mic art is centred in its box; the mic slot's height is the ruled slot height and
+ * the home screen draws no mic of its own; the Home host opens its padding for the full-width layers
+ * when it is built; and the page stripes come last on the page. Each rule reads comment-stripped text,
+ * passes on the real file, and fires on an edited copy.
  */
 class HomeArtRulesTest {
     private val art = mainSourceOf("render/BrandArtViews.kt")
     private val host = mainSourceOf("render/HomeHostView.kt")
     private val homeScreen = mainSourceOf("screen/home/HomeScreen.kt")
+    private val geometry = mainSourceOf("screen/home/HomeGeometry.kt")
 
     private val whitespace = Regex("""\s+""")
 
@@ -25,6 +27,10 @@ class HomeArtRulesTest {
     /** The parts of [wanted] that [text] does not contain, after comments are taken out and spacing collapsed. */
     private fun missing(text: String, wanted: List<String>): List<String> =
         wanted.filterNot { it in flat(text) }
+
+    /** The parts of [wanted] that [text] does hold, after comments are taken out and spacing collapsed. */
+    private fun present(text: String, wanted: List<String>): List<String> =
+        wanted.filter { it in flat(text) }
 
     /** [text] with [old] replaced by [new]; fails by name when [old] is not exactly once in [text]. */
     private fun replaceOnce(text: String, old: String, new: String): String {
@@ -36,7 +42,13 @@ class HomeArtRulesTest {
     private val DRAWER_BRANCH = "findTagged(root, HomeNodeIds.DRAWER_WORD)"
     private val logoParts = listOf("LayoutParams( 0, (HomeGeometry.LOGO_H_DP", "toInt(), 1f, )")
     private val micCentredParts = listOf("canvas.translate(", "((area.width() - width) shr 1)", "((area.height() - height) shr 1)")
-    private val micHeightParts = listOf("mic.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, art.intrinsicHeight)")
+    private val slotHeightParts = listOf(
+        "fun slotHeightDp(usableDp: Float): Float",
+        "(usableDp - nonMicHeightDp()).coerceIn(MIC_SLOT_MIN_DP, MIC_SLOT_MAX_DP)",
+        "const val MIC_SLOT_MIN_DP: Float = 100f",
+        "const val MIC_SLOT_MAX_DP: Float = 150f",
+    )
+    private val oldMicParts = listOf("MicArtDrawable", "breaker_mic_tile")
     private val bleedOpenParts = listOf("scroll.openForBleed() page = scroll")
     private val stripesLastParts = listOf("add(BottomStripes(HomeNodeIds.STRIPES)) if (state.menuOpen) addAll(drawer())")
     private val ruleParts = listOf("add(topBar()) add(Rule(HomeNodeIds.TOP_BAR_TRIM, PaletteSlot.ACCENT))")
@@ -77,10 +89,13 @@ class HomeArtRulesTest {
     }
 
     @Test
-    fun `the mic box takes the art's height`() {
-        assertEquals("the real mic height", emptyList<String>(), missing(art, micHeightParts))
-        val edited = replaceOnce(art, "art.intrinsicHeight)", "0)")
-        assertEquals("the mic box height not the art's", micHeightParts, missing(edited, micHeightParts))
+    fun `the Home mic slot takes the ruled slot height and the home screen draws no mic of its own`() {
+        assertEquals("the real slot height", emptyList<String>(), missing(geometry, slotHeightParts))
+        assertEquals("the old mic drawing read by the home screen", emptyList<String>(), present(homeScreen, oldMicParts))
+        val edited = replaceOnce(geometry, "coerceIn(MIC_SLOT_MIN_DP, MIC_SLOT_MAX_DP)", "MIC_SLOT_MAX_DP")
+        assertEquals("the slot height not the usable height less the non-mic parts", listOf(slotHeightParts[1]), missing(edited, slotHeightParts))
+        assertEquals("a mic drawn from the old drawable", oldMicParts, present("val mic = MicArtDrawable(context, theme)\nval id = \"breaker_mic_tile\"\n", oldMicParts))
+        assertEquals("the old drawable named only in a comment", emptyList<String>(), present("// MicArtDrawable(context, theme)\n", oldMicParts))
     }
 
     @Test

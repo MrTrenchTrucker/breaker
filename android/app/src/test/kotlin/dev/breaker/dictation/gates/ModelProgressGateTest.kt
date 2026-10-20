@@ -44,7 +44,7 @@ internal class ModelProgressGateTest {
         ),
         Rule(
             "LAUNCHER_PROGRESS_SHOWS_THE_SENTENCE_LIKE_THE_FIRST_ONE", "activity",
-            Regex("""\boverride\s+fun\s+progress\s*\(\s*sentence\s*:\s*String\s*,\s*doneMb\s*:\s*Int\s*,\s*totalMb\s*:\s*Int\s*\)\s*\{\s*downloadSentence\s*=\s*sentence\s*val\s+control\s*=\s*downloadControl\s*\(\s*\)\s*if\s*\(\s*sentence\s*==\s*ModelSentences\s*\.\s*CHECKING\s*\)\s*\{\s*control\s*\?\s*\.\s*downloadChecking\s*\(\s*\)\s*\}\s*else\s*\{\s*control\s*\?\s*\.\s*downloadProgress\s*\(\s*doneMb\s*,\s*totalMb\s*\)"""),
+            Regex("""\boverride\s+fun\s+progress\s*\(\s*sentence\s*:\s*String\s*,\s*doneMb\s*:\s*Int\s*,\s*totalMb\s*:\s*Int\s*\)\s*\{\s*downloadSentence\s*=\s*sentence\s*val\s+control\s*=\s*downloadControlOf\s*\(\s*firstRunShown\s*,\s*firstRunView\s*,\s*settingsView\s*\)\s*if\s*\(\s*sentence\s*==\s*ModelSentences\s*\.\s*CHECKING\s*\)\s*\{\s*control\s*\?\s*\.\s*downloadChecking\s*\(\s*\)\s*\}\s*else\s*\{\s*control\s*\?\s*\.\s*downloadProgress\s*\(\s*doneMb\s*,\s*totalMb\s*\)"""),
         ),
         Rule(
             "PROGRESS_FORWARDS_THE_NUMBERS_TO_THE_MODEL_STEP", "activity",

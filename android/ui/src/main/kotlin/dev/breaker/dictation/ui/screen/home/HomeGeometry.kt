@@ -1,5 +1,8 @@
 package dev.breaker.dictation.ui.screen.home
 
+import dev.breaker.dictation.ui.render.spaceDp
+import dev.breaker.dictation.ui.screen.Space
+import dev.breaker.shared.tokens.TruckingTokens
 import kotlin.math.PI
 import kotlin.math.tan
 
@@ -155,6 +158,14 @@ internal object HomeGeometry {
     const val STRIPE_H_DP: Float = 10f / 1.5f
     const val STRIPE_SLANT_DEG: Float = 12f
 
+    // The mic slot, in dp: the slot takes what a usable height leaves after the non-mic parts of the
+    // page, held between a floor and a cap. The floor is where the mic button and the two marks that
+    // sit beside it while it records stop reading as a button; the cap is where a taller phone stops
+    // growing it. On the art's 360x640 dp phone the slot is 130 dp: the floor is reached at 610 dp of
+    // usable height, and the cap at 660 dp.
+    const val MIC_SLOT_MIN_DP: Float = 100f
+    const val MIC_SLOT_MAX_DP: Float = 150f
+
     // The drawer, in px: the panel 400 wide; the mic scale 0.07; the wordmark 84/68, cap 40; the rule 132..134;
     // the four items at y 170 + i*72 with a divider 70 below each label's top, x 30..370, 1 tall; the three stripes at y0 1100 + i*18, 10 tall, at 0..260, 30..330, 0..190.
     const val DRAWER_DIM: Float = 0.55f
@@ -267,6 +278,39 @@ internal object HomeGeometry {
             )
         }
     }
+
+    /**
+     * The non-mic parts of the page, in dp, top to bottom: the top bar and its accent rule, the gap
+     * above the card, the card, the gap above the mic slot, the gap under the slot, the mic's words
+     * and hint, the gap above the transcript box, the box and the bottom stripes. This is the budget
+     * the mic slot comes out of, summed here so the slot and the page's own parts cannot drift apart.
+     * The gaps are read from the design tokens by their Space names, as the page reads them.
+     */
+    fun nonMicHeightDp(): Float =
+        BAR_H_DP +
+            RULE_H_DP +
+            spaceDp(TruckingTokens.metrics, Space.M) +
+            (CARD_Y1_DP - CARD_Y0_DP) +
+            spaceDp(TruckingTokens.metrics, Space.XL) +
+            spaceDp(TruckingTokens.metrics, Space.S) +
+            TAP_CAP_DP +
+            HINT_SIZE_DP +
+            spaceDp(TruckingTokens.metrics, Space.L) +
+            (BOX_Y1_DP - BOX_Y0_DP) +
+            stripeBandDp()
+
+    /**
+     * The mic slot's height, in dp, for a usable height [usableDp]: the usable height less the
+     * non-mic parts, held between the slot's floor and its cap. The overlay module builds the mic
+     * view and this is the height the slot gives it (ADR-026); the page fits the usable height while
+     * the subtraction is at or above the floor, and below that the slot keeps the floor and the page
+     * may scroll, so the fit rule does not apply under 610 dp.
+     */
+    fun slotHeightDp(usableDp: Float): Float =
+        (usableDp - nonMicHeightDp()).coerceIn(MIC_SLOT_MIN_DP, MIC_SLOT_MAX_DP)
+
+    /** The four bottom stripes' band, in dp: three steps and one bar, the first stripe's top to the last stripe's bottom. */
+    private fun stripeBandDp(): Float = 3f * STRIPE_STEP_DP + STRIPE_H_DP
 
     /** The three plain stripes, top to bottom: the drawer frame's three bars, slanted the art's twelve degrees. */
     fun plainStripes(): List<HomeStripe> {
