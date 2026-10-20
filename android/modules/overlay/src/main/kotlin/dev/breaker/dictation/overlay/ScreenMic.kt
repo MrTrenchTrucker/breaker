@@ -149,6 +149,7 @@ internal class ScreenMicView(
 
     /** Report [type] for the host or a virtual child; a content change is a subtree change. */
     private fun sendA11y(virtualId: Int, type: Int) {
+        if (!ScreenMicA11y.shouldSend((context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager).isEnabled)) return
         val event = AccessibilityEvent.obtain(type)
         event.setSource(this, virtualId)
         event.packageName = context.packageName
