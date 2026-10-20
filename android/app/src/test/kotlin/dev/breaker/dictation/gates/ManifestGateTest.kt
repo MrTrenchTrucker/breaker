@@ -41,6 +41,9 @@ internal class ManifestGateTest {
         android:label="@string/app_name"
         android:networkSecurityConfig="@xml/network_security_config"
         android:usesCleartextTraffic="false"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round">
         <activity
@@ -69,6 +72,9 @@ internal class ManifestGateTest {
                 "android:label" to "@string/app_name",
                 "android:networkSecurityConfig" to "@xml/network_security_config",
                 "android:usesCleartextTraffic" to "false",
+                "android:allowBackup" to "false",
+                "android:dataExtractionRules" to "@xml/data_extraction_rules",
+                "android:fullBackupContent" to "@xml/backup_rules",
                 "android:icon" to "@mipmap/ic_launcher",
                 "android:roundIcon" to "@mipmap/ic_launcher_round",
             ),
@@ -143,7 +149,7 @@ internal class ManifestGateTest {
         XmlSample("a permission attribute on the service", "android:exported=\"false\"", "android:exported=\"false\"\n            android:permission=\"android.permission.BIND_JOB_SERVICE\"", "has the attribute android:permission"),
         XmlSample("a process attribute on the service", "android:exported=\"false\"", "android:exported=\"false\" android:process=\":x\"", "has the attribute android:process"),
         XmlSample("a debuggable attribute", "android:name=\".BreakerApp\"", "android:name=\".BreakerApp\"\n        android:debuggable=\"true\"", "has the attribute android:debuggable"),
-        XmlSample("an allowBackup attribute", "android:name=\".BreakerApp\"", "android:name=\".BreakerApp\"\n        android:allowBackup=\"true\"", "has the attribute android:allowBackup"),
+        XmlSample("backup allowed", "android:allowBackup=\"false\"", "android:allowBackup=\"true\"", "attribute android:allowBackup is \"true\""),
         XmlSample("a testOnly attribute", "android:name=\".BreakerApp\"", "android:name=\".BreakerApp\"\n        android:testOnly=\"true\"", "has the attribute android:testOnly"),
         XmlSample("an icon attribute pointing at the wrong mipmap", "android:icon=\"@mipmap/ic_launcher\"", "android:icon=\"@mipmap/x\"", "attribute android:icon is"),
         XmlSample("a package attribute on the manifest", "<manifest ", "<manifest package=\"x.y\" ", "has the attribute package"),
@@ -152,6 +158,7 @@ internal class ManifestGateTest {
         XmlSample("a second filter on the launcher activity", "</activity>", "<intent-filter><action android:name=\"android.intent.action.VIEW\" /></intent-filter>\n        </activity>", "holds the element <intent-filter>"),
         XmlSample("a second category in the launcher filter", "<category android:name=\"android.intent.category.LAUNCHER\" />", "<category android:name=\"android.intent.category.LAUNCHER\" />\n                <category android:name=\"android.intent.category.DEFAULT\" />", "holds the element <category>"),
         XmlSample("character data in the application", "android:roundIcon=\"@mipmap/ic_launcher_round\">", "android:roundIcon=\"@mipmap/ic_launcher_round\">text", "holds character data"),
+        XmlSample("an unknown attribute on the application", "android:name=\".BreakerApp\"", "android:name=\".BreakerApp\"\n        android:vendorExtra=\"1\"", "has the attribute android:vendorExtra"),
     )
 
     private val changed: List<XmlSample> = listOf(
@@ -183,6 +190,9 @@ internal class ManifestGateTest {
         XmlSample("the launcher activity theme wrong", "@android:style/Theme.Material.Light.NoActionBar", "@android:style/Theme.Material.Light", "attribute android:theme is"),
         XmlSample("the launcher activity label removed", "\n            android:label=\"@string/app_name\"", "", "lacks the attribute android:label"),
         XmlSample("the launcher activity label wrong", "@string/app_name", "@string/other_name", "attribute android:label is \"@string/other_name\""),
+        XmlSample("backup not stated", "\n        android:allowBackup=\"false\"", "", "lacks the attribute android:allowBackup"),
+        XmlSample("no extraction rules", "\n        android:dataExtractionRules=\"@xml/data_extraction_rules\"", "", "lacks the attribute android:dataExtractionRules"),
+        XmlSample("no full backup content", "\n        android:fullBackupContent=\"@xml/backup_rules\"", "", "lacks the attribute android:fullBackupContent"),
     )
 
     private val quiet: List<XmlSample> = listOf(

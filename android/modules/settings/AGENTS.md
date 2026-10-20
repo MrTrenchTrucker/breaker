@@ -95,7 +95,7 @@ agents, not required: an outside contributor may write the code themselves
 - Server URL is a first-run setting — never hardcode.
 - NOT REPRODUCED (a defect report): a phone test of APK 8 found history and the speech model gone after an
   update (an in-place 6 to 8 update keeps them in the emulator; APKs 1-5 had different signing keys); the report does not say whether settings survived. Required: an update keeps the settings file. RULED: an uninstall removes
-  everything (ADR-028 Decision 2); the manifest change that stops Auto Backup restoring it is PLANNED.
+  everything (ADR-028 Decision 2); the manifest change that stops Auto Backup restoring it is BUILT (`allowBackup=false` and rules files that exclude every domain, in the app module).
 - The Gradle edge to `:shared:modules:model-registry` is required and present:
   the registry publishes an artifact, and the boundary check makes the edge
   mandatory the moment it does. `ModelCatalog` reads the registry through it,
