@@ -142,6 +142,8 @@ internal class HomeTakeAdapterTest {
             onState = { state -> states.add(state) },
         )
         a.onTap()
+        // The begin runs on the background (QueuedBackground); drain it so the take is recording.
+        queued.runAll()
         a.onTap()
         take.beginResult = BeginResult.Refused(RunnerSentences.BUSY)
         a.onTap()

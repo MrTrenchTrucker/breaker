@@ -3,6 +3,7 @@ package dev.breaker.dictation.wiring
 import dev.breaker.dictation.core.model.DictationState
 import dev.breaker.dictation.core.port.HistoryStore
 import dev.breaker.dictation.core.usecase.SendResult
+import dev.breaker.dictation.overlay.TileState
 import dev.breaker.dictation.ui.HomeControl
 
 /**
@@ -14,6 +15,10 @@ import dev.breaker.dictation.ui.HomeControl
  * the store, and the store's first use is the save on the background. The adapter's lines and states
  * go through [main] to the screen given to [attach]; a line or a state that comes before [attach] is
  * not shown.
+ *
+ * The Home's mic is a [HomeScreenMic] — the tile's own drawing, level slots and X, with the tile's draw
+ * cancelled while the Home owns the take. The wiring pushes the take's state and the audio level to
+ * the mic through [screenMic].
  */
 internal class HomeTakeWiring(
     take: () -> TakePort,
@@ -29,6 +34,9 @@ internal class HomeTakeWiring(
 
     private val port: LazyTakePort = LazyTakePort { OwnedTakePort(take(), owner, TakeOwnerKind.HOME) }
 
+    /** The Home screen's mic, set by [createScreenMic]. Pushed state and level from this wiring. */
+    var screenMic: HomeScreenMic? = null
+
     private val adapter = HomeTakeAdapter(
         take = port,
         owner = owner,
@@ -37,11 +45,46 @@ internal class HomeTakeWiring(
         background = background,
         main = main,
         onLine = { line -> main.post { home?.showLine(line) } },
-        onState = { state -> main.post { home?.showRecording(state == DictationState.RECORDING) } },
+        onState = { state ->
+            main.post {
+                home?.showRecording(state == DictationState.RECORDING)
+                val tileState = when (state) {
+                    DictationState.RECORDING -> TileState.RECORDING
+                    else -> if (switch.isOn()) TileState.ARMED else TileState.IDLE
+                }
+                screenMic?.setState(tileState)
+            }
+        },
     )
 
     /**
-     * The big mic's tap: one call reaches the adapter once. A tap that would begin a take needs the speech
+     * Creates the Home screen's mic and wires its callbacks to this wiring. The mic's view is
+     * placed by the app's screen. The wiring pushes state and level to the mic.
+     */
+    fun createScreenMic(
+        context: android.content.Context,
+        theme: dev.breaker.shared.tokens.ThemeMode,
+        label: String,
+        cancelLabel: String,
+        sendLabel: String,
+    ): HomeScreenMic {
+        val mic = HomeScreenMic(
+            context = context,
+            theme = theme,
+            label = label,
+            cancelLabel = cancelLabel,
+            sendLabel = sendLabel,
+            onTap = { onTap() },
+            onBegin = { onTap() },
+            onCancel = { adapter.onCancel() },
+            onSend = { adapter.onSend() },
+        )
+        screenMic = mic
+        return mic
+    }
+
+    /**
+     * The mic's tap: one call reaches the adapter once. A tap that would begin a take needs the speech
      * model: with no model it answers the model sentence and the adapter is never called, so no take is
      * begun. A tap that finishes the Home's own take goes on to the adapter whether or not the model is there.
      */

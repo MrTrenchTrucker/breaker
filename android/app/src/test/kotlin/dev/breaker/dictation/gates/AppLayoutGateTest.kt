@@ -32,8 +32,8 @@ internal class AppLayoutGateTest {
         "wiring/BreakerSwitchAdapter.kt", "wiring/ForwardingDownloadNotice.kt",
         "wiring/TakeYield.kt", "wiring/TakenClipboard.kt",
         "wiring/TakenSentences.kt", "wiring/TakeSettle.kt", "wiring/DeviceFailureSentences.kt", "wiring/DeviceFailureYield.kt", "wiring/TakeFinisher.kt",
-        "wiring/HomeTakeAdapter.kt", "wiring/EndingTexts.kt", "wiring/HomeSentences.kt", "wiring/HomeTakeWiring.kt", "wiring/TakeOwner.kt",
-        "wiring/LevelMap.kt", "wiring/LevelMeter.kt", "wiring/LevelFeed.kt", "wiring/LevelTap.kt", "wiring/NoiseFloor.kt",
+        "wiring/HomeTakeAdapter.kt", "wiring/EndingTexts.kt", "wiring/HomeSentences.kt", "wiring/TakeOwner.kt",
+        "wiring/CompositeLevelSink.kt", "wiring/HomeLevelFeed.kt", "wiring/LevelMap.kt", "wiring/LevelMeter.kt", "wiring/LevelFeed.kt", "wiring/LevelTap.kt", "wiring/NoiseFloor.kt",
         "host/ServiceRefusalNotice.kt",
     )
 
@@ -44,7 +44,8 @@ internal class AppLayoutGateTest {
         "service/ModelNotifications.kt", "host/AppThreads.kt", "host/OverlayTilePort.kt", "host/TileHost.kt", "host/DisplayChangeAndroid.kt",
         "wiring/AndroidSwaps.kt", "wiring/AndroidInsets.kt", "wiring/ThemedScreens.kt",
         "wiring/InfoScreensWiring.kt",
-        "host/TakenClipboardAndroid.kt",
+        "wiring/HomeTakeWiring.kt", "wiring/HomeScreenMic.kt",
+        "host/TakenClipboardAndroid.kt", "host/ActivityHelpers.kt",
     )
 
     private val softCap: Int = 300

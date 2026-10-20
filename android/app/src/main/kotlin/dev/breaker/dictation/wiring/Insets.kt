@@ -63,3 +63,22 @@ internal fun windowColorFor(mode: dev.breaker.dictation.core.model.ThemeMode, sy
  */
 internal fun isNight(uiMode: Int): Boolean =
     (uiMode and 0x30) == 0x20
+
+/**
+ * The screen's usable height in dp: the full [heightPx] less the top and bottom
+ * system bars, converted from pixels to device-independent pixels.
+ *
+ * The subtraction is done first, so a partial pixel survives; only after the bars
+ * are removed do we divide by [density], so a fractional pixel is never truncated away.
+ */
+internal fun usableHeightDp(heightPx: Int, topPx: Int, bottomPx: Int, density: Float): Float =
+    (heightPx - topPx - bottomPx) / density
+
+/**
+ * The theme mode the current night flag maps to: [dev.breaker.shared.tokens.ThemeMode.DARK]
+ * when [night] is true, otherwise [dev.breaker.shared.tokens.ThemeMode.LIGHT].
+ *
+ * A thin mapping helper so callers do not spell out the branch inline.
+ */
+internal fun themeModeForNight(night: Boolean): dev.breaker.shared.tokens.ThemeMode =
+    if (night) dev.breaker.shared.tokens.ThemeMode.DARK else dev.breaker.shared.tokens.ThemeMode.LIGHT

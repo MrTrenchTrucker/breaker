@@ -1,6 +1,7 @@
 package dev.breaker.dictation.ui.render
 
 import android.content.Context
+import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.accessibility.AccessibilityNodeInfo
@@ -61,6 +62,9 @@ import dev.breaker.dictation.ui.theme.Theme
  * @param onSettings asks the app to show the settings screen.
  * @param onTap asks the app to start a take from the big mic on the screen.
  * @param theme the colours and sizes the screen is drawn in.
+ * @param micView the overlay-built mic view the host places in the mic slot (ADR-026).
+ * @param usableHeight the window height left after the system bars, in dp, that the mic slot is
+ *   sized from.
  * @param renderer draws a described screen into views.
  */
 internal class HomeHostView(
@@ -78,6 +82,8 @@ internal class HomeHostView(
     private val onSettings: () -> Unit,
     private val onTap: () -> Unit,
     private val theme: Theme,
+    private val micView: android.view.View,
+    private val usableHeight: Float,
     private val renderer: ScreenRenderer,
 ) : FrameLayout(context), HomeControl {
     /** The page: the screen's rows and their bleed layers, scrolled as one. Made in init. */
@@ -145,6 +151,7 @@ internal class HomeHostView(
         content.removeAllViews()
         val rendered = renderer.render(Screen(screen.id, screen.title, split.second), theme, ::onIntent)
         applyBrandArt(rendered, context, theme)
+        attachMicSlot(rendered)
         content.addView(rendered)
         content.setBackgroundColor(theme.color(PaletteSlot.BACKGROUND).argb)
         content.scrollTo(0, held)
@@ -341,6 +348,26 @@ internal class HomeHostView(
             }
         })
         mic.setOnClickListener { onIntent(ScreenIntent.Home(HomeActions.MIC)) }
+    }
+
+    /**
+     * Places the overlay-built [micView] in the mic slot: the view takes the slot's
+     * width and the ruled slot height, so the mic and the page's non-mic rows share
+     * the window height left after the system bars (ADR-026).
+     */
+    private fun attachMicSlot(root: View) {
+        val slot = findTagged(root, HomeNodeIds.MIC) ?: return
+        val parent = slot.parent as? ViewGroup ?: return
+        val index = parent.indexOfChild(slot)
+        val mic = micView
+        mic.tag = HomeNodeIds.MIC
+        // The mic measures to its own width (tile-square when idle), so the slot must centre it.
+        mic.layoutParams = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            (HomeGeometry.slotHeightDp(usableHeight) * resources.displayMetrics.density).toInt(),
+        ).apply { gravity = Gravity.CENTER_HORIZONTAL }
+        parent.removeViewAt(index)
+        parent.addView(mic, index)
     }
 
     /** The first view under [root] whose tag is [id], the root included, or null. */

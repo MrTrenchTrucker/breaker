@@ -24,7 +24,7 @@ internal sealed class Node {
 /** A filled block of background: a screen, a card or a panel. */
 internal data class Box(
     override val id: String,
-    val background: PaletteSlot,
+    val background: PaletteSlot = PaletteSlot.BACKGROUND,
     val children: List<Node> = emptyList(),
     /** Lays the children out in a row rather than a column. */
     val horizontal: Boolean = false,

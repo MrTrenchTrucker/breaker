@@ -63,6 +63,8 @@ class HomeTextsTest {
             "SWITCH_ON" to HomeTexts.SWITCH_ON,
             "SWITCH_OFF" to HomeTexts.SWITCH_OFF,
             "STATUS_MODEL_READY" to HomeTexts.STATUS_MODEL_READY,
+            "CANCEL" to HomeTexts.CANCEL,
+            "DONE" to HomeTexts.DONE,
         )
         assertEquals("problems in the texts", emptyList<String>(), breaks(all))
     }
@@ -73,6 +75,8 @@ class HomeTextsTest {
         assertEquals("Not available yet.", text("MENU_NOT_BUILT"))
         assertEquals("Not downloaded", text("STATUS_MODEL_MISSING"))
         assertEquals("Not available", text("STATUS_NOT_AVAILABLE"))
+        assertEquals("Cancel", text("CANCEL"))
+        assertEquals("Done", text("DONE"))
     }
 
     @Test
