@@ -100,11 +100,17 @@ the app's, not this module's.
 
 `FloatingTile.setImeProbe(listener)` is probe only and is removed with the keyboard-signal selector: a non-null listener is told when the bottom keyboard inset of the tile's window changes, and null turns it off. It never shows or hides the tile.
 
+## ScreenMic: the same mic on an app screen
+
+`ScreenMic.create(context, theme, label, cancelLabel, sendLabel, onTap, onBegin, onCancel, onSend)` makes the mic as a plain view with no window, no drag, no close target and no notice strip; the app places it on Home (F45, ADR-026). It takes the same states and routes taps the same way as the tile. The three labels are passed in by the app (ui's `HomeControl`); this module holds none. A screen reader finds one button, and while recording two more: cancel and send, each at least 48 dp (`MicAccessibility`). It has no pulse. Whoever places it must take it out of its old parent before adding it again.
+
 ## Not built yet
 
 - The app pushing `SENT` and `SENT_LOCAL`, and the state it pushes after a
   commit that only reached the clipboard (open: the app's decision).
 - Sound or haptics, a time limit on the notice, and the window-ownership check.
+- OPEN on the Home mic (phone test): the X and the check do not answer a tap while recording (cause not found); the app does not yet push `MIC_BUSY` and `SENDING` to it, so it does not show the tile's busy and sending faces; it follows the phone's light/dark setting, not the stored theme.
+- PLANNED (F41, ADR-024, no code): the keyboard tile. The tile window stays here; the app decides show and hide.
 
 Nothing has been run on a device yet; the module card lists what the tests check
 and what is not verified on a device.

@@ -35,7 +35,12 @@ formatting_enabled, theme_mode, microphone_asked.
 sizes, URLs, SHA-256 pins); `stt-ondevice` reads the same registry for download
 + verify, which is its work, not this module's.
 
-**UI:** settings screen (F7). *(Not built yet.)*
+**UI:** the settings screen (F7) is built in the ui module (`ui/screen/settings`) and hosted by the app's
+`SettingsLauncherActivity`; this module holds no View. OPEN defect (ui/app's, not here): the Settings page uses a
+narrower band than Home; every screen must use the one gutter, applied once, and the same content edge.
+
+**Where the file lives:** the app binds the store to `settings.properties` in its private files folder
+(`BreakerCompositionRoot`). An update keeps it and an uninstall removes it; a missing file loads the defaults.
 
 ## Invariants
 - Settings persist across restarts.
@@ -88,6 +93,9 @@ agents, not required: an outside contributor may write the code themselves
 
 ## Known Gotchas
 - Server URL is a first-run setting — never hardcode.
+- NOT REPRODUCED (a defect report): a phone test of APK 8 found history and the speech model gone after an
+  update (an in-place 6 to 8 update keeps them in the emulator; APKs 1-5 had different signing keys); the report does not say whether settings survived. Required: an update keeps the settings file. Whether data should
+  survive an uninstall too is an OPEN decision (shared storage and permissions).
 - The Gradle edge to `:shared:modules:model-registry` is required and present:
   the registry publishes an artifact, and the boundary check makes the edge
   mandatory the moment it does. `ModelCatalog` reads the registry through it,

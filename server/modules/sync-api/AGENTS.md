@@ -338,6 +338,10 @@ agents, not required: an outside contributor may write the code themselves
   as the wrapped-key columns even though it is stored plain. The same is true
   of the pending-sealed store: a write path into it is a forged-transcription
   path, not only a redirect path (T26).
+- How `whisper-server` hands a sealed copy to the pending-sealed store is NOT decided, and neither the
+  store nor any write path into it is built. ADR-018's amendment of 2026-10-20 drops the planned
+  whisper-server -> sync-api code edge and chooses no transport; a new ADR decides it when Phase 19/20 is
+  ordered.
 - `change-password`'s `old_auth_verifier` field is the only thing standing
   between "holds a live session token" and "can replace this account's
   keys" — do not let the Bearer token alone satisfy this endpoint.

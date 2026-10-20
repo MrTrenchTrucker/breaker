@@ -32,6 +32,7 @@ does not buffer or cut the dictation audio itself (see Audio handling).
 **Built / Not built:**
 - Built: the phrase matcher and the detector over the core word stream, with tests that run on scripted word streams.
 - Built elsewhere, in `stt-ondevice`: `OnDeviceWordStream` (internal there), which implements core's `WordStream` over the on-device engine, and the public `SherpaOnnxWordStreamFactory`, whose `create(model)` gives a `FedWordStream`. Not built: the app wiring that feeds that stream and filters Wake and Send; the KWS upgrade path; training; any measurement on a device.
+- PLANNED (Spoken Send, approved design, no code yet; lands after the Home mic work): a new app wiring class, `PhraseSendHandler`, is the ONE owner of the detector's start and stop, the audio tee and the Send hand-off. It calls `PhraseDetector.start`/`stop` only from the take worker, and stops idempotently on Cancel, a device failure or a microphone yield. The detector's callback runs on the word-stream thread; the handler turns a Send into `finish(trimBeforeMs)` submitted to the take worker, at most one Send per take, for Home and the tile alike. The tee: the capture thread calls `FedWordStream.feed`, which never blocks or throws into capture; a stream failure or a no-final path never stops or loses the take. The app -> `android_phrases` registry edge is added with that code, not before; this module's interface does not change.
 
 **v1 mechanism: streaming on-device ASR + phrase matching:**
 - A recogniser adapter in another module runs the sherpa-onnx ASR in **streaming
@@ -137,4 +138,5 @@ agents, not required: an outside contributor may write the code themselves
 - Device-only and NOT verified: that the Send offset lands on the word "and" on a real capture; false positives (N10); start latency (N1).
 - Matching is exact word adjacency: no filler words and no fuzzy matching yet.
 - The word source exists in `stt-ondevice` (`SherpaOnnxWordStreamFactory` gives a `FedWordStream`), but no app wiring is on main, so the detector cannot run on a device yet.
+- The callback runs on the word-stream thread, not the take worker. Whoever wires it (PLANNED: `PhraseSendHandler`) must hand the Send to the take worker; in the approved design, start and stop are called only from the take worker, even though a stop from inside the callback is safe here.
 - On a stream someone else started, `isListening` is true but no event arrives.

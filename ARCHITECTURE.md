@@ -204,7 +204,7 @@ admins.
       menu, not from Settings.
 - F45. **Home mic works like the tile:** the mic on Home is the floating tile's
       mic, drawn and driven by the same code, sized so the whole Home screen
-      fits without scrolling, and shown as a button. One tap records; while it
+      fits without scrolling (from 610 dp usable height), and shown as a button. One tap records; while it
       records the grille follows the voice level and an X (left) and a check
       (right) sit beside it, as on the tile. The check, or a second tap on the
       mic, ends the recording; the text is saved to history and copied to the
@@ -311,6 +311,19 @@ imports) · `ui` (views) · `modules/*` (adapters).
 **Threading:** ASR inference is blocking → it runs one decode at a time on a single-slot
 coroutine dispatcher, never the UI thread (`AGENTS.md` section 6). Audio capture runs on its own
 thread at default priority, and a second thread hands the frames to their consumer.
+Home's mic runs begin, cancel and finish on the single take worker (`HomeTakeAdapter`).
+
+**Views (ADR-027):** every custom View in the ui render layer measures itself (`resolveSize`).
+A View re-added on a redraw is removed from its old parent first. A maybe-unset value
+(`lateinit`, `lazy`) is never passed eagerly. No redraw re-parents a view mid-gesture.
+**Insets (F46):** bars and cutout are margins on a screen's root; the 16 dp gutter is padding,
+applied once (`wiring/Insets.kt`); one content edge for every screen.
+
+**Device proof (ADR-027):** JVM tests cannot see Android layout or lifecycle. A UI change to
+layout, Views, redraws or lifecycle is proven on an Android 16 emulator before an APK ships:
+upgrade and fresh install; heights 1500/1800/2000/2400 px and 1440x3120 at 560 dpi;
+background/foreground, rotation, dark mode; full Home, no crash. The debug hook that pushes a
+recording state into the mic (the emulator cannot record) is PLANNED.
 
 ## 5. On-Device STT Engine (fallback)
 
@@ -388,6 +401,11 @@ reach phones and the FIFO queue works
 regardless of which service is configured. Audio format: **WAV 16 kHz mono PCM**
 — native to Whisper/WhisperX (MP3 would only add a lossy decode step).
 
+**Status:** main holds only the card and build file; the code is on the whisper-server
+branches and imports nothing from sync-api. PLANNED: a runnable `main` (`BREAKER_WHISPER_*`
+env, bound to 127.0.0.1). How the sealed copy reaches sync-api is OPEN until Phase 19/20
+(ADR-018); the registry's whisper-server -> sync-api edge is to be dropped.
+
 ## 7. Transport & Fallback
 
 **Default mode: SERVER-PRIMARY.** Probe Local Server (TCP connect, 1.5 s timeout,
@@ -437,8 +455,18 @@ ends it.
 - **Screens (F44):** Home (on/off card, the tile's mic (F45), last transcript), plus Settings,
   History, How it works and About, each its own screen opened from the Home
   menu; Back from any of them returns to Home.
+- **OPEN defects (ADR-026):** X and check not tappable while recording (blocker); Home lacks
+  the tile's mic-busy and sending faces (same signal required); late transcript on Home;
+  Settings narrower than Home on the phone (not reproduced on the emulator); Home mic ignores the stored theme (`setTheme` has no caller).
+- **Spoken Send (F5, ADR-029), PLANNED:** app class `PhraseSendHandler` alone owns detector
+  start/stop, the audio tee and the one-Send-per-take gate; a hit submits `finish(trimBeforeMs)`
+  to the take worker. The app -> phrases edge lands with that code.
 
 **Overlay (floating tile):** `WindowManager` + `TYPE_APPLICATION_OVERLAY` with `FLAG_NOT_FOCUSABLE` (Android 11+). Tile has no long press: a tap starts dictation, a drag moves the tile or hides it (F38); tapping it starts dictation in place, on the tile — no Activity opens, so the app the user is typing in keeps focus and the user's own keyboard stays up (ADR-022). The tile IS the **CB mic glyph** — tap to talk. While recording, a **level meter** lights the mic's grille slots from left to right, and an X (cancel) and a check (send) sit either side of the mic, each 90% of the mic's size and about 8 dp from it; the check (or the send phrase) sends (F36). A notice on the tile (a sentence from the app, such as a missing speech model) widens it for a moment: it collapses back to the small tile on its own after 4 seconds, and a tap anywhere on it collapses it at once; the timer is the app's, the tile has no clock. Dragging the small tile shows the close target (F38). After the check tap the tile shows a busy cue until the outcome (F39), the level meter follows the voice level (F40), and the tile may hide while no text input is in use (F41, ADR-024). The overlay module also provides the same mic for an app screen, with no window, no drag and no notice strip; the app places it on Home (F45, ADR-026). Permission set: `SYSTEM_ALERT_WINDOW` (tile), mic, internet, foreground service, notifications (F11), plus the accessibility service — a Settings toggle onboarding leads the user to, not a runtime prompt (ADR-022) [1].
+
+**Keyboard tile (F41, ADR-024), PLANNED:** a pure function in `TileCoordinator` decides
+SHOW/HIDE/NO_OP from field focus, the IME window and the bottom inset; which signal wins and the
+debounce stay OPEN pending the phone's probe readings.
 
 ## 9. Formatting
 
@@ -472,6 +500,13 @@ ends it.
 (`local`|`server`), model, duration_ms, created_at, audio_path (optional). What
 is still to push lives in the sync module's own queue, not on history's rows.
 Tap-to-copy, search, delete.
+List: cards newest first, Load more after 50, each folded to 6 lines; only a longer card gets
+Show all / Hide (OPEN defect: the first card can stretch to window height).
+OPEN robustness defect H: a stored history row whose `source` is neither `local` nor `server`
+makes `TranscriptionRow` throw `MappingFailure`, which crashes the activity at launch; where such a row
+comes from is unknown.
+**On-phone data (ADR-028, proposed):** model, settings and history are app-private; an update
+must keep all three. An in-place 6 to 8 update keeps them (emulator test); APKs 1-5 had different signing keys, so 5 to 6 needed an uninstall (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`); APKs 6, 7 and 8 share certificate a8225bc3. The Commander's loss is not reproduced. Surviving an uninstall is an OPEN decision.
 
 **Sync (F13):** a sync queue pushes pending transcriptions to the server whenever
 it is reachable — **even if dictation ran in local-only mode**. Idempotent
@@ -729,6 +764,9 @@ previous tag.
 **Containers:** each service is a container; the web-fe is a **Debian-based**
 container. All bind to the ZeroTier interface only. TLS via the self-hosted CA.
 API keys + user tokens never in git.
+
+**Mirror:** after a GitHub main merge, sync Forgejo `main` only; a full mirror
+force-resets Forgejo `module/*` branches holding unpushed work.
 
 **APK signing:** the deploy pipeline signs each tagged release's APK with a
 dedicated **APK signing key** (generated once, stored in a secrets store — never

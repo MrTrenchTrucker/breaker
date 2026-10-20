@@ -14,12 +14,12 @@ screen, the settings screen and the history screen, the manifest, and the Gradle
 
 ## What it puts together
 
-- **The home screen.** The launcher opens on the Home screen the ui module builds, after the first-run view on a phone with no speech model: an on/off card with the switch, the speech model row (Ready, or "Not downloaded"), the server row ("Not available") and the last dictation; a big mic; the last transcript with a Copy button, which is drawn only while there is a transcript; and a menu with History, Settings, How it works and About. History and Settings open their screens. How it works and About open their own screens. A tap on the big mic starts a take (or answers why it cannot), and a second tap ends a take that the Home tap began; the take's line shows below the last transcript, and the mic takes the recording look while it records. Apart from the first-run view, screens open only from this menu, and the two notification routes are the only other entries: the model route opens Settings and asks for its download button to be in focus (a device check is owed), and the history route opens History. On Home, Back closes an open menu first. Back from How it works, About or Settings returns to Home; Back from History returns to Settings when Settings is open, and to Home otherwise. `SettingsLauncherActivity.kt` sits at the 300-line cap for every Kotlin file of this module.
+- **The home screen.** The launcher opens on the Home screen the ui module builds, after the first-run view on a phone with no speech model: an on/off card with the switch, the speech model row (Ready, or "Not downloaded"), the server row ("Not available") and the last dictation; a big mic; the last transcript with a Copy button, which is drawn only while there is a transcript; and a menu with History, Settings, How it works and About. History and Settings open their screens. How it works and About open their own screens. The big mic is the overlay module's `ScreenMic` (ADR-026), which ui places in its slot and the app composes (`wiring/HomeScreenMic.kt`, `HomeTakeWiring.createScreenMic`, `host/ActivityHelpers.createHomeMic`). A tap starts a take (or answers why it cannot); while it records, X cancels (nothing saved, the mic released) and the check or a second tap finishes it (saved to History, copied to the clipboard); begin, cancel and finish run on the one take worker the tile also uses, never the main thread. The take's line shows below the last transcript. One level source feeds the tile and the Home mic (`TileHost`'s composite level sink). OPEN from the APK 8 phone test: the X and check are not tappable while recording (blocker), and the Home mic does not yet show the tile's mic-busy face or sending look, nor the new transcript as soon as the take settles (`AGENTS.md`, Known Gotchas). Apart from the first-run view, screens open only from this menu, and the two notification routes are the only other entries: the model route opens Settings and asks for its download button to be in focus (a device check is owed), and the history route opens History. On Home, Back closes an open menu first. Back from How it works, About or Settings returns to Home; Back from History returns to Settings when Settings is open, and to Home otherwise. `SettingsLauncherActivity.kt` sits at the 300-line cap for every Kotlin file of this module.
 - **The window colour.** `paintWindowBackground` (`wiring/AndroidInsets.kt`) paints the window from the palette: painted when the activity is created; a theme switched inside Settings is not repainted until the app is reopened.
 - **Settings and the credential reference.** The settings store is built over
-  the app's files folder, together with a small file that holds the reference to
+  the app's files folder (`settings.properties`), together with a small file that holds the reference to
   the user's credential (never the secret itself).
-- **History.** The history database opens on its first use, which is the one
+- **History.** The history database (app-private, `breaker_history.db`) opens on its first use, which is the one
   start-up clean-up of old rows. That clean-up runs on the background (I/O)
   dispatcher, never on the main thread. The Home menu opens the history screen, and a tap
   on the notification opens the same screen.
@@ -117,6 +117,11 @@ of `AGENTS.md` lists the smaller open items.
   built; the recognizer has run on a phone in test builds.
 - The spoken phrases. The phrases module detects the wake and send phrases in
   heard words, but the app does not use it yet, and no spoken off word is built.
+  PLANNED: a `PhraseSendHandler` in the wiring owns the spoken Send (ADR-004); it
+  needs an app edge to the phrases module that is not in the registry yet.
+- The keyboard tile (F41, ADR-024). PLANNED: a pure `TileCoordinator` decision
+  (show, hide or nothing); which keyboard signal wins is OPEN until the phone's
+  probe readings are in.
 - The secret-resolving device Keystore. The app keeps only the reference to the
   credential (`FileCredentialRefHolder`), never a secret; the Keystore that
   resolves the reference is not built and not verified.
@@ -148,8 +153,17 @@ still prints OK.
 ## Not verified
 
 Test builds have run on one phone: the tile on screen, the model download, the
-permission walk-through, the level bar and a take transcribed on the phone. Nothing
-has run on an emulator, and most edge cases have not been checked on a device. The
+permission walk-through, the level bar and a take transcribed on the phone. Most
+edge cases have not been checked on a device. Every change to layout, Views,
+redraws or the activity lifecycle now runs on an Android 16 emulator (upgrade and
+fresh install, five window sizes, rotation, background and dark mode) before an
+APK goes out; three launch crashes found there are fixed in main.
+
+NOT REPRODUCED: the Commander saw history and the speech model gone after an
+update. Model, settings and history are all app-private, so an update keeps
+them and an uninstall wipes them. An in-place 6 to 8 update keeps them (emulator
+test); APKs 1-5 had different signing keys, so 5 to 6 needed an uninstall. Whether data should
+survive an uninstall is the Commander's open decision. The
 list of what is not verified (the service in the background, the restart from the
 notification, whether Android lets the tile start the service when it is off, and
 more) is in the Known Gotchas section of `AGENTS.md`.

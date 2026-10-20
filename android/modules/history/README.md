@@ -2,8 +2,8 @@
 
 Persistent transcription history for easy re-copying. The module saves the
 transcriptions it is given in a small SQLite database on the phone and removes
-old ones when `purgeExpired()` is called. The app is to wire that call; nothing
-in the app calls `create()` or `purgeExpired()` yet.
+old ones when `purgeExpired()` is called. The app builds the store once
+(`BreakerApp`) and runs `purgeExpired()` once at start, off the main thread.
 
 ## How it works
 
@@ -50,11 +50,10 @@ module design choice; the spec sets no tombstone lifetime.
 
 Everything else is internal, including the store's other methods
 (`applyRemoteDelete`, `count`, `close`, the tombstone sweep and the
-pending-tombstone list). `purgeExpired()` is to be called by the app's
-scheduler (android/app); nothing calls it until the app shell wires it.
+pending-tombstone list). The app calls `purgeExpired()` once at start
+(`BreakerApp`).
 
-When the app wires the store, it should create it once per process and share it
-through the app's wiring. Each `create()` opens its own database handle on the
+The app creates the store once per process and shares it through its wiring. Each `create()` opens its own database handle on the
 same file, so two stores on one file would contend for the write lock (expected
 from how SQLite locks a file; no test here shows it). Close the store on
 shutdown if the app wants it closed; `close()` is internal, so the app wiring
