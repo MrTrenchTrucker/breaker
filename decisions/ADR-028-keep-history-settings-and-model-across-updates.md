@@ -1,6 +1,6 @@
 # ADR-028: An app update keeps the history, the settings and the speech model
 
-**Status:** accepted (Decision 2 ruled by the Commander 2026-10-20; the manifest change is PLANNED)
+**Status:** accepted (Decision 2 ruled by the Commander 2026-10-20; the manifest change is BUILT)
 **Date:** 2026-10-20
 
 Decision 1 states what the code at main already intends. Decision 2, whether
@@ -68,10 +68,11 @@ different keys. Which one it was is not known; the signing-key change at 5 to 6 
    read APK 8's manifest: it sets no `allowBackup`, `dataExtractionRules` or
    `fullBackupContent`, so Android's default (`allowBackup` true) applies and
    Auto Backup may restore app data on a reinstall. That is against this rule.
-   PLANNED, not built: set `android:allowBackup="false"` and give
+   BUILT: the manifest now sets `android:allowBackup="false"` and gives
    `dataExtractionRules` and `fullBackupContent` that exclude every domain, so
-   a reinstall starts clean. Proof is an emulator run: make a take, uninstall,
-   reinstall, and check that history, settings and the model are gone. Whether
+   a reinstall starts clean. RELAY's emulator run on the patched build shows no
+   backup flag, a backup that writes nothing, files kept by `install -r`, and
+   files, databases and preferences empty after an uninstall and reinstall. Whether
    backup restored data on the Commander's phone is UNFALSIFIABLE and no longer
    matters once the manifest is changed.
 
