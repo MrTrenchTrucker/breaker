@@ -78,7 +78,7 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-025](ADR-025-say-where-the-speech-model-comes-from.md) | The app tells the user where the speech model is downloaded from | accepted |
 | [ADR-026](ADR-026-home-mic-is-the-tile-mic.md) | The Home mic is the floating tile's mic, drawn and driven by the same code | accepted, amended 2026-10-20 |
 | [ADR-027](ADR-027-view-measure-rules-and-emulator-gate.md) | App screens follow three layout rules and are proven on an Android 16 emulator before an APK ships | accepted |
-| [ADR-028](ADR-028-keep-history-settings-and-model-across-updates.md) | An app update keeps the history, the settings and the speech model | proposed |
+| [ADR-028](ADR-028-keep-history-settings-and-model-across-updates.md) | An app update keeps the history, the settings and the speech model | accepted |
 | [ADR-029](ADR-029-spoken-send-wiring.md) | The spoken send ("And I'm Gone") is wired through one app class, PhraseSendHandler | accepted |
 
 Next free number: **ADR-030**.

@@ -110,8 +110,8 @@ code.
   at start, off the main thread; a purge failure is logged, not thrown. The window is the fixed 90 days of ADR-010.
 - NOT REPRODUCED (a defect report): a phone test of APK 8 found the history gone after an update. An in-place 6 to 8
   update keeps it (emulator test); APKs 1-5 had different signing keys, so 5 to 6 needed an uninstall. The database is app-private, so an update keeps it and an uninstall removes it; the name and schema version
-  above have not changed. Required: an update keeps the history. Whether data should also survive an uninstall is an
-  OPEN decision (it would need shared storage and permissions).
+  above have not changed. Required: an update keeps the history. The Commander ruled that an uninstall removes
+  everything (ADR-028 Decision 2); the manifest change that stops backup restoring it is PLANNED.
 - OPEN defect H (robustness): a stored row whose `source` is neither `local` nor `server` makes the row mapping throw
   `MappingFailure` (`TranscriptionRow.kt:51`), and that crashed the activity at launch in a RELAY test; where such a
   row comes from is not known. Required: one bad row must not stop the list from loading.
