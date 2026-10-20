@@ -157,14 +157,14 @@ internal class ScreenRenderer(private val context: Context) {
 
     /** An empty view as tall as the node's size in a column. It is announced to no one. */
     private fun spacerOf(node: Spacer, theme: Theme): View =
-        View(context).apply {
+        android.widget.Space(context).apply {
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, pixelsOf(theme, node.size))
         }
 
     /** The empty view between two children of a spread row: weight one, so it takes the free width, and announced to no one. */
     private fun separatorOf(): View =
-        View(context).apply {
+        android.widget.Space(context).apply {
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         }

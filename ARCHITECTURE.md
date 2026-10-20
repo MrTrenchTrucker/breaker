@@ -501,7 +501,7 @@ debounce stay OPEN pending the phone's probe readings.
 is still to push lives in the sync module's own queue, not on history's rows.
 Tap-to-copy, search, delete.
 List: cards newest first, Load more after 50, each folded to 6 lines; only a longer card gets
-Show all / Hide (OPEN defect: the first card can stretch to window height).
+Show all / Hide (the first-card stretch is fixed in main: the render layer's empty views are platform Space views).
 OPEN robustness defect H: a stored history row whose `source` is neither `local` nor `server`
 makes `TranscriptionRow` throw `MappingFailure`, which crashes the activity at launch; where such a row
 comes from is unknown.

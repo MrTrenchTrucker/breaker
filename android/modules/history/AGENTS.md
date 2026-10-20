@@ -35,8 +35,9 @@ The file is `breaker_history.db` (`HistorySql.DATABASE_NAME`), schema version 1 
 **UI:** the history screen (list, Copy and Delete buttons, a 5-second Undo for Delete through the HistoryStore port) is the
 ui module's; this module supplies the data it shows. `list(limit)` returns the newest first (`created_at DESC, id DESC`,
 `HistorySql.SELECT_NEWEST`). The page size (50 per Load more, cap 300) and the six-line fold are ui's
-(`PAGE_SIZE`, `ROW_CAP`, `COLLAPSE_LINES`), not this module's. OPEN defect (ui's, not here): the list must show every
-transcription as its own card, each folded alone; a first card stretched to the window height is a ui layout bug.
+(`PAGE_SIZE`, `ROW_CAP`, `COLLAPSE_LINES`), not this module's. The list shows every
+transcription as its own card, each folded alone. The first-card stretch (a ui layout bug, fixed in the ui module and
+emulator-proven; not yet seen on the Commander's phone) is not this module's.
 
 **Storage protection (T7):** the database is app-private: a bare file name,
 opened in the app's own directory. Encryption at rest belongs to crypto and is
