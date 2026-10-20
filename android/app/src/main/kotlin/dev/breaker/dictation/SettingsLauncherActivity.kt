@@ -35,7 +35,6 @@ import dev.breaker.dictation.wiring.swapInColumn
 import java.io.File
 
 class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
-
     private lateinit var settingsColumn: LinearLayout
     private lateinit var settingsScroll: ScrollView
     private var homeView: android.view.View? = null
@@ -59,6 +58,7 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         iconLaunch = IconLaunchOnce(savedInstanceState?.getBoolean(ICON_LAUNCH_DONE_KEY, false) ?: false)
         val app = applicationContext as BreakerApp
         paintWindowBackground(this, app.settingsStore.load().themeMode)
+        settingsView = android.view.View(this)
         val modelReady = StoreModelReady(app.compositionRoot.modelStore) { app.settingsStore.load().modelSize }
         val firstRunDone = FirstRunDoneStore(File(app.filesDir, FirstRunDoneStore.FILE_NAME))
         when (FirstRunGate.decide(firstRunDone.isDone(), modelReady.isReady())) {
