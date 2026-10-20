@@ -360,6 +360,8 @@ internal class HomeHostView(
         val parent = slot.parent as? ViewGroup ?: return
         val index = parent.indexOfChild(slot)
         val mic = micView
+        // A redraw renders a new tree; the mic still sits in the old one, and a view cannot have two parents.
+        (mic.parent as? ViewGroup)?.removeView(mic)
         mic.tag = HomeNodeIds.MIC
         // The mic measures to its own width (tile-square when idle), so the slot must centre it.
         mic.layoutParams = LinearLayout.LayoutParams(
