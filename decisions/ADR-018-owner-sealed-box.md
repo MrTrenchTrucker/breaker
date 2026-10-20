@@ -1,6 +1,6 @@
 # ADR-018: Owner sealed box for agent-token job results; account reset
 
-**Status:** accepted
+**Status:** accepted, amended 2026-10-20 (the hand-off from whisper-server to sync-api has no transport yet)
 **Date:** 2026-09-30
 
 ## Context
@@ -301,3 +301,21 @@ Rules out:
   configured also sees the plaintext audio (F26). None of that changes here;
   this ADR seals the **completed, stored** result for an agent-token job,
   nothing upstream of that.
+
+Amended 2026-10-20 (Commander, Talk 8mzm2err, 2026-10-20 order): this ADR
+says the sealed copy "is forwarded to `server/modules/sync-api`" but never said
+how, and nothing built so far does it. This amendment chooses no transport; it
+records the gap so nobody builds against an edge that does not exist.
+- The sealing and forwarding step is unshipped. It belongs to Phase 19/20.
+- `whisper-server` has no code dependency on `sync-api`: at main
+  `server/modules/whisper-server/build.gradle.kts` declares none, and the
+  whisper-server code on its branch (`wip/whisper-server-merged-f312e3ee`)
+  imports nothing from `sync-api`; its `SourceScanTest` forbids
+  `dev.breaker.server.syncapi`.
+- The registry edge `server_whisper -> server_sync_api` that `modules.toml`
+  still lists at main is DROPPED by the approved plan; the registry change is
+  made with the whisper-server code, not in this documentation change.
+- How the sealed copy travels from `whisper-server` to the pending-sealed
+  store (an HTTP call to a sync-api route, a shared store, or something else),
+  and any new edge it needs, is decided by a new ADR when Phase 19/20 is
+  ordered. Until then the rest of this ADR stands unchanged.

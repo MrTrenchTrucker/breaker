@@ -4,8 +4,8 @@
 
 Saves the transcriptions it is given in a private SQLite database on the phone,
 so the user can find and re-copy them later. Old transcriptions expire by the
-ADR-010 precise rule when `purgeExpired()` is called; the app shell is to wire
-that call. Every delete of a stored row leaves a tombstone for sync to carry to
+ADR-010 precise rule when `purgeExpired()` is called; the app runs that call
+once at start (`BreakerApp`). Every delete of a stored row leaves a tombstone for sync to carry to
 the server (see Tombstones below for what is in place).
 
 **Build phase:** Phase 2. Needs first: `core` (on `main`). The retention rules are finished in Phase 21 (data lifecycle).
@@ -30,9 +30,13 @@ internal too.
 **Storage:** SQLite via the Android platform API (android.database.sqlite), no Room dependency. Table `transcriptions`:
 `id, text, source (local|server), model, duration_ms, created_at, audio_path (nullable, off by default)`.
 The table has no `sync_status` column: a history row carries no sync state.
+The file is `breaker_history.db` (`HistorySql.DATABASE_NAME`), schema version 1 (`HistorySql.SCHEMA_VERSION`); neither has changed since the module's first commit, and `onUpgrade` drops nothing.
 
 **UI:** the history screen (list, Copy and Delete buttons, a 5-second Undo for Delete through the HistoryStore port) is the
-ui module's; this module supplies the data it shows.
+ui module's; this module supplies the data it shows. `list(limit)` returns the newest first (`created_at DESC, id DESC`,
+`HistorySql.SELECT_NEWEST`). The page size (50 per Load more, cap 300) and the six-line fold are ui's
+(`PAGE_SIZE`, `ROW_CAP`, `COLLAPSE_LINES`), not this module's. OPEN defect (ui's, not here): the list must show every
+transcription as its own card, each folded alone; a first card stretched to the window height is a ui layout bug.
 
 **Storage protection (T7):** the database is app-private: a bare file name,
 opened in the app's own directory. Encryption at rest belongs to crypto and is
@@ -102,7 +106,15 @@ code.
 ## Known Gotchas
 - TTL + tombstones must stay consistent with server retention (F28); by design both follow the ADR-010 precise rule.
   The repository has no server retention code yet.
-- `purgeExpired()` is to be called by the app's scheduler (android/app); nothing calls it until the app shell wires it.
+- The app builds the store once per process (`BreakerApp`, lazy `SqliteHistoryStore.create`) and runs `purgeExpired()` once
+  at start, off the main thread; a purge failure is logged, not thrown. The window is the fixed 90 days of ADR-010.
+- NOT REPRODUCED (a defect report): a phone test of APK 8 found the history gone after an update. An in-place 6 to 8
+  update keeps it (emulator test); APKs 1-5 had different signing keys, so 5 to 6 needed an uninstall. The database is app-private, so an update keeps it and an uninstall removes it; the name and schema version
+  above have not changed. Required: an update keeps the history. Whether data should also survive an uninstall is an
+  OPEN decision (it would need shared storage and permissions).
+- OPEN defect H (robustness): a stored row whose `source` is neither `local` nor `server` makes the row mapping throw
+  `MappingFailure` (`TranscriptionRow.kt:51`), and that crashed the activity at launch in a RELAY test; where such a
+  row comes from is not known. Required: one bad row must not stop the list from loading.
 - Tombstones are written and kept; no shipped code reads or sweeps them yet. The port that lets sync reach them is
   deferred, so the tombstone table only grows until it lands.
 - A tombstone can outlive a re-save of its id. `save` replaces a row by id and never touches the tombstones table, so
@@ -113,7 +125,7 @@ code.
   recorded by a LOCAL `delete` arguably should clear when the same id is saved again: the row is live again, and once
   sync carries tombstones it would otherwise tell the server to delete a row the user dictated again. Whether to split
   the two is the open design question for whoever designs sync; change neither case before that design exists.
-- When the app wires the store, create it once per process and share it through the app's wiring. Each `create()`
+- Keep the store at one per process, shared through the app's wiring. Each `create()`
   opens its own database handle on the same file, so two stores on one file would contend for the write lock
   (expected from how SQLite locks a file; no test here shows it). Close the store on
   shutdown if the app wants it closed; `close()` is internal, so the app wiring has to ask for it to be opened up

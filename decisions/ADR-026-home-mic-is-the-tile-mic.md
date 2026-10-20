@@ -1,6 +1,6 @@
 # ADR-026: The Home mic is the floating tile's mic, drawn and driven by the same code
 
-**Status:** accepted
+**Status:** accepted, amended 2026-10-20 (busy and sending faces, slot size, accessibility, launch defects, open defects)
 **Date:** 2026-10-18
 
 ## Context
@@ -60,3 +60,41 @@ each other directly.
 - The window behind every app screen takes the screen's own background colour,
   and screen content stays clear of the status bar and the navigation bar
   (no white edges, nothing hidden under the bars).
+
+Amended 2026-10-20 (Commander, Talk 8mzm2err, 2026-10-20 order). What main
+holds, and what the APK 8 phone test showed is still missing:
+- **Same faces, same signal (OPEN).** Item 1 covers every face, not only
+  recording. When another app holds the microphone the tile shows its red
+  circle with a line (`TileState.MIC_BUSY`); after the check it shows its
+  sending look (`TileState.SENDING`) while the local transcription runs. The
+  Home mic must show the same two faces from the same signal (one source, no
+  copy): busy for as long as the tile shows it, and the sending look from the
+  end of recording until the result, then idle. At main the Home wiring
+  (`HomeTakeWiring`) pushes only `RECORDING`, `ARMED` and `IDLE` to the Home
+  mic, so both are OPEN.
+- **Slot size (built).** The ui module gives the mic a slot of
+  `HomeGeometry.slotHeightDp(usable)`, held between 100 and 150 dp
+  (`MIC_SLOT_MIN_DP`, `MIC_SLOT_MAX_DP`), and centres the mic in it
+  (`HomeHostView.attachMicSlot`); below a 610 dp usable height the slot keeps
+  its floor and the page may scroll (`HomeFitTest`).
+- **Labels and accessibility (built).** The labels (Tap to talk, Cancel, Done)
+  exist once, in the ui module's `HomeControl` companion read from
+  `HomeTexts`; the app passes them to the overlay, which holds no literal. The
+  mic reports itself as a Button with a click action; while recording it
+  exposes two virtual children, Cancel and Done, each at least 48 dp
+  (`overlay/MicAccessibility.kt`, `MicAccessibilityTest`). Follow-up (OPEN): a
+  screen-reader double tap is routed through the last real touch's stored
+  gesture (`ScreenMic.route()`), so after an X or check touch it can reach the
+  wrong zone; the route must be decided from the model state alone.
+- **Theme (OPEN, follow-up).** `HomeScreenMic.setTheme` has no caller, so the
+  Home mic follows the phone's light or dark setting, not the stored theme.
+- **Three launch defects (fixed in main, PRs #193, #194, #195).** The mic is
+  removed from its old parent before each redraw re-adds it; the settings view
+  is set before the first-run decision; the top bar's touch gap measures
+  itself. Details and the rules drawn from them are in ADR-027.
+- **Open defects from the APK 8 phone test.** (A, blocker) while recording, the
+  X and check are drawn but cannot be tapped and the take gets stuck; the
+  cause is not found. Required: X cancels, check finishes, a second tap on the
+  mic finishes. (B) the busy face and (C) the sending face, above. (D) the new
+  transcript reaches Home late; required: it is on Home as soon as the take
+  settles.

@@ -1,6 +1,6 @@
 # ADR-024: The tile shows busy and loudness, and hides itself when no keyboard is in use
 
-**Status:** accepted, amended 2026-10-12 (busy cue: no spinner; shake, keyboard and battery), amended 2026-10-14 (level feed), amended 2026-10-15 (a shake only shows the tile), amended 2026-10-17 (X and check size and spacing)
+**Status:** accepted, amended 2026-10-12 (busy cue: no spinner; shake, keyboard and battery), amended 2026-10-14 (level feed), amended 2026-10-15 (a shake only shows the tile), amended 2026-10-17 (X and check size and spacing), amended 2026-10-20 (keyboard visibility design note, C-4)
 **Date:** 2026-10-12
 
 ## Context
@@ -81,3 +81,31 @@ and each sits
 about 8 dp from the microphone's outline, which is two to three widths of the
 tile's glow. The recording window narrows to fit. Their shapes, colours and
 what each one does are unchanged.
+
+Amended 2026-10-20 (design note C-4 approved; Commander, Talk 8mzm2err,
+2026-10-20 order). This is PLANNED: no code for it exists in main. It refines
+item 3.
+- **Signals.** Three readings can say a keyboard is in use: a focused editable
+  field (the accessibility service's focused node), a keyboard window
+  (`AccessibilityWindowInfo.TYPE_INPUT_METHOD` in `getWindows()`, which the
+  debug keyboard probe already reads), and a bottom inset that grew. Which one
+  wins is OPEN until the phone's probe readings are in (C-3: the debug keyboard
+  probe, PR #181, and its Share log, PR #186). The default proposal is the
+  keyboard window first; a reading can overturn it.
+- **Decision function.** The choice is one pure function in the app's
+  `TileCoordinator`: `decision(fieldFocused, imeWindowPresent, insetGrew,
+  currentShown, nowMs, lastChangeMs)` returns SHOW, HIDE or NO_OP;
+  `currentShown` is an input so that NO_OP is defined. The debounce time is
+  OPEN. The shake and microphone-yield tests belong to `TileCoordinator`, not
+  to the pure function.
+- **Developer setting.** The temporary selector is `KeyboardSignalSetting` in
+  the app's `debug` source set, default OFF. At main it exists for the probe
+  only, with the values OFF, FIELD_FOCUS and KEYBOARD_VISIBLE, and drives no
+  tile behaviour. It is removed before release together with the losing
+  signal's code.
+- **Wording.** A line on the accessibility screen or in the service
+  description for the case where the keyboard window wins needs the project
+  leader's wording before it is written.
+- **Owners.** `commit` reads and publishes the signals; the app's
+  `TileCoordinator` decides; `overlay` shows or hides the tile window. No new
+  module.

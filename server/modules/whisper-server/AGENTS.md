@@ -138,6 +138,17 @@ agents, not required: an outside contributor may write the code themselves
 (`.github/CONTRIBUTING.md`).
 
 ## Known Gotchas
+- On main this module has no code yet (its build file applies `base` only). Slices 1-3 (database, job store, queue
+  worker, forwarder, HTTP front) are on the module branch; the Forgejo branch `wip/whisper-server-merged-f312e3ee` holds
+  the merge of main into `module/whisper-server`.
+- PLANNED (slice 4, no code yet): a runnable entry point, `main`, configured by `BREAKER_WHISPER_HOST`,
+  `BREAKER_WHISPER_PORT`, `BREAKER_WHISPER_DB` and `BREAKER_WHISPER_FORWARDER_URL`; it binds 127.0.0.1 by default,
+  refuses a bad configuration, and shuts down cleanly with the active job put back in the queue. An `IOException`
+  while reading an upload is a failure of its own, never a 413.
+- The `server_sync_api` entry under Depends On matches `modules.toml` today but is to be DROPPED: no code imports
+  sync-api, the branch's `SourceScanTest` forbids it, and the sealing hand-off to sync-api (ADR-018) is unshipped
+  (Phase 19/20). ADR-018's amendment of 2026-10-20 chooses no transport; a new ADR decides the transport, and any new
+  edge, when that phase is ordered. The registry edit is a code-order change, not a docs one.
 - FIFO: never start the next job until the active one returns; retry 3× at 10 s.
 - Written in Kotlin on the JVM with Ktor, compiled against api-contracts' Kotlin types (ADR-017).
 - The seal step only ever runs for an agent-token job, and only seals a copy

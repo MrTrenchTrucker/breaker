@@ -68,14 +68,17 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-015](ADR-015-transcription-queue.md) | Async transcription job queue, hosted in Breaker's own whisper-server (not the Whisper X container) | accepted |
 | [ADR-016](ADR-016-model-registry-codegen.md) | Model registry compiled to Kotlin; no YAML parsing on the phone | accepted |
 | [ADR-017](ADR-017-server-language.md) | Breaker's server services are written in Kotlin on the JVM | accepted |
-| [ADR-018](ADR-018-owner-sealed-box.md) | Owner sealed box for agent-token job results; account reset | accepted |
+| [ADR-018](ADR-018-owner-sealed-box.md) | Owner sealed box for agent-token job results; account reset | accepted, amended 2026-10-20 |
 | [ADR-019](ADR-019-agent-skills-module.md) | Agent skills ship in the repo as their own module | accepted |
 | [ADR-020](ADR-020-ci-concurrency-and-caching.md) | CI runs are deduplicated per commit and cache Gradle dependencies | accepted |
 | [ADR-021](ADR-021-module-build-method.md) | The maintainers' team builds each module through sub-agents that write the code | accepted, amended 2026-10-07 and 2026-10-08 |
 | [ADR-022](ADR-022-accessibility-text-insert.md) | Text goes into the app through an accessibility service (supersedes ADR-005) | accepted |
 | [ADR-023](ADR-023-transcript-case-at-the-source.md) | A speech engine that prints capitals is fixed in the speech module, not in the formatter | accepted |
-| [ADR-024](ADR-024-tile-feedback-and-visibility.md) | The tile shows busy and loudness, and hides itself when no keyboard is in use | accepted, amended 2026-10-12, 2026-10-14, 2026-10-15, 2026-10-17 |
+| [ADR-024](ADR-024-tile-feedback-and-visibility.md) | The tile shows busy and loudness, and hides itself when no keyboard is in use | accepted, amended 2026-10-12, 2026-10-14, 2026-10-15, 2026-10-17, 2026-10-20 |
 | [ADR-025](ADR-025-say-where-the-speech-model-comes-from.md) | The app tells the user where the speech model is downloaded from | accepted |
-| [ADR-026](ADR-026-home-mic-is-the-tile-mic.md) | The Home mic is the floating tile's mic, drawn and driven by the same code | accepted |
+| [ADR-026](ADR-026-home-mic-is-the-tile-mic.md) | The Home mic is the floating tile's mic, drawn and driven by the same code | accepted, amended 2026-10-20 |
+| [ADR-027](ADR-027-view-measure-rules-and-emulator-gate.md) | App screens follow three layout rules and are proven on an Android 16 emulator before an APK ships | accepted |
+| [ADR-028](ADR-028-keep-history-settings-and-model-across-updates.md) | An app update keeps the history, the settings and the speech model | proposed |
+| [ADR-029](ADR-029-spoken-send-wiring.md) | The spoken send ("And I'm Gone") is wired through one app class, PhraseSendHandler | accepted |
 
-Next free number: **ADR-027**.
+Next free number: **ADR-030**.
