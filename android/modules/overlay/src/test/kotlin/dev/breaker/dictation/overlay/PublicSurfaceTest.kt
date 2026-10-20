@@ -27,7 +27,7 @@ class PublicSurfaceTest {
     private fun publicMethodNames(type: Class<*>): List<String> =
         type.declaredMethods.filter { Modifier.isPublic(it.modifiers) && !it.isSynthetic }.map { it.name }.sorted()
 
-    private val publicFiles = setOf("FloatingTile.kt", "ShowResult.kt", "TileState.kt", "ScreenMic.kt")
+    private val publicFiles = setOf("FloatingTile.kt", "ShowResult.kt", "TileState.kt", "ScreenMic.kt", "ScreenMicProbe.kt")
 
     private val declaration = Regex(
         "^((?:@\\w+(?:\\([^)]*\\))?\\s+)*)" +

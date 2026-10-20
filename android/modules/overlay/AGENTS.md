@@ -160,7 +160,7 @@ get darker and are flat, and white in the dark theme. They sit on the dark body.
   Tested by: `TileStyleTest`, `TileGlyphTest`, `TileViewGateTest`, `TileViewMappingGateTest`, `TileViewDrawingGateTest`, `ControlDrawGateTest`, `AdapterGateTest`.
 - The module holds no words of its own: the notice and the description come from the app, and ScreenMic's three labels are passed in by the app (one source: ui `HomeControl.TAP_TO_TALK`, `CANCEL`, `DONE`).
   Tested by: `MainSourceWordsGateTest`, `TileAdapterWiringGateTest`.
-- ScreenMic accessibility: the view is class Button with `ACTION_CLICK`; outside `RECORDING` it has no children; while `RECORDING` it exposes exactly two virtual children, cancel then send, each lifted to at least 48 dp (`MicAccessibility.MIN_TARGET_DP`), and a child's click runs only its own callback. ScreenMic draws the X and the check only while `RECORDING`.
+- ScreenMic accessibility: the view is class Button with `ACTION_CLICK`; outside `RECORDING` it has no children; while `RECORDING` it exposes exactly two virtual children, cancel then send, each lifted to at least 48 dp (`MicAccessibility.MIN_TARGET_DP`), and a child's click runs only its own callback. ScreenMic draws the X and the check only while `RECORDING`. The Home mic view also implements the public `ScreenMicProbe` interface (the debug probe's handle; see Public Interface); the interface carries no behaviour of its own.
   Tested by: `MicAccessibilityTest`, `MicAccessibilityFloorTest`, `MicA11yStateTest`, `ScreenMicRecordingLookGateTest`.
 - Only a collapsed tile drags and saves its position: the wide window (a notice, or recording) cannot be dragged, and a slide that starts on a button or in the strip moves nothing and saves nothing.
   Tested by: `TileControllerGestureRulesTest`, `TileControllerButtonsTest`, `TileControllerDragTest`.
@@ -183,10 +183,10 @@ get darker and are flat, and white in the dark theme. They sit on the dark body.
 
 ## Owns
 Floating tile = CB mic drawn from path data, with a glowing outline and a six-slot level meter in its grille (WindowManager overlay, F36). Built: the draggable tile with the CB mic, the eight states, the armed ring pulse (one platform animator), the six-slot level meter, the expanded recording tile with cancel and send (zones placed by `TileControlLayout.kt`), and the notice and
-description the app pushes. ScreenMic = the same mic for an app screen, with no window, no drag and no notice strip; the app places it on Home (F45, ADR-026). ScreenMic reports itself as a button; while recording it exposes two virtual accessibility children, cancel and send, each at least 48 dp, named by labels the app passes in (the pure model is `MicAccessibility`, focus and hover memory is `MicA11yState`; the focus, hover and content-changed events are device behaviour, not unit tested). Not built yet: nothing in the mic art; its look on a device is still to be checked.
+description the app pushes. ScreenMic = the same mic for an app screen, with no window, no drag and no notice strip; the app places it on Home (F45, ADR-026). ScreenMic reports itself as a button; while recording it exposes two virtual accessibility children, cancel and send, each at least 48 dp, named by labels the app passes in (the pure model is `MicAccessibility`, focus and hover memory is `MicA11yState`; the focus, hover and content-changed events are device behaviour, not unit tested). The module also owns `ScreenMicProbe`, the debug probe's handle on the Home mic (public; see Public Interface). Not built yet: nothing in the mic art; its look on a device is still to be checked.
 
 ## Public Interface
-FloatingTile (via create), FloatingTile.setImeProbe, ShowResult, TileState, ScreenMic (via create)
+FloatingTile (via create), FloatingTile.setImeProbe, ShowResult, TileState, ScreenMic (via create), ScreenMicProbe
 
 - `FloatingTile`, built only through `FloatingTile.create(context, settings, onTap, theme, onSaveFailed, onBegin, onCancel, onSend, onNoticeDismissed, onCloseRequested)`:
   - `context`: any context; the tile keeps only the application context.
@@ -244,6 +244,7 @@ FloatingTile (via create), FloatingTile.setImeProbe, ShowResult, TileState, Scre
   - `SENT_LOCAL`: the text is committed by the phone model after the server path failed. The outline is in the `warning`
     colour (orange). A tap on the microphone calls `onTap`, as in `IDLE`.
   - `MIC_BUSY` - the microphone is not available. The app decides when to show it. The tile shows a mic glyph with a red circle and diagonal slash (danger colour) over a dark outline. The circle and slash pulse slowly; the outline does not pulse. No text. A tap reports like IDLE.
+- `ScreenMicProbe` (the debug probe's handle on the Home mic): `probeSetState(state)` pushes the state to the mic the same way the app pushes it, on the main thread, and answers whether it pushed; `probeTouchLog(log)` routes each line of the mic's touch path to `log`, and `null` stops logging. The app's debug source set reaches the mic only through this interface, never through the view's internals; it carries no behaviour of its own.
 - Everything else is `internal`.
 
 ## Depends On
