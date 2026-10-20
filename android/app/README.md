@@ -162,8 +162,8 @@ APK goes out; three launch crashes found there are fixed in main.
 NOT REPRODUCED: the Commander saw history and the speech model gone after an
 update. Model, settings and history are all app-private, so an update keeps
 them and an uninstall wipes them. An in-place 6 to 8 update keeps them (emulator
-test); APKs 1-5 had different signing keys, so 5 to 6 needed an uninstall. Whether data should
-survive an uninstall is the Commander's open decision. The
+test); APKs 1-5 had different signing keys, so 5 to 6 needed an uninstall. The Commander ruled that an uninstall
+removes everything (ADR-028); the manifest change that stops backup restoring data is PLANNED. The
 list of what is not verified (the service in the background, the restart from the
 notification, whether Android lets the tile start the service when it is off, and
 more) is in the Known Gotchas section of `AGENTS.md`.

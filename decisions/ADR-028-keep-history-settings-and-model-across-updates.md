@@ -1,12 +1,11 @@
 # ADR-028: An app update keeps the history, the settings and the speech model
 
-**Status:** proposed
+**Status:** accepted (Decision 2 ruled by the Commander 2026-10-20; the manifest change is PLANNED)
 **Date:** 2026-10-20
 
-Part of this ADR is a decision only the Commander can make (whether data also
-survives an uninstall, see Decision 2). Until he makes it, this ADR stays
-proposed. Decision 1 states what the code at main already intends and is not in
-question.
+Decision 1 states what the code at main already intends. Decision 2, whether
+data also survives an uninstall, was ruled by the Commander on 2026-10-20 (Talk
+8mzm2err, typed): "I would want it to be Uninstalled clean."
 
 ## Context
 After an in-place update to APK 8 (he did not uninstall), the Commander found
@@ -62,24 +61,26 @@ different keys. Which one it was is not known; the signing-key change at 5 to 6 
    and check that all three are still there (part of the upgrade run in
    ADR-027 R1). The signing key stays the same from APK 6 on, so later updates install
    over the old app.
-2. **OPEN, the Commander's decision: should data also survive an UNINSTALL?**
-   App-private storage cannot. Surviving an uninstall needs shared storage
-   (for example a user-chosen folder through the system file picker, or
-   Android backup) and the permissions or user steps that come with it, and it
-   would put transcriptions where other apps or backups may reach them, which
-   ADR-006 and ADR-010 must then be checked against. No design is chosen until
-   the Commander answers. Note (RELAY, read from APK 8's manifest): the app sets
-   no `allowBackup`, `dataExtractionRules` or `fullBackupContent`, so Android's
-   default (`allowBackup` true) applies, and Auto Backup may already restore app
-   data on a reinstall, depending on the phone's backup setting. Whether it did
-   or would is UNFALSIFIABLE until tested on a phone.
+2. **RULED by the Commander: an uninstall removes everything.** His words:
+   "I would want it to be Uninstalled clean." History, settings and the speech
+   model live in app-private storage and go with the app. Nothing is written to
+   shared storage, and no backup may bring the data back on a reinstall. RELAY
+   read APK 8's manifest: it sets no `allowBackup`, `dataExtractionRules` or
+   `fullBackupContent`, so Android's default (`allowBackup` true) applies and
+   Auto Backup may restore app data on a reinstall. That is against this rule.
+   PLANNED, not built: set `android:allowBackup="false"` and give
+   `dataExtractionRules` and `fullBackupContent` that exclude every domain, so
+   a reinstall starts clean. Proof is an emulator run: make a take, uninstall,
+   reinstall, and check that history, settings and the model are gone. Whether
+   backup restored data on the Commander's phone is UNFALSIFIABLE and no longer
+   matters once the manifest is changed.
 
 ## Reasons
 - Losing a user's history on an update breaks trust in the app more than any
   single bug, and the data is already stored where an update keeps it; so a
   loss means a defect in our own code or release process, which is fixable.
-- Surviving an uninstall is a product and privacy choice, not a bug fix, so it
-  is the Commander's call.
+- A clean uninstall is a privacy choice the Commander made: transcriptions never
+  outlive the app, which fits ADR-006 and ADR-010.
 
 ## Consequences
 Rules in: an upgrade check in the release run for history, settings and the

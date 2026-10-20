@@ -506,7 +506,7 @@ OPEN robustness defect H: a stored history row whose `source` is neither `local`
 makes `TranscriptionRow` throw `MappingFailure`, which crashes the activity at launch; where such a row
 comes from is unknown.
 **On-phone data (ADR-028, proposed):** model, settings and history are app-private; an update
-must keep all three. An in-place 6 to 8 update keeps them (emulator test); APKs 1-5 had different signing keys, so 5 to 6 needed an uninstall (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`); APKs 6, 7 and 8 share certificate a8225bc3. The Commander's loss is not reproduced. Surviving an uninstall is an OPEN decision.
+must keep all three. An in-place 6 to 8 update keeps them (emulator test); APKs 1-5 had different signing keys, so 5 to 6 needed an uninstall (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`); APKs 6, 7 and 8 share certificate a8225bc3. The Commander's loss is not reproduced. An uninstall removes everything (Commander, ADR-028 Decision 2); the manifest change that stops Auto Backup restoring data is PLANNED.
 
 **Sync (F13):** a sync queue pushes pending transcriptions to the server whenever
 it is reachable — **even if dictation ran in local-only mode**. Idempotent
