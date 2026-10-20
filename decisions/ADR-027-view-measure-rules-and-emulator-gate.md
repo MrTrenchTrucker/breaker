@@ -45,7 +45,8 @@ added at line 123) with height `WRAP_CONTENT` and no `onMeasure` of its own.
 When the list is shorter than the window, the second measure pass gives it the
 whole AT_MOST height: with one to three rows the first card is stretched and
 the others measure 0 px. It happens on every draw of a short list, not only the
-first. The fix is OPEN: it is not in main.
+first. The fix is in main: the separator and the spacer are built from the platform `android.widget.Space`, which
+measures to zero in the fill pass. RELAY's emulator run: one row 1965 px to 660 px, three rows three equal cards.
 
 ## Decision
 **R1. The emulator gate.** JVM unit tests and source-text gates cannot see
