@@ -71,11 +71,17 @@ internal class BackArrowView(
  * An empty block [side] pixels square. It takes no focus and is announced to no one: it only
  * holds a place so the words beside it stay centred.
  */
-internal class TouchGapView(context: Context, side: Int) : View(context) {
+internal class TouchGapView(context: Context, private val side: Int) : View(context) {
     init {
         isFocusable = false
         importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         minimumWidth = side
         minimumHeight = side
+    }
+
+    // A plain View takes the whole offered size when the offer is "at most", so in a row measured again
+    // by a scroll view that fills its window it would grow to the window and push the page off screen.
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        setMeasuredDimension(resolveSize(side, widthMeasureSpec), resolveSize(side, heightMeasureSpec))
     }
 }
