@@ -1,8 +1,11 @@
 package dev.breaker.dictation.history
 
+import dev.breaker.dictation.core.port.Clock
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -12,10 +15,17 @@ import org.junit.Test
  * a rename in [Tombstone.Reason] would leave every row already written unreadable, and the round trip through
  * the module's own code would not show it: it writes and reads the same new word. These tests hold the words
  * to the literals, on the enum and on the column.
+ *
+ * The database hands the stored word back as text — [Tombstone.StoredRow], not a [Tombstone] — so the read
+ * here is the store's: the three words come back through [SqliteHistoryStore.pendingTombstones], which is
+ * where the module decides whether it knows a word, and each reason it hands back is a non-null [Tombstone.Reason].
  */
 class PersistedWordsTest {
 
     private val sqlite = DesktopSqlite()
+    private val database = JdbcHistoryDatabase(sqlite)
+    private val reported = mutableListOf<String>()
+    private val store = SqliteHistoryStore(database, Clock { 1_700_000_000_000 }, report = { reported.add(it) })
 
     @After
     fun closeDatabase() = sqlite.close()
@@ -40,7 +50,6 @@ class PersistedWordsTest {
 
     @Test
     fun `a tombstone is written to the column as those words`() {
-        val database = JdbcHistoryDatabase(sqlite)
         database.putTombstone(Tombstone("a-user", 1_000L, Tombstone.Reason.USER))
         database.putTombstone(Tombstone("b-retention", 2_000L, Tombstone.Reason.RETENTION))
         database.putTombstone(Tombstone("c-remote", 3_000L, Tombstone.Reason.REMOTE))
@@ -55,12 +64,11 @@ class PersistedWordsTest {
 
     @Test
     fun `a tombstone row holding those words is read back as the reasons`() {
-        val database = JdbcHistoryDatabase(sqlite)
         sqlite.exec(HistorySql.INSERT_OR_REPLACE_TOMBSTONE, "a-user", 1_000L, "user")
         sqlite.exec(HistorySql.INSERT_OR_REPLACE_TOMBSTONE, "b-retention", 2_000L, "retention")
         sqlite.exec(HistorySql.INSERT_OR_REPLACE_TOMBSTONE, "c-remote", 3_000L, "remote")
 
-        val reasons = database.newestTombstones(10).associate { it.id to it.reason }
+        val reasons = store.pendingTombstones(10).associate { it.id to it.reason }
 
         assertEquals(
             mapOf(
@@ -70,5 +78,9 @@ class PersistedWordsTest {
             ),
             reasons,
         )
+        for ((id, reason) in reasons) {
+            assertNotNull("the store handed back no reason for $id", reason)
+        }
+        assertTrue("a known word is not a row to report: $reported", reported.isEmpty())
     }
 }

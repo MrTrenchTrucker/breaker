@@ -26,10 +26,11 @@ import org.junit.Test
  * check that finds no read, or no bound value, where it expects some is a refusal, never a pass.
  *
  * **What it cannot see.** It reads text, so a reformat that moves a value out of the shape it reads is
- * refused, not passed. The reason of a tombstone is followed through the local named `stored`, the argument of
- * `Reason.fromStored` and the arguments of the `Tombstone(` call, all as they are written. What the platform
- * does with the values it is given, and with the cursor it hands back, is not checked: only that the adapter
- * gives and reads them in the order the statements name.
+ * refused, not passed. The reason of a tombstone is read as the word on the disk and handed to the store in
+ * a `Tombstone.StoredRow`; no check here follows it through `Reason.fromStored`, because that mapping is the
+ * store's, and the store is where an unmappable row is skipped and reported. What the platform does with the
+ * values it is given, and with the cursor it hands back, is not checked: only that the adapter gives and
+ * reads them in the order the statements name.
  */
 
 internal class AdapterBindingsReadsTest {
@@ -204,19 +205,35 @@ internal class AdapterBindingsReadsTest {
     }
 
     @Test
-    fun `a reason decoded from the wrong local, or a constructor argument taken from one, is refused`() {
-        val arguments = expected.tombstoneArguments
-        val crossed = arguments.replacedAt(0, "${expected.tombstoneProperties[0]} = ${expected.reasonLocal}")
+    fun `a reason mapped in the adapter, a throw, or a stored row built from the wrong property, is refused`() {
+        val built = expected.storedRowArguments
+        val crossed = built.replacedAt(2, "reason = deletedAt")
+        val mapped = render().replacedFirst(
+            "add(Tombstone.StoredRow(",
+            "val mapped = Tombstone.Reason.fromStored(reason)\n" +
+                "                        add(Tombstone.StoredRow(",
+        )
+        val throwing = render().replacedFirst(
+            "add(Tombstone.StoredRow(",
+            "val checked = reason.length ?: throw MappingFailure(\"unknown\")\n" +
+                "                        add(Tombstone.StoredRow(",
+        )
 
+        assertTrue("the planted edit left the arguments as they were", crossed != built)
         assertRefusedBy(
             setOf("tombstoneReads"),
-            render(expected.copy(reasonLocal = expected.tombstoneProperties[0])),
-            "gives Reason.fromStored [${expected.tombstoneProperties[0]}], expected [${expected.reasonLocal}]",
+            mapped,
+            "newestTombstones calls Reason.fromStored, expected none",
         )
         assertRefusedBy(
             setOf("tombstoneReads"),
-            render(expected.copy(tombstoneArguments = crossed)),
-            "builds its Tombstone from $crossed, expected $arguments",
+            throwing,
+            "newestTombstones throws MappingFailure, expected none",
+        )
+        assertRefusedBy(
+            setOf("tombstoneReads"),
+            render(expected.copy(storedRowArguments = crossed)),
+            "newestTombstones builds its stored row from $crossed, expected $built",
         )
     }
 

@@ -38,8 +38,16 @@ internal interface HistoryDatabase {
     /** Record [tombstone], replacing any tombstone already held for the same id. */
     fun putTombstone(tombstone: Tombstone)
 
-    /** Tombstones newest first, at most [limit] of them. */
-    fun newestTombstones(limit: Int): List<Tombstone>
+    /**
+     * Tombstone rows newest first, at most [limit] of them, exactly as they are
+     * stored.
+     *
+     * The stored reason is handed back as the word on the disk, not as a
+     * `Reason`: a word this module does not know is the store's to skip and
+     * report, and a read that threw instead would let one unreadable row stop
+     * every tombstone behind it.
+     */
+    fun newestTombstones(limit: Int): List<Tombstone.StoredRow>
 
     /**
      * Drop every tombstone recorded strictly before [cutoff].

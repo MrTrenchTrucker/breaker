@@ -122,9 +122,9 @@ internal fun checkSelectOrder(sql: String) {
 
 /**
  * `newestTombstones` reads the id, the deletion time and the reason text at the positions of their columns
- * in its query, each into the local that goes on to build the tombstone. The reason is the one column
- * stored through its text: it is read into `stored`, given to `Reason.fromStored`, and the result is what
- * the `Tombstone(` call is given.
+ * in its query, and builds one `Tombstone.StoredRow` from them. The reason is handed back as the word on
+ * the disk, not as a `Reason`: the mapping belongs to the store, so this method holds no `fromStored` call
+ * and no `MappingFailure` throw, either of which would let one stored word stop the tombstones behind it.
  */
 internal fun checkTombstoneReads(source: String) {
     checkQueries(source, "newestTombstones", expected.tombstonesStatement)
@@ -135,13 +135,22 @@ internal fun checkTombstoneReads(source: String) {
     val wanted = expected.tombstoneReads.sortedBy { it.local }
     if (found != wanted) refuse("newestTombstones reads $found, expected $wanted")
 
-    val decoded = AdapterStatements.callArguments(source, "newestTombstones", "fromStored")
-    if (decoded != listOf(expected.reasonLocal)) {
-        refuse("newestTombstones gives Reason.fromStored $decoded, expected [${expected.reasonLocal}]")
+    val mapped = AdapterStatements.callSites(source, "fromStored").filter { it.owner == "newestTombstones" }
+    if (mapped.isNotEmpty()) {
+        refuse(
+            "newestTombstones calls Reason.fromStored, expected none: the stored reason is handed back as " +
+                "the word on the disk, and the mapping belongs to the store",
+        )
     }
-    val built = AdapterStatements.callArguments(source, "newestTombstones", "Tombstone")
-    if (built.sorted() != expected.tombstoneArguments.sorted()) {
-        refuse("newestTombstones builds its Tombstone from $built, expected ${expected.tombstoneArguments}")
+    if (THROWING.containsMatchIn(body)) {
+        refuse(
+            "newestTombstones throws MappingFailure, expected none: a stored word this module cannot read " +
+                "is the store's to skip and report, not the read's to fail",
+        )
+    }
+    val built = AdapterStatements.callArguments(source, "newestTombstones", "Tombstone.StoredRow")
+    if (built != expected.storedRowArguments) {
+        refuse("newestTombstones builds its stored row from $built, expected ${expected.storedRowArguments}")
     }
 }
 
@@ -223,15 +232,14 @@ internal fun render(plan: Plan = expected, note: String = ""): String {
         "        )",
         "    }",
         "",
-        "    override fun newestTombstones(limit: Int): List<Tombstone> =",
+        "    override fun newestTombstones(limit: Int): List<Tombstone.StoredRow> =",
         "        helper.readableDatabase",
         "            .rawQuery(${plan.tombstonesStatement}, arrayOf(limit.toString()))",
         "            .use { cursor ->",
         "                buildList {",
         "                    while (cursor.moveToNext()) {",
         plan.tombstoneReads.joinToString("\n") { "                        $it" },
-        "                        val reason = Tombstone.Reason.fromStored(${plan.reasonLocal})",
-        "                        add(Tombstone(${plan.tombstoneArguments.joinToString(", ")}))",
+        "                        add(Tombstone.StoredRow(${plan.storedRowArguments.joinToString(", ")}))",
         "                    }",
         "                }",
         "            }",

@@ -42,9 +42,7 @@ internal data class Plan(
     val idRead: String,
     val tombstonesStatement: String,
     val tombstoneReads: List<TombstoneRead>,
-    val reasonLocal: String,
-    val tombstoneProperties: List<String>,
-    val tombstoneArguments: List<String>,
+    val storedRowArguments: List<String>,
     val countStatement: String,
     val countRead: String,
 )
@@ -52,8 +50,8 @@ internal data class Plan(
 private fun expectedPlan(): Plan {
     val row = constructorOf("TranscriptionRow")
     val tombstone = constructorOf("Tombstone")
+    val storedRow = nestedConstructorOf("Tombstone", "StoredRow")
     val reasonType = Tombstone.Reason::class.java.simpleName
-    val storedType = Tombstone.Reason::class.java.getMethod("getStored").returnType.simpleName
     val rowColumns = pieces(HistorySql.TRANSCRIPTION_COLUMNS)
     val tombstoneColumns = selectColumns(HistorySql.SELECT_NEWEST_TOMBSTONES)
     val countColumns = selectColumns(HistorySql.COUNT_TRANSCRIPTIONS)
@@ -66,7 +64,7 @@ private fun expectedPlan(): Plan {
         else -> refuse("countTranscriptions returns ${returned.name}, which has no cursor getter here")
     }
     sameProperties("TRANSCRIPTION_COLUMNS", rowColumns, row)
-    sameProperties("SELECT_NEWEST_TOMBSTONES", tombstoneColumns, tombstone)
+    sameProperties("SELECT_NEWEST_TOMBSTONES", tombstoneColumns, storedRow)
     return Plan(
         saveStatement = "HistorySql.INSERT_OR_REPLACE",
         saveBindings = bindings("row", row, insertColumns(HistorySql.INSERT_OR_REPLACE), reasonType),
@@ -85,18 +83,12 @@ private fun expectedPlan(): Plan {
         idsStatement = "HistorySql.SELECT_IDS_CREATED_BEFORE",
         idRead = "${getterFor(propertyOf(row, "id").type)}($idIndex)",
         tombstonesStatement = "HistorySql.SELECT_NEWEST_TOMBSTONES",
-        // The reason is the one column stored through its text: the adapter reads it into `stored`.
+        // The stored row's own properties, read at the positions of the columns the query selects them in.
         tombstoneReads = tombstoneColumns.mapIndexed { index, column ->
-            val parameter = propertyOf(tombstone, column)
-            if (parameter.type == reasonType) {
-                TombstoneRead(STORED_LOCAL, getterFor(storedType), index)
-            } else {
-                TombstoneRead(parameter.name, getterFor(parameter.type), index)
-            }
+            val parameter = propertyOf(storedRow, column)
+            TombstoneRead(parameter.name, getterFor(parameter.type), index)
         },
-        reasonLocal = STORED_LOCAL,
-        tombstoneProperties = tombstone.map { it.name },
-        tombstoneArguments = tombstone.map { "${it.name} = ${it.name}" },
+        storedRowArguments = storedRow.map { "${it.name} = ${it.name}" },
         countStatement = "HistorySql.COUNT_TRANSCRIPTIONS",
         countRead = "${getterFor(countType)}(0)",
     )
@@ -144,16 +136,28 @@ private fun camel(column: String): String = column.split('_').mapIndexed { index
     if (index == 0) part else part.replaceFirstChar { it.uppercaseChar() }
 }.joinToString("")
 
-/** The primary constructor of [className], read from its source under `src/main/kotlin`. */
-private fun constructorOf(className: String): List<Parameter> {
-    val files = ModuleFiles.mainSources().filter { it.name == "$className.kt" }
-    if (files.size != 1) refuse("expected exactly one $className.kt under src/main/kotlin, found ${files.size}")
+/** The primary constructor of the top-level class [className], read from its source under `src/main/kotlin`. */
+private fun constructorOf(className: String): List<Parameter> =
+    constructorParameters(className, className, Regex("""\bclass\s+$className\s*\("""))
+
+/**
+ * The primary constructor of the nested class [nested] of [owner], read from [owner]'s own source.
+ *
+ * The stored tombstone row is a nested type, so its constructor is read the same way a top-level one is, and
+ * the plan's reads are still derived from the type that declares them rather than typed out again here.
+ */
+private fun nestedConstructorOf(owner: String, nested: String): List<Parameter> =
+    constructorParameters(owner, "$owner.$nested", Regex("""\bclass\s+$nested\s*\("""))
+
+/** The primary constructor of the class whose declaration header is [header], in [fileName].kt. */
+private fun constructorParameters(fileName: String, label: String, header: Regex): List<Parameter> {
+    val files = ModuleFiles.mainSources().filter { it.name == "$fileName.kt" }
+    if (files.size != 1) refuse("expected exactly one $fileName.kt under src/main/kotlin, found ${files.size}")
     val text = files.single().readText()
         .replace(Regex("""(?s)/\*.*?\*/"""), " ")
         .replace(Regex("""//[^\n]*"""), "")
-    val header = Regex("""\bclass\s+$className\s*\(""").find(text)
-        ?: refuse("$className.kt declares no class $className with a constructor")
-    val open = header.range.last
+    val open = header.find(text)?.range?.last
+        ?: refuse("$fileName.kt declares no class $label with a constructor")
     var depth = 0
     var close = -1
     for (index in open until text.length) {
@@ -165,10 +169,10 @@ private fun constructorOf(className: String): List<Parameter> {
             }
         }
     }
-    if (close < 0) refuse("the constructor of $className in $className.kt is never closed")
+    if (close < 0) refuse("the constructor of $label in $fileName.kt is never closed")
     return pieces(text.substring(open + 1, close)).map { piece ->
         val match = PARAMETER.matchEntire(piece)
-            ?: refuse("cannot read the constructor parameter `$piece` of $className")
+            ?: refuse("cannot read the constructor parameter `$piece` of $label")
         Parameter(match.groupValues[1], match.groupValues[2], match.groupValues[3].isNotEmpty())
     }
 }
@@ -230,9 +234,6 @@ internal fun canonical(expression: String): String {
     return expression
 }
 
-/** The local the adapter reads the reason's stored text into, and hands to `Reason.fromStored`. */
-private const val STORED_LOCAL = "stored"
-
 private val PARAMETER = Regex("""(?:val|var)\s+(\w+)\s*:\s*([\w.]+)(\??)\s*(?:=.*)?""", RegexOption.DOT_MATCHES_ALL)
 private val INSERT = Regex(
     """\s*insert\s+or\s+replace\s+into\s+\w+\s*\(([^)]*)\)\s*values\s*\(([^)]*)\)\s*""",
@@ -250,5 +251,7 @@ private val NULLABLE_READ = Regex(
         """(?:this\s*\.\s*)?(get[A-Z]\w*)\s*\(\s*(\d+)\s*\)""",
 )
 internal val LOCAL_READ = Regex("""\bval\s+(\w+)\s*=\s*(?:\w+\s*\.\s*)?(get[A-Z]\w*)\s*\(\s*(\d+)\s*\)""")
+/** A `throw MappingFailure(`, which the adapter's raw-row read must not hold. */
+internal val THROWING = Regex("""(?<![\p{L}\p{N}_])throw\s+MappingFailure\s*\(""")
 internal val CURSOR_READ = Regex("""\b(get[A-Z]\w*)\s*\(\s*(\d+)\s*\)""")
 internal val MAPPER_CALL = Regex("""\.\s*toTranscriptionRow\s*\(\s*\)""")

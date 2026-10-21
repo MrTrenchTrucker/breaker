@@ -103,7 +103,7 @@ internal class SqliteHistoryDatabase(
         )
     }
 
-    override fun newestTombstones(limit: Int): List<Tombstone> =
+    override fun newestTombstones(limit: Int): List<Tombstone.StoredRow> =
         helper.readableDatabase
             .rawQuery(HistorySql.SELECT_NEWEST_TOMBSTONES, arrayOf(limit.toString()))
             .use { cursor ->
@@ -111,12 +111,8 @@ internal class SqliteHistoryDatabase(
                     while (cursor.moveToNext()) {
                         val id = cursor.getString(0)
                         val deletedAt = cursor.getLong(1)
-                        val stored = cursor.getString(2)
-                        val reason = Tombstone.Reason.fromStored(stored)
-                        if (reason == null) {
-                            throw MappingFailure("Tombstone $id has an unknown reason '$stored'")
-                        }
-                        add(Tombstone(id = id, deletedAt = deletedAt, reason = reason))
+                        val reason = cursor.getString(2)
+                        add(Tombstone.StoredRow(id = id, deletedAt = deletedAt, reason = reason))
                     }
                 }
             }

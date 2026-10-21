@@ -67,13 +67,12 @@ internal class JdbcHistoryDatabase(private val sqlite: DesktopSqlite) : HistoryD
         )
     }
 
-    override fun newestTombstones(limit: Int): List<Tombstone> =
+    override fun newestTombstones(limit: Int): List<Tombstone.StoredRow> =
         sqlite.query(HistorySql.SELECT_NEWEST_TOMBSTONES, limit.toString()).map { row ->
-            Tombstone(
+            Tombstone.StoredRow(
                 id = row[0] as String,
                 deletedAt = row[1] as Long,
-                reason = Tombstone.Reason.fromStored(row[2] as String)
-                    ?: throw MappingFailure("Tombstone ${row[0]} has an unknown reason '${row[2]}'"),
+                reason = row[2] as String,
             )
         }
 
