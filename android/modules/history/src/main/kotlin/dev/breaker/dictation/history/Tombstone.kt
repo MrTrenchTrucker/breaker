@@ -43,4 +43,56 @@ internal data class Tombstone(
             fun fromStored(stored: String): Reason? = byStored[stored]
         }
     }
+
+    /**
+     * One row of the `tombstones` table, exactly as it is stored.
+     *
+     * The shape is the table's — `id, deleted_at, reason` — and [reason] is kept
+     * as the word written on the disk rather than as a [Reason], for the same
+     * reason [TranscriptionRow] keeps its `source` as text: a stored word this
+     * module does not know is then something the caller can decide about instead
+     * of something the read has to guess at, and a row that can be read by hand
+     * is worth more than a compact one.
+     *
+     * It is nested here because it is a tombstone's stored shape and nothing
+     * else, and because the module's own card test reads only top-level
+     * declarations: a nested type is not a module type and needs no card line.
+     */
+    internal data class StoredRow(
+        val id: String,
+        val deletedAt: Long,
+        val reason: String,
+    ) {
+        init {
+            require(id.isNotBlank()) { "A tombstone row needs a non-blank id" }
+            require(deletedAt >= 0) { "deletedAt cannot be negative: $deletedAt" }
+        }
+
+        /**
+         * The tombstone this row stands for.
+         *
+         * @throws MappingFailure when the stored reason is not one of the known
+         *   words. A row this module cannot interpret is a defect to hear about,
+         *   not a delete to quietly drop: a tombstone that vanishes is a delete
+         *   the server never learns about, and the deleted row comes back on the
+         *   next sync.
+         */
+        fun toTombstone(): Tombstone =
+            toTombstoneOrNull()
+                ?: throw MappingFailure("Tombstone $id has an unknown reason '$reason'")
+
+        /**
+         * The tombstone, or null when the stored [reason] is not one of the known
+         * words. [toTombstone] is the strict form; this is the form a reader uses
+         * when a row it cannot interpret is a row to skip and report, not a reason
+         * to lose every tombstone behind it.
+         */
+        internal fun toTombstoneOrNull(): Tombstone? {
+            val reason = toReasonOrNull() ?: return null
+            return Tombstone(id = id, deletedAt = deletedAt, reason = reason)
+        }
+
+        /** The stored reason as a domain value, or null when it is not one of the known words. */
+        fun toReasonOrNull(): Reason? = Reason.fromStored(reason)
+    }
 }

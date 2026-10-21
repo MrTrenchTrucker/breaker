@@ -157,11 +157,26 @@ class SqliteHistoryStore internal constructor(
         return TombstonePurgeReport(dropped = dropped, cutoff = cutoff)
     }
 
-    /** The tombstones waiting to travel, newest first. */
+    /**
+     * The tombstones waiting to travel, newest first.
+     *
+     * A stored row whose reason this module does not know is skipped, reported and
+     * left on file. One unreadable row must not stop the tombstones behind it,
+     * and a tombstone dropped on read is a delete the server never learns about
+     * — the deleted row comes back on the next sync. Nothing is deleted here: a
+     * tombstone goes only when the age sweep takes it.
+     */
     internal fun pendingTombstones(limit: Int): List<Tombstone> {
         require(limit >= 0) { "limit cannot be negative: $limit" }
         if (limit == 0) return emptyList()
-        return database.newestTombstones(limit)
+        return database.newestTombstones(limit).mapNotNull { row ->
+            if (row.toTombstoneOrNull() == null) {
+                report("history tombstone ${row.id} has an unknown reason '${row.reason}'; it stays stored")
+                null
+            } else {
+                row.toTombstone()
+            }
+        }
     }
 
     /**

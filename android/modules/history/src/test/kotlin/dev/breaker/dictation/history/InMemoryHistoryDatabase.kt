@@ -16,11 +16,17 @@ package dev.breaker.dictation.history
  * - `INSERT OR REPLACE` semantics: one row per id, later save wins;
  * - transactions roll back on a thrown block, so a delete that fails half way
  *   through cannot leave a row removed with no tombstone.
+ *
+ * A tombstone is kept in the shape the database holds it — a
+ * [Tombstone.StoredRow], the reason as the word on the disk — for the same
+ * reason the adapter hands the store that shape: a test can then plant a word
+ * this module does not know and see what the store does with it, instead of
+ * being unable to reach that state at all.
  */
 internal class InMemoryHistoryDatabase : HistoryDatabase {
 
     private val rows = LinkedHashMap<String, TranscriptionRow>()
-    private val tombstones = LinkedHashMap<String, Tombstone>()
+    private val tombstones = LinkedHashMap<String, Tombstone.StoredRow>()
     private var open = true
 
     /** True while a transaction is in progress; used to assert atomicity. */
@@ -58,13 +64,17 @@ internal class InMemoryHistoryDatabase : HistoryDatabase {
         idsCreatedBefore(cutoff).count { rows.remove(it) != null }
 
     override fun putTombstone(tombstone: Tombstone) {
-        tombstones[tombstone.id] = tombstone
+        tombstones[tombstone.id] = Tombstone.StoredRow(
+            id = tombstone.id,
+            deletedAt = tombstone.deletedAt,
+            reason = tombstone.reason.stored,
+        )
     }
 
-    override fun newestTombstones(limit: Int): List<Tombstone> = tombstones.values
+    override fun newestTombstones(limit: Int): List<Tombstone.StoredRow> = tombstones.values
         .sortedWith(
-            compareByDescending<Tombstone> { it.deletedAt }
-                .then(Utf8TextOrder.byId<Tombstone> { it.id }.reversed()),
+            compareByDescending<Tombstone.StoredRow> { it.deletedAt }
+                .then(Utf8TextOrder.byId<Tombstone.StoredRow> { it.id }.reversed()),
         )
         .take(limit)
 
@@ -105,6 +115,6 @@ internal class InMemoryHistoryDatabase : HistoryDatabase {
     /** The rows on file, for assertions that need the storage shape itself. */
     fun rowsSnapshot(): List<TranscriptionRow> = rows.values.toList()
 
-    /** The tombstones on file, for assertions that need the storage shape itself. */
-    fun tombstonesSnapshot(): List<Tombstone> = tombstones.values.toList()
+    /** The tombstones on file, in the stored shape, for assertions that need the storage shape itself. */
+    fun tombstonesSnapshot(): List<Tombstone.StoredRow> = tombstones.values.toList()
 }

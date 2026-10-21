@@ -26,10 +26,11 @@ import org.junit.Test
  * check that finds no read, or no bound value, where it expects some is a refusal, never a pass.
  *
  * **What it cannot see.** It reads text, so a reformat that moves a value out of the shape it reads is
- * refused, not passed. The reason of a tombstone is followed through the local named `stored`, the argument of
- * `Reason.fromStored` and the arguments of the `Tombstone(` call, all as they are written. What the platform
- * does with the values it is given, and with the cursor it hands back, is not checked: only that the adapter
- * gives and reads them in the order the statements name.
+ * refused, not passed. The reason of a tombstone is read as the word on the disk and handed to the store in
+ * a `Tombstone.StoredRow`; no check here follows it through `Reason.fromStored`, because that mapping is the
+ * store's, and the store is where an unmappable row is skipped and reported. What the platform does with the
+ * values it is given, and with the cursor it hands back, is not checked: only that the adapter gives and
+ * reads them in the order the statements name.
  */
 
 internal class AdapterBindingsTest {
@@ -63,7 +64,7 @@ internal class AdapterBindingsTest {
     }
 
     @Test
-    fun `the tombstone query is read at the positions of the id, the deletion time and the reason`() {
+    fun `the tombstone query is read at the positions of its columns and the stored row is built from them`() {
         checkTombstoneReads(adapter)
     }
 

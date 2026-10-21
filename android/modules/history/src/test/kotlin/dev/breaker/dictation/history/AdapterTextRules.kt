@@ -33,9 +33,31 @@ internal object AdapterTextRules {
     private val FINALLY = Regex("""^finally\s*\{""")
     private val USE_AFTER = Regex("""^\.\s*use\s*\{""")
     private val BLOCK_CALL = Regex("""(?<![\p{L}\p{N}_.])block\s*\(""")
-    private val FROM_STORED = Regex("""\bval\s+(\w+)\s*=\s*(?:\w+\s*\.\s*)*fromStored\s*\(""")
-    private val SKIPPING = Regex("""(?<![\p{L}\p{N}_])(continue|return|break)(?![\p{L}\p{N}_])""")
-    private val THROWING = Regex("""(?<![\p{L}\p{N}_])throw\s+MappingFailure\s*\(""")
+    private val FROM_STORED = Regex("""(?<![\p{L}\p{N}_])fromStored\s*\(""")
+    private val THROWING = Regex("""(?<![\p{L}\p{N}_])throw(?![\p{L}\p{N}_])""")
+    /**
+     * A call that fails the read. The five are the same idiom under different names: `error(` aborts, `check(` and
+     * `require(` assert and abort, and `checkNotNull(` / `requireNotNull(` are their null forms. Each is written
+     * out rather than folded into the alternatives of a single name, so that `check(` still matches a bare `check(`
+     * and `checkNotNull(` is not double-counted by a `check`-prefixed name.
+     */
+    private val REFUSING_CALLS =
+        Regex("""(?<![\p{L}\p{N}_])(?:error|check|require|checkNotNull|requireNotNull)\s*\(""")
+    /**
+     * The not-null assertion operator, the fail-the-read idiom in operator form. `!!` is a throw when it meets a
+     * null, so a body that asserts on the stored word fails the read the same way `check(` does. `!=` is a
+     * single `!` followed by `=`, so it can never hold the two-character `!!` and needs no exclusion; a `!!`
+     * inside a string literal is `#` by the time this sees it, so only the operator is matched.
+     */
+    private val NOT_NULL_ASSERTION = Regex("""!!""")
+    private val MAP_NOT_NULL = Regex("""(?<![\p{L}\p{N}_])mapNotNull(?![\p{L}\p{N}_])""")
+    private val REPORT_MESSAGE = Regex("""report\s*\(\s*"([^"]*)"\s*\)""")
+    private val SKIPS_AFTER_REPORT = Regex("""report\s*\(\s*"[^"]*"\s*\)\s*null(?![\p{L}\p{N}_])""")
+    private val DELETES = Regex("""(?i)\bdelete\w*\s*\(""")
+
+    /** The two things the report for an unmappable tombstone must name: the row id and the stored word. */
+    private const val ROW_ID = "row.id"
+    private const val ROW_REASON = "row.reason"
 
     // ── transaction ──────────────────────────────────────────────────────
 
@@ -111,23 +133,103 @@ internal object AdapterTextRules {
     // ── an unknown stored reason ─────────────────────────────────────────
 
     /**
-     * In `newestTombstones`, the branch taken when `fromStored` answers null is `if (x == null) { ... }`, and
-     * that branch throws `MappingFailure` and holds no `continue`, `break` or `return`. A row the adapter cannot
-     * map is a failure the caller sees, not a row that quietly goes missing.
+     * An unknown stored tombstone reason is tolerated, never thrown, and it is the store that
+     * reports it.
+     *
+     * In the three databases' `newestTombstones` the stored reason is handed back as the word on
+     * the disk — a `Tombstone.StoredRow`, not a `Tombstone` — and no one of them throws, refuses a
+     * row with `error`, `check`, `require`, `checkNotNull` or `requireNotNull`, asserts on it with
+     * `!!`, or calls `fromStored`: a row this module cannot read must not stop the tombstones behind
+     * it, and the mapping is the store's, which is where an unmappable row is skipped and reported.
+     *
+     * In `SqliteHistoryStore.pendingTombstones` the stored row is mapped with the tolerant
+     * sibling, and an unmappable one is skipped (the branch yields `null`), reported through the
+     * report hook, and left on file: nothing here deletes it.
      */
-    fun checkUnknownReasonThrows(source: String) {
-        val body = AdapterStatements.maskedBodyOf(source, "newestTombstones")
-        val read = FROM_STORED.find(body)
-            ?: refuse("newestTombstones has no `val x = ...fromStored(`, expected the stored reason to be read there")
-        val name = read.groupValues[1]
-        val test = Regex("""\bif\s*\(\s*$name\s*==\s*null\s*\)\s*\{""").find(body, read.range.last)
-            ?: refuse("newestTombstones has no `if ($name == null) { ... }` after the read, expected the branch")
-        val branch = body.substring(test.range.last + 1, blockAfter(body, test.range.last, "the unknown branch").last)
-        if (!THROWING.containsMatchIn(branch)) {
-            refuse("the unknown-reason branch does not throw MappingFailure, found `${branch.trim()}`")
+    fun checkUnknownReasonThrows(
+        adapterSource: String,
+        jdbcSource: String,
+        inMemorySource: String,
+        storeSource: String,
+    ) {
+        for ((label, source) in listOf(
+            "SqliteHistoryDatabase" to adapterSource,
+            "JdbcHistoryDatabase" to jdbcSource,
+            "InMemoryHistoryDatabase" to inMemorySource,
+        )) {
+            val body = AdapterStatements.maskedBodyOf(source, "newestTombstones")
+            if (THROWING.containsMatchIn(body)) {
+                refuse(
+                    "newestTombstones in $label still throws, found `$body`: the stored reason is handed back as " +
+                        "the word on the disk, and a row this module cannot read is the store's to skip and report, " +
+                        "not the read's to fail — not with MappingFailure, and not with any other failure",
+                )
+            }
+            if (REFUSING_CALLS.containsMatchIn(body)) {
+                refuse(
+                    "newestTombstones in $label refuses a stored row with error(, check(, require(, " +
+                        "checkNotNull( or requireNotNull(, found `$body`: the stored reason is handed back as the " +
+                        "word on the disk, and a row this module cannot read is the store's to skip and report, " +
+                        "not the read's to fail",
+                )
+            }
+            if (FROM_STORED.containsMatchIn(body)) {
+                refuse(
+                    "newestTombstones in $label still calls fromStored, found `$body`: the mapping belongs " +
+                        "to the store, which is where an unmappable row is skipped and reported",
+                )
+            }
+            // Last: a body that both maps and asserts reports the mapping, which is the deeper defect, so the
+            // message a body that maps already gives is not displaced by the operator form of the fail.
+            if (NOT_NULL_ASSERTION.containsMatchIn(body)) {
+                refuse(
+                    "newestTombstones in $label fails the read with the not-null operator !!, found `$body`: " +
+                        "the stored reason is handed back as the word on the disk, and a row this module cannot " +
+                        "read is the store's to skip and report, not the read's to fail",
+                )
+            }
         }
-        SKIPPING.find(branch)?.let {
-            refuse("the unknown-reason branch holds `${it.value}`, expected it to throw and never skip the row")
+        checkPendingTombstones(storeSource)
+    }
+
+    /** `pendingTombstones` skips an unmappable stored row, reports it, and deletes nothing. */
+    private fun checkPendingTombstones(storeSource: String) {
+        val body = AdapterStatements.maskedBodyOf(storeSource, "pendingTombstones")
+        if (!MAP_NOT_NULL.containsMatchIn(body)) {
+            refuse(
+                "pendingTombstones does not map its stored rows with mapNotNull, found `$body`: an " +
+                    "unmappable row is to be skipped, not to stop the tombstones behind it",
+            )
+        }
+        if (THROWING.containsMatchIn(body)) {
+            refuse(
+                "pendingTombstones throws MappingFailure, found `$body`: a row this module cannot read is " +
+                    "skipped and reported, never thrown",
+            )
+        }
+        val report = REPORT_MESSAGE.find(body)
+            ?: refuse(
+                "pendingTombstones does not report an unmappable row through the report hook, found " +
+                    "`$body`: a skipped row nobody hears about is a delete the server never learns of",
+            )
+        val message = report.groupValues[1]
+        if (!message.contains(ROW_ID) || !message.contains(ROW_REASON)) {
+            refuse(
+                "the report for an unmappable tombstone is `$message`, expected the row id and the stored " +
+                    "reason, and nothing else",
+            )
+        }
+        if (!SKIPS_AFTER_REPORT.containsMatchIn(body)) {
+            refuse(
+                "pendingTombstones reports an unmappable row but does not skip it, found `$body`: the " +
+                    "branch must yield null so the row is left out, not handed on",
+            )
+        }
+        if (DELETES.containsMatchIn(body)) {
+            refuse(
+                "pendingTombstones deletes, found `$body`: an unmappable tombstone stays stored and goes " +
+                    "only when the age sweep takes it",
+            )
         }
     }
 
