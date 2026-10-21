@@ -8,7 +8,7 @@ both the Android client (`stt-server`) and the server (`whisper-server`) impleme
 - `GET /v1/jobs/{job_id}` — poll job status and result
 - `GET /health` — service health check
 - `POST /v1/sync` — push a transcription (idempotent on the client_id /
-  key_version pair)
+  key_version pair; at key_version 0 the encrypted text is the base64 of the R1 body, see AGENTS.md)
 - `GET /v1/transcriptions` — pull the account's transcriptions
 - `GET /v1/sync/pending-sealed` — the owner's still-sealed agent-token results
 - the four auth endpoints the Status line already names but never lists:

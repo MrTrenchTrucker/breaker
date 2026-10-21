@@ -6,7 +6,7 @@ The OpenAPI 3 spec for every endpoint group (jobs, auth, sync, updates, admin, t
 request/response types (ADR-017): the single contract both the Android client (`stt-server`) and the server
 (`whisper-server`) implement.
 
-**Build phase:** in slices, each before the phase that needs it. First the transcription-job contract (`POST /v1/audio/transcriptions`, `GET /v1/jobs/{job_id}`, `GET /health`), needed by `whisper-server` (Phase 4) and `stt-server` (Phase 5); auth and sync before Phase 11 (`auth-client`, `sync`, `sync-api`); updates, admin and training with their phases; the encryption fields and test vectors with Phase 19. **Shipped so far:** the job group (slice 1) and the auth group (slice 2: register, salt, login, logout, admin agent-token revoke); the remaining groups (sync, updates, the rest of admin, training, keys and change-password) are later slices. Needs first: `shared`.
+**Build phase:** in parts, each before the phase that needs it. First the transcription-job contract (`POST /v1/audio/transcriptions`, `GET /v1/jobs/{job_id}`, `GET /health`), needed by `whisper-server` (Phase 4) and `stt-server` (Phase 5); auth and sync before Phase 11 (`auth-client`, `sync`, `sync-api`); updates, admin and training with their phases; the encryption fields with Phase 19, and the key_version 0 sync body codec with its test vectors now (ADR-006, amended 2026-10-21). **Shipped so far:** the job group (part 1) and the auth group (part 2: register, salt, login, logout, admin agent-token revoke); the remaining groups (sync, updates, the rest of admin, training, keys and change-password) are later parts. Needs first: `shared`.
 
 **Endpoints:**
 - `POST /v1/audio/transcriptions` — multipart form: `file`, `model`, `language`
@@ -99,6 +99,13 @@ There is no synchronous 200-with-body variant — every transcription is a job.
   id lands — **honest limit:** this endpoint cannot distinguish a row
   `whisper-server` sealed from one written directly by anyone with database
   write access, T26)
+  The `encrypted` text of a push at key_version 0 is the standard base64 of an
+  R1 body: one UTF-8 JSON object with the keys v, text, source, model,
+  duration_ms and created_at, in that order (v is 1, source is local or
+  server, created_at is the UTC time the transcription was made, to the
+  millisecond). The Kotlin codec for that body is `SyncBodyCodec` in package
+  `dev.breaker.shared.api.sync`; the full rules are in the /v1/sync operation
+  description of `openapi.yaml`. A key_version 0 body carries no cryptography.
 - **jobs** — `POST /v1/audio/transcriptions` (enqueue), `GET /v1/jobs/{id}`
   (status/result — unchanged by ADR-018: the caller that submitted the job
   always gets its own plaintext result back here, exactly as ADR-015 already
@@ -128,6 +135,7 @@ scope here.
 - Spec is machine-validatable (openapi-generator parses clean). **NOT VERIFIED** — the tool is not in the toolchain; a stdlib structural validator covers the slice's subset.
 - Example request/response for each endpoint (golden WAV included).
 - Client and server generated/stubbed from THIS spec — no drift.
+- A key_version 0 body carries no cryptography and is development-only until Phase 19.
 
 ## Owns
 OpenAPI spec: auth, sync, jobs, updates, admin, training.
@@ -138,6 +146,9 @@ OpenAPI spec (openapi.yaml); Kotlin request and response types
 - Kotlin request and response types matching the spec, compiled against by the
   app and by the server services (ADR-017). A Python-tier conformance test keeps
   them identical to the spec.
+- Sync body codec, package `dev.breaker.shared.api.sync`: `SyncBodyCodec` encodes
+  and decodes the R1 body and the key_version 0 `encrypted` text. It sits in a
+  subpackage, outside the Python reader's scan of this folder.
 
 ## Depends On
 - shared (registered in modules.toml)
@@ -149,6 +160,10 @@ OpenAPI spec (openapi.yaml); Kotlin request and response types
 ## Test Locations
 - Unit (Python, the spec and its conformance checks): `tests/unit/shared/api-contracts/`, created with the module's first slice. Run: `python3 -m unittest discover -s tests/unit/shared/api-contracts`
 - Kotlin types (ADR-017): their tests run with `./gradlew :shared:modules:api-contracts:test` once the module applies the Kotlin plugin with its first types.
+- Sync body vectors: `examples/sync_body_vectors.json`. The Kotlin codec test under
+  `src/test/kotlin/dev/breaker/shared/api/sync/` checks them, and the stdlib oracle
+  `tests/unit/shared/api-contracts/test_sync_body_vectors.py` re-derives them. The
+  spec pins are in `tests/unit/shared/api-contracts/test_sync_body_spec.py`.
 - Contract: `tests/contract/test_api_contracts_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_api_contracts_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
