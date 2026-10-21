@@ -109,7 +109,7 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
             this,
             app.settingsStore,
             modelReady = { modelReady.isReady() },
-            downloadLine = { downloadSentence },
+            downloadLine = { downloadSentence }, onThemeChanged = dev.breaker.dictation.wiring.repaintOnThemeChange(this, app.settingsStore),
             onDownloadModel = { app.tileHost.requestDownload() },
         ) }
         settingsView = settingsRebuilt.current

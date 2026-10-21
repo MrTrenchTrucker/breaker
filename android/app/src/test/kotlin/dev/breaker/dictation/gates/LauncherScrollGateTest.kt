@@ -33,7 +33,7 @@ internal class LauncherScrollGateTest {
         Rule(name, file) { Regex(first).findAll(it).count() == 1 && Regex(second).findAll(it).count() == 1 }
 
     private val rules: List<Rule> = listOf(
-        rx("SETTINGS_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "activity", """\bcreateSettingsView\s*\(\s*this\s*,\s*app\s*\.\s*settingsStore\s*,\s*modelReady\s*=\s*\{\s*modelReady\s*\.\s*isReady\s*\(\s*\)\s*\}\s*,\s*downloadLine\s*=\s*\{\s*downloadSentence\s*\}\s*,\s*onDownloadModel\s*=\s*\{\s*app\s*\.\s*tileHost\s*\.\s*requestDownload\s*\(\s*\)\s*\}\s*,?\s*\)"""),
+        rx("SETTINGS_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "activity", """\bcreateSettingsView\s*\(\s*this\s*,\s*app\s*\.\s*settingsStore\s*,\s*modelReady\s*=\s*\{\s*modelReady\s*\.\s*isReady\s*\(\s*\)\s*\}\s*,\s*downloadLine\s*=\s*\{\s*downloadSentence\s*\}\s*,\s*onThemeChanged\s*=\s*dev\s*\.\s*breaker\s*\.\s*dictation\s*\.\s*wiring\s*\.\s*repaintOnThemeChange\s*\(\s*this\s*,\s*app\s*\.\s*settingsStore\s*\)\s*,\s*onDownloadModel\s*=\s*\{\s*app\s*\.\s*tileHost\s*\.\s*requestDownload\s*\(\s*\)\s*\}\s*,?\s*\)"""),
         rx("MODEL_READY_IS_A_LIVE_PROVIDER", "activity", """\bmodelReady\s*=\s*\{\s*modelReady\s*\.\s*isReady\s*\(\s*\)\s*\}""", 3),
         // downloadLine = { downloadSentence } is passed to both createSettingsView and createFirstRunView
         rx("DOWNLOAD_LINE_IS_A_LIVE_PROVIDER", "activity", """\bdownloadLine\s*=\s*\{\s*downloadSentence\s*\}""", 2),
@@ -139,7 +139,7 @@ internal class LauncherScrollGateTest {
         Quiet("activity", "onDownloadModel = { app.tileHost.requestDownload() }", "onDownloadModel = {\n            app.tileHost.requestDownload()\n        }"),
         Quiet("activity", "ScrollView(this)", "ScrollView(  this  )"),
         Quiet("activity", "app.settingsStore,\n            modelReady = { modelReady.isReady() },", "app.settingsStore,\n            modelReady = { modelReady.isReady() }, // live"),
-        Quiet("activity", "downloadLine = { downloadSentence },", "downloadLine = { downloadSentence }, // live"),
+        Quiet("activity", "downloadLine = { downloadSentence }, onThemeChanged = dev.breaker.dictation.wiring.repaintOnThemeChange(this, app.settingsStore),", "downloadLine = { downloadSentence }, onThemeChanged = dev.breaker.dictation.wiring.repaintOnThemeChange(this, app.settingsStore), // live"),
         Quiet("insets", "fun paddingFor(bars: Insets, cutout: Insets): Padding", "fun paddingFor(  bars: Insets, cutout: Insets  ): Padding"),
         Quiet("insets", "left = maxOf(bars.left, cutout.left)", "left = maxOf(bars.left, cutout.left) // max"),
         Quiet("activity", "modelDownloadMb = { selectedModelMb(app) }", "modelDownloadMb = {  selectedModelMb(app) }"),

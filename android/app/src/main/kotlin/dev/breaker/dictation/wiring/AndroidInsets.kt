@@ -5,6 +5,7 @@ import android.graphics.drawable.ColorDrawable
 import android.view.ViewGroup
 import android.view.WindowInsets
 import dev.breaker.dictation.core.model.ThemeMode
+import dev.breaker.dictation.core.port.SettingsStore
 import dev.breaker.shared.tokens.TruckingTokens
 
 /** Sets [view]'s margins to the system bars and the cutout, and its padding to the gutter, now and whenever its insets change. */
@@ -46,8 +47,7 @@ private fun applyPadding(view: android.view.View, insets: WindowInsets) {
 /**
  * Paints [activity]'s window background from the palette for [mode].
  *
- * Painted when the activity is created; a theme switched inside Settings is not
- * repainted until the app is reopened.
+ * Painted when the activity is created; re-painted whenever [repaintOnThemeChange]'s callback fires.
  */
 internal fun paintWindowBackground(
     activity: Activity,
@@ -58,3 +58,11 @@ internal fun paintWindowBackground(
         ColorDrawable(windowColorFor(mode, night)),
     )
 }
+
+/**
+ * Returns a callback that repaints [activity]'s window background from the palette. The theme mode
+ * used to pick the colour is read from the store at fire time, never captured — so repeated calls keep
+ * matching whatever is currently stored in [settings].
+ */
+internal fun repaintOnThemeChange(activity: Activity, settings: SettingsStore): () -> Unit =
+    { paintWindowBackground(activity, settings.load().themeMode) }
