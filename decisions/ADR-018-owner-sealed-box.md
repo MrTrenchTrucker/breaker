@@ -302,7 +302,7 @@ Rules out:
   this ADR seals the **completed, stored** result for an agent-token job,
   nothing upstream of that.
 
-Amended 2026-10-20 (Commander, Talk 8mzm2err, 2026-10-20 order): this ADR
+Amended 2026-10-20 (project owner, 2026-10-20 order): this ADR
 says the sealed copy "is forwarded to `server/modules/sync-api`" but never said
 how, and nothing built so far does it. This amendment chooses no transport; it
 records the gap so nobody builds against an edge that does not exist.

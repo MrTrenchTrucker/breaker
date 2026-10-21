@@ -37,7 +37,7 @@ ui module's; this module supplies the data it shows. `list(limit)` returns the n
 `HistorySql.SELECT_NEWEST`). The page size (50 per Load more, cap 300) and the six-line fold are ui's
 (`PAGE_SIZE`, `ROW_CAP`, `COLLAPSE_LINES`), not this module's. The list shows every
 transcription as its own card, each folded alone. The first-card stretch (a ui layout bug, fixed in the ui module and
-emulator-proven; not yet seen on the Commander's phone) is not this module's.
+emulator-proven; not yet seen on the project owner's phone) is not this module's.
 
 **Storage protection (T7):** the database is app-private: a bare file name,
 opened in the app's own directory. Encryption at rest belongs to crypto and is
@@ -111,7 +111,7 @@ code.
   at start, off the main thread; a purge failure is logged, not thrown. The window is the fixed 90 days of ADR-010.
 - NOT REPRODUCED (a defect report): a phone test of APK 8 found the history gone after an update. An in-place 6 to 8
   update keeps it (emulator test); APKs 1-5 had different signing keys, so 5 to 6 needed an uninstall. The database is app-private, so an update keeps it and an uninstall removes it; the name and schema version
-  above have not changed. Required: an update keeps the history. The Commander ruled that an uninstall removes
+  above have not changed. Required: an update keeps the history. The project owner ruled that an uninstall removes
   everything (ADR-028 Decision 2); the manifest change that stops backup restoring it is BUILT (`allowBackup=false` and rules files that exclude every domain, in the app module).
 - FIXED defect H (robustness), 2026-10-21: a stored row whose `source` is neither `local` nor `server`
   no longer stops the list from loading. `SqliteHistoryStore.list` maps with `mapNotNull`: an unmappable row is
