@@ -223,8 +223,8 @@ repo states that honestly rather than claiming it away
 (`docs/01-requirements.md` F31; `ADR-018-owner-sealed-box.md`).
 
 **Sealed box** — `crypto_box_seal` (libsodium): used to seal a copy of an
-agent-token job's plaintext result to the owner's box public key, so it can
-sit in the pending-sealed store unread until the owner's own client unseals
+agent-token job's plaintext result to the project owner's box public key, so it can
+sit in the pending-sealed store unread until the project owner's own client unseals
 it at next login. Anonymous (no sender secret needed) and unauthenticated by
 design — it protects a stored copy from read-only exposure, not from whoever
 can act as the server (`ADR-018-owner-sealed-box.md`).

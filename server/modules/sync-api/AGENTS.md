@@ -127,7 +127,7 @@ here (N13).
   optional expiry, owner account). `DELETE /v1/admin/agent-tokens/{id}` — revoke (F27).
 - Agent auth: `Authorization: Bearer <agent-token>` on `POST
   /v1/audio/transcriptions` + `GET /v1/jobs/{id}` — same FIFO queue, results to
-  the owner's namespace. Rate-limited (T19).
+  the project owner's namespace. Rate-limited (T19).
 - `POST /v1/admin/reset-account` — **admin-only** (incl. admin-scoped agent
   tokens, F31): deletes the account's wrapped DEK, box keypair, and verifier
   hash; deletes its transcriptions outright (R20 — undecryptable once the

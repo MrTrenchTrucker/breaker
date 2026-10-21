@@ -5,7 +5,7 @@
 Client-side key derivation and encryption for encryption by default (F24,
 ADR-006, ADR-018). Derives the user's KEK and auth verifier from their
 password, generates and wraps the per-user DEK, encrypts/decrypts
-transcriptions with AES-256-GCM, generates the owner's X25519 box keypair,
+transcriptions with AES-256-GCM, generates the project owner's X25519 box keypair,
 and unseals agent-token results sealed to it — all locally. Nothing here ever
 sends the password, the KEK, or a plaintext DEK off the device.
 
@@ -145,7 +145,7 @@ shape, not a change to `core.CryptoService` itself.
 - Key wrapping of any kind performed server-side — there is none; the server
   never wraps or unwraps a key (server/sync-api)
 - Token storage (auth-client)
-- Sealing a job result to the owner's public key — that happens server-side,
+- Sealing a job result to the project owner's public key — that happens server-side,
   in `whisper-server`, using a JVM libsodium binding (ADR-018)
 
 ## Test Locations

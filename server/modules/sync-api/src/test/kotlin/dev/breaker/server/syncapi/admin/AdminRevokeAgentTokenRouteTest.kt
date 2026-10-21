@@ -94,7 +94,7 @@ internal class AdminRevokeAgentTokenRouteTest : TempDatabaseTest() {
     }
 
     @Test
-    fun `revoking one agent token leaves the owner's other tokens live`() = runBlocking<Unit> {
+    fun `revoking one agent token leaves the project owner's other tokens live`() = runBlocking<Unit> {
         val admin = register("alice", 1)
         val adminSession = session(admin.accountId)
         val other = agent(admin.accountId)

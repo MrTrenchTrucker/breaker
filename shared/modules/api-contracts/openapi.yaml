@@ -839,7 +839,7 @@ paths:
                 message: "User session token required; an agent token is refused"
   /v1/sync/pending-sealed:
     get:
-      summary: List the owner's still-sealed results
+      summary: List the project owner's still-sealed results
       description: >-
         The authenticated owner's still-sealed agent-token job results: a
         list of sealed boxes. The owner's client unseals each with its box
@@ -850,7 +850,7 @@ paths:
         returns whatever the pending-sealed store holds; it has no way to
         tell a sealed box whisper-server actually produced from one a
         database writer inserted directly - both are equally well-formed
-        crypto_box_seal output, and the owner's client converts either kind
+        crypto_box_seal output, and the project owner's client converts either kind
         the same way.
       operationId: listPendingSealed
       security:

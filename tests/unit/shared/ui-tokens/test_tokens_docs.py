@@ -27,13 +27,13 @@ CARD = ts.CARD_POINTER
 README = ts.MODULE / "README.md"
 
 # The card's line on spacing: a scale of five size names with its values, proposed from
-# the approved mock-ups and pending the owner's confirmation. A consumer that needs
+# the approved mock-ups and pending the project owner's confirmation. A consumer that needs
 # another step proposes it as a card change.
 SPACING_LINE = (
     "Spacing: a scale of five size names, in dp: spaceXsDp 4, spaceSDp 8, spaceMDp 12, "
     "spaceLDp 16, spaceXlDp 32 (tokens.kt); --space-xs 4px, --space-s 8px, --space-m 12px, "
     "--space-l 16px, --space-xl 32px (tokens.css). The values are proposed from the approved "
-    "mock-ups, pending the owner's confirmation; a change goes to the owner as a card change."
+    "mock-ups, pending the project owner's confirmation; a change goes to the owner as a card change."
 )
 
 # The one spacing-looking name besides the five scale steps: the host's fixed outer

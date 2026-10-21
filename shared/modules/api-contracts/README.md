@@ -10,7 +10,7 @@ both the Android client (`stt-server`) and the server (`whisper-server`) impleme
 - `POST /v1/sync` — push a transcription (idempotent on the client_id /
   key_version pair)
 - `GET /v1/transcriptions` — pull the account's transcriptions
-- `GET /v1/sync/pending-sealed` — the owner's still-sealed agent-token results
+- `GET /v1/sync/pending-sealed` — the project owner's still-sealed agent-token results
 - the four auth endpoints the Status line already names but never lists:
   - `POST /v1/auth/register` — register an account (never a password, never a DEK — the client derives the KEK and sends the verifier; first account = admin)
   - `POST /v1/auth/salt` — returns the salt and KDF parameters for an account (no decoy: an unknown username gets an honest "no such account")

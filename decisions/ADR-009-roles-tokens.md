@@ -10,7 +10,7 @@ Multi-user needs roles; AI agents need API access without an Android app.
 The **first account to register is admin by default**; admins can assign other
 admins. Agents use scoped tokens (`transcribe` default | `admin`), generated
 and revoked by admins, calling the same API through the same FIFO queue;
-results land in the owner's account. The **last remaining admin cannot delete
+results land in the project owner's account. The **last remaining admin cannot delete
 their account or be demoted**. Role checks are server-side only.
 
 ## Reasons

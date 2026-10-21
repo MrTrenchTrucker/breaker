@@ -10,7 +10,7 @@ import org.junit.Test
 /*
  * Gate for the empty-view measure. A plain View answers "at most N" with N, so in a scroll view
  * whose window it fills (fillViewport's fill pass) an empty view that ends up with a WRAP or MATCH
- * height grows to the whole offered height: RELAY measured the first history card stretched to 2544
+ * height grows to the whole offered height: the gate reviewer measured the first history card stretched to 2544
  * px, its two spread-row spacers pinned to 2124 px, and cards 2-3 squashed to 0 px on the Android 16
  * emulator. Both empty views are exactly that: the spread-row separator (separatorOf, its own params
  * are (0, WRAP_CONTENT, 1f)) and the horizontal Spacer (spacerOf, which placedChild re-assigns to

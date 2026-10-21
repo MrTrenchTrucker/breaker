@@ -61,7 +61,7 @@ each other directly.
   and screen content stays clear of the status bar and the navigation bar
   (no white edges, nothing hidden under the bars).
 
-Amended 2026-10-20 (Commander, Talk 8mzm2err, 2026-10-20 order). What main
+Amended 2026-10-20 (project owner, 2026-10-20 order). What main
 holds, and what the APK 8 phone test showed is still missing:
 - **Same faces, same signal (OPEN).** Item 1 covers every face, not only
   recording. When another app holds the microphone the tile shows its red

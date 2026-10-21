@@ -210,7 +210,7 @@ internal class ReportingMicSourceTest {
         assertEquals("app: a failed device must be closed exactly once by the failed read", 1, inner.closes)
         assertEquals("app: the report must come after the device was closed", listOf(1), seen)
         noted.close()
-        assertEquals("app: the owner's close after a failed read must not report again", listOf(1), seen)
+        assertEquals("app: the project owner's close after a failed read must not report again", listOf(1), seen)
     }
 
     @Test
@@ -247,7 +247,7 @@ internal class ReportingMicSourceTest {
         source.read(ShortArray(8), 0, 8)
         inner.readError = FakeMicSource.micFailure()
         assertThrows("app: read must rethrow", MicSourceException::class.java) { source.read(ShortArray(4), 0, 4) }
-        assertEquals("app: the owner's stop closes the source, so a failed read after it must not", 0, inner.closes)
+        assertEquals("app: the project owner's stop closes the source, so a failed read after it must not", 0, inner.closes)
         assertEquals("app: nothing may be reported after a stop request", 0, ended)
     }
 

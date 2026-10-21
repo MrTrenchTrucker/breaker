@@ -21,7 +21,7 @@ Login/register, token storage (Android Keystore), roles/scopes.
 - **Salt lookup** (`POST /v1/auth/salt`): asks for `{salt, kdf_params,
   kdf_version}` before login. No decoy — an unknown username gets an honest
   "no such account" response (ADR-006; account discovery sits inside the VPN
-  perimeter, per the owner's scope decision in docs/01/05).
+  perimeter, per the project owner's scope decision in docs/01/05).
 - **Login** (`POST /v1/auth/login`): sends only the auth verifier → receives
   a token (JWT/session), the user's `role`, the account's wrapped keys
   (`wrapped_dek`, `wrapped_box_privkey`, `box_pubkey` — `null` for a keyless

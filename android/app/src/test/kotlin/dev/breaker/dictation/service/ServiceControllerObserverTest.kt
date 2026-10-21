@@ -88,7 +88,7 @@ internal class ServiceControllerObserverTest {
         controller.arm()
         observe()
         controller.disarm(DisarmReason.OWNER_CLOSED)
-        assertEquals("app: one change to off with the owner's reason", listOf(false to DisarmReason.OWNER_CLOSED), seen)
+        assertEquals("app: one change to off with the project owner's reason", listOf(false to DisarmReason.OWNER_CLOSED), seen)
     }
 
     @Test

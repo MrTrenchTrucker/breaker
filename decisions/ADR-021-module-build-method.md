@@ -10,7 +10,7 @@ owner per module, who splits the work, has sub-agents write the code, and
 checks what comes back. That section is a description, recommended rather
 than required. In practice an owner sometimes wrote code in its own working
 context, and sub-agents sometimes started without reading the documents that
-define their piece. Both lead to work that has to be sent back: the owner's
+define their piece. Both lead to work that has to be sent back: the project owner's
 context fills with code instead of checking, and a sub-agent that has not read
 its card guesses at boundaries the card already settles.
 
@@ -30,7 +30,7 @@ For the maintainers' team, building a module or a sub-module works like this:
    ticks each checklist item as it finishes it, so the owner, and anyone
    reviewing later, can see what is done and what is left, and it ends with a
    closing certificate. Only the sub-agent ticks, quotes and signs: a mark the
-   owner writes for it is void, and the owner's own changes to the plan go in
+   owner writes for it is void, and the project owner's own changes to the plan go in
    a separate, dated section. The owner checks the result against the
    checklist. The full method is the shared skill
    `agent-skills/shared/subagent-plan-file/SKILL.md`. Plan files travel with

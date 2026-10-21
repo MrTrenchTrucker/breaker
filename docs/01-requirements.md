@@ -61,7 +61,7 @@
   agents transcribe through the same FIFO queue and read their own result via
   `GET /v1/jobs/{job_id}`, same as any caller (ADR-015). Separately, when the
   owner already has a box keypair, the server seals a copy of the result to
-  the owner's public key (ADR-018) and queues it in the owner's account, so
+  the project owner's public key (ADR-018) and queues it in the project owner's account, so
   it syncs in as an ordinary transcription the next time the owner **logs
   in** on any device (not merely "online" — conversion happens at login, and
   only the device that logs in first converts it). No Android app needed.

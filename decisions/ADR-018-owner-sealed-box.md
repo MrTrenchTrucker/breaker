@@ -4,11 +4,11 @@
 **Date:** 2026-09-30
 
 ## Context
-F27 requires agent-token job results to reach the owner's account and appear
+F27 requires agent-token job results to reach the project owner's account and appear
 in the web FE like any other transcription. ADR-006 (as amended) requires the
 server to hold no usable key and store ciphertext only. An agent authenticates
-with a bearer token (ADR-009), never the owner's password, so it cannot derive
-the owner's KEK/DEK and cannot itself produce a ciphertext ADR-006's scheme
+with a bearer token (ADR-009), never the project owner's password, so it cannot derive
+the project owner's KEK/DEK and cannot itself produce a ciphertext ADR-006's scheme
 accepts.
 
 Two constraints shape the design below:
@@ -69,7 +69,7 @@ owner's **pending-sealed** store — not mixed into the ordinary transcription
 table, so it never impersonates an authenticated transcription before the
 owner's own client has actually processed it. **That "never impersonates"
 claim is about ordering, not about content — see the honest limit in
-Consequences: anyone who can write this store can plant a row the owner's
+Consequences: anyone who can write this store can plant a row the project owner's
 client will convert without question.** The owner's client — whichever device of
 theirs logs in first — lists its own pending sealed records
 (`GET /v1/sync/pending-sealed`), unseals each with the box private key (itself
@@ -280,7 +280,7 @@ Rules out:
   `android/modules/crypto/AGENTS.md`). The pending-sealed store's isolation
   from the transcription table (above) prevents an *unprocessed* forged row
   from posing as a real transcription; it does not prevent a forged row from
-  *becoming* one once the owner's own client has done its automatic job.
+  *becoming* one once the project owner's own client has done its automatic job.
   Sealed rows, in other words, are only ever as trustworthy as the server
   that produced them — this is **the same trust the server already holds**,
   since it processes every transcription submitted through it in plaintext
@@ -302,7 +302,7 @@ Rules out:
   this ADR seals the **completed, stored** result for an agent-token job,
   nothing upstream of that.
 
-Amended 2026-10-20 (Commander, Talk 8mzm2err, 2026-10-20 order): this ADR
+Amended 2026-10-20 (project owner, 2026-10-20 order): this ADR
 says the sealed copy "is forwarded to `server/modules/sync-api`" but never said
 how, and nothing built so far does it. This amendment chooses no transport; it
 records the gap so nobody builds against an edge that does not exist.

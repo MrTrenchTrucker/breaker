@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * owner's stop is owed then anyway.
  *
  * When the app itself asked for the end, [markStopRequested] is called first and nothing is
- * reported or closed here: the owner's stop closes the source. [rearm] starts the next take.
+ * reported or closed here: the project owner's stop closes the source. [rearm] starts the next take.
  * [onEnded] runs on the capture thread and must not throw.
  */
 class ReportingMicSource(

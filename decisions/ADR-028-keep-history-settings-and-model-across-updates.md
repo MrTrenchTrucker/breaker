@@ -1,22 +1,22 @@
 # ADR-028: An app update keeps the history, the settings and the speech model
 
-**Status:** accepted (Decision 2 ruled by the Commander 2026-10-20; the manifest change is BUILT)
+**Status:** accepted (Decision 2 ruled by the project owner 2026-10-20; the manifest change is BUILT)
 **Date:** 2026-10-20
 
 Decision 1 states what the code at main already intends. Decision 2, whether
-data also survives an uninstall, was ruled by the Commander on 2026-10-20 (Talk
-8mzm2err, typed): "I would want it to be Uninstalled clean."
+data also survives an uninstall, was ruled by the project owner on 2026-10-20 (typed):
+"I would want it to be Uninstalled clean."
 
 ## Context
-After an in-place update to APK 8 (he did not uninstall), the Commander found
-his transcription history and the downloaded speech model gone. RELAY could not
+After an in-place update to APK 8 (he did not uninstall), the project owner found
+his transcription history and the downloaded speech model gone. The gate reviewer could not
 reproduce this: on an emulator an in-place update from APK 6 to APK 8 keeps
-history and model. RELAY did find that APKs 1 to 5 were each signed with a
+history and model. The gate reviewer did find that APKs 1 to 5 were each signed with a
 different key (APKs 6, 7 and 8 share one), so 5 to 6 failed with
 `INSTALL_FAILED_UPDATE_INCOMPATIBLE` and needed an uninstall (measured on the
 emulator: the 5 to 6 install fails with that error; APKs 6, 7 and 8 share the
 certificate a8225bc3). The cause of the
-Commander's loss is therefore NOT FOUND, and is not a known code defect.
+The project owner's loss is therefore NOT FOUND, and is not a known code defect.
 
 What the code in main does today (checked at main f2887786):
 - **Speech model:** `LocalModelStore(File(filesDir, "models"))`
@@ -61,26 +61,26 @@ different keys. Which one it was is not known; the signing-key change at 5 to 6 
    and check that all three are still there (part of the upgrade run in
    ADR-027 R1). The signing key stays the same from APK 6 on, so later updates install
    over the old app.
-2. **RULED by the Commander: an uninstall removes everything.** His words:
+2. **RULED by the project owner: an uninstall removes everything.** His words:
    "I would want it to be Uninstalled clean." History, settings and the speech
    model live in app-private storage and go with the app. Nothing is written to
-   shared storage, and no backup may bring the data back on a reinstall. RELAY
+   shared storage, and no backup may bring the data back on a reinstall. The gate reviewer
    read APK 8's manifest: it sets no `allowBackup`, `dataExtractionRules` or
    `fullBackupContent`, so Android's default (`allowBackup` true) applies and
    Auto Backup may restore app data on a reinstall. That is against this rule.
    BUILT: the manifest now sets `android:allowBackup="false"` and gives
    `dataExtractionRules` and `fullBackupContent` that exclude every domain, so
-   a reinstall starts clean. RELAY's emulator run on the patched build shows no
+   a reinstall starts clean. The gate reviewer's emulator run on the patched build shows no
    backup flag, a backup that writes nothing, files kept by `install -r`, and
    files, databases and preferences empty after an uninstall and reinstall. Whether
-   backup restored data on the Commander's phone is UNFALSIFIABLE and no longer
+   backup restored data on the project owner's phone is UNFALSIFIABLE and no longer
    matters once the manifest is changed.
 
 ## Reasons
 - Losing a user's history on an update breaks trust in the app more than any
   single bug, and the data is already stored where an update keeps it; so a
   loss means a defect in our own code or release process, which is fixable.
-- A clean uninstall is a privacy choice the Commander made: transcriptions never
+- A clean uninstall is a privacy choice the project owner made: transcriptions never
   outlive the app, which fits ADR-006 and ADR-010.
 
 ## Consequences

@@ -192,7 +192,7 @@ internal class TokenStore(
             "INSERT INTO tokens (account_id, kind, scope, label, token_hash, created_at_ms, expires_at_ms) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?)"
 
-        // One query: the owner's role is read now, never cached with the token. The
+        // One query: the project owner's role is read now, never cached with the token. The
         // database compares hash to hash; the caller controls only the preimage.
         const val SELECT_LIVE_SQL =
             "SELECT t.id, t.account_id, a.role, t.kind, t.scope FROM tokens t " +

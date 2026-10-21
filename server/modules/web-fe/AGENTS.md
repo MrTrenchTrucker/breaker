@@ -32,7 +32,7 @@ Also hosts the APK and CA certificate for download (F15, F17, F18).
   reachable/unreachable before it's relied on. Admin-only (T20).
 - **Admin → Agent Tokens** (F27): generate scoped tokens (name, optional
   expiry, owner account), list, revoke. Agents use them against the API
-  directly; results land in the owner's account.
+  directly; results land in the project owner's account.
 - **Admin → Store** (F29): clear the transcription store per-user or for all
   users (with confirmation). Retention status shown (3-month TTL, F28).
 - **Downloads → Models** (F30): on-device model + checksums served for phone

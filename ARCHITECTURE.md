@@ -137,7 +137,7 @@ admins.
       transcribe through the same FIFO queue and read their own result via
       `GET /v1/jobs/{job_id}`, same as any caller (ADR-015). Separately, when
       the owner already has a box keypair, the server seals a copy of the
-      result to the owner's public key (ADR-018) and queues it in the owner's
+      result to the project owner's public key (ADR-018) and queues it in the project owner's
       account, so it syncs in as an ordinary transcription the next time the
       owner **logs in** on any device (not merely "online" — conversion
       happens at login, and only the device that logs in first converts it).
@@ -506,7 +506,7 @@ OPEN robustness defect H: a stored history row whose `source` is neither `local`
 makes `TranscriptionRow` throw `MappingFailure`, which crashes the activity at launch; where such a row
 comes from is unknown.
 **On-phone data (ADR-028, proposed):** model, settings and history are app-private; an update
-must keep all three. An in-place 6 to 8 update keeps them (emulator test); APKs 1-5 had different signing keys, so 5 to 6 needed an uninstall (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`); APKs 6, 7 and 8 share certificate a8225bc3. The Commander's loss is not reproduced. An uninstall removes everything (Commander, ADR-028 Decision 2); the manifest change that stops Auto Backup restoring data is BUILT (`allowBackup=false` and rules files that exclude every domain).
+must keep all three. An in-place 6 to 8 update keeps them (emulator test); APKs 1-5 had different signing keys, so 5 to 6 needed an uninstall (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`); APKs 6, 7 and 8 share certificate a8225bc3. The project owner's loss is not reproduced. An uninstall removes everything (project owner, ADR-028 Decision 2); the manifest change that stops Auto Backup restoring data is BUILT (`allowBackup=false` and rules files that exclude every domain).
 
 **Sync (F13):** a sync queue pushes pending transcriptions to the server whenever
 it is reachable — **even if dictation ran in local-only mode**. Idempotent
@@ -645,7 +645,7 @@ a documented risk (R23). **Token scopes (D29):** `transcribe` (default) or
 `admin`.
 Separately, because an agent token holds no password and so cannot derive the
 owner's KEK/DEK, `whisper-server` also seals a copy of the completed result to
-the owner's box public key (ADR-018) and hands it to `sync-api`'s
+the project owner's box public key (ADR-018) and hands it to `sync-api`'s
 pending-sealed store — **only once the owner has one**; an owner who has
 never bootstrapped (or is mid-reset, ADR-018) simply gets no sealed copy,
 and the agent still reads its own plaintext result normally. The owner's own
@@ -654,7 +654,7 @@ DEK, and uploads it through the ordinary sync path — that is how it "appears
 in the web FE like any transcription." This protects a **stored** copy from
 **read-only** exposure; it is not a defense against whoever controls the
 running server or has database write access, who can also forge a sealed
-row the owner's client will convert without review (ADR-018, T26).
+row the project owner's client will convert without review (ADR-018, T26).
 
 **Admin capabilities (F31):** admins — including agents holding admin-scoped
 tokens — can trigger an account reset (`POST /v1/admin/reset-account`). The
@@ -828,7 +828,7 @@ smoke-test gate [1].
       access (an admin, or an agent given server access) could replace an
       account's `box_pubkey` and silently redirect future agent-token
       results, or insert a forged row directly into the pending-sealed store
-      that the owner's own client converts into an ordinary-looking
+      that the project owner's own client converts into an ordinary-looking
       transcription with no review (ADR-018). No integrity binding exists on
       the stored key in v1, so the swap cannot be prevented, only detected:
       at the account's next login the client recomputes the box public key
@@ -879,7 +879,7 @@ See `docs/04-build-order.md`. Summary:
 | 17 | FE registration + roles (registration card, first-account-is-admin, admin assignment) | Coding + Bug Hunt |
 | 18 | *(absorbed into Phase 4 — see that row; kept as a numbered slot so Phase 19-22 references elsewhere don't shift.)* | — |
 | 19 | `crypto` — DEK generation/wrap/unwrap, AES-256-GCM, and the ADR-018 X25519 box keypair + sealed-box unseal (Android + web FE); the `key_version` field and the atomic-replace path it drives on `POST /v1/sync` (ADR-006). Accounts with no keys yet (created in Phases 11–18, or just reset) get theirs at their next login, which also migrates any transcription they synced before this phase from server-side plaintext to ciphertext. `change-password` ships here too and re-keys on every call — new DEK, new box keypair, new `key_version` — with no lighter re-wrap path and no special case for a reset (ADR-006) | Coding + Bug Hunt |
-| 20 | Admin config: transcription service (endpoint + connectivity test) + agent tokens + the owner's sealed copy of agent-token results (ADR-018) + admin account reset (`reset-account`, `complete-reset`) | Coding + Bug Hunt |
+| 20 | Admin config: transcription service (endpoint + connectivity test) + agent tokens + the project owner's sealed copy of agent-token results (ADR-018) + admin account reset (`reset-account`, `complete-reset`) | Coding + Bug Hunt |
 | 21 | Data lifecycle: retention TTL (3 months), audio delete-on-success, 3× retry @10 s, store clear (per-user/all), log policy | Coding + Bug Hunt |
 | 22 | UI/UX: Trucking theme (white/black/green, light/dark), responsive FE (landscape/portrait), account management + user transcription delete screens | Coding |
 
@@ -925,7 +925,7 @@ See `docs/04-build-order.md`. Summary:
       every login, so a compromised server can capture the password or the
       DEK there directly (ADR-006). See ADR-018 for agent-token and
       queued-job results, which use a separate owner-keypair sealed-box step
-      since agents never hold the owner's password (F24).
+      since agents never hold the project owner's password (F24).
 - D20. **Trucking theme** — white/black/green, light + dark modes, shared
       tokens in `shared/ui-tokens`; supersedes the CB Radio palette (F25).
 - D30. **Account deletion rules** — any user can delete their own account; the

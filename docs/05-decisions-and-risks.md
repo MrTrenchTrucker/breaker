@@ -132,7 +132,7 @@ which rotates the DEK the same way any other password change does, to bound
 that exposure (R20). See ADR-006
 (amended) and ADR-018 for the full login/change-password/reset flows, and
 for agent-token and queued-job results, which use a separate owner-keypair
-sealed-box step since agents never hold the owner's password.
+sealed-box step since agents never hold the project owner's password.
 
 **D20 — Trucking theme (supersedes the CB Radio palette).**
 White/black/green, modern but not futuristic, inspired by 18-wheeler door
@@ -148,7 +148,7 @@ works regardless of which service is configured (F26).
 **D22 — Agent tokens.**
 Admins generate scoped API tokens (name, optional expiry, owner account) for AI
 agents. Agents call the same transcription API through the same FIFO queue;
-results sync to the owner's account and appear in the web FE. No Android app
+results sync to the project owner's account and appear in the web FE. No Android app
 needed. Tokens are revocable (F27, T19).
 
 **D23 — Retain the sherpa-onnx transducer path (pinned + verified).**

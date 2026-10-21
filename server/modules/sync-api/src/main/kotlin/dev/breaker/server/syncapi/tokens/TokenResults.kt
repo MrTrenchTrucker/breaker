@@ -34,6 +34,6 @@ internal data class ResolvedToken(
     val kind: TokenKind,
     /** What the row says; null for a session token. */
     val storedScope: AgentScope?,
-    /** What the caller may act as: never more than the owner's current role; null for a session token. */
+    /** What the caller may act as: never more than the project owner's current role; null for a session token. */
     val effectiveScope: AgentScope?,
 )

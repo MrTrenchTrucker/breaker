@@ -56,7 +56,7 @@ internal class TokenStoreRevokeTest : TempDatabaseTest() {
         assertTrue("sync-api: the middle agent token must be revoked", revoke(store, target.tokenId))
 
         assertFalse("sync-api: the revoked token must not resolve", resolves(store, target))
-        assertTrue("sync-api: the owner's session token must still resolve", resolves(store, sessionToken))
+        assertTrue("sync-api: the project owner's session token must still resolve", resolves(store, sessionToken))
         assertTrue("sync-api: an older agent token of the owner must still resolve", resolves(store, older))
         assertTrue("sync-api: a newer agent token of the owner must still resolve", resolves(store, newer))
     }
