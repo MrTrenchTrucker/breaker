@@ -119,6 +119,7 @@ internal class CompositeLevelSinkTest {
         val done = AtomicBoolean(false)
         val publishes = AtomicInteger(0)
         val started = CountDownLatch(1)
+        val firstPublish = CountDownLatch(1)
         // One permanent slow sink: each publish stays inside the loop long enough for the other thread to change the list.
         composite.add(LevelSink { Thread.yield() })
 
@@ -128,6 +129,7 @@ internal class CompositeLevelSinkTest {
                 while (!done.get()) {
                     composite.publish(0.5f)
                     publishes.incrementAndGet()
+                    firstPublish.countDown()
                 }
             } catch (t: Throwable) {
                 problems.add(t)
@@ -136,6 +138,7 @@ internal class CompositeLevelSinkTest {
         publisher.isDaemon = true
         publisher.start()
         assertTrue("app: the publisher thread must start", started.await(5, TimeUnit.SECONDS))
+        assertTrue("app: the publisher published at least once", firstPublish.await(5, TimeUnit.SECONDS))
 
         var previous: LevelSink? = null
         try {
