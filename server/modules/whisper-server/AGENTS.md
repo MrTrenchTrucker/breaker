@@ -139,7 +139,7 @@ agents, not required: an outside contributor may write the code themselves
 
 ## Known Gotchas
 - On main this module has no code yet (its build file applies `base` only). Slices 1-3 (database, job store, queue
-  worker, forwarder, HTTP front) are on the module branch; the Forgejo branch `wip/whisper-server-merged-f312e3ee` holds
+  worker, forwarder, HTTP front) are on the module branch; a private work branch holds
   the merge of main into `module/whisper-server`.
 - PLANNED (slice 4, no code yet): a runnable entry point, `main`, configured by `BREAKER_WHISPER_HOST`,
   `BREAKER_WHISPER_PORT`, `BREAKER_WHISPER_DB` and `BREAKER_WHISPER_FORWARDER_URL`; it binds 127.0.0.1 by default,

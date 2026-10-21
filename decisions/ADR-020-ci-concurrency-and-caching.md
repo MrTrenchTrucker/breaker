@@ -11,9 +11,9 @@ and the workflow's `concurrency.group` was keyed on `github.ref`
 (`refs/pull/N/merge` for the `pull_request` event, `refs/heads/module/x` for
 the `push` event) — two different refs for the same commit, so both triggers
 ran a full Gradle build simultaneously on the shared GitHub-hosted runner.
-Measured before the fix: `module/core` commit `a231aedf` ran the `build` job
+Measured before the fix: a `module/core` commit ran the `build` job
 twice, one run failing, one passing; the same double-run pattern showed on
-`module/transport` (`5ff3eef4`) and `module/audio` (`2e378830`), both of
+`module/transport` and `module/audio`, both of
 whose pairs happened to pass. Two compiler daemons and two test JVMs
 contending for the same runner is the likely contributor to the recurring
 "the same test fails intermittently on GitHub but never locally" reports —
@@ -52,7 +52,7 @@ Consequences), not an oversight.
 
 ## Reasons
 - Confirmed live, not just theorized, on the very next commit after the fix
-  landed: `module/core` commit `3b3150fb`'s `push` run was cancelled by its
+  landed: the next `module/core` commit's `push` run was cancelled by its
   `pull_request` run for the same commit, instead of the two running side by
   side — the dedupe working exactly as designed.
 - Maven Central's own guidance is explicit that retrying harder makes 429s
