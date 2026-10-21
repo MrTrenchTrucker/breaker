@@ -1,8 +1,10 @@
 # Secret-scan settings for the CI "Secret scan" job (gitleaks).
-# Uses gitleaks' default rules. The one allowlist entry covers the three
-# published NIST CAVP AES-256-GCM known-answer keys in core's CipherTextTest:
-# public test vectors, not secrets. It matches those three exact values only,
-# so any other key, in that file or anywhere else, is still reported.
+# Uses gitleaks' default rules. Two allowlist entries, each matching exact
+# values only, so any other key, in those files or anywhere else, is still
+# reported: the three published NIST CAVP AES-256-GCM known-answer keys in
+# core's CipherTextTest, and the two sync body test vectors that are the
+# base64 of the published api-contracts example body. Public test vectors,
+# not secrets.
 
 [extend]
 useDefault = true
@@ -11,3 +13,7 @@ useDefault = true
 description = "NIST CAVP AES-256-GCM known-answer keys (published test vectors)"
 regexTarget = "match"
 regexes = ['''key = "(b52c505a37d78eda5dd34f20c22540ea1b58963cf8e5bf8ffa85f9f2492505b4|78dc4e0aaf52d935c3c01eea57428f00ca1fd475f5da86a49c8dd73d68c8e223|886cff5f3e6b8d0e1ad0a38fcdb26de97e8acbe79f6bed66959a598fa5047d65)"''']
+
+[[allowlists]]
+description = "Sync body test vectors: base64 of the published example body (api-contracts openapi.yaml), not secrets"
+regexes = ['''^(eyJ2IjoxLCJ0ZXh0IjoiaGVsbG8gZnJvbSB0aGUgcGhvbmUiLCJzb3VyY2UiOiJsb2NhbCIsIm1vZGVsIjoiYmFzZS5lbiIsImR1cmF0aW9uX21zIjoxNTAwLCJjcmVhdGVkX2F0IjoiMjAyNi0xMC0xMVQxMjowMDowMC4wMDBaIn0=|eyJ2IjoxLCJ0ZXh0IjoiaGVsbG8gZnJvbSB0aGUgcGhvbmUiLCJzb3VyY2UiOiJsb2NhbCIsIm1vZGVsIjoiYmFz=e\.en)$''']

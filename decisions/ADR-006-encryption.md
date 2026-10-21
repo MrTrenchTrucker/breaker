@@ -2,7 +2,7 @@
 
 **Status:** accepted, amended 2026-09-30 (client-side key derivation, the
 guarantee it actually gives, login, password change and account reset),
-amended 2026-10-01 (sync is development-only until Phase 19)
+amended 2026-10-01 (sync is development-only until Phase 19), amended 2026-10-21 (the sync body format)
 **Date:** 2026-09-29
 
 See ADR-018 for agent-token and queued-job results, which cannot go through
@@ -303,3 +303,23 @@ guessing passwords against it; any claim that the served-JS trust model for
 the web FE matches the signed-APK trust model for Android; a server or
 client accepting KDF parameters below the stated floor; a live session token
 alone authorizing a password change.
+
+## Amendment 2026-10-21: the sync body format
+
+### Binding now (development-only, Phases 11-18)
+
+- **R1 body, every key_version.** The body that sync carries is one UTF-8 JSON object with the keys v, text, source, model, duration_ms and created_at, in that order. v is 1, source is local or server, and created_at is the UTC time the transcription was made, to the millisecond. audio_path is never synced. A reader refuses an unknown v. The rules are in the /v1/sync operation of openapi.yaml.
+- **R2, key_version 0.** The `encrypted` field is the standard padded base64, with no line wrap, of the R1 body. No cryptography is applied. This is the plaintext of Phases 11-18 in the sense of the 2026-10-01 amendment above: development-only until Phase 19. key_version 1 or higher is the Phase 19 form and is not built.
+- **R4, client id.** A client id is a lowercase canonical UUID. The pattern is in openapi.yaml. sync-api enforces it when its sync routes are built.
+- **R5, stored time.** TranscriptionRecord.created_at is renamed stored_at: it is when the server stored the row. The created_at inside the R1 body is when the transcription was made.
+- **R7, tombstones.** Deletes and tombstones are not in the R1 body. They are a separate sync path, designed later with the sync tombstone port.
+
+### Planned for Phase 19, not built
+
+- P1 Framing for key_version 1 or higher: standard base64 of nonce (12 bytes), then ciphertext, then tag (16 bytes), under AES-256-GCM with the DEK; at least 28 decoded bytes.
+- P2 AAD is the UTF-8 bytes of client_id, a newline, and the decimal key_version. Decryption uses the row's returned key_version and the DEK of that version, so the server cannot move a body to another record or version.
+- P3 Interface change: core CryptoService encrypt and decrypt gain an AAD parameter. The Consequences above say CryptoService gains only DEK and box operations; this changes that.
+- P4 Nonces come only from a CSPRNG, with no caller-supplied nonce outside test vectors. Budget of 2^32 random nonces per DEK (NIST SP 800-38D, section 8.3). In JCA, updateAAD is called before doFinal.
+- P5 The sealed plaintext of an agent-token result is an R1 body with source server. Unseal refuses any other source (ADR-018).
+- P6 Vectors come from an independent oracle: published known-answer tests and independently generated framing vectors. Negatives include a wrong client_id, a wrong version, a flipped tag and 27 bytes.
+- P7 What the server learns, stated plainly: client_id, key_version, stored_at, ciphertext length (no padding), push count and timing, and sealed-box sizes. It does not learn the text or the other metadata.

@@ -206,7 +206,7 @@ class TranscriptionRecordSchemaTest(unittest.TestCase):
         props = self.schemas["TranscriptionRecord"]
         self.assertEqual(
             set(props.get("required", [])),
-            {"client_id", "key_version", "encrypted", "created_at"},
+            {"client_id", "key_version", "encrypted", "stored_at"},
         )
 
     def test_transcription_record_key_version_is_integer(self):
