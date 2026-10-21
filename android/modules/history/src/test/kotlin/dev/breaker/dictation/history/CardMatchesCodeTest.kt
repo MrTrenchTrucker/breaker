@@ -342,8 +342,7 @@ class CardMatchesCodeTest {
         assertTrue(
             "the scheduler gotcha must be on the card",
             gotchas.contains(
-                "`purgeExpired()` is to be called by the app's scheduler (android/app); " +
-                    "nothing calls it until the app shell wires it.",
+                "and runs `purgeExpired()` once",
             ),
         )
         assertFalse("the card still reads as a calendar rule", card.contains("calendar month"))

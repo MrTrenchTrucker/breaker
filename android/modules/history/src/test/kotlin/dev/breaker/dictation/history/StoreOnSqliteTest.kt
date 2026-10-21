@@ -11,7 +11,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The store's limits, its unmappable-row failure, sub-second clock and the audio column, run down to real SQL.
+ * The store's limits, its unmappable-row skip-and-report, sub-second clock and the audio column, run down to real SQL.
  *
  * The in-memory tests ([StoreLimitsTest], [StoreSubSecondTest], [StoreFailureTest]) show what the store asks for;
  * these run the same asks through [JdbcHistoryDatabase] on [DesktopSqlite], where the limit is a bound `LIMIT ?`
@@ -97,15 +97,17 @@ class StoreOnSqliteTest {
     // ── a row the store cannot map ───────────────────────────────────────
 
     @Test
-    fun `on real SQL listing a history that holds a row with an unknown source fails, not a shorter list`() {
+    fun `on real SQL listing a history that holds a row with an unknown source skips that row, keeps it stored and reports it`() {
         database.save(aRow("good-1", audioPath = null, createdAt = base + 2))
         database.save(aRow("bogus-1", audioPath = null, createdAt = base + 1).copy(source = "bogus"))
+        val reported = mutableListOf<String>()
+        val store = SqliteHistoryStore(database, Clock { nowMillis }, report = { reported.add(it) })
 
-        val failure = runCatching { store.list(10) }
+        val listed = store.list(10)
 
-        assertTrue("list must throw, it returned ${failure.getOrNull()?.map { it.id }}", failure.isFailure)
-        val thrown = failure.exceptionOrNull()
-        assertTrue("expected a MappingFailure, got $thrown", thrown is MappingFailure)
+        assertEquals(listOf("good-1"), listed.map { it.id })
+        assertEquals(2, store.count())
+        assertTrue("the bad row is reported: $reported", reported.single().contains("bogus-1"))
     }
 
     // ── delete of an id that is not there ────────────────────────────────

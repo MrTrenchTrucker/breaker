@@ -113,9 +113,14 @@ code.
   update keeps it (emulator test); APKs 1-5 had different signing keys, so 5 to 6 needed an uninstall. The database is app-private, so an update keeps it and an uninstall removes it; the name and schema version
   above have not changed. Required: an update keeps the history. The Commander ruled that an uninstall removes
   everything (ADR-028 Decision 2); the manifest change that stops backup restoring it is BUILT (`allowBackup=false` and rules files that exclude every domain, in the app module).
-- OPEN defect H (robustness): a stored row whose `source` is neither `local` nor `server` makes the row mapping throw
-  `MappingFailure` (`TranscriptionRow.kt:51`), and that crashed the activity at launch in a RELAY test; where such a
-  row comes from is not known. Required: one bad row must not stop the list from loading.
+- FIXED defect H (robustness), 2026-10-21: a stored row whose `source` is neither `local` nor `server`
+  no longer stops the list from loading. `SqliteHistoryStore.list` maps with `mapNotNull`: an unmappable row is
+  skipped, is left on file (never deleted), and is reported through an injectable hook whose DEFAULT is
+  `android.util.Log` (tag `BreakerHistory`; row id and stored source only, never the text), so the shipped
+  `SqliteHistoryStore.create(context, clock)` — which the module gate freezes at two arguments, so the default is
+  what production runs — logs it. `TranscriptionRow.toTranscription()` is unchanged and still throws
+  `MappingFailure`; the new `toTranscriptionOrNull()` is the tolerant form. Pinned by StoreUnknownSourceTest (NEW),
+  StoreReportHookGateTest (NEW), and the re-pointed-and-renamed StoreFailureTest and StoreOnSqliteTest.
 - Tombstones are written and kept; no shipped code reads or sweeps them yet. The port that lets sync reach them is
   deferred, so the tombstone table only grows until it lands.
 - A tombstone can outlive a re-save of its id. `save` replaces a row by id and never touches the tombstones table, so

@@ -44,15 +44,27 @@ internal data class TranscriptionRow(
      *   not a transcription to quietly drop: a transcription that vanishes from
      *   history is the one failure this module exists to prevent.
      */
-    fun toTranscription(): Transcription = Transcription(
-        id = id,
-        text = text,
-        source = toSourceOrNull()
-            ?: throw MappingFailure("Row $id has an unknown source '$source'"),
-        model = model,
-        durationMs = durationMs,
-        createdAt = createdAt,
-    )
+    fun toTranscription(): Transcription =
+        toTranscriptionOrNull()
+            ?: throw MappingFailure("Row $id has an unknown source '$source'")
+
+    /**
+     * The domain value, or null when the stored [source] is neither `local` nor
+     * `server`. [toTranscription] is the strict form; this is the form a reader
+     * uses when a row it cannot interpret is a row to skip and report, not a
+     * reason to lose the rest of the list.
+     */
+    internal fun toTranscriptionOrNull(): Transcription? {
+        val source = toSourceOrNull() ?: return null
+        return Transcription(
+            id = id,
+            text = text,
+            source = source,
+            model = model,
+            durationMs = durationMs,
+            createdAt = createdAt,
+        )
+    }
 
     /** The stored source as a domain value, or null when it is not one of the two. */
     fun toSourceOrNull(): TranscriptionSource? = when (source) {

@@ -12,8 +12,9 @@ import org.junit.Test
 /**
  * What the store does when its database misbehaves: a row it cannot read, and a write that fails.
  *
- * Both are failures to hear about. A list that quietly leaves out a row it cannot map, or a save
- * that reports success when nothing was stored, is how a dictation is lost without anyone knowing.
+ * Both are failures to hear about. A save that reports success when nothing was stored is how a
+ * dictation is lost without anyone knowing. A row the store cannot map is not swallowed either:
+ * it is left on file and reported, so the list still loads and the bad row is still findable.
  */
 class StoreFailureTest {
 
@@ -40,17 +41,18 @@ class StoreFailureTest {
     )
 
     @Test
-    fun `listing a history that holds a row with an unknown source fails, and does not return a shorter list`() {
+    fun `listing a history that holds a row with an unknown source skips that row, keeps it stored and reports it`() {
         database.save(aRow("good-1", "local", createdAt = 3_000))
         database.save(aRow("bogus-1", "bogus", createdAt = 2_000))
         database.save(aRow("good-2", "server", createdAt = 1_000))
+        val reported = mutableListOf<String>()
+        val store = SqliteHistoryStore(database, clock, report = { reported.add(it) })
 
-        val failure = runCatching { store.list(10) }
+        val listed = store.list(10)
 
-        assertTrue("list must throw, it returned ${failure.getOrNull()?.map { it.id }}", failure.isFailure)
-        val thrown = failure.exceptionOrNull()
-        assertTrue("expected a MappingFailure, got $thrown", thrown is MappingFailure)
-        assertTrue("the failure names the row: ${thrown?.message}", thrown?.message.orEmpty().contains("bogus-1"))
+        assertEquals(listOf("good-1", "good-2"), listed.map { it.id })
+        assertEquals(listOf("good-1", "bogus-1", "good-2"), database.newest(10).map { it.id })
+        assertTrue("the bad row is reported: $reported", reported.single().contains("bogus-1"))
     }
 
     @Test

@@ -1,6 +1,7 @@
 package dev.breaker.dictation.history
 
 import android.content.Context
+import android.util.Log
 import dev.breaker.dictation.core.model.Transcription
 import dev.breaker.dictation.core.port.Clock
 import dev.breaker.dictation.core.port.HistoryStore
@@ -45,6 +46,7 @@ import dev.breaker.dictation.core.port.HistoryStore
 class SqliteHistoryStore internal constructor(
     private val database: HistoryDatabase,
     private val clock: Clock,
+    private val report: (String) -> Unit = { message -> Log.w(TAG, message) },
 ) : HistoryStore {
 
     private val retention = RetentionPolicy()
@@ -71,7 +73,14 @@ class SqliteHistoryStore internal constructor(
     override fun list(limit: Int): List<Transcription> {
         require(limit >= 0) { "limit cannot be negative: $limit" }
         if (limit == 0) return emptyList()
-        return database.newest(limit).map { it.toTranscription() }
+        return database.newest(limit).mapNotNull { row ->
+            if (row.toSourceOrNull() == null) {
+                report("history row ${row.id} has an unknown source '${row.source}'; it stays stored")
+                null
+            } else {
+                row.toTranscription()
+            }
+        }
     }
 
     /**
@@ -181,6 +190,8 @@ class SqliteHistoryStore internal constructor(
     internal fun close() = database.close()
 
     companion object {
+        private const val TAG = "BreakerHistory"
+
         /**
          * The store on the phone's own SQLite, in the app-private database.
          *
