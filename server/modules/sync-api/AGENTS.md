@@ -242,6 +242,7 @@ completes it by rotating the DEK at the account's next password change
   `client_id` as a duplicate, and never treats a lower one as an update — the
   first replaces, the second is refused (test: push both orders, confirm the
   replace and the 409).
+- A push whose key_version is above the account's current key_version is refused (ADR-006: only the server sets it); built with the sync routes.
 - A username is 1 to 64 characters from `A-Z a-z 0-9 . _ -` only. It is
   stored as typed; uniqueness and every lookup use its lower-case form, so
   "Bob" and "bob" cannot both exist and a lookup under another case finds the
