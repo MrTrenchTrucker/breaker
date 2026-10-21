@@ -159,10 +159,10 @@ redraws or the activity lifecycle now runs on an Android 16 emulator (upgrade an
 fresh install, five window sizes, rotation, background and dark mode) before an
 APK goes out; three launch crashes found there are fixed in main.
 
-NOT REPRODUCED: the Commander saw history and the speech model gone after an
+NOT REPRODUCED: the project owner saw history and the speech model gone after an
 update. Model, settings and history are all app-private, so an update keeps
 them and an uninstall wipes them. An in-place 6 to 8 update keeps them (emulator
-test); APKs 1-5 had different signing keys, so 5 to 6 needed an uninstall. The Commander ruled that an uninstall
+test); APKs 1-5 had different signing keys, so 5 to 6 needed an uninstall. The project owner ruled that an uninstall
 removes everything (ADR-028); the manifest change that stops backup restoring data is BUILT: the manifest sets
 `allowBackup="false"` and two rules files exclude every domain. The
 list of what is not verified (the service in the background, the restart from the

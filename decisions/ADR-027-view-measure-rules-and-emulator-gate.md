@@ -2,13 +2,13 @@
 
 **Status:** accepted
 **Date:** 2026-10-20
-**Approved by:** Commander (Talk 8mzm2err, 2026-10-20 order)
+**Approved by:** the project owner (2026-10-20 order)
 
 See ADR-026 for the Home mic these rules were first broken on.
 
 ## Context
 APK 7, the first build with the new Home mic (ADR-026), crashed on launch. All
-of its JVM unit tests and source-text gates were green. RELAY ran it on an
+of its JVM unit tests and source-text gates were green. The gate reviewer ran it on an
 Android 16 emulator and found three defects that no JVM test could see, because
 each one lives in Android's layout pass or the Activity lifecycle:
 
@@ -31,14 +31,14 @@ each one lives in Android's layout pass or the Activity lifecycle:
    `TouchGapView` measures `resolveSize(side, spec)` on both axes
    (`TouchGapMeasureGateTest`).
 
-The Commander's phone test of APK 8 then showed more defects of the same kind,
+The project owner's phone test of APK 8 then showed more defects of the same kind,
 which are OPEN at the time of this ADR: the X and check on the recording Home
 mic are drawn but cannot be tapped (cause not found; one hypothesis is a Home
 redraw during recording that re-parents the mic in the middle of a touch); the
 first History card stretched to the window height; and Settings uses a narrower
 content band than Home (not reproduced on the emulator, whose edges match Home; a phone screenshot is needed).
 
-RELAY reproduced the History stretch on the emulator and found its cause, the
+The gate reviewer reproduced the History stretch on the emulator and found its cause, the
 same fill-pass class as defect 3. A spread row places a plain `View` between
 its children (`separatorOf()`, `ui/render/ScreenRenderer.kt` lines 166-167,
 added at line 123) with height `WRAP_CONTENT` and no `onMeasure` of its own.
@@ -46,20 +46,20 @@ When the list is shorter than the window, the second measure pass gives it the
 whole AT_MOST height: with one to three rows the first card is stretched and
 the others measure 0 px. It happens on every draw of a short list, not only the
 first. The fix is in main: the separator and the spacer are built from the platform `android.widget.Space`, which
-measures to zero in the fill pass. RELAY's emulator run: one row 1965 px to 660 px, three rows three equal cards.
+measures to zero in the fill pass. The gate reviewer's emulator run: one row 1965 px to 660 px, three rows three equal cards.
 
 ## Decision
 **R1. The emulator gate.** JVM unit tests and source-text gates cannot see
 Android layout or the lifecycle. Every UI change that touches layout, Views,
 redraws or the Activity lifecycle is proven on an Android 16 emulator before an
-APK goes to the Commander:
+APK goes to the project owner:
 - an upgrade over the previous APK (with the first-run marker already set) and
   a fresh install;
 - window heights 1500, 1800, 2000 and 2400 px, and 1440x3120 at density 560;
 - background and foreground, rotation, and dark mode;
 - the pass condition each time: the full Home screen draws and nothing crashes.
 
-RELAY owns the emulator (container `emu36`, AVD `t36`, API 36 `google_apis`
+The gate reviewer owns the emulator (AVD `t36`, API 36 `google_apis`
 x86_64). It lives outside this repository. The emulator cannot record audio
 (no speech model, and the native libraries are arm64 only), so the recording
 states of the mic are proven through a hook in the app's `debug` source set
@@ -104,8 +104,8 @@ host applies its own gutter.
 - Each R2 rule is the general form of one defect already seen, so the next View
   or redraw is checked against the failure, not only the one line that was
   fixed.
-- The release check stays cheap: the emulator runs on RELAY's box, not the
-  Commander's phone, and the phone test is kept for what an emulator cannot do
+- The release check stays cheap: the emulator runs on the gate reviewer's box, not the
+  project owner's phone, and the phone test is kept for what an emulator cannot do
   (audio, real touch feel).
 
 ## Consequences
@@ -117,7 +117,7 @@ render layer for its measure (`onMeasure` with `resolveSize`, or a fixed size),
 starting with the spread-row separator and `CardLipView`; one place for insets
 and gutter on every screen.
 
-Rules out: an APK going to the Commander for a layout or lifecycle change on
+Rules out: an APK going to the project owner for a layout or lifecycle change on
 the strength of JVM tests alone; a custom View that uses the default measure;
 re-adding a view without detaching it; a second gutter or inset applied by an
 outer wrapper.

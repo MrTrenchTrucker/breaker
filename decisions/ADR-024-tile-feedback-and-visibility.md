@@ -82,7 +82,7 @@ about 8 dp from the microphone's outline, which is two to three widths of the
 tile's glow. The recording window narrows to fit. Their shapes, colours and
 what each one does are unchanged.
 
-Amended 2026-10-20 (design note C-4 approved; Commander, Talk 8mzm2err,
+Amended 2026-10-20 (design note C-4 approved; project owner,
 2026-10-20 order). This is PLANNED: no code for it exists in main. It refines
 item 3.
 - **Signals.** Three readings can say a keyboard is in use: a focused editable
