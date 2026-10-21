@@ -71,7 +71,7 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
             history = { app.historyStore },
             clipboard = appTakenClipboard(this),
             switch = app.armedSwitch,
-            owner = app.tileHost.takeOwner,
+            owner = app.tileHost.takeOwner, busy = app.tileHost.micBusy,
             background = app.tileHost.takeWorker,
             main = MainLooperPost(),
             modelReady = { modelReady.isReady() },

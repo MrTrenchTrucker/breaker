@@ -25,7 +25,17 @@ internal class TakeYieldController(
 ) {
     /** The MIC_BUSY face flag: the single source of truth. */
     val micBusy = AtomicBoolean(false)
+
+    /** The one listener fired with the new value exactly when the busy flag flips (never on an unchanged set). */
+    var onBusyChanged: ((Boolean) -> Unit)? = null
+
     private val yieldRunning = AtomicBoolean(false)   // one yield at a time
+
+    /** Sets the busy flag, firing [onBusyChanged] with the new value only when it flips. */
+    private fun setBusy(v: Boolean) {
+        val flipped = micBusy.compareAndSet(!v, v)
+        if (flipped) onBusyChanged?.invoke(v)
+    }
 
     /** True while the taken branch is running (a begin attempt in
      *  the middle of it is a no-op, not a state change). */
@@ -36,7 +46,7 @@ internal class TakeYieldController(
         if (!yieldRunning.compareAndSet(false, true)) return
         // A second yield while the first transcribes is dropped: the
         // device is gone, there is nothing left to cut.
-        micBusy.set(true)
+        setBusy(true)
         takenNotice(TakenSentences.LEAD)   // the lead line, shown at the
         // cut; the settle replaces it with the outcome's line
         pushState(DictationState.SENDING)
@@ -99,7 +109,7 @@ internal class TakeYieldController(
 
     /** A tap (or shake) whose open was refused as taken. */
     fun beginRefusedAsTaken() {
-        micBusy.set(true)     // the face is the busy face, not FAILED
+        setBusy(true)     // the face is the busy face, not FAILED
         pushState(DictationState.IDLE)   // nothing is recording
         takenNotice(TakenSentences.STILL_TAKEN)   // the refused-open line
     }
@@ -107,26 +117,26 @@ internal class TakeYieldController(
     /** A begin from the busy face that started (the next state
      *  change). */
     fun onBeginAccepted() {
-        micBusy.set(false)
+        setBusy(false)
         takenNotice(null)     // the plain line comes back
     }
 
     /** A begin that failed on the device (a FAILED tile is not a
      *  busy tile). */
     fun onBeginFailed() {
-        micBusy.set(false)
+        setBusy(false)
     }
 
     /** The next take end that is NOT a taken one (a clear point). */
     fun onTakeEndedCleared() {
-        micBusy.set(false)
+        setBusy(false)
         takenNotice(null)
     }
 
     /** The switch off (a clear point). */
     fun disarmCleared() {
         yieldRunning.set(false)
-        micBusy.set(false)
+        setBusy(false)
         takenNotice(null)
     }
 }

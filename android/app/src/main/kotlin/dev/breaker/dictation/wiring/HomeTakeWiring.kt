@@ -19,13 +19,18 @@ import dev.breaker.dictation.ui.HomeControl
  * The Home's mic is a [HomeScreenMic] — the tile's own drawing, level slots and X, with the tile's draw
  * cancelled while the Home owns the take. The wiring pushes the take's state and the audio level to
  * the mic through [screenMic].
+ *
+ * The Home derives its mic face from the shared [MicBusyPort] [busy] on every state push — the tile
+ * host forwards the tile's MIC_BUSY flag and the three begin answers to it — and the wiring registers
+ * the one change listener so a flip re-pushes the current state and repaints the mic.
  */
 internal class HomeTakeWiring(
     take: () -> TakePort,
     history: () -> HistoryStore,
     clipboard: TakenClipboard,
-    switch: ArmedSwitch,
+    private val switch: ArmedSwitch,
     private val owner: TakeOwner,
+    private val busy: MicBusyPort = NoopMicBusyPort,
     background: Background,
     private val main: MainPost,
     private val modelReady: () -> Boolean,
@@ -44,18 +49,24 @@ internal class HomeTakeWiring(
         switch = switch,
         background = background,
         main = main,
+        busy = busy,
         onLine = { line -> main.post { home?.showLine(line) } },
-        onState = { state ->
-            main.post {
-                home?.showRecording(state == DictationState.RECORDING)
-                val tileState = when (state) {
-                    DictationState.RECORDING -> TileState.RECORDING
-                    else -> if (switch.isOn()) TileState.ARMED else TileState.IDLE
-                }
-                screenMic?.setState(tileState)
-            }
-        },
+        onState = { state -> main.post { rePushState(state) } },
     )
+
+    /** Registers the one listener: a flip of the shared busy flag re-pushes the current state, repainting the mic. */
+    init { busy.setBusyListener { rePushState(port.sessionState) } }
+
+    /**
+     * Pushes [state] to the mic: the recording look from the state, and the mic face derived from the
+     * switch, the shared busy flag and the state, in that order — armed-off wins, else busy, else
+     * RECORDING, else ARMED. Used by the state callback and the busy-flag listener; a null home or mic
+     * is a harmless no-op, as the state callback was before the screen is attached.
+     */
+    private fun rePushState(state: DictationState) {
+        home?.showRecording(state == DictationState.RECORDING)
+        screenMic?.setState(homeMicFace(switch.isOn(), busy.micBusy(), state))
+    }
 
     /**
      * Creates the Home screen's mic and wires its callbacks to this wiring. The mic's view is
@@ -80,6 +91,8 @@ internal class HomeTakeWiring(
             onSend = { adapter.onSend() },
         )
         screenMic = mic
+        // the derived face once, so a rebuilt mic never shows a stale one
+        rePushState(port.sessionState)
         return mic
     }
 
@@ -127,4 +140,12 @@ internal class LazyTakePort(supplier: () -> TakePort) : TakePort {
     override fun resetAfterTaken() {
         port.resetAfterTaken()
     }
+}
+
+/** The Home mic's face for a push: armed-off wins, else the shared busy flag, else RECORDING, else ARMED. */
+internal fun homeMicFace(switchOn: Boolean, busy: Boolean, state: DictationState): TileState = when {
+    !switchOn -> TileState.IDLE
+    busy -> TileState.MIC_BUSY
+    state == DictationState.RECORDING -> TileState.RECORDING
+    else -> TileState.ARMED
 }
