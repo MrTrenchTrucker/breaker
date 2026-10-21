@@ -1,9 +1,9 @@
-# AGENTS.md — android/modules/stt-server/
+# AGENTS.md - android/modules/stt-server/
 
 ## Purpose
 
 Client for Breaker's own `whisper-server` job queue (primary path). This
-client never talks to the Whisper X container directly — it talks to
+client never talks to the Whisper X container directly; it talks to
 Breaker's server, which forwards to whichever transcription service the
 admin has configured.
 
@@ -15,35 +15,84 @@ single `SttResult` once the job completes.
 
 ## Public Interface `core.SttEngine` (server path).
 
-**In:** WAV bytes + model/language params.
-**Out:** `SttResult(text, segments, language)` — raw text (formatting is the
-`format` module's job). The job-queue mechanics (enqueue, poll, backoff) are
-hidden behind this same port — `transport` and everything above it needs no
-change for the async design underneath.
+`class SttServerEngine(serverUrl: () -> String, apiKey: () -> String?, limits: ServerLimits = ServerLimits())`
+implements `core.SttEngine`. The public constructor takes two providers, read
+once per call: the base address and the API key. The app supplies both; this
+module reads no settings and no storage.
+
+`ServerLimits` is a public data class holding every time and size limit. Its
+defaults are listed under Known Gotchas.
+
+**In:** `SttRequest` (WAV bytes, duration, `model`, `language`).
+**Out:** `SttResult.Success(text, segments, language)` or
+`SttResult.Failure(error, detail)`. `detail` is one fixed sentence from
+`FailureSentences`, or, for a failed job, the server's failure text after
+cleaning.
+
+`transcribe` blocks, never throws, and never runs past its budget. The budget
+is `baseBudgetMs + clipFactor * clip length`, capped at `maxBudgetMs`, measured
+from the start of the call. The engine keeps no state between calls.
+
+The job-queue mechanics (enqueue, poll, backoff) stay behind this port, so
+`transport` and everything above it needs no change.
 
 **API (async job contract, see `shared/api-contracts`):**
-- `POST https://<zt-ip>:<port>/v1/audio/transcriptions` multipart: `file`
-  (WAV), `model`, `language` → `202 { job_id, status: "queued" }`
-- Poll `GET /v1/jobs/{job_id}` (short interval + cap, e.g. 500 ms up to N
-  tries) → `{ status: queued|processing|done|failed, result }`; on `done`,
-  extract `{ text, segments, language }` into `SttResult`; on `failed`,
-  `SttResult.failure`.
-- **This endpoint lives on Breaker's `whisper-server`, built in Phase 4** — not
-  on the Whisper X container, which this client never addresses. Until Phase 4
-  ships, server mode reports `SERVER_UNREACHABLE`/endpoint-missing.
-- Auth: `Authorization: Bearer <apiKey>` (Android Keystore, never logged).
+- `POST {base}/v1/audio/transcriptions`, multipart: part `file` (the WAV bytes,
+  `audio.wav`), part `model`, part `language`. Expects `202` and a job id. The
+  POST is never repeated.
+- Poll `GET {base}/v1/jobs/{job_id}`. The first poll waits 500 ms; each later
+  pause is 1.5 times the one before (at least 1 ms more), capped at 2 s; at
+  most 600 polls. `queued` and `processing` keep polling; `done` gives the
+  success; `failed` gives a failure with the server's text, cleaned: the key is
+  removed, long token-like runs are redacted, and the text is cut to 160 units.
+- **This endpoint lives on Breaker's `whisper-server`, built in Phase 4**, not
+  on the Whisper X container, which this client never addresses.
+- Auth: `Authorization: Bearer <key>` on every call (the POST and each poll),
+  with `Accept: application/json`. The key is never logged or stored, and never
+  appears in a failure text. A key with a CR, LF or NUL is refused before
+  anything is sent.
 
-**Transport:** HTTPS over ZeroTier. TLS cert verification against Local
-Server's cert infra (verify state first — R9). Short timeouts (connect 1.5 s
-on the initial POST) so a dead server is reported fast; polling has its own
-bounded budget so a stuck job degrades to a clear error, not a hang.
+**Answers and results (fixed):**
+
+| Answer | Result |
+|---|---|
+| POST 202 | go on and poll |
+| POST 401, 403 | `OTHER`, key refused |
+| POST 413 | `OTHER`, too large |
+| POST 404 | `SERVER_UNREACHABLE`, no endpoint (inferred, not seen on a real server) |
+| POST 429, 5xx | `SERVER_UNREACHABLE`, not taking work (inferred, not seen on a real server) |
+| POST any other status | `OTHER`, unexpected status |
+| poll 200, `done` | success with text, segments and language |
+| poll 200, `failed` | `OTHER`, the job's failure text, cleaned |
+| poll 200, `queued` or `processing` | poll again |
+| poll 200, unreadable or wrong fields | `OTHER`, bad answer |
+| poll 401, 403 | `OTHER`, key refused |
+| poll 404 | `OTHER`, job gone |
+| poll 429, 5xx, or a lost connection | counted as transient; up to 3 in a row are tolerated, and the next one ends the call with that failure |
+| read timeout | counted as transient; up to 3 in a row are tolerated, and the next one ends the call as `TIMEOUT` |
+| budget used up, or 600 polls without `done` | `TIMEOUT` |
+| TLS failure | `SERVER_UNREACHABLE`, at once, never retried |
+| connection refused or unknown host | `SERVER_UNREACHABLE` on the POST; counted as transient on a poll |
+
+**Transport:** https addresses only. Any other scheme, a missing host, user
+information, or a space or control character is refused before anything is
+sent. Platform trust only: no certificate pinning, no custom CA, no
+TrustManager. Redirects are not followed and caches are off. Each call has a
+connect timeout (1.5 s by default), so a dead server is reported fast. Every
+exchange runs under a watchdog, so a stuck call ends at its deadline rather
+than in a hang.
 
 ## Invariants
-- Server transcription E2E from phone over ZeroTier (F2) — after Phase 4.
+- End-to-end transcription from a phone over ZeroTier (F2) is not verified
+  yet; it waits for the server module (Phase 4).
 - Correct JSON parse for both the enqueue response and the poll response,
   incl. segments + timestamps on `done`.
-- Timeout/error at either step surfaced as `SttResult.failure` — never a
+- Timeout/error at either step surfaced as `SttResult.failure`, never a
   hang (R4).
+- The upload is sent at most once. No retry of the POST.
+- Only https addresses are called. The check runs before any request.
+- The key never reaches a log line (the module logs nothing), an exception
+  message, or a failure text.
 
 ## Depends On
 - android (registered in modules.toml)
@@ -85,8 +134,24 @@ agents, not required: an outside contributor may write the code themselves
 (`.github/CONTRIBUTING.md`).
 
 ## Known Gotchas
-- OpenAI-compatible contract lives in shared/api-contracts — no drift.
-- The Gradle boundary check does not require the
-  `project(":shared:modules:api-contracts")` edge here while
-  `shared_api_contracts` is base-only (it publishes no artifact); the
-  moment it gains an artifact plugin the edge becomes required.
+- OpenAI-compatible contract lives in shared/api-contracts - no drift.
+- The build wires both code edges: `project(":android:modules:core")` and
+  `project(":shared:modules:api-contracts")`. The contract helper requires the
+  api-contracts edge, because that module applies `kotlin.jvm` and
+  `java-library` and so publishes an artifact; the contract test asserts that
+  the edge is declared.
+- Default limits (`ServerLimits.kt`): connect 1.5 s; POST reply 10 s, POST cap
+  30 s; poll read 5 s, poll cap 10 s; first poll after 500 ms, pauses capped at
+  2 s; budget 60 s plus 3 times the clip, at most 300 s; 600 polls; 3 transient
+  poll failures in a row. None of these is measured on a device or against a
+  real server.
+- Not verified yet, and waiting for the server module (Phase 4):
+  - the 404 answer to the upload and the 429 and 5xx answers. They are
+    inferred. `openapi.yaml` in shared/api-contracts lists 202, 401 and 413
+    for the upload, and 200, 401 and 404 for a job;
+  - the retry timings and the default time limits, on a real server;
+  - the certificate state of the real server. The module trusts the platform
+    only, with no pinning and no custom CA, so the real certificate has not
+    been checked;
+  - an end-to-end dictation on a phone. The app does not use this engine yet;
+    wiring it is a separate change.
