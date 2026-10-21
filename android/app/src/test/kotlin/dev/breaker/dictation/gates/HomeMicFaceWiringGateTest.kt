@@ -32,7 +32,7 @@ internal class HomeMicFaceWiringGateTest {
     private val rules: List<Rule> = listOf(
         // (a) rePushState derives the face from the switch, the shared busy flag and the state, in order.
         Rule("REPUSH_STATE_PASSES_SWITCH_AND_BUSY_FACE", homeTake) { code ->
-            Regex("""homeMicFace\s*\(\s*switch\.isOn\(\)\s*,\s*busy\.micBusy\(\)\s*,\s*state\s*\)""").containsMatchIn(code)
+            Regex("""homeMicFace\s*\(\s*switch\.isOn\(\)\s*,\s*busy\.micBusy\(\)\s*,\s*sending\s*,\s*state\s*\)""").containsMatchIn(code)
         },
         // (b) createScreenMic sets the screen mic, then repaints once from the port's own session state.
         Rule("CREATE_SCREEN_MIC_SETS_THE_MIC_THEN_REPAINTS", homeTake) { code ->
@@ -42,29 +42,39 @@ internal class HomeMicFaceWiringGateTest {
         Rule("MIC_BUSY_PORT_IS_THE_FORWARDER_OVER_THE_COORDINATOR", tileHost) { code ->
             Regex("""micBusy\s*:\s*MicBusyPort\s+by\s+lazy\s*\{[^}]*MicBusyPortForwarder\s*\(\s*coordinator\.yield\s*\)""").containsMatchIn(code)
         },
+        // (d) onState sets the sticky sending flag to whether the state is SENDING.
+        Rule("ONSTATE_SETS_THE_SENDING_FLAG", homeTake) { code ->
+            Regex("""onState\s*=\s*\{\s*state\s*->[\s\S]*?sending\s*=\s*state\s*==\s*DictationState\.SENDING""").containsMatchIn(code)
+        },
     )
 
     private val firing: List<Sample> = listOf(
         // B4: the switch arg is a hard constant instead of switch.isOn() (rule a's first clause breaks).
         Sample("REPUSH_STATE_PASSES_SWITCH_AND_BUSY_FACE",
-            "homeMicFace(switch.isOn(), busy.micBusy(), state)", "homeMicFace(true, busy.micBusy(), state)"),
+            "homeMicFace(switch.isOn(), busy.micBusy(), sending, state)", "homeMicFace(switch.isOn(), busy.micBusy(), false, state)"),
         // B6: the first-paint re-push line is deleted (rule b's rePushState(port.sessionState) is gone).
         Sample("CREATE_SCREEN_MIC_SETS_THE_MIC_THEN_REPAINTS",
             "        rePushState(port.sessionState)\n", ""),
         // B19: the lazy body builds a no-op port instead of the real forwarder (rule c's forwarder is gone).
         Sample("MIC_BUSY_PORT_IS_THE_FORWARDER_OVER_THE_COORDINATOR",
             "MicBusyPortForwarder(coordinator.yield)", "NoopMicBusyPort"),
+        // onState no longer sets the sending flag (rule d's flag assignment is gone).
+        Sample("ONSTATE_SETS_THE_SENDING_FLAG",
+            "sending = state == DictationState.SENDING", "sending = false"),
     )
 
     private val quiet: List<Quiet> = listOf(
         Quiet("REPUSH_STATE_PASSES_SWITCH_AND_BUSY_FACE", homeTake,
-            "homeMicFace(switch.isOn(), busy.micBusy(), state)",
-            "homeMicFace( switch.isOn() , busy.micBusy() , state )"),
+            "homeMicFace(switch.isOn(), busy.micBusy(), sending, state)",
+            "homeMicFace( switch.isOn() , busy.micBusy() , sending , state )"),
         Quiet("CREATE_SCREEN_MIC_SETS_THE_MIC_THEN_REPAINTS", homeTake,
             "screenMic = mic", "screenMic   =   mic"),
         Quiet("MIC_BUSY_PORT_IS_THE_FORWARDER_OVER_THE_COORDINATOR", tileHost,
             "MicBusyPortForwarder(coordinator.yield)",
             "MicBusyPortForwarder( coordinator.yield )"),
+        Quiet("ONSTATE_SETS_THE_SENDING_FLAG", homeTake,
+            "sending = state == DictationState.SENDING",
+            "sending   =   state   ==   DictationState.SENDING"),
     )
 
     private fun edit(text: String, old: String, new: String): String {

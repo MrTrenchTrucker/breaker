@@ -10,7 +10,7 @@ import org.junit.Test
 
 /**
  * The Home take adapter over the shared port: the second tap finishes the take and the shared
- * settle runs finish, save, resetAfterTaken, IDLE, then the line, with the committer never
+ * settle runs SENDING, then finish, save, resetAfterTaken, IDLE, then the line, with the committer never
  * reached. Each test says in its KDoc what would break it.
  *
  * The ports are the shared [HomeTakeFakes] ones, the same objects the first-tap test drives.
@@ -29,7 +29,7 @@ internal class HomeTakeAdapterSettleTest {
     private val lines = ArrayList<String?>()
     private val states = ArrayList<DictationState>()
 
-    private fun adapter(switch: ArmedSwitch): HomeTakeAdapter {
+    private fun adapter(switch: ArmedSwitch, bg: Background = background): HomeTakeAdapter {
         lines.clear()
         states.clear()
         return HomeTakeAdapter(
@@ -37,7 +37,7 @@ internal class HomeTakeAdapterSettleTest {
             owner = owner,
             settle = settle,
             switch = switch,
-            background = background,
+            background = bg,
             main = main,
             onLine = { line -> lines.add(line); log.add("line:$line") },
             onState = { state -> states.add(state); log.add("state:$state") },
@@ -65,8 +65,9 @@ internal class HomeTakeAdapterSettleTest {
         states.clear()
         a.onTap()
         assertEquals(
-            "app: home: the settle order is finish, save, resetAfterTaken, IDLE, then the line",
+            "app: home: the order is SENDING, then finish, save, resetAfterTaken, IDLE, then the line",
             listOf(
+                "state:SENDING",
                 "finish",
                 "save",
                 "resetAfterTaken",
@@ -75,20 +76,36 @@ internal class HomeTakeAdapterSettleTest {
             ),
             log,
         )
-        assertEquals("app: home: a settled take ends IDLE", listOf(DictationState.IDLE), states)
+        assertEquals("app: home: a settled take shows SENDING then ends IDLE", listOf(DictationState.SENDING, DictationState.IDLE), states)
     }
 
-    /** Fails if a settled take sends, reaches the committer, pushes SENDING or does not end IDLE with the Home line. */
+    /** Fails if a settled take sends, reaches the committer, or does not end IDLE with the Home line. */
     @Test
-    fun `a settled take never shows sent and never commits`() {
+    fun `a settled take shows SENDING then ends IDLE, never sends and never commits`() {
         val a = adapter(homeSwitch(off = false).switch)
         a.onTap()
         a.onTap()
         assertEquals("app: home: the take must never send", 0, take.sendCount)
         assertEquals("app: home: no committer may be reached", 0, committer.commits)
-        assertTrue("app: home: the settle must not push SENDING", states.none { it == DictationState.SENDING })
+        assertTrue("app: home: the transcription shows the SENDING face", states.any { it == DictationState.SENDING })
         assertEquals("app: home: the settle ends IDLE", DictationState.IDLE, states.last())
         assertEquals("app: home: the line is the outcome, not a commit", "Text is in History and copied.", lines.last())
+    }
+
+    /**
+     * Fails if the refuse-catch in finishAndSettle pushes SENDING instead of IDLE: with a background
+     * whose submit throws, the finish block never runs, so the catch's IDLE is the only thing that
+     * clears the amber face. The mutant that pushes SENDING there leaves the face stuck forever.
+     */
+    @Test
+    fun `a refused finish shows SENDING then settles IDLE, never stuck on SENDING`() {
+        take.listeningElsewhere()          // recording, with no begin from the adapter (the begin would throw)
+        owner.begun(TakeOwnerKind.HOME)     // the Home holds it
+        adapter(homeSwitch(off = false).switch, bg = SendingThrowingBackground()).onSend()
+        assertEquals("app: home: a refused finish still clears the amber face to IDLE",
+            listOf(DictationState.SENDING, DictationState.IDLE), states)
+        assertEquals("app: home: a refused submit settles as not-converted",
+            "The speech could not be converted.", lines.single())
     }
 
     /** Fails if the Home taken line is replaced by TakenSentences.STILL_TAKEN. */
@@ -158,4 +175,11 @@ internal class HomeTakeAdapterSettleTest {
 
     /** The switch the adapter is given, with the launcher it must never have to call. */
     private class HomeSwitch(val switch: ArmedSwitch, val launcher: FakeLauncher)
+}
+
+/** A [Background] whose submit throws: the finish block never runs, so the refuse-catch in
+ * finishAndSettle is the only thing that can settle IDLE. Fails if that catch pushes SENDING (the
+ * amber face stuck forever on a refused submit). */
+private class SendingThrowingBackground : Background {
+    override fun submit(block: () -> Unit) { throw IllegalStateException("background refused to run") }
 }

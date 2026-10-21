@@ -42,6 +42,13 @@ internal class HomeTakeWiring(
     /** The Home screen's mic, set by [createScreenMic]. Pushed state and level from this wiring. */
     var screenMic: HomeScreenMic? = null
 
+    /**
+     * The amber SENDING face is sticky across a busy re-push: set when onState(SENDING) arrives (the take
+     * has ended and the local model is transcribing) and cleared by any other state. Read in [rePushState]
+     * so a busy flip during transcription re-pushes SENDING, not ARMED over it. Main thread only.
+     */
+    internal var sending = false
+
     private val adapter = HomeTakeAdapter(
         take = port,
         owner = owner,
@@ -51,7 +58,7 @@ internal class HomeTakeWiring(
         main = main,
         busy = busy,
         onLine = { line -> main.post { home?.showLine(line) } },
-        onState = { state -> main.post { rePushState(state) } },
+        onState = { state -> main.post { sending = state == DictationState.SENDING; rePushState(state) } },
     )
 
     /** Registers the one listener: a flip of the shared busy flag re-pushes the current state, repainting the mic. */
@@ -59,13 +66,13 @@ internal class HomeTakeWiring(
 
     /**
      * Pushes [state] to the mic: the recording look from the state, and the mic face derived from the
-     * switch, the shared busy flag and the state, in that order — armed-off wins, else busy, else
-     * RECORDING, else ARMED. Used by the state callback and the busy-flag listener; a null home or mic
+     * switch, the shared busy flag, the sticky sending flag and the state, in that order — armed-off wins, else busy, else
+     * sending, else RECORDING, else ARMED. Used by the state callback and the busy-flag listener; a null home or mic
      * is a harmless no-op, as the state callback was before the screen is attached.
      */
     private fun rePushState(state: DictationState) {
         home?.showRecording(state == DictationState.RECORDING)
-        screenMic?.setState(homeMicFace(switch.isOn(), busy.micBusy(), state))
+        screenMic?.setState(homeMicFace(switch.isOn(), busy.micBusy(), sending, state))
     }
 
     /**
@@ -142,10 +149,11 @@ internal class LazyTakePort(supplier: () -> TakePort) : TakePort {
     }
 }
 
-/** The Home mic's face for a push: armed-off wins, else the shared busy flag, else RECORDING, else ARMED. */
-internal fun homeMicFace(switchOn: Boolean, busy: Boolean, state: DictationState): TileState = when {
+/** The Home mic's face for a push: armed-off wins, else the shared busy flag, else the sticky sending flag, else RECORDING, else ARMED. */
+internal fun homeMicFace(switchOn: Boolean, busy: Boolean, sending: Boolean, state: DictationState): TileState = when {
     !switchOn -> TileState.IDLE
     busy -> TileState.MIC_BUSY
+    sending -> TileState.SENDING
     state == DictationState.RECORDING -> TileState.RECORDING
     else -> TileState.ARMED
 }

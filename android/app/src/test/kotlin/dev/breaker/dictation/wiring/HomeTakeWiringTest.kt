@@ -83,14 +83,14 @@ internal class HomeTakeWiringTest {
         )
     }
 
-    /** RECORDING shows the recording look and IDLE takes it away. */
+    /** RECORDING shows the recording look; the take ends showing SENDING and the settle IDLE, both taking the recording look away. */
     @Test
     fun `recording shows the recording look and idle takes it away`() {
         val wiring = built()
         wiring.onTap()
         assertEquals("app: RECORDING must show the recording look", listOf(true), home.recordings)
         wiring.onTap()
-        assertEquals("app: IDLE must take the recording look away", listOf(true, false), home.recordings)
+        assertEquals("app: the take ends: SENDING then the settle IDLE take the recording look away", listOf(true, false, false), home.recordings)
     }
 
     /** A tap that the take refuses, as it is while another take runs, shows the runner's sentence and starts nothing. */
