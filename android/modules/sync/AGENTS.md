@@ -2,80 +2,54 @@
 
 ## Purpose
 
-Offline-first sync queue, idempotent push (F13, N12). Offline-first sync queue (F13). Every transcription syncs to the
-server when reachable — even local-only mode — with no data loss on offline
-dictation.
+Offline-first sync queue, idempotent push (F13, N12). Offline-first sync queue (F13). Every transcription syncs to the server when reachable - even local-only mode - with no data loss on offline dictation.
 
-**Build phase:** Phase 11 (the `key_version` replace and re-key parts arrive in Phase 19, the pending-sealed fetch in Phase 20). Needs first: `core` (on main) and the server's `sync-api`.
+**Build phase:** Phase 11, development only. Every push is built at `key_version` 0: the body is the R1 JSON object, base64 encoded, with no cryptography. The `key_version` 1 form, the `key_version` replace, the re-key and the pending-sealed fetch are not built. Needs first: `core` (on main) and the server's `sync-api`.
 
 ## Owns
-Offline-first sync queue, idempotent push (F13, N12), and delivery of pending
-sealed agent-token results (ADR-018).
 
-## Public Interface `core.SyncService` port.
+The offline-first sync queue on the phone, and the idempotent push (F13, N12) of its rows at `key_version` 0.
+
+## Public Interface
+
+- `QueuedSyncService` implements `core.SyncService` (`enqueue`, `pushPending`). Build it with `QueuedSyncService.create(context, uploader, probe)`. `pendingCount()` and `close()` are public too.
+- `SyncUploader`: `fun upload(push: SyncPush): UploadOutcome`. `UploadOutcome` has `CONFIRMED`, `UNREACHABLE` and `FAILED`, in that order.
+- The push and the body types come from api-contracts: `dev.breaker.shared.api.SyncPush` and `dev.breaker.shared.api.sync` (`SyncBody`, `SyncBodyCodec`, `SyncBodyException`, `SyncSource`). The module calls `SyncBodyCodec` and never writes the wire form by hand (ADR-017).
 
 **Queue:**
-- The sync module keeps its own queue of pending transcriptions: `core.SyncService.enqueue` fills it and
-  `pushPending` drains it. Rows in the history SQLite store carry no `sync_status`.
-- A background worker pushes pending transcriptions to `POST /v1/sync` whenever
-  the server is reachable (reuses the transport probe).
-- **Idempotent (N12):** each push carries a `client_id` and the record's
-  `key_version` (ADR-006); the server dedupes on that **pair**, not on
-  `client_id` alone, so an ordinary retry (same pair) never duplicates, while
-  a re-key's push of the same `client_id` at a **higher** `key_version`
-  atomically replaces the stored record instead of being treated as a
-  duplicate. (Not a content hash: a content hash would never match across
-  two encrypted uploads of the "same" plaintext, because AES-256-GCM uses a
-  fresh nonce each time — see `android/modules/crypto`.)
+- `enqueue` stores one row: the transcription id as `client_id`, the text, the source as its wire text (`local` or `server`), the model, the duration and `created_at` (epoch milliseconds, when the transcription was made). Audio is never queued.
+- `pushPending` asks the `ConnectivityProbe` first. When the server is reachable it sends the rows that were queued when the drain started, oldest first, by `seq`, and returns a `SyncReport`. A row queued during the drain waits for the next drain. Only one drain runs at a time.
+- Every push is `SyncBodyCodec.plainPush(clientId, body)` at `key_version` 0.
 
-**Pending sealed results (ADR-018, F27, Phase 20):** right after each
-successful login, while the unwrapped DEK and box private key are in memory,
-fetch `GET /v1/sync/pending-sealed`, convert each record through
-`core.CryptoService` (`unsealAndReencrypt`, which the port gains in Phase 19,
-implemented by `android/modules/crypto`), and push the result through the ordinary
-`POST /v1/sync` with `client_id` set to the pending record's id, at the
-account's current `key_version` — a new record, not a replace. The server
-deletes the pending row once that lands; if another device of the same owner
-converted it first, the (client id, `key_version`) dedupe makes this push a
-no-op. Like the web FE, this client cannot tell a real sealed row from a
-forged one (T26).
-
-**Re-key replacement (ADR-006, Phase 19):** after `android/modules/auth-client`
-and `android/modules/crypto` complete a password change — which always
-generates a new DEK and box keypair and advances `key_version` — this module
-re-encrypts and replaces every one of the account's own records still below
-the new `key_version`, through the same push path, at the higher version.
-This resumes at the next login if it is interrupted, the same as the
-Phase-11–18 plaintext migration does: login then returns `prev_wrapped_dek`,
-which `android/modules/crypto` unwraps with the new DEK so the remaining
-records can still be read and replaced. The not-yet-synced local queue is
-re-encrypted under the new DEK before it is pushed; an item still under the
-old DEK would be refused (409) as a new record below the current
-`key_version`.
-
-**Auth:** uses the user token from `auth-client`; sync is scoped to the user's
-namespace server-side (N13).
+**Uploader:** the app supplies it. A class that implements `SyncUploader` also needs api-contracts on its own classpath (the app declares it when it wires). It sends the `SyncPush` to `POST /v1/sync` with the user's token and answers `CONFIRMED`, `UNREACHABLE` or `FAILED`. This module has no HTTP client.
 
 ## Invariants
-- Offline dictation → queued by `enqueue` → pushed by `pushPending` on
-  reconnect → counted in that call's `SyncReport`; nothing is dropped.
-- Retry storm after reconnect doesn't duplicate (N12 test).
+- Offline dictation, queued by `enqueue`, then pushed by `pushPending` on reconnect, then counted in that call's `SyncReport`; nothing is dropped.
+- `enqueue` returns once the row is committed. A second enqueue of the same transcription id keeps the first copy.
+- Every push is built by `SyncBodyCodec.plainPush` at `key_version` 0. No other key version is built or sent.
+- A row is removed only after the uploader answers `CONFIRMED`.
+- A drain walks only the rows queued when it started. The highest seq is read once, after the probe answers. A row queued during the drain, including one queued by the uploader, waits for the next drain, so one drain always ends.
+- A row the drain cannot push is skipped: its stored source is not `local` or `server`, its client id is not a lowercase canonical UUID, or the codec refuses its body. A skipped row stays queued, the drain goes on to the next row, and each drain that reaches the row counts it in `SyncReport.failed`. A skipped row is never removed.
+- `FAILED`, and an uploader that throws, stop the drain at that row and count one failure. `UNREACHABLE` stops the drain and counts no failure. A server that is not reachable gives `SyncReport(0, 0)` and no walk over the rows.
+- One drain runs at a time (`Mutex.tryLock`). A call made meanwhile returns `SyncReport(0, 0)` at once.
+- A retry sends the same client id at the same key version, so the server dedupes the pair (N12, ADR-006).
 - No sync traffic except to Local Server (N2).
-- Sync is off in release builds until Phase 19 (encryption by default): no
-  release build turns it on and no real user's data is synced before then
-  (`docs/04-build-order.md`, "Gates and releases").
+- Sync is off in release builds until Phase 19 (encryption by default): no release build turns it on and no real user's data is synced before then (`docs/04-build-order.md`, "Gates and releases").
 
 ## Depends On
-- android (registered in modules.toml)
-- android_core (registered in modules.toml)
+- android
+- android_core
+- shared_api_contracts
 
 ## Does Not Own
 - Encryption (crypto)
-- Auth (auth-client)
+- Auth (auth-client), including the user token
 - History storage (history)
+- The body codec, which is api-contracts
+- The HTTP call to `POST /v1/sync`, which the app's uploader makes
 
 ## Test Locations
-- Unit (Kotlin): `android/modules/sync/src/test/kotlin/`, created with the module's first code. Run: `./gradlew :android:modules:sync:test`
+- Unit (Kotlin): `android/modules/sync/src/test/kotlin/dev/breaker/dictation/sync/`. Run: `./gradlew :android:modules:sync:test`
 - Contract: `tests/contract/test_sync_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_sync_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
@@ -105,12 +79,18 @@ agents, not required: an outside contributor may write the code themselves
 (`.github/CONTRIBUTING.md`).
 
 ## Known Gotchas
-- Core's `Transcription` and `SyncService` carry no `key_version` yet, though
-  the pair dedupe needs it on the wire from Phase 11 (`0` for plaintext rows).
-  Adding it to core is an interface change for the project leader, never a
-  field this module invents on its own.
-- A record the re-key cannot decrypt keeps the re-key unfinished, and the server refuses password changes (409) until it is replaced or deleted. Surface it to the user rather than retrying forever (ADR-006).
-- Idempotent (N12): (`client_id`, `key_version`) pair dedupe (not a hash) —
-  retries must never duplicate, and a re-key's higher `key_version` at the
-  same `client_id` must replace, never duplicate or no-op.
-- The login token and encryption reach this module as `core.AuthService` and `core.CryptoService`, wired by `android/app` (ADR-001); it never imports `auth-client` or `crypto`.
+- The queue file holds the text in clear on the device. The manifest sets `android:allowBackup="false"` and the backup rules exclude every domain, so a backup does not restore the queue (ADR-028).
+- At `key_version` 0 the body is not encrypted, so the server can read the text. This is the development form. It is replaced when the `key_version` 1 form is built.
+- A row the drain skips repeats in `SyncReport.failed` on every drain that reaches it. It stays queued until a later permanent-refusal path exists.
+- A row the server refuses for good returns `FAILED` on every push and blocks the rows behind it until a later permanent-refusal path exists.
+- The client id must be a lowercase canonical UUID. The app's id source (`UuidIdSource`) mints one. A transcription with any other id is skipped on every drain.
+- The Android SQLite adapter, `SqliteSyncQueueDatabase`, cannot run on a JVM. Its tests read its source text and check it against `SyncQueueSql`.
+- The module imports no auth or crypto module. Modules talk through core ports or the app's wiring (ADR-001). The app supplies the uploader, which carries the user token.
+
+## Not Built Yet
+- The HTTP uploader for `POST /v1/sync`: the token, and the 204, 401, 403 and 409 answers.
+- The background worker that calls `pushPending`.
+- Telling a permanent server refusal from a transient failure.
+- Tombstones for deleted records (a separate sync path, not in the body).
+- Everything at `key_version` 1 or higher: the authenticated encryption form, the `key_version` replace, the re-key, and fetching pending sealed agent-token results (ADR-018, Phases 19 and 20).
+- Wiring the module into `android/app`.
