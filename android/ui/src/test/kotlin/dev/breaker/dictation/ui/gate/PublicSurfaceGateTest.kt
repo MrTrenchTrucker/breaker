@@ -46,7 +46,7 @@ private const val SETTLED_ENTRY =
     "fun createSettingsView(context: android.content.Context, " +
         "settings: dev.breaker.dictation.core.port.SettingsStore, " +
         "modelReady: () -> Boolean, downloadLine: () -> String?, " +
-        "onDownloadModel: () -> Unit): android.view.View"
+        "onDownloadModel: () -> Unit, onThemeChanged: (() -> Unit)? = null): android.view.View"
 
 private const val SETTLED_HISTORY = "fun createHistoryView(context: android.content.Context, " +
     "history: dev.breaker.dictation.core.port.HistoryStore, settings: dev.breaker.dictation.core.port.SettingsStore): android.view.View"

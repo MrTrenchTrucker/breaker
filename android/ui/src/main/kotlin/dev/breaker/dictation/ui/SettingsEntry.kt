@@ -17,6 +17,7 @@ import dev.breaker.dictation.ui.theme.ThemeController
 import dev.breaker.dictation.core.port.SettingsStore
 import dev.breaker.dictation.ui.theme.isNightMode
 import dev.breaker.dictation.ui.theme.storedTheme
+import dev.breaker.dictation.ui.theme.bindThemeChanges
 import java.time.ZoneId
 
 /*
@@ -67,9 +68,11 @@ fun createSettingsView(
     modelReady: () -> Boolean,
     downloadLine: () -> String?,
     onDownloadModel: () -> Unit,
+    onThemeChanged: (() -> Unit)? = null,
 ): android.view.View {
     val phoneIsDark = isNightMode(context.resources.configuration.uiMode)
     val themes = ThemeController(settings, phoneIsDark)
+    bindThemeChanges(themes, onThemeChanged)
     val handler = SettingsIntentHandler(settings, themes, SettingsScreen())
     return SettingsHostView(context, handler, themes, ScreenRenderer(context), modelReady, downloadLine, onDownloadModel)
 }
