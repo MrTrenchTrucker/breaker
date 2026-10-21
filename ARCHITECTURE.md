@@ -765,8 +765,8 @@ previous tag.
 container. All bind to the ZeroTier interface only. TLS via the self-hosted CA.
 API keys + user tokens never in git.
 
-**Mirror:** after a GitHub main merge, sync Forgejo `main` only; a full mirror
-force-resets Forgejo `module/*` branches holding unpushed work.
+**Mirror:** after a GitHub main merge, sync the private mirror's `main` only; a full mirror
+force-resets its `module/*` branches holding unpushed work.
 
 **APK signing:** the deploy pipeline signs each tagged release's APK with a
 dedicated **APK signing key** (generated once, stored in a secrets store — never

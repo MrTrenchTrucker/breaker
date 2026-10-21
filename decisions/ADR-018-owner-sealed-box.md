@@ -309,7 +309,7 @@ records the gap so nobody builds against an edge that does not exist.
 - The sealing and forwarding step is unshipped. It belongs to Phase 19/20.
 - `whisper-server` has no code dependency on `sync-api`: at main
   `server/modules/whisper-server/build.gradle.kts` declares none, and the
-  whisper-server code on its branch (`wip/whisper-server-merged-f312e3ee`)
+  whisper-server code on its work branch
   imports nothing from `sync-api`; its `SourceScanTest` forbids
   `dev.breaker.server.syncapi`.
 - The registry edge `server_whisper -> server_sync_api` that `modules.toml`
