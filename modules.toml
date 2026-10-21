@@ -143,8 +143,8 @@ card = "android/modules/settings/AGENTS.md"
 path = "android/modules/sync"
 owns = "Offline-first sync queue, idempotent push (F13, N12), and delivery of pending sealed agent-token results (ADR-018)."
 does_not_own = "Encryption (crypto); auth (auth-client); history storage (history)."
-depends_on = ["android", "android_core"]
-public = "SyncService"
+depends_on = ["android", "android_core", "shared_api_contracts"]
+public = "QueuedSyncService (via create), SyncUploader, UploadOutcome"
 card = "android/modules/sync/AGENTS.md"
 
 [module.android_auth_client]

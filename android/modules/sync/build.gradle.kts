@@ -2,7 +2,7 @@
 //
 // Card: android/modules/sync/AGENTS.md   Registry: modules.toml [module.android_sync]
 // Owns: Offline-first sync queue, idempotent push (F13, N12).
-// Depends on: android, android_core
+// Depends on: android, android_core, shared_api_contracts
 // Cross-module calls go through the core ports or the app's own
 // dependency wiring; this module never reaches into a sibling's code.
 //
@@ -34,6 +34,10 @@ kotlin {
 
 dependencies {
     implementation(project(":android:modules:core"))
+    implementation(project(":shared:modules:api-contracts"))
+    implementation(libs.kotlinx.coroutines.core)
 
     testImplementation(libs.junit)
+    // Test-only: runs SyncQueueSql on the desktop SQLite; never shipped.
+    testImplementation(libs.sqlite.jdbc)
 }
