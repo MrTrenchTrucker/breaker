@@ -18,6 +18,7 @@ internal class HomeTakeAdapter(
     private val switch: ArmedSwitch,
     private val background: Background,
     private val main: MainPost,
+    private val busy: MicBusyPort = NoopMicBusyPort,
     private val onLine: (String?) -> Unit,
     private val onState: (DictationState) -> Unit,
 ) {
@@ -76,10 +77,10 @@ internal class HomeTakeAdapter(
                 val answer: BeginResult =
                     try { take.begin() } catch (e: Exception) { BeginResult.Failed(RunnerSentences.COULD_NOT_RECORD) }
                 when (answer) {
-                    BeginResult.Recording -> main.post { onLine(null); onState(DictationState.RECORDING) }
+                    BeginResult.Recording -> main.post { busy.beginAccepted(); onLine(null); onState(DictationState.RECORDING) }
                     is BeginResult.Refused -> main.post { onLine(answer.sentence) } // the runner's own line; nothing started
-                    is BeginResult.Failed -> main.post { onLine(answer.sentence) } // the runner's own line; nothing started
-                    BeginResult.Taken -> main.post { onLine(HomeSentences.MIC_TAKEN) } // the busy face; no save, no copy, no settle
+                    is BeginResult.Failed -> main.post { busy.beginFailed(); onLine(answer.sentence) } // the runner's own line; nothing started
+                    BeginResult.Taken -> main.post { busy.beginRefusedAsTaken(); onLine(HomeSentences.MIC_TAKEN) } // the busy face; no save, no copy, no settle
                 }
             }
         } catch (e: Exception) {

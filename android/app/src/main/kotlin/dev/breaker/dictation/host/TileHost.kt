@@ -14,6 +14,8 @@ import dev.breaker.dictation.wiring.DisplayWatch
 import dev.breaker.dictation.wiring.ForwardingDownloadNotice
 import dev.breaker.dictation.wiring.LevelFeed
 import dev.breaker.dictation.wiring.LevelSink
+import dev.breaker.dictation.wiring.MicBusyPort
+import dev.breaker.dictation.wiring.MicBusyPortForwarder
 import dev.breaker.dictation.wiring.ModelDownloadNotice
 import dev.breaker.dictation.wiring.ModelDownloader
 import dev.breaker.dictation.wiring.NoticeClearingTilePort
@@ -103,6 +105,9 @@ internal class TileHost(
             root.historyStore,
         )
     }
+
+    /** The Home's mic busy port: reads the shared flag, wires the one listener, forwards the begin answers. */
+    internal val micBusy: MicBusyPort by lazy { MicBusyPortForwarder(coordinator.yield) }
 
     init {
         root.onTakeEnded = { val m = takeOwner.mark(); toCoordinator { takeOwner.settledIf(m); it.onTakeEnded() } }
