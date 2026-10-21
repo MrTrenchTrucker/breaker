@@ -97,6 +97,11 @@ internal class HomeTakeAdapter(
     private fun finishAndSettle() {
         // Cleared here on the main thread, before the finish runs, so a second tap meanwhile cannot finish it twice.
         owner.settled()
+        // The take has ended and the local model is transcribing: show the amber SENDING face for the whole
+        // transcription, until the settle's IDLE. Pushed on the main thread BEFORE the background submit so it is
+        // first in the order: onState(SENDING) is pushed BEFORE the try, so a refused submit runs the catch's IDLE
+        // right after, so the face is SENDING then IDLE straight away and never stranded (pushing after the submit could let the settle's IDLE arrive first).
+        onState(DictationState.SENDING)
         try {
             background.submit {
                 val finished: FinishResult? =
