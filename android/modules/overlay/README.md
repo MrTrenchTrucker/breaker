@@ -57,7 +57,9 @@ ledge, and the word BREAKER as outlines. It is drawn from numeric path data copi
 from the art, with no font file. A glowing outline runs along its silhouette and
 takes the same colour per state as the ring did before. The tile draws no fill
 behind the mic in any state, so only the mic and its glow show over the app. The
-glow is a few stroke layers, not a blur.
+glow is a few stroke layers, not a blur. `GlowKind.TILE` draws the tile's three glow
+strokes, their outer half width from `GlowSpec.TILE`'s reaches; `GlowKind.SCREEN`
+draws the Home mic's halo and then those same strokes.
 
 ## How dictation ends
 

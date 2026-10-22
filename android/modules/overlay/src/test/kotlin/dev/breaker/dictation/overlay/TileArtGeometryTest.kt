@@ -14,6 +14,32 @@ class TileArtGeometryTest {
 
     private val busy = ArtGeometry.busySign()
 
+    /** The real TileArtGeometry.kt, read as text. */
+    private fun geometryText(): String = ModuleFiles.mainTexts().getValue("TileArtGeometry.kt")
+
+    /** [text] with [old] replaced by [new]; fails by name when [old] is not in [text], so a control cannot go stale unseen. */
+    private fun edit(text: String, old: String, new: String): String {
+        check(text.contains(old)) { "overlay: control: the sample has no '$old' to edit, so the control would test nothing" }
+        return text.replace(old, new)
+    }
+
+    private fun assertFires(what: String, problems: List<String>, part: String) =
+        assertTrue("overlay: control: $what must be reported with '$part', got $problems", problems.any { it.contains(part) })
+
+    private fun assertQuiet(what: String, problems: List<String>) =
+        assertEquals("overlay: control: $what must not be reported", emptyList<String>(), problems)
+
+    /** The problems with the halo's numbers in [source]: the layer count, the two alpha integers and the power law must be the named constants. */
+    private fun haloNumberProblems(source: String): List<String> {
+        val code = SourceText.code(source)
+        return listOfNotNull(
+            "the halo layer count is not the named HALO_LAYERS".takeUnless { Regex("""const val HALO_LAYERS: Int = 16""").containsMatchIn(code) },
+            "the inner halo alpha is not the named HALO_ALPHA_INNER".takeUnless { Regex("""const val HALO_ALPHA_INNER: Int = 4""").containsMatchIn(code) },
+            "the outer halo alpha is not the named HALO_ALPHA_OUTER".takeUnless { Regex("""const val HALO_ALPHA_OUTER: Int = 3""").containsMatchIn(code) },
+            "the halo reach is not the power law".takeUnless { Regex("""\.pow\(HALO_LAYER_POWER\)""").containsMatchIn(code) },
+        )
+    }
+
     /** A failure means the busy ring is not centred at 512 500 with radius 394, red stroke 92 and dark outline 124 art units. */
     @Test
     fun `the busy ring is centred at 512 500 with radius 394 stroke 92 and outline 124`() {
@@ -93,5 +119,74 @@ class TileArtGeometryTest {
         assertEquals("overlay: the scale expected 0.05625 from the width 64", 0.05625f, frame.scale, 0.000001f)
         assertEquals("overlay: the centre x expected 37", 37f, frame.centreX, 0f)
         assertEquals("overlay: the centre y expected 27", 27f, frame.centreY, 0f)
+    }
+
+    /**
+     * A failure means the halo is not 16 soft layers drawn widest first, its reach is not the power law
+     * ((layer + 1) / 16) to the 0.35, or its alphas are not 4 and 3 of full scale 255. Each pinned number
+     * has a control: the real source is edited and the rule must fire, so the pin cannot pass vacuously.
+     */
+    @Test
+    fun `the halo layers are 16 soft layers with the power-law reach and the two alpha integers`() {
+        assertEquals("overlay: the halo layer count expected 16", 16, ArtGeometry.haloLayerCount())
+        assertEquals("overlay: the inner halo alpha integer expected 4", 4, ArtGeometry.HALO_ALPHA_INNER)
+        assertEquals("overlay: the outer halo alpha integer expected 3", 3, ArtGeometry.HALO_ALPHA_OUTER)
+        assertEquals("overlay: the first halo reach fraction expected 0.378929", 0.378929f, ArtGeometry.haloLayerFraction(0), 0.000001f)
+        assertEquals("overlay: the last halo reach fraction expected 1.0", 1.0f, ArtGeometry.haloLayerFraction(ArtGeometry.haloLayerCount() - 1), 0.000001f)
+        assertEquals("overlay: the inner halo alpha expected 0.015686275", 0.015686275f, ArtGeometry.haloLayerAlpha(0), 0.000001f)
+        assertEquals("overlay: the outer halo alpha expected 0.011764706", 0.011764706f, ArtGeometry.haloLayerAlpha(ArtGeometry.haloLayerCount() - 1), 0.000001f)
+
+        val source = geometryText()
+        assertQuiet("the real halo numbers", haloNumberProblems(source))
+        assertFires("a halo layer count of 15", haloNumberProblems(edit(source, "const val HALO_LAYERS: Int = 16", "const val HALO_LAYERS: Int = 15")), "HALO_LAYERS")
+        assertFires("an inner halo alpha of 5", haloNumberProblems(edit(source, "const val HALO_ALPHA_INNER: Int = 4", "const val HALO_ALPHA_INNER: Int = 5")), "HALO_ALPHA_INNER")
+        assertFires("an outer halo alpha of 2", haloNumberProblems(edit(source, "const val HALO_ALPHA_OUTER: Int = 3", "const val HALO_ALPHA_OUTER: Int = 2")), "HALO_ALPHA_OUTER")
+        assertFires("the power law dropped", haloNumberProblems(edit(source, ".pow(HALO_LAYER_POWER)", ".pow(1f)")), "power law")
+    }
+
+    /** Today's tile glow reach for a silhouette half-extent: the silhouette's half-extent plus the outer glow's half width, in half-cell widths at the tile's cell. */
+    private fun tileReach(halfExtent: Float): Float =
+        ArtGeometry.reachHalfCell(halfExtent, TileMetrics.TILE_SIZE_DP.toFloat())
+
+    /** A failure means the halo's upward reach is not the capped one: it would pass the card bottom and leave the card. */
+    @Test
+    fun `the halo's upward reach is the capped reach`() {
+        val cell = TileRect(0, 0, 200, 200)
+        val density = 1f
+        val cellSideDp = cell.width / density
+        assertTrue(
+            "overlay: the test cell must be one where the cap binds, found ${GlowSpec.SCREEN.upward * cellSideDp / 2f} against the card bottom ${ArtGeometry.cardBottomDp(cellSideDp)}",
+            GlowSpec.SCREEN.upward * cellSideDp / 2f > ArtGeometry.cardBottomDp(cellSideDp),
+        )
+        val halo = ArtGeometry.halo(cell, density, GlowSpec.SCREEN)
+        assertEquals(
+            "overlay: the halo's upward reach expected the capped reach times the density",
+            GlowSpec.upwardReachDp(GlowSpec.SCREEN, cellSideDp) * density,
+            halo.upwardPx,
+            0.0001f,
+        )
+        assertTrue(
+            "overlay: the halo's upward reach must be held to the card bottom, found ${halo.upwardPx} against ${ArtGeometry.cardBottomDp(cellSideDp) * density}",
+            halo.upwardPx <= ArtGeometry.cardBottomDp(cellSideDp) * density + 0.0001f,
+        )
+    }
+
+    /** A failure means the tile's glow is not today's values: its three reaches must be the silhouette's half-extents plus the outer glow's half width. */
+    @Test
+    fun `the tile's glow is today's values`() {
+        assertEquals("overlay: the tile's sideways reach expected the silhouette's half width plus the glow", tileReach(ArtMetrics.SILHOUETTE_HALF_WIDTH), GlowSpec.TILE.sideways, 0.000001f)
+        assertEquals("overlay: the tile's downward reach expected the silhouette's half height plus the glow", tileReach(ArtMetrics.SILHOUETTE_HALF_HEIGHT), GlowSpec.TILE.downward, 0.000001f)
+        assertEquals("overlay: the tile's upward reach expected the silhouette's half height plus the glow", tileReach(ArtMetrics.SILHOUETTE_HALF_HEIGHT), GlowSpec.TILE.upward, 0.000001f)
+    }
+
+    /** A failure means the Home mic's halo is not the approved three reaches, or a spec's kind is not its own. */
+    @Test
+    fun `the screen halo is the approved reaches and each spec carries its own kind`() {
+        assertEquals("overlay: the screen's sideways reach expected 1.40", 1.40f, GlowSpec.SCREEN.sideways, 0f)
+        assertEquals("overlay: the screen's downward reach expected 1.40", 1.40f, GlowSpec.SCREEN.downward, 0f)
+        assertEquals("overlay: the screen's upward reach expected 1.40", 1.40f, GlowSpec.SCREEN.upward, 0f)
+        assertEquals("overlay: the screen's kind expected SCREEN", GlowKind.SCREEN, GlowSpec.SCREEN.kind)
+        assertEquals("overlay: the tile's kind expected TILE", GlowKind.TILE, GlowSpec.TILE.kind)
+        assertEquals("overlay: the glow kinds expected TILE and SCREEN", listOf(GlowKind.TILE, GlowKind.SCREEN), GlowKind.entries.toList())
     }
 }

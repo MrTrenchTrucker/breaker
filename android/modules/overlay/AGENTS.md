@@ -103,7 +103,8 @@ art's SVG (`TileArt.kt`, and the BREAKER outlines in `TileLetters.kt`); the X an
 of the 64 dp cell (`ART_FILL`) so the glow fits, and the tile is 64 dp square with no fill, so no corner is drawn.
 The outline is 2 dp thick and runs along the silhouette of the trigger bar, the head and lower body, and the cord stub. Outside
 it are three glow layers, 4, 6 and 8 dp wide, with alpha 0.45, 0.25 and 0.12 going outward. The glow is approximate stroke
-layers, not a blur.
+layers, not a blur. `GlowKind.TILE` draws those three glow strokes, their outer half width from `GlowSpec.TILE`'s reaches;
+`GlowKind.SCREEN` draws the Home mic's halo and then those same strokes.
 Faces: each face is a shade by a named factor in `ArtFactors` (a positive factor mixes toward white, a negative one toward
 black, 0 is the colour itself). The body shapes and the faces on the body (trigger face and stripe, lower left and right,
 ledge edge) shade `bodyColor(look)`, the darker of the text and surface colours by relative luminance, so the body is dark in both
@@ -146,7 +147,7 @@ get darker and are flat, and white in the dark theme. They sit on the dark body.
 - T4: the tile is tap-only and drops touches while covered. It does not verify window ownership.
 - Tile renders the CB mic from path data, with no fill behind it in any state; the six grille slots are the level meter while recording (F36).
   Tested by: `TileArtTest`, `TileArtGeometryTest`, `TileRecordingLayoutTest`, `ControlArtSvgTest` (the X and check path numbers, held as svg element text in the test, against `ControlArt` and Kotlin literals), `ControlDrawGateTest` (the fill and outline passes, with the rules in `ControlDrawRules`), and the view's source-text rule for the fill (re-pointed; see Test Locations).
-- Faces and glow take their colours only from `TileLook` fields: `shade()` with the named factors in `ArtFactors` (the body colour from `bodyColor(look)`), and the glow through `glowDrawColor` with the outline colour and the pulse alpha. The glow is three stroke layers.
+- Faces and glow take their colours only from `TileLook` fields: `shade()` with the named factors in `ArtFactors` (the body colour from `bodyColor(look)`), and the glow through `glowDrawColor` with the outline colour and the pulse alpha. The glow is three stroke layers. `GlowKind.TILE` draws the tile's three glow strokes, their outer half width from `GlowSpec.TILE`'s reaches; `GlowKind.SCREEN` draws the Home mic's halo and then those same strokes.
   Tested by: `TileArtFacesTest`, `TileArtRulesTest`, `PulseRulesTest`.
 - State colors: a failure turns the outline to the danger colour (F36). SENT is green (the palette's `sent` field) and
   SENT_LOCAL is orange (the palette's `warning` field). The outline colour per state is the old ring mapping, unchanged.

@@ -35,12 +35,12 @@ internal object ViewDrawingRules {
 
     /** The values a paint colour may be set from in the art: the bare colour parameter, a look field, or a colour function of the art. */
     private val artAssignment = Regex(
-        """color|(?:face\.)?look(?:\.\w+)?|ringDrawColor\((?:color|look\.ring),\s*pulseAlpha\)|glowDrawColor\(color, pulseAlpha, glowAlpha\(layer\)\)|faceColor\([^()]*\)|slotColor\([^()]*\)""",
+        """color|(?:face\.)?look(?:\.\w+)?|ringDrawColor\((?:color|look\.ring),\s*pulseAlpha\)|glowDrawColor\((?:color|haloColor), pulseAlpha, (?:ArtGeometry\.)?haloLayerAlpha\(layer\)\)|glowDrawColor\(color, pulseAlpha, glowAlpha\(layer\)\)|faceColor\([^()]*\)|slotColor\([^()]*\)""",
     )
 
     /** The values a colour argument may take at a call: a look field or one of the colour functions. */
     private val callColour = Regex(
-        """(?:face\.)?look(?:\.\w+)?|faceColor\([^()]*\)|slotColor\([^()]*\)|ringDrawColor\((?:color|look\.ring),\s*pulseAlpha\)|glowDrawColor\(color, pulseAlpha, glowAlpha\(layer\)\)""",
+        """(?:face\.)?look(?:\.\w+)?|faceColor\([^()]*\)|slotColor\([^()]*\)|ringDrawColor\((?:color|look\.ring),\s*pulseAlpha\)|glowDrawColor\(color, pulseAlpha, (?:ArtGeometry\.)?haloLayerAlpha\(layer\)\)|glowDrawColor\(color, pulseAlpha, glowAlpha\(layer\)\)""",
     )
 
     /** Each helper that takes a colour, with the position of that colour among its arguments (the first is 0). */
