@@ -113,7 +113,7 @@ internal class TileView(
         if (s <= 0) return
 
         val mic = TileLayout.micCell(face.shape, s)
-        artDraw.drawGlow(canvas, mic, paint, look.ring, pulseAlpha, density)
+        artDraw.drawGlow(canvas, mic, paint, look.ring, pulseAlpha, density, GlowSpec.TILE, look.ring)
         drawRing(canvas, mic, look.ring)
         artDraw.drawArt(canvas, mic, paint, face, pulseAlpha)
         when (face.shape) {

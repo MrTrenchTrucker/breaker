@@ -28,19 +28,72 @@ internal class TileArtDraw {
     }
 
     /**
-     * The glow: the silhouette stroked once per layer, the innermost first, each layer wider and fainter
-     * than the one before. The width of each layer is in pixels: the ring width plus the layer's step, on
-     * each side.
+     * The glow of one surface: the silhouette stroked once per layer, the innermost first, each layer wider and
+     * fainter than the one before. The width of each layer is in pixels: the ring width plus the layer's step, on
+     * each side. What is drawn is decided by [spec]'s kind: [GlowKind.TILE] draws the three strokes alone, the
+     * tile's glow as it is today, and the outer half width those strokes are drawn at comes from the spec's three
+     * reaches, so every reach the tile's spec names is read here; [GlowKind.SCREEN] draws the Home mic's halo
+     * first and then the same three strokes, whose outer half width is the named geometry, so the halo is what the
+     * SCREEN spec selects. The strokes are painted in [color]; the halo is painted in [haloColor], and the two are
+     * separate so no caller can silently give the strokes' colour to the halo. [haloColor] is read only by the
+     * `GlowKind.SCREEN` branch: the `GlowKind.TILE` branch draws the strokes and never reads it, so a caller's halo
+     * colour is inert for the tile.
+     *
+     * The two parts are drawn in two spaces, and neither may take the other's. The halo is drawn first and outside
+     * [inCell], in the cell's own pixels: [ArtGeometry.halo] already returns its centre and its three reaches in
+     * pixels, so inside the cell transform they would be scaled by the art scale a second time and the centre would
+     * be moved by the cell centre, which is what clipped the halo's lower half. The strokes are drawn inside
+     * [inCell], in art units: their width is a dp width, so it is divided by the scale the lambda hands over, which
+     * is why the strokes stay inside and the halo does not.
      */
-    fun drawGlow(canvas: Canvas, cell: TileRect, paint: Paint, color: Int, pulseAlpha: Float, density: Float) {
+    fun drawGlow(
+        canvas: Canvas,
+        cell: TileRect,
+        paint: Paint,
+        color: Int,
+        pulseAlpha: Float,
+        density: Float,
+        spec: HaloReach,
+        haloColor: Int,
+    ) {
+        fun halo(spec: HaloReach, haloColor: Int) {
+            val halo = ArtGeometry.halo(cell, density, spec)
+            canvas.save()
+            canvas.translate(halo.centreX, halo.centreY)
+            paint.style = Paint.Style.FILL
+            for (layer in ArtGeometry.haloLayerCount() - 1 downTo 0) {
+                paint.color = glowDrawColor(haloColor, pulseAlpha, ArtGeometry.haloLayerAlpha(layer))
+                val reach = ArtGeometry.haloLayerFraction(layer)
+                canvas.save()
+                canvas.scale(halo.sidewaysPx, halo.downwardPx)
+                canvas.clipRect(-1f, 0f, 1f, 1f)
+                canvas.drawCircle(0f, 0f, reach, paint)
+                canvas.restore()
+                canvas.save()
+                canvas.scale(halo.sidewaysPx, halo.upwardPx)
+                canvas.clipRect(-1f, -1f, 1f, 0f)
+                canvas.drawCircle(0f, 0f, reach, paint)
+                canvas.restore()
+            }
+            canvas.restore()
+        }
+
+        if (spec.kind == GlowKind.SCREEN) halo(spec, haloColor)
         inCell(canvas, cell) { scale ->
-            paint.style = Paint.Style.STROKE
-            paint.strokeJoin = Paint.Join.ROUND
-            paint.strokeCap = Paint.Cap.ROUND
-            for (layer in 0 until ArtMetrics.GLOW_LAYERS) {
-                paint.strokeWidth = ArtGeometry.glowWidthDp(layer) * density / scale
-                paint.color = glowDrawColor(color, pulseAlpha, glowAlpha(layer))
-                canvas.drawPath(silhouettePath, paint)
+            fun strokes(outerHalfWidthDp: Float) {
+                paint.style = Paint.Style.STROKE
+                paint.strokeJoin = Paint.Join.ROUND
+                paint.strokeCap = Paint.Cap.ROUND
+                for (layer in 0 until ArtMetrics.GLOW_LAYERS) {
+                    paint.strokeWidth = ArtGeometry.glowWidthDp(layer, outerHalfWidthDp) * density / scale
+                    paint.color = glowDrawColor(color, pulseAlpha, glowAlpha(layer))
+                    canvas.drawPath(silhouettePath, paint)
+                }
+            }
+
+            when (spec.kind) {
+                GlowKind.TILE -> strokes(ArtGeometry.glowOuterHalfWidthDp(spec))
+                GlowKind.SCREEN -> strokes(ArtGeometry.glowOuterHalfWidthDp())
             }
         }
     }

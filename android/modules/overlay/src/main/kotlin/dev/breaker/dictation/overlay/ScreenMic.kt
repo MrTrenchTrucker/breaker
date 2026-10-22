@@ -183,15 +183,14 @@ internal class ScreenMicView(
         super.onDraw(canvas)
         val face = model.face(theme)
         val look = face.look
-        val s = height
-        if (s <= 0) return
-        val mic = TileLayout.micCell(face.shape, s)
-        artDraw.drawGlow(canvas, mic, paint, look.ring, 1f, density)
+        if (height <= 0) return
+        val mic = TileLayout.micCell(face.shape, height)
+        artDraw.drawGlow(canvas, mic, paint, look.ring, 1f, density, GlowSpec.SCREEN, look.litSegment)
         drawRing(canvas, mic, look.ring)
         artDraw.drawArt(canvas, mic, paint, face, 1f)
         if (face.shape == TileShape.RECORDING) {
-            artDraw.drawControl(canvas, ControlLayout.cancel(s), paint, ControlArt.cancel, look)
-            artDraw.drawControl(canvas, ControlLayout.send(s), paint, ControlArt.send, look)
+            artDraw.drawControl(canvas, ControlLayout.cancel(height), paint, ControlArt.cancel, look)
+            artDraw.drawControl(canvas, ControlLayout.send(height), paint, ControlArt.send, look)
         }
     }
 

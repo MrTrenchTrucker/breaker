@@ -41,6 +41,8 @@ internal object ArtMetrics {
     const val SILHOUETTE_RIGHT: Float = 768f          // the right edge of the mic silhouette, in art units
     const val SILHOUETTE_CENTRE_Y: Float = 500f       // the vertical centre line of the mic silhouette, in art units
     const val SILHOUETTE_CENTRE_X: Float = 476f       // the horizontal centre of the mic silhouette, in art units (the box centre is 512)
+    const val SILHOUETTE_HALF_WIDTH: Float = 292f      // half the mic silhouette's width, in art units (the left edge 184 to the right edge 768)
+    const val SILHOUETTE_HALF_HEIGHT: Float = 460f     // half the mic silhouette's height, in art units (the top edge 40 to the bottom edge 960)
     const val CONTROL_BOX_LEFT: Float = 314f          // the left edge of the X and the check path boxes, in art units
     const val CONTROL_BOX_WIDTH: Float = 396f         // the width of the X and the check path boxes, in art units
     const val CONTROL_BOX_CENTRE_Y: Float = 495f      // the vertical centre of the X and the check path boxes, in art units

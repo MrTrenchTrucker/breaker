@@ -76,7 +76,7 @@ class TileArtDrawGateTest {
         assertFires("a local colour passed as a fill colour", ViewDrawingRules.artColourProblems(edit(artText, "fillShape(canvas, paint, slot.top, slotColor(true, lit, look))", "fillShape(canvas, paint, slot.top, color)")), "argument 3")
         assertFires("a local named color", ViewDrawingRules.artColourProblems(edit(artText, fillLine, "$fillLine\nval color = 7")), "a local named color")
         assertFires("a helper with a colour and no call check", ViewDrawingRules.artColourProblems(edit(artText, fillLine, "private fun tint(canvas: Canvas, color: Int) {\n}\n$fillLine")), "tint takes a colour")
-        assertFires("a glow drawn with a number in the view", ViewDrawingRules.helperCallProblems(edit(real(view), "artDraw.drawGlow(canvas, mic, paint, look.ring, pulseAlpha, density)", "artDraw.drawGlow(canvas, mic, paint, 7, pulseAlpha, density)")), "drawGlow")
+        assertFires("a glow drawn with a number in the view", ViewDrawingRules.helperCallProblems(edit(real(view), "artDraw.drawGlow(canvas, mic, paint, look.ring, pulseAlpha, density, GlowSpec.TILE, look.ring)", "artDraw.drawGlow(canvas, mic, paint, 7, pulseAlpha, density, GlowSpec.TILE, look.ring)")), "drawGlow")
         assertFires("the art with no colour assignment", ViewDrawingRules.artColourProblems("class A\n"), "no colour assignment")
 
         assertEquals("overlay: $art must take every colour from a face colour, the look or the colour parameter", emptyList<String>(), ViewDrawingRules.artColourProblems(artText))
@@ -132,7 +132,7 @@ class TileArtDrawGateTest {
         assertFires("the glow in the cancel cell", ViewDrawingRules.artCellProblems(edit(viewText, "artDraw.drawGlow(canvas, mic,", "artDraw.drawGlow(canvas, TileLayout.cancelCell(s),")), "drawGlow")
         assertFires(
             "the glow drawn twice",
-            ViewDrawingRules.artCellProblems(edit(viewText, "artDraw.drawGlow(canvas, mic, paint, look.ring, pulseAlpha, density)", "artDraw.drawGlow(canvas, mic, paint, look.ring, pulseAlpha, density)\nartDraw.drawGlow(canvas, mic, paint, look.ring, pulseAlpha, density)")),
+            ViewDrawingRules.artCellProblems(edit(viewText, "artDraw.drawGlow(canvas, mic, paint, look.ring, pulseAlpha, density, GlowSpec.TILE, look.ring)", "artDraw.drawGlow(canvas, mic, paint, look.ring, pulseAlpha, density, GlowSpec.TILE, look.ring)\nartDraw.drawGlow(canvas, mic, paint, look.ring, pulseAlpha, density, GlowSpec.TILE, look.ring)")),
             "drawGlow",
         )
         assertFires("no microphone cell", ViewDrawingRules.artCellProblems(edit(viewText, "val mic = TileLayout.micCell(face.shape, s)\n", "")), "microphone cell")

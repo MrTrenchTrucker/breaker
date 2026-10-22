@@ -108,8 +108,8 @@ class TileArtDrawNoMathGateTest {
         return missing + outOfOrder + saved + arithmetic
     }
 
-    /** The exact width line of drawGlow: each layer's width comes from that layer's own number. */
-    private val glowLine = "paint.strokeWidth = ArtGeometry.glowWidthDp(layer) * density / scale"
+    /** The exact width line of drawGlow: each layer's width comes from that layer's own number and the outer half width the spec names. */
+    private val glowLine = "paint.strokeWidth = ArtGeometry.glowWidthDp(layer, outerHalfWidthDp) * density / scale"
 
     /** The drawGlow of the adapter as the real file has it, with the layer loop and its width line. */
     private val glowSample = "fun drawGlow(canvas: Canvas, cell: TileRect, paint: Paint, color: Int, pulseAlpha: Float, density: Float) {\n" +
@@ -144,8 +144,8 @@ class TileArtDrawNoMathGateTest {
     @Test
     fun `drawGlow sets each layer width from its own layer number`() {
         assertQuiet("the sample", glowProblems(glowSample))
-        assertFires("the width of layer 0 for every layer", glowProblems(edit(glowSample, glowLine, "paint.strokeWidth = ArtGeometry.glowWidthDp(0) * density / scale")), "does not hold the line")
-        assertFires("the width of the next layer", glowProblems(edit(glowSample, glowLine, "paint.strokeWidth = ArtGeometry.glowWidthDp(layer + 1) * density / scale")), "does not hold the line")
+        assertFires("the width of layer 0 for every layer", glowProblems(edit(glowSample, glowLine, "paint.strokeWidth = ArtGeometry.glowWidthDp(0, outerHalfWidthDp) * density / scale")), "does not hold the line")
+        assertFires("the width of the next layer", glowProblems(edit(glowSample, glowLine, "paint.strokeWidth = ArtGeometry.glowWidthDp(layer + 1, outerHalfWidthDp) * density / scale")), "does not hold the line")
         assertQuiet("a commented width line next to the real one", glowProblems(edit(glowSample, glowLine, "// $glowLine\n$glowLine")))
 
         assertEquals("overlay: $art must set each glow layer width from its own layer number", emptyList<String>(), glowProblems(ModuleFiles.mainTexts().getValue(art)))
