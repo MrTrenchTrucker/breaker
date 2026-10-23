@@ -45,4 +45,13 @@ Vendored code and dependencies:
      Font License, Version 1.1. The licence text is in docs/brand/OFL.txt.
      No font file is included in this repository.
 
+
+5. @noble/hashes (vendored)
+   - Upstream: paulmillr/noble-hashes, Copyright Paul Miller, MIT License.
+   - Vendored files: argon2.js, blake2.js, utils.js, _blake.js, _md.js, _u64.js
+     (6 files + LICENSE) under server/modules/web-fe/src/main/resources/static/vendor/noble-hashes-2.4.0/.
+   - Byte-equal to the 2.4.0 npm tarball. sha256-pinned in the contract test.
+   - Latest checked 2.4.0 on 2026-10-10 via https://registry.npmjs.org/@noble/hashes/latest
+   - Used by the web frontend for Argon2id key derivation in a Web Worker.
+
 This product is distributed under the Apache License, Version 2.0. See LICENSE.
