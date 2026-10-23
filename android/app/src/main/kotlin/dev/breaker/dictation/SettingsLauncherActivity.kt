@@ -76,6 +76,7 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
             main = MainLooperPost(),
             modelReady = { modelReady.isReady() },
         )
+        val mic = createHomeMic(this, takeWiring)
         homeRebuilt = dev.breaker.dictation.wiring.Rebuilt { createHomeView(
             this,
             BreakerSwitchAdapter(app.armedSwitch),
@@ -89,9 +90,8 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
             onHowItWorks = { openHowItWorks() },
             onAbout = { openAbout() },
             onTap = { takeWiring.onTap() },
-            micView = createHomeMic(this, takeWiring).view,
-            usableHeightDp = windowHeightAfterBarsDp(this),
-            settings = app.settingsStore,
+            micView = mic.view, onShownMode = { mode -> mic.setTheme(mode) },
+            usableHeightDp = windowHeightAfterBarsDp(this), settings = app.settingsStore,
         ) }
         val home = homeRebuilt.current
         homeView = home

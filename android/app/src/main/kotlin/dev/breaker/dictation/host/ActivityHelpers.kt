@@ -9,26 +9,29 @@ import dev.breaker.dictation.wiring.HomeLevelFeed
 import dev.breaker.dictation.wiring.HomeTakeWiring
 import dev.breaker.dictation.wiring.MainPost
 import dev.breaker.dictation.wiring.ModelSentences
-import dev.breaker.dictation.wiring.themeModeForNight
 import dev.breaker.dictation.wiring.usableHeightDp
 import dev.breaker.shared.models.ModelRegistry
 
 /**
- * Builds the Home screen's mic from the take wiring, in the theme the phone is showing.
+ * Builds the Home screen's mic from the take wiring, in the mode the Home view reports.
  *
  * The mic's view is handed to the Home view, which places it; the callbacks are wired by
  * [HomeTakeWiring.createScreenMic]. The app holds no view of its own: this only makes the mic.
+ * The mic is made in the neutral mode [dev.breaker.shared.tokens.ThemeMode.LIGHT]: the Home view
+ * hands back the mode it resolved as it is built, and that hand-back paints this mic through
+ * [HomeScreenMic.setTheme].
  */
 internal fun createHomeMic(
     context: Context,
     takeWiring: HomeTakeWiring,
 ): dev.breaker.dictation.wiring.HomeScreenMic {
-    val night = (context.resources.configuration.uiMode and
-        android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
-        android.content.res.Configuration.UI_MODE_NIGHT_YES
-    val themeMode = themeModeForNight(night)
+    // The mic starts neutral. The Home view hands back the mode it resolved as it is built, and that
+    // hand-back paints this mic through setTheme, so the initial mode only holds until the view is up.
+    val themeMode = dev.breaker.shared.tokens.ThemeMode.LIGHT
     // The labels come from ui's public HomeControl (one source: HomeTexts), not retyped literals.
-    return takeWiring.createScreenMic(context, themeMode, HomeControl.TAP_TO_TALK, HomeControl.CANCEL, HomeControl.DONE)
+    val mic = takeWiring.createScreenMic(context, themeMode, HomeControl.TAP_TO_TALK, HomeControl.CANCEL, HomeControl.DONE)
+    mic.setTheme(themeMode)
+    return mic
 }
 
 /**
