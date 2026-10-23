@@ -7,12 +7,13 @@ import org.junit.Test
  * Pins the five Home-mic wiring facts no other gate can, because a test can call the helpers but never
  * observe the values they carry: the activity reads the usable height from the barless window metrics
  * (not zero), the helper names its screen mic the HomeControl labels (never an empty string), and the level
- * sink keeps its recording probe wired as-is rather than always-true. The night pair follow: the theme mode
- * mirrors the boolean `night`, and the phone's night state is matched against UI_MODE_NIGHT_YES rather than NO.
+ * sink keeps its recording probe wired as-is rather than always-true. The theme pair follows: the mic is
+ * made in the neutral [dev.breaker.shared.tokens.ThemeMode.LIGHT], and the mode the app hands it is the one
+ * the Home view resolved, not one read from the phone again.
  * Each rule is read against source with comments removed but literals kept, holds on the real activity/helper
  * text, fires on a single targeted edit that breaks it, and stays quiet on a harmless spacing or comment
  * change. String-literal content must survive stripping, so this gate strips
- * comments only - see [commentStripped] - instead of the shared scanner, which blanks literal text as well.
+ * comments only - see [stripComments] - instead of the shared scanner, which blanks literal text as well.
  */
 internal class HomeMicWiringGateTest {
 
@@ -38,11 +39,11 @@ internal class HomeMicWiringGateTest {
         Rule("LEVEL_SINK_KEEP_ITS_RECORDING_PROBE", helpers) { code ->
             Regex("""\bisRecording\s*=\s*isRecording\s*,""").containsMatchIn(code)
         },
-        Rule("HOME_MIC_THEME_FOLLOWS_NIGHT", helpers) { code ->
-            Regex("""\bthemeModeForNight\s*\(\s*night\s*\)""").containsMatchIn(code)
+        Rule("HOME_MIC_THEME_STARTS_NEUTRAL", helpers) { code ->
+            Regex("""\bval\s+themeMode\s*=\s*dev\s*\.\s*breaker\s*\.\s*shared\s*\.\s*tokens\s*\.\s*ThemeMode\s*\.\s*LIGHT\b""").containsMatchIn(code)
         },
-        Rule("HOME_MIC_NIGHT_IS_THE_PHONES", helpers) { code ->
-            Regex("""\bUI_MODE_NIGHT_MASK\s*\)\s*==\s*android\s*\.\s*content\s*\.\s*res\s*\.\s*Configuration\s*\.\s*UI_MODE_NIGHT_YES\b""").containsMatchIn(code)
+        Rule("HOME_MIC_THEME_IS_THE_PAGE_RESOLUTION", activity) { code ->
+            Regex("""\bonShownMode\s*=\s*\{\s*mode\s*->\s*mic\s*\.\s*setTheme\s*\(\s*mode\s*\)\s*\}""").containsMatchIn(code)
         },
     )
 
@@ -52,11 +53,12 @@ internal class HomeMicWiringGateTest {
         Sample("HELPERS_SCREEN_MIC_IS_NAMED", "HomeControl.TAP_TO_TALK", "\"\""),
         Sample("LEVEL_SINK_KEEP_ITS_RECORDING_PROBE",
             "isRecording = isRecording,", "isRecording = { true },"),
-        Sample("HOME_MIC_THEME_FOLLOWS_NIGHT",
-            "themeModeForNight(night)", "themeModeForNight(!night)"),
-        Sample("HOME_MIC_NIGHT_IS_THE_PHONES",
-            "UI_MODE_NIGHT_MASK) ==\n        android.content.res.Configuration.UI_MODE_NIGHT_YES",
-            "UI_MODE_NIGHT_MASK) ==\n        android.content.res.Configuration.UI_MODE_NIGHT_NO"),
+        Sample("HOME_MIC_THEME_STARTS_NEUTRAL",
+            "val themeMode = dev.breaker.shared.tokens.ThemeMode.LIGHT",
+            "val themeMode = themeModeForNight(night)"),
+        Sample("HOME_MIC_THEME_IS_THE_PAGE_RESOLUTION",
+            "onShownMode = { mode -> mic.setTheme(mode) }",
+            "onShownMode = { mode -> mic.setTheme(dev.breaker.shared.tokens.ThemeMode.LIGHT) }"),
     )
 
     private val quiet: List<Quiet> = listOf(
@@ -67,11 +69,12 @@ internal class HomeMicWiringGateTest {
             "createScreenMic( context , themeMode , HomeControl.TAP_TO_TALK, HomeControl.CANCEL, HomeControl.DONE )"),
         Quiet("LEVEL_SINK_KEEP_ITS_RECORDING_PROBE", helpers,
             "isRecording = isRecording,", "isRecording   =   isRecording,"),
-        Quiet("HOME_MIC_THEME_FOLLOWS_NIGHT", helpers,
-            "themeModeForNight(night)", "themeModeForNight( night )"),
-        Quiet("HOME_MIC_NIGHT_IS_THE_PHONES", helpers,
-            "UI_MODE_NIGHT_MASK) ==\n        android.content.res.Configuration.UI_MODE_NIGHT_YES",
-            "UI_MODE_NIGHT_MASK ) == \n        android.content.res.Configuration.UI_MODE_NIGHT_YES"),
+        Quiet("HOME_MIC_THEME_STARTS_NEUTRAL", helpers,
+            "val themeMode = dev.breaker.shared.tokens.ThemeMode.LIGHT",
+            "val themeMode = dev.breaker.shared.tokens.ThemeMode . LIGHT"),
+        Quiet("HOME_MIC_THEME_IS_THE_PAGE_RESOLUTION", activity,
+            "onShownMode = { mode -> mic.setTheme(mode) }",
+            "onShownMode = { mode -> mic.setTheme( mode ) }"),
     )
 
     private fun edit(text: String, old: String, new: String): String {

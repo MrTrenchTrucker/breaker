@@ -65,6 +65,9 @@ import java.time.ZoneId
  * @param micView the overlay-built mic view the host places in the mic slot (ADR-026).
  * @param usableHeightDp the window height left after the system bars, in dp, that the mic slot
  *   is sized from.
+ * @param onShownMode is handed the mode this view draws in, once it is resolved, so the app can
+ *   paint the mic it placed here with the same mode the page drew with instead of reading the
+ *   phone's own mode again.
  * @return a view that shows the home screen and can be put in a layout as it
  *   stands.
  */
@@ -85,8 +88,10 @@ fun createHomeView(
     settings: dev.breaker.dictation.core.port.SettingsStore,
     micView: android.view.View,
     usableHeightDp: Float,
+    onShownMode: (dev.breaker.shared.tokens.ThemeMode) -> Unit,
 ): android.view.View {
     val theme = storedTheme(settings, isNightMode(context.resources.configuration.uiMode))
+    onShownMode(theme.mode)
     val handler = HomeIntentHandler(
         HomeScreen(LocalizedTimeFormat(Locale.getDefault(), ZoneId.systemDefault()))
     )
