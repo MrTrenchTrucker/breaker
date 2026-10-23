@@ -22,7 +22,8 @@ import dev.breaker.dictation.ui.HomeControl
  *
  * The Home derives its mic face from the shared [MicBusyPort] [busy] on every state push — the tile
  * host forwards the tile's MIC_BUSY flag and the three begin answers to it — and the wiring registers
- * the one change listener so a flip re-pushes the current state and repaints the mic.
+ * the busy change listener and the armed-switch listener, so a flip of either re-pushes the current
+ * state and repaints the mic.
  */
 internal class HomeTakeWiring(
     take: () -> TakePort,
@@ -39,8 +40,15 @@ internal class HomeTakeWiring(
 
     private val port: LazyTakePort = LazyTakePort { OwnedTakePort(take(), owner, TakeOwnerKind.HOME) }
 
-    /** The Home screen's mic, set by [createScreenMic]. Pushed state and level from this wiring. */
-    var screenMic: HomeScreenMic? = null
+    /**
+     * The listener the armed switch notifies: it re-pushes the derived mic face from the port's own
+     * state, so an arm or a disarm with the Home open repaints the mic instead of leaving the face it
+     * was given when it was created. Held so [unwatchSwitch] can take it off again.
+     */
+    internal val switchListener: (Boolean) -> Unit = { main.post { rePushState(port.sessionState) } }
+
+    /** The Home screen's mic, set by [createScreenMic] or the [installScreenMic] seam. Pushed state and level from this wiring. */
+    var screenMic: HomeMicPort? = null
 
     /**
      * The amber SENDING face is sticky across a busy re-push: set when onState(SENDING) arrives (the take
@@ -61,8 +69,23 @@ internal class HomeTakeWiring(
         onState = { state -> main.post { sending = state == DictationState.SENDING; rePushState(state) } },
     )
 
-    /** Registers the one listener: a flip of the shared busy flag re-pushes the current state, repainting the mic. */
-    init { busy.setBusyListener { rePushState(port.sessionState) } }
+    /**
+     * Registers the two listeners: a flip of the shared busy flag and a flip of the armed switch each
+     * re-push the current state, repainting the mic.
+     */
+    init {
+        busy.setBusyListener { rePushState(port.sessionState) }
+        switch.addSwitchListener(switchListener)
+    }
+
+    /**
+     * Takes a switch listener off again. The switch is app-wide and a wiring is built per screen, so a
+     * listener left on it would re-push a mic after the screen is gone; the activity calls this in
+     * onDestroy, as it takes the level sink off the tile host.
+     */
+    internal fun unwatchSwitch(listener: (Boolean) -> Unit) {
+        switch.removeSwitchListener(listener)
+    }
 
     /**
      * Pushes [state] to the mic: the recording look from the state, and the mic face derived from the
@@ -101,6 +124,18 @@ internal class HomeTakeWiring(
         // the derived face once, so a rebuilt mic never shows a stale one
         rePushState(port.sessionState)
         return mic
+    }
+
+    /**
+     * The test seam: installs [mic] as the screen's mic and pushes the derived face once — the step
+     * [createScreenMic] performs after it has built the real mic. A JVM test cannot build the real mic
+     * (it is an Android view), so this is the only way to watch the face the wiring pushes without a
+     * phone. The state pushed is the port's own, the one a fresh launch pushes.
+     */
+    internal fun installScreenMic(mic: HomeMicPort) {
+        screenMic = mic
+        val state: DictationState = port.sessionState
+        rePushState(state)
     }
 
     /**

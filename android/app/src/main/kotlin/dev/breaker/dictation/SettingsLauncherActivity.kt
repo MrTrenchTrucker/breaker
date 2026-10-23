@@ -44,6 +44,7 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
     private var firstRunView: android.view.View? = null
     private var backCallback: android.window.OnBackInvokedCallback? = null
     private var homeLevelSink: dev.breaker.dictation.wiring.LevelSink? = null
+    private var switchListener: ((Boolean) -> Unit)? = null
     private var downloadSentence: String? = null
     private var pendingRefusal: String? = null
     private lateinit var iconLaunch: IconLaunchOnce
@@ -52,7 +53,6 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
     private lateinit var settingsRebuilt: dev.breaker.dictation.wiring.Rebuilt<android.view.View>
     private lateinit var infoScreens: InfoScreensWiring
     private lateinit var settingsView: android.view.View
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         iconLaunch = IconLaunchOnce(savedInstanceState?.getBoolean(ICON_LAUNCH_DONE_KEY, false) ?: false)
@@ -101,6 +101,7 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
             MainLooperPost(),
             { app.compositionRoot.dictation.runner.sessionState == DictationState.RECORDING },
         )
+        switchListener = takeWiring.switchListener
         infoScreens = InfoScreensWiring(this, app.settingsStore, { homeView }) { setContentView(homeView); applyInsets(homeView!!) }
         takeWiring.attach(home as dev.breaker.dictation.ui.HomeControl)
         setContentView(home)
@@ -128,7 +129,6 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
             openHistory()
         }
     }
-
     private fun showFirstRun(app: BreakerApp, modelReady: StoreModelReady, done: FirstRunDoneStore) {
         val view = dev.breaker.dictation.ui.createFirstRunView(
             this,
@@ -189,9 +189,9 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
     override fun onDestroy() {
         homeLevelSink?.let { (applicationContext as BreakerApp).tileHost.removeHomeLevelSink(it) }
         homeLevelSink = null
+        switchListener?.let { takeWiring.unwatchSwitch(it) }
         super.onDestroy()
     }
-
     // Older Back path; Android 13 and newer Back goes through the callback registered while an overlay shows.
     @SuppressLint("GestureBackNavigation")
     override fun onBackPressed() {
