@@ -3,6 +3,7 @@ package dev.breaker.dictation.wiring
 import dev.breaker.dictation.service.DictationServiceController
 import dev.breaker.dictation.service.DisarmReason
 import dev.breaker.dictation.service.StartResult
+import java.util.concurrent.CopyOnWriteArrayList
 
 /** The answer to a request to switch dictation on. */
 sealed class SwitchOn {
@@ -29,11 +30,17 @@ sealed class SwitchOn {
  * observer, so every path that switches the controller (this switch, the notification's off
  * action, the runner) is seen in one place. Nothing here throws: a store that fails leaves the
  * switch itself working.
+ *
+ * [onStateChanged] also tells the listeners added with [addSwitchListener], after the store has
+ * settled, so a face that reads the switch is re-pushed on the arm and on the disarm.
  */
 class ArmedSwitch(
     private val controller: DictationServiceController,
     private val store: OffStore,
 ) {
+    /** The listeners told the settled armed state after each change the controller really made. */
+    private val switchListeners = CopyOnWriteArrayList<(Boolean) -> Unit>()
+
     /** True while dictation is on. */
     fun isOn(): Boolean = controller.isArmed
 
@@ -71,6 +78,9 @@ class ArmedSwitch(
      * The controller's state observer. Turning on clears the off choice; turning off because the user
      * said so ([DisarmReason.USER_WORD]) stores it; any other change leaves it as it was. A store that
      * fails is ignored and the state is not touched.
+     *
+     * The switch listeners are told the settled [armed] state once the store is done, so a face that
+     * reads the switch is re-pushed on the arm and on the disarm, never before the store is settled.
      */
     fun onStateChanged(armed: Boolean, reason: DisarmReason?) {
         try {
@@ -81,6 +91,32 @@ class ArmedSwitch(
             }
         } catch (e: Exception) {
             // The choice could not be written; the switch itself is unchanged.
+        }
+        notifySwitchListeners(armed)
+    }
+
+    /**
+     * Adds [listener], told the settled armed state after each change the controller really made:
+     * an arm and every disarm, on the thread that made the change. A listener may be added more than
+     * once and is told once for each time it was added.
+     */
+    fun addSwitchListener(listener: (Boolean) -> Unit) {
+        switchListeners.add(listener)
+    }
+
+    /** Removes one [listener] registration; a listener that was never added is ignored. */
+    fun removeSwitchListener(listener: (Boolean) -> Unit) {
+        switchListeners.remove(listener)
+    }
+
+    /** Tells each listener the settled state; one that throws cannot stop the others. */
+    private fun notifySwitchListeners(armed: Boolean) {
+        for (listener in switchListeners) {
+            try {
+                listener(armed)
+            } catch (e: Exception) {
+                // The state is settled already; a failing listener cannot be handled here.
+            }
         }
     }
 
