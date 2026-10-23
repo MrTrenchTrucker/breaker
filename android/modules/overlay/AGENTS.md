@@ -448,7 +448,7 @@ agents, not required: an outside contributor may write the code themselves
   the tile is placed again at the next `show()` or the next `onDisplayChanged()`, and a further drag move also
   clamps it to the new screen.
 - Only the finger that went down is followed. A second finger that lands, moves or lifts changes nothing.
-- ScreenMic is built once by the app and re-added on every Home redraw: its host must take it out of its old parent first (ui `attachMicSlot` does). A TalkBack double tap on the host calls `route()`, which reads the zone of the LAST real touch, so after an X or check touch it can route to the wrong zone (follow-up: decide from the model state alone).
+- ScreenMic is built once by the app and re-added on every Home redraw: its host must take it out of its old parent first (ui `attachMicSlot` does). A TalkBack double tap on the host is routed by the mic's model state alone: the Provider's `performAction` calls `ScreenMicProbeKit.hostAction(view)`, which dispatches `MicTapZone.hostClick(state)` — never the stored touch. A real finger still reads the stored down point through `route()`. Pinned: `ScreenMicHostClickTest` (the state-only host decision) and `ScreenMicHostClickWiringGateTest` (the call site: `performAction` dispatches `hostAction`, not `route`).
 - If the system has already removed the window, moving it does nothing and `hide()` is safe. The tile still counts
   as shown until `hide()` is called.
 - The window position x counts from the left edge in any layout direction, because the window uses `LEFT` gravity,
