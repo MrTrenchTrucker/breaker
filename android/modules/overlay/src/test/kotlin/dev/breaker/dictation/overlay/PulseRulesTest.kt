@@ -61,5 +61,7 @@ class PulseRulesTest {
         assertTrue("overlay: the pulse starts at phase 0.5, the peak", PULSE_PHASE_START == 0.5f)
         assertTrue("overlay: the pulse ends its first run at phase 1.5", PULSE_PHASE_END == 1.5f)
         assertTrue("overlay: one run is one whole cycle", PULSE_PHASE_END - PULSE_PHASE_START == 1f)
+        assertEquals("overlay: one breath is 5500 milliseconds", 5500L, BREATHING_PERIOD_MS)
+        assertTrue("overlay: the breath starts at phase 0.5, the peak", BREATHING_PHASE_START == 0.5f)
     }
 }

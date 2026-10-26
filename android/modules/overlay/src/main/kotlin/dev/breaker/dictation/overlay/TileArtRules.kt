@@ -22,6 +22,16 @@ internal object ArtFactors {
     const val LEDGE_END: Float = -0.50f        // of look.glyphOutline (both ends)
     const val SLOT_TOP: Float = -0.24f         // of the slot colour (lit or unlit)
     const val BUSY_OUTLINE_SHADE: Float = -0.85f // of look.danger: the dark outline under the red ring and slash (near black, not a fixed hex)
+
+    /**
+     * **The definition of "light" for the halo.** A page counts as light when the palette's own background is
+     * brighter than this: `relativeLuminance(palette.bg.argb) > [LIGHT_PAGE]`. The palette carries no theme
+     * mode, so this luminance test IS the definition of "light" here, and it is the only place it is stated.
+     */
+    const val LIGHT_PAGE: Float = 0.5f
+
+    /** The shade of the Home mic's halo against a light page: the primary moved toward black by this much, in thousandths. */
+    const val HALO_LIGHT_SHADE: Float = -0.20f
 }
 
 /** Sizes of the art and of its glow. */

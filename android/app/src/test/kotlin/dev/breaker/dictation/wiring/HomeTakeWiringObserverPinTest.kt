@@ -10,7 +10,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * PIN 1 - the wiring never takes the controller's one observer slot, so the app's existing observer
+ * THE WIRING NEVER TAKES THE CONTROLLER'S ONE OBSERVER SLOT, SO THE APP'S EXISTING OBSERVER
  * still runs. The app's observer in `BreakerApp.onCreate` does two things that an earlier, rejected fix
  * silently killed: `armedSwitch.onStateChanged(armed, reason)` (the user's off choice is persisted)
  * and `tileHost.onArmedChanged(armed)` (the floating tile's armed face). The wiring must add a
@@ -40,11 +40,11 @@ import org.junit.Test
  * never cleared and `HostFace.armed` stays null. The assert below then fails.
  *
  * `HostFace` is this file's own fake of the thing `tileHost.onArmedChanged` does; it exists only
- * because the real `TileHost` cannot be built here (see the PLAN CHANGES note in the plan file). It is
- * not the pin - the pin is the wiring not replacing the observer.
+ * because the real `TileHost` cannot be built here. It is not the behaviour under test - the behaviour
+ * under test is the wiring not replacing the observer.
  *
  * ORDER NOTE: `rePushState` calls `home?.showRecording(...)` BEFORE `screenMic?.setState(...)`, so the
- * Home control's log is always one step ahead of the mic's face log. This test drives both, so a mutant
+ * Home control's log is always one step ahead of the mic's face log. This test drives both, so an arm
  * that re-pushes one and not the other is caught.
  */
 internal class HomeTakeWiringObserverPinTest {
@@ -108,9 +108,9 @@ internal class HomeTakeWiringObserverPinTest {
         offStore.off = true
         val built = built(HostFace())
         built.switch.switchOn()
-        assertTrue("app: pin1: the arm must reach the service", built.controller.isArmed)
+        assertTrue("app: observer survival: the arm must reach the service", built.controller.isArmed)
         assertEquals(
-            "app: pin1: the arm must reach armedSwitch.onStateChanged, which clears the off choice",
+            "app: observer survival: the arm must reach armedSwitch.onStateChanged, which clears the off choice",
             false,
             offStore.isOff(),
         )
@@ -123,30 +123,31 @@ internal class HomeTakeWiringObserverPinTest {
         val built = built(host)
         built.switch.switchOn()
         assertEquals(
-            "app: pin1: the arm must reach tileHost.onArmedChanged through the app's observer",
+            "app: observer survival: the arm must reach tileHost.onArmedChanged through the app's observer",
             true,
             host.armed,
         )
     }
 
-    /** Both at once, on the real chain, with the wiring built - the pin's one assert. */
+    /** Both at once, on the real chain, with the wiring built - the one assert this file rests on. */
     @Test
     fun `the app's observer still runs both arms after the wiring is built`() {
         offStore.off = true
         val host = HostFace()
         val built = built(host)
         built.switch.switchOn()
-        assertTrue("app: pin1: the off-store must be cleared by the observer the app still owns", !offStore.isOff())
-        assertEquals("app: pin1: the tile host must be told by the observer the app still owns", true, host.armed)
+        assertTrue("app: observer survival: the off-store must be cleared by the observer the app still owns", !offStore.isOff())
+        assertEquals("app: observer survival: the tile host must be told by the observer the app still owns", true, host.armed)
         assertTrue(
-            "app: pin1: the wiring's own listener must also re-push the mic, so both survive together",
+            "app: observer survival: the wiring's own listener must also re-push the mic, so both survive together",
             built.mic.faces.contains(TileState.ARMED),
         )
     }
 
     /**
      * The disarm half: the user's off choice is STORED (`USER_WORD`) and the tile host is told it is
-     * off. A fix that replaces the observer stops both, so this row dies with the observer mutant too.
+     * off. A fix that replaces the observer stops both, so this row dies with that observer-replacing
+     * change too.
      */
     @Test
     fun `a user disarm stores the off choice and tells the tile host`() {
@@ -154,8 +155,8 @@ internal class HomeTakeWiringObserverPinTest {
         val built = built(host)
         built.switch.switchOn()
         built.switch.switchOff()
-        assertTrue("app: pin1: the user's off choice must be stored by the observer", offStore.isOff())
-        assertEquals("app: pin1: the tile host must be told it is off", false, host.armed)
+        assertTrue("app: observer survival: the user's off choice must be stored by the observer", offStore.isOff())
+        assertEquals("app: observer survival: the tile host must be told it is off", false, host.armed)
     }
 
     /**
@@ -170,24 +171,24 @@ internal class HomeTakeWiringObserverPinTest {
         val built = built(host)
         built.switch.switchOn()
         built.controller.serviceEnded()
-        assertEquals("app: pin1: a service that ends is not the user's off word", false, offStore.isOff())
-        assertEquals("app: pin1: the tile host must still be told it is off", false, host.armed)
+        assertEquals("app: observer survival: a service that ends is not the user's off word", false, offStore.isOff())
+        assertEquals("app: observer survival: the tile host must still be told it is off", false, host.armed)
     }
 
-    /** The wiring's own re-push still lands, so pin 1 and the face push are not traded against each other. */
+    /** The wiring's own re-push still lands, so the observer survival and the face push are not traded against each other. */
     @Test
     fun `the re-push reaches the mic and is the derived face not a blanket armed`() {
         val built = built(HostFace())
-        assertEquals("app: pin1: the fresh-launch creation push is computed while unarmed", listOf(TileState.IDLE), built.mic.faces)
+        assertEquals("app: observer survival: the fresh-launch creation push is computed while unarmed", listOf(TileState.IDLE), built.mic.faces)
         built.switch.switchOn()
         assertEquals(
-            "app: pin1: the arm must re-push ARMED through the wiring's own listener",
+            "app: observer survival: the arm must re-push ARMED through the wiring's own listener",
             TileState.ARMED,
             built.mic.faces.last(),
         )
         built.wiring.onTap()
         assertEquals(
-            "app: pin1: a recording take must push RECORDING, not a blanket ARMED",
+            "app: observer survival: a recording take must push RECORDING, not a blanket ARMED",
             TileState.RECORDING,
             built.mic.faces.last(),
         )
@@ -195,20 +196,20 @@ internal class HomeTakeWiringObserverPinTest {
 
     /**
      * The re-push paints BOTH the Home control and the mic, in that order, so the Home's recording look
-     * and the mic's face cannot drift apart. This is the shape `rePushState` has, and it is what a
-     * mutant that re-pushes only one of the two breaks.
+     * and the mic's face cannot drift apart. This is the shape `rePushState` has, and it is what an arm
+     * that re-pushes only one of the two breaks.
      */
     @Test
     fun `the re-push paints the home control and the mic in order`() {
         val built = built(HostFace())
         built.switch.switchOn()
         assertEquals(
-            "app: pin1: the arm re-pushes the recording look (idle) then the ARMED face",
+            "app: observer survival: the arm re-pushes the recording look (idle) then the ARMED face",
             listOf(false, false),
             built.home.recordings,
         )
         assertEquals(
-            "app: pin1: the arm re-pushes the ARMED face after the recording look",
+            "app: observer survival: the arm re-pushes the ARMED face after the recording look",
             listOf(TileState.IDLE, TileState.ARMED),
             built.mic.faces,
         )
@@ -221,10 +222,10 @@ internal class HomeTakeWiringObserverPinTest {
         // One registration, told once for the arm: the switch's own listener list, not the controller's
         // single observer (which a second setStateObserver call would have replaced).
         built.switch.switchOn()
-        assertEquals("app: pin1: the arm re-pushes exactly once", 1, built.mic.faces.count { it == TileState.ARMED })
+        assertEquals("app: observer survival: the arm re-pushes exactly once", 1, built.mic.faces.count { it == TileState.ARMED })
         // And the app's observer is still the one in charge of the off-store after the wiring is built.
         built.switch.switchOff()
-        assertTrue("app: pin1: the app's observer must still own the off-store", offStore.isOff())
+        assertTrue("app: observer survival: the app's observer must still own the off-store", offStore.isOff())
     }
 }
 

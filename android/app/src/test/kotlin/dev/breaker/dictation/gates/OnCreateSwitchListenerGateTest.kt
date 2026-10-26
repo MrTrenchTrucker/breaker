@@ -26,15 +26,15 @@ import org.junit.Test
  *
  * The rule is scoped to the `onCreate` BODY (`matchedBody`), not to the whole file: `switchListener =`
  * occurs in the whole activity only in that body (`SettingsLauncherActivity.kt:47` is the declaration), so
- * a mutant that deletes `:104` leaves an onCreate body with no assignment while the rest of the file is
- * unchanged - and that is what makes the rule go red. A mutant that MOVES the call out of the body into a
+ * deleting `:104` leaves an onCreate body with no assignment while the rest of the file is
+ * unchanged - and that is what makes the rule go red. Moving the call out of the body into a
  * sibling function leaves the file containing the text while the body no longer does, which the
  * scope-escape sample below drives.
  *
  * Read against real source with comments stripped but literals kept, per the house gate shape
  * (`ActivityUnwatchSwitchGateTest`'s `matchedBody`, `HomeMicFaceWiringGateTest`'s `stripComments`).
  *
- * MUTANTS (the ones this rule must catch):
+ * The edits this rule must catch:
  *   `SettingsLauncherActivity.kt:104` deleted -
  *   `        switchListener = takeWiring.switchListener` -> ``
  *   The onCreate body then holds no assignment, so `ONCREATE_RECORDS_THE_SWITCH_LISTENER` fails.
@@ -62,7 +62,7 @@ internal class OnCreateSwitchListenerGateTest {
     )
 
     private val fires: List<OnCreateFire> = listOf(
-        // The mutant: the activity's own recording of the wiring's listener is deleted.
+        // The firing edit: the activity's own recording of the wiring's listener is deleted.
         OnCreateFire("ONCREATE_RECORDS_THE_SWITCH_LISTENER", "        switchListener = takeWiring.switchListener\n", ""),
     )
 

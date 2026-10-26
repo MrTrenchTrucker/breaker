@@ -8,7 +8,7 @@ import kotlin.math.ceil
 /**
  * Two checks the neighbours let through. (a) The 48 dp floor: on a tile so small that its controls are
  * under 48 dp, every bound must still be lifted to 48 dp and no further (the larger sizes of
- * MicAccessibilityTest never reach the floor). (b) The click site in ScreenMic: a click on a child must
+ * MicAccessibilityTest never reach the floor). (b) The click site in ScreenMicNodeProvider: a click on a child must
  * hand [MicAccessibility.run] the child's action, then onCancel, then onSend, in that order.
  */
 internal class MicAccessibilityFloorTest {
@@ -49,7 +49,7 @@ internal class MicAccessibilityFloorTest {
         }
     }
 
-    /** A failure here means ScreenMic's click site no longer passes the cancel callback before the send callback. */
+    /** A failure here means ScreenMicNodeProvider's click site no longer passes the cancel callback before the send callback. */
     @Test
     fun `click site passes action then cancel then send`() {
         assertEquals("android_overlay: the correct click site is quiet", emptyList<String>(),
@@ -59,7 +59,7 @@ internal class MicAccessibilityFloorTest {
         assertFires("swapped callbacks", clickProblems("MicAccessibility.run(node.action, view.onSend, view.onCancel)"))
         assertFires("a fixed action", clickProblems("MicAccessibility.run(MicA11yAction.CANCEL, view.onCancel, view.onSend)"))
         assertFires("a commented-out call", clickProblems("// MicAccessibility.run(node.action, view.onCancel, view.onSend)"))
-        assertEquals("android_overlay: ScreenMic.kt must run the child's action, then onCancel, then onSend", emptyList<String>(),
-            clickProblems(ModuleFiles.mainTexts().getValue("ScreenMic.kt")))
+        assertEquals("android_overlay: ScreenMicNodeProvider.kt must run the child's action, then onCancel, then onSend", emptyList<String>(),
+            clickProblems(ModuleFiles.mainTexts().getValue("ScreenMicNodeProvider.kt")))
     }
 }

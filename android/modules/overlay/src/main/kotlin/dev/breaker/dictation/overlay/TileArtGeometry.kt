@@ -145,17 +145,27 @@ internal object ArtGeometry {
     const val HALO_LAYER_POWER: Float = 0.35f
 
     /** The alpha of the halo layers 0 to [HALO_LAYERS] - 2, of full scale 255: the soft inner body of the halo. */
-    const val HALO_ALPHA_INNER: Int = 4
+    const val HALO_ALPHA_INNER: Int = 6
 
     /** The alpha of the outermost halo layer (index [HALO_LAYERS] - 1), of full scale 255: the faintest edge of the halo. */
-    const val HALO_ALPHA_OUTER: Int = 3
+    const val HALO_ALPHA_OUTER: Int = 2
 
     /** The number of halo layers, [HALO_LAYERS]. */
     fun haloLayerCount(): Int = HALO_LAYERS
 
-    /** The alpha of halo layer [layer] (0 innermost), as a share of full scale: 4 for layers 0 to [HALO_LAYERS] - 2, 3 for the last. */
-    fun haloLayerAlpha(layer: Int): Float =
-        if (layer >= HALO_LAYERS - 1) HALO_ALPHA_OUTER / 255f else HALO_ALPHA_INNER / 255f
+    /**
+     * The alpha of one halo layer, from the innermost to the outermost: a fade from
+     * [HALO_ALPHA_INNER] to [HALO_ALPHA_OUTER], so the halo's soft edge is a gradient and not a step.
+     * The two ends are exact, and outside the range the value is held to the nearer end.
+     */
+    fun haloLayerAlpha(layer: Int): Float {
+        val span = HALO_LAYERS - 1
+        if (layer <= 0) return HALO_ALPHA_INNER / 255f
+        if (layer >= span) return HALO_ALPHA_OUTER / 255f
+        val fraction = layer.toFloat() / span
+        val alpha = HALO_ALPHA_INNER.toFloat() + (HALO_ALPHA_OUTER - HALO_ALPHA_INNER) * fraction
+        return alpha / 255f
+    }
 
     /** The share of its full reach that halo layer [layer] draws, 0 the innermost and the last the widest: ((layer + 1) / [HALO_LAYERS]) to the power [HALO_LAYER_POWER]. */
     fun haloLayerFraction(layer: Int): Float = ((layer + 1f) / HALO_LAYERS).pow(HALO_LAYER_POWER)

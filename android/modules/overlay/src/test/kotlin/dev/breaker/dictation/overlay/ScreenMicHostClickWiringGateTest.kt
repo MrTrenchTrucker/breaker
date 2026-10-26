@@ -6,7 +6,7 @@ import org.junit.Test
 
 /**
  * Source text checks for the TalkBack host-click wiring, read across BOTH files that carry it: the
- * call site in ScreenMic.kt's performAction host branch, and the decision in ScreenMicProbeKit.kt's
+ * call site in ScreenMicNodeProvider.kt's performAction host branch, and the decision in ScreenMicProbeKit.kt's
  * hostAction. The host node's click must run the state-only hostAction(view), never the stored
  * gesture route(view): route reads view.gesture.zone and belongs to the real-finger touch handler,
  * not the accessibility provider. The first gate reads only the performAction body, so a route() in
@@ -18,7 +18,7 @@ import org.junit.Test
  */
 class ScreenMicHostClickWiringGateTest {
 
-    private val fileA = "ScreenMic.kt"
+    private val fileA = "ScreenMicNodeProvider.kt"
     private val fileB = "ScreenMicProbeKit.kt"
 
     private fun assertFires(what: String, problems: List<String>, part: String) =
@@ -27,7 +27,7 @@ class ScreenMicHostClickWiringGateTest {
     private fun assertQuiet(what: String, problems: List<String>) =
         assertEquals("overlay: control: $what must not be reported", emptyList<String>(), problems)
 
-    // --- Gate A: the performAction host branch in ScreenMic.kt ------------------------------------
+    // --- Gate A: the performAction host branch in ScreenMicNodeProvider.kt ------------------------
 
     /** The performAction body, comments blanked, as the call-site rules read it. */
     private fun hostBody(source: String): String? = AdapterRules.blockBodyOf(SourceText.code(source), "performAction")
@@ -107,7 +107,7 @@ class ScreenMicHostClickWiringGateTest {
     dispatch(hostClick(view.model.state), view.onSend, view.onCancel, view.onBegin) { view.onTap() }
 }"""
 
-    /** The real ScreenMic.kt from the main sources, or a failure naming the file when it is not there. */
+    /** The real ScreenMicNodeProvider.kt from the main sources, or a failure naming the file when it is not there. */
     private fun inFileA(): String =
         ModuleFiles.mainTexts()[fileA] ?: throw AssertionError("android_overlay: $fileA is missing from the main sources")
 
@@ -123,7 +123,7 @@ class ScreenMicHostClickWiringGateTest {
         assertQuiet("the guarded host branch", guardProblems(hostBranch))
         assertFires("an inverted guard", guardProblems(inFileA().replace("if (action != AccessibilityNodeInfo.ACTION_CLICK)", "if (action == AccessibilityNodeInfo.ACTION_CLICK)")), "the host click guard is not")
 
-        assertEquals("overlay: ScreenMic.kt host click guard must be `action != AccessibilityNodeInfo.ACTION_CLICK`", emptyList<String>(), guardProblems(inFileA()))
+        assertEquals("overlay: ScreenMicNodeProvider.kt host click guard must be `action != AccessibilityNodeInfo.ACTION_CLICK`", emptyList<String>(), guardProblems(inFileA()))
     }
 
     /** A failure here means the host node's click does not dispatch the state-only hostAction. */
@@ -134,7 +134,7 @@ class ScreenMicHostClickWiringGateTest {
         assertFires("a dispatch swapped for ScreenMicProbeKit.route(view)", dispatchProblems(inFileA().replace("ScreenMicProbeKit.hostAction(view)", "ScreenMicProbeKit.route(view)")), "does not dispatch ScreenMicProbeKit.hostAction(")
         assertFires("a dispatch swapped for view.route()", dispatchProblems(inFileA().replace("ScreenMicProbeKit.hostAction(view)", "view.route()")), "does not dispatch ScreenMicProbeKit.hostAction(")
 
-        assertEquals("overlay: ScreenMic.kt host click must dispatch hostAction", emptyList<String>(), dispatchProblems(inFileA()))
+        assertEquals("overlay: ScreenMicNodeProvider.kt host click must dispatch hostAction", emptyList<String>(), dispatchProblems(inFileA()))
     }
 
     /** A failure here means the host node's click reads the stored gesture with a route( call. */
@@ -146,16 +146,16 @@ class ScreenMicHostClickWiringGateTest {
         assertFires("a host branch that calls view.route()", gestureProblems(inFileA().replace("ScreenMicProbeKit.hostAction(view)", "view.route()")), "reads the stored gesture with a route(")
         assertFires("a view.route() added in the host branch", gestureProblems(inFileA().replace("ScreenMicProbeKit.hostAction(view)", "ScreenMicProbeKit.hostAction(view)\n                view.route()")), "reads the stored gesture with a route(")
 
-        assertEquals("overlay: ScreenMic.kt host click must not read the stored gesture", emptyList<String>(), gestureProblems(inFileA()))
+        assertEquals("overlay: ScreenMicNodeProvider.kt host click must not read the stored gesture", emptyList<String>(), gestureProblems(inFileA()))
     }
 
     /** A failure here means the host click guard no longer precedes the hostAction dispatch, so every host-node action taps from state, not just a click. */
     @Test
     fun `the host click guard comes before hostAction`() {
         assertQuiet("the correctly-ordered host branch", orderProblems(hostBranch))
-        assertFires("hostAction placed above the click guard", orderProblems(inFileA().replace("if (action != AccessibilityNodeInfo.ACTION_CLICK) return view.performAccessibilityAction(action, arguments)\n                ScreenMicProbeKit.hostAction(view)", "ScreenMicProbeKit.hostAction(view)\n                if (action != AccessibilityNodeInfo.ACTION_CLICK) return view.performAccessibilityAction(action, arguments)")), "the host click guard must come before")
+        assertFires("hostAction placed above the click guard", orderProblems(inFileA().replace("if (action != AccessibilityNodeInfo.ACTION_CLICK) return view.performAccessibilityAction(action, arguments)\n            ScreenMicProbeKit.hostAction(view)", "ScreenMicProbeKit.hostAction(view)\n            if (action != AccessibilityNodeInfo.ACTION_CLICK) return view.performAccessibilityAction(action, arguments)")), "the host click guard must come before")
 
-        assertEquals("overlay: ScreenMic.kt host click guard must come before ScreenMicProbeKit.hostAction(view)", emptyList<String>(), orderProblems(inFileA()))
+        assertEquals("overlay: ScreenMicNodeProvider.kt host click guard must come before ScreenMicProbeKit.hostAction(view)", emptyList<String>(), orderProblems(inFileA()))
     }
 
     // --- Gate B tests -----------------------------------------------------------------------------

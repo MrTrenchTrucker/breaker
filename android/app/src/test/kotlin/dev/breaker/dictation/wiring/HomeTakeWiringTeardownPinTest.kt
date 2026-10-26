@@ -9,7 +9,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * PIN 2 - the listener is taken off the switch when the screen goes. The switch is app-wide and a
+ * THE LISTENER IS TAKEN OFF THE SWITCH WHEN THE SCREEN GOES. The switch is app-wide and a
  * wiring is built per screen, so a listener left on it re-pushes a mic after the screen is gone. The
  * activity removes it in `onDestroy` through `unwatchSwitch`, which calls
  * `ArmedSwitch.removeSwitchListener`.
@@ -23,16 +23,16 @@ import org.junit.Test
  * seam that performs the same step is `HomeTakeWiring.unwatchSwitch`, which is what `onDestroy`
  * calls. This test therefore pins the *behaviour* the teardown must produce (a flip after it pushes
  * nothing) and, in addition, that `unwatchSwitch` is the removal path. A source rule that `onDestroy`
- * calls `unwatchSwitch` would be a comment-scan, which is extra coverage and not the pin.
+ * calls `unwatchSwitch` would be a comment-scan, which is extra coverage and not the behaviour under test.
  *
  * WHAT IS NOT PINNED HERE: that `SettingsLauncherActivity.onDestroy` itself calls `unwatchSwitch`.
- * That line lives behind an Android lifecycle callback this test cannot drive. The mutant "drop the
+ * That line lives behind an Android lifecycle callback this test cannot drive. The variant "drop the
  * remove call" is caught by [a listener taken off is not told] and [teardown of one screen leaves the
  * other screen's re-push working] (the switch's removal behaviour), not by this file's activity line.
- * See the PLAN CHANGES note.
+ * The behaviour under test is what the teardown produces.
  *
  * ORDER NOTE: `rePushState` calls `home?.showRecording(...)` BEFORE `screenMic?.setState(...)`, so the
- * Home control's log is always one step ahead of the mic's face log. This test drives both, so a mutant
+ * Home control's log is always one step ahead of the mic's face log. This test drives both, so a flip
  * that re-pushes one and not the other is caught.
  */
 internal class HomeTakeWiringTeardownPinTest {
@@ -79,9 +79,9 @@ internal class HomeTakeWiringTeardownPinTest {
     )
 
     /**
-     * The pin: after the teardown step, a flip pushes nothing. The flip is driven on the real chain
-     * (`switch.switchOn()` / `switch.switchOff()`), and BOTH the mic's face log and the Home control's
-     * recording log are watched through the seam - the two halves of one re-push.
+     * The behaviour under test: after the teardown step, a flip pushes nothing. The flip is driven on the
+     * real chain (`switch.switchOn()` / `switch.switchOff()`), and BOTH the mic's face log and the Home
+     * control's recording log are watched through the seam - the two halves of one re-push.
      */
     @Test
     fun `a flip after teardown pushes nothing`() {
@@ -92,40 +92,40 @@ internal class HomeTakeWiringTeardownPinTest {
         built.wiring.unwatchSwitch(built.wiring.switchListener)
         built.switch.switchOn()
         assertEquals(
-            "app: pin2: after teardown an arm must push no face",
+            "app: teardown: after teardown an arm must push no face",
             facesBefore,
             built.mic.faces.size,
         )
         assertEquals(
-            "app: pin2: after teardown an arm must push no recording look",
+            "app: teardown: after teardown an arm must push no recording look",
             recordingsBefore,
             built.home.recordings.size,
         )
         built.switch.switchOff()
         assertEquals(
-            "app: pin2: after teardown a disarm must push no face",
+            "app: teardown: after teardown a disarm must push no face",
             facesBefore,
             built.mic.faces.size,
         )
         assertEquals(
-            "app: pin2: after teardown a disarm must push no recording look",
+            "app: teardown: after teardown a disarm must push no recording look",
             recordingsBefore,
             built.home.recordings.size,
         )
     }
 
-    /** The same flip WITH the listener still on pushes both halves, so the pin above is a real difference. */
+    /** The same flip WITH the listener still on pushes both halves, so the behaviour above is a real difference. */
     @Test
     fun `a flip with the listener still on pushes the face and the recording look`() {
         val built = built()
         built.switch.switchOn()
         assertEquals(
-            "app: pin2: with the listener on, an arm must re-push the face",
+            "app: teardown: with the listener on, an arm must re-push the face",
             listOf(TileState.IDLE, TileState.ARMED),
             built.mic.faces,
         )
         assertEquals(
-            "app: pin2: with the listener on, an arm must re-push the recording look",
+            "app: teardown: with the listener on, an arm must re-push the recording look",
             listOf(false, false),
             built.home.recordings,
         )
@@ -137,7 +137,7 @@ internal class HomeTakeWiringTeardownPinTest {
         val built = built()
         built.switch.switchOn()
         assertEquals(
-            "app: pin2: the listener is on, so the arm pushes once",
+            "app: teardown: the listener is on, so the arm pushes once",
             1,
             built.mic.faces.count { it == TileState.ARMED },
         )
@@ -146,8 +146,8 @@ internal class HomeTakeWiringTeardownPinTest {
         val recordings: Int = built.home.recordings.size
         built.switch.switchOn()
         built.switch.switchOff()
-        assertEquals("app: pin2: the listener is off, so no more faces push", faces, built.mic.faces.size)
-        assertEquals("app: pin2: the listener is off, so no more recording looks push", recordings, built.home.recordings.size)
+        assertEquals("app: teardown: the listener is off, so no more faces push", faces, built.mic.faces.size)
+        assertEquals("app: teardown: the listener is off, so no more recording looks push", recordings, built.home.recordings.size)
     }
 
     /**
@@ -163,7 +163,7 @@ internal class HomeTakeWiringTeardownPinTest {
         built.wiring.unwatchSwitch(neverAdded)
         built.switch.switchOn()
         assertEquals(
-            "app: pin2: a removal of a listener that was never added must not disturb the wiring's own",
+            "app: teardown: a removal of a listener that was never added must not disturb the wiring's own",
             faces + 1,
             built.mic.faces.size,
         )
@@ -210,15 +210,15 @@ internal class HomeTakeWiringTeardownPinTest {
         second.installScreenMic(secondMic)
         first.unwatchSwitch(first.switchListener)
         switch.switchOn()
-        assertEquals("app: pin2: the torn-down screen's mic must not move", 1, firstMic.faces.size)
-        assertEquals("app: pin2: the torn-down screen's home control must not move", 1, firstHome.recordings.size)
+        assertEquals("app: teardown: the torn-down screen's mic must not move", 1, firstMic.faces.size)
+        assertEquals("app: teardown: the torn-down screen's home control must not move", 1, firstHome.recordings.size)
         assertEquals(
-            "app: pin2: the other screen's mic must still re-push",
+            "app: teardown: the other screen's mic must still re-push",
             2,
             secondMic.faces.size,
         )
         assertEquals(
-            "app: pin2: the other screen's home control must still re-push",
+            "app: teardown: the other screen's home control must still re-push",
             2,
             secondHome.recordings.size,
         )

@@ -7,11 +7,12 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * MUTANT M7 - the switch listeners are told only once the off-store is settled.
+ * THE SWITCH LISTENERS ARE TOLD ONLY ONCE THE OFF-STORE IS SETTLED.
  *
  * `ArmedSwitch.onStateChanged` writes the store first and tells the listeners last, so a listener that
- * reads the store when it is told sees the value the change just wrote. M7 moves the tell BEFORE the
- * write: the listener then reads the value the change had not written yet.
+ * reads the store when it is told sees the value the change just wrote. A variant that told the
+ * listeners BEFORE writing the store would leave the listener reading the value the change had not
+ * written yet.
  *
  * WHAT THIS FILE PINS (behaviour, not a source scan): a listener that reads the [OffStore] inside its own
  * callback. An arm clears the stored off choice, so the listener must read not-off; a USER_WORD disarm
@@ -21,8 +22,9 @@ import org.junit.Test
  * The store is put into the state the change flips BEFORE the flip, so the reading can only be right if
  * the write has already happened: on the arm the store starts off, on the disarm it starts not-off.
  *
- * WHY THE ROWS CANNOT PASS ON M7: the assert reads `store.isOff()` inside the callback, which is the very
- * value M7 leaves stale - the arm row would read off, the disarm row would read not-off.
+ * WHY THE ROWS ONLY PASS WITH THE WRITE FIRST: the assert reads `store.isOff()` inside the callback,
+ * which is the very value a tell-before-write ordering leaves stale - the arm row would read off, the
+ * disarm row would read not-off.
  */
 internal class ArmedSwitchListenerSeesSettledStoreTest {
 
@@ -52,7 +54,7 @@ internal class ArmedSwitchListenerSeesSettledStoreTest {
         switch.addSwitchListener(StoreReadingSwitchListener(store, seen)::invoke)
         switch.switchOn()
         assertEquals(
-            "app: m7: the arm must tell the listener after the store is cleared, so it reads not-off",
+            "app: settled switch store: the arm must tell the listener after the store is cleared, so it reads not-off",
             listOf(false),
             seen,
         )
@@ -72,7 +74,7 @@ internal class ArmedSwitchListenerSeesSettledStoreTest {
         seen.clear()
         switch.switchOff()
         assertEquals(
-            "app: m7: the disarm must tell the listener after the store is written, so it reads off",
+            "app: settled switch store: the disarm must tell the listener after the store is written, so it reads off",
             listOf(true, true),
             seen,
         )

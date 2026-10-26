@@ -6,8 +6,8 @@ import org.junit.Test
 
 /**
  * The pulse's source shape, read as text because the view and the animator cannot run on a plain JVM: the
- * animator is named in one file only, that file uses none of the timer, handler or log words, and the view's
- * four hooks start and stop the pulse through the pure rule.
+ * animator is named in the two animator files only, those files use none of the timer, handler or log words,
+ * and the view's four hooks start and stop the pulse through the pure rule.
  *
  * Each rule runs first on short made-up samples (a bad one must be reported with the right words, a good one
  * must not) and then on the real files. A file that cannot be found is a violation, never a pass.
@@ -16,6 +16,7 @@ class PulseGateTest {
 
     private val view = "TileView.kt"
     private val pulseFile = PulseSourceRules.PULSE_FILE
+    private val breathingFile = PulseSourceRules.BREATHING_FILE
 
     private fun assertFires(what: String, problems: List<String>, part: String) =
         assertTrue("overlay: control: $what must be reported with '$part', got $problems", problems.any { it.contains(part) })
@@ -32,16 +33,17 @@ class PulseGateTest {
     /** The words that name the platform's clock and thread, split the same way as in the rules, so this file does not hold them whole. */
     private val threadWord = "Thr" + "ead"
 
-    // ---- The animator is named in ArmedPulse.kt only ----
+    // ---- The animator is named in the two animator files only ----
 
-    /** A failure means an animator word appears in a main file other than the pulse file. */
+    /** A failure means an animator word appears in a main file other than the two animator files. */
     @Test
-    fun `the animator words are banned in every main file except the pulse file`() {
+    fun `the animator words are banned in every main file except the two animator files`() {
         assertFires("a call to animate", PulseSourceRules.animatorProblems(mapOf(view to "fun f() { view.animate() }\n")), "animate")
         assertFires("a value animator", PulseSourceRules.animatorProblems(mapOf("TileStyle.kt" to "val a = ValueAnimator.ofFloat(0f, 1f)\n")), "TileStyle.kt uses the animator word ValueAnimator")
         assertFires("an animator type", PulseSourceRules.animatorProblems(mapOf("WindowManagerTileWindow.kt" to "val a: Animator? = null\n")), "WindowManagerTileWindow.kt uses the animator word Animator")
         assertFires("an object animator", PulseSourceRules.animatorProblems(mapOf("FloatingTile.kt" to "import android.animation.ObjectAnimator\n")), "FloatingTile.kt uses the animator word ObjectAnimator")
         assertQuiet("the animator in the pulse file", PulseSourceRules.animatorProblems(mapOf(pulseFile to "val a = ValueAnimator.ofFloat(0f, 1f)\n")))
+        assertQuiet("the animator in the breathing file", PulseSourceRules.animatorProblems(mapOf(breathingFile to "val a = ValueAnimator.ofFloat(0f, 1f)\n")))
         assertQuiet(
             "the words only in comments, and longer or lower-case names",
             PulseSourceRules.animatorProblems(mapOf(view to "// animate the ring with a ValueAnimator\n/* Animator */\nval animated = 1\nval animator = 2\nval animations = 3\n")),
@@ -49,7 +51,7 @@ class PulseGateTest {
 
         val texts = ModuleFiles.mainTexts()
         assertTrue("overlay: the scan did not read the pulse file: ${texts.keys}", texts.containsKey(pulseFile))
-        assertEquals("overlay: main sources other than $pulseFile must name no animator", emptyList<String>(), PulseSourceRules.animatorProblems(texts))
+        assertEquals("overlay: main sources other than the animator files must name no animator", emptyList<String>(), PulseSourceRules.animatorProblems(texts))
     }
 
     // ---- The pulse file holds no timer, handler, log or thread word ----
@@ -73,6 +75,51 @@ class PulseGateTest {
             emptyList<String>(),
             PulseSourceRules.pulseFileProblems(ModuleFiles.mainTexts().getValue(pulseFile)),
         )
+    }
+
+    // ---- The two animator files cannot drift apart, and the breathing file keeps the armed file's shape ----
+
+    /** A failure means the animator set drifted: a third file may name an animator, or a file was renamed out of the set. */
+    @Test
+    fun `the animator set holds exactly the two animator files, both present in the main sources`() {
+        assertEquals(
+            "overlay: the animator files must be exactly the armed and breathing pulse files",
+            setOf(pulseFile, breathingFile),
+            PulseSourceRules.ANIMATOR_FILES,
+        )
+        assertTrue("overlay: the animator files must hold the pulse file", pulseFile in PulseSourceRules.ANIMATOR_FILES)
+        assertTrue("overlay: the animator files must hold the breathing file", breathingFile in PulseSourceRules.ANIMATOR_FILES)
+
+        val texts = ModuleFiles.mainTexts()
+        assertTrue("overlay: the scan did not read the breathing file: ${texts.keys}", texts.containsKey(breathingFile))
+        assertTrue("overlay: the scan did not read the pulse file: ${texts.keys}", texts.containsKey(pulseFile))
+        assertQuiet("both animator files naming an animator", PulseSourceRules.animatorProblems(texts))
+        assertFires(
+            "a third file naming an animator",
+            PulseSourceRules.animatorProblems(texts + ("TileController.kt" to "val a = ValueAnimator.ofFloat(0f, 1f)\n")),
+            "TileController.kt uses the animator word ValueAnimator",
+        )
+    }
+
+    /** A failure means the breathing file's start, stop or banned words break the shape the armed file keeps. */
+    @Test
+    fun `the breathing file keeps the same start, stop and banned word shape as the armed file`() {
+        val breathing = ModuleFiles.mainTexts().getValue(breathingFile)
+        assertQuiet("the breathing start", PulseSourceRules.startGuardProblems(breathing, breathingFile))
+        assertQuiet("the breathing stop", PulseSourceRules.stopResetProblems(breathing, breathingFile))
+        assertQuiet("the breathing banned words", PulseSourceRules.animatorFileProblems(breathingFile, breathing))
+        assertQuiet("the breathing start phase", PulseSourceRules.breathingStartProblems(breathing))
+
+        // the start-phase pin, each check proven able to fire on the single-line edit it names
+        assertFires("a breathing start with no seek", PulseSourceRules.breathingStartProblems(edit(breathing, "        next.setCurrentFraction(BREATHING_PHASE_START)\n", "")), "$breathingFile start does not seek the cycle to BREATHING_PHASE_START before it runs")
+        assertFires("a breathing start narrowed to 0.5..1 instead of sought", PulseSourceRules.breathingStartProblems(edit(breathing, "ValueAnimator.ofFloat(0f, 1f)", "ValueAnimator.ofFloat(0.5f, 1f)")), "$breathingFile start does not keep the whole breath in one loop (ValueAnimator.ofFloat(0f, 1f))")
+        assertFires("a breathing start that runs before it seeks", PulseSourceRules.breathingStartProblems(edit(breathing, "        next.setCurrentFraction(BREATHING_PHASE_START)\n        animator = next\n        next.start()", "        animator = next\n        next.start()\n        next.setCurrentFraction(BREATHING_PHASE_START)")), "$breathingFile start runs the animator before it seeks it")
+        assertFires("a breathing start sought to a hard-coded 0.5f rather than the named phase", PulseSourceRules.breathingStartProblems(edit(breathing, "setCurrentFraction(BREATHING_PHASE_START)", "setCurrentFraction(0.5f)")), "$breathingFile start does not seek the cycle to BREATHING_PHASE_START before it runs")
+
+        assertFires("a banned word in the breathing file", PulseSourceRules.animatorFileProblems(breathingFile, "fun f() { Handler }\n"), "$breathingFile uses Handler")
+        assertQuiet("a banned word only in a comment", PulseSourceRules.animatorFileProblems(breathingFile, "// Handler\n/* Looper */\n"))
+        assertFires("no start function", PulseSourceRules.startGuardProblems("val x = 1\n", breathingFile), "$breathingFile has no start function")
+        assertFires("no stop function", PulseSourceRules.stopResetProblems("val x = 1\n", breathingFile), "$breathingFile has no stop function")
     }
 
     // ---- The view's hooks start and stop the pulse through the pure rule ----
@@ -245,5 +292,89 @@ class PulseGateTest {
         assertFires("no callback", PulseSourceRules.pulseCallbackProblems("val x = 1\n"), "has no ArmedPulse")
 
         assertEquals("overlay: $view must store the alpha into pulseAlpha and call invalidate() in its pulse callback", emptyList<String>(), PulseSourceRules.pulseCallbackProblems(ModuleFiles.mainTexts().getValue(view)))
+    }
+
+    // ---- The Home mic's whole motion arrangement: the two hooks re-take it, and only the level pulse takes the level ----
+
+    /** The main file the Home mic's arrangement is read from, and the name its case uses. */
+    private val screenMicFile = "ScreenMic.kt"
+
+    /**
+     * The arrangement, as made-up source: the two platform hooks each re-take the motion, the detach hook sets
+     * `visible = false` before it re-takes, `refreshMotion` takes the motion and gives the level pulse its own
+     * arm that stops the breathing and starts the smoother from silence, and `setModelLevel` smooths the level
+     * into `motionAlpha` only while the motion is the level pulse.
+     */
+    private val motionSample = listOf(
+        "internal class ScreenMicView(context: Context) : View(context) {",
+        "private val breathing = BreathingPulse { motionAlpha = it }",
+        "private var motionAlpha: Float = 1f",
+        "private var levelSmooth: Float = 0f",
+        "override fun onVisibilityAggregated(isVisible: Boolean) {",
+        "super.onVisibilityAggregated(isVisible)",
+        "visible = isVisible",
+        "refreshMotion()",
+        "}",
+        "override fun onDetachedFromWindow() {",
+        "visible = false",
+        "refreshMotion()",
+        "super.onDetachedFromWindow()",
+        "}",
+        "private fun refreshMotion() {",
+        "val switchOn = switchOnFor(model.state)",
+        "val ready = model.state == TileState.ARMED",
+        "when (micMotion(model.state, switchOn, ready, visible, BreathingPulse.animationsOn())) {",
+        "MicMotion.LEVEL_PULSE -> {",
+        "breathing.stop()",
+        "levelSmooth = 0f",
+        "}",
+        "MicMotion.STEADY, MicMotion.DIM_STEADY -> breathing.stop()",
+        "MicMotion.BREATHE -> breathing.start()",
+        "}",
+        "}",
+        "private fun motionIsLevelPulse(): Boolean =",
+        "model.state == TileState.RECORDING && visible && BreathingPulse.animationsOn()",
+        "fun setModelLevel(level: Float) {",
+        "model.setLevel(level)",
+        "if (motionIsLevelPulse()) {",
+        "levelSmooth = levelSmoothStep(levelSmooth, level)",
+        "motionAlpha = levelAlpha(levelSmooth)",
+        "}",
+        "invalidate()",
+        "}",
+        "}",
+    ).joinToString("\n") + "\n"
+
+    /** A failure means the two hooks, the level pulse arm or the level's path into the glow's alpha is not the arrangement this pins. */
+    @Test
+    fun `the Home mic takes its motion in two hooks and only the level pulse takes the level`() {
+        assertQuiet("the made-up arrangement", PulseSourceRules.screenMicMotionProblems(motionSample))
+        assertQuiet(
+            "the arrangement with the words of the rule only in comments",
+            PulseSourceRules.screenMicMotionProblems("// onVisibilityAggregated onDetachedFromWindow refreshMotion micMotion breathing.start() breathing.stop()\n" + motionSample),
+        )
+
+        assertFires("the visibility hook not overridden", PulseSourceRules.screenMicMotionProblems(edit(motionSample, "override fun onVisibilityAggregated", "fun onVisibilityAggregated")), "does not override onVisibilityAggregated")
+        assertFires("the detach hook not overridden", PulseSourceRules.screenMicMotionProblems(edit(motionSample, "override fun onDetachedFromWindow", "fun onDetachedFromWindow")), "does not override onDetachedFromWindow")
+        assertFires("the visibility hook never refreshes", PulseSourceRules.screenMicMotionProblems(edit(motionSample, "visible = isVisible\nrefreshMotion()", "visible = isVisible")), "onVisibilityAggregated does not call refreshMotion()")
+        assertFires("the detach hook never refreshes", PulseSourceRules.screenMicMotionProblems(edit(motionSample, "refreshMotion()\nsuper.onDetachedFromWindow()", "super.onDetachedFromWindow()")), "onDetachedFromWindow does not call refreshMotion()")
+        assertFires("the detach hook does not set visible false", PulseSourceRules.screenMicMotionProblems(edit(motionSample, "visible = false\nrefreshMotion()", "refreshMotion()")), "onDetachedFromWindow does not set visible = false")
+        assertFires("the detach hook sets visible false after the refresh", PulseSourceRules.screenMicMotionProblems(edit(motionSample, "visible = false\nrefreshMotion()", "refreshMotion()\nvisible = false")), "onDetachedFromWindow sets visible = false after it calls refreshMotion()")
+        assertFires("the refresh does not take the motion", PulseSourceRules.screenMicMotionProblems(edit(motionSample, "when (micMotion(", "when (run(")), "refreshMotion does not take the motion with micMotion(")
+        assertFires("the refresh re-derives switchOn inline", PulseSourceRules.screenMicMotionProblems(edit(motionSample, "val switchOn = switchOnFor(model.state)", "val switchOn = model.state == TileState.IDLE")), "refreshMotion does not take switchOn from switchOnFor(model.state)")
+        assertFires("the refresh never stops the breathing", PulseSourceRules.screenMicMotionProblems(edit(motionSample, "MicMotion.STEADY, MicMotion.DIM_STEADY -> breathing.stop()\nMicMotion.BREATHE -> breathing.start()\n", "MicMotion.STEADY, MicMotion.DIM_STEADY -> Unit\nMicMotion.BREATHE -> Unit\n")), "refreshMotion does not start and stop the breathing")
+        assertFires("the level pulse arm does not stop the breathing", PulseSourceRules.screenMicMotionProblems(edit(motionSample, "breathing.stop()\nlevelSmooth = 0f", "levelSmooth = 0f")), "does not stop the breathing in the level pulse arm")
+        assertFires("the level pulse arm does not reset the smoother", PulseSourceRules.screenMicMotionProblems(edit(motionSample, "breathing.stop()\nlevelSmooth = 0f", "breathing.stop()")), "does not reset levelSmooth = 0f in the level pulse arm")
+        assertFires("the level pulse arm is missing", PulseSourceRules.screenMicMotionProblems(edit(motionSample, "MicMotion.LEVEL_PULSE -> {\nbreathing.stop()\nlevelSmooth = 0f\n}\n", "")), "refreshMotion has no LEVEL_PULSE arm")
+        assertFires("the level path has no guard", PulseSourceRules.screenMicMotionProblems(edit(motionSample, "if (motionIsLevelPulse()) {", "if (true) {")), "setModelLevel does not tell whether the motion is the level pulse")
+        assertFires("the level is not smoothed", PulseSourceRules.screenMicMotionProblems(edit(motionSample, "levelSmooth = levelSmoothStep(levelSmooth, level)", "levelSmooth = level")), "setModelLevel does not smooth the level with levelSmoothStep(")
+        assertFires("the smoothed level is not given an alpha", PulseSourceRules.screenMicMotionProblems(edit(motionSample, "motionAlpha = levelAlpha(levelSmooth)", "motionAlpha = 1f")), "setModelLevel does not give the smoothed level to levelAlpha(")
+        assertFires("another field takes the alpha", PulseSourceRules.screenMicMotionProblems(edit(motionSample, "motionAlpha = levelAlpha(levelSmooth)", "otherAlpha = levelAlpha(levelSmooth)")), "setModelLevel does not give the smoothed level to motionAlpha")
+        assertFires("the level is not pushed to the model", PulseSourceRules.screenMicMotionProblems(edit(motionSample, "model.setLevel(level)", "model.state")), "setModelLevel does not push the level with model.setLevel(")
+        assertFires("the view is not redrawn", PulseSourceRules.screenMicMotionProblems(edit(motionSample, "invalidate()\n}\n}", "}\n}")), "setModelLevel does not redraw with invalidate()")
+
+        val texts = ModuleFiles.mainTexts()
+        assertTrue("overlay: the scan did not read $screenMicFile: ${texts.keys}", texts.containsKey(screenMicFile))
+        assertEquals("overlay: $screenMicFile must hold the whole motion arrangement", emptyList<String>(), PulseSourceRules.screenMicMotionProblems(texts.getValue(screenMicFile)))
     }
 }

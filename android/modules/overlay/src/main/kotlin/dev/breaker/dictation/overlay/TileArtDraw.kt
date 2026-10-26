@@ -63,16 +63,16 @@ internal class TileArtDraw {
             paint.style = Paint.Style.FILL
             for (layer in ArtGeometry.haloLayerCount() - 1 downTo 0) {
                 paint.color = glowDrawColor(haloColor, pulseAlpha, ArtGeometry.haloLayerAlpha(layer))
-                val reach = ArtGeometry.haloLayerFraction(layer)
+                val layerFraction = ArtGeometry.haloLayerFraction(layer)
                 canvas.save()
                 canvas.scale(halo.sidewaysPx, halo.downwardPx)
                 canvas.clipRect(-1f, 0f, 1f, 1f)
-                canvas.drawCircle(0f, 0f, reach, paint)
+                canvas.drawCircle(0f, 0f, layerFraction, paint)
                 canvas.restore()
                 canvas.save()
                 canvas.scale(halo.sidewaysPx, halo.upwardPx)
                 canvas.clipRect(-1f, -1f, 1f, 0f)
-                canvas.drawCircle(0f, 0f, reach, paint)
+                canvas.drawCircle(0f, 0f, layerFraction, paint)
                 canvas.restore()
             }
             canvas.restore()
