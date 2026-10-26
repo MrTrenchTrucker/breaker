@@ -7,6 +7,7 @@ import dev.breaker.shared.tokens.TruckingTokens
 import java.lang.reflect.Modifier
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -45,7 +46,7 @@ class TileStyleTest {
     }
 
     private fun fields(look: TileLook): List<Int> =
-        listOf(look.background, look.glyph, look.glyphOutline, look.danger, look.primary, look.busyOutline, look.ring, look.litSegment, look.unlitSegment, look.control)
+        listOf(look.background, look.glyph, look.glyphOutline, look.danger, look.primary, look.busyOutline, look.ring, look.litSegment, look.halo, look.unlitSegment, look.control)
 
     /** A failure means a state's colour is not the palette field the tile is meant to use, in the light theme, the dark theme or a palette of eleven different colours. */
     @Test
@@ -63,6 +64,11 @@ class TileStyleTest {
                 assertEquals("overlay: $what busy outline expected the danger shaded by BUSY_OUTLINE_SHADE", shade(p.danger.argb, ArtFactors.BUSY_OUTLINE_SHADE), look.busyOutline)
                 assertEquals("overlay: $what ring", ring(state, p), look.ring)
                 assertEquals("overlay: $what lit segment expected the primary colour", p.primary.argb, look.litSegment)
+                assertEquals(
+                    "overlay: $what halo expected the primary against a dark page and the primary shaded by HALO_LIGHT_SHADE against a light page",
+                    if (relativeLuminance(p.bg.argb) > ArtFactors.LIGHT_PAGE) shade(p.primary.argb, ArtFactors.HALO_LIGHT_SHADE) else p.primary.argb,
+                    look.halo,
+                )
                 assertEquals("overlay: $what unlit segment expected the background colour", p.bg.argb, look.unlitSegment)
                 assertEquals("overlay: $what control expected the text colour", p.text.argb, look.control)
             }
@@ -154,11 +160,11 @@ class TileStyleTest {
         )
     }
 
-    /** A failure means the look gained or lost a colour, or one of its ten colours is not the palette field the tile is meant to use. */
+    /** A failure means the look gained or lost a colour, or one of its eleven colours is not the palette field the tile is meant to use. */
     @Test
-    fun `the look is exactly ten colours in the expected order from distinct palette fields`() {
+    fun `the look is exactly eleven colours in the expected order from distinct palette fields`() {
         val stored = TileLook::class.java.declaredFields.count { !Modifier.isStatic(it.modifiers) }
-        assertEquals("overlay: the look should hold exactly ten colours", 10, stored)
+        assertEquals("overlay: the look should hold exactly eleven colours", 11, stored)
         val expected = listOf(
             distinct.surface.argb,
             distinct.primary.argb,
@@ -168,14 +174,61 @@ class TileStyleTest {
             shade(distinct.danger.argb, ArtFactors.BUSY_OUTLINE_SHADE),
             distinct.trim.argb,
             distinct.primary.argb,
+            distinct.primary.argb,
             distinct.bg.argb,
             distinct.text.argb,
         )
         assertEquals(
-            "overlay: the idle look should be surface, primary, trim, danger, primary, shaded danger, trim, primary, background, text",
+            "overlay: the idle look should be surface, primary, trim, danger, primary, shaded danger, trim, primary, primary, background, text",
             expected,
             fields(TileStyle.look(TileState.IDLE, distinct)),
         )
+    }
+
+    /**
+     * The Home mic's halo is derived from the palette, never written as a colour: against a dark page it holds
+     * the primary, against a light page it is the primary deepened by [ArtFactors.HALO_LIGHT_SHADE]. The two
+     * planted controls are the wrong answers to each branch, and each must fail: a light page whose halo was
+     * left at the primary, and a dark page whose halo was deepened.
+     */
+    @Test
+    fun `the halo holds the primary against a dark page and deepens it against a light page`() {
+        val light = TileStyle.look(TileState.IDLE, TruckingTokens.palette(ThemeMode.LIGHT))
+        val dark = TileStyle.look(TileState.IDLE, TruckingTokens.palette(ThemeMode.DARK))
+        assertEquals(
+            "overlay: the light halo expected the primary shaded by HALO_LIGHT_SHADE",
+            shade(TruckingTokens.palette(ThemeMode.LIGHT).primary.argb, ArtFactors.HALO_LIGHT_SHADE),
+            light.halo,
+        )
+        assertEquals("overlay: the dark halo expected the primary unchanged", TruckingTokens.palette(ThemeMode.DARK).primary.argb, dark.halo)
+        assertTrue(
+            "overlay: the light halo expected to be darker than the light primary",
+            relativeLuminance(light.halo) < relativeLuminance(TruckingTokens.palette(ThemeMode.LIGHT).primary.argb),
+        )
+
+        // The two planted controls: the wrong answer to each branch. Both must fail, so a halo that ignored the page would not pass.
+        assertFails(
+            "overlay: a light page with the halo left at the primary expected to fail",
+            "overlay: the light halo expected the primary shaded by HALO_LIGHT_SHADE",
+            TruckingTokens.palette(ThemeMode.LIGHT).primary.argb,
+            light.halo,
+        )
+        assertFails(
+            "overlay: a dark page with the halo deepened expected to fail",
+            "overlay: the dark halo expected the primary unchanged",
+            shade(TruckingTokens.palette(ThemeMode.DARK).primary.argb, ArtFactors.HALO_LIGHT_SHADE),
+            dark.halo,
+        )
+    }
+
+    /** A failure means the assertion did not fire on two different values, so a control would prove nothing. */
+    private fun assertFails(what: String, message: String, expected: Int, actual: Int) {
+        try {
+            assertEquals(message, expected, actual)
+        } catch (e: AssertionError) {
+            return
+        }
+        throw AssertionError(what)
     }
 
     private fun base(): TileLook = TileStyle.look(TileState.IDLE, TruckingTokens.palette(ThemeMode.LIGHT))

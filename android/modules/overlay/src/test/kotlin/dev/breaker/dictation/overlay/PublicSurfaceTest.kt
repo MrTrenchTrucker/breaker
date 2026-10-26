@@ -27,7 +27,7 @@ class PublicSurfaceTest {
     private fun publicMethodNames(type: Class<*>): List<String> =
         type.declaredMethods.filter { Modifier.isPublic(it.modifiers) && !it.isSynthetic }.map { it.name }.sorted()
 
-    private val publicFiles = setOf("FloatingTile.kt", "ShowResult.kt", "TileState.kt", "ScreenMic.kt", "ScreenMicProbe.kt")
+    private val publicFiles = setOf("FloatingTile.kt", "ShowResult.kt", "TileState.kt", "ScreenMic.kt", "ScreenMicProbe.kt", "GlowShapeSwitch.kt")
 
     private val declaration = Regex(
         "^((?:@\\w+(?:\\([^)]*\\))?\\s+)*)" +
@@ -113,7 +113,7 @@ class PublicSurfaceTest {
         }
         assertEquals("android_overlay: control: a file with no declaration must be reported", 1, surfaceProblems(oneFile("// nothing here\n")).size)
         assertEquals("android_overlay: control: only the public files means nothing was checked", 1, surfaceProblems(mapOf("FloatingTile.kt" to "class A")).size)
-        assertEquals("android_overlay: control: the four public files are left alone", emptyList<String>(), surfaceProblems(mapOf("FloatingTile.kt" to "class A", "ShowResult.kt" to "enum class B { X }", "TileState.kt" to "enum class D { X }", "ScreenMic.kt" to "class E { X }", "C.kt" to "internal class C")))
+        assertEquals("android_overlay: control: the public files are left alone", emptyList<String>(), surfaceProblems(mapOf("FloatingTile.kt" to "class A", "ShowResult.kt" to "enum class B { X }", "TileState.kt" to "enum class D { X }", "ScreenMic.kt" to "class E { X }", "GlowShapeSwitch.kt" to "object E", "C.kt" to "internal class C")))
 
         val texts = ModuleFiles.mainTexts()
         assertTrue("android_overlay: the public files were not found among ${texts.keys}", texts.keys.containsAll(publicFiles))

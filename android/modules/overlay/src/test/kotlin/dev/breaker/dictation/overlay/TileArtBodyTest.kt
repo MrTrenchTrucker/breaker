@@ -101,6 +101,7 @@ class TileArtBodyTest {
         busyOutline = 0xFF000000.toInt(),
         ring = 0xFF000000.toInt(),
         litSegment = 0xFF000000.toInt(),
+        halo = 0xFF000000.toInt(),
         unlitSegment = 0xFF000000.toInt(),
         control = control,
     )

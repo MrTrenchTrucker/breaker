@@ -6,7 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Pins the Home hosting the activity was ruled to build: Home as the content view, the old column as
+ * Pins the Home hosting the activity builds: Home as the content view, the old column as
  * what SETTINGS opens, the activity passing a HOW IT WORKS and an ABOUT callback into the Home view,
  * the activity returning Home from every overlay (settings, history and the info screens), and the
  * clipboard written on the main thread.

@@ -7,12 +7,12 @@ import org.junit.Test
 /**
  * A source rule pinning that `SettingsLauncherActivity.onDestroy` takes the
  * wiring's switch listener off again. The teardown pin (`wiring/HomeTakeWiringTeardownPinTest.kt`) drives
- * `HomeTakeWiring.unwatchSwitch` DIRECTLY, so it cannot catch a mutant that deletes the activity's own
+ * `HomeTakeWiring.unwatchSwitch` DIRECTLY, so it cannot catch a deletion of the activity's own
  * call - the call the real teardown makes. This gate pins the call.
  *
  * The rule is scoped to the `onDestroy` BODY (`matchedBody`), not to the whole file: `unwatchSwitch`
  * occurs in the whole activity only in that body (`wiring/HomeTakeWiring.kt:86` is the definition, and
- * the only `unwatchSwitch` in this file is `:192`), so a mutant that deletes `:192` leaves an onDestroy
+ * the only `unwatchSwitch` in this file is `:192`), so deleting `:192` leaves an onDestroy
  * body with no `unwatchSwitch(` while the rest of the file is unchanged - and that is what makes the
  * rule go red. It also requires `super.onDestroy()`, so the body cannot be gutted down to the call.
  *
@@ -20,7 +20,7 @@ import org.junit.Test
  * (`HomeLevelSinkLifecycleGateTest`'s `matchedBody`, `HomeMicFaceWiringGateTest`'s
  * `stripComments(AppSourceFiles.mainFile(...))`).
  *
- * MUTANT (the one this rule must catch):
+ * The one edit this rule must catch:
  *   `SettingsLauncherActivity.kt:192` deleted -
  *   `         switchListener?.let { takeWiring.unwatchSwitch(it) }\n` -> ``
  * The onDestroy body then holds only the homeLevelSink release, `homeLevelSink = null` and
@@ -47,7 +47,7 @@ internal class ActivityUnwatchSwitchGateTest {
     )
 
     private val fires: List<Fire> = listOf(
-        // The mutant: the activity's own removal call is deleted.
+        // The firing edit: the activity's own removal call is deleted.
         Fire("ONDESTROY_UNWATCHES_THE_SWITCH", "        switchListener?.let { takeWiring.unwatchSwitch(it) }\n", ""),
         // The body keeps the call but loses the activity's own super call.
         Fire("ONDESTROY_UNWATCHES_THE_SWITCH", "        super.onDestroy()\n", ""),

@@ -7,18 +7,18 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * MUTANT M10 - one listener that throws cannot stop the others.
+ * ONE LISTENER THAT THROWS CANNOT STOP THE OTHERS.
  *
  * `ArmedSwitch.notifySwitchListeners` wraps each listener in its own try/catch, so a listener that throws
- * is swallowed and the loop goes on. M10 removes the per-listener try/catch: the first throw then leaves
- * `notifySwitchListeners` and every listener after it is never told.
+ * is swallowed and the loop goes on. A variant without the per-listener try/catch would let the first
+ * throw leave `notifySwitchListeners`, and every listener after it is never told.
  *
  * WHAT THIS FILE PINS (behaviour, not a source scan): two listeners on one switch, the first throwing, and
  * the assert observes the SECOND one being told. The flip is driven through a real controller, whose own
  * observer call swallows the escaping exception, so the failure is a clean assertion and not an error.
  *
- * WHY THE ROW CANNOT PASS ON M10: the assert reads `told`, which is filled by the second listener - the
- * exact listener M10 never reaches.
+ * WHY THE ROW ONLY PASSES WITH THE PER-LISTENER CATCH: the assert reads `told`, which is filled by the
+ * second listener - the exact listener a try/catch-less loop never reaches.
  */
 internal class ArmedSwitchThrowingListenerTest {
 
@@ -35,7 +35,7 @@ internal class ArmedSwitchThrowingListenerTest {
         switch.addSwitchListener { armed -> told.add(armed) }
         switch.switchOn()
         assertEquals(
-            "app: m10: a listener that throws must not stop the others",
+            "app: throwing switch listener: a listener that throws must not stop the others",
             listOf(true),
             told,
         )

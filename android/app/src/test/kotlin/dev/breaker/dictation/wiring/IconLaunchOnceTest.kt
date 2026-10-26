@@ -166,7 +166,7 @@ internal class IconLaunchOnceTest {
     }
 
     @Test
-    fun `the three answers map as ruled On and AlreadyOn mark the rule done and Refused does not`() {
+    fun `the three answers set isDone to true for On and AlreadyOn and false for Refused`() {
         val answers = listOf<Triple<SwitchOn, Boolean, String>>(
             Triple(SwitchOn.On, true, "On"),
             Triple(SwitchOn.AlreadyOn, true, "AlreadyOn"),

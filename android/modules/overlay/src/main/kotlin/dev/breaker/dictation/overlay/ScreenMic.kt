@@ -4,10 +4,8 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Rect
-import android.os.Bundle
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityManager
-import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityNodeProvider
 import android.view.MotionEvent
 import android.view.View
@@ -102,8 +100,20 @@ internal class ScreenMicView(
     /** Id of the pointer that owns the current gesture, or -1 when none does. */
     private var activePointerId: Int = -1
 
+    /** Whether the view is visible to the user now, aggregated by the platform over its window. */
+    private var visible: Boolean = true
+
+    /** The breathing clock of the glow, driving [motionAlpha] from [BREATHING_ALPHA_MIN] to full strength. */
+    private val breathing = BreathingPulse { motionAlpha = it }
+
+    /** The alpha the glow is drawn with: full strength until the breathing takes it. */
+    private var motionAlpha: Float = 1f
+
+    /** The level the glow is drawn at: the live level after [levelSmoothStep], climbing from silence when the pulse starts. */
+    private var levelSmooth: Float = 0f
+
     /** Which virtual child a touch-exploring finger is over and which has accessibility focus. */
-    private val a11y = MicA11yState()
+    internal val a11y = MicA11yState()
 
     init {
         contentDescription = label
@@ -119,13 +129,32 @@ internal class ScreenMicView(
             requestLayout()
             sendA11y(AccessibilityNodeProvider.HOST_VIEW_ID, AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)
         }
+        refreshMotion()
         invalidate()
     }
 
     /** The app pushes the sound [level]; see [TileModel.setLevel]. */
     fun setModelLevel(level: Float) {
         model.setLevel(level)
+        if (motionIsLevelPulse()) {
+            levelSmooth = levelSmoothStep(levelSmooth, level)
+            motionAlpha = levelAlpha(levelSmooth)
+        }
         invalidate()
+    }
+
+    /** The platform's own answer to whether the view is visible now; the motion is re-taken from it. */
+    override fun onVisibilityAggregated(isVisible: Boolean) {
+        super.onVisibilityAggregated(isVisible)
+        visible = isVisible
+        refreshMotion()
+    }
+
+    /** The view is gone, so it is not visible; the motion is re-taken before the superclass is told. */
+    override fun onDetachedFromWindow() {
+        visible = false
+        refreshMotion()
+        super.onDetachedFromWindow()
     }
 
     /** The app pushes the theme; the mic is redrawn in the new colours. */
@@ -148,7 +177,7 @@ internal class ScreenMicView(
     override fun probeTouchLog(log: ((String) -> Unit)?) = ScreenMicProbeKit.logSink(log)
 
     /** Report [type] for the host or a virtual child; a content change is a subtree change. */
-    private fun sendA11y(virtualId: Int, type: Int) {
+    internal fun sendA11y(virtualId: Int, type: Int) {
         if (!ScreenMicA11y.shouldSend((context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager).isEnabled)) return
         val event = AccessibilityEvent.obtain(type)
         event.setSource(this, virtualId)
@@ -169,8 +198,26 @@ internal class ScreenMicView(
     }
 
     /** The mic's virtual children now, empty when it is not recording. */
-    private fun a11yNodes(): List<MicA11yNode> =
+    internal fun a11yNodes(): List<MicA11yNode> =
         MicAccessibility.nodes(model.shape, height, density, cancelLabel, sendLabel)
+
+    /** Re-take the motion the glow shows and act on it; the breathing is the only motion built here. */
+    private fun refreshMotion() {
+        val switchOn = switchOnFor(model.state)
+        val ready = model.state == TileState.ARMED
+        when (micMotion(model.state, switchOn, ready, visible, BreathingPulse.animationsOn())) {
+            MicMotion.LEVEL_PULSE -> {
+                breathing.stop()
+                levelSmooth = 0f
+            }
+            MicMotion.STEADY, MicMotion.DIM_STEADY -> breathing.stop()
+            MicMotion.BREATHE -> breathing.start()
+        }
+    }
+
+    /** Whether the glow is now showing the live level, the motion `refreshMotion` last took and the state has not moved since. */
+    private fun motionIsLevelPulse(): Boolean =
+        model.state == TileState.RECORDING && visible && BreathingPulse.animationsOn()
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val suggestedHeight = MeasureSpec.getSize(heightMeasureSpec)
@@ -185,7 +232,7 @@ internal class ScreenMicView(
         val look = face.look
         if (height <= 0) return
         val mic = TileLayout.micCell(face.shape, height)
-        artDraw.drawGlow(canvas, mic, paint, look.ring, 1f, density, GlowSpec.SCREEN, look.litSegment)
+        artDraw.drawGlow(canvas, mic, paint, look.ring, motionAlpha, density, GlowShapes.reachFor(GlowShapes.screen), look.halo)
         drawRing(canvas, mic, look.ring)
         artDraw.drawArt(canvas, mic, paint, face, 1f)
         if (face.shape == TileShape.RECORDING) {
@@ -237,63 +284,7 @@ internal class ScreenMicView(
     }
 
     /** The accessibility provider backing this view: one host node plus, while recording, two clickable virtual children. */
-    override fun getAccessibilityNodeProvider(): AccessibilityNodeProvider = Provider(this)
-
-    /** The accessibility provider for this view: one host node plus, while recording, two clickable virtual children. */
-    private class Provider(private val view: ScreenMicView) : AccessibilityNodeProvider() {
-
-        override fun createAccessibilityNodeInfo(virtualId: Int): AccessibilityNodeInfo? =
-            if (virtualId == HOST_VIEW_ID) hostNode() else nodeFor(virtualId)?.let { childNode(it) }
-
-        /** The host node is the view itself: its usual fields, the button class name and a click action. */
-        private fun hostNode() = AccessibilityNodeInfo.obtain(view).also { info ->
-            view.onInitializeAccessibilityNodeInfo(info)
-            info.className = BUTTON_CLASS
-            info.text = view.contentDescription
-            info.addAction(AccessibilityNodeInfo.ACTION_CLICK)
-            for (node in view.a11yNodes()) info.addChild(view, node.id)
-        }
-
-        /** A child node: its label, its bounds on screen, a click and the focus action that fits its focus state. */
-        private fun childNode(node: MicA11yNode): AccessibilityNodeInfo {
-            val info = AccessibilityNodeInfo.obtain(view, node.id)
-            info.setParent(view)
-            info.className = BUTTON_CLASS
-            info.text = node.label
-            val onScreen = IntArray(2)
-            view.getLocationOnScreen(onScreen)
-            val b = node.bounds
-            info.setBoundsInScreen(Rect(b.left + onScreen[0], b.top + onScreen[1], b.right + onScreen[0], b.bottom + onScreen[1]))
-            info.addAction(AccessibilityNodeInfo.ACTION_CLICK)
-            info.isAccessibilityFocused = view.a11y.focused == node.id
-            info.addAction(if (info.isAccessibilityFocused) AccessibilityNodeInfo.ACTION_CLEAR_ACCESSIBILITY_FOCUS else AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS)
-            info.isClickable = true
-            return info
-        }
-
-        /** The virtual child with [virtualId], or null. */
-        private fun nodeFor(virtualId: Int): MicA11yNode? = view.a11yNodes().firstOrNull { it.id == virtualId }
-
-        /** A click runs the child's action; focus actions are tracked and reported; the host keeps the platform defaults. */
-        override fun performAction(virtualId: Int, action: Int, arguments: Bundle?): Boolean {
-            if (virtualId == HOST_VIEW_ID) {
-                if (action != AccessibilityNodeInfo.ACTION_CLICK) return view.performAccessibilityAction(action, arguments)
-                ScreenMicProbeKit.hostAction(view)
-                return true
-            }
-            val node = nodeFor(virtualId) ?: return false
-            when (action) {
-                AccessibilityNodeInfo.ACTION_CLICK -> MicAccessibility.run(node.action, view.onCancel, view.onSend)
-                AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, AccessibilityNodeInfo.ACTION_CLEAR_ACCESSIBILITY_FOCUS -> {
-                    val gains = action == AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS
-                    view.a11y.focus(virtualId, gains)
-                    view.sendA11y(virtualId, if (gains) AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED else AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUS_CLEARED)
-                }
-                else -> return false
-            }
-            return true
-        }
-    }
+    override fun getAccessibilityNodeProvider(): AccessibilityNodeProvider = ScreenMicNodeProvider(this)
 }
 /** The class name every accessibility node of the mic reports: a button. */
-private val BUTTON_CLASS: String = Button::class.java.name
+internal val BUTTON_CLASS: String = Button::class.java.name

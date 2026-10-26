@@ -116,7 +116,7 @@ class ScreenHaloGateTest {
     @Test
     fun `the halo is drawn behind the silhouette in the Home view`() {
         val source = ModuleFiles.mainTexts().getValue("ScreenMic.kt")
-        val glow = "artDraw.drawGlow(canvas, mic, paint, look.ring, 1f, density, GlowSpec.SCREEN, look.litSegment)"
+        val glow = "artDraw.drawGlow(canvas, mic, paint, look.ring, motionAlpha, density, GlowShapes.reachFor(GlowShapes.screen), look.halo)"
         val art = "artDraw.drawArt(canvas, mic, paint, face, 1f)"
         assertTrue("overlay: screen halo: ScreenMic.kt has no '$glow'", source.contains(glow))
         assertTrue("overlay: screen halo: ScreenMic.kt has no '$art'", source.contains(art))
@@ -132,7 +132,7 @@ class ScreenHaloGateTest {
     fun `the label keeps its contrast over the halo in both themes`() {
         for ((look, mode) in looks) {
             val pageBg = TruckingTokens.palette(mode).bg.argb
-            val over = haloColourOver(look.litSegment, LABEL_DISTANCE_DP, LABEL_CELL_DP, pageBg)
+            val over = haloColourOver(look.halo, LABEL_DISTANCE_DP, LABEL_CELL_DP, pageBg)
             val ratio = contrastRatio(look.control, over)
             assertTrue(
                 "overlay: screen halo: $mode label over the halo must clear $TEXT_MIN, found ${"%.3f".format(ratio)}",
@@ -143,8 +143,8 @@ class ScreenHaloGateTest {
                 contrastRatio(look.control, pageBg) >= TEXT_MIN,
             )
         }
-        assertEquals("overlay: screen halo: light label over the halo expected 13.4531", 13.4531, contrastRatio(0xFF111417.toInt(), haloColourOver(0xFF1E7A46.toInt(), LABEL_DISTANCE_DP, LABEL_CELL_DP, 0xFFFFFFFF.toInt())), 0.001)
-        assertEquals("overlay: screen halo: dark label over the halo expected 13.0292", 13.0292, contrastRatio(0xFFF2F5F2.toInt(), haloColourOver(0xFF2E9E5B.toInt(), LABEL_DISTANCE_DP, LABEL_CELL_DP, 0xFF0E1113.toInt())), 0.001)
+        assertEquals("overlay: screen halo: light label over the halo expected 13.0261", 13.0261, contrastRatio(0xFF111417.toInt(), haloColourOver(0xFF186238.toInt(), LABEL_DISTANCE_DP, LABEL_CELL_DP, 0xFFFFFFFF.toInt())), 0.001)
+        assertEquals("overlay: screen halo: dark label over the halo expected 12.9460", 12.9460, contrastRatio(0xFFF2F5F2.toInt(), haloColourOver(0xFF2E9E5B.toInt(), LABEL_DISTANCE_DP, LABEL_CELL_DP, 0xFF0E1113.toInt())), 0.001)
     }
 
     /**
@@ -158,7 +158,7 @@ class ScreenHaloGateTest {
     fun `the muted hint keeps its contrast in both themes and the instrument can miss`() {
         for ((look, mode) in looks) {
             val pageBg = TruckingTokens.palette(mode).bg.argb
-            val label = contrastRatio(look.control, haloColourOver(look.litSegment, LABEL_DISTANCE_DP, LABEL_CELL_DP, pageBg))
+            val label = contrastRatio(look.control, haloColourOver(look.halo, LABEL_DISTANCE_DP, LABEL_CELL_DP, pageBg))
             val hint = contrastRatio(TruckingTokens.palette(mode).textMuted.argb, haloColourOver(look.litSegment, HINT_DISTANCE_DP, LABEL_CELL_DP, pageBg))
             assertTrue("overlay: screen halo: $mode label over the halo must clear $TEXT_MIN, found ${"%.3f".format(label)}", label >= TEXT_MIN)
             assertTrue("overlay: screen halo: $mode hint must clear $TEXT_MIN, found ${"%.3f".format(hint)}", hint >= TEXT_MIN)

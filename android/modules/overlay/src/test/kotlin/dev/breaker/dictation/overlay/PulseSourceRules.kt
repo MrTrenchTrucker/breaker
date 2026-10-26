@@ -1,14 +1,20 @@
 package dev.breaker.dictation.overlay
 
 /**
- * Source-text rules for the armed pulse: the one file that may name an animator, the words that file may not
- * use, and the hooks of the tile view that start and stop the pulse. Each rule is a pure function from source
+ * Source-text rules for the two pulse animators: the only two files that may name an animator, the words those files
+ * may not use, and the hooks of the tile view that start and stop the pulse. Each rule is a pure function from source
  * text to a list of problems, with comments blanked and string literals kept, as in [AdapterRules].
  */
 internal object PulseSourceRules {
 
-    /** The only main file that may name an animator, and the file the words below are banned from. */
+    /** The main file that may name an animator for the tile's armed ring, and the file the words below are banned from. */
     const val PULSE_FILE = "ArmedPulse.kt"
+
+    /** The main file that may name an animator for the Home mic's breathing glow. */
+    const val BREATHING_FILE = "BreathingPulse.kt"
+
+    /** The only main files that may name an animator: the armed ring's and the Home mic's. */
+    val ANIMATOR_FILES = setOf(PULSE_FILE, BREATHING_FILE)
 
     private val animatorWords = listOf("Animator", "ValueAnimator", "ObjectAnimator", "animate")
 
@@ -22,9 +28,9 @@ internal object PulseSourceRules {
 
     private val viewHooks = listOf("onAttachedToWindow", "onDetachedFromWindow", "onWindowVisibilityChanged", "onScreenStateChanged")
 
-    /** The animator words used in any main file other than [PULSE_FILE], by file name, as whole words. */
+    /** The animator words used in any main file other than the animator files, by file name, as whole words. */
     fun animatorProblems(files: Map<String, String>): List<String> =
-        files.filterKeys { it != PULSE_FILE }.flatMap { (name, source) ->
+        files.filterKeys { it !in ANIMATOR_FILES }.flatMap { (name, source) ->
             val code = SourceText.code(source)
             animatorWords.filter { Regex("\\b$it\\b").containsMatchIn(code) }.map { "$name uses the animator word $it" }
         }
@@ -33,6 +39,12 @@ internal object PulseSourceRules {
     fun pulseFileProblems(source: String): List<String> {
         val code = SourceText.code(source)
         return pulseFileWords.filter { Regex("\\b" + Regex.escape(it) + "\\b").containsMatchIn(code) }.map { "$PULSE_FILE uses $it" }
+    }
+
+    /** The banned words found in any animator file, as whole words, in the same style as [pulseFileProblems]. */
+    fun animatorFileProblems(name: String, source: String): List<String> {
+        val code = SourceText.code(source)
+        return pulseFileWords.filter { Regex("\\b" + Regex.escape(it) + "\\b").containsMatchIn(code) }.map { "$name uses $it" }
     }
 
     /** The problems with the tile view's pulse hooks: each of the four is overridden, calls refreshPulse, and refreshPulse runs the pure rule. */
@@ -88,31 +100,53 @@ internal object PulseSourceRules {
     }
 
     /** The problems with `start`: its block begins with the running guard, and the guard comes before the animator is created. */
-    fun startGuardProblems(source: String): List<String> {
+    fun startGuardProblems(source: String, name: String = PULSE_FILE): List<String> {
         val body = AdapterRules.blockBodyOf(SourceText.code(source), "start")
-            ?: return listOf("$PULSE_FILE has no start function with a block body")
+            ?: return listOf("$name has no start function with a block body")
         val guard = Regex("\\bif\\s*\\(\\s*running\\s*\\)\\s*return\\b").find(body)
         val create = Regex("\\bValueAnimator\\s*\\.\\s*ofFloat\\s*\\(").find(body)
         return listOfNotNull(
-            "$PULSE_FILE start does not begin with the running guard 'if (running) return'"
+            "$name start does not begin with the running guard 'if (running) return'"
                 .takeIf { guard == null || body.substring(1, guard.range.first).isNotBlank() },
-            "$PULSE_FILE start does not create the animator with ValueAnimator.ofFloat".takeIf { create == null },
-            "$PULSE_FILE start creates the animator before the running guard"
+            "$name start does not create the animator with ValueAnimator.ofFloat".takeIf { create == null },
+            "$name start creates the animator before the running guard"
                 .takeIf { guard != null && create != null && create.range.first < guard.range.first },
         )
     }
 
     /** The problems with `stop`: it cancels the animator, and only after that sets the ring back to full strength. */
-    fun stopResetProblems(source: String): List<String> {
+    fun stopResetProblems(source: String, name: String = PULSE_FILE): List<String> {
         val body = AdapterRules.blockBodyOf(SourceText.code(source), "stop")
-            ?: return listOf("$PULSE_FILE has no stop function with a block body")
+            ?: return listOf("$name has no stop function with a block body")
         val cancel = Regex("\\bcancel\\s*\\(\\s*\\)").find(body)
         val full = Regex("\\bonAlpha\\s*\\(\\s*1f\\s*\\)").find(body)
         return listOfNotNull(
-            "$PULSE_FILE stop does not cancel the animator".takeIf { cancel == null },
-            "$PULSE_FILE stop does not set the ring to full strength with onAlpha(1f)".takeIf { full == null },
-            "$PULSE_FILE stop sets the ring to full strength before it cancels the animator"
+            "$name stop does not cancel the animator".takeIf { cancel == null },
+            "$name stop does not set the ring to full strength with onAlpha(1f)".takeIf { full == null },
+            "$name stop sets the ring to full strength before it cancels the animator"
                 .takeIf { cancel != null && full != null && full.range.first < cancel.range.first },
+        )
+    }
+
+    /**
+     * The problems with the breathing file's `start`: the animator keeps its whole 0..1 loop, and is sought to
+     * [BREATHING_PHASE_START] before it runs, so the first frame drawn is at full strength and every later loop is
+     * still whole. A start with no seek fades the glow in from its floor on the first frame; one that narrows the
+     * loop instead of seeking it snaps the floor against the peak at every join.
+     */
+    fun breathingStartProblems(source: String): List<String> {
+        val body = AdapterRules.blockBodyOf(SourceText.code(source), "start")
+            ?: return listOf("$BREATHING_FILE has no start function with a block body")
+        val loop = Regex("\\bValueAnimator\\s*\\.\\s*ofFloat\\s*\\(\\s*0f\\s*,\\s*1f\\s*\\)").find(body)
+        val seek = Regex("\\bsetCurrentFraction\\s*\\(\\s*BREATHING_PHASE_START\\s*\\)").find(body)
+        val run = Regex("\\.start\\s*\\(\\s*\\)").find(body)
+        return listOfNotNull(
+            "$BREATHING_FILE start does not keep the whole breath in one loop (ValueAnimator.ofFloat(0f, 1f))"
+                .takeIf { loop == null },
+            "$BREATHING_FILE start does not seek the cycle to BREATHING_PHASE_START before it runs"
+                .takeIf { seek == null },
+            "$BREATHING_FILE start runs the animator before it seeks it"
+                .takeIf { seek != null && run != null && run.range.first < seek.range.first },
         )
     }
 
@@ -178,6 +212,78 @@ internal object PulseSourceRules {
         return listOfNotNull(
             "the ArmedPulse callback does not store alpha into pulseAlpha".takeUnless { statements.contains("pulseAlpha = alpha") },
             "the ArmedPulse callback does not call invalidate()".takeUnless { statements.contains("invalidate()") },
+        )
+    }
+
+    /**
+     * The problems with the Home mic view's whole motion arrangement, on the real text of [source].
+     *
+     * The arrangement this pins is the path from the app's pushed level to the glow's alpha: the view takes the
+     * motion through [micMotion] in its two platform hooks, and only while that motion is the level pulse does the
+     * level it is pushed reach [motionAlpha], through [levelSmoothStep] and [levelAlpha]. Each hook both re-takes
+     * the motion and makes the view's own visibility answer part of that taking, and the detach hook sets
+     * [visible] false before it re-takes, so a gone view is still taken as gone. The level pulse is the one motion
+     * with its own arm, and that arm stops the breathing and starts the smoother from silence.
+     */
+    fun screenMicMotionProblems(source: String): List<String> {
+        val code = SourceText.code(source)
+        val refresh = AdapterRules.blockBodyOf(code, "refreshMotion")
+        val setLevel = AdapterRules.blockBodyOf(code, "setModelLevel")
+        val blocks = listOf(
+            "onVisibilityAggregated" to AdapterRules.blockBodyOf(code, "onVisibilityAggregated"),
+            "onDetachedFromWindow" to AdapterRules.blockBodyOf(code, "onDetachedFromWindow"),
+            "refreshMotion" to refresh,
+            "setModelLevel" to setLevel,
+        )
+        val missing = blocks.mapNotNull { (name, body) -> if (body == null) "$name has no function with a block body" else null }
+        if (refresh == null) return missing + "ScreenMicView has no refreshMotion function with a block body"
+        if (setLevel == null) return missing + "ScreenMicView has no setModelLevel function with a block body"
+
+        val aggregated = blocks.first { it.first == "onVisibilityAggregated" }.second
+        val detached = blocks.first { it.first == "onDetachedFromWindow" }.second
+        if (aggregated == null) return missing + "ScreenMicView has no onVisibilityAggregated function with a block body"
+        if (detached == null) return missing + "ScreenMicView has no onDetachedFromWindow function with a block body"
+
+        // The level pulse arm: the motion text from the arm's head to the next motion in the taking, so the arm's
+        // body is read whole instead of by a regex that a line break could split.
+        val arm = Regex("\\bMicMotion\\s*\\.\\s*LEVEL_PULSE\\b").find(refresh)
+            ?: return missing + "refreshMotion has no LEVEL_PULSE arm"
+        val next = Regex("\\bMicMotion\\s*\\.(?!LEVEL_PULSE)").find(refresh, arm.range.last)
+        val armBody = refresh.substring(arm.range.last, next?.range?.first ?: refresh.length)
+        val setVisible = Regex("(?<![\\w.])visible\\s*=\\s*false\\b").find(detached)
+        val refreshCall = detached.indexOf("refreshMotion()")
+        val guard = Regex("\\bmotionIsLevelPulse\\s*\\(\\s*\\)").find(setLevel)
+        val smooth = Regex("\\blevelSmooth\\s*=\\s*levelSmoothStep\\s*\\(").find(setLevel)
+        val alpha = Regex("\\blevelAlpha\\s*\\(").find(setLevel)
+        val toMotionAlpha = Regex("\\bmotionAlpha\\s*=\\s*levelAlpha\\s*\\(").find(setLevel)
+        return missing + listOfNotNull(
+            "ScreenMicView does not override onVisibilityAggregated".takeUnless {
+                Regex("\\boverride\\s+fun\\s+onVisibilityAggregated\\s*\\(").containsMatchIn(code)
+            },
+            "onVisibilityAggregated does not call refreshMotion()".takeUnless { aggregated.contains("refreshMotion()") },
+            "ScreenMicView does not override onDetachedFromWindow".takeUnless {
+                Regex("\\boverride\\s+fun\\s+onDetachedFromWindow\\s*\\(").containsMatchIn(code)
+            },
+            "onDetachedFromWindow does not set visible = false".takeIf { setVisible == null },
+            "onDetachedFromWindow sets visible = false after it calls refreshMotion()".takeIf {
+                setVisible != null && refreshCall >= 0 && setVisible.range.first > refreshCall
+            },
+            "onDetachedFromWindow does not call refreshMotion()".takeIf { refreshCall < 0 },
+            "refreshMotion does not take the motion with micMotion(".takeIf { !refresh.contains("micMotion(") },
+            "refreshMotion does not take switchOn from switchOnFor(model.state)".takeIf {
+                !Regex("\\bswitchOnFor\\s*\\(\\s*model\\s*\\.\\s*state\\s*\\)").containsMatchIn(refresh)
+            },
+            "refreshMotion does not start and stop the breathing".takeIf {
+                !(refresh.contains("breathing.start()") && refresh.contains("breathing.stop()"))
+            },
+            "refreshMotion does not stop the breathing in the level pulse arm".takeIf { !armBody.contains("breathing.stop()") },
+            "refreshMotion does not reset levelSmooth = 0f in the level pulse arm".takeIf { !armBody.contains("levelSmooth = 0f") },
+            "setModelLevel does not tell whether the motion is the level pulse".takeIf { guard == null },
+            "setModelLevel does not smooth the level with levelSmoothStep(".takeIf { guard != null && smooth == null },
+            "setModelLevel does not give the smoothed level to levelAlpha(".takeIf { guard != null && alpha == null },
+            "setModelLevel does not give the smoothed level to motionAlpha".takeIf { guard != null && toMotionAlpha == null },
+            "setModelLevel does not push the level with model.setLevel(".takeIf { !setLevel.contains("model.setLevel(") },
+            "setModelLevel does not redraw with invalidate()".takeIf { !setLevel.contains("invalidate()") },
         )
     }
 }

@@ -9,20 +9,21 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * MUTANT M9 - the switch listener re-pushes the port's own state, not a fixed IDLE.
+ * THE SWITCH LISTENER RE-PUSHES THE PORT'S OWN STATE, NOT A FIXED IDLE.
  *
  * `HomeTakeWiring.switchListener` is `{ main.post { rePushState(port.sessionState) } }`, so a flip of the
- * armed switch repaints the mic with the face the port's CURRENT state derives. M9 re-pushes
- * `rePushState(DictationState.IDLE)` instead: the flip then paints the idle-derived face (ARMED while the
- * switch is on) over a recording take.
+ * armed switch repaints the mic with the face the port's CURRENT state derives. A variant that re-pushed
+ * `rePushState(DictationState.IDLE)` instead would paint the idle-derived face (ARMED while the switch is
+ * on) over a recording take.
  *
  * WHAT THIS FILE PINS (behaviour, not a source scan): the Home's port is reporting RECORDING, the wiring is
  * built over it, and an ARM re-pushes the RECORDING face and the recording look. The creation push is
  * watched too: it is computed while the switch is still off, so it is IDLE, and the arm's push is the one
  * that must carry the port's own state.
  *
- * WHY THE ROW CANNOT PASS ON M9: the assert reads the face the listener pushed to the mic, which is the
- * very value M9 corrupts - RECORDING becomes ARMED, and the recording look becomes false.
+ * WHY THE ROW ONLY PASSES WITH THE PORT'S OWN STATE: the assert reads the face the listener pushed to
+ * the mic, which is the very value a fixed-IDLE re-push corrupts - RECORDING becomes ARMED, and the
+ * recording look becomes false.
  */
 internal class HomeTakeWiringListenerUsesPortStateTest {
 
@@ -73,18 +74,18 @@ internal class HomeTakeWiringListenerUsesPortStateTest {
         take.listeningElsewhere()
         val built = built()
         assertEquals(
-            "app: m9: the creation push is computed while the switch is still off, so it is IDLE",
+            "app: port-state re-push: the creation push is computed while the switch is still off, so it is IDLE",
             listOf(TileState.IDLE),
             built.mic.faces,
         )
         built.switch.switchOn()
         assertEquals(
-            "app: m9: the arm must re-push the port's own state, so the face stays RECORDING and not ARMED or IDLE",
+            "app: port-state re-push: the arm must re-push the port's own state, so the face stays RECORDING and not ARMED or IDLE",
             listOf(TileState.IDLE, TileState.RECORDING),
             built.mic.faces,
         )
         assertEquals(
-            "app: m9: the arm must re-push the recording look of the port's own state",
+            "app: port-state re-push: the arm must re-push the recording look of the port's own state",
             listOf(true, true),
             built.home.recordings,
         )

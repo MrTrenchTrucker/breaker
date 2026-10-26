@@ -19,7 +19,7 @@ class AdapterGateTest {
     private val window = "WindowManagerTileWindow.kt"
     private val view = "TileView.kt"
     private val facade = "FloatingTile.kt"
-    private val adapterFiles = listOf(window, view, facade, "ArmedPulse.kt", "CloseTargetView.kt", "CloseTargetWindow.kt", "TileArtDraw.kt", "ScreenMic.kt")
+    private val adapterFiles = listOf(window, view, facade, "ArmedPulse.kt", "BreathingPulse.kt", "CloseTargetView.kt", "CloseTargetWindow.kt", "TileArtDraw.kt", "ScreenMic.kt", "ScreenMicNodeProvider.kt")
 
     private fun assertFires(what: String, problems: List<String>, part: String) =
         assertTrue("android_overlay: control: $what must be reported with '$part', got $problems", problems.any { it.contains(part) })
@@ -37,7 +37,7 @@ class AdapterGateTest {
     private fun forbidAll(code: String, patterns: List<String>): List<String> =
         patterns.filter { Regex("\\b$it\\b").containsMatchIn(code) }.map { "$it is used" }
 
-    // ---- Only the eight adapter files use android classes ----
+    // ---- Only the ten adapter files use android classes ----
 
     private val androidName = Regex("(?<![\\w.])android\\.")
 
@@ -49,9 +49,9 @@ class AdapterGateTest {
         return missing + stray
     }
 
-    /** A failure here means a platform class leaked out of the eight adapter files, so the logic is no longer testable on a plain JVM. */
+    /** A failure here means a platform class leaked out of the ten adapter files, so the logic is no longer testable on a plain JVM. */
     @Test
-    fun `android classes are imported only in the eight adapter files`() {
+    fun `android classes are imported only in the ten adapter files`() {
         val adapters = adapterFiles.associateWith { "import android.view.View\n" }
         assertFires("an import in another file", confinementProblems(adapters + ("TileController.kt" to "import android.content.Context\n")), "TileController.kt names")
         assertFires("a full name in another file", confinementProblems(adapters + ("TilePlacement.kt" to "val v = android.graphics.Color.RED\n")), "TilePlacement.kt names")
@@ -60,7 +60,7 @@ class AdapterGateTest {
         val quiet = adapters + ("TileController.kt" to "// import android.view.View\n/* android.os.Handler */\nimport dev.breaker.dictation.core.port.SettingsStore\n")
         assertQuiet("the adapters importing, and another file naming it only in comments", confinementProblems(quiet))
 
-        assertEquals("android_overlay: android classes only in $adapterFiles", emptyList<String>(), confinementProblems(ModuleFiles.mainTexts()))
+        assertEquals("android_overlay: android classes only in the ten adapter files: $adapterFiles", emptyList<String>(), confinementProblems(ModuleFiles.mainTexts()))
     }
 
     // ---- The window type and the window flags ----

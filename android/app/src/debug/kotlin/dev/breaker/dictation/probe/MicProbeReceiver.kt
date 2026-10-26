@@ -12,10 +12,12 @@ import dev.breaker.dictation.overlay.ScreenMicProbe
 import dev.breaker.dictation.overlay.TileState
 
 /**
- * The debug mic probe receiver: an exported broadcast entry point, action [ACTION], extras `state` and
- * `redraw`. On the main thread it walks the last resumed activity's view tree for the Home mic ([ScreenMicProbe])
- * and its redraw handler ([HomeControl]), pushes a state through the probe or triggers a redraw, and logs one
- * line per event. It never starts a take: no onTap/onBegin is called by this receiver.
+ * The debug mic probe receiver: an exported broadcast entry point, action [ACTION], extras `state`,
+ * `redraw` and `shape`. On the main thread it walks the last resumed activity's view tree for the Home
+ * mic ([ScreenMicProbe]) and its redraw handler ([HomeControl]), pushes a state through the probe or
+ * triggers a redraw, and logs one line per event. A `shape` extra selects the halo shape before the
+ * post, so the switch works with no activity resumed. It never starts a take: no onTap/onBegin is
+ * called by this receiver.
  */
 class MicProbeReceiver : BroadcastReceiver() {
 
@@ -29,6 +31,9 @@ class MicProbeReceiver : BroadcastReceiver() {
         /** Extra: a redraw request — `showLine` or `refresh`. */
         const val EXTRA_REDRAW = "redraw"
 
+        /** Extra: the halo shape to select (V1, V2 or V3); an unknown or missing word selects nothing. */
+        const val EXTRA_SHAPE = "shape"
+
         /** The log tag for the debug mic probe. */
         private val TAG = "BreakerMicProbe"
     }
@@ -38,6 +43,13 @@ class MicProbeReceiver : BroadcastReceiver() {
 
         val stateName = intent.getStringExtra(EXTRA_STATE)
         val redraw = intent.getStringExtra(EXTRA_REDRAW)
+        val shapeName = intent.getStringExtra(EXTRA_SHAPE)
+
+        val shape = glowShapeFromWord(shapeName)
+        if (shape != null) {
+            applyGlowShape(shape)
+            Log.i(TAG, "probe shape=${shape.name}")
+        }
 
         MainLooperPost().post {
             // (a) Take the last resumed activity, or report that none is running.

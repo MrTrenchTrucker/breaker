@@ -34,8 +34,8 @@ class TileArtGeometryTest {
         val code = SourceText.code(source)
         return listOfNotNull(
             "the halo layer count is not the named HALO_LAYERS".takeUnless { Regex("""const val HALO_LAYERS: Int = 16""").containsMatchIn(code) },
-            "the inner halo alpha is not the named HALO_ALPHA_INNER".takeUnless { Regex("""const val HALO_ALPHA_INNER: Int = 4""").containsMatchIn(code) },
-            "the outer halo alpha is not the named HALO_ALPHA_OUTER".takeUnless { Regex("""const val HALO_ALPHA_OUTER: Int = 3""").containsMatchIn(code) },
+            "the inner halo alpha is not the named HALO_ALPHA_INNER".takeUnless { Regex("""const val HALO_ALPHA_INNER: Int = 6""").containsMatchIn(code) },
+            "the outer halo alpha is not the named HALO_ALPHA_OUTER".takeUnless { Regex("""const val HALO_ALPHA_OUTER: Int = 2""").containsMatchIn(code) },
             "the halo reach is not the power law".takeUnless { Regex("""\.pow\(HALO_LAYER_POWER\)""").containsMatchIn(code) },
         )
     }
@@ -123,25 +123,43 @@ class TileArtGeometryTest {
 
     /**
      * A failure means the halo is not 16 soft layers drawn widest first, its reach is not the power law
-     * ((layer + 1) / 16) to the 0.35, or its alphas are not 4 and 3 of full scale 255. Each pinned number
+     * ((layer + 1) / 16) to the 0.35, or its alphas are not 6 and 2 of full scale 255. Each pinned number
      * has a control: the real source is edited and the rule must fire, so the pin cannot pass vacuously.
      */
     @Test
     fun `the halo layers are 16 soft layers with the power-law reach and the two alpha integers`() {
         assertEquals("overlay: the halo layer count expected 16", 16, ArtGeometry.haloLayerCount())
-        assertEquals("overlay: the inner halo alpha integer expected 4", 4, ArtGeometry.HALO_ALPHA_INNER)
-        assertEquals("overlay: the outer halo alpha integer expected 3", 3, ArtGeometry.HALO_ALPHA_OUTER)
+        assertEquals("overlay: the inner halo alpha integer expected 6", 6, ArtGeometry.HALO_ALPHA_INNER)
+        assertEquals("overlay: the outer halo alpha integer expected 2", 2, ArtGeometry.HALO_ALPHA_OUTER)
         assertEquals("overlay: the first halo reach fraction expected 0.378929", 0.378929f, ArtGeometry.haloLayerFraction(0), 0.000001f)
         assertEquals("overlay: the last halo reach fraction expected 1.0", 1.0f, ArtGeometry.haloLayerFraction(ArtGeometry.haloLayerCount() - 1), 0.000001f)
-        assertEquals("overlay: the inner halo alpha expected 0.015686275", 0.015686275f, ArtGeometry.haloLayerAlpha(0), 0.000001f)
-        assertEquals("overlay: the outer halo alpha expected 0.011764706", 0.011764706f, ArtGeometry.haloLayerAlpha(ArtGeometry.haloLayerCount() - 1), 0.000001f)
+        assertEquals("overlay: the inner halo alpha expected 0.023529412", 0.023529412f, ArtGeometry.haloLayerAlpha(0), 0.000001f)
+        assertEquals("overlay: the outer halo alpha expected 0.0078431373", 0.0078431373f, ArtGeometry.haloLayerAlpha(ArtGeometry.haloLayerCount() - 1), 0.000001f)
 
         val source = geometryText()
         assertQuiet("the real halo numbers", haloNumberProblems(source))
         assertFires("a halo layer count of 15", haloNumberProblems(edit(source, "const val HALO_LAYERS: Int = 16", "const val HALO_LAYERS: Int = 15")), "HALO_LAYERS")
-        assertFires("an inner halo alpha of 5", haloNumberProblems(edit(source, "const val HALO_ALPHA_INNER: Int = 4", "const val HALO_ALPHA_INNER: Int = 5")), "HALO_ALPHA_INNER")
-        assertFires("an outer halo alpha of 2", haloNumberProblems(edit(source, "const val HALO_ALPHA_OUTER: Int = 3", "const val HALO_ALPHA_OUTER: Int = 2")), "HALO_ALPHA_OUTER")
+        assertFires("an inner halo alpha of 7", haloNumberProblems(edit(source, "const val HALO_ALPHA_INNER: Int = 6", "const val HALO_ALPHA_INNER: Int = 7")), "HALO_ALPHA_INNER")
+        assertFires("an outer halo alpha of 1", haloNumberProblems(edit(source, "const val HALO_ALPHA_OUTER: Int = 2", "const val HALO_ALPHA_OUTER: Int = 1")), "HALO_ALPHA_OUTER")
         assertFires("the power law dropped", haloNumberProblems(edit(source, ".pow(HALO_LAYER_POWER)", ".pow(1f)")), "power law")
+    }
+
+    /**
+     * A failure means the halo's alpha does not fade: it is flat, or it is not monotone from the
+     * innermost to the outermost layer. The assertion is proven able to fail by two planted alpha
+     * lists, a flat one and a rising one, which the same predicate must refuse.
+     */
+    @Test
+    fun `the halo alpha fades monotonically from the innermost to the outermost layer`() {
+        val alphas = (0 until ArtGeometry.haloLayerCount()).map { ArtGeometry.haloLayerAlpha(it) }
+        assertEquals("overlay: the halo's first alpha is not the inner integer", 6f / 255f, alphas.first(), 0.000001f)
+        assertEquals("overlay: the halo's last alpha is not the outer integer", 2f / 255f, alphas.last(), 0.000001f)
+        assertTrue("overlay: the halo's alphas are not monotone decreasing: $alphas", alphas.zipWithNext().all { (a, b) -> b < a })
+
+        val flat = List(alphas.size) { alphas.first() }
+        val rising = alphas.reversed()
+        assertTrue("overlay: the control accepted a flat alpha list", !(flat.zipWithNext().all { (a, b) -> b < a }))
+        assertTrue("overlay: the control accepted a rising alpha list", !(rising.zipWithNext().all { (a, b) -> b < a }))
     }
 
     /** Today's tile glow reach for a silhouette half-extent: the silhouette's half-extent plus the outer glow's half width, in half-cell widths at the tile's cell. */

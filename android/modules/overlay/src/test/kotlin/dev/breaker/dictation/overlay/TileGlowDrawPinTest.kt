@@ -12,11 +12,12 @@ import org.junit.Test
  *
  * Each pin runs first on edited copies of the real source, so a change that must be reported is made on the real text
  * with [edit] proving the text it replaces is there: a sample that goes stale is a NAMED failure, never a silent
- * pass. Then each pin runs on the real file as it is. The mutant each pin names is one of the mutants under
- * `plans/mutants/` (G3, G4, G5, M7, M8) or the halo's own place, and each edited copy below is exactly that mutant's
- * edit.
+ * pass. Then each pin runs on the real file as it is. Each edited copy below is one single-line change to the real
+ * text: the halo's upward branch scaled or clipped the wrong way, the Home mic asking for the tile's strokes, the
+ * layer loop dropping its innermost layer, the halo taken from a hard-coded spec, the halo's own body taking a
+ * hard-coded spec instead of the caller's reach, or the halo drawn inside the cell transform.
  *
- * G3 and G4 are the two halves of the halo, so each is pinned as a PAIR in the same branch: a pin that only greps
+ * The halo's upward and downward branches are the two halves of the halo, so each is pinned as a PAIR in the same branch: a pin that only greps
  * for one line would not see the other half's text change underneath it.
  */
 class TileGlowDrawPinTest {
@@ -100,6 +101,9 @@ class TileGlowDrawPinTest {
     private val homeHaloCall = "halo(spec, haloColor)"
     private val homeStrokeCall = "strokes(ArtGeometry.glowOuterHalfWidthDp())"
     private val tileBranch = "GlowKind.TILE -> strokes(ArtGeometry.glowOuterHalfWidthDp(spec))"
+    private val haloSpecCall = "ArtGeometry.halo(cell, density, spec)"
+    private val haloHead = "fun halo(spec: HaloReach, haloColor: Int) {"
+    private val hardCodedSpec = listOf("GlowSpec.", "GlowShapes.")
 
     /** The offset of the halo's call in [code]: the call, never the declaration of the local fun that draws it. */
     private fun haloCallAt(code: String): Int? =
@@ -125,6 +129,29 @@ class TileGlowDrawPinTest {
         )
     }
 
+    /** The body of the local `fun halo(spec, haloColor)` in [source], braces included, or null when there is none. */
+    private fun haloBodyOf(source: String): String? {
+        val code = SourceText.code(source)
+        val at = Regex.escape(haloHead).toRegex().find(code)?.range?.first ?: return null
+        val open = at + haloHead.length - 1
+        val close = SourceText.closeOf(code, open)
+        return if (close < 0) null else code.substring(open, close + 1)
+    }
+
+    /**
+     * The problems of the halo's own body in [source]: the body forwards the caller's [HaloReach] to
+     * [ArtGeometry.halo], and it carries no hard-coded spec of its own, so the shape is chosen at the ONE call site
+     * and the halo cannot take a shape the caller never asked for.
+     */
+    private fun haloSpecProblems(source: String): List<String> {
+        val body = haloBodyOf(source)
+            ?: return listOf("HaloSpecPin: the halo has no $haloHead body, so the halo's own reach is not pinned")
+        return listOfNotNull(
+            "HaloSpecPin: the halo body does not take the caller's reach with $haloSpecCall".takeUnless { body.contains(haloSpecCall) },
+            "HaloSpecPin: the halo body carries a hard-coded ${hardCodedSpec.joinToString(" or ")}".takeUnless { hardCodedSpec.none { body.contains(it) } },
+        )
+    }
+
     /** The Home mic's `when` arm, as the source has it: the named geometry's strokes, the halo being drawn before inCell. */
     private val homeBranch = "GlowKind.SCREEN -> $homeStrokeCall"
 
@@ -140,7 +167,7 @@ class TileGlowDrawPinTest {
 
     /** The problems of the `drawGlow` calls in [source]: the Home mic asks for the halo, the tile asks for its own strokes. */
     private fun drawCallProblems(source: String): List<String> {
-        val homeCall = "artDraw.drawGlow(canvas, mic, paint, look.ring, 1f, density, GlowSpec.SCREEN, look.litSegment)"
+        val homeCall = "artDraw.drawGlow(canvas, mic, paint, look.ring, motionAlpha, density, GlowShapes.reachFor(GlowShapes.screen), look.halo)"
         val tileCall = "artDraw.drawGlow(canvas, mic, paint, look.ring, pulseAlpha, density, GlowSpec.TILE, look.ring)"
         return listOfNotNull(
             "the Home mic does not call drawGlow with $homeCall".takeUnless { source.contains(homeCall) },
@@ -150,9 +177,9 @@ class TileGlowDrawPinTest {
 
     /**
      * A failure means one of the draw-level lines is not there: the halo's upward branch scaled by its own reach
-     * and clipped to the half above the centre (G3, G4), the Home mic asking for the SCREEN halo (G5), the halo
-     * loop walking every layer including the innermost (M7), or the halo drawn inside the cell transform
-     * (HaloBeforeCellPin).
+     * and clipped to the half above the centre, the Home mic asking for the SCREEN halo, the halo loop walking
+     * every layer including the innermost, the halo's own body forwarding the caller's reach and carrying no
+     * hard-coded spec of its own (HaloSpecPin), or the halo drawn inside the cell transform (HaloBeforeCellPin).
      */
     @Test
     fun `the draw-level pins name the halo's two branches, the Home mic's spec, the layer loop and the halo's place`() {
@@ -160,26 +187,34 @@ class TileGlowDrawPinTest {
         val screenText = real(screen)
         val tileText = real(tile)
 
-        // the halo's place, proven able to fire on the edit its own mutant patch makes
+        // the halo's place, proven able to fire on the single-line edit each check runs against
         assertQuiet("the real halo's place", haloPlaceProblems(artText))
-        assertFires("M8: the halo taken from a hard-coded spec", haloPlaceProblems(edit(artText, "if (spec.kind == GlowKind.SCREEN) halo(spec, haloColor)", "if (spec.kind == GlowKind.SCREEN) halo(GlowSpec.SCREEN, haloColor)")), "the halo is not called as halo(spec, haloColor)")
+        assertFires("the halo must be taken from the live spec, not a hard-coded one", haloPlaceProblems(edit(artText, "if (spec.kind == GlowKind.SCREEN) halo(spec, haloColor)", "if (spec.kind == GlowKind.SCREEN) halo(GlowSpec.SCREEN, haloColor)")), "the halo is not called as halo(spec, haloColor)")
         assertFires("HaloBeforeCellPin: the halo drawn inside the cell transform", haloPlaceProblems(edit(artText, "if (spec.kind == GlowKind.SCREEN) halo(spec, haloColor)\n        inCell(canvas, cell) { scale ->", "inCell(canvas, cell) { scale ->\n            if (spec.kind == GlowKind.SCREEN) halo(spec, haloColor)")), "is inside the inCell lambda of lines")
         assertFires("HaloBeforeCellPin: the halo dropped", haloPlaceProblems(edit(artText, "if (spec.kind == GlowKind.SCREEN) halo(spec, haloColor)\n", "")), "the halo is not called as halo(spec, haloColor)")
         assertFires("HaloBeforeCellPin: the halo drawn after the strokes", haloPlaceProblems(edit(edit(artText, "        if (spec.kind == GlowKind.SCREEN) halo(spec, haloColor)\n        inCell(canvas, cell) { scale ->", "        inCell(canvas, cell) { scale ->"), "        }\n    }\n\n    /**\n     * The outline band", "        }\n        if (spec.kind == GlowKind.SCREEN) halo(spec, haloColor)\n    }\n\n    /**\n     * The outline band")), "is after the inCell lambda of lines")
 
-        // the pins, each proven able to fire on the edit its own mutant patch makes
+        // the halo's own reach, proven able to fire on the single-line edit each check runs against
+        assertQuiet("the real halo's own reach", haloSpecProblems(artText))
+        val tileSpec = edit(artText, haloSpecCall, "ArtGeometry.halo(cell, density, GlowSpec.TILE)")
+        assertFires("the halo must forward the caller's reach, not take GlowSpec.TILE", haloSpecProblems(tileSpec), "the halo body does not take the caller's reach with $haloSpecCall")
+        assertFires("the halo body must carry no hard-coded spec", haloSpecProblems(tileSpec), "the halo body carries a hard-coded")
+        assertFires("the halo body must forward the caller's reach, not a hard-coded screen", haloSpecProblems(edit(artText, haloSpecCall, "ArtGeometry.halo(cell, density, GlowShapes.reachFor(GlowShapes.screen))")), "the halo body carries a hard-coded")
+        assertFires("HaloSpecPin: the halo's own body dropped", haloSpecProblems(edit(artText, "            val halo = ArtGeometry.halo(cell, density, spec)\n", "")), "the halo body does not take the caller's reach with $haloSpecCall")
+
+        // the pins, each proven able to fire on the single-line edit it names
         assertQuiet("the real halo loop", layerLoopProblems(artText))
-        assertFires("G3: the upward branch scaled by the downward reach", layerLoopProblems(edit(artText, "canvas.scale(halo.sidewaysPx, halo.upwardPx)", "canvas.scale(halo.sidewaysPx, halo.downwardPx)")), "the halo loop does not pair canvas.scale(halo.sidewaysPx, halo.upwardPx) with canvas.clipRect(-1f, -1f, 1f, 0f)")
-        assertFires("G4: the upward branch clipped to the half below the centre", layerLoopProblems(edit(artText, "canvas.clipRect(-1f, -1f, 1f, 0f)", "canvas.clipRect(-1f, -1f, 1f, 1f)")), "the halo loop does not pair canvas.scale(halo.sidewaysPx, halo.upwardPx) with canvas.clipRect(-1f, -1f, 1f, 0f)")
-        assertFires("M7: the halo loop with its innermost layer dropped", layerLoopProblems(edit(artText, layerLoop, "for (layer in ArtGeometry.haloLayerCount() - 2 downTo 0) {")), "is missing")
+        assertFires("the upward branch must be scaled by the upward reach, not the downward one", layerLoopProblems(edit(artText, "canvas.scale(halo.sidewaysPx, halo.upwardPx)", "canvas.scale(halo.sidewaysPx, halo.downwardPx)")), "the halo loop does not pair canvas.scale(halo.sidewaysPx, halo.upwardPx) with canvas.clipRect(-1f, -1f, 1f, 0f)")
+        assertFires("the upward branch must be clipped to the half above the centre, not the half below", layerLoopProblems(edit(artText, "canvas.clipRect(-1f, -1f, 1f, 0f)", "canvas.clipRect(-1f, -1f, 1f, 1f)")), "the halo loop does not pair canvas.scale(halo.sidewaysPx, halo.upwardPx) with canvas.clipRect(-1f, -1f, 1f, 0f)")
+        assertFires("the halo loop must walk every layer down to the innermost, not stop one short", layerLoopProblems(edit(artText, layerLoop, "for (layer in ArtGeometry.haloLayerCount() - 2 downTo 0) {")), "is missing")
 
         assertQuiet("the real when (spec.kind) block", kindBlockProblems(artText))
         assertFires("the Home mic's strokes taken from the spec", kindBlockProblems(edit(artText, homeBranch, "GlowKind.SCREEN -> strokes(ArtGeometry.glowOuterHalfWidthDp(spec))")), "the SCREEN branch does not take strokes(ArtGeometry.glowOuterHalfWidthDp())")
 
         assertQuiet("the real drawGlow calls", drawCallProblems(screenText + tileText))
-        assertFires("G5: the Home mic asking for the tile's strokes", drawCallProblems(edit(screenText, "GlowSpec.SCREEN, look.litSegment", "GlowSpec.TILE, look.litSegment") + tileText), "the Home mic does not call drawGlow")
+        assertFires("the Home mic must ask for the shape's halo, not a hard-coded spec", drawCallProblems(edit(screenText, "GlowShapes.reachFor(GlowShapes.screen), look.halo", "GlowSpec.SCREEN, look.halo") + tileText), "the Home mic does not call drawGlow")
 
-        // the near-miss controls: a word the mutants write, where the word the draw needs must not be mistaken for it
+        // the near-miss controls: a word an edited copy writes, where the word the draw needs must not be mistaken for it
         assertFires("an upward branch scaled by its own reach, with no downward branch left to be confused with", layerLoopProblems(edit(artText, "canvas.scale(halo.sidewaysPx, halo.downwardPx)", "canvas.scale(halo.sidewaysPx, halo.upwardPx)")), "the halo loop does not pair canvas.scale(halo.sidewaysPx, halo.downwardPx) with canvas.clipRect(-1f, 0f, 1f, 1f)")
         assertQuiet("a copy whose only change is the spacing of the clip", layerLoopProblems(edit(artText, "canvas.clipRect(-1f, -1f, 1f, 0f)", "canvas.clipRect(-1f,-1f,1f,0f)")))
         // a source pin greps the literal loop head, so this control documents the pin's real LIMITATION: a copy
@@ -193,11 +228,13 @@ class TileGlowDrawPinTest {
         assertEquals("overlay: $art must hold the upward clip exactly once", 1, countOf(artText, "canvas.clipRect(-1f, -1f, 1f, 0f)"))
         assertEquals("overlay: $art must hold the downward scale exactly once", 1, countOf(artText, "canvas.scale(halo.sidewaysPx, halo.downwardPx)"))
         assertEquals("overlay: $art must hold the downward clip exactly once", 1, countOf(artText, "canvas.clipRect(-1f, 0f, 1f, 1f)"))
-        assertEquals("overlay: $screen must ask for the Home mic's halo", 1, countOf(screenText, "artDraw.drawGlow(canvas, mic, paint, look.ring, 1f, density, GlowSpec.SCREEN, look.litSegment)"))
+        assertEquals("overlay: $screen must ask for the Home mic's halo", 1, countOf(screenText, "artDraw.drawGlow(canvas, mic, paint, look.ring, motionAlpha, density, GlowShapes.reachFor(GlowShapes.screen), look.halo)"))
         assertEquals("overlay: $tile must ask for the tile's strokes", 1, countOf(tileText, "artDraw.drawGlow(canvas, mic, paint, look.ring, pulseAlpha, density, GlowSpec.TILE, look.ring)"))
         assertEquals("overlay: $art must hold the halo call $homeHaloCall exactly once", 1, countOf(artText, homeHaloCall))
+        assertEquals("overlay: $art must hold the halo's own reach call $haloSpecCall exactly once", 1, countOf(artText, haloSpecCall))
+        assertEquals("overlay: $art must hold no hard-coded spec inside the halo's own body", 0, hardCodedSpec.count { haloBodyOf(artText)?.contains(it) == true })
 
         assertEquals("overlay: the two halo scales must be the two different reaches", 2, listOf("canvas.scale(halo.sidewaysPx, halo.downwardPx)", "canvas.scale(halo.sidewaysPx, halo.upwardPx)").count { artText.contains(it) })
-        assertEquals("overlay: $art must hold the draw-level lines as the pins name them", emptyList<String>(), layerLoopProblems(artText) + kindBlockProblems(artText) + drawCallProblems(screenText + tileText) + haloPlaceProblems(artText))
+        assertEquals("overlay: $art must hold the draw-level lines as the pins name them", emptyList<String>(), layerLoopProblems(artText) + kindBlockProblems(artText) + drawCallProblems(screenText + tileText) + haloPlaceProblems(artText) + haloSpecProblems(artText))
     }
 }

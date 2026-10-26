@@ -10,7 +10,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * PIN 3 - the re-push is posted to the main looper, not run inline. The wiring's listener is
+ * THE RE-PUSH IS POSTED TO THE MAIN LOOPER, NOT RUN INLINE. The wiring's listener is
  * `{ main.post { rePushState(port.sessionState) } }`, so the face must travel through the [MainPost]
  * the wiring was built with. A fix that pushes inline (drops the `main.post { }`) would re-push the
  * derived face on whatever thread flipped the switch, which is the capture thread as often as not.
@@ -25,7 +25,7 @@ import org.junit.Test
  * notifies the controller's observer (the switch, which then notifies its listeners - the first
  * post), and then calls `onStateChanged(false, USER_WORD)` again (the second post). So an arm + a
  * disarm posts 3 blocks, not 2, and the face log is [IDLE, ARMED, IDLE, IDLE], not
- * [IDLE, ARMED, IDLE]. The inline-mutant killer is the QUEUED CHECK and it was not weakened: the mic
+ * [IDLE, ARMED, IDLE]. The inline-run variant is caught by the QUEUED CHECK and it was not weakened: the mic
  * must not move while the block is still queued, and must move only after [QueueingMainPost.runPosted].
  * See [a disarm posts the re-push to main and does not run it inline].
  *
@@ -94,25 +94,25 @@ internal class HomeTakeWiringMainPostPinTest {
         val main: QueueingMainPost,
     )
 
-    /** The pin: the flip queues the re-push, and the mic moves only when the queue runs. */
+    /** The behaviour under test: the flip queues the re-push, and the mic moves only when the queue runs. */
     @Test
     fun `an arm posts the re-push to main and does not run it inline`() {
         val built = built(QueueingMainPost())
-        assertEquals("app: pin3: a fresh launch pushes once, inline at creation", listOf(TileState.IDLE), built.mic.faces)
+        assertEquals("app: posted re-push: a fresh launch pushes once, inline at creation", listOf(TileState.IDLE), built.mic.faces)
         built.switch.switchOn()
         assertEquals(
-            "app: pin3: the arm must not re-push inline, while the block is still queued",
+            "app: posted re-push: the arm must not re-push inline, while the block is still queued",
             1,
             built.main.posts,
         )
         assertEquals(
-            "app: pin3: the mic must not move before the posted block runs",
+            "app: posted re-push: the mic must not move before the posted block runs",
             listOf(TileState.IDLE),
             built.mic.faces,
         )
         built.main.runPosted()
         assertEquals(
-            "app: pin3: the mic must re-push ARMED once the posted block runs",
+            "app: posted re-push: the mic must re-push ARMED once the posted block runs",
             listOf(TileState.IDLE, TileState.ARMED),
             built.mic.faces,
         )
@@ -124,30 +124,30 @@ internal class HomeTakeWiringMainPostPinTest {
         val built = built(QueueingMainPost())
         built.switch.switchOn()
         built.main.runPosted()
-        assertEquals("app: pin3: the arm ran before the disarm", listOf(TileState.IDLE, TileState.ARMED), built.mic.faces)
+        assertEquals("app: posted re-push: the arm ran before the disarm", listOf(TileState.IDLE, TileState.ARMED), built.mic.faces)
         built.switch.switchOff()
         // The disarm fires onStateChanged TWICE - controller.disarm() notifies the
         // observer (which notifies the switch listeners), then switchOff() calls onStateChanged(false,
         // USER_WORD) again - so a user disarm posts TWO blocks and the count after an arm + disarm is
-        // 3, not 2. The pin is the lower bound: the re-push must be POSTED, never run inline.
+        // 3, not 2. The behaviour under test is the lower bound: the re-push must be POSTED, never run inline.
         assertTrue(
-            "app: pin3: the disarm must post at least one block, not run inline",
+            "app: posted re-push: the disarm must post at least one block, not run inline",
             built.main.posts >= 2,
         )
         assertEquals(
-            "app: pin3: the mic must not move on the disarm before the posted block runs",
+            "app: posted re-push: the mic must not move on the disarm before the posted block runs",
             listOf(TileState.IDLE, TileState.ARMED),
             built.mic.faces,
         )
         built.main.runPosted()
         // Both of the disarm's posted blocks ran, so the real log is [IDLE, ARMED, IDLE, IDLE]. The
-        // pin is the lower bound plus the last face: the re-push must reach IDLE through the queue.
+        // behaviour under test is the lower bound plus the last face: the re-push must reach IDLE through the queue.
         assertTrue(
-            "app: pin3: the disarm must re-push IDLE at least once after the posted block runs",
+            "app: posted re-push: the disarm must re-push IDLE at least once after the posted block runs",
             built.mic.faces.size >= 3,
         )
         assertEquals(
-            "app: pin3: the mic must end on IDLE once the posted block runs",
+            "app: posted re-push: the mic must end on IDLE once the posted block runs",
             TileState.IDLE,
             built.mic.faces.last(),
         )
@@ -155,15 +155,15 @@ internal class HomeTakeWiringMainPostPinTest {
 
     /**
      * A queue that is never run leaves the mic exactly where it was, so the posted block is the only
-     * thing that moves the face - the pin cannot be satisfied by a stray inline push.
+     * thing that moves the face - a stray inline push cannot satisfy this behaviour.
      */
     @Test
     fun `a queued re-push that never runs moves the mic not at all`() {
         val built = built(QueueingMainPost())
         built.switch.switchOn()
-        assertEquals("app: pin3: the flip must have queued a block", 1, built.main.posts)
+        assertEquals("app: posted re-push: the flip must have queued a block", 1, built.main.posts)
         assertEquals(
-            "app: pin3: with the block queued and never run, the mic must be unchanged",
+            "app: posted re-push: with the block queued and never run, the mic must be unchanged",
             listOf(TileState.IDLE),
             built.mic.faces,
         )
@@ -183,11 +183,11 @@ internal class HomeTakeWiringMainPostPinTest {
         built.wiring.onTap()
         built.main.runPosted()
         assertEquals(
-            "app: pin3: a recording take must push RECORDING, not a blanket ARMED",
+            "app: posted re-push: a recording take must push RECORDING, not a blanket ARMED",
             TileState.RECORDING,
             built.mic.faces.last(),
         )
-        assertTrue("app: pin3: the face is the derived one", built.mic.faces.contains(TileState.RECORDING))
+        assertTrue("app: posted re-push: the face is the derived one", built.mic.faces.contains(TileState.RECORDING))
     }
 }
 
