@@ -24,7 +24,7 @@ class ThemeModeTest {
         assertEquals(original.modelSize, changed.modelSize)
         assertEquals(original.serverUrl, changed.serverUrl)
         assertEquals(original.apiKeyRef, changed.apiKeyRef)
-        assertEquals(original.wakeGestureEnabled, changed.wakeGestureEnabled)
+        assertEquals(original.shakeWakeMode, changed.shakeWakeMode)
         assertEquals(original.tilePosition, changed.tilePosition)
         assertEquals(original.language, changed.language)
         assertEquals(original.preloadModel, changed.preloadModel)

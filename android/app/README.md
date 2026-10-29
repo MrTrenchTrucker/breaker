@@ -49,10 +49,11 @@ screen, the settings screen and the history screen, the manifest, and the Gradle
   Breaker comes to the front. After a send, the tile shows SENT when the text
   landed or only reached the clipboard, and FAILED with its sentence when the
   commit failed. It keeps that until the next action.
-- **The keyboard tile.** While dictation is switched on, the tile comes up when a keyboard is on
+- **The keyboard tile.** While dictation is switched on and the keyboard tile switch in Settings is on
+  (it is on by default), the tile comes up when a keyboard is on
   screen and a text field is in focus. It goes away when the keyboard goes away, but only if a
-  keyboard show brought it up. A keyboard show follows the same check as a shake: nothing is shown
-  while the switch is off or while a take is in flight. A keyboard-gone hide that comes during a
+  keyboard show brought it up. A keyboard show is not made while dictation is switched off, while a
+  take is in flight, or while the keyboard tile switch is off; the shake mode does not apply to it. A keyboard-gone hide that comes during a
   take is held and applied once when the take ends, and only if the keyboard is still gone. A
   keyboard show, a switch-off or a user close drops a held hide. A user close also forgets that the
   keyboard raised the tile, so a keyboard that goes away later does not hide a tile the user closed or
@@ -87,7 +88,7 @@ as described in ADR-022 as amended:
   already running. Sending, cancelling, an error or a second tap on the Home big mic (for a take the Home tap began) ends the recording; the service
   stays on. The app shows the tile while the service is on and hides it when the
   service ends or the user switches off.
-- A shake of the phone, read from the accelerometer, never begins a recording. It goes to the tile: with the tile closed or hidden it brings the tile back, and with the tile on screen or during a recording it does nothing. The sensor runs only while the service is on. Whether a shake brings the tile back with no overlay permission is a device check, not a verified fact (see the Known Gotchas section of `AGENTS.md`).
+- A shake of the phone, read from the accelerometer, never begins a recording. It goes to the tile: with the tile closed or hidden it brings the tile back, and with the tile on screen or during a recording it does nothing. The sensor runs only while the service is on. The shake to wake choice in Settings decides which shakes count: Always (a shake brings the tile back at any time; a fresh install), Keyboard only (a shake counts only while a keyboard window is open, which needs the accessibility service to know it) or Off (a shake does nothing, and the sensor still runs and ignores it). Whether a shake brings the tile back with no overlay permission is a device check, not a verified fact (see the Known Gotchas section of `AGENTS.md`).
 - The service stops when the user switches dictation off, when the part that owns
   the dictation is closed, or when it is started with nothing switched on. If it
   ends on its own, the dictation under way is dropped.

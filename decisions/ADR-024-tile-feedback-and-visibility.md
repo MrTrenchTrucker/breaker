@@ -1,6 +1,6 @@
 # ADR-024: The tile shows busy and loudness, and hides itself when no keyboard is in use
 
-**Status:** accepted, amended 2026-10-12 (busy cue: no spinner; shake, keyboard and battery), amended 2026-10-14 (level feed), amended 2026-10-15 (a shake only shows the tile), amended 2026-10-17 (X and check size and spacing), amended 2026-10-20 (keyboard visibility design note), amended 2026-10-29 (keyboard tile built: hold during a take, close, debounce window)
+**Status:** accepted, amended 2026-10-12 (busy cue: no spinner; shake, keyboard and battery), amended 2026-10-14 (level feed), amended 2026-10-15 (a shake only shows the tile), amended 2026-10-17 (X and check size and spacing), amended 2026-10-20 (keyboard visibility design note), amended 2026-10-29 (keyboard tile built: hold during a take, close, debounce window), amended 2026-10-29 (shake to wake choice and keyboard tile switch)
 **Date:** 2026-10-12
 
 ## Context
@@ -105,4 +105,8 @@ Amended 2026-10-29: the keyboard show, the held hide and the close record, as bu
 - **Close record.** A close by the user clears the coordinator's record that the tile is shown, drops a held hide and releases the raised mark. So a keyboard that goes away later does not hide the tile the user closed or brought back with a shake, unless a keyboard show has raised it since; a keyboard show after a close made outside a keyboard session raises the tile and sets the mark again. A close made while a keyboard session is active keeps the tile down until that session ends.
 - **Decision location.** The decision is the top-level function `decision` in `KeyboardTileDecision.kt`, not a member of `TileCoordinator`. Its inputs are four booleans and two time stamps. `KeyboardTileSession` calls it for `TileCoordinator`.
 - **Debounce.** The debounce time stays 250 ms. A reading inside the window is held, and only the newest held reading is re-evaluated, once, when the window ends. A reading still held when a take begins is acted at once, and its hide is held to the take end. A keyboard show or a switch-off drops a held hide, and a switch-off also cancels the pending re-evaluation.
-- **Shake.** The shake behaves as before; the shake and the keyboard show now share one check.
+- **Shake.** The shake behaves as before, under the shake to wake choice; the shake and the keyboard show share the take check, and each has its own switch.
+
+Amended 2026-10-29: the shake to wake choice (always, keyboard only, or off) and the keyboard tile switch
+are settings. A shake shows the tile only when the choice allows it, and a keyboard show raises the tile only
+when the keyboard tile switch is on. Dictation switched on and no take in flight still gate both.

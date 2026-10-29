@@ -1,6 +1,7 @@
 package dev.breaker.dictation.overlay
 
 import dev.breaker.dictation.core.model.AppSettings
+import dev.breaker.dictation.core.model.ShakeWakeMode
 import dev.breaker.dictation.core.model.SttMode
 import dev.breaker.dictation.core.model.TilePosition
 import org.junit.Assert.assertEquals
@@ -145,7 +146,7 @@ class TileControllerPersistTest {
         assertEquals("android_overlay: modelSize should stay medium", "medium", saved.modelSize)
         assertEquals("android_overlay: serverUrl should stay as seeded", "http://example.invalid:8080", saved.serverUrl)
         assertEquals("android_overlay: apiKeyRef should stay ref-1", "ref-1", saved.apiKeyRef)
-        assertEquals("android_overlay: wakeGestureEnabled should stay false", false, saved.wakeGestureEnabled)
+        assertEquals("android_overlay: shakeWakeMode should stay OFF", ShakeWakeMode.OFF, saved.shakeWakeMode)
         assertEquals("android_overlay: language should stay de", "de", saved.language)
         assertEquals("android_overlay: preloadModel should stay false", false, saved.preloadModel)
         assertEquals("android_overlay: formattingEnabled should stay false", false, saved.formattingEnabled)

@@ -30,6 +30,28 @@ data class TilePosition(val x: Float, val y: Float) {
 }
 
 /**
+ * How a shake brings the floating tile back.
+ *
+ * `ALWAYS` lets any shake bring the tile back, `KEYBOARD_ONLY` only while a
+ * keyboard is on screen, and `OFF` never. A fresh install is `ALWAYS`.
+ */
+enum class ShakeWakeMode { ALWAYS, KEYBOARD_ONLY, OFF }
+
+/**
+ * Whether a shake may bring the tile back under this mode, given whether a
+ * keyboard is on screen.
+ *
+ * `ALWAYS` allows every shake, `OFF` allows none, and `KEYBOARD_ONLY` allows
+ * exactly the shakes made while the keyboard is up. This is the one pure rule
+ * the setting comes down to.
+ */
+fun ShakeWakeMode.shakeArms(keyboardUp: Boolean): Boolean = when (this) {
+    ShakeWakeMode.ALWAYS -> true
+    ShakeWakeMode.KEYBOARD_ONLY -> keyboardUp
+    ShakeWakeMode.OFF -> false
+}
+
+/**
  * The user's settings, as the domain sees them.
  *
  * [apiKeyRef] is a *reference* to a credential held elsewhere (the platform
@@ -47,7 +69,8 @@ data class TilePosition(val x: Float, val y: Float) {
  *
  * Defaults match the documented behaviour: server-primary routing, the small
  * on-device model, the model preloaded so a wake phrase can start a dictation
- * within a second, formatting on, the theme following the phone
+ * within a second, shake to wake always ([ShakeWakeMode.ALWAYS]), the tile
+ * shown on a keyboard, formatting on, the theme following the phone
  * ([ThemeMode.SYSTEM]), the tile centred, and the microphone prompt not yet shown.
  */
 data class AppSettings(
@@ -55,7 +78,8 @@ data class AppSettings(
     val modelSize: String = "small",
     val serverUrl: String = "",
     val apiKeyRef: String? = null,
-    val wakeGestureEnabled: Boolean = true,
+    val shakeWakeMode: ShakeWakeMode = ShakeWakeMode.ALWAYS,
+    val showTileOnKeyboard: Boolean = true,
     val tilePosition: TilePosition = TilePosition(0.5f, 0.5f),
     val language: String = "en",
     val preloadModel: Boolean = true,

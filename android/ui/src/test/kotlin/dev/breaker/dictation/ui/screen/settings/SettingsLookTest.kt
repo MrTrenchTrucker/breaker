@@ -82,7 +82,8 @@ class SettingsLookTest {
         assertEquals(
             listOf(
                 "settings.switches.heading", "settings.preloadModel", "settings.hairline.preload",
-                "settings.wakeGestureEnabled", "settings.hairline.wake", "settings.formattingEnabled",
+                "settings.shakeWake", "settings.hairline.wake", "settings.showTileOnKeyboard",
+                "settings.hairline.keyboard", "settings.formattingEnabled",
             ),
             childIds(s, "settings.switches"),
         )
@@ -151,13 +152,13 @@ class SettingsLookTest {
     fun `each switch row carries its label help state and the opposite intent`() {
         val cases = listOf(
             Triple("settings.preloadModel", "Preload model", "preloadModel"),
-            Triple("settings.wakeGestureEnabled", "Wake gesture", "wakeGestureEnabled"),
+            Triple("settings.showTileOnKeyboard", "Show the tile when the keyboard opens", "showTileOnKeyboard"),
             Triple("settings.formattingEnabled", "Formatting", "formattingEnabled"),
         )
         for (current in listOf(false, true)) {
             val held = NONDEFAULT.copy(
                 preloadModel = current,
-                wakeGestureEnabled = current,
+                showTileOnKeyboard = current,
                 formattingEnabled = current,
             )
             val s = screen.render(held, themeOf(), null)
@@ -172,7 +173,10 @@ class SettingsLookTest {
                 )
             }
             assertEquals("Keeps the model ready for a faster start.", switchOf(s, "settings.preloadModel").help)
-            assertEquals("Shake the phone to bring the tile back.", switchOf(s, "settings.wakeGestureEnabled").help)
+            assertEquals(
+                "The tile comes up by itself when a keyboard opens over a text field.",
+                switchOf(s, "settings.showTileOnKeyboard").help,
+            )
             assertEquals("Spoken lists become lists. Filler words go.", switchOf(s, "settings.formattingEnabled").help)
         }
     }
@@ -183,7 +187,7 @@ class SettingsLookTest {
         val retired = listOf(
             "Scheme:", "Use the dark scheme", "Use the light scheme", "Follow the phone",
             "following the phone", "chosen here", "On this phone", "On the server",
-            "Mode: ", "Language: ", "Model: ", "Server: ", "API key: ", ": on", ": off",
+            "Mode: ", "Language: ", "Model: ", "Server: ", "API key: ", ": on", ": off", "Wake gesture",
         )
         for (text in texts) {
             for (word in retired) {

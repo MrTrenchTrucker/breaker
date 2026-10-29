@@ -74,8 +74,10 @@ admins.
       **recording starts automatically**. A **shake** only brings the floating tile
       up: it never starts recording and never opens the microphone, so a bump in a
       moving vehicle cannot start a recording. A tap on the tile starts recording.
-      A shake works from any app and with the keyboard open, and keeps working
-      whether or not the tile is on screen, for as long as dictation is switched on.
+      A shake works from any app and, under the Always choice, with the keyboard open.
+      Under Keyboard only it works only while a keyboard window is up; under Off it never shows
+      the tile. It keeps working whether or not the tile is on screen, for as long as dictation
+      is switched on.
 - F5. **"And I'm Gone"** (voice phrase) OR tap tile → stop + send → commit text to
       focused field.
 - F6. If no text field is focused, or the accessibility insert is refused →
@@ -86,7 +88,7 @@ admins.
 - F9. The send phrase "And I'm Gone" is excluded from the transcription (audio
       trimmed at phrase onset).
 - F10. Settings: mode, model size, server URL/API key, voice phrases on/off,
-      shake on/off, formatting on/off, tile position, language.
+      shake to wake (always, keyboard only or off), keyboard tile switch on/off, formatting on/off, tile position, language.
 - F11. On first open, the app shows a short welcome (its content is not fixed
       here), then asks for each permission it needs (microphone, display over
       other apps, notifications, accessibility service) on a screen of its
@@ -176,7 +178,7 @@ admins.
       into the field (ADR-022).
 - F38. **Close the tile by dragging:** dragging the small tile shows a close
       target (an X in a circle) near the bottom of the screen; dropping the tile on
-      it hides the tile. Dictation stays switched on, so a shake brings the tile back,
+      it hides the tile. Dictation stays switched on, so a shake brings the tile back when the shake to wake choice allows it,
       and "Breaker Breaker" brings it back and starts recording (F4); opening Breaker from its icon
       shows it again. Switching dictation off stays in the notification and the app.
 - F39. **Busy cue:** from the check tap until the final outcome the tile shows
@@ -186,9 +188,9 @@ admins.
       loud the voice is; the app works out the level from the audio it already
       receives and passes it to the tile (ADR-024).
 - F41. **Hide without a keyboard:** the tile comes up by itself when a keyboard opens over
-      an editable text field, while dictation is switched on. It goes away when the keyboard
+      an editable text field, while dictation and the keyboard tile switch are switched on. It goes away when the keyboard
       that brought it up goes. A tile the user closes while that keyboard is up stays closed
-      until the next keyboard session, and a shake still brings it back (F4, F38).
+      until the next keyboard session, and a shake still brings it back when the shake to wake choice allows it (F4, F38).
 - F42. **Normal-looking text:** a transcript the speech engine prints entirely in
       capitals is turned into lower case, with the capital "I" restored, before it
       is formatted (ADR-023).
@@ -423,7 +425,7 @@ routes it, so no audio waits on a probe and none is dropped (ADR-002).
 **Gesture (shake-to-wake):** `SensorManager` accelerometer; shake = high-pass
 filtered magnitude threshold crossings in a 500 ms window. The detector stays
 registered for as long as dictation is switched on, whatever the tile shows and
-whether or not the keyboard is up; a detection always means "show the tile" and never begins a recording (F4). Only
+whether or not the keyboard is up; a detection means "show the tile" when the shake to wake choice allows it, and never begins a recording (F4). Only
 switching dictation off, or the system stopping the app in the background (F12),
 ends it.
 
@@ -475,8 +477,8 @@ as it is; no keyboard window hides the tile only when the session raised it. A r
 of the last acted change is held, and the newest held reading is acted on once when that window ends.
 The readings come from the accessibility service on each window
 event: the keyboard window is an input-method window in the window list, and the field is the
-input-focused node's editable flag. No text is read. A keyboard show goes through the same check as a
-shake (dictation switched on and no take in flight). A hide that comes during a take is held and
+input-focused node's editable flag. No text is read. A keyboard show needs the keyboard tile switch on and goes through the same take check as a
+shake (dictation switched on and no take in flight). The shake to wake choice decides a shake, and the keyboard tile switch decides a keyboard show. A hide that comes during a take is held and
 applied once when the take ends, if the keyboard is still gone. A keyboard show drops a held hide.
 A reading held when a take starts is acted at once, and a hide it brings is held to the take end.
 The bottom inset is not an input of the decision.

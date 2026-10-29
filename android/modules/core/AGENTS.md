@@ -54,9 +54,11 @@ modules implement, and the use cases that run a dictation.
 - `DictationSession(state, lastError, lastTranscription)` with `DictationState`
   (IDLE|ARMED|RECORDING|TRANSCRIBING|SENDING|ERROR), and `DictationResult` (Success|Failure)
 - `AppSettings(mode: AUTO|LOCAL|SERVER, modelSize, serverUrl, apiKeyRef,
-  wakeGestureEnabled, tilePosition, language, preloadModel, formattingEnabled,
-  themeMode: SYSTEM|LIGHT|DARK, microphoneAsked)`, `SttMode`, `ThemeMode`, `TilePosition`
+  shakeWakeMode, showTileOnKeyboard, tilePosition, language, preloadModel, formattingEnabled,
+  themeMode: SYSTEM|LIGHT|DARK, microphoneAsked)`, `SttMode`, `ThemeMode`, `ShakeWakeMode`, `TilePosition`
   `microphoneAsked` is bookkeeping: whether the system microphone prompt was shown once. It is not a user setting.
+  `ShakeWakeMode` is the three-way shake-to-wake setting (ALWAYS, KEYBOARD_ONLY, OFF); a fresh install is ALWAYS. Its pure rule `shakeArms(keyboardUp)` says whether a shake may bring the tile back.
+  `showTileOnKeyboard` is the switch that shows the tile when a keyboard opens over a text field; a fresh install is on.
 - `SttRequest`, `SttResult`, `SttSegment`, `AudioFormat` (16 kHz, one channel), and
   `SttError(LOCAL_MODEL_MISSING, SERVER_UNREACHABLE, TIMEOUT, OTHER)`
 - `CommitRequest` (never empty) and `CommitOutcome(COMMITTED|COPIED|FAILED)`

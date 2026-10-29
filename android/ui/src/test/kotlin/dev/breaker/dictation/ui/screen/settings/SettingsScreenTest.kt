@@ -107,13 +107,13 @@ class SettingsScreenTest {
     fun `each switch asks for its own key at the opposite of its current value`() {
         val cases = listOf(
             "settings.preloadModel" to "preloadModel",
-            "settings.wakeGestureEnabled" to "wakeGestureEnabled",
+            "settings.showTileOnKeyboard" to "showTileOnKeyboard",
             "settings.formattingEnabled" to "formattingEnabled",
         )
         for (current in listOf(false, true)) {
             val held = NONDEFAULT.copy(
                 preloadModel = current,
-                wakeGestureEnabled = current,
+                showTileOnKeyboard = current,
                 formattingEnabled = current,
             )
             val s = screen.render(held, themeOf(), null)
@@ -182,7 +182,8 @@ class SettingsScreenTest {
             "settings.server.field",
             "settings.apiKey.value",
             "settings.preloadModel",
-            "settings.wakeGestureEnabled",
+            "settings.shakeWake",
+            "settings.showTileOnKeyboard",
             "settings.formattingEnabled",
         )) {
             assertTrue("$absent is drawn from settings that were never read", absent !in ids)

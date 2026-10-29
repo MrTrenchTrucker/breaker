@@ -17,12 +17,13 @@ import java.io.File
  */
 class SettingsMicrophoneAskedTest : SettingsFileStoreTestBase() {
 
-    /** The nine settings keys as text, at the values [validSettings] carries. */
+    /** Nine of the ten settings keys as text, at the values [validSettings] carries.
+     * The keyboard switch is left out on purpose, so it loads at its default, true. */
     private val nineKeyLines = listOf(
         "mode=SERVER",
         "model_size=medium",
         "server_url=https://box.local",
-        "wake_gesture_enabled=false",
+        "shake_wake_mode=OFF",
         "tile_position=0.25,0.75",
         "language=de",
         "preload_model=false",
@@ -91,11 +92,11 @@ class SettingsMicrophoneAskedTest : SettingsFileStoreTestBase() {
     }
 
     @Test
-    fun `the codec lists the new key among the keys it writes and writes ten`() {
+    fun `the codec lists the new key among the keys it writes and writes eleven`() {
         val written = SettingsPropertiesCodec.writtenKeys()
 
         assertTrue("microphone_asked is not among the written keys: $written", written.contains("microphone_asked"))
-        assertEquals("the number of written keys", 10, written.size)
+        assertEquals("the number of written keys", 11, written.size)
     }
 
     @Test

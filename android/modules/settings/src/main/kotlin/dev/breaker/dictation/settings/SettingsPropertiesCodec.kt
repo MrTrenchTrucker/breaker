@@ -1,6 +1,7 @@
 package dev.breaker.dictation.settings
 
 import dev.breaker.dictation.core.model.AppSettings
+import dev.breaker.dictation.core.model.ShakeWakeMode
 import dev.breaker.dictation.core.model.SttMode
 import dev.breaker.dictation.core.model.ThemeMode
 import dev.breaker.dictation.core.model.TilePosition
@@ -20,6 +21,12 @@ import java.util.Properties
  * proves the file that comes out of [encode] contains neither the reference nor
  * an `api_key` key.
  *
+ * **The shake-wake keys.** [encode] writes `shake_wake_mode` (the enum name) and
+ * `show_tile_on_keyboard`. It never writes `wake_gesture_enabled`, the boolean they
+ * replace. [decode] reads that old key only when `shake_wake_mode` does not name a
+ * mode: `true` becomes ALWAYS and `false` becomes OFF, so a file an older build
+ * wrote is migrated on load and written in the new form on the next save.
+ *
  * **Character set: UTF-8, both ways.** [encode] produces a [Properties] that
  * [SettingsFileStore] writes through a `Writer` opened with
  * `Charsets.UTF_8`, and [decode] reads back through a matching UTF-8 reader.
@@ -36,6 +43,9 @@ internal object SettingsPropertiesCodec {
     private const val KEY_MODE = "mode"
     private const val KEY_MODEL_SIZE = "model_size"
     private const val KEY_SERVER_URL = "server_url"
+    private const val KEY_SHAKE_WAKE_MODE = "shake_wake_mode"
+    private const val KEY_SHOW_TILE_ON_KEYBOARD = "show_tile_on_keyboard"
+    // Read only: the legacy boolean, used to migrate a file an older build wrote.
     private const val KEY_WAKE_GESTURE_ENABLED = "wake_gesture_enabled"
     private const val KEY_TILE_POSITION = "tile_position"
     private const val KEY_LANGUAGE = "language"
@@ -49,7 +59,8 @@ internal object SettingsPropertiesCodec {
         KEY_MODE,
         KEY_MODEL_SIZE,
         KEY_SERVER_URL,
-        KEY_WAKE_GESTURE_ENABLED,
+        KEY_SHAKE_WAKE_MODE,
+        KEY_SHOW_TILE_ON_KEYBOARD,
         KEY_TILE_POSITION,
         KEY_LANGUAGE,
         KEY_PRELOAD_MODEL,
@@ -72,7 +83,8 @@ internal object SettingsPropertiesCodec {
         properties[KEY_MODE] = settings.mode.name
         properties[KEY_MODEL_SIZE] = settings.modelSize
         properties[KEY_SERVER_URL] = settings.serverUrl
-        properties[KEY_WAKE_GESTURE_ENABLED] = settings.wakeGestureEnabled.toString()
+        properties[KEY_SHAKE_WAKE_MODE] = settings.shakeWakeMode.name
+        properties[KEY_SHOW_TILE_ON_KEYBOARD] = settings.showTileOnKeyboard.toString()
         properties[KEY_TILE_POSITION] = encodeTilePosition(settings.tilePosition)
         properties[KEY_LANGUAGE] = settings.language
         properties[KEY_PRELOAD_MODEL] = settings.preloadModel.toString()
@@ -106,8 +118,9 @@ internal object SettingsPropertiesCodec {
                 properties.getProperty(KEY_SERVER_URL), defaults.serverUrl,
             ),
             apiKeyRef = apiKeyRef,
-            wakeGestureEnabled = SettingsValidation.booleanOrFallback(
-                properties.getProperty(KEY_WAKE_GESTURE_ENABLED), defaults.wakeGestureEnabled,
+            shakeWakeMode = decodeShakeWakeMode(properties, defaults.shakeWakeMode),
+            showTileOnKeyboard = SettingsValidation.booleanOrFallback(
+                properties.getProperty(KEY_SHOW_TILE_ON_KEYBOARD), defaults.showTileOnKeyboard,
             ),
             tilePosition = decodeTilePosition(properties, defaults.tilePosition),
             language = SettingsValidation.stringOrFallback(
@@ -145,5 +158,26 @@ internal object SettingsPropertiesCodec {
         val parts = raw.split(',')
         if (parts.size != 2) return fallback
         return SettingsValidation.tilePositionOrFallback(parts[0], parts[1], fallback)
+    }
+
+    /**
+     * The old boolean as a mode, or null when the old key is absent. `true` is
+     * [ShakeWakeMode.ALWAYS] and `false` is [ShakeWakeMode.OFF]. A value that is
+     * neither reads as `true`, the old default, so it is ALWAYS too.
+     */
+    private fun legacyShakeWakeMode(properties: Properties): ShakeWakeMode? {
+        val raw = properties.getProperty(KEY_WAKE_GESTURE_ENABLED) ?: return null
+        return if (SettingsValidation.booleanOrFallback(raw, true)) ShakeWakeMode.ALWAYS else ShakeWakeMode.OFF
+    }
+
+    /**
+     * The shake-wake mode: the new key when it names a mode, else the old boolean
+     * when the old key is present, else [fallback].
+     */
+    private fun decodeShakeWakeMode(properties: Properties, fallback: ShakeWakeMode): ShakeWakeMode {
+        val legacy = legacyShakeWakeMode(properties) ?: fallback
+        return SettingsValidation.enumOrFallback(
+            properties.getProperty(KEY_SHAKE_WAKE_MODE), ShakeWakeMode.entries.toTypedArray(), legacy,
+        )
     }
 }

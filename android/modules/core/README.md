@@ -8,7 +8,9 @@ What ships:
   session's state machine, settings, speech-to-text requests and results, phrase
   models and the events a phrase detector reports, cipher text and keys, account
   sessions, update releases. The values that hold dictated text print their ids and
-  lengths, never the text.
+  lengths, never the text. The shake-to-wake choice is `ShakeWakeMode` (always,
+  keyboard only, or off), and the tile-on-keyboard switch is a boolean on the same
+  settings value.
 - `port/` — the interfaces feature modules implement: speech engines, the audio
   source, the text committer, stores, the connectivity probe, crypto, sync and
   updates. The full list, with signatures, is on the module card.

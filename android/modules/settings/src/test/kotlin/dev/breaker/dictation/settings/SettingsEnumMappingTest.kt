@@ -103,9 +103,9 @@ class SettingsEnumMappingTest : SettingsFileStoreTestBase() {
     fun `a boolean in the file is read whatever case it was written in`() {
         for ((written, expected) in listOf("FALSE" to false, "false" to false, "True" to true, "true" to true)) {
             assertEquals(
-                "wake_gesture_enabled written as $written",
+                "show_tile_on_keyboard written as $written",
                 expected,
-                store(fileWith(KEY_WAKE_GESTURE, written)).load().wakeGestureEnabled,
+                store(fileWith(KEY_SHOW_TILE, written)).load().showTileOnKeyboard,
             )
         }
     }
@@ -120,13 +120,13 @@ class SettingsEnumMappingTest : SettingsFileStoreTestBase() {
     @Test
     fun `a boolean with whitespace around it is read as that boolean`() {
         val planted = "false   "
-        val file = fileWith(KEY_WAKE_GESTURE, planted)
-        assertEquals("the planted whitespace did not survive the file", planted, propertyOf(file, KEY_WAKE_GESTURE))
+        val file = fileWith(KEY_SHOW_TILE, planted)
+        assertEquals("the planted whitespace did not survive the file", planted, propertyOf(file, KEY_SHOW_TILE))
 
         val loaded = store(file).load()
 
-        assertEquals("a padded false", false, loaded.wakeGestureEnabled)
-        assertEveryOtherKeySurvived(loaded, exceptKey = KEY_WAKE_GESTURE)
+        assertEquals("a padded false", false, loaded.showTileOnKeyboard)
+        assertEveryOtherKeySurvived(loaded, exceptKey = KEY_SHOW_TILE)
     }
 
     /**

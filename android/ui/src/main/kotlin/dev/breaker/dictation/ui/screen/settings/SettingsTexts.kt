@@ -26,12 +26,19 @@ internal object SettingsTexts {
     const val ROUTING_SERVER = HistoryTexts.TAG_SERVER
     const val ROUTING_AUTO_HELP = "Automatic uses the server when it answers, and the phone when it does not."
 
-    /** The dictation block: its heading, and each switch with its label and its line. */
+    /** The dictation block: its heading, the shake to wake choice, the keyboard tile switch, and each line. */
     const val DICTATION_HEADING = "Dictation"
     const val PRELOAD_LABEL = "Preload model"
     const val PRELOAD_HELP = "Keeps the model ready for a faster start."
-    const val WAKE_LABEL = "Wake gesture"
-    const val WAKE_HELP = "Shake the phone to bring the tile back."
+    const val SHAKE_WAKE_LABEL = "Shake to wake"
+    const val SHAKE_KEYBOARD_ONLY = "Keyboard only"
+    const val SHAKE_ALWAYS = "Always"
+    const val SHAKE_OFF = "Off"
+    const val SHAKE_WAKE_HELP = "Always: shake the phone any time to bring the tile back. " +
+        "Keyboard only: shaking works only while the keyboard is open (needs the keyboard tile permission). " +
+        "Off: shaking does nothing."
+    const val SHOW_TILE_LABEL = "Show the tile when the keyboard opens"
+    const val SHOW_TILE_HELP = "The tile comes up by itself when a keyboard opens over a text field."
     const val FORMATTING_LABEL = "Formatting"
     const val FORMATTING_HELP = "Spoken lists become lists. Filler words go."
 

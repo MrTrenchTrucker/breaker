@@ -21,7 +21,7 @@ import java.util.Properties
  *
  * `AppSettings.apiKeyRef` is a *reference* (the core model says so itself), so
  * what must never happen is the store writing that reference — or reading one
- * back — into the same plaintext properties file as the eight harmless
+ * back - into the same plaintext properties file as the eleven harmless
  * settings. What must happen instead is that the reference is persisted
  * **through the port**, so a later store instance over the same port still sees
  * it. The store is constructed as `SettingsFileStore(file, keystore)`.
@@ -55,7 +55,7 @@ class SettingsKeystoreRefTest {
         modelSize = "medium",
         serverUrl = "https://box.local",
         apiKeyRef = ref,
-        wakeGestureEnabled = false,
+        shakeWakeMode = dev.breaker.dictation.core.model.ShakeWakeMode.OFF,
         tilePosition = TilePosition(0.25f, 0.75f),
         language = "de",
         preloadModel = false,
@@ -91,7 +91,7 @@ class SettingsKeystoreRefTest {
 
         store(file, FakeKeystore()).save(minimalSettings(plantedRef))
 
-        assertEquals("the saved key set", THE_TEN_KEYS, rawKeysOf(file))
+        assertEquals("the saved key set", THE_SAVED_KEYS, rawKeysOf(file))
         assertTrue(
             "a credential-like key was written: ${rawKeysOf(file)}",
             credentialLikeKeysIn(rawKeysOf(file)).isEmpty(),
@@ -103,7 +103,7 @@ class SettingsKeystoreRefTest {
         // A file that carries an api_key key anyway — hand-edited, restored
         // from a backup, written by an older build. Load must ignore it.
         val props = Properties()
-        THE_TEN_KEYS.forEach { props.setProperty(it, "irrelevant") }
+        THE_SAVED_KEYS.forEach { props.setProperty(it, "irrelevant") }
         props.setProperty("api_key", plantedRef)
         val file = newFile()
         file.outputStream().use { props.store(it, "test") }
@@ -306,6 +306,6 @@ class SettingsKeystoreRefTest {
 
         assertNull(reloaded.apiKeyRef)
         assertTrue("nothing should have been stored: ${keystore.storedRefs}", keystore.storedRefs.isEmpty())
-        assertEquals(THE_TEN_KEYS, rawKeysOf(file))
+        assertEquals(THE_SAVED_KEYS, rawKeysOf(file))
     }
 }

@@ -28,8 +28,10 @@ implementation:
 
 **Keys:** mode, model_size, server_url, api_key (Android Keystore, encrypted at
 rest — T2) *(the device Keystore is not built yet — see Known Gotchas)*,
-wake_gesture_enabled, tile_position, language, preload_model,
+shake_wake_mode, show_tile_on_keyboard, tile_position, language, preload_model,
 formatting_enabled, theme_mode, microphone_asked.
+
+`shake_wake_mode` is the three-way shake-to-wake setting (ALWAYS|KEYBOARD_ONLY|OFF) and `show_tile_on_keyboard` the tile-on-keyboard switch. The old `wake_gesture_enabled` boolean is read only when `shake_wake_mode` does not name a mode (true becomes ALWAYS, false becomes OFF) and is never written.
 
 **Model registry:** `ModelCatalog` reads `shared/model-registry` (model list,
 sizes, URLs, SHA-256 pins); `stt-ondevice` reads the same registry for download
@@ -112,7 +114,7 @@ agents, not required: an outside contributor may write the code themselves
   `Keystore` port and never writes it to the settings file. A fake port lives in the
   same process, so it cannot prove survival across process death — that is the platform
   Keystore's job, and it arrives with the device implementation.
-- The settings file holds **ten** of the card's eleven keys. `api_key` is deliberately
+- The settings file holds **eleven** of the card's twelve keys. `api_key` is deliberately
   absent: the credential reference travels through the `Keystore` port, never through
   `java.util.Properties`. A reader counting keys will find one short and that is
   correct.

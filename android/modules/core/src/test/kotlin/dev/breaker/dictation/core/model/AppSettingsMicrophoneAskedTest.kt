@@ -18,7 +18,7 @@ class AppSettingsMicrophoneAskedTest {
         modelSize = "medium",
         serverUrl = "https://box.local",
         apiKeyRef = "key-ref",
-        wakeGestureEnabled = false,
+        shakeWakeMode = ShakeWakeMode.OFF,
         tilePosition = TilePosition(0.25f, 0.75f),
         language = "de",
         preloadModel = false,
@@ -41,7 +41,7 @@ class AppSettingsMicrophoneAskedTest {
         assertEquals("model size", before.modelSize, after.modelSize)
         assertEquals("server address", before.serverUrl, after.serverUrl)
         assertEquals("key reference", before.apiKeyRef, after.apiKeyRef)
-        assertEquals("wake gesture", before.wakeGestureEnabled, after.wakeGestureEnabled)
+        assertEquals("wake gesture", before.shakeWakeMode, after.shakeWakeMode)
         assertEquals("tile position", before.tilePosition, after.tilePosition)
         assertEquals("language", before.language, after.language)
         assertEquals("preload model", before.preloadModel, after.preloadModel)

@@ -67,9 +67,9 @@ class TileCoordinator(
     private val heldHide: KeyboardHideHold = KeyboardHideHold()
     private val portCalls: TilePortCalls = TilePortCalls(take, modelReady, background)
 
-    /** The one seam every keyboard-driven SHOW passes through; default true. A shake setting flips this property. When off, the coordinator does not put the tile back on screen. */
+    /** The one seam every keyboard-driven SHOW passes through; default true. Nothing in the app sets it; the keyboard tile switch is read through [wake]. When off, the coordinator does not put the tile back on screen. */
     internal var keyboardAutoPop: Boolean = true
-
+    internal var wake: WakePolicy = WakePolicy.permissive() // the default keeps the old behaviour
     /** Remembers the user closed the tile; cleared on launcher visible (through arm) or switch off/on. */
     internal val tileShowGuard: TileShowGuard = TileShowGuard(tile, modelNotice)
 
@@ -111,7 +111,7 @@ class TileCoordinator(
     }
 
     /** A shake shows the tile when it is off screen or closed, and never begins a take. Main thread only. */
-    fun onShake() = tileShowGuard.onShake(tileMayShow(), tileShown) { shown ->
+    fun onShake() = tileShowGuard.onShake(tileMayShow() && wake.shakeMayShow(), tileShown) { shown ->
         tileShown = (shown == TileShow.SHOWN); if (shown == TileShow.SHOWN) push() }
 
     /** The user cancelled the take: drop it and show the armed tile. */
@@ -171,7 +171,7 @@ class TileCoordinator(
 
     private fun act(decision: KeyboardDecision) {
         when (decision) {
-            is KeyboardDecision.Show -> if (keyboardAutoPop) {
+            is KeyboardDecision.Show -> if (keyboardAutoPop && wake.keyboardMayRaise()) {
                 val wasShowing = tileShown
                 tileShowGuard.onShake(tileMayShow(), tileShown) { shown -> tileShown = (shown == TileShow.SHOWN); if (shown == TileShow.SHOWN) push() }
                 heldHide.clearOnShow()
