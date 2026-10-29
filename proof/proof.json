@@ -1,0 +1,4365 @@
+{
+ "name": "proof-u1",
+ "tip": {
+  "tree": "e2d9f46fbe6abed96e48e96986a40b04f31fdd19"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "core: an update install returns a sealed result; rollback leaves the port",
+   "base_tree": "f8bfa6af9f3e0af4c7dd7469fd6b152f0b5625f7",
+   "item_tip_tree": "c9da2a4bce77ca591f42d30f1db5ba5c7c1149d7",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": []
+  },
+  {
+   "item": "b",
+   "title": "updater: schedule decision, ledger port, module hygiene",
+   "base_tree": "c9da2a4bce77ca591f42d30f1db5ba5c7c1149d7",
+   "item_tip_tree": "66f27c1db35a95eac9578fe35d01e0fad50e6464",
+   "new_production_classes": [
+    "UpdateLedger",
+    "UpdateSchedule"
+   ],
+   "test_fixtures_overlaid": []
+  },
+  {
+   "item": "c",
+   "title": "updater: manifest reader, version code, download origin",
+   "base_tree": "66f27c1db35a95eac9578fe35d01e0fad50e6464",
+   "item_tip_tree": "75ae94e6458855d8c25310be075a2170add285a9",
+   "new_production_classes": [
+    "ApkOrigin",
+    "JsonParser",
+    "JsonValue",
+    "ManifestOutcome",
+    "ManifestReader",
+    "VersionCode"
+   ],
+   "test_fixtures_overlaid": []
+  },
+  {
+   "item": "d",
+   "title": "updater: manifest signature with pinned keys, stream digest",
+   "base_tree": "75ae94e6458855d8c25310be075a2170add285a9",
+   "item_tip_tree": "4a17641255f91e5c10518c36a2d8547c9886472d",
+   "new_production_classes": [
+    "ManifestSignature",
+    "ManifestSignedBytes",
+    "PinnedKey",
+    "Sha256Hex",
+    "SignatureVerdict",
+    "StreamDigest",
+    "StrictBase64"
+   ],
+   "test_fixtures_overlaid": [
+    "ManifestVectors.kt"
+   ]
+  },
+  {
+   "item": "e",
+   "title": "updater: the update checker (check, verify, install)",
+   "base_tree": "4a17641255f91e5c10518c36a2d8547c9886472d",
+   "item_tip_tree": "e2d9f46fbe6abed96e48e96986a40b04f31fdd19",
+   "new_production_classes": [
+    "ApkDownloader",
+    "InstalledVersion",
+    "ManifestSource",
+    "PackageInstallerPort",
+    "ReleaseUpdateChecker",
+    "UpdateSentences"
+   ],
+   "test_fixtures_overlaid": [
+    "CheckerFakes.kt",
+    "CheckerRig.kt",
+    "EmptyFileVector.kt"
+   ]
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test"
+ },
+ "shards": 8,
+ "entries": [
+  {
+   "id": "red-a-01",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/core",
+   "file": "android/modules/core/src/test/kotlin/dev/breaker/dictation/core/model/ModelTest.kt",
+   "files": [
+    "android/modules/core/src/test/kotlin/dev/breaker/dictation/core/model/ModelTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.core.model.ModelTest"
+   ],
+   "patch": "proof/red/red-a-01.patch",
+   "tree": "e88f1a32e0365d24f8c0a65fccadf6b5c4cbd198",
+   "predict": "COMPILE RED on the item's new classes (UpdateInstallResult)"
+  },
+  {
+   "id": "red-a-02",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/core",
+   "file": "android/modules/core/src/test/kotlin/dev/breaker/dictation/core/model/TranscriptRedactionTest.kt",
+   "files": [
+    "android/modules/core/src/test/kotlin/dev/breaker/dictation/core/model/TranscriptRedactionTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.core.model.TranscriptRedactionTest"
+   ],
+   "patch": "proof/red/red-a-02.patch",
+   "tree": "edf5a23bd6842bc4cb221f5f88f3bf1acfe6ca58",
+   "predict": "ASSERT RED: the inventory names nested result types the base does not ship"
+  },
+  {
+   "id": "red-a-03",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/core",
+   "file": "android/modules/core/src/test/kotlin/dev/breaker/dictation/core/port/PortContractTest.kt",
+   "files": [
+    "android/modules/core/src/test/kotlin/dev/breaker/dictation/core/port/PortContractTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.core.port.PortContractTest"
+   ],
+   "patch": "proof/red/red-a-03.patch",
+   "tree": "3f763b267ffbfd3e6de5d4676411c7a954eba846",
+   "predict": "COMPILE RED on the item's new classes (UpdateInstallResult)"
+  },
+  {
+   "id": "red-b-04",
+   "kind": "red",
+   "item": "b",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ModuleHygieneTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ModuleHygieneTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.ModuleHygieneTest"
+   ],
+   "patch": "proof/red/red-b-04.patch",
+   "tree": "9d67db9687c26c1ba20a5eaefc1ef5bee99d39a3",
+   "predict": "ASSERT RED: the base module has no main source, and the scan refuses an empty folder"
+  },
+  {
+   "id": "red-b-05",
+   "kind": "red",
+   "item": "b",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/UpdateScheduleTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/UpdateScheduleTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.UpdateScheduleTest"
+   ],
+   "patch": "proof/red/red-b-05.patch",
+   "tree": "b33a669043add0a32b8e3ce5d27dab5a4e242910",
+   "predict": "COMPILE RED on the item's new classes"
+  },
+  {
+   "id": "red-c-06",
+   "kind": "red",
+   "item": "c",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ApkOriginTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ApkOriginTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.ApkOriginTest"
+   ],
+   "patch": "proof/red/red-c-06.patch",
+   "tree": "f9dbd6f13e7e6fb15a126a787d764b4a9289c638",
+   "predict": "COMPILE RED on the item's new classes (every test of this new code names them)"
+  },
+  {
+   "id": "red-c-07",
+   "kind": "red",
+   "item": "c",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/JsonParserTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/JsonParserTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.JsonParserTest"
+   ],
+   "patch": "proof/red/red-c-07.patch",
+   "tree": "e8f28735db7add85730f6d1781425e28324c3e49",
+   "predict": "COMPILE RED on the item's new classes (every test of this new code names them)"
+  },
+  {
+   "id": "red-c-08",
+   "kind": "red",
+   "item": "c",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ManifestReaderTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ManifestReaderTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.ManifestReaderTest"
+   ],
+   "patch": "proof/red/red-c-08.patch",
+   "tree": "596baaea36b138f3efb519db8d237df208795156",
+   "predict": "COMPILE RED on the item's new classes (every test of this new code names them)"
+  },
+  {
+   "id": "red-c-09",
+   "kind": "red",
+   "item": "c",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/VersionCodeTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/VersionCodeTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.VersionCodeTest"
+   ],
+   "patch": "proof/red/red-c-09.patch",
+   "tree": "c2d0945f1c8054aad06f338827022d88a2b8add5",
+   "predict": "COMPILE RED on the item's new classes (every test of this new code names them)"
+  },
+  {
+   "id": "red-d-10",
+   "kind": "red",
+   "item": "d",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CanonicalEncodingTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CanonicalEncodingTest.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ManifestVectors.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.CanonicalEncodingTest"
+   ],
+   "patch": "proof/red/red-d-10.patch",
+   "tree": "e36c907789daeed1c686aac965fec297b1bfe79f",
+   "predict": "COMPILE RED on the item's new classes (every test of this new code names them)"
+  },
+  {
+   "id": "red-d-11",
+   "kind": "red",
+   "item": "d",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ManifestSignatureTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ManifestSignatureTest.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ManifestVectors.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.ManifestSignatureTest"
+   ],
+   "patch": "proof/red/red-d-11.patch",
+   "tree": "6275e2314192b9e57e98df05404027e56eb34ecb",
+   "predict": "COMPILE RED on the item's new classes (every test of this new code names them)"
+  },
+  {
+   "id": "red-d-12",
+   "kind": "red",
+   "item": "d",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/PinnedKeyTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/PinnedKeyTest.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ManifestVectors.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.PinnedKeyTest"
+   ],
+   "patch": "proof/red/red-d-12.patch",
+   "tree": "7fe2e3338de6b781bbd93736859e0e1dba15c964",
+   "predict": "COMPILE RED on the item's new classes (every test of this new code names them)"
+  },
+  {
+   "id": "red-d-13",
+   "kind": "red",
+   "item": "d",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/SignedBytesTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/SignedBytesTest.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ManifestVectors.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.SignedBytesTest"
+   ],
+   "patch": "proof/red/red-d-13.patch",
+   "tree": "28120feed126f7e7661f72bbf76d6d6dffe8de01",
+   "predict": "COMPILE RED on the item's new classes (every test of this new code names them)"
+  },
+  {
+   "id": "red-d-14",
+   "kind": "red",
+   "item": "d",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/StreamDigestTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/StreamDigestTest.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ManifestVectors.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.StreamDigestTest"
+   ],
+   "patch": "proof/red/red-d-14.patch",
+   "tree": "769f3e50c29604115aea686fac45ea04939dfe97",
+   "predict": "COMPILE RED on the item's new classes (every test of this new code names them)"
+  },
+  {
+   "id": "red-e-15",
+   "kind": "red",
+   "item": "e",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerCheckTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerCheckTest.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerFakes.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerRig.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/EmptyFileVector.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.CheckerCheckTest"
+   ],
+   "patch": "proof/red/red-e-15.patch",
+   "tree": "de8593438c9e29f6456ba808523a7c1e5c4f8554",
+   "predict": "COMPILE RED on the item's new classes (every test of this new code names them)"
+  },
+  {
+   "id": "red-e-16",
+   "kind": "red",
+   "item": "e",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerInstallFlowTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerInstallFlowTest.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerFakes.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerRig.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/EmptyFileVector.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.CheckerInstallFlowTest"
+   ],
+   "patch": "proof/red/red-e-16.patch",
+   "tree": "07026d10378de3a7c7b31dce0df1f20e70b63886",
+   "predict": "COMPILE RED on the item's new classes (every test of this new code names them)"
+  },
+  {
+   "id": "red-e-17",
+   "kind": "red",
+   "item": "e",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerInstallTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerInstallTest.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerFakes.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerRig.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/EmptyFileVector.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.CheckerInstallTest"
+   ],
+   "patch": "proof/red/red-e-17.patch",
+   "tree": "5cb55deda018d57f59dcea670b563d4ede39cd76",
+   "predict": "COMPILE RED on the item's new classes (every test of this new code names them)"
+  },
+  {
+   "id": "red-e-18",
+   "kind": "red",
+   "item": "e",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerSourcePinTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerSourcePinTest.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerFakes.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerRig.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/EmptyFileVector.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.CheckerSourcePinTest"
+   ],
+   "patch": "proof/red/red-e-18.patch",
+   "tree": "e682156547a64f27235723d82c749ddb63814508",
+   "predict": "COMPILE RED on the item's new classes (every test of this new code names them)"
+  },
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/core",
+   "edits": [
+    {
+     "file": "android/modules/core/src/main/kotlin/dev/breaker/dictation/core/model/Update.kt",
+     "anchor": "data object Installed : UpdateInstallResult()",
+     "replacement": "object Installed : UpdateInstallResult()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "ModelTest.the installed result is a named object that prints its name"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/core",
+   "edits": [
+    {
+     "file": "android/modules/core/src/main/kotlin/dev/breaker/dictation/core/model/Update.kt",
+     "anchor": "require(reason.isNotBlank()) { \"A refusal needs a reason\" }",
+     "replacement": "require(true) { \"A refusal needs a reason\" }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "ModelTest.a refused install needs a reason"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/core",
+   "edits": [
+    {
+     "file": "android/modules/core/src/main/kotlin/dev/breaker/dictation/core/model/Update.kt",
+     "anchor": "require(cause.isNotBlank()) { \"A failure needs a cause\" }",
+     "replacement": "require(true) { \"A failure needs a cause\" }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "ModelTest.a failed install needs a cause"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/core",
+   "edits": [
+    {
+     "file": "android/modules/core/src/main/kotlin/dev/breaker/dictation/core/model/Update.kt",
+     "anchor": "data class Refused(val reason: String) : UpdateInstallResult() {",
+     "replacement": "class Refused(val reason: String) : UpdateInstallResult() {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "ModelTest.refusals and failures are values, equal when their text is equal",
+    "TranscriptRedactionTest.every data class in core says whether it can print transcript text"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/core",
+   "edits": [
+    {
+     "file": "android/modules/core/src/main/kotlin/dev/breaker/dictation/core/model/Update.kt",
+     "anchor": "data class Failed(val cause: String) : UpdateInstallResult() {",
+     "replacement": "class Failed(val cause: String) : UpdateInstallResult() {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "ModelTest.refusals and failures are values, equal when their text is equal",
+    "TranscriptRedactionTest.every data class in core says whether it can print transcript text"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/core",
+   "edits": [
+    {
+     "file": "android/modules/core/src/main/kotlin/dev/breaker/dictation/core/model/Update.kt",
+     "anchor": "sealed class UpdateInstallResult {",
+     "replacement": "abstract class UpdateInstallResult {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "ModelTest.an install result is exactly installed, refused or failed"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/core",
+   "edits": [
+    {
+     "file": "android/modules/core/src/main/kotlin/dev/breaker/dictation/core/port/UpdateChecker.kt",
+     "anchor": "fun install(release: ReleaseInfo): UpdateInstallResult",
+     "replacement": "fun install(release: ReleaseInfo): UpdateInstallResult?"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "PortContractTest.a phrase training and an update port are writable against the domain"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/core",
+   "edits": [
+    {
+     "file": "android/modules/core/src/main/kotlin/dev/breaker/dictation/core/port/UpdateChecker.kt",
+     "anchor": "fun install(release: ReleaseInfo): UpdateInstallResult",
+     "replacement": "fun install(release: ReleaseInfo)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "PortContractTest.a phrase training and an update port are writable against the domain"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSchedule.kt",
+     "anchor": "if (forced && isAdmin) return ScheduleDecision.CheckForced",
+     "replacement": "if (forced) return ScheduleDecision.CheckForced"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a non-admin forced call that is not due is not due",
+    "a non-admin forced call that is due is an automatic check"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-10",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSchedule.kt",
+     "anchor": "if (forced && isAdmin) return ScheduleDecision.CheckForced",
+     "replacement": "if (forced && isAdmin) return ScheduleDecision.NotDue"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an admin forced call is answered CheckForced when the day has not passed",
+    "an admin forced call is not held by the gap",
+    "an admin forced call is CheckForced for every ledger combination"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-11",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSchedule.kt",
+     "anchor": "if (forced && isAdmin) return ScheduleDecision.CheckForced",
+     "replacement": "if (isAdmin) return ScheduleDecision.CheckForced"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an admin call without force is automatic and not due",
+    "an admin call without force that is due is an automatic check"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-12",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSchedule.kt",
+     "anchor": "if (!isDue(nowMillis, lastCheckMillis)) return ScheduleDecision.NotDue",
+     "replacement": "if (false) return ScheduleDecision.NotDue"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an automatic call one millisecond short of a day is not due",
+    "an automatic call at the moment of the last check is not due"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-13",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSchedule.kt",
+     "anchor": "if (isHeldByGap(nowMillis, lastAttemptMillis)) return ScheduleDecision.NotDue",
+     "replacement": "if (false) return ScheduleDecision.NotDue"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an automatic call one millisecond inside the gap is not due",
+    "a due automatic call inside the gap is not due"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-14",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSchedule.kt",
+     "anchor": "if (isHeldByGap(nowMillis, lastAttemptMillis)) return ScheduleDecision.NotDue",
+     "replacement": "if (!forced && isHeldByGap(nowMillis, lastAttemptMillis)) return ScheduleDecision.NotDue"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a non-admin forced call inside the gap is not due"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-15",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSchedule.kt",
+     "anchor": "if (lastCheckMillis > nowMillis) return true",
+     "replacement": "if (lastCheckMillis > nowMillis) return false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a last check one millisecond in the future is due",
+    "a last check at the far end of the clock range is due"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-16",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSchedule.kt",
+     "anchor": "if (lastCheckMillis > nowMillis) return true",
+     "replacement": "if (lastCheckMillis >= nowMillis) return true"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an automatic call at the moment of the last check is not due"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-17",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSchedule.kt",
+     "anchor": "return elapsed < 0L || elapsed >= DAY_MILLIS",
+     "replacement": "return elapsed >= DAY_MILLIS"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a day gap that overflows the arithmetic is due"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-18",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSchedule.kt",
+     "anchor": "elapsed >= DAY_MILLIS",
+     "replacement": "elapsed > DAY_MILLIS"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an automatic call exactly one day after the last check is due"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-19",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSchedule.kt",
+     "anchor": "internal const val DAY_MILLIS: Long = 86_400_000L",
+     "replacement": "internal const val DAY_MILLIS: Long = 86_400_001L"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an automatic call exactly one day after the last check is due"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-20",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSchedule.kt",
+     "anchor": "internal const val MIN_ATTEMPT_GAP_MILLIS: Long = 3_600_000L",
+     "replacement": "internal const val MIN_ATTEMPT_GAP_MILLIS: Long = 3_600_001L"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an automatic call exactly at the gap limit is due",
+    "a due automatic call after the gap is due"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-21",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSchedule.kt",
+     "anchor": "&& elapsed < MIN_ATTEMPT_GAP_MILLIS",
+     "replacement": "&& elapsed <= MIN_ATTEMPT_GAP_MILLIS"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an automatic call exactly at the gap limit is due"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-22",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSchedule.kt",
+     "anchor": "return elapsed >= 0L && elapsed < MIN_ATTEMPT_GAP_MILLIS",
+     "replacement": "return elapsed > 0L && elapsed < MIN_ATTEMPT_GAP_MILLIS"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an attempt made at this moment holds the automatic call"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-23",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSchedule.kt",
+     "anchor": "return elapsed >= 0L && elapsed < MIN_ATTEMPT_GAP_MILLIS",
+     "replacement": "return elapsed < MIN_ATTEMPT_GAP_MILLIS"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a gap that overflows the arithmetic does not hold the call"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-24",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSchedule.kt",
+     "anchor": "if (lastAttemptMillis > nowMillis) return false",
+     "replacement": "if (lastAttemptMillis > nowMillis) return true"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an attempt one millisecond in the future does not hold the call"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-25",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSchedule.kt",
+     "anchor": "if (lastCheckMillis == null) return true",
+     "replacement": "if (lastCheckMillis == null) return false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an automatic call with no earlier check is due"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-26",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSchedule.kt",
+     "anchor": "val elapsed = nowMillis - lastCheckMillis",
+     "replacement": "val elapsed = Math.subtractExact(nowMillis, lastCheckMillis)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a day gap that overflows the arithmetic is due",
+    "the decision never throws at the limits of the clock range"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-27",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSchedule.kt",
+     "anchor": "internal const val DAY_MILLIS: Long = 86_400_000L",
+     "replacement": "internal const val DAY_MILLIS: Long = 86_400_000L; internal val probe = java.net.URI(\"https://breaker.example.test\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "no main source reaches the network"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-28",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSchedule.kt",
+     "anchor": "internal const val DAY_MILLIS: Long = 86_400_000L",
+     "replacement": "internal const val DAY_MILLIS: Long = 86_400_000L; internal val gate = java.util.concurrent.locks.ReentrantLock()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "no main source uses a thread primitive"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-29",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSchedule.kt",
+     "anchor": "internal const val DAY_MILLIS: Long = 86_400_000L",
+     "replacement": "internal const val DAY_MILLIS: Long = 86_400_000L; internal val wallClock = System.currentTimeMillis()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "no main source does file io or reads the clock"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-30",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSchedule.kt",
+     "anchor": "internal const val DAY_MILLIS: Long = 86_400_000L",
+     "replacement": "internal const val DAY_MILLIS: Long = 86_400_000L; internal val probeFile = java.io.File(\"probe\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "no main source does file io or reads the clock"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-31",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/JsonParser.kt",
+     "anchor": "if (fields.containsKey(key)) fail()",
+     "replacement": "if (false) fail()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a duplicate key is refused at any depth including a key written with an escape"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-32",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/JsonParser.kt",
+     "anchor": "if (depth > MAX_DEPTH) fail()",
+     "replacement": "if (depth > MAX_DEPTH + 1) fail()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "nesting up to depth four is read and depth five is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-33",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/JsonParser.kt",
+     "anchor": "} else if (c < ' ') {",
+     "replacement": "} else if (c < ' ' && c != (9).toChar()) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a raw control character inside a string is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-34",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/JsonParser.kt",
+     "anchor": "if (first in 0xDC00..0xDFFF) fail()",
+     "replacement": "if (false) fail()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a lone surrogate is refused whether escaped or raw and a raw pair is accepted"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-35",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/JsonParser.kt",
+     "anchor": "} else if (c in '\\uDC00'..'\\uDFFF') {",
+     "replacement": "} else if (false) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a lone surrogate is refused whether escaped or raw and a raw pair is accepted"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-36",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/JsonParser.kt",
+     "anchor": "if (pos != text.length) fail()",
+     "replacement": "if (false) fail()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an empty document, a whitespace-only document, trailing text and a byte order mark are refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-37",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/JsonParser.kt",
+     "anchor": "'t' -> literal(\"true\", JsonValue.Bool(true))",
+     "replacement": "'t' -> literal(\"true\", JsonValue.Bool(false))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a valid document with nested values is read"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-38",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/JsonParser.kt",
+     "anchor": "else -> number()",
+     "replacement": "else -> JsonValue.Null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "comments, trailing commas, single quotes and bare words are refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-39",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/JsonParser.kt",
+     "anchor": "if (c == ']') {",
+     "replacement": "if (c == ']' || c == '}') {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "unclosed and mismatched containers are refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-40",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/JsonParser.kt",
+     "anchor": "out.append(first.toChar()).append(second.toChar())",
+     "replacement": "out.append(first.toChar())"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an escaped surrogate pair is read as one character"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-41",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/JsonParser.kt",
+     "anchor": "'u' -> unicodeEscape(out)",
+     "replacement": "'u' -> out.append('u')"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an unknown escape letter and a short unicode escape are refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-42",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/JsonParser.kt",
+     "anchor": "} else if (c == '\\\\') {",
+     "replacement": "} else if (false) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a field name written with an escape is the same field"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-43",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/JsonParser.kt",
+     "anchor": "if (lead != null && lead in '1'..'9') {",
+     "replacement": "if (lead != null && (lead in '1'..'9' || lead == '+')) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a leading plus, a leading zero, NaN, Infinity and a malformed number are refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-44",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/JsonParser.kt",
+     "anchor": "} else if (c < ' ') {",
+     "replacement": "} else if (false) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a raw control character inside a string is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-45",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/JsonParser.kt",
+     "anchor": "} else if (c in '\\uD800'..'\\uDBFF') {",
+     "replacement": "} else if (false) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a lone surrogate is refused whether escaped or raw and a raw pair is accepted"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-46",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/JsonParser.kt",
+     "anchor": "c == ' ' || c == '\\t'",
+     "replacement": "c == ' ' || c == '\ufeff' || c == '\\t'"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an empty document, a whitespace-only document, trailing text and a byte order mark are refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-47",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/JsonParser.kt",
+     "anchor": "'u' -> unicodeEscape(out)",
+     "replacement": "'u' -> unicodeEscape(out)\n            'x' -> out.append('x')"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an unknown escape letter and a short unicode escape are refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-48",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestReader.kt",
+     "anchor": "if (size > MAX_BYTES) return refusal(TOO_LARGE)",
+     "replacement": "if (size > MAX_BYTES + 1) return refusal(TOO_LARGE)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the size cap counts UTF-8 bytes and allows exactly 65536 bytes"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-49",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestReader.kt",
+     "anchor": "val size = utf8Length(text)",
+     "replacement": "val size = text.length"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the size cap counts UTF-8 bytes and allows exactly 65536 bytes"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-50",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestReader.kt",
+     "anchor": "if (!isDigest(digest)) return refusal(BAD_DIGEST)",
+     "replacement": "if (digest.length != 64) return refusal(BAD_DIGEST)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the digest must be 64 lowercase hex characters"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-51",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestReader.kt",
+     "anchor": "if (keyId != null && !isKeyId(keyId)) return refusal(BAD_KEY_ID)",
+     "replacement": "if (keyId != null && keyId.isEmpty()) return refusal(BAD_KEY_ID)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a key id is 1 to 64 characters of the allowed set"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-52",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestReader.kt",
+     "anchor": "if (codePointCount(text) > MAX_NOTES) return false",
+     "replacement": "if (codePointCount(text) > MAX_NOTES + 1) return false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "notes are at most 4096 code points"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-53",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestReader.kt",
+     "anchor": "if (c != '\\n' && isControl(c)) return false",
+     "replacement": "if (false) return false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "notes carry no control character except line feed"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-54",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestReader.kt",
+     "anchor": "if (text.isEmpty()) return true",
+     "replacement": "if (text.isEmpty()) return false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "empty notes are accepted"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-55",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestReader.kt",
+     "anchor": "if (value.value.isBlank()) return MISSING_FIELD",
+     "replacement": "if (value.value.isEmpty()) return MISSING_FIELD"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a blank required field is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-56",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestReader.kt",
+     "anchor": "fields[name] ?: return MISSING_FIELD",
+     "replacement": "fields[name] ?: return NOT_TEXT"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a missing required field is refused with the missing-field reason"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-57",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestReader.kt",
+     "anchor": "if (value !is JsonValue.Str) return NOT_TEXT",
+     "replacement": "if (value !is JsonValue.Str) return MISSING_FIELD"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a known field that is not text is refused with the not-text reason"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-58",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestReader.kt",
+     "anchor": "if (notesValue != null && notesValue !is JsonValue.Str) return refusal(NOT_TEXT)",
+     "replacement": "if (false) return refusal(NOT_TEXT)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a known field that is not text is refused with the not-text reason"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-59",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestReader.kt",
+     "anchor": "if (keyIdValue != null && keyIdValue !is JsonValue.Str) return refusal(NOT_TEXT)",
+     "replacement": "if (false) return refusal(NOT_TEXT)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a known field that is not text is refused with the not-text reason"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-60",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestReader.kt",
+     "anchor": "version = name,",
+     "replacement": "version = name.lowercase(),"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the version name is kept exactly as sent"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-61",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestReader.kt",
+     "anchor": "signature = textOf(fields, \"signature\"),",
+     "replacement": "signature = digest,"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a complete manifest gives its fields version code and key id"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-62",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestReader.kt",
+     "anchor": "return ManifestOutcome.Accepted(ParsedManifest(release, versionCode, keyId))",
+     "replacement": "return ManifestOutcome.Accepted(ParsedManifest(release, versionCode, keyId ?: \"\"))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "notes and key id may be absent"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-63",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestReader.kt",
+     "anchor": "?.fields ?: return refusal(NOT_OBJECT)",
+     "replacement": "?.fields ?: emptyMap()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a body that is not one JSON object is refused with the not-object reason"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-64",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestReader.kt",
+     "anchor": "try { JsonParser.parse(text) }",
+     "replacement": "try { JsonParser.parse(text).also { if ((it as JsonValue.Obj).fields.size > 5) throw JsonSyntaxException(\"x\") } }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "unknown top-level fields are ignored",
+    "a complete manifest gives its fields version code and key id"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-65",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestReader.kt",
+     "anchor": "if (!isDisplayName(name)) return refusal(BAD_VERSION_NAME)",
+     "replacement": "if (false) return refusal(BAD_VERSION_NAME)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the display name is 1 to 64 characters of the allowed set"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-66",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestReader.kt",
+     "anchor": "?: return refusal(BAD_VERSION_CODE)",
+     "replacement": "?: return refusal(BAD_KEY_ID)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the version code must be canonical decimal",
+    "the largest version code 2100000000 is accepted and 2100000001 is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-67",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestReader.kt",
+     "anchor": "for (name in listOf(\"version\", \"version_code\", \"apk_url\", \"sha256\", \"signature\")) {",
+     "replacement": "for (name in listOf(\"version\", \"apk_url\", \"sha256\", \"signature\")) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a missing required field is refused with the missing-field reason"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-68",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestReader.kt",
+     "anchor": "text.length in 1..MAX_NAME &&",
+     "replacement": "text.length in 1..(MAX_NAME + 1) &&"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the display name is 1 to 64 characters of the allowed set"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-69",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestReader.kt",
+     "anchor": "|| c == '+'",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the display name is 1 to 64 characters of the allowed set"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-70",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/VersionCode.kt",
+     "anchor": "if (!text.all { c -> c in '0'..'9' }) return null",
+     "replacement": "if (!text.all { c -> c in '0'..'9' || c == '+' }) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a sign, a space, a point or a letter is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-71",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/VersionCode.kt",
+     "anchor": "if (text[0] == '0') return null",
+     "replacement": "if (false) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "zero and a leading zero are refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-72",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/VersionCode.kt",
+     "anchor": "if (value !in 1L..MAX.toLong()) return null",
+     "replacement": "if (value !in 1L..MAX.toLong() + 1L) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the largest code is 2100000000 and anything above it is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-73",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/VersionCode.kt",
+     "anchor": "if (text.isEmpty() || text.length > MAX_LENGTH) return null",
+     "replacement": "if (text.isEmpty()) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the largest code is 2100000000 and anything above it is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-74",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/VersionCode.kt",
+     "anchor": "offeredVersionCode > installedVersionCode",
+     "replacement": "offeredVersionCode >= installedVersionCode"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a newer release is one with a greater integer code"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-75",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/VersionCode.kt",
+     "anchor": "if (!text.all { c -> c in '0'..'9' }) return null",
+     "replacement": "if (!text.all { c -> c.isDigit() }) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a non-ASCII digit is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-76",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkOrigin.kt",
+     "anchor": "if (!hasOnlyUrlChars(url)) return OriginRefusal.NOT_USABLE",
+     "replacement": "if (false) return OriginRefusal.NOT_USABLE"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a backslash a space or a control character is refused as not usable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-77",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkOrigin.kt",
+     "anchor": "&& c != '\\\\'",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a backslash a space or a control character is refused as not usable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-78",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkOrigin.kt",
+     "anchor": "if (url.contains('#')) return OriginRefusal.FRAGMENT",
+     "replacement": "if (false) return OriginRefusal.FRAGMENT"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a fragment is refused",
+    "the base address is checked with the same rules"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-79",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkOrigin.kt",
+     "anchor": "if (authority.contains('@')) return OriginRefusal.USER_INFO",
+     "replacement": "if (authority.contains('!')) return OriginRefusal.USER_INFO"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "user info is refused",
+    "the base address is checked with the same rules"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-80",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkOrigin.kt",
+     "anchor": "ignoreCase = true)) return OriginRefusal.NOT_HTTPS",
+     "replacement": "ignoreCase = false)) return OriginRefusal.NOT_HTTPS"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the scheme is read without regard to case"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-81",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkOrigin.kt",
+     "anchor": "if (!url.regionMatches(0, PREFIX, 0, PREFIX.length, ignoreCase = true)) return OriginRefusal.NOT_HTTPS",
+     "replacement": "if (false) return OriginRefusal.NOT_HTTPS"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a plain http address is refused",
+    "the base address is checked with the same rules"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-82",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkOrigin.kt",
+     "anchor": "DEFAULT_PORT: Int = 443",
+     "replacement": "DEFAULT_PORT: Int = 80"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the default port 443 is the same as an explicit 443"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-83",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkOrigin.kt",
+     "anchor": "substringBefore(':').lowercase()",
+     "replacement": "substringBefore(':')"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the host is compared without regard to case"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-84",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkOrigin.kt",
+     "anchor": "if (hostOf(serverBase) != hostOf(apkUrl)) return OriginRefusal.HOST_MISMATCH",
+     "replacement": "if (true) return OriginRefusal.HOST_MISMATCH"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the same origin with the same explicit port is accepted",
+    "the default port 443 is the same as an explicit 443",
+    "the host is compared without regard to case",
+    "a path and a query on the apk are allowed"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-85",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkOrigin.kt",
+     "anchor": "if (hostOf(serverBase) != hostOf(apkUrl)) return OriginRefusal.HOST_MISMATCH",
+     "replacement": "if (false) return OriginRefusal.HOST_MISMATCH"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a different host is refused including a longer name that starts with the base host"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-86",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkOrigin.kt",
+     "anchor": "if (portOf(serverBase) != portOf(apkUrl)) return OriginRefusal.PORT_MISMATCH",
+     "replacement": "if (false) return OriginRefusal.PORT_MISMATCH"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a different port is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-87",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkOrigin.kt",
+     "anchor": "text.toInt() in 1..65535",
+     "replacement": "text.toInt() in 1..65536"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a malformed port is refused and 65535 is accepted"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-88",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkOrigin.kt",
+     "anchor": "text[0] != '0' && text.toInt()",
+     "replacement": "text.toInt()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a malformed port is refused and 65535 is accepted"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-89",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkOrigin.kt",
+     "anchor": "piece.isNotEmpty() && piece.all",
+     "replacement": "piece.all"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an empty label a trailing dot or a bracketed address is refused",
+    "an empty host is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-90",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkOrigin.kt",
+     "anchor": "|| c == '-'",
+     "replacement": "|| c == '-' || c == '%'"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a percent-encoded or non-ASCII host is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-91",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkOrigin.kt",
+     "anchor": "c in '!'..'~'",
+     "replacement": "c in ' '..'~'"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a backslash a space or a control character is refused as not usable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-92",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkOrigin.kt",
+     "anchor": "takeWhile { c -> c != '/' && c != '?' }",
+     "replacement": "takeWhile { c -> c != '/' }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a path and a query on the apk are allowed"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-93",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkOrigin.kt",
+     "anchor": "return if (isAuthorityUsable(authority)) null else OriginRefusal.NOT_USABLE",
+     "replacement": "return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an empty label a trailing dot or a bracketed address is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-94",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/VersionCode.kt",
+     "anchor": "return value.toInt()",
+     "replacement": "return value.toInt() + 1"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a canonical version code parses to its integer"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-95",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignedBytes.kt",
+     "anchor": "text.isEmpty() || text.length > MAX_VERSION_CODE_LENGTH",
+     "replacement": "false || text.length > MAX_VERSION_CODE_LENGTH"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "nonCanonicalVersionCodesAreRefused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-96",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignedBytes.kt",
+     "anchor": "|| text.length > MAX_VERSION_CODE_LENGTH",
+     "replacement": "|| false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "nonCanonicalVersionCodesAreRefused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-97",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignedBytes.kt",
+     "anchor": "if (text[0] !in '1'..'9') return false",
+     "replacement": "if (false) return false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "nonCanonicalVersionCodesAreRefused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-98",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignedBytes.kt",
+     "anchor": "if (text[0] !in '1'..'9') return false",
+     "replacement": "if (text[0] !in '2'..'9') return false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "boundaryVersionCodesAreAccepted",
+    "signedBytesAreExact"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-99",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignedBytes.kt",
+     "anchor": "if (!text.all { it in '0'..'9' }) return false",
+     "replacement": "if (false) return false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "nonCanonicalVersionCodesAreRefused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-100",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignedBytes.kt",
+     "anchor": "return text.toLong() <= MAX_VERSION_CODE",
+     "replacement": "return true"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "nonCanonicalVersionCodesAreRefused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-101",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignedBytes.kt",
+     "anchor": "return text.toLong() <= MAX_VERSION_CODE",
+     "replacement": "return text.toLong() < MAX_VERSION_CODE"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "boundaryVersionCodesAreAccepted"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-102",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignedBytes.kt",
+     "anchor": "MAX_VERSION_CODE: Long = 2100000000L",
+     "replacement": "MAX_VERSION_CODE: Long = 2100000001L"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "nonCanonicalVersionCodesAreRefused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-103",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignedBytes.kt",
+     "anchor": "if (!isCanonicalVersionCode(versionCode) || !isLowerSha256Hex(sha256)) return null",
+     "replacement": "if (!isLowerSha256Hex(sha256)) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "nonCanonicalVersionCodesAreRefused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-104",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignedBytes.kt",
+     "anchor": "!isLowerSha256Hex(sha256)) return null",
+     "replacement": "!isLowerSha256Hex(sha256.lowercase())) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "upperCaseDigestIsRefusedInBuilder",
+    "upperCaseDigestIsMalformedInput"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-105",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignedBytes.kt",
+     "anchor": "\"$SIGNED_PREFIX\\n$versionCode\\n$sha256\"",
+     "replacement": "\"$SIGNED_PREFIX\\n$versionCode\\n$sha256\\n\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "signedBytesAreExact",
+    "trailingLfSignatureIsRefused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-106",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignedBytes.kt",
+     "anchor": "SIGNED_PREFIX: String = \"breaker-update-v1\"",
+     "replacement": "SIGNED_PREFIX: String = \"breaker-update-v2\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "signedBytesAreExact",
+    "currentKeyVerifiesItsSignature"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-107",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignedBytes.kt",
+     "anchor": "\"$SIGNED_PREFIX\\n$versionCode",
+     "replacement": "\"$SIGNED_PREFIX $versionCode"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "signedBytesAreExact",
+    "currentKeyVerifiesItsSignature"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-108",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/PinnedKey.kt",
+     "anchor": "id.length in 1..64",
+     "replacement": "id.length in 1..65"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "malformedKeyIdsAreRefused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-109",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/PinnedKey.kt",
+     "anchor": "it == '.' || it == '_' || it == '-'",
+     "replacement": "it == '.' || it == '_'"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "wellFormedKeyIdsAreAccepted"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-110",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/PinnedKey.kt",
+     "anchor": "return keys.map { it.id }.toSet().size == keys.size",
+     "replacement": "return true"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "duplicateIdListIsNotUsable",
+    "duplicateIdPinnedListVerifiesNothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-111",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/PinnedKey.kt",
+     "anchor": "if (keys.isEmpty()) return false",
+     "replacement": "if (keys.isEmpty()) return true"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "emptyListIsNotUsable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-112",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/PinnedKey.kt",
+     "anchor": "override fun toString(): String = \"PinnedKey(id=$id)\"",
+     "replacement": "override fun toString(): String = \"PinnedKey(id=$id, spki=$spkiBase64)\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "pinnedKeyDoesNotPrintKeyText"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-113",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/Sha256Hex.kt",
+     "anchor": "return text.length == 64 && text.all { it in '0'..'9' || it in 'a'..'f' }",
+     "replacement": "return true"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "digestLengthIsChecked",
+    "lowerHexOnlyIsAccepted"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-114",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/Sha256Hex.kt",
+     "anchor": "val v = b.toInt() and 0xFF",
+     "replacement": "val v = b.toInt()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "hexEncodesEveryByte"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-115",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StrictBase64.kt",
+     "anchor": "if (text.isEmpty()) return null",
+     "replacement": "if (false) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "emptyBase64IsRefused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-116",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StrictBase64.kt",
+     "anchor": "return if (Base64.getEncoder().encodeToString(bytes) == text) bytes else null",
+     "replacement": "return bytes"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "unpaddedBase64IsRefused",
+    "unpaddedSignatureIsMalformed"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-117",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StrictBase64.kt",
+     "anchor": "return if (Base64.getEncoder().encodeToString(bytes) == text) bytes else null",
+     "replacement": "return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "paddedBase64Decodes"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-118",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StrictBase64.kt",
+     "anchor": "catch (e: IllegalArgumentException) { return null }",
+     "replacement": "catch (e: IllegalArgumentException) { throw e }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "nonAlphabetBase64IsRefused",
+    "nonBase64SignatureIsMalformed"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-119",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignature.kt",
+     "anchor": "if (pinnedKeys.isEmpty()) return SignatureVerdict.NotVerified(SignatureRefusal.EMPTY_KEY_LIST)",
+     "replacement": "if (pinnedKeys.isEmpty()) return SignatureVerdict.Verified"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "emptyPinnedListVerifiesNothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-120",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignature.kt",
+     "anchor": "if (!pinnedKeysAreUsable(pinnedKeys)) return SignatureVerdict.NotVerified(SignatureRefusal.INVALID_KEY_LIST)",
+     "replacement": "if (false) return SignatureVerdict.NotVerified(SignatureRefusal.INVALID_KEY_LIST)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "duplicateIdPinnedListVerifiesNothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-121",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignature.kt",
+     "anchor": "if (keyId != null && !isWellFormedKeyId(keyId)) return SignatureVerdict.NotVerified(SignatureRefusal.MALFORMED_KEY_ID)",
+     "replacement": "if (false) return SignatureVerdict.NotVerified(SignatureRefusal.MALFORMED_KEY_ID)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "malformedKeyIdIsRefused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-122",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignature.kt",
+     "anchor": "pinnedKeys.filter { it.id == keyId }",
+     "replacement": "pinnedKeys.filter { it.id.equals(keyId, ignoreCase = true) }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "keyIdIsCaseSensitive"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-123",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignature.kt",
+     "anchor": "pinnedKeys.filter { it.id == keyId }",
+     "replacement": "pinnedKeys"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "keyIdThatSelectsAnotherKeyRefusesSignature"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-124",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignature.kt",
+     "anchor": "pinnedKeys.filter { it.id == keyId }",
+     "replacement": "pinnedKeys.take(1)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "keyIdSelectsSecondKey",
+    "keyIdThatSelectsAnotherKeyRefusesSignature"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-125",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignature.kt",
+     "anchor": "val candidates = if (keyId == null) pinnedKeys else",
+     "replacement": "val candidates = if (keyId == null) pinnedKeys.take(1) else"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "noKeyIdAllowsAnyPinnedKey"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-126",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignature.kt",
+     "anchor": "if (candidates.isEmpty()) return SignatureVerdict.NotVerified(SignatureRefusal.UNKNOWN_KEY_ID)",
+     "replacement": "if (candidates.isEmpty()) return SignatureVerdict.NotVerified(SignatureRefusal.BAD_SIGNATURE)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "unknownKeyIdIsRefused",
+    "keyIdIsCaseSensitive"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-127",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignature.kt",
+     "anchor": "val signed = manifestSignedBytes(versionCode, sha256)",
+     "replacement": "val signed = manifestSignedBytes(versionCode, '0'.toString().repeat(64))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "currentKeyVerifiesItsSignature"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-128",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignature.kt",
+     "anchor": "val signed = manifestSignedBytes(versionCode, sha256)",
+     "replacement": "val signed = manifestSignedBytes(\"12\", sha256)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "versionBitFlipIsRefused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-129",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignature.kt",
+     "anchor": "val signature = decodeCanonicalBase64(signatureBase64) ?: return SignatureVerdict.NotVerified(SignatureRefusal.MALFORMED_INPUT)",
+     "replacement": "val signature = decodeCanonicalBase64(signatureBase64) ?: return SignatureVerdict.NotVerified(SignatureRefusal.BAD_SIGNATURE)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "emptySignatureIsMalformed",
+    "unpaddedSignatureIsMalformed",
+    "nonBase64SignatureIsMalformed"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-130",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignature.kt",
+     "anchor": "val signed = manifestSignedBytes(versionCode, sha256) ?: return SignatureVerdict.NotVerified(SignatureRefusal.MALFORMED_INPUT)",
+     "replacement": "val signed = manifestSignedBytes(versionCode, sha256) ?: return SignatureVerdict.NotVerified(SignatureRefusal.BAD_SIGNATURE)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "upperCaseDigestIsMalformedInput",
+    "oldNameSignatureDoesNotVerify"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-131",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignature.kt",
+     "anchor": "if (verify(publicKey, signed, signature)) CandidateOutcome.VERIFIED else CandidateOutcome.REJECTED",
+     "replacement": "CandidateOutcome.VERIFIED"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "unpinnedKeyNeverVerifies",
+    "versionBitFlipIsRefused",
+    "digestBitFlipIsRefused",
+    "signatureBitFlipIsRefused",
+    "trailingLfSignatureIsRefused",
+    "oldNameSignatureDoesNotVerify",
+    "keyIdThatSelectsAnotherKeyRefusesSignature"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-132",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignature.kt",
+     "anchor": "catch (e: SignatureException) { CandidateOutcome.MALFORMED_SIGNATURE }",
+     "replacement": "catch (e: SignatureException) { CandidateOutcome.VERIFIED }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "truncatedDerIsMalformed",
+    "shortAndZeroSignaturesAreMalformed",
+    "verifierSignatureExceptionIsMalformedSignature"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-133",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignature.kt",
+     "anchor": "catch (e: SignatureException) { CandidateOutcome.MALFORMED_SIGNATURE }",
+     "replacement": "catch (e: SignatureException) { CandidateOutcome.UNUSABLE_KEY }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "truncatedDerIsMalformed",
+    "shortAndZeroSignaturesAreMalformed",
+    "verifierSignatureExceptionIsMalformedSignature"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-134",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignature.kt",
+     "anchor": "catch (e: GeneralSecurityException) { return CandidateOutcome.UNUSABLE_KEY }",
+     "replacement": "catch (e: GeneralSecurityException) { return CandidateOutcome.VERIFIED }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "unparsableSpkiVerifiesNothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-135",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignature.kt",
+     "anchor": "catch (e: GeneralSecurityException) { return CandidateOutcome.UNUSABLE_KEY }",
+     "replacement": "catch (e: GeneralSecurityException) { throw e }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "malformedPinnedKeyDoesNotHideGoodKey",
+    "unparsableSpkiVerifiesNothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-136",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignature.kt",
+     "anchor": "catch (e: RuntimeException) { return CandidateOutcome.UNUSABLE_KEY }",
+     "replacement": "catch (e: RuntimeException) { return CandidateOutcome.VERIFIED }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "keyFactoryRuntimeFailureMakesKeyUnusable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-137",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignature.kt",
+     "anchor": "catch (e: InvalidKeyException) { CandidateOutcome.UNUSABLE_KEY }",
+     "replacement": "catch (e: InvalidKeyException) { CandidateOutcome.VERIFIED }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "verifierInvalidKeyExceptionMakesKeyUnusable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-138",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignature.kt",
+     "anchor": "catch (e: GeneralSecurityException) { CandidateOutcome.UNUSABLE_KEY }",
+     "replacement": "catch (e: GeneralSecurityException) { CandidateOutcome.VERIFIED }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "verifierSecurityExceptionMakesKeyUnusable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-139",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignature.kt",
+     "anchor": "catch (e: RuntimeException) { CandidateOutcome.UNUSABLE_KEY }",
+     "replacement": "catch (e: RuntimeException) { CandidateOutcome.VERIFIED }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "verifierRuntimeExceptionMakesKeyUnusable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-140",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignature.kt",
+     "anchor": "val spki = decodeCanonicalBase64(key.spkiBase64) ?: return CandidateOutcome.UNUSABLE_KEY",
+     "replacement": "val spki = decodeCanonicalBase64(key.spkiBase64) ?: return CandidateOutcome.VERIFIED"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "nonCanonicalPinnedKeyTextVerifiesNothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-141",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StreamDigest.kt",
+     "anchor": "require(capBytes >= 0) { \"A byte cap cannot be negative\" }",
+     "replacement": "require(true) { \"A byte cap cannot be negative\" }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "negativeCapIsRefused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-142",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StreamDigest.kt",
+     "anchor": "if (!isLowerSha256Hex(expectedSha256)) return StreamDigestResult.ExpectedMalformed",
+     "replacement": "if (!isLowerSha256Hex(expectedSha256.lowercase())) return StreamDigestResult.ExpectedMalformed"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "upperCaseExpectedDigestIsRefusedBeforeRead"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-143",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StreamDigest.kt",
+     "anchor": "if (!isLowerSha256Hex(expectedSha256)) return StreamDigestResult.ExpectedMalformed",
+     "replacement": "if (false) return StreamDigestResult.ExpectedMalformed"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "upperCaseExpectedDigestIsRefusedBeforeRead",
+    "wrongLengthExpectedDigestIsRefusedBeforeRead"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-144",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StreamDigest.kt",
+     "anchor": "val digest = MessageDigest.getInstance(\"SHA-256\")",
+     "replacement": "val digest = MessageDigest.getInstance(\"SHA-1\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "matchingStreamIsMatched"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-145",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StreamDigest.kt",
+     "anchor": "val want = if (room >= CHUNK_BYTES) CHUNK_BYTES else (room + 1).toInt()",
+     "replacement": "val want = CHUNK_BYTES"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "readsStopAtCapPlusOne"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-146",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StreamDigest.kt",
+     "anchor": "if (read == 0) return StreamDigestResult.Unreadable",
+     "replacement": "if (false) return StreamDigestResult.Unreadable"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "zeroByteReadsAreUnreadable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-147",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StreamDigest.kt",
+     "anchor": "if (count > capBytes) return StreamDigestResult.TooLarge",
+     "replacement": "if (count >= capBytes) return StreamDigestResult.TooLarge"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "exactCapStreamIsNotTooLarge"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-148",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StreamDigest.kt",
+     "anchor": "if (count > capBytes) return StreamDigestResult.TooLarge",
+     "replacement": "if (false) return StreamDigestResult.TooLarge"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "oneByteOverCapIsTooLarge"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-149",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StreamDigest.kt",
+     "anchor": "catch (e: IOException) {",
+     "replacement": "catch (e: RuntimeException) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "ioErrorIsUnreadable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-150",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StreamDigest.kt",
+     "anchor": "return if (actual == expectedSha256) StreamDigestResult.Matched(count) else StreamDigestResult.Mismatched(count)",
+     "replacement": "return StreamDigestResult.Matched(count)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "changedByteIsMismatched",
+    "oneByteShortIsMismatched",
+    "emptyStreamIsMismatched"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-151",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StreamDigest.kt",
+     "anchor": "val actual = toLowerHex(digest.digest())",
+     "replacement": "input.close()\n    val actual = toLowerHex(digest.digest())"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "streamIsNotClosedByFunction"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-152",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignature.kt",
+     "anchor": "{ publicKey, data, sig -> checkEcdsaSha256(publicKey, data, sig) }",
+     "replacement": "{ _, _, _ -> true }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "unpinnedKeyNeverVerifies",
+    "versionBitFlipIsRefused",
+    "digestBitFlipIsRefused",
+    "signatureBitFlipIsRefused",
+    "trailingLfSignatureIsRefused",
+    "oldNameSignatureDoesNotVerify",
+    "keyIdThatSelectsAnotherKeyRefusesSignature"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-153",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignature.kt",
+     "anchor": "{ candidate, data, sig -> checkEcdsaSha256(candidate, data, sig) }",
+     "replacement": "{ _, _, _ -> true }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "currentKeyVerifiesItsSignature"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-154",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignature.kt",
+     "anchor": "{ spki -> decodeEcPublicKey(spki) }",
+     "replacement": "{ _ -> throw IllegalStateException(\"unavailable\") }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "currentKeyVerifiesItsSignature",
+    "keyIdSelectsSecondKey",
+    "noKeyIdAllowsAnyPinnedKey",
+    "keyIdThatSelectsAnotherKeyRefusesSignature",
+    "unpinnedKeyNeverVerifies",
+    "versionBitFlipIsRefused",
+    "digestBitFlipIsRefused",
+    "signatureBitFlipIsRefused",
+    "trailingLfSignatureIsRefused",
+    "oldNameSignatureDoesNotVerify",
+    "truncatedDerIsMalformed",
+    "shortAndZeroSignaturesAreMalformed",
+    "malformedPinnedKeyDoesNotHideGoodKey"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-155",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignature.kt",
+     "anchor": "{ bytes -> decodeEcPublicKey(bytes) }",
+     "replacement": "{ _ -> throw IllegalStateException(\"unavailable\") }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "currentKeyVerifiesItsSignature"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-156",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignature.kt",
+     "anchor": "checkWithKey(key, signed, signature, decodeKey, verify)",
+     "replacement": "checkWithKey(key, signed, signature, decodeKey)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "verifierSignatureExceptionIsMalformedSignature",
+    "verifierInvalidKeyExceptionMakesKeyUnusable",
+    "verifierSecurityExceptionMakesKeyUnusable",
+    "verifierRuntimeExceptionMakesKeyUnusable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-157",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignature.kt",
+     "anchor": "checkWithKey(key, signed, signature, decodeKey, verify)",
+     "replacement": "checkWithKey(key, signed, signature, { bytes -> decodeEcPublicKey(bytes) }, verify)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "keyFactoryRuntimeFailureMakesKeyUnusable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-158",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "if (decision == ScheduleDecision.NotDue) return null",
+     "replacement": "if (decision == ScheduleDecision.NotDue) return UpdateCheckResult.UpToDate(\"\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a check that is not due returns null and makes no fetch"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-159",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "ledger.recordAttempt(now)",
+     "replacement": "Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an attempt is recorded once before the manifest is fetched"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-160",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "ledger.recordAttempt(now)",
+     "replacement": "ledger.recordAttempt(now); ledger.recordAttempt(now)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an attempt is recorded once before the manifest is fetched"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-161",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "val isAdmin = auth.currentSession()?.isAdmin == true",
+     "replacement": "val isAdmin = auth.currentSession()?.isAdmin != false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a forced call without a session is not forced"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-162",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "ledger.lastAttemptMillis(), force, isAdmin)",
+     "replacement": "ledger.lastAttemptMillis(), false, isAdmin)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an administrator forced check runs although the day has not passed"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-163",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "val loaded = manifests.load()",
+     "replacement": "ledger.recordDefinitiveCheck(now); val loaded = manifests.load()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an attempt is recorded once before the manifest is fetched"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-164",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "if (loaded !is ManifestLoad.Loaded) return UpdateCheckResult.Failed(UpdateSentences.SERVER_UNREACHABLE)",
+     "replacement": "if (loaded !is ManifestLoad.Loaded) { ledger.recordDefinitiveCheck(now); return UpdateCheckResult.Failed(UpdateSentences.SERVER_UNREACHABLE) }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an unavailable server fails and keeps the last definitive check time"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-165",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "is ManifestOutcome.Refused -> return UpdateCheckResult.Failed(outcome.reason)",
+     "replacement": "is ManifestOutcome.Refused -> return UpdateCheckResult.UpToDate(outcome.reason)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a manifest the reader refuses gives a failure with the reader sentence and never up to date"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-166",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "if (ApkOrigin.refusalFor(loaded.serverBase, parsed.release.apkUrl) != null) {",
+     "replacement": "if (false && ApkOrigin.refusalFor(loaded.serverBase, parsed.release.apkUrl) != null) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an APK address off the server origin gives a failure before the signature is read"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-167",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "if (verdict != SignatureVerdict.Verified) return UpdateCheckResult.Failed(UpdateSentences.SIGNATURE)",
+     "replacement": "if (false) return UpdateCheckResult.Failed(UpdateSentences.SIGNATURE)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a signature that no pinned key verifies gives a failure and reads no installed build"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-168",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "val verdict = verifyManifestSignature(",
+     "replacement": "installed.current(); val verdict = verifyManifestSignature("
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a signature that no pinned key verifies gives a failure and reads no installed build"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-169",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "return if (isNewerRelease(build.versionCode, parsed.versionCode)) {",
+     "replacement": "return if (true) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an installed build with the same code is up to date and records the check"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-170",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "UpdateCheckResult.Available(parsed.release)",
+     "replacement": "UpdateCheckResult.UpToDate(build.versionName)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a newer offered code gives the verified release as available"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-171",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "UpdateCheckResult.UpToDate(build.versionName)",
+     "replacement": "UpdateCheckResult.UpToDate(build.versionCode.toString())"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an up to date result carries the installed display name",
+    "an installed build with the same code is up to date and records the check"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-172",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "ledger.recordDefinitiveCheck(now)",
+     "replacement": "ledger.recordDefinitiveCheck(now + 1)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the definitive check time is the clock time of the call",
+    "an attempt is recorded once before the manifest is fetched"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-173",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "return UpdateInstallResult.Refused(UpdateSentences.NOT_CHECKED)",
+     "replacement": "return UpdateInstallResult.Refused(UpdateSentences.NOT_NEWER)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an install before any check is refused as not checked"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-174",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "verified == null || verified.release != release",
+     "replacement": "verified == null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a release that is not the remembered one never reaches the download or the installer"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-175",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "if (verdict != SignatureVerdict.Verified) return UpdateCheckResult.Failed(UpdateSentences.SIGNATURE)",
+     "replacement": "if (verdict != SignatureVerdict.Verified) { checked = null; return UpdateCheckResult.Failed(UpdateSentences.SIGNATURE) }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a failed later check keeps the last verified release for the install"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-176",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "return UpdateInstallResult.Refused(UpdateSentences.NOT_NEWER)",
+     "replacement": "Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an installed build that is not older is refused as not newer"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-177",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "is StreamDigestResult.Mismatched -> refused(if (digest.byteCount == 0L) UpdateSentences.EMPTY else UpdateSentences.DIGEST)",
+     "replacement": "is StreamDigestResult.Mismatched -> null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a digest mismatch refuses the install and discards the staged file"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-178",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "if (digest.byteCount == 0L) UpdateSentences.EMPTY else UpdateSentences.DIGEST",
+     "replacement": "UpdateSentences.DIGEST"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an empty staged file is refused as empty"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-179",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "StreamDigestResult.TooLarge -> refused(UpdateSentences.APK_TOO_LARGE)",
+     "replacement": "StreamDigestResult.TooLarge -> null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a staged file over the byte cap is refused as too large"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-180",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "verifyStreamDigest(stream, sha256, apkByteCap)",
+     "replacement": "verifyStreamDigest(stream, sha256, apkByteCap + 1)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a staged file over the byte cap is refused as too large"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-181",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "verifyStreamDigest(stream, sha256, apkByteCap)",
+     "replacement": "verifyStreamDigest(stream, sha256, apkByteCap - 1)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a staged file of exactly the byte cap is judged by its digest"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-182",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "StreamDigestResult.Unreadable -> UpdateInstallResult.Failed(UpdateSentences.READ)",
+     "replacement": "StreamDigestResult.Unreadable -> refused(UpdateSentences.READ)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an unreadable staged file gives a failure"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-183",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "apk.open() ?: return UpdateInstallResult.Failed(UpdateSentences.OPEN)",
+     "replacement": "apk.open() ?: return refused(UpdateSentences.OPEN)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a staged file that cannot be opened gives a failure"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-184",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "if (download !is ApkDownload.Staged) return UpdateInstallResult.Failed(UpdateSentences.DOWNLOAD)",
+     "replacement": "if (download !is ApkDownload.Staged) return refused(UpdateSentences.DOWNLOAD)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an unavailable download gives a failure"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-185",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "InstallerResult.Refused -> UpdateInstallResult.Refused(UpdateSentences.INSTALLER_REFUSED)",
+     "replacement": "InstallerResult.Refused -> UpdateInstallResult.Failed(UpdateSentences.INSTALLER_REFUSED)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an installer refusal is a refusal and records no update"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-186",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "InstallerResult.Failed -> UpdateInstallResult.Failed(UpdateSentences.INSTALLER_FAILED)",
+     "replacement": "InstallerResult.Failed -> refused(UpdateSentences.INSTALLER_FAILED)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an installer failure is a failure and records no update"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-187",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "apk.discard()",
+     "replacement": "Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a digest mismatch refuses the install and discards the staged file",
+    "an installer that throws lets the exception through, discards the file and records no update",
+    "a verified install reads the version, stages the file, installs, records the update and discards once in order"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-188",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "closeQuietly(stream)",
+     "replacement": "Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a verified install reads the version, stages the file, installs, records the update and discards once in order"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-189",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "ledger.recordUpdate(now)",
+     "replacement": "Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a verified install reads the version, stages the file, installs, records the update and discards once in order"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-190",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "UpdateInstallResult.Installed",
+     "replacement": "run { ledger.recordDefinitiveCheck(now); UpdateInstallResult.Installed }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a verified install reads the version, stages the file, installs, records the update and discards once in order"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-191",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "when (installer.install(apk)) {",
+     "replacement": "when (runCatching { installer.install(apk) }.getOrElse { InstallerResult.Failed }) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an installer that throws lets the exception through, discards the file and records no update"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-192",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "if (digest.byteCount == 0L) refused(UpdateSentences.EMPTY) else null",
+     "replacement": "null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a signed empty release is refused as empty although its digest matches"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-193",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "private val apkByteCap: Long = MAX_APK_BYTES,",
+     "replacement": "private val apkByteCap: Long = 1L,"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the checker takes the byte cap as a constructor default of the named constant",
+    "a verified install reads the version, stages the file, installs, records the update and discards once in order"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-194",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "internal const val MAX_APK_BYTES: Long = 268_435_456L",
+     "replacement": "internal const val MAX_APK_BYTES: Long = 268_435_457L"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the byte cap is the named constant of 256 MiB"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-195",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "private val apkByteCap: Long = MAX_APK_BYTES,",
+     "replacement": "private val token: String? = null, private val apkByteCap: Long = MAX_APK_BYTES,"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "no main source holds the session token words in its code"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-196",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "val isAdmin = auth.currentSession()?.isAdmin == true",
+     "replacement": "val isAdmin = auth.currentSession()?.token != null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "no main source holds the session token words in its code"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-197",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkDownloader.kt",
+     "anchor": "fun download(apkUrl: String): ApkDownload",
+     "replacement": "fun download(apkUrl: String, token: String): ApkDownload"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "no main source holds the session token words in its code"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-198",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "val isAdmin = auth.currentSession()?.isAdmin == true",
+     "replacement": "val isAdmin = auth.currentSession()?.isAdmin == true; auth.logout()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the checker reads only the current session from the auth service"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-199",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSentences.kt",
+     "anchor": "const val OPEN: String = \"The downloaded update file could not be opened.\"",
+     "replacement": "const val OPEN: String = \"https://breaker.example.test/open\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every fixed sentence is plain ASCII text with no link, long hex run or private marker"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-200",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSchedule.kt",
+     "anchor": "internal const val DAY_MILLIS: Long = 86_400_000L\n",
+     "replacement": "internal const val DAY_MILLIS: Long = 86_400_000L\n\ninternal fun plantedPause() { Thread.sleep(1) }\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "ModuleHygieneTest#no main source uses a thread primitive"
+   ],
+   "rule": "a thread primitive planted in a real main file is refused",
+   "note": ""
+  },
+  {
+   "id": "mut-201",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSchedule.kt",
+     "anchor": "package dev.breaker.dictation.updater\n",
+     "replacement": "package dev.breaker.dictation.updater\n\nimport java.net.URL\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "ModuleHygieneTest#no main source reaches the network"
+   ],
+   "rule": "a network import planted in a real main file is refused",
+   "note": ""
+  },
+  {
+   "id": "mut-202",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSchedule.kt",
+     "anchor": "internal const val MIN_ATTEMPT_GAP_MILLIS: Long = 3_600_000L\n",
+     "replacement": "internal const val MIN_ATTEMPT_GAP_MILLIS: Long = 3_600_000L\n\ninternal val plantedFile = java.io.File(\"planted\")\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "ModuleHygieneTest#no main source does file io or reads the clock"
+   ],
+   "rule": "a file read planted in a real main file is refused",
+   "note": ""
+  },
+  {
+   "id": "mut-203",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateLedger.kt",
+     "anchor": "package dev.breaker.dictation.updater\n",
+     "replacement": "package dev.breaker.dictation.updater\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "ModuleHygieneTest#no main source is longer than 300 lines"
+   ],
+   "rule": "a real main file padded past 300 lines is refused",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "android/modules/updater",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/VersionCode.kt",
+     "anchor": "    internal const val MAX: Int = 2_100_000_000\n",
+     "replacement": "    internal const val MAX: Int = 2_100_000_001\n"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "android/modules/updater",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/VersionCode.kt",
+     "anchor": "    internal const val MAX: Int = 2_100_000_000\n",
+     "replacement": "    internal const val MAX: Int = 2_100_000_000 // unchanged behaviour\n"
+    }
+   ]
+  }
+ ]
+}

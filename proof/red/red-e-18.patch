@@ -1,0 +1,701 @@
+diff --git a/android/modules/updater/README.md b/android/modules/updater/README.md
+index 5d6d71cf..337ad626 100644
+--- a/android/modules/updater/README.md
++++ b/android/modules/updater/README.md
+@@ -1,5 +1,5 @@
+-# updater - README
++# updater — README
+ 
+-Keeps Breaker up to date. Once a day it checks the project's own server for a newer release, and an admin can force a check. A release is offered only when its manifest comes from the update server and its signature checks out against a pinned key. An install takes only the release that the last verified check offered; it stages the APK and installs it only when its SHA-256 digest matches, its size is within the limit, and the file is not empty. There is no rollback: a refused or failed install leaves the running app as it was. It replaces the base app's updater, which was removed because it pointed elsewhere.
++Keeps Breaker up to date. Once a day it checks the project's own server for a newer release, and an admin can force a check. It installs only APKs whose signature and SHA-256 check out, and it can roll back. It replaces the base app's updater, which was removed because it pointed elsewhere.
+ 
+ Full module card, including how to run its tests: `AGENTS.md` in this folder.
+diff --git a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkDownloader.kt b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkDownloader.kt
+deleted file mode 100644
+index 1195a513..00000000
+--- a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkDownloader.kt
++++ /dev/null
+@@ -1,33 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import java.io.InputStream
+-
+-/** Downloads an APK into a staged file that the install reads later. */
+-internal interface ApkDownloader {
+-    /** Downloads the file at [apkUrl]. An unreachable server is [ApkDownload.Unavailable]; no exception stands for it. */
+-    fun download(apkUrl: String): ApkDownload
+-}
+-
+-/** The result of one download. */
+-internal sealed class ApkDownload {
+-    /** The file reached the device and is staged. */
+-    internal data class Staged(val apk: StagedApk) : ApkDownload()
+-
+-    /** The file could not be downloaded. */
+-    internal object Unavailable : ApkDownload()
+-}
+-
+-/**
+- * A downloaded file that is held until the install ends.
+- *
+- * The bytes must not change between the digest check and the installer call: the adapter that implements this
+- * port must hold the file so that its content is fixed once it is staged. [discard] is guaranteed by this port
+- * contract not to throw; an adapter that cannot remove the file records that inside itself.
+- */
+-internal interface StagedApk {
+-    /** Opens the staged file for reading, or returns null when it cannot be opened. */
+-    fun open(): InputStream?
+-
+-    /** Removes the staged file. Guaranteed not to throw. */
+-    fun discard()
+-}
+diff --git a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/InstalledVersion.kt b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/InstalledVersion.kt
+deleted file mode 100644
+index 51aa6824..00000000
+--- a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/InstalledVersion.kt
++++ /dev/null
+@@ -1,10 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-/** The build that is running now: the integer code that decides a newer release, and the name shown to the user. */
+-internal data class InstalledBuild(val versionCode: Int, val versionName: String)
+-
+-/** Reads the build that is running now. */
+-internal interface InstalledVersion {
+-    /** The running build. The name is shown to the user and is never compared. */
+-    fun current(): InstalledBuild
+-}
+diff --git a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSource.kt b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSource.kt
+deleted file mode 100644
+index a7f0bc9e..00000000
+--- a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSource.kt
++++ /dev/null
+@@ -1,16 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-/** Gives the manifest that the server offers, with the server base address it was read from. */
+-internal interface ManifestSource {
+-    /** Fetches the manifest. An unreachable server is [ManifestLoad.Unavailable]; no exception stands for it. */
+-    fun load(): ManifestLoad
+-}
+-
+-/** The result of one manifest fetch. */
+-internal sealed class ManifestLoad {
+-    /** The manifest text and the configured server base address it was read from. */
+-    internal data class Loaded(val manifestText: String, val serverBase: String) : ManifestLoad()
+-
+-    /** The server could not be reached. */
+-    internal object Unavailable : ManifestLoad()
+-}
+diff --git a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/PackageInstallerPort.kt b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/PackageInstallerPort.kt
+deleted file mode 100644
+index f5ef115f..00000000
+--- a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/PackageInstallerPort.kt
++++ /dev/null
+@@ -1,24 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-/** What the system installer answered for one staged file. */
+-internal enum class InstallerResult {
+-    /** The installer took the file. */
+-    Accepted,
+-
+-    /** The installer refused the file on purpose. */
+-    Refused,
+-
+-    /** The installer could not finish. */
+-    Failed,
+-}
+-
+-/**
+- * Hands a verified staged file to the system installer.
+- *
+- * An expected answer is an [InstallerResult]. A port failure that is not an answer may be thrown as a
+- * RuntimeException; the checker lets it propagate.
+- */
+-internal interface PackageInstallerPort {
+-    /** Installs [staged] and returns the installer's answer. */
+-    fun install(staged: StagedApk): InstallerResult
+-}
+diff --git a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt
+deleted file mode 100644
+index d89267b3..00000000
+--- a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt
++++ /dev/null
+@@ -1,139 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import dev.breaker.dictation.core.model.ReleaseInfo
+-import dev.breaker.dictation.core.model.UpdateCheckResult
+-import dev.breaker.dictation.core.model.UpdateInstallResult
+-import dev.breaker.dictation.core.port.AuthService
+-import dev.breaker.dictation.core.port.Clock
+-import dev.breaker.dictation.core.port.UpdateChecker
+-import java.io.IOException
+-import java.io.InputStream
+-
+-/** The largest staged APK that the checker accepts, in bytes: 256 MiB. */
+-internal const val MAX_APK_BYTES: Long = 268_435_456L
+-
+-/**
+- * Checks the server for a newer release and installs a verified one.
+- *
+- * A check runs the daily schedule, fetches the manifest, verifies its origin and its signature, and remembers only
+- * a release that has passed both. An install takes only a release equal to the remembered one, reads the installed
+- * version again, stages the file, checks its digest, its size and that it is not empty, and hands the staged file
+- * to the installer. The session is read only to learn whether the caller is an administrator. An expected outcome
+- * is a value. A port failure propagates, except an IOException while a stream closes.
+- *
+- * The remembered release lives in one volatile field, so a restart forgets it and an install before a new check
+- * is refused.
+- *
+- * @param apkByteCap the largest staged file accepted, in bytes.
+- */
+-internal class ReleaseUpdateChecker(
+-    private val clock: Clock,
+-    private val auth: AuthService,
+-    private val ledger: UpdateLedger,
+-    private val manifests: ManifestSource,
+-    private val downloads: ApkDownloader,
+-    private val installer: PackageInstallerPort,
+-    private val installed: InstalledVersion,
+-    private val pinnedKeys: List<PinnedKey>,
+-    private val apkByteCap: Long = MAX_APK_BYTES,
+-) : UpdateChecker {
+-
+-    @Volatile
+-    private var checked: ParsedManifest? = null
+-
+-    override fun check(force: Boolean): UpdateCheckResult? {
+-        val now = clock.nowEpochMillis()
+-        val isAdmin = auth.currentSession()?.isAdmin == true
+-        val decision = decideUpdateCheck(now, ledger.lastDefinitiveCheckMillis(), ledger.lastAttemptMillis(), force, isAdmin)
+-        if (decision == ScheduleDecision.NotDue) return null
+-        ledger.recordAttempt(now)
+-        return runCheck(now)
+-    }
+-
+-    override fun install(release: ReleaseInfo): UpdateInstallResult {
+-        val now = clock.nowEpochMillis()
+-        val verified = checked
+-        if (verified == null || verified.release != release) return UpdateInstallResult.Refused(UpdateSentences.NOT_CHECKED)
+-        val build = installed.current()
+-        if (!isNewerRelease(build.versionCode, verified.versionCode)) return UpdateInstallResult.Refused(UpdateSentences.NOT_NEWER)
+-        return stageAndInstall(release, now)
+-    }
+-
+-    private fun runCheck(now: Long): UpdateCheckResult {
+-        val loaded = manifests.load()
+-        if (loaded !is ManifestLoad.Loaded) return UpdateCheckResult.Failed(UpdateSentences.SERVER_UNREACHABLE)
+-        val parsed = when (val outcome = ManifestReader.read(loaded.manifestText)) {
+-            is ManifestOutcome.Accepted -> outcome.manifest
+-            is ManifestOutcome.Refused -> return UpdateCheckResult.Failed(outcome.reason)
+-        }
+-        if (ApkOrigin.refusalFor(loaded.serverBase, parsed.release.apkUrl) != null) {
+-            return UpdateCheckResult.Failed(UpdateSentences.ORIGIN)
+-        }
+-        val verdict = verifyManifestSignature(
+-            pinnedKeys,
+-            parsed.keyId,
+-            parsed.versionCode.toString(),
+-            parsed.release.sha256,
+-            parsed.release.signature,
+-        )
+-        if (verdict != SignatureVerdict.Verified) return UpdateCheckResult.Failed(UpdateSentences.SIGNATURE)
+-        checked = parsed
+-        val build = installed.current()
+-        ledger.recordDefinitiveCheck(now)
+-        return if (isNewerRelease(build.versionCode, parsed.versionCode)) {
+-            UpdateCheckResult.Available(parsed.release)
+-        } else {
+-            UpdateCheckResult.UpToDate(build.versionName)
+-        }
+-    }
+-
+-    private fun stageAndInstall(release: ReleaseInfo, now: Long): UpdateInstallResult {
+-        val download = downloads.download(release.apkUrl)
+-        if (download !is ApkDownload.Staged) return UpdateInstallResult.Failed(UpdateSentences.DOWNLOAD)
+-        val apk = download.apk
+-        try {
+-            verifyStaged(apk, release.sha256)?.let { return it }
+-            return installStaged(apk, now)
+-        } finally {
+-            apk.discard()
+-        }
+-    }
+-
+-    /** Returns the refusal or failure for a staged file, or null when its digest matches and it is not empty. */
+-    private fun verifyStaged(apk: StagedApk, sha256: String): UpdateInstallResult? {
+-        val stream = apk.open() ?: return UpdateInstallResult.Failed(UpdateSentences.OPEN)
+-        val digest = try {
+-            verifyStreamDigest(stream, sha256, apkByteCap)
+-        } finally {
+-            closeQuietly(stream)
+-        }
+-        return when (digest) {
+-            is StreamDigestResult.Matched -> if (digest.byteCount == 0L) refused(UpdateSentences.EMPTY) else null
+-            is StreamDigestResult.Mismatched -> refused(if (digest.byteCount == 0L) UpdateSentences.EMPTY else UpdateSentences.DIGEST)
+-            StreamDigestResult.TooLarge -> refused(UpdateSentences.APK_TOO_LARGE)
+-            StreamDigestResult.Unreadable -> UpdateInstallResult.Failed(UpdateSentences.READ)
+-            StreamDigestResult.ExpectedMalformed -> refused(UpdateSentences.DIGEST)
+-        }
+-    }
+-
+-    private fun installStaged(apk: StagedApk, now: Long): UpdateInstallResult =
+-        when (installer.install(apk)) {
+-            InstallerResult.Accepted -> {
+-                ledger.recordUpdate(now)
+-                UpdateInstallResult.Installed
+-            }
+-            InstallerResult.Refused -> UpdateInstallResult.Refused(UpdateSentences.INSTALLER_REFUSED)
+-            InstallerResult.Failed -> UpdateInstallResult.Failed(UpdateSentences.INSTALLER_FAILED)
+-        }
+-
+-    private fun refused(reason: String): UpdateInstallResult = UpdateInstallResult.Refused(reason)
+-
+-    /** Closes [stream]; only an IOException from the close is ignored, since the digest is already decided. */
+-    private fun closeQuietly(stream: InputStream) {
+-        try {
+-            stream.close()
+-        } catch (error: IOException) {
+-            Unit
+-        }
+-    }
+-}
+diff --git a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSentences.kt b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSentences.kt
+deleted file mode 100644
+index eae4201c..00000000
+--- a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSentences.kt
++++ /dev/null
+@@ -1,38 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-/**
+- * The fixed plain sentences that the checker gives for each outcome. None of them holds an address, a digest,
+- * key material or document text.
+- */
+-internal object UpdateSentences {
+-    const val SERVER_UNREACHABLE: String = "The update server could not be reached."
+-    const val ORIGIN: String = "The update file does not come from the update server."
+-    const val SIGNATURE: String = "The update file signature could not be verified."
+-    const val DOWNLOAD: String = "The update file could not be downloaded."
+-    const val OPEN: String = "The downloaded update file could not be opened."
+-    const val READ: String = "The downloaded update file could not be read."
+-    const val NOT_CHECKED: String = "Check for updates before installing."
+-    const val NOT_NEWER: String = "This release is not newer than the installed version."
+-    const val DIGEST: String = "The downloaded update file does not match its digest."
+-    const val EMPTY: String = "The downloaded update file is empty."
+-    const val APK_TOO_LARGE: String = "The downloaded update file is larger than the allowed size."
+-    const val INSTALLER_REFUSED: String = "The system refused to install the update."
+-    const val INSTALLER_FAILED: String = "The update could not be installed."
+-
+-    /** Every fixed sentence above, in one list. */
+-    val ALL: List<String> = listOf(
+-        SERVER_UNREACHABLE,
+-        ORIGIN,
+-        SIGNATURE,
+-        DOWNLOAD,
+-        OPEN,
+-        READ,
+-        NOT_CHECKED,
+-        NOT_NEWER,
+-        DIGEST,
+-        EMPTY,
+-        APK_TOO_LARGE,
+-        INSTALLER_REFUSED,
+-        INSTALLER_FAILED,
+-    )
+-}
+diff --git a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerCheckTest.kt b/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerCheckTest.kt
+deleted file mode 100644
+index 81f48b5d..00000000
+--- a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerCheckTest.kt
++++ /dev/null
+@@ -1,131 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import dev.breaker.dictation.core.model.UpdateCheckResult
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertNull
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/** Pins what a check does in each branch: the schedule gate, the attempt record, the verification and the answer. */
+-internal class CheckerCheckTest {
+-
+-    /** The exact call order of a check that runs to the end with the default manifest and an install at code 11. */
+-    private fun fullCheckLog(now: Long): List<String> = listOf(
+-        "clock",
+-        "auth.currentSession",
+-        "ledger.lastDefinitive",
+-        "ledger.lastAttempt",
+-        "ledger.recordAttempt:$now",
+-        "manifest.load",
+-        "installed.current",
+-        "ledger.recordDefinitive:$now",
+-    )
+-
+-    @Test
+-    fun `a check that is not due returns null and makes no fetch`() {
+-        val rig = CheckerRig()
+-        rig.ledger.definitive = NOW_MILLIS - 1L
+-        val result = rig.checker.check(false)
+-        assertNull(result)
+-        assertEquals(
+-            listOf("clock", "auth.currentSession", "ledger.lastDefinitive", "ledger.lastAttempt"),
+-            rig.log.snapshot(),
+-        )
+-    }
+-
+-    @Test
+-    fun `an attempt is recorded once before the manifest is fetched`() {
+-        val rig = CheckerRig()
+-        rig.checker.check(false)
+-        assertEquals(fullCheckLog(NOW_MILLIS), rig.log.snapshot())
+-    }
+-
+-    @Test
+-    fun `a forced call without a session is not forced`() {
+-        val rig = CheckerRig()
+-        rig.ledger.definitive = NOW_MILLIS - 1L
+-        val result = rig.checker.check(true)
+-        assertNull(result)
+-        assertFalse(rig.log.snapshot().contains("manifest.load"))
+-    }
+-
+-    @Test
+-    fun `an administrator forced check runs although the day has not passed`() {
+-        val rig = CheckerRig()
+-        rig.auth.session = adminSession()
+-        rig.ledger.definitive = NOW_MILLIS - 1L
+-        val result = rig.checker.check(true)
+-        assertEquals(UpdateCheckResult.Available(defaultRelease()), result)
+-        assertTrue(rig.log.snapshot().contains("manifest.load"))
+-    }
+-
+-    @Test
+-    fun `an unavailable server fails and keeps the last definitive check time`() {
+-        val rig = CheckerRig()
+-        rig.manifests.next = ManifestLoad.Unavailable
+-        val result = rig.checker.check(false)
+-        assertEquals(UpdateCheckResult.Failed(UpdateSentences.SERVER_UNREACHABLE), result)
+-        assertFalse(rig.log.snapshot().any { it.startsWith("ledger.recordDefinitive") })
+-    }
+-
+-    @Test
+-    fun `a manifest the reader refuses gives a failure with the reader sentence and never up to date`() {
+-        val rig = CheckerRig()
+-        rig.manifestWith("{}")
+-        val result = rig.checker.check(false)
+-        assertEquals(UpdateCheckResult.Failed(ManifestReader.MISSING_FIELD), result)
+-        assertFalse(result is UpdateCheckResult.UpToDate)
+-    }
+-
+-    @Test
+-    fun `an APK address off the server origin gives a failure before the signature is read`() {
+-        val rig = CheckerRig()
+-        rig.manifestWith(manifestJson(apkUrl = "https://other.example.test:8443/v1/apk/breaker.apk"))
+-        val result = rig.checker.check(false)
+-        assertEquals(UpdateCheckResult.Failed(UpdateSentences.ORIGIN), result)
+-        assertFalse(rig.log.snapshot().contains("installed.current"))
+-    }
+-
+-    @Test
+-    fun `a signature that no pinned key verifies gives a failure and reads no installed build`() {
+-        val rig = CheckerRig()
+-        rig.manifestWith(manifestJson(signature = ManifestVectors.SIG_UNPINNED))
+-        val result = rig.checker.check(false)
+-        assertEquals(UpdateCheckResult.Failed(UpdateSentences.SIGNATURE), result)
+-        assertFalse(rig.log.snapshot().contains("installed.current"))
+-        assertFalse(rig.log.snapshot().any { it.startsWith("ledger.recordDefinitive") })
+-    }
+-
+-    @Test
+-    fun `an installed build with the same code is up to date and records the check`() {
+-        val rig = CheckerRig()
+-        rig.installed.build = InstalledBuild(versionCode = 12, versionName = INSTALLED_NAME)
+-        val result = rig.checker.check(false)
+-        assertEquals(UpdateCheckResult.UpToDate(INSTALLED_NAME), result)
+-        assertTrue(rig.log.snapshot().contains("ledger.recordDefinitive:$NOW_MILLIS"))
+-    }
+-
+-    @Test
+-    fun `a newer offered code gives the verified release as available`() {
+-        val rig = CheckerRig()
+-        val result = rig.checker.check(false)
+-        assertEquals(UpdateCheckResult.Available(defaultRelease()), result)
+-    }
+-
+-    @Test
+-    fun `an up to date result carries the installed display name`() {
+-        val rig = CheckerRig()
+-        rig.installed.build = InstalledBuild(versionCode = 12, versionName = "2.0.0-named")
+-        val result = rig.checker.check(false)
+-        assertEquals(UpdateCheckResult.UpToDate("2.0.0-named"), result)
+-    }
+-
+-    @Test
+-    fun `the definitive check time is the clock time of the call`() {
+-        val rig = CheckerRig()
+-        rig.checker.check(false)
+-        assertTrue(rig.log.snapshot().contains("ledger.recordDefinitive:$NOW_MILLIS"))
+-        assertFalse(rig.log.snapshot().contains("ledger.recordDefinitive:${NOW_MILLIS + 1L}"))
+-    }
+-}
+diff --git a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerInstallFlowTest.kt b/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerInstallFlowTest.kt
+deleted file mode 100644
+index 81cd281e..00000000
+--- a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerInstallFlowTest.kt
++++ /dev/null
+@@ -1,64 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import dev.breaker.dictation.core.model.UpdateInstallResult
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertNotNull
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/** Pins the whole install path as one ordered call record, and the ways the path can end early. */
+-internal class CheckerInstallFlowTest {
+-
+-    /** Runs a check on [rig] so that the default release is remembered, then empties the call log. */
+-    private fun checked(rig: CheckerRig): CheckerRig {
+-        rig.checker.check(false)
+-        rig.log.clear()
+-        return rig
+-    }
+-
+-    @Test
+-    fun `a verified install reads the version, stages the file, installs, records the update and discards once in order`() {
+-        val rig = checked(CheckerRig())
+-        val result = rig.checker.install(defaultRelease())
+-        assertEquals(UpdateInstallResult.Installed, result)
+-        assertEquals(1, rig.installer.calls)
+-        assertEquals(
+-            listOf(
+-                "clock",
+-                "installed.current",
+-                "download:$APK_URL",
+-                "stream.open",
+-                "stream.close",
+-                "installer.install",
+-                "ledger.recordUpdate:$NOW_MILLIS",
+-                "discard",
+-            ),
+-            rig.log.snapshot(),
+-        )
+-    }
+-
+-    @Test
+-    fun `an installer that throws lets the exception through, discards the file and records no update`() {
+-        val rig = checked(CheckerRig())
+-        rig.installer.thrown = IllegalStateException("the installer stopped")
+-        var caught: IllegalStateException? = null
+-        try {
+-            rig.checker.install(defaultRelease())
+-        } catch (error: IllegalStateException) {
+-            caught = error
+-        }
+-        assertNotNull(caught)
+-        assertTrue(rig.log.snapshot().contains("discard"))
+-        assertFalse(rig.log.snapshot().any { it.startsWith("ledger.recordUpdate") })
+-    }
+-
+-    @Test
+-    fun `the session token never appears in any port call`() {
+-        val rig = CheckerRig()
+-        rig.auth.session = adminSession()
+-        rig.checker.check(false)
+-        rig.checker.install(defaultRelease())
+-        assertFalse(rig.log.snapshot().any { it.contains(HIDDEN_TOKEN) })
+-    }
+-}
+diff --git a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerInstallTest.kt b/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerInstallTest.kt
+deleted file mode 100644
+index 07b9680e..00000000
+--- a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerInstallTest.kt
++++ /dev/null
+@@ -1,180 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import dev.breaker.dictation.core.model.ReleaseInfo
+-import dev.breaker.dictation.core.model.UpdateCheckResult
+-import dev.breaker.dictation.core.model.UpdateInstallResult
+-import java.io.ByteArrayInputStream
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/** Pins the install gate, the staged file checks and the answers of the install, each one a fixed sentence. */
+-internal class CheckerInstallTest {
+-
+-    /** Runs a check on [rig] so that the default release is remembered, then empties the call log. */
+-    private fun checked(rig: CheckerRig): CheckerRig {
+-        rig.checker.check(false)
+-        rig.log.clear()
+-        return rig
+-    }
+-
+-    @Test
+-    fun `an install before any check is refused as not checked`() {
+-        val rig = CheckerRig()
+-        val result = rig.checker.install(defaultRelease())
+-        assertEquals(UpdateInstallResult.Refused(UpdateSentences.NOT_CHECKED), result)
+-        assertEquals(listOf("clock"), rig.log.snapshot())
+-        assertEquals(0, rig.installer.calls)
+-    }
+-
+-    @Test
+-    fun `a release that is not the remembered one never reaches the download or the installer`() {
+-        val rig = checked(CheckerRig())
+-        val result = rig.checker.install(defaultRelease().copy(version = "1.2.1"))
+-        assertEquals(UpdateInstallResult.Refused(UpdateSentences.NOT_CHECKED), result)
+-        assertEquals(listOf("clock"), rig.log.snapshot())
+-        assertFalse(rig.log.snapshot().any { it.startsWith("download:") })
+-        assertFalse(rig.log.snapshot().any { it.startsWith("installer.") })
+-    }
+-
+-    @Test
+-    fun `a failed later check keeps the last verified release for the install`() {
+-        val rig = checked(CheckerRig())
+-        rig.manifestWith(manifestJson(signature = ManifestVectors.SIG_UNPINNED))
+-        rig.auth.session = adminSession()
+-        assertEquals(UpdateCheckResult.Failed(UpdateSentences.SIGNATURE), rig.checker.check(true))
+-        rig.log.clear()
+-        val result = rig.checker.install(defaultRelease())
+-        assertEquals(UpdateInstallResult.Installed, result)
+-        assertEquals(1, rig.installer.calls)
+-    }
+-
+-    @Test
+-    fun `an installed build that is not older is refused as not newer`() {
+-        val rig = checked(CheckerRig())
+-        rig.installed.build = InstalledBuild(versionCode = 12, versionName = INSTALLED_NAME)
+-        val result = rig.checker.install(defaultRelease())
+-        assertEquals(UpdateInstallResult.Refused(UpdateSentences.NOT_NEWER), result)
+-        assertEquals(listOf("clock", "installed.current"), rig.log.snapshot())
+-        assertEquals(0, rig.installer.calls)
+-    }
+-
+-    @Test
+-    fun `a digest mismatch refuses the install and discards the staged file`() {
+-        val rig = checked(CheckerRig())
+-        rig.stageBytes("tampered payload".toByteArray(Charsets.UTF_8))
+-        val result = rig.checker.install(defaultRelease())
+-        assertEquals(UpdateInstallResult.Refused(UpdateSentences.DIGEST), result)
+-        assertEquals(0, rig.installer.calls)
+-        assertEquals(
+-            listOf("clock", "installed.current", "download:$APK_URL", "stream.open", "stream.close", "discard"),
+-            rig.log.snapshot(),
+-        )
+-    }
+-
+-    @Test
+-    fun `an empty staged file is refused as empty`() {
+-        val rig = checked(CheckerRig())
+-        rig.stageBytes(ByteArray(0))
+-        val result = rig.checker.install(defaultRelease())
+-        assertEquals(UpdateInstallResult.Refused(UpdateSentences.EMPTY), result)
+-        assertEquals(0, rig.installer.calls)
+-    }
+-
+-    @Test
+-    fun `a staged file over the byte cap is refused as too large`() {
+-        val rig = CheckerRig()
+-        rig.apkByteCap = 10L
+-        checked(rig)
+-        rig.stageBytes(ByteArray(11))
+-        val result = rig.checker.install(defaultRelease())
+-        assertEquals(UpdateInstallResult.Refused(UpdateSentences.APK_TOO_LARGE), result)
+-        assertEquals(0, rig.installer.calls)
+-    }
+-
+-    @Test
+-    fun `a staged file of exactly the byte cap is judged by its digest`() {
+-        val rig = CheckerRig()
+-        rig.apkByteCap = 10L
+-        checked(rig)
+-        rig.stageBytes(ByteArray(10))
+-        val result = rig.checker.install(defaultRelease())
+-        assertEquals(UpdateInstallResult.Refused(UpdateSentences.DIGEST), result)
+-        assertEquals(0, rig.installer.calls)
+-    }
+-
+-    @Test
+-    fun `an unreadable staged file gives a failure`() {
+-        val rig = checked(CheckerRig())
+-        rig.stageBroken()
+-        val result = rig.checker.install(defaultRelease())
+-        assertEquals(UpdateInstallResult.Failed(UpdateSentences.READ), result)
+-        assertEquals(0, rig.installer.calls)
+-    }
+-
+-    @Test
+-    fun `a staged file that cannot be opened gives a failure`() {
+-        val rig = checked(CheckerRig())
+-        rig.stageUnopenable()
+-        val result = rig.checker.install(defaultRelease())
+-        assertEquals(UpdateInstallResult.Failed(UpdateSentences.OPEN), result)
+-        assertEquals(0, rig.installer.calls)
+-    }
+-
+-    @Test
+-    fun `an unavailable download gives a failure`() {
+-        val rig = checked(CheckerRig())
+-        rig.downloads.next = ApkDownload.Unavailable
+-        val result = rig.checker.install(defaultRelease())
+-        assertEquals(UpdateInstallResult.Failed(UpdateSentences.DOWNLOAD), result)
+-        assertEquals(listOf("clock", "installed.current", "download:$APK_URL"), rig.log.snapshot())
+-    }
+-
+-    @Test
+-    fun `an installer refusal is a refusal and records no update`() {
+-        val rig = checked(CheckerRig())
+-        rig.installer.outcome = InstallerResult.Refused
+-        val result = rig.checker.install(defaultRelease())
+-        assertEquals(UpdateInstallResult.Refused(UpdateSentences.INSTALLER_REFUSED), result)
+-        assertFalse(rig.log.snapshot().any { it.startsWith("ledger.recordUpdate") })
+-    }
+-
+-    @Test
+-    fun `an installer failure is a failure and records no update`() {
+-        val rig = checked(CheckerRig())
+-        rig.installer.outcome = InstallerResult.Failed
+-        val result = rig.checker.install(defaultRelease())
+-        assertEquals(UpdateInstallResult.Failed(UpdateSentences.INSTALLER_FAILED), result)
+-        assertFalse(rig.log.snapshot().any { it.startsWith("ledger.recordUpdate") })
+-    }
+-
+-    @Test
+-    fun `a signed empty release is refused as empty although its digest matches`() {
+-        val rig = CheckerRig()
+-        val emptyRelease = ReleaseInfo(
+-            version = "1.2.0",
+-            apkUrl = APK_URL,
+-            sha256 = EmptyFileVector.EMPTY_DIGEST,
+-            signature = EmptyFileVector.SIG_CURRENT_EMPTY,
+-        )
+-        rig.manifestWith(
+-            manifestJson(
+-                sha256 = EmptyFileVector.EMPTY_DIGEST,
+-                signature = EmptyFileVector.SIG_CURRENT_EMPTY,
+-            ),
+-        )
+-        assertEquals(UpdateCheckResult.Available(emptyRelease), rig.checker.check(false))
+-        assertEquals(
+-            StreamDigestResult.Matched(0L),
+-            verifyStreamDigest(ByteArrayInputStream(ByteArray(0)), EmptyFileVector.EMPTY_DIGEST, MAX_APK_BYTES),
+-        )
+-        rig.stageBytes(ByteArray(0))
+-        rig.log.clear()
+-        val result = rig.checker.install(emptyRelease)
+-        assertEquals(UpdateInstallResult.Refused(UpdateSentences.EMPTY), result)
+-        assertEquals(0, rig.installer.calls)
+-        assertFalse(rig.log.snapshot().contains("installer.install"))
+-        assertTrue(rig.log.snapshot().contains("discard"))
+-    }
+-}

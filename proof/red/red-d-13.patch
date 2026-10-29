@@ -1,0 +1,1973 @@
+diff --git a/android/modules/updater/README.md b/android/modules/updater/README.md
+index 5d6d71cf..337ad626 100644
+--- a/android/modules/updater/README.md
++++ b/android/modules/updater/README.md
+@@ -1,5 +1,5 @@
+-# updater - README
++# updater — README
+ 
+-Keeps Breaker up to date. Once a day it checks the project's own server for a newer release, and an admin can force a check. A release is offered only when its manifest comes from the update server and its signature checks out against a pinned key. An install takes only the release that the last verified check offered; it stages the APK and installs it only when its SHA-256 digest matches, its size is within the limit, and the file is not empty. There is no rollback: a refused or failed install leaves the running app as it was. It replaces the base app's updater, which was removed because it pointed elsewhere.
++Keeps Breaker up to date. Once a day it checks the project's own server for a newer release, and an admin can force a check. It installs only APKs whose signature and SHA-256 check out, and it can roll back. It replaces the base app's updater, which was removed because it pointed elsewhere.
+ 
+ Full module card, including how to run its tests: `AGENTS.md` in this folder.
+diff --git a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkDownloader.kt b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkDownloader.kt
+deleted file mode 100644
+index 1195a513..00000000
+--- a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkDownloader.kt
++++ /dev/null
+@@ -1,33 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import java.io.InputStream
+-
+-/** Downloads an APK into a staged file that the install reads later. */
+-internal interface ApkDownloader {
+-    /** Downloads the file at [apkUrl]. An unreachable server is [ApkDownload.Unavailable]; no exception stands for it. */
+-    fun download(apkUrl: String): ApkDownload
+-}
+-
+-/** The result of one download. */
+-internal sealed class ApkDownload {
+-    /** The file reached the device and is staged. */
+-    internal data class Staged(val apk: StagedApk) : ApkDownload()
+-
+-    /** The file could not be downloaded. */
+-    internal object Unavailable : ApkDownload()
+-}
+-
+-/**
+- * A downloaded file that is held until the install ends.
+- *
+- * The bytes must not change between the digest check and the installer call: the adapter that implements this
+- * port must hold the file so that its content is fixed once it is staged. [discard] is guaranteed by this port
+- * contract not to throw; an adapter that cannot remove the file records that inside itself.
+- */
+-internal interface StagedApk {
+-    /** Opens the staged file for reading, or returns null when it cannot be opened. */
+-    fun open(): InputStream?
+-
+-    /** Removes the staged file. Guaranteed not to throw. */
+-    fun discard()
+-}
+diff --git a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/InstalledVersion.kt b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/InstalledVersion.kt
+deleted file mode 100644
+index 51aa6824..00000000
+--- a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/InstalledVersion.kt
++++ /dev/null
+@@ -1,10 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-/** The build that is running now: the integer code that decides a newer release, and the name shown to the user. */
+-internal data class InstalledBuild(val versionCode: Int, val versionName: String)
+-
+-/** Reads the build that is running now. */
+-internal interface InstalledVersion {
+-    /** The running build. The name is shown to the user and is never compared. */
+-    fun current(): InstalledBuild
+-}
+diff --git a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignature.kt b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignature.kt
+deleted file mode 100644
+index 318897ee..00000000
+--- a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignature.kt
++++ /dev/null
+@@ -1,106 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import java.security.GeneralSecurityException
+-import java.security.InvalidKeyException
+-import java.security.KeyFactory
+-import java.security.PublicKey
+-import java.security.Signature
+-import java.security.SignatureException
+-import java.security.spec.X509EncodedKeySpec
+-
+-/**
+- * Checks the signature of a manifest against the pinned keys.
+- *
+- * The signed bytes come from [manifestSignedBytes], built from [versionCode] and [sha256]. The signature must be
+- * the canonical base64 of an ECDSA signature in DER form, made with SHA256withECDSA. When [keyId] is null, every
+- * pinned key may verify the signature. When it is not null, only the pinned key whose id equals it exactly is tried.
+- *
+- * Only a selected key that verifies gives [SignatureVerdict.Verified]. Every other outcome is a
+- * [SignatureVerdict.NotVerified] with a reason, and no exception from the provider leaves this function.
+- * On the phone the provider is Conscrypt, which may report a malformed signature as a plain false instead of an
+- * exception. Both outcomes refuse; the reason is informational only.
+- *
+- * @param pinnedKeys the pinned keys; an empty or unusable list verifies nothing.
+- * @param keyId the key id the manifest selects, or null when it selects none.
+- * @param versionCode the canonical version code text of the manifest.
+- * @param sha256 the manifest digest, 64 lowercase hexadecimal characters.
+- * @param signatureBase64 the canonical base64 of the DER signature.
+- * @param decodeKey turns the SPKI bytes of a pinned key into a public key. The default is the platform EC key
+- * factory; a test may replace it to make the key loading fail in a chosen way.
+- * @param verify checks the signed bytes against the signature with a public key. The default is the platform
+- * SHA256withECDSA check; a test may replace it to make the check fail in a chosen way.
+- */
+-internal fun verifyManifestSignature(
+-    pinnedKeys: List<PinnedKey>,
+-    keyId: String?,
+-    versionCode: String,
+-    sha256: String,
+-    signatureBase64: String,
+-    decodeKey: (ByteArray) -> PublicKey = { spki -> decodeEcPublicKey(spki) },
+-    verify: (PublicKey, ByteArray, ByteArray) -> Boolean = { publicKey, data, sig -> checkEcdsaSha256(publicKey, data, sig) },
+-): SignatureVerdict {
+-    if (pinnedKeys.isEmpty()) return SignatureVerdict.NotVerified(SignatureRefusal.EMPTY_KEY_LIST)
+-    if (!pinnedKeysAreUsable(pinnedKeys)) return SignatureVerdict.NotVerified(SignatureRefusal.INVALID_KEY_LIST)
+-    if (keyId != null && !isWellFormedKeyId(keyId)) return SignatureVerdict.NotVerified(SignatureRefusal.MALFORMED_KEY_ID)
+-    val candidates = if (keyId == null) pinnedKeys else pinnedKeys.filter { it.id == keyId }
+-    if (candidates.isEmpty()) return SignatureVerdict.NotVerified(SignatureRefusal.UNKNOWN_KEY_ID)
+-    val signed = manifestSignedBytes(versionCode, sha256) ?: return SignatureVerdict.NotVerified(SignatureRefusal.MALFORMED_INPUT)
+-    val signature = decodeCanonicalBase64(signatureBase64) ?: return SignatureVerdict.NotVerified(SignatureRefusal.MALFORMED_INPUT)
+-    var sawRejected = false
+-    var sawMalformed = false
+-    for (key in candidates) {
+-        when (checkWithKey(key, signed, signature, decodeKey, verify)) {
+-            CandidateOutcome.VERIFIED -> return SignatureVerdict.Verified
+-            CandidateOutcome.REJECTED -> sawRejected = true
+-            CandidateOutcome.MALFORMED_SIGNATURE -> sawMalformed = true
+-            CandidateOutcome.UNUSABLE_KEY -> Unit
+-        }
+-    }
+-    return SignatureVerdict.NotVerified(
+-        when {
+-            sawRejected -> SignatureRefusal.BAD_SIGNATURE
+-            sawMalformed -> SignatureRefusal.MALFORMED_INPUT
+-            else -> SignatureRefusal.NO_USABLE_KEY
+-        },
+-    )
+-}
+-
+-/** The outcome of checking one signature with one pinned key. */
+-internal enum class CandidateOutcome { VERIFIED, REJECTED, MALFORMED_SIGNATURE, UNUSABLE_KEY }
+-
+-/**
+- * Checks [signed] and [signature] with one pinned key and reports the outcome.
+- *
+- * Every exception from the provider becomes a non-verified outcome; none escapes, and none verifies. A signature
+- * the provider rejects with a SignatureException is MALFORMED_SIGNATURE. Every other provider failure is
+- * UNUSABLE_KEY, including a key that cannot be loaded.
+- *
+- * [decodeKey] and [verify] default to the platform implementations. They are parameters so that a test can make
+- * the provider fail in each way and check that the outcome stays non-verified.
+- */
+-internal fun checkWithKey(
+-    key: PinnedKey,
+-    signed: ByteArray,
+-    signature: ByteArray,
+-    decodeKey: (ByteArray) -> PublicKey = { bytes -> decodeEcPublicKey(bytes) },
+-    verify: (PublicKey, ByteArray, ByteArray) -> Boolean = { candidate, data, sig -> checkEcdsaSha256(candidate, data, sig) },
+-): CandidateOutcome {
+-    val spki = decodeCanonicalBase64(key.spkiBase64) ?: return CandidateOutcome.UNUSABLE_KEY
+-    val publicKey = try { decodeKey(spki) } catch (e: GeneralSecurityException) { return CandidateOutcome.UNUSABLE_KEY } catch (e: RuntimeException) { return CandidateOutcome.UNUSABLE_KEY }
+-    return try {
+-        if (verify(publicKey, signed, signature)) CandidateOutcome.VERIFIED else CandidateOutcome.REJECTED
+-    } catch (e: SignatureException) { CandidateOutcome.MALFORMED_SIGNATURE } catch (e: InvalidKeyException) { CandidateOutcome.UNUSABLE_KEY } catch (e: GeneralSecurityException) { CandidateOutcome.UNUSABLE_KEY } catch (e: RuntimeException) { CandidateOutcome.UNUSABLE_KEY }
+-}
+-
+-/** Turns the SPKI bytes of a pinned key into a public key with the platform EC key factory. */
+-internal fun decodeEcPublicKey(spki: ByteArray): PublicKey {
+-    return KeyFactory.getInstance("EC").generatePublic(X509EncodedKeySpec(spki))
+-}
+-
+-/** Checks [signature] over [signed] with SHA256withECDSA and the given public key. */
+-internal fun checkEcdsaSha256(key: PublicKey, signed: ByteArray, signature: ByteArray): Boolean {
+-    val verifier = Signature.getInstance("SHA256withECDSA")
+-    verifier.initVerify(key)
+-    verifier.update(signed)
+-    return verifier.verify(signature)
+-}
+diff --git a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignedBytes.kt b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignedBytes.kt
+deleted file mode 100644
+index 4a6eab64..00000000
+--- a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSignedBytes.kt
++++ /dev/null
+@@ -1,30 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-/** The fixed first line of every signed manifest string. */
+-internal const val SIGNED_PREFIX: String = "breaker-update-v1"
+-
+-/** The largest version code a manifest may carry. */
+-private const val MAX_VERSION_CODE: Long = 2100000000L
+-
+-/** The longest canonical version code text: ten decimal digits. */
+-private const val MAX_VERSION_CODE_LENGTH: Int = 10
+-
+-/**
+- * Builds the bytes that a manifest signature covers: the prefix, a line feed, the version code text, a line feed
+- * and the digest, as UTF-8 with no trailing line feed.
+- *
+- * Returns null when [versionCode] is not canonical decimal (1 to 2100000000, with no sign, no leading zero, no
+- * space and no other character), or when [sha256] is not 64 lowercase hexadecimal characters.
+- */
+-internal fun manifestSignedBytes(versionCode: String, sha256: String): ByteArray? {
+-    if (!isCanonicalVersionCode(versionCode) || !isLowerSha256Hex(sha256)) return null
+-    return "$SIGNED_PREFIX\n$versionCode\n$sha256".toByteArray(Charsets.UTF_8)
+-}
+-
+-/** True when [text] is canonical decimal for a version code: 1 to 2100000000, no sign, no leading zero. */
+-private fun isCanonicalVersionCode(text: String): Boolean {
+-    if (text.isEmpty() || text.length > MAX_VERSION_CODE_LENGTH) return false
+-    if (text[0] !in '1'..'9') return false
+-    if (!text.all { it in '0'..'9' }) return false
+-    return text.toLong() <= MAX_VERSION_CODE
+-}
+diff --git a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSource.kt b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSource.kt
+deleted file mode 100644
+index a7f0bc9e..00000000
+--- a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestSource.kt
++++ /dev/null
+@@ -1,16 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-/** Gives the manifest that the server offers, with the server base address it was read from. */
+-internal interface ManifestSource {
+-    /** Fetches the manifest. An unreachable server is [ManifestLoad.Unavailable]; no exception stands for it. */
+-    fun load(): ManifestLoad
+-}
+-
+-/** The result of one manifest fetch. */
+-internal sealed class ManifestLoad {
+-    /** The manifest text and the configured server base address it was read from. */
+-    internal data class Loaded(val manifestText: String, val serverBase: String) : ManifestLoad()
+-
+-    /** The server could not be reached. */
+-    internal object Unavailable : ManifestLoad()
+-}
+diff --git a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/PackageInstallerPort.kt b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/PackageInstallerPort.kt
+deleted file mode 100644
+index f5ef115f..00000000
+--- a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/PackageInstallerPort.kt
++++ /dev/null
+@@ -1,24 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-/** What the system installer answered for one staged file. */
+-internal enum class InstallerResult {
+-    /** The installer took the file. */
+-    Accepted,
+-
+-    /** The installer refused the file on purpose. */
+-    Refused,
+-
+-    /** The installer could not finish. */
+-    Failed,
+-}
+-
+-/**
+- * Hands a verified staged file to the system installer.
+- *
+- * An expected answer is an [InstallerResult]. A port failure that is not an answer may be thrown as a
+- * RuntimeException; the checker lets it propagate.
+- */
+-internal interface PackageInstallerPort {
+-    /** Installs [staged] and returns the installer's answer. */
+-    fun install(staged: StagedApk): InstallerResult
+-}
+diff --git a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/PinnedKey.kt b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/PinnedKey.kt
+deleted file mode 100644
+index 5dfbd4a9..00000000
+--- a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/PinnedKey.kt
++++ /dev/null
+@@ -1,22 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-/**
+- * A pinned manifest public key: the id that a manifest may select, and the key as base64 SPKI DER text.
+- *
+- * The key text is never printed: [toString] shows the id only.
+- */
+-internal class PinnedKey(val id: String, val spkiBase64: String) {
+-    override fun toString(): String = "PinnedKey(id=$id)"
+-}
+-
+-/** True when [id] is 1 to 64 characters, each one an ASCII letter, a digit, a dot, an underscore or a hyphen. */
+-internal fun isWellFormedKeyId(id: String): Boolean {
+-    return id.length in 1..64 && id.all { it in 'A'..'Z' || it in 'a'..'z' || it in '0'..'9' || it == '.' || it == '_' || it == '-' }
+-}
+-
+-/** True when the list holds at least one key, every id is well formed, and no two ids are equal. */
+-internal fun pinnedKeysAreUsable(keys: List<PinnedKey>): Boolean {
+-    if (keys.isEmpty()) return false
+-    if (!keys.all { isWellFormedKeyId(it.id) }) return false
+-    return keys.map { it.id }.toSet().size == keys.size
+-}
+diff --git a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt
+deleted file mode 100644
+index d89267b3..00000000
+--- a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt
++++ /dev/null
+@@ -1,139 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import dev.breaker.dictation.core.model.ReleaseInfo
+-import dev.breaker.dictation.core.model.UpdateCheckResult
+-import dev.breaker.dictation.core.model.UpdateInstallResult
+-import dev.breaker.dictation.core.port.AuthService
+-import dev.breaker.dictation.core.port.Clock
+-import dev.breaker.dictation.core.port.UpdateChecker
+-import java.io.IOException
+-import java.io.InputStream
+-
+-/** The largest staged APK that the checker accepts, in bytes: 256 MiB. */
+-internal const val MAX_APK_BYTES: Long = 268_435_456L
+-
+-/**
+- * Checks the server for a newer release and installs a verified one.
+- *
+- * A check runs the daily schedule, fetches the manifest, verifies its origin and its signature, and remembers only
+- * a release that has passed both. An install takes only a release equal to the remembered one, reads the installed
+- * version again, stages the file, checks its digest, its size and that it is not empty, and hands the staged file
+- * to the installer. The session is read only to learn whether the caller is an administrator. An expected outcome
+- * is a value. A port failure propagates, except an IOException while a stream closes.
+- *
+- * The remembered release lives in one volatile field, so a restart forgets it and an install before a new check
+- * is refused.
+- *
+- * @param apkByteCap the largest staged file accepted, in bytes.
+- */
+-internal class ReleaseUpdateChecker(
+-    private val clock: Clock,
+-    private val auth: AuthService,
+-    private val ledger: UpdateLedger,
+-    private val manifests: ManifestSource,
+-    private val downloads: ApkDownloader,
+-    private val installer: PackageInstallerPort,
+-    private val installed: InstalledVersion,
+-    private val pinnedKeys: List<PinnedKey>,
+-    private val apkByteCap: Long = MAX_APK_BYTES,
+-) : UpdateChecker {
+-
+-    @Volatile
+-    private var checked: ParsedManifest? = null
+-
+-    override fun check(force: Boolean): UpdateCheckResult? {
+-        val now = clock.nowEpochMillis()
+-        val isAdmin = auth.currentSession()?.isAdmin == true
+-        val decision = decideUpdateCheck(now, ledger.lastDefinitiveCheckMillis(), ledger.lastAttemptMillis(), force, isAdmin)
+-        if (decision == ScheduleDecision.NotDue) return null
+-        ledger.recordAttempt(now)
+-        return runCheck(now)
+-    }
+-
+-    override fun install(release: ReleaseInfo): UpdateInstallResult {
+-        val now = clock.nowEpochMillis()
+-        val verified = checked
+-        if (verified == null || verified.release != release) return UpdateInstallResult.Refused(UpdateSentences.NOT_CHECKED)
+-        val build = installed.current()
+-        if (!isNewerRelease(build.versionCode, verified.versionCode)) return UpdateInstallResult.Refused(UpdateSentences.NOT_NEWER)
+-        return stageAndInstall(release, now)
+-    }
+-
+-    private fun runCheck(now: Long): UpdateCheckResult {
+-        val loaded = manifests.load()
+-        if (loaded !is ManifestLoad.Loaded) return UpdateCheckResult.Failed(UpdateSentences.SERVER_UNREACHABLE)
+-        val parsed = when (val outcome = ManifestReader.read(loaded.manifestText)) {
+-            is ManifestOutcome.Accepted -> outcome.manifest
+-            is ManifestOutcome.Refused -> return UpdateCheckResult.Failed(outcome.reason)
+-        }
+-        if (ApkOrigin.refusalFor(loaded.serverBase, parsed.release.apkUrl) != null) {
+-            return UpdateCheckResult.Failed(UpdateSentences.ORIGIN)
+-        }
+-        val verdict = verifyManifestSignature(
+-            pinnedKeys,
+-            parsed.keyId,
+-            parsed.versionCode.toString(),
+-            parsed.release.sha256,
+-            parsed.release.signature,
+-        )
+-        if (verdict != SignatureVerdict.Verified) return UpdateCheckResult.Failed(UpdateSentences.SIGNATURE)
+-        checked = parsed
+-        val build = installed.current()
+-        ledger.recordDefinitiveCheck(now)
+-        return if (isNewerRelease(build.versionCode, parsed.versionCode)) {
+-            UpdateCheckResult.Available(parsed.release)
+-        } else {
+-            UpdateCheckResult.UpToDate(build.versionName)
+-        }
+-    }
+-
+-    private fun stageAndInstall(release: ReleaseInfo, now: Long): UpdateInstallResult {
+-        val download = downloads.download(release.apkUrl)
+-        if (download !is ApkDownload.Staged) return UpdateInstallResult.Failed(UpdateSentences.DOWNLOAD)
+-        val apk = download.apk
+-        try {
+-            verifyStaged(apk, release.sha256)?.let { return it }
+-            return installStaged(apk, now)
+-        } finally {
+-            apk.discard()
+-        }
+-    }
+-
+-    /** Returns the refusal or failure for a staged file, or null when its digest matches and it is not empty. */
+-    private fun verifyStaged(apk: StagedApk, sha256: String): UpdateInstallResult? {
+-        val stream = apk.open() ?: return UpdateInstallResult.Failed(UpdateSentences.OPEN)
+-        val digest = try {
+-            verifyStreamDigest(stream, sha256, apkByteCap)
+-        } finally {
+-            closeQuietly(stream)
+-        }
+-        return when (digest) {
+-            is StreamDigestResult.Matched -> if (digest.byteCount == 0L) refused(UpdateSentences.EMPTY) else null
+-            is StreamDigestResult.Mismatched -> refused(if (digest.byteCount == 0L) UpdateSentences.EMPTY else UpdateSentences.DIGEST)
+-            StreamDigestResult.TooLarge -> refused(UpdateSentences.APK_TOO_LARGE)
+-            StreamDigestResult.Unreadable -> UpdateInstallResult.Failed(UpdateSentences.READ)
+-            StreamDigestResult.ExpectedMalformed -> refused(UpdateSentences.DIGEST)
+-        }
+-    }
+-
+-    private fun installStaged(apk: StagedApk, now: Long): UpdateInstallResult =
+-        when (installer.install(apk)) {
+-            InstallerResult.Accepted -> {
+-                ledger.recordUpdate(now)
+-                UpdateInstallResult.Installed
+-            }
+-            InstallerResult.Refused -> UpdateInstallResult.Refused(UpdateSentences.INSTALLER_REFUSED)
+-            InstallerResult.Failed -> UpdateInstallResult.Failed(UpdateSentences.INSTALLER_FAILED)
+-        }
+-
+-    private fun refused(reason: String): UpdateInstallResult = UpdateInstallResult.Refused(reason)
+-
+-    /** Closes [stream]; only an IOException from the close is ignored, since the digest is already decided. */
+-    private fun closeQuietly(stream: InputStream) {
+-        try {
+-            stream.close()
+-        } catch (error: IOException) {
+-            Unit
+-        }
+-    }
+-}
+diff --git a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/Sha256Hex.kt b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/Sha256Hex.kt
+deleted file mode 100644
+index bf2a37b2..00000000
+--- a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/Sha256Hex.kt
++++ /dev/null
+@@ -1,18 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-/** The lowercase hexadecimal digits, indexed by nibble value. */
+-private const val HEX = "0123456789abcdef"
+-
+-/** True when [text] is exactly 64 characters, each one a digit from 0 to 9 or a letter from a to f. */
+-internal fun isLowerSha256Hex(text: String): Boolean {
+-    return text.length == 64 && text.all { it in '0'..'9' || it in 'a'..'f' }
+-}
+-
+-/** Encodes [bytes] as lowercase hexadecimal, two characters per byte. */
+-internal fun toLowerHex(bytes: ByteArray): String = buildString {
+-    for (b in bytes) {
+-        val v = b.toInt() and 0xFF
+-        append(HEX[v ushr 4])
+-        append(HEX[v and 0x0F])
+-    }
+-}
+diff --git a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/SignatureVerdict.kt b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/SignatureVerdict.kt
+deleted file mode 100644
+index 8c015c39..00000000
+--- a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/SignatureVerdict.kt
++++ /dev/null
+@@ -1,37 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-/**
+- * Why a manifest signature was not verified. The values are for tests and logs only: none of them carries
+- * key material, a digest or a URL.
+- */
+-internal enum class SignatureRefusal {
+-    /** The pinned key list is empty. */
+-    EMPTY_KEY_LIST,
+-
+-    /** A pinned id is malformed, or two pinned ids are equal. */
+-    INVALID_KEY_LIST,
+-
+-    /** The manifest's key id is present but malformed. */
+-    MALFORMED_KEY_ID,
+-
+-    /** The manifest's key id is well formed, but no pinned key has it. */
+-    UNKNOWN_KEY_ID,
+-
+-    /** The version code, the digest or the signature text is not in the form the check needs. */
+-    MALFORMED_INPUT,
+-
+-    /** No selected key could be loaded or used by the provider. */
+-    NO_USABLE_KEY,
+-
+-    /** A selected key was tried and did not verify the signed bytes. */
+-    BAD_SIGNATURE,
+-}
+-
+-/** The outcome of a manifest signature check. */
+-internal sealed class SignatureVerdict {
+-    /** The selected pinned key verified the signed bytes. */
+-    internal object Verified : SignatureVerdict()
+-
+-    /** The signature was not verified; [reason] says why. */
+-    internal data class NotVerified(val reason: SignatureRefusal) : SignatureVerdict()
+-}
+diff --git a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StreamDigest.kt b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StreamDigest.kt
+deleted file mode 100644
+index 70adb76a..00000000
+--- a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StreamDigest.kt
++++ /dev/null
+@@ -1,60 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import java.io.IOException
+-import java.io.InputStream
+-import java.security.MessageDigest
+-
+-/** The outcome of a streamed digest check. */
+-internal sealed class StreamDigestResult {
+-    /** The digest of the stream equals the expected digest; [byteCount] is the number of bytes read. */
+-    internal data class Matched(val byteCount: Long) : StreamDigestResult()
+-
+-    /** The digest of the stream differs from the expected digest; [byteCount] is the number of bytes read. */
+-    internal data class Mismatched(val byteCount: Long) : StreamDigestResult()
+-
+-    /** The stream holds more bytes than the cap. */
+-    internal object TooLarge : StreamDigestResult()
+-
+-    /** The stream could not be read, or returned no bytes for a request. */
+-    internal object Unreadable : StreamDigestResult()
+-
+-    /** The expected digest is not 64 lowercase hexadecimal characters; no byte was read. */
+-    internal object ExpectedMalformed : StreamDigestResult()
+-}
+-
+-/** The size of each read from the stream. */
+-private const val CHUNK_BYTES: Int = 64 * 1024
+-
+-/**
+- * Computes the SHA-256 digest of [input] in chunks, and compares it with [expectedSha256].
+- *
+- * The stream is read only as far as the cap: no read asks for more than one byte past [capBytes], and the
+- * function stops as soon as the count passes it. The caller closes [input]; this function never closes it.
+- * An expected digest that is not 64 lowercase hexadecimal characters is refused before any byte is read.
+- *
+- * @param capBytes the largest number of bytes accepted; it must not be negative.
+- * @throws IllegalArgumentException when [capBytes] is negative.
+- */
+-internal fun verifyStreamDigest(input: InputStream, expectedSha256: String, capBytes: Long): StreamDigestResult {
+-    require(capBytes >= 0) { "A byte cap cannot be negative" }
+-    if (!isLowerSha256Hex(expectedSha256)) return StreamDigestResult.ExpectedMalformed
+-    val digest = MessageDigest.getInstance("SHA-256")
+-    val buffer = ByteArray(CHUNK_BYTES)
+-    var count = 0L
+-    try {
+-        while (true) {
+-            val room = capBytes - count
+-            val want = if (room >= CHUNK_BYTES) CHUNK_BYTES else (room + 1).toInt()
+-            val read = input.read(buffer, 0, want)
+-            if (read == -1) break
+-            if (read == 0) return StreamDigestResult.Unreadable
+-            count += read
+-            if (count > capBytes) return StreamDigestResult.TooLarge
+-            digest.update(buffer, 0, read)
+-        }
+-    } catch (e: IOException) {
+-        return StreamDigestResult.Unreadable
+-    }
+-    val actual = toLowerHex(digest.digest())
+-    return if (actual == expectedSha256) StreamDigestResult.Matched(count) else StreamDigestResult.Mismatched(count)
+-}
+diff --git a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StrictBase64.kt b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StrictBase64.kt
+deleted file mode 100644
+index 5fc7780d..00000000
+--- a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StrictBase64.kt
++++ /dev/null
+@@ -1,15 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import java.util.Base64
+-
+-/**
+- * Decodes standard base64 with padding, and accepts the text only when it is the canonical encoding of the bytes.
+- *
+- * Returns null for empty text, for a character outside the standard alphabet, for a line break, for missing
+- * padding, and for any other text that does not re-encode to exactly the same characters.
+- */
+-internal fun decodeCanonicalBase64(text: String): ByteArray? {
+-    if (text.isEmpty()) return null
+-    val bytes = try { Base64.getDecoder().decode(text) } catch (e: IllegalArgumentException) { return null }
+-    return if (Base64.getEncoder().encodeToString(bytes) == text) bytes else null
+-}
+diff --git a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSentences.kt b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSentences.kt
+deleted file mode 100644
+index eae4201c..00000000
+--- a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSentences.kt
++++ /dev/null
+@@ -1,38 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-/**
+- * The fixed plain sentences that the checker gives for each outcome. None of them holds an address, a digest,
+- * key material or document text.
+- */
+-internal object UpdateSentences {
+-    const val SERVER_UNREACHABLE: String = "The update server could not be reached."
+-    const val ORIGIN: String = "The update file does not come from the update server."
+-    const val SIGNATURE: String = "The update file signature could not be verified."
+-    const val DOWNLOAD: String = "The update file could not be downloaded."
+-    const val OPEN: String = "The downloaded update file could not be opened."
+-    const val READ: String = "The downloaded update file could not be read."
+-    const val NOT_CHECKED: String = "Check for updates before installing."
+-    const val NOT_NEWER: String = "This release is not newer than the installed version."
+-    const val DIGEST: String = "The downloaded update file does not match its digest."
+-    const val EMPTY: String = "The downloaded update file is empty."
+-    const val APK_TOO_LARGE: String = "The downloaded update file is larger than the allowed size."
+-    const val INSTALLER_REFUSED: String = "The system refused to install the update."
+-    const val INSTALLER_FAILED: String = "The update could not be installed."
+-
+-    /** Every fixed sentence above, in one list. */
+-    val ALL: List<String> = listOf(
+-        SERVER_UNREACHABLE,
+-        ORIGIN,
+-        SIGNATURE,
+-        DOWNLOAD,
+-        OPEN,
+-        READ,
+-        NOT_CHECKED,
+-        NOT_NEWER,
+-        DIGEST,
+-        EMPTY,
+-        APK_TOO_LARGE,
+-        INSTALLER_REFUSED,
+-        INSTALLER_FAILED,
+-    )
+-}
+diff --git a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CanonicalEncodingTest.kt b/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CanonicalEncodingTest.kt
+deleted file mode 100644
+index 76d31937..00000000
+--- a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CanonicalEncodingTest.kt
++++ /dev/null
+@@ -1,53 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import org.junit.Assert.assertArrayEquals
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertNull
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/** Pins the strict base64 rules and the lowercase hex helpers. */
+-internal class CanonicalEncodingTest {
+-    @Test
+-    fun paddedBase64Decodes() {
+-        assertArrayEquals(byteArrayOf(1, 2), decodeCanonicalBase64("AQI=")!!)
+-    }
+-
+-    @Test
+-    fun unpaddedBase64IsRefused() {
+-        assertNull(decodeCanonicalBase64("AQI"))
+-    }
+-
+-    @Test
+-    fun nonAlphabetBase64IsRefused() {
+-        assertNull(decodeCanonicalBase64("AQ!="))
+-    }
+-
+-    @Test
+-    fun base64WithLineBreakIsRefused() {
+-        assertNull(decodeCanonicalBase64("AQ\nI="))
+-    }
+-
+-    @Test
+-    fun emptyBase64IsRefused() {
+-        assertNull(decodeCanonicalBase64(""))
+-    }
+-
+-    @Test
+-    fun digestLengthIsChecked() {
+-        assertFalse(isLowerSha256Hex("a".repeat(63)))
+-        assertFalse(isLowerSha256Hex("a".repeat(65)))
+-    }
+-
+-    @Test
+-    fun lowerHexOnlyIsAccepted() {
+-        assertTrue(isLowerSha256Hex("a".repeat(64)))
+-        assertFalse(isLowerSha256Hex("A".repeat(64)))
+-    }
+-
+-    @Test
+-    fun hexEncodesEveryByte() {
+-        assertEquals("0aff", toLowerHex(byteArrayOf(0x0A.toByte(), 0xFF.toByte())))
+-    }
+-}
+diff --git a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerCheckTest.kt b/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerCheckTest.kt
+deleted file mode 100644
+index 81f48b5d..00000000
+--- a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerCheckTest.kt
++++ /dev/null
+@@ -1,131 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import dev.breaker.dictation.core.model.UpdateCheckResult
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertNull
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/** Pins what a check does in each branch: the schedule gate, the attempt record, the verification and the answer. */
+-internal class CheckerCheckTest {
+-
+-    /** The exact call order of a check that runs to the end with the default manifest and an install at code 11. */
+-    private fun fullCheckLog(now: Long): List<String> = listOf(
+-        "clock",
+-        "auth.currentSession",
+-        "ledger.lastDefinitive",
+-        "ledger.lastAttempt",
+-        "ledger.recordAttempt:$now",
+-        "manifest.load",
+-        "installed.current",
+-        "ledger.recordDefinitive:$now",
+-    )
+-
+-    @Test
+-    fun `a check that is not due returns null and makes no fetch`() {
+-        val rig = CheckerRig()
+-        rig.ledger.definitive = NOW_MILLIS - 1L
+-        val result = rig.checker.check(false)
+-        assertNull(result)
+-        assertEquals(
+-            listOf("clock", "auth.currentSession", "ledger.lastDefinitive", "ledger.lastAttempt"),
+-            rig.log.snapshot(),
+-        )
+-    }
+-
+-    @Test
+-    fun `an attempt is recorded once before the manifest is fetched`() {
+-        val rig = CheckerRig()
+-        rig.checker.check(false)
+-        assertEquals(fullCheckLog(NOW_MILLIS), rig.log.snapshot())
+-    }
+-
+-    @Test
+-    fun `a forced call without a session is not forced`() {
+-        val rig = CheckerRig()
+-        rig.ledger.definitive = NOW_MILLIS - 1L
+-        val result = rig.checker.check(true)
+-        assertNull(result)
+-        assertFalse(rig.log.snapshot().contains("manifest.load"))
+-    }
+-
+-    @Test
+-    fun `an administrator forced check runs although the day has not passed`() {
+-        val rig = CheckerRig()
+-        rig.auth.session = adminSession()
+-        rig.ledger.definitive = NOW_MILLIS - 1L
+-        val result = rig.checker.check(true)
+-        assertEquals(UpdateCheckResult.Available(defaultRelease()), result)
+-        assertTrue(rig.log.snapshot().contains("manifest.load"))
+-    }
+-
+-    @Test
+-    fun `an unavailable server fails and keeps the last definitive check time`() {
+-        val rig = CheckerRig()
+-        rig.manifests.next = ManifestLoad.Unavailable
+-        val result = rig.checker.check(false)
+-        assertEquals(UpdateCheckResult.Failed(UpdateSentences.SERVER_UNREACHABLE), result)
+-        assertFalse(rig.log.snapshot().any { it.startsWith("ledger.recordDefinitive") })
+-    }
+-
+-    @Test
+-    fun `a manifest the reader refuses gives a failure with the reader sentence and never up to date`() {
+-        val rig = CheckerRig()
+-        rig.manifestWith("{}")
+-        val result = rig.checker.check(false)
+-        assertEquals(UpdateCheckResult.Failed(ManifestReader.MISSING_FIELD), result)
+-        assertFalse(result is UpdateCheckResult.UpToDate)
+-    }
+-
+-    @Test
+-    fun `an APK address off the server origin gives a failure before the signature is read`() {
+-        val rig = CheckerRig()
+-        rig.manifestWith(manifestJson(apkUrl = "https://other.example.test:8443/v1/apk/breaker.apk"))
+-        val result = rig.checker.check(false)
+-        assertEquals(UpdateCheckResult.Failed(UpdateSentences.ORIGIN), result)
+-        assertFalse(rig.log.snapshot().contains("installed.current"))
+-    }
+-
+-    @Test
+-    fun `a signature that no pinned key verifies gives a failure and reads no installed build`() {
+-        val rig = CheckerRig()
+-        rig.manifestWith(manifestJson(signature = ManifestVectors.SIG_UNPINNED))
+-        val result = rig.checker.check(false)
+-        assertEquals(UpdateCheckResult.Failed(UpdateSentences.SIGNATURE), result)
+-        assertFalse(rig.log.snapshot().contains("installed.current"))
+-        assertFalse(rig.log.snapshot().any { it.startsWith("ledger.recordDefinitive") })
+-    }
+-
+-    @Test
+-    fun `an installed build with the same code is up to date and records the check`() {
+-        val rig = CheckerRig()
+-        rig.installed.build = InstalledBuild(versionCode = 12, versionName = INSTALLED_NAME)
+-        val result = rig.checker.check(false)
+-        assertEquals(UpdateCheckResult.UpToDate(INSTALLED_NAME), result)
+-        assertTrue(rig.log.snapshot().contains("ledger.recordDefinitive:$NOW_MILLIS"))
+-    }
+-
+-    @Test
+-    fun `a newer offered code gives the verified release as available`() {
+-        val rig = CheckerRig()
+-        val result = rig.checker.check(false)
+-        assertEquals(UpdateCheckResult.Available(defaultRelease()), result)
+-    }
+-
+-    @Test
+-    fun `an up to date result carries the installed display name`() {
+-        val rig = CheckerRig()
+-        rig.installed.build = InstalledBuild(versionCode = 12, versionName = "2.0.0-named")
+-        val result = rig.checker.check(false)
+-        assertEquals(UpdateCheckResult.UpToDate("2.0.0-named"), result)
+-    }
+-
+-    @Test
+-    fun `the definitive check time is the clock time of the call`() {
+-        val rig = CheckerRig()
+-        rig.checker.check(false)
+-        assertTrue(rig.log.snapshot().contains("ledger.recordDefinitive:$NOW_MILLIS"))
+-        assertFalse(rig.log.snapshot().contains("ledger.recordDefinitive:${NOW_MILLIS + 1L}"))
+-    }
+-}
+diff --git a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerFakes.kt b/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerFakes.kt
+deleted file mode 100644
+index f1a55d23..00000000
+--- a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerFakes.kt
++++ /dev/null
+@@ -1,155 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import dev.breaker.dictation.core.model.AuthSession
+-import dev.breaker.dictation.core.port.AuthService
+-import dev.breaker.dictation.core.port.Clock
+-import java.io.ByteArrayInputStream
+-import java.io.IOException
+-import java.io.InputStream
+-
+-/** The ordered record of the calls that the fakes received. */
+-internal class CallLog {
+-    private val entries = mutableListOf<String>()
+-
+-    /** Adds one entry at the end of the record. */
+-    fun add(entry: String) {
+-        entries.add(entry)
+-    }
+-
+-    /** A copy of the record, in the order in which the calls happened. */
+-    fun snapshot(): List<String> = entries.toList()
+-
+-    /** Empties the record. */
+-    fun clear() {
+-        entries.clear()
+-    }
+-}
+-
+-/** A clock that always reports the same epoch time, and records each read. */
+-internal class FakeClock(private val nowMillis: Long, private val log: CallLog) : Clock {
+-    override fun nowEpochMillis(): Long {
+-        log.add("clock")
+-        return nowMillis
+-    }
+-}
+-
+-/** An auth service that gives the session set by the test; the sign-in members are never reached. */
+-internal class FakeAuth(private val log: CallLog) : AuthService {
+-    var session: AuthSession? = null
+-
+-    override fun register(username: String, password: String): AuthSession = unused()
+-
+-    override fun login(username: String, password: String): AuthSession = unused()
+-
+-    override fun logout(): Unit = unused()
+-
+-    override fun currentSession(): AuthSession? {
+-        log.add("auth.currentSession")
+-        return session
+-    }
+-
+-    private fun unused(): Nothing = throw IllegalStateException("the checker does not sign users in or out")
+-}
+-
+-/** A ledger that holds the two times the test sets, and records every write. */
+-internal class FakeLedger(private val log: CallLog) : UpdateLedger {
+-    var definitive: Long? = null
+-    var attempt: Long? = null
+-
+-    override fun lastDefinitiveCheckMillis(): Long? {
+-        log.add("ledger.lastDefinitive")
+-        return definitive
+-    }
+-
+-    override fun lastUpdateMillis(): Long? = null
+-
+-    override fun lastAttemptMillis(): Long? {
+-        log.add("ledger.lastAttempt")
+-        return attempt
+-    }
+-
+-    override fun recordDefinitiveCheck(atMillis: Long) {
+-        log.add("ledger.recordDefinitive:$atMillis")
+-    }
+-
+-    override fun recordUpdate(atMillis: Long) {
+-        log.add("ledger.recordUpdate:$atMillis")
+-    }
+-
+-    override fun recordAttempt(atMillis: Long) {
+-        log.add("ledger.recordAttempt:$atMillis")
+-    }
+-}
+-
+-/** A manifest source that returns the load the test set. */
+-internal class FakeManifests(private val log: CallLog) : ManifestSource {
+-    var next: ManifestLoad = ManifestLoad.Unavailable
+-
+-    override fun load(): ManifestLoad {
+-        log.add("manifest.load")
+-        return next
+-    }
+-}
+-
+-/** An APK downloader that returns the result the test set, and records the address it was given. */
+-internal class FakeDownloads(private val log: CallLog) : ApkDownloader {
+-    var next: ApkDownload = ApkDownload.Unavailable
+-
+-    override fun download(apkUrl: String): ApkDownload {
+-        log.add("download:$apkUrl")
+-        return next
+-    }
+-}
+-
+-/** A staged file whose stream is the one the test gives; the stream is null when the file cannot be opened. */
+-internal class FakeStagedApk(private val stream: InputStream?, private val log: CallLog) : StagedApk {
+-    override fun open(): InputStream? {
+-        log.add("stream.open")
+-        return stream
+-    }
+-
+-    override fun discard() {
+-        log.add("discard")
+-    }
+-}
+-
+-/** An in-memory file that records when it is closed. */
+-internal class RecordingStream(bytes: ByteArray, private val log: CallLog) : ByteArrayInputStream(bytes) {
+-    override fun close() {
+-        log.add("stream.close")
+-        super.close()
+-    }
+-}
+-
+-/** A stream that fails on every read, as a broken file would. */
+-internal class BrokenStream(private val log: CallLog) : InputStream() {
+-    override fun read(): Int = throw IOException("the test stream cannot be read")
+-
+-    override fun close() {
+-        log.add("stream.close")
+-    }
+-}
+-
+-/** An installer that answers with the outcome the test set, or throws the exception the test set. */
+-internal class FakeInstaller(private val log: CallLog) : PackageInstallerPort {
+-    var outcome: InstallerResult = InstallerResult.Accepted
+-    var thrown: RuntimeException? = null
+-    var calls: Int = 0
+-
+-    override fun install(staged: StagedApk): InstallerResult {
+-        calls += 1
+-        log.add("installer.install")
+-        thrown?.let { throw it }
+-        return outcome
+-    }
+-}
+-
+-/** An installed-version reader that returns the build the test set. */
+-internal class FakeInstalled(private val log: CallLog) : InstalledVersion {
+-    var build: InstalledBuild = InstalledBuild(versionCode = 11, versionName = "1.2.0-installed")
+-
+-    override fun current(): InstalledBuild {
+-        log.add("installed.current")
+-        return build
+-    }
+-}
+diff --git a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerInstallFlowTest.kt b/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerInstallFlowTest.kt
+deleted file mode 100644
+index 81cd281e..00000000
+--- a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerInstallFlowTest.kt
++++ /dev/null
+@@ -1,64 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import dev.breaker.dictation.core.model.UpdateInstallResult
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertNotNull
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/** Pins the whole install path as one ordered call record, and the ways the path can end early. */
+-internal class CheckerInstallFlowTest {
+-
+-    /** Runs a check on [rig] so that the default release is remembered, then empties the call log. */
+-    private fun checked(rig: CheckerRig): CheckerRig {
+-        rig.checker.check(false)
+-        rig.log.clear()
+-        return rig
+-    }
+-
+-    @Test
+-    fun `a verified install reads the version, stages the file, installs, records the update and discards once in order`() {
+-        val rig = checked(CheckerRig())
+-        val result = rig.checker.install(defaultRelease())
+-        assertEquals(UpdateInstallResult.Installed, result)
+-        assertEquals(1, rig.installer.calls)
+-        assertEquals(
+-            listOf(
+-                "clock",
+-                "installed.current",
+-                "download:$APK_URL",
+-                "stream.open",
+-                "stream.close",
+-                "installer.install",
+-                "ledger.recordUpdate:$NOW_MILLIS",
+-                "discard",
+-            ),
+-            rig.log.snapshot(),
+-        )
+-    }
+-
+-    @Test
+-    fun `an installer that throws lets the exception through, discards the file and records no update`() {
+-        val rig = checked(CheckerRig())
+-        rig.installer.thrown = IllegalStateException("the installer stopped")
+-        var caught: IllegalStateException? = null
+-        try {
+-            rig.checker.install(defaultRelease())
+-        } catch (error: IllegalStateException) {
+-            caught = error
+-        }
+-        assertNotNull(caught)
+-        assertTrue(rig.log.snapshot().contains("discard"))
+-        assertFalse(rig.log.snapshot().any { it.startsWith("ledger.recordUpdate") })
+-    }
+-
+-    @Test
+-    fun `the session token never appears in any port call`() {
+-        val rig = CheckerRig()
+-        rig.auth.session = adminSession()
+-        rig.checker.check(false)
+-        rig.checker.install(defaultRelease())
+-        assertFalse(rig.log.snapshot().any { it.contains(HIDDEN_TOKEN) })
+-    }
+-}
+diff --git a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerInstallTest.kt b/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerInstallTest.kt
+deleted file mode 100644
+index 07b9680e..00000000
+--- a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerInstallTest.kt
++++ /dev/null
+@@ -1,180 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import dev.breaker.dictation.core.model.ReleaseInfo
+-import dev.breaker.dictation.core.model.UpdateCheckResult
+-import dev.breaker.dictation.core.model.UpdateInstallResult
+-import java.io.ByteArrayInputStream
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/** Pins the install gate, the staged file checks and the answers of the install, each one a fixed sentence. */
+-internal class CheckerInstallTest {
+-
+-    /** Runs a check on [rig] so that the default release is remembered, then empties the call log. */
+-    private fun checked(rig: CheckerRig): CheckerRig {
+-        rig.checker.check(false)
+-        rig.log.clear()
+-        return rig
+-    }
+-
+-    @Test
+-    fun `an install before any check is refused as not checked`() {
+-        val rig = CheckerRig()
+-        val result = rig.checker.install(defaultRelease())
+-        assertEquals(UpdateInstallResult.Refused(UpdateSentences.NOT_CHECKED), result)
+-        assertEquals(listOf("clock"), rig.log.snapshot())
+-        assertEquals(0, rig.installer.calls)
+-    }
+-
+-    @Test
+-    fun `a release that is not the remembered one never reaches the download or the installer`() {
+-        val rig = checked(CheckerRig())
+-        val result = rig.checker.install(defaultRelease().copy(version = "1.2.1"))
+-        assertEquals(UpdateInstallResult.Refused(UpdateSentences.NOT_CHECKED), result)
+-        assertEquals(listOf("clock"), rig.log.snapshot())
+-        assertFalse(rig.log.snapshot().any { it.startsWith("download:") })
+-        assertFalse(rig.log.snapshot().any { it.startsWith("installer.") })
+-    }
+-
+-    @Test
+-    fun `a failed later check keeps the last verified release for the install`() {
+-        val rig = checked(CheckerRig())
+-        rig.manifestWith(manifestJson(signature = ManifestVectors.SIG_UNPINNED))
+-        rig.auth.session = adminSession()
+-        assertEquals(UpdateCheckResult.Failed(UpdateSentences.SIGNATURE), rig.checker.check(true))
+-        rig.log.clear()
+-        val result = rig.checker.install(defaultRelease())
+-        assertEquals(UpdateInstallResult.Installed, result)
+-        assertEquals(1, rig.installer.calls)
+-    }
+-
+-    @Test
+-    fun `an installed build that is not older is refused as not newer`() {
+-        val rig = checked(CheckerRig())
+-        rig.installed.build = InstalledBuild(versionCode = 12, versionName = INSTALLED_NAME)
+-        val result = rig.checker.install(defaultRelease())
+-        assertEquals(UpdateInstallResult.Refused(UpdateSentences.NOT_NEWER), result)
+-        assertEquals(listOf("clock", "installed.current"), rig.log.snapshot())
+-        assertEquals(0, rig.installer.calls)
+-    }
+-
+-    @Test
+-    fun `a digest mismatch refuses the install and discards the staged file`() {
+-        val rig = checked(CheckerRig())
+-        rig.stageBytes("tampered payload".toByteArray(Charsets.UTF_8))
+-        val result = rig.checker.install(defaultRelease())
+-        assertEquals(UpdateInstallResult.Refused(UpdateSentences.DIGEST), result)
+-        assertEquals(0, rig.installer.calls)
+-        assertEquals(
+-            listOf("clock", "installed.current", "download:$APK_URL", "stream.open", "stream.close", "discard"),
+-            rig.log.snapshot(),
+-        )
+-    }
+-
+-    @Test
+-    fun `an empty staged file is refused as empty`() {
+-        val rig = checked(CheckerRig())
+-        rig.stageBytes(ByteArray(0))
+-        val result = rig.checker.install(defaultRelease())
+-        assertEquals(UpdateInstallResult.Refused(UpdateSentences.EMPTY), result)
+-        assertEquals(0, rig.installer.calls)
+-    }
+-
+-    @Test
+-    fun `a staged file over the byte cap is refused as too large`() {
+-        val rig = CheckerRig()
+-        rig.apkByteCap = 10L
+-        checked(rig)
+-        rig.stageBytes(ByteArray(11))
+-        val result = rig.checker.install(defaultRelease())
+-        assertEquals(UpdateInstallResult.Refused(UpdateSentences.APK_TOO_LARGE), result)
+-        assertEquals(0, rig.installer.calls)
+-    }
+-
+-    @Test
+-    fun `a staged file of exactly the byte cap is judged by its digest`() {
+-        val rig = CheckerRig()
+-        rig.apkByteCap = 10L
+-        checked(rig)
+-        rig.stageBytes(ByteArray(10))
+-        val result = rig.checker.install(defaultRelease())
+-        assertEquals(UpdateInstallResult.Refused(UpdateSentences.DIGEST), result)
+-        assertEquals(0, rig.installer.calls)
+-    }
+-
+-    @Test
+-    fun `an unreadable staged file gives a failure`() {
+-        val rig = checked(CheckerRig())
+-        rig.stageBroken()
+-        val result = rig.checker.install(defaultRelease())
+-        assertEquals(UpdateInstallResult.Failed(UpdateSentences.READ), result)
+-        assertEquals(0, rig.installer.calls)
+-    }
+-
+-    @Test
+-    fun `a staged file that cannot be opened gives a failure`() {
+-        val rig = checked(CheckerRig())
+-        rig.stageUnopenable()
+-        val result = rig.checker.install(defaultRelease())
+-        assertEquals(UpdateInstallResult.Failed(UpdateSentences.OPEN), result)
+-        assertEquals(0, rig.installer.calls)
+-    }
+-
+-    @Test
+-    fun `an unavailable download gives a failure`() {
+-        val rig = checked(CheckerRig())
+-        rig.downloads.next = ApkDownload.Unavailable
+-        val result = rig.checker.install(defaultRelease())
+-        assertEquals(UpdateInstallResult.Failed(UpdateSentences.DOWNLOAD), result)
+-        assertEquals(listOf("clock", "installed.current", "download:$APK_URL"), rig.log.snapshot())
+-    }
+-
+-    @Test
+-    fun `an installer refusal is a refusal and records no update`() {
+-        val rig = checked(CheckerRig())
+-        rig.installer.outcome = InstallerResult.Refused
+-        val result = rig.checker.install(defaultRelease())
+-        assertEquals(UpdateInstallResult.Refused(UpdateSentences.INSTALLER_REFUSED), result)
+-        assertFalse(rig.log.snapshot().any { it.startsWith("ledger.recordUpdate") })
+-    }
+-
+-    @Test
+-    fun `an installer failure is a failure and records no update`() {
+-        val rig = checked(CheckerRig())
+-        rig.installer.outcome = InstallerResult.Failed
+-        val result = rig.checker.install(defaultRelease())
+-        assertEquals(UpdateInstallResult.Failed(UpdateSentences.INSTALLER_FAILED), result)
+-        assertFalse(rig.log.snapshot().any { it.startsWith("ledger.recordUpdate") })
+-    }
+-
+-    @Test
+-    fun `a signed empty release is refused as empty although its digest matches`() {
+-        val rig = CheckerRig()
+-        val emptyRelease = ReleaseInfo(
+-            version = "1.2.0",
+-            apkUrl = APK_URL,
+-            sha256 = EmptyFileVector.EMPTY_DIGEST,
+-            signature = EmptyFileVector.SIG_CURRENT_EMPTY,
+-        )
+-        rig.manifestWith(
+-            manifestJson(
+-                sha256 = EmptyFileVector.EMPTY_DIGEST,
+-                signature = EmptyFileVector.SIG_CURRENT_EMPTY,
+-            ),
+-        )
+-        assertEquals(UpdateCheckResult.Available(emptyRelease), rig.checker.check(false))
+-        assertEquals(
+-            StreamDigestResult.Matched(0L),
+-            verifyStreamDigest(ByteArrayInputStream(ByteArray(0)), EmptyFileVector.EMPTY_DIGEST, MAX_APK_BYTES),
+-        )
+-        rig.stageBytes(ByteArray(0))
+-        rig.log.clear()
+-        val result = rig.checker.install(emptyRelease)
+-        assertEquals(UpdateInstallResult.Refused(UpdateSentences.EMPTY), result)
+-        assertEquals(0, rig.installer.calls)
+-        assertFalse(rig.log.snapshot().contains("installer.install"))
+-        assertTrue(rig.log.snapshot().contains("discard"))
+-    }
+-}
+diff --git a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerRig.kt b/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerRig.kt
+deleted file mode 100644
+index 489ad517..00000000
+--- a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerRig.kt
++++ /dev/null
+@@ -1,131 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import dev.breaker.dictation.core.model.AuthSession
+-import dev.breaker.dictation.core.model.ReleaseInfo
+-import dev.breaker.dictation.core.model.UserRole
+-
+-/** The current epoch time that every test uses. */
+-internal const val NOW_MILLIS: Long = 1_700_000_000_000L
+-
+-/** The configured server address that the manifest source reports. */
+-internal const val SERVER_BASE: String = "https://breaker.example.test:8443"
+-
+-/** The download address of the default release; it is on the server origin. */
+-internal const val APK_URL: String = "https://breaker.example.test:8443/v1/apk/breaker.apk"
+-
+-/** A session token that must never reach a port. */
+-internal const val HIDDEN_TOKEN: String = "hidden-session-token-0001"
+-
+-/** The installed version code of the default test install: below the default release. */
+-internal const val INSTALLED_CODE_BELOW: Int = 11
+-
+-/** The installed display name of the default test install. */
+-internal const val INSTALLED_NAME: String = "1.2.0-installed"
+-
+-/** The payload of the golden vectors; its digest is the default release digest. */
+-internal val PAYLOAD: ByteArray = ManifestVectors.PAYLOAD_TEXT.toByteArray(Charsets.UTF_8)
+-
+-/** The pinned keys of the tests: the current key and the next key. */
+-internal val PINNED_KEYS: List<PinnedKey> = listOf(
+-    PinnedKey(ManifestVectors.CURRENT_KEY_ID, ManifestVectors.CURRENT_SPKI),
+-    PinnedKey(ManifestVectors.NEXT_KEY_ID, ManifestVectors.NEXT_SPKI),
+-)
+-
+-/** An administrator's session that carries the hidden token. */
+-internal fun adminSession(): AuthSession = AuthSession(
+-    userId = "user-1",
+-    username = "admin",
+-    token = HIDDEN_TOKEN,
+-    role = UserRole.ADMIN,
+-    scopes = emptySet(),
+-)
+-
+-/** An ordinary user's session that carries the hidden token. */
+-internal fun userSession(): AuthSession = AuthSession(
+-    userId = "user-2",
+-    username = "user",
+-    token = HIDDEN_TOKEN,
+-    role = UserRole.USER,
+-    scopes = emptySet(),
+-)
+-
+-/** The release that the default manifest offers. */
+-internal fun defaultRelease(): ReleaseInfo = ReleaseInfo(
+-    version = "1.2.0",
+-    apkUrl = APK_URL,
+-    sha256 = ManifestVectors.DIGEST,
+-    signature = ManifestVectors.SIG_CURRENT,
+-)
+-
+-/**
+- * The text of a manifest. The optional key id is left out when [keyId] is null. The default values make a
+- * manifest that the current key signs for version code 12.
+- */
+-internal fun manifestJson(
+-    version: String = "1.2.0",
+-    versionCode: String = ManifestVectors.VERSION_CODE,
+-    apkUrl: String = APK_URL,
+-    sha256: String = ManifestVectors.DIGEST,
+-    signature: String = ManifestVectors.SIG_CURRENT,
+-    keyId: String? = ManifestVectors.CURRENT_KEY_ID,
+-): String {
+-    val fields = mutableListOf(
+-        "\"version\": \"$version\"",
+-        "\"version_code\": \"$versionCode\"",
+-        "\"apk_url\": \"$apkUrl\"",
+-        "\"sha256\": \"$sha256\"",
+-        "\"signature\": \"$signature\"",
+-    )
+-    if (keyId != null) fields.add("\"key_id\": \"$keyId\"")
+-    return fields.joinToString(separator = ", ", prefix = "{", postfix = "}")
+-}
+-
+-/**
+- * One checker wired to fakes. The fakes share one call log, so a test reads the exact order of the calls. The
+- * checker is built on first use, so a test sets [apkByteCap] before it touches [checker].
+- */
+-internal class CheckerRig {
+-    val log = CallLog()
+-    val clock = FakeClock(NOW_MILLIS, log)
+-    val auth = FakeAuth(log)
+-    val ledger = FakeLedger(log)
+-    val manifests = FakeManifests(log)
+-    val downloads = FakeDownloads(log)
+-    val installer = FakeInstaller(log)
+-    val installed = FakeInstalled(log)
+-    var apkByteCap: Long? = null
+-
+-    val checker: ReleaseUpdateChecker by lazy {
+-        val cap = apkByteCap
+-        if (cap == null) {
+-            ReleaseUpdateChecker(clock, auth, ledger, manifests, downloads, installer, installed, PINNED_KEYS)
+-        } else {
+-            ReleaseUpdateChecker(clock, auth, ledger, manifests, downloads, installer, installed, PINNED_KEYS, cap)
+-        }
+-    }
+-
+-    init {
+-        manifests.next = ManifestLoad.Loaded(manifestJson(), SERVER_BASE)
+-        stageBytes(PAYLOAD)
+-    }
+-
+-    /** Makes the downloaded file hold [bytes]. */
+-    fun stageBytes(bytes: ByteArray) {
+-        downloads.next = ApkDownload.Staged(FakeStagedApk(RecordingStream(bytes, log), log))
+-    }
+-
+-    /** Makes the downloaded file one that cannot be read. */
+-    fun stageBroken() {
+-        downloads.next = ApkDownload.Staged(FakeStagedApk(BrokenStream(log), log))
+-    }
+-
+-    /** Makes the downloaded file one that cannot be opened. */
+-    fun stageUnopenable() {
+-        downloads.next = ApkDownload.Staged(FakeStagedApk(null, log))
+-    }
+-
+-    /** Makes the manifest source answer with [text] from the configured server. */
+-    fun manifestWith(text: String) {
+-        manifests.next = ManifestLoad.Loaded(text, SERVER_BASE)
+-    }
+-}
+diff --git a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerSourcePinTest.kt b/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerSourcePinTest.kt
+deleted file mode 100644
+index 08aa5b77..00000000
+--- a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerSourcePinTest.kt
++++ /dev/null
+@@ -1,91 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import java.io.File
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/**
+- * Reads the checker's main sources as text and pins the rules that a call record cannot show: the session
+- * token stays out of the code, only the current session is read, the byte cap is the named constant, and the
+- * fixed sentences are plain text. Each scan has a firing control and a quiet control.
+- */
+-internal class CheckerSourcePinTest {
+-
+-    private val mainRoot = File("src/main/kotlin")
+-
+-    private val checkerFile = "ReleaseUpdateChecker.kt"
+-
+-    /** The text of the file with block and line comments removed, so that only code is scanned. */
+-    private fun stripComments(text: String): String =
+-        text.replace(Regex("/\\*[\\s\\S]*?\\*/"), " ").replace(Regex("//[^\\n]*"), " ")
+-
+-    /** The words of the token family that the text holds in lower case. */
+-    private fun tokenWordsIn(text: String): List<String> {
+-        val lower = text.lowercase()
+-        return listOf("token", "bearer", "authorization").filter { lower.contains(it) }
+-    }
+-
+-    /** The main sources of the module as text, by file name; fails when the folder holds none. */
+-    private fun mainSources(): Map<String, String> {
+-        val texts = mainRoot.walkTopDown()
+-            .filter { it.isFile && it.extension == "kt" }
+-            .associate { it.name to it.readText() }
+-        assertTrue("the checker sources were not found under the main folder", texts.containsKey(checkerFile))
+-        return texts
+-    }
+-
+-    /** The problems with one sentence, by name; empty when the sentence is plain ASCII text with no link. */
+-    private fun sentenceProblems(sentence: String): List<String> = listOfNotNull(
+-        if (sentence.any { it.code > 127 }) "not ascii" else null,
+-        if (sentence.contains("http")) "a link" else null,
+-        if (sentence.contains("://")) "a scheme" else null,
+-        if (Regex("[0-9a-f]{40,}").containsMatchIn(sentence)) "a long hex run" else null,
+-        if (sentence.contains("PRIVATE")) "a private marker" else null,
+-    )
+-
+-    @Test
+-    fun `no main source holds the session token words in its code`() {
+-        assertTrue(tokenWordsIn(stripComments("val token = 1")).isNotEmpty())
+-        assertTrue(tokenWordsIn(stripComments("// token in a comment\nval count = 1")).isEmpty())
+-        for ((name, text) in mainSources()) {
+-            assertTrue("$name holds a token word in its code", tokenWordsIn(stripComments(text)).isEmpty())
+-        }
+-    }
+-
+-    @Test
+-    fun `the checker reads only the current session from the auth service`() {
+-        val text = stripComments(mainSources().getValue(checkerFile))
+-        val used = Regex("auth\\.[A-Za-z]+").findAll(text).map { it.value }.toSet()
+-        assertEquals(setOf("auth.currentSession"), used)
+-        assertEquals(setOf("auth.login"), Regex("auth\\.[A-Za-z]+").findAll("auth.login(x)").map { it.value }.toSet())
+-    }
+-
+-    @Test
+-    fun `the byte cap is the named constant of 256 MiB`() {
+-        assertEquals(268_435_456L, MAX_APK_BYTES)
+-    }
+-
+-    @Test
+-    fun `the checker takes the byte cap as a constructor default of the named constant`() {
+-        val text = mainSources().getValue(checkerFile)
+-        assertTrue(text.contains("private val apkByteCap: Long = MAX_APK_BYTES,"))
+-    }
+-
+-    @Test
+-    fun `every fixed sentence is plain ASCII text with no link, long hex run or private marker`() {
+-        assertTrue(sentenceProblems("see https://example.test/x").isNotEmpty())
+-        assertTrue(sentenceProblems("The update file could not be opened.").isEmpty())
+-        assertTrue(UpdateSentences.ALL.isNotEmpty())
+-        for (sentence in UpdateSentences.ALL) {
+-            assertTrue("a fixed sentence has a problem: ${sentenceProblems(sentence)}", sentenceProblems(sentence).isEmpty())
+-        }
+-    }
+-
+-    @Test
+-    fun `a canonical version code text parses and prints back unchanged`() {
+-        for (text in listOf("1", "12", "2100000000")) {
+-            assertEquals(text, VersionCode.parse(text)?.toString())
+-        }
+-    }
+-}
+diff --git a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/EmptyFileVector.kt b/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/EmptyFileVector.kt
+deleted file mode 100644
+index 4d850d89..00000000
+--- a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/EmptyFileVector.kt
++++ /dev/null
+@@ -1,11 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-/**
+- * A signed golden vector for an empty file: the digest of zero bytes, and a base64 DER signature over the signed
+- * text that names that digest and the version code 12. The signature was made with the current key of the golden
+- * vectors. Only public values appear here.
+- */
+-internal object EmptyFileVector {
+-    const val EMPTY_DIGEST: String = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+-    const val SIG_CURRENT_EMPTY: String = "MEUCIQDpf5llKfzxqmMHyT5KZJEPtkEdwSQcF6hcX8Bvk5o3ZgIgMkY3Io2cZ+qu6LpDQNK9jxaMMbZrXEyI23aMal1tkZ0="
+-}
+diff --git a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ManifestSignatureTest.kt b/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ManifestSignatureTest.kt
+deleted file mode 100644
+index bcc69239..00000000
+--- a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ManifestSignatureTest.kt
++++ /dev/null
+@@ -1,251 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-import java.security.InvalidKeyException
+-import java.security.NoSuchAlgorithmException
+-import java.security.PublicKey
+-import java.security.SignatureException
+-
+-/** Pins the manifest signature verdicts against the golden vectors. */
+-internal class ManifestSignatureTest {
+-    private val current = PinnedKey(ManifestVectors.CURRENT_KEY_ID, ManifestVectors.CURRENT_SPKI)
+-    private val next = PinnedKey(ManifestVectors.NEXT_KEY_ID, ManifestVectors.NEXT_SPKI)
+-
+-    private fun verify(
+-        keys: List<PinnedKey>,
+-        keyId: String?,
+-        versionCode: String,
+-        digest: String,
+-        signature: String,
+-    ): SignatureVerdict = verifyManifestSignature(keys, keyId, versionCode, digest, signature)
+-
+-    private fun refused(reason: SignatureRefusal): SignatureVerdict = SignatureVerdict.NotVerified(reason)
+-
+-    private fun derBytes(): ByteArray = decodeCanonicalBase64(ManifestVectors.SIG_CURRENT)!!
+-
+-    private fun encode(bytes: ByteArray): String = java.util.Base64.getEncoder().encodeToString(bytes)
+-
+-    private fun signedBytes(): ByteArray = manifestSignedBytes(ManifestVectors.VERSION_CODE, ManifestVectors.DIGEST)!!
+-
+-    private fun decodeThrowing(failure: Throwable): (ByteArray) -> PublicKey = { _ -> throw failure }
+-
+-    private fun verifyThrowing(failure: Throwable): (PublicKey, ByteArray, ByteArray) -> Boolean = { _, _, _ -> throw failure }
+-
+-    @Test
+-    fun currentKeyVerifiesItsSignature() {
+-        val result = verify(listOf(current, next), null, ManifestVectors.VERSION_CODE, ManifestVectors.DIGEST, ManifestVectors.SIG_CURRENT)
+-        assertEquals(SignatureVerdict.Verified, result)
+-        // The single-key check with the platform defaults accepts the signature, and refuses it once a bit is flipped.
+-        assertEquals(CandidateOutcome.VERIFIED, checkWithKey(current, signedBytes(), derBytes()))
+-        val flipped = derBytes()
+-        flipped[flipped.size - 1] = (flipped[flipped.size - 1].toInt() xor 0x01).toByte()
+-        assertEquals(CandidateOutcome.REJECTED, checkWithKey(current, signedBytes(), flipped))
+-    }
+-
+-    @Test
+-    fun keyIdSelectsSecondKey() {
+-        val result = verify(listOf(current, next), "next", ManifestVectors.VERSION_CODE, ManifestVectors.DIGEST, ManifestVectors.SIG_NEXT)
+-        assertEquals(SignatureVerdict.Verified, result)
+-    }
+-
+-    @Test
+-    fun noKeyIdAllowsAnyPinnedKey() {
+-        val result = verify(listOf(current, next), null, ManifestVectors.VERSION_CODE, ManifestVectors.DIGEST, ManifestVectors.SIG_NEXT)
+-        assertEquals(SignatureVerdict.Verified, result)
+-    }
+-
+-    @Test
+-    fun keyIdThatSelectsAnotherKeyRefusesSignature() {
+-        val result = verify(listOf(current, next), "next", ManifestVectors.VERSION_CODE, ManifestVectors.DIGEST, ManifestVectors.SIG_CURRENT)
+-        assertEquals(refused(SignatureRefusal.BAD_SIGNATURE), result)
+-    }
+-
+-    @Test
+-    fun keyIdIsCaseSensitive() {
+-        val result = verify(listOf(current, next), "NEXT", ManifestVectors.VERSION_CODE, ManifestVectors.DIGEST, ManifestVectors.SIG_NEXT)
+-        assertEquals(refused(SignatureRefusal.UNKNOWN_KEY_ID), result)
+-    }
+-
+-    @Test
+-    fun unknownKeyIdIsRefused() {
+-        val result = verify(listOf(current, next), "unpinned", ManifestVectors.VERSION_CODE, ManifestVectors.DIGEST, ManifestVectors.SIG_UNPINNED)
+-        assertEquals(refused(SignatureRefusal.UNKNOWN_KEY_ID), result)
+-    }
+-
+-    @Test
+-    fun unpinnedKeyNeverVerifies() {
+-        val result = verify(listOf(current, next), null, ManifestVectors.VERSION_CODE, ManifestVectors.DIGEST, ManifestVectors.SIG_UNPINNED)
+-        assertEquals(refused(SignatureRefusal.BAD_SIGNATURE), result)
+-    }
+-
+-    @Test
+-    fun emptyPinnedListVerifiesNothing() {
+-        val result = verify(emptyList(), null, ManifestVectors.VERSION_CODE, ManifestVectors.DIGEST, ManifestVectors.SIG_CURRENT)
+-        assertEquals(refused(SignatureRefusal.EMPTY_KEY_LIST), result)
+-    }
+-
+-    @Test
+-    fun duplicateIdPinnedListVerifiesNothing() {
+-        val twins = listOf(current, PinnedKey(ManifestVectors.CURRENT_KEY_ID, ManifestVectors.NEXT_SPKI))
+-        val result = verify(twins, null, ManifestVectors.VERSION_CODE, ManifestVectors.DIGEST, ManifestVectors.SIG_CURRENT)
+-        assertEquals(refused(SignatureRefusal.INVALID_KEY_LIST), result)
+-    }
+-
+-    @Test
+-    fun malformedKeyIdIsRefused() {
+-        val result = verify(listOf(current, next), "", ManifestVectors.VERSION_CODE, ManifestVectors.DIGEST, ManifestVectors.SIG_CURRENT)
+-        assertEquals(refused(SignatureRefusal.MALFORMED_KEY_ID), result)
+-    }
+-
+-    @Test
+-    fun versionBitFlipIsRefused() {
+-        // One bit of the last character of the version code is flipped: "12" becomes "13".
+-        assertEquals('2', ManifestVectors.VERSION_CODE[1])
+-        val result = verify(listOf(current, next), null, "13", ManifestVectors.DIGEST, ManifestVectors.SIG_CURRENT)
+-        assertEquals(refused(SignatureRefusal.BAD_SIGNATURE), result)
+-    }
+-
+-    @Test
+-    fun oldNameSignatureDoesNotVerify() {
+-        // The signature covers the retired name-based string "breaker-update-v1\n1.2.0\n" + digest.
+-        val byCode = verify(listOf(current, next), null, ManifestVectors.VERSION_CODE, ManifestVectors.DIGEST, ManifestVectors.SIG_OLD_NAME)
+-        assertEquals(refused(SignatureRefusal.BAD_SIGNATURE), byCode)
+-        val byName = verify(listOf(current, next), null, "1.2.0", ManifestVectors.DIGEST, ManifestVectors.SIG_OLD_NAME)
+-        assertEquals(refused(SignatureRefusal.MALFORMED_INPUT), byName)
+-    }
+-
+-    @Test
+-    fun digestBitFlipIsRefused() {
+-        // The first digest character is "9"; one bit flipped gives "8", which is still lowercase hex.
+-        assertEquals('9', ManifestVectors.DIGEST[0])
+-        val flipped = "8" + ManifestVectors.DIGEST.substring(1)
+-        val result = verify(listOf(current, next), null, ManifestVectors.VERSION_CODE, flipped, ManifestVectors.SIG_CURRENT)
+-        assertEquals(refused(SignatureRefusal.BAD_SIGNATURE), result)
+-    }
+-
+-    @Test
+-    fun signatureBitFlipIsRefused() {
+-        // The last byte of the DER signature has its lowest bit flipped; the DER stays well formed.
+-        val der = derBytes()
+-        der[der.size - 1] = (der[der.size - 1].toInt() xor 0x01).toByte()
+-        val result = verify(listOf(current, next), null, ManifestVectors.VERSION_CODE, ManifestVectors.DIGEST, encode(der))
+-        assertEquals(refused(SignatureRefusal.BAD_SIGNATURE), result)
+-    }
+-
+-    @Test
+-    fun truncatedDerIsMalformed() {
+-        val der = derBytes()
+-        val result = verify(listOf(current, next), null, ManifestVectors.VERSION_CODE, ManifestVectors.DIGEST, encode(der.copyOf(der.size - 1)))
+-        assertEquals(refused(SignatureRefusal.MALFORMED_INPUT), result)
+-    }
+-
+-    @Test
+-    fun shortAndZeroSignaturesAreMalformed() {
+-        val der = derBytes()
+-        val eightBytes = verify(listOf(current, next), null, ManifestVectors.VERSION_CODE, ManifestVectors.DIGEST, encode(der.copyOf(8)))
+-        assertEquals(refused(SignatureRefusal.MALFORMED_INPUT), eightBytes)
+-        val zeros = verify(listOf(current, next), null, ManifestVectors.VERSION_CODE, ManifestVectors.DIGEST, encode(ByteArray(72)))
+-        assertEquals(refused(SignatureRefusal.MALFORMED_INPUT), zeros)
+-    }
+-
+-    @Test
+-    fun emptySignatureIsMalformed() {
+-        val result = verify(listOf(current, next), null, ManifestVectors.VERSION_CODE, ManifestVectors.DIGEST, "")
+-        assertEquals(refused(SignatureRefusal.MALFORMED_INPUT), result)
+-    }
+-
+-    @Test
+-    fun unpaddedSignatureIsMalformed() {
+-        // SIG_NEXT is a 70-byte DER signature. 70 is not a multiple of 3, so its base64 text ends in "==".
+-        // The text as it is verifies with the next key; dropping one or both padding characters must be refused.
+-        assertEquals(0, ManifestVectors.SIG_NEXT.length % 4)
+-        assertTrue(ManifestVectors.SIG_NEXT.endsWith("=="))
+-        val control = verify(listOf(current, next), null, ManifestVectors.VERSION_CODE, ManifestVectors.DIGEST, ManifestVectors.SIG_NEXT)
+-        assertEquals(SignatureVerdict.Verified, control)
+-        val oneDropped = verify(listOf(current, next), null, ManifestVectors.VERSION_CODE, ManifestVectors.DIGEST, ManifestVectors.SIG_NEXT.dropLast(1))
+-        assertEquals(refused(SignatureRefusal.MALFORMED_INPUT), oneDropped)
+-        val bothDropped = verify(listOf(current, next), null, ManifestVectors.VERSION_CODE, ManifestVectors.DIGEST, ManifestVectors.SIG_NEXT.dropLast(2))
+-        assertEquals(refused(SignatureRefusal.MALFORMED_INPUT), bothDropped)
+-    }
+-
+-    @Test
+-    fun trailingLfSignatureIsRefused() {
+-        val result = verify(listOf(current, next), null, ManifestVectors.VERSION_CODE, ManifestVectors.DIGEST, ManifestVectors.SIG_CURRENT_OVER_LF)
+-        assertEquals(refused(SignatureRefusal.BAD_SIGNATURE), result)
+-    }
+-
+-    @Test
+-    fun upperCaseDigestIsMalformedInput() {
+-        val result = verify(listOf(current, next), null, ManifestVectors.VERSION_CODE, ManifestVectors.DIGEST.uppercase(), ManifestVectors.SIG_CURRENT)
+-        assertEquals(refused(SignatureRefusal.MALFORMED_INPUT), result)
+-    }
+-
+-    @Test
+-    fun malformedPinnedKeyDoesNotHideGoodKey() {
+-        val keys = listOf(PinnedKey("bad", "AAAA"), current)
+-        val result = verify(keys, null, ManifestVectors.VERSION_CODE, ManifestVectors.DIGEST, ManifestVectors.SIG_CURRENT)
+-        assertEquals(SignatureVerdict.Verified, result)
+-    }
+-
+-    @Test
+-    fun unparsableSpkiVerifiesNothing() {
+-        val keys = listOf(PinnedKey("bad", "AAAA"))
+-        val result = verify(keys, "bad", ManifestVectors.VERSION_CODE, ManifestVectors.DIGEST, ManifestVectors.SIG_CURRENT)
+-        assertEquals(refused(SignatureRefusal.NO_USABLE_KEY), result)
+-    }
+-
+-    @Test
+-    fun nonCanonicalPinnedKeyTextVerifiesNothing() {
+-        val keys = listOf(PinnedKey("bad", "%%%"))
+-        val result = verify(keys, "bad", ManifestVectors.VERSION_CODE, ManifestVectors.DIGEST, ManifestVectors.SIG_CURRENT)
+-        assertEquals(refused(SignatureRefusal.NO_USABLE_KEY), result)
+-    }
+-
+-    @Test
+-    fun nonBase64SignatureIsMalformed() {
+-        val result = verify(listOf(current, next), null, ManifestVectors.VERSION_CODE, ManifestVectors.DIGEST, "%%%")
+-        assertEquals(refused(SignatureRefusal.MALFORMED_INPUT), result)
+-    }
+-
+-    @Test
+-    fun keyFactoryRuntimeFailureMakesKeyUnusable() {
+-        val decode = decodeThrowing(RuntimeException("test failure"))
+-        assertEquals(CandidateOutcome.UNUSABLE_KEY, checkWithKey(current, signedBytes(), derBytes(), decodeKey = decode))
+-        val result = verifyManifestSignature(listOf(current), null, ManifestVectors.VERSION_CODE, ManifestVectors.DIGEST, ManifestVectors.SIG_CURRENT, decodeKey = decode)
+-        assertEquals(refused(SignatureRefusal.NO_USABLE_KEY), result)
+-    }
+-
+-    @Test
+-    fun verifierSignatureExceptionIsMalformedSignature() {
+-        val throwing = verifyThrowing(SignatureException("test failure"))
+-        assertEquals(CandidateOutcome.MALFORMED_SIGNATURE, checkWithKey(current, signedBytes(), derBytes(), verify = throwing))
+-        val result = verifyManifestSignature(listOf(current), null, ManifestVectors.VERSION_CODE, ManifestVectors.DIGEST, ManifestVectors.SIG_CURRENT, verify = throwing)
+-        assertEquals(refused(SignatureRefusal.MALFORMED_INPUT), result)
+-    }
+-
+-    @Test
+-    fun verifierInvalidKeyExceptionMakesKeyUnusable() {
+-        val throwing = verifyThrowing(InvalidKeyException("test failure"))
+-        assertEquals(CandidateOutcome.UNUSABLE_KEY, checkWithKey(current, signedBytes(), derBytes(), verify = throwing))
+-        val result = verifyManifestSignature(listOf(current), null, ManifestVectors.VERSION_CODE, ManifestVectors.DIGEST, ManifestVectors.SIG_CURRENT, verify = throwing)
+-        assertEquals(refused(SignatureRefusal.NO_USABLE_KEY), result)
+-    }
+-
+-    @Test
+-    fun verifierSecurityExceptionMakesKeyUnusable() {
+-        val throwing = verifyThrowing(NoSuchAlgorithmException("test failure"))
+-        assertEquals(CandidateOutcome.UNUSABLE_KEY, checkWithKey(current, signedBytes(), derBytes(), verify = throwing))
+-        val result = verifyManifestSignature(listOf(current), null, ManifestVectors.VERSION_CODE, ManifestVectors.DIGEST, ManifestVectors.SIG_CURRENT, verify = throwing)
+-        assertEquals(refused(SignatureRefusal.NO_USABLE_KEY), result)
+-    }
+-
+-    @Test
+-    fun verifierRuntimeExceptionMakesKeyUnusable() {
+-        val throwing = verifyThrowing(RuntimeException("test failure"))
+-        assertEquals(CandidateOutcome.UNUSABLE_KEY, checkWithKey(current, signedBytes(), derBytes(), verify = throwing))
+-        val result = verifyManifestSignature(listOf(current), null, ManifestVectors.VERSION_CODE, ManifestVectors.DIGEST, ManifestVectors.SIG_CURRENT, verify = throwing)
+-        assertEquals(refused(SignatureRefusal.NO_USABLE_KEY), result)
+-    }
+-}
+diff --git a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/PinnedKeyTest.kt b/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/PinnedKeyTest.kt
+deleted file mode 100644
+index 2432d176..00000000
+--- a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/PinnedKeyTest.kt
++++ /dev/null
+@@ -1,45 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/** Pins the key id syntax and the rules for a pinned list. */
+-internal class PinnedKeyTest {
+-    @Test
+-    fun wellFormedKeyIdsAreAccepted() {
+-        assertTrue(isWellFormedKeyId("a"))
+-        assertTrue(isWellFormedKeyId("a".repeat(64)))
+-        assertTrue(isWellFormedKeyId("A.b_c-9"))
+-    }
+-
+-    @Test
+-    fun malformedKeyIdsAreRefused() {
+-        assertFalse(isWellFormedKeyId(""))
+-        assertFalse(isWellFormedKeyId("a".repeat(65)))
+-        assertFalse(isWellFormedKeyId("a b"))
+-        assertFalse(isWellFormedKeyId("a/b"))
+-        assertFalse(isWellFormedKeyId("a\u00e9"))
+-    }
+-
+-    @Test
+-    fun duplicateIdListIsNotUsable() {
+-        val keys = listOf(
+-            PinnedKey(ManifestVectors.CURRENT_KEY_ID, ManifestVectors.CURRENT_SPKI),
+-            PinnedKey(ManifestVectors.CURRENT_KEY_ID, ManifestVectors.NEXT_SPKI),
+-        )
+-        assertFalse(pinnedKeysAreUsable(keys))
+-    }
+-
+-    @Test
+-    fun emptyListIsNotUsable() {
+-        assertFalse(pinnedKeysAreUsable(emptyList()))
+-    }
+-
+-    @Test
+-    fun pinnedKeyDoesNotPrintKeyText() {
+-        val text = PinnedKey(ManifestVectors.CURRENT_KEY_ID, ManifestVectors.CURRENT_SPKI).toString()
+-        assertFalse(text.contains(ManifestVectors.CURRENT_SPKI))
+-        assertTrue(text.contains(ManifestVectors.CURRENT_KEY_ID))
+-    }
+-}
+diff --git a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/StreamDigestTest.kt b/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/StreamDigestTest.kt
+deleted file mode 100644
+index 48a85197..00000000
+--- a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/StreamDigestTest.kt
++++ /dev/null
+@@ -1,157 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertTrue
+-import org.junit.Assert.fail
+-import org.junit.Test
+-import java.io.ByteArrayInputStream
+-import java.io.IOException
+-import java.io.InputStream
+-
+-/** Pins the streamed digest: the result kinds, the byte cap and the reads. */
+-internal class StreamDigestTest {
+-    private fun payload(): ByteArray = ManifestVectors.PAYLOAD_TEXT.toByteArray(Charsets.UTF_8)
+-
+-    private fun countingEmptyStream(reads: IntArray): InputStream = object : InputStream() {
+-        override fun read(): Int {
+-            reads[0]++
+-            return -1
+-        }
+-
+-        override fun read(b: ByteArray, off: Int, len: Int): Int {
+-            reads[0]++
+-            return -1
+-        }
+-    }
+-
+-    @Test
+-    fun matchingStreamIsMatched() {
+-        val bytes = payload()
+-        val result = verifyStreamDigest(ByteArrayInputStream(bytes), ManifestVectors.DIGEST, 1024L)
+-        assertEquals(StreamDigestResult.Matched(bytes.size.toLong()), result)
+-    }
+-
+-    @Test
+-    fun changedByteIsMismatched() {
+-        val bytes = payload()
+-        bytes[0] = (bytes[0].toInt() xor 0x01).toByte()
+-        val result = verifyStreamDigest(ByteArrayInputStream(bytes), ManifestVectors.DIGEST, 1024L)
+-        assertEquals(StreamDigestResult.Mismatched(bytes.size.toLong()), result)
+-    }
+-
+-    @Test
+-    fun oneByteOverCapIsTooLarge() {
+-        val size = payload().size.toLong()
+-        val result = verifyStreamDigest(ByteArrayInputStream(payload()), ManifestVectors.DIGEST, size - 1)
+-        assertEquals(StreamDigestResult.TooLarge, result)
+-    }
+-
+-    @Test
+-    fun exactCapStreamIsNotTooLarge() {
+-        val size = payload().size.toLong()
+-        val result = verifyStreamDigest(ByteArrayInputStream(payload()), ManifestVectors.DIGEST, size)
+-        assertEquals(StreamDigestResult.Matched(size), result)
+-    }
+-
+-    @Test
+-    fun oneByteShortIsMismatched() {
+-        val short = payload().copyOf(payload().size - 1)
+-        val result = verifyStreamDigest(ByteArrayInputStream(short), ManifestVectors.DIGEST, 1024L)
+-        assertEquals(StreamDigestResult.Mismatched(short.size.toLong()), result)
+-    }
+-
+-    @Test
+-    fun emptyStreamIsMismatched() {
+-        val result = verifyStreamDigest(ByteArrayInputStream(ByteArray(0)), ManifestVectors.DIGEST, 1024L)
+-        assertEquals(StreamDigestResult.Mismatched(0L), result)
+-    }
+-
+-    @Test
+-    fun ioErrorIsUnreadable() {
+-        val failing = object : InputStream() {
+-            override fun read(): Int = throw IOException("test failure")
+-
+-            override fun read(b: ByteArray, off: Int, len: Int): Int = throw IOException("test failure")
+-        }
+-        assertEquals(StreamDigestResult.Unreadable, verifyStreamDigest(failing, ManifestVectors.DIGEST, 1024L))
+-    }
+-
+-    @Test
+-    fun zeroByteReadsAreUnreadable() {
+-        var calls = 0
+-        val zeros = object : InputStream() {
+-            override fun read(): Int = -1
+-
+-            override fun read(b: ByteArray, off: Int, len: Int): Int {
+-                calls++
+-                return if (calls <= 3) 0 else -1
+-            }
+-        }
+-        assertEquals(StreamDigestResult.Unreadable, verifyStreamDigest(zeros, ManifestVectors.DIGEST, 1024L))
+-    }
+-
+-    @Test
+-    fun negativeCapIsRefused() {
+-        try {
+-            verifyStreamDigest(ByteArrayInputStream(payload()), ManifestVectors.DIGEST, -1L)
+-            fail("a negative cap must be refused")
+-        } catch (expected: IllegalArgumentException) {
+-            assertTrue(expected.message!!.contains("cap"))
+-        }
+-    }
+-
+-    @Test
+-    fun upperCaseExpectedDigestIsRefusedBeforeRead() {
+-        val reads = IntArray(1)
+-        val result = verifyStreamDigest(countingEmptyStream(reads), ManifestVectors.DIGEST.uppercase(), 1024L)
+-        assertEquals(StreamDigestResult.ExpectedMalformed, result)
+-        assertEquals(0, reads[0])
+-    }
+-
+-    @Test
+-    fun wrongLengthExpectedDigestIsRefusedBeforeRead() {
+-        val reads = IntArray(1)
+-        val result = verifyStreamDigest(countingEmptyStream(reads), ManifestVectors.DIGEST.dropLast(1), 1024L)
+-        assertEquals(StreamDigestResult.ExpectedMalformed, result)
+-        assertEquals(0, reads[0])
+-    }
+-
+-    @Test
+-    fun readsStopAtCapPlusOne() {
+-        val consumed = LongArray(1)
+-        val source = ByteArrayInputStream(ByteArray(1000))
+-        val metered = object : InputStream() {
+-            override fun read(): Int {
+-                val b = source.read()
+-                if (b >= 0) consumed[0] += 1L
+-                return b
+-            }
+-
+-            override fun read(b: ByteArray, off: Int, len: Int): Int {
+-                val n = source.read(b, off, len)
+-                if (n > 0) consumed[0] += n.toLong()
+-                return n
+-            }
+-        }
+-        assertEquals(StreamDigestResult.TooLarge, verifyStreamDigest(metered, ManifestVectors.DIGEST, 10L))
+-        assertTrue(consumed[0] <= 11L)
+-    }
+-
+-    @Test
+-    fun streamIsNotClosedByFunction() {
+-        val closed = BooleanArray(1)
+-        val inner = ByteArrayInputStream(payload())
+-        val watched = object : InputStream() {
+-            override fun read(): Int = inner.read()
+-
+-            override fun read(b: ByteArray, off: Int, len: Int): Int = inner.read(b, off, len)
+-
+-            override fun close() {
+-                closed[0] = true
+-            }
+-        }
+-        verifyStreamDigest(watched, ManifestVectors.DIGEST, 1024L)
+-        assertFalse(closed[0])
+-    }
+-}
