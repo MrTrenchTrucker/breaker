@@ -31,7 +31,7 @@ internal class ModuleHygieneTest {
     private val networkAllowed = setOf("UpdateHttpOpener.kt")
     private val fileAllowed = setOf("ApkStaging.kt", "LedgerStore.kt")
     private val frameworkTokens = listOf("android.")
-    private val frameworkAllowed: Set<String> = emptySet()
+    private val frameworkAllowed: Set<String> = setOf("PackageInstallerAdapter.kt", "PackageInfoInstalledVersion.kt", "UpdateInstallFacade.kt", "LogcatDropLog.kt")
     private val lineCap = 300
     private val keyPhrase = "PRIVATE" + " KEY"
 

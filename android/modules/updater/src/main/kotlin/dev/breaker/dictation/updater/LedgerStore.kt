@@ -26,8 +26,38 @@ internal interface LedgerSlot {
     fun applyChange(removeRecord: Boolean, lastSeenCode: FieldEdit<Int>, lastOutcome: FieldEdit<String>)
 }
 
+/** The text between a ledger file name and the sequence number of its temporary file name. */
+internal const val LEDGER_TEMP_MARKER: String = ".tmp"
+
 /** The name of the temporary file for the write with [sequence], in the same folder as the file named [ledgerName]. */
-internal fun ledgerTempName(ledgerName: String, sequence: Int): String = ledgerName + ".tmp" + sequence.toString()
+internal fun ledgerTempName(ledgerName: String, sequence: Int): String = ledgerName + LEDGER_TEMP_MARKER + sequence.toString()
+
+/** True when [candidate] is a name that [ledgerTempName] makes for [ledgerName]: the name, the marker, then one or more digits. */
+internal fun isLedgerTempName(ledgerName: String, candidate: String): Boolean {
+    if (!candidate.startsWith(ledgerName + LEDGER_TEMP_MARKER)) return false
+    val digits = candidate.substring(ledgerName.length + LEDGER_TEMP_MARKER.length)
+    return digits.isNotEmpty() && digits.all { it in '0'..'9' }
+}
+
+/**
+ * Removes the temporary files that an interrupted ledger write left in the folder of [ledgerFile]. Only a regular file
+ * whose name [isLedgerTempName] accepts is removed. A missing folder does nothing, and a file that cannot be removed is
+ * left in place, so the sweep never throws.
+ */
+internal fun sweepStaleLedgerTemps(ledgerFile: File) {
+    val folder = ledgerFile.absoluteFile.parentFile ?: return
+    val names = folder.list() ?: return
+    for (name in names) {
+        if (!isLedgerTempName(ledgerFile.name, name)) continue
+        val candidate = File(folder, name)
+        if (!candidate.isFile) continue
+        try {
+            Files.deleteIfExists(candidate.toPath())
+        } catch (error: Exception) {
+            Unit
+        }
+    }
+}
 
 /**
  * The ledger file: the three times, the install record, the last seen code and the last outcome in one text file.

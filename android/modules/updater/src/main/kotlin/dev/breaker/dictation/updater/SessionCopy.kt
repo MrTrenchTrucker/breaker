@@ -36,3 +36,13 @@ internal fun copyChecked(input: InputStream, out: OutputStream, expectedSha256: 
     if (copied > capBytes) return CheckedCopy.TooLarge
     return if (toLowerHex(digest.digest()) == expectedSha256) CheckedCopy.Matched else CheckedCopy.Mismatched
 }
+
+/**
+ * The installer's answer for a checked copy that did not match: a digest mismatch or an overrun is DigestMismatch, and
+ * a read failure is Failed. A matched copy gives null, so the installer may go on to commit the session.
+ */
+internal fun resultOfCheckedCopy(copy: CheckedCopy): InstallerResult? = when (copy) {
+    CheckedCopy.Matched -> null
+    CheckedCopy.Mismatched, CheckedCopy.TooLarge -> InstallerResult.DigestMismatch
+    CheckedCopy.Failed -> InstallerResult.Failed
+}
