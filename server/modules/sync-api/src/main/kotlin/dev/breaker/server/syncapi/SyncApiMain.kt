@@ -3,6 +3,7 @@ package dev.breaker.server.syncapi
 import dev.breaker.server.syncapi.accounts.AccountStore
 import dev.breaker.server.syncapi.db.SqliteDatabase
 import dev.breaker.server.syncapi.tokens.TokenStore
+import dev.breaker.server.syncapi.transcriptions.TranscriptionStore
 import io.ktor.server.application.ApplicationStopped
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.embeddedServer
@@ -20,8 +21,9 @@ fun main() {
     val db = SqliteDatabase.open(config.dbPath)
     val accountStore = AccountStore(db)
     val tokenStore = TokenStore(db)
+    val transcriptionStore = TranscriptionStore(db)
     embeddedServer(CIO, host = config.host, port = config.port) {
-        syncApiModule(accountStore, tokenStore)
+        syncApiModule(accountStore, tokenStore, transcriptionStore)
         monitor.subscribe(ApplicationStopped) { db.close() }
     }.start(wait = true)
 }

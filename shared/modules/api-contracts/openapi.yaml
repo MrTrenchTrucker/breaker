@@ -370,6 +370,19 @@ paths:
         refuses URL-safe characters, wrong or missing padding and non-zero bits
         after the last data bit. The codec sets no size limit; the server route
         sets one when it is built.
+
+        The limits are set here. The token is checked before the body is read.
+        The raw request body is read up to 131072 bytes: a body with a larger
+        Content-Length, or one that passes the limit while it is read, is
+        answered 413, and the rest of it is not read. The decoded encrypted text
+        of a push is at most 65536 bytes; a larger one is answered 413. Both
+        refusals come before any write to the store. A body that is not the
+        required JSON object, or whose client_id is not valid, or whose encrypted
+        text is not strict base64, is answered 400, and nothing is stored. The
+        encrypted text must be strict base64 and within the size limit at every
+        key_version; it is read as a sync body only at key_version 0. A key_version
+        above the account's current key_version is refused with 409 and nothing is
+        stored.
       operationId: syncPush
       security:
         - bearerAuth: []
@@ -404,6 +417,24 @@ paths:
               example:
                 error: "forbidden"
                 message: "User session token required; an agent token is refused"
+        "400":
+          description: Malformed sync body (not one JSON object with the three keys, a bad client_id or key_version, an encrypted text that is not strict base64, or a key_version 0 text that is not a valid sync body)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "bad_request"
+                message: "Sync body is not valid"
+        "413":
+          description: Request body over 131072 bytes, or decoded encrypted text over 65536 bytes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "payload_too_large"
+                message: "Request or encrypted text is over the size limit"
         "409":
           description: Version refused
           content:

@@ -8,7 +8,7 @@ import org.junit.Test
 internal class SchemaV2MigrationTest : TempDatabaseTest() {
 
     @Test
-    fun `a version 1 database migrates to version 2 with its account rows intact`() {
+    fun `a version 1 database migrates with its account rows intact`() {
         val first = openTemp(listOf(SchemaV1.MIGRATION))
         val verifierHash = ByteArray(32) { index -> (index + 40).toByte() }
         val createdAt = 1_700_000_123_456L
@@ -31,7 +31,7 @@ internal class SchemaV2MigrationTest : TempDatabaseTest() {
         val second = reopen(first)
 
         inTransaction(second) { connection ->
-            assertEquals("sync-api: user_version after the upgrade", 2, TestDatabases.userVersion(connection))
+            assertEquals("sync-api: user_version after the upgrade", 3, TestDatabases.userVersion(connection))
             assertEquals(
                 "sync-api: accounts and tokens must both exist after the upgrade",
                 listOf("accounts", "tokens"),

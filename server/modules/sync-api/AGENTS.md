@@ -20,7 +20,7 @@ here (N13).
 - `POST /v1/auth/salt` — `{username} -> {salt, kdf_params, kdf_version}`.
   **No decoy**: an unknown username gets an honest "no such account" (ADR-006
   — account discovery sits inside the VPN perimeter, docs/01/05).
-- `POST /v1/auth/login` — `{username, auth_verifier} -> {token, role,
+- `POST /v1/auth/login` (on main today every key field is `null` and `key_version` is 0, because key storage is not built; the text after this note is the finished response) — `{username, auth_verifier} -> {token, role,
   wrapped_dek, wrapped_box_privkey, box_pubkey, key_version, prev_wrapped_dek,
   reset_at, rekeyed_at}` (the three key fields (one of them, `box_pubkey`,
   plain rather than wrapped) are `null` together for a keyless account;
@@ -87,7 +87,7 @@ here (N13).
   to tell "an ordinary change" and "the change after a reset" apart, it just
   accepts the new wrapped/plain values for the fields it owns and deletes any
   pending-sealed row still sealed to the `box_pubkey` it just replaced.
-- `POST /v1/sync` — push transcriptions. Idempotent (N12) on the **pair**
+- `POST /v1/sync` — push transcriptions. (Finished design, not built yet: the replace and the lower-version 409. Built today: the 409 above the current key_version.) Idempotent (N12) on the **pair**
   (`client_id`, `key_version`), not on `client_id` alone: the same pair is a
   no-op (two devices' AES-256-GCM ciphertexts for the same plaintext never
   match on their own, because each uses a fresh nonce, so this is a real
@@ -238,7 +238,7 @@ completes it by rotating the DEK at the account's next password change
   accepts a same-or-lower `new_key_version` (test: replay an old value,
   confirm the 4xx) — there is no call shape that re-wraps without advancing
   it.
-- `POST /v1/sync` never treats a higher-`key_version` push at an existing
+- (Finished design, not built yet.) `POST /v1/sync` never treats a higher-`key_version` push at an existing
   `client_id` as a duplicate, and never treats a lower one as an update — the
   first replaces, the second is refused (test: push both orders, confirm the
   replace and the 409).
@@ -363,14 +363,14 @@ agents, not required: an outside contributor may write the code themselves
 - The token store knows no caller: a route must check the token's `kind` and
   its effective scope itself. Which endpoint takes which token:
   - `POST /v1/auth/keys`, `POST /v1/auth/change-password`, `POST /v1/sync` and
-    `GET /v1/sync/pending-sealed` need a session token; an agent token is
+    `GET /v1/sync/pending-sealed` and `GET /v1/transcriptions` need a session token; an agent token is
     refused.
   - `POST /v1/audio/transcriptions` and `GET /v1/jobs/{id}` accept an agent
     token or a session token.
   - The admin endpoints need role admin for a session token and effective
     scope admin for an agent token.
-- There is no logout and no session expiry yet, so a session row stays until
-  `change-password`, a reset or the deletion of the account removes it. Rows
+- Logout (`POST /v1/auth/logout`) revokes only the presented session token and answers 204; any token that is not a live session (an agent token included) gets 401. There is no session expiry yet, so a session row stays until
+  `change-password`, a reset, logout or the deletion of the account removes it. Rows
   that are revoked or expired are never purged yet.
 - A revoked row is kept (a soft revoke), so a token id is never reused and
   revoking twice changes nothing.
