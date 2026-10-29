@@ -1,0 +1,325 @@
+diff --git a/android/app/AGENTS.md b/android/app/AGENTS.md
+index 5e94e4cc..21fb4aa4 100644
+--- a/android/app/AGENTS.md
++++ b/android/app/AGENTS.md
+@@ -63,12 +63,6 @@ app-level composition of all modules. Concretely, the app's own types are:
+   - `ModelSupport.kt` - `ModelSentences`, `StoreModelReady`, `ModelInstallPort` (with `InstallerPort` and `modelInstallPortFor`, the adapter over the installer of the speech module), `InstallOutcome` (`Installed`, `NoSpace`, `Refused`), `ModelDownloadNotice`, `DownloadOutcome` and `ModelDownloader`, whose `requestDownload` is the one download entry point. `ModelSentences` holds the downloading sentence template (`DOWNLOADING_TEMPLATE`) with the `downloadingFor(sizeMb)` function that fills in the converted size, and the `mibToMb(sizeMb)` conversion from mebibytes to the decimal megabytes Android shows. `ModelSentences` also holds `CHECKING` and the progress sentences (`progressFor`, `progressUnknownFor`), with `doneMb` and `totalMb` for the megabyte counts; `ModelDownloadNotice` has a `progress` method, and `ModelInstallPort` has a callback form of `install` whose default ignores the reports.
+   - `Swaps.kt` - the swap points, in the table below (none of them names an Android type).
+   - `AndroidSwaps.kt` - the android half of the swap points: the swaps that need an Android type live here, namely `appTextCommitter(context)` (the accessibility commit), `appMicSource(audioManager)` (the real microphone) and `appGesture(context)` with its `ShakeGesture` mapping (the real shake of the phone, read from the accelerometer), and `appTakenClipboard(context)` (the clipboard a taken take copies to, main thread). They are kept out of `Swaps.kt` so that file stays plain.
+-  - `KeyboardHideHold` (internal) - keeps a keyboard-gone hide that comes during a take and lets it through once, when the take leaves flight, if the last keyboard reading still says the keyboard is gone; a keyboard show, a user close or a switch-off clears it. Plain Kotlin.
+-  - `KeyboardReevaluation` (internal) - holds the newest keyboard reading that arrives inside the 250 ms debounce window and re-evaluates it once, when the window ends, through the `DelayedPost` seam; at most one post is pending.
+-  - `KeyboardTileDecision.kt` - the public sealed type `KeyboardDecision` (`Show`, `Hide`, `NoOp`) and the internal pure function `decision` over four presence flags and two time stamps, with `DEBOUNCE_MS` (250).
+-  - `KeyboardTileSession` (internal) - the keyboard session's flags (active, raised, closed during the session) and the last reading pair; `onKeyboardReading` returns the decision the coordinator acts on and never shows or hides the tile.
+-  - `KeyboardTileWiring` (internal) - collects the readings of the commit module's holder on `Dispatchers.IO`, skips the reading that was current when it started, and posts each other reading to the main thread through `MainPost`.
+-  - `TilePortCalls` (internal) - the coordinator's port calls that may throw (session state, model check, background submit); each answers a fixed value (`IDLE`, `false`, `false`) when its port throws.
+ 
+ After a send the tile shows SENT until the next begin, cancel, tap or switch-off. A send whose text was committed, or only reached the clipboard, also shows SENT; a failed commit shows FAILED with its sentence. A tap on a tile that shows SENT starts a take; a shake does not (see invariant 18). The text itself is never given to the tile, and there are two timers: the notice clear that lines 147-150 describe, and the keyboard tile's one pending re-evaluation at the end of its 250 ms debounce window. The app does not push SENT_LOCAL: no producer exists, because the server path is not built, and a server failure is surfaced, not retried on the phone.
+ 
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt
+index 6bf18e68..2a80c136 100644
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt
++++ b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt
+@@ -250,7 +250,7 @@ class TileCoordinator(
+         lastFailed = false
+         beginPending = false
+         tileShown = false
+-        heldHide.clearOnSwitchOff(); keyboardTile.releaseRaised()
++        if (heldHide.clearOnSwitchOff()) keyboardTile.releaseRaised()
+         reevaluation.cancel()
+         lastCommit = null
+         push()
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateTest.kt
+index cb07cf45..ee4861ae 100644
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateTest.kt
++++ b/android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateTest.kt
+@@ -85,7 +85,7 @@ class AppLayoutGateTest : AppLayoutGateRules() {
+             "a longer name" to edit("a longer name", goodPlain, "= 1", "= androidLike + androidx + Android.x + androids.y"),
+             "a name ending in the word" to edit("a name end", goodPlain, "= 1", "= myandroid.value"),
+             "a member of another name" to edit("a member", goodPlain, "= 1", "= other.android.value"),
+-            "a name in backticks" to edit("backticks", goodPlain, "class A", "class T { fun `uses android.util.Log`() {} }\nclass A"),
++            "a name in backticks" to edit("backticks", goodPlain, "class A", "class T { fun `uses android.util.Log`() {}\nclass A"),
+             "a longer package" to edit("a package", goodPlain, "import dev.breaker.dictation.core.Thing", "import dev.breaker.dictation.android.Thing"),
+         )
+         for ((label, source) in quiet) {
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileWiringTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileWiringTest.kt
+index 9327ac1a..89ef8d4b 100644
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileWiringTest.kt
++++ b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileWiringTest.kt
+@@ -2,45 +2,17 @@ package dev.breaker.dictation.wiring
+ 
+ import dev.breaker.dictation.commit.KeyboardProbeReadings
+ import dev.breaker.dictation.commit.ProbeReading
+-import java.util.concurrent.atomic.AtomicInteger
+-import kotlinx.coroutines.CompletableDeferred
+ import kotlinx.coroutines.cancel
+ import kotlinx.coroutines.Dispatchers
+ import kotlinx.coroutines.launch
+ import kotlinx.coroutines.flow.collect
+ import kotlinx.coroutines.runBlocking
+-import kotlinx.coroutines.withContext
+-import org.junit.After
+ import org.junit.Assert.assertEquals
+ import org.junit.Assert.assertFalse
+ import org.junit.Assert.assertNull
+ import org.junit.Assert.assertTrue
+-import org.junit.Before
+ import org.junit.Test
+ 
+-/**
+- * Stands in for the main thread of one wiring. It counts the blocks the wiring posts and hands the first one
+- * to the test thread through a completable value that any thread may fill; the test thread runs the block
+- * itself, so no block runs on the collector's thread.
+- */
+-private class CountingMain : MainPost {
+-    private val count = AtomicInteger()
+-
+-    /** The first block posted; the value is completed by the first post only. */
+-    val first = CompletableDeferred<() -> Unit>()
+-
+-    /** How many blocks have been posted so far. */
+-    val posts: Int
+-        get() = count.get()
+-
+-    override fun post(block: () -> Unit) {
+-        if (count.incrementAndGet() == 1) first.complete(block)
+-    }
+-}
+-
+-/** How many fresh starts the stale-start test runs; each start checks its own first delivery. */
+-private const val STALE_CYCLES: Int = 20
+-
+ /**
+  * Coordinator-level tests for the keyboard show/hide seam and its pair gate, reusing the existing
+  * [TileRig] fake (recording tile + main queue + take port) so no Android type is named. Each test pins one
+@@ -53,18 +25,6 @@ class KeyboardTileWiringTest {
+ 
+     private fun rig(arm: Boolean = true): TileRig = TileRig(arm = arm)
+ 
+-    /** Clears the shared holder before each test, so no test depends on what an earlier test left in it. */
+-    @Before
+-    fun clearHolder() {
+-        KeyboardProbeReadings.setEnabled(false)
+-    }
+-
+-    /** Leaves the shared holder off after each test, matching its own lifecycle. */
+-    @After
+-    fun leaveOff() {
+-        KeyboardProbeReadings.setEnabled(false)
+-    }
+-
+     @Test
+     fun `auto pop through the seam shows and leaves the take untouched`() {
+         val r = rig()
+@@ -157,66 +117,45 @@ class KeyboardTileWiringTest {
+         assertEquals("app: zero show calls when the switch is off", 0, r.tile.calls.count { it == "show" })
+     }
+ 
+-    /**
+-     * A reading that was current before a start must not be posted when the collector attaches. The
+-     * collector attaches on another thread, and it may attach after a later publish, so the start is
+-     * repeated [STALE_CYCLES] times and the first delivery is checked in every cycle. Each start is
+-     * followed by one round trip through the collector's dispatcher, which raises the chance that the
+-     * collector has attached before the live reading is published; it is not a guarantee. The first
+-     * delivery is waited for with a bound, so a collector that never delivers fails by name.
+-     */
+     @Test
+     fun `a stale first reading before start must not post an entry`() {
+-        repeat(STALE_CYCLES) {
+-            KeyboardProbeReadings.setEnabled(false)
+-            KeyboardProbeReadings.setEnabled(true)
+-            // The stale reading is the current value when the wiring starts, so it is the baseline.
+-            KeyboardProbeReadings.publishLatest(fieldFocus = true, imeWindow = true, lastEvent = "seed", time = 4000L)
+-            val entries = mutableListOf<Triple<Boolean, Boolean, Long>>()
+-            val posted = CountingMain()
+-            val wiring = KeyboardTileWiring({ ime, focus, time -> entries.add(Triple(ime, focus, time)) }, posted)
+-            try {
+-                wiring.start()
+-                runBlocking { withContext(Dispatchers.IO) { } }
+-                KeyboardProbeReadings.publishLatest(fieldFocus = false, imeWindow = true, lastEvent = "live", time = 5000L)
+-                val first = awaitBounded("the live reading after a stale start", posted.first)
+-                first()
+-                assertFalse(
+-                    "app: the stale start replay must not post any entry",
+-                    entries.contains(Triple(true, true, 4000L)),
+-                )
+-                assertEquals(
+-                    "app: the first delivery after a stale start must be the live reading",
+-                    listOf(Triple(true, false, 5000L)),
+-                    entries,
+-                )
+-            } finally {
+-                wiring.stop()
+-            }
++        val entries = mutableListOf<Triple<Boolean, Boolean, Long>>()
++        val main = ManualMain()
++        // Seed a stale ime=true, focus=true reading while nothing has started; the replayed
++        // collection-start value must NOT act - no readEntry call.
++        KeyboardProbeReadings.setEnabled(true)
++        KeyboardProbeReadings.publishLatest(fieldFocus = true, imeWindow = true, lastEvent = "seed", time = 4000L)
++
++        val wiring = KeyboardTileWiring({ ime, focus, time -> entries.add(Triple(ime, focus, time)) }, main)
++        try {
++            wiring.start()
++            Thread.sleep(150) // give the collector a chance to attach; it must not deliver the replayed value
++            main.drain()
++            assertEquals("app: the stale start replay must not post any entry", 0, entries.size)
++        } finally {
++            wiring.stop()
+         }
+     }
+ 
+     @Test
+     fun `a second start after stop delivers a later reading exactly once`() {
+         val entries = mutableListOf<Triple<Boolean, Boolean, Long>>()
+-        val posted = CountingMain()
+-        val wiring = KeyboardTileWiring({ ime, focus, time -> entries.add(Triple(ime, focus, time)) }, posted)
++        val main = ManualMain()
++        val wiring = KeyboardTileWiring({ ime, focus, time -> entries.add(Triple(ime, focus, time)) }, main)
+         try {
+             KeyboardProbeReadings.setEnabled(true)
+-            // The reset before this test leaves the holder empty, so both starts see a null baseline.
+             // First start; then the wiring stops, so only readings after the restart must be collected.
+             wiring.start()
+-            wiring.stop()
++            Thread.sleep(150)
+ 
+             // Stop (cancel + scope cancel), then start again on a fresh scope; the later reading must reach readEntry once.
++            wiring.stop()
+             wiring.start()
+ 
+             KeyboardProbeReadings.publishLatest(fieldFocus = true, imeWindow = false, lastEvent = "after", time = 2000L)
+-            val first = awaitBounded("the reading published after the restart", posted.first)
+-            first()
++            Thread.sleep(150)
++            main.drain()
+             assertEquals("app: a second start after stop must deliver exactly one entry for the new reading", 1, entries.size)
+-            assertEquals("app: the second start must deliver the new reading as its entry", listOf(Triple(false, true, 2000L)), entries)
+-            assertEquals("app: a second start after stop must post exactly one block", 1, posted.posts)
+         } finally {
+             wiring.stop()
+         }
+@@ -234,7 +173,7 @@ class KeyboardTileWiringTest {
+             val collector = launch(Dispatchers.Unconfined) {
+                 KeyboardProbeReadings.readings().collect { value -> seen.add(value) }
+             }
+-            // The replay is already in seen: Dispatchers.Unconfined ran the collector up to its first suspension.
++            Thread.sleep(50) // let the collector attach and replay the current (null) value
+             collector.cancel()
+             collector.join()
+         }
+@@ -247,7 +186,7 @@ class KeyboardTileWiringTest {
+             val collector = launch(Dispatchers.Unconfined) {
+                 KeyboardProbeReadings.readings().collect { value -> seen.add(value) }
+             }
+-            // Same as above: this collector's replay, the changed value, is already in seen.
++            Thread.sleep(50) // let the collector observe the change
+             collector.cancel()
+             collector.join()
+         }
+diff --git a/android/modules/commit/AGENTS.md b/android/modules/commit/AGENTS.md
+index 2cd3817c..7485928e 100644
+--- a/android/modules/commit/AGENTS.md
++++ b/android/modules/commit/AGENTS.md
+@@ -43,21 +43,14 @@ Implements `commit(request: CommitRequest): CommitOutcomeResult`.
+   no public way to read or clear the current field from outside this module,
+   so text can only ever be inserted through the commit service's own
+   explicit-send flow.
+-- `KeyboardProbeReadings` is the holder of the keyboard readings. It is not probe only:
+-  its production seam (`publishLatest`, `readings`, `current`) feeds the keyboard tile in
+-  every build. Its probe members (`setEnabled`, `isEnabled`, `publish`, `recent`): no release
+-  code calls them; nothing here promises their removal. It holds two Booleans, the name of the
+-  accessibility event and a time, and no node, window object or text: the accessibility
+-  service reads the focused node's editable flag and the window types, then releases both.
++- `KeyboardProbeReadings` is the probe's holder of the keyboard readings. It is probe
++  only and is removed together with the probe's setting selector before release.
+   Its public members, one line each:
+   - `setEnabled(on: Boolean)`: turns the probe on or off; turning it off clears the latest reading and the recent lines.
+   - `isEnabled(): Boolean`: whether the probe is on.
+-  - `shouldProcessEvent(eventPackage: String?, ownPackage: String): Boolean`: whether an event from a package is recorded; the probe's own package is skipped, and a null package is kept.
+   - `publish(fieldFocus: Boolean, imeWindow: Boolean, lastEvent: String, time: Long)`: stores a reading and appends it to the recent lines while the probe is on.
+-  - `publishLatest(fieldFocus: Boolean, imeWindow: Boolean, lastEvent: String, time: Long): ProbeReading`: stores the latest reading in every build, and appends it to the recent lines only while the probe is on.
+   - `current(): ProbeReading?`: the latest reading, or null.
+-  - `recent(): List<ProbeReading>`: a copy of the recent lines, oldest first, at most 200.
+-  - `readings(): Flow<ProbeReading?>`: a live view of the latest reading; it re-emits on each change and carries the current value when a reader starts collecting.
++  - `recent(): List<ProbeReading>`: a copy of the recent lines, oldest first, at most 40.
+   - `ProbeReading`: the data class of one reading.
+ - Layout: seven pure Kotlin files in the module's package (no Android class is
+   named in them) and five files in `adapter/`, the only place that names
+@@ -187,9 +180,9 @@ agents, not required: an outside contributor may write the code themselves
+   whatever text-insert mechanism publishes a focused field (today,
+   `commit/accessibility`, ADR-022, once built) and the commit service that
+   reads it. No test touches it; every test builds its own registry.
+-  `KeyboardProbeReadings` is the holder of the keyboard readings, not probe only; its test
+-  classes reset it before and after each test.
+-- The focused-field holder's public seam is publish-only on purpose: `publish(field)` is its
++  `KeyboardProbeReadings` is the probe's holder, probe only and removed with the
++  selector; its test resets it before and after every test.
++- The holder's public seam is publish-only on purpose: `publish(field)` is its
+   only public member, there is no public `current()` or `clearAll()`, so a
+   sub-module can hand over a focused field but cannot read it back or peek at
+   what another mechanism published — text only ever leaves through the commit
+diff --git a/android/modules/commit/README.md b/android/modules/commit/README.md
+index aa107b3d..380bf017 100644
+--- a/android/modules/commit/README.md
++++ b/android/modules/commit/README.md
+@@ -26,17 +26,12 @@ Pure Kotlin (seven files), in `src/main/kotlin/dev/breaker/dictation/commit/`:
+   main thread or the deadline claims it (exactly one wins). A started block is
+   waited for and reports what it did; a block not started at the deadline is
+   dropped and the call fails as not responding.
+-- `KeyboardProbeReadings.kt` - the holder of the keyboard readings. Its production seam
+-  (`publishLatest`, `readings`, `current`) feeds the keyboard tile in every build; its
+-  probe members (`setEnabled`, `isEnabled`, `publish`, `recent`): no release code calls them;
+-  nothing here promises their removal. Its public members, one line each:
++- `KeyboardProbeReadings.kt` - the probe's holder of the keyboard readings, probe only
++  and removed with the probe's selector. Its public members, one line each:
+   `setEnabled(on)` turns the probe on or off (off clears the readings);
+-  `isEnabled()`; `shouldProcessEvent(eventPackage, ownPackage)` skips the probe's own
+-  package; `publish(fieldFocus, imeWindow, lastEvent, time)` stores a reading while the
+-  probe is on; `publishLatest(...)` stores the latest reading in every build;
+-  `current()` returns the latest reading or null; `recent()` returns a copy of the last
+-  200 readings, oldest first; `readings()` is a live view of the latest reading;
+-  `ProbeReading` is the data class of one reading: two Booleans, an event name and a time.
++  `isEnabled()`; `publish(fieldFocus, imeWindow, lastEvent, time)` stores a reading
++  while the probe is on; `current()` returns the latest reading or null;
++  `recent()` returns a copy of the last 40 readings, oldest first.
+ 
+ Android adapters (five files, the only ones that name Android classes), in
+ `src/main/kotlin/dev/breaker/dictation/commit/adapter/`:
+diff --git a/decisions/ADR-022-accessibility-text-insert.md b/decisions/ADR-022-accessibility-text-insert.md
+index a2bab045..1ced32a8 100644
+--- a/decisions/ADR-022-accessibility-text-insert.md
++++ b/decisions/ADR-022-accessibility-text-insert.md
+@@ -55,7 +55,7 @@ is on screen. The limits we keep, stated honestly rather than left implicit:
+ the service's config requests only what inserting text needs (`typeViewFocused`,
+ `typeWindowsChanged`, `typeWindowStateChanged`, and `flagRetrieveInteractiveWindows`,
+ which together carry the keyboard-presence signal that the tile reads to decide when to
+-show or hide - the keyboard visibility design note) plus `canRetrieveWindowContent` only because finding the
++show or hide — the approved C-4) plus `canRetrieveWindowContent` only because finding the
+ focused field needs it; it never stores or logs screen content or field text; it never
+ sends anything off the device; it acts only on an explicit send; it never inserts into
+ password fields (`isPassword`). Onboarding explains the
+diff --git a/decisions/ADR-024-tile-feedback-and-visibility.md b/decisions/ADR-024-tile-feedback-and-visibility.md
+index 250e2b8c..7de72295 100644
+--- a/decisions/ADR-024-tile-feedback-and-visibility.md
++++ b/decisions/ADR-024-tile-feedback-and-visibility.md
+@@ -1,6 +1,6 @@
+ # ADR-024: The tile shows busy and loudness, and hides itself when no keyboard is in use
+ 
+-**Status:** accepted, amended 2026-10-12 (busy cue: no spinner; shake, keyboard and battery), amended 2026-10-14 (level feed), amended 2026-10-15 (a shake only shows the tile), amended 2026-10-17 (X and check size and spacing), amended 2026-10-20 (keyboard visibility design note), amended 2026-10-29 (keyboard tile built: hold during a take, close, debounce window)
++**Status:** accepted, amended 2026-10-12 (busy cue: no spinner; shake, keyboard and battery), amended 2026-10-14 (level feed), amended 2026-10-15 (a shake only shows the tile), amended 2026-10-17 (X and check size and spacing), amended 2026-10-20 (keyboard visibility design note, C-4), amended 2026-10-29 (keyboard tile built: hold during a take, close, debounce window)
+ **Date:** 2026-10-12
+ 
+ ## Context
+@@ -82,9 +82,9 @@ about 8 dp from the microphone's outline, which is two to three widths of the
+ tile's glow. The recording window narrows to fit. Their shapes, colours and
+ what each one does are unchanged.
+ 
+-Amended 2026-10-20 (keyboard visibility design note). Built (the code is in main); item 3 was implemented as part of the release slice.
+-- **Signals.** Two readings say a keyboard is in use: a focused editable field (the accessibility service's focused node), and a keyboard window (`AccessibilityWindowInfo.TYPE_INPUT_METHOD` in `getWindows()`, which the accessibility service reads in every build). The keyboard window is the chosen signal; the debug probe readings confirmed window presence over field focus or bottom inset. The selector for choosing among signals is removed before release together with the losing signal's code, as noted under Developer setting below.
+-- **Decision function.** The choice is one pure function in `KeyboardTileDecision.kt` (a top-level function of the wiring package; `KeyboardTileSession` calls it for `TileCoordinator`): `decision(imeWindowPresent, fieldFocused, keyboardRaised, closedDuringSession, nowMs, lastChangeMs)` returns SHOW, HIDE or NO_OP; the decision is built from exactly those four presence booleans and two time stamps (no insetGrew, no currentShown - the code's actual inputs). The debounce time is 250 ms. A reading that falls inside the window is held, and the newest held reading is re-evaluated once when the window ends, through the one pending post. A reading held when a take begins is acted at once, and its hide is held to the take end; a held hide keeps the raised mark, and it is applied at take end only when the last raw reading still says the keyboard is gone. A keyboard show or a switch-off drops a held hide; a switch-off always releases the raised mark and cancels the pending post.
++Amended 2026-10-20 (design note C-4 approved; project owner). Built (the code is in main); item 3 was implemented as part of the release slice.
++- **Signals.** Three readings can say a keyboard is in use: a focused editable field (the accessibility service's focused node), a keyboard window (`AccessibilityWindowInfo.TYPE_INPUT_METHOD` in `getWindows()`, which the debug keyboard probe already reads), and a bottom inset that grew. The keyboard window is the chosen signal (the ruling — the debug probe readings confirmed window presence over field focus or bottom inset). The selector for choosing among signals is removed before release together with the losing signal's code, as noted under Developer setting below.
++- **Decision function.** The choice is one pure function in `KeyboardTileDecision.kt` (a top-level function of the wiring package; `KeyboardTileSession` calls it for `TileCoordinator`): `decision(imeWindowPresent, fieldFocused, keyboardRaised, closedDuringSession, nowMs, lastChangeMs)` returns SHOW, HIDE or NO_OP; the decision is built from exactly those four presence booleans and two time stamps (no insetGrew, no currentShown — the code's actual inputs). The debounce time is 250 ms. A reading that falls inside the window is held, and the newest held reading is re-evaluated once when the window ends, through the one pending post. A reading held when a take begins is acted at once, and its hide is held to the take end; a held hide keeps the raised mark, and it is applied at take end only when the last raw reading still says the keyboard is gone. A keyboard show or a switch-off drops a held hide; a switch-off that drops one also releases the raised mark, and a switch-off always cancels the pending post.
+   The shake and microphone-yield tests belong to `TileCoordinator`, not
+   to the pure function.
+ - **Developer setting.** The temporary selector is `KeyboardSignalSetting` in

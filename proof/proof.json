@@ -1,0 +1,178 @@
+{
+ "name": "proof-1c",
+ "tip": {
+  "tree": "f3fa5f3165a78786d1a9db599f5c0b36f2b7b9e9"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "keyboard tile: a switch-off releases the raised mark; wiring tests reset the holder and wait on a signal",
+   "base_tree": "be46df3b84a917fe72c78d793b8f126f78fe480e",
+   "item_tip_tree": "f4faec79d6ba6e1d7eaac4554c6002e881a17a5a",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": []
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "red-a-01",
+   "kind": "red",
+   "item": "a",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.gates.AppLayoutGateTest"
+   ],
+   "patch": "proof/red/red-a-01.patch",
+   "tree": "0d42ae4b760dd345de7f432f1a57160d13a8d093",
+   "predict": "NOT RED: the quiet sample is restored to main's text (a test text correction, no behaviour)"
+  },
+  {
+   "id": "red-a-02",
+   "kind": "red",
+   "item": "a",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardSwitchOffReleaseTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardSwitchOffReleaseTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.wiring.KeyboardSwitchOffReleaseTest"
+   ],
+   "patch": "proof/red/red-a-02.patch",
+   "tree": "295525da122077dec213dc4212e2425807c418fb",
+   "predict": "ASSERT RED: on the base a switch-off with the keyboard up keeps the raised mark, so the later keyboard-gone reading hides the tile"
+  },
+  {
+   "id": "red-a-03",
+   "kind": "red",
+   "item": "a",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileWiringTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileWiringTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.wiring.KeyboardTileWiringTest"
+   ],
+   "patch": "proof/red/red-a-03.patch",
+   "tree": "38f19469be6f09564624976268b5e9dff28d2d40",
+   "predict": "NOT RED: holder reset and a signal wait instead of sleeps; no behaviour change"
+  },
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "        heldHide.clearOnSwitchOff(); keyboardTile.releaseRaised()\n",
+     "replacement": "        if (heldHide.clearOnSwitchOff()) keyboardTile.releaseRaised()\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "KeyboardSwitchOffReleaseTest: 'a switch off with the keyboard up releases the raised mark so a later keyboard going hides nothing', assertion 'the keyboard going must not hide the tile the user switched on' (expected true, got false); the next assertion 'no hide call may follow the switch on' fails as well"
+   ],
+   "rule": "TileCoordinator#disarm",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "        heldHide.clearOnSwitchOff(); keyboardTile.releaseRaised()\n",
+     "replacement": "        heldHide.clearOnSwitchOff()\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "KeyboardSwitchOffReleaseTest: 'a switch off with the keyboard up releases the raised mark so a later keyboard going hides nothing' (first assertion, expected true, got false); KeyboardReevaluationTest.kt:218 'switching the tile off with a held hide leaves no raised mark, so a later gone reading does nothing' (assertion at line 236, 'the switch-off released the raised mark, so the later gone reading does nothing', expected 1, got 2)"
+   ],
+   "rule": "TileCoordinator#disarm",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileWiring.kt",
+     "anchor": "if (reading == null || reading != baseline) {",
+     "replacement": "if (true) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "KeyboardTileWiringTest: 'a stale first reading before start must not post an entry', assertion 'app: the stale start replay must not post any entry' or 'app: the first delivery after a stale start must be the live reading', in a cycle where the collector attaches before the live reading is published (probabilistic: the per-cycle chance is not measured; never claimed killed)"
+   ],
+   "rule": "KeyboardTileWiring#start (collector filter)",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileWiringTest.kt",
+     "anchor": "    @Before\n    fun clearHolder() {\n        KeyboardProbeReadings.setEnabled(false)\n    }\n",
+     "replacement": "    @Before\n    fun clearHolder() {\n        Unit\n    }\n"
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "KeyboardTileWiringTest#clearHolder (@Before)",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "android/app",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/DictationRunner.kt",
+     "anchor": "        if (idle.state != DictationState.IDLE) return BeginResult.Refused(RunnerSentences.BUSY)\n",
+     "replacement": "        return BeginResult.Refused(RunnerSentences.BUSY)\n"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "android/app",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/DictationRunner.kt",
+     "anchor": "        if (idle.state != DictationState.IDLE) return BeginResult.Refused(RunnerSentences.BUSY)\n",
+     "replacement": "        if (idle.state != DictationState.IDLE) return BeginResult.Refused(RunnerSentences.BUSY) // unchanged behaviour\n"
+    }
+   ]
+  }
+ ]
+}
