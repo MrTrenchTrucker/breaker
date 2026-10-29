@@ -58,14 +58,15 @@ internal class RootSlotsGateTest {
         Rule("ENCODER_IS_PCM16") { has(it, bound("wavEncoder", """Pcm16WavEncoder\s*\(\s*\)""")) },
         Rule("MODEL_STORE_IS_BUILT_HERE") { has(it, """\bval\s+modelStore\s*:\s*LocalModelStore\s*=\s*LocalModelStore\s*\(""") },
         Rule("LOCAL_ENGINE_IS_ON_DEVICE_OVER_THE_MODEL_STORE") {
+            has(it, bound("localEngine", """OnDeviceSttEngine\s*\(\s*modelLoader\s*,?\s*\)"""))
+        },
+        Rule("MODEL_LOADER_IS_OVER_THE_MODEL_STORE") {
             has(
                 it,
-                bound(
-                    "localEngine",
-                    """OnDeviceSttEngine\s*\(\s*ModelLoader\s*\(\s*store\s*=\s*modelStore\s*,\s*factory\s*=\s*RECOGNIZER_FACTORY\s*,?\s*\)\s*,?\s*\)""",
-                ),
+                """\bval\s+modelLoader\s*(?::\s*ModelLoader\s*)?=\s*ModelLoader\s*\(\s*store\s*=\s*modelStore\s*,\s*factory\s*=\s*RECOGNIZER_FACTORY\s*,?\s*\)""",
             )
         },
+        Rule("ONE_MODEL_LOADER") { count(it, """\bModelLoader\s*\(""") == 1 },
         Rule("NO_PLACEHOLDER_LOCAL_ENGINE") {
             !has(it, """\bUnavailableSttEngine\s*\(\s*SttError\s*\.\s*LOCAL_MODEL_MISSING\b""")
         },
@@ -80,7 +81,8 @@ internal class RootSlotsGateTest {
     private val micDefaultLine = "private val micSource: MicSource = appMicSource(),"
     private val micLine = "micSource = micSource,"
     private val storeLine = "val modelStore: LocalModelStore = LocalModelStore("
-    private val engineLine = "localEngine = OnDeviceSttEngine(ModelLoader(store = modelStore, factory = RECOGNIZER_FACTORY))"
+    private val engineLine = "localEngine = OnDeviceSttEngine(modelLoader)"
+    private val modelLoaderLine = "private val modelLoader: ModelLoader = ModelLoader(store = modelStore, factory = RECOGNIZER_FACTORY)"
     private val encoderLine = "wavEncoder = Pcm16WavEncoder()"
     private val lazyOpen = "val dictation: DictationComponent by lazy {"
     private val helperFun = "private fun neverArmedController()"
@@ -154,11 +156,18 @@ internal class RootSlotsGateTest {
             "$encoderLine," to "",
         ),
         "LOCAL_ENGINE_IS_ON_DEVICE_OVER_THE_MODEL_STORE" to listOf(
-            "factory = RECOGNIZER_FACTORY" to "factory = UnavailableRecognizerFactory",
-            "store = modelStore" to "store = LocalModelStore(File(filesDir, \"other\"))",
             "localEngine = OnDeviceSttEngine(" to "localEngine = FakeSttEngine(",
             engineLine to "$engineLine.also { }",
+            "OnDeviceSttEngine(modelLoader)" to "OnDeviceSttEngine(ModelLoader(store = modelStore, factory = RECOGNIZER_FACTORY))",
+        ),
+        "MODEL_LOADER_IS_OVER_THE_MODEL_STORE" to listOf(
+            "factory = RECOGNIZER_FACTORY" to "factory = UnavailableRecognizerFactory",
+            "store = modelStore" to "store = LocalModelStore(File(filesDir, \"other\"))",
             "ModelLoader(store" to "ModelLoader(factory = RECOGNIZER_FACTORY, store",
+            "val modelLoader: ModelLoader = " to "val modelLoader: ModelLoader? = ",
+        ),
+        "ONE_MODEL_LOADER" to listOf(
+            "ids = UuidIdSource()" to "ids = UuidIdSource(), spare = ModelLoader(store = modelStore, factory = RECOGNIZER_FACTORY)",
         ),
         "NO_PLACEHOLDER_LOCAL_ENGINE" to listOf(
             engineLine to "localEngine = UnavailableSttEngine(SttError.LOCAL_MODEL_MISSING, \"x\")",
@@ -184,7 +193,8 @@ internal class RootSlotsGateTest {
         micDefaultLine to "private val micSource: MicSource =\n        appMicSource( ),",
         storeLine to "val modelStore: LocalModelStore =\n        LocalModelStore(",
         "factory = RECOGNIZER_FACTORY" to "factory =\n                RECOGNIZER_FACTORY",
-        engineLine to "localEngine = OnDeviceSttEngine(\n                ModelLoader(store = modelStore, factory = RECOGNIZER_FACTORY),\n            )",
+        engineLine to "localEngine = OnDeviceSttEngine(\n                modelLoader,\n            )",
+        modelLoaderLine to "private val modelLoader: ModelLoader =\n        ModelLoader(store = modelStore, factory = RECOGNIZER_FACTORY)",
     )
 
     private fun realCode(): String = AppSourceFiles.strip(AppSourceFiles.mainFile(rootPath)).code

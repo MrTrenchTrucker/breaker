@@ -1,5 +1,6 @@
 package dev.breaker.dictation.wiring
 
+import dev.breaker.dictation.core.model.DictationState
 import dev.breaker.dictation.overlay.TileState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -37,28 +38,33 @@ internal class ShakeShowsTileTest {
     }
 
     @Test
-    fun `a shake while a take is recording does nothing`() {
+    fun `a shake after a close that ended a recording take shows the tile and begins no take`() {
         val rig = TileRig()
         rig.startRecording()
         rig.coordinator.onCloseRequested()
+        rig.settle()
+        assertEquals("app: a close during a recording take must cancel the take once", 1, rig.take.cancelCalls)
         rig.tile.calls.clear()
         rig.coordinator.onShake()
         rig.settle()
-        assertEquals("app: a shake while recording must make no tile call", emptyList<String>(), rig.tile.calls)
-        assertEquals("app: a shake while recording must leave the one take begun", 1, rig.take.beginCalls)
+        assertEquals("app: a shake after the close must show the tile once", 1, rig.tile.calls.count { it == "show" })
+        assertEquals("app: a shake after the close must begin no take", 1, rig.take.beginCalls)
+        assertEquals("app: a shake after the close must leave the tile ARMED", TileState.ARMED, rig.tile.states.last())
     }
 
     @Test
-    fun `a shake while a begin is pending does nothing`() {
+    fun `a shake after a close during a pending begin shows the closed tile and leaves no take recording`() {
         val rig = TileRig()
         rig.coordinator.onBegin()
         rig.coordinator.onCloseRequested()
         rig.tile.calls.clear()
         rig.coordinator.onShake()
-        assertEquals("app: a shake while a begin is pending must make no show call", 0, rig.tile.calls.count { it == "show" })
-        assertFalse("app: a shake while a begin is pending must not call show at all", rig.tile.calls.contains("show"))
+        assertEquals("app: a shake after the close must show the tile once", 1, rig.tile.calls.count { it == "show" })
         rig.settle()
-        assertEquals("app: a shake while a begin is pending must leave only the tap's one take begun", 1, rig.take.beginCalls)
+        assertEquals("app: the queued begin still runs once before its cancel", 1, rig.take.beginCalls)
+        assertEquals("app: the close must cancel the pending begin once", 1, rig.take.cancelCalls)
+        assertEquals("app: no take may be recording after the close", DictationState.IDLE, rig.take.sessionState)
+        assertFalse("app: no RECORDING state may follow the close", rig.tile.states.contains(TileState.RECORDING))
     }
 
     @Test

@@ -36,4 +36,12 @@ internal class TilePortCalls(
             false
         }
 
+    /** The take port's held-elsewhere flag; a port that throws answers false, so the close still cancels. */
+    fun heldElsewhereNow(): Boolean =
+        try {
+            take.heldElsewhere
+        } catch (e: Exception) {
+            false
+        }
+
 }

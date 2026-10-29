@@ -62,7 +62,7 @@ interface TakePort {
     fun begin(): BeginResult
 
     /** Stops listening and turns the audio into text. Blocks. */
-    fun finish(): FinishResult
+    fun finish(trimBeforeMs: Long? = null): FinishResult
 
     /** Puts the text where the user is typing; null when there is nothing to send. */
     fun send(): SendResult?
@@ -72,6 +72,10 @@ interface TakePort {
 
     /** Moves a taken take from SENDING to IDLE without stopping the audio again. */
     fun resetAfterTaken()
+
+    /** True when a path other than this port's own kind holds the running take. */
+    val heldElsewhere: Boolean
+        get() = false
 }
 
 /** Whether the speech model the settings select is installed and unpacked. */

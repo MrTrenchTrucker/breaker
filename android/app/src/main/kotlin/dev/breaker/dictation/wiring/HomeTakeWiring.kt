@@ -69,13 +69,17 @@ internal class HomeTakeWiring(
         onState = { state -> main.post { sending = state == DictationState.SENDING; rePushState(state) } },
     )
 
+    /** The send this wiring gives the owner's Home slot: the adapter's send, with the trim unchanged. */
+    private val sendEntry: (Long?) -> Unit = { trim -> adapter.onSend(trim) }
+
     /**
      * Registers the two listeners: a flip of the shared busy flag and a flip of the armed switch each
-     * re-push the current state, repainting the mic.
+     * re-push the current state, repainting the mic. It also takes the owner's Home send slot.
      */
     init {
         busy.setBusyListener { rePushState(port.sessionState) }
         switch.addSwitchListener(switchListener)
+        owner.setHomeSend(sendEntry)
     }
 
     /**
@@ -85,6 +89,7 @@ internal class HomeTakeWiring(
      */
     internal fun unwatchSwitch(listener: (Boolean) -> Unit) {
         switch.removeSwitchListener(listener)
+        owner.clearHomeSendIf(sendEntry)
     }
 
     /**
@@ -171,7 +176,7 @@ internal class LazyTakePort(supplier: () -> TakePort) : TakePort {
 
     override fun begin(): BeginResult = port.begin()
 
-    override fun finish(): FinishResult = port.finish()
+    override fun finish(trimBeforeMs: Long?): FinishResult = port.finish(trimBeforeMs)
 
     override fun send(): SendResult? = port.send()
 

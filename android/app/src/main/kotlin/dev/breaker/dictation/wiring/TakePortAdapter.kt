@@ -10,7 +10,7 @@ class TakePortAdapter(private val runner: DictationRunner) : TakePort {
 
     override fun begin(): BeginResult = runner.begin()
 
-    override fun finish(): FinishResult = runner.finish()
+    override fun finish(trimBeforeMs: Long?): FinishResult = runner.finish(trimBeforeMs)
 
     override fun send(): SendResult? = runner.send()
 

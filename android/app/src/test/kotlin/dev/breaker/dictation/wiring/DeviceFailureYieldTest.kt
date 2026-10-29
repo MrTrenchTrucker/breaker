@@ -20,7 +20,7 @@ private class DeviceTake : TakePort {
 
     override fun begin(): BeginResult = BeginResult.Recording
 
-    override fun finish(): FinishResult {
+    override fun finish(trimBeforeMs: Long?): FinishResult {
         finishCalls += 1
         finishError?.let { throw it }
         return finishResult

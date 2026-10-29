@@ -1,6 +1,6 @@
 # ADR-024: The tile shows busy and loudness, and hides itself when no keyboard is in use
 
-**Status:** accepted, amended 2026-10-12 (busy cue: no spinner; shake, keyboard and battery), amended 2026-10-14 (level feed), amended 2026-10-15 (a shake only shows the tile), amended 2026-10-17 (X and check size and spacing), amended 2026-10-20 (keyboard visibility design note), amended 2026-10-29 (keyboard tile built: hold during a take, close, debounce window)
+**Status:** accepted, amended 2026-10-12 (busy cue: no spinner; shake, keyboard and battery), amended 2026-10-14 (level feed), amended 2026-10-15 (a shake only shows the tile), amended 2026-10-17 (X and check size and spacing), amended 2026-10-20 (keyboard visibility design note), amended 2026-10-29 (keyboard tile built: hold during a take, close, debounce window), amended 2026-10-29 (a user close during a take cancels it)
 **Date:** 2026-10-12
 
 ## Context
@@ -106,3 +106,7 @@ Amended 2026-10-29: the keyboard show, the held hide and the close record, as bu
 - **Decision location.** The decision is the top-level function `decision` in `KeyboardTileDecision.kt`, not a member of `TileCoordinator`. Its inputs are four booleans and two time stamps. `KeyboardTileSession` calls it for `TileCoordinator`.
 - **Debounce.** The debounce time stays 250 ms. A reading inside the window is held, and only the newest held reading is re-evaluated, once, when the window ends. A reading still held when a take begins is acted at once, and its hide is held to the take end. A keyboard show or a switch-off drops a held hide, and a switch-off also cancels the pending re-evaluation.
 - **Shake.** The shake behaves as before; the shake and the keyboard show now share one check.
+
+Amended 2026-10-29: a user close during a take, as built.
+
+- **Close cancels the take.** A close by the user while a take is recording, or while its begin is pending, ends that take the way Cancel ends it (nothing is finished or sent, the audio is dropped, the tile goes back to armed), and then hides the tile. A close while the Home holds the take, with no take in flight, during a send, a microphone yield or a device failure cancels nothing. A keyboard hide during a take is still held.

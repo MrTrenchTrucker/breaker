@@ -14,6 +14,17 @@ internal class TakeMark
 private class Held(val kind: TakeOwnerKind, val mark: TakeMark = TakeMark())
 
 /**
+ * Hears the two transitions of the owner. [begun] fires once a begin has recorded, on the take worker,
+ * inside the port call that recorded it. [cleared] fires once each time a held take is cleared, on the
+ * thread that clears it: the main thread for the hooks and the Home finish, the take worker for the port
+ * settles. Both callbacks only post work; neither waits for anything.
+ */
+internal interface TakeOwnerListener {
+    fun begun(kind: TakeOwnerKind, mark: TakeMark)
+    fun cleared()
+}
+
+/**
  * Which path holds the running take. A begin that records sets it, and every settle of the take clears
  * it, whichever path settles it. It is kept by the tile host rather than by the screen, so a screen that
  * is rebuilt (on rotation, for one) still finishes the take it began.
@@ -21,20 +32,51 @@ private class Held(val kind: TakeOwnerKind, val mark: TakeMark = TakeMark())
 internal class TakeOwner {
     private val held: AtomicReference<Held?> = AtomicReference(null)
 
+    /** The one listener slot. Written once by the tile host; read on the take worker and by whichever thread clears a take. */
+    private val listenerSlot: AtomicReference<TakeOwnerListener?> = AtomicReference(null)
+
+    /**
+     * The one Home send slot. Set and read on the main thread only: the Home wiring sets it in its init and clears it
+     * in its unwatch step, and the routed send reads it on the main thread.
+     */
+    private var homeSend: ((Long?) -> Unit)? = null
+
     /** The path that holds the take now, or null when no take is held. */
     fun current(): TakeOwnerKind? = held.get()?.kind
 
     /** True only while the Home screen holds the take. */
     fun heldByHome(): Boolean = held.get()?.kind == TakeOwnerKind.HOME
 
-    /** A begin recorded: [kind] holds the take until it is settled, and the take gets a mark of its own. */
-    fun begun(kind: TakeOwnerKind) {
-        held.set(Held(kind))
+    /** Sets the one listener slot, or removes the listener with null. */
+    fun setListener(listener: TakeOwnerListener?) {
+        listenerSlot.set(listener)
     }
 
-    /** The take settled: nothing holds it now. */
+    /** A begin recorded: [kind] holds the take until it is settled, and the take gets a mark of its own. The listener hears it. */
+    fun begun(kind: TakeOwnerKind) {
+        val taken = Held(kind)
+        held.set(taken)
+        listenerSlot.get()?.begun(kind, taken.mark)
+    }
+
+    /** The take settled: nothing holds it now. The listener hears the clear only when a take was held. */
     fun settled() {
-        held.set(null)
+        if (held.getAndSet(null) != null) listenerSlot.get()?.cleared()
+    }
+
+    /** Sets the Home send slot to [entry], or empties it with null. Main thread only. */
+    fun setHomeSend(entry: ((Long?) -> Unit)?) {
+        homeSend = entry
+    }
+
+    /** Empties the Home send slot only while it still holds [entry]; a newer entry is left alone. Main thread only. */
+    fun clearHomeSendIf(entry: (Long?) -> Unit) {
+        if (homeSend === entry) homeSend = null
+    }
+
+    /** Hands the trim, unchanged, to the Home entry; with the slot empty the send is dropped. Main thread only. */
+    fun sendToHome(trimBeforeMs: Long?) {
+        homeSend?.invoke(trimBeforeMs)
     }
 
     /**
@@ -54,7 +96,7 @@ internal class TakeOwner {
     fun settledIf(mark: TakeMark?) {
         val now: Held = held.get() ?: return
         if (now.mark !== mark) return
-        held.compareAndSet(now, null)
+        if (held.compareAndSet(now, null)) listenerSlot.get()?.cleared()
     }
 }
 
@@ -72,6 +114,9 @@ internal class OwnedTakePort(
     override val sessionState: DictationState
         get() = inner.sessionState
 
+    override val heldElsewhere: Boolean
+        get() = owner.current().let { it != null && it != kind }
+
     override fun begin(): BeginResult {
         val answer: BeginResult = inner.begin()
         if (answer == BeginResult.Recording) {
@@ -82,9 +127,9 @@ internal class OwnedTakePort(
         return answer
     }
 
-    override fun finish(): FinishResult {
+    override fun finish(trimBeforeMs: Long?): FinishResult {
         owner.settled()
-        return inner.finish()
+        return inner.finish(trimBeforeMs)
     }
 
     override fun send(): SendResult? {

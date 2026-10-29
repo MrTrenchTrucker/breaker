@@ -56,8 +56,8 @@ internal class HomeTakeAdapter(
      * The check on the Home mic (or a second tap): the take is finished, saved to History and
      * copied to the clipboard. The outcome line answers on the main thread.
      */
-    fun onSend() {
-        if (owner.heldByHome() && take.sessionState == DictationState.RECORDING) finishAndSettle()
+    fun onSend(trimBeforeMs: Long? = null) {
+        if (owner.heldByHome() && take.sessionState == DictationState.RECORDING) finishAndSettle(trimBeforeMs)
     }
 
     /**
@@ -94,7 +94,7 @@ internal class HomeTakeAdapter(
      * outcome line run on the main thread. A failed reset never drops the save/copy decision; a
      * thrown finish settles as not-converted.
      */
-    private fun finishAndSettle() {
+    private fun finishAndSettle(trimBeforeMs: Long? = null) {
         // Cleared here on the main thread, before the finish runs, so a second tap meanwhile cannot finish it twice.
         owner.settled()
         // The take has ended and the local model is transcribing: show the amber SENDING face for the whole
@@ -105,7 +105,7 @@ internal class HomeTakeAdapter(
         try {
             background.submit {
                 val finished: FinishResult? =
-                    try { take.finish() } catch (e: Exception) { null }
+                    try { take.finish(trimBeforeMs) } catch (e: Exception) { null }
                 val saveFailed: Boolean = settle.save(finished)
                 try {
                     take.resetAfterTaken()

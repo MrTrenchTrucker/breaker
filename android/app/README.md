@@ -126,9 +126,24 @@ of `AGENTS.md` lists the smaller open items.
   on-device engine with its recognizer, its model store and the download are
   built; the recognizer has run on a phone in test builds.
 - The spoken phrases. The phrases module detects the wake and send phrases in
-  heard words, but the app does not use it yet, and no spoken off word is built.
-  PLANNED: a `PhraseSendHandler` in the wiring owns the spoken Send (ADR-004); it
-  needs an app edge to the phrases module that is not in the registry yet.
+  heard words. The app wires the spoken Send: a take that records starts the
+  detector, a send phrase finishes the take with its audio trimmed where the
+  phrase began, and every end of the take stops the detector. No spoken off word
+  is built. A take that begins while no word stream is ready records and finishes
+  as before, with spoken Send off for that take and one line in the log.
+  For a take the floating tile holds, a send phrase acts only while the tile is
+  shown; with the tile hidden it does nothing and logs one line through the
+  existing reason.
+- Spoken Send limit, open failure: a native open failure inside the word stream
+  is not seen by the app. Spoken Send is off for that take and nothing is shown.
+- Spoken Send limit, service ends while the switch is already off: the owner is
+  not cleared, because no switch change reaches the tile. The cancel closes the
+  microphone of a recording take, so the word stream stays started with no audio
+  and receives no frames. The next take's start, or the component's close, stops
+  it.
+- Spoken Send limit, Cancel then send: a spoken Send right after Cancel can queue
+  its finish behind the cancel, and the not-listening sentence shows once. The
+  audio is never sent.
 - The secret-resolving device Keystore. The app keeps only the reference to the
   credential (`FileCredentialRefHolder`), never a secret; the Keystore that
   resolves the reference is not built and not verified.

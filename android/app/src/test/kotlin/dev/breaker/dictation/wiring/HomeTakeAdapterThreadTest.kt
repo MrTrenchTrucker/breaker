@@ -67,7 +67,7 @@ internal class HomeTakeAdapterThreadTest {
 
         override fun send(): SendResult? = null
         override fun resetAfterTaken() {}
-        override fun finish(): FinishResult = FinishResult.ReadyToSend(SAMPLE)
+        override fun finish(trimBeforeMs: Long?): FinishResult = FinishResult.ReadyToSend(SAMPLE)
     }
 
     /** A take whose begin throws, so a submit block never runs its answer. */
@@ -78,7 +78,7 @@ internal class HomeTakeAdapterThreadTest {
         override fun cancel() {}
         override fun send(): SendResult? = null
         override fun resetAfterTaken() {}
-        override fun finish(): FinishResult = FinishResult.ReadyToSend(SAMPLE)
+        override fun finish(trimBeforeMs: Long?): FinishResult = FinishResult.ReadyToSend(SAMPLE)
     }
 
     /** A take whose begin records, so the owner holds it until cancelled or finished. */
@@ -101,7 +101,7 @@ internal class HomeTakeAdapterThreadTest {
 
         override fun send(): SendResult? = null
         override fun resetAfterTaken() {}
-        override fun finish(): FinishResult = FinishResult.ReadyToSend(SAMPLE)
+        override fun finish(trimBeforeMs: Long?): FinishResult = FinishResult.ReadyToSend(SAMPLE)
     }
 
     /** Queues every posted block until [drain] runs them on the test thread; records what they called. */

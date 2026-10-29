@@ -50,7 +50,7 @@ internal class FakeHomeTake(
         return beginResult
     }
 
-    override fun finish(): FinishResult {
+    override fun finish(trimBeforeMs: Long?): FinishResult {
         log.add("finish")
         finishCount += 1
         if (finishThrows) throw IllegalStateException("finish broke")

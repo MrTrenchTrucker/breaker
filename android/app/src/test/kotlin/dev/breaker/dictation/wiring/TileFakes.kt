@@ -153,7 +153,7 @@ internal class FakeTake : TakePort {
         return beginResult
     }
 
-    override fun finish(): FinishResult {
+    override fun finish(trimBeforeMs: Long?): FinishResult {
         finishCalls += 1
         finishError?.let { throw it }
         if (mirrorRunner) sessionState = if (finishResult is FinishResult.ReadyToSend) DictationState.SENDING else DictationState.IDLE

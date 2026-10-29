@@ -29,8 +29,12 @@ open class AppLayoutGateRules {
         "wiring/TakeYield.kt", "wiring/TakenClipboard.kt",
         "wiring/TakenSentences.kt", "wiring/TakeSettle.kt", "wiring/DeviceFailureSentences.kt", "wiring/DeviceFailureYield.kt", "wiring/TakeFinisher.kt",
         "wiring/HomeTakeAdapter.kt", "wiring/EndingTexts.kt", "wiring/HomeSentences.kt", "wiring/TakeOwner.kt", "wiring/MicBusyPort.kt",
-        "wiring/CompositeLevelSink.kt", "wiring/HomeLevelFeed.kt", "wiring/LevelMap.kt", "wiring/LevelMeter.kt", "wiring/LevelFeed.kt", "wiring/LevelTap.kt", "wiring/NoiseFloor.kt",
+        "wiring/CompositeLevelSink.kt", "wiring/HomeLevelFeed.kt", "wiring/LevelMap.kt", "wiring/LevelMeter.kt", "wiring/LevelFeed.kt", "wiring/LevelTap.kt", "wiring/PhraseFeedTap.kt", "wiring/NoiseFloor.kt",
         "host/ServiceRefusalNotice.kt",
+        "wiring/PhraseSendHandler.kt",
+        "wiring/PhraseStreamProvider.kt",
+        "wiring/PhraseStreamBuild.kt",
+        "wiring/PhraseTakeLink.kt",
     )
 
     /** Main files that are the layer over the platform and name Android types. */

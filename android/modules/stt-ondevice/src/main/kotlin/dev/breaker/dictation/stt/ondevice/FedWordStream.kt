@@ -19,4 +19,10 @@ interface FedWordStream : WordStream {
      * counted, with its samples.
      */
     fun feed(samples: FloatArray)
+
+    /** Chunks dropped since the last start() because the queue was full. */
+    val droppedChunks: Long
+
+    /** Samples in the chunks dropped since the last start(). */
+    val droppedSamples: Long
 }

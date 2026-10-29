@@ -4,6 +4,7 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import dev.breaker.dictation.BreakerCompositionRoot
+import dev.breaker.dictation.PHRASE_UNAVAILABLE_REASON
 import dev.breaker.dictation.SettingsLauncherActivity
 import dev.breaker.dictation.core.model.DictationState
 import dev.breaker.dictation.service.ModelNotifications
@@ -22,6 +23,9 @@ import dev.breaker.dictation.wiring.ModelDownloader
 import dev.breaker.dictation.wiring.NoticeClearingTilePort
 import dev.breaker.dictation.wiring.Opener
 import dev.breaker.dictation.wiring.OwnedTakePort
+import dev.breaker.dictation.wiring.PhraseSendHandler
+import dev.breaker.dictation.wiring.PhraseStreamProvider
+import dev.breaker.dictation.wiring.PhraseTakeLink
 import dev.breaker.dictation.wiring.StoreModelReady
 import dev.breaker.dictation.wiring.TakeOwner
 import dev.breaker.dictation.wiring.TakeOwnerKind
@@ -30,6 +34,7 @@ import dev.breaker.dictation.wiring.TileCoordinator
 import dev.breaker.dictation.wiring.appGesture
 import dev.breaker.dictation.wiring.appTakenClipboard
 import dev.breaker.dictation.wiring.modelInstallPortFor
+import dev.breaker.dictation.wiring.onSpokenSend
 
 /**
  * Where the floating tile and the speech model download are put together for the running app.
@@ -111,6 +116,27 @@ internal class TileHost(
         c
     }
 
+    /** The model worker: the speech model download and the phrase word stream build both run on it, one block at a time. */
+    private val modelWorker: SerialBackground = SerialBackground("breaker-model-download")
+
+    /** The phrase word stream for the model the settings select. Its build runs on [modelWorker]; a take only reads it. */
+    private val phraseStreams: PhraseStreamProvider = PhraseStreamProvider(modelWorker, selectedId, { id -> root.buildWordStream(id) })
+
+    /** The phrase warning, used when the detector cannot start and when a spoken Send finds the tile hidden. */
+    private val phraseUnavailable: () -> Unit = { root.phraseWarn?.invoke(PHRASE_UNAVAILABLE_REASON) }
+
+    /** The spoken Send: the detector's phrase reaches the path that holds the take, through the owner. */
+    private val phraseHandler: PhraseSendHandler by lazy {
+        PhraseSendHandler(
+            trigger = root.dictation.phrases,
+            owner = takeOwner,
+            main = main,
+            homeSend = { trim -> takeOwner.sendToHome(trim) },
+            tileSend = { trim -> toCoordinator { it.onSpokenSend(trim, phraseUnavailable) } },
+            onUnavailable = phraseUnavailable,
+        )
+    }
+
     /** The Home's mic busy port: reads the shared flag, wires the one listener, forwards the begin answers. */
     internal val micBusy: MicBusyPort by lazy { MicBusyPortForwarder(coordinator.yield) }
 
@@ -118,6 +144,8 @@ internal class TileHost(
         root.onTakeEnded = { val m = takeOwner.mark(); toCoordinator { takeOwner.settledIf(m); it.onTakeEnded() } }
         root.onMicTaken = { val m = takeOwner.mark(); toCoordinator { takeOwner.settledIf(m); it.onTakeMicTaken() } }
         root.onDeviceFailure = { fallback -> val m = takeOwner.mark(); toCoordinator { takeOwner.settledIf(m); if (!it.onTakeFailed()) fallback() } }
+        root.phraseWords = { phraseStreams.ready() }
+        takeOwner.setListener(PhraseTakeLink(takeWorker, takeOwner, { phraseStreams.prepare() }, { phraseHandler.start() }, { phraseHandler.stop() }))
         root.levelSink = compositeLevelSink
         compositeLevelSink.add(LevelFeed(noticePort, main) { root.dictation.runner.sessionState == DictationState.RECORDING })
     }
@@ -136,7 +164,7 @@ internal class TileHost(
     private val downloader = ModelDownloader(
         installer = modelInstallPortFor(root.modelStore),
         selectedId = selectedId,
-        background = SerialBackground("breaker-model-download"),
+        background = modelWorker,
         main = main,
         notice = forwardingNotice,
     )
@@ -162,6 +190,7 @@ internal class TileHost(
 
     /** Shows the tile when the service goes on and hides it when the service goes off. Any thread. */
     fun onArmedChanged(armed: Boolean) {
+        if (armed) modelWorker.submit { phraseStreams.prepare() }
         main.post { if (armed) gesture.start { toCoordinator { it.onShake() } } else gesture.stop() }
         main.post { if (armed) displayWatch.start() else displayWatch.stop() }
         toCoordinator { it.onArmedChanged(armed) }

@@ -59,7 +59,7 @@ internal class HomeTakeAdapterCancelTest {
         override fun cancel() { cancelThread = Thread.currentThread() }
         override fun send(): SendResult? = null
         override fun resetAfterTaken() {}
-        override fun finish(): FinishResult = FinishResult.ReadyToSend(SAMPLE)
+        override fun finish(trimBeforeMs: Long?): FinishResult = FinishResult.ReadyToSend(SAMPLE)
     }
 
     /** A take that records each submit's label in order and goes back to IDLE after a cancel, so a later tap begins. */
@@ -71,7 +71,7 @@ internal class HomeTakeAdapterCancelTest {
         override fun cancel() { ran.add("cancel"); recording = false }
         override fun send(): SendResult? = null
         override fun resetAfterTaken() { recording = false }
-        override fun finish(): FinishResult = FinishResult.ReadyToSend(SAMPLE)
+        override fun finish(trimBeforeMs: Long?): FinishResult = FinishResult.ReadyToSend(SAMPLE)
     }
 
     /** The switch the Home take shares, over the in-memory off-store; [off] is the user's stored choice. */

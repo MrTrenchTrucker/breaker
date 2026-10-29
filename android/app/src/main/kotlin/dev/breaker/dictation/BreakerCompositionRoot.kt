@@ -12,9 +12,11 @@ import dev.breaker.dictation.service.LaunchResult
 import dev.breaker.dictation.service.MicPermission
 import dev.breaker.dictation.service.ServiceLauncher
 import dev.breaker.dictation.settings.SettingsFileStore
+import dev.breaker.dictation.stt.ondevice.FedWordStream
 import dev.breaker.dictation.stt.ondevice.LocalModelStore
 import dev.breaker.dictation.stt.ondevice.ModelLoader
 import dev.breaker.dictation.stt.ondevice.OnDeviceSttEngine
+import dev.breaker.dictation.stt.ondevice.SherpaOnnxWordStreamFactory
 import dev.breaker.dictation.transport.TcpConnectivityProbe
 import dev.breaker.dictation.wiring.DictationComponent
 import dev.breaker.dictation.wiring.LazyHistoryStore
@@ -24,6 +26,7 @@ import dev.breaker.dictation.wiring.SERVER_UNAVAILABLE_DETAIL
 import dev.breaker.dictation.wiring.UnavailableSttEngine
 import dev.breaker.dictation.wiring.UuidIdSource
 import dev.breaker.dictation.wiring.appMicSource
+import dev.breaker.dictation.wiring.buildPhraseStream
 import java.io.File
 
 /**
@@ -81,6 +84,12 @@ class BreakerCompositionRoot(
     /** Where the speech models are kept: the on-device engine reads it and the download writes it. */
     val modelStore: LocalModelStore = LocalModelStore(File(filesDir, "models"))
 
+    /** The one loader over [modelStore]: the on-device engine and the phrase word stream both load through it. */
+    private val modelLoader: ModelLoader = ModelLoader(store = modelStore, factory = RECOGNIZER_FACTORY)
+
+    /** Makes the phrase word streams from the models the loader has verified. */
+    private val wordStreamFactory: SherpaOnnxWordStreamFactory = SherpaOnnxWordStreamFactory()
+
     /** Called when a take ends by itself (the microphone stopped). Set by the tile host. */
     var onTakeEnded: (() -> Unit)? = null
 
@@ -93,6 +102,12 @@ class BreakerCompositionRoot(
     /** Takes a device failure, with the fallback that the take end runs. Set by the tile host. */
     var onDeviceFailure: ((() -> Unit) -> Unit)? = null
 
+    /** Gives the phrase word stream for a listening run, or null when none is ready. Set by the tile host. */
+    var phraseWords: (() -> FedWordStream?)? = null
+
+    /** Receives the fixed reason when a take begins without spoken send. Set by the app. */
+    var phraseWarn: ((String) -> Unit)? = null
+
     /** The dictation parts, built on first use. */
     val dictation: DictationComponent by lazy {
         DictationComponent(
@@ -104,7 +119,7 @@ class BreakerCompositionRoot(
                 serverUrlProvider = { settingsStore.load().serverUrl },
                 clock = SystemClockAdapter,
             ),
-            localEngine = OnDeviceSttEngine(ModelLoader(store = modelStore, factory = RECOGNIZER_FACTORY)),
+            localEngine = OnDeviceSttEngine(modelLoader),
             serverEngine = UnavailableSttEngine(SttError.OTHER, SERVER_UNAVAILABLE_DETAIL),
             localFormatter = RuleBasedFormatter(),
             serverFormatter = RuleBasedFormatter(),
@@ -116,9 +131,21 @@ class BreakerCompositionRoot(
             onMicTaken = { onMicTaken?.invoke() },
             levelSink = LevelSink { level -> levelSink?.publish(level) },
             onDeviceFailure = { fallback -> onDeviceFailure?.invoke(fallback) ?: fallback() },
+            phraseWords = { phraseWords?.invoke() },
         )
     }
+
+    /**
+     * The phrase word stream for [modelId], or null when the model is not ready. The load's recognizer is
+     * released at once, because the stream runs on its own; a refused load gives null, and so does a stream
+     * that cannot be made.
+     */
+    fun buildWordStream(modelId: String): FedWordStream? =
+        buildPhraseStream(modelId, modelLoader::load, wordStreamFactory::create)
 }
+
+/** The fixed reason logged once for a take that began without spoken send: a plain sentence with no user text. */
+internal const val PHRASE_UNAVAILABLE_REASON: String = "spoken send is off for this take"
 
 /** A controller that can never switch the service on: the permission is off and the launcher refuses. */
 private fun neverArmedController(): DictationServiceController =

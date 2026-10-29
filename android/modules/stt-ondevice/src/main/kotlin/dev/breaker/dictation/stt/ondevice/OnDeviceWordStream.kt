@@ -174,11 +174,11 @@ internal class OnDeviceWordStream(
         get() = current.get()?.running?.get() ?: false
 
     /** Chunks dropped since the last start() because the queue was full. */
-    val droppedChunks: Long
+    override val droppedChunks: Long
         get() = droppedChunksCount.get()
 
     /** Samples in the chunks dropped since the last start(). */
-    val droppedSamples: Long
+    override val droppedSamples: Long
         get() = droppedSamplesCount.get()
 
     /** Tail flushes of the newest run that outlived the flush deadline. */
