@@ -5,6 +5,7 @@ import dev.breaker.server.syncapi.accounts.AccountStore
 import dev.breaker.server.syncapi.db.TestDatabases
 import dev.breaker.server.syncapi.tokens.TokenFixtures
 import dev.breaker.server.syncapi.tokens.TokenStore
+import dev.breaker.server.syncapi.transcriptions.TranscriptionStore
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.statement.bodyAsText
@@ -24,18 +25,20 @@ class HealthRouteTest {
 
     private lateinit var accountStore: AccountStore
     private lateinit var tokenStore: TokenStore
+    private lateinit var transcriptionStore: TranscriptionStore
 
     @Before
     fun setUp() {
         val temp = TestDatabases.openTemp()
         accountStore = AccountFixtures.newStore(temp)
         tokenStore = TokenFixtures.tokenStore(temp, Clock.systemUTC())
+        transcriptionStore = TranscriptionStore(temp.db, Clock.systemUTC())
     }
 
     @Test
     fun `GET health answers 200`() = runBlocking<Unit> {
         testApplication {
-            application { syncApiModule(accountStore, tokenStore) }
+            application { syncApiModule(accountStore, tokenStore, transcriptionStore) }
             val response = client.get("/health")
             assertEquals("GET /health status", HttpStatusCode.OK, response.status)
         }
@@ -44,7 +47,7 @@ class HealthRouteTest {
     @Test
     fun `GET health body is exactly the status ok object`() = runBlocking<Unit> {
         testApplication {
-            application { syncApiModule(accountStore, tokenStore) }
+            application { syncApiModule(accountStore, tokenStore, transcriptionStore) }
             val response = client.get("/health")
             assertEquals("GET /health body", """{"status":"ok"}""", response.bodyAsText())
         }
@@ -53,7 +56,7 @@ class HealthRouteTest {
     @Test
     fun `GET health is served as json`() = runBlocking<Unit> {
         testApplication {
-            application { syncApiModule(accountStore, tokenStore) }
+            application { syncApiModule(accountStore, tokenStore, transcriptionStore) }
             val response = client.get("/health")
             assertEquals(
                 "GET /health content type",
@@ -66,7 +69,7 @@ class HealthRouteTest {
     @Test
     fun `GET health works without any Authorization header`() = runBlocking<Unit> {
         testApplication {
-            application { syncApiModule(accountStore, tokenStore) }
+            application { syncApiModule(accountStore, tokenStore, transcriptionStore) }
             val response = client.get("/health")
             assertEquals("unauthenticated GET /health status", HttpStatusCode.OK, response.status)
         }
@@ -75,7 +78,7 @@ class HealthRouteTest {
     @Test
     fun `POST to health is not a success and is answered 404 or 405`() = runBlocking<Unit> {
         testApplication {
-            application { syncApiModule(accountStore, tokenStore) }
+            application { syncApiModule(accountStore, tokenStore, transcriptionStore) }
             val response = client.post("/health")
             val code = response.status.value
             assertFalse("POST /health must not be a 2xx but was $code", code in 200..299)
@@ -86,7 +89,7 @@ class HealthRouteTest {
     @Test
     fun `an unknown path is answered 404`() = runBlocking<Unit> {
         testApplication {
-            application { syncApiModule(accountStore, tokenStore) }
+            application { syncApiModule(accountStore, tokenStore, transcriptionStore) }
             val response = client.get("/nope")
             assertEquals("GET /nope status", HttpStatusCode.NotFound, response.status)
         }
