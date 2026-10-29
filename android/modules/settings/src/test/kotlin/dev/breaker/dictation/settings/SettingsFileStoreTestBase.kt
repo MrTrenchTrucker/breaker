@@ -59,16 +59,34 @@ internal val CREDENTIAL_LIKE_SUBSTRINGS: List<String> =
     listOf("api", "key", "token", "secret", "password")
 
 /**
+ * The one property key the guard does not report. Its name contains the letters
+ * of a credential word only as part of "keyboard", and the key holds an on/off
+ * switch, not a credential.
+ *
+ * The comparison is exact and case-sensitive, because the settings file writes
+ * lower-case keys. A key that only contains this name, or spells it in upper
+ * case, is still reported.
+ *
+ * It is a literal of its own, not a reference to the shared key constant, so a
+ * rename of that constant cannot silently change what the guard allows.
+ */
+internal const val CREDENTIAL_GUARD_EXEMPT_KEY = "show_tile_on_keyboard"
+
+/**
  * The credential-shaped keys among [keys] — where [keys] are the keys parsed
  * out of a file on disk, never the keys the writer believed it wrote.
  *
  * The input has to come from the file. A guard handed the writer's own key
  * list can only ever see its own output, so it can never catch a key the
  * writer never intended to write, which is the only thing it is here for.
+ *
+ * One key is exempt: a key equal to [CREDENTIAL_GUARD_EXEMPT_KEY], compared
+ * case-sensitively, is not reported. Every other key is matched as before.
  */
 internal fun credentialLikeKeysIn(keys: Collection<String>): Set<String> =
     keys.filterTo(mutableSetOf()) { key ->
-        CREDENTIAL_LIKE_SUBSTRINGS.any { key.contains(it, ignoreCase = true) }
+        key != CREDENTIAL_GUARD_EXEMPT_KEY &&
+            CREDENTIAL_LIKE_SUBSTRINGS.any { key.contains(it, ignoreCase = true) }
     }
 
 /**

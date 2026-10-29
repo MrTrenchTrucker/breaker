@@ -113,6 +113,53 @@ class SettingsWrittenKeysTest : SettingsFileStoreTestBase() {
     }
 
     /**
+     * The exemption is one exact, case-sensitive name. Each planted key below
+     * checks one way the exemption could go wrong:
+     *
+     * - show_tile_on_keyboard is the switch itself; it must not be reported.
+     * - show_tile_on_keyboard_token starts with the switch name and adds a
+     *   credential word; a prefix match would hide it.
+     * - app_show_tile_on_keyboard ends with the switch name and adds a prefix;
+     *   a suffix match would hide it.
+     * - keyboard_api_key shares only the word "keyboard" with the switch name;
+     *   a match on that word alone would hide it.
+     * - SHOW_TILE_ON_KEYBOARD_KEY is a credential-shaped name in upper case; the
+     *   substring match must still report it.
+     * - SHOW_TILE_ON_KEYBOARD is the switch name in upper case; an ignore-case
+     *   comparison would hide it.
+     */
+    @Test
+    fun `the credential guard allows only the keyboard switch key by exact name`() {
+        val props = Properties()
+        props.setProperty("show_tile_on_keyboard", "true")
+        props.setProperty("show_tile_on_keyboard_token", "PLANTED")
+        props.setProperty("app_show_tile_on_keyboard", "PLANTED")
+        props.setProperty("keyboard_api_key", "PLANTED")
+        props.setProperty("SHOW_TILE_ON_KEYBOARD_KEY", "PLANTED")
+        props.setProperty("SHOW_TILE_ON_KEYBOARD", "PLANTED")
+        val file = newFile()
+        file.outputStream().use { props.store(it, "planted") }
+
+        val reported = credentialLikeKeysIn(rawPropertiesOf(file).stringPropertyNames())
+
+        assertEquals(
+            "the guard must report exactly the planted keys other than show_tile_on_keyboard, got $reported",
+            setOf(
+                "show_tile_on_keyboard_token",
+                "app_show_tile_on_keyboard",
+                "keyboard_api_key",
+                "SHOW_TILE_ON_KEYBOARD_KEY",
+                "SHOW_TILE_ON_KEYBOARD",
+            ),
+            reported,
+        )
+        assertTrue(
+            "show_tile_on_keyboard was reported: $reported",
+            !reported.contains("show_tile_on_keyboard"),
+        )
+    }
+
+    /**
      * `writtenKeys()` is a real contract, checked from both ends and from the
      * middle.
      *

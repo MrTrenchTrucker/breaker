@@ -21,7 +21,7 @@ import java.util.Properties
  *
  * `AppSettings.apiKeyRef` is a *reference* (the core model says so itself), so
  * what must never happen is the store writing that reference — or reading one
- * back — into the same plaintext properties file as the eight harmless
+ * back - into the same plaintext properties file as the eleven harmless
  * settings. What must happen instead is that the reference is persisted
  * **through the port**, so a later store instance over the same port still sees
  * it. The store is constructed as `SettingsFileStore(file, keystore)`.
