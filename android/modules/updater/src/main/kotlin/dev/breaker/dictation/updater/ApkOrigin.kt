@@ -39,12 +39,15 @@ internal object ApkOrigin {
 
     /** Returns the refusal for [apkUrl] under [serverBase], or null when the apk address belongs to the server. */
     fun refusalFor(serverBase: String, apkUrl: String): OriginRefusal? {
-        problemOf(serverBase)?.let { return it }
+        refusalForBase(serverBase)?.let { return it }
         problemOf(apkUrl)?.let { return it }
         if (hostOf(serverBase) != hostOf(apkUrl)) return OriginRefusal.HOST_MISMATCH
         if (portOf(serverBase) != portOf(apkUrl)) return OriginRefusal.PORT_MISMATCH
         return null
     }
+
+    /** Returns the refusal that [serverBase] alone gives under the origin rules, or null when the base may be requested. */
+    internal fun refusalForBase(serverBase: String): OriginRefusal? = problemOf(serverBase)
 
     /** Returns the first rule that [url] breaks, or null when the address has an acceptable origin. */
     private fun problemOf(url: String): OriginRefusal? {

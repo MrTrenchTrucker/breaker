@@ -6,7 +6,7 @@ import java.io.IOException
 /**
  * Reads the update manifest over https. Every failure is [ManifestLoad.Unavailable]; no exception stands for one.
  *
- * The request is a GET of the manifest address under the configured base, with the named timeouts. A base that is not https is
+ * The request is a GET of the manifest address under the configured base, with the named timeouts. A base that the origin rule refuses is
  * never requested. A redirect or any non-2xx status is a failure, and its body is never read. A declared length over the cap is a
  * failure before any body byte is read. The body is read up to one byte past the cap, so a longer body is refused. A body shorter
  * than its declared length is a failure, and a malformed UTF-8 body is a failure. The reply is closed on every path, and no request

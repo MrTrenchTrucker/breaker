@@ -15,7 +15,6 @@ internal object HttpRules {
     internal const val READ_TIMEOUT_MS: Int = 15_000
     internal const val APK_READ_TIMEOUT_MS: Int = 30_000
     internal const val MANIFEST_PATH: String = "/v1/updates/latest.json"
-    private const val HTTPS_PREFIX: String = "https://"
 
     /** The request headers the opener sends. The list is empty: no update request carries a header of any kind. */
     fun requestHeaders(): List<Pair<String, String>> = emptyList()
@@ -23,9 +22,9 @@ internal object HttpRules {
     /** True for a 2xx status only. Redirects are not followed, so a redirect status is never a success. */
     fun isSuccessStatus(status: Int): Boolean = status in 200..299
 
-    /** The manifest address under [serverBase], with one trailing slash removed; null when the base is not an https address. */
+    /** The manifest address under [serverBase], with one trailing slash removed; null when the origin rule refuses the base. */
     fun manifestUrl(serverBase: String): String? {
-        if (!serverBase.regionMatches(0, HTTPS_PREFIX, 0, HTTPS_PREFIX.length, ignoreCase = true)) return null
+        if (ApkOrigin.refusalForBase(serverBase) != null) return null
         return serverBase.removeSuffix("/") + MANIFEST_PATH
     }
 }
