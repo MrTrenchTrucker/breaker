@@ -4,6 +4,21 @@
 **Date:** 2026-09-30
 
 ## Context
+**Amended 2026-10-19.** The sealing handoff to `server/modules/sync-api`
+described below is **unshipped**: it lands with Phase 19/20
+(`docs/04-build-order.md`), the phase that builds the ADR-018 box keypair and
+the pending-sealed store. Today `server/modules/whisper-server` has **no
+compile edge** to `sync-api` — `modules.toml`'s `[module.server_whisper]`
+`depends_on` lists only `server` and `shared_api_contracts`, and the module's
+`build.gradle.kts` carries no `project(":server:modules:sync-api")`
+dependency. The **transport for the sealing handoff is not chosen**, and this
+ADR does not choose it. The transport, and any new edge between the two
+modules, are decided by a **new ADR** when Phase 19/20 is ordered; a re-added
+edge goes through the **registry change protocol** (the Interface Change
+Protocol: a proposal up the chain, approval recorded in the work order, then
+the registry and the module card updated together), never a silent
+`depends_on` addition.
+
 F27 requires agent-token job results to reach the owner's account and appear
 in the web FE like any other transcription. ADR-006 (as amended) requires the
 server to hold no usable key and store ciphertext only. An agent authenticates
