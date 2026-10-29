@@ -33,6 +33,7 @@ class FirstRunControllerFlowTest {
         FirstRunPage.OVERLAY,
         FirstRunPage.NOTIFICATIONS,
         FirstRunPage.ACCESSIBILITY,
+        FirstRunPage.KEYBOARD_TILE,
         FirstRunPage.DOWNLOAD,
     )
 
@@ -65,25 +66,25 @@ class FirstRunControllerFlowTest {
     fun `advance walks the order and stops on the download page, and advance there changes nothing`() {
         val r = Rig(nothing)
         val seen = mutableListOf(r.controller.page)
-        repeat(5) {
+        repeat(6) {
             r.controller.advance()
             seen += r.controller.page
         }
         assertEquals(walk, seen)
         r.controller.advance()
         assertEquals(FirstRunPage.DOWNLOAD, r.controller.page)
-        assertEquals("the download page asks the phone nothing", 6, r.platform.statusCalls)
+        assertEquals("the download page asks the phone nothing", 7, r.platform.statusCalls)
     }
 
     @Test
-    fun `shown step is 0 1 2 3 4 0 along the walk`() {
+    fun `shown step is 0 1 2 3 4 5 0 along the walk`() {
         val r = Rig(nothing)
         val steps = mutableListOf(r.controller.shown().step)
-        repeat(5) {
+        repeat(6) {
             r.controller.advance()
             steps += r.controller.shown().step
         }
-        assertEquals(listOf(0, 1, 2, 3, 4, 0), steps)
+        assertEquals(listOf(0, 1, 2, 3, 4, 5, 0), steps)
     }
 
     @Test

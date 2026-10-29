@@ -8,15 +8,12 @@ import org.junit.Test
 /**
  * The release build holds none of the keyboard signal probe.
  *
- * The probe lives in the debug source set only: its activity, its start provider, its
- * selector and its service config overlay. The main sources and the main manifest are read
- * as text, and the debug config is read as XML with the same parser and the same exact allow-list.
- * The debug manifest rules live in ProbeDebugManifestGateTest and the shortcut rules in
- * ProbeShortcutGateTest. No main source of the app or of any module
- * calls setEnabled on the probe holder; that rule reads text, so a call through reflection or a
- * second alias of an alias is not seen. Each rule holds on the real files and
- * refuses the plant samples written beside it; a sample whose target text is missing fails
- * by name.
+ * The main sources and the main manifest are read as text, and no main source of the app or of any
+ * module calls setEnabled on the probe holder. The manifest rules for the debug build live in
+ * ProbeDebugManifestGateTest and the shortcut rules in ProbeShortcutGateTest. The setEnabled rule reads
+ * text, so a call through reflection or a second alias of an alias is not seen. Each rule holds on the
+ * real files and refuses the plant samples written beside it; a sample whose target text is missing
+ * fails by name.
  */
 internal class ProbeReleaseGateTest {
 
@@ -30,20 +27,6 @@ internal class ProbeReleaseGateTest {
     )
 
     private val mainManifest: String = AppSourceFiles.mainFile("AndroidManifest.xml")
-
-    private val debugConfigPath: String = "src/debug/res/xml/commit_accessibility_service_config.xml"
-
-    private val debugConfig: XmlExpect = XmlExpect(
-        name = "accessibility-service",
-        attributes = mapOf(
-            "xmlns:android" to XmlTree.ANDROID_NAMESPACE,
-            "android:accessibilityEventTypes" to "typeViewFocused|typeWindowsChanged|typeWindowStateChanged",
-            "android:accessibilityFeedbackType" to "feedbackGeneric",
-            "android:accessibilityFlags" to "flagRetrieveInteractiveWindows",
-            "android:canRetrieveWindowContent" to "true",
-            "android:description" to "@string/commit_accessibility_service_description",
-        ),
-    )
 
     /** One line per element of [xml] whose name or authorities names the probe. */
     private fun probeElements(xml: String): List<String> {
@@ -86,13 +69,6 @@ internal class ProbeReleaseGateTest {
             }
         }
         return found
-    }
-
-    /** The text of a file of the app module that is not in src/main; fails by name when it is missing. */
-    private fun debugText(path: String): String {
-        val file = File(AppSourceFiles.moduleRoot, path)
-        check(file.isFile) { "app: the debug file $path is missing" }
-        return file.readText(Charsets.UTF_8)
     }
 
     private val setEnabledCall: Regex = Regex("\\bsetEnabled\\s*\\(")
@@ -168,38 +144,6 @@ internal class ProbeReleaseGateTest {
         assertEquals("app: a main file holds an accessibility service config", emptyList<String>(), serviceConfigHits(main))
         val plant = mapOf("res/xml/commit_accessibility_service_config.xml" to "<accessibility-service android:description=\"x\" />")
         assertTrue("app: a service config under src/main was accepted", serviceConfigHits(plant).isNotEmpty())
-    }
-
-    @Test
-    fun `the debug service config holds the baseline attributes plus the flag and the two window events and nothing more`() {
-        val text: String = debugText(debugConfigPath)
-        assertEquals("app: the debug service config is not the allowed one", emptyList<String>(), XmlAllowList.problems(XmlTree.parse(text), debugConfig))
-        val plants = listOf(
-            XmlSample("an extra capability attribute", "android:canRetrieveWindowContent=\"true\"", "android:canRetrieveWindowContent=\"true\"\n    android:canPerformGestures=\"true\""),
-            XmlSample("a dropped window event", "|typeWindowsChanged", ""),
-            XmlSample("a dropped window state event", "|typeWindowStateChanged", ""),
-            XmlSample("a dropped flag", "\n    android:accessibilityFlags=\"flagRetrieveInteractiveWindows\"", ""),
-        )
-        for (sample in plants) {
-            val changed: String = XmlSamples.apply("config", text, sample)
-            assertTrue("app: the debug service config accepted ${sample.label}", XmlAllowList.problems(XmlTree.parse(changed), debugConfig).isNotEmpty())
-        }
-    }
-
-    @Test
-    fun `the debug service config keeps the description string of the baseline`() {
-        val debug: String = XmlTree.parse(debugText(debugConfigPath)).attributes["android:description"] ?: ""
-        val baselineFile = File(AppSourceFiles.moduleRoot, "../modules/commit/accessibility/src/main/res/xml/commit_accessibility_service_config.xml")
-        check(baselineFile.isFile) { "app: the baseline service config is missing" }
-        val baseline: String = XmlTree.parse(baselineFile.readText(Charsets.UTF_8)).attributes["android:description"] ?: ""
-        assertEquals("app: the debug description differs from the baseline", baseline, debug)
-        assertEquals("app: the description is not the baseline string", "@string/commit_accessibility_service_description", debug)
-        val changed: String = XmlSamples.apply(
-            "config",
-            debugText(debugConfigPath),
-            XmlSample("another description", "@string/commit_accessibility_service_description", "@string/other_description"),
-        )
-        assertTrue("app: a changed description was accepted", XmlTree.parse(changed).attributes["android:description"] != baseline)
     }
 
     @Test

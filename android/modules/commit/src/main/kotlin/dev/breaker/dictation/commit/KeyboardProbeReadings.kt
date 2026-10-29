@@ -13,9 +13,9 @@ import kotlinx.coroutines.flow.update
  * (the field the other app is typing in). [imeWindow] is whether the
  * accessibility window list currently carries an input-method window (the
  * keyboard). [lastEvent] is the name of the accessibility event that woke the
- * read, so a reading can say which change produced it. [time] is the
- * read's wall-clock time in milliseconds, for the debug page to show how
- * fresh the reading is.
+ * read, so a reading can say which change produced it. [time] is a monotonic clock
+ * in milliseconds (System.nanoTime() / 1_000_000L), read when the service handled the
+ * event; only differences between stamps are used, so a wall-clock change never moves it.
  *
  * This is a value, not a live view: it is a snapshot of the three signals at
  * one moment, handed across a module boundary so the app can show it. It
@@ -30,10 +30,10 @@ data class ProbeReading(
 
 /**
  * The one process-wide holder for the keyboard-signal readings. The probe's
- * own members ([publish], [recent], [isEnabled] and the recent lines) are
- * removed together with the probe's setting selector before release; the
- * production seam ([publishLatest], [readings], [current]) stays, because the
- * keyboard tile's show-and-hide decision reads it in a release build.
+ * own members ([publish], [recent], [isEnabled] and the recent lines) are not
+ * called from release code; the production seam ([publishLatest], [readings],
+ * [current]) is what the keyboard tile's show-and-hide decision reads in a
+ * release build.
  *
  * It is a plain object because three modules share no constructor: this
  * module, the accessibility module that writes the readings, and the app that
@@ -43,14 +43,15 @@ data class ProbeReading(
  *
  * [shouldProcessEvent] decides whether an event from a package is worth recording: the
  * probe's own package is skipped, so the probe never floods its own readings list.
- * [publish] is the probe's write: the accessibility service calls it on each
- * wake event while the probe is on. [publishLatest] is the production write:
+ * [publish] is the probe's write: it stores a reading, as the latest one and as a
+ * recent line, only while the probe is on. No production code calls it.
+ * [publishLatest] is the production write:
  * it stores the latest reading whether or not the probe is on, so the reader
  * of [readings] always sees the keyboard state of the phone. [current] and
- * [recent] are the reader's: the debug page shows the latest reading and the
+ * [recent] are the reader's: the latest reading and the
  * recent lines, oldest first. [setEnabled] turns the probe on and off. Turning
- * it off clears the latest reading and the recent lines, and while it is off
- * [publish] stores nothing.
+ * it off clears the latest reading and the recent lines; while it is off,
+ * [publish] stores nothing and [publishLatest] stores the latest reading only.
  *
  * Every change is one compare-and-set of an immutable value, so any caller may
  * call any member, and no member waits for another.
@@ -87,14 +88,15 @@ object KeyboardProbeReadings {
     }
 
     /**
-     * Whether the probe is on. The accessibility service checks this first, so an
-     * off probe does no accessibility-tree work on a wake event.
+     * Whether the probe is on. The flag gates [publish] and the recent lines that
+     * [publishLatest] appends; the latest reading is stored whether or not the probe
+     * is on. No production code calls this.
      */
     fun isEnabled(): Boolean = state.value.enabled
 
     /**
      * Whether an event from [eventPackage] is worth recording. An event whose package is
-     * the probe's own [ownPackage] is the probe's own UI reacting to itself, so it is
+     * [ownPackage], Breaker's own package, is Breaker's own UI reacting to itself, so it is
      * skipped; a null package, where the event names none, is kept. The service calls this
      * before it reads anything, so the probe never floods its own readings list.
      */

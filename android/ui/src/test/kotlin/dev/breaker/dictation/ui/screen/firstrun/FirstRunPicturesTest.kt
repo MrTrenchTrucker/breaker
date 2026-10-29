@@ -21,6 +21,8 @@ class FirstRunPicturesTest {
         assertEquals("ui: first run: the notification dark name is wrong", "breaker_perm_notify_dark", FirstRunPictures.nameFor(FirstRunPage.NOTIFICATIONS, dark = true))
         assertEquals("ui: first run: the accessibility light name is wrong", "breaker_perm_access_light", FirstRunPictures.nameFor(FirstRunPage.ACCESSIBILITY, dark = false))
         assertEquals("ui: first run: the accessibility dark name is wrong", "breaker_perm_access_dark", FirstRunPictures.nameFor(FirstRunPage.ACCESSIBILITY, dark = true))
+        assertEquals("ui: first run: the keyboard tile light name is wrong", "breaker_perm_kbtile_light", FirstRunPictures.nameFor(FirstRunPage.KEYBOARD_TILE, dark = false))
+        assertEquals("ui: first run: the keyboard tile dark name is wrong", "breaker_perm_kbtile_dark", FirstRunPictures.nameFor(FirstRunPage.KEYBOARD_TILE, dark = true))
     }
 
     @Test
@@ -38,19 +40,20 @@ class FirstRunPicturesTest {
     }
 
     @Test
-    fun `ALL has exactly ten names in the design order and no duplicates`() {
+    fun `ALL has exactly twelve names in the design order and no duplicates`() {
         assertEquals(
-            "ui: first run: the picture list is not the ten names in design order",
+            "ui: first run: the picture list is not the twelve names in design order",
             listOf(
                 "breaker_perm_mic_light", "breaker_perm_mic_dark",
                 "breaker_perm_overlay_light", "breaker_perm_overlay_dark",
                 "breaker_perm_notify_light", "breaker_perm_notify_dark",
                 "breaker_perm_access_light", "breaker_perm_access_dark",
+                "breaker_perm_kbtile_light", "breaker_perm_kbtile_dark",
                 "breaker_logo_light", "breaker_logo_dark",
             ),
             FirstRunPictures.ALL,
         )
-        assertEquals("ui: first run: the picture list has a duplicate", 10, FirstRunPictures.ALL.toSet().size)
+        assertEquals("ui: first run: the picture list has a duplicate", 12, FirstRunPictures.ALL.toSet().size)
     }
 
     @Test

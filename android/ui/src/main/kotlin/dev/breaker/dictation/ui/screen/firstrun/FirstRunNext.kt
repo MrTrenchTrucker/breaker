@@ -1,6 +1,7 @@
 package dev.breaker.dictation.ui.screen.firstrun
 
 import dev.breaker.dictation.ui.screen.KitLook
+import dev.breaker.dictation.ui.screen.onboarding.StepStatus
 
 /*
  * The look of the Next button on a first-run page.
@@ -12,8 +13,14 @@ import dev.breaker.dictation.ui.screen.KitLook
  */
 internal object FirstRunNext {
 
-    /** Whether [shown]'s own permission step has already been granted. */
-    fun ready(shown: FirstRunShown): Boolean = shown.missing.none { it.page == shown.page }
+    /**
+     * Whether the setup step of [shown]'s page has already been granted. A page with no setup
+     * step is always ready.
+     */
+    fun ready(shown: FirstRunShown): Boolean {
+        val step = FirstRunPages.setupStepOf(shown.page) ?: return true
+        return shown.state.statusOf(step) == StepStatus.GRANTED
+    }
 
     /**
      * The kit look for the Next button on [shown]: RAISED once the page's own step is granted,

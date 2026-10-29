@@ -116,7 +116,7 @@ class FirstRunControllerSwitchTest {
         r.controller.advance()
         assertEquals(0, r.finished)
         r.modelThrows = true
-        repeat(4) { r.controller.advance() }
+        repeat(5) { r.controller.advance() }
         assertEquals(FirstRunPage.DOWNLOAD, r.controller.page)
         assertEquals("the kept answer finishes the first run once", 1, r.finished)
     }
