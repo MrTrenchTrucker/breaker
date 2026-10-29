@@ -1,0 +1,1888 @@
+diff --git a/android/app/AGENTS.md b/android/app/AGENTS.md
+index 21fb4aa4..4c6edd82 100644
+--- a/android/app/AGENTS.md
++++ b/android/app/AGENTS.md
+@@ -30,7 +30,7 @@ app-level composition of all modules. Concretely, the app's own types are:
+ - Android adapters in the service package (thin, one platform call per member, checked by text gates): `DictationForegroundService` (the microphone foreground service), `AndroidServiceLauncher`, `AndroidMicPermission`, and `DictationNotification` (module-internal; the quiet ongoing notification with one "Switch off" action; its title, its action label and its plain content line are in `strings.xml`; `build` is the plain one, and `withText(context, text)` builds the same notification with the given content line, which carries the taken line, a Kotlin constant and not a string resource).
+ - `ModelNotifications` in the service package (module-internal; a channel of its own, `speech-model`, that makes no sound): four notices, namely the speech model is missing, the model is downloading (the downloading notice shows the progress sentence; its bar fills when the total is known and is endless when it is not and while the archive is checked), the download is done or has failed, and the tile could not be shown. Each tap is one immutable `PendingIntent.getActivity` to the launcher with a request code of its own. The words are Kotlin constants, in plain words for the user; with notifications switched off nothing shows.
+ - Host package `dev.breaker.dictation.host` (the Android classes that join the wiring to the platform; checked by text gates):
+-  - `AppThreads.kt` - `MainLooperPost` (runs a block on the main looper, always queued, never inline; it also implements `DelayedPost` for the notice clear and the keyboard re-evaluation; `registerOnMain` also registers the display-change listener on the main looper) and `SerialBackground` (blocks one at a time, in order, on one named daemon thread; a block that throws is dropped and the next still runs). It is the only file in the app that names a handler, a looper, an executor or a thread.
++  - `AppThreads.kt` - `MainLooperPost` (runs a block on the main looper, always queued, never inline; it also implements `DelayedPost` for the notice clear; `registerOnMain` also registers the display-change listener on the main looper) and `SerialBackground` (blocks one at a time, in order, on one named daemon thread; a block that throws is dropped and the next still runs). It is the only file in the app that names a handler, a looper, an executor or a thread.
+   - `DisplayChangeAndroid` - the `DisplayPort` over the platform's display manager; it registers one display-change listener with the main-looper handler, so the callback, the snapshot and the watch run on the main thread; the snapshot is the default display's rotation plus the physical size of its current mode, with no window manager and no refresh rate or mode id.
+   - `OverlayTilePort` - the `TilePort` over the overlay module's `FloatingTile`; built on the first show; maps the show result to `TileShow`. Its `level` passes the value on to `setLevel` on the tile with no state check; the RECORDING check is in `LevelFeed`. Its `onDisplayChanged()` forwards a display change to the tile and does nothing until the tile has been shown once.
+   - `TakenClipboardAndroid` - the `TakenClipboard` over the phone's primary clip, labelled with the app's name; main thread only.
+@@ -64,7 +64,7 @@ app-level composition of all modules. Concretely, the app's own types are:
+   - `Swaps.kt` - the swap points, in the table below (none of them names an Android type).
+   - `AndroidSwaps.kt` - the android half of the swap points: the swaps that need an Android type live here, namely `appTextCommitter(context)` (the accessibility commit), `appMicSource(audioManager)` (the real microphone) and `appGesture(context)` with its `ShakeGesture` mapping (the real shake of the phone, read from the accelerometer), and `appTakenClipboard(context)` (the clipboard a taken take copies to, main thread). They are kept out of `Swaps.kt` so that file stays plain.
+ 
+-After a send the tile shows SENT until the next begin, cancel, tap or switch-off. A send whose text was committed, or only reached the clipboard, also shows SENT; a failed commit shows FAILED with its sentence. A tap on a tile that shows SENT starts a take; a shake does not (see invariant 18). The text itself is never given to the tile, and there are two timers: the notice clear that lines 147-150 describe, and the keyboard tile's one pending re-evaluation at the end of its 250 ms debounce window. The app does not push SENT_LOCAL: no producer exists, because the server path is not built, and a server failure is surfaced, not retried on the phone.
++After a send the tile shows SENT until the next begin, cancel, tap or switch-off. A send whose text was committed, or only reached the clipboard, also shows SENT; a failed commit shows FAILED with its sentence. A tap on a tile that shows SENT starts a take; a shake does not (see invariant 18). The text itself is never given to the tile, and the only timer is the notice clear that lines 137-140 describe. The app does not push SENT_LOCAL: no producer exists, because the server path is not built, and a server failure is surfaced, not retried on the phone.
+ 
+ The debug build only (`android/app/src/debug/`) holds the keyboard signal probe: a long-press shortcut on the Breaker icon labelled `Breaker probe`, a start provider that starts the probe with the process, the probe's selector, and an accessibility config overlay that adds the interactive-windows flag and the two window events. The release build holds none of it: its manifest and its sources name no probe element, and the probe and its selector are removed before release. The debug build also holds the Home mic probe: an exported broadcast receiver for the action `dev.breaker.debug.MIC` (extras `state` and `redraw`) and a not-exported start provider. The receiver reaches the Home mic only through the overlay module's public `ScreenMicProbe` interface, pushes a state or triggers a redraw, logs under the tag `BreakerMicProbe`, and never starts a take. The release manifest names neither; the `ScreenMicProbe` interface, the log sink and the touch-down and route log lines of the overlay's `ScreenMicProbeKit`, and the `HomeHostView` probe log lines are diagnostic and are removed with the probe before release. `ScreenMicProbeKit` itself is not: its host click decision (`hostAction`, `hostClick`, `dispatch`) is the production accessibility click path of the Home mic.
+ 
+@@ -195,7 +195,7 @@ code.
+ - **Emulator gate before any APK.** JVM tests and source-text gates cannot see Android layout or lifecycle. A change that touches layout, Views, redraws or the activity lifecycle is run on the Android 16 emulator (API 36) before an APK goes out: upgrade over the previous APK (with the first-run marker) and a fresh install, at window heights 1500, 1800, 2000, 2400 px and 1440x3120 at density 560, plus background/foreground, rotation and dark mode: full Home every time, no crash. The emulator cannot record audio, so recording states are pushed into the mic through a debug-source-set hook (that hook is not in main yet). Three launch defects were found only there and are fixed in main: the redraw re-adding the one mic view (ui `attachMicSlot` detaches it first), the unset `settingsView` on first run (`SettingsViewSetBeforeFirstRunTest`), and a blank Home on a tall phone (ui `TouchGapView` measures itself, `TouchGapMeasureGateTest`).
+ - **OPEN defects from the APK 8 phone test** (cause not found unless stated; required behaviour): (A, blocker) while recording, the X and check on the Home mic are drawn but not tappable and the take sticks; required: X cancels, check finishes, a second tap on the mic finishes. (B) Home mic must show the tile's mic-busy face (`TileState.MIC_BUSY`) from the same signal, no copy. (C) Home mic must show the tile's sending look from the end of recording until the result, then idle. (D) the new transcript must be on Home as soon as the take settles. (G) Settings is narrower than Home: the activity wraps Settings in its own column and `ScrollView` and the host adds its gutter again; required: one gutter applied in one place and the same content edge on every screen. (H, follow-up) the Home mic follows the phone's night mode, not the stored theme (`HomeScreenMic.setTheme` has no caller).
+ - **Persistence (OPEN).** The model is in `filesDir/models` (`LocalModelStore`), settings in `filesDir/settings.properties`, history in the app-private SQLite file `breaker_history.db`; `install -r` keeps them and an uninstall wipes them. `purgeExpired()` runs at start with the fixed 90-day window, and the speech module's `ModelLoader` deletes a model that fails verification. The project owner saw history and the model gone after an update; not reproduced: the gate reviewer's emulator test: an in-place update from APK 6 to APK 8 keeps history and model; APKs 1-5 were each signed with a different key, so 5 to 6 could not install over (INSTALL_FAILED_UPDATE_INCOMPATIBLE) and needed an uninstall; APKs 6, 7 and 8 share one key (cert SHA-256 a8225bc3). Required: an update keeps history, settings and the model. RULED by the project owner: an uninstall removes everything (ADR-028 Decision 2); BUILT manifest change: the manifest sets `allowBackup=false` plus `dataExtractionRules` and `fullBackupContent` that exclude every domain (the two rules files hold an exclude for all five domains in each section; `UninstallCleanGateTest` reads them).
+-- **Keyboard tile, built:** `decision(imeWindowPresent, fieldFocused, keyboardRaised, closedDuringSession, nowMs, lastChangeMs)` in `KeyboardTileDecision.kt` returns SHOW, HIDE or NO_OP. It is a top-level function of the wiring package, not a member of `TileCoordinator`; its readings are the keyboard window and the focused text field. The debounce is 250 ms: a reading inside the window is held, and the newest held reading is re-evaluated once when the window ends, through one pending post. `TileCoordinator.onKeyboardReading` acts on the result, `KeyboardTileSession` keeps the session flags, and `KeyboardHideHold` holds a keyboard-gone hide that comes during a take. **PLANNED, no code:** `PhraseSendHandler` (spoken Send, ADR-004), the one owner of phrase detector start/stop, the audio tee and the one-Send-per-take gate. It needs a new `app -> android_phrases` edge, which is registered in `modules.toml` and included in `settings.gradle.kts` but is not yet a dependency of the app, and it lands with that code, after the Home mic fixes.
++- **PLANNED, no code:** `TileCoordinator.decision(fieldFocused, imeWindowPresent, insetGrew, currentShown, nowMs, lastChangeMs)` -> SHOW/HIDE/NO_OP for the keyboard tile (F41, ADR-024; which signal wins and the debounce are OPEN); and `PhraseSendHandler` (spoken Send, ADR-004), the one owner of phrase detector start/stop, the audio tee and the one-Send-per-take gate. It needs a new `app -> android_phrases` edge, which is not in the registry or the build yet and lands with that code, after the Home mic fixes.
+ - **Start-up purge is one-shot and only logged.** `BreakerApp` schedules
+   `SqliteHistoryStore.purgeExpired()` once on an app-lifetime coroutine scope
+   on the I/O dispatcher (`createPurgeScope`), off the main thread. A failure is passed to a callback that logs it
+diff --git a/android/app/README.md b/android/app/README.md
+index f51cf497..e5682451 100644
+--- a/android/app/README.md
++++ b/android/app/README.md
+@@ -49,16 +49,6 @@ screen, the settings screen and the history screen, the manifest, and the Gradle
+   Breaker comes to the front. After a send, the tile shows SENT when the text
+   landed or only reached the clipboard, and FAILED with its sentence when the
+   commit failed. It keeps that until the next action.
+-- **The keyboard tile.** While dictation is switched on, the tile comes up when a keyboard is on
+-  screen and a text field is in focus. It goes away when the keyboard goes away, but only if a
+-  keyboard show brought it up. A keyboard show follows the same check as a shake: nothing is shown
+-  while the switch is off or while a take is in flight. A keyboard-gone hide that comes during a
+-  take is held and applied once when the take ends, and only if the keyboard is still gone. A
+-  keyboard show, a switch-off or a user close drops a held hide. A user close also forgets that the
+-  keyboard raised the tile, so a keyboard that goes away later does not hide a tile the user closed or
+-  brought back with a shake, unless a keyboard show has raised it since. If the user closes the tile
+-  while the keyboard is up, the tile stays down until the keyboard goes away and comes back; a close made
+-  while no keyboard is up does not stop the next keyboard show from bringing the tile back.
+ - **The user's switch-off.** When the user switches dictation off (the
+   notification's "Switch off" button, or the switch on the Home card), the app keeps that in a small file in its
+   files folder, and a start of the launcher from a notification or the tile no
+@@ -129,6 +119,9 @@ of `AGENTS.md` lists the smaller open items.
+   heard words, but the app does not use it yet, and no spoken off word is built.
+   PLANNED: a `PhraseSendHandler` in the wiring owns the spoken Send (ADR-004); it
+   needs an app edge to the phrases module that is not in the registry yet.
++- The keyboard tile (F41, ADR-024). PLANNED: a pure `TileCoordinator` decision
++  (show, hide or nothing); which keyboard signal wins is OPEN until the phone's
++  probe readings are in.
+ - The secret-resolving device Keystore. The app keeps only the reference to the
+   credential (`FileCredentialRefHolder`), never a secret; the Keystore that
+   resolves the reference is not built and not verified.
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/host/TileHost.kt b/android/app/src/main/kotlin/dev/breaker/dictation/host/TileHost.kt
+index 72b83333..95d940a0 100644
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/host/TileHost.kt
++++ b/android/app/src/main/kotlin/dev/breaker/dictation/host/TileHost.kt
+@@ -104,7 +104,6 @@ internal class TileHost(
+             appTakenClipboard(context),
+             { text -> setNotificationLine(text) },
+             root.historyStore,
+-            main,
+         )
+         val wiring = KeyboardTileWiring({ ime, focus, timeMs -> c.onKeyboardReading(ime, focus, timeMs) }, main)
+         wiring.start()
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardHideHold.kt b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardHideHold.kt
+deleted file mode 100644
+index 62ea378b..00000000
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardHideHold.kt
++++ /dev/null
+@@ -1,49 +0,0 @@
+-package dev.breaker.dictation.wiring
+-
+-/**
+- * Keeps a keyboard-gone hide that arrives while a take is in flight, and lets it through once, when the
+- * take has left flight. The kept hide is applied only when the last raw keyboard reading still says the
+- * keyboard is gone; a keyboard show clears it, and so does a switch-off. The tile stays up while it is
+- * held. Plain Kotlin: it names no Android type.
+- */
+-internal class KeyboardHideHold {
+-    private var held: Boolean = false
+-    private var keyboardGone: Boolean = false
+-
+-    /** Records every raw keyboard reading, before the session decides on it. */
+-    fun onReading(ime: Boolean) {
+-        keyboardGone = !ime
+-    }
+-
+-    /** True when a keyboard-gone hide may take the tile down now; false when it is held for the take in flight. */
+-    fun hideNow(inFlight: Boolean): Boolean {
+-        if (!inFlight) return true
+-        held = true
+-        return false
+-    }
+-
+-    /** A keyboard show clears the held hide. */
+-    fun clearOnShow() {
+-        held = false
+-    }
+-
+-    /** A user close drops the held hide, so nothing automatic takes the closed tile down later. */
+-    fun clearOnClose() {
+-        held = false
+-    }
+-
+-    /** A switch-off clears the held hide; true when there was one to clear. */
+-    fun clearOnSwitchOff(): Boolean {
+-        val was: Boolean = held
+-        held = false
+-        return was
+-    }
+-
+-    /** Called on every push of the tile state: true when the held hide comes down now. Nothing is applied while a take is in flight. */
+-    fun applyWhenIdle(inFlight: Boolean): Boolean {
+-        if (inFlight) return false
+-        val apply: Boolean = held && keyboardGone
+-        held = false
+-        return apply
+-    }
+-}
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardReevaluation.kt b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardReevaluation.kt
+deleted file mode 100644
+index 399886f4..00000000
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardReevaluation.kt
++++ /dev/null
+@@ -1,62 +0,0 @@
+-package dev.breaker.dictation.wiring
+-
+-/** A keyboard reading kept for the window it arrived in: its flags and the time that window ends. */
+-private class HeldReading(val ime: Boolean, val focus: Boolean, val dueMs: Long)
+-
+-/**
+- * Keeps the newest keyboard reading that arrives inside the debounce window, and re-evaluates it once, when
+- * the window ends, through [DelayedPost]. At most one post is pending. [cancel] drops the held reading and its
+- * post; [flush] runs the held re-evaluation at once, for a reading that arrives after its window. Main thread
+- * only. Plain Kotlin: it names no Android type and reads no clock.
+- */
+-internal class KeyboardReevaluation(
+-    private val delayed: DelayedPost,
+-    private val evaluate: (Boolean, Boolean, Long) -> Unit,
+-) {
+-    private var held: HeldReading? = null
+-    private var post: PostHandle? = null
+-
+-    /** Holds this reading in place of the one held before it, and posts the one re-evaluation when none is pending. */
+-    fun hold(ime: Boolean, focus: Boolean, timeMs: Long, dueMs: Long) {
+-        held = HeldReading(ime, focus, dueMs)
+-        if (post != null) return
+-        post = try {
+-            delayed.postDelayed((dueMs - timeMs).coerceAtLeast(0L)) { fire() }
+-        } catch (e: Exception) {
+-            null
+-        }
+-    }
+-
+-    /** Drops the held reading and its post, so nothing fires for it. */
+-    fun cancel() {
+-        held = null
+-        dropPost()
+-    }
+-
+-    /** Runs the held re-evaluation now, before a reading that arrives after its window is looked at. */
+-    fun flush() {
+-        if (held == null) return
+-        dropPost()
+-        fire()
+-    }
+-
+-    private fun dropPost() {
+-        val handle: PostHandle? = post
+-        post = null
+-        guarded { handle?.cancel() }
+-    }
+-
+-    private fun fire() {
+-        post = null
+-        val due: HeldReading = held ?: return
+-        held = null
+-        evaluate(due.ime, due.focus, due.dueMs)
+-    }
+-}
+-
+-/** The delayed post of a coordinator built without one; the tile host always passes its own. Its posts never run. */
+-internal object NoDelayedPost : DelayedPost {
+-    override fun postDelayed(delayMs: Long, block: () -> Unit): PostHandle = object : PostHandle {
+-        override fun cancel() {}
+-    }
+-}
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileDecision.kt b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileDecision.kt
+index 9c1eef54..736386cb 100644
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileDecision.kt
++++ b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileDecision.kt
+@@ -15,7 +15,7 @@ sealed interface KeyboardDecision {
+     object NoOp : KeyboardDecision
+ }
+ 
+-/** The debounce window in milliseconds: a reading inside it gets NoOp from the pure function and from the session, and the coordinator holds the newest such reading and re-evaluates it once when the window ends. Named so the coordinator and the debug page share one value. */
++/** The debounce window in milliseconds: a change inside it is swallowed, never acted on. Named so the coordinator and the debug page share one value. */
+ internal const val DEBOUNCE_MS: Long = 250
+ 
+ /**
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileSession.kt b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileSession.kt
+index aec5cfb8..b83d0bc8 100644
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileSession.kt
++++ b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileSession.kt
+@@ -66,27 +66,8 @@ internal class KeyboardTileSession {
+     /** The anchor time of the last acting change — exposed so tests can measure against the window. */
+     fun anchorMs(): Long = lastChangeMs
+ 
+-    /** True when [timeMs] falls inside the debounce window that opened at the last acting change. */
+-    fun inWindow(timeMs: Long): Boolean = timeMs - lastChangeMs < DEBOUNCE_MS
+-
+-    /** Keeps the raised mark while a keyboard-gone hide is held for a take in flight, so the hide can still apply. */
+-    fun keepRaised() {
+-        keyboardRaised = true
+-    }
+-
+-    /** Clears the raised mark once a keyboard hide has taken the tile down. */
+-    fun releaseRaised() {
+-        keyboardRaised = false
+-    }
+-
+     /** Remember a user close only while this session is live; clears it when the session ends (called on the coordinator's close path). */
+     fun setCloseWhileActive(active: Boolean) {
+         closedDuringSession = active
+     }
+-
+-    /** A user close: remembers a close while this session is live and releases the raised mark, so a later keyboard-gone reading does not take the closed tile down. */
+-    fun onCloseRequested() {
+-        setCloseWhileActive(keyboardSessionActive)
+-        keyboardRaised = false
+-    }
+ }
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt
+index 2a80c136..84083f33 100644
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt
++++ b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt
+@@ -32,7 +32,6 @@ class TileCoordinator(
+     private val clipboard: TakenClipboard = object : TakenClipboard { override fun copy(text: String) {} },
+     private val takenNotice: (String?) -> Unit = {},
+     private val history: HistoryStore? = null,
+-    private val delayed: DelayedPost = NoDelayedPost,
+ ) {
+     private var armed: Boolean = false
+     private var sendPushed: Boolean = false
+@@ -45,8 +44,6 @@ class TileCoordinator(
+     /** The keyboard tile's session gate and anchor, driven by [onKeyboardReading]. Kept separate to stay within the line cap; it names no Android type. */
+     private val keyboardTile = KeyboardTileSession()
+ 
+-    private val reevaluation: KeyboardReevaluation = KeyboardReevaluation(delayed) { ime, focus, dueMs -> act(keyboardTile.onKeyboardReading(ime, focus, dueMs)) }
+-
+     /** The taken-entry controller (the MIC_BUSY face and its settle). */
+     internal val yield = TakeYieldController(
+         background, main, take, TakeSettle(history, clipboard), takenNotice,
+@@ -64,12 +61,10 @@ class TileCoordinator(
+     /** True while the last show answered SHOWN; a refused or failed show and a switch-off clear it. A begin passes while it holds or while the user-closed flag holds. */
+     private var tileShown: Boolean = false
+ 
+-    private val heldHide: KeyboardHideHold = KeyboardHideHold()
+-    private val portCalls: TilePortCalls = TilePortCalls(take, modelReady, background)
+-
+-    /** The one seam every keyboard-driven SHOW passes through; default true. A shake setting flips this property. When off, the coordinator does not put the tile back on screen. */
++     /** The one seam every keyboard-driven SHOW passes through; default true. A shake setting flips this property. When off, the coordinator does not put the tile back on screen. */
+     internal var keyboardAutoPop: Boolean = true
+ 
++
+     /** Remembers the user closed the tile; cleared on launcher visible (through arm) or switch off/on. */
+     internal val tileShowGuard: TileShowGuard = TileShowGuard(tile, modelNotice)
+ 
+@@ -86,7 +81,7 @@ class TileCoordinator(
+         val wasSent: Boolean = pushed == TileState.SENT
+         lastCommit = null
+         if (tileShowGuard.onBegin { shown -> tileShown = (shown == TileShow.SHOWN); if (shown == TileShow.SHOWN) push() } || !tileShown) return
+-        if (!portCalls.isModelReady()) {
++        if (!isModelReady()) {
+             if (wasSent) push()
+             guarded { modelNotice.showMissing() }
+             // The notification may be switched off for the app, so the tile says it too.
+@@ -94,9 +89,8 @@ class TileCoordinator(
+             return
+         }
+         beginPending = true
+-        reevaluation.flush()
+         val epoch: Int = generation
+-        val queued: Boolean = portCalls.submit {
++        val queued: Boolean = submit {
+             val result: BeginResult = try {
+                 take.begin()
+             } catch (e: Exception) {
+@@ -111,7 +105,7 @@ class TileCoordinator(
+     }
+ 
+     /** A shake shows the tile when it is off screen or closed, and never begins a take. Main thread only. */
+-    fun onShake() = tileShowGuard.onShake(tileMayShow(), tileShown) { shown ->
++    fun onShake() = tileShowGuard.onShake(armed && !beginPending && !sendPushed && !yield.yieldRunning() && !deviceFailure.running() && pushed != TileState.RECORDING, tileShown) { shown ->
+         tileShown = (shown == TileShow.SHOWN); if (shown == TileShow.SHOWN) push() }
+ 
+     /** The user cancelled the take: drop it and show the armed tile. */
+@@ -124,7 +118,7 @@ class TileCoordinator(
+         guarded { tile.clearNotice() }
+         // The runner is still recording until the cancel below has run, so the session is given here.
+         push(DictationState.IDLE)
+-        portCalls.submit { guarded { take.cancel() } }
++        submit { guarded { take.cancel() } }
+     }
+ 
+     /** The user ended the take: finish, transcribe and send it. A repeat before the tile shows sending is ignored. */
+@@ -134,7 +128,7 @@ class TileCoordinator(
+         sendPushed = true
+         push()
+         val epoch: Int = generation
+-        val queued: Boolean = portCalls.submit {
++        val queued: Boolean = submit {
+             val end: TakeEnd = finisher.finishTake()
+             main.post { if (epoch == generation) settle(end) }
+         }
+@@ -150,34 +144,25 @@ class TileCoordinator(
+         lastFailed = false
+         guarded { tile.clearNotice() }
+         if (armed) push()
+-        val route: String? = if (portCalls.isModelReady()) null else ROUTE_MODEL_VALUE
++        val route: String? = if (isModelReady()) null else ROUTE_MODEL_VALUE
+         guarded { opener.openLauncher(route) }
+     }
+ 
+     fun onCloseRequested() {
+-        keyboardTile.onCloseRequested()
+-        heldHide.clearOnClose()
++        keyboardTile.setCloseWhileActive(keyboardTile.keyboardSessionActive)
+         tileShowGuard.onCloseRequested()
+-        tileShown = false // a user close clears the record that the tile is shown
+     }
+ 
+     /** One probe reading on the main thread decides what to show or hide. Never begins a take; never touches an armed switch; ime gone resets session flags. */
+     fun onKeyboardReading(ime: Boolean, focus: Boolean, timeMs: Long) {
+-        heldHide.onReading(ime)
+-        if (!keyboardTile.inWindow(timeMs)) reevaluation.flush()
+-        if (keyboardTile.inWindow(timeMs)) reevaluation.hold(ime, focus, timeMs, keyboardTile.anchorMs() + DEBOUNCE_MS)
+-        else act(keyboardTile.onKeyboardReading(ime, focus, timeMs))
+-    }
+-
+-    private fun act(decision: KeyboardDecision) {
++        val decision = keyboardTile.onKeyboardReading(ime, focus, timeMs)
+         when (decision) {
+             is KeyboardDecision.Show -> if (keyboardAutoPop) {
+                 val wasShowing = tileShown
+-                tileShowGuard.onShake(tileMayShow(), tileShown) { shown -> tileShown = (shown == TileShow.SHOWN); if (shown == TileShow.SHOWN) push() }
+-                heldHide.clearOnShow()
++                tileShowGuard.onShake(true, tileShown) { shown -> tileShown = (shown == TileShow.SHOWN) }
+                 keyboardTile.reportShown(wasShowing, tileShown)
+             }
+-            is KeyboardDecision.Hide -> if (heldHide.hideNow(inFlight())) { guarded { tile.hide() }; tileShown = false } else keyboardTile.keepRaised()
++            is KeyboardDecision.Hide -> { guarded { tile.hide() }; tileShown = false }
+             KeyboardDecision.NoOp -> {}
+         }
+     }
+@@ -201,7 +186,7 @@ class TileCoordinator(
+     /** The microphone ended a take with a device failure: transcribe, save and copy it, then show one sentence; False when the tile does not take the cut. Main thread only. */
+     fun onTakeFailed(): Boolean {
+         if (failureBarrier()) return false
+-        if (!armed || sendPushed || portCalls.sessionNow() != DictationState.RECORDING) return false
++        if (!armed || sendPushed || sessionNow() != DictationState.RECORDING) return false
+         sendPushed = true
+         push()
+         if (!deviceFailure.start()) {
+@@ -215,16 +200,10 @@ class TileCoordinator(
+     /** While a device failure is transcribed, the entries that start, end or change a take do nothing, but disarm and fail are not barred. */
+     private fun failureBarrier(): Boolean = deviceFailure.running()
+ 
+-    /** A take is in flight: a begin, a send, a yield or a device failure is open, or the tile shows the recording face. */
+-    private fun inFlight(): Boolean = beginPending || sendPushed || yield.yieldRunning() || deviceFailure.running() || pushed == TileState.RECORDING
+-
+-    /** The one check for showing the tile: the switch is on and no take is in flight. A shake and a keyboard show both use it. */
+-    private fun tileMayShow(): Boolean = armed && !inFlight()
+-
+     private fun arm() {
+         tileShowGuard.clear()
+         // A tile that was off has no take: the one cancel queued when it went off may not have run yet.
+-        val session: DictationState = if (armed) portCalls.sessionNow() else DictationState.IDLE
++        val session: DictationState = if (armed) sessionNow() else DictationState.IDLE
+         armed = true
+         lastCommit = null
+         val shown: TileShow = try {
+@@ -250,13 +229,11 @@ class TileCoordinator(
+         lastFailed = false
+         beginPending = false
+         tileShown = false
+-        if (heldHide.clearOnSwitchOff()) keyboardTile.releaseRaised()
+-        reevaluation.cancel()
+         lastCommit = null
+         push()
+         yield.disarmCleared()
+         deviceFailure.clear()
+-        portCalls.submit { guarded { take.cancel() } }
++        submit { guarded { take.cancel() } }
+         guarded { tile.hide() }
+     }
+ 
+@@ -289,12 +266,34 @@ class TileCoordinator(
+         guarded { tile.showNotice(sentence) }
+     }
+ 
+-    private fun push(session: DictationState = portCalls.sessionNow()) {
++    private fun push(session: DictationState = sessionNow()) {
+         val state: TileState = tileStateFor(
+             armed, session, sendPushed, lastFailed, lastCommit, yield.micBusy.get())
+         pushed = state
+         guarded { tile.setState(state) }
+-        if (heldHide.applyWhenIdle(inFlight())) { guarded { tile.hide() }; tileShown = false; keyboardTile.releaseRaised() }
+     }
+ 
+-}
++    private fun sessionNow(): DictationState =
++        try {
++            take.sessionState
++        } catch (e: Exception) {
++            DictationState.IDLE
++        }
++
++    private fun isModelReady(): Boolean =
++        try {
++            modelReady.isReady()
++        } catch (e: Exception) {
++            false
++        }
++
++    /** True when [block] was handed to the background; a background that refuses is not an exception here. */
++    private fun submit(block: () -> Unit): Boolean =
++        try {
++            background.submit(block)
++            true
++        } catch (e: Exception) {
++            false
++        }
++
++ }
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TilePortCalls.kt b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TilePortCalls.kt
+deleted file mode 100644
+index 1508bfa2..00000000
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TilePortCalls.kt
++++ /dev/null
+@@ -1,39 +0,0 @@
+-package dev.breaker.dictation.wiring
+-
+-import dev.breaker.dictation.core.model.DictationState
+-
+-/**
+- * The port calls of the tile coordinator that may throw. Each one answers a fixed value when its port throws,
+- * so the exception never reaches the caller. Plain Kotlin: it names no Android type.
+- */
+-internal class TilePortCalls(
+-    private val take: TakePort,
+-    private val modelReady: ModelReady,
+-    private val background: Background,
+-) {
+-    fun sessionNow(): DictationState =
+-        try {
+-            take.sessionState
+-        } catch (e: Exception) {
+-            DictationState.IDLE
+-        }
+-
+-
+-    fun isModelReady(): Boolean =
+-        try {
+-            modelReady.isReady()
+-        } catch (e: Exception) {
+-            false
+-        }
+-
+-
+-    /** True when [block] was handed to the background; a background that refuses is not an exception here. */
+-    fun submit(block: () -> Unit): Boolean =
+-        try {
+-            background.submit(block)
+-            true
+-        } catch (e: Exception) {
+-            false
+-        }
+-
+-}
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateRules.kt b/android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateRules.kt
+index d9fd14e5..9cb57000 100644
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateRules.kt
++++ b/android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateRules.kt
+@@ -23,7 +23,7 @@ open class AppLayoutGateRules {
+         "service/ServiceStartDecision.kt", "service/ServiceStartHandler.kt", "service/ServiceTypes.kt",
+         "wiring/DictationComponent.kt", "wiring/DictationRunner.kt", "wiring/Insets.kt", "wiring/LazyHistoryStore.kt", "wiring/FirstRunDoneStore.kt",
+         "wiring/UnavailableSlots.kt", "wiring/UuidIdSource.kt", "wiring/Rebuilt.kt", "wiring/ClockText.kt",
+-        "wiring/TilePorts.kt", "wiring/TilePortCalls.kt", "wiring/DelayedPost.kt", "wiring/NoticeClearingTilePort.kt", "wiring/TileStateMap.kt", "wiring/TileCoordinator.kt", "wiring/TileShowGuard.kt", "wiring/KeyboardHideHold.kt", "wiring/KeyboardReevaluation.kt", "wiring/TakePortAdapter.kt", "wiring/NoopPorts.kt", "wiring/KeyboardTileDecision.kt", "wiring/KeyboardTileSession.kt", "wiring/BlockGuard.kt", "wiring/KeyboardTileWiring.kt",
++        "wiring/TilePorts.kt", "wiring/DelayedPost.kt", "wiring/NoticeClearingTilePort.kt", "wiring/TileStateMap.kt", "wiring/TileCoordinator.kt", "wiring/TileShowGuard.kt", "wiring/TakePortAdapter.kt", "wiring/NoopPorts.kt", "wiring/KeyboardTileDecision.kt", "wiring/KeyboardTileSession.kt", "wiring/BlockGuard.kt", "wiring/KeyboardTileWiring.kt",
+         "wiring/ArmedSwitch.kt", "wiring/DisplayWatch.kt", "wiring/LaunchRule.kt", "wiring/IconLaunchOnce.kt", "wiring/OffStore.kt", "wiring/ModelSupport.kt", "wiring/Swaps.kt",
+         "wiring/BreakerSwitchAdapter.kt", "wiring/ForwardingDownloadNotice.kt",
+         "wiring/TakeYield.kt", "wiring/TakenClipboard.kt",
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/gates/TileHostDelayedPostGateTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/gates/TileHostDelayedPostGateTest.kt
+deleted file mode 100644
+index 63af53ac..00000000
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/gates/TileHostDelayedPostGateTest.kt
++++ /dev/null
+@@ -1,113 +0,0 @@
+-package dev.breaker.dictation.gates
+-
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertThrows
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/**
+- * Pins the production argument that gives the tile coordinator its main-thread delayed post. The tile
+- * host passes its main looper post as the coordinator's last argument, and that post is the main-looper
+- * type that also implements the delayed post. The coordinator's constructor default is inert, so a
+- * forgotten argument compiles and runs; this gate is the check that turns red. The rules read the real
+- * file with comments and literal text removed by the shared scanner. Each rule holds on the real file,
+- * is broken by at least two edited samples, and stays quiet on a comment-only edit; an edit whose target
+- * text is missing fails by name.
+- */
+-internal class TileHostDelayedPostGateTest {
+-
+-    private val path: String = "kotlin/dev/breaker/dictation/host/TileHost.kt"
+-
+-    private class Rule(val name: String, val holds: (String) -> Boolean)
+-    private class Sample(val rule: String, val old: String, val new: String)
+-
+-    /** The pattern must match the code exactly [times] times. */
+-    private fun rx(name: String, pattern: String, times: Int = 1) =
+-        Rule(name) { Regex(pattern).findAll(it).count() == times }
+-
+-    private val rules: List<Rule> = listOf(
+-        rx(
+-            "TILE_HOST_PASSES_MAIN_AS_THE_LAST_ARGUMENT",
+-            """TileCoordinator\s*\(\s*noticePort\s*,[\s\S]*?\broot\s*\.\s*historyStore\s*,\s*main\s*,\s*\)""",
+-        ),
+-        rx("MAIN_IS_THE_MAIN_LOOPER_POST", """private\s+val\s+main\s*=\s*MainLooperPost\s*\(\s*\)"""),
+-    )
+-
+-    /** Edits that break one rule each; every rule has at least two. */
+-    private val firing: List<Sample> = listOf(
+-        Sample(
+-            "TILE_HOST_PASSES_MAIN_AS_THE_LAST_ARGUMENT",
+-            "root.historyStore,\n            main,\n        )",
+-            "root.historyStore,\n        )",
+-        ),
+-        Sample(
+-            "TILE_HOST_PASSES_MAIN_AS_THE_LAST_ARGUMENT",
+-            "root.historyStore,\n            main,\n        )",
+-            "root.historyStore,\n            null,\n        )",
+-        ),
+-        Sample("MAIN_IS_THE_MAIN_LOOPER_POST", "private val main = MainLooperPost()", "private val main = Unit"),
+-        Sample("MAIN_IS_THE_MAIN_LOOPER_POST", "private val main = MainLooperPost()", "private val mainPost = MainLooperPost()"),
+-    )
+-
+-    /** An edit that changes only a comment; no rule may fire on it. */
+-    private val quietOld: String = "        val c = TileCoordinator("
+-    private val quietNew: String =
+-        "        // TileCoordinator(noticePort, main, takeWorker, root.historyStore, main)\n        val c = TileCoordinator("
+-
+-    /** The comment-stripped code of the real file, with [old] replaced by [new] when given; fails by name when the text is absent. */
+-    private fun codeOf(old: String? = null, new: String = ""): String {
+-        val text: String = AppSourceFiles.mainFile(path)
+-        if (old == null) return AppSourceFiles.strip(text).code
+-        val at: Int = text.indexOf(old)
+-        check(at >= 0) { "app: a tile host delayed post sample lost its text '$old' in $path" }
+-        return AppSourceFiles.strip(text.substring(0, at) + new + text.substring(at + old.length)).code
+-    }
+-
+-    @Test
+-    fun `every rule holds on the real file`() {
+-        assertTrue("app: $path was read as empty", codeOf().isNotBlank())
+-        for (rule in rules) assertTrue("app: $path breaks rule ${rule.name}", rule.holds(codeOf()))
+-    }
+-
+-    @Test
+-    fun `the firing samples cover each rule at least twice`() {
+-        val names: List<String> = rules.map { it.name }
+-        assertEquals("app: a tile host delayed post rule name is used twice", names.toSet().size, names.size)
+-        assertEquals("app: a firing sample belongs to an unknown rule or a rule has none", names.toSet(), firing.map { it.rule }.toSet())
+-        for (rule in rules) {
+-            val count: Int = firing.count { it.rule == rule.name }
+-            assertTrue("app: tile host delayed post rule ${rule.name} needs at least two firing samples, has $count", count >= 2)
+-        }
+-    }
+-
+-    @Test
+-    fun `every rule fires on each of its edited samples`() {
+-        val byName: Map<String, Rule> = rules.associateBy { it.name }
+-        for (sample in firing) {
+-            val rule: Rule = byName.getValue(sample.rule)
+-            assertFalse(
+-                "app: tile host delayed post rule ${sample.rule} must fire on the edit '${sample.old}' => '${sample.new}'",
+-                rule.holds(codeOf(sample.old, sample.new)),
+-            )
+-        }
+-    }
+-
+-    @Test
+-    fun `no rule fires on a comment-only edit`() {
+-        for (rule in rules) {
+-            assertTrue(
+-                "app: tile host delayed post rule ${rule.name} must stay quiet on the comment-only edit",
+-                rule.holds(codeOf(quietOld, quietNew)),
+-            )
+-        }
+-    }
+-
+-    @Test
+-    fun `a sample whose target text is missing fails by name`() {
+-        val thrown = assertThrows("app: a missing target must fail", IllegalStateException::class.java) {
+-            codeOf("no such text in the tile host", "x")
+-        }
+-        assertTrue("app: the failure must name the lost text, got ${thrown.message}", thrown.message!!.contains("no such text in the tile host"))
+-    }
+-}
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardCloseReleaseTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardCloseReleaseTest.kt
+deleted file mode 100644
+index 15f5361b..00000000
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardCloseReleaseTest.kt
++++ /dev/null
+@@ -1,104 +0,0 @@
+-package dev.breaker.dictation.wiring
+-
+-import dev.breaker.dictation.core.model.DictationState
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/**
+- * A user close takes the tile down for good: a keyboard-gone hide that was held for a take is dropped,
+- * and the raised mark is released, so nothing automatic hides the tile after the close. A shake that
+- * shows the tile again starts from a clean mark. Each test counts the hide calls from the close on: the
+- * close's own hide is counted before the test continues, and the later readings must add no hide.
+- * The rig and the fakes are the ones in TileFakes.kt.
+- */
+-class KeyboardCloseReleaseTest {
+-
+-    private fun hides(r: TileRig): Int = r.tile.calls.count { it == "hide" }
+-
+-    /** A rig whose tile was brought up by a keyboard show, so the session has raised it. */
+-    private fun raisedByKeyboard(): TileRig {
+-        val r = TileRig(arm = false)
+-        r.tile.showResult = TileShow.NO_PERMISSION
+-        r.coordinator.onArmedChanged(true)
+-        r.tile.showResult = TileShow.SHOWN
+-        r.coordinator.onKeyboardReading(true, true, 1000L)
+-        r.settle()
+-        assertTrue("the keyboard show must have raised the tile", r.tile.shown)
+-        return r
+-    }
+-
+-    @Test
+-    fun `a close during a take drops the held hide, so the take end applies no hide`() {
+-        val r = raisedByKeyboard()
+-        r.startRecording()
+-        r.coordinator.onKeyboardReading(false, false, 2000L)
+-        r.settle()
+-        assertEquals("the gone hide is held while the take records", 0, hides(r))
+-        r.coordinator.onCloseRequested()
+-        r.settle()
+-        // The close's own hide is the one hide counted here; the hide count from the close on is compared below.
+-        val afterClose: Int = hides(r)
+-        assertEquals("the close hides the tile once", 1, afterClose)
+-        assertFalse("the close takes the tile down", r.tile.shown)
+-        r.take.sessionState = DictationState.IDLE
+-        r.coordinator.onTakeEnded()
+-        r.settle()
+-        assertEquals("the take end applies no hide after the close", afterClose, hides(r))
+-        // Probe: the raised mark must be released. A keyboard that leaves focus, then goes, is a change
+-        // inside the session; a keyboard-gone reading with the mark still set would hide the tile again.
+-        r.coordinator.onKeyboardReading(true, false, 3000L)
+-        r.settle()
+-        r.coordinator.onKeyboardReading(false, false, 4000L)
+-        r.settle()
+-        assertEquals("the released raised mark makes a later gone reading a no-op", afterClose, hides(r))
+-    }
+-
+-    @Test
+-    fun `a close with no held hide leaves a later keyboard gone reading with no hide`() {
+-        val r = raisedByKeyboard()
+-        r.coordinator.onCloseRequested()
+-        r.settle()
+-        // The close's own hide is excluded from the comparison: the count is taken right after it.
+-        val afterClose: Int = hides(r)
+-        assertEquals("the close hides the tile once", 1, afterClose)
+-        r.coordinator.onKeyboardReading(false, false, 2000L)
+-        r.settle()
+-        assertEquals("the keyboard gone reading after the close makes no hide call", afterClose, hides(r))
+-    }
+-
+-    @Test
+-    fun `a close during a take with no held hide leaves a keyboard gone reading in flight and at take end with no hide`() {
+-        val r = raisedByKeyboard()
+-        r.startRecording()
+-        r.coordinator.onCloseRequested()
+-        r.settle()
+-        // The close's own hide is excluded from the comparison: the count is taken right after it.
+-        val afterClose: Int = hides(r)
+-        assertEquals("the close hides the tile once", 1, afterClose)
+-        r.coordinator.onKeyboardReading(false, false, 2000L)
+-        r.settle()
+-        assertEquals("the keyboard gone reading during the take makes no hide call", afterClose, hides(r))
+-        r.take.sessionState = DictationState.IDLE
+-        r.coordinator.onTakeEnded()
+-        r.settle()
+-        assertEquals("the take end applies no hide after the close", afterClose, hides(r))
+-    }
+-
+-    @Test
+-    fun `a close, then a shake that shows the tile, then a keyboard gone reading leaves the tile up`() {
+-        val r = raisedByKeyboard()
+-        r.coordinator.onCloseRequested()
+-        r.settle()
+-        r.coordinator.onShake()
+-        r.settle()
+-        assertTrue("the shake shows the closed tile again", r.tile.shown)
+-        // The count is taken after the shake: the keyboard gone reading that follows must add no hide.
+-        val afterShake: Int = hides(r)
+-        r.coordinator.onKeyboardReading(false, false, 2000L)
+-        r.settle()
+-        assertEquals("the keyboard gone reading after the shake makes no hide call", afterShake, hides(r))
+-        assertTrue("the tile stays up after the keyboard goes", r.tile.shown)
+-    }
+-}
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardReevaluationTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardReevaluationTest.kt
+deleted file mode 100644
+index 5fe2982a..00000000
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardReevaluationTest.kt
++++ /dev/null
+@@ -1,238 +0,0 @@
+-package dev.breaker.dictation.wiring
+-
+-import dev.breaker.dictation.core.model.DictationState
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/**
+- * A keyboard reading that arrives inside the debounce window is held, and the newest held reading is
+- * re-evaluated once, when the window ends. The fake delayed post runs only when a test advances it, so each
+- * test decides when the window closes. The coordinator here is built over the rig's own fakes, with the
+- * fake delayed post passed in.
+- */
+-internal class KeyboardReevaluationTest {
+-
+-    private class Setup {
+-        val rig = TileRig(arm = false)
+-        val delayed = FakeDelayedPost()
+-        val coordinator = TileCoordinator(
+-            rig.tile, rig.main, rig.background, rig.take, rig.model, rig.notice, rig.opener,
+-            delayed = delayed,
+-        )
+-
+-        /** Brings the tile up through a keyboard show, so the session records that it raised the tile. */
+-        fun raisedByKeyboard(): Setup {
+-            rig.tile.showResult = TileShow.NO_PERMISSION
+-            coordinator.onArmedChanged(true)
+-            rig.tile.showResult = TileShow.SHOWN
+-            coordinator.onKeyboardReading(true, true, 1000L)
+-            rig.settle()
+-            assertTrue("the keyboard show must raise the tile", rig.tile.shown)
+-            return this
+-        }
+-
+-        fun hides(): Int = rig.tile.calls.count { it == "hide" }
+-    }
+-
+-    @Test
+-    fun `a close inside the window hides the tile when the window ends`() {
+-        val s = Setup().raisedByKeyboard()
+-        s.coordinator.onKeyboardReading(false, false, 1100L)
+-        s.rig.settle()
+-        assertEquals("the close inside the window holds one post", 1, s.delayed.posts.size)
+-        assertEquals("the post is due when the window ends, 150 ms after the close", 150L, s.delayed.posts.single().dueAt)
+-        assertTrue("the tile stays up while the window is open", s.rig.tile.shown)
+-        assertEquals("no hide before the window ends", 0, s.hides())
+-        s.delayed.advance(150L)
+-        s.rig.settle()
+-        assertEquals("the held close hides the tile once, when the window ends", 1, s.hides())
+-        assertFalse("the tile is down after the window ends", s.rig.tile.shown)
+-    }
+-
+-    @Test
+-    fun `a take that begins while a re-evaluation is held acts the reading at once and holds its hide to the take end`() {
+-        val s = Setup().raisedByKeyboard()
+-        s.coordinator.onKeyboardReading(false, false, 1100L)
+-        s.rig.settle()
+-        assertEquals("one post is held before the take begins", 1, s.delayed.posts.size)
+-        s.coordinator.onBegin()
+-        s.rig.settle()
+-        assertEquals("the take begins once", 1, s.rig.take.beginCalls)
+-        assertEquals("no post is left live through the take", 0, s.delayed.live())
+-        assertEquals("the flushed hide is held while the take records", 0, s.hides())
+-        assertTrue("the tile stays up while the take records", s.rig.tile.shown)
+-        s.delayed.advance(150L)
+-        s.rig.settle()
+-        assertFalse("the flushed post never runs", s.delayed.posts.single().fired)
+-        assertEquals("nothing hides while the take records", 0, s.hides())
+-        s.rig.take.sessionState = DictationState.IDLE
+-        s.coordinator.onTakeEnded()
+-        s.rig.settle()
+-        assertEquals("the held hide applies once at take end, the keyboard is still gone", 1, s.hides())
+-        assertFalse("the tile is down after the take end", s.rig.tile.shown)
+-    }
+-
+-    @Test
+-    fun `a take that begins after a keyboard back reading holds no hide at take end`() {
+-        val s = Setup().raisedByKeyboard()
+-        s.coordinator.onKeyboardReading(false, false, 1100L)
+-        s.coordinator.onKeyboardReading(true, true, 1200L)
+-        s.rig.settle()
+-        assertEquals("the back reading replaces the held one, one post is held", 1, s.delayed.posts.size)
+-        s.coordinator.onBegin()
+-        s.rig.settle()
+-        assertEquals("the take begins once", 1, s.rig.take.beginCalls)
+-        assertEquals("no post is left live through the take", 0, s.delayed.live())
+-        assertTrue("the tile stays up while the take records", s.rig.tile.shown)
+-        s.rig.take.sessionState = DictationState.IDLE
+-        s.coordinator.onTakeEnded()
+-        s.rig.settle()
+-        assertEquals("the keyboard is back, so no hide at take end", 0, s.hides())
+-        assertTrue("the tile stays up after the take end", s.rig.tile.shown)
+-    }
+-
+-    @Test
+-    fun `two readings inside one window re-evaluate once with the newest reading`() {
+-        val s = Setup().raisedByKeyboard()
+-        s.coordinator.onKeyboardReading(false, false, 1050L)
+-        s.coordinator.onKeyboardReading(true, true, 1100L)
+-        s.rig.settle()
+-        assertEquals("the second reading inside the window adds no post", 1, s.delayed.posts.size)
+-        assertEquals("the post stays due when the first window ends", 200L, s.delayed.posts.single().dueAt)
+-        s.delayed.advance(200L)
+-        s.rig.settle()
+-        assertEquals("the newest reading says the keyboard is back, so nothing hides", 0, s.hides())
+-        assertTrue("the tile stays up", s.rig.tile.shown)
+-    }
+-
+-    @Test
+-    fun `a newest reading that closes the keyboard hides the tile after an earlier reading that opened it`() {
+-        val s = Setup().raisedByKeyboard()
+-        s.coordinator.onKeyboardReading(true, true, 1050L)
+-        s.coordinator.onKeyboardReading(false, false, 1100L)
+-        s.rig.settle()
+-        assertEquals("one post is held for the window", 1, s.delayed.posts.size)
+-        s.delayed.advance(200L)
+-        s.rig.settle()
+-        assertEquals("the newest reading says the keyboard is gone, so the tile hides once", 1, s.hides())
+-        assertFalse("the tile is down", s.rig.tile.shown)
+-    }
+-
+-    @Test
+-    fun `at most one re-evaluation is pending through a run of readings in one window`() {
+-        val s = Setup().raisedByKeyboard()
+-        s.coordinator.onKeyboardReading(false, false, 1050L)
+-        s.coordinator.onKeyboardReading(true, true, 1080L)
+-        s.coordinator.onKeyboardReading(false, false, 1120L)
+-        s.coordinator.onKeyboardReading(true, true, 1200L)
+-        s.rig.settle()
+-        assertEquals("one post was made for the window", 1, s.delayed.posts.size)
+-        assertEquals("one post is live", 1, s.delayed.live())
+-    }
+-
+-    @Test
+-    fun `switching the tile off cancels a held re-evaluation`() {
+-        val s = Setup().raisedByKeyboard()
+-        s.coordinator.onKeyboardReading(false, false, 1100L)
+-        s.rig.settle()
+-        s.coordinator.onArmedChanged(false)
+-        s.rig.settle()
+-        assertTrue("the switch off cancels the held post", s.delayed.posts.single().cancelled)
+-        val callsBefore: Int = s.rig.tile.calls.size
+-        s.delayed.advance(150L)
+-        s.rig.settle()
+-        assertFalse("the cancelled post never runs", s.delayed.posts.single().fired)
+-        assertEquals("nothing reaches the tile after the switch off", callsBefore, s.rig.tile.calls.size)
+-    }
+-
+-    @Test
+-    fun `a reading after the window applies the held re-evaluation first and then holds its own`() {
+-        val s = Setup().raisedByKeyboard()
+-        s.coordinator.onKeyboardReading(false, false, 1100L)
+-        s.coordinator.onKeyboardReading(true, true, 1300L)
+-        s.rig.settle()
+-        assertEquals("the held close hides the tile when a reading arrives after its window", 1, s.hides())
+-        assertFalse("the tile is down after that hide", s.rig.tile.shown)
+-        assertTrue("the held post is cancelled when it is run early", s.delayed.posts[0].cancelled)
+-        assertEquals("the reading after the window is held in a new window", 2, s.delayed.posts.size)
+-        assertEquals("the new window ends 200 ms after that reading", 200L, s.delayed.posts[1].dueAt)
+-        s.delayed.advance(200L)
+-        s.rig.settle()
+-        assertTrue("the held keyboard show brings the tile back when its window ends", s.rig.tile.shown)
+-        assertEquals("the second show leaves the one hide in place", 1, s.hides())
+-    }
+-
+-    @Test
+-    fun `a keyboard show during a take clears a held hide, and a swallowed gone reading hides once at the window end`() {
+-        val s = Setup().raisedByKeyboard()
+-        s.coordinator.onBegin()
+-        s.rig.settle()
+-        assertEquals("the take records", 1, s.rig.take.beginCalls)
+-        s.coordinator.onKeyboardReading(false, false, 2000L)
+-        s.rig.settle()
+-        assertTrue("the gone hide is held while the take records", s.rig.tile.shown)
+-        assertEquals("no hide while the take records", 0, s.hides())
+-        s.coordinator.onKeyboardReading(true, true, 2300L)
+-        s.rig.settle()
+-        assertTrue("the back show is refused during the take and the tile stays up", s.rig.tile.shown)
+-        s.coordinator.onKeyboardReading(false, false, 2400L)
+-        s.rig.settle()
+-        assertEquals("the gone reading inside the window is held, no hide yet", 0, s.hides())
+-        s.rig.take.sessionState = DictationState.IDLE
+-        s.coordinator.onTakeEnded()
+-        s.rig.settle()
+-        assertEquals("the take end applies no hide, because the back show cleared the held hide", 0, s.hides())
+-        assertTrue("the tile stays up after the take end", s.rig.tile.shown)
+-        s.delayed.advance(150L)
+-        s.rig.settle()
+-        assertEquals(
+-            "the window end hides once: the raised mark survived the back show and the keyboard is gone",
+-            1,
+-            s.hides(),
+-        )
+-        assertFalse("the tile is down after the window end", s.rig.tile.shown)
+-    }
+-
+-    @Test
+-    fun `a held hide applied at take end leaves no raised mark, so a later gone reading does not hide again`() {
+-        val s = Setup().raisedByKeyboard()
+-        s.coordinator.onBegin()
+-        s.rig.settle()
+-        s.coordinator.onKeyboardReading(false, false, 2000L)
+-        s.rig.settle()
+-        assertEquals("the hide is held while the take records", 0, s.hides())
+-        s.rig.take.sessionState = DictationState.IDLE
+-        s.coordinator.onTakeEnded()
+-        s.rig.settle()
+-        assertEquals("the held hide applies once at take end", 1, s.hides())
+-        s.coordinator.onKeyboardReading(true, false, 3000L)
+-        s.rig.settle()
+-        assertEquals("a keyboard with no editable focus does nothing", 1, s.hides())
+-        s.coordinator.onKeyboardReading(false, false, 4000L)
+-        s.rig.settle()
+-        assertEquals("the released raised mark makes the later gone reading a no-op", 1, s.hides())
+-    }
+-
+-    @Test
+-    fun `switching the tile off with a held hide leaves no raised mark, so a later gone reading does nothing`() {
+-        val s = Setup().raisedByKeyboard()
+-        s.coordinator.onBegin()
+-        s.rig.settle()
+-        s.coordinator.onKeyboardReading(false, false, 2000L)
+-        s.rig.settle()
+-        assertEquals("the hide is held while the take records", 0, s.hides())
+-        s.coordinator.onArmedChanged(false)
+-        s.rig.settle()
+-        assertEquals("the switch off takes the tile down once", 1, s.hides())
+-        s.coordinator.onArmedChanged(true)
+-        s.rig.settle()
+-        assertTrue("the tile is shown again after the switch comes back on", s.rig.tile.shown)
+-        s.coordinator.onKeyboardReading(true, true, 3000L)
+-        s.rig.settle()
+-        s.coordinator.onKeyboardReading(false, false, 4000L)
+-        s.rig.settle()
+-        assertEquals("the switch-off released the raised mark, so the later gone reading does nothing", 1, s.hides())
+-    }
+-}
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileCoordinatorKeyboardTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileCoordinatorKeyboardTest.kt
+index f3d1ad10..8ffab894 100644
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileCoordinatorKeyboardTest.kt
++++ b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileCoordinatorKeyboardTest.kt
+@@ -15,25 +15,22 @@ class KeyboardTileCoordinatorKeyboardTest {
+ 
+     private fun rig(arm: Boolean = true): TileRig = TileRig(arm = arm)
+ 
+-    /** A close while a keyboard session is live keeps the tile down until that session ends. */
++    /** TEST A "a close while the session is live keeps the tile down for the rest of this session": */
+     @Test
+     fun `a close during the session stays closed for the rest of it`() {
+         val r = rig()                     // armed at construction: tile already shown
+         r.coordinator.onKeyboardReading(true, true, 1000L); r.settle()   // Show (idempotent: guard leaves the shown tile alone)
+         r.coordinator.onCloseRequested(); r.settle()                    // close DURING the session: hide, session remembers it
+         assertFalse("app: a close during the session hides the tile", r.tile.shown)
+-        r.coordinator.onKeyboardReading(true, false, 1500L); r.settle()  // focus lost with the keyboard up: NoOp
++        r.coordinator.onKeyboardReading(true, false, 1500L); r.settle()  // focus lost: NoOp (rule 4)
+         r.coordinator.onKeyboardReading(true, true, 2000L); r.settle()   // focus back, same session: remembered close keeps it NoOp
+         assertFalse("app: the remembered close keeps the tile down for the rest of the session", r.tile.shown)
+     }
+ 
+-    /** A keyboard-gone reading after a keyboard show takes the tile off screen, with one hide call. */
++    /** TEST B "a keyboard hide takes the tile off screen": */
+     @Test
+     fun `a keyboard hide takes the tile off screen`() {
+-        val r = rig(arm = false)          // the tile is taken down by a refused show, then the switch goes on
+-        r.tile.showResult = TileShow.NO_PERMISSION
+-        r.coordinator.onArmedChanged(true)
+-        r.tile.showResult = TileShow.SHOWN
++        val r = rig(arm = false)          // tile NOT shown before any keyboard
+         r.coordinator.onKeyboardReading(true, true, 1000L); r.settle()   // Show through the guard (tile was not shown)
+         assertTrue("app: the keyboard show put the tile up", r.tile.shown)
+         r.coordinator.onKeyboardReading(false, false, 1500L); r.settle()  // ime gone, session raised it: Hide
+@@ -41,13 +38,10 @@ class KeyboardTileCoordinatorKeyboardTest {
+         assertEquals("app: exactly one hide call for the session hide", 1, r.tile.calls.count { it == "hide" })
+     }
+ 
+-    /** Two keyboard sessions each hide the tile at their end, and each hide is recorded. */
++    /** TEST C "a hide does not leave the coordinator believing the tile is still up": */
+     @Test
+     fun `a second hide after a hide takes the tile off screen and records each hide`() {
+         val r = rig(arm = false)
+-        r.tile.showResult = TileShow.NO_PERMISSION
+-        r.coordinator.onArmedChanged(true)
+-        r.tile.showResult = TileShow.SHOWN
+         r.coordinator.onKeyboardReading(true, true, 1000L); r.settle()    // Show (tile was not shown -> raised)
+         r.coordinator.onKeyboardReading(false, false, 1500L); r.settle()  // Hide (session ends)
+         r.coordinator.onKeyboardReading(true, true, 2000L); r.settle()    // new session: Show again (guard shows it back; this raise must be recorded)
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileDeferredHideTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileDeferredHideTest.kt
+deleted file mode 100644
+index f08a87b0..00000000
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileDeferredHideTest.kt
++++ /dev/null
+@@ -1,216 +0,0 @@
+-package dev.breaker.dictation.wiring
+-
+-import dev.breaker.dictation.core.model.DictationState
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/**
+- * A keyboard-gone reading while a take is in flight must not hide the tile at once. The hide is held
+- * and applied once, when the take leaves the in-flight states, and only if the keyboard is still gone.
+- * A keyboard show clears the held hide. Each end path of a take is tested on its own, and the
+- * keyboard-back cases must not hide. The hook is in TileCoordinator.push.
+- */
+-class KeyboardTileDeferredHideTest {
+-
+-    private fun hides(r: TileRig): Int = r.tile.calls.count { it == "hide" }
+-
+-    /** A rig whose tile was brought up by a keyboard show, so the session has raised it. */
+-    private fun raisedByKeyboard(): TileRig {
+-        val r = TileRig(arm = false)
+-        r.tile.showResult = TileShow.NO_PERMISSION
+-        r.coordinator.onArmedChanged(true)
+-        r.tile.showResult = TileShow.SHOWN
+-        r.coordinator.onKeyboardReading(true, true, 1000L)
+-        r.settle()
+-        assertTrue("the keyboard show must have raised the tile", r.tile.shown)
+-        return r
+-    }
+-
+-    @Test
+-    fun `a keyboard gone reading while a take records keeps the tile up`() {
+-        val r = raisedByKeyboard()
+-        r.startRecording()
+-        r.coordinator.onKeyboardReading(false, false, 2000L)
+-        r.settle()
+-        assertTrue(
+-            "TileCoordinator.onKeyboardReading: a keyboard-gone reading during a take must keep the tile up until the take ends",
+-            r.tile.shown,
+-        )
+-        assertEquals("TileCoordinator.onKeyboardReading: no hide call while the take records", 0, hides(r))
+-    }
+-
+-    @Test
+-    fun `a take that ends by itself with the keyboard still gone hides the tile once`() {
+-        val r = raisedByKeyboard()
+-        r.startRecording()
+-        r.coordinator.onKeyboardReading(false, false, 2000L)
+-        r.settle()
+-        assertEquals("TileCoordinator.onKeyboardReading: no hide call before the take ends", 0, hides(r))
+-        r.take.sessionState = DictationState.IDLE
+-        r.coordinator.onTakeEnded()
+-        r.settle()
+-        assertEquals(
+-            "TileCoordinator.push: exactly one hide when the take leaves the in-flight states with the keyboard gone",
+-            1,
+-            hides(r),
+-        )
+-        assertFalse("TileCoordinator.push: the tile must be down after that one hide", r.tile.shown)
+-    }
+-
+-    @Test
+-    fun `a take that ends by itself with the keyboard back keeps the tile up`() {
+-        val r = raisedByKeyboard()
+-        r.startRecording()
+-        r.coordinator.onKeyboardReading(false, false, 2000L)
+-        r.settle()
+-        assertTrue("TileCoordinator.onKeyboardReading: the tile must stay up during the take", r.tile.shown)
+-        r.coordinator.onKeyboardReading(true, true, 3000L)
+-        r.settle()
+-        r.take.sessionState = DictationState.IDLE
+-        r.coordinator.onTakeEnded()
+-        r.settle()
+-        assertTrue(
+-            "TileCoordinator.push: a take that ends with the keyboard back must keep the tile up",
+-            r.tile.shown,
+-        )
+-        assertEquals("TileCoordinator.push: no hide call when the keyboard is back at take end", 0, hides(r))
+-    }
+-
+-    @Test
+-    fun `a send that settles with the keyboard still gone hides the tile once`() {
+-        val r = raisedByKeyboard()
+-        r.startRecording()
+-        r.coordinator.onKeyboardReading(false, false, 2000L)
+-        r.settle()
+-        assertEquals("TileCoordinator.onKeyboardReading: no hide call before the send settles", 0, hides(r))
+-        r.coordinator.onSend()
+-        r.settle()
+-        assertEquals(
+-            "TileCoordinator.push: exactly one hide when the send settles with the keyboard gone",
+-            1,
+-            hides(r),
+-        )
+-        assertFalse("TileCoordinator.push: the tile must be down after the send settles", r.tile.shown)
+-    }
+-
+-    @Test
+-    fun `a send that settles with the keyboard back keeps the tile up`() {
+-        val r = raisedByKeyboard()
+-        r.startRecording()
+-        r.coordinator.onKeyboardReading(false, false, 2000L)
+-        r.settle()
+-        assertEquals("TileCoordinator.onKeyboardReading: no hide call before the send settles", 0, hides(r))
+-        r.coordinator.onKeyboardReading(true, true, 3000L)
+-        r.settle()
+-        r.coordinator.onSend()
+-        r.settle()
+-        assertTrue(
+-            "TileCoordinator.push: a send that settles with the keyboard back must keep the tile up",
+-            r.tile.shown,
+-        )
+-        assertEquals("TileCoordinator.push: no hide call when the keyboard is back at send settle", 0, hides(r))
+-    }
+-
+-    @Test
+-    fun `a cancel with the keyboard still gone hides the tile once`() {
+-        val r = raisedByKeyboard()
+-        r.startRecording()
+-        r.coordinator.onKeyboardReading(false, false, 2000L)
+-        r.settle()
+-        assertEquals("TileCoordinator.onKeyboardReading: no hide call before the cancel", 0, hides(r))
+-        r.coordinator.onCancel()
+-        r.settle()
+-        assertEquals(
+-            "TileCoordinator.push: exactly one hide when the cancel leaves the in-flight states with the keyboard gone",
+-            1,
+-            hides(r),
+-        )
+-        assertFalse("TileCoordinator.push: the tile must be down after the cancel", r.tile.shown)
+-    }
+-
+-    @Test
+-    fun `a microphone yield that settles with the keyboard still gone hides the tile once`() {
+-        val r = raisedByKeyboard()
+-        r.startRecording()
+-        r.coordinator.onKeyboardReading(false, false, 2000L)
+-        r.settle()
+-        assertEquals("TileCoordinator.onKeyboardReading: no hide call before the yield settles", 0, hides(r))
+-        r.coordinator.onTakeMicTaken()
+-        r.settle()
+-        assertEquals(
+-            "TileCoordinator.push: exactly one hide when the microphone yield settles with the keyboard gone",
+-            1,
+-            hides(r),
+-        )
+-        assertFalse("TileCoordinator.push: the tile must be down after the yield settles", r.tile.shown)
+-    }
+-
+-    @Test
+-    fun `a device failure that settles with the keyboard still gone hides the tile once`() {
+-        val r = raisedByKeyboard()
+-        r.startRecording()
+-        r.coordinator.onKeyboardReading(false, false, 2000L)
+-        r.settle()
+-        assertEquals("TileCoordinator.onKeyboardReading: no hide call before the device failure settles", 0, hides(r))
+-        assertTrue("TileCoordinator.onTakeFailed: the microphone failure must be taken", r.coordinator.onTakeFailed())
+-        r.settle()
+-        assertEquals(
+-            "TileCoordinator.push: exactly one hide when the device failure settles with the keyboard gone",
+-            1,
+-            hides(r),
+-        )
+-        assertFalse("TileCoordinator.push: the tile must be down after the device failure settles", r.tile.shown)
+-    }
+-
+-    @Test
+-    fun `a keyboard show during a take clears the held hide so a later take end does not hide`() {
+-        val r = raisedByKeyboard()
+-        r.startRecording()
+-        r.coordinator.onKeyboardReading(false, false, 2000L)
+-        r.settle()
+-        assertEquals("TileCoordinator.onKeyboardReading: no hide call while the take records", 0, hides(r))
+-        r.coordinator.onKeyboardReading(true, true, 3000L)
+-        r.settle()
+-        r.take.sessionState = DictationState.IDLE
+-        r.coordinator.onTakeEnded()
+-        r.settle()
+-        assertEquals("TileCoordinator.onKeyboardReading: the keyboard show must clear the held hide", 0, hides(r))
+-        assertTrue("TileCoordinator.onKeyboardReading: the tile must stay up after the first take", r.tile.shown)
+-        // The second take must begin from the tile that is still on screen; no hide may come back at its end.
+-        r.startRecording()
+-        assertEquals("TileCoordinator.onBegin: the second take must begin once the tile is still up", 2, r.take.beginCalls)
+-        r.take.sessionState = DictationState.IDLE
+-        r.coordinator.onTakeEnded()
+-        r.settle()
+-        assertEquals("TileCoordinator.push: a later take end must not apply the cleared hide", 0, hides(r))
+-    }
+-
+-    @Test
+-    fun `a keyboard show swallowed by the debounce window does not release a held hide`() {
+-        val r = raisedByKeyboard()
+-        r.startRecording()
+-        r.coordinator.onKeyboardReading(false, false, 2000L)
+-        r.settle()
+-        assertTrue(
+-            "TileCoordinator.onKeyboardReading: a keyboard-gone reading during a take must hold the hide, so the tile stays up",
+-            r.tile.shown,
+-        )
+-        // Inside the debounce window the session swallows this show, so no Show reaches the coordinator.
+-        r.coordinator.onKeyboardReading(true, true, 2100L)
+-        r.settle()
+-        r.take.sessionState = DictationState.IDLE
+-        r.coordinator.onTakeEnded()
+-        r.settle()
+-        assertEquals(
+-            "KeyboardHideHold: a held hide must not be applied when the last raw reading says the keyboard is back",
+-            0,
+-            hides(r),
+-        )
+-        assertTrue(
+-            "KeyboardHideHold: the tile must stay up when a take ends with the keyboard back inside the debounce window",
+-            r.tile.shown,
+-        )
+-    }
+-}
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileInFlightTermsTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileInFlightTermsTest.kt
+deleted file mode 100644
+index c3810638..00000000
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileInFlightTermsTest.kt
++++ /dev/null
+@@ -1,132 +0,0 @@
+-package dev.breaker.dictation.wiring
+-
+-import dev.breaker.dictation.core.model.DictationState
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/**
+- * Each part of the in-flight check on its own, as the keyboard hold and the keyboard show read it.
+- * The check is TileCoordinator.inFlight: a begin pending, a send, a microphone yield, a device failure,
+- * or the recording face. The device failure and the yield both set the send flag when they start, so
+- * these tests start them while a begin is still pending and that begin is answered refused. The answer
+- * clears the send flag, and the cut keeps its own part of the check.
+- */
+-class KeyboardTileInFlightTermsTest {
+-
+-    private fun hides(r: TileRig): Int = r.tile.calls.count { it == "hide" }
+-
+-    private fun shows(r: TileRig): Int = r.tile.calls.count { it == "show" }
+-
+-    /** A rig whose tile was brought up by a keyboard show, so the session has raised it. */
+-    private fun raisedByKeyboard(): TileRig {
+-        val r = TileRig(arm = false)
+-        r.tile.showResult = TileShow.NO_PERMISSION
+-        r.coordinator.onArmedChanged(true)
+-        r.tile.showResult = TileShow.SHOWN
+-        r.coordinator.onKeyboardReading(true, true, 1000L)
+-        r.settle()
+-        assertTrue("the keyboard show must have raised the tile", r.tile.shown)
+-        return r
+-    }
+-
+-    /**
+-     * The raised tile with a begin pending: the runner already records, so the begin answers refused.
+-     * The begin's answer waits on the main queue, so a cut that arrives first runs before it.
+-     */
+-    private fun pendingRefusedBegin(): TileRig {
+-        val r = raisedByKeyboard()
+-        r.take.beginResult = BeginResult.Refused(REFUSED_SENTENCE)
+-        r.take.sessionState = DictationState.RECORDING
+-        r.coordinator.onBegin()
+-        r.background.runAll()
+-        return r
+-    }
+-
+-    @Test
+-    fun `a switch off and on again drops a hide held during a microphone yield`() {
+-        val r = raisedByKeyboard()
+-        r.coordinator.onTakeMicTaken()
+-        r.coordinator.onKeyboardReading(false, false, 2000L)
+-        assertTrue(
+-            "TileCoordinator.onKeyboardReading: a keyboard-gone reading during a microphone yield must hold the hide",
+-            r.tile.shown,
+-        )
+-        r.coordinator.onArmedChanged(false)
+-        assertEquals("TileCoordinator.disarm: the switch-off hides the tile once", 1, hides(r))
+-        r.coordinator.onArmedChanged(true)
+-        assertTrue(
+-            "TileCoordinator.disarm: a hide held before the switch went off must not hide the tile shown after it came back on",
+-            r.tile.shown,
+-        )
+-        r.settle()
+-        assertEquals("TileCoordinator.arm: no hide when the old yield settles after the switch came back on", 1, hides(r))
+-        assertTrue("TileCoordinator.arm: the tile stays up when the old yield settles", r.tile.shown)
+-    }
+-
+-    @Test
+-    fun `a keyboard-gone reading during a device failure alone holds the hide until the failure settles`() {
+-        val r = pendingRefusedBegin()
+-        assertTrue("TileCoordinator.onTakeFailed: the cut must start", r.coordinator.onTakeFailed())
+-        r.take.sessionState = DictationState.SENDING
+-        r.main.drain()
+-        r.coordinator.onKeyboardReading(false, false, 2000L)
+-        assertTrue(
+-            "TileCoordinator.inFlight: a keyboard-gone reading while only the device failure runs must hold the hide",
+-            r.tile.shown,
+-        )
+-        assertEquals("TileCoordinator.onKeyboardReading: no hide call while the failure is transcribed", 0, hides(r))
+-        r.background.runAll()
+-        r.main.drain()
+-        assertEquals(
+-            "TileCoordinator.push: exactly one hide when the device failure settles with the keyboard gone",
+-            1,
+-            hides(r),
+-        )
+-        assertFalse("TileCoordinator.push: the tile must be down after the device failure settles", r.tile.shown)
+-    }
+-
+-    @Test
+-    fun `a keyboard-gone reading during a microphone yield alone holds the hide until the yield settles`() {
+-        val r = pendingRefusedBegin()
+-        r.coordinator.onTakeMicTaken()
+-        r.main.drain()
+-        r.coordinator.onKeyboardReading(false, false, 2000L)
+-        assertTrue(
+-            "TileCoordinator.inFlight: a keyboard-gone reading while only the microphone yield runs must hold the hide",
+-            r.tile.shown,
+-        )
+-        assertEquals("TileCoordinator.onKeyboardReading: no hide call while the yield runs", 0, hides(r))
+-        r.settle()
+-        assertEquals("TileCoordinator.push: exactly one hide when the yield settles with the keyboard gone", 1, hides(r))
+-        assertFalse("TileCoordinator.push: the tile must be down after the yield settles", r.tile.shown)
+-    }
+-
+-    @Test
+-    fun `a keyboard show during a device failure alone does not bring the closed tile back`() {
+-        val r = pendingRefusedBegin()
+-        assertTrue("TileCoordinator.onTakeFailed: the cut must start", r.coordinator.onTakeFailed())
+-        r.take.sessionState = DictationState.SENDING
+-        r.main.drain()
+-        r.coordinator.onKeyboardReading(false, false, 2000L)
+-        r.coordinator.onCloseRequested()
+-        r.tile.calls.clear()
+-        r.coordinator.onKeyboardReading(true, true, 3000L)
+-        assertEquals("TileCoordinator.tileMayShow: no show call while only the device failure runs", 0, shows(r))
+-        assertFalse("TileCoordinator.tileMayShow: the closed tile stays down while the failure is transcribed", r.tile.shown)
+-    }
+-
+-    @Test
+-    fun `a keyboard show during a microphone yield alone does not bring the closed tile back`() {
+-        val r = pendingRefusedBegin()
+-        r.coordinator.onTakeMicTaken()
+-        r.main.drain()
+-        r.coordinator.onKeyboardReading(false, false, 2000L)
+-        r.coordinator.onCloseRequested()
+-        r.tile.calls.clear()
+-        r.coordinator.onKeyboardReading(true, true, 3000L)
+-        assertEquals("TileCoordinator.tileMayShow: no show call while only the microphone yield runs", 0, shows(r))
+-        assertFalse("TileCoordinator.tileMayShow: the closed tile stays down while the yield runs", r.tile.shown)
+-    }
+-}
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileSessionTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileSessionTest.kt
+index 89812dba..2d77ef0f 100644
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileSessionTest.kt
++++ b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileSessionTest.kt
+@@ -8,7 +8,7 @@ import org.junit.Test
+ 
+ /**
+  * Pure [KeyboardTileSession] tests: the session state machine with no coordinator or Android type, so every
+- * gate can be pinned from a plain JVM. Each test pins one session rule; the first pins the first-reading baseline.
++ * gate can be pinned from a plain JVM. One @Test per rule plus a first-reading baseline.
+  */
+ class KeyboardTileSessionTest {
+ 
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileShowGuardTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileShowGuardTest.kt
+deleted file mode 100644
+index 50acbd93..00000000
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileShowGuardTest.kt
++++ /dev/null
+@@ -1,142 +0,0 @@
+-package dev.breaker.dictation.wiring
+-
+-import dev.breaker.dictation.overlay.TileState
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/**
+- * A keyboard reading that puts the tile back on screen follows the same guard as a shake. It never
+- * shows the tile while the switch is off, while a take is recording, or while a begin, a send, a
+- * microphone yield or a device failure is still in progress. The keyboard Show branch is in
+- * TileCoordinator.onKeyboardReading. Each test sets up one condition and names it in its message.
+- */
+-class KeyboardTileShowGuardTest {
+-
+-    private fun showCalls(r: TileRig): Int = r.tile.calls.count { it == "show" }
+-
+-    @Test
+-    fun `a keyboard show with the switch off does not show the tile`() {
+-        val r = TileRig(arm = false)
+-        r.coordinator.onKeyboardReading(true, true, 1000L)
+-        r.settle()
+-        assertEquals(
+-            "TileCoordinator.onKeyboardReading: a keyboard show with the switch off must make no show call",
+-            0,
+-            showCalls(r),
+-        )
+-        assertFalse(
+-            "TileCoordinator.onKeyboardReading: a keyboard show with the switch off must leave the tile down",
+-            r.tile.shown,
+-        )
+-    }
+-
+-    @Test
+-    fun `a keyboard show during a take does not bring a closed tile back`() {
+-        val r = TileRig()
+-        r.startRecording()
+-        r.coordinator.onCloseRequested()
+-        r.settle()
+-        r.coordinator.onKeyboardReading(true, true, 2000L)
+-        r.settle()
+-        assertFalse(
+-            "TileCoordinator.onKeyboardReading: a keyboard show while the take records must not show a closed tile",
+-            r.tile.shown,
+-        )
+-    }
+-
+-    @Test
+-    fun `a keyboard show while a begin is pending does not bring a closed tile back`() {
+-        val r = TileRig()
+-        // No settle here: the begin stays queued on the background, so only the pending begin can block the show.
+-        r.coordinator.onBegin()
+-        r.coordinator.onCloseRequested()
+-        r.coordinator.onKeyboardReading(true, true, 2000L)
+-        assertEquals("the begin must still be queued", 0, r.take.beginCalls)
+-        assertFalse(
+-            "TileCoordinator.onKeyboardReading: a keyboard show while a begin is pending must not show a closed tile",
+-            r.tile.shown,
+-        )
+-    }
+-
+-    @Test
+-    fun `a keyboard show while a send is on its way does not bring a closed tile back`() {
+-        val r = TileRig()
+-        r.startRecording()
+-        // No settle after the send: its finish stays queued on the background, so only the send can block the show.
+-        r.coordinator.onSend()
+-        r.coordinator.onCloseRequested()
+-        r.coordinator.onKeyboardReading(true, true, 2000L)
+-        assertEquals("the send's finish must still be queued", 0, r.take.finishCalls)
+-        assertFalse(
+-            "TileCoordinator.onKeyboardReading: a keyboard show while a send is on its way must not show a closed tile",
+-            r.tile.shown,
+-        )
+-    }
+-
+-    @Test
+-    fun `a keyboard show while the microphone yield runs does not bring a closed tile back`() {
+-        val r = TileRig()
+-        r.startRecording()
+-        // No settle after the cut: the yield's finish stays queued, so only the running yield can block the show.
+-        r.coordinator.onTakeMicTaken()
+-        r.coordinator.onCloseRequested()
+-        r.coordinator.onKeyboardReading(true, true, 2000L)
+-        assertEquals("the yield's finish must still be queued", 0, r.take.finishCalls)
+-        assertFalse(
+-            "TileCoordinator.onKeyboardReading: a keyboard show while the microphone yield runs must not show a closed tile",
+-            r.tile.shown,
+-        )
+-    }
+-
+-    @Test
+-    fun `a keyboard show while a device failure runs does not bring a closed tile back`() {
+-        val r = TileRig()
+-        r.startRecording()
+-        // No settle after the failure: its finish stays queued on the background.
+-        assertTrue("the microphone failure must be taken by the tile", r.coordinator.onTakeFailed())
+-        r.coordinator.onCloseRequested()
+-        r.coordinator.onKeyboardReading(true, true, 2000L)
+-        assertEquals("the device failure's finish must still be queued", 0, r.take.finishCalls)
+-        assertFalse(
+-            "TileCoordinator.onKeyboardReading: a keyboard show while a device failure runs must not show a closed tile",
+-            r.tile.shown,
+-        )
+-    }
+-
+-    @Test
+-    fun `a keyboard show that brings the tile up pushes the armed state`() {
+-        val r = TileRig(arm = false)
+-        r.tile.showResult = TileShow.NO_PERMISSION
+-        r.coordinator.onArmedChanged(true)
+-        r.tile.showResult = TileShow.SHOWN
+-        r.coordinator.onKeyboardReading(true, true, 1000L)
+-        r.settle()
+-        assertTrue("TileCoordinator.onKeyboardReading: the keyboard show must put the tile up", r.tile.shown)
+-        assertEquals(
+-            "TileCoordinator.onKeyboardReading: after a keyboard show puts the tile up, the armed state must be pushed to it",
+-            listOf(TileState.ARMED),
+-            r.tile.states,
+-        )
+-    }
+-
+-    @Test
+-    fun `a keyboard show after a user close brings the tile back and the next keyboard gone hides it`() {
+-        val r = TileRig()
+-        r.coordinator.onCloseRequested()
+-        r.settle()
+-        r.coordinator.onKeyboardReading(true, true, 1000L)
+-        r.settle()
+-        assertTrue(
+-            "TileCoordinator.onCloseRequested: a keyboard show after a user close must bring the tile back",
+-            r.tile.shown,
+-        )
+-        r.coordinator.onKeyboardReading(false, false, 2000L)
+-        r.settle()
+-        assertFalse(
+-            "TileCoordinator.onCloseRequested: the keyboard show must mark the session raised, so the keyboard gone hides the tile",
+-            r.tile.shown,
+-        )
+-    }
+-}
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileWiringSeamTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileWiringSeamTest.kt
+index 3166e837..2f1cb17e 100644
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileWiringSeamTest.kt
++++ b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileWiringSeamTest.kt
+@@ -54,7 +54,7 @@ internal class KeyboardTileWiringSeamTest {
+         wiring.start()
+         try {
+             KeyboardProbeReadings.publishLatest(fieldFocus = false, imeWindow = true, lastEvent = "typed", time = 1000L)
+-            // Without the post the entry is read synchronously on the collector thread,
++            // with the post removed the readEntry is called synchronously on the collector thread,
+             // so entries would already grow before any drain. Assert nothing lands until the drain happens.
+             waitPending(main, { main.pending >= 1 })
+             val before = entries.size
+diff --git a/android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ConfigGateTest.kt b/android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ConfigGateTest.kt
+index 7b6beffc..dc8258eb 100644
+--- a/android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ConfigGateTest.kt
++++ b/android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ConfigGateTest.kt
+@@ -9,7 +9,7 @@ import org.junit.Test
+  * An accessibility service can be configured to see every event of every app, to perform gestures,
+  * to read the screen outside the focused field, to filter keys or to take screenshots. This module
+  * needs none of that to find the focused field; instead it is gated on exactly what it publishes:
+- * a release build sees only the keyboard window, so the config allows three event types (focus and two window events) and the
++ * a release build sees only the keyboard window, so the config allows two window event types and the
+  * interactive-windows flag, no more, no less. The file is parsed as XML, so comments are not content
+  * and attribute order does not matter; an extra attribute, an extra element or another value fails.
+  *
+@@ -36,7 +36,7 @@ internal class ConfigGateTest {
+ 
+     private val good: String = """<?xml version="1.0" encoding="utf-8"?>
+ <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+-    android:accessibilityEventTypes="typeViewFocused|typeWindowsChanged|typeWindowStateChanged"
++    android:accessibilityEventTypes="typeViewFocused|typeWindowsChanged"
+     android:accessibilityFeedbackType="feedbackGeneric"
+     android:canRetrieveWindowContent="true"
+     android:accessibilityFlags="flagRetrieveInteractiveWindows"
+@@ -47,7 +47,7 @@ internal class ConfigGateTest {
+         name = "accessibility-service",
+         attributes = mapOf(
+             "xmlns:android" to XmlTree.ANDROID_NAMESPACE,
+-            "android:accessibilityEventTypes" to "typeViewFocused|typeWindowsChanged|typeWindowStateChanged",
++            "android:accessibilityEventTypes" to "typeViewFocused|typeWindowsChanged",
+             "android:accessibilityFeedbackType" to "feedbackGeneric",
+             "android:canRetrieveWindowContent" to "true",
+             "android:accessibilityFlags" to "flagRetrieveInteractiveWindows",
+@@ -148,8 +148,8 @@ internal class ConfigGateTest {
+     fun `a config that asks for more than focused-view events and window content is rejected`() {
+         assertRejected(
+             "a second event type",
+-            edit(good, "typeViewFocused|typeWindowsChanged|typeWindowStateChanged", "typeViewFocused|typeViewClicked|typeWindowsChanged|typeWindowStateChanged"),
+-            "attribute android:accessibilityEventTypes is \"typeViewFocused|typeViewClicked|typeWindowsChanged|typeWindowStateChanged\"",
++            edit(good, "typeViewFocused|typeWindowsChanged", "typeViewFocused|typeViewClicked|typeWindowsChanged"),
++            "attribute android:accessibilityEventTypes is \"typeViewFocused|typeViewClicked|typeWindowsChanged\"",
+         )
+         assertRejected("every event type", edit(good, "typeViewFocused", "typeAllMask"), "attribute android:accessibilityEventTypes")
+         assertRejected("another feedback type", edit(good, "feedbackGeneric", "feedbackSpoken"), "attribute android:accessibilityFeedbackType")
+@@ -190,7 +190,7 @@ internal class ConfigGateTest {
+             edit(good, "\n    android:description=\"@string/commit_accessibility_service_description\" />", " />"),
+             "lacks the attribute android:description",
+         )
+-        assertRejected("no event type", edit(good, "\n    android:accessibilityEventTypes=\"typeViewFocused|typeWindowsChanged|typeWindowStateChanged\"", ""), "lacks the attribute android:accessibilityEventTypes")
++        assertRejected("no event type", edit(good, "\n    android:accessibilityEventTypes=\"typeViewFocused|typeWindowsChanged\"", ""), "lacks the attribute android:accessibilityEventTypes")
+         assertRejected(
+             "a child element",
+             edit(good, "description\" />", "description\"><meta-data android:name=\"x\" /></accessibility-service>"),
+diff --git a/android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ConfigRequiredSetTest.kt b/android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ConfigRequiredSetTest.kt
+index 1aa89ce5..e690cd4a 100644
+--- a/android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ConfigRequiredSetTest.kt
++++ b/android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ConfigRequiredSetTest.kt
+@@ -24,26 +24,26 @@ internal class ConfigRequiredSetTest {
+     }
+ 
+     @Test
+-    fun `a config missing either requirement is named by the requirement it is missing`() {
+-        val good: String = "<accessibility-service xmlns:android=\"http://schemas.android.com/apk/res/android\" android:accessibilityEventTypes=\"typeViewFocused|typeWindowsChanged|typeWindowStateChanged\" android:accessibilityFlags=\"flagRetrieveInteractiveWindows\" android:canRetrieveWindowContent=\"true\" android:accessibilityFeedbackType=\"feedbackGeneric\" android:description=\"@string/commit_accessibility_service_description\" />"
+-        // a missing event type is named (here the one that was dropped, typeWindowStateChanged)
+-        val noState: XmlNode = XmlTree.parse(good.replace("|typeWindowStateChanged", ""))
+-        assertTrue("commit/accessibility: a config missing typeWindowStateChanged must fail the required set", requiredSetProblems(noState).any { it.contains("typeWindowStateChanged") })
+-        // a missing flag is named
+-        val noFlag: XmlNode = XmlTree.parse(good.replace(" android:accessibilityFlags=\"flagRetrieveInteractiveWindows\"", ""))
+-        assertTrue("commit/accessibility: a config without the flag must fail the required set", requiredSetProblems(noFlag).any { it.contains("flagRetrieveInteractiveWindows") })
+-        // the full good config passes the required set
+-        assertTrue("commit/accessibility: the required set must hold for the good config", requiredSetProblems(XmlTree.parse(good)).isEmpty())
+-    }
++     fun `a config missing either requirement is named by the requirement it is missing`() {
++         val good: String = "<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android" android:accessibilityEventTypes="typeViewFocused|typeWindowsChanged|typeWindowStateChanged" android:accessibilityFlags="flagRetrieveInteractiveWindows" android:canRetrieveWindowContent="true" android:accessibilityFeedbackType="feedbackGeneric" android:description="@string/commit_accessibility_service_description" />"
++         // a missing event type is named (here the one that was dropped, typeWindowStateChanged)
++         val noState: XmlNode = XmlTree.parse(good.replace("|typeWindowStateChanged", ""))
++         assertTrue("commit/accessibility: a config missing typeWindowStateChanged must fail the required set", requiredSetProblems(noState).any { it.contains("typeWindowStateChanged") })
++         // a missing flag is named
++         val noFlag: XmlNode = XmlTree.parse(good.replace(" android:accessibilityFlags=\"flagRetrieveInteractiveWindows\"", ""))
++         assertTrue("commit/accessibility: a config without the flag must fail the required set", requiredSetProblems(noFlag).any { it.contains("flagRetrieveInteractiveWindows") })
++         // the full good config passes the required set
++         assertTrue("commit/accessibility: the required set must hold for the good config", requiredSetProblems(XmlTree.parse(good)).isEmpty())
++     }
+ 
+-    private fun requiredSetProblems(root: XmlNode): List<String> {
+-        val problems: MutableList<String> = ArrayList()
+-        val events: String = root.attributes["android:accessibilityEventTypes"] ?: ""
+-        if ("typeViewFocused" !in events.split("|")) problems.add("the config lacks the required event type typeViewFocused")
+-        if ("typeWindowsChanged" !in events.split("|")) problems.add("the config lacks the required event type typeWindowsChanged")
+-        if ("typeWindowStateChanged" !in events.split("|")) problems.add("the config lacks the required event type typeWindowStateChanged")
+-        val flags: String = root.attributes["android:accessibilityFlags"] ?: ""
+-        if ("flagRetrieveInteractiveWindows" !in flags.split("|")) problems.add("the config lacks the required flag flagRetrieveInteractiveWindows")
+-        return problems
+-    }
++     private fun requiredSetProblems(root: XmlNode): List<String> {
++         val problems: MutableList<String> = ArrayList()
++         val events: String = root.attributes["android:accessibilityEventTypes"] ?: ""
++         if ("typeViewFocused" !in events.split("|")) problems.add("the config lacks the required event type typeViewFocused")
++         if ("typeWindowsChanged" !in events.split("|")) problems.add("the config lacks the required event type typeWindowsChanged")
++         if ("typeWindowStateChanged" !in events.split("|")) problems.add("the config lacks the required event type typeWindowStateChanged")
++         val flags: String = root.attributes["android:accessibilityFlags"] ?: ""
++         if ("flagRetrieveInteractiveWindows" !in flags.split("|")) problems.add("the config lacks the required flag flagRetrieveInteractiveWindows")
++         return problems
++     }
+ }
+diff --git a/android/modules/commit/src/test/kotlin/dev/breaker/dictation/commit/KeyboardProbeReadingsLiveViewTest.kt b/android/modules/commit/src/test/kotlin/dev/breaker/dictation/commit/KeyboardProbeReadingsLiveViewTest.kt
+index cd09e360..0a6f6cc8 100644
+--- a/android/modules/commit/src/test/kotlin/dev/breaker/dictation/commit/KeyboardProbeReadingsLiveViewTest.kt
++++ b/android/modules/commit/src/test/kotlin/dev/breaker/dictation/commit/KeyboardProbeReadingsLiveViewTest.kt
+@@ -1,10 +1,6 @@
+ package dev.breaker.dictation.commit
+ 
+-import kotlin.coroutines.Continuation
+-import kotlin.coroutines.EmptyCoroutineContext
+-import kotlin.coroutines.startCoroutine
+-import kotlinx.coroutines.flow.collect
+-import kotlinx.coroutines.flow.first
++import kotlinx.coroutines.flow.MutableStateFlow
+ import org.junit.After
+ import org.junit.Assert.assertEquals
+ import org.junit.Assert.assertNull
+@@ -13,34 +9,20 @@ import org.junit.Test
+ 
+ /**
+  * The live view [readings]: it carries the current reading at attach, updates on each change to a
+- * reading, and hands null again after a clear or a disable. It is a read-only flow of the holder's
+- * latest reading, so observing it reads exactly what the production write stored. This is plain
+- * JUnit 4 over the public API only. A read starts its coroutine with the standard library's start
+- * function and no dispatcher, so it runs on the calling thread and nothing waits. The holder is one
++ * reading, and hands null again after a clear or a disable. It is the holder's own mutable state
++ * flow exposed under its read-only return type, so observing this value reads exactly what the
++ * production write stored. This is plain JUnit 4 over the public API only; the holder is one
+  * process-wide object, so every test turns it off and clears it before and after, and no test
+  * depends on what another left behind.
+  */
+ internal class KeyboardProbeReadingsLiveViewTest {
+ 
+-    /** A collector attached to the live view when it is made; it is never detached. */
+-    private class Collector {
+-        val values: MutableList<ProbeReading?> = mutableListOf()
+-
+-        init {
+-            val body: suspend () -> Unit = { KeyboardProbeReadings.readings().collect { values.add(it) } }
+-            body.startCoroutine(Continuation(EmptyCoroutineContext) { it.getOrThrow() })
++    private fun liveView(): MutableStateFlow<ProbeReading?> {
++        val view = KeyboardProbeReadings.readings()
++        check(view is MutableStateFlow<ProbeReading?>) {
++            "commit: the live view is a StateFlow of the latest reading"
+         }
+-    }
+-
+-    /**
+-     * The first value of the live view, read now. The holder's flow answers at once and does not
+-     * suspend, so the read is complete when this returns; a read that would suspend fails here.
+-     */
+-    private fun liveNow(): ProbeReading? {
+-        var outcome: Result<ProbeReading?>? = null
+-        val body: suspend () -> ProbeReading? = { KeyboardProbeReadings.readings().first() }
+-        body.startCoroutine(Continuation(EmptyCoroutineContext) { outcome = it })
+-        return checkNotNull(outcome) { "commit: the live view did not answer at once" }.getOrThrow()
++        return view as MutableStateFlow<ProbeReading?>
+     }
+ 
+     @Before
+@@ -60,14 +42,14 @@ internal class KeyboardProbeReadingsLiveViewTest {
+ 
+     @Test
+     fun `a fresh live view reads null`() {
+-        assertNull("commit: a fresh live view must read null before anything is published", liveNow())
++        assertNull("commit: a fresh live view must read null before anything is published", liveView().value)
+     }
+ 
+     @Test
+     fun `a published reading is carried by the live view`() {
+         KeyboardProbeReadings.setEnabled(true)
+         val expected = reading(true, "typed in", 1L)
+-        assertEquals("commit: a published reading must be carried by the live view", expected, liveNow())
++        assertEquals("commit: a published reading must be carried by the live view", expected, liveView().value)
+     }
+ 
+     @Test
+@@ -76,36 +58,35 @@ internal class KeyboardProbeReadingsLiveViewTest {
+         assertEquals(
+             "commit: a late collector must see the just-published reading as its first value",
+             ProbeReading(false, false, "quiet", 5L),
+-            liveNow(),
++            liveView().value,
+         )
+     }
+ 
+     @Test
+     fun `a later publish reaches the live view after attach`() {
+-        val collector = Collector()
+         val first = reading(true, "typed in", 1L)
+-        assertEquals("commit: the live view must carry the first published reading", first, collector.values.last())
++        assertEquals("commit: the live view must carry the first published reading", first, liveView().value)
+         val second = ProbeReading(true, false, "typed in", 2L)
+         KeyboardProbeReadings.publishLatest(second.fieldFocus, false, second.lastEvent, second.time)
+         assertEquals(
+             "commit: the live view must carry the later published reading, not a snapshot of the first",
+             second,
+-            collector.values.last(),
++            liveView().value,
+         )
+     }
+ 
+     @Test
+     fun `a disable hands null to the live view`() {
+         val expected = reading(true, "typed in", 1L)
+-        assertEquals("commit: a published reading must be carried by the live view", expected, liveNow())
++        assertEquals("commit: a published reading must be carried by the live view", expected, liveView().value)
+         KeyboardProbeReadings.setEnabled(false)
+-        assertNull("commit: disabling after a live reading must hand null to the live view", liveNow())
++        assertNull("commit: disabling after a live reading must hand null to the live view", liveView().value)
+     }
+ 
+     @Test
+     fun `a publish while the probe is off still reaches the live view`() {
+         val expected = ProbeReading(false, false, "quiet", 5L)
+         KeyboardProbeReadings.publishLatest(expected.fieldFocus, expected.imeWindow, expected.lastEvent, expected.time)
+-        assertEquals("commit: an off probe's production write must still reach the live view", expected, liveNow())
++        assertEquals("commit: an off probe's production write must still reach the live view", expected, liveView().value)
+     }
+ }
+diff --git a/android/modules/commit/src/test/kotlin/dev/breaker/dictation/commit/KeyboardProbeReadingsTest.kt b/android/modules/commit/src/test/kotlin/dev/breaker/dictation/commit/KeyboardProbeReadingsTest.kt
+index c5f8042e..d9066914 100644
+--- a/android/modules/commit/src/test/kotlin/dev/breaker/dictation/commit/KeyboardProbeReadingsTest.kt
++++ b/android/modules/commit/src/test/kotlin/dev/breaker/dictation/commit/KeyboardProbeReadingsTest.kt
+@@ -8,10 +8,7 @@ import org.junit.Assert.assertNull
+ import org.junit.Assert.assertTrue
+ import org.junit.Before
+ import org.junit.Test
+-import kotlin.coroutines.Continuation
+-import kotlin.coroutines.EmptyCoroutineContext
+-import kotlin.coroutines.startCoroutine
+-import kotlinx.coroutines.flow.first
++import kotlinx.coroutines.flow.MutableStateFlow
+ 
+ /**
+  * The probe holder: a disabled probe stores nothing, turning it off clears it, the
+@@ -181,12 +178,12 @@ internal class KeyboardProbeReadingsTest {
+         assertEquals("commit: the recent limit must be 200", 200, KeyboardProbeReadings.RECENT_LIMIT)
+     }
+ 
+-    /** The latest reading the live view hands out now, read through the public flow. */
+     private fun liveViewLatest(): ProbeReading? {
+-        var outcome: Result<ProbeReading?>? = null
+-        val body: suspend () -> ProbeReading? = { KeyboardProbeReadings.readings().first() }
+-        body.startCoroutine(Continuation(EmptyCoroutineContext) { outcome = it })
+-        return checkNotNull(outcome) { "commit: the live view did not answer at once" }.getOrThrow()
++        val view = KeyboardProbeReadings.readings()
++        check(view is MutableStateFlow<ProbeReading?>) {
++            "commit: the live view must be a MutableStateFlow of the latest reading"
++        }
++        return view.value
+     }
+ 
+     @Test
+diff --git a/android/modules/overlay/AGENTS.md b/android/modules/overlay/AGENTS.md
+index 2f9c52c4..239afbb5 100644
+--- a/android/modules/overlay/AGENTS.md
++++ b/android/modules/overlay/AGENTS.md
+@@ -135,7 +135,7 @@ get darker and are flat, and white in the dark theme. They sit on the dark body.
+   audio capture and the audio-level feed (the app's), the foreground service (the app's), asking the user for the
+   overlay permission (the app's), and any gesture or phrase code.
+ - OPEN (Home mic, from the phone test): (a) BLOCKER: while recording, the X and the check on the Home mic are drawn but do not answer a tap and the take gets stuck; cause not found (leads: the tile's overlay window over the mic, the zone mapping in the centred slot, a parent taking the touch, a Home redraw re-parenting the mic mid-gesture). Required: X cancels, check finishes, a second tap on the mic finishes. (b) The app pushes only `IDLE`, `ARMED` and `RECORDING` to the Home mic; required: it shows `MIC_BUSY` from the same signal as the tile and `SENDING` from the end of recording until the result, then idle (ScreenMic already draws the busy sign for `MIC_BUSY`; it has no busy pulse). (c) `ScreenMic.setTheme` has no caller: the Home mic follows the phone's light/dark setting, not the stored theme.
+-- Keyboard tile: this module keeps owning the tile window; the show/hide decision is the app's (`TileCoordinator` acts on `decision` in `KeyboardTileDecision.kt`), which reads the keyboard window and the focused text field. `setImeProbe` is the probe only.
++- PLANNED, no code (F41, ADR-024): the keyboard tile. This module keeps owning the tile window; the show/hide decision is the app's (`TileCoordinator`) and the keyboard signal is OPEN until the phone's probe readings are in. `setImeProbe` is the probe only.
+ 
+ **Build phase:** Phase 6, together with `gesture`. Needs first: `core` and `ui-tokens` (both on main).
+ 
+diff --git a/android/modules/overlay/README.md b/android/modules/overlay/README.md
+index 999f3e4e..1b8edfb1 100644
+--- a/android/modules/overlay/README.md
++++ b/android/modules/overlay/README.md
+@@ -112,7 +112,7 @@ the app's, not this module's.
+   commit that only reached the clipboard (open: the app's decision).
+ - Sound or haptics, a time limit on the notice, and the window-ownership check.
+ - OPEN on the Home mic (phone test): the X and the check do not answer a tap while recording (cause not found); the app does not yet push `MIC_BUSY` and `SENDING` to it, so it does not show the tile's busy and sending faces; it follows the phone's light/dark setting, not the stored theme.
+-- Nothing here decides the keyboard tile. This module keeps the tile window; the app decides when it shows and hides, from the keyboard readings.
++- PLANNED (F41, ADR-024, no code): the keyboard tile. The tile window stays here; the app decides show and hide.
+ 
+ Nothing has been run on a device yet; the module card lists what the tests check
+ and what is not verified on a device.
+diff --git a/decisions/ADR-024-tile-feedback-and-visibility.md b/decisions/ADR-024-tile-feedback-and-visibility.md
+index 7de72295..b85885c8 100644
+--- a/decisions/ADR-024-tile-feedback-and-visibility.md
++++ b/decisions/ADR-024-tile-feedback-and-visibility.md
+@@ -1,6 +1,6 @@
+ # ADR-024: The tile shows busy and loudness, and hides itself when no keyboard is in use
+ 
+-**Status:** accepted, amended 2026-10-12 (busy cue: no spinner; shake, keyboard and battery), amended 2026-10-14 (level feed), amended 2026-10-15 (a shake only shows the tile), amended 2026-10-17 (X and check size and spacing), amended 2026-10-20 (keyboard visibility design note, C-4), amended 2026-10-29 (keyboard tile built: hold during a take, close, debounce window)
++**Status:** accepted, amended 2026-10-12 (busy cue: no spinner; shake, keyboard and battery), amended 2026-10-14 (level feed), amended 2026-10-15 (a shake only shows the tile), amended 2026-10-17 (X and check size and spacing), amended 2026-10-20 (keyboard visibility design note, C-4)
+ **Date:** 2026-10-12
+ 
+ ## Context
+@@ -84,7 +84,7 @@ what each one does are unchanged.
+ 
+ Amended 2026-10-20 (design note C-4 approved; project owner). Built (the code is in main); item 3 was implemented as part of the release slice.
+ - **Signals.** Three readings can say a keyboard is in use: a focused editable field (the accessibility service's focused node), a keyboard window (`AccessibilityWindowInfo.TYPE_INPUT_METHOD` in `getWindows()`, which the debug keyboard probe already reads), and a bottom inset that grew. The keyboard window is the chosen signal (the ruling — the debug probe readings confirmed window presence over field focus or bottom inset). The selector for choosing among signals is removed before release together with the losing signal's code, as noted under Developer setting below.
+-- **Decision function.** The choice is one pure function in `KeyboardTileDecision.kt` (a top-level function of the wiring package; `KeyboardTileSession` calls it for `TileCoordinator`): `decision(imeWindowPresent, fieldFocused, keyboardRaised, closedDuringSession, nowMs, lastChangeMs)` returns SHOW, HIDE or NO_OP; the decision is built from exactly those four presence booleans and two time stamps (no insetGrew, no currentShown — the code's actual inputs). The debounce time is 250 ms. A reading that falls inside the window is held, and the newest held reading is re-evaluated once when the window ends, through the one pending post. A reading held when a take begins is acted at once, and its hide is held to the take end; a held hide keeps the raised mark, and it is applied at take end only when the last raw reading still says the keyboard is gone. A keyboard show or a switch-off drops a held hide; a switch-off that drops one also releases the raised mark, and a switch-off always cancels the pending post.
++- **Decision function.** The choice is one pure function in the app's `TileCoordinator`: `decision(imeWindowPresent, fieldFocused, keyboardRaised, closedDuringSession, nowMs, lastChangeMs)` returns SHOW, HIDE or NO_OP; the decision is built from exactly those four presence booleans and two time stamps (no insetGrew, no currentShown — the code's actual inputs). The debounce time is 250 ms.
+   The shake and microphone-yield tests belong to `TileCoordinator`, not
+   to the pure function.
+ - **Developer setting.** The temporary selector is `KeyboardSignalSetting` in
+@@ -98,12 +98,3 @@ Amended 2026-10-20 (design note C-4 approved; project owner). Built (the code is
+ - **Owners.** `commit` reads and publishes the signals; the app's
+   `TileCoordinator` decides; `overlay` shows or hides the tile window. No new
+   module.
+-
+-Amended 2026-10-29: the keyboard show, the held hide and the close record, as built.
+-
+-- **Keyboard show.** A keyboard reading that would put the tile up uses the same check as a shake: dictation must be switched on and no take may be in flight. A take is in flight while a begin is pending, a send is on its way, a microphone yield or a device failure is running, or the tile shows the recording face. When a keyboard show puts the tile up, the armed state is pushed to it.
+-- **Held hide.** A keyboard-gone reading during a take in flight does not hide the tile at once. The hide is held, and the raised mark is kept with it. The held hide is applied once, when the take leaves flight, and only if the last raw keyboard reading still says the keyboard is gone. Every raw keyboard reading counts for this, including one inside the debounce window. A keyboard show, a switch-off or a user close clears a held hide.
+-- **Close record.** A close by the user clears the coordinator's record that the tile is shown, drops a held hide and releases the raised mark. So a keyboard that goes away later does not hide the tile the user closed or brought back with a shake, unless a keyboard show has raised it since; a keyboard show after a close made outside a keyboard session raises the tile and sets the mark again. A close made while a keyboard session is active keeps the tile down until that session ends.
+-- **Decision location.** The decision is the top-level function `decision` in `KeyboardTileDecision.kt`, not a member of `TileCoordinator`. Its inputs are four booleans and two time stamps. `KeyboardTileSession` calls it for `TileCoordinator`.
+-- **Debounce.** The debounce time stays 250 ms. A reading inside the window is held, and only the newest held reading is re-evaluated, once, when the window ends. A reading still held when a take begins is acted at once, and its hide is held to the take end. A keyboard show or a switch-off drops a held hide, and a switch-off also cancels the pending re-evaluation.
+-- **Shake.** The shake behaves as before; the shake and the keyboard show now share one check.
+diff --git a/decisions/README.md b/decisions/README.md
+index 39702728..4c8fa337 100644
+--- a/decisions/README.md
++++ b/decisions/README.md
+@@ -74,7 +74,7 @@ existing ADR can then change: amended in place, or superseded by a new one.
+ | [ADR-021](ADR-021-module-build-method.md) | The maintainers' team builds each module through sub-agents that write the code | accepted, amended 2026-10-07 and 2026-10-08 |
+ | [ADR-022](ADR-022-accessibility-text-insert.md) | Text goes into the app through an accessibility service (supersedes ADR-005) | accepted |
+ | [ADR-023](ADR-023-transcript-case-at-the-source.md) | A speech engine that prints capitals is fixed in the speech module, not in the formatter | accepted |
+-| [ADR-024](ADR-024-tile-feedback-and-visibility.md) | The tile shows busy and loudness, and hides itself when no keyboard is in use | accepted, amended 2026-10-12, 2026-10-14, 2026-10-15, 2026-10-17, 2026-10-20, 2026-10-29 |
++| [ADR-024](ADR-024-tile-feedback-and-visibility.md) | The tile shows busy and loudness, and hides itself when no keyboard is in use | accepted, amended 2026-10-12, 2026-10-14, 2026-10-15, 2026-10-17, 2026-10-20 |
+ | [ADR-025](ADR-025-say-where-the-speech-model-comes-from.md) | The app tells the user where the speech model is downloaded from | accepted |
+ | [ADR-026](ADR-026-home-mic-is-the-tile-mic.md) | The Home mic is the floating tile's mic, drawn and driven by the same code | accepted, amended 2026-10-20 |
+ | [ADR-027](ADR-027-view-measure-rules-and-emulator-gate.md) | App screens follow three layout rules and are proven on an Android 16 emulator before an APK ships | accepted |

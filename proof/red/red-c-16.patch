@@ -1,0 +1,79 @@
+diff --git a/android/app/README.md b/android/app/README.md
+index f51cf497..265ca57f 100644
+--- a/android/app/README.md
++++ b/android/app/README.md
+@@ -54,11 +54,9 @@ screen, the settings screen and the history screen, the manifest, and the Gradle
+   keyboard show brought it up. A keyboard show follows the same check as a shake: nothing is shown
+   while the switch is off or while a take is in flight. A keyboard-gone hide that comes during a
+   take is held and applied once when the take ends, and only if the keyboard is still gone. A
+-  keyboard show, a switch-off or a user close drops a held hide. A user close also forgets that the
+-  keyboard raised the tile, so a keyboard that goes away later does not hide a tile the user closed or
+-  brought back with a shake, unless a keyboard show has raised it since. If the user closes the tile
+-  while the keyboard is up, the tile stays down until the keyboard goes away and comes back; a close made
+-  while no keyboard is up does not stop the next keyboard show from bringing the tile back.
++  keyboard show or a switch-off drops a held hide. If the user closes the tile while the keyboard
++  is up, the tile stays down until the keyboard goes away and comes back; a close made while no
++  keyboard is up does not stop the next keyboard show from bringing the tile back.
+ - **The user's switch-off.** When the user switches dictation off (the
+   notification's "Switch off" button, or the switch on the Home card), the app keeps that in a small file in its
+   files folder, and a start of the launcher from a notification or the tile no
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardHideHold.kt b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardHideHold.kt
+index 62ea378b..41a1026d 100644
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardHideHold.kt
++++ b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardHideHold.kt
+@@ -27,11 +27,6 @@ internal class KeyboardHideHold {
+         held = false
+     }
+ 
+-    /** A user close drops the held hide, so nothing automatic takes the closed tile down later. */
+-    fun clearOnClose() {
+-        held = false
+-    }
+-
+     /** A switch-off clears the held hide; true when there was one to clear. */
+     fun clearOnSwitchOff(): Boolean {
+         val was: Boolean = held
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileSession.kt b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileSession.kt
+index aec5cfb8..00843f99 100644
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileSession.kt
++++ b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileSession.kt
+@@ -83,10 +83,4 @@ internal class KeyboardTileSession {
+     fun setCloseWhileActive(active: Boolean) {
+         closedDuringSession = active
+     }
+-
+-    /** A user close: remembers a close while this session is live and releases the raised mark, so a later keyboard-gone reading does not take the closed tile down. */
+-    fun onCloseRequested() {
+-        setCloseWhileActive(keyboardSessionActive)
+-        keyboardRaised = false
+-    }
+ }
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt
+index 2a80c136..20ef6b71 100644
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt
++++ b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt
+@@ -155,8 +155,7 @@ class TileCoordinator(
+     }
+ 
+     fun onCloseRequested() {
+-        keyboardTile.onCloseRequested()
+-        heldHide.clearOnClose()
++        keyboardTile.setCloseWhileActive(keyboardTile.keyboardSessionActive)
+         tileShowGuard.onCloseRequested()
+         tileShown = false // a user close clears the record that the tile is shown
+     }
+diff --git a/decisions/ADR-024-tile-feedback-and-visibility.md b/decisions/ADR-024-tile-feedback-and-visibility.md
+index 7de72295..29c27091 100644
+--- a/decisions/ADR-024-tile-feedback-and-visibility.md
++++ b/decisions/ADR-024-tile-feedback-and-visibility.md
+@@ -102,8 +102,8 @@ Amended 2026-10-20 (design note C-4 approved; project owner). Built (the code is
+ Amended 2026-10-29: the keyboard show, the held hide and the close record, as built.
+ 
+ - **Keyboard show.** A keyboard reading that would put the tile up uses the same check as a shake: dictation must be switched on and no take may be in flight. A take is in flight while a begin is pending, a send is on its way, a microphone yield or a device failure is running, or the tile shows the recording face. When a keyboard show puts the tile up, the armed state is pushed to it.
+-- **Held hide.** A keyboard-gone reading during a take in flight does not hide the tile at once. The hide is held, and the raised mark is kept with it. The held hide is applied once, when the take leaves flight, and only if the last raw keyboard reading still says the keyboard is gone. Every raw keyboard reading counts for this, including one inside the debounce window. A keyboard show, a switch-off or a user close clears a held hide.
+-- **Close record.** A close by the user clears the coordinator's record that the tile is shown, drops a held hide and releases the raised mark. So a keyboard that goes away later does not hide the tile the user closed or brought back with a shake, unless a keyboard show has raised it since; a keyboard show after a close made outside a keyboard session raises the tile and sets the mark again. A close made while a keyboard session is active keeps the tile down until that session ends.
++- **Held hide.** A keyboard-gone reading during a take in flight does not hide the tile at once. The hide is held, and the raised mark is kept with it. The held hide is applied once, when the take leaves flight, and only if the last raw keyboard reading still says the keyboard is gone. Every raw keyboard reading counts for this, including one inside the debounce window. A keyboard show or a switch-off clears a held hide.
++- **Close record.** A close by the user clears the coordinator's record that the tile is shown, so a later keyboard show can raise it again, and the keyboard going away then hides it. A close made while a keyboard session is active keeps the tile down until that session ends.
+ - **Decision location.** The decision is the top-level function `decision` in `KeyboardTileDecision.kt`, not a member of `TileCoordinator`. Its inputs are four booleans and two time stamps. `KeyboardTileSession` calls it for `TileCoordinator`.
+ - **Debounce.** The debounce time stays 250 ms. A reading inside the window is held, and only the newest held reading is re-evaluated, once, when the window ends. A reading still held when a take begins is acted at once, and its hide is held to the take end. A keyboard show or a switch-off drops a held hide, and a switch-off also cancels the pending re-evaluation.
+ - **Shake.** The shake behaves as before; the shake and the keyboard show now share one check.
