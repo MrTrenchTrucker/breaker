@@ -1,0 +1,493 @@
+{
+ "name": "proof-2b",
+ "tip": {
+  "tree": "7ca7342bc137d78078be80a3fc75b001eed63e42"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "whisper-server: runnable entry point, health route, queue worker survives a store failure, result time-to-live window",
+   "base_tree": "f8bfa6af9f3e0af4c7dd7469fd6b152f0b5625f7",
+   "item_tip_tree": "7ca7342bc137d78078be80a3fc75b001eed63e42",
+   "new_production_classes": [
+    "WhisperServer",
+    "WhisperConfig",
+    "JdbcStatements",
+    "Migration",
+    "MigrationException",
+    "Migrations",
+    "SchemaV1",
+    "SqliteDatabase",
+    "TranscriptionApi",
+    "TranscriptionRoutes",
+    "WhisperEngine",
+    "JobModels",
+    "JobPolicy",
+    "JobSql",
+    "JobStatus",
+    "JobStore",
+    "JobStoreOps",
+    "Json",
+    "HttpTranscriptionForwarder",
+    "Pause",
+    "QueueWorker",
+    "TranscriptionForwarder",
+    "TranscriptionResponse"
+   ],
+   "test_fixtures_overlaid": [
+    "TestDatabases.kt",
+    "RouteFixtures.kt",
+    "JobFixtures.kt",
+    "WorkerFixtures.kt"
+   ],
+   "red_not_run": "the whole module is new against main (all its classes are new here), so every test of it fails to compile on main; those legs are not run. Item b carries the red legs that can fail on assertions."
+  },
+  {
+   "item": "b",
+   "title": "whisper-server result time-to-live window: fetch inside the window, purge and erasure after it",
+   "base_tree": "5792c2b259f1bf00aa66715a9c5fd3cfe73c6151",
+   "item_tip_tree": "1a4f404434f6ddac066d67078c2a660346a396c1",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [
+    "JobFixtures.kt"
+   ]
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test"
+ },
+ "shards": 3,
+ "entries": [
+  {
+   "id": "red-b-01",
+   "kind": "red",
+   "item": "b",
+   "module": "server/modules/whisper-server",
+   "file": "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/BuildJobStoreTest.kt",
+   "files": [
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/BuildJobStoreTest.kt",
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobFixtures.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.whisper.BuildJobStoreTest"
+   ],
+   "patch": "proof/red/red-b-01.patch",
+   "tree": "4ba41eeb905fc5117b5a901f19f99e15bd00450a"
+  },
+  {
+   "id": "red-b-02",
+   "kind": "red",
+   "item": "b",
+   "module": "server/modules/whisper-server",
+   "file": "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/config/WhisperConfigTest.kt",
+   "files": [
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/config/WhisperConfigTest.kt",
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobFixtures.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.whisper.config.WhisperConfigTest"
+   ],
+   "patch": "proof/red/red-b-02.patch",
+   "tree": "e9611e866dd858bfb93738caf047c90aae788ebd"
+  },
+  {
+   "id": "red-b-03",
+   "kind": "red",
+   "item": "b",
+   "module": "server/modules/whisper-server",
+   "file": "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutesTest.kt",
+   "files": [
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutesTest.kt",
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobFixtures.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.whisper.http.TranscriptionRoutesTest"
+   ],
+   "patch": "proof/red/red-b-03.patch",
+   "tree": "f4392e2e2b8a20e864e365d1a8494d53a5a67913"
+  },
+  {
+   "id": "red-b-04",
+   "kind": "red",
+   "item": "b",
+   "module": "server/modules/whisper-server",
+   "file": "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/AudioErasureTest.kt",
+   "files": [
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/AudioErasureTest.kt",
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobFixtures.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.whisper.jobs.AudioErasureTest"
+   ],
+   "patch": "proof/red/red-b-04.patch",
+   "tree": "e389cc0916939bd8cfd47a685c3f09242bb51219"
+  },
+  {
+   "id": "red-b-05",
+   "kind": "red",
+   "item": "b",
+   "module": "server/modules/whisper-server",
+   "file": "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobStoreFetchTest.kt",
+   "files": [
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobStoreFetchTest.kt",
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobFixtures.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.whisper.jobs.JobStoreFetchTest"
+   ],
+   "patch": "proof/red/red-b-05.patch",
+   "tree": "35903d0d9841dd49aa488717187a47836763805b"
+  },
+  {
+   "id": "red-b-06",
+   "kind": "red",
+   "item": "b",
+   "module": "server/modules/whisper-server",
+   "file": "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobStorePurgeTest.kt",
+   "files": [
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobStorePurgeTest.kt",
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobFixtures.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.whisper.jobs.JobStorePurgeTest"
+   ],
+   "patch": "proof/red/red-b-06.patch",
+   "tree": "45650100442a97792385d68357aa5d0eb77f1056"
+  },
+  {
+   "id": "red-b-07",
+   "kind": "red",
+   "item": "b",
+   "module": "server/modules/whisper-server",
+   "file": "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobStoreTtlPurgeTest.kt",
+   "files": [
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobStoreTtlPurgeTest.kt",
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobFixtures.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.whisper.jobs.JobStoreTtlPurgeTest"
+   ],
+   "patch": "proof/red/red-b-07.patch",
+   "tree": "4451213338d62716d9828a737e31882d327df8ff"
+  },
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/jobs/JobStore.kt",
+     "anchor": "            return FetchOutcome(JobPoll.Result(text), false)",
+     "replacement": "            return FetchOutcome(JobPoll.ResultGone, true)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the first and second fetch of a done job within the TTL both return the exact text"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/jobs/JobStore.kt",
+     "anchor": "            return FetchOutcome(JobPoll.Result(text), false)",
+     "replacement": "connection.prepareStatement(JobSql.CLEAR_RESULT).use { statement -> statement.setLong(1, jobId); statement.executeUpdate() }\n            return FetchOutcome(JobPoll.Result(text), true)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the stored result survives the first fetch within the TTL and the job stays done"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/jobs/JobStore.kt",
+     "anchor": "            return FetchOutcome(JobPoll.Result(text), false)",
+     "replacement": "connection.prepareStatement(JobSql.CLEAR_RESULT).use { statement -> statement.setLong(1, jobId); statement.executeUpdate() }\n            return FetchOutcome(JobPoll.Result(text), true)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "eight concurrent fetches of one done job within the TTL all return the same result"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/jobs/JobPolicy.kt",
+     "anchor": "    fun resultWindowCutoffMs(nowMs: Long, ttlMs: Long): Long = nowMs - ttlMs",
+     "replacement": "    fun resultWindowCutoffMs(nowMs: Long, ttlMs: Long): Long = nowMs - ttlMs + 1"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a result is still returned one millisecond before the TTL after it finished"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/jobs/JobStore.kt",
+     "anchor": "        if (finishedAtMs > JobPolicy.resultWindowCutoffMs(nowMs, resultTtlMs)) {",
+     "replacement": "        if (finishedAtMs > JobPolicy.expiryCutoffMs(nowMs)) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "at exactly the TTL the fetch answers result gone without any purge and clears the row"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutes.kt",
+     "anchor": "internal const val UNKNOWN_OR_EXPIRED = \"unknown or expired\"",
+     "replacement": "internal const val UNKNOWN_OR_EXPIRED = \"no such job\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an unknown job id is not found"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/jobs/JobStore.kt",
+     "anchor": "            return FetchOutcome(JobPoll.Result(text), false)",
+     "replacement": "connection.prepareStatement(JobSql.CLEAR_RESULT).use { statement -> statement.setLong(1, jobId); statement.executeUpdate() }\n            return FetchOutcome(JobPoll.Result(text), true)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a done job returns the same result on a second GET within the TTL"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutes.kt",
+     "anchor": "            is JobPoll.ResultGone -> {\n                respondError(call, HttpStatusCode.NotFound, UNKNOWN_OR_EXPIRED)\n            }",
+     "replacement": "            is JobPoll.ResultGone -> {\n                call.respondText(\"{\\\"status\\\":\\\"done\\\",\\\"result\\\":null}\", ContentType.Application.Json, HttpStatusCode.OK)\n            }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an expired job id gives the same 404 unknown or expired body"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/jobs/JobStore.kt",
+     "anchor": "                statement.setLong(2, JobPolicy.resultWindowCutoffMs(nowMs, resultTtlMs))",
+     "replacement": "                statement.setLong(2, nowMs)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "one millisecond before the ttl nothing is purged and the result is still stored"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-10",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/jobs/JobStore.kt",
+     "anchor": "                statement.setLong(2, JobPolicy.resultWindowCutoffMs(nowMs, resultTtlMs))",
+     "replacement": "                statement.setLong(2, JobPolicy.expiryCutoffMs(nowMs))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "at exactly the ttl the result is purged, the row stays done and a fetch answers result gone"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-11",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/jobs/JobStore.kt",
+     "anchor": "                statement.setLong(2, JobPolicy.resultWindowCutoffMs(nowMs, resultTtlMs))",
+     "replacement": "                statement.setLong(2, nowMs)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a younger done job survives the ttl purge while an older one is erased"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-12",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/jobs/JobStore.kt",
+     "anchor": "                statement.setLong(2, JobPolicy.expiryCutoffMs(nowMs))",
+     "replacement": "                statement.setLong(2, JobPolicy.resultWindowCutoffMs(nowMs, resultTtlMs))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the 24h purge leaves a result past the ttl untouched"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-13",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/WhisperServer.kt",
+     "anchor": "JobStore(db, clock, resultTtlMs = config.resultTtlSeconds * 1000L)",
+     "replacement": "JobStore(db, clock)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "buildJobStore wires the configured ttl so the fetch window is 120 s not the default"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-14",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/jobs/JobStore.kt",
+     "anchor": "                statement.setLong(2, JobPolicy.resultWindowCutoffMs(nowMs, resultTtlMs))\n                statement.executeUpdate()\n            }\n        }\n        if (cleared > 0) db.checkpointTruncate()\n",
+     "replacement": "                statement.setLong(2, JobPolicy.resultWindowCutoffMs(nowMs, resultTtlMs))\n                statement.executeUpdate()\n            }\n        }\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "purging a result past the ttl erases it from every file"
+   ],
+   "rule": "",
+   "note": "anchor extended upward to the purgeTtl lines above it (the line also occurs in purgeExpired); same mutation"
+  },
+  {
+   "id": "mut-15",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/config/WhisperConfig.kt",
+     "anchor": "                if (parsed > MAX_RESULT_TTL_SECONDS) {\n                    throw IllegalStateException(\"$ENV_RESULT_TTL must be at most $MAX_RESULT_TTL_SECONDS seconds: $resultTtlRaw\")\n                }",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "BREAKER_WHISPER_RESULT_TTL_S above 86400 refuses with a message naming BREAKER_WHISPER_RESULT_TTL_S"
+   ],
+   "rule": "",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "android/app",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/DictationRunner.kt",
+     "anchor": "        if (idle.state != DictationState.IDLE) return BeginResult.Refused(RunnerSentences.BUSY)\n",
+     "replacement": "        return BeginResult.Refused(RunnerSentences.BUSY)\n"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "android/app",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/DictationRunner.kt",
+     "anchor": "        if (idle.state != DictationState.IDLE) return BeginResult.Refused(RunnerSentences.BUSY)\n",
+     "replacement": "        if (idle.state != DictationState.IDLE) return BeginResult.Refused(RunnerSentences.BUSY) // unchanged behaviour\n"
+    }
+   ]
+  }
+ ]
+}
