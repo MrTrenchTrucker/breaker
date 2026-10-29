@@ -1,4 +1,4 @@
-# proof-1
+# proof-1b
 
 Failing-first runs and mutants for the keyboard tile batch, run by `.github/workflows/proof.yml`
 through `proof/run.py`. Everything here lives only on this dev/proof branch.
@@ -16,3 +16,7 @@ through `proof/run.py`. Everything here lives only on this dev/proof branch.
 - A mutant counts as KILLED only when it adds failures beyond the module baseline measured on the
   tip in the same shard. COMPILE RED is reported with the item's new production classes, so a
   reader can tell whether the compile failure is the expected kind.
+
+proof-1b re-runs only: the two layout-gate red entries against the real gate test class (the
+first run targeted the rules helper), and two accessibility legs where the sibling test that did not
+compile at the item base is taken from the item tip. Each red row prints its prediction.

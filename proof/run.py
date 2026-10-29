@@ -152,7 +152,7 @@ def main():
             void.append("red tree mismatch " + e["id"])
         else:
             g = gradle(e["module"], e["tests"])
-            cls = os.path.basename(e["file"])[:-3]
+            cls = ", ".join(t.rsplit(".", 1)[-1] for t in e["tests"])
             item = [i for i in P["items"] if i["item"] == e["item"]][0]
             if g["total"] and g["failed"]:
                 res, detail = "ASSERT RED", "%d run, %d failed: %s" % (g["total"], len(g["failed"]), ", ".join(g["failed"][:4]))
@@ -164,7 +164,8 @@ def main():
                 res, detail = "NOT RED", "%d run, 0 failed" % g["total"]
             else:
                 res, detail = "NO RESULT", "rc %d, no tests and no compiler error line" % g["rc"]
-            rows.append((e["id"], e["module"], res, "[%s] %s" % (cls, detail), g["secs"]))
+            pred = (" (predicted: %s)" % e["predict"]) if e.get("predict") else ""
+            rows.append((e["id"], e["module"], res, "[%s] %s%s" % (cls, detail, pred), g["secs"]))
         if not restore():
             void.append("dirty after " + e["id"])
     lines = head + ["| run | module | result | detail | s |", "|---|---|---|---|---|"]
