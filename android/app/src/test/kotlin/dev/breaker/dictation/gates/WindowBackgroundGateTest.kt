@@ -71,7 +71,7 @@ internal class WindowBackgroundGateTest {
     fun `the window background call passes the stored theme mode`() {
         assertTrue(
             "paintWindowBackground must receive the stored themeMode, not a hardcoded mode",
-            flat(activityCode).contains("paintWindowBackground(this,app.settingsStore.load().themeMode)"),
+            flat(activityCode).contains("paintWindowBackground(this,dev.breaker.dictation.wiring.themeModeOrDefault(app.settingsStore,dev.breaker.dictation.core.model.ThemeMode.SYSTEM))"),
         )
     }
 }
