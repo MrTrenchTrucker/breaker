@@ -1,0 +1,665 @@
+diff --git a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/DropMessage.kt b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/DropMessage.kt
+deleted file mode 100644
+index 2eb374d2..00000000
+--- a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/DropMessage.kt
++++ /dev/null
+@@ -1,14 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-/**
+- * The text of the log line for a dropped final status: the platform session id that arrived, and either the recorded
+- * session id or the words that no session is recorded.
+- */
+-internal fun dropMessage(platformSessionId: Int, recordedSessionId: Int?): String {
+-    val head: String = "final status for session " + platformSessionId
+-    return if (recordedSessionId == null) {
+-        head + " dropped; no session recorded"
+-    } else {
+-        head + " dropped; recorded session " + recordedSessionId
+-    }
+-}
+diff --git a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt
+index 2773dd5b..6d46789c 100644
+--- a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt
++++ b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt
+@@ -26,38 +26,8 @@ internal interface LedgerSlot {
+     fun applyChange(removeRecord: Boolean, lastSeenCode: FieldEdit<Int>, lastOutcome: FieldEdit<String>)
+ }
+ 
+-/** The text between a ledger file name and the sequence number of its temporary file name. */
+-internal const val LEDGER_TEMP_MARKER: String = ".tmp"
+-
+ /** The name of the temporary file for the write with [sequence], in the same folder as the file named [ledgerName]. */
+-internal fun ledgerTempName(ledgerName: String, sequence: Int): String = ledgerName + LEDGER_TEMP_MARKER + sequence.toString()
+-
+-/** True when [candidate] is a name that [ledgerTempName] makes for [ledgerName]: the name, the marker, then one or more digits. */
+-internal fun isLedgerTempName(ledgerName: String, candidate: String): Boolean {
+-    if (!candidate.startsWith(ledgerName + LEDGER_TEMP_MARKER)) return false
+-    val digits = candidate.substring(ledgerName.length + LEDGER_TEMP_MARKER.length)
+-    return digits.isNotEmpty() && digits.all { it in '0'..'9' }
+-}
+-
+-/**
+- * Removes the temporary files that an interrupted ledger write left in the folder of [ledgerFile]. Only a regular file
+- * whose name [isLedgerTempName] accepts is removed. A missing folder does nothing, and a file that cannot be removed is
+- * left in place, so the sweep never throws.
+- */
+-internal fun sweepStaleLedgerTemps(ledgerFile: File) {
+-    val folder = ledgerFile.absoluteFile.parentFile ?: return
+-    val names = folder.list() ?: return
+-    for (name in names) {
+-        if (!isLedgerTempName(ledgerFile.name, name)) continue
+-        val candidate = File(folder, name)
+-        if (!candidate.isFile) continue
+-        try {
+-            Files.deleteIfExists(candidate.toPath())
+-        } catch (error: Exception) {
+-            Unit
+-        }
+-    }
+-}
++internal fun ledgerTempName(ledgerName: String, sequence: Int): String = ledgerName + ".tmp" + sequence.toString()
+ 
+ /**
+  * The ledger file: the three times, the install record, the last seen code and the last outcome in one text file.
+diff --git a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LogcatDropLog.kt b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LogcatDropLog.kt
+deleted file mode 100644
+index 1add55a4..00000000
+--- a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LogcatDropLog.kt
++++ /dev/null
+@@ -1,13 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import android.util.Log
+-
+-/** The log tag of the drop line. */
+-private const val DROP_LOG_TAG: String = "BreakerUpdate"
+-
+-/** Writes one warning line to the system log for each dropped final status. The line holds only the two session ids. */
+-internal class LogcatDropLog : DropLog {
+-    override fun dropped(platformSessionId: Int, recordedSessionId: Int?) {
+-        Log.w(DROP_LOG_TAG, dropMessage(platformSessionId, recordedSessionId))
+-    }
+-}
+diff --git a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/PackageInfoInstalledVersion.kt b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/PackageInfoInstalledVersion.kt
+deleted file mode 100644
+index 9d8f84bb..00000000
+--- a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/PackageInfoInstalledVersion.kt
++++ /dev/null
+@@ -1,15 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import android.content.Context
+-
+-/** Reads the build that is installed now from the package manager of this app. A failed read is Unreadable. */
+-internal class PackageInfoInstalledVersion(private val context: Context) : InstalledVersion {
+-    override fun current(): InstalledReading {
+-        val info = try {
+-            context.packageManager.getPackageInfo(context.packageName, 0)
+-        } catch (error: Exception) {
+-            return InstalledReading.Unreadable
+-        }
+-        return installedReadingFrom(info.longVersionCode, info.versionName)
+-    }
+-}
+diff --git a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/PackageInstallerAdapter.kt b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/PackageInstallerAdapter.kt
+deleted file mode 100644
+index b16f6a7e..00000000
+--- a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/PackageInstallerAdapter.kt
++++ /dev/null
+@@ -1,155 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import android.content.IntentSender
+-import android.content.pm.PackageInstaller
+-import java.io.IOException
+-
+-/** Asks the platform whether a session the module recorded is still held, and whether a commit was made for it. */
+-internal class PlatformSessionQuery(private val installer: PackageInstaller) : SessionQuery {
+-    override fun exists(sessionId: Int): Boolean = installer.getSessionInfo(sessionId) != null
+-
+-    override fun isCommitted(sessionId: Int): Boolean = installer.getSessionInfo(sessionId)?.isCommitted == true
+-}
+-
+-/**
+- * Abandons a platform session. An IOException or a SecurityException is passed on; any other failure of the platform
+- * is reported as an IOException, as the port requires.
+- */
+-internal class PlatformSessionAbandon(private val installer: PackageInstaller) : SessionAbandon {
+-    override fun abandon(sessionId: Int) {
+-        try {
+-            installer.abandonSession(sessionId)
+-        } catch (error: SecurityException) {
+-            throw error
+-        } catch (error: RuntimeException) {
+-            throw IOException("the platform session could not be abandoned", error)
+-        }
+-    }
+-}
+-
+-/**
+- * Hands the staged file to the platform installer through one session. An attempt that fails before the commit is
+- * ended: its session is abandoned, and the record is cleared when the abandon went through. Once the commit has been
+- * called nothing is abandoned, because the platform may already hold the session for installation.
+- */
+-internal class PackageInstallerAdapter(
+-    private val installer: PackageInstaller,
+-    private val packageName: String,
+-    private val commitSender: IntentSender,
+-    private val record: InstallRecord,
+-) : PackageInstallerPort {
+-
+-    override fun install(staged: StagedApk, expectedSha256: String, capBytes: Long): InstallerResult {
+-        abandonRecordedSession()
+-        val sessionId = try {
+-            installer.createSession(sessionParams())
+-        } catch (error: SecurityException) {
+-            return InstallerResult.Refused
+-        } catch (error: IOException) {
+-            return InstallerResult.Failed
+-        }
+-        val session = try {
+-            record.sessionOpened(sessionId)
+-            installer.openSession(sessionId)
+-        } catch (error: Exception) {
+-            return endWithError(sessionId, error)
+-        }
+-        val copyFailure = try {
+-            sealChecked(session, staged, expectedSha256, capBytes)
+-        } catch (error: Exception) {
+-            session.close()
+-            return endWithError(sessionId, error)
+-        }
+-        if (copyFailure != null) {
+-            session.close()
+-            return endAttempt(sessionId, copyFailure)
+-        }
+-        return try {
+-            commit(session)
+-        } finally {
+-            session.close()
+-        }
+-    }
+-
+-    /** The parameters of a full install of this app's package. */
+-    private fun sessionParams(): PackageInstaller.SessionParams {
+-        val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
+-        params.setAppPackageName(packageName)
+-        return params
+-    }
+-
+-    /**
+-     * Copies the staged bytes into the session through the digest check and seals the session stream. Returns null when
+-     * the bytes matched and the stream is sealed, and otherwise the result that ends the attempt.
+-     */
+-    private fun sealChecked(session: PackageInstaller.Session, staged: StagedApk, expectedSha256: String, capBytes: Long): InstallerResult? {
+-        val input = staged.open() ?: return InstallerResult.Failed
+-        input.use { source ->
+-            session.openWrite(STAGED_FILE_NAME, 0L, -1L).use { out ->
+-                val failure = resultOfCheckedCopy(copyChecked(source, out, expectedSha256, capBytes))
+-                if (failure != null) return failure
+-                out.flush()
+-                session.fsync(out)
+-            }
+-        }
+-        return null
+-    }
+-
+-    /** Commits the sealed session. A failure of the commit is reported as Failed, and the session is left as it is. */
+-    private fun commit(session: PackageInstaller.Session): InstallerResult =
+-        try {
+-            session.commit(commitSender)
+-            InstallerResult.Accepted
+-        } catch (error: IOException) {
+-            InstallerResult.Failed
+-        } catch (error: SecurityException) {
+-            InstallerResult.Failed
+-        }
+-
+-    /**
+-     * Ends an attempt that failed with [error] after its session existed. A SecurityException refuses the install, an
+-     * IOException fails it, and any other failure ends the attempt as Failed and is then rethrown to the caller.
+-     */
+-    private fun endWithError(sessionId: Int, error: Exception): InstallerResult {
+-        if (error is SecurityException) return endAttempt(sessionId, InstallerResult.Refused)
+-        if (error is IOException) return endAttempt(sessionId, InstallerResult.Failed)
+-        endAttempt(sessionId, InstallerResult.Failed)
+-        throw error
+-    }
+-
+-    /** Abandons the session, and clears the record only when the abandon went through; returns [result]. */
+-    private fun endAttempt(sessionId: Int, result: InstallerResult): InstallerResult {
+-        if (abandonQuietly(sessionId)) clearRecordQuietly()
+-        return result
+-    }
+-
+-    /**
+-     * Abandons a session that a record still names before a new attempt. The engine clears the record before it allows an
+-     * install, so this step is the defensive step of the record rules and is not reached through the install gate.
+-     */
+-    private fun abandonRecordedSession() {
+-        val recorded = record.recordedSessionId() ?: return
+-        if (abandonQuietly(recorded)) clearRecordQuietly()
+-    }
+-
+-    /** True when the platform accepted the abandon. Any failure means the session may still be held. */
+-    private fun abandonQuietly(sessionId: Int): Boolean =
+-        try {
+-            installer.abandonSession(sessionId)
+-            true
+-        } catch (error: Exception) {
+-            false
+-        }
+-
+-    /**
+-     * Clears the record. A failed clear is ignored: the platform session is already gone, so the next start reads the
+-     * session as gone and clears the record itself.
+-     */
+-    private fun clearRecordQuietly() {
+-        try {
+-            record.clearRecord()
+-        } catch (error: IOException) {
+-            Unit
+-        }
+-    }
+-}
+diff --git a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/SessionCopy.kt b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/SessionCopy.kt
+index 37919ec8..88c443b9 100644
+--- a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/SessionCopy.kt
++++ b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/SessionCopy.kt
+@@ -36,13 +36,3 @@ internal fun copyChecked(input: InputStream, out: OutputStream, expectedSha256:
+     if (copied > capBytes) return CheckedCopy.TooLarge
+     return if (toLowerHex(digest.digest()) == expectedSha256) CheckedCopy.Matched else CheckedCopy.Mismatched
+ }
+-
+-/**
+- * The installer's answer for a checked copy that did not match: a digest mismatch or an overrun is DigestMismatch, and
+- * a read failure is Failed. A matched copy gives null, so the installer may go on to commit the session.
+- */
+-internal fun resultOfCheckedCopy(copy: CheckedCopy): InstallerResult? = when (copy) {
+-    CheckedCopy.Matched -> null
+-    CheckedCopy.Mismatched, CheckedCopy.TooLarge -> InstallerResult.DigestMismatch
+-    CheckedCopy.Failed -> InstallerResult.Failed
+-}
+diff --git a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateInstallFacade.kt b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateInstallFacade.kt
+deleted file mode 100644
+index 767726e2..00000000
+--- a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateInstallFacade.kt
++++ /dev/null
+@@ -1,86 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import android.content.Context
+-import android.content.IntentSender
+-import dev.breaker.dictation.core.port.AuthService
+-import dev.breaker.dictation.core.port.Clock
+-import dev.breaker.dictation.core.port.UpdateChecker
+-import java.io.File
+-
+-/**
+- * The install module as the app uses it: the update checker, with the install gate in front of each install; the start
+- * calls; and the commit results. The app keeps one instance, made by the companion's create function.
+- */
+-public class UpdateInstallFacade private constructor(
+-    /** The update checker: the daily check, and the install, which the start rules gate before the platform sees it. */
+-    public val updates: UpdateChecker,
+-    private val start: StartRun,
+-    private val commits: CommitRouter,
+-) {
+-    /**
+-     * The factory of the facade. The companion is unnamed, so the language gives it the implicit name Companion; the
+-     * create function is the only member of the companion.
+-     */
+-    public companion object {
+-        /**
+-         * Builds the facade for one ledger file, and is called once per process. A second call for the same ledger file
+-         * throws IllegalStateException. The call also removes the staged file in [stagingDir] and the stale temporary
+-         * files that an interrupted ledger write left beside [ledgerFile].
+-         */
+-        public fun create(context: Context, ledgerFile: File, stagingDir: File, serverBase: String, pinnedKeys: List<Pair<String, String>>, clock: Clock, auth: AuthService, confirmation: ConfirmationPort, commitSender: IntentSender): UpdateInstallFacade {
+-            CreateGuard.claim(ledgerFile.absolutePath)
+-            try {
+-                val ledger = LedgerStore(ledgerFile, clock)
+-                val installed = PackageInfoInstalledVersion(context)
+-                val installer = context.packageManager.packageInstaller
+-                val opener = JdkUpdateHttpOpener()
+-                val slot = ApkStaging(stagingDir)
+-                val keys = pinnedKeys.map { PinnedKey(it.first, it.second) }
+-                val checker = ReleaseUpdateChecker(
+-                    clock,
+-                    auth,
+-                    ledger,
+-                    ManifestHttpSource(serverBase, opener),
+-                    HttpApkDownloader(opener, slot),
+-                    PackageInstallerAdapter(installer, context.packageName, commitSender, ledger),
+-                    installed,
+-                    keys,
+-                )
+-                val start = StartRun(
+-                    clock,
+-                    ledger,
+-                    installed,
+-                    PlatformSessionQuery(installer),
+-                    PlatformSessionAbandon(installer),
+-                    LogcatDropLog(),
+-                )
+-                slot.removeQuietly()
+-                sweepStaleLedgerTemps(ledgerFile)
+-                return UpdateInstallFacade(InstallGate(checker, start), start, CommitRouter(confirmation))
+-            } catch (error: Throwable) {
+-                CreateGuard.release(ledgerFile.absolutePath)
+-                throw error
+-            }
+-        }
+-    }
+-
+-    /**
+-     * The commit receiver of the app calls this for a pending user action that carries a handle. The confirmation port is
+-     * started for that handle, and nothing else happens.
+-     */
+-    public fun onCommitResult(status: CommitStatus, handle: ConfirmationHandle?) {
+-        commits.onResult(status, handle)
+-    }
+-
+-    /** The app calls this at each start and on resume, before each daily check, and after a pending confirmation. */
+-    public fun onStart(): StartResult = start.onStart()
+-
+-    /**
+-     * The commit receiver of the app calls this for each final status, with the platform's session id. A status whose
+-     * session id is not the recorded one is dropped: nothing changes and nothing is shown.
+-     */
+-    public fun onFinalStatus(sessionId: Int, status: CommitStatus): StartResult = start.onFinalStatus(sessionId, status)
+-
+-    /** The app calls this for the user's dismiss action. */
+-    public fun onDismiss(): StartResult = start.onDismiss()
+-}
+diff --git a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CopyResultTest.kt b/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CopyResultTest.kt
+deleted file mode 100644
+index 7df754be..00000000
+--- a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CopyResultTest.kt
++++ /dev/null
+@@ -1,28 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertNull
+-import org.junit.Test
+-
+-/** Pins how a checked copy maps to the installer's answer: a match gives no answer, a bad or oversized copy is a mismatch. */
+-internal class CopyResultTest {
+-    @Test
+-    fun `a matched copy gives no installer result`() {
+-        assertNull(resultOfCheckedCopy(CheckedCopy.Matched))
+-    }
+-
+-    @Test
+-    fun `a digest mismatch gives digest mismatch`() {
+-        assertEquals(InstallerResult.DigestMismatch, resultOfCheckedCopy(CheckedCopy.Mismatched))
+-    }
+-
+-    @Test
+-    fun `a copy over the cap gives digest mismatch`() {
+-        assertEquals(InstallerResult.DigestMismatch, resultOfCheckedCopy(CheckedCopy.TooLarge))
+-    }
+-
+-    @Test
+-    fun `a read failure gives failed`() {
+-        assertEquals(InstallerResult.Failed, resultOfCheckedCopy(CheckedCopy.Failed))
+-    }
+-}
+diff --git a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/LedgerTempSweepTest.kt b/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/LedgerTempSweepTest.kt
+deleted file mode 100644
+index 128a6373..00000000
+--- a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/LedgerTempSweepTest.kt
++++ /dev/null
+@@ -1,105 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import java.io.File
+-import java.nio.file.Files
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertTrue
+-import org.junit.Assume.assumeTrue
+-import org.junit.Rule
+-import org.junit.Test
+-import org.junit.rules.TemporaryFolder
+-
+-/** Pins the sweep of the temporary files that an interrupted ledger write leaves in the ledger's folder. */
+-internal class LedgerTempSweepTest {
+-    @get:Rule
+-    val tmp = TemporaryFolder()
+-
+-    private fun ledger(): File = File(tmp.root, "update-ledger.txt")
+-
+-    private fun touch(name: String): File {
+-        val file = File(tmp.root, name)
+-        Files.write(file.toPath(), ByteArray(0))
+-        return file
+-    }
+-
+-    @Test
+-    fun `sweep removes a temp file with the marker and digits`() {
+-        val temp = touch("update-ledger.txt.tmp7")
+-        sweepStaleLedgerTemps(ledger())
+-        assertFalse("a temp file with the marker and digits must be removed", temp.exists())
+-    }
+-
+-    @Test
+-    fun `sweep never removes the ledger file`() {
+-        val ledgerFile = touch("update-ledger.txt")
+-        sweepStaleLedgerTemps(ledgerFile)
+-        assertTrue("the ledger file must stay", ledgerFile.exists())
+-    }
+-
+-    @Test
+-    fun `sweep keeps the marker with no digits`() {
+-        val bare = touch("update-ledger.txt.tmp")
+-        sweepStaleLedgerTemps(ledger())
+-        assertTrue("a marker with no digits is not a temp file", bare.exists())
+-    }
+-
+-    @Test
+-    fun `sweep keeps the marker with letters after it`() {
+-        val letters = touch("update-ledger.txt.tmpabc")
+-        val mixed = touch("update-ledger.txt.tmp1x")
+-        sweepStaleLedgerTemps(ledger())
+-        assertTrue("a marker followed by letters is kept", letters.exists())
+-        assertTrue("a digit followed by a letter is kept", mixed.exists())
+-    }
+-
+-    @Test
+-    fun `sweep keeps the ledger name with a digit appended`() {
+-        val appended = touch("update-ledger.txt5")
+-        sweepStaleLedgerTemps(ledger())
+-        assertTrue("the ledger name with a digit appended is kept", appended.exists())
+-    }
+-
+-    @Test
+-    fun `sweep keeps other files and an empty folder with a temp name`() {
+-        val other = touch("other.txt")
+-        val folder = File(tmp.root, "update-ledger.txt.tmp1")
+-        Files.createDirectory(folder.toPath())
+-        sweepStaleLedgerTemps(ledger())
+-        assertTrue("another file is kept", other.exists())
+-        assertTrue("a folder with a temp name is kept", folder.isDirectory)
+-    }
+-
+-    @Test
+-    fun `sweep does nothing for a missing folder or a file in its place`() {
+-        sweepStaleLedgerTemps(File(File(tmp.root, "no-such-folder"), "update-ledger.txt"))
+-        val blocker = touch("blocker")
+-        sweepStaleLedgerTemps(File(blocker, "update-ledger.txt"))
+-        assertTrue("a file in place of the folder is left alone", blocker.exists())
+-    }
+-
+-    @Test
+-    fun `sweep ignores a temp file it cannot remove`() {
+-        val temp = touch("update-ledger.txt.tmp9")
+-        tmp.root.setWritable(false)
+-        try {
+-            assumeTrue("the process must be unable to write to the folder", !tmp.root.canWrite())
+-            sweepStaleLedgerTemps(ledger())
+-            assertTrue("a file that cannot be removed stays, and no exception escapes", temp.exists())
+-        } finally {
+-            tmp.root.setWritable(true)
+-        }
+-    }
+-
+-    @Test
+-    fun `the temp name is the ledger name then dot tmp then the sequence`() {
+-        assertEquals("update-ledger.txt.tmp3", ledgerTempName("update-ledger.txt", 3))
+-    }
+-
+-    @Test
+-    fun `sweep removes the name that the temp name function makes`() {
+-        val made = touch(ledgerTempName("update-ledger.txt", 12))
+-        sweepStaleLedgerTemps(ledger())
+-        assertFalse("the sweep must remove the name the naming function makes", made.exists())
+-    }
+-}
+diff --git a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ModuleHygieneTest.kt b/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ModuleHygieneTest.kt
+index d90c82e7..c9988cde 100644
+--- a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ModuleHygieneTest.kt
++++ b/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ModuleHygieneTest.kt
+@@ -31,7 +31,7 @@ internal class ModuleHygieneTest {
+     private val networkAllowed = setOf("UpdateHttpOpener.kt")
+     private val fileAllowed = setOf("ApkStaging.kt", "LedgerStore.kt")
+     private val frameworkTokens = listOf("android.")
+-    private val frameworkAllowed: Set<String> = setOf("PackageInstallerAdapter.kt", "PackageInfoInstalledVersion.kt", "UpdateInstallFacade.kt", "LogcatDropLog.kt")
++    private val frameworkAllowed: Set<String> = emptySet()
+     private val lineCap = 300
+     private val keyPhrase = "PRIVATE" + " KEY"
+ 
+diff --git a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ShellHygieneTest.kt b/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ShellHygieneTest.kt
+deleted file mode 100644
+index aaf61190..00000000
+--- a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ShellHygieneTest.kt
++++ /dev/null
+@@ -1,126 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import java.io.File
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/**
+- * Pins the rules of the platform shells as source text. Only the four shell files name the framework, only the log
+- * shell names the platform log class, and only the facade exposes the platform context or the commit sender in a
+- * public signature. Each rule reads the code with comments and documentation removed, and each has a sample that must
+- * be flagged and a sample that must pass.
+- */
+-internal class ShellHygieneTest {
+-    private val shells = setOf("PackageInstallerAdapter.kt", "PackageInfoInstalledVersion.kt", "UpdateInstallFacade.kt", "LogcatDropLog.kt")
+-
+-    private val mainRoot = File("src/main/kotlin")
+-
+-    /** The text with block comments, documentation and line comments removed, so that only code is compared. */
+-    private fun stripComments(text: String): String =
+-        text.replace(Regex("/\\*[\\s\\S]*?\\*/"), " ").replace(Regex("//[^\\n]*"), " ")
+-
+-    /** The main sources as code text, by file name; fails when the folder holds no facade, so the scan cannot run blind. */
+-    private fun mainCode(): Map<String, String> {
+-        val texts = mainRoot.walkTopDown()
+-            .filter { it.isFile && it.extension == "kt" }
+-            .associate { it.name to stripComments(it.readText()) }
+-        assertTrue("the shell scan found no facade source under the main folder", texts.containsKey("UpdateInstallFacade.kt"))
+-        return texts
+-    }
+-
+-    /** The names of the files whose code names a class of the framework. */
+-    private fun namesFramework(sources: Map<String, String>): Set<String> =
+-        sources.filterValues { stripComments(it).contains("android.") }.keys
+-
+-    /** The names of the files whose code names the platform log class. */
+-    private fun namesLog(sources: Map<String, String>): Set<String> {
+-        val log = Regex("android\\.util\\.Log|\\bLog\\.[vdiwe]\\(")
+-        return sources.filterValues { log.containsMatchIn(stripComments(it)) }.keys
+-    }
+-
+-    /** The names of the files with a public line that names the platform context or the commit sender. */
+-    private fun namesPublicPlatform(sources: Map<String, String>): Set<String> =
+-        sources.filterValues { text ->
+-            stripComments(text).lines().any { line ->
+-                line.contains("public ") && (line.contains("Context") || line.contains("IntentSender"))
+-            }
+-        }.keys
+-
+-    @Test
+-    fun `only the four shell files name the framework`() {
+-        assertEquals(
+-            "the scan must flag an android name outside the shells",
+-            setOf("DropMessage.kt"),
+-            namesFramework(mapOf("DropMessage.kt" to "import android.util.Log\n")),
+-        )
+-        assertEquals(
+-            "an android name inside a comment must pass",
+-            emptySet<String>(),
+-            namesFramework(mapOf("DropMessage.kt" to "// android.util.Log is only mentioned here\nval a = 1\n")),
+-        )
+-        assertEquals(
+-            "the Android word without a dot must pass",
+-            emptySet<String>(),
+-            namesFramework(mapOf("DropMessage.kt" to "val platform = \"the Android platform\"\n")),
+-        )
+-        assertEquals("the framework names are the four shells", shells, namesFramework(mainCode()))
+-    }
+-
+-    @Test
+-    fun `android util log is named in one file only`() {
+-        assertEquals(
+-            "the scan must flag a log call in a shell other than the log file",
+-            setOf("PackageInstallerAdapter.kt"),
+-            namesLog(mapOf("PackageInstallerAdapter.kt" to "Log.i(\"x\", \"y\")\n")),
+-        )
+-        assertEquals(
+-            "a name that ends in Log must pass",
+-            emptySet<String>(),
+-            namesLog(mapOf("A.kt" to "val c = MyLog.w(1)\n")),
+-        )
+-        assertEquals(
+-            "a log call inside a comment must pass",
+-            emptySet<String>(),
+-            namesLog(mapOf("A.kt" to "// Log.w(\"x\", \"y\") is not called here\nval a = 1\n")),
+-        )
+-        assertEquals("the log class is named in the log file only", setOf("LogcatDropLog.kt"), namesLog(mainCode()))
+-    }
+-
+-    @Test
+-    fun `context and intent sender are public only in the facade`() {
+-        assertEquals(
+-            "the scan must flag a public context in another file",
+-            setOf("PackageInfoInstalledVersion.kt"),
+-            namesPublicPlatform(mapOf("PackageInfoInstalledVersion.kt" to "public fun probe(context: Context) = 1\n")),
+-        )
+-        assertEquals(
+-            "a context that is not public must pass",
+-            emptySet<String>(),
+-            namesPublicPlatform(mapOf("A.kt" to "internal class X(private val context: Context)\n")),
+-        )
+-        assertEquals(
+-            "a documentation line that says public next to Context must pass",
+-            emptySet<String>(),
+-            namesPublicPlatform(mapOf("A.kt" to "/** The public Context of the app. */\nval a = 1\n")),
+-        )
+-        assertEquals(
+-            "the public platform names are in the facade only",
+-            setOf("UpdateInstallFacade.kt"),
+-            namesPublicPlatform(mainCode()),
+-        )
+-    }
+-
+-    @Test
+-    fun `the drop log line is the fixed tag and the drop text only`() {
+-        val pinned = "Log.w(DROP_LOG_TAG, dropMessage(platformSessionId, recordedSessionId))"
+-        val logLines = mainCode()["LogcatDropLog.kt"].orEmpty().lines().map { it.trim() }
+-        assertEquals("the log call appears once, exactly as pinned", 1, logLines.count { it == pinned })
+-        val extended = "Log.w(DROP_LOG_TAG, dropMessage(platformSessionId, recordedSessionId) + url)"
+-        assertEquals("a log call with extra text must not match the pinned line", 0, listOf(extended).count { it == pinned })
+-        val text = mainCode()["DropMessage.kt"].orEmpty()
+-        for (literal in listOf("\"final status for session \"", "\" dropped; no session recorded\"", "\" dropped; recorded session \"")) {
+-            assertEquals("the drop text holds the literal once: $literal", 1, text.split(literal).size - 1)
+-        }
+-    }
+-}

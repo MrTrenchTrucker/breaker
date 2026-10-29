@@ -1,0 +1,3762 @@
+{
+ "name": "proof-u3",
+ "tip": {
+  "tree": "2e2a4276a6d277398f2a9ae4049613037f20fedb"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "updater: a dismiss without an install record clears the stored outcome",
+   "base_tree": "a6ca3edf6053a12ff7241efa27d2d09ac8dc968e",
+   "item_tip_tree": "d50a3d333724c048b8fa7095cbb982c3eb12af92",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [
+    "FirstStartTableRows.kt"
+   ]
+  },
+  {
+   "item": "b",
+   "title": "updater: keep the update times and the install record in one ledger file",
+   "base_tree": "d50a3d333724c048b8fa7095cbb982c3eb12af92",
+   "item_tip_tree": "a79421a017076e12dca5d2324ec2690cb9166f93",
+   "new_production_classes": [
+    "InstallRecord",
+    "LedgerStore",
+    "UpdateLedgerCodec"
+   ],
+   "test_fixtures_overlaid": []
+  },
+  {
+   "item": "c",
+   "title": "updater: say that the staged file's leftover flag stays set once a removal fails",
+   "base_tree": "a79421a017076e12dca5d2324ec2690cb9166f93",
+   "item_tip_tree": "4499d5c20cf1bc7b8f4ff58a546c7caf48c11e8d",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [],
+   "red_not_run": "one KDoc line; no test"
+  },
+  {
+   "item": "d",
+   "title": "updater: the commit router ignores a throwing confirmation port; pin the public enum entries",
+   "base_tree": "4499d5c20cf1bc7b8f4ff58a546c7caf48c11e8d",
+   "item_tip_tree": "9e9e8fdf76b3c0d24e79cf50ed17446d0523274d",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": []
+  },
+  {
+   "item": "e",
+   "title": "updater: the checker's install guards run as one member that writes nothing",
+   "base_tree": "9e9e8fdf76b3c0d24e79cf50ed17446d0523274d",
+   "item_tip_tree": "d0504c37e647a228234a11f5798c8c04adeb2b90",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": []
+  },
+  {
+   "item": "f",
+   "title": "updater: run the first-start calls and the install gate over small ports",
+   "base_tree": "d0504c37e647a228234a11f5798c8c04adeb2b90",
+   "item_tip_tree": "961bdad6e7590b028bb9ea2a83eb223fb15699cc",
+   "new_production_classes": [
+    "CreateGuard",
+    "InstallGate",
+    "InstalledBuildRules",
+    "SessionCopy",
+    "StartPorts",
+    "StartResult",
+    "StartRun"
+   ],
+   "test_fixtures_overlaid": [
+    "StartRig.kt"
+   ]
+  },
+  {
+   "item": "g",
+   "title": "updater: the install facade and the Android shells for the installer and the installed version",
+   "base_tree": "961bdad6e7590b028bb9ea2a83eb223fb15699cc",
+   "item_tip_tree": "2e2a4276a6d277398f2a9ae4049613037f20fedb",
+   "new_production_classes": [
+    "DropMessage",
+    "LogcatDropLog",
+    "PackageInfoInstalledVersion",
+    "PackageInstallerAdapter",
+    "UpdateInstallFacade"
+   ],
+   "test_fixtures_overlaid": []
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test"
+ },
+ "shards": 8,
+ "entries": [
+  {
+   "id": "red-a-01",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/FirstStartRowsTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/FirstStartRowsTest.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/FirstStartTableRows.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.FirstStartRowsTest"
+   ],
+   "patch": "proof/red/red-a-01.patch",
+   "tree": "d0025a0fa269d7132bb1b51e317b5323cd7ad675",
+   "predict": "ASSERT RED: the recordless dismiss still keeps the stored outcome at the base"
+  },
+  {
+   "id": "red-b-02",
+   "kind": "red",
+   "item": "b",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/LedgerSlotTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/LedgerSlotTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.LedgerSlotTest"
+   ],
+   "patch": "proof/red/red-b-02.patch",
+   "tree": "a12599c54ad92abdb5946f63b45e2a5db1f957f1",
+   "predict": "COMPILE RED on the item's new classes or members"
+  },
+  {
+   "id": "red-b-03",
+   "kind": "red",
+   "item": "b",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/LedgerStoreTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/LedgerStoreTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.LedgerStoreTest"
+   ],
+   "patch": "proof/red/red-b-03.patch",
+   "tree": "a235130e3cfdfc87e4e8fee32b4334c16d2e043f",
+   "predict": "COMPILE RED on the item's new classes or members"
+  },
+  {
+   "id": "red-b-04",
+   "kind": "red",
+   "item": "b",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ModuleHygieneTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ModuleHygieneTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.ModuleHygieneTest"
+   ],
+   "patch": "proof/red/red-b-04.patch",
+   "tree": "125002406728832bae7262b74810791f7886e0aa",
+   "predict": "ASSERT RED: the allow-listed ledger file does not exist at the item base"
+  },
+  {
+   "id": "red-b-05",
+   "kind": "red",
+   "item": "b",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/UpdateLedgerCodecTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/UpdateLedgerCodecTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.UpdateLedgerCodecTest"
+   ],
+   "patch": "proof/red/red-b-05.patch",
+   "tree": "fdd6d9310b41514c715171ae8e7f3bc6afb02bea",
+   "predict": "COMPILE RED on the item's new classes or members"
+  },
+  {
+   "id": "red-d-06",
+   "kind": "red",
+   "item": "d",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CommitRouterTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CommitRouterTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.CommitRouterTest"
+   ],
+   "patch": "proof/red/red-d-06.patch",
+   "tree": "f48315005b5363ac3f31616280f7b454a9a9b6d4",
+   "predict": "ASSERT RED: the throwing port's exception reaches the test at the base"
+  },
+  {
+   "id": "red-d-07",
+   "kind": "red",
+   "item": "d",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/PublicEnumEntriesTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/PublicEnumEntriesTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.PublicEnumEntriesTest"
+   ],
+   "patch": "proof/red/red-d-07.patch",
+   "tree": "82ea38c3c712939bfc0be68ed73b09e325a67fe2",
+   "predict": "NOT RED: it pins entries that already exist; its proof is the re-run of the added-entry mutant"
+  },
+  {
+   "id": "red-e-08",
+   "kind": "red",
+   "item": "e",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerGuardTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerGuardTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.CheckerGuardTest"
+   ],
+   "patch": "proof/red/red-e-08.patch",
+   "tree": "d6bce6e3ae9143210140e47871d4836f9888f325",
+   "predict": "COMPILE RED on the item's new classes or members"
+  },
+  {
+   "id": "red-f-09",
+   "kind": "red",
+   "item": "f",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CreateGuardTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CreateGuardTest.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/StartRig.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.CreateGuardTest"
+   ],
+   "patch": "proof/red/red-f-09.patch",
+   "tree": "a03f32593dd792496b9290af42e837ebb309876c",
+   "predict": "COMPILE RED on the item's new classes or members"
+  },
+  {
+   "id": "red-f-10",
+   "kind": "red",
+   "item": "f",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/InstallGateTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/InstallGateTest.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/StartRig.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.InstallGateTest"
+   ],
+   "patch": "proof/red/red-f-10.patch",
+   "tree": "3b05c59b49158478817483f07a855edc7596956a",
+   "predict": "COMPILE RED on the item's new classes or members"
+  },
+  {
+   "id": "red-f-11",
+   "kind": "red",
+   "item": "f",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/InstalledBuildRulesTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/InstalledBuildRulesTest.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/StartRig.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.InstalledBuildRulesTest"
+   ],
+   "patch": "proof/red/red-f-11.patch",
+   "tree": "6ac68d672c10481167713c8e1600a37cd0a4a39c",
+   "predict": "COMPILE RED on the item's new classes or members"
+  },
+  {
+   "id": "red-f-12",
+   "kind": "red",
+   "item": "f",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ModuleHygieneTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ModuleHygieneTest.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/StartRig.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.ModuleHygieneTest"
+   ],
+   "patch": "proof/red/red-f-12.patch",
+   "tree": "245e25db4620b4e6355364b8a47a77c499123163",
+   "predict": "COMPILE RED: the ride-along fixture StartRig names the item's new classes"
+  },
+  {
+   "id": "red-f-13",
+   "kind": "red",
+   "item": "f",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/SessionCopyTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/SessionCopyTest.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/StartRig.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.SessionCopyTest"
+   ],
+   "patch": "proof/red/red-f-13.patch",
+   "tree": "d8b0e4dd9973f30bc8932d6ccd34dbf49a18b521",
+   "predict": "COMPILE RED on the item's new classes or members"
+  },
+  {
+   "id": "red-f-14",
+   "kind": "red",
+   "item": "f",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/StartResultTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/StartResultTest.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/StartRig.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.StartResultTest"
+   ],
+   "patch": "proof/red/red-f-14.patch",
+   "tree": "727570c56ba4a65de3143e2598b6fb62772cc4c4",
+   "predict": "COMPILE RED on the item's new classes or members"
+  },
+  {
+   "id": "red-f-15",
+   "kind": "red",
+   "item": "f",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/StartRunFinalTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/StartRunFinalTest.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/StartRig.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.StartRunFinalTest"
+   ],
+   "patch": "proof/red/red-f-15.patch",
+   "tree": "deee0145992952ef25b3413b3f8e268486b54cef",
+   "predict": "COMPILE RED on the item's new classes or members"
+  },
+  {
+   "id": "red-f-16",
+   "kind": "red",
+   "item": "f",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/StartRunTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/StartRunTest.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/StartRig.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.StartRunTest"
+   ],
+   "patch": "proof/red/red-f-16.patch",
+   "tree": "2e8a3db1ff6a19c471f38394fe5e38211c381e09",
+   "predict": "COMPILE RED on the item's new classes or members"
+  },
+  {
+   "id": "red-g-17",
+   "kind": "red",
+   "item": "g",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CopyResultTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CopyResultTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.CopyResultTest"
+   ],
+   "patch": "proof/red/red-g-17.patch",
+   "tree": "e625ffc6cb7323601b0d0f6b9609773ebc9bea8d",
+   "predict": "COMPILE RED on the item's new classes or members"
+  },
+  {
+   "id": "red-g-18",
+   "kind": "red",
+   "item": "g",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/DropMessageTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/DropMessageTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.DropMessageTest"
+   ],
+   "patch": "proof/red/red-g-18.patch",
+   "tree": "9d485016b7ae556522f98cd80eb4ba905387db07",
+   "predict": "COMPILE RED on the item's new classes or members"
+  },
+  {
+   "id": "red-g-19",
+   "kind": "red",
+   "item": "g",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/LedgerTempSweepTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/LedgerTempSweepTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.LedgerTempSweepTest"
+   ],
+   "patch": "proof/red/red-g-19.patch",
+   "tree": "7f839efbc60100882697a2112dacbbd362b6fd68",
+   "predict": "COMPILE RED on the item's new classes or members"
+  },
+  {
+   "id": "red-g-20",
+   "kind": "red",
+   "item": "g",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ModuleHygieneTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ModuleHygieneTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.ModuleHygieneTest"
+   ],
+   "patch": "proof/red/red-g-20.patch",
+   "tree": "269ed7daff7ebd5196fd44332a37e64b31b6e14b",
+   "predict": "ASSERT RED: the allow-listed shell files do not exist at the item base"
+  },
+  {
+   "id": "red-g-21",
+   "kind": "red",
+   "item": "g",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ShellHygieneTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ShellHygieneTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.ShellHygieneTest"
+   ],
+   "patch": "proof/red/red-g-21.patch",
+   "tree": "e6fb6c45e7c08fc2fb76e5bc5ec4b40aef8f298c",
+   "predict": "RED: its source pins read shell files the item adds"
+  },
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        StartDecision(Shown.NOTHING, null, RecordAction.KEEP, false, null, input.lastSeenCode, true)",
+     "replacement": "        StartDecision(Shown.NOTHING, null, RecordAction.KEEP, false, input.lastOutcome, input.lastSeenCode, true)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a dismiss without an install record shows nothing and clears the stored outcome",
+    "every reachable input matches exactly one row and decides the way that row says"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        StartDecision(Shown.NOTHING, null, RecordAction.KEEP, false, null, input.lastSeenCode, true)",
+     "replacement": "        StartDecision(Shown.NOTHING, null, RecordAction.KEEP, false, UpdateSentences.NOT_FINISHED, input.lastSeenCode, true)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a dismiss without an install record shows nothing and clears the stored outcome",
+    "every reachable input matches exactly one row and decides the way that row says",
+    "every reachable input keeps the invariants the design lists"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        StartDecision(Shown.NOTHING, null, RecordAction.KEEP, false, null, input.lastSeenCode, true)",
+     "replacement": "        StartDecision(Shown.NOTHING, null, RecordAction.KEEP, false, null, input.installedCode, true)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a dismiss without an install record shows nothing and clears the stored outcome",
+    "every reachable input matches exactly one row and decides the way that row says",
+    "every reachable input keeps the invariants the design lists"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        return StartDecision(Shown.NOTHING, null, RecordAction.KEEP, false, null, installed, true)",
+     "replacement": "        return StartDecision(Shown.NOTHING, null, RecordAction.KEEP, false, null, installed, false)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a start that abandons an uncommitted session decides again without the record and allows the install",
+    "every reachable input matches exactly one row and decides the way that row says"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        return StartDecision(Shown.NOTHING, null, RecordAction.KEEP, false, null, installed, true)",
+     "replacement": "        return StartDecision(Shown.SENTENCE, UpdateSentences.NOT_FINISHED, RecordAction.KEEP, false, null, installed, true)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a start that abandons an uncommitted session decides again without the record and allows the install",
+    "every reachable input matches exactly one row and decides the way that row says"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        StartEvent.DISMISS -> dismissRecordless(input)",
+     "replacement": "        StartEvent.DISMISS -> dismissRecordless(input).copy(installAllowed = false)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a dismiss without an install record shows nothing and clears the stored outcome",
+    "every reachable input matches exactly one row and decides the way that row says"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        StartEvent.FINAL_STATUS -> keepRecordless(input)",
+     "replacement": "        StartEvent.FINAL_STATUS -> keepRecordless(input).copy(installAllowed = false)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "a final status with no record is not shown and keeps the last seen code"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateLedgerCodec.kt",
+     "anchor": "if (!text.endsWith('\\n')) damaged()",
+     "replacement": "if (text.isEmpty()) damaged()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a text without its final line break is damaged and reads empty"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateLedgerCodec.kt",
+     "anchor": "if (key !in KNOWN_KEYS || key in fields) damaged()",
+     "replacement": "if (key !in KNOWN_KEYS) damaged()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a duplicate key is damaged and reads empty"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-10",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateLedgerCodec.kt",
+     "anchor": "if (key !in KNOWN_KEYS || key in fields) damaged()",
+     "replacement": "if (key in fields) damaged()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an unknown key is damaged and reads empty"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-11",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateLedgerCodec.kt",
+     "anchor": "text[0] !in '1'..'9') return null",
+     "replacement": "text[0] !in '0'..'9') return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a leading zero or a sign is damaged and reads empty"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-12",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateLedgerCodec.kt",
+     "anchor": "if (value > (max - digit) / 10L) return null",
+     "replacement": "if (value > max / 10L) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a value above the range of its key is damaged and reads empty"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-13",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateLedgerCodec.kt",
+     "anchor": "else -> damaged()",
+     "replacement": "else -> null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a session id without a written-at time is damaged and reads empty"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-14",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateLedgerCodec.kt",
+     "anchor": "LedgerRecord(session.toInt(), writtenAt, status)",
+     "replacement": "LedgerRecord(session.toInt(), writtenAt, null)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a state with every key set reads back unchanged"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-15",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateLedgerCodec.kt",
+     "anchor": "if (outcome != null && !isOutcomeText(outcome)) damaged()",
+     "replacement": "if (outcome != null && outcome.isEmpty()) damaged()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a final status over 32 letters or a last outcome over 200 characters is damaged and reads empty"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-16",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateLedgerCodec.kt",
+     "anchor": "timeValue(fields[ATTEMPT_KEY]),",
+     "replacement": "timeValue(fields[UPDATE_KEY]),"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a state with every key set reads back unchanged"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-17",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateLedgerCodec.kt",
+     "anchor": "catch (damage: DamagedLedgerText) {\n            LedgerValues.EMPTY",
+     "replacement": "catch (damage: DamagedLedgerText) {\n            LedgerValues(null, null, null, null, null, \"\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a session id without a written-at time is damaged and reads empty"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-18",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateLedgerCodec.kt",
+     "anchor": "if (raw == null || raw.isEmpty()) null else",
+     "replacement": "if (raw == null) null else"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a state with some times unset and no record reads back unchanged"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-19",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateLedgerCodec.kt",
+     "anchor": "require(isOutcomeText(text))",
+     "replacement": "Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "encoding a value the file cannot hold is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-20",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateLedgerCodec.kt",
+     "anchor": "require(value >= 0L)",
+     "replacement": "Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "encoding a value the file cannot hold is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-21",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateLedgerCodec.kt",
+     "anchor": "session == null && writtenAt == null && status == null -> null",
+     "replacement": "session == null -> damaged()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a three-key file reads its three times and no record",
+    "a state with some times unset and no record reads back unchanged"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-22",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateLedgerCodec.kt",
+     "anchor": "for (line in text.substring(0, text.length - 1).split('\\n')) {",
+     "replacement": "for (line in text.substring(0, text.length - 1).split('\\n').filter { it.isNotEmpty() }) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an extra blank line is damaged and reads empty"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-23",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateLedgerCodec.kt",
+     "anchor": "text.length in 1..MAX_STATUS_LENGTH",
+     "replacement": "text.length in 1..MAX_STATUS_LENGTH + 1"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a final status over 32 letters or a last outcome over 200 characters is damaged and reads empty"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-24",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateLedgerCodec.kt",
+     "anchor": "is FieldEdit.Put<T> -> value",
+     "replacement": "is FieldEdit.Put<T> -> current"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "applyChange keeps sets and clears the last seen code and the last outcome"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-25",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateLedgerCodec.kt",
+     "anchor": "is FieldEdit.Clear -> null",
+     "replacement": "is FieldEdit.Clear -> current"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "applyChange keeps sets and clears the last seen code and the last outcome"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-26",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateLedgerCodec.kt",
+     "anchor": "is FieldEdit.Keep -> current",
+     "replacement": "is FieldEdit.Keep -> null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "applyChange keeps sets and clears the last seen code and the last outcome"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-27",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "override fun read(): LedgerValues = try { loadOrThrow() } catch (error: IOException) { LedgerValues.EMPTY }",
+     "replacement": "override fun read(): LedgerValues = LedgerValues.EMPTY"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a store reads the file again on every call",
+    "a failed write leaves the next read at the value the file holds"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-28",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "if (!Files.exists(file.toPath())) return LedgerValues.EMPTY",
+     "replacement": "if (false) return LedgerValues.EMPTY"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "sessionOpened then recordedSessionId returns the opened session and no final status",
+    "sessionOpened stamps the time of the injected clock"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-29",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "val writtenAt = clock.nowEpochMillis()",
+     "replacement": "val writtenAt = clock.nowEpochMillis() + 1L"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "sessionOpened stamps the time of the injected clock"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-30",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "LedgerRecord(sessionId, writtenAt, null)",
+     "replacement": "LedgerRecord(sessionId, writtenAt, \"Success\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "sessionOpened then recordedSessionId returns the opened session and no final status"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-31",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "override fun recordedSessionId(): Int? = read().record?.sessionId",
+     "replacement": "override fun recordedSessionId(): Int? = null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "sessionOpened then recordedSessionId returns the opened session and no final status"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-32",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "tempSequence += 1",
+     "replacement": "tempSequence += 0"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a write after a failed temp write uses a new temp name"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-33",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "ledgerTempName(file.name, tempSequence)",
+     "replacement": "file.name + \".tmp\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a write after a failed temp write uses a new temp name"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-34",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "Files.move(temp.toPath(), file.toPath(), StandardCopyOption.ATOMIC_MOVE)",
+     "replacement": "Files.write(file.toPath(), bytes)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the ledger file is moved into place by one write method only"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-35",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "if (!moved) deleteQuietly(temp)",
+     "replacement": "Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the temp file is deleted in the failure path of the write method"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-36",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "changeQuietly { it.copy(attemptMs = atMillis) }",
+     "replacement": "changeQuietly { it.copy(attemptMs = null) }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "member writes keep the record keys and the other times"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-37",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "changeQuietly { it.copy(updateMs = atMillis) }",
+     "replacement": "changeQuietly { it.copy(updateMs = atMillis, record = null) }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "member writes keep the record keys and the other times"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-38",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "record = if (removeRecord) null else values.record,",
+     "replacement": "record = null,"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "applyChange clears the record and keeps the times"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-39",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "val record = values.record ?: return false",
+     "replacement": "val record = values.record ?: return true"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "storeFinalStatus writes only when a record exists"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-40",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "writeValues(values.copy(record = record.copy(finalStatus = status)))",
+     "replacement": "writeValues(values)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "storeFinalStatus writes only when a record exists"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-41",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "writeValues(change(loadOrThrow())) } catch (error: IOException) { Unit }",
+     "replacement": "writeValues(change(loadOrThrow())) } catch (error: IllegalStateException) { Unit }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a failed member write does not throw"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-42",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "writeValues(values.copy(record = LedgerRecord(sessionId, writtenAt, null)))",
+     "replacement": "try { writeValues(values.copy(record = LedgerRecord(sessionId, writtenAt, null))) } catch (error: IOException) { Unit }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "sessionOpened into a folder that is a file throws IOException"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-43",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "LedgerRecord(sessionId, writtenAt, null)",
+     "replacement": "values.record?.copy(sessionId = sessionId, writtenAtMs = writtenAt) ?: LedgerRecord(sessionId, writtenAt, null)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "sessionOpened over a record with a final status gives the new session and no final status"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-44",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "writeValues(values.copy(record = null))",
+     "replacement": "writeValues(values.copy(record = null, attemptMs = null))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "clearRecord removes the record and keeps the times code and outcome"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-45",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "if (values.record == null) return",
+     "replacement": "if (values.record == null) Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "clearRecord with no record writes nothing and creates no file"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-46",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "writeValues(values.copy(record = null))",
+     "replacement": "try { writeValues(values.copy(record = null)) } catch (error: IOException) { Unit }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "clearRecord throws IOException when its write fails"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-47",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "writeValues(values.copy(record = null))",
+     "replacement": "writeValues(values.copy(record = null, lastSeenCode = null))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "clearRecord removes the record and keeps the times code and outcome"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-48",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "writeValues(values.copy(record = null))",
+     "replacement": "writeValues(values.copy(record = null, lastOutcome = null))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "clearRecord removes the record and keeps the times code and outcome"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-49",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateLedgerCodec.kt",
+     "anchor": "FieldEdit<T>.applyTo(current: T?): T? =",
+     "replacement": "FieldEdit<T>.applyTo(current: T?): T ="
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-50",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "private fun changeQuietly(change: (LedgerValues) -> LedgerValues)",
+     "replacement": "private fun changeQuietly(change: (LedgerValues) -> Unit)"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-51",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "override fun storeFinalStatus(status: String): Boolean {",
+     "replacement": "override fun storeFinalStatus(status: String) {"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-52",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/CommitRouter.kt",
+     "anchor": "            } catch (error: RuntimeException) {",
+     "replacement": "            } catch (error: java.io.IOException) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a confirmation port that throws is ignored and is called once with the same handle"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-53",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/CommitRouter.kt",
+     "anchor": "            } catch (error: RuntimeException) {",
+     "replacement": "            } catch (error: Error) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a confirmation port that throws is ignored and is called once with the same handle"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-54",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/CommitRouter.kt",
+     "anchor": "                confirmation.startConfirmation(handle)",
+     "replacement": "                try { confirmation.startConfirmation(handle) } catch (error: RuntimeException) { confirmation.startConfirmation(handle) }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a confirmation port that throws is ignored and is called once with the same handle"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-55",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/CommitRouter.kt",
+     "anchor": "            } catch (error: RuntimeException) {",
+     "replacement": "            } catch (error: Throwable) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an error thrown by the confirmation port is not caught by CommitRouter"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-56",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "    SENTENCE,",
+     "replacement": "    SENTENCE, WAITING,"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the Shown enum has the entries NOTHING, INSTALLED and SENTENCE in that order"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-57",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "    INSTALLED,",
+     "replacement": "    INSTALLED, WAITING,"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the Shown enum has the entries NOTHING, INSTALLED and SENTENCE in that order"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-58",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/CommitRouter.kt",
+     "anchor": "        if (status == CommitStatus.PendingUserAction && handle != null) {",
+     "replacement": "        if (status != CommitStatus.Success && handle != null) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the five other statuses never call the confirmation port"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-59",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/CommitRouter.kt",
+     "anchor": "                confirmation.startConfirmation(handle)",
+     "replacement": "                confirmation.startConfirmation(ConfirmationHandle(handle.opaque))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a pending user action with a handle starts the confirmation once with that same handle",
+    "a confirmation port that throws is ignored and is called once with the same handle"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-60",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "    INSTALLED,\n\n    /** Show the sentence that the caller reads back. */\n    SENTENCE,",
+     "replacement": "    SENTENCE,\n\n    /** Show the sentence that the caller reads back. */\n    INSTALLED,"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the Shown enum has the entries NOTHING, INSTALLED and SENTENCE in that order"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-61",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/CommitRouter.kt",
+     "anchor": "    PendingUserAction,\n\n    /** The session was cancelled or aborted before it was installed. */\n    Aborted,",
+     "replacement": "    Aborted,\n\n    /** The session was cancelled or aborted before it was installed. */\n    PendingUserAction,"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the CommitStatus enum has its six entries in the order of the commit results"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-62",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/CommitRouter.kt",
+     "anchor": "        if (status == CommitStatus.PendingUserAction && handle != null) {",
+     "replacement": "        if (status == CommitStatus.PendingUserAction) {"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-63",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/CommitRouter.kt",
+     "anchor": "    OtherFailure,",
+     "replacement": "    OtherFailure, Extra,"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-64",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/CommitRouter.kt",
+     "anchor": "    Aborted,",
+     "replacement": ""
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-65",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "    INSTALLED,",
+     "replacement": ""
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-66",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "if (verified == null || verified.release != release) return UpdateInstallResult.Refused(UpdateSentences.NOT_CHECKED)",
+     "replacement": "if (verified == null) return UpdateInstallResult.Refused(UpdateSentences.NOT_CHECKED)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "installGuard refuses an install before any check and a release that is not the checked one"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-67",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "if (reading !is InstalledReading.Known) return UpdateInstallResult.Failed(UpdateSentences.INSTALLED_UNREADABLE)",
+     "replacement": "if (reading !is InstalledReading.Known) return UpdateInstallResult.Refused(UpdateSentences.INSTALLED_UNREADABLE)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "installGuard fails with the unreadable sentence when the installed version cannot be read",
+    "an unreadable installed version stops install() before recordUpdate"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-68",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "if (reading !is InstalledReading.Known) return UpdateInstallResult.Failed(UpdateSentences.INSTALLED_UNREADABLE)",
+     "replacement": "if (reading !is InstalledReading.Known) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "installGuard fails with the unreadable sentence when the installed version cannot be read",
+    "an unreadable installed version stops install() before recordUpdate"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-69",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "return UpdateInstallResult.Refused(UpdateSentences.NOT_NEWER)",
+     "replacement": "return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "installGuard refuses a release that is not newer than the installed build",
+    "an installed build that is not older is refused as not newer"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-70",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "return installGuard(release) ?: stageAndInstall(release, now)",
+     "replacement": "return stageAndInstall(release, now)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an install before any check is refused as not checked",
+    "install after a null installGuard gives the same installed result and the same call record"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-71",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "val verified = checked",
+     "replacement": "installed.current()\n        val verified = checked"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "installGuard refuses an install before any check and a release that is not the checked one",
+    "installGuard fails with the unreadable sentence when the installed version cannot be read",
+    "installGuard returns null for a checked, readable and newer release and reads the installed version once",
+    "installGuard gives the not checked refusal when the release is unchecked and unreadable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-72",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "val verified = checked",
+     "replacement": "ledger.recordAttempt(0L)\n        val verified = checked"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "installGuard refuses an install before any check and a release that is not the checked one",
+    "a refusing installGuard writes no ledger record and calls no installer or download"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-73",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "isNewerRelease(reading.build.versionCode, verified.versionCode)",
+     "replacement": "isNewerRelease(verified.versionCode, reading.build.versionCode)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "installGuard returns null for a checked, readable and newer release and reads the installed version once",
+    "a verified install reads the version, stages the file, installs, records the update and discards once in order"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-74",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "val verified = checked",
+     "replacement": "val verified = checked\n        if (verified == null && installed.current() !is InstalledReading.Known) return UpdateInstallResult.Failed(UpdateSentences.INSTALLED_UNREADABLE)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "installGuard gives the not checked refusal when the release is unchecked and unreadable",
+    "installGuard refuses an install before any check and a release that is not the checked one"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-75",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "return installGuard(release) ?: stageAndInstall(release, now)",
+     "replacement": "installed.current()\n        return installGuard(release) ?: stageAndInstall(release, now)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "install after a null installGuard gives the same installed result and the same call record",
+    "a verified install reads the version, stages the file, installs, records the update and discards once in order"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-76",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "val verified = checked",
+     "replacement": "downloads.download(release.apkUrl)\n        val verified = checked"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a refusing installGuard writes no ledger record and calls no installer or download",
+    "a release that is not the remembered one never reaches the download or the installer"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-77",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "internal fun installGuard(release: ReleaseInfo): UpdateInstallResult?",
+     "replacement": "internal fun installGuard(release: ReleaseInfo): UpdateInstallResult"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-78",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/SessionCopy.kt",
+     "anchor": "    if (!isLowerSha256Hex(expectedSha256)) return CheckedCopy.Mismatched",
+     "replacement": "    if (false) return CheckedCopy.Mismatched"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an expected digest of the wrong shape gives Mismatched with no bytes written"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-79",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/SessionCopy.kt",
+     "anchor": "        digest.update(bytes, offset, length)",
+     "replacement": "        if (length < 65536) digest.update(bytes, offset, length)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the digest covers every chunk of an input longer than one read"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-80",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/SessionCopy.kt",
+     "anchor": "        out.write(bytes, offset, length)",
+     "replacement": "        Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "matching bytes give Matched and the same bytes reach the output"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-81",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/SessionCopy.kt",
+     "anchor": "    if (copied > capBytes) return CheckedCopy.TooLarge",
+     "replacement": "    if (copied >= capBytes) return CheckedCopy.TooLarge"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a copy of exactly the cap gives Matched"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-82",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/SessionCopy.kt",
+     "anchor": "    if (copied > capBytes) return CheckedCopy.TooLarge",
+     "replacement": "    if (copied > capBytes + 1L) return CheckedCopy.TooLarge"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a copy one byte past the cap gives TooLarge"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-83",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/SessionCopy.kt",
+     "anchor": "    } ?: return CheckedCopy.Failed",
+     "replacement": "    } ?: return CheckedCopy.Mismatched"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a read error gives Failed"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-84",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/SessionCopy.kt",
+     "anchor": "    return if (toLowerHex(digest.digest()) == expectedSha256) CheckedCopy.Matched else CheckedCopy.Mismatched",
+     "replacement": "    return if (toLowerHex(digest.digest()) != expectedSha256) CheckedCopy.Matched else CheckedCopy.Mismatched"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "matching bytes give Matched and the same bytes reach the output",
+    "a digest that does not match gives Mismatched",
+    "a copy of exactly the cap gives Matched"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-85",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/InstalledBuildRules.kt",
+     "anchor": "    if (code < 1L || code > VersionCode.MAX.toLong()) return InstalledReading.Unreadable",
+     "replacement": "    if (code < 0L || code > VersionCode.MAX.toLong()) return InstalledReading.Unreadable"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a code of 0 is unreadable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-86",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/InstalledBuildRules.kt",
+     "anchor": "    if (code < 1L || code > VersionCode.MAX.toLong()) return InstalledReading.Unreadable",
+     "replacement": "    if (code < 1L || code >= VersionCode.MAX.toLong()) return InstalledReading.Unreadable"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the largest readable code is 2100000000"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-87",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/InstalledBuildRules.kt",
+     "anchor": "    if (code < 1L || code > VersionCode.MAX.toLong()) return InstalledReading.Unreadable",
+     "replacement": "    if (code < 1L || code > VersionCode.MAX.toLong() + 1L) return InstalledReading.Unreadable"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a code one above the largest readable code is unreadable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-88",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/InstalledBuildRules.kt",
+     "anchor": "    if (code < 1L || code > VersionCode.MAX.toLong()) return InstalledReading.Unreadable",
+     "replacement": "    if (code.toInt() < 1 || code.toInt() > VersionCode.MAX) return InstalledReading.Unreadable"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a code of 4294967301 is unreadable and is not cut down to 5"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-89",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/InstalledBuildRules.kt",
+     "anchor": "    val text = if (name == null || name.isBlank()) code.toString() else name",
+     "replacement": "    val text = name ?: code.toString()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a null or blank name gives the code text"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-90",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/InstalledBuildRules.kt",
+     "anchor": "    val text = if (name == null || name.isBlank()) code.toString() else name",
+     "replacement": "    val text = code.toString()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a code of 1 with a name gives the readable build of that code and name"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-91",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartResult.kt",
+     "anchor": "        require((shown == Shown.SENTENCE) == (sentence != null)) { \"a sentence is present exactly when shown is SENTENCE\" }",
+     "replacement": "        require(shown != Shown.SENTENCE) { \"a sentence is present exactly when shown is SENTENCE\" }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a nothing result with a text throws",
+    "an installed result with a text throws",
+    "a sentence shown with its text gives both members"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-92",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartResult.kt",
+     "anchor": "        require((shown == Shown.SENTENCE) == (sentence != null)) { \"a sentence is present exactly when shown is SENTENCE\" }",
+     "replacement": "        require((shown == Shown.SENTENCE) || (sentence == null)) { \"a sentence is present exactly when shown is SENTENCE\" }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a sentence shown with no text throws"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-93",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartResult.kt",
+     "anchor": "        require(sentence == null || sentence.isNotBlank()) { \"a sentence must have text\" }",
+     "replacement": "        require(sentence == null || sentence.isNotEmpty()) { \"a sentence must have text\" }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a sentence shown with blank text throws"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-94",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/CreateGuard.kt",
+     "anchor": "        if (!claimedKeys.add(ledgerKey)) throw IllegalStateException(\"a facade already exists for this ledger file in this process\")",
+     "replacement": "        claimedKeys.add(ledgerKey)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a second claim of the same ledger key throws"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-95",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/CreateGuard.kt",
+     "anchor": "        if (!claimedKeys.add(ledgerKey)) throw IllegalStateException(\"a facade already exists for this ledger file in this process\")",
+     "replacement": "        if (!claimedKeys.add(\"ledger\")) throw IllegalStateException(\"a facade already exists for this ledger file in this process\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a claim keyed by another ledger path is allowed"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-96",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/CreateGuard.kt",
+     "anchor": "        claimedKeys.remove(ledgerKey)",
+     "replacement": "        Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a released ledger key can be claimed again"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-97",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/InstallGate.kt",
+     "anchor": "    override fun check(force: Boolean): UpdateCheckResult? = checker.check(force)",
+     "replacement": "    override fun check(force: Boolean): UpdateCheckResult? { start.onStart(); return checker.check(force) }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a check is delegated to the checker and writes nothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-98",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/InstallGate.kt",
+     "anchor": "        checker.installGuard(release)?.let { return it }",
+     "replacement": "        checker.installGuard(release)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an install refused as not checked leaves the recorded session and the record unchanged"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-99",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/InstallGate.kt",
+     "anchor": "            is InstallStep.Blocked -> UpdateInstallResult.Refused(step.sentence)",
+     "replacement": "            is InstallStep.Blocked -> UpdateInstallResult.Failed(step.sentence)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a blocked install refuses with the decision sentence and writes nothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-100",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/InstallGate.kt",
+     "anchor": "            InstallStep.Go -> checker.install(release)",
+     "replacement": "            InstallStep.Go -> UpdateInstallResult.Installed"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an allowed install delegates to the checker and installs the verified release"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-101",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/InstallGate.kt",
+     "anchor": "            InstallStep.WriteFailed -> UpdateInstallResult.Failed(UpdateSentences.INSTALLER_FAILED)",
+     "replacement": "            InstallStep.WriteFailed -> checker.install(release)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a failed clear write refuses the install with the installer failed sentence"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-102",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "        if (incoming != null && record?.sessionId != incoming.sessionId) {",
+     "replacement": "        if (incoming != null && record != null && record.sessionId != incoming.sessionId) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a final status with no record is dropped and counted once"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-103",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "        if (incoming != null && record?.sessionId != incoming.sessionId) {",
+     "replacement": "        if (incoming != null && record?.sessionId == incoming.sessionId) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a final status for the recorded session is not a drop",
+    "a final status for another session id is dropped and leaves the record unchanged"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-104",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "        if (incoming != null && record?.sessionId != incoming.sessionId) {",
+     "replacement": "        if (false) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a final status for another session id is dropped and leaves the record unchanged",
+    "a late final status for an earlier session leaves a newer committed record in place and still blocks the install"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-105",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "            drops.dropped(incoming.sessionId, record?.sessionId)",
+     "replacement": "            Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "two dropped final statuses are counted twice and reported twice",
+    "a final status with no record is dropped and counted once"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-106",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "            droppedStatuses += 1",
+     "replacement": "            droppedStatuses += 0"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a final status with no record is dropped and counted once",
+    "two dropped final statuses are counted twice and reported twice"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-107",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "            try { slot.storeFinalStatus(wireName(finalStatusOf(incoming.status))) } catch (error: IOException) { Unit }",
+     "replacement": "            Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a final status for the recorded session is stored and shows its sentence"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-108",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "            try { slot.storeFinalStatus(wireName(finalStatusOf(incoming.status))) } catch (error: IOException) { Unit }",
+     "replacement": "            slot.storeFinalStatus(wireName(finalStatusOf(incoming.status)))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a failed write of a final status is caught and the call still clears the record"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-109",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "        val status: CommitStatus? = if (incoming != null) finalStatusOf(incoming.status) else storedStatus(record?.finalStatus)",
+     "replacement": "        val status: CommitStatus? = storedStatus(record?.finalStatus)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a final status for the recorded session is stored and shows its sentence",
+    "a final status for the recorded session is not a drop"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-110",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "        val status: CommitStatus? = if (incoming != null) finalStatusOf(incoming.status) else storedStatus(record?.finalStatus)",
+     "replacement": "        val status: CommitStatus? = if (incoming != null) finalStatusOf(incoming.status) else null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a dismiss with a stored final status shows that sentence and clears the record"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-111",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "        if (status == CommitStatus.PendingUserAction) CommitStatus.OtherFailure else status",
+     "replacement": "        status"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a pending user action given as a final status is stored as other failure"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-112",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "        else -> null",
+     "replacement": "        else -> CommitStatus.OtherFailure"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a stored status name that is not a final status is read as no status"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-113",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "        val installedCode: Int? = if (reading is InstalledReading.Known) reading.build.versionCode else null",
+     "replacement": "        val installedCode: Int? = if (reading is InstalledReading.Known) reading.build.versionCode else 0"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an unreadable installed code with a stored success shows not finished"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-114",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "        SessionState.UNKNOWN",
+     "replacement": "        SessionState.GONE"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a session query that throws shows not finished and keeps the record under a day"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-115",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "    } catch (error: Exception) {",
+     "replacement": "    } catch (error: Error) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a session query that throws shows not finished and keeps the record under a day"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-116",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "        val now = clock.nowEpochMillis()",
+     "replacement": "        val now = try { clock.nowEpochMillis() } catch (error: RuntimeException) { 0L }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a clock that throws propagates and nothing is read or written"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-117",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "        val reading = installed.current()",
+     "replacement": "        val reading = installed.current().also { installed.current() }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the calls run in the order clock, slot, installed code, session, abandon, one write"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-118",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "        if (event == StartEvent.START && decision.recordAction == RecordAction.CLEAR && decision.sentence == UpdateSentences.NOT_FINISHED) UpdateSentences.NOT_FINISHED else decision.storeLastOutcome",
+     "replacement": "        decision.storeLastOutcome"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a start that finds the session gone clears the record and stores not finished for the next start"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-119",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "        val lastSeenEdit: FieldEdit<Int> = if (code == null) FieldEdit.Keep else FieldEdit.Put(code)",
+     "replacement": "        val lastSeenEdit: FieldEdit<Int> = FieldEdit.Keep"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a start with no record and a code that rose shows the installed state and stores the code"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-120",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "        val outcomeEdit: FieldEdit<String> = if (outcome == null) FieldEdit.Clear else FieldEdit.Put(outcome)",
+     "replacement": "        val outcomeEdit: FieldEdit<String> = FieldEdit.Keep"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a start with equal codes and a stored sentence shows it once and clears it",
+    "a dismiss with no record shows nothing and clears the stored outcome"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-121",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "        try { slot.applyChange(settled.removeRecord, lastSeenEdit, outcomeEdit) } catch (error: IOException) { Unit }",
+     "replacement": "        slot.applyChange(settled.removeRecord, lastSeenEdit, outcomeEdit)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a failed write on a start still returns the sentence"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-122",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "        val values = slot.read()",
+     "replacement": "        val values = slot.read().copy(lastOutcome = null)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a start with equal codes and a stored sentence shows it once and clears it"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-123",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "        try { abandon.abandon(sessionId); true } catch (error: IOException) { false } catch (error: SecurityException) { false }",
+     "replacement": "        try { abandon.abandon(sessionId); true } catch (error: IOException) { true } catch (error: SecurityException) { false }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an uncommitted session under a day whose abandon fails with an IO error keeps the record"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-124",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "        try { abandon.abandon(sessionId); true } catch (error: IOException) { false } catch (error: SecurityException) { false }",
+     "replacement": "        try { abandon.abandon(sessionId); true } catch (error: IOException) { false } catch (error: IllegalStateException) { false }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an uncommitted session under a day whose abandon fails with a security error keeps the record"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-125",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "        if (decision.abandonRecordedSession && record != null && abandonRecorded(record.sessionId)) {",
+     "replacement": "        if (decision.abandonRecordedSession && record != null) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an uncommitted session under a day whose abandon fails with an IO error keeps the record",
+    "a dismiss with an uncommitted session under a day abandons it and shows not finished"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-126",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "            if (event == StartEvent.START) {",
+     "replacement": "            if (false) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an expired uncommitted session with a successful abandon decides again and shows nothing",
+    "an uncommitted session under a day whose abandon succeeds decides again and clears the record",
+    "an install after a successful abandon uses the second decision and goes ahead"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-127",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "            removeRecord = true",
+     "replacement": "            removeRecord = false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an expired uncommitted session with a successful abandon decides again and shows nothing",
+    "an install after a successful abandon uses the second decision and goes ahead"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-128",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "        var removeRecord = decision.recordAction == RecordAction.CLEAR",
+     "replacement": "        var removeRecord = false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an expired uncommitted session whose abandon fails still clears the record",
+    "a start that finds the session gone clears the record and stores not finished for the next start",
+    "a committed session at a day or more clears the record without an abandon"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-129",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "        var removeRecord = decision.recordAction == RecordAction.CLEAR",
+     "replacement": "        var removeRecord = true"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a committed session under a day shows waiting and keeps the record",
+    "an uncommitted session under a day whose abandon fails with an IO error keeps the record"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-130",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "        val session = if (record == null) SessionState.GONE else sessionStateOf(record.sessionId)",
+     "replacement": "        val session = if (record == null) SessionState.GONE else sessionStateOf(record.sessionId).also { sessions.exists(record.sessionId) }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the calls run in the order clock, slot, installed code, session, abandon, one write"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-131",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "        val settled = requireNotNull(settle(StartEvent.START, null))",
+     "replacement": "        val settled = requireNotNull(settle(StartEvent.DISMISS, null))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an install decides with start only so an uncommitted session under a day is refused and kept"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-132",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "        if (!decision.installAllowed) return InstallStep.Blocked(requireNotNull(decision.sentence))",
+     "replacement": "        if (!decision.installAllowed) return InstallStep.Go"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a blocked install refuses with the decision sentence and writes nothing",
+    "an install decides with start only so an uncommitted session under a day is refused and kept"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-133",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "        if (!settled.removeRecord) return InstallStep.Go",
+     "replacement": "        if (!settled.removeRecord) { slot.applyChange(false, FieldEdit.Put(0), FieldEdit.Keep); return InstallStep.Go }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an install after an installed code rose leaves the last seen code unchanged"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-134",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "            slot.applyChange(true, FieldEdit.Keep, FieldEdit.Keep)",
+     "replacement": "            slot.applyChange(true, FieldEdit.Keep, FieldEdit.Put(UpdateSentences.NOT_FINISHED))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an install that clears a record writes only the clear and does not store not finished"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-135",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "            InstallStep.WriteFailed",
+     "replacement": "            InstallStep.Go"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a failed clear write refuses the install with the installer failed sentence"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-136",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "        if (decision.abandonRecordedSession && record != null && abandonRecorded(record.sessionId)) {",
+     "replacement": "        if (record != null && abandonRecorded(record.sessionId)) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a committed session at a day or more clears the record without an abandon",
+    "a committed session under a day shows waiting and keeps the record"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-137",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "        if (!settled.removeRecord) return InstallStep.Go",
+     "replacement": "        if (!settled.removeRecord) { slot.applyChange(false, FieldEdit.Keep, FieldEdit.Clear); return InstallStep.Go }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an install that goes ahead after a stored sentence keeps the stored sentence"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-138",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/SessionCopy.kt",
+     "anchor": "import java.security.MessageDigest",
+     "replacement": "import java.security.MessageDigest\n\nprivate const val FRAMEWORK_PROBE: String = \"android.util.Log\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "no main source outside the framework allow-list names an android class"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-139",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/SessionCopy.kt",
+     "anchor": "internal fun copyChecked(input: InputStream, out: OutputStream, expectedSha256: String, capBytes: Long): CheckedCopy {",
+     "replacement": "internal fun copyChecked(input: InputStream, out: OutputStream, expectedSha256: String, capBytes: Int): CheckedCopy {"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-140",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/InstalledBuildRules.kt",
+     "anchor": "internal fun installedReadingFrom(code: Long, name: String?): InstalledReading {",
+     "replacement": "internal fun installedReadingFrom(code: Int, name: String?): InstalledReading {"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-141",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartResult.kt",
+     "anchor": "    public val shown: Shown,",
+     "replacement": "    public val shown: Int,"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-142",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/InstallGate.kt",
+     "anchor": "internal class InstallGate(private val checker: ReleaseUpdateChecker, private val start: StartRun) : UpdateChecker {",
+     "replacement": "internal class InstallGate(private val checker: UpdateChecker, private val start: StartRun) : UpdateChecker {"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-143",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StartRun.kt",
+     "anchor": "    private val drops: DropLog,",
+     "replacement": "    private val drops: Clock,"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-144",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "        if (!candidate.isFile) continue",
+     "replacement": "        if (!candidate.exists()) continue"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "sweep keeps other files and an empty folder with a temp name"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-145",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "    return digits.isNotEmpty() && digits.all { it in '0'..'9' }",
+     "replacement": "    return digits.all { it in '0'..'9' }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "sweep keeps the marker with no digits"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-146",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "    return digits.isNotEmpty() && digits.all { it in '0'..'9' }",
+     "replacement": "    return digits.isNotEmpty() && digits.all { it in '0'..'9' || it in 'a'..'z' }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "sweep keeps the marker with letters after it"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-147",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "    if (!candidate.startsWith(ledgerName + LEDGER_TEMP_MARKER)) return false",
+     "replacement": "    if (!candidate.startsWith(ledgerName)) return false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "sweep keeps the ledger name with a digit appended"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-148",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "internal const val LEDGER_TEMP_MARKER: String = \".tmp\"",
+     "replacement": "internal const val LEDGER_TEMP_MARKER: String = \"_tmp\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the temp name is the ledger name then dot tmp then the sequence",
+    "sweep removes a temp file with the marker and digits"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-149",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/SessionCopy.kt",
+     "anchor": "    CheckedCopy.Mismatched, CheckedCopy.TooLarge -> InstallerResult.DigestMismatch",
+     "replacement": "    CheckedCopy.Mismatched, CheckedCopy.TooLarge -> InstallerResult.Failed"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a digest mismatch gives digest mismatch",
+    "a copy over the cap gives digest mismatch"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-150",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/SessionCopy.kt",
+     "anchor": "    CheckedCopy.Matched -> null",
+     "replacement": "    CheckedCopy.Matched -> InstallerResult.Failed"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a matched copy gives no installer result"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-151",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/SessionCopy.kt",
+     "anchor": "    CheckedCopy.Failed -> InstallerResult.Failed",
+     "replacement": "    CheckedCopy.Failed -> InstallerResult.DigestMismatch"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a read failure gives failed"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-152",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/DropMessage.kt",
+     "anchor": "\" dropped; recorded session \"",
+     "replacement": "\" dropped; recorded \""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "drop message names the platform id and the recorded id",
+    "the drop log line is the fixed tag and the drop text only"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-153",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/DropMessage.kt",
+     "anchor": "head + \" dropped; no session recorded\"",
+     "replacement": "head + \" dropped; recorded session null\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "drop message says no session is recorded when none is",
+    "the drop log line is the fixed tag and the drop text only"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-154",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LogcatDropLog.kt",
+     "anchor": "        Log.w(DROP_LOG_TAG, dropMessage(platformSessionId, recordedSessionId))",
+     "replacement": "        Log.e(DROP_LOG_TAG, dropMessage(platformSessionId, recordedSessionId))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the drop log line is the fixed tag and the drop text only"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-155",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LogcatDropLog.kt",
+     "anchor": "        Log.w(DROP_LOG_TAG, dropMessage(platformSessionId, recordedSessionId))",
+     "replacement": "        Log.w(DROP_LOG_TAG, dropMessage(platformSessionId, recordedSessionId) + \" \")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the drop log line is the fixed tag and the drop text only"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-156",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/PackageInstallerAdapter.kt",
+     "anchor": "import java.io.IOException",
+     "replacement": "import java.io.IOException\nimport android.util.Log"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "android util log is named in one file only"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-157",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/PackageInfoInstalledVersion.kt",
+     "anchor": "    override fun current(): InstalledReading {",
+     "replacement": "    public fun describe(context: Context): String = context.packageName\n\n    override fun current(): InstalledReading {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "context and intent sender are public only in the facade"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-158",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ModuleHygieneTest.kt",
+     "anchor": "    private val frameworkAllowed: Set<String> = setOf(\"PackageInstallerAdapter.kt\", \"PackageInfoInstalledVersion.kt\", \"UpdateInstallFacade.kt\", \"LogcatDropLog.kt\")",
+     "replacement": "    private val frameworkAllowed: Set<String> = setOf(\"PackageInstallerAdapter.kt\", \"PackageInfoInstalledVersion.kt\", \"UpdateInstallFacade.kt\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "no main source outside the framework allow-list names an android class"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-159",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "        if (!isLedgerTempName(ledgerFile.name, name)) continue",
+     "replacement": "        if (!name.startsWith(ledgerFile.name)) continue"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "sweep never removes the ledger file",
+    "sweep keeps the ledger name with a digit appended"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-160",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "    val names = folder.list() ?: return",
+     "replacement": "    val names = folder.list()!!"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "sweep does nothing for a missing folder or a file in its place"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-161",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "            Files.deleteIfExists(candidate.toPath())",
+     "replacement": "            Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "sweep removes a temp file with the marker and digits",
+    "sweep removes the name that the temp name function makes"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-162",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "        try {\n            Files.deleteIfExists(candidate.toPath())\n        } catch (error: Exception) {\n            Unit\n        }",
+     "replacement": "        Files.deleteIfExists(candidate.toPath())"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "sweep ignores a temp file it cannot remove"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-163",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "    if (!candidate.startsWith(ledgerName + LEDGER_TEMP_MARKER)) return false",
+     "replacement": "    if (!candidate.startsWith(ledgerName + \"_tmp\")) return false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "sweep removes the name that the temp name function makes",
+    "sweep removes a temp file with the marker and digits"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-164",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/DropMessage.kt",
+     "anchor": "internal fun dropMessage(platformSessionId: Int, recordedSessionId: Int?): String {",
+     "replacement": "private val unusedFrameworkName: String = \"android.util\"\n\ninternal fun dropMessage(platformSessionId: Int, recordedSessionId: Int?): String {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "only the four shell files name the framework",
+    "no main source outside the framework allow-list names an android class"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-165",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/DropMessage.kt",
+     "anchor": "internal fun dropMessage(platformSessionId: Int, recordedSessionId: Int?): String {",
+     "replacement": "internal fun dropMessage(platformSessionId: Int, recordedSessionId: Int?): Unit {"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-166",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "internal fun sweepStaleLedgerTemps(ledgerFile: File) {",
+     "replacement": "internal fun sweepStaleLedgerTemps(ledgerFile: String) {"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-167",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/SessionCopy.kt",
+     "anchor": "internal fun resultOfCheckedCopy(copy: CheckedCopy): InstallerResult? = when (copy) {",
+     "replacement": "internal fun resultOfCheckedCopy(copy: CheckedCopy): InstallerResult = when (copy) {"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-168",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/LedgerStore.kt",
+     "anchor": "internal fun isLedgerTempName(ledgerName: String, candidate: String): Boolean {",
+     "replacement": "internal fun isLedgerTempName(ledgerName: String, candidate: String): Int {"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-169",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/PackageInstallerAdapter.kt",
+     "anchor": "    override fun install(staged: StagedApk, expectedSha256: String, capBytes: Long): InstallerResult {",
+     "replacement": "    override fun install(staged: StagedApk, expectedSha256: String, capBytes: Int): InstallerResult {"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-170",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateInstallFacade.kt",
+     "anchor": "commitSender: IntentSender): UpdateInstallFacade {",
+     "replacement": "commitSender: IntentSender): Unit {"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-171",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        if (input.event == StartEvent.DISMISS) {",
+     "replacement": "        if (input.event == StartEvent.DISMISS && input.session != SessionState.GONE) {"
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "re-run: equivalent (both arms give the same value for a gone session)",
+   "note": ""
+  },
+  {
+   "id": "mut-172",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "    SENTENCE,",
+     "replacement": "    SENTENCE, WAITING,"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the Shown enum has the entries NOTHING, INSTALLED and SENTENCE in that order"
+   ],
+   "rule": "re-run: the public enum entries pin",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "android/modules/updater",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/VersionCode.kt",
+     "anchor": "    internal const val MAX: Int = 2_100_000_000\n",
+     "replacement": "    internal const val MAX: Int = 2_100_000_001\n"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "android/modules/updater",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/VersionCode.kt",
+     "anchor": "    internal const val MAX: Int = 2_100_000_000\n",
+     "replacement": "    internal const val MAX: Int = 2_100_000_000 // unchanged behaviour\n"
+    }
+   ]
+  }
+ ]
+}
