@@ -22,13 +22,13 @@ internal class AppLayoutGateTest {
 
     /** Main files that touch no Android type, by path below the package folder. */
     private val plainFiles: Set<String> = setOf(
-        "AppStartPurge.kt", "BreakerCompositionRoot.kt", "FileCredentialRefHolder.kt", "PurgeScope.kt", "SystemClockAdapter.kt",
+        "AppStartPurge.kt", "BreakerCompositionRoot.kt", "FileCredentialRefHolder.kt", "PurgeScope.kt", "SystemClockAdapter.kt", "AutomaticTimeOn.kt", "PurgeBookkeepingStore.kt", "PurgeGuard.kt",
         "service/DictationServiceController.kt", "service/NotificationRoute.kt", "service/ReportingMicSource.kt",
         "service/ServiceStartDecision.kt", "service/ServiceStartHandler.kt", "service/ServiceTypes.kt",
         "wiring/DictationComponent.kt", "wiring/DictationRunner.kt", "wiring/Insets.kt", "wiring/LazyHistoryStore.kt", "wiring/FirstRunDoneStore.kt",
         "wiring/UnavailableSlots.kt", "wiring/UuidIdSource.kt", "wiring/Rebuilt.kt", "wiring/ClockText.kt",
         "wiring/TilePorts.kt", "wiring/DelayedPost.kt", "wiring/NoticeClearingTilePort.kt", "wiring/TileStateMap.kt", "wiring/TileCoordinator.kt", "wiring/TileShowGuard.kt", "wiring/TakePortAdapter.kt", "wiring/NoopPorts.kt",
-        "wiring/ArmedSwitch.kt", "wiring/DisplayWatch.kt", "wiring/LaunchRule.kt", "wiring/IconLaunchOnce.kt", "wiring/OffStore.kt", "wiring/ModelSupport.kt", "wiring/Swaps.kt",
+        "wiring/ArmedSwitch.kt", "wiring/DisplayWatch.kt", "wiring/LaunchRule.kt", "wiring/IconLaunchOnce.kt", "wiring/OffStore.kt", "wiring/ModelSupport.kt", "wiring/ThemeModeSupport.kt", "wiring/Swaps.kt",
         "wiring/BreakerSwitchAdapter.kt", "wiring/ForwardingDownloadNotice.kt",
         "wiring/TakeYield.kt", "wiring/TakenClipboard.kt",
         "wiring/TakenSentences.kt", "wiring/TakeSettle.kt", "wiring/DeviceFailureSentences.kt", "wiring/DeviceFailureYield.kt", "wiring/TakeFinisher.kt",
@@ -39,7 +39,7 @@ internal class AppLayoutGateTest {
 
     /** Main files that are the layer over the platform and name Android types. */
     private val androidFiles: Set<String> = setOf(
-        "BreakerApp.kt", "SettingsLauncherActivity.kt", "service/AndroidMicPermission.kt",
+        "BreakerApp.kt", "SettingsLauncherActivity.kt", "AndroidAutomaticTimeOn.kt", "service/AndroidMicPermission.kt",
         "service/AndroidServiceLauncher.kt", "service/DictationForegroundService.kt", "service/DictationNotification.kt",
         "service/ModelNotifications.kt", "host/AppThreads.kt", "host/OverlayTilePort.kt", "host/TileHost.kt", "host/DisplayChangeAndroid.kt",
         "wiring/AndroidSwaps.kt", "wiring/AndroidInsets.kt", "wiring/ThemedScreens.kt",
