@@ -2,6 +2,7 @@ package dev.breaker.dictation.core.model
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -198,6 +199,53 @@ class ModelTest {
         } catch (expected: IllegalArgumentException) {
             assertTrue(expected.message!!.contains("digest"))
         }
+    }
+
+    @Test
+    fun `a refused install needs a reason`() {
+        try {
+            UpdateInstallResult.Refused(reason = "  ")
+            fail("expected a blank reason to be refused")
+        } catch (expected: IllegalArgumentException) {
+            assertTrue(expected.message!!.contains("reason"))
+        }
+    }
+
+    @Test
+    fun `a failed install needs a cause`() {
+        try {
+            UpdateInstallResult.Failed(cause = "")
+            fail("expected an empty cause to be refused")
+        } catch (expected: IllegalArgumentException) {
+            assertTrue(expected.message!!.contains("cause"))
+        }
+    }
+
+    @Test
+    fun `the installed result is a named object that prints its name`() {
+        assertEquals("Installed", UpdateInstallResult.Installed.toString())
+        assertEquals(UpdateInstallResult.Installed, UpdateInstallResult.Installed)
+    }
+
+    @Test
+    fun `refusals and failures are values, equal when their text is equal`() {
+        assertEquals(UpdateInstallResult.Refused("digest mismatch"), UpdateInstallResult.Refused("digest mismatch"))
+        assertNotEquals(UpdateInstallResult.Refused("digest mismatch"), UpdateInstallResult.Refused("signature mismatch"))
+        assertEquals(UpdateInstallResult.Failed("disk full"), UpdateInstallResult.Failed("disk full"))
+        assertNotEquals(UpdateInstallResult.Failed("disk full"), UpdateInstallResult.Failed("network down"))
+    }
+
+    @Test
+    fun `an install result is exactly installed, refused or failed`() {
+        fun label(result: UpdateInstallResult): String = when (result) {
+            UpdateInstallResult.Installed -> "installed"
+            is UpdateInstallResult.Refused -> "refused"
+            is UpdateInstallResult.Failed -> "failed"
+        }
+        assertEquals(
+            listOf("installed", "refused", "failed"),
+            listOf(UpdateInstallResult.Installed, UpdateInstallResult.Refused("x"), UpdateInstallResult.Failed("y")).map { label(it) },
+        )
     }
 
     @Test
