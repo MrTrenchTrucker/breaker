@@ -1,0 +1,224 @@
+{
+ "name": "proof-2c",
+ "tip": {
+  "tree": "7ca7342bc137d78078be80a3fc75b001eed63e42"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "whisper-server: runnable entry point, health route, queue worker survives a store failure, result time-to-live window",
+   "base_tree": "f8bfa6af9f3e0af4c7dd7469fd6b152f0b5625f7",
+   "item_tip_tree": "7ca7342bc137d78078be80a3fc75b001eed63e42",
+   "new_production_classes": [
+    "WhisperServer",
+    "WhisperConfig",
+    "JdbcStatements",
+    "Migration",
+    "MigrationException",
+    "Migrations",
+    "SchemaV1",
+    "SqliteDatabase",
+    "TranscriptionApi",
+    "TranscriptionRoutes",
+    "WhisperEngine",
+    "JobModels",
+    "JobPolicy",
+    "JobSql",
+    "JobStatus",
+    "JobStore",
+    "JobStoreOps",
+    "Json",
+    "HttpTranscriptionForwarder",
+    "Pause",
+    "QueueWorker",
+    "TranscriptionForwarder",
+    "TranscriptionResponse"
+   ],
+   "test_fixtures_overlaid": [
+    "TestDatabases.kt",
+    "RouteFixtures.kt",
+    "JobFixtures.kt",
+    "WorkerFixtures.kt"
+   ],
+   "red_not_run": "the whole module is new against main (all its classes are new here), so every test of it fails to compile on main; those legs are not run. Item b carries the red legs that can fail on assertions."
+  },
+  {
+   "item": "b",
+   "title": "whisper-server result time-to-live window: fetch inside the window, purge and erasure after it",
+   "base_tree": "5792c2b259f1bf00aa66715a9c5fd3cfe73c6151",
+   "item_tip_tree": "1a4f404434f6ddac066d67078c2a660346a396c1",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [
+    "JobFixtures.kt"
+   ],
+   "red_tree_stubs": {
+    "files": [
+     "JobPolicy.kt",
+     "JobStore.kt",
+     "WhisperConfig.kt",
+     "WhisperServer.kt"
+    ],
+    "note": "signatures only for the members item b adds (result window constant, store ttl parameter, ttl purge, config ttl field and its two constants, store builder); the base behaviour is kept: the ttl is ignored, the fetch keeps the base 24 h expiry, the ttl purge clears nothing, the config never reads the ttl variable"
+   }
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "red-b-01",
+   "kind": "red",
+   "item": "b",
+   "module": "server/modules/whisper-server",
+   "file": "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/BuildJobStoreTest.kt",
+   "files": [
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/BuildJobStoreTest.kt",
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobFixtures.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.whisper.BuildJobStoreTest"
+   ],
+   "patch": "proof/red/red-b-01.patch",
+   "tree": "faafcfe2009e5154bb98a3831f666f3cc514bd04",
+   "predict": "ASSERT RED: the configured 120 s window is ignored"
+  },
+  {
+   "id": "red-b-02",
+   "kind": "red",
+   "item": "b",
+   "module": "server/modules/whisper-server",
+   "file": "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/config/WhisperConfigTest.kt",
+   "files": [
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/config/WhisperConfigTest.kt",
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobFixtures.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.whisper.config.WhisperConfigTest"
+   ],
+   "patch": "proof/red/red-b-02.patch",
+   "tree": "1d04921b4b482f67afcf93f5c4a28f3382dc8fe0",
+   "predict": "ASSERT RED: the ttl variable is not read or checked"
+  },
+  {
+   "id": "red-b-03",
+   "kind": "red",
+   "item": "b",
+   "module": "server/modules/whisper-server",
+   "file": "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutesTest.kt",
+   "files": [
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutesTest.kt",
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobFixtures.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.whisper.http.TranscriptionRoutesTest"
+   ],
+   "patch": "proof/red/red-b-03.patch",
+   "tree": "a99aead46f61454e4c80f068799b348a6049e4cc",
+   "predict": "ASSERT RED: a result past the 10 min window is still served"
+  },
+  {
+   "id": "red-b-04",
+   "kind": "red",
+   "item": "b",
+   "module": "server/modules/whisper-server",
+   "file": "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/AudioErasureTest.kt",
+   "files": [
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/AudioErasureTest.kt",
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobFixtures.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.whisper.jobs.AudioErasureTest"
+   ],
+   "patch": "proof/red/red-b-04.patch",
+   "tree": "02687b56c34ecc6f4d29b7b3a7106dab0dec3825",
+   "predict": "ASSERT RED: the ttl purge erases nothing"
+  },
+  {
+   "id": "red-b-05",
+   "kind": "red",
+   "item": "b",
+   "module": "server/modules/whisper-server",
+   "file": "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobStoreFetchTest.kt",
+   "files": [
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobStoreFetchTest.kt",
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobFixtures.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.whisper.jobs.JobStoreFetchTest"
+   ],
+   "patch": "proof/red/red-b-05.patch",
+   "tree": "029b45ea298da889f82e85caf861c5fc87725751",
+   "predict": "ASSERT RED: the fetch keeps the 24 h expiry"
+  },
+  {
+   "id": "red-b-06",
+   "kind": "red",
+   "item": "b",
+   "module": "server/modules/whisper-server",
+   "file": "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobStorePurgeTest.kt",
+   "files": [
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobStorePurgeTest.kt",
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobFixtures.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.whisper.jobs.JobStorePurgeTest"
+   ],
+   "patch": "proof/red/red-b-06.patch",
+   "tree": "3f0524d60e7364dbc5ac00f2166708f60235555a",
+   "predict": "ASSERT RED: the ttl purge erases nothing"
+  },
+  {
+   "id": "red-b-07",
+   "kind": "red",
+   "item": "b",
+   "module": "server/modules/whisper-server",
+   "file": "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobStoreTtlPurgeTest.kt",
+   "files": [
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobStoreTtlPurgeTest.kt",
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobFixtures.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.whisper.jobs.JobStoreTtlPurgeTest"
+   ],
+   "patch": "proof/red/red-b-07.patch",
+   "tree": "c872d59ddf33cfde3ab3d71bdb47aed517f6c198",
+   "predict": "ASSERT RED: the ttl purge erases nothing"
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "android/app",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/DictationRunner.kt",
+     "anchor": "        if (idle.state != DictationState.IDLE) return BeginResult.Refused(RunnerSentences.BUSY)\n",
+     "replacement": "        return BeginResult.Refused(RunnerSentences.BUSY)\n"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "android/app",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/DictationRunner.kt",
+     "anchor": "        if (idle.state != DictationState.IDLE) return BeginResult.Refused(RunnerSentences.BUSY)\n",
+     "replacement": "        if (idle.state != DictationState.IDLE) return BeginResult.Refused(RunnerSentences.BUSY) // unchanged behaviour\n"
+    }
+   ]
+  }
+ ]
+}

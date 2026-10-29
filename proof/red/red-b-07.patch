@@ -1,0 +1,720 @@
+diff --git a/server/modules/whisper-server/AGENTS.md b/server/modules/whisper-server/AGENTS.md
+index d87b1aa5..f6e15c92 100644
+--- a/server/modules/whisper-server/AGENTS.md
++++ b/server/modules/whisper-server/AGENTS.md
+@@ -136,17 +136,6 @@ agents, not required: an outside contributor may write the code themselves
+ (`.github/CONTRIBUTING.md`).
+ 
+ ## Known Gotchas
+-- On main this module has no code yet (its build file applies `base` only). Slices 1-3 (database, job store, queue
+-  worker, forwarder, HTTP front) are on the module branch; a private work branch holds
+-  the merge of main into `module/whisper-server`.
+-- PLANNED (slice 4, no code yet): a runnable entry point, `main`, configured by `BREAKER_WHISPER_HOST`,
+-  `BREAKER_WHISPER_PORT`, `BREAKER_WHISPER_DB` and `BREAKER_WHISPER_FORWARDER_URL`; it binds 127.0.0.1 by default,
+-  refuses a bad configuration, and shuts down cleanly with the active job put back in the queue. An `IOException`
+-  while reading an upload is a failure of its own, never a 413.
+-- The `server_sync_api` entry under Depends On matches `modules.toml` today but is to be DROPPED: no code imports
+-  sync-api, the branch's `SourceScanTest` forbids it, and the sealing hand-off to sync-api (ADR-018) is unshipped
+-  (Phase 19/20). ADR-018's amendment of 2026-10-20 chooses no transport; a new ADR decides the transport, and any new
+-  edge, when that phase is ordered. The registry edit is a code-order change, not a docs one.
+ - FIFO: never start the next job until the active one returns; retry 3× at 10 s.
+ - Written in Kotlin on the JVM with Ktor, compiled against api-contracts' Kotlin types (ADR-017).
+ - The seal step only ever runs for an agent-token job, and only seals a copy
+diff --git a/server/modules/whisper-server/README.md b/server/modules/whisper-server/README.md
+index d5e4c662..9f201eac 100644
+--- a/server/modules/whisper-server/README.md
++++ b/server/modules/whisper-server/README.md
+@@ -4,16 +4,10 @@
+ 
+ Breaker's own transcription service on the server. The phone sends audio to it, it queues each job in order, and it forwards the audio to whichever speech-to-text service the admin has set up (by default an existing Whisper X service). It never runs a speech model itself. Callers get a job id and poll for the result.
+ 
+-None of it is on main yet: the first three slices are on the module branch, and the runnable entry point (slice 4) is planned, not built. See the card.
+-
+ Full module card, including how to run its tests: `AGENTS.md` in this folder.
+ 
+ ## HTTP front
+ 
+-`POST /v1/audio/transcriptions` takes a multipart `file` (the audio) and a `model` part; both are required. An optional `language` part is accepted and ignored for now. The upload is capped at 25 MiB; over that is refused. It answers `202 { job_id, status: "queued" }` and wakes the worker. `GET /v1/jobs/{job_id}` answers the job's status and, once done, its result. A done result is
+-idempotently re-fetchable for a short TTL after completion (default 10 minutes,
+-`BREAKER_WHISPER_RESULT_TTL_S`, an upper bound of 86400 s = 24 h): every GET inside that window returns the same `done` result. After
+-the window a store purge erases the result and a GET returns `404` reason `unknown or expired` — an
+-unknown id gives the same `404`. Audio is erased on completion (ADR-010), unchanged.
++`POST /v1/audio/transcriptions` takes a multipart `file` (the audio) and a `model` part; both are required. An optional `language` part is accepted and ignored for now. The upload is capped at 25 MiB; over that is refused. It answers `202 { job_id, status: "queued" }` and wakes the worker. `GET /v1/jobs/{job_id}` answers the job's status and, once done, its result; an unknown id is 404.
+ 
+ The `model` part is required but NOT stored yet - the configured downstream model serves every job today; per-request model selection is a later schema change. There is no auth on these routes yet; every job is enqueued under one owner until the auth module lands.
+diff --git a/server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/WhisperServer.kt b/server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/WhisperServer.kt
+index 3cf3af8c..456aae59 100644
+--- a/server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/WhisperServer.kt
++++ b/server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/WhisperServer.kt
+@@ -8,7 +8,6 @@ import dev.breaker.server.whisper.jobs.JobStore
+ import dev.breaker.server.whisper.worker.DownstreamConfig
+ import dev.breaker.server.whisper.worker.HttpTranscriptionForwarder
+ import dev.breaker.server.whisper.worker.QueueWorker
+-import java.time.Clock
+ import java.time.Duration
+ import kotlinx.coroutines.CoroutineScope
+ import kotlinx.coroutines.Dispatchers
+@@ -141,18 +140,6 @@ internal fun buildTranscriptionApi(
+     return TranscriptionApi(store, wakeWorker, forwardingTo = forwardingTo, uptime = uptime)
+ }
+ 
+-/**
+- * Wires the [JobStore] from the opened database and the configuration. It is the one place both
+- * main() and a test build the store, so a mutant that drops the configured result TTL cannot hide:
+- * [config.resultTtlSeconds] is threaded into the store as milliseconds, not the 600 s default. The
+- * [clock] is injected for testability, same shape as buildTranscriptionApi's monotonic source.
+- */
+-internal fun buildJobStore(
+-    db: SqliteDatabase,
+-    config: WhisperConfig,
+-    clock: Clock = Clock.systemUTC(),
+-): JobStore = JobStore(db, clock, resultTtlMs = config.resultTtlSeconds * 1000L)
+-
+ /**
+  * The runnable entry point for the whisper-server.
+  *
+@@ -169,7 +156,7 @@ internal fun buildJobStore(
+ fun main() {
+     val config = WhisperConfig.fromEnv()
+     val db = SqliteDatabase.open(config.databasePath)
+-    val store = buildJobStore(db, config)
++    val store = JobStore(db)
+     val forwarder = HttpTranscriptionForwarder(
+         DownstreamConfig(baseUrl = config.forwarderBaseUrl)
+     )
+@@ -186,3 +173,9 @@ fun main() {
+     val server = WhisperEngine.start(api, config.bindAddress, config.port) { shutdown.run() }
+     stopServer = { server.stop(1000, 5000) }
+ }
++
++internal fun buildJobStore(
++    db: SqliteDatabase,
++    @Suppress("UNUSED_PARAMETER") config: WhisperConfig,
++    clock: java.time.Clock = java.time.Clock.systemUTC(),
++): JobStore = JobStore(db, clock)
+diff --git a/server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/config/WhisperConfig.kt b/server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/config/WhisperConfig.kt
+index e925f629..2740a243 100644
+--- a/server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/config/WhisperConfig.kt
++++ b/server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/config/WhisperConfig.kt
+@@ -8,16 +8,12 @@ package dev.breaker.server.whisper.config
+  * - BREAKER_WHISPER_PORT: required, must parse to Int in 1..65535
+  * - BREAKER_WHISPER_DB: required, must be non-blank
+  * - BREAKER_WHISPER_FORWARDER_URL: required, must be non-blank, http/https + host
+- * - BREAKER_WHISPER_RESULT_TTL_S: optional, default 600 (seconds), accepted range 1..86400; a
+- *   present but blank/negative/unparseable value refuses
+  *
+  * Parsing rules:
+  * - Missing/bad BREAKER_WHISPER_PORT refuses with a message naming BREAKER_WHISPER_PORT
+  * - Missing/bad BREAKER_WHISPER_DB refuses with a message naming BREAKER_WHISPER_DB
+  * - Missing/bad BREAKER_WHISPER_FORWARDER_URL refuses with a message naming BREAKER_WHISPER_FORWARDER_URL
+  * - Missing BREAKER_WHISPER_HOST defaults to "127.0.0.1"
+- * - Missing BREAKER_WHISPER_RESULT_TTL_S defaults to 600; a present but blank/negative/unparseable
+- *   value, or one outside 1..86400, refuses with a message naming BREAKER_WHISPER_RESULT_TTL_S
+  * - Port out of range refuses with a message naming BREAKER_WHISPER_PORT
+  */
+ data class WhisperConfig(
+@@ -32,11 +28,9 @@ data class WhisperConfig(
+         const val ENV_PORT = "BREAKER_WHISPER_PORT"
+         const val ENV_DB = "BREAKER_WHISPER_DB"
+         const val ENV_FORWARDER_URL = "BREAKER_WHISPER_FORWARDER_URL"
+-        const val ENV_RESULT_TTL = "BREAKER_WHISPER_RESULT_TTL_S"
+         const val DEFAULT_HOST = "127.0.0.1"
++        const val ENV_RESULT_TTL = "BREAKER_WHISPER_RESULT_TTL_S"
+         const val DEFAULT_RESULT_TTL_SECONDS = 600
+-        private const val MIN_RESULT_TTL_SECONDS = 1
+-        private const val MAX_RESULT_TTL_SECONDS = 86_400
+ 
+         private const val MIN_PORT = 1
+         private const val MAX_PORT = 65535
+@@ -72,22 +66,7 @@ data class WhisperConfig(
+                 throw IllegalStateException("$ENV_FORWARDER_URL must have an http or https scheme and a host, got scheme: ${uri.scheme}")
+             }
+ 
+-            val resultTtlRaw = env[ENV_RESULT_TTL]
+-            val resultTtlSeconds = if (resultTtlRaw == null) {
+-                DEFAULT_RESULT_TTL_SECONDS
+-            } else {
+-                val parsed = resultTtlRaw.toIntOrNull()
+-                    ?: throw IllegalStateException("$ENV_RESULT_TTL is not a number: $resultTtlRaw")
+-                if (parsed < MIN_RESULT_TTL_SECONDS) {
+-                    throw IllegalStateException("$ENV_RESULT_TTL must be at least $MIN_RESULT_TTL_SECONDS seconds: $resultTtlRaw")
+-                }
+-                if (parsed > MAX_RESULT_TTL_SECONDS) {
+-                    throw IllegalStateException("$ENV_RESULT_TTL must be at most $MAX_RESULT_TTL_SECONDS seconds: $resultTtlRaw")
+-                }
+-                parsed
+-            }
+-
+-            return WhisperConfig(bindAddress, port, databasePath, forwarderUrl, resultTtlSeconds)
++            return WhisperConfig(bindAddress, port, databasePath, forwarderUrl)
+         }
+     }
+ }
+diff --git a/server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutes.kt b/server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutes.kt
+index a4b08941..29c03738 100644
+--- a/server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutes.kt
++++ b/server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutes.kt
+@@ -20,11 +20,6 @@ import kotlinx.io.readByteArray
+ /** The one owner every job is enqueued under until auth lands with sync-api. */
+ internal const val OWNER_ACCOUNT_ID: Long = 1L
+ 
+-/** The single 404 reason for a GET the caller cannot satisfy: an unknown id, a non-numeric id, or a
+- *  done job whose result has passed its TTL. One string, so the caller always sees the same reason. */
+-internal const val UNKNOWN_OR_EXPIRED = "unknown or expired"
+-
+-
+ /** The upload cap, in bytes. Source: the OpenAI audio-transcriptions API limit - this front is deliberately OpenAI-shaped (module card). */
+ internal const val MAX_AUDIO_BYTES: Long = 25L * 1024 * 1024
+ 
+@@ -90,12 +85,12 @@ internal fun Route.transcriptionRoutes(
+     get("/v1/jobs/{job_id}") {
+         val jobId = call.parameters["job_id"]?.toLongOrNull()
+         if (jobId == null) {
+-            respondError(call, HttpStatusCode.NotFound, UNKNOWN_OR_EXPIRED)
++            respondError(call, HttpStatusCode.NotFound, "no such job")
+             return@get
+         }
+         when (val poll = store.fetch(jobId, OWNER_ACCOUNT_ID)) {
+             is JobPoll.NotFound -> {
+-                respondError(call, HttpStatusCode.NotFound, UNKNOWN_OR_EXPIRED)
++                respondError(call, HttpStatusCode.NotFound, "no such job")
+             }
+             is JobPoll.Pending -> {
+                 call.respondText("{\"status\":\"${poll.status.dbValue}\",\"result\":null}", ContentType.Application.Json, HttpStatusCode.OK)
+@@ -107,7 +102,7 @@ internal fun Route.transcriptionRoutes(
+                 call.respondText("{\"status\":\"done\",\"result\":${poll.text}}", ContentType.Application.Json, HttpStatusCode.OK)
+             }
+             is JobPoll.ResultGone -> {
+-                respondError(call, HttpStatusCode.NotFound, UNKNOWN_OR_EXPIRED)
++                call.respondText("{\"status\":\"done\",\"result\":null}", ContentType.Application.Json, HttpStatusCode.OK)
+             }
+         }
+     }
+diff --git a/server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/jobs/JobPolicy.kt b/server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/jobs/JobPolicy.kt
+index 935b7fe4..48b15cdf 100644
+--- a/server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/jobs/JobPolicy.kt
++++ b/server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/jobs/JobPolicy.kt
+@@ -11,20 +11,12 @@ internal object JobPolicy {
+     /** How long a finished result stays fetchable: 24 hours. */
+     const val RESULT_TTL_MS: Long = 86_400_000L
+ 
+-    /** How long a finished result stays idempotently fetchable after completion: 10 minutes by
+-     *  default (BREAKER_WHISPER_RESULT_TTL_S). Every GET inside this window returns the same
+-     *  result; it is separate from the 24h [RESULT_TTL_MS] purge, which stays untouched. */
+-    const val RESULT_WINDOW_MS: Long = 600_000L
+-
+     const val ERROR_TEXT_LIMIT: Int = 500
+ 
++    const val RESULT_WINDOW_MS: Long = 600_000L
++
+     // The one place that decides when a result is too old. A result finished at f is
+     // gone when f <= expiryCutoffMs(now), that is AT f + 24 h exactly. Fetch and purge
+     // both call this, so the two can never disagree about the boundary.
+     fun expiryCutoffMs(nowMs: Long): Long = nowMs - RESULT_TTL_MS
+-
+-    // The fetch window's boundary, separate from the 24h one above: a result finished at f is past
+-    // its window when f <= resultWindowCutoffMs(now, ttl), that is AT f + ttl exactly. Fetch's lazy
+-    // clear and the TTL purge both call this with the store's configured ttl, so neither disagrees.
+-    fun resultWindowCutoffMs(nowMs: Long, ttlMs: Long): Long = nowMs - ttlMs
+ }
+diff --git a/server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/jobs/JobSql.kt b/server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/jobs/JobSql.kt
+index 3596379e..a1bf6428 100644
+--- a/server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/jobs/JobSql.kt
++++ b/server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/jobs/JobSql.kt
+@@ -46,10 +46,4 @@ internal object JobSql {
+ 
+     const val PURGE_EXPIRED =
+         "UPDATE jobs SET result = NULL WHERE status = ? AND result IS NOT NULL AND finished_at_ms <= ?"
+-
+-    // Mirrors PURGE_EXPIRED but on the short fetch window: the bound cutoff is finished_at_ms + the
+-    // result TTL (JobPolicy.resultWindowCutoffMs), not the 24h one above, so the purge-to-404 runs on
+-    // the 10-minute window while PURGE_EXPIRED keeps its 24h schedule untouched.
+-    const val PURGE_TTL =
+-        "UPDATE jobs SET result = NULL WHERE status = ? AND result IS NOT NULL AND finished_at_ms <= ?"
+ }
+diff --git a/server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/jobs/JobStore.kt b/server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/jobs/JobStore.kt
+index 299155e7..94e5b4fc 100644
+--- a/server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/jobs/JobStore.kt
++++ b/server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/jobs/JobStore.kt
+@@ -9,10 +9,12 @@ import java.time.Instant
+ internal class JobStore(
+     private val db: SqliteDatabase,
+     private val clock: Clock = Clock.systemUTC(),
+-    private val resultTtlMs: Long = JobPolicy.RESULT_WINDOW_MS,
++    @Suppress("unused") private val resultTtlMs: Long = JobPolicy.RESULT_WINDOW_MS,
+ ) : JobStoreOps {
+     private class State(val status: JobStatus, val attempts: Int)
+ 
++    suspend fun purgeTtl(): Int = 0
++
+     // cleared tells the caller, after the transaction, whether a result was removed.
+     private class FetchOutcome(val poll: JobPoll, val cleared: Boolean)
+ 
+@@ -118,9 +120,8 @@ internal class JobStore(
+ 
+     suspend fun fetch(jobId: Long, ownerAccountId: Long): JobPoll {
+         val nowMs = clock.millis()
+-        // Read and (only once the window has passed) clear share one transaction: that is what makes
+-        // the lazy clear at the TTL boundary happen exactly once, however many callers race for it.
+-        // Inside the window nothing clears, so every caller reads the same result.
++        // Read and clear share one transaction: that is what makes "the first fetch
++        // gets the result" happen exactly once, however many callers race for it.
+         val outcome = db.transaction<FetchOutcome> { connection ->
+             fetchInTransaction(connection, jobId, ownerAccountId, nowMs)
+         }
+@@ -141,22 +142,6 @@ internal class JobStore(
+         return cleared
+     }
+ 
+-    // Erases the result text of every done job past the short fetch window (finished_at_ms + TTL <=
+-    // now), judged with the same cutoff fetch uses, so a lazy-clear and this purge never disagree.
+-    // The row stays; only its result is cleared. A fresh checkpointTruncate runs when anything went.
+-    suspend fun purgeTtl(): Int {
+-        val nowMs = clock.millis()
+-        val cleared = db.transaction<Int> { connection ->
+-            connection.prepareStatement(JobSql.PURGE_TTL).use { statement ->
+-                statement.setString(1, JobStatus.DONE.dbValue)
+-                statement.setLong(2, JobPolicy.resultWindowCutoffMs(nowMs, resultTtlMs))
+-                statement.executeUpdate()
+-            }
+-        }
+-        if (cleared > 0) db.checkpointTruncate()
+-        return cleared
+-    }
+-
+     suspend fun get(jobId: Long): Job? = db.transaction<Job?> { connection -> readJob(connection, jobId) }
+ 
+     private fun fetchInTransaction(
+@@ -188,9 +173,7 @@ internal class JobStore(
+         return takeResult(connection, jobId, text, rows.getLong(4), nowMs)
+     }
+ 
+-    // Inside the fetch window the result is returned WITHOUT clearing, so every GET in the window
+-    // sees the same text (idempotent). Only once the window has passed is the row cleared here and
+-    // reported gone, even when no purge has run yet.
++    // An expired result is cleared and reported gone even when no purge has run yet.
+     private fun takeResult(
+         connection: Connection,
+         jobId: Long,
+@@ -198,14 +181,12 @@ internal class JobStore(
+         finishedAtMs: Long,
+         nowMs: Long,
+     ): FetchOutcome {
+-        if (finishedAtMs > JobPolicy.resultWindowCutoffMs(nowMs, resultTtlMs)) {
+-            return FetchOutcome(JobPoll.Result(text), false)
+-        }
+         connection.prepareStatement(JobSql.CLEAR_RESULT).use { statement ->
+             statement.setLong(1, jobId)
+             statement.executeUpdate()
+         }
+-        return FetchOutcome(JobPoll.ResultGone, true)
++        val expired = finishedAtMs <= JobPolicy.expiryCutoffMs(nowMs)
++        return FetchOutcome(if (expired) JobPoll.ResultGone else JobPoll.Result(text), true)
+     }
+ 
+     private fun startAttempt(connection: Connection, id: Long, nowMs: Long): ClaimedJob {
+diff --git a/server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/BuildJobStoreTest.kt b/server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/BuildJobStoreTest.kt
+deleted file mode 100644
+index b5355976..00000000
+--- a/server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/BuildJobStoreTest.kt
++++ /dev/null
+@@ -1,59 +0,0 @@
+-package dev.breaker.server.whisper
+-
+-import dev.breaker.server.whisper.config.WhisperConfig
+-import dev.breaker.server.whisper.db.TempDatabaseTest
+-import dev.breaker.server.whisper.jobs.JobFixtures
+-import dev.breaker.server.whisper.jobs.JobPoll
+-import dev.breaker.server.whisper.jobs.MutableClock
+-import java.time.Duration
+-import kotlinx.coroutines.runBlocking
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertSame
+-import org.junit.Test
+-
+-/** main() builds the store through buildJobStore, which must thread the configured result TTL into
+- *  the store. A config of 120 s makes the fetch window 120 s, not the 600 s default; proven at the
+- *  boundary on both sides, so a buildJobStore that dropped the config (kept the default) goes red. */
+-internal class BuildJobStoreTest : TempDatabaseTest() {
+-
+-    private val ttlSeconds = 120
+-
+-    private fun textOf(poll: JobPoll): String {
+-        if (poll !is JobPoll.Result) {
+-            throw AssertionError("whisper-server: expected a result but got ${poll::class.simpleName}")
+-        }
+-        return poll.text
+-    }
+-
+-    @Test
+-    fun `buildJobStore wires the configured ttl so the fetch window is 120 s not the default`() {
+-        val temp = openTemp()
+-        val clock = MutableClock(JobFixtures.START)
+-        val config = WhisperConfig.fromEnv(
+-            mapOf(
+-                "BREAKER_WHISPER_PORT" to "8080",
+-                "BREAKER_WHISPER_DB" to "/tmp/test.db",
+-                "BREAKER_WHISPER_FORWARDER_URL" to "http://localhost:9000",
+-                "BREAKER_WHISPER_RESULT_TTL_S" to ttlSeconds.toString(),
+-            ),
+-        )
+-        val store = buildJobStore(temp.db, config, clock)
+-        val id: Long = runBlocking { JobFixtures.doneJob(store, 1L, "the configured window") }
+-
+-        clock.advance(Duration.ofMillis(ttlSeconds * 1000L - 1L))
+-        val within = runBlocking { store.fetch(id, 1L) }
+-        assertEquals(
+-            "whisper-server: one ms before the configured ttl the fetch must still return the text",
+-            "the configured window",
+-            textOf(within),
+-        )
+-
+-        clock.advance(Duration.ofMillis(1L))
+-        val gone = runBlocking { store.fetch(id, 1L) }
+-        assertSame(
+-            "whisper-server: at exactly the configured ttl the fetch must answer result gone",
+-            JobPoll.ResultGone,
+-            gone,
+-        )
+-    }
+-}
+diff --git a/server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/config/WhisperConfigTest.kt b/server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/config/WhisperConfigTest.kt
+index 02cb73e8..98dbb511 100644
+--- a/server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/config/WhisperConfigTest.kt
++++ b/server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/config/WhisperConfigTest.kt
+@@ -167,43 +167,6 @@ internal class WhisperConfigTest {
+         assertEquals("https://example.com", config.forwarderBaseUrl)
+     }
+ 
+-    @Test
+-    fun `BREAKER_WHISPER_RESULT_TTL_S parses a given value`() {
+-        val env = baseEnv + ("BREAKER_WHISPER_RESULT_TTL_S" to "120")
+-        val config = WhisperConfig.fromEnv(env)
+-        assertEquals(120, config.resultTtlSeconds)
+-    }
+-
+-    @Test
+-    fun `BREAKER_WHISPER_RESULT_TTL_S missing defaults to 600 seconds`() {
+-        val env = baseEnv - "BREAKER_WHISPER_RESULT_TTL_S"
+-        val config = WhisperConfig.fromEnv(env)
+-        assertEquals(600, config.resultTtlSeconds)
+-    }
+-
+-    @Test
+-    fun `BREAKER_WHISPER_RESULT_TTL_S a bad value refuses with a message naming BREAKER_WHISPER_RESULT_TTL_S`() {
+-        for (bad in listOf("   ", "-5", "abc", "0")) {
+-            val env = baseEnv + ("BREAKER_WHISPER_RESULT_TTL_S" to bad)
+-            val error = expectFailure<IllegalStateException> { WhisperConfig.fromEnv(env) }
+-            assertTrue("message must name BREAKER_WHISPER_RESULT_TTL_S for '$bad': ${error.message}", error.message!!.contains("BREAKER_WHISPER_RESULT_TTL_S"))
+-        }
+-    }
+-
+-    @Test
+-    fun `BREAKER_WHISPER_RESULT_TTL_S above 86400 refuses with a message naming BREAKER_WHISPER_RESULT_TTL_S`() {
+-        val env = baseEnv + ("BREAKER_WHISPER_RESULT_TTL_S" to "86401")
+-        val error = expectFailure<IllegalStateException> { WhisperConfig.fromEnv(env) }
+-        assertTrue("message must name BREAKER_WHISPER_RESULT_TTL_S: ${error.message}", error.message!!.contains("BREAKER_WHISPER_RESULT_TTL_S"))
+-    }
+-
+-    @Test
+-    fun `BREAKER_WHISPER_RESULT_TTL_S 86400 parses as the upper bound`() {
+-        val env = baseEnv + ("BREAKER_WHISPER_RESULT_TTL_S" to "86400")
+-        val config = WhisperConfig.fromEnv(env)
+-        assertEquals(86400, config.resultTtlSeconds)
+-    }
+-
+     private inline fun <reified T : Throwable> expectFailure(block: () -> Unit): T {
+         try {
+             block()
+diff --git a/server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutesTest.kt b/server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutesTest.kt
+index 89262d51..855fe383 100644
+--- a/server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutesTest.kt
++++ b/server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutesTest.kt
+@@ -3,7 +3,6 @@ package dev.breaker.server.whisper.http
+ import dev.breaker.server.whisper.db.TempDatabase
+ import dev.breaker.server.whisper.db.TestDatabases
+ import dev.breaker.server.whisper.jobs.JobFixtures
+-import dev.breaker.server.whisper.jobs.JobPolicy
+ import dev.breaker.server.whisper.jobs.JobStatus
+ import dev.breaker.server.whisper.jobs.JobStore
+ import dev.breaker.server.whisper.jobs.MutableClock
+@@ -18,7 +17,6 @@ import io.ktor.client.statement.bodyAsText
+ import io.ktor.client.request.forms.formData
+ import io.ktor.client.request.forms.FormDataContent
+ import io.ktor.http.Headers
+-import java.time.Duration
+ import java.util.concurrent.atomic.AtomicInteger
+ import org.junit.After
+ import org.junit.Assert.assertEquals
+@@ -35,14 +33,6 @@ internal class TranscriptionRoutesTest {
+         return JobFixtures.store(temp, MutableClock(JobFixtures.START))
+     }
+ 
+-    /** A store plus its MutableClock, so a test can advance time past the TTL after a job finishes. */
+-    private fun openStoreWithClock(): Pair<JobStore, MutableClock> {
+-        val temp = TestDatabases.openTemp()
+-        opened.add(temp)
+-        val clock = MutableClock(JobFixtures.START)
+-        return JobFixtures.store(temp, clock) to clock
+-    }
+-
+     @After
+     fun closeDatabases() {
+         for (temp in opened) {
+@@ -226,24 +216,12 @@ internal class TranscriptionRoutesTest {
+     }
+ 
+     @Test
+-    fun `a done job returns the same result on a second GET within the TTL`() {
++    fun `a done job is gone on the second read`() {
+         val store = openStore()
+         withTranscriptionApi(store) { client ->
+             val id = JobFixtures.doneJob(store, result = "{\"text\":\"hi\"}")
+             assertEquals("{\"status\":\"done\",\"result\":{\"text\":\"hi\"}}", client.poll(id).bodyAsText())
+-            assertEquals("{\"status\":\"done\",\"result\":{\"text\":\"hi\"}}", client.poll(id).bodyAsText())
+-        }
+-    }
+-
+-    @Test
+-    fun `an expired job id gives the same 404 unknown or expired body`() {
+-        val (store, clock) = openStoreWithClock()
+-        withTranscriptionApi(store) { client ->
+-            val id = JobFixtures.doneJob(store, result = "{\"text\":\"hi\"}")
+-            clock.advance(Duration.ofMillis(JobPolicy.RESULT_WINDOW_MS))
+-            val response = client.poll(id)
+-            assertEquals(404, response.status.value)
+-            assertEquals("{\"error\":\"unknown or expired\"}", response.bodyAsText())
++            assertEquals("{\"status\":\"done\",\"result\":null}", client.poll(id).bodyAsText())
+         }
+     }
+ 
+@@ -264,7 +242,7 @@ internal class TranscriptionRoutesTest {
+         withTranscriptionApi(store) { client ->
+             val response = client.poll(999)
+             assertEquals(404, response.status.value)
+-            assertEquals("{\"error\":\"unknown or expired\"}", response.bodyAsText())
++            assertEquals("{\"error\":\"no such job\"}", response.bodyAsText())
+         }
+     }
+ 
+@@ -274,7 +252,7 @@ internal class TranscriptionRoutesTest {
+         withTranscriptionApi(store) { client ->
+             val response = client.get("/v1/jobs/abc")
+             assertEquals(404, response.status.value)
+-            assertEquals("{\"error\":\"unknown or expired\"}", response.bodyAsText())
++            assertEquals("{\"error\":\"no such job\"}", response.bodyAsText())
+         }
+     }
+ 
+diff --git a/server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/AudioErasureTest.kt b/server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/AudioErasureTest.kt
+index 4c95b424..b625edb0 100644
+--- a/server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/AudioErasureTest.kt
++++ b/server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/AudioErasureTest.kt
+@@ -8,7 +8,6 @@ import kotlinx.coroutines.runBlocking
+ import org.junit.Assert.assertEquals
+ import org.junit.Assert.assertFalse
+ import org.junit.Assert.assertNotNull
+-import org.junit.Assert.assertSame
+ import org.junit.Assert.assertTrue
+ import org.junit.Test
+ 
+@@ -138,7 +137,7 @@ internal class AudioErasureTest : TempDatabaseTest() {
+     }
+ 
+     @Test
+-    fun `a fetch within the TTL returns the result and leaves it in the files`() {
++    fun `fetching a result erases it from every file`() {
+         val temp = openTemp()
+         val store = JobFixtures.store(temp, clock)
+         val claim: ClaimedJob = runBlocking { JobFixtures.claimed(store, 1L, JobFixtures.audio(1)) }
+@@ -148,10 +147,7 @@ internal class AudioErasureTest : TempDatabaseTest() {
+         val poll: JobPoll = runBlocking { store.fetch(claim.job.id, 1L) }
+ 
+         assertTrue("whisper-server: the fetch must return the result", poll is JobPoll.Result)
+-        assertFalse(
+-            "whisper-server: an in-window fetch must leave the result for an idempotent re-fetch",
+-            resultFiles(temp).isEmpty(),
+-        )
++        assertEquals("whisper-server: no file may hold a fetched result", emptyList<String>(), resultFiles(temp))
+     }
+ 
+     @Test
+@@ -169,36 +165,6 @@ internal class AudioErasureTest : TempDatabaseTest() {
+         assertEquals("whisper-server: no file may hold a purged result", emptyList<String>(), resultFiles(temp))
+     }
+ 
+-    @Test
+-    fun `fetching a result past the ttl erases it from every file`() {
+-        val temp = openTemp()
+-        val store = JobFixtures.store(temp, clock)
+-        val claim: ClaimedJob = runBlocking { JobFixtures.claimed(store, 1L, JobFixtures.audio(1)) }
+-        runBlocking { store.complete(claim.job.id, JobFixtures.MARKER_RESULT) }
+-        assertFalse("whisper-server: control, the result must be in a file before the fetch", resultFiles(temp).isEmpty())
+-        clock.advance(Duration.ofMillis(JobPolicy.RESULT_WINDOW_MS))
+-
+-        val poll: JobPoll = runBlocking { store.fetch(claim.job.id, 1L) }
+-
+-        assertSame("whisper-server: a fetch past the ttl must answer result gone", JobPoll.ResultGone, poll)
+-        assertEquals("whisper-server: no file may hold a result erased by the fetch", emptyList<String>(), resultFiles(temp))
+-    }
+-
+-    @Test
+-    fun `purging a result past the ttl erases it from every file`() {
+-        val temp = openTemp()
+-        val store = JobFixtures.store(temp, clock)
+-        val claim: ClaimedJob = runBlocking { JobFixtures.claimed(store, 1L, JobFixtures.audio(1)) }
+-        runBlocking { store.complete(claim.job.id, JobFixtures.MARKER_RESULT) }
+-        assertFalse("whisper-server: control, the result must be in a file before the purge", resultFiles(temp).isEmpty())
+-        clock.advance(Duration.ofMillis(JobPolicy.RESULT_WINDOW_MS))
+-
+-        val purged: Int = runBlocking { store.purgeTtl() }
+-
+-        assertEquals("whisper-server: the ttl purge must take the one result", 1, purged)
+-        assertEquals("whisper-server: no file may hold a result erased by the ttl purge", emptyList<String>(), resultFiles(temp))
+-    }
+-
+     @Test
+     fun `recovery that fails an exhausted job erases its audio from every file`() {
+         val temp = openTemp()
+diff --git a/server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobStoreFetchTest.kt b/server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobStoreFetchTest.kt
+index 847a212b..d61803c7 100644
+--- a/server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobStoreFetchTest.kt
++++ b/server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobStoreFetchTest.kt
+@@ -17,8 +17,7 @@ import org.junit.Assert.assertNotNull
+ import org.junit.Assert.assertSame
+ import org.junit.Test
+ 
+-/** A finished result is re-fetchable (the same text) for the whole TTL window; past the window the
+- *  fetch clears it and answers result gone. Every other answer leaves the row alone. */
++/** The first fetch of a result gets it and deletes it; every other answer leaves the row alone. */
+ internal class JobStoreFetchTest : TempDatabaseTest() {
+ 
+     private val clock = MutableClock(JobFixtures.START)
+@@ -72,7 +71,7 @@ internal class JobStoreFetchTest : TempDatabaseTest() {
+     }
+ 
+     @Test
+-    fun `the first and second fetch of a done job within the TTL both return the exact text`() {
++    fun `the first fetch of a done job returns the exact text and the second returns result gone`() {
+         val temp = openTemp()
+         val store = JobFixtures.store(temp, clock)
+         val id: Long = runBlocking { JobFixtures.doneJob(store, 1L, "the spoken words, exactly") }
+@@ -81,19 +80,19 @@ internal class JobStoreFetchTest : TempDatabaseTest() {
+         val second: JobPoll = runBlocking { store.fetch(id, 1L) }
+ 
+         assertEquals("whisper-server: the first fetch must return the stored text", "the spoken words, exactly", textOf(first))
+-        assertEquals("whisper-server: the second fetch within the TTL must return the same text", "the spoken words, exactly", textOf(second))
++        assertSame("whisper-server: the second fetch must find the result gone", JobPoll.ResultGone, second)
+     }
+ 
+     @Test
+-    fun `the stored result survives the first fetch within the TTL and the job stays done`() {
++    fun `the stored result is NULL in the row after the first fetch and the job stays done`() {
+         val temp = openTemp()
+         val store = JobFixtures.store(temp, clock)
+-        val id: Long = runBlocking { JobFixtures.doneJob(store, 1L, "to be kept for a re-fetch") }
++        val id: Long = runBlocking { JobFixtures.doneJob(store, 1L, "to be deleted") }
+         assertEquals("whisper-server: the result must be stored before the fetch", 1L, storedResults(temp))
+ 
+         runBlocking { store.fetch(id, 1L) }
+ 
+-        assertEquals("whisper-server: the first fetch within the TTL must leave the stored result", 1L, storedResults(temp))
++        assertEquals("whisper-server: the fetch must delete the stored result", 0L, storedResults(temp))
+         val job: Job? = runBlocking { store.get(id) }
+         assertNotNull("whisper-server: the row itself must stay", job)
+         assertEquals("whisper-server: the job must stay done", JobStatus.DONE, job!!.status)
+@@ -182,41 +181,43 @@ internal class JobStoreFetchTest : TempDatabaseTest() {
+     }
+ 
+     @Test
+-    fun `eight concurrent fetches of one done job within the TTL all return the same result`() {
++    fun `eight concurrent fetches of one done job give exactly one result and seven result gone`() {
+         val temp = openTemp()
+         val store = JobFixtures.store(temp, clock)
+-        val id: Long = runBlocking { JobFixtures.doneJob(store, 1L, "every caller gets this") }
++        val id: Long = runBlocking { JobFixtures.doneJob(store, 1L, "only one caller gets this") }
+ 
+         val polls: List<JobPoll> = concurrently<JobPoll>(calls) { store.fetch(id, 1L) }
+ 
+         val results = polls.filter { poll -> poll is JobPoll.Result }
+-        assertEquals("whisper-server: every concurrent caller within the TTL must get a result", calls, results.size)
+-        assertEquals("whisper-server: every caller must get the same stored text", "every caller gets this", textOf(results[0]))
++        val gone = polls.filter { poll -> poll === JobPoll.ResultGone }
++        assertEquals("whisper-server: exactly one caller may get the result", 1, results.size)
++        assertEquals("whisper-server: the winner must get the stored text", "only one caller gets this", textOf(results[0]))
++        assertEquals("whisper-server: every other caller must find it gone", calls - 1, gone.size)
+     }
+ 
+     @Test
+-    fun `a result is still returned one millisecond before the TTL after it finished`() {
++    fun `a result is still returned one millisecond before 24 hours after it finished`() {
+         val temp = openTemp()
+         val store = JobFixtures.store(temp, clock)
+         val id: Long = runBlocking { JobFixtures.doneJob(store, 1L, "just in time") }
+-        clock.advance(Duration.ofMillis(JobPolicy.RESULT_WINDOW_MS - 1L))
++        clock.advance(Duration.ofMillis(86_400_000L - 1L))
+ 
+         val poll: JobPoll = runBlocking { store.fetch(id, 1L) }
+ 
+-        assertEquals("whisper-server: a result must live until the TTL after it finished", "just in time", textOf(poll))
++        assertEquals("whisper-server: a result must live until 24 hours after it finished", "just in time", textOf(poll))
+     }
+ 
+     @Test
+-    fun `at exactly the TTL the fetch answers result gone without any purge and clears the row`() {
++    fun `at exactly 24 hours the fetch answers result gone without any purge and clears the row`() {
+         val temp = openTemp()
+         val store = JobFixtures.store(temp, clock)
+         val id: Long = runBlocking { JobFixtures.doneJob(store, 1L, "too late") }
+         assertEquals("whisper-server: the result must be stored before the fetch", 1L, storedResults(temp))
+-        clock.advance(Duration.ofMillis(JobPolicy.RESULT_WINDOW_MS))
++        clock.advance(Duration.ofMillis(86_400_000L))
+ 
+         val poll: JobPoll = runBlocking { store.fetch(id, 1L) }
+ 
+-        assertSame("whisper-server: at the TTL exactly the result must be gone", JobPoll.ResultGone, poll)
++        assertSame("whisper-server: at 24 hours exactly the result must be gone", JobPoll.ResultGone, poll)
+         assertEquals("whisper-server: the expired result must be cleared by the fetch itself", 0L, storedResults(temp))
+     }
+ 
+diff --git a/server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobStorePurgeTest.kt b/server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobStorePurgeTest.kt
+index 8b0e3cf7..dbc93aba 100644
+--- a/server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobStorePurgeTest.kt
++++ b/server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/jobs/JobStorePurgeTest.kt
+@@ -148,26 +148,7 @@ internal class JobStorePurgeTest : TempDatabaseTest() {
+     }
+ 
+     @Test
+-    fun `a fetched result past the ttl is erased by the ttl purge and not counted by the 24h purge`() {
+-        val temp = openTemp()
+-        val store = JobFixtures.store(temp, clock)
+-        val id: Long = runBlocking { JobFixtures.doneJob(store, 1L, "fetched in time") }
+-        val poll: JobPoll = runBlocking { store.fetch(id, 1L) }
+-        assertEquals("whisper-server: the fetch must have returned the result", true, poll is JobPoll.Result)
+-        clock.advance(Duration.ofMillis(JobPolicy.RESULT_WINDOW_MS))
+-
+-        val ttlPurged: Int = runBlocking { store.purgeTtl() }
+-
+-        assertEquals("whisper-server: the ttl purge must erase the fetched result", 1, ttlPurged)
+-        clock.advance(Duration.ofMillis(86_400_000L - JobPolicy.RESULT_WINDOW_MS))
+-
+-        val purged: Int = runBlocking { store.purgeExpired() }
+-
+-        assertEquals("whisper-server: a result erased by the ttl purge must not be counted by the 24h purge", 0, purged)
+-    }
+-
+-    @Test
+-    fun `a fetched result within the ttl stays stored and is still counted by the 24h purge`() {
++    fun `a result fetched before the purge is not counted`() {
+         val temp = openTemp()
+         val store = JobFixtures.store(temp, clock)
+         val id: Long = runBlocking { JobFixtures.doneJob(store, 1L, "fetched in time") }
+@@ -177,7 +158,7 @@ internal class JobStorePurgeTest : TempDatabaseTest() {
+         val purged: Int = runBlocking { store.purgeExpired() }
+ 
+         assertEquals("whisper-server: the fetch must have returned the result", true, poll is JobPoll.Result)
+-        assertEquals("whisper-server: a fetch within the ttl keeps the result stored for re-fetch, so the 24h purge still counts it", 1, purged)
++        assertEquals("whisper-server: a result that is already gone must not be counted", 0, purged)
+     }
+ 
+     private companion object {
