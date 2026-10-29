@@ -1,0 +1,86 @@
+{
+ "name": "proof-u1b",
+ "tip": {
+  "tree": "831ce1b37990e05cf28c37956241868437c73e7b"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "core: the port contract test reads install() through the port type (test only)",
+   "base_tree": "e2d9f46fbe6abed96e48e96986a40b04f31fdd19",
+   "item_tip_tree": "831ce1b37990e05cf28c37956241868437c73e7b",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [],
+   "red_not_run": "test-only change; this proof re-runs one mutant"
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test"
+ },
+ "shards": 1,
+ "entries": [
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/core",
+   "edits": [
+    {
+     "file": "android/modules/core/src/main/kotlin/dev/breaker/dictation/core/port/UpdateChecker.kt",
+     "anchor": "fun install(release: ReleaseInfo): UpdateInstallResult",
+     "replacement": "fun install(release: ReleaseInfo): UpdateInstallResult?"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [
+    "PortContractTest.a phrase training and an update port are writable against the domain"
+   ],
+   "rule": "install() returns a non-null result: the contract test reads it through the port type, so a nullable return no longer compiles (compiler-caught, not a kill)",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "android/modules/updater",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/VersionCode.kt",
+     "anchor": "    internal const val MAX: Int = 2_100_000_000\n",
+     "replacement": "    internal const val MAX: Int = 2_100_000_001\n"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "android/modules/updater",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/VersionCode.kt",
+     "anchor": "    internal const val MAX: Int = 2_100_000_000\n",
+     "replacement": "    internal const val MAX: Int = 2_100_000_000 // unchanged behaviour\n"
+    }
+   ]
+  }
+ ]
+}
