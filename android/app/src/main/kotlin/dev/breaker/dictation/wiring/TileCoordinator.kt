@@ -67,7 +67,7 @@ class TileCoordinator(
     private val heldHide: KeyboardHideHold = KeyboardHideHold()
     private val portCalls: TilePortCalls = TilePortCalls(take, modelReady, background)
 
-    /** The one seam every keyboard-driven SHOW passes through; default true. A shake setting flips this property. When off, the coordinator does not put the tile back on screen. */
+    /** The one seam every keyboard-driven SHOW passes through; default true. Nothing in the app sets it; the keyboard tile switch is read through [wake]. When off, the coordinator does not put the tile back on screen. */
     internal var keyboardAutoPop: Boolean = true
     internal var wake: WakePolicy = WakePolicy.permissive() // the default keeps the old behaviour
     /** Remembers the user closed the tile; cleared on launcher visible (through arm) or switch off/on. */
