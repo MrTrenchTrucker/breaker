@@ -178,7 +178,7 @@ admins.
       target (an X in a circle) near the bottom of the screen; dropping the tile on
       it hides the tile. Dictation stays switched on, so a shake brings the tile back,
       and "Breaker Breaker" brings it back and starts recording (F4); opening Breaker from its icon
-      shows it again. Switching dictation off stays in the notification and the app.
+      shows it again. Switching dictation off stays in the notification and the app. A close during a take that is recording or whose begin is pending ends that take first, as Cancel does.
 - F39. **Busy cue:** from the check tap until the final outcome the tile shows
       that the text is being processed: the ring takes a colour of its own and
       pulses on its own rhythm; there is no spinner (ADR-024).
