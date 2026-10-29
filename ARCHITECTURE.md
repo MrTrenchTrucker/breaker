@@ -185,10 +185,10 @@ admins.
 - F40. **Loudness bar:** while recording, the meter in the microphone's grille follows how
       loud the voice is; the app works out the level from the audio it already
       receives and passes it to the tile (ADR-024).
-- F41. **Hide without a keyboard:** the tile appears by itself when a text input
-      opens or the keyboard comes up, and hides when it goes away. A shake still
-      brings it back (F4, F38). A temporary developer setting (off, field focus,
-      keyboard visible) picks the signal and is removed before release (ADR-024).
+- F41. **Hide without a keyboard:** the tile comes up by itself when a keyboard opens over
+      an editable text field, while dictation is switched on. It goes away when the keyboard
+      that brought it up goes. A tile the user closes while that keyboard is up stays closed
+      until the next keyboard session, and a shake still brings it back (F4, F38).
 - F42. **Normal-looking text:** a transcript the speech engine prints entirely in
       capitals is turned into lower case, with the capital "I" restored, before it
       is formatted (ADR-023).
@@ -448,7 +448,9 @@ ends it.
   cut this way is ended, not cancelled: what was captured is transcribed, saved
   to history and copied to the clipboard, never typed into the field.
 - **Permissions (F11):** after the welcome, one screen per permission:
-  microphone, overlay, notifications and the accessibility service. The
+  microphone, overlay, notifications and the accessibility service. A screen after the
+  accessibility one explains the keyboard tile; it asks for no new permission and leads to the
+  same accessibility settings. The
   accessibility service has no system dialog to request; its screen leads the
   user to its Settings toggle instead (ADR-022). **High-power mode (F12):**
   verify power-saving off.
@@ -464,9 +466,20 @@ ends it.
 
 **Overlay (floating tile):** `WindowManager` + `TYPE_APPLICATION_OVERLAY` with `FLAG_NOT_FOCUSABLE` (Android 11+). Tile has no long press: a tap starts dictation, a drag moves the tile or hides it (F38); tapping it starts dictation in place, on the tile — no Activity opens, so the app the user is typing in keeps focus and the user's own keyboard stays up (ADR-022). The tile IS the **CB mic glyph** — tap to talk. While recording, a **level meter** lights the mic's grille slots from left to right, and an X (cancel) and a check (send) sit either side of the mic, each 90% of the mic's size and about 8 dp from it; the check (or the send phrase) sends (F36). A notice on the tile (a sentence from the app, such as a missing speech model) widens it for a moment: it collapses back to the small tile on its own after 4 seconds, and a tap anywhere on it collapses it at once; the timer is the app's, the tile has no clock. Dragging the small tile shows the close target (F38). After the check tap the tile shows a busy cue until the outcome (F39), the level meter follows the voice level (F40), and the tile may hide while no text input is in use (F41, ADR-024). The overlay module also provides the same mic for an app screen, with no window, no drag and no notice strip; the app places it on Home (F45, ADR-026). Permission set: `SYSTEM_ALERT_WINDOW` (tile), mic, internet, foreground service, notifications (F11), plus the accessibility service — a Settings toggle onboarding leads the user to, not a runtime prompt (ADR-022) [1].
 
-**Keyboard tile (F41, ADR-024), PLANNED:** a pure function in `TileCoordinator` decides
-SHOW/HIDE/NO_OP from field focus, the IME window and the bottom inset; which signal wins and the
-debounce stay OPEN pending the phone's probe readings.
+**Keyboard tile (F41, ADR-024):** the show and hide decision is the pure function `decision` in
+`KeyboardTileDecision.kt`. It takes whether a keyboard window is open, whether an editable field
+is focused, whether the session raised the tile, whether the user closed it during the session,
+and two times, and returns Show, Hide or NoOp. A keyboard window with an editable focus shows the
+tile unless the user closed it in that session; a keyboard window with no editable focus leaves it
+as it is; no keyboard window hides the tile only when the session raised it. A reading within 250 ms
+of the last acted change is held, and the newest held reading is acted on once when that window ends.
+The readings come from the accessibility service on each window
+event: the keyboard window is an input-method window in the window list, and the field is the
+input-focused node's editable flag. No text is read. A keyboard show goes through the same check as a
+shake (dictation switched on and no take in flight). A hide that comes during a take is held and
+applied once when the take ends, if the keyboard is still gone. A keyboard show drops a held hide.
+A reading held when a take starts is acted at once, and a hide it brings is held to the take end.
+The bottom inset is not an input of the decision.
 
 ## 9. Formatting
 

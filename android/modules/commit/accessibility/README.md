@@ -6,7 +6,7 @@ works with whatever keyboard the user already has on screen and no window of our
 
 Full module card: `AGENTS.md` in this folder.
 
-Every statement below about what the service reads, requests or does describes the RELEASE build. The debug build adds a keyboard probe; see "Debug probe build" below.
+Every statement below about what the service reads, requests or does holds in every build: the debug and release builds carry the same service config.
 
 ## What happens on one insert
 
@@ -52,7 +52,7 @@ Every statement below about what the service reads, requests or does describes t
 | `PasswordInputType.kt` | Pure password rule: the raw input type number in, password or not out. The adapter's `isPassword` uses it. |
 | `NodeFocusedField.kt` | The resolver published to the parent: the order of checks, reads and calls above. |
 | `adapter/AndroidFieldNode.kt` | The node adapter and the finder: one framework call per member, except `isPassword`, which reads two (the platform flag, then the input type); the active window's root and its input-focused node only. |
-| `adapter/BreakerAccessibilityService.kt` | The accessibility service: publishes the resolver on connect, closes the handle on unbind and destroy. When the debug probe is on, the service only checks whether a keyboard window is open and reads which field has focus, never any text. |
+| `adapter/BreakerAccessibilityService.kt` | The accessibility service: publishes the resolver on connect, closes the handle on unbind and destroy. The service checks whether a keyboard window is open and reads which field has focus, never any text. |
 | `src/main/AndroidManifest.xml` | Declares the one service, bound only by the system. |
 | `src/main/res/xml/commit_accessibility_service_config.xml` | The service config: the three event types (`typeViewFocused`, `typeWindowsChanged`, `typeWindowStateChanged`) plus the interactive-windows flag and window-content access; nothing else. |
 | `src/main/res/values/strings.xml` | The service label and the description Android shows in its accessibility list. |
@@ -62,19 +62,15 @@ JVM test runs without a device. Only the service class is public; the rest is in
 
 ## What it deliberately does not do
 
-- In a release build the service reads two keyboard-presence booleans (field focus, and whether an input-method window is present), the event name, and the time on every window-relevant event via `publishLatest`; it never reads any text or node content, keeps nothing across events, and the debug probe's own page/lines are unchanged. The release build always sends these readings — the debug probe switch only gates the probe's own recent-history store, not the production reading; nothing turns the production read off (`ProbeReleaseGateTest` pins that). The config lists the three event types plus the interactive-windows flag because a window-relevant reading is published on every such event.
+- In a release build the service reads two keyboard-presence booleans (field focus, and whether an input-method window is present), the event name, and the time on every window-relevant event via `publishLatest`; it never reads any text or node content and keeps nothing across events. The service always sends these readings; nothing turns the production read off. The config lists the three event types plus the interactive-windows flag because a window-relevant reading is published on every such event.
 - It keeps nothing: no node, no text, no field state between two calls.
 - It logs, stores and sends nothing, and has no clipboard code. The clipboard fallback
   belongs to the parent.
 - `ACTION_PASTE` is not built. It would come only behind a clipboard seam in the parent,
   and only if a device shows that apps refuse `ACTION_SET_TEXT`.
 - It does not walk the screen: no children, no parents, no search. The window list is read
-  only by the debug probe (see Debug probe); the release build never reaches it.
+  only to find the keyboard window, and each listed window is recycled once.
 - It does not onboard the permission (that is the `ui` module's job).
-
-## Debug probe build
-
-When the debug probe is on, the service only checks whether a keyboard window is open and reads which field has focus, never any text. In the debug build a config overlay adds the interactive-windows flag (0x40) and three event types; the release build is unchanged. Details: `AGENTS.md`, "Debug probe build".
 
 ## Privacy rules
 
@@ -113,9 +109,9 @@ is in `AGENTS.md`. Every test message starts with "commit/accessibility:".
     two text actions, read no event, look only at the input focus, publish once, close on
     unbind and destroy, and map each node member to its one pinned framework call. They
     read the service with the probe path cut out (`ProbeView`).
-  - `ProbeReadGateTest`: the probe path is the only place that reads the window list or
-    publishes a second time; the handler returns before any read when the probe is off;
-    every listed window is recycled once; the probe path never reads text or content.
+  - `ProbeReadGateTest`: the window list is read in one place only, and the handler publishes
+    from one place only; the handler's first statement is the null skip, with no probe-state
+    guard; every listed window is recycled once; the probe path never reads text or content.
   - `ModuleFilesGateTest`: the module folder holds exactly the pinned files. A new file
     must be added to its list on purpose.
 - The gate tests hold samples that fire each rule and samples that stay quiet. The two

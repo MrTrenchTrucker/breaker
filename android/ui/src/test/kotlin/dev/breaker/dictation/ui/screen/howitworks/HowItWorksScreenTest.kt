@@ -99,4 +99,12 @@ class HowItWorksScreenTest {
         val actions = rendered.nodes.filterIsInstance<dev.breaker.dictation.ui.screen.Action>()
         assertEquals(0, actions.size)
     }
+
+
+    @Test
+    fun `the keyboard tile page has its heading and its reason on the screen`() {
+        val labels = screen.render().nodes.filterIsInstance<dev.breaker.dictation.ui.screen.Label>().map { it.text }
+        assertTrue("the keyboard tile heading is not on the screen", labels.contains(SetupTexts.HEADING_KEYBOARD_TILE))
+        assertTrue("the keyboard tile reason is not on the screen", labels.contains(SetupTexts.WHY_KEYBOARD_TILE))
+    }
 }

@@ -1,6 +1,6 @@
 # AGENTS.md — android/modules/commit/accessibility/
 
-> Scope: every statement in this card about what the service reads, requests or does describes the RELEASE build. The debug build adds a keyboard probe; "Debug probe build" below says what it adds and where it differs.
+> Scope: every statement in this card about what the service reads, requests or does holds in every build: the debug and release builds carry the same service config and the same service code. The keyboard reading is described under "Keyboard reading in every build" below.
 
 ## Purpose
 
@@ -93,24 +93,23 @@ From ADR-022, enforced by tests that read this module's own files:
   (`typeViewFocused`, `typeWindowsChanged`, `typeWindowStateChanged`) plus
   `flagRetrieveInteractiveWindows` and `canRetrieveWindowContent`. It now
   publishes a keyboard-presence reading (two booleans + the event name + time)
-  on every window-relevant event via `publishLatest`; the release build keeps
-  this read always active — the debug probe switch only gates the probe's own
-  recent-history store, never the production reading. Probe off by default in
-  a release build.
+  on every window-relevant event via `publishLatest`, in every build. The probe
+  switch (`KeyboardProbeReadings.setEnabled`) gates only the recent lines; no
+  release code turns it on, so a release build keeps no recent lines.
   - Tested by: `ConfigGateTest`, `ManifestGateTest`, `ModuleFilesGateTest`.
-- When the debug probe is on, the service only checks whether a keyboard window is open and reads which field has focus, never any text.
+- On every window-relevant event the service checks whether a keyboard window is open and whether the focused field is editable; it reads no text.
   - Tested by: `ProbeReadGateTest`.
 
-## Debug probe build
+## Keyboard reading in every build
 
-Temporary, debug build only. It goes before release. When the debug probe is on, the service only checks whether a keyboard window is open and reads which field has focus, never any text.
+Production code in every build, not a probe. On every window-relevant event the service checks whether a keyboard window is open and whether the focused field is editable, and publishes the two Booleans, the event name and a time to the commit module's `KeyboardProbeReadings` with `publishLatest`. It never reads any text or content.
 
-- What it adds: a debug overlay of the service config (`android/app/src/debug/res/xml/commit_accessibility_service_config.xml`, the same file name, so in the debug build it replaces this module's file). It adds `flagRetrieveInteractiveWindows` (flag 0x40) and three event types: `typeViewFocused`, `typeWindowsChanged` and `typeWindowStateChanged`. This module's own config, manifest and gates are byte-identical to main, so the release build keeps the config described in the rest of this file.
-- When it runs: the probe path is compiled into every build, but it runs only while `KeyboardProbeReadings.isEnabled()` is true. Only debug code turns that on (the "Breaker probe" page and its start provider, in the app's debug source set). The first statement of `onAccessibilityEvent` returns at once when the event is null or the probe is off, before any read. With the debug config and the probe off, the system still sends the events and the handler returns at once.
-- What it reads when it is on: whether the active window's input-focused node is editable (the existing finder; the node is released once), whether the window list holds an input-method window (each listed window is recycled once), the event's name, and the time. It publishes these into the parent's `KeyboardProbeReadings` (memory only, the last 40 lines). It never reads text or content, and it changes nothing on the screen or about when the tile shows.
-- Release builds carry none of the debug parts: no probe page, no start provider, no selector, no debug config overlay. The app's `ProbeReleaseGateTest` pins that (release manifest, release sources, release resources hold no service config). The probe code in the service itself is compiled into release but cannot be turned on there: the same test pins that no file outside the debug source set calls `KeyboardProbeReadings.setEnabled`.
+- The service config is the one in this module's `src/main/res/xml/` in every build: the three event types, the interactive-windows flag and window-content access. No build overrides it.
+- When it runs: on every event of the three types. `onAccessibilityEvent` returns at once when the event is null; an event from Breaker's own package is skipped; nothing else gates the reading.
+- What it reads: whether the active window's input-focused node is editable (the node is released once), whether the window list holds an input-method window (each listed window is recycled once), the event's name, and the time. It publishes these with `publishLatest`; the recent lines are kept only while the probe switch is on, and no release code turns it on. It never reads text or content, and it changes nothing on the screen.
+- The probe switch (`KeyboardProbeReadings.setEnabled`) has no caller outside the tests. The app's `ProbeReleaseGateTest` pins that no main source of the app or of any module calls it.
 - The insert rule, the refusals and the password rule above are not touched by it.
-- Tested by: `ProbeReadGateTest` (this module); `ProbeReleaseGateTest` (the app module: the release build holds none of the debug parts, and no file outside the debug source set turns the probe on) and `ProbeShowHideGateTest` (the probe cannot change when the tile shows or hides).
+- Tested by: `ProbeReadGateTest` (this module); `ProbeReleaseGateTest` (the app module: no main source turns the probe switch on) and `ProbeShowHideGateTest` (the show and hide paths of the tile name no probe symbol).
 
 ## Test Locations
 - Unit (Kotlin): `android/modules/commit/accessibility/src/test/kotlin/`. Run: `./gradlew :android:modules:commit:accessibility:test`
@@ -143,7 +142,7 @@ one module at a time. The owner does not write the module's code. The owner:
   tests;
 - coordinates and orchestrates those sub-agents, checks every piece of their
   work, and sends back anything that is wrong until it is right;
-- convenes a small council of sub-agents to advise on design, risks and tests
+- asks a small set of reviewers for advice on design, risks and tests
   before and during the build;
 - hands the finished, checked module directly to the reviewer as a single pull
   request.

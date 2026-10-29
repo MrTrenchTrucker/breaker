@@ -20,6 +20,7 @@ internal object FirstRunPictures {
             FirstRunPage.OVERLAY -> "overlay"
             FirstRunPage.NOTIFICATIONS -> "notify"
             FirstRunPage.ACCESSIBILITY -> "access"
+            FirstRunPage.KEYBOARD_TILE -> "kbtile"
             FirstRunPage.WELCOME, FirstRunPage.DOWNLOAD -> return null
         }
         return permissionName(part, dark)
@@ -38,6 +39,8 @@ internal object FirstRunPictures {
         permissionName("notify", dark = true),
         permissionName("access", dark = false),
         permissionName("access", dark = true),
+        permissionName("kbtile", dark = false),
+        permissionName("kbtile", dark = true),
         logoName(dark = false),
         logoName(dark = true),
     )

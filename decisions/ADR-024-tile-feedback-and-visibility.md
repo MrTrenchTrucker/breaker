@@ -87,11 +87,10 @@ Amended 2026-10-20 (keyboard visibility design note). Built (the code is in main
 - **Decision function.** The choice is one pure function in `KeyboardTileDecision.kt` (a top-level function of the wiring package; `KeyboardTileSession` calls it for `TileCoordinator`): `decision(imeWindowPresent, fieldFocused, keyboardRaised, closedDuringSession, nowMs, lastChangeMs)` returns SHOW, HIDE or NO_OP; the decision is built from exactly those four presence booleans and two time stamps (no insetGrew, no currentShown - the code's actual inputs). The debounce time is 250 ms. A reading that falls inside the window is held, and the newest held reading is re-evaluated once when the window ends, through the one pending post. A reading held when a take begins is acted at once, and its hide is held to the take end; a held hide keeps the raised mark, and it is applied at take end only when the last raw reading still says the keyboard is gone. A keyboard show or a switch-off drops a held hide; a switch-off always releases the raised mark and cancels the pending post.
   The shake and microphone-yield tests belong to `TileCoordinator`, not
   to the pure function.
-- **Developer setting.** The temporary selector is `KeyboardSignalSetting` in
-  the app's `debug` source set, default OFF. At main it exists for the probe
-  only, with the values OFF, FIELD_FOCUS and KEYBOARD_VISIBLE, and drives no
-  tile behaviour. It is removed before release together with the losing
-  signal's code.
+- **Developer setting.** The temporary selector was `KeyboardSignalSetting` in
+  the app's `debug` source set, default OFF. It existed for the probe only, with
+  the values OFF, FIELD_FOCUS and KEYBOARD_VISIBLE, and drove no tile behaviour.
+  It was removed with the keyboard probe and the losing signal's code.
 - **Wording.** A line on the accessibility screen or in the service
   description for the case where the keyboard window wins needs the project
   leader's wording before it is written.

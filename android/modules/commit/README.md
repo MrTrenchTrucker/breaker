@@ -28,8 +28,8 @@ Pure Kotlin (seven files), in `src/main/kotlin/dev/breaker/dictation/commit/`:
   dropped and the call fails as not responding.
 - `KeyboardProbeReadings.kt` - the holder of the keyboard readings. Its production seam
   (`publishLatest`, `readings`, `current`) feeds the keyboard tile in every build; its
-  probe members (`setEnabled`, `isEnabled`, `publish`, `recent`): no release code calls them;
-  nothing here promises their removal. Its public members, one line each:
+  probe members (`setEnabled`, `isEnabled`, `publish`, `recent`) have callers only in tests:
+  no release code calls them; nothing here promises their removal. Its public members, one line each:
   `setEnabled(on)` turns the probe on or off (off clears the readings);
   `isEnabled()`; `shouldProcessEvent(eventPackage, ownPackage)` skips the probe's own
   package; `publish(fieldFocus, imeWindow, lastEvent, time)` stores a reading while the

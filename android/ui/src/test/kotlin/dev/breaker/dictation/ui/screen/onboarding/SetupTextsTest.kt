@@ -78,6 +78,7 @@ class SetupTextsTest {
         "BUTTON_REQUEST_MICROPHONE", "BUTTON_REQUEST_NOTIFICATIONS", "BUTTON_OVERLAY_PAGE",
         "BUTTON_NOTIFICATION_PAGE", "BUTTON_ACCESSIBILITY_LIST", "BUTTON_APP_INFO", "BUTTON_CHECK_AGAIN",
         "NOTIFICATIONS_LOST", "ACCESSIBILITY_LIMITS",
+        "HEADING_KEYBOARD_TILE", "WHY_KEYBOARD_TILE", "KEYBOARD_TILE_LIMITS",
         "RESTRICTED_INTRO", "RESTRICTED_STEP_1", "RESTRICTED_STEP_2", "RESTRICTED_STEP_3",
         "SWITCH_HEADING", "SWITCH_ON_STATE", "SWITCH_OFF_STATE", "BUTTON_SWITCH_ON", "BUTTON_SWITCH_OFF",
         "SWITCH_NEEDS_MICROPHONE", "SWITCH_NOTE_ONGOING_NOTICE",
@@ -211,6 +212,13 @@ class SetupTextsTest {
         for (promise in promises) {
             assertTrue("the limits do not say \"$promise\"", limits.contains(promise))
         }
+        assertTrue(
+            "the limits do not add the keyboard sentence right after the field sentence",
+            limits.contains(
+                "It reads only the one field it types into. It also notices, without reading anything, " +
+                    "whether a text field is selected and whether the keyboard is open. It never fills a password field.",
+            ),
+        )
     }
 
     @Test
@@ -313,5 +321,24 @@ class SetupTextsTest {
     fun `no text is left for a warning about notifications`() {
         assertFalse("WARNING_NO_NOTIFICATIONS is still defined", "WARNING_NO_NOTIFICATIONS" in texts)
         assertEquals("the warning texts", listOf("WARNING_NO_ACCESSIBILITY", "WARNING_NO_OVERLAY"), texts.keys.filter { it.startsWith("WARNING_") }.sorted())
+    }
+
+
+    @Test
+    fun `the keyboard tile page has the heading and the reason the set-up texts give it`() {
+        assertEquals("Floating tile with your keyboard", text("HEADING_KEYBOARD_TILE"))
+        assertEquals(
+            "When you open the keyboard to type in any app, Breaker can bring up its tile for you. " +
+                "It uses the same accessibility access as the page before.",
+            text("WHY_KEYBOARD_TILE"),
+        )
+    }
+
+    @Test
+    fun `the keyboard tile privacy line says no text is read and nothing is kept`() {
+        val privacy = text("KEYBOARD_TILE_LIMITS")
+        assertTrue("the privacy line does not say the field and the screen are never read", privacy.contains("It never reads what is in the field or on your screen."))
+        assertTrue("the privacy line does not say nothing is kept", privacy.contains("It keeps nothing"))
+        assertTrue("the privacy line does not say nothing is sent off the phone", privacy.contains("sends nothing off the phone."))
     }
 }

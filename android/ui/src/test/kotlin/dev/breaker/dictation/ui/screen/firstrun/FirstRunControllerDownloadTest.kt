@@ -47,7 +47,7 @@ class FirstRunControllerDownloadTest {
     }
 
     private fun Rig.toDownloadPage() {
-        repeat(5) { controller.advance() }
+        repeat(6) { controller.advance() }
     }
 
     @Test
