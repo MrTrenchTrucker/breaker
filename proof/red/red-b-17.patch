@@ -1,0 +1,71 @@
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileDecision.kt b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileDecision.kt
+index e2657ae7..762fd522 100644
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileDecision.kt
++++ b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileDecision.kt
+@@ -25,9 +25,9 @@ internal const val DEBOUNCE_MS: Long = 250
+  * The inputs are exactly six: [imeWindowPresent] (a keyboard window is open), [fieldFocused] (an
+  * editable field is focused), [keyboardRaised] (this session raised a tile that was not showing
+  * before it started) and [closedDuringSession] (the user closed the tile while this session was
+- * active). [nowMs] is the current monotonic millisecond count and [lastChangeMs] is the count
+- * at the last change of the inputs; only their difference is used, never as a calendar time.
+- * The result is pure: no state beyond what it is given, so a test can pin every path by calling it.
++ * active). [nowMs] is the current wall-clock time; [lastChangeMs] is the last time this function's
++ * inputs changed. The result is pure: nothing of its own state beyond what it is given, so a test can
++ * pin every path by calling it directly.
+  */
+ internal fun decision(
+     imeWindowPresent: Boolean,
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardReevaluationTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardReevaluationTest.kt
+index 1585ee8e..5fe2982a 100644
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardReevaluationTest.kt
++++ b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardReevaluationTest.kt
+@@ -235,19 +235,4 @@ internal class KeyboardReevaluationTest {
+         s.rig.settle()
+         assertEquals("the switch-off released the raised mark, so the later gone reading does nothing", 1, s.hides())
+     }
+-
+-    @Test
+-    fun `a reading stamped before the last acted change is held to the window end and then applied`() {
+-        val s = Setup().raisedByKeyboard()
+-        s.coordinator.onKeyboardReading(false, false, 900L)
+-        s.rig.settle()
+-        assertEquals("the backward reading is held, one post", 1, s.delayed.posts.size)
+-        assertEquals("the post is due 350 ms from now: window end 1250 minus stamp 900", 350L, s.delayed.posts.single().dueAt)
+-        assertEquals("no hide while the held reading waits", 0, s.hides())
+-        assertTrue("the tile stays up while the reading is held", s.rig.tile.shown)
+-        s.delayed.advance(350L)
+-        s.rig.settle()
+-        assertEquals("the held reading hides the tile once, at the window end", 1, s.hides())
+-        assertFalse("the tile is down after the window end", s.rig.tile.shown)
+-    }
+ }
+diff --git a/android/modules/commit/accessibility/src/main/kotlin/dev/breaker/dictation/commit/accessibility/adapter/BreakerAccessibilityService.kt b/android/modules/commit/accessibility/src/main/kotlin/dev/breaker/dictation/commit/accessibility/adapter/BreakerAccessibilityService.kt
+index eec6e816..e1045a40 100644
+--- a/android/modules/commit/accessibility/src/main/kotlin/dev/breaker/dictation/commit/accessibility/adapter/BreakerAccessibilityService.kt
++++ b/android/modules/commit/accessibility/src/main/kotlin/dev/breaker/dictation/commit/accessibility/adapter/BreakerAccessibilityService.kt
+@@ -43,7 +43,7 @@ class BreakerAccessibilityService : AccessibilityService() {
+             fieldFocus = findFieldFocus(),
+             imeWindow = hasInputMethodWindow(),
+             lastEvent = AccessibilityEvent.eventTypeToString(event.eventType),
+-            time = System.nanoTime() / 1_000_000L,
++            time = System.currentTimeMillis(),
+         )
+     }
+ 
+diff --git a/android/modules/commit/src/main/kotlin/dev/breaker/dictation/commit/KeyboardProbeReadings.kt b/android/modules/commit/src/main/kotlin/dev/breaker/dictation/commit/KeyboardProbeReadings.kt
+index 7b1e9ef1..c1b44d55 100644
+--- a/android/modules/commit/src/main/kotlin/dev/breaker/dictation/commit/KeyboardProbeReadings.kt
++++ b/android/modules/commit/src/main/kotlin/dev/breaker/dictation/commit/KeyboardProbeReadings.kt
+@@ -13,9 +13,9 @@ import kotlinx.coroutines.flow.update
+  * (the field the other app is typing in). [imeWindow] is whether the
+  * accessibility window list currently carries an input-method window (the
+  * keyboard). [lastEvent] is the name of the accessibility event that woke the
+- * read, so a reading can say which change produced it. [time] is a monotonic clock
+- * in milliseconds (System.nanoTime() / 1_000_000L), read when the service handled the
+- * event; only differences between stamps are used, so a wall-clock change never moves it.
++ * read, so a reading can say which change produced it. [time] is the
++ * read's wall-clock time in milliseconds, so a reader can tell how fresh the
++ * reading is.
+  *
+  * This is a value, not a live view: it is a snapshot of the three signals at
+  * one moment, handed across a module boundary so the app can show it. It

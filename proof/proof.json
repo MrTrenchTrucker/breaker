@@ -1,0 +1,679 @@
+{
+ "name": "proof-2",
+ "tip": {
+  "tree": "8a8bfd2e68309b9d13962b3bb2054a76f5978984"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "keyboard tile permission page in first run; debug keyboard probe page and its settings removed",
+   "base_tree": "f3fa5f3165a78786d1a9db599f5c0b36f2b7b9e9",
+   "item_tip_tree": "4572d0c03639a314a6e0931dd1c6d96a5ba4c768",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": []
+  },
+  {
+   "item": "b",
+   "title": "probe readings stamped from the monotonic clock",
+   "base_tree": "4572d0c03639a314a6e0931dd1c6d96a5ba4c768",
+   "item_tip_tree": "8a8bfd2e68309b9d13962b3bb2054a76f5978984",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": []
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test"
+ },
+ "shards": 4,
+ "entries": [
+  {
+   "id": "red-a-01",
+   "kind": "red",
+   "item": "a",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/gates/ProbeDebugManifestGateTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/gates/ProbeDebugManifestGateTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.gates.ProbeDebugManifestGateTest"
+   ],
+   "patch": "proof/red/red-a-01.patch",
+   "tree": "8fe1c262463b36b4fd76184f5c55a9726c04cd99",
+   "predict": "ASSERT RED: the base debug manifest still holds the probe activity, its launcher hook and the probe provider"
+  },
+  {
+   "id": "red-a-02",
+   "kind": "red",
+   "item": "a",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/gates/ProbeReleaseGateTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/gates/ProbeReleaseGateTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.gates.ProbeReleaseGateTest"
+   ],
+   "patch": "proof/red/red-a-02.patch",
+   "tree": "7da630c2334085a2de09c1bf3e68a00bba6aa314",
+   "predict": "NOT RED: only release-side rules are kept and the release side is unchanged"
+  },
+  {
+   "id": "red-a-03",
+   "kind": "red",
+   "item": "a",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/gates/ProbeShortcutGateTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/gates/ProbeShortcutGateTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.gates.ProbeShortcutGateTest"
+   ],
+   "patch": "proof/red/red-a-03.patch",
+   "tree": "a47725d49e207a8e2cb2646a1f67e5396b0b5cee",
+   "predict": "ASSERT RED: the base debug manifest still has the probe launcher filter"
+  },
+  {
+   "id": "red-a-04",
+   "kind": "red",
+   "item": "a",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/gates/ProbeShowHideGateTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/gates/ProbeShowHideGateTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.gates.ProbeShowHideGateTest"
+   ],
+   "patch": "proof/red/red-a-04.patch",
+   "tree": "78abf2f86b2e521b4b0f93e6a9a4ebeec3eff41a",
+   "predict": "NOT RED expected (checks on kept files); ASSERT RED only if its symbol list catches the base TileHost hook"
+  },
+  {
+   "id": "red-a-05",
+   "kind": "red",
+   "item": "a",
+   "module": "android/ui",
+   "file": "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/firstrun/FirstRunControllerDownloadTest.kt",
+   "files": [
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/firstrun/FirstRunControllerDownloadTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.ui.screen.firstrun.FirstRunControllerDownloadTest"
+   ],
+   "patch": "proof/red/red-a-05.patch",
+   "tree": "cb6e5ad20e71d07ae82efe7099f12c2713c67610",
+   "predict": "NOT RED: the re-pointed repeat count passes on both trees; guarded by a mutant"
+  },
+  {
+   "id": "red-a-06",
+   "kind": "red",
+   "item": "a",
+   "module": "android/ui",
+   "file": "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/firstrun/FirstRunControllerFlowTest.kt",
+   "files": [
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/firstrun/FirstRunControllerFlowTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.ui.screen.firstrun.FirstRunControllerFlowTest"
+   ],
+   "patch": "proof/red/red-a-06.patch",
+   "tree": "2007437580d5377ae42b32a120c5c1be46cd3e33",
+   "predict": "COMPILE RED on the new page and text members (KEYBOARD_TILE)"
+  },
+  {
+   "id": "red-a-07",
+   "kind": "red",
+   "item": "a",
+   "module": "android/ui",
+   "file": "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/firstrun/FirstRunControllerSwitchTest.kt",
+   "files": [
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/firstrun/FirstRunControllerSwitchTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.ui.screen.firstrun.FirstRunControllerSwitchTest"
+   ],
+   "patch": "proof/red/red-a-07.patch",
+   "tree": "46b38772efba1de27c986d71e24b8bcb90b83cd6",
+   "predict": "NOT RED: the re-pointed repeat count passes on both trees; guarded by a mutant"
+  },
+  {
+   "id": "red-a-08",
+   "kind": "red",
+   "item": "a",
+   "module": "android/ui",
+   "file": "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/firstrun/FirstRunMissingTest.kt",
+   "files": [
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/firstrun/FirstRunMissingTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.ui.screen.firstrun.FirstRunMissingTest"
+   ],
+   "patch": "proof/red/red-a-08.patch",
+   "tree": "91e61bd9f828f9f3b7d069a4bc4a28b258b9feb8",
+   "predict": "NOT RED: the base has one accessibility item; the rule is guarded by a mutant"
+  },
+  {
+   "id": "red-a-09",
+   "kind": "red",
+   "item": "a",
+   "module": "android/ui",
+   "file": "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/firstrun/FirstRunNextTest.kt",
+   "files": [
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/firstrun/FirstRunNextTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.ui.screen.firstrun.FirstRunNextTest"
+   ],
+   "patch": "proof/red/red-a-09.patch",
+   "tree": "579c7fa1ae5dd69da59118a3fbeb87d0406c1f31",
+   "predict": "COMPILE RED on the new page and text members (KEYBOARD_TILE)"
+  },
+  {
+   "id": "red-a-10",
+   "kind": "red",
+   "item": "a",
+   "module": "android/ui",
+   "file": "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/firstrun/FirstRunPagesTest.kt",
+   "files": [
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/firstrun/FirstRunPagesTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.ui.screen.firstrun.FirstRunPagesTest"
+   ],
+   "patch": "proof/red/red-a-10.patch",
+   "tree": "5ca5099d4f93012058a750402fcc60769720b31e",
+   "predict": "COMPILE RED on the new page and text members (KEYBOARD_TILE)"
+  },
+  {
+   "id": "red-a-11",
+   "kind": "red",
+   "item": "a",
+   "module": "android/ui",
+   "file": "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/firstrun/FirstRunPicturesTest.kt",
+   "files": [
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/firstrun/FirstRunPicturesTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.ui.screen.firstrun.FirstRunPicturesTest"
+   ],
+   "patch": "proof/red/red-a-11.patch",
+   "tree": "52d6537340fd31fe9f4871b7bd4f30d88623049e",
+   "predict": "COMPILE RED on the new page and text members (KEYBOARD_TILE)"
+  },
+  {
+   "id": "red-a-12",
+   "kind": "red",
+   "item": "a",
+   "module": "android/ui",
+   "file": "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/firstrun/FirstRunResourcesTest.kt",
+   "files": [
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/firstrun/FirstRunResourcesTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.ui.screen.firstrun.FirstRunResourcesTest"
+   ],
+   "patch": "proof/red/red-a-12.patch",
+   "tree": "4b7e4d53a6485f153370327e1d164aa8d815154f",
+   "predict": "ASSERT RED: ten picture files instead of twelve, the two keyboard tile pictures missing"
+  },
+  {
+   "id": "red-a-13",
+   "kind": "red",
+   "item": "a",
+   "module": "android/ui",
+   "file": "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/firstrun/FirstRunWordsTest.kt",
+   "files": [
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/firstrun/FirstRunWordsTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.ui.screen.firstrun.FirstRunWordsTest"
+   ],
+   "patch": "proof/red/red-a-13.patch",
+   "tree": "00af69d0fc44344f75522a859e901185ee026baf",
+   "predict": "COMPILE RED on the new page and text members (KEYBOARD_TILE, HEADING_KEYBOARD_TILE)"
+  },
+  {
+   "id": "red-a-14",
+   "kind": "red",
+   "item": "a",
+   "module": "android/ui",
+   "file": "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/howitworks/HowItWorksScreenTest.kt",
+   "files": [
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/howitworks/HowItWorksScreenTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.ui.screen.howitworks.HowItWorksScreenTest"
+   ],
+   "patch": "proof/red/red-a-14.patch",
+   "tree": "15bfe595c67804255aa16cb51a92e33ec5e0a84e",
+   "predict": "COMPILE RED on the new page and text members (KEYBOARD_TILE)"
+  },
+  {
+   "id": "red-a-15",
+   "kind": "red",
+   "item": "a",
+   "module": "android/ui",
+   "file": "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/onboarding/SetupTextsTest.kt",
+   "files": [
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/onboarding/SetupTextsTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.ui.screen.onboarding.SetupTextsTest"
+   ],
+   "patch": "proof/red/red-a-15.patch",
+   "tree": "4363f1968208944020cad71d4f482619bb62b569",
+   "predict": "ASSERT RED: the three keyboard tile constants are read by name and are absent"
+  },
+  {
+   "id": "red-b-16",
+   "kind": "red",
+   "item": "b",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardReevaluationTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardReevaluationTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.wiring.KeyboardReevaluationTest"
+   ],
+   "patch": "proof/red/red-b-16.patch",
+   "tree": "a21375790410bc457c61cda2ee3ed56bb41e5573",
+   "predict": "NOT RED: the new test states current behaviour; its gate is a mutant"
+  },
+  {
+   "id": "red-b-17",
+   "kind": "red",
+   "item": "b",
+   "module": "android/modules/commit/accessibility",
+   "file": "android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ProbeReadGateTest.kt",
+   "files": [
+    "android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ProbeReadGateTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.commit.accessibility.ProbeReadGateTest"
+   ],
+   "patch": "proof/red/red-b-17.patch",
+   "tree": "1612ceae4177ed8fe53de8f5843ef3057bc94478",
+   "predict": "ASSERT RED: the base service stamps from the wall clock"
+  },
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/firstrun/FirstRunPages.kt",
+     "anchor": "        FirstRunPage.ACCESSIBILITY,",
+     "replacement": "        FirstRunPage.KEYBOARD_TILE,"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "FirstRunPagesTest#the pages come in the design order and there are exactly seven",
+    "FirstRunPagesTest#the keyboard tile page sits exactly between the accessibility page and the download page",
+    "FirstRunPagesTest#next walks the order and is null after the download page",
+    "FirstRunControllerFlowTest#advance walks the order and stops on the download page, and advance there changes nothing"
+   ],
+   "rule": "The keyboard page takes the accessibility slot, so it sits one slot early and the accessibility page leaves the walk. The order, the walk and the position test must all catch it.",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/firstrun/FirstRunPages.kt",
+     "anchor": "    const val STEP_COUNT: Int = 5",
+     "replacement": "    const val STEP_COUNT: Int = 4"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "FirstRunPagesTest#the step count is five and the step marks are one to five on the permission pages"
+   ],
+   "rule": "STEP_COUNT left at four would leave the step bar one mark short of the five permission pages.",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/firstrun/FirstRunPages.kt",
+     "anchor": "        FirstRunPage.KEYBOARD_TILE -> 5",
+     "replacement": "        FirstRunPage.KEYBOARD_TILE -> 4"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "FirstRunPagesTest#the step count is five and the step marks are one to five on the permission pages"
+   ],
+   "rule": "The keyboard page would share the accessibility step mark.",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/firstrun/FirstRunPictures.kt",
+     "anchor": "        permissionName(\"kbtile\", dark = true),",
+     "replacement": "        permissionName(\"kbtile\", dark = false),"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "FirstRunPicturesTest#ALL has exactly twelve names in the design order and no duplicates",
+    "FirstRunPicturesTest#every picture a page asks for is listed in ALL",
+    "FirstRunResourcesTest#the folder holds exactly the picture files the first run names, and nothing else"
+   ],
+   "rule": "ALL would miss the dark keyboard picture, so the folder check and the asked-for check must fail.",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/firstrun/FirstRunPages.kt",
+     "anchor": "fun isLastPermission(page: FirstRunPage): Boolean = page == FirstRunPage.KEYBOARD_TILE",
+     "replacement": "fun isLastPermission(page: FirstRunPage): Boolean = page == FirstRunPage.ACCESSIBILITY"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "FirstRunPagesTest#only the keyboard tile page is the last permission page"
+   ],
+   "rule": "The last permission page stays on accessibility, so the missing list would not move to the keyboard page.",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/firstrun/FirstRunPages.kt",
+     "anchor": "        FirstRunPage.KEYBOARD_TILE -> SetupStep.ACCESSIBILITY",
+     "replacement": "        FirstRunPage.KEYBOARD_TILE -> SetupStep.OVERLAY"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "FirstRunPagesTest#each permission page maps to its setup step and the other two map to nothing",
+    "FirstRunNextTest#every page is ready exactly when the grant it names is given, for every combination of answers",
+    "FirstRunNextTest#the keyboard tile page shows not done and the grey Next while accessibility is off, and done with the raised Next once it is on"
+   ],
+   "rule": "The keyboard page would follow the overlay grant instead of the accessibility grant.",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/firstrun/FirstRunMissing.kt",
+     "anchor": "            if (!listed.add(step)) return@mapNotNull null",
+     "replacement": "            listed.add(step)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "FirstRunMissingTest#the accessibility item is listed once when all four permissions are missing",
+    "FirstRunMissingTest#no action is listed twice in the missing list"
+   ],
+   "rule": "Without the one-item-per-step rule the accessibility action would be listed by both the accessibility page and the keyboard page.",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/onboarding/SetupTexts.kt",
+     "anchor": "            \"It never reads what is in the field or on your screen. \" +",
+     "replacement": "            \"It sees what is in the field and on your screen. \" +"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SetupTextsTest#the keyboard tile privacy line says no text is read and nothing is kept"
+   ],
+   "rule": "The privacy promise that no text is read is dropped from the keyboard page line.",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/firstrun/FirstRunNext.kt",
+     "anchor": "        return shown.state.statusOf(step) == StepStatus.GRANTED",
+     "replacement": "        return shown.missing.none { it.page == shown.page }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "FirstRunNextTest#every page is ready exactly when the grant it names is given, for every combination of answers",
+    "FirstRunNextTest#the keyboard tile page shows not done and the grey Next while accessibility is off, and done with the raised Next once it is on"
+   ],
+   "rule": "The old rule (no missing item for this page) gives the keyboard page a green Next and the word Done with accessibility off. The step variable is then unused, which is a warning only.",
+   "note": ""
+  },
+  {
+   "id": "mut-10",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/firstrun/FirstRunWords.kt",
+     "anchor": "        FirstRunPage.KEYBOARD_TILE -> listOf(SetupTexts.KEYBOARD_TILE_LIMITS)",
+     "replacement": "        FirstRunPage.KEYBOARD_TILE -> emptyList()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "FirstRunWordsTest#the keyboard tile page gives its privacy line as its one extra line"
+   ],
+   "rule": "The keyboard page would lose its privacy line.",
+   "note": ""
+  },
+  {
+   "id": "mut-11",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/firstrun/FirstRunWords.kt",
+     "anchor": "        FirstRunPage.KEYBOARD_TILE -> SetupTexts.HEADING_KEYBOARD_TILE",
+     "replacement": "        FirstRunPage.KEYBOARD_TILE -> SetupTexts.HEADING_ACCESSIBILITY"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "FirstRunWordsTest#the keyboard tile page names its heading and reason from the set-up texts",
+    "HowItWorksScreenTest#the keyboard tile page has its heading and its reason on the screen"
+   ],
+   "rule": "The keyboard page would reuse the accessibility heading.",
+   "note": ""
+  },
+  {
+   "id": "mut-12",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/onboarding/SetupTexts.kt",
+     "anchor": "                \"whether a text field is selected and whether the keyboard is open. \" +",
+     "replacement": "                \"whether a text field is selected. \" +"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SetupTextsTest#the accessibility limits state all five promises"
+   ],
+   "rule": "The added accessibility sentence is cut short, so the limits no longer say the keyboard is noticed.",
+   "note": ""
+  },
+  {
+   "id": "mut-13",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/debug/AndroidManifest.xml",
+     "anchor": "<action android:name=\"dev.breaker.debug.MIC\" />",
+     "replacement": "<action android:name=\"dev.breaker.debug.MIC\" />\n                <action android:name=\"android.intent.action.MAIN\" />\n                <category android:name=\"android.intent.category.LAUNCHER\" />"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "ProbeDebugManifestGateTest#the debug manifest holds the exported mic receiver and the unexported mic provider and nothing more",
+    "ProbeShortcutGateTest#the debug manifest has no launcher filter"
+   ],
+   "rule": "a launcher filter planted in the real debug manifest is refused by both kept manifest rules",
+   "note": ""
+  },
+  {
+   "id": "mut-14",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/debug/kotlin/dev/breaker/dictation/probe/MicProbeReceiver.kt",
+     "anchor": "package dev.breaker.dictation.probe\n",
+     "replacement": "package dev.breaker.dictation.probe\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "ProbeDebugSourceGateTest#every debug file is under two hundred lines"
+   ],
+   "rule": "a real debug file padded past two hundred lines is refused",
+   "note": ""
+  },
+  {
+   "id": "mut-15",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/commit/accessibility",
+   "edits": [
+    {
+     "file": "android/modules/commit/accessibility/src/main/kotlin/dev/breaker/dictation/commit/accessibility/adapter/BreakerAccessibilityService.kt",
+     "anchor": "            time = System.nanoTime() / 1_000_000L,",
+     "replacement": "            time = System.currentTimeMillis(),"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "ProbeReadGateTest, test 'the service stamps each reading from the monotonic clock and never reads the wall clock': assertEquals with the message 'commit/accessibility: the service clock check failed', expected [] but was [the reading stamp is not the monotonic millisecond count, the service reads the wall clock] (the stamp group is System.currentTimeMillis() and the wall clock count is 1)"
+   ],
+   "rule": "the wall clock goes back on the stamp line of the real service file; only the real-file assertion reads that line, because the three T2 samples are synthetic text",
+   "note": ""
+  },
+  {
+   "id": "mut-16",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "        if (keyboardTile.inWindow(timeMs)) reevaluation.hold(ime, focus, timeMs, keyboardTile.anchorMs() + DEBOUNCE_MS)",
+     "replacement": "        if (keyboardTile.inWindow(timeMs) && timeMs >= keyboardTile.anchorMs()) reevaluation.hold(ime, focus, timeMs, keyboardTile.anchorMs() + DEBOUNCE_MS)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "KeyboardReevaluationTest, test 'a reading stamped before the last acted change is held to the window end and then applied': assertEquals with the message 'the backward reading is held, one post', expected 1 but was 0 (the backward reading is acted on at once, the session answers NoOp, nothing is posted)"
+   ],
+   "rule": "a reading stamped before the last acted change is no longer held; T1 pins the held path, so this is the mutant that T1's first assertion must kill",
+   "note": ""
+  },
+  {
+   "id": "mut-17",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/commit/accessibility",
+   "edits": [
+    {
+     "file": "android/modules/commit/accessibility/src/main/kotlin/dev/breaker/dictation/commit/accessibility/adapter/BreakerAccessibilityService.kt",
+     "anchor": "time = System.nanoTime() / 1_000_000L,",
+     "replacement": "time = System.nanoTime(),"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "ProbeReadGateTest#the service stamps each reading from the monotonic clock and never reads the wall clock"
+   ],
+   "rule": "a stamp in nanoseconds instead of milliseconds is refused by the source pin",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "android/app",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/DictationRunner.kt",
+     "anchor": "        if (idle.state != DictationState.IDLE) return BeginResult.Refused(RunnerSentences.BUSY)\n",
+     "replacement": "        return BeginResult.Refused(RunnerSentences.BUSY)\n"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "android/app",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/DictationRunner.kt",
+     "anchor": "        if (idle.state != DictationState.IDLE) return BeginResult.Refused(RunnerSentences.BUSY)\n",
+     "replacement": "        if (idle.state != DictationState.IDLE) return BeginResult.Refused(RunnerSentences.BUSY) // unchanged behaviour\n"
+    }
+   ]
+  }
+ ]
+}
