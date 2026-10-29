@@ -1,0 +1,710 @@
+diff --git a/ARCHITECTURE.md b/ARCHITECTURE.md
+index 61af4f07..96720466 100644
+--- a/ARCHITECTURE.md
++++ b/ARCHITECTURE.md
+@@ -178,7 +178,7 @@ admins.
+       target (an X in a circle) near the bottom of the screen; dropping the tile on
+       it hides the tile. Dictation stays switched on, so a shake brings the tile back,
+       and "Breaker Breaker" brings it back and starts recording (F4); opening Breaker from its icon
+-      shows it again. Switching dictation off stays in the notification and the app. A close during a take that is recording or whose begin is pending ends that take first, as Cancel does.
++      shows it again. Switching dictation off stays in the notification and the app.
+ - F39. **Busy cue:** from the check tap until the final outcome the tile shows
+       that the text is being processed: the ring takes a colour of its own and
+       pulses on its own rhythm; there is no spinner (ADR-024).
+diff --git a/android/app/AGENTS.md b/android/app/AGENTS.md
+index 922c6723..075f927b 100644
+--- a/android/app/AGENTS.md
++++ b/android/app/AGENTS.md
+@@ -48,9 +48,9 @@ app-level composition of all modules. Concretely, the app's own types are:
+   - `LevelMap` - the one map from a level in dBFS onto 0 to 1: `levelOf` gives the level of a dBFS value above a zero point (default -60 dBFS) up to -6 dBFS, clamped at both ends, and no information (null) gives 0. The helpers `sumSquaresOf` (the sum of squares of a frame; null when a sample is NaN or infinite) and `dbfsOf` (10 log10 of a sum of squares over a count; null when there is no energy) build the window level, so a silent window gives 0 and a frame with a non-finite sample adds nothing to the sums.
+   - `NoiseFloor` - the per-take noise floor of the bar, one object owned by each `LevelMeter` (so each take starts a fresh floor). The floor is seeded by the lower median of the window levels while the take has counted fewer than 8000 samples (counted through the end of the update). After the seed it falls at most 30 dB per second (2.0006 dB per update of 1067 samples) and rises at most 1 dB per second (0.0667 dB per update), and it never goes below -60 dBFS. The zero point of the bar is the floor plus 8 dB, capped at -18 dBFS. Digital silence (no information) never seeds the floor and does not move it. The constants are in `FloorTuning`, in the same file. It has no thread, no clock and no lock.
+   - `LevelFeed` - the `LevelSink` that carries a level from the audio dispatch thread to the tile on the main thread, through `MainPost`. The posted block forwards the level only while the take's session state is `RECORDING` at that moment (`TRANSCRIBING` is excluded), so the state is read on main.
+-  - `TilePorts.kt` - the ports of the tile: `TileShow`, `TilePort`, `MainPost`, `Background`, `TakePort`, `ModelReady`, `ModelNotice`, `Opener`, and `ROUTE_MODEL_VALUE` ("model", equal to `NotificationRoute.ROUTE_MODEL`). `TakePort` also has `resetAfterTaken`, which `TakePortAdapter` passes to the runner, and `heldElsewhere` (false by default; `OwnedTakePort` answers whether another path holds the take).
++  - `TilePorts.kt` - the ports of the tile: `TileShow`, `TilePort`, `MainPost`, `Background`, `TakePort`, `ModelReady`, `ModelNotice`, `Opener`, and `ROUTE_MODEL_VALUE` ("model", equal to `NotificationRoute.ROUTE_MODEL`). `TakePort` also has `resetAfterTaken`, which `TakePortAdapter` passes to the runner.
+   - `tileStateFor` - the one function that decides which state the tile shows; the busy face of a taken take (`micBusy`) comes after the off switch and before the sending, failed and sent states.
+-  - `TileCoordinator` - what each tap does and which state the tile shows: `onArmedChanged`, `onBegin`, `onShake` (a shake shows a closed or hidden tile and begins nothing), `onCancel`, `onSend`, `onSpokenSend` (a spoken Send, acting only while the tile is shown), `onTap`, `onTakeEnded` (wired through `MainPost` when the mic ends by itself) and `onTakeMicTaken` (wired through `MainPost` by the tile host, for a take cut by the microphone); `onBegin` also needs the tile to be showing, so a failed or refused show means no begin. It is called on the main thread only; the take runs through `Background` and the answers come back through `MainPost`. `TakePortAdapter` presents the runner as a `TakePort`. A user close (`onCloseRequested`) cancels a take that is recording or whose begin is pending, as `onCancel` does, and then hides the tile; the rule is `closeCancelsTake` in `TileShowGuard.kt`.
++  - `TileCoordinator` - what each tap does and which state the tile shows: `onArmedChanged`, `onBegin`, `onShake` (a shake shows a closed or hidden tile and begins nothing), `onCancel`, `onSend`, `onSpokenSend` (a spoken Send, acting only while the tile is shown), `onTap`, `onTakeEnded` (wired through `MainPost` when the mic ends by itself) and `onTakeMicTaken` (wired through `MainPost` by the tile host, for a take cut by the microphone); `onBegin` also needs the tile to be showing, so a failed or refused show means no begin. It is called on the main thread only; the take runs through `Background` and the answers come back through `MainPost`. `TakePortAdapter` presents the runner as a `TakePort`.
+   - `TakeYield.kt` (`TakeYieldController`, internal): the taken branch of the coordinator, with the busy face flag, the lead line at the cut, the finish, reset and save on the background, and the copy and the settle line on the main thread (invariants 19 to 24). The settle always runs, even when the save to history fails.
+   - `TakenClipboard.kt` - the one-method seam a taken take copies through (`copy(text)`), main thread only; the Android copy is `TakenClipboardAndroid` in the host package, built by `appTakenClipboard(context)`.
+   - `TakenSentences.kt` - the pinned lines of a taken take (`LEAD`, `SAVED_AND_COPIED`, `TAKEN_NOTHING_HEARD`, `NOT_CONVERTED`, `COPIED_NOT_SAVED` and `STILL_TAKEN`), Kotlin constants, not string resources.
+@@ -113,7 +113,7 @@ app launches to the home screen the ui module builds (on a phone with no speech
+ 15. The app's microphone swap point returns the real microphone, not the unavailable placeholder. `appMicSource(audioManager: AudioManager): MicSource` returns `AndroidMicSource.create(audioManager)`, built once per process. The real microphone source is built lazily, on first use, not at app start. Tested by: `AppMicGateTest`.
+ 16. When the microphone ends a take by itself, the tile coordinator's `onTakeEnded()` is called on the main thread through `MainPost`. A user stop or cancel does not fire it (`ReportingMicSource` stays silent after `markStopRequested`). A send in flight is not disturbed (`onTakeEnded` returns when `sendPushed`). Tested by: `DictationComponentTest`, `DictationFlowTest`, `HostGateTest`.
+ 17. Microphone sharing (ADR-022): when the audio module reports that another app or a phone call has taken the microphone, the take is ended, not cancelled: what was captured is transcribed, saved to history and copied to the clipboard, never typed into the field, and the notification says that the recording stopped for a call or another app. A recording is never restarted on its own. Tested by: `TileCoordinatorTakenTest` (the saved text, the copy and the lead and outcome lines), `DictationComponentTakenHookTest` (the cut reaches the taken hook, not the device-failure end), `TakenSentencesTest` (the words).
+-18. A take begins only from a tap on the tile, and only while the tile is on screen, or from a tap on the Home big mic while Home is shown, which for a tap that would begin a take answers the model sentence first when no model is ready and then answers the stored switch-off (a switched-off tap builds nothing); a tap that finishes the take Home began is not checked for the model, and neither kind of Home tap checks the tile: the coordinator records whether the last attempt to show the tile succeeded, clears it when a show is refused or fails and when the switch goes off, and checks it before any begin from a tile tap, so with no tile on screen a tile tap begins nothing; a tap on the Home big mic has no such check. A shake never begins a take and never opens the microphone. With the tile on screen a shake does nothing, and during a take it does nothing. Closing the tile by dragging it to the close target is built: the app hides the tile and remembers the close in memory only, and dictation stays on. A close during a take that is recording or whose begin is pending first ends that take as Cancel does; a close while the Home holds the take, with no take in flight, during a send, a microphone yield or a device failure cancels nothing. A shake then shows the tile again and clears the close only when that show succeeds; a refused show says the tile is unavailable, leaves the close as it was, and the next shake tries again. Opening the launcher shows the tile, and switching off and on clears the close. The tap on the tile and the tap on the Home big mic are the only begins in this build; a tap on the Home big mic ends only a take that the Home began, and the X on the Home mic cancels a take Home began; while a take the tile began is running, a tap on the Home big mic answers "Breaker is already listening." and starts nothing. Tested by `TileCoordinatorShownTest`, `TileCoordinatorShownPermissionTest`, `ShakeShowsTileTest`, `TileCloseCancelsTakeTest`, `TileCloseGuardsTest`, `TakeHeldElsewhereTest`, `CloseCancelsTakeRuleTest`, and the wiring rule `OVERLAY_TILE_PORT_PASSES_EVERY_HELD_CALLBACK_TO_CREATE` (file `OverlayTilePortGateTest.kt`, new here) that every callback the tile port holds reaches `FloatingTile.create`. On every other begin the tile is shown first anyway (show is idempotent), so a tile the overlay knows is hidden comes back, and a refused show begins no take and says the tile is unavailable. A tile the window system removed without telling the overlay still answers that it is shown, so this does not catch it (see Known Gotchas). The Home mic's three labels (the tap-to-talk words, Cancel and Done) come from ui's public `HomeControl` constants through `ActivityHelpers.createHomeMic` and are never retyped in the app or the overlay; tested by `HomeMicLabelsGateTest`.
++18. A take begins only from a tap on the tile, and only while the tile is on screen, or from a tap on the Home big mic while Home is shown, which for a tap that would begin a take answers the model sentence first when no model is ready and then answers the stored switch-off (a switched-off tap builds nothing); a tap that finishes the take Home began is not checked for the model, and neither kind of Home tap checks the tile: the coordinator records whether the last attempt to show the tile succeeded, clears it when a show is refused or fails and when the switch goes off, and checks it before any begin from a tile tap, so with no tile on screen a tile tap begins nothing; a tap on the Home big mic has no such check. A shake never begins a take and never opens the microphone. With the tile on screen a shake does nothing, and during a take it does nothing. Closing the tile by dragging it to the close target is built: the app hides the tile and remembers the close in memory only, and dictation stays on. A shake then shows the tile again and clears the close only when that show succeeds; a refused show says the tile is unavailable, leaves the close as it was, and the next shake tries again. Opening the launcher shows the tile, and switching off and on clears the close. The tap on the tile and the tap on the Home big mic are the only begins in this build; a tap on the Home big mic ends only a take that the Home began, and the X on the Home mic cancels a take Home began; while a take the tile began is running, a tap on the Home big mic answers "Breaker is already listening." and starts nothing. Tested by `TileCoordinatorShownTest`, `TileCoordinatorShownPermissionTest`, `ShakeShowsTileTest`, and the wiring rule `OVERLAY_TILE_PORT_PASSES_EVERY_HELD_CALLBACK_TO_CREATE` (file `OverlayTilePortGateTest.kt`, new here) that every callback the tile port holds reaches `FloatingTile.create`. On every other begin the tile is shown first anyway (show is idempotent), so a tile the overlay knows is hidden comes back, and a refused show begins no take and says the tile is unavailable. A tile the window system removed without telling the overlay still answers that it is shown, so this does not catch it (see Known Gotchas). The Home mic's three labels (the tap-to-talk words, Cancel and Done) come from ui's public `HomeControl` constants through `ActivityHelpers.createHomeMic` and are never retyped in the app or the overlay; tested by `HomeMicLabelsGateTest`.
+ 19. A take cut by the microphone shows the busy face. The face is the tile state for a taken microphone: `tileStateFor` checks it after the off switch and before the sending, failed and sent states. The flag clears when a begin starts, when the switch goes off, and at the next take end; a take end clears the flag and the notice line, and the tile is redrawn at its next state change. The settle of a taken take keeps the face, so the armed tile is never shown while the microphone is held. Tested by: `TileStateMapTest` (the busy face wins over a pushed send, a failed take and a commit, and an off switch shows idle), `TileCoordinatorTakenTest` (the face is busy at the cut and after the settle; a begin after the settle clears it; a take end restores the plain line).
+ 20. A tap on the busy face is a begin attempt through the same begin path as any other tile begin: it needs the switch on, the tile on screen, no begin already in flight and a ready speech model, and it does nothing while the taken branch is still running. A shake on the busy face does nothing but show a closed or hidden tile. A tap in any other state keeps its meaning. A begin refused as taken keeps the busy face and shows the refused line. A failed begin shows its failure and not the busy face. Tested by: `TileCoordinatorTakenTest` (a tap on the busy face reaches the begin and not the launcher; a take refused as taken shows the busy face and the refused line; a tap in idle opens the launcher and does not begin), `ShakeBeginPathTest` (a shake on a shown tile leaves it alone, and a tap is what begins). A tap on the big mic on Home, while Home is shown, is a second begin source: it needs no tile on screen, Home's recording look is the visible sign of its take, and a tap on that mic ends only a take that Home began.
+ 21. A begin whose open is refused because another app or a call holds the microphone answers the taken result, not the failed sentence: the session stays idle with the service armed, and the tile shows the busy face with the refused line. A refusal from a broken device, and every other failure, keeps the failed answer. Tested by: `DictationRunnerTakenTest` (the taken answer and the idle session; the broken device answers failed), `TileCoordinatorTakenTest` (the refused take shows the busy face and the refused line).
+@@ -160,7 +160,7 @@ The switch for the ui module: `wiring/BreakerSwitchAdapter.kt` implements the sw
+ - Wiring tests (JVM, no Android): `android/app/src/test/kotlin/dev/breaker/dictation/wiring/` - `IconLaunchRefusedTest` (a refused icon switch-on reaches the screen's sink once, the rule stays open, a throwing sink does not escape), `DictationRunnerTest`, `DictationRunnerEndTest`, `DictationRunnerDisarmTest` (the capture and session are dropped before the service is halted), `DictationRunnerFinishTest` (a finish that fails still stops the audio exactly once and drops the dictation), `DictationComponentTest`, `DictationComponentServiceTest`, `DictationFlowTest`, `LazyHistoryStoreTest`, `LazyHistoryRootTest`, `PurgeScopeTest`, `UnavailableSlotsTest`. `DictationRunnerTakenTest` (an open refused as taken answers taken; a broken device answers failed; a reset after a taken take adds no stop and no close), `DictationRunnerSelfEndTest` (a self-end lands idle with the service armed, and the owed stop is paid once), `DictationComponentTakenHookTest` (a taken microphone reaches the taken hook while the session still records; a device failure keeps the old end; a user stop does not call the hook), `TakeChainTest` (a full taken settle pays one audio stop and leaves the session idle), `TakenSentencesTest` (the pinned lines word for word and their lengths), `TakeYieldGuardTest` (a cancel is refused while the taken branch runs; a switch-off during a taken transcription lets a later begin and cancel through), `TakeYieldReentryTest` (a second cut that reaches the taken controller starts no second finish; a settle left from before a switch-off and re-arm changes nothing), `TakeYieldRefusedQueueTest` (a background that refuses the work abandons the cut at once, posts the not-converted line and lets a later cut, tap or send work), `TakeYieldClearPointsTest` (a take end alone, and a switch-off, clear the busy face; a switch-off posts the plain line), `TakeYieldSendTapTest` (a send tap during a taken transcription is refused and the take is finished once), `TakeYieldFailedBeginTest` (a begin that fails on the device after a begin refused as taken shows the failed face, not the busy face), `TakeYieldSaveFailedTest` (a failed history save still settles the take, copies the text, posts the copied-not-saved line and lets a later begin and cancel through). `DeviceFailureSentencesTest` (the five device failure sentences word for word and their lengths), `TakeSettleTest` (the shared settle: save, copy and the outcome line), `DeviceFailureYieldTest` (the device failure yield on the background: the saved, copied and not-converted outcomes, no send, the refused start, and a stale run after a switch off that frees nothing for a later run), `TileCoordinatorDeviceFailureTest` (the tile's device failure entry, its guards, and a switch off that clears a cut in flight so the next arm takes the next cut), `DeviceFailureChainTest` (the real runner end to end: one audio stop, the saved line, the owed stop after a refused start) and `DictationComponentDeviceFailureTest` (the component's handler: the session still records when it runs, the fallback is the old end). `DisplayWatchTest` and `DisplayWatchEdgesTest` (the display watch; their shared fakes are in `DisplayWatchFakes.kt`). Their shared fakes are in `WiringFakes.kt` and `WiringMicFakes.kt`; the sentence of the stand-in local engine that the runner tests use is in `LocalSlotFixture.kt`.
+ - Host tests (JVM, no Android): `android/app/src/test/kotlin/dev/breaker/dictation/host/` - `ServiceRefusalNoticeTest` (the refusal is held, posted only when notifications are permitted, taken once, and a failing step is skipped).
+ - Gate tests over the app's own files: `android/app/src/test/kotlin/dev/breaker/dictation/gates/` - `ProbeReleaseGateTest` (the release build holds no probe element, source or service config; no main source of the app or of any module calls setEnabled on the keyboard probe holder), `ProbeDebugManifestGateTest` (the debug manifest is exact: the mic probe receiver is its one exported element and both probe providers are not exported), `ProbeShowHideGateTest` (the tile show and hide paths name no probe symbol), `ManifestGateTest`, `NetworkConfigGateTest`, `NotificationTextGateTest`, `RootSlotsGateTest`, `AppLayoutGateTest`, `AppWiringGateTest` (the wiring in the application class, the launcher activity and the composition root), `BuildFileGateTest` (the build file's application id, platform levels and dependency list), `BuildFileSherpaGateTest` (the run-time dependency on the speech engine release file, its pin check and the one by-name hook), `RecognizerSwapGateTest` (the swap point holds the real recognizer factory and names no placeholder), `AppCommitGateTest` (the text committer: its swap point, its one place in the root and the app, the build edges, the manifest entry and the service name), `AppPrivacyScanTest` (support files `AppSourceFiles` and `AppXml.kt`), `IconLaunchOnceGateTest` (the saved icon-launch flag in the launcher activity: read in `onCreate`, saved in `onSaveInstanceState`, one key for both), `GestureWiringGateTest` (the gesture wiring: sensor types and listener calls only in `AndroidSwaps.kt`; the app gesture built from the module's `ShakeHandle` over `SensorManagerShakeSource`; the handle started only in `ShakeGesture.start` and stopped in `stop`; a refused start clears the trigger; `TileHost` takes `appGesture(context)` and starts it in one place). `ShakeTriggerGateTest` (the shake trigger in `TileHost` calls `TileCoordinator.onShake`, and the tap callback is the only `onBegin` call), `NotificationTakenGateTest` (the taken seam's text rules: the clipboard maker in `AndroidSwaps.kt`; one `withText` signature, one `setContentText` call and the `build` signature in `DictationNotification.kt`), `DeviceFailureWiringGateTest` (the device failure wiring that no JVM test can run: `TileHost` offers the cut to the coordinator through the root hook and runs the fallback only when it is not taken; `DictationComponent` hands the handler the fallback, and the one owed-stop call sits in the fallback lambda), `LauncherIconGateTest` (pins the launcher and notification icon resources: the five foreground PNGs against the rendered set, the SVG source pin, the background fill, the silhouette, the white notification icon, the manifest icon names, and the absence of framework icons and legacy launcher PNGs). Each gate runs against the real files and fires on samples: most samples are the real text with one edit, some are small sources written by hand, and an edit whose target text is missing fails by name.
+-- Wiring tests for the tile, the switch and the model download (JVM, no Android): `android/app/src/test/kotlin/dev/breaker/dictation/wiring/` - `TileStateMapTest` (every session state has a tile state; the busy face wins over a pushed send, a failed take and a commit, and an off switch shows idle), `TileCoordinatorShownTest` (a begin needs the tile on screen: a failed or refused show means no begin), `TileCoordinatorShownPermissionTest` (a show without the overlay permission means no begin), `TileCoordinatorTest` (the switch, taps, cancel, stale answers, ports that throw), `TileCoordinatorTakeTest` (begin, send, the empty take, failures), `TileCoordinatorOutcomeTest` (SENT after a send, its clearing by begin, cancel and switch-off, a tap from SENT, and the text never reaching the tile), `TileCoordinatorMoreTest` (a failed tile after switching off and on, a take of only blanks), `TileCoordinatorNothingHeardTest` (a blank or empty text drops the take and shows the nothing heard notice once after the armed state, a text with words is sent, a take with no audio stays silent, a switch-off drops the late notice, and a quiet take over the real runner keeps no History row), `TileEmptyTakeRealRunnerTest` (the real runner with a take that holds no audio), `TakePortAdapterTest`, `LaunchRuleTest` (the table of icon launches and other starts), `IconLaunchOnceTest` (the once-per-instance rule: the first icon launch, a repeat start, a recreate with the saved flag, a refused answer, a start that is not the icon, and the stored switch-off), `NoopPortsTest`, `ArmedSwitchTest`, `ArmedSwitchReasonTest` (a switch-off while on tells the controller observer the user's word first), `OffStoreTest` (the off file, its temporary file and the rename), `OffStoreThrowingFileTest` (a file that cannot be inspected counts as not off), `ModelSupportTest`, `ModelNoSpaceSentenceTest` (the no-space sentence word for word, and the mapping of the installer's refusals), `ModelNoSpaceTest` (the no-space refusal reaches the notification and the launcher line, and no other refusal does), `ModelDownloadEntryTest` (the one entry point, one download at a time), `ModelDownloaderDefaultLookupTest` (a downloader built without a lookup uses the registry entry of the selected id), `SwapsTest` (what each swap point answers today, and that the real recognizer factory refuses an unknown model and an empty model folder by name), `ShakeGestureTest` (over a fake sensor port: building registers nothing, a start registers once, a stop unregisters, a refused start is retried by the next start, a shake calls the trigger once and not after a stop), `ShakeShowsTileTest` (a shake with the tile closed shows it and never begins a take; a shake with the tile on screen, during a begin or a take, or with the switch off does nothing; a refused show says the tile is unavailable and the next shake tries again; a tap still begins after a shake showed the tile), and `ShakeBeginPathTest` (a shake wired the way `TileHost` wires it ends in `TileCoordinator.onShake`: it shows a closed or hidden tile and begins nothing, while a tap is what begins; a shake does nothing during a take, when not armed, or after switch-off; `TileHost` itself is pinned by `HostGateTest` text rules, because it cannot run on a JVM). Their shared fakes are in `TileFakes.kt` and `ModelFakes.kt`. `NoticeClearingTilePortTest` (the four-second notice clear: the boundary at 4000 ms, a replaced notice, each cancel, the tap report and the guarded throws; its fake is `FakeDelayedPost`, with no real time). `TileCoordinatorTakenTest` (the taken take: the busy face and its lines in order; the save and the copy; a blank or empty take saves and copies nothing; a thrown or failed conversion posts the fixed line and never the detail; a tap on the busy face reaches the begin and not the launcher; a cancel and a send are refused while the taken branch runs; a second cut is dropped; a take end after a taken take restores the plain line). `TileCloseCancelsTakeTest` (a user close during a take or a pending begin ends it like Cancel, and the busy face clears), `TileCloseGuardsTest` (a close that cancels nothing: the Home holds the take, no take, a held hide, text on its way, a microphone yield, a device failure), `TakeHeldElsewhereTest` (the held-elsewhere flag of the take ports), `CloseCancelsTakeRuleTest` (the truth table of the cancel rule).
++- Wiring tests for the tile, the switch and the model download (JVM, no Android): `android/app/src/test/kotlin/dev/breaker/dictation/wiring/` - `TileStateMapTest` (every session state has a tile state; the busy face wins over a pushed send, a failed take and a commit, and an off switch shows idle), `TileCoordinatorShownTest` (a begin needs the tile on screen: a failed or refused show means no begin), `TileCoordinatorShownPermissionTest` (a show without the overlay permission means no begin), `TileCoordinatorTest` (the switch, taps, cancel, stale answers, ports that throw), `TileCoordinatorTakeTest` (begin, send, the empty take, failures), `TileCoordinatorOutcomeTest` (SENT after a send, its clearing by begin, cancel and switch-off, a tap from SENT, and the text never reaching the tile), `TileCoordinatorMoreTest` (a failed tile after switching off and on, a take of only blanks), `TileCoordinatorNothingHeardTest` (a blank or empty text drops the take and shows the nothing heard notice once after the armed state, a text with words is sent, a take with no audio stays silent, a switch-off drops the late notice, and a quiet take over the real runner keeps no History row), `TileEmptyTakeRealRunnerTest` (the real runner with a take that holds no audio), `TakePortAdapterTest`, `LaunchRuleTest` (the table of icon launches and other starts), `IconLaunchOnceTest` (the once-per-instance rule: the first icon launch, a repeat start, a recreate with the saved flag, a refused answer, a start that is not the icon, and the stored switch-off), `NoopPortsTest`, `ArmedSwitchTest`, `ArmedSwitchReasonTest` (a switch-off while on tells the controller observer the user's word first), `OffStoreTest` (the off file, its temporary file and the rename), `OffStoreThrowingFileTest` (a file that cannot be inspected counts as not off), `ModelSupportTest`, `ModelNoSpaceSentenceTest` (the no-space sentence word for word, and the mapping of the installer's refusals), `ModelNoSpaceTest` (the no-space refusal reaches the notification and the launcher line, and no other refusal does), `ModelDownloadEntryTest` (the one entry point, one download at a time), `ModelDownloaderDefaultLookupTest` (a downloader built without a lookup uses the registry entry of the selected id), `SwapsTest` (what each swap point answers today, and that the real recognizer factory refuses an unknown model and an empty model folder by name), `ShakeGestureTest` (over a fake sensor port: building registers nothing, a start registers once, a stop unregisters, a refused start is retried by the next start, a shake calls the trigger once and not after a stop), `ShakeShowsTileTest` (a shake with the tile closed shows it and never begins a take; a shake with the tile on screen, during a begin or a take, or with the switch off does nothing; a refused show says the tile is unavailable and the next shake tries again; a tap still begins after a shake showed the tile), and `ShakeBeginPathTest` (a shake wired the way `TileHost` wires it ends in `TileCoordinator.onShake`: it shows a closed or hidden tile and begins nothing, while a tap is what begins; a shake does nothing during a take, when not armed, or after switch-off; `TileHost` itself is pinned by `HostGateTest` text rules, because it cannot run on a JVM). Their shared fakes are in `TileFakes.kt` and `ModelFakes.kt`. `NoticeClearingTilePortTest` (the four-second notice clear: the boundary at 4000 ms, a replaced notice, each cancel, the tap report and the guarded throws; its fake is `FakeDelayedPost`, with no real time). `TileCoordinatorTakenTest` (the taken take: the busy face and its lines in order; the save and the copy; a blank or empty take saves and copies nothing; a thrown or failed conversion posts the fixed line and never the detail; a tap on the busy face reaches the begin and not the launcher; a cancel and a send are refused while the taken branch runs; a second cut is dropped; a take end after a taken take restores the plain line).
+ - Level bar (JVM, no Android): `android/app/src/test/kotlin/dev/breaker/dictation/wiring/` - `LevelMeterTest`, `LevelMapTest`, `LevelTapTest`, `LevelFeedTest`, `DictationComponentLevelTest` and `NoiseFloorTest` (the floor's seed, its fall and rise limits, its clamp, the zero-point span, digital silence, a non-finite frame, and a floor with no value before the first level; `LevelMeterTest` covers a fresh floor for each meter).
+ - State observer of the controller (JVM, no Android): `android/app/src/test/kotlin/dev/breaker/dictation/service/` - `ServiceControllerObserverTest`.
+ - Host gates: `android/app/src/test/kotlin/dev/breaker/dictation/gates/` - `HostGateTest` (the threads, the gesture, the tile host and its taken hook, the overlay port), `HostGateNotifyTest` (the model notifications and the settings column, which holds only the settings view), `HostGateNoticeTest` (the permission check, channels, ids, request codes, flags and sentences of the model notices, and the tile's theme) and `HistoryRouteGateTest` (the Home menu's History item, the one function that opens the history screen from the app's store, the route check on a fresh create, no `onNewIntent`, and Back on both paths); each rule holds on the real files and fires on edited samples, like the other gates. `NoticeTimerGateTest` (the notice clear's wiring: the one main-looper queue that runs it, the notice port over the tile, the tap report, and the cancel-first order of the port). `AppPrivacyScanTest` has one named exception, for `host/AppThreads.kt`, which may name the thread types; `AppWiringGateTest` pins the switch, the tile host and the one observer in `BreakerApp.kt` and the launcher. `DisplayWiringGateTest` pins the display-change listener: its one main-looper registration and unregistration, the default-display snapshot, the tile host's watch and the port's forward.
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TakeOwner.kt b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TakeOwner.kt
+index 4ff3356f..9e862b73 100644
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TakeOwner.kt
++++ b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TakeOwner.kt
+@@ -114,9 +114,6 @@ internal class OwnedTakePort(
+     override val sessionState: DictationState
+         get() = inner.sessionState
+ 
+-    override val heldElsewhere: Boolean
+-        get() = owner.current().let { it != null && it != kind }
+-
+     override fun begin(): BeginResult {
+         val answer: BeginResult = inner.begin()
+         if (answer == BeginResult.Recording) {
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt
+index 284ac1c9..02b9de4a 100644
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt
++++ b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt
+@@ -41,14 +41,18 @@ class TileCoordinator(
+     private var beginPending: Boolean = false
+     private var pushed: TileState = TileState.IDLE
+     private var generation: Int = 0
++
+     /** The keyboard tile's session gate and anchor, driven by [onKeyboardReading]. Kept separate to stay within the line cap; it names no Android type. */
+     private val keyboardTile = KeyboardTileSession()
++
+     private val reevaluation: KeyboardReevaluation = KeyboardReevaluation(delayed) { ime, focus, dueMs -> act(keyboardTile.onKeyboardReading(ime, focus, dueMs)) }
++
+     /** The taken-entry controller (the MIC_BUSY face and its settle). */
+     internal val yield = TakeYieldController(
+         background, main, take, TakeSettle(history, clipboard), takenNotice,
+         { push(it) }, { sendPushed = false }, { generation }  // the one place push happens
+     )
++
+     /** The device failure entry: the cut is transcribed, saved and copied, with one sentence and no busy face. */
+     internal val deviceFailure: DeviceFailureYield = DeviceFailureYield(
+         background, main, take, TakeSettle(history, clipboard), { generation }
+@@ -153,11 +157,6 @@ class TileCoordinator(
+     fun onCloseRequested() {
+         keyboardTile.onCloseRequested()
+         heldHide.clearOnClose()
+-        if (closeCancelsTake(armed, failureBarrier(), yield.yieldRunning(), sendPushed,
+-                pushed == TileState.RECORDING || beginPending, portCalls.heldElsewhereNow())) {
+-            beginPending = false; generation += 1; yield.onBeginFailed() // clears the busy flag only
+-            onCancel()
+-        }
+         tileShowGuard.onCloseRequested()
+         tileShown = false // a user close clears the record that the tile is shown
+     }
+@@ -297,4 +296,5 @@ class TileCoordinator(
+         guarded { tile.setState(state) }
+         if (heldHide.applyWhenIdle(inFlight())) { guarded { tile.hide() }; tileShown = false; keyboardTile.releaseRaised() }
+     }
++
+ }
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TilePortCalls.kt b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TilePortCalls.kt
+index 0344c642..1508bfa2 100644
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TilePortCalls.kt
++++ b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TilePortCalls.kt
+@@ -36,12 +36,4 @@ internal class TilePortCalls(
+             false
+         }
+ 
+-    /** The take port's held-elsewhere flag; a port that throws answers false, so the close still cancels. */
+-    fun heldElsewhereNow(): Boolean =
+-        try {
+-            take.heldElsewhere
+-        } catch (e: Exception) {
+-            false
+-        }
+-
+ }
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TilePorts.kt b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TilePorts.kt
+index 7dc0b186..21b83fe9 100644
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TilePorts.kt
++++ b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TilePorts.kt
+@@ -72,10 +72,6 @@ interface TakePort {
+ 
+     /** Moves a taken take from SENDING to IDLE without stopping the audio again. */
+     fun resetAfterTaken()
+-
+-    /** True when a path other than this port's own kind holds the running take. */
+-    val heldElsewhere: Boolean
+-        get() = false
+ }
+ 
+ /** Whether the speech model the settings select is installed and unpacked. */
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileShowGuard.kt b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileShowGuard.kt
+index 4c761620..cf0c57ee 100644
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileShowGuard.kt
++++ b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileShowGuard.kt
+@@ -102,13 +102,3 @@ internal class TileShowGuard(
+         }
+     }
+ }
+-
+-/** True when a close cancels a take: armed, not failing, yielding or sending, in flight, not held elsewhere. */
+-internal fun closeCancelsTake(
+-    armed: Boolean,
+-    failed: Boolean,
+-    yielding: Boolean,
+-    sending: Boolean,
+-    inFlight: Boolean,
+-    heldElsewhere: Boolean,
+-): Boolean = armed && !failed && !yielding && !sending && inFlight && !heldElsewhere
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/CloseCancelsTakeRuleTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/CloseCancelsTakeRuleTest.kt
+deleted file mode 100644
+index 3ffd745b..00000000
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/CloseCancelsTakeRuleTest.kt
++++ /dev/null
+@@ -1,69 +0,0 @@
+-package dev.breaker.dictation.wiring
+-
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/**
+- * The truth table of the rule that decides whether a user close cancels the take. The rule cancels only when
+- * all six terms hold; each case below flips one term alone and names it in its failure message.
+- */
+-internal class CloseCancelsTakeRuleTest {
+-
+-    /** The rule with every term clear unless a case names one term to change. */
+-    private fun rule(
+-        armed: Boolean = true,
+-        failed: Boolean = false,
+-        yielding: Boolean = false,
+-        sending: Boolean = false,
+-        inFlight: Boolean = true,
+-        heldElsewhere: Boolean = false,
+-    ): Boolean = closeCancelsTake(armed, failed, yielding, sending, inFlight, heldElsewhere)
+-
+-    @Test
+-    fun `all six terms clear make a user close cancel the take`() {
+-        assertTrue("closeCancelsTake: all six terms clear must cancel the take", rule())
+-    }
+-
+-    @Test
+-    fun `a switch that is off stops a user close from cancelling`() {
+-        assertFalse("closeCancelsTake: the armed term must stop the cancel when the switch is off", rule(armed = false))
+-    }
+-
+-    @Test
+-    fun `a close during a device failure does not cancel the take`() {
+-        assertFalse(
+-            "closeCancelsTake: the failed term must stop the cancel while a device failure runs",
+-            rule(failed = true),
+-        )
+-    }
+-
+-    @Test
+-    fun `a close during a microphone yield does not cancel the take`() {
+-        assertFalse("closeCancelsTake: the yielding term must stop the cancel during the yield", rule(yielding = true))
+-    }
+-
+-    @Test
+-    fun `a close while the text is on its way does not cancel the take`() {
+-        assertFalse(
+-            "closeCancelsTake: the sending term must stop the cancel while the text is sent",
+-            rule(sending = true),
+-        )
+-    }
+-
+-    @Test
+-    fun `a close with no take in flight does not cancel the take`() {
+-        assertFalse(
+-            "closeCancelsTake: the inFlight term must stop the cancel with no take in flight",
+-            rule(inFlight = false),
+-        )
+-    }
+-
+-    @Test
+-    fun `a close while the Home holds the take does not cancel the take`() {
+-        assertFalse(
+-            "closeCancelsTake: the heldElsewhere term must stop the cancel while the Home holds",
+-            rule(heldElsewhere = true),
+-        )
+-    }
+-}
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileShowGuardTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileShowGuardTest.kt
+index 5675958e..50acbd93 100644
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileShowGuardTest.kt
++++ b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileShowGuardTest.kt
+@@ -1,6 +1,5 @@
+ package dev.breaker.dictation.wiring
+ 
+-import dev.breaker.dictation.core.model.DictationState
+ import dev.breaker.dictation.overlay.TileState
+ import org.junit.Assert.assertEquals
+ import org.junit.Assert.assertFalse
+@@ -34,50 +33,31 @@ class KeyboardTileShowGuardTest {
+     }
+ 
+     @Test
+-    fun `a keyboard show after a close during a take shows the tile and begins no take`() {
++    fun `a keyboard show during a take does not bring a closed tile back`() {
+         val r = TileRig()
+         r.startRecording()
+         r.coordinator.onCloseRequested()
+         r.settle()
+-        assertEquals("the close must cancel the take once", 1, r.take.cancelCalls)
+         r.coordinator.onKeyboardReading(true, true, 2000L)
+         r.settle()
+-        assertTrue(
+-            "TileCoordinator.onKeyboardReading: a keyboard show after a close during a take must show the tile",
++        assertFalse(
++            "TileCoordinator.onKeyboardReading: a keyboard show while the take records must not show a closed tile",
+             r.tile.shown,
+         )
+-        assertEquals("TileCoordinator.onKeyboardReading: a keyboard show must begin no take", 1, r.take.beginCalls)
+-        assertEquals(
+-            "TileCoordinator.onKeyboardReading: no take may record after the close",
+-            DictationState.IDLE,
+-            r.take.sessionState,
+-        )
+     }
+ 
+     @Test
+-    fun `a keyboard show after a close during a pending begin shows the tile and leaves no take recording`() {
++    fun `a keyboard show while a begin is pending does not bring a closed tile back`() {
+         val r = TileRig()
+-        // No settle before the show: the begin stays queued, so the close and the show both happen before it runs.
++        // No settle here: the begin stays queued on the background, so only the pending begin can block the show.
+         r.coordinator.onBegin()
+         r.coordinator.onCloseRequested()
+         r.coordinator.onKeyboardReading(true, true, 2000L)
+         assertEquals("the begin must still be queued", 0, r.take.beginCalls)
+-        assertTrue(
+-            "TileCoordinator.onKeyboardReading: a keyboard show after a close must show the tile",
++        assertFalse(
++            "TileCoordinator.onKeyboardReading: a keyboard show while a begin is pending must not show a closed tile",
+             r.tile.shown,
+         )
+-        r.settle()
+-        assertEquals("TileCoordinator.onKeyboardReading: only the tap's queued begin runs", 1, r.take.beginCalls)
+-        assertEquals(
+-            "TileCoordinator.onKeyboardReading: the close must cancel the pending begin once",
+-            1,
+-            r.take.cancelCalls,
+-        )
+-        assertEquals(
+-            "TileCoordinator.onKeyboardReading: no take may record after the close",
+-            DictationState.IDLE,
+-            r.take.sessionState,
+-        )
+     }
+ 
+     @Test
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/ShakeShowsTileTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/ShakeShowsTileTest.kt
+index 555d1224..757081fa 100644
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/ShakeShowsTileTest.kt
++++ b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/ShakeShowsTileTest.kt
+@@ -1,6 +1,5 @@
+ package dev.breaker.dictation.wiring
+ 
+-import dev.breaker.dictation.core.model.DictationState
+ import dev.breaker.dictation.overlay.TileState
+ import org.junit.Assert.assertEquals
+ import org.junit.Assert.assertFalse
+@@ -38,33 +37,28 @@ internal class ShakeShowsTileTest {
+     }
+ 
+     @Test
+-    fun `a shake after a close that ended a recording take shows the tile and begins no take`() {
++    fun `a shake while a take is recording does nothing`() {
+         val rig = TileRig()
+         rig.startRecording()
+         rig.coordinator.onCloseRequested()
+-        rig.settle()
+-        assertEquals("app: a close during a recording take must cancel the take once", 1, rig.take.cancelCalls)
+         rig.tile.calls.clear()
+         rig.coordinator.onShake()
+         rig.settle()
+-        assertEquals("app: a shake after the close must show the tile once", 1, rig.tile.calls.count { it == "show" })
+-        assertEquals("app: a shake after the close must begin no take", 1, rig.take.beginCalls)
+-        assertEquals("app: a shake after the close must leave the tile ARMED", TileState.ARMED, rig.tile.states.last())
++        assertEquals("app: a shake while recording must make no tile call", emptyList<String>(), rig.tile.calls)
++        assertEquals("app: a shake while recording must leave the one take begun", 1, rig.take.beginCalls)
+     }
+ 
+     @Test
+-    fun `a shake after a close during a pending begin shows the closed tile and leaves no take recording`() {
++    fun `a shake while a begin is pending does nothing`() {
+         val rig = TileRig()
+         rig.coordinator.onBegin()
+         rig.coordinator.onCloseRequested()
+         rig.tile.calls.clear()
+         rig.coordinator.onShake()
+-        assertEquals("app: a shake after the close must show the tile once", 1, rig.tile.calls.count { it == "show" })
++        assertEquals("app: a shake while a begin is pending must make no show call", 0, rig.tile.calls.count { it == "show" })
++        assertFalse("app: a shake while a begin is pending must not call show at all", rig.tile.calls.contains("show"))
+         rig.settle()
+-        assertEquals("app: the queued begin still runs once before its cancel", 1, rig.take.beginCalls)
+-        assertEquals("app: the close must cancel the pending begin once", 1, rig.take.cancelCalls)
+-        assertEquals("app: no take may be recording after the close", DictationState.IDLE, rig.take.sessionState)
+-        assertFalse("app: no RECORDING state may follow the close", rig.tile.states.contains(TileState.RECORDING))
++        assertEquals("app: a shake while a begin is pending must leave only the tap's one take begun", 1, rig.take.beginCalls)
+     }
+ 
+     @Test
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileCloseCancelsTakeTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileCloseCancelsTakeTest.kt
+deleted file mode 100644
+index 32f4a9ad..00000000
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileCloseCancelsTakeTest.kt
++++ /dev/null
+@@ -1,170 +0,0 @@
+-package dev.breaker.dictation.wiring
+-
+-import dev.breaker.dictation.core.model.DictationState
+-import dev.breaker.dictation.overlay.TileState
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Test
+-
+-/**
+- * A user close that lands on a recording take, or on a begin still pending, ends that take the way Cancel
+- * ends it, and then hides the tile. The coordinator, the take and the tile are the real classes over the fakes.
+- */
+-internal class TileCloseCancelsTakeTest {
+-
+-    /** Holds each submitted block until a test runs the next one, so an answer can land between two steps. */
+-    private class StepBackground : Background {
+-        private val queue: ArrayDeque<() -> Unit> = ArrayDeque()
+-
+-        override fun submit(block: () -> Unit) {
+-            queue.addLast(block)
+-        }
+-
+-        fun runNext() {
+-            check(queue.isNotEmpty()) { "app: no queued block to run" }
+-            val next: () -> Unit = queue.removeFirst()
+-            next()
+-        }
+-    }
+-
+-    /** A coordinator over the rig's fakes whose take is the rig's take behind an owner, as the tile host builds it. */
+-    private fun ownedCoordinator(rig: TileRig, owner: TakeOwner): TileCoordinator =
+-        TileCoordinator(
+-            rig.tile, rig.main, rig.background, OwnedTakePort(rig.take, owner, TakeOwnerKind.TILE),
+-            rig.model, rig.notice, rig.opener, rig.clipboard, {}, rig.history,
+-        )
+-
+-    /** A rig whose tile was brought up by a keyboard show, so the session has raised it. */
+-    private fun raisedByKeyboard(): TileRig {
+-        val rig = TileRig(arm = false)
+-        rig.tile.showResult = TileShow.NO_PERMISSION
+-        rig.coordinator.onArmedChanged(true)
+-        rig.tile.showResult = TileShow.SHOWN
+-        rig.coordinator.onKeyboardReading(true, true, 1000L)
+-        rig.settle()
+-        return rig
+-    }
+-
+-    @Test
+-    fun `a user close during a take ends it like Cancel and sends nothing`() {
+-        val rig = TileRig()
+-        rig.startRecording()
+-        rig.tile.calls.clear()
+-        rig.coordinator.onCloseRequested()
+-        rig.settle()
+-        assertEquals("app: a close during a take must cancel the take once", 1, rig.take.cancelCalls)
+-        assertEquals("app: a close during a take must finish nothing", 0, rig.take.finishCalls)
+-        assertEquals("app: a close during a take must send nothing", 0, rig.take.sendCalls)
+-        assertEquals(
+-            "app: a close during a take must leave the session IDLE",
+-            DictationState.IDLE,
+-            rig.take.sessionState,
+-        )
+-        assertEquals("app: a close during a take must leave the tile ARMED", TileState.ARMED, rig.tile.states.last())
+-        assertEquals("app: a close during a take must end with the hide", "hide", rig.tile.calls.last())
+-
+-        val cancelled = TileRig()
+-        cancelled.startRecording()
+-        cancelled.tile.calls.clear()
+-        cancelled.coordinator.onCancel()
+-        cancelled.settle()
+-        assertEquals("app: Cancel must cancel the take once too", 1, cancelled.take.cancelCalls)
+-        assertEquals(
+-            "app: the close must add only the hide to what Cancel does on the tile",
+-            cancelled.tile.calls,
+-            rig.tile.calls.dropLast(1),
+-        )
+-        assertEquals(
+-            "app: the close must leave the same session as Cancel",
+-            cancelled.take.sessionState,
+-            rig.take.sessionState,
+-        )
+-    }
+-
+-    @Test
+-    fun `a user close during a pending begin cancels it and no recording face follows`() {
+-        val background = StepBackground()
+-        val main = ManualMain()
+-        val tile = RecordingTile()
+-        val take = FakeTake()
+-        val coordinator = TileCoordinator(
+-            tile, main, background, take, FakeModelReady(true), RecordingModelNotice(), RecordingOpener(),
+-            RecordingClipboard(), {}, RecordingHistory(),
+-        )
+-        coordinator.onArmedChanged(true)
+-        coordinator.onBegin()
+-        coordinator.onCloseRequested()
+-        background.runNext()
+-        main.drain()
+-        background.runNext()
+-        main.drain()
+-        assertEquals("app: the queued begin must run once before its cancel", 1, take.beginCalls)
+-        assertEquals("app: a close during a pending begin must cancel the take once", 1, take.cancelCalls)
+-        assertFalse(
+-            "app: no RECORDING face may follow a close during a pending begin",
+-            tile.states.contains(TileState.RECORDING),
+-        )
+-        tile.calls.clear()
+-        coordinator.onShake()
+-        assertEquals(
+-            "app: after the close a shake must show the tile once, so no begin is still pending",
+-            1,
+-            tile.calls.count { it == "show" },
+-        )
+-    }
+-
+-    @Test
+-    fun `a user close during a begin started from the busy face clears the busy face`() {
+-        val rig = TileRig()
+-        rig.coordinator.onTakeMicTaken()
+-        rig.settle()
+-        assertEquals("app: the cut must leave the busy face", TileState.MIC_BUSY, rig.tile.states.last())
+-        rig.coordinator.onBegin()
+-        rig.coordinator.onCloseRequested()
+-        rig.settle()
+-        assertEquals(
+-            "app: a close during a begin from the busy face must cancel the take once",
+-            1,
+-            rig.take.cancelCalls,
+-        )
+-        assertEquals(
+-            "app: a close during a begin from the busy face must clear the busy face",
+-            TileState.ARMED,
+-            rig.tile.states.last(),
+-        )
+-    }
+-
+-    @Test
+-    fun `a user close of a take the tile holds cancels it`() {
+-        val rig = TileRig(arm = false)
+-        val coordinator = ownedCoordinator(rig, TakeOwner())
+-        coordinator.onArmedChanged(true)
+-        coordinator.onBegin()
+-        rig.settle()
+-        coordinator.onCloseRequested()
+-        rig.settle()
+-        assertEquals("app: a close of a take the tile holds must cancel it once", 1, rig.take.cancelCalls)
+-        assertEquals(
+-            "app: a close of a take the tile holds must leave the session IDLE",
+-            DictationState.IDLE,
+-            rig.take.sessionState,
+-        )
+-    }
+-
+-    @Test
+-    fun `a user close drops a held keyboard hide before the cancel can apply it`() {
+-        val rig = raisedByKeyboard()
+-        rig.startRecording()
+-        rig.coordinator.onKeyboardReading(false, false, 2000L)
+-        rig.settle()
+-        assertEquals("app: the keyboard hide must be held during the take", 0, rig.tile.calls.count { it == "hide" })
+-        rig.coordinator.onCloseRequested()
+-        rig.settle()
+-        assertEquals(
+-            "app: the close must hide the tile once and the held keyboard hide must add no hide",
+-            1,
+-            rig.tile.calls.count { it == "hide" },
+-        )
+-        assertEquals("app: the close must cancel the take once", 1, rig.take.cancelCalls)
+-    }
+-}
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileCloseGuardsTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileCloseGuardsTest.kt
+deleted file mode 100644
+index 018b5805..00000000
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileCloseGuardsTest.kt
++++ /dev/null
+@@ -1,128 +0,0 @@
+-package dev.breaker.dictation.wiring
+-
+-import dev.breaker.dictation.core.model.DictationState
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/**
+- * The user close cancels a take only in the states that call for it. Each test here sets up one state in
+- * which the close must leave the take alone: the Home holds it, no take is in flight, a keyboard hide is held,
+- * the text is on its way, the microphone is yielding, or a device failure runs. These tests pass on the base
+- * as well, because the base never cancels; they pin what the close must not do.
+- */
+-internal class TileCloseGuardsTest {
+-
+-    /** A rig whose tile was brought up by a keyboard show, so the session has raised it. */
+-    private fun raisedByKeyboard(): TileRig {
+-        val rig = TileRig(arm = false)
+-        rig.tile.showResult = TileShow.NO_PERMISSION
+-        rig.coordinator.onArmedChanged(true)
+-        rig.tile.showResult = TileShow.SHOWN
+-        rig.coordinator.onKeyboardReading(true, true, 1000L)
+-        rig.settle()
+-        return rig
+-    }
+-
+-    /** A coordinator over the rig's fakes whose take is the rig's take behind an owner, as the tile host builds it. */
+-    private fun ownedCoordinator(rig: TileRig, owner: TakeOwner): TileCoordinator =
+-        TileCoordinator(
+-            rig.tile, rig.main, rig.background, OwnedTakePort(rig.take, owner, TakeOwnerKind.TILE),
+-            rig.model, rig.notice, rig.opener, rig.clipboard, {}, rig.history,
+-        )
+-
+-    @Test
+-    fun `a user close while the Home holds the take cancels nothing`() {
+-        val rig = TileRig(arm = false)
+-        val owner = TakeOwner()
+-        val coordinator = ownedCoordinator(rig, owner)
+-        coordinator.onArmedChanged(true)
+-        coordinator.onBegin()
+-        rig.settle()
+-        owner.begun(TakeOwnerKind.HOME)
+-        coordinator.onCloseRequested()
+-        rig.settle()
+-        assertEquals("app: a close while the Home holds the take must cancel nothing", 0, rig.take.cancelCalls)
+-        assertEquals(
+-            "app: a close while the Home holds the take must leave the take recording",
+-            DictationState.RECORDING,
+-            rig.take.sessionState,
+-        )
+-        assertFalse("app: a close while the Home holds the take must still hide the tile", rig.tile.shown)
+-    }
+-
+-    @Test
+-    fun `a user close with no take in flight cancels nothing`() {
+-        val rig = TileRig()
+-        rig.coordinator.onCloseRequested()
+-        rig.settle()
+-        assertEquals("app: a close with no take in flight must cancel nothing", 0, rig.take.cancelCalls)
+-        assertFalse("app: a close with no take in flight must still hide the tile", rig.tile.shown)
+-    }
+-
+-    @Test
+-    fun `a keyboard hide during a take is held and cancels nothing`() {
+-        val rig = raisedByKeyboard()
+-        rig.startRecording()
+-        rig.coordinator.onKeyboardReading(false, false, 2000L)
+-        rig.settle()
+-        assertEquals(
+-            "app: a keyboard hide during a take must make no hide call",
+-            0,
+-            rig.tile.calls.count { it == "hide" },
+-        )
+-        assertEquals("app: a keyboard hide during a take must cancel nothing", 0, rig.take.cancelCalls)
+-        assertEquals(
+-            "app: a keyboard hide during a take must leave the take recording",
+-            DictationState.RECORDING,
+-            rig.take.sessionState,
+-        )
+-    }
+-
+-    @Test
+-    fun `a user close while the text is on its way cancels nothing`() {
+-        val rig = TileRig()
+-        rig.coordinator.onBegin()
+-        rig.coordinator.onSend()
+-        rig.coordinator.onCloseRequested()
+-        rig.settle()
+-        assertEquals("app: a close while the text is on its way must cancel nothing", 0, rig.take.cancelCalls)
+-        assertEquals(
+-            "app: a close while the text is on its way must let the send's finish run once",
+-            1,
+-            rig.take.finishCalls,
+-        )
+-    }
+-
+-    @Test
+-    fun `a user close during a microphone yield keeps the answer of a begin that was pending`() {
+-        val rig = TileRig()
+-        rig.take.beginResult = BeginResult.Failed(FAILED_SENTENCE)
+-        rig.coordinator.onBegin()
+-        rig.coordinator.onTakeMicTaken()
+-        rig.coordinator.onCloseRequested()
+-        rig.settle()
+-        assertEquals("app: a close during the microphone yield must cancel nothing", 0, rig.take.cancelCalls)
+-        assertTrue(
+-            "app: the answer of a begin pending during the microphone yield must still reach the tile",
+-            rig.tile.notices.contains(FAILED_SENTENCE),
+-        )
+-    }
+-
+-    @Test
+-    fun `a user close during a device failure keeps the answer of a begin that was pending`() {
+-        val rig = TileRig()
+-        rig.take.beginResult = BeginResult.Failed(FAILED_SENTENCE)
+-        rig.take.sessionState = DictationState.RECORDING
+-        rig.coordinator.onBegin()
+-        assertTrue("app: the microphone failure must be taken by the tile", rig.coordinator.onTakeFailed())
+-        rig.coordinator.onCloseRequested()
+-        rig.settle()
+-        assertEquals("app: a close during a device failure must cancel nothing", 0, rig.take.cancelCalls)
+-        assertTrue(
+-            "app: the answer of a begin pending during a device failure must still reach the tile",
+-            rig.tile.notices.contains(FAILED_SENTENCE),
+-        )
+-    }
+-}
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileSpokenSendRouteTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileSpokenSendRouteTest.kt
+index 0405267b..04ef7276 100644
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileSpokenSendRouteTest.kt
++++ b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileSpokenSendRouteTest.kt
+@@ -105,24 +105,15 @@ internal class TileSpokenSendRouteTest {
+     }
+ 
+     @Test
+-    fun `a spoken send after a close of a tile take finishes nothing and calls no hidden callback`() {
++    fun `a spoken send for a tile take reaches the hidden callback once when the tile is hidden`() {
+         coordinator.onBegin()
+         settle()
+         handler.start()
+         coordinator.onCloseRequested()
+         settle()
+         firePhraseSend(1_500L)
+-        assertEquals(
+-            "app: a spoken send after a close of a tile take must finish nothing",
+-            emptyList<Long?>(),
+-            take.trims,
+-        )
+-        assertEquals("app: a spoken send after a close of a tile take must call no hidden callback", 0, hidden)
+-        assertEquals(
+-            "app: the close must cancel the tile take, leaving the session IDLE",
+-            DictationState.IDLE,
+-            take.sessionState,
+-        )
++        assertEquals("app: a spoken send for a hidden tile take calls the hidden callback once", 1, hidden)
++        assertEquals("app: a spoken send for a hidden tile take finishes nothing", emptyList<Long?>(), take.trims)
+     }
+ 
+     @Test
+diff --git a/decisions/ADR-024-tile-feedback-and-visibility.md b/decisions/ADR-024-tile-feedback-and-visibility.md
+index eb904a1f..7c35972d 100644
+--- a/decisions/ADR-024-tile-feedback-and-visibility.md
++++ b/decisions/ADR-024-tile-feedback-and-visibility.md
+@@ -1,6 +1,6 @@
+ # ADR-024: The tile shows busy and loudness, and hides itself when no keyboard is in use
+ 
+-**Status:** accepted, amended 2026-10-12 (busy cue: no spinner; shake, keyboard and battery), amended 2026-10-14 (level feed), amended 2026-10-15 (a shake only shows the tile), amended 2026-10-17 (X and check size and spacing), amended 2026-10-20 (keyboard visibility design note), amended 2026-10-29 (keyboard tile built: hold during a take, close, debounce window), amended 2026-10-29 (a user close during a take cancels it)
++**Status:** accepted, amended 2026-10-12 (busy cue: no spinner; shake, keyboard and battery), amended 2026-10-14 (level feed), amended 2026-10-15 (a shake only shows the tile), amended 2026-10-17 (X and check size and spacing), amended 2026-10-20 (keyboard visibility design note), amended 2026-10-29 (keyboard tile built: hold during a take, close, debounce window)
+ **Date:** 2026-10-12
+ 
+ ## Context
+@@ -106,7 +106,3 @@ Amended 2026-10-29: the keyboard show, the held hide and the close record, as bu
+ - **Decision location.** The decision is the top-level function `decision` in `KeyboardTileDecision.kt`, not a member of `TileCoordinator`. Its inputs are four booleans and two time stamps. `KeyboardTileSession` calls it for `TileCoordinator`.
+ - **Debounce.** The debounce time stays 250 ms. A reading inside the window is held, and only the newest held reading is re-evaluated, once, when the window ends. A reading still held when a take begins is acted at once, and its hide is held to the take end. A keyboard show or a switch-off drops a held hide, and a switch-off also cancels the pending re-evaluation.
+ - **Shake.** The shake behaves as before; the shake and the keyboard show now share one check.
+-
+-Amended 2026-10-29: a user close during a take, as built.
+-
+-- **Close cancels the take.** A close by the user while a take is recording, or while its begin is pending, ends that take the way Cancel ends it (nothing is finished or sent, the audio is dropped, the tile goes back to armed), and then hides the tile. A close while the Home holds the take, with no take in flight, during a send, a microphone yield or a device failure cancels nothing. A keyboard hide during a take is still held.

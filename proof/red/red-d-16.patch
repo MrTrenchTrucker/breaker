@@ -1,0 +1,2892 @@
+diff --git a/ARCHITECTURE.md b/ARCHITECTURE.md
+index 61af4f07..54b5ef39 100644
+--- a/ARCHITECTURE.md
++++ b/ARCHITECTURE.md
+@@ -76,7 +76,7 @@ admins.
+       moving vehicle cannot start a recording. A tap on the tile starts recording.
+       A shake works from any app and with the keyboard open, and keeps working
+       whether or not the tile is on screen, for as long as dictation is switched on.
+-- F5. **"And I'm Gone"** (voice phrase, while the tile is shown) OR tap tile -> stop + send -> commit text to
++- F5. **"And I'm Gone"** (voice phrase) OR tap tile → stop + send → commit text to
+       focused field.
+ - F6. If no text field is focused, or the accessibility insert is refused →
+       copy to clipboard, with a confirmation: our toast on Android 12 and
+@@ -178,7 +178,7 @@ admins.
+       target (an X in a circle) near the bottom of the screen; dropping the tile on
+       it hides the tile. Dictation stays switched on, so a shake brings the tile back,
+       and "Breaker Breaker" brings it back and starts recording (F4); opening Breaker from its icon
+-      shows it again. Switching dictation off stays in the notification and the app. A close during a take that is recording or whose begin is pending ends that take first, as Cancel does.
++      shows it again. Switching dictation off stays in the notification and the app.
+ - F39. **Busy cue:** from the check tap until the final outcome the tile shows
+       that the text is being processed: the ring takes a colour of its own and
+       pulses on its own rhythm; there is no spinner (ADR-024).
+@@ -460,9 +460,9 @@ ends it.
+ - **OPEN defects (ADR-026):** X and check not tappable while recording (blocker); Home lacks
+   the tile's mic-busy and sending faces (same signal required); late transcript on Home;
+   Settings narrower than Home on the phone (not reproduced on the emulator); Home mic ignores the stored theme (`setTheme` has no caller).
+-- **Spoken Send (F5, ADR-029):** app class `PhraseSendHandler` alone owns detector
++- **Spoken Send (F5, ADR-029), PLANNED:** app class `PhraseSendHandler` alone owns detector
+   start/stop, the audio tee and the one-Send-per-take gate; a hit submits `finish(trimBeforeMs)`
+-  to the take worker. The app -> phrases edge is declared in `modules.toml` and in the app's Gradle build. A spoken Send for a take the tile holds acts only while the tile is shown; with the tile hidden it does nothing.
++  to the take worker. The app -> phrases edge lands with that code.
+ 
+ **Overlay (floating tile):** `WindowManager` + `TYPE_APPLICATION_OVERLAY` with `FLAG_NOT_FOCUSABLE` (Android 11+). Tile has no long press: a tap starts dictation, a drag moves the tile or hides it (F38); tapping it starts dictation in place, on the tile — no Activity opens, so the app the user is typing in keeps focus and the user's own keyboard stays up (ADR-022). The tile IS the **CB mic glyph** — tap to talk. While recording, a **level meter** lights the mic's grille slots from left to right, and an X (cancel) and a check (send) sit either side of the mic, each 90% of the mic's size and about 8 dp from it; the check (or the send phrase) sends (F36). A notice on the tile (a sentence from the app, such as a missing speech model) widens it for a moment: it collapses back to the small tile on its own after 4 seconds, and a tap anywhere on it collapses it at once; the timer is the app's, the tile has no clock. Dragging the small tile shows the close target (F38). After the check tap the tile shows a busy cue until the outcome (F39), the level meter follows the voice level (F40), and the tile may hide while no text input is in use (F41, ADR-024). The overlay module also provides the same mic for an app screen, with no window, no drag and no notice strip; the app places it on Home (F45, ADR-026). Permission set: `SYSTEM_ALERT_WINDOW` (tile), mic, internet, foreground service, notifications (F11), plus the accessibility service — a Settings toggle onboarding leads the user to, not a runtime prompt (ADR-022) [1].
+ 
+diff --git a/android/app/AGENTS.md b/android/app/AGENTS.md
+index 922c6723..d944c120 100644
+--- a/android/app/AGENTS.md
++++ b/android/app/AGENTS.md
+@@ -34,7 +34,7 @@ app-level composition of all modules. Concretely, the app's own types are:
+   - `DisplayChangeAndroid` - the `DisplayPort` over the platform's display manager; it registers one display-change listener with the main-looper handler, so the callback, the snapshot and the watch run on the main thread; the snapshot is the default display's rotation plus the physical size of its current mode, with no window manager and no refresh rate or mode id.
+   - `OverlayTilePort` - the `TilePort` over the overlay module's `FloatingTile`; built on the first show; maps the show result to `TileShow`. Its `level` passes the value on to `setLevel` on the tile with no state check; the RECORDING check is in `LevelFeed`. Its `onDisplayChanged()` forwards a display change to the tile and does nothing until the tile has been shown once.
+   - `TakenClipboardAndroid` - the `TakenClipboard` over the phone's primary clip, labelled with the app's name; main thread only.
+-  - `TileHost` - builds the tile coordinator, the model downloader and the spoken Send parts (the phrase stream provider, the send handler and the link to the take owner) over the one model store. `onArmedChanged(armed)` (any thread) starts or stops the gesture and shows or hides the tile, `onLauncherVisible()` shows the tile again while the switch is on, `requestDownload()` is the download entry point, `setDownloadListener(listener)` sets the in-app download listener (the activity sets it while visible and clears it), and `openLauncher(route)` makes it the `Opener` of the tile. Its `onArmedChanged` also starts or stops the display-change listener on the main looper, beside the shake gesture. Its `init` hands `onTakeEnded` and `onMicTaken` from the composition root to the coordinator through the main post. The taken line reaches the notification through `setNotificationLine`: `DictationNotification.withText` for a line, and the plain `build` when the line is cleared. The coordinator's clipboard seam is `appTakenClipboard(context)`, and its history is the app's history store. Its `init` sets the root's `levelSink` to its one `CompositeLevelSink` (a `CopyOnWriteArrayList`, safe to add to and remove from while `publish` runs on the audio thread) and adds a `LevelFeed` over its own tile and main post, so one level source feeds the tile and the Home mic; `addHomeLevelSink` / `removeHomeLevelSink` add and remove the Home sink (the activity adds it in `onCreate` and removes it in `onDestroy`). It also owns `takeWorker`, the one serial take worker the tile and Home share.
++  - `TileHost` - builds the tile coordinator and the model downloader over the one model store. `onArmedChanged(armed)` (any thread) starts or stops the gesture and shows or hides the tile, `onLauncherVisible()` shows the tile again while the switch is on, `requestDownload()` is the download entry point, `setDownloadListener(listener)` sets the in-app download listener (the activity sets it while visible and clears it), and `openLauncher(route)` makes it the `Opener` of the tile. Its `onArmedChanged` also starts or stops the display-change listener on the main looper, beside the shake gesture. Its `init` hands `onTakeEnded` and `onMicTaken` from the composition root to the coordinator through the main post. The taken line reaches the notification through `setNotificationLine`: `DictationNotification.withText` for a line, and the plain `build` when the line is cleared. The coordinator's clipboard seam is `appTakenClipboard(context)`, and its history is the app's history store. Its `init` sets the root's `levelSink` to its one `CompositeLevelSink` (a `CopyOnWriteArrayList`, safe to add to and remove from while `publish` runs on the audio thread) and adds a `LevelFeed` over its own tile and main post, so one level source feeds the tile and the Home mic; `addHomeLevelSink` / `removeHomeLevelSink` add and remove the Home sink (the activity adds it in `onCreate` and removes it in `onDestroy`). It also owns `takeWorker`, the one serial take worker the tile and Home share.
+ - Wiring package `dev.breaker.dictation.wiring`:
+   - `DictationComponent` - builds the capture, the two core use cases and the runner from their ports; `close()` drops the dictation, switches the service off and is idempotent; `bindTo(scope)` closes it when the scope ends.
+   - `DictationRunner` - drives one dictation at a time: `begin()` (`BeginResult`, whose `Taken` answer means another app or a call holds the microphone), `finish()` (`FinishResult`), `send()`, `cancel()`, `onCaptureEnded()`, `onServiceEnded()`, `resetAfterTaken()` (a taken take back to idle, with no second audio stop), `disarm()`. It stops capture, never the service, except `disarm()`. `RunnerSentences` holds its plain sentences.
+@@ -48,9 +48,9 @@ app-level composition of all modules. Concretely, the app's own types are:
+   - `LevelMap` - the one map from a level in dBFS onto 0 to 1: `levelOf` gives the level of a dBFS value above a zero point (default -60 dBFS) up to -6 dBFS, clamped at both ends, and no information (null) gives 0. The helpers `sumSquaresOf` (the sum of squares of a frame; null when a sample is NaN or infinite) and `dbfsOf` (10 log10 of a sum of squares over a count; null when there is no energy) build the window level, so a silent window gives 0 and a frame with a non-finite sample adds nothing to the sums.
+   - `NoiseFloor` - the per-take noise floor of the bar, one object owned by each `LevelMeter` (so each take starts a fresh floor). The floor is seeded by the lower median of the window levels while the take has counted fewer than 8000 samples (counted through the end of the update). After the seed it falls at most 30 dB per second (2.0006 dB per update of 1067 samples) and rises at most 1 dB per second (0.0667 dB per update), and it never goes below -60 dBFS. The zero point of the bar is the floor plus 8 dB, capped at -18 dBFS. Digital silence (no information) never seeds the floor and does not move it. The constants are in `FloorTuning`, in the same file. It has no thread, no clock and no lock.
+   - `LevelFeed` - the `LevelSink` that carries a level from the audio dispatch thread to the tile on the main thread, through `MainPost`. The posted block forwards the level only while the take's session state is `RECORDING` at that moment (`TRANSCRIBING` is excluded), so the state is read on main.
+-  - `TilePorts.kt` - the ports of the tile: `TileShow`, `TilePort`, `MainPost`, `Background`, `TakePort`, `ModelReady`, `ModelNotice`, `Opener`, and `ROUTE_MODEL_VALUE` ("model", equal to `NotificationRoute.ROUTE_MODEL`). `TakePort` also has `resetAfterTaken`, which `TakePortAdapter` passes to the runner, and `heldElsewhere` (false by default; `OwnedTakePort` answers whether another path holds the take).
++  - `TilePorts.kt` - the ports of the tile: `TileShow`, `TilePort`, `MainPost`, `Background`, `TakePort`, `ModelReady`, `ModelNotice`, `Opener`, and `ROUTE_MODEL_VALUE` ("model", equal to `NotificationRoute.ROUTE_MODEL`). `TakePort` also has `resetAfterTaken`, which `TakePortAdapter` passes to the runner.
+   - `tileStateFor` - the one function that decides which state the tile shows; the busy face of a taken take (`micBusy`) comes after the off switch and before the sending, failed and sent states.
+-  - `TileCoordinator` - what each tap does and which state the tile shows: `onArmedChanged`, `onBegin`, `onShake` (a shake shows a closed or hidden tile and begins nothing), `onCancel`, `onSend`, `onSpokenSend` (a spoken Send, acting only while the tile is shown), `onTap`, `onTakeEnded` (wired through `MainPost` when the mic ends by itself) and `onTakeMicTaken` (wired through `MainPost` by the tile host, for a take cut by the microphone); `onBegin` also needs the tile to be showing, so a failed or refused show means no begin. It is called on the main thread only; the take runs through `Background` and the answers come back through `MainPost`. `TakePortAdapter` presents the runner as a `TakePort`. A user close (`onCloseRequested`) cancels a take that is recording or whose begin is pending, as `onCancel` does, and then hides the tile; the rule is `closeCancelsTake` in `TileShowGuard.kt`.
++  - `TileCoordinator` - what each tap does and which state the tile shows: `onArmedChanged`, `onBegin`, `onShake` (a shake shows a closed or hidden tile and begins nothing), `onCancel`, `onSend`, `onTap`, `onTakeEnded` (wired through `MainPost` when the mic ends by itself) and `onTakeMicTaken` (wired through `MainPost` by the tile host, for a take cut by the microphone); `onBegin` also needs the tile to be showing, so a failed or refused show means no begin. It is called on the main thread only; the take runs through `Background` and the answers come back through `MainPost`. `TakePortAdapter` presents the runner as a `TakePort`.
+   - `TakeYield.kt` (`TakeYieldController`, internal): the taken branch of the coordinator, with the busy face flag, the lead line at the cut, the finish, reset and save on the background, and the copy and the settle line on the main thread (invariants 19 to 24). The settle always runs, even when the save to history fails.
+   - `TakenClipboard.kt` - the one-method seam a taken take copies through (`copy(text)`), main thread only; the Android copy is `TakenClipboardAndroid` in the host package, built by `appTakenClipboard(context)`.
+   - `TakenSentences.kt` - the pinned lines of a taken take (`LEAD`, `SAVED_AND_COPIED`, `TAKEN_NOTHING_HEARD`, `NOT_CONVERTED`, `COPIED_NOT_SAVED` and `STILL_TAKEN`), Kotlin constants, not string resources.
+@@ -113,7 +113,7 @@ app launches to the home screen the ui module builds (on a phone with no speech
+ 15. The app's microphone swap point returns the real microphone, not the unavailable placeholder. `appMicSource(audioManager: AudioManager): MicSource` returns `AndroidMicSource.create(audioManager)`, built once per process. The real microphone source is built lazily, on first use, not at app start. Tested by: `AppMicGateTest`.
+ 16. When the microphone ends a take by itself, the tile coordinator's `onTakeEnded()` is called on the main thread through `MainPost`. A user stop or cancel does not fire it (`ReportingMicSource` stays silent after `markStopRequested`). A send in flight is not disturbed (`onTakeEnded` returns when `sendPushed`). Tested by: `DictationComponentTest`, `DictationFlowTest`, `HostGateTest`.
+ 17. Microphone sharing (ADR-022): when the audio module reports that another app or a phone call has taken the microphone, the take is ended, not cancelled: what was captured is transcribed, saved to history and copied to the clipboard, never typed into the field, and the notification says that the recording stopped for a call or another app. A recording is never restarted on its own. Tested by: `TileCoordinatorTakenTest` (the saved text, the copy and the lead and outcome lines), `DictationComponentTakenHookTest` (the cut reaches the taken hook, not the device-failure end), `TakenSentencesTest` (the words).
+-18. A take begins only from a tap on the tile, and only while the tile is on screen, or from a tap on the Home big mic while Home is shown, which for a tap that would begin a take answers the model sentence first when no model is ready and then answers the stored switch-off (a switched-off tap builds nothing); a tap that finishes the take Home began is not checked for the model, and neither kind of Home tap checks the tile: the coordinator records whether the last attempt to show the tile succeeded, clears it when a show is refused or fails and when the switch goes off, and checks it before any begin from a tile tap, so with no tile on screen a tile tap begins nothing; a tap on the Home big mic has no such check. A shake never begins a take and never opens the microphone. With the tile on screen a shake does nothing, and during a take it does nothing. Closing the tile by dragging it to the close target is built: the app hides the tile and remembers the close in memory only, and dictation stays on. A close during a take that is recording or whose begin is pending first ends that take as Cancel does; a close while the Home holds the take, with no take in flight, during a send, a microphone yield or a device failure cancels nothing. A shake then shows the tile again and clears the close only when that show succeeds; a refused show says the tile is unavailable, leaves the close as it was, and the next shake tries again. Opening the launcher shows the tile, and switching off and on clears the close. The tap on the tile and the tap on the Home big mic are the only begins in this build; a tap on the Home big mic ends only a take that the Home began, and the X on the Home mic cancels a take Home began; while a take the tile began is running, a tap on the Home big mic answers "Breaker is already listening." and starts nothing. Tested by `TileCoordinatorShownTest`, `TileCoordinatorShownPermissionTest`, `ShakeShowsTileTest`, `TileCloseCancelsTakeTest`, `TileCloseGuardsTest`, `TakeHeldElsewhereTest`, `CloseCancelsTakeRuleTest`, and the wiring rule `OVERLAY_TILE_PORT_PASSES_EVERY_HELD_CALLBACK_TO_CREATE` (file `OverlayTilePortGateTest.kt`, new here) that every callback the tile port holds reaches `FloatingTile.create`. On every other begin the tile is shown first anyway (show is idempotent), so a tile the overlay knows is hidden comes back, and a refused show begins no take and says the tile is unavailable. A tile the window system removed without telling the overlay still answers that it is shown, so this does not catch it (see Known Gotchas). The Home mic's three labels (the tap-to-talk words, Cancel and Done) come from ui's public `HomeControl` constants through `ActivityHelpers.createHomeMic` and are never retyped in the app or the overlay; tested by `HomeMicLabelsGateTest`.
++18. A take begins only from a tap on the tile, and only while the tile is on screen, or from a tap on the Home big mic while Home is shown, which for a tap that would begin a take answers the model sentence first when no model is ready and then answers the stored switch-off (a switched-off tap builds nothing); a tap that finishes the take Home began is not checked for the model, and neither kind of Home tap checks the tile: the coordinator records whether the last attempt to show the tile succeeded, clears it when a show is refused or fails and when the switch goes off, and checks it before any begin from a tile tap, so with no tile on screen a tile tap begins nothing; a tap on the Home big mic has no such check. A shake never begins a take and never opens the microphone. With the tile on screen a shake does nothing, and during a take it does nothing. Closing the tile by dragging it to the close target is built: the app hides the tile and remembers the close in memory only, and dictation stays on. A shake then shows the tile again and clears the close only when that show succeeds; a refused show says the tile is unavailable, leaves the close as it was, and the next shake tries again. Opening the launcher shows the tile, and switching off and on clears the close. The tap on the tile and the tap on the Home big mic are the only begins in this build; a tap on the Home big mic ends only a take that the Home began, and the X on the Home mic cancels a take Home began; while a take the tile began is running, a tap on the Home big mic answers "Breaker is already listening." and starts nothing. Tested by `TileCoordinatorShownTest`, `TileCoordinatorShownPermissionTest`, `ShakeShowsTileTest`, and the wiring rule `OVERLAY_TILE_PORT_PASSES_EVERY_HELD_CALLBACK_TO_CREATE` (file `OverlayTilePortGateTest.kt`, new here) that every callback the tile port holds reaches `FloatingTile.create`. On every other begin the tile is shown first anyway (show is idempotent), so a tile the overlay knows is hidden comes back, and a refused show begins no take and says the tile is unavailable. A tile the window system removed without telling the overlay still answers that it is shown, so this does not catch it (see Known Gotchas). The Home mic's three labels (the tap-to-talk words, Cancel and Done) come from ui's public `HomeControl` constants through `ActivityHelpers.createHomeMic` and are never retyped in the app or the overlay; tested by `HomeMicLabelsGateTest`.
+ 19. A take cut by the microphone shows the busy face. The face is the tile state for a taken microphone: `tileStateFor` checks it after the off switch and before the sending, failed and sent states. The flag clears when a begin starts, when the switch goes off, and at the next take end; a take end clears the flag and the notice line, and the tile is redrawn at its next state change. The settle of a taken take keeps the face, so the armed tile is never shown while the microphone is held. Tested by: `TileStateMapTest` (the busy face wins over a pushed send, a failed take and a commit, and an off switch shows idle), `TileCoordinatorTakenTest` (the face is busy at the cut and after the settle; a begin after the settle clears it; a take end restores the plain line).
+ 20. A tap on the busy face is a begin attempt through the same begin path as any other tile begin: it needs the switch on, the tile on screen, no begin already in flight and a ready speech model, and it does nothing while the taken branch is still running. A shake on the busy face does nothing but show a closed or hidden tile. A tap in any other state keeps its meaning. A begin refused as taken keeps the busy face and shows the refused line. A failed begin shows its failure and not the busy face. Tested by: `TileCoordinatorTakenTest` (a tap on the busy face reaches the begin and not the launcher; a take refused as taken shows the busy face and the refused line; a tap in idle opens the launcher and does not begin), `ShakeBeginPathTest` (a shake on a shown tile leaves it alone, and a tap is what begins). A tap on the big mic on Home, while Home is shown, is a second begin source: it needs no tile on screen, Home's recording look is the visible sign of its take, and a tap on that mic ends only a take that Home began.
+ 21. A begin whose open is refused because another app or a call holds the microphone answers the taken result, not the failed sentence: the session stays idle with the service armed, and the tile shows the busy face with the refused line. A refusal from a broken device, and every other failure, keeps the failed answer. Tested by: `DictationRunnerTakenTest` (the taken answer and the idle session; the broken device answers failed), `TileCoordinatorTakenTest` (the refused take shows the busy face and the refused line).
+@@ -160,7 +160,7 @@ The switch for the ui module: `wiring/BreakerSwitchAdapter.kt` implements the sw
+ - Wiring tests (JVM, no Android): `android/app/src/test/kotlin/dev/breaker/dictation/wiring/` - `IconLaunchRefusedTest` (a refused icon switch-on reaches the screen's sink once, the rule stays open, a throwing sink does not escape), `DictationRunnerTest`, `DictationRunnerEndTest`, `DictationRunnerDisarmTest` (the capture and session are dropped before the service is halted), `DictationRunnerFinishTest` (a finish that fails still stops the audio exactly once and drops the dictation), `DictationComponentTest`, `DictationComponentServiceTest`, `DictationFlowTest`, `LazyHistoryStoreTest`, `LazyHistoryRootTest`, `PurgeScopeTest`, `UnavailableSlotsTest`. `DictationRunnerTakenTest` (an open refused as taken answers taken; a broken device answers failed; a reset after a taken take adds no stop and no close), `DictationRunnerSelfEndTest` (a self-end lands idle with the service armed, and the owed stop is paid once), `DictationComponentTakenHookTest` (a taken microphone reaches the taken hook while the session still records; a device failure keeps the old end; a user stop does not call the hook), `TakeChainTest` (a full taken settle pays one audio stop and leaves the session idle), `TakenSentencesTest` (the pinned lines word for word and their lengths), `TakeYieldGuardTest` (a cancel is refused while the taken branch runs; a switch-off during a taken transcription lets a later begin and cancel through), `TakeYieldReentryTest` (a second cut that reaches the taken controller starts no second finish; a settle left from before a switch-off and re-arm changes nothing), `TakeYieldRefusedQueueTest` (a background that refuses the work abandons the cut at once, posts the not-converted line and lets a later cut, tap or send work), `TakeYieldClearPointsTest` (a take end alone, and a switch-off, clear the busy face; a switch-off posts the plain line), `TakeYieldSendTapTest` (a send tap during a taken transcription is refused and the take is finished once), `TakeYieldFailedBeginTest` (a begin that fails on the device after a begin refused as taken shows the failed face, not the busy face), `TakeYieldSaveFailedTest` (a failed history save still settles the take, copies the text, posts the copied-not-saved line and lets a later begin and cancel through). `DeviceFailureSentencesTest` (the five device failure sentences word for word and their lengths), `TakeSettleTest` (the shared settle: save, copy and the outcome line), `DeviceFailureYieldTest` (the device failure yield on the background: the saved, copied and not-converted outcomes, no send, the refused start, and a stale run after a switch off that frees nothing for a later run), `TileCoordinatorDeviceFailureTest` (the tile's device failure entry, its guards, and a switch off that clears a cut in flight so the next arm takes the next cut), `DeviceFailureChainTest` (the real runner end to end: one audio stop, the saved line, the owed stop after a refused start) and `DictationComponentDeviceFailureTest` (the component's handler: the session still records when it runs, the fallback is the old end). `DisplayWatchTest` and `DisplayWatchEdgesTest` (the display watch; their shared fakes are in `DisplayWatchFakes.kt`). Their shared fakes are in `WiringFakes.kt` and `WiringMicFakes.kt`; the sentence of the stand-in local engine that the runner tests use is in `LocalSlotFixture.kt`.
+ - Host tests (JVM, no Android): `android/app/src/test/kotlin/dev/breaker/dictation/host/` - `ServiceRefusalNoticeTest` (the refusal is held, posted only when notifications are permitted, taken once, and a failing step is skipped).
+ - Gate tests over the app's own files: `android/app/src/test/kotlin/dev/breaker/dictation/gates/` - `ProbeReleaseGateTest` (the release build holds no probe element, source or service config; no main source of the app or of any module calls setEnabled on the keyboard probe holder), `ProbeDebugManifestGateTest` (the debug manifest is exact: the mic probe receiver is its one exported element and both probe providers are not exported), `ProbeShowHideGateTest` (the tile show and hide paths name no probe symbol), `ManifestGateTest`, `NetworkConfigGateTest`, `NotificationTextGateTest`, `RootSlotsGateTest`, `AppLayoutGateTest`, `AppWiringGateTest` (the wiring in the application class, the launcher activity and the composition root), `BuildFileGateTest` (the build file's application id, platform levels and dependency list), `BuildFileSherpaGateTest` (the run-time dependency on the speech engine release file, its pin check and the one by-name hook), `RecognizerSwapGateTest` (the swap point holds the real recognizer factory and names no placeholder), `AppCommitGateTest` (the text committer: its swap point, its one place in the root and the app, the build edges, the manifest entry and the service name), `AppPrivacyScanTest` (support files `AppSourceFiles` and `AppXml.kt`), `IconLaunchOnceGateTest` (the saved icon-launch flag in the launcher activity: read in `onCreate`, saved in `onSaveInstanceState`, one key for both), `GestureWiringGateTest` (the gesture wiring: sensor types and listener calls only in `AndroidSwaps.kt`; the app gesture built from the module's `ShakeHandle` over `SensorManagerShakeSource`; the handle started only in `ShakeGesture.start` and stopped in `stop`; a refused start clears the trigger; `TileHost` takes `appGesture(context)` and starts it in one place). `ShakeTriggerGateTest` (the shake trigger in `TileHost` calls `TileCoordinator.onShake`, and the tap callback is the only `onBegin` call), `NotificationTakenGateTest` (the taken seam's text rules: the clipboard maker in `AndroidSwaps.kt`; one `withText` signature, one `setContentText` call and the `build` signature in `DictationNotification.kt`), `DeviceFailureWiringGateTest` (the device failure wiring that no JVM test can run: `TileHost` offers the cut to the coordinator through the root hook and runs the fallback only when it is not taken; `DictationComponent` hands the handler the fallback, and the one owed-stop call sits in the fallback lambda), `LauncherIconGateTest` (pins the launcher and notification icon resources: the five foreground PNGs against the rendered set, the SVG source pin, the background fill, the silhouette, the white notification icon, the manifest icon names, and the absence of framework icons and legacy launcher PNGs). Each gate runs against the real files and fires on samples: most samples are the real text with one edit, some are small sources written by hand, and an edit whose target text is missing fails by name.
+-- Wiring tests for the tile, the switch and the model download (JVM, no Android): `android/app/src/test/kotlin/dev/breaker/dictation/wiring/` - `TileStateMapTest` (every session state has a tile state; the busy face wins over a pushed send, a failed take and a commit, and an off switch shows idle), `TileCoordinatorShownTest` (a begin needs the tile on screen: a failed or refused show means no begin), `TileCoordinatorShownPermissionTest` (a show without the overlay permission means no begin), `TileCoordinatorTest` (the switch, taps, cancel, stale answers, ports that throw), `TileCoordinatorTakeTest` (begin, send, the empty take, failures), `TileCoordinatorOutcomeTest` (SENT after a send, its clearing by begin, cancel and switch-off, a tap from SENT, and the text never reaching the tile), `TileCoordinatorMoreTest` (a failed tile after switching off and on, a take of only blanks), `TileCoordinatorNothingHeardTest` (a blank or empty text drops the take and shows the nothing heard notice once after the armed state, a text with words is sent, a take with no audio stays silent, a switch-off drops the late notice, and a quiet take over the real runner keeps no History row), `TileEmptyTakeRealRunnerTest` (the real runner with a take that holds no audio), `TakePortAdapterTest`, `LaunchRuleTest` (the table of icon launches and other starts), `IconLaunchOnceTest` (the once-per-instance rule: the first icon launch, a repeat start, a recreate with the saved flag, a refused answer, a start that is not the icon, and the stored switch-off), `NoopPortsTest`, `ArmedSwitchTest`, `ArmedSwitchReasonTest` (a switch-off while on tells the controller observer the user's word first), `OffStoreTest` (the off file, its temporary file and the rename), `OffStoreThrowingFileTest` (a file that cannot be inspected counts as not off), `ModelSupportTest`, `ModelNoSpaceSentenceTest` (the no-space sentence word for word, and the mapping of the installer's refusals), `ModelNoSpaceTest` (the no-space refusal reaches the notification and the launcher line, and no other refusal does), `ModelDownloadEntryTest` (the one entry point, one download at a time), `ModelDownloaderDefaultLookupTest` (a downloader built without a lookup uses the registry entry of the selected id), `SwapsTest` (what each swap point answers today, and that the real recognizer factory refuses an unknown model and an empty model folder by name), `ShakeGestureTest` (over a fake sensor port: building registers nothing, a start registers once, a stop unregisters, a refused start is retried by the next start, a shake calls the trigger once and not after a stop), `ShakeShowsTileTest` (a shake with the tile closed shows it and never begins a take; a shake with the tile on screen, during a begin or a take, or with the switch off does nothing; a refused show says the tile is unavailable and the next shake tries again; a tap still begins after a shake showed the tile), and `ShakeBeginPathTest` (a shake wired the way `TileHost` wires it ends in `TileCoordinator.onShake`: it shows a closed or hidden tile and begins nothing, while a tap is what begins; a shake does nothing during a take, when not armed, or after switch-off; `TileHost` itself is pinned by `HostGateTest` text rules, because it cannot run on a JVM). Their shared fakes are in `TileFakes.kt` and `ModelFakes.kt`. `NoticeClearingTilePortTest` (the four-second notice clear: the boundary at 4000 ms, a replaced notice, each cancel, the tap report and the guarded throws; its fake is `FakeDelayedPost`, with no real time). `TileCoordinatorTakenTest` (the taken take: the busy face and its lines in order; the save and the copy; a blank or empty take saves and copies nothing; a thrown or failed conversion posts the fixed line and never the detail; a tap on the busy face reaches the begin and not the launcher; a cancel and a send are refused while the taken branch runs; a second cut is dropped; a take end after a taken take restores the plain line). `TileCloseCancelsTakeTest` (a user close during a take or a pending begin ends it like Cancel, and the busy face clears), `TileCloseGuardsTest` (a close that cancels nothing: the Home holds the take, no take, a held hide, text on its way, a microphone yield, a device failure), `TakeHeldElsewhereTest` (the held-elsewhere flag of the take ports), `CloseCancelsTakeRuleTest` (the truth table of the cancel rule).
++- Wiring tests for the tile, the switch and the model download (JVM, no Android): `android/app/src/test/kotlin/dev/breaker/dictation/wiring/` - `TileStateMapTest` (every session state has a tile state; the busy face wins over a pushed send, a failed take and a commit, and an off switch shows idle), `TileCoordinatorShownTest` (a begin needs the tile on screen: a failed or refused show means no begin), `TileCoordinatorShownPermissionTest` (a show without the overlay permission means no begin), `TileCoordinatorTest` (the switch, taps, cancel, stale answers, ports that throw), `TileCoordinatorTakeTest` (begin, send, the empty take, failures), `TileCoordinatorOutcomeTest` (SENT after a send, its clearing by begin, cancel and switch-off, a tap from SENT, and the text never reaching the tile), `TileCoordinatorMoreTest` (a failed tile after switching off and on, a take of only blanks), `TileCoordinatorNothingHeardTest` (a blank or empty text drops the take and shows the nothing heard notice once after the armed state, a text with words is sent, a take with no audio stays silent, a switch-off drops the late notice, and a quiet take over the real runner keeps no History row), `TileEmptyTakeRealRunnerTest` (the real runner with a take that holds no audio), `TakePortAdapterTest`, `LaunchRuleTest` (the table of icon launches and other starts), `IconLaunchOnceTest` (the once-per-instance rule: the first icon launch, a repeat start, a recreate with the saved flag, a refused answer, a start that is not the icon, and the stored switch-off), `NoopPortsTest`, `ArmedSwitchTest`, `ArmedSwitchReasonTest` (a switch-off while on tells the controller observer the user's word first), `OffStoreTest` (the off file, its temporary file and the rename), `OffStoreThrowingFileTest` (a file that cannot be inspected counts as not off), `ModelSupportTest`, `ModelNoSpaceSentenceTest` (the no-space sentence word for word, and the mapping of the installer's refusals), `ModelNoSpaceTest` (the no-space refusal reaches the notification and the launcher line, and no other refusal does), `ModelDownloadEntryTest` (the one entry point, one download at a time), `ModelDownloaderDefaultLookupTest` (a downloader built without a lookup uses the registry entry of the selected id), `SwapsTest` (what each swap point answers today, and that the real recognizer factory refuses an unknown model and an empty model folder by name), `ShakeGestureTest` (over a fake sensor port: building registers nothing, a start registers once, a stop unregisters, a refused start is retried by the next start, a shake calls the trigger once and not after a stop), `ShakeShowsTileTest` (a shake with the tile closed shows it and never begins a take; a shake with the tile on screen, during a begin or a take, or with the switch off does nothing; a refused show says the tile is unavailable and the next shake tries again; a tap still begins after a shake showed the tile), and `ShakeBeginPathTest` (a shake wired the way `TileHost` wires it ends in `TileCoordinator.onShake`: it shows a closed or hidden tile and begins nothing, while a tap is what begins; a shake does nothing during a take, when not armed, or after switch-off; `TileHost` itself is pinned by `HostGateTest` text rules, because it cannot run on a JVM). Their shared fakes are in `TileFakes.kt` and `ModelFakes.kt`. `NoticeClearingTilePortTest` (the four-second notice clear: the boundary at 4000 ms, a replaced notice, each cancel, the tap report and the guarded throws; its fake is `FakeDelayedPost`, with no real time). `TileCoordinatorTakenTest` (the taken take: the busy face and its lines in order; the save and the copy; a blank or empty take saves and copies nothing; a thrown or failed conversion posts the fixed line and never the detail; a tap on the busy face reaches the begin and not the launcher; a cancel and a send are refused while the taken branch runs; a second cut is dropped; a take end after a taken take restores the plain line).
+ - Level bar (JVM, no Android): `android/app/src/test/kotlin/dev/breaker/dictation/wiring/` - `LevelMeterTest`, `LevelMapTest`, `LevelTapTest`, `LevelFeedTest`, `DictationComponentLevelTest` and `NoiseFloorTest` (the floor's seed, its fall and rise limits, its clamp, the zero-point span, digital silence, a non-finite frame, and a floor with no value before the first level; `LevelMeterTest` covers a fresh floor for each meter).
+ - State observer of the controller (JVM, no Android): `android/app/src/test/kotlin/dev/breaker/dictation/service/` - `ServiceControllerObserverTest`.
+ - Host gates: `android/app/src/test/kotlin/dev/breaker/dictation/gates/` - `HostGateTest` (the threads, the gesture, the tile host and its taken hook, the overlay port), `HostGateNotifyTest` (the model notifications and the settings column, which holds only the settings view), `HostGateNoticeTest` (the permission check, channels, ids, request codes, flags and sentences of the model notices, and the tile's theme) and `HistoryRouteGateTest` (the Home menu's History item, the one function that opens the history screen from the app's store, the route check on a fresh create, no `onNewIntent`, and Back on both paths); each rule holds on the real files and fires on edited samples, like the other gates. `NoticeTimerGateTest` (the notice clear's wiring: the one main-looper queue that runs it, the notice port over the tile, the tap report, and the cancel-first order of the port). `AppPrivacyScanTest` has one named exception, for `host/AppThreads.kt`, which may name the thread types; `AppWiringGateTest` pins the switch, the tile host and the one observer in `BreakerApp.kt` and the launcher. `DisplayWiringGateTest` pins the display-change listener: its one main-looper registration and unregistration, the default-display snapshot, the tile host's watch and the port's forward.
+@@ -200,7 +200,7 @@ code.
+ - **Emulator gate before any APK.** JVM tests and source-text gates cannot see Android layout or lifecycle. A change that touches layout, Views, redraws or the activity lifecycle is run on the Android 16 emulator (API 36) before an APK goes out: upgrade over the previous APK (with the first-run marker) and a fresh install, at window heights 1500, 1800, 2000, 2400 px and 1440x3120 at density 560, plus background/foreground, rotation and dark mode: full Home every time, no crash. The emulator cannot record audio, so recording states are pushed into the mic through a debug-source-set hook (that hook is not in main yet). Three launch defects were found only there and are fixed in main: the redraw re-adding the one mic view (ui `attachMicSlot` detaches it first), the unset `settingsView` on first run (`SettingsViewSetBeforeFirstRunTest`), and a blank Home on a tall phone (ui `TouchGapView` measures itself, `TouchGapMeasureGateTest`).
+ - **OPEN defects from the APK 8 phone test** (cause not found unless stated; required behaviour): (A, blocker) while recording, the X and check on the Home mic are drawn but not tappable and the take sticks; required: X cancels, check finishes, a second tap on the mic finishes. (B) Home mic must show the tile's mic-busy face (`TileState.MIC_BUSY`) from the same signal, no copy. (C) Home mic must show the tile's sending look from the end of recording until the result, then idle. (D) the new transcript must be on Home as soon as the take settles. (G) Settings is narrower than Home: the activity wraps Settings in its own column and `ScrollView` and the host adds its gutter again; required: one gutter applied in one place and the same content edge on every screen. (H, follow-up) the Home mic follows the phone's night mode, not the stored theme (`HomeScreenMic.setTheme` has no caller).
+ - **Persistence (OPEN).** The model is in `filesDir/models` (`LocalModelStore`), settings in `filesDir/settings.properties`, history in the app-private SQLite file `breaker_history.db`; `install -r` keeps them and an uninstall wipes them. `purgeExpired()` runs at start with the fixed 90-day window, and the speech module's `ModelLoader` deletes a model that fails verification. The project owner saw history and the model gone after an update; not reproduced: the gate reviewer's emulator test: an in-place update from APK 6 to APK 8 keeps history and model; APKs 1-5 were each signed with a different key, so 5 to 6 could not install over (INSTALL_FAILED_UPDATE_INCOMPATIBLE) and needed an uninstall; APKs 6, 7 and 8 share one key (cert SHA-256 a8225bc3). Required: an update keeps history, settings and the model. RULED by the project owner: an uninstall removes everything (ADR-028 Decision 2); BUILT manifest change: the manifest sets `allowBackup=false` plus `dataExtractionRules` and `fullBackupContent` that exclude every domain (the two rules files hold an exclude for all five domains in each section; `UninstallCleanGateTest` reads them).
+-- **Keyboard tile, built:** `decision(imeWindowPresent, fieldFocused, keyboardRaised, closedDuringSession, nowMs, lastChangeMs)` in `KeyboardTileDecision.kt` returns SHOW, HIDE or NO_OP. It is a top-level function of the wiring package, not a member of `TileCoordinator`; its readings are the keyboard window and the focused text field. The debounce is 250 ms: a reading inside the window is held, and the newest held reading is re-evaluated once when the window ends, through one pending post. `TileCoordinator.onKeyboardReading` acts on the result, `KeyboardTileSession` keeps the session flags, and `KeyboardHideHold` holds a keyboard-gone hide that comes during a take. **Built:** `PhraseSendHandler` (spoken Send, ADR-004), the one owner of phrase detector start/stop, the audio tee and the one-Send-per-take gate; the tile branch acts only while the tile is shown. The `app -> android_phrases` edge is registered in `modules.toml` and declared in `android/app/build.gradle.kts`.
++- **Keyboard tile, built:** `decision(imeWindowPresent, fieldFocused, keyboardRaised, closedDuringSession, nowMs, lastChangeMs)` in `KeyboardTileDecision.kt` returns SHOW, HIDE or NO_OP. It is a top-level function of the wiring package, not a member of `TileCoordinator`; its readings are the keyboard window and the focused text field. The debounce is 250 ms: a reading inside the window is held, and the newest held reading is re-evaluated once when the window ends, through one pending post. `TileCoordinator.onKeyboardReading` acts on the result, `KeyboardTileSession` keeps the session flags, and `KeyboardHideHold` holds a keyboard-gone hide that comes during a take. **PLANNED, no code:** `PhraseSendHandler` (spoken Send, ADR-004), the one owner of phrase detector start/stop, the audio tee and the one-Send-per-take gate. It needs a new `app -> android_phrases` edge, which is registered in `modules.toml` and included in `settings.gradle.kts` but is not yet a dependency of the app, and it lands with that code, after the Home mic fixes.
+ - **Start-up purge is one-shot and only logged.** `BreakerApp` schedules
+   `SqliteHistoryStore.purgeExpired()` once on an app-lifetime coroutine scope
+   on the I/O dispatcher (`createPurgeScope`), off the main thread. A failure is passed to a callback that logs it
+@@ -282,8 +282,4 @@ code.
+ - The two input routes use different capture sources: a call-style Bluetooth route records with VOICE_COMMUNICATION (platform voice processing, which usually suppresses steady noise) and every other route records with MIC (raw). On the built-in route the old fixed-range bar rested near the middle of the bar (about 50 to 55 percent) in background noise for that reason. The bar now follows a per-take noise floor on every route, so steady noise reads 0 on both; normal speech (about minus 20 dBFS) still reads clearly. Quiet speech (about minus 30 dBFS) on a very quiet route reads lower than before.
+ - A refusal notice and the ongoing notice share the channel and the id (1). A refusal posted under that id replaces a stale ongoing notice with the plain one, and a later foreground start replaces a stale refusal with the ongoing notice again. Nothing checks this on a device.
+ - A change of the system bars or the cutout that leaves the rotation and the physical size the same (an insets-only change) is not seen by the display-change listener; whether the tile needs it is unverified on a device.
+-- **Spoken Send limit, open failure.** A native open failure inside the phrase word stream is not seen by the app: spoken Send is off for that take and nothing is shown.
+-- **Spoken Send limit, service ends while the switch is already off.** The owner is not cleared, because no switch change reaches the tile. The cancel closes the microphone of a recording take, so the word stream stays started with no audio and receives no frames. The next take's start, or the component's close, stops it.
+-- **Spoken Send limit, Cancel then send.** A spoken Send right after Cancel can queue its finish behind the cancel, and the not-listening sentence shows once. The audio is never sent.
+-- **Spoken Send, tile hidden.** A spoken Send for a take the tile holds acts only while the tile is shown. With the tile hidden it does nothing, logs one line through the existing reason, and leaves the take as it is.
+ - First run: the done marker is written only on finish, so a first run ended by closing the app shows again on the next start while the model is missing. **NOT VERIFIED on a device**: the first-run view from welcome to the download, and the recreate after finish.
+diff --git a/android/app/README.md b/android/app/README.md
+index 1ff4e547..6e543287 100644
+--- a/android/app/README.md
++++ b/android/app/README.md
+@@ -126,24 +126,9 @@ of `AGENTS.md` lists the smaller open items.
+   on-device engine with its recognizer, its model store and the download are
+   built; the recognizer has run on a phone in test builds.
+ - The spoken phrases. The phrases module detects the wake and send phrases in
+-  heard words. The app wires the spoken Send: a take that records starts the
+-  detector, a send phrase finishes the take with its audio trimmed where the
+-  phrase began, and every end of the take stops the detector. No spoken off word
+-  is built. A take that begins while no word stream is ready records and finishes
+-  as before, with spoken Send off for that take and one line in the log.
+-  For a take the floating tile holds, a send phrase acts only while the tile is
+-  shown; with the tile hidden it does nothing and logs one line through the
+-  existing reason.
+-- Spoken Send limit, open failure: a native open failure inside the word stream
+-  is not seen by the app. Spoken Send is off for that take and nothing is shown.
+-- Spoken Send limit, service ends while the switch is already off: the owner is
+-  not cleared, because no switch change reaches the tile. The cancel closes the
+-  microphone of a recording take, so the word stream stays started with no audio
+-  and receives no frames. The next take's start, or the component's close, stops
+-  it.
+-- Spoken Send limit, Cancel then send: a spoken Send right after Cancel can queue
+-  its finish behind the cancel, and the not-listening sentence shows once. The
+-  audio is never sent.
++  heard words, but the app does not use it yet, and no spoken off word is built.
++  PLANNED: a `PhraseSendHandler` in the wiring owns the spoken Send (ADR-004); it
++  needs an app edge to the phrases module that is not in the registry yet.
+ - The secret-resolving device Keystore. The app keeps only the reference to the
+   credential (`FileCredentialRefHolder`), never a secret; the Keystore that
+   resolves the reference is not built and not verified.
+diff --git a/android/app/build.gradle.kts b/android/app/build.gradle.kts
+index 1b3750ff..5ea2ada2 100644
+--- a/android/app/build.gradle.kts
++++ b/android/app/build.gradle.kts
+@@ -77,7 +77,6 @@ dependencies {
+     implementation(project(":shared:modules:model-registry"))
+     implementation(project(":android:modules:commit"))
+     implementation(project(":android:modules:gesture"))
+-    implementation(project(":android:modules:phrases"))
+     runtimeOnly(project(":android:modules:commit:accessibility"))
+     implementation(libs.kotlinx.coroutines.core)
+     runtimeOnly(sherpaCoordinate)
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/BreakerApp.kt b/android/app/src/main/kotlin/dev/breaker/dictation/BreakerApp.kt
+index 5761ca1c..2837a515 100644
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/BreakerApp.kt
++++ b/android/app/src/main/kotlin/dev/breaker/dictation/BreakerApp.kt
+@@ -74,7 +74,7 @@ class BreakerApp : android.app.Application() {
+             serviceController = dictationServiceController,
+             committer = textCommitter,
+             micSource = realMicSource,
+-        ).also { root -> root.phraseWarn = { reason -> warn(reason) } }
++        )
+     }
+ 
+     /** The on and off switch over the service; a switch-off is kept in a small file of the app. */
+@@ -110,16 +110,11 @@ class BreakerApp : android.app.Application() {
+         scheduleAppStartPurge(
+             purgeScope,
+             purge = { history.purgeExpired() },
+-            onFailure = { e -> warn("start-up purge failed", e) },
++            onFailure = { e -> Log.w("BreakerApp", "start-up purge failed", e) },
+         )
+         dictationServiceController.setStateObserver { armed, reason ->
+             armedSwitch.onStateChanged(armed, reason)
+             tileHost.onArmedChanged(armed)
+         }
+     }
+-
+-    /** The one log call of the application class: a fixed reason, and the exception when there is one. */
+-    private fun warn(reason: String, e: Throwable? = null) {
+-        Log.w("BreakerApp", reason, e)
+-    }
+ }
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/BreakerCompositionRoot.kt b/android/app/src/main/kotlin/dev/breaker/dictation/BreakerCompositionRoot.kt
+index 59ee1d74..10076558 100644
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/BreakerCompositionRoot.kt
++++ b/android/app/src/main/kotlin/dev/breaker/dictation/BreakerCompositionRoot.kt
+@@ -12,11 +12,9 @@ import dev.breaker.dictation.service.LaunchResult
+ import dev.breaker.dictation.service.MicPermission
+ import dev.breaker.dictation.service.ServiceLauncher
+ import dev.breaker.dictation.settings.SettingsFileStore
+-import dev.breaker.dictation.stt.ondevice.FedWordStream
+ import dev.breaker.dictation.stt.ondevice.LocalModelStore
+ import dev.breaker.dictation.stt.ondevice.ModelLoader
+ import dev.breaker.dictation.stt.ondevice.OnDeviceSttEngine
+-import dev.breaker.dictation.stt.ondevice.SherpaOnnxWordStreamFactory
+ import dev.breaker.dictation.transport.TcpConnectivityProbe
+ import dev.breaker.dictation.wiring.DictationComponent
+ import dev.breaker.dictation.wiring.LazyHistoryStore
+@@ -26,7 +24,6 @@ import dev.breaker.dictation.wiring.SERVER_UNAVAILABLE_DETAIL
+ import dev.breaker.dictation.wiring.UnavailableSttEngine
+ import dev.breaker.dictation.wiring.UuidIdSource
+ import dev.breaker.dictation.wiring.appMicSource
+-import dev.breaker.dictation.wiring.buildPhraseStream
+ import java.io.File
+ 
+ /**
+@@ -84,12 +81,6 @@ class BreakerCompositionRoot(
+     /** Where the speech models are kept: the on-device engine reads it and the download writes it. */
+     val modelStore: LocalModelStore = LocalModelStore(File(filesDir, "models"))
+ 
+-    /** The one loader over [modelStore]: the on-device engine and the phrase word stream both load through it. */
+-    private val modelLoader: ModelLoader = ModelLoader(store = modelStore, factory = RECOGNIZER_FACTORY)
+-
+-    /** Makes the phrase word streams from the models the loader has verified. */
+-    private val wordStreamFactory: SherpaOnnxWordStreamFactory = SherpaOnnxWordStreamFactory()
+-
+     /** Called when a take ends by itself (the microphone stopped). Set by the tile host. */
+     var onTakeEnded: (() -> Unit)? = null
+ 
+@@ -102,12 +93,6 @@ class BreakerCompositionRoot(
+     /** Takes a device failure, with the fallback that the take end runs. Set by the tile host. */
+     var onDeviceFailure: ((() -> Unit) -> Unit)? = null
+ 
+-    /** Gives the phrase word stream for a listening run, or null when none is ready. Set by the tile host. */
+-    var phraseWords: (() -> FedWordStream?)? = null
+-
+-    /** Receives the fixed reason when a take begins without spoken send. Set by the app. */
+-    var phraseWarn: ((String) -> Unit)? = null
+-
+     /** The dictation parts, built on first use. */
+     val dictation: DictationComponent by lazy {
+         DictationComponent(
+@@ -119,7 +104,7 @@ class BreakerCompositionRoot(
+                 serverUrlProvider = { settingsStore.load().serverUrl },
+                 clock = SystemClockAdapter,
+             ),
+-            localEngine = OnDeviceSttEngine(modelLoader),
++            localEngine = OnDeviceSttEngine(ModelLoader(store = modelStore, factory = RECOGNIZER_FACTORY)),
+             serverEngine = UnavailableSttEngine(SttError.OTHER, SERVER_UNAVAILABLE_DETAIL),
+             localFormatter = RuleBasedFormatter(),
+             serverFormatter = RuleBasedFormatter(),
+@@ -131,22 +116,10 @@ class BreakerCompositionRoot(
+             onMicTaken = { onMicTaken?.invoke() },
+             levelSink = LevelSink { level -> levelSink?.publish(level) },
+             onDeviceFailure = { fallback -> onDeviceFailure?.invoke(fallback) ?: fallback() },
+-            phraseWords = { phraseWords?.invoke() },
+         )
+     }
+-
+-    /**
+-     * The phrase word stream for [modelId], or null when the model is not ready. The load's recognizer is
+-     * released at once, because the stream runs on its own; a refused load gives null, and so does a stream
+-     * that cannot be made.
+-     */
+-    fun buildWordStream(modelId: String): FedWordStream? =
+-        buildPhraseStream(modelId, modelLoader::load, wordStreamFactory::create)
+ }
+ 
+-/** The fixed reason logged once for a take that began without spoken send: a plain sentence with no user text. */
+-internal const val PHRASE_UNAVAILABLE_REASON: String = "spoken send is off for this take"
+-
+ /** A controller that can never switch the service on: the permission is off and the launcher refuses. */
+ private fun neverArmedController(): DictationServiceController =
+     DictationServiceController(
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/host/TileHost.kt b/android/app/src/main/kotlin/dev/breaker/dictation/host/TileHost.kt
+index ef64bf73..cbf070cd 100644
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/host/TileHost.kt
++++ b/android/app/src/main/kotlin/dev/breaker/dictation/host/TileHost.kt
+@@ -4,7 +4,6 @@ import android.app.NotificationManager
+ import android.content.Context
+ import android.content.Intent
+ import dev.breaker.dictation.BreakerCompositionRoot
+-import dev.breaker.dictation.PHRASE_UNAVAILABLE_REASON
+ import dev.breaker.dictation.SettingsLauncherActivity
+ import dev.breaker.dictation.core.model.DictationState
+ import dev.breaker.dictation.service.ModelNotifications
+@@ -23,9 +22,6 @@ import dev.breaker.dictation.wiring.ModelDownloader
+ import dev.breaker.dictation.wiring.NoticeClearingTilePort
+ import dev.breaker.dictation.wiring.Opener
+ import dev.breaker.dictation.wiring.OwnedTakePort
+-import dev.breaker.dictation.wiring.PhraseSendHandler
+-import dev.breaker.dictation.wiring.PhraseStreamProvider
+-import dev.breaker.dictation.wiring.PhraseTakeLink
+ import dev.breaker.dictation.wiring.StoreModelReady
+ import dev.breaker.dictation.wiring.TakeOwner
+ import dev.breaker.dictation.wiring.TakeOwnerKind
+@@ -34,7 +30,6 @@ import dev.breaker.dictation.wiring.TileCoordinator
+ import dev.breaker.dictation.wiring.appGesture
+ import dev.breaker.dictation.wiring.appTakenClipboard
+ import dev.breaker.dictation.wiring.modelInstallPortFor
+-import dev.breaker.dictation.wiring.onSpokenSend
+ 
+ /**
+  * Where the floating tile and the speech model download are put together for the running app.
+@@ -116,27 +111,6 @@ internal class TileHost(
+         c
+     }
+ 
+-    /** The model worker: the speech model download and the phrase word stream build both run on it, one block at a time. */
+-    private val modelWorker: SerialBackground = SerialBackground("breaker-model-download")
+-
+-    /** The phrase word stream for the model the settings select. Its build runs on [modelWorker]; a take only reads it. */
+-    private val phraseStreams: PhraseStreamProvider = PhraseStreamProvider(modelWorker, selectedId, { id -> root.buildWordStream(id) })
+-
+-    /** The phrase warning, used when the detector cannot start and when a spoken Send finds the tile hidden. */
+-    private val phraseUnavailable: () -> Unit = { root.phraseWarn?.invoke(PHRASE_UNAVAILABLE_REASON) }
+-
+-    /** The spoken Send: the detector's phrase reaches the path that holds the take, through the owner. */
+-    private val phraseHandler: PhraseSendHandler by lazy {
+-        PhraseSendHandler(
+-            trigger = root.dictation.phrases,
+-            owner = takeOwner,
+-            main = main,
+-            homeSend = { trim -> takeOwner.sendToHome(trim) },
+-            tileSend = { trim -> toCoordinator { it.onSpokenSend(trim, phraseUnavailable) } },
+-            onUnavailable = phraseUnavailable,
+-        )
+-    }
+-
+     /** The Home's mic busy port: reads the shared flag, wires the one listener, forwards the begin answers. */
+     internal val micBusy: MicBusyPort by lazy { MicBusyPortForwarder(coordinator.yield) }
+ 
+@@ -144,8 +118,6 @@ internal class TileHost(
+         root.onTakeEnded = { val m = takeOwner.mark(); toCoordinator { takeOwner.settledIf(m); it.onTakeEnded() } }
+         root.onMicTaken = { val m = takeOwner.mark(); toCoordinator { takeOwner.settledIf(m); it.onTakeMicTaken() } }
+         root.onDeviceFailure = { fallback -> val m = takeOwner.mark(); toCoordinator { takeOwner.settledIf(m); if (!it.onTakeFailed()) fallback() } }
+-        root.phraseWords = { phraseStreams.ready() }
+-        takeOwner.setListener(PhraseTakeLink(takeWorker, takeOwner, { phraseStreams.prepare() }, { phraseHandler.start() }, { phraseHandler.stop() }))
+         root.levelSink = compositeLevelSink
+         compositeLevelSink.add(LevelFeed(noticePort, main) { root.dictation.runner.sessionState == DictationState.RECORDING })
+     }
+@@ -164,7 +136,7 @@ internal class TileHost(
+     private val downloader = ModelDownloader(
+         installer = modelInstallPortFor(root.modelStore),
+         selectedId = selectedId,
+-        background = modelWorker,
++        background = SerialBackground("breaker-model-download"),
+         main = main,
+         notice = forwardingNotice,
+     )
+@@ -190,7 +162,6 @@ internal class TileHost(
+ 
+     /** Shows the tile when the service goes on and hides it when the service goes off. Any thread. */
+     fun onArmedChanged(armed: Boolean) {
+-        if (armed) modelWorker.submit { phraseStreams.prepare() }
+         main.post { if (armed) gesture.start { toCoordinator { it.onShake() } } else gesture.stop() }
+         main.post { if (armed) displayWatch.start() else displayWatch.stop() }
+         toCoordinator { it.onArmedChanged(armed) }
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/DictationComponent.kt b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/DictationComponent.kt
+index 3efc1774..d85034fd 100644
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/DictationComponent.kt
++++ b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/DictationComponent.kt
+@@ -3,25 +3,20 @@ package dev.breaker.dictation.wiring
+ import dev.breaker.dictation.audio.MicCapture
+ import dev.breaker.dictation.audio.MicSourceException
+ import dev.breaker.dictation.audio.MicSource
+-import dev.breaker.dictation.core.model.WordUpdate
+ import dev.breaker.dictation.core.port.Clock
+ import dev.breaker.dictation.core.port.ConnectivityProbe
+ import dev.breaker.dictation.core.port.Formatter
+ import dev.breaker.dictation.core.port.HistoryStore
+ import dev.breaker.dictation.core.port.IdSource
+-import dev.breaker.dictation.core.port.PhraseTrigger
+ import dev.breaker.dictation.core.port.SettingsStore
+ import dev.breaker.dictation.core.port.SttEngine
+ import dev.breaker.dictation.core.port.TextCommitter
+ import dev.breaker.dictation.core.port.WavEncoder
+-import dev.breaker.dictation.core.port.WordStream
+ import dev.breaker.dictation.core.usecase.DictateUseCase
+ import dev.breaker.dictation.core.usecase.SendUseCase
+-import dev.breaker.dictation.phrases.PhraseDetector
+ import dev.breaker.dictation.service.DictationServiceController
+ import dev.breaker.dictation.service.DisarmReason
+ import dev.breaker.dictation.service.ReportingMicSource
+-import dev.breaker.dictation.stt.ondevice.FedWordStream
+ import java.util.concurrent.atomic.AtomicBoolean
+ import java.util.concurrent.atomic.AtomicReference
+ import kotlinx.coroutines.CoroutineScope
+@@ -63,19 +58,10 @@ class DictationComponent(
+      * the take end runs; without a handler the fallback runs at once.
+      */
+     private val onDeviceFailure: ((() -> Unit) -> Unit)? = null,
+-    /**
+-     * Gives the phrase word stream for a listening run, or null when none is ready. The phrase detector
+-     * takes it when a run starts, and the frames of each take are fed to it.
+-     */
+-    private val phraseWords: () -> FedWordStream? = { null },
+ ) : AutoCloseable {
+ 
+     private val runnerHolder = AtomicReference<DictationRunner?>(null)
+     private val closed = AtomicBoolean(false)
+-    private val heldWords = HeldWordStream(phraseWords)
+-
+-    /** The phrase detector: it listens through the held word stream and is stopped by [close]. */
+-    val phrases: PhraseTrigger = PhraseDetector(heldWords)
+ 
+     /** The runner that drives the dictation. */
+     val runner: DictationRunner
+@@ -99,7 +85,7 @@ class DictationComponent(
+         val built = DictationRunner(
+             dictate,
+             SendUseCase(committer, history),
+-            PhraseFeedTap(LevelTap(
++            LevelTap(
+                 MicCapture(
+                     reporting,
+                     onTakeEnded = { failure ->
+@@ -119,7 +105,7 @@ class DictationComponent(
+                     },
+                 ),
+                 levelSink,
+-            ), { frame -> heldWords.feed(frame) }),
++            ),
+             controller,
+             reporting,
+         )
+@@ -139,11 +125,6 @@ class DictationComponent(
+         } catch (e: Exception) {
+             // The service is switched off below whatever happened to the dictation.
+         }
+-        try {
+-            phrases.stop()
+-        } catch (e: Exception) {
+-            // The service is switched off below whatever happened to the listening.
+-        }
+         controller.disarm(DisarmReason.OWNER_CLOSED)
+         controller.setEndedListener(null)
+     }
+@@ -158,30 +139,3 @@ class DictationComponent(
+         return job.invokeOnCompletion { close() }
+     }
+ }
+-
+-/**
+- * The word stream the phrase detector runs. When a listening run starts it takes the stream that the
+- * supplier holds at that moment and starts it. The frames of each take go to that stream. A start with
+- * no stream ready is refused by name.
+- */
+-private class HeldWordStream(private val supplier: () -> FedWordStream?) : WordStream {
+-    private val held = AtomicReference<FedWordStream?>(null)
+-
+-    override val isRunning: Boolean
+-        get() = held.get()?.isRunning ?: false
+-
+-    override fun start(onUpdate: (WordUpdate) -> Unit) {
+-        val stream: FedWordStream = supplier() ?: throw IllegalStateException("no phrase word stream is ready")
+-        stream.start(onUpdate)
+-        held.set(stream)
+-    }
+-
+-    override fun stop() {
+-        held.getAndSet(null)?.stop()
+-    }
+-
+-    /** Offers a frame of the take to the held stream. A frame with no stream held is dropped. */
+-    fun feed(frame: FloatArray) {
+-        held.get()?.feed(frame)
+-    }
+-}
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/HomeTakeWiring.kt b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/HomeTakeWiring.kt
+index bffc715d..da3b5748 100644
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/HomeTakeWiring.kt
++++ b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/HomeTakeWiring.kt
+@@ -69,17 +69,13 @@ internal class HomeTakeWiring(
+         onState = { state -> main.post { sending = state == DictationState.SENDING; rePushState(state) } },
+     )
+ 
+-    /** The send this wiring gives the owner's Home slot: the adapter's send, with the trim unchanged. */
+-    private val sendEntry: (Long?) -> Unit = { trim -> adapter.onSend(trim) }
+-
+     /**
+      * Registers the two listeners: a flip of the shared busy flag and a flip of the armed switch each
+-     * re-push the current state, repainting the mic. It also takes the owner's Home send slot.
++     * re-push the current state, repainting the mic.
+      */
+     init {
+         busy.setBusyListener { rePushState(port.sessionState) }
+         switch.addSwitchListener(switchListener)
+-        owner.setHomeSend(sendEntry)
+     }
+ 
+     /**
+@@ -89,7 +85,6 @@ internal class HomeTakeWiring(
+      */
+     internal fun unwatchSwitch(listener: (Boolean) -> Unit) {
+         switch.removeSwitchListener(listener)
+-        owner.clearHomeSendIf(sendEntry)
+     }
+ 
+     /**
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseSendHandler.kt b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseSendHandler.kt
+index a0ed7b9c..8f972f55 100644
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseSendHandler.kt
++++ b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseSendHandler.kt
+@@ -88,11 +88,3 @@ internal class PhraseSendHandler(
+         }
+     }
+ }
+-
+-/**
+- * Hands a spoken Send for a take the tile holds to the coordinator's send while the tile is shown.
+- * With the tile hidden nothing is finished or pushed: [onHidden] runs once and the take is left as it is.
+- */
+-internal fun TileCoordinator.onSpokenSend(trimBeforeMs: Long?, onHidden: () -> Unit) {
+-    if (tileShown) onSend(trimBeforeMs) else onHidden()
+-}
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseStreamBuild.kt b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseStreamBuild.kt
+deleted file mode 100644
+index 4b8a4610..00000000
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseStreamBuild.kt
++++ /dev/null
+@@ -1,24 +0,0 @@
+-package dev.breaker.dictation.wiring
+-
+-import dev.breaker.dictation.stt.ondevice.FedWordStream
+-import dev.breaker.dictation.stt.ondevice.ModelLoader
+-import dev.breaker.dictation.stt.ondevice.SherpaModel
+-
+-/**
+- * Makes the phrase word stream for [modelId] from one load. A load that gives a recognizer releases it once,
+- * before the stream is made, because the stream runs on its own afterwards. A refused load gives null without
+- * calling [create]. A load that throws an [Exception] gives null, and so does a stream that [create] cannot make.
+- * A [VirtualMachineError] is not caught here.
+- */
+-internal fun buildPhraseStream(
+-    modelId: String,
+-    load: (String) -> ModelLoader.LoadResult,
+-    create: (SherpaModel) -> FedWordStream,
+-): FedWordStream? {
+-    val loaded: ModelLoader.LoadResult = try { load(modelId) } catch (e: Exception) { return null }
+-    val model: SherpaModel = when (loaded) {
+-        is ModelLoader.LoadResult.Ready -> try { loaded.model } finally { loaded.recognizer.release() }
+-        is ModelLoader.LoadResult.Refused -> return null
+-    }
+-    return try { create(model) } catch (e: Exception) { null }
+-}
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseStreamProvider.kt b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseStreamProvider.kt
+deleted file mode 100644
+index 0f4fe1a0..00000000
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseStreamProvider.kt
++++ /dev/null
+@@ -1,60 +0,0 @@
+-package dev.breaker.dictation.wiring
+-
+-import dev.breaker.dictation.stt.ondevice.FedWordStream
+-import java.util.concurrent.atomic.AtomicBoolean
+-import java.util.concurrent.atomic.AtomicReference
+-
+-/**
+- * Holds the word stream for the model the settings select. A build runs on the background it is given,
+- * never on the caller's thread. [prepare] may be called from any thread: it submits one build at a time,
+- * and only when no stream is held for the current model id. When the model id changes, the held stream is
+- * dropped at the next prepare. A failed build holds nothing, so the next prepare builds again.
+- *
+- * [ready] reads the held stream and answers null when none is held for the current model id. It never
+- * waits and never starts a build.
+- */
+-internal class PhraseStreamProvider(
+-    private val background: Background,
+-    private val modelId: () -> String,
+-    private val build: (String) -> FedWordStream?,
+-) {
+-    /** A held stream and the model id it was built for. */
+-    private class Held(val id: String, val stream: FedWordStream)
+-
+-    private val held: AtomicReference<Held?> = AtomicReference(null)
+-    private val building: AtomicBoolean = AtomicBoolean(false)
+-
+-    /** Submits one build for the current model id when no stream is held for it and no build is in flight. */
+-    fun prepare() {
+-        val id: String = modelId()
+-        val current: Held? = held.get()
+-        if (current != null && current.id == id) return
+-        if (current != null) held.compareAndSet(current, null)
+-        if (!building.compareAndSet(false, true)) return
+-        try {
+-            background.submit { buildFor(id) }
+-        } catch (e: Exception) {
+-            building.set(false)
+-        }
+-    }
+-
+-    /** The stream held for the current model id, or null. */
+-    fun ready(): FedWordStream? {
+-        val current: Held = held.get() ?: return null
+-        return if (current.id == modelId()) current.stream else null
+-    }
+-
+-    /** Runs on the background: makes the stream for [id] and holds it, or holds nothing when the build fails. */
+-    private fun buildFor(id: String) {
+-        try {
+-            val stream: FedWordStream? = try {
+-                build(id)
+-            } catch (e: Exception) {
+-                null
+-            }
+-            if (stream != null) held.set(Held(id, stream))
+-        } finally {
+-            building.set(false)
+-        }
+-    }
+-}
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseTakeLink.kt b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseTakeLink.kt
+deleted file mode 100644
+index 5ca767b6..00000000
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseTakeLink.kt
++++ /dev/null
+@@ -1,27 +0,0 @@
+-package dev.breaker.dictation.wiring
+-
+-/**
+- * Joins the take owner to the spoken Send. A begin that records prepares the word stream and queues a start
+- * for that take on [worker]; the queued start runs only while the take it was made for is still the one held,
+- * so a take that ended before the worker ran it starts nothing. A settle queues a stop on [worker].
+- *
+- * Both callbacks only queue work and never wait. The owner calls [begun] on the take worker, inside the port
+- * call that recorded the begin, and [cleared] on the thread that settled the take.
+- */
+-internal class PhraseTakeLink(
+-    private val worker: Background,
+-    private val owner: TakeOwner,
+-    private val prepare: () -> Unit,
+-    private val start: () -> Unit,
+-    private val stop: () -> Unit,
+-) : TakeOwnerListener {
+-
+-    override fun begun(kind: TakeOwnerKind, mark: TakeMark) {
+-        prepare()
+-        worker.submit { if (owner.mark() === mark) start() }
+-    }
+-
+-    override fun cleared() {
+-        worker.submit { stop() }
+-    }
+-}
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TakeOwner.kt b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TakeOwner.kt
+index 4ff3356f..fe2105a2 100644
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TakeOwner.kt
++++ b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TakeOwner.kt
+@@ -13,17 +13,6 @@ internal class TakeMark
+ /** The take the owner holds: the path that began it and the mark that names it. */
+ private class Held(val kind: TakeOwnerKind, val mark: TakeMark = TakeMark())
+ 
+-/**
+- * Hears the two transitions of the owner. [begun] fires once a begin has recorded, on the take worker,
+- * inside the port call that recorded it. [cleared] fires once each time a held take is cleared, on the
+- * thread that clears it: the main thread for the hooks and the Home finish, the take worker for the port
+- * settles. Both callbacks only post work; neither waits for anything.
+- */
+-internal interface TakeOwnerListener {
+-    fun begun(kind: TakeOwnerKind, mark: TakeMark)
+-    fun cleared()
+-}
+-
+ /**
+  * Which path holds the running take. A begin that records sets it, and every settle of the take clears
+  * it, whichever path settles it. It is kept by the tile host rather than by the screen, so a screen that
+@@ -32,51 +21,20 @@ internal interface TakeOwnerListener {
+ internal class TakeOwner {
+     private val held: AtomicReference<Held?> = AtomicReference(null)
+ 
+-    /** The one listener slot. Written once by the tile host; read on the take worker and by whichever thread clears a take. */
+-    private val listenerSlot: AtomicReference<TakeOwnerListener?> = AtomicReference(null)
+-
+-    /**
+-     * The one Home send slot. Set and read on the main thread only: the Home wiring sets it in its init and clears it
+-     * in its unwatch step, and the routed send reads it on the main thread.
+-     */
+-    private var homeSend: ((Long?) -> Unit)? = null
+-
+     /** The path that holds the take now, or null when no take is held. */
+     fun current(): TakeOwnerKind? = held.get()?.kind
+ 
+     /** True only while the Home screen holds the take. */
+     fun heldByHome(): Boolean = held.get()?.kind == TakeOwnerKind.HOME
+ 
+-    /** Sets the one listener slot, or removes the listener with null. */
+-    fun setListener(listener: TakeOwnerListener?) {
+-        listenerSlot.set(listener)
+-    }
+-
+-    /** A begin recorded: [kind] holds the take until it is settled, and the take gets a mark of its own. The listener hears it. */
++    /** A begin recorded: [kind] holds the take until it is settled, and the take gets a mark of its own. */
+     fun begun(kind: TakeOwnerKind) {
+-        val taken = Held(kind)
+-        held.set(taken)
+-        listenerSlot.get()?.begun(kind, taken.mark)
++        held.set(Held(kind))
+     }
+ 
+-    /** The take settled: nothing holds it now. The listener hears the clear only when a take was held. */
++    /** The take settled: nothing holds it now. */
+     fun settled() {
+-        if (held.getAndSet(null) != null) listenerSlot.get()?.cleared()
+-    }
+-
+-    /** Sets the Home send slot to [entry], or empties it with null. Main thread only. */
+-    fun setHomeSend(entry: ((Long?) -> Unit)?) {
+-        homeSend = entry
+-    }
+-
+-    /** Empties the Home send slot only while it still holds [entry]; a newer entry is left alone. Main thread only. */
+-    fun clearHomeSendIf(entry: (Long?) -> Unit) {
+-        if (homeSend === entry) homeSend = null
+-    }
+-
+-    /** Hands the trim, unchanged, to the Home entry; with the slot empty the send is dropped. Main thread only. */
+-    fun sendToHome(trimBeforeMs: Long?) {
+-        homeSend?.invoke(trimBeforeMs)
++        held.set(null)
+     }
+ 
+     /**
+@@ -96,7 +54,7 @@ internal class TakeOwner {
+     fun settledIf(mark: TakeMark?) {
+         val now: Held = held.get() ?: return
+         if (now.mark !== mark) return
+-        if (held.compareAndSet(now, null)) listenerSlot.get()?.cleared()
++        held.compareAndSet(now, null)
+     }
+ }
+ 
+@@ -114,9 +72,6 @@ internal class OwnedTakePort(
+     override val sessionState: DictationState
+         get() = inner.sessionState
+ 
+-    override val heldElsewhere: Boolean
+-        get() = owner.current().let { it != null && it != kind }
+-
+     override fun begin(): BeginResult {
+         val answer: BeginResult = inner.begin()
+         if (answer == BeginResult.Recording) {
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt
+index 284ac1c9..cee2bae6 100644
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt
++++ b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt
+@@ -41,14 +41,18 @@ class TileCoordinator(
+     private var beginPending: Boolean = false
+     private var pushed: TileState = TileState.IDLE
+     private var generation: Int = 0
++
+     /** The keyboard tile's session gate and anchor, driven by [onKeyboardReading]. Kept separate to stay within the line cap; it names no Android type. */
+     private val keyboardTile = KeyboardTileSession()
++
+     private val reevaluation: KeyboardReevaluation = KeyboardReevaluation(delayed) { ime, focus, dueMs -> act(keyboardTile.onKeyboardReading(ime, focus, dueMs)) }
++
+     /** The taken-entry controller (the MIC_BUSY face and its settle). */
+     internal val yield = TakeYieldController(
+         background, main, take, TakeSettle(history, clipboard), takenNotice,
+         { push(it) }, { sendPushed = false }, { generation }  // the one place push happens
+     )
++
+     /** The device failure entry: the cut is transcribed, saved and copied, with one sentence and no busy face. */
+     internal val deviceFailure: DeviceFailureYield = DeviceFailureYield(
+         background, main, take, TakeSettle(history, clipboard), { generation }
+@@ -58,7 +62,7 @@ class TileCoordinator(
+     private val finisher: TakeFinisher = TakeFinisher(take)
+ 
+     /** True while the last show answered SHOWN; a refused or failed show and a switch-off clear it. A begin passes while it holds or while the user-closed flag holds. */
+-    internal var tileShown: Boolean = false; private set
++    private var tileShown: Boolean = false
+ 
+     private val heldHide: KeyboardHideHold = KeyboardHideHold()
+     private val portCalls: TilePortCalls = TilePortCalls(take, modelReady, background)
+@@ -153,11 +157,6 @@ class TileCoordinator(
+     fun onCloseRequested() {
+         keyboardTile.onCloseRequested()
+         heldHide.clearOnClose()
+-        if (closeCancelsTake(armed, failureBarrier(), yield.yieldRunning(), sendPushed,
+-                pushed == TileState.RECORDING || beginPending, portCalls.heldElsewhereNow())) {
+-            beginPending = false; generation += 1; yield.onBeginFailed() // clears the busy flag only
+-            onCancel()
+-        }
+         tileShowGuard.onCloseRequested()
+         tileShown = false // a user close clears the record that the tile is shown
+     }
+@@ -297,4 +296,5 @@ class TileCoordinator(
+         guarded { tile.setState(state) }
+         if (heldHide.applyWhenIdle(inFlight())) { guarded { tile.hide() }; tileShown = false; keyboardTile.releaseRaised() }
+     }
++
+ }
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TilePortCalls.kt b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TilePortCalls.kt
+index 0344c642..1508bfa2 100644
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TilePortCalls.kt
++++ b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TilePortCalls.kt
+@@ -36,12 +36,4 @@ internal class TilePortCalls(
+             false
+         }
+ 
+-    /** The take port's held-elsewhere flag; a port that throws answers false, so the close still cancels. */
+-    fun heldElsewhereNow(): Boolean =
+-        try {
+-            take.heldElsewhere
+-        } catch (e: Exception) {
+-            false
+-        }
+-
+ }
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TilePorts.kt b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TilePorts.kt
+index 7dc0b186..21b83fe9 100644
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TilePorts.kt
++++ b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TilePorts.kt
+@@ -72,10 +72,6 @@ interface TakePort {
+ 
+     /** Moves a taken take from SENDING to IDLE without stopping the audio again. */
+     fun resetAfterTaken()
+-
+-    /** True when a path other than this port's own kind holds the running take. */
+-    val heldElsewhere: Boolean
+-        get() = false
+ }
+ 
+ /** Whether the speech model the settings select is installed and unpacked. */
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileShowGuard.kt b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileShowGuard.kt
+index 4c761620..cf0c57ee 100644
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileShowGuard.kt
++++ b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileShowGuard.kt
+@@ -102,13 +102,3 @@ internal class TileShowGuard(
+         }
+     }
+ }
+-
+-/** True when a close cancels a take: armed, not failing, yielding or sending, in flight, not held elsewhere. */
+-internal fun closeCancelsTake(
+-    armed: Boolean,
+-    failed: Boolean,
+-    yielding: Boolean,
+-    sending: Boolean,
+-    inFlight: Boolean,
+-    heldElsewhere: Boolean,
+-): Boolean = armed && !failed && !yielding && !sending && inFlight && !heldElsewhere
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateRules.kt b/android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateRules.kt
+index 0055b402..1714f7e8 100644
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateRules.kt
++++ b/android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateRules.kt
+@@ -32,9 +32,6 @@ open class AppLayoutGateRules {
+         "wiring/CompositeLevelSink.kt", "wiring/HomeLevelFeed.kt", "wiring/LevelMap.kt", "wiring/LevelMeter.kt", "wiring/LevelFeed.kt", "wiring/LevelTap.kt", "wiring/PhraseFeedTap.kt", "wiring/NoiseFloor.kt",
+         "host/ServiceRefusalNotice.kt",
+         "wiring/PhraseSendHandler.kt",
+-        "wiring/PhraseStreamProvider.kt",
+-        "wiring/PhraseStreamBuild.kt",
+-        "wiring/PhraseTakeLink.kt",
+     )
+ 
+     /** Main files that are the layer over the platform and name Android types. */
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/gates/AppPrivacyScanTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/gates/AppPrivacyScanTest.kt
+index f261434e..c4eb1cee 100644
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/gates/AppPrivacyScanTest.kt
++++ b/android/app/src/test/kotlin/dev/breaker/dictation/gates/AppPrivacyScanTest.kt
+@@ -96,7 +96,7 @@ internal class AppPrivacyScanTest {
+     private val logFiring: Map<String, String> = mapOf(
+         "a debug log" to "object A { fun f(e: Exception) { Log.d(\"a\", \"b\", e) } }",
+         "two warnings" to "object A { fun f(e: Exception) { Log.w(\"a\", \"b\", e); Log.w(\"a\", \"c\", e) } }",
+-        "a warning with a computed message" to "object A { fun f(e: Exception) { Log.w(\"a\", m.trim(), e) } }",
++        "a warning with a variable message" to "object A { fun f(e: Exception) { Log.w(\"a\", m, e) } }",
+         "a warning with a variable tag" to "object A { fun f(e: Exception) { Log.w(t, \"b\", e) } }",
+         "a warning with a template message" to "object A { fun f(e: Exception) { Log.w(\"a\", \"x \$name\", e) } }",
+         "a warning with the exception message" to "object A { fun f(e: Exception) { Log.w(\"a\", \"b\", e.message) } }",
+@@ -105,8 +105,8 @@ internal class AppPrivacyScanTest {
+     )
+ 
+     private val logQuiet: Map<String, String> = mapOf(
+-        "the fixed warning" to "import android.util.Log\nobject A { fun f(e: Exception) { Log.w(\"BreakerApp\", reason, e) } }",
+-        "the fixed warning over lines" to "object A { fun f(e: Exception) { Log\n.w(\"a\",\nreason,\ne) } }",
++        "the fixed warning" to "import android.util.Log\nobject A { fun f(e: Exception) { Log.w(\"BreakerApp\", \"start-up purge failed\", e) } }",
++        "the fixed warning over lines" to "object A { fun f(e: Exception) { Log\n.w(\"a\",\n\"b\",\ne) } }",
+         "no log at all" to "import android.util.Log\nobject A",
+         "a log in a comment" to "// Log.d(m)\nobject A",
+     )
+@@ -152,7 +152,7 @@ internal class AppPrivacyScanTest {
+     }
+ 
+     private val logUse: Regex = Regex("""\bLog\s*\.\s*\w+""")
+-    private val fixedWarning: Regex = Regex("""\bLog\s*\.\s*w\s*\(\s*""\s*,\s*[A-Za-z_]\w*\s*,\s*[A-Za-z_]\w*\s*\)""")
++    private val fixedWarning: Regex = Regex("""\bLog\s*\.\s*w\s*\(\s*""\s*,\s*""\s*,\s*[A-Za-z_]\w*\s*\)""")
+ 
+     /** Empty when [source] uses Log at most once, as `Log.w(<word>, <word>, <exception variable>)`. */
+     private fun logProblems(source: String): List<String> {
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/gates/BuildFileGateTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/gates/BuildFileGateTest.kt
+index 5950b533..658ba2b4 100644
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/gates/BuildFileGateTest.kt
++++ b/android/app/src/test/kotlin/dev/breaker/dictation/gates/BuildFileGateTest.kt
+@@ -14,7 +14,7 @@ import org.junit.Test
+  * (comments and string text are blanked first, so a word in a comment is not a use) and read
+  * a text value from the list of literals the scanner keeps. They pin: the application id;
+  * compileSdk, minSdk and targetSdk each assigned once, from the version
+- * catalog entry of the same name; the dependency list is exactly the fifteen project
++ * catalog entry of the same name; the dependency list is exactly the thirteen project
+  * dependencies (the commit module as an implementation, its accessibility adapter as a run-time
+  * only dependency), the coroutines library, the unit test library and the speech engine release file as a
+  * run-time only dependency (the value it names is pinned by BuildFileSherpaGateTest), in any order, and nothing
+@@ -40,7 +40,6 @@ internal class BuildFileGateTest {
+         "implementation :android:modules:stt-ondevice",
+         "implementation :android:modules:commit",
+         "implementation :android:modules:gesture",
+-        "implementation :android:modules:phrases",
+         "runtimeOnly :android:modules:commit:accessibility",
+         "implementation :shared:modules:ui-tokens",
+         "implementation :shared:modules:model-registry",
+@@ -201,7 +200,7 @@ internal class BuildFileGateTest {
+         XmlSample("version code zero", "versionCode = 1", "versionCode = 0", "versionCode is not assigned"),
+         XmlSample("version name removed", "        versionName = \"0.1.0-debug\"\n", "", "versionName is not assigned"),
+         XmlSample("version name blank", "versionName = \"0.1.0-debug\"", "versionName = \"\"", "versionName is not assigned"),
+-        XmlSample("extra project dependency", "implementation(project(\":android:ui\"))", "implementation(project(\":android:ui\"))\n    implementation(project(\":android:modules:scratchpad\"))", "dependency not expected: implementation :android:modules:scratchpad"),
++        XmlSample("extra project dependency", "implementation(project(\":android:ui\"))", "implementation(project(\":android:ui\"))\n    implementation(project(\":android:modules:phrases\"))", "dependency not expected: implementation :android:modules:phrases"),
+         XmlSample("project dependency exposed", "implementation(project(\":android:ui\"))", "api(project(\":android:ui\"))", "api( is used", "dependency missing: implementation :android:ui", "dependency not expected: api :android:ui"),
+         XmlSample("extra test library", "testImplementation(libs.junit)", "testImplementation(libs.junit)\n    testImplementation(libs.kotlinx.coroutines.test)", "dependency not expected: testImplementation libs.kotlinx.coroutines.test"),
+         XmlSample("a file dependency", "testImplementation(libs.junit)", "testImplementation(libs.junit)\n    implementation(files(\"local.jar\"))", "is not a project or catalog dependency"),
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/gates/HostGateTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/gates/HostGateTest.kt
+index f05b0230..87175be2 100644
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/gates/HostGateTest.kt
++++ b/android/app/src/test/kotlin/dev/breaker/dictation/gates/HostGateTest.kt
+@@ -74,7 +74,7 @@ internal class HostGateTest {
+         rx("GESTURE_STARTS_WHEN_THE_SERVICE_GOES_ON", "host", """\bif\s*\(\s*armed\s*\)\s*gesture\s*\.\s*start\s*\{"""),
+         rx("GESTURE_STOPS_WHEN_THE_SERVICE_GOES_OFF", "host", """\}\s*\}\s*else\s*gesture\s*\.\s*stop\s*\(\s*\)\s*\}"""),
+         rx("GESTURE_TRIGGER_SHOWS_THE_TILE_THROUGH_THE_POST", "host", """\bgesture\s*\.\s*start\s*\{\s*toCoordinator\s*\{\s*it\s*\.\s*onShake\s*\(\s*\)\s*\}\s*\}"""),
+-        rx("GESTURE_CHANGE_IS_POSTED_TO_THE_MAIN_LOOPER_FIRST", "host", """\bfun\s+onArmedChanged\s*\(\s*armed\s*:\s*Boolean\s*\)\s*\{\s*(?:if\s*\(\s*armed\s*\)\s*modelWorker\s*\.\s*submit\s*\{\s*phraseStreams\s*\.\s*prepare\s*\(\s*\)\s*\}\s*)?main\s*\.\s*post\s*\{\s*if\s*\(\s*armed\s*\)"""),
++        rx("GESTURE_CHANGE_IS_POSTED_TO_THE_MAIN_LOOPER_FIRST", "host", """\bfun\s+onArmedChanged\s*\(\s*armed\s*:\s*Boolean\s*\)\s*\{\s*main\s*\.\s*post\s*\{\s*if\s*\(\s*armed\s*\)"""),
+         rx("MODEL_READY_GETS_THE_SELECTED_ID_LAMBDA", "host", """\bStoreModelReady\s*\(\s*root\s*\.\s*modelStore\s*,\s*selectedId\s*\)"""),
+         rx("DOWNLOADER_GETS_THE_SELECTED_ID_LAMBDA", "host", """\bselectedId\s*=\s*selectedId\s*,"""),
+         rx("TILE_HIDE_HIDES_THE_TILE", "tile", """\boverride\s+fun\s+hide\s*\(\s*\)\s*\{\s*tile\s*\?\.\s*hide\s*\(\s*\)\s*\}"""),
+@@ -83,7 +83,6 @@ internal class HostGateTest {
+         rx("TILE_CLEAR_NOTICE_CLEARS_THE_NOTICE", "tile", """\boverride\s+fun\s+clearNotice\s*\(\s*\)\s*\{\s*tile\s*\?\.\s*clearNotice\s*\(\s*\)\s*\}"""),
+         rx("DOWNLOADER_GETS_THE_FORWARDING_NOTICE", "host", """\bnotice\s*=\s*forwardingNotice\s*,"""),
+         rx("TAKE_ENDED_IS_WIRED_THROUGH_THE_POST", "host", """\broot\.onTakeEnded\s*=\s*\{\s*val\s+m\s*=\s*takeOwner\.mark\(\)\s*;\s*toCoordinator\s*\{\s*takeOwner\.settledIf\(m\)\s*;\s*it\.onTakeEnded\(\)\s*\}\s*\}"""),
+-        rx("PHRASE_LINK_IS_THE_OWNER_LISTENER", "host", """\btakeOwner\s*\.\s*setListener\s*\(\s*PhraseTakeLink\s*\("""),
+         rx("TAKEN_HOOK_IS_WIRED_THROUGH_THE_POST", "host", """\broot\.onMicTaken\s*=\s*\{\s*val\s+m\s*=\s*takeOwner\.mark\(\)\s*;\s*toCoordinator\s*\{\s*takeOwner\.settledIf\(m\)\s*;\s*it\.onTakeMicTaken\(\)\s*\}\s*\}"""),
+     )
+     private val firing: List<Sample> = listOf(
+@@ -143,7 +142,7 @@ internal class HostGateTest {
+         Sample("TILE_NIGHT_MODE_IS_THE_PHONES", "and Configuration.UI_MODE_NIGHT_MASK", "and Configuration.UI_MODE_NIGHT_YES"),
+         Sample("DOWNLOAD_AND_TILE_SHARE_ONE_MODEL_STORE", "installer = modelInstallPortFor(root.modelStore),", "installer = modelInstallPortFor(LocalModelStore(java.io.File(\"x\"))),"),
+         Sample("DOWNLOAD_AND_TILE_SHARE_ONE_MODEL_STORE", "StoreModelReady(root.modelStore, selectedId)", "StoreModelReady(other, selectedId)"),
+-        Sample("TWO_BACKGROUNDS", "SerialBackground(\"breaker-model-download\")", "main"),
++        Sample("TWO_BACKGROUNDS", "background = SerialBackground(\"breaker-model-download\"),", "background = main,"),
+         Sample("TWO_BACKGROUNDS", "            main,\n            takeWorker,", "            main,\n            takeWorker,\n            SerialBackground(\"breaker-extra\"),"),
+         Sample("LAUNCHER_OPENS_AS_A_NEW_TASK", "Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP", "Intent.FLAG_ACTIVITY_CLEAR_TOP"),
+         Sample("LAUNCHER_OPENS_AS_A_NEW_TASK", "SettingsLauncherActivity::class.java", "OtherActivity::class.java"),
+@@ -190,8 +189,6 @@ internal class HostGateTest {
+         Sample("DOWNLOADER_GETS_THE_FORWARDING_NOTICE", "notice = forwardingNotice,", "notice = otherNotice,"),
+         Sample("TAKE_ENDED_IS_WIRED_THROUGH_THE_POST", "root.onTakeEnded = { val m = takeOwner.mark(); toCoordinator { takeOwner.settledIf(m); it.onTakeEnded() } }", "root.onTakeEnded = null"),
+         Sample("TAKEN_HOOK_IS_WIRED_THROUGH_THE_POST", "root.onMicTaken = { val m = takeOwner.mark(); toCoordinator { takeOwner.settledIf(m); it.onTakeMicTaken() } }", "root.onMicTaken = null"),
+-        Sample("PHRASE_LINK_IS_THE_OWNER_LISTENER", "takeOwner.setListener(PhraseTakeLink(", "takeOwner.setListener(null"),
+-        Sample("PHRASE_LINK_IS_THE_OWNER_LISTENER", "takeOwner.setListener(PhraseTakeLink(", "phraseOwner.setListener(PhraseTakeLink("),
+         Sample("TAKEN_HOOK_IS_WIRED_THROUGH_THE_POST", "root.onMicTaken = { val m = takeOwner.mark(); toCoordinator { takeOwner.settledIf(m); it.onTakeMicTaken() } }", "root.onMicTaken = { }"),
+         Sample("TAKE_ENDED_IS_WIRED_THROUGH_THE_POST", "root.onTakeEnded = { val m = takeOwner.mark(); toCoordinator { takeOwner.settledIf(m); it.onTakeEnded() } }", "root.onTakeEnded = { }"),
+         Sample("TAKE_ENDED_IS_WIRED_THROUGH_THE_POST", "root.onTakeEnded = { val m = takeOwner.mark(); toCoordinator { takeOwner.settledIf(m); it.onTakeEnded() } }", "root.onTakeEnded = { toCoordinator { it.onTakeEnded() } }"),
+@@ -206,7 +203,6 @@ internal class HostGateTest {
+         Quiet("host", "if (isOn()) coordinator.onArmedChanged(true)", "if (isOn()) // onArmedChanged(false) coordinator\n            coordinator.onArmedChanged(true)"),
+         Quiet("host", "else gesture.stop()", "else gesture.stop() /* gesture.start { } NoGesture( */"),
+         Quiet("host", "selectedId = selectedId,", "selectedId = selectedId, // { \"small\" }"),
+-        Quiet("host", "takeOwner.setListener(PhraseTakeLink(", "takeOwner.setListener( PhraseTakeLink("),
+         Quiet("host", "StoreModelReady(root.modelStore, selectedId)", "StoreModelReady( root.modelStore,\n            selectedId )"),
+         Quiet("tile", "tile?.clearNotice()", "tile\n            ?.clearNotice() // tile?.hide()"),
+         Quiet("host", "root.onTakeEnded = { val m = takeOwner.mark(); toCoordinator { takeOwner.settledIf(m); it.onTakeEnded() } }", "root.onTakeEnded = { val m = takeOwner.mark(); toCoordinator { takeOwner.settledIf(m); it.onTakeEnded() } } // comment"),
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/gates/PhraseReasonGateTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/gates/PhraseReasonGateTest.kt
+deleted file mode 100644
+index d6c12609..00000000
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/gates/PhraseReasonGateTest.kt
++++ /dev/null
+@@ -1,147 +0,0 @@
+-package dev.breaker.dictation.gates
+-
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/**
+- * The log text of a spoken send that cannot start is fixed: the reason constant in the composition root is one
+- * plain literal line, the hook on the root is called once in the main sources and only with that constant, and
+- * the application class passes its warn function nothing but a plain literal or the hook argument. Each rule
+- * holds on the real files and has firing samples that show it fires and quiet samples that show it holds.
+- *
+- * The rules read raw text where a template name would be blanked by [AppSourceFiles.strip], and code where a
+- * name must not be read from a comment or a string. Kept apart from the privacy scan to stay under the line cap.
+- */
+-internal class PhraseReasonGateTest {
+-
+-    /** The one spelling of the constant: a plain literal with no template, no escape and no concatenation, on its own line. */
+-    private val constant: Regex =
+-        Regex("""(?m)^internal\s+const\s+val\s+PHRASE_UNAVAILABLE_REASON\s*:\s*String\s*=\s*"[^"\\$]*"[ \t]*$""")
+-
+-    /** Any call of the hook: the safe call, the non-null call, or the call written without a dot. */
+-    private val hookAny: Regex =
+-        Regex("""\bphraseWarn\b\s*(?:\?\.|!!\.|\.)?\s*invoke\b|\bphraseWarn\s*\(""")
+-
+-    /** The one call that is allowed: the safe call with the constant as its only argument. */
+-    private val hookExact: Regex =
+-        Regex("""\bphraseWarn\s*\?\.\s*invoke\s*\(\s*PHRASE_UNAVAILABLE_REASON\s*\)""")
+-
+-    /** A warn call in raw text, with its first argument; one level of parentheses is allowed inside the argument. */
+-    private val warnCall: Regex = Regex("""\bwarn\s*\(\s*((?:[^,()]|\([^()]*\))*)""")
+-
+-    /** The only arguments a warn call may take: one plain literal with no template, or the hook argument. */
+-    private val allowedWarnArgument: Regex = Regex("""(?:"[^"\\$]*"|reason)""")
+-
+-    private fun constantCount(raw: String): Int = constant.findAll(raw).count()
+-
+-    /** Every hook call across [sources], and the calls that are exactly the safe call with the constant. */
+-    private fun hookCounts(sources: Map<String, String>): Pair<Int, Int> {
+-        var calls = 0
+-        var exact = 0
+-        for (text in sources.values) {
+-            val code: String = AppSourceFiles.strip(text).code
+-            calls += hookAny.findAll(code).count()
+-            exact += hookExact.findAll(code).count()
+-        }
+-        return Pair(calls, exact)
+-    }
+-
+-    /** The argument text of each warn call in [raw], in order; the definition of warn is not a call. */
+-    private fun warnArguments(raw: String): List<String> {
+-        val found: MutableList<String> = ArrayList()
+-        for (match in warnCall.findAll(raw)) {
+-            if (raw.substring(0, match.range.first).trimEnd().endsWith("fun")) continue
+-            found.add(match.groupValues[1].trim())
+-        }
+-        return found
+-    }
+-
+-    private fun notAllowed(arguments: List<String>): List<String> =
+-        arguments.filterNot { allowedWarnArgument.matches(it) }
+-
+-    private val constantFiring: Map<String, String> = mapOf(
+-        "a template in the constant" to "internal const val PHRASE_UNAVAILABLE_REASON: String = \"spoken \$word is off\"",
+-        "a concatenation in the constant" to "internal const val PHRASE_UNAVAILABLE_REASON: String = \"spoken \" + \"off\"",
+-        "a constant that is not const" to "internal val PHRASE_UNAVAILABLE_REASON: String = \"spoken send is off\"",
+-        "a computed constant" to "internal const val PHRASE_UNAVAILABLE_REASON: String = listOf(\"a\").first()",
+-        "an escape in the constant" to "internal const val PHRASE_UNAVAILABLE_REASON: String = \"spoken\\nsend is off\"",
+-    )
+-
+-    private val constantQuiet: Map<String, String> = mapOf(
+-        "the real line" to "internal const val PHRASE_UNAVAILABLE_REASON: String = \"spoken send is off for this take\"",
+-        "spaces and a line break" to "internal const val PHRASE_UNAVAILABLE_REASON:   String  =\n    \"spoken send is off for this take\"   ",
+-    )
+-
+-    private val hookFiring: Map<String, Map<String, String>> = mapOf(
+-        "a variable argument" to mapOf("TileHost.kt" to "object A { fun f(root: R, m: String) { root.phraseWarn?.invoke(m) } }"),
+-        "the exception message" to mapOf("TileHost.kt" to "object A { fun f(root: R, e: Exception) { root.phraseWarn?.invoke(e.message) } }"),
+-        "a second call site" to mapOf(
+-            "TileHost.kt" to "object A { fun f(root: R) { root.phraseWarn?.invoke(PHRASE_UNAVAILABLE_REASON) } }",
+-            "BreakerApp.kt" to "object B { fun g(root: R) { root.phraseWarn?.invoke(PHRASE_UNAVAILABLE_REASON) } }",
+-        ),
+-        "a non-null call" to mapOf("TileHost.kt" to "object A { fun f(root: R) { root.phraseWarn!!.invoke(PHRASE_UNAVAILABLE_REASON) } }"),
+-        "a direct call" to mapOf("TileHost.kt" to "object A { fun f(root: R) { root.phraseWarn(PHRASE_UNAVAILABLE_REASON) } }"),
+-        "a literal argument" to mapOf("TileHost.kt" to "object A { fun f(root: R) { root.phraseWarn?.invoke(\"spoken send is off\") } }"),
+-    )
+-
+-    private val hookQuiet: Map<String, Map<String, String>> = mapOf(
+-        "the real call" to mapOf("TileHost.kt" to "object A { fun f(root: R) { root.phraseWarn?.invoke(PHRASE_UNAVAILABLE_REASON) } }"),
+-        "spaces and line breaks" to mapOf("TileHost.kt" to "object A { fun f(root: R) {\n root.phraseWarn ?.\n invoke(\n PHRASE_UNAVAILABLE_REASON\n ) } }"),
+-        "an assignment in the application class" to mapOf(
+-            "TileHost.kt" to "object A { fun f(root: R) { root.phraseWarn?.invoke(PHRASE_UNAVAILABLE_REASON) } }",
+-            "BreakerApp.kt" to "object B { val r = R().also { root -> root.phraseWarn = { reason -> warn(reason) } } }",
+-        ),
+-    )
+-
+-    private val warnFiring: Map<String, String> = mapOf(
+-        "a template in the message" to "object A { fun f(e: Exception) { warn(\"x \$name\", e) } }",
+-        "a computed message" to "object A { fun f(e: Exception) { warn(e.message, e) } }",
+-        "a call in the argument" to "object A { fun f(x: Any) { warn(x.toString()) } }",
+-        "a concatenation" to "object A { fun f(b: String) { warn(\"a\" + b) } }",
+-    )
+-
+-    private val warnQuiet: Map<String, String> = mapOf(
+-        "the fixed message and the exception" to "object A { fun f(e: Exception) { warn(\"start-up purge failed\", e) } }",
+-        "the hook argument" to "object A { fun f(root: R) { root.phraseWarn = { reason -> warn(reason) } } }",
+-        "the definition" to "object A { private fun warn(reason: String, e: Throwable? = null) { Log.w(\"a\", reason, e) } }",
+-        "spaces and line breaks" to "object A { fun f(e: Exception) { warn(\n    \"start-up purge failed\",\n    e,\n) } }",
+-    )
+-
+-    @Test
+-    fun `the reason constant is one plain literal, the hook is called once with it, and warn gets only a literal or the hook argument`() {
+-        val main: Map<String, String> = AppSourceFiles.mainKotlinSources()
+-        assertTrue("app: the reason rule found no main file to read", main.isNotEmpty())
+-        assertEquals("app: the reason constant is not one plain literal line", 1, constantCount(main.getValue("BreakerCompositionRoot.kt")))
+-        assertEquals("app: the hook is not called once, with the constant", Pair(1, 1), hookCounts(main))
+-        val app: String = main.getValue("BreakerApp.kt")
+-        assertEquals("app: BreakerApp.kt passes warn a value other than a literal or the hook argument", emptyList<String>(), notAllowed(warnArguments(app)))
+-        assertEquals("app: the warn calls in BreakerApp.kt changed", listOf("reason", "\"start-up purge failed\""), warnArguments(app))
+-    }
+-
+-    @Test
+-    fun `each reason rule fails on its firing samples`() {
+-        for ((label, source) in constantFiring) {
+-            assertTrue("app: the constant rule accepted $label", constantCount(source) != 1)
+-        }
+-        for ((label, sources) in hookFiring) {
+-            assertTrue("app: the hook rule accepted $label", hookCounts(sources) != Pair(1, 1))
+-        }
+-        for ((label, source) in warnFiring) {
+-            assertTrue("app: the warn rule accepted $label", notAllowed(warnArguments(source)).isNotEmpty())
+-        }
+-    }
+-
+-    @Test
+-    fun `each reason rule holds on its quiet samples`() {
+-        for ((label, source) in constantQuiet) {
+-            assertEquals("app: the constant rule flagged $label", 1, constantCount(source))
+-        }
+-        for ((label, sources) in hookQuiet) {
+-            assertEquals("app: the hook rule flagged $label", Pair(1, 1), hookCounts(sources))
+-        }
+-        for ((label, source) in warnQuiet) {
+-            assertEquals("app: the warn rule flagged $label", emptyList<String>(), notAllowed(warnArguments(source)))
+-        }
+-    }
+-}
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/gates/RootSlotsGateTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/gates/RootSlotsGateTest.kt
+index e6965475..3ecdb0f8 100644
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/gates/RootSlotsGateTest.kt
++++ b/android/app/src/test/kotlin/dev/breaker/dictation/gates/RootSlotsGateTest.kt
+@@ -58,15 +58,14 @@ internal class RootSlotsGateTest {
+         Rule("ENCODER_IS_PCM16") { has(it, bound("wavEncoder", """Pcm16WavEncoder\s*\(\s*\)""")) },
+         Rule("MODEL_STORE_IS_BUILT_HERE") { has(it, """\bval\s+modelStore\s*:\s*LocalModelStore\s*=\s*LocalModelStore\s*\(""") },
+         Rule("LOCAL_ENGINE_IS_ON_DEVICE_OVER_THE_MODEL_STORE") {
+-            has(it, bound("localEngine", """OnDeviceSttEngine\s*\(\s*modelLoader\s*,?\s*\)"""))
+-        },
+-        Rule("MODEL_LOADER_IS_OVER_THE_MODEL_STORE") {
+             has(
+                 it,
+-                """\bval\s+modelLoader\s*(?::\s*ModelLoader\s*)?=\s*ModelLoader\s*\(\s*store\s*=\s*modelStore\s*,\s*factory\s*=\s*RECOGNIZER_FACTORY\s*,?\s*\)""",
++                bound(
++                    "localEngine",
++                    """OnDeviceSttEngine\s*\(\s*ModelLoader\s*\(\s*store\s*=\s*modelStore\s*,\s*factory\s*=\s*RECOGNIZER_FACTORY\s*,?\s*\)\s*,?\s*\)""",
++                ),
+             )
+         },
+-        Rule("ONE_MODEL_LOADER") { count(it, """\bModelLoader\s*\(""") == 1 },
+         Rule("NO_PLACEHOLDER_LOCAL_ENGINE") {
+             !has(it, """\bUnavailableSttEngine\s*\(\s*SttError\s*\.\s*LOCAL_MODEL_MISSING\b""")
+         },
+@@ -81,8 +80,7 @@ internal class RootSlotsGateTest {
+     private val micDefaultLine = "private val micSource: MicSource = appMicSource(),"
+     private val micLine = "micSource = micSource,"
+     private val storeLine = "val modelStore: LocalModelStore = LocalModelStore("
+-    private val engineLine = "localEngine = OnDeviceSttEngine(modelLoader)"
+-    private val modelLoaderLine = "private val modelLoader: ModelLoader = ModelLoader(store = modelStore, factory = RECOGNIZER_FACTORY)"
++    private val engineLine = "localEngine = OnDeviceSttEngine(ModelLoader(store = modelStore, factory = RECOGNIZER_FACTORY))"
+     private val encoderLine = "wavEncoder = Pcm16WavEncoder()"
+     private val lazyOpen = "val dictation: DictationComponent by lazy {"
+     private val helperFun = "private fun neverArmedController()"
+@@ -156,18 +154,11 @@ internal class RootSlotsGateTest {
+             "$encoderLine," to "",
+         ),
+         "LOCAL_ENGINE_IS_ON_DEVICE_OVER_THE_MODEL_STORE" to listOf(
+-            "localEngine = OnDeviceSttEngine(" to "localEngine = FakeSttEngine(",
+-            engineLine to "$engineLine.also { }",
+-            "OnDeviceSttEngine(modelLoader)" to "OnDeviceSttEngine(ModelLoader(store = modelStore, factory = RECOGNIZER_FACTORY))",
+-        ),
+-        "MODEL_LOADER_IS_OVER_THE_MODEL_STORE" to listOf(
+             "factory = RECOGNIZER_FACTORY" to "factory = UnavailableRecognizerFactory",
+             "store = modelStore" to "store = LocalModelStore(File(filesDir, \"other\"))",
++            "localEngine = OnDeviceSttEngine(" to "localEngine = FakeSttEngine(",
++            engineLine to "$engineLine.also { }",
+             "ModelLoader(store" to "ModelLoader(factory = RECOGNIZER_FACTORY, store",
+-            "val modelLoader: ModelLoader = " to "val modelLoader: ModelLoader? = ",
+-        ),
+-        "ONE_MODEL_LOADER" to listOf(
+-            "ids = UuidIdSource()" to "ids = UuidIdSource(), spare = ModelLoader(store = modelStore, factory = RECOGNIZER_FACTORY)",
+         ),
+         "NO_PLACEHOLDER_LOCAL_ENGINE" to listOf(
+             engineLine to "localEngine = UnavailableSttEngine(SttError.LOCAL_MODEL_MISSING, \"x\")",
+@@ -193,8 +184,7 @@ internal class RootSlotsGateTest {
+         micDefaultLine to "private val micSource: MicSource =\n        appMicSource( ),",
+         storeLine to "val modelStore: LocalModelStore =\n        LocalModelStore(",
+         "factory = RECOGNIZER_FACTORY" to "factory =\n                RECOGNIZER_FACTORY",
+-        engineLine to "localEngine = OnDeviceSttEngine(\n                modelLoader,\n            )",
+-        modelLoaderLine to "private val modelLoader: ModelLoader =\n        ModelLoader(store = modelStore, factory = RECOGNIZER_FACTORY)",
++        engineLine to "localEngine = OnDeviceSttEngine(\n                ModelLoader(store = modelStore, factory = RECOGNIZER_FACTORY),\n            )",
+     )
+ 
+     private fun realCode(): String = AppSourceFiles.strip(AppSourceFiles.mainFile(rootPath)).code
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/gates/TileSpokenSendGateTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/gates/TileSpokenSendGateTest.kt
+deleted file mode 100644
+index 03a9f4b9..00000000
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/gates/TileSpokenSendGateTest.kt
++++ /dev/null
+@@ -1,124 +0,0 @@
+-package dev.breaker.dictation.gates
+-
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertThrows
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/**
+- * Pins the spoken send route through the three files that carry it: the host wiring, the tile coordinator and
+- * the phrase send handler. The rules read the real files with comments and literal text removed by the shared
+- * scanner. Each rule holds on the real files, fires on at least two edited samples, and stays quiet on harmless
+- * edits; an edit whose target text is missing fails by name, so a sample cannot go quiet by a typo.
+- */
+-internal class TileSpokenSendGateTest {
+-
+-    private val dir: String = "kotlin/dev/breaker/dictation/"
+-    private val files: Map<String, String> = mapOf(
+-        "host" to dir + "host/TileHost.kt",
+-        "coordinator" to dir + "wiring/TileCoordinator.kt",
+-        "handler" to dir + "wiring/PhraseSendHandler.kt",
+-    )
+-
+-    private class Rule(val name: String, val file: String, val holds: (String) -> Boolean)
+-    private class Sample(val rule: String, val old: String, val new: String)
+-    private class Quiet(val file: String, val old: String, val new: String)
+-
+-    /** The pattern must match the code exactly [times] times. */
+-    private fun rx(name: String, file: String, pattern: String, times: Int = 1) =
+-        Rule(name, file) { Regex(pattern).findAll(it).count() == times }
+-
+-    private val rules: List<Rule> = listOf(
+-        rx("TILE_SEND_GOES_THROUGH_SPOKEN_SEND", "host", """\btileSend\s*=\s*\{\s*trim\s*->\s*toCoordinator\s*\{\s*it\s*\.\s*onSpokenSend\s*\(\s*trim\s*,\s*phraseUnavailable\s*\)\s*\}\s*\}"""),
+-        rx("UNAVAILABLE_IS_THE_SAME_HOOK", "host", """\bonUnavailable\s*=\s*phraseUnavailable\s*,"""),
+-        rx("PHRASE_UNAVAILABLE_HOOK_IS_DECLARED_ONCE", "host", """\bprivate\s+val\s+phraseUnavailable\s*:\s*\(\s*\)\s*->\s*Unit\s*=\s*\{\s*root\s*\.\s*phraseWarn\s*\?\.\s*invoke\s*\(\s*PHRASE_UNAVAILABLE_REASON\s*\)\s*\}"""),
+-        rx("TILE_SEND_IS_NOT_A_PLAIN_SEND", "host", """\bonSend\s*\(\s*trim\b""", 0),
+-        rx("HOME_SEND_IS_UNCHANGED", "host", """\bhomeSend\s*=\s*\{\s*trim\s*->\s*takeOwner\s*\.\s*sendToHome\s*\(\s*trim\s*\)\s*\}"""),
+-        rx("SPOKEN_SEND_IS_IMPORTED", "host", """\bimport\s+dev\s*\.\s*breaker\s*\.\s*dictation\s*\.\s*wiring\s*\.\s*onSpokenSend\b"""),
+-        rx("TILE_SHOWN_IS_READABLE_AND_WRITTEN_INSIDE", "coordinator", """\binternal\s+var\s+tileShown\s*:\s*Boolean\s*=\s*false\s*;\s*private\s+set\b"""),
+-        rx("SPOKEN_SEND_CHECKS_THE_SHOWN_TILE", "handler", """\binternal\s+fun\s+TileCoordinator\s*\.\s*onSpokenSend\s*\(\s*trimBeforeMs\s*:\s*Long\?\s*,\s*onHidden\s*:\s*\(\s*\)\s*->\s*Unit\s*\)\s*\{\s*if\s*\(\s*tileShown\s*\)\s*onSend\s*\(\s*trimBeforeMs\s*\)\s*else\s+onHidden\s*\(\s*\)\s*\}"""),
+-    )
+-
+-    private val firing: List<Sample> = listOf(
+-        Sample("TILE_SEND_GOES_THROUGH_SPOKEN_SEND", "tileSend = { trim -> toCoordinator { it.onSpokenSend(trim, phraseUnavailable) } },", "tileSend = { trim -> toCoordinator { it.onSend(trim) } },"),
+-        Sample("TILE_SEND_GOES_THROUGH_SPOKEN_SEND", "it.onSpokenSend(trim, phraseUnavailable)", "it.onSpokenSend(trim, { })"),
+-        Sample("UNAVAILABLE_IS_THE_SAME_HOOK", "onUnavailable = phraseUnavailable,", "onUnavailable = { },"),
+-        Sample("UNAVAILABLE_IS_THE_SAME_HOOK", "onUnavailable = phraseUnavailable,", "onUnavailable = { root.phraseWarn?.invoke(PHRASE_UNAVAILABLE_REASON) },"),
+-        Sample("PHRASE_UNAVAILABLE_HOOK_IS_DECLARED_ONCE", "private val phraseUnavailable: () -> Unit = { root.phraseWarn?.invoke(PHRASE_UNAVAILABLE_REASON) }", "private val phraseUnavailable: () -> Unit = { }"),
+-        Sample("PHRASE_UNAVAILABLE_HOOK_IS_DECLARED_ONCE", "private val phraseUnavailable: () -> Unit = { root.phraseWarn?.invoke(PHRASE_UNAVAILABLE_REASON) }", "private val phraseUnavailable: () -> Unit = { root.phraseWarn?.invoke(\"x\") }"),
+-        Sample("TILE_SEND_IS_NOT_A_PLAIN_SEND", "homeSend = { trim -> takeOwner.sendToHome(trim) },", "homeSend = { trim -> onSend(trim) },"),
+-        Sample("TILE_SEND_IS_NOT_A_PLAIN_SEND", "it.onSpokenSend(trim, phraseUnavailable) } },", "it.onSpokenSend(trim, phraseUnavailable) }; onSend(trim) },"),
+-        Sample("HOME_SEND_IS_UNCHANGED", "homeSend = { trim -> takeOwner.sendToHome(trim) },", "homeSend = { trim -> toCoordinator { it.onSpokenSend(trim, phraseUnavailable) } },"),
+-        Sample("HOME_SEND_IS_UNCHANGED", "homeSend = { trim -> takeOwner.sendToHome(trim) },", "homeSend = { trim -> takeOwner.sendToHome(null) },"),
+-        Sample("SPOKEN_SEND_IS_IMPORTED", "import dev.breaker.dictation.wiring.onSpokenSend\n", ""),
+-        Sample("SPOKEN_SEND_IS_IMPORTED", "import dev.breaker.dictation.wiring.onSpokenSend", "import dev.breaker.dictation.wiring.onSend"),
+-        Sample("TILE_SHOWN_IS_READABLE_AND_WRITTEN_INSIDE", "internal var tileShown: Boolean = false; private set", "internal var tileShown: Boolean = false"),
+-        Sample("TILE_SHOWN_IS_READABLE_AND_WRITTEN_INSIDE", "internal var tileShown: Boolean = false; private set", "private var tileShown: Boolean = false"),
+-        Sample("SPOKEN_SEND_CHECKS_THE_SHOWN_TILE", "if (tileShown) onSend(trimBeforeMs) else onHidden()", "onSend(trimBeforeMs)"),
+-        Sample("SPOKEN_SEND_CHECKS_THE_SHOWN_TILE", "if (tileShown) onSend(trimBeforeMs) else onHidden()", "if (!tileShown) onSend(trimBeforeMs) else onHidden()"),
+-        Sample("SPOKEN_SEND_CHECKS_THE_SHOWN_TILE", "else onHidden()", "else Unit"),
+-    )
+-
+-    private val quiet: List<Quiet> = listOf(
+-        Quiet("host", "tileSend = { trim -> toCoordinator { it.onSpokenSend(trim, phraseUnavailable) } },", "tileSend = { trim -> toCoordinator { it.onSpokenSend(trim, phraseUnavailable) } }, // it.onSend(trim)"),
+-        Quiet("host", "onUnavailable = phraseUnavailable,", "onUnavailable = phraseUnavailable, // onUnavailable = { }"),
+-        Quiet("host", "homeSend = { trim -> takeOwner.sendToHome(trim) },", "homeSend = { trim -> takeOwner.sendToHome(trim) }, // onSend(trim)"),
+-        Quiet("coordinator", "True while the last show answered SHOWN;", "True while the last show answered SHOWN; the tile may be hidden;"),
+-        Quiet("handler", "if (tileShown) onSend(trimBeforeMs) else onHidden()", "if (tileShown) onSend(trimBeforeMs) else onHidden() // the hidden case sends nothing"),
+-    )
+-
+-    private fun edit(text: String, old: String, new: String): String {
+-        val at = text.indexOf(old)
+-        check(at >= 0) { "app: a spoken send gate sample lost its text '$old'" }
+-        return text.substring(0, at) + new + text.substring(at + old.length)
+-    }
+-
+-    private fun raw(key: String): String = AppSourceFiles.mainFile(files.getValue(key))
+-
+-    private fun codeOf(key: String, old: String? = null, new: String = ""): String =
+-        AppSourceFiles.strip(if (old == null) raw(key) else edit(raw(key), old, new)).code
+-
+-    @Test
+-    fun `the spoken send rules hold on the real host, coordinator and handler files`() {
+-        for (key in files.keys) assertTrue("app: ${files.getValue(key)} was read as empty", codeOf(key).isNotBlank())
+-        for (rule in rules) assertTrue("app: ${files.getValue(rule.file)} breaks rule ${rule.name}", rule.holds(codeOf(rule.file)))
+-    }
+-
+-    @Test
+-    fun `each spoken send rule has at least two firing samples`() {
+-        val names = rules.map { it.name }
+-        assertEquals("app: a spoken send rule name is used twice", names.toSet().size, names.size)
+-        assertEquals("app: a firing sample belongs to an unknown rule or a rule has none", names.toSet(), firing.map { it.rule }.toSet())
+-        for (rule in rules) {
+-            val count = firing.count { it.rule == rule.name }
+-            assertTrue("app: spoken send rule ${rule.name} needs at least two firing samples, has $count", count >= 2)
+-        }
+-    }
+-
+-    @Test
+-    fun `each spoken send rule fires on each of its edited samples`() {
+-        val byName = rules.associateBy { it.name }
+-        for (sample in firing) {
+-            val rule = byName.getValue(sample.rule)
+-            assertFalse("app: spoken send rule ${sample.rule} must fire on the edit '${sample.old}' => '${sample.new}'", rule.holds(codeOf(rule.file, sample.old, sample.new)))
+-        }
+-    }
+-
+-    @Test
+-    fun `each spoken send rule stays quiet on its harmless edits`() {
+-        for (sample in quiet) {
+-            for (rule in rules.filter { it.file == sample.file }) {
+-                assertTrue("app: spoken send rule ${rule.name} fires on a harmless edit '${sample.new}'", rule.holds(codeOf(sample.file, sample.old, sample.new)))
+-            }
+-        }
+-    }
+-
+-    @Test
+-    fun `a spoken send sample whose target text is missing fails by name`() {
+-        val error = assertThrows(IllegalStateException::class.java) {
+-            codeOf("host", "no such text in the host file", "x")
+-        }
+-        assertTrue("app: the missing target must be named", error.message?.contains("lost its text") == true)
+-    }
+-}
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/CloseCancelsTakeRuleTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/CloseCancelsTakeRuleTest.kt
+deleted file mode 100644
+index 3ffd745b..00000000
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/CloseCancelsTakeRuleTest.kt
++++ /dev/null
+@@ -1,69 +0,0 @@
+-package dev.breaker.dictation.wiring
+-
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/**
+- * The truth table of the rule that decides whether a user close cancels the take. The rule cancels only when
+- * all six terms hold; each case below flips one term alone and names it in its failure message.
+- */
+-internal class CloseCancelsTakeRuleTest {
+-
+-    /** The rule with every term clear unless a case names one term to change. */
+-    private fun rule(
+-        armed: Boolean = true,
+-        failed: Boolean = false,
+-        yielding: Boolean = false,
+-        sending: Boolean = false,
+-        inFlight: Boolean = true,
+-        heldElsewhere: Boolean = false,
+-    ): Boolean = closeCancelsTake(armed, failed, yielding, sending, inFlight, heldElsewhere)
+-
+-    @Test
+-    fun `all six terms clear make a user close cancel the take`() {
+-        assertTrue("closeCancelsTake: all six terms clear must cancel the take", rule())
+-    }
+-
+-    @Test
+-    fun `a switch that is off stops a user close from cancelling`() {
+-        assertFalse("closeCancelsTake: the armed term must stop the cancel when the switch is off", rule(armed = false))
+-    }
+-
+-    @Test
+-    fun `a close during a device failure does not cancel the take`() {
+-        assertFalse(
+-            "closeCancelsTake: the failed term must stop the cancel while a device failure runs",
+-            rule(failed = true),
+-        )
+-    }
+-
+-    @Test
+-    fun `a close during a microphone yield does not cancel the take`() {
+-        assertFalse("closeCancelsTake: the yielding term must stop the cancel during the yield", rule(yielding = true))
+-    }
+-
+-    @Test
+-    fun `a close while the text is on its way does not cancel the take`() {
+-        assertFalse(
+-            "closeCancelsTake: the sending term must stop the cancel while the text is sent",
+-            rule(sending = true),
+-        )
+-    }
+-
+-    @Test
+-    fun `a close with no take in flight does not cancel the take`() {
+-        assertFalse(
+-            "closeCancelsTake: the inFlight term must stop the cancel with no take in flight",
+-            rule(inFlight = false),
+-        )
+-    }
+-
+-    @Test
+-    fun `a close while the Home holds the take does not cancel the take`() {
+-        assertFalse(
+-            "closeCancelsTake: the heldElsewhere term must stop the cancel while the Home holds",
+-            rule(heldElsewhere = true),
+-        )
+-    }
+-}
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/DictationComponentPhraseTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/DictationComponentPhraseTest.kt
+deleted file mode 100644
+index 19e546af..00000000
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/DictationComponentPhraseTest.kt
++++ /dev/null
+@@ -1,88 +0,0 @@
+-package dev.breaker.dictation.wiring
+-
+-import dev.breaker.dictation.core.model.AppSettings
+-import dev.breaker.dictation.core.model.SttMode
+-import dev.breaker.dictation.core.model.SttResult
+-import dev.breaker.dictation.service.DictationServiceController
+-import dev.breaker.dictation.stt.ondevice.FedWordStream
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/** The component over the shared fakes and a scripted microphone, with the phrase word stream the test gives it. */
+-internal fun phraseComponent(
+-    words: () -> FedWordStream?,
+-    mic: ScriptedMic,
+-    controller: DictationServiceController,
+-): DictationComponent =
+-    DictationComponent(
+-        settings = FakeSettingsStore(AppSettings(mode = SttMode.LOCAL)),
+-        history = RecordingHistoryStore(),
+-        clock = fixedClock,
+-        ids = SequenceIds(),
+-        probe = FakeProbe(),
+-        localEngine = FakeSttEngine(SttResult.Success("hello world")),
+-        serverEngine = FakeSttEngine(SttResult.Success("from the server")),
+-        localFormatter = CountingFormatter(),
+-        serverFormatter = CountingFormatter(),
+-        wavEncoder = FixedWavEncoder(),
+-        committer = FakeCommitter(),
+-        micSource = mic,
+-        controller = controller,
+-        phraseWords = words,
+-    )
+-
+-/** The component's dictation and phrase wiring over the fakes, run through the real capture with bounded waits. */
+-internal class DictationComponentPhraseTest {
+-
+-    @Test
+-    fun `a take feeds the held word stream with the frames it records`() {
+-        val stream = PhraseTestStream()
+-        val mic = ScriptedMic()
+-        val controller = DictationServiceController(SwitchPermission(true), RecordingLauncher())
+-        val component = phraseComponent({ stream }, mic, controller)
+-        controller.adopt()
+-        component.phrases.start { }
+-        assertEquals("app: the scripted take should start", BeginResult.Recording, component.runner.begin())
+-        awaitBounded("the held stream to be fed a frame", stream.firstFeed)
+-        val result = component.runner.finish()
+-        assertEquals("app: the phrase detector must start the held stream once", 1, stream.starts)
+-        assertTrue("app: the held stream must have been fed the frames of the take", stream.feeds.isNotEmpty())
+-        assertTrue("app: the take with a word stream must still finish with text", result is FinishResult.ReadyToSend)
+-        component.close()
+-    }
+-
+-    @Test
+-    fun `with no word stream the take still records and finishes, and only the phrase start is refused`() {
+-        val mic = ScriptedMic()
+-        val controller = DictationServiceController(SwitchPermission(true), RecordingLauncher())
+-        val component = phraseComponent({ null }, mic, controller)
+-        controller.adopt()
+-        val refused = try {
+-            component.phrases.start { }
+-            false
+-        } catch (e: IllegalStateException) {
+-            true
+-        }
+-        assertTrue("app: the phrase start must be refused when no stream is ready", refused)
+-        assertEquals("app: the take must still begin after a refused phrase start", BeginResult.Recording, component.runner.begin())
+-        awaitBounded("the capture to read twice", mic.secondReadEntered)
+-        val result = component.runner.finish()
+-        assertTrue("app: the take must still finish with text after a refused phrase start", result is FinishResult.ReadyToSend)
+-        component.close()
+-    }
+-
+-    @Test
+-    fun `close stops the phrase detector and its word stream once`() {
+-        val stream = PhraseTestStream()
+-        val mic = ScriptedMic()
+-        val controller = DictationServiceController(SwitchPermission(true), RecordingLauncher())
+-        val component = phraseComponent({ stream }, mic, controller)
+-        component.phrases.start { }
+-        assertTrue("app: the detector must be listening before close", component.phrases.isListening)
+-        component.close()
+-        assertFalse("app: close must stop the detector", component.phrases.isListening)
+-        assertEquals("app: close must stop the held word stream once", 1, stream.stops)
+-    }
+-}
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileShowGuardTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileShowGuardTest.kt
+index 5675958e..50acbd93 100644
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileShowGuardTest.kt
++++ b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileShowGuardTest.kt
+@@ -1,6 +1,5 @@
+ package dev.breaker.dictation.wiring
+ 
+-import dev.breaker.dictation.core.model.DictationState
+ import dev.breaker.dictation.overlay.TileState
+ import org.junit.Assert.assertEquals
+ import org.junit.Assert.assertFalse
+@@ -34,50 +33,31 @@ class KeyboardTileShowGuardTest {
+     }
+ 
+     @Test
+-    fun `a keyboard show after a close during a take shows the tile and begins no take`() {
++    fun `a keyboard show during a take does not bring a closed tile back`() {
+         val r = TileRig()
+         r.startRecording()
+         r.coordinator.onCloseRequested()
+         r.settle()
+-        assertEquals("the close must cancel the take once", 1, r.take.cancelCalls)
+         r.coordinator.onKeyboardReading(true, true, 2000L)
+         r.settle()
+-        assertTrue(
+-            "TileCoordinator.onKeyboardReading: a keyboard show after a close during a take must show the tile",
++        assertFalse(
++            "TileCoordinator.onKeyboardReading: a keyboard show while the take records must not show a closed tile",
+             r.tile.shown,
+         )
+-        assertEquals("TileCoordinator.onKeyboardReading: a keyboard show must begin no take", 1, r.take.beginCalls)
+-        assertEquals(
+-            "TileCoordinator.onKeyboardReading: no take may record after the close",
+-            DictationState.IDLE,
+-            r.take.sessionState,
+-        )
+     }
+ 
+     @Test
+-    fun `a keyboard show after a close during a pending begin shows the tile and leaves no take recording`() {
++    fun `a keyboard show while a begin is pending does not bring a closed tile back`() {
+         val r = TileRig()
+-        // No settle before the show: the begin stays queued, so the close and the show both happen before it runs.
++        // No settle here: the begin stays queued on the background, so only the pending begin can block the show.
+         r.coordinator.onBegin()
+         r.coordinator.onCloseRequested()
+         r.coordinator.onKeyboardReading(true, true, 2000L)
+         assertEquals("the begin must still be queued", 0, r.take.beginCalls)
+-        assertTrue(
+-            "TileCoordinator.onKeyboardReading: a keyboard show after a close must show the tile",
++        assertFalse(
++            "TileCoordinator.onKeyboardReading: a keyboard show while a begin is pending must not show a closed tile",
+             r.tile.shown,
+         )
+-        r.settle()
+-        assertEquals("TileCoordinator.onKeyboardReading: only the tap's queued begin runs", 1, r.take.beginCalls)
+-        assertEquals(
+-            "TileCoordinator.onKeyboardReading: the close must cancel the pending begin once",
+-            1,
+-            r.take.cancelCalls,
+-        )
+-        assertEquals(
+-            "TileCoordinator.onKeyboardReading: no take may record after the close",
+-            DictationState.IDLE,
+-            r.take.sessionState,
+-        )
+     }
+ 
+     @Test
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseSendWiringTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseSendWiringTest.kt
+deleted file mode 100644
+index a8fc0b61..00000000
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseSendWiringTest.kt
++++ /dev/null
+@@ -1,221 +0,0 @@
+-package dev.breaker.dictation.wiring
+-
+-import dev.breaker.dictation.core.model.CommitOutcome
+-import dev.breaker.dictation.core.model.DictationState
+-import dev.breaker.dictation.core.model.HeardWord
+-import dev.breaker.dictation.core.model.WordUpdate
+-import dev.breaker.dictation.core.usecase.SendResult
+-import dev.breaker.dictation.service.DictationServiceController
+-import dev.breaker.dictation.service.FakeLauncher
+-import dev.breaker.dictation.service.FakePermission
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/**
+- * A spoken Send through the real parts: the phrase detector of the component, the send handler, the take owner
+- * and its link, the tile coordinator and the Home adapter. The take is a fake that keeps the trim each finish is
+- * given; the stream is the shared fake, whose update is fired by the test. Every step runs on the test thread
+- * over the manual queues.
+- */
+-internal class PhraseSendWiringTest {
+-
+-    /** A take that answers a text and keeps the trim of each finish it is given. */
+-    private class TrimRecordingTake : TakePort {
+-        val trims: MutableList<Long?> = ArrayList()
+-
+-        override val sessionState: DictationState
+-            get() = DictationState.RECORDING
+-
+-        override fun begin(): BeginResult = BeginResult.Recording
+-
+-        override fun finish(trimBeforeMs: Long?): FinishResult {
+-            trims.add(trimBeforeMs)
+-            return FinishResult.ReadyToSend(tileTranscription("hello there"))
+-        }
+-
+-        override fun send(): SendResult? = sentResult(CommitOutcome.COMMITTED, null)
+-
+-        override fun cancel() {}
+-
+-        override fun resetAfterTaken() {}
+-    }
+-
+-    /** One wiring of the parts, over one stream that the component's detector reads, with a warning counter. */
+-    private inner class Rig(withStream: Boolean) {
+-        val stream = PhraseTestStream()
+-        val main = ManualMain()
+-        val background = ManualBackground()
+-        val take = TrimRecordingTake()
+-        val owner = TakeOwner()
+-        val tile = RecordingTile()
+-        var warnings: Int = 0
+-        private val controller = DictationServiceController(SwitchPermission(true), RecordingLauncher())
+-        val component: DictationComponent = phraseComponent(
+-            words = { if (withStream) stream else null },
+-            mic = ScriptedMic(),
+-            controller = controller,
+-        )
+-        val homeAdapter: HomeTakeAdapter = HomeTakeAdapter(
+-            take = take,
+-            owner = owner,
+-            settle = TakeSettle(null, FakeTakenClipboard()),
+-            switch = ArmedSwitch(DictationServiceController(FakePermission(), FakeLauncher()), MemoryOffStore()),
+-            background = background,
+-            main = main,
+-            onLine = {},
+-            onState = {},
+-        )
+-        private val handler: PhraseSendHandler = PhraseSendHandler(
+-            trigger = component.phrases,
+-            owner = owner,
+-            main = main,
+-            homeSend = { trim -> owner.sendToHome(trim) },
+-            tileSend = { trim -> coordinator.onSend(trim) },
+-            onUnavailable = { warnings += 1 },
+-        )
+-        val link: PhraseTakeLink = PhraseTakeLink(
+-            worker = background,
+-            owner = owner,
+-            prepare = {},
+-            start = { handler.start() },
+-            stop = { handler.stop() },
+-        )
+-        lateinit var coordinator: TileCoordinator
+-
+-        init {
+-            owner.setHomeSend { trim -> homeAdapter.onSend(trim) }
+-            coordinator = TileCoordinator(
+-                tile, main, background,
+-                OwnedTakePort(take, owner, TakeOwnerKind.TILE),
+-                FakeModelReady(true), RecordingModelNotice(), RecordingOpener(),
+-                RecordingClipboard(), {}, RecordingHistory(),
+-            )
+-        }
+-
+-        /** Runs the posted and submitted blocks until both queues are empty, with a bound that fails by name. */
+-        fun settle() {
+-            var passes = 0
+-            while (background.pending > 0 || main.pending > 0) {
+-                passes += 1
+-                check(passes <= 1_000) { "app: the spoken send test did not settle after 1000 passes" }
+-                background.runAll()
+-                main.drain()
+-            }
+-        }
+-
+-        /** The owner listens: a begin starts the handler through the link, a settle stops it. */
+-        fun attach() {
+-            owner.setListener(link)
+-        }
+-    }
+-
+-    /** The update a person saying "and I'm gone" produces, with "and" heard at one second. */
+-    private fun sendUpdate(): WordUpdate =
+-        WordUpdate(listOf(HeardWord("and", 1_000L), HeardWord("i'm", 1_200L), HeardWord("gone", 1_500L)), false)
+-
+-    @Test
+-    fun `a spoken send on the tile reaches the take finish with its trim unchanged`() {
+-        val rig = Rig(withStream = true)
+-        rig.attach()
+-        rig.coordinator.onArmedChanged(true)
+-        rig.coordinator.onBegin()
+-        rig.settle()
+-        assertEquals("app: the listening run must have started once for the take", 1, rig.stream.starts)
+-        rig.stream.emit(sendUpdate())
+-        rig.settle()
+-        assertEquals("app: the send's time must reach the take finish unchanged", listOf<Long?>(1_000L), rig.take.trims)
+-        assertEquals("app: a stream that is ready must give no warning", 0, rig.warnings)
+-    }
+-
+-    @Test
+-    fun `a spoken send on the home reaches the take finish with its trim unchanged`() {
+-        val rig = Rig(withStream = true)
+-        rig.attach()
+-        rig.owner.begun(TakeOwnerKind.HOME)
+-        rig.settle()
+-        assertEquals("app: the listening run must have started once for the home take", 1, rig.stream.starts)
+-        rig.stream.emit(sendUpdate())
+-        rig.settle()
+-        assertEquals("app: the home send's time must reach the take finish unchanged", listOf<Long?>(1_000L), rig.take.trims)
+-    }
+-
+-    @Test
+-    fun `a take that begins with no stream ready records, finishes, and warns once`() {
+-        val rig = Rig(withStream = false)
+-        rig.attach()
+-        rig.coordinator.onArmedChanged(true)
+-        rig.coordinator.onBegin()
+-        rig.settle()
+-        assertEquals("app: the take must not be left listening without a stream", false, rig.component.phrases.isListening)
+-        assertEquals("app: one warning for the take that began without spoken send", 1, rig.warnings)
+-        assertEquals("app: the take must have no user wording on the tile", emptyList<String>(), rig.tile.notices)
+-        rig.coordinator.onSend()
+-        rig.settle()
+-        assertEquals("app: the take must still finish normally, with no trim", listOf<Long?>(null), rig.take.trims)
+-    }
+-
+-    @Test
+-    fun `a second take with no stream ready warns once more`() {
+-        val rig = Rig(withStream = false)
+-        rig.attach()
+-        rig.coordinator.onArmedChanged(true)
+-        rig.coordinator.onBegin()
+-        rig.settle()
+-        rig.coordinator.onSend()
+-        rig.settle()
+-        rig.coordinator.onBegin()
+-        rig.settle()
+-        assertEquals("app: each take that began without spoken send warns once", 2, rig.warnings)
+-    }
+-
+-    @Test
+-    fun `every end of a take stops the listening run exactly once`() {
+-        val ends: List<Pair<String, (Rig) -> Unit>> = listOf(
+-            "a cancel" to { rig -> rig.coordinator.onCancel() },
+-            "a finish" to { rig -> rig.coordinator.onSend() },
+-            "a microphone taken" to { rig ->
+-                val m = rig.owner.mark()
+-                rig.owner.settledIf(m)
+-                rig.coordinator.onTakeMicTaken()
+-            },
+-            "a take ended by itself" to { rig ->
+-                val m = rig.owner.mark()
+-                rig.owner.settledIf(m)
+-                rig.coordinator.onTakeEnded()
+-            },
+-            "a device failure" to { rig ->
+-                val m = rig.owner.mark()
+-                rig.owner.settledIf(m)
+-                assertTrue("app: the tile must take the device failure, so no fallback end runs", rig.coordinator.onTakeFailed())
+-            },
+-            "a switch off" to { rig -> rig.coordinator.onArmedChanged(false) },
+-        )
+-        for ((name, end) in ends) {
+-            val rig = Rig(withStream = true)
+-            rig.attach()
+-            rig.coordinator.onArmedChanged(true)
+-            rig.coordinator.onBegin()
+-            rig.settle()
+-            assertEquals("app: $name: the run must start once", 1, rig.stream.starts)
+-            end(rig)
+-            rig.settle()
+-            assertEquals("app: $name must stop the listening run exactly once", 1, rig.stream.stops)
+-        }
+-    }
+-
+-    @Test
+-    fun `stopping twice through the link stops the stream once`() {
+-        val rig = Rig(withStream = true)
+-        rig.attach()
+-        rig.coordinator.onArmedChanged(true)
+-        rig.coordinator.onBegin()
+-        rig.settle()
+-        rig.link.cleared()
+-        rig.link.cleared()
+-        rig.settle()
+-        assertEquals("app: a second stop through the link must find nothing to stop", 1, rig.stream.stops)
+-        assertFalse("app: the detector must not be listening after the stop", rig.component.phrases.isListening)
+-    }
+-}
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseStreamBuildTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseStreamBuildTest.kt
+deleted file mode 100644
+index 682f9253..00000000
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseStreamBuildTest.kt
++++ /dev/null
+@@ -1,115 +0,0 @@
+-package dev.breaker.dictation.wiring
+-
+-import dev.breaker.dictation.stt.ondevice.ModelLoader
+-import dev.breaker.dictation.stt.ondevice.SherpaModel
+-import dev.breaker.dictation.stt.ondevice.SherpaRecognizer
+-import dev.breaker.dictation.stt.ondevice.SherpaTranscript
+-import java.io.File
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertNull
+-import org.junit.Assert.assertSame
+-import org.junit.Assert.fail
+-import org.junit.Test
+-
+-/**
+- * The build of a phrase word stream from one load: the loaded recognizer is released once, the stream is made
+- * from the loaded model, and a refused load, a load that throws or a stream that cannot be made gives null.
+- * The recognizer is a fake that counts its releases and the stream is the shared fake, so no native engine opens.
+- */
+-internal class PhraseStreamBuildTest {
+-
+-    /** A recognizer that counts how many times it was released. */
+-    private class CountingRecognizer : SherpaRecognizer {
+-        var releases: Int = 0
+-
+-        override fun decode(pcm: FloatArray, sampleRateHz: Int): SherpaTranscript =
+-            SherpaTranscript("", emptyList(), "en")
+-
+-        override fun release() {
+-            releases += 1
+-        }
+-    }
+-
+-    private val model: SherpaModel = SherpaModel("tiny", File("models/tiny"), "00")
+-
+-    @Test
+-    fun `a ready load releases the recognizer once and makes the stream from the loaded model`() {
+-        val recognizer = CountingRecognizer()
+-        var made: SherpaModel? = null
+-        buildPhraseStream("tiny", { ModelLoader.LoadResult.Ready(model, recognizer) }) { loaded ->
+-            made = loaded
+-            PhraseTestStream()
+-        }
+-        assertSame("app: the stream must be made from the loaded model", model, made)
+-        assertEquals("app: the recognizer must be released exactly once", 1, recognizer.releases)
+-    }
+-
+-    @Test
+-    fun `a stream that cannot be made gives null and the recognizer is still released once`() {
+-        val recognizer = CountingRecognizer()
+-        val result = buildPhraseStream("tiny", { ModelLoader.LoadResult.Ready(model, recognizer) }) {
+-            throw IllegalStateException("no stream")
+-        }
+-        assertNull("app: a stream that cannot be made must give null", result)
+-        assertEquals("app: the recognizer must be released once when the stream fails", 1, recognizer.releases)
+-    }
+-
+-    @Test
+-    fun `a refused load gives null and never makes a stream`() {
+-        var made = 0
+-        val result = buildPhraseStream(
+-            "tiny",
+-            { ModelLoader.LoadResult.Refused(ModelLoader.Refusal.NOT_INSTALLED, "fixed sentence") },
+-        ) {
+-            made += 1
+-            PhraseTestStream()
+-        }
+-        assertNull("app: a refused load must give null", result)
+-        assertEquals("app: a refused load must not make a stream", 0, made)
+-    }
+-
+-    @Test
+-    fun `a load that throws gives null and makes no stream`() {
+-        var made = 0
+-        val result = buildPhraseStream("tiny", { throw IllegalStateException("store unreadable") }) {
+-            made += 1
+-            PhraseTestStream()
+-        }
+-        assertNull("app: a load that throws must give null", result)
+-        assertEquals("app: a load that throws must not make a stream", 0, made)
+-    }
+-
+-    @Test
+-    fun `the result is the stream that create returned`() {
+-        val stream = PhraseTestStream()
+-        val result = buildPhraseStream("tiny", { ModelLoader.LoadResult.Ready(model, CountingRecognizer()) }) { stream }
+-        assertSame("app: the result must be the stream that create returned", stream, result)
+-    }
+-
+-    @Test
+-    fun `a virtual machine error from load is not swallowed`() {
+-        var made = 0
+-        try {
+-            buildPhraseStream("tiny", { throw OutOfMemoryError("the virtual machine is out of memory") }) {
+-                made += 1
+-                PhraseTestStream()
+-            }
+-            fail("app: a virtual machine error from load should reach the caller")
+-        } catch (e: OutOfMemoryError) {
+-            assertEquals("app: a virtual machine error from load must not make a stream", 0, made)
+-        }
+-    }
+-
+-    @Test
+-    fun `a virtual machine error from create is not swallowed`() {
+-        val recognizer = CountingRecognizer()
+-        try {
+-            buildPhraseStream("tiny", { ModelLoader.LoadResult.Ready(model, recognizer) }) {
+-                throw OutOfMemoryError("the virtual machine is out of memory")
+-            }
+-            fail("app: a virtual machine error from create should reach the caller")
+-        } catch (e: OutOfMemoryError) {
+-            assertEquals("app: the recognizer must be released once before the error reaches the caller", 1, recognizer.releases)
+-        }
+-    }
+-}
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseStreamProviderTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseStreamProviderTest.kt
+deleted file mode 100644
+index 08102fa7..00000000
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseStreamProviderTest.kt
++++ /dev/null
+@@ -1,122 +0,0 @@
+-package dev.breaker.dictation.wiring
+-
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertNull
+-import org.junit.Assert.assertSame
+-import org.junit.Test
+-
+-/** A background that holds each submitted block until the test runs it, so a build can be seen while it is in flight. */
+-private class HeldBuilds : Background {
+-    val pending = ArrayList<() -> Unit>()
+-
+-    override fun submit(block: () -> Unit) {
+-        pending.add(block)
+-    }
+-
+-    /** Runs the held blocks in the order they were submitted, on the test thread. */
+-    fun runAll() {
+-        while (pending.isNotEmpty()) pending.removeAt(0)()
+-    }
+-}
+-
+-/** The provider over a model id the test changes, a build that records each id it is asked for, and streams it made. */
+-internal class PhraseStreamProviderTest {
+-    private var modelId: String = "small"
+-    private val builds = ArrayList<String>()
+-    private val streams = ArrayList<PhraseTestStream>()
+-    private val background = HeldBuilds()
+-    private var failNext: Boolean = false
+-
+-    private fun provider(): PhraseStreamProvider =
+-        PhraseStreamProvider(
+-            background = background,
+-            modelId = { modelId },
+-            build = { id ->
+-                builds.add(id)
+-                if (failNext) {
+-                    failNext = false
+-                    null
+-                } else {
+-                    PhraseTestStream().also { streams.add(it) }
+-                }
+-            },
+-        )
+-
+-    @Test
+-    fun `prepare hands the build to the background and builds once`() {
+-        val provider = provider()
+-        provider.prepare()
+-        assertEquals("app: prepare must submit one build to the background", 1, background.pending.size)
+-        assertEquals("app: prepare must not run the build on the caller", 0, builds.size)
+-        background.runAll()
+-        assertEquals("app: the one submitted build ran for the model id", listOf("small"), builds)
+-    }
+-
+-    @Test
+-    fun `a second prepare while a build is in flight builds nothing`() {
+-        val provider = provider()
+-        provider.prepare()
+-        provider.prepare()
+-        assertEquals("app: a second prepare must not submit another build", 1, background.pending.size)
+-        background.runAll()
+-        assertEquals("app: only the first build ran", listOf("small"), builds)
+-    }
+-
+-    @Test
+-    fun `a prepare with the stream for the current model id already held submits nothing`() {
+-        val provider = provider()
+-        provider.prepare()
+-        background.runAll()
+-        provider.prepare()
+-        assertEquals("app: a prepare with the stream held must submit no build", 0, background.pending.size)
+-        assertEquals("app: the held stream must not be built again", listOf("small"), builds)
+-    }
+-
+-    @Test
+-    fun `ready is null before the build ran and the stream after`() {
+-        val provider = provider()
+-        assertNull("app: ready must be null before any prepare", provider.ready())
+-        provider.prepare()
+-        assertNull("app: ready must be null while the build is still queued", provider.ready())
+-        background.runAll()
+-        assertSame("app: ready must answer the stream the build made", streams.single(), provider.ready())
+-    }
+-
+-    @Test
+-    fun `a failed build leaves ready null and the next prepare retries`() {
+-        val provider = provider()
+-        failNext = true
+-        provider.prepare()
+-        background.runAll()
+-        assertNull("app: a failed build must leave ready null", provider.ready())
+-        provider.prepare()
+-        assertEquals("app: the next prepare must submit a new build", 1, background.pending.size)
+-        background.runAll()
+-        assertSame("app: the retried build must make the stream", streams.single(), provider.ready())
+-        assertEquals("app: the failed build and the retry both asked for the model id", listOf("small", "small"), builds)
+-    }
+-
+-    @Test
+-    fun `a changed model id drops the old stream and builds the new one`() {
+-        val provider = provider()
+-        provider.prepare()
+-        background.runAll()
+-        val first = provider.ready()
+-        assertSame("app: the first build must answer ready", streams.single(), first)
+-        modelId = "base"
+-        assertNull("app: after the model id changes, ready must not answer the old stream", provider.ready())
+-        provider.prepare()
+-        background.runAll()
+-        assertSame("app: the new model id must answer its own stream", streams[1], provider.ready())
+-        assertEquals("app: the new model id was built", listOf("small", "base"), builds)
+-    }
+-
+-    @Test
+-    fun `ready runs no build and answers while a build is queued`() {
+-        val provider = provider()
+-        provider.prepare()
+-        assertNull("app: ready must answer null and not wait while a build is queued", provider.ready())
+-        assertEquals("app: ready must not submit or run a build", 0, builds.size)
+-        assertEquals("app: ready must not submit a build of its own", 1, background.pending.size)
+-    }
+-}
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseTakeLinkTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseTakeLinkTest.kt
+deleted file mode 100644
+index ed1ce259..00000000
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseTakeLinkTest.kt
++++ /dev/null
+@@ -1,83 +0,0 @@
+-package dev.breaker.dictation.wiring
+-
+-import org.junit.Assert.assertEquals
+-import org.junit.Test
+-
+-/**
+- * The link from the take owner to the spoken Send: what is done, and in which order, when a take begins and
+- * when it is settled. The worker is the manual queue, so each submitted block runs only when the test runs it.
+- */
+-internal class PhraseTakeLinkTest {
+-    private val log: MutableList<String> = ArrayList()
+-    private val worker = ManualBackground()
+-    private val owner = TakeOwner()
+-    private val link = PhraseTakeLink(
+-        worker = worker,
+-        owner = owner,
+-        prepare = { log.add("prepare") },
+-        start = { log.add("start") },
+-        stop = { log.add("stop") },
+-    )
+-
+-    @Test
+-    fun `begun prepares the stream once and submits one start to the worker`() {
+-        owner.setListener(link)
+-        owner.begun(TakeOwnerKind.TILE)
+-        assertEquals("app: a begin must prepare the stream once, before anything runs", listOf("prepare"), log)
+-        assertEquals("app: a begin must submit exactly one start", 1, worker.pending)
+-    }
+-
+-    @Test
+-    fun `the submitted start runs start while the same take is still held`() {
+-        owner.setListener(link)
+-        owner.begun(TakeOwnerKind.TILE)
+-        worker.runAll()
+-        assertEquals("app: the start must run once the take it was made for is still held", listOf("prepare", "start"), log)
+-    }
+-
+-    @Test
+-    fun `the submitted start does nothing once that take has ended`() {
+-        owner.setListener(link)
+-        owner.begun(TakeOwnerKind.TILE)
+-        owner.settled()
+-        worker.runAll()
+-        assertEquals("app: a take that ended before the worker ran must not start listening", listOf("prepare", "stop"), log)
+-    }
+-
+-    @Test
+-    fun `a start queued for an older take does nothing when a newer take has begun`() {
+-        owner.setListener(link)
+-        owner.begun(TakeOwnerKind.TILE)
+-        owner.begun(TakeOwnerKind.HOME)
+-        worker.runAll()
+-        assertEquals("app: only the start of the take that is held runs", listOf("prepare", "prepare", "start"), log)
+-    }
+-
+-    @Test
+-    fun `settled submits one stop and the stop runs after the start`() {
+-        owner.setListener(link)
+-        owner.begun(TakeOwnerKind.TILE)
+-        worker.runAll()
+-        owner.settled()
+-        assertEquals("app: a settle must submit one stop", 1, worker.pending)
+-        worker.runAll()
+-        assertEquals("app: the stop must run after the start", listOf("prepare", "start", "stop"), log)
+-    }
+-
+-    @Test
+-    fun `a start and a stop queued in that order run in that order`() {
+-        owner.setListener(link)
+-        owner.begun(TakeOwnerKind.TILE)
+-        link.cleared()
+-        worker.runAll()
+-        assertEquals("app: the queued start and stop must keep their submit order", listOf("prepare", "start", "stop"), log)
+-    }
+-
+-    @Test
+-    fun `with no listener set a begin and a settle change nothing`() {
+-        owner.begun(TakeOwnerKind.TILE)
+-        owner.settled()
+-        assertEquals("app: no listener means no prepare and no work", emptyList<String>(), log)
+-        assertEquals("app: no listener means nothing is submitted", 0, worker.pending)
+-    }
+-}
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/ShakeShowsTileTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/ShakeShowsTileTest.kt
+index 555d1224..757081fa 100644
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/ShakeShowsTileTest.kt
++++ b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/ShakeShowsTileTest.kt
+@@ -1,6 +1,5 @@
+ package dev.breaker.dictation.wiring
+ 
+-import dev.breaker.dictation.core.model.DictationState
+ import dev.breaker.dictation.overlay.TileState
+ import org.junit.Assert.assertEquals
+ import org.junit.Assert.assertFalse
+@@ -38,33 +37,28 @@ internal class ShakeShowsTileTest {
+     }
+ 
+     @Test
+-    fun `a shake after a close that ended a recording take shows the tile and begins no take`() {
++    fun `a shake while a take is recording does nothing`() {
+         val rig = TileRig()
+         rig.startRecording()
+         rig.coordinator.onCloseRequested()
+-        rig.settle()
+-        assertEquals("app: a close during a recording take must cancel the take once", 1, rig.take.cancelCalls)
+         rig.tile.calls.clear()
+         rig.coordinator.onShake()
+         rig.settle()
+-        assertEquals("app: a shake after the close must show the tile once", 1, rig.tile.calls.count { it == "show" })
+-        assertEquals("app: a shake after the close must begin no take", 1, rig.take.beginCalls)
+-        assertEquals("app: a shake after the close must leave the tile ARMED", TileState.ARMED, rig.tile.states.last())
++        assertEquals("app: a shake while recording must make no tile call", emptyList<String>(), rig.tile.calls)
++        assertEquals("app: a shake while recording must leave the one take begun", 1, rig.take.beginCalls)
+     }
+ 
+     @Test
+-    fun `a shake after a close during a pending begin shows the closed tile and leaves no take recording`() {
++    fun `a shake while a begin is pending does nothing`() {
+         val rig = TileRig()
+         rig.coordinator.onBegin()
+         rig.coordinator.onCloseRequested()
+         rig.tile.calls.clear()
+         rig.coordinator.onShake()
+-        assertEquals("app: a shake after the close must show the tile once", 1, rig.tile.calls.count { it == "show" })
++        assertEquals("app: a shake while a begin is pending must make no show call", 0, rig.tile.calls.count { it == "show" })
++        assertFalse("app: a shake while a begin is pending must not call show at all", rig.tile.calls.contains("show"))
+         rig.settle()
+-        assertEquals("app: the queued begin still runs once before its cancel", 1, rig.take.beginCalls)
+-        assertEquals("app: the close must cancel the pending begin once", 1, rig.take.cancelCalls)
+-        assertEquals("app: no take may be recording after the close", DictationState.IDLE, rig.take.sessionState)
+-        assertFalse("app: no RECORDING state may follow the close", rig.tile.states.contains(TileState.RECORDING))
++        assertEquals("app: a shake while a begin is pending must leave only the tap's one take begun", 1, rig.take.beginCalls)
+     }
+ 
+     @Test
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/TakeHeldElsewhereTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/TakeHeldElsewhereTest.kt
+deleted file mode 100644
+index 95dde6de..00000000
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/TakeHeldElsewhereTest.kt
++++ /dev/null
+@@ -1,62 +0,0 @@
+-package dev.breaker.dictation.wiring
+-
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/**
+- * The held-elsewhere flag of a take port: the owned port answers whether a path other than its own kind holds
+- * the take, and a port that does not override the flag answers false. A read that throws never reaches the
+- * close; the close then cancels as it would with no other holder.
+- */
+-internal class TakeHeldElsewhereTest {
+-
+-    @Test
+-    fun `the tile take port reports its own take as not held elsewhere`() {
+-        val owner = TakeOwner()
+-        owner.begun(TakeOwnerKind.TILE)
+-        val port = OwnedTakePort(FakeTake(), owner, TakeOwnerKind.TILE)
+-        assertFalse("app: the tile take port must not report its own take as held elsewhere", port.heldElsewhere)
+-    }
+-
+-    @Test
+-    fun `the tile take port reports a take held by the Home as held elsewhere`() {
+-        val owner = TakeOwner()
+-        owner.begun(TakeOwnerKind.HOME)
+-        val port = OwnedTakePort(FakeTake(), owner, TakeOwnerKind.TILE)
+-        assertTrue("app: the tile take port must report a take the Home holds as held elsewhere", port.heldElsewhere)
+-    }
+-
+-    @Test
+-    fun `the tile take port reports no holder as not held elsewhere`() {
+-        val port = OwnedTakePort(FakeTake(), TakeOwner(), TakeOwnerKind.TILE)
+-        assertFalse("app: the tile take port must report no holder as not held elsewhere", port.heldElsewhere)
+-    }
+-
+-    @Test
+-    fun `a take port that does not override the held-elsewhere flag reports false`() {
+-        val take: TakePort = FakeTake()
+-        assertFalse("app: the default held-elsewhere flag must be false", take.heldElsewhere)
+-    }
+-
+-    @Test
+-    fun `a throwing held-elsewhere read is absorbed and the close still cancels and hides`() {
+-        val rig = TileRig(arm = false)
+-        val throwing: TakePort = object : TakePort by rig.take {
+-            override val heldElsewhere: Boolean
+-                get() = throw IllegalStateException("the holder read failed")
+-        }
+-        val coordinator = TileCoordinator(
+-            rig.tile, rig.main, rig.background, throwing, rig.model, rig.notice, rig.opener,
+-            rig.clipboard, {}, rig.history,
+-        )
+-        coordinator.onArmedChanged(true)
+-        coordinator.onBegin()
+-        rig.settle()
+-        coordinator.onCloseRequested()
+-        rig.settle()
+-        assertEquals("app: a close whose holder read throws must still cancel the take once", 1, rig.take.cancelCalls)
+-        assertFalse("app: a close whose holder read throws must still hide the tile", rig.tile.shown)
+-    }
+-}
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileCloseCancelsTakeTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileCloseCancelsTakeTest.kt
+deleted file mode 100644
+index 32f4a9ad..00000000
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileCloseCancelsTakeTest.kt
++++ /dev/null
+@@ -1,170 +0,0 @@
+-package dev.breaker.dictation.wiring
+-
+-import dev.breaker.dictation.core.model.DictationState
+-import dev.breaker.dictation.overlay.TileState
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Test
+-
+-/**
+- * A user close that lands on a recording take, or on a begin still pending, ends that take the way Cancel
+- * ends it, and then hides the tile. The coordinator, the take and the tile are the real classes over the fakes.
+- */
+-internal class TileCloseCancelsTakeTest {
+-
+-    /** Holds each submitted block until a test runs the next one, so an answer can land between two steps. */
+-    private class StepBackground : Background {
+-        private val queue: ArrayDeque<() -> Unit> = ArrayDeque()
+-
+-        override fun submit(block: () -> Unit) {
+-            queue.addLast(block)
+-        }
+-
+-        fun runNext() {
+-            check(queue.isNotEmpty()) { "app: no queued block to run" }
+-            val next: () -> Unit = queue.removeFirst()
+-            next()
+-        }
+-    }
+-
+-    /** A coordinator over the rig's fakes whose take is the rig's take behind an owner, as the tile host builds it. */
+-    private fun ownedCoordinator(rig: TileRig, owner: TakeOwner): TileCoordinator =
+-        TileCoordinator(
+-            rig.tile, rig.main, rig.background, OwnedTakePort(rig.take, owner, TakeOwnerKind.TILE),
+-            rig.model, rig.notice, rig.opener, rig.clipboard, {}, rig.history,
+-        )
+-
+-    /** A rig whose tile was brought up by a keyboard show, so the session has raised it. */
+-    private fun raisedByKeyboard(): TileRig {
+-        val rig = TileRig(arm = false)
+-        rig.tile.showResult = TileShow.NO_PERMISSION
+-        rig.coordinator.onArmedChanged(true)
+-        rig.tile.showResult = TileShow.SHOWN
+-        rig.coordinator.onKeyboardReading(true, true, 1000L)
+-        rig.settle()
+-        return rig
+-    }
+-
+-    @Test
+-    fun `a user close during a take ends it like Cancel and sends nothing`() {
+-        val rig = TileRig()
+-        rig.startRecording()
+-        rig.tile.calls.clear()
+-        rig.coordinator.onCloseRequested()
+-        rig.settle()
+-        assertEquals("app: a close during a take must cancel the take once", 1, rig.take.cancelCalls)
+-        assertEquals("app: a close during a take must finish nothing", 0, rig.take.finishCalls)
+-        assertEquals("app: a close during a take must send nothing", 0, rig.take.sendCalls)
+-        assertEquals(
+-            "app: a close during a take must leave the session IDLE",
+-            DictationState.IDLE,
+-            rig.take.sessionState,
+-        )
+-        assertEquals("app: a close during a take must leave the tile ARMED", TileState.ARMED, rig.tile.states.last())
+-        assertEquals("app: a close during a take must end with the hide", "hide", rig.tile.calls.last())
+-
+-        val cancelled = TileRig()
+-        cancelled.startRecording()
+-        cancelled.tile.calls.clear()
+-        cancelled.coordinator.onCancel()
+-        cancelled.settle()
+-        assertEquals("app: Cancel must cancel the take once too", 1, cancelled.take.cancelCalls)
+-        assertEquals(
+-            "app: the close must add only the hide to what Cancel does on the tile",
+-            cancelled.tile.calls,
+-            rig.tile.calls.dropLast(1),
+-        )
+-        assertEquals(
+-            "app: the close must leave the same session as Cancel",
+-            cancelled.take.sessionState,
+-            rig.take.sessionState,
+-        )
+-    }
+-
+-    @Test
+-    fun `a user close during a pending begin cancels it and no recording face follows`() {
+-        val background = StepBackground()
+-        val main = ManualMain()
+-        val tile = RecordingTile()
+-        val take = FakeTake()
+-        val coordinator = TileCoordinator(
+-            tile, main, background, take, FakeModelReady(true), RecordingModelNotice(), RecordingOpener(),
+-            RecordingClipboard(), {}, RecordingHistory(),
+-        )
+-        coordinator.onArmedChanged(true)
+-        coordinator.onBegin()
+-        coordinator.onCloseRequested()
+-        background.runNext()
+-        main.drain()
+-        background.runNext()
+-        main.drain()
+-        assertEquals("app: the queued begin must run once before its cancel", 1, take.beginCalls)
+-        assertEquals("app: a close during a pending begin must cancel the take once", 1, take.cancelCalls)
+-        assertFalse(
+-            "app: no RECORDING face may follow a close during a pending begin",
+-            tile.states.contains(TileState.RECORDING),
+-        )
+-        tile.calls.clear()
+-        coordinator.onShake()
+-        assertEquals(
+-            "app: after the close a shake must show the tile once, so no begin is still pending",
+-            1,
+-            tile.calls.count { it == "show" },
+-        )
+-    }
+-
+-    @Test
+-    fun `a user close during a begin started from the busy face clears the busy face`() {
+-        val rig = TileRig()
+-        rig.coordinator.onTakeMicTaken()
+-        rig.settle()
+-        assertEquals("app: the cut must leave the busy face", TileState.MIC_BUSY, rig.tile.states.last())
+-        rig.coordinator.onBegin()
+-        rig.coordinator.onCloseRequested()
+-        rig.settle()
+-        assertEquals(
+-            "app: a close during a begin from the busy face must cancel the take once",
+-            1,
+-            rig.take.cancelCalls,
+-        )
+-        assertEquals(
+-            "app: a close during a begin from the busy face must clear the busy face",
+-            TileState.ARMED,
+-            rig.tile.states.last(),
+-        )
+-    }
+-
+-    @Test
+-    fun `a user close of a take the tile holds cancels it`() {
+-        val rig = TileRig(arm = false)
+-        val coordinator = ownedCoordinator(rig, TakeOwner())
+-        coordinator.onArmedChanged(true)
+-        coordinator.onBegin()
+-        rig.settle()
+-        coordinator.onCloseRequested()
+-        rig.settle()
+-        assertEquals("app: a close of a take the tile holds must cancel it once", 1, rig.take.cancelCalls)
+-        assertEquals(
+-            "app: a close of a take the tile holds must leave the session IDLE",
+-            DictationState.IDLE,
+-            rig.take.sessionState,
+-        )
+-    }
+-
+-    @Test
+-    fun `a user close drops a held keyboard hide before the cancel can apply it`() {
+-        val rig = raisedByKeyboard()
+-        rig.startRecording()
+-        rig.coordinator.onKeyboardReading(false, false, 2000L)
+-        rig.settle()
+-        assertEquals("app: the keyboard hide must be held during the take", 0, rig.tile.calls.count { it == "hide" })
+-        rig.coordinator.onCloseRequested()
+-        rig.settle()
+-        assertEquals(
+-            "app: the close must hide the tile once and the held keyboard hide must add no hide",
+-            1,
+-            rig.tile.calls.count { it == "hide" },
+-        )
+-        assertEquals("app: the close must cancel the take once", 1, rig.take.cancelCalls)
+-    }
+-}
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileCloseGuardsTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileCloseGuardsTest.kt
+deleted file mode 100644
+index 018b5805..00000000
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileCloseGuardsTest.kt
++++ /dev/null
+@@ -1,128 +0,0 @@
+-package dev.breaker.dictation.wiring
+-
+-import dev.breaker.dictation.core.model.DictationState
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/**
+- * The user close cancels a take only in the states that call for it. Each test here sets up one state in
+- * which the close must leave the take alone: the Home holds it, no take is in flight, a keyboard hide is held,
+- * the text is on its way, the microphone is yielding, or a device failure runs. These tests pass on the base
+- * as well, because the base never cancels; they pin what the close must not do.
+- */
+-internal class TileCloseGuardsTest {
+-
+-    /** A rig whose tile was brought up by a keyboard show, so the session has raised it. */
+-    private fun raisedByKeyboard(): TileRig {
+-        val rig = TileRig(arm = false)
+-        rig.tile.showResult = TileShow.NO_PERMISSION
+-        rig.coordinator.onArmedChanged(true)
+-        rig.tile.showResult = TileShow.SHOWN
+-        rig.coordinator.onKeyboardReading(true, true, 1000L)
+-        rig.settle()
+-        return rig
+-    }
+-
+-    /** A coordinator over the rig's fakes whose take is the rig's take behind an owner, as the tile host builds it. */
+-    private fun ownedCoordinator(rig: TileRig, owner: TakeOwner): TileCoordinator =
+-        TileCoordinator(
+-            rig.tile, rig.main, rig.background, OwnedTakePort(rig.take, owner, TakeOwnerKind.TILE),
+-            rig.model, rig.notice, rig.opener, rig.clipboard, {}, rig.history,
+-        )
+-
+-    @Test
+-    fun `a user close while the Home holds the take cancels nothing`() {
+-        val rig = TileRig(arm = false)
+-        val owner = TakeOwner()
+-        val coordinator = ownedCoordinator(rig, owner)
+-        coordinator.onArmedChanged(true)
+-        coordinator.onBegin()
+-        rig.settle()
+-        owner.begun(TakeOwnerKind.HOME)
+-        coordinator.onCloseRequested()
+-        rig.settle()
+-        assertEquals("app: a close while the Home holds the take must cancel nothing", 0, rig.take.cancelCalls)
+-        assertEquals(
+-            "app: a close while the Home holds the take must leave the take recording",
+-            DictationState.RECORDING,
+-            rig.take.sessionState,
+-        )
+-        assertFalse("app: a close while the Home holds the take must still hide the tile", rig.tile.shown)
+-    }
+-
+-    @Test
+-    fun `a user close with no take in flight cancels nothing`() {
+-        val rig = TileRig()
+-        rig.coordinator.onCloseRequested()
+-        rig.settle()
+-        assertEquals("app: a close with no take in flight must cancel nothing", 0, rig.take.cancelCalls)
+-        assertFalse("app: a close with no take in flight must still hide the tile", rig.tile.shown)
+-    }
+-
+-    @Test
+-    fun `a keyboard hide during a take is held and cancels nothing`() {
+-        val rig = raisedByKeyboard()
+-        rig.startRecording()
+-        rig.coordinator.onKeyboardReading(false, false, 2000L)
+-        rig.settle()
+-        assertEquals(
+-            "app: a keyboard hide during a take must make no hide call",
+-            0,
+-            rig.tile.calls.count { it == "hide" },
+-        )
+-        assertEquals("app: a keyboard hide during a take must cancel nothing", 0, rig.take.cancelCalls)
+-        assertEquals(
+-            "app: a keyboard hide during a take must leave the take recording",
+-            DictationState.RECORDING,
+-            rig.take.sessionState,
+-        )
+-    }
+-
+-    @Test
+-    fun `a user close while the text is on its way cancels nothing`() {
+-        val rig = TileRig()
+-        rig.coordinator.onBegin()
+-        rig.coordinator.onSend()
+-        rig.coordinator.onCloseRequested()
+-        rig.settle()
+-        assertEquals("app: a close while the text is on its way must cancel nothing", 0, rig.take.cancelCalls)
+-        assertEquals(
+-            "app: a close while the text is on its way must let the send's finish run once",
+-            1,
+-            rig.take.finishCalls,
+-        )
+-    }
+-
+-    @Test
+-    fun `a user close during a microphone yield keeps the answer of a begin that was pending`() {
+-        val rig = TileRig()
+-        rig.take.beginResult = BeginResult.Failed(FAILED_SENTENCE)
+-        rig.coordinator.onBegin()
+-        rig.coordinator.onTakeMicTaken()
+-        rig.coordinator.onCloseRequested()
+-        rig.settle()
+-        assertEquals("app: a close during the microphone yield must cancel nothing", 0, rig.take.cancelCalls)
+-        assertTrue(
+-            "app: the answer of a begin pending during the microphone yield must still reach the tile",
+-            rig.tile.notices.contains(FAILED_SENTENCE),
+-        )
+-    }
+-
+-    @Test
+-    fun `a user close during a device failure keeps the answer of a begin that was pending`() {
+-        val rig = TileRig()
+-        rig.take.beginResult = BeginResult.Failed(FAILED_SENTENCE)
+-        rig.take.sessionState = DictationState.RECORDING
+-        rig.coordinator.onBegin()
+-        assertTrue("app: the microphone failure must be taken by the tile", rig.coordinator.onTakeFailed())
+-        rig.coordinator.onCloseRequested()
+-        rig.settle()
+-        assertEquals("app: a close during a device failure must cancel nothing", 0, rig.take.cancelCalls)
+-        assertTrue(
+-            "app: the answer of a begin pending during a device failure must still reach the tile",
+-            rig.tile.notices.contains(FAILED_SENTENCE),
+-        )
+-    }
+-}
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileSpokenSendRouteTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileSpokenSendRouteTest.kt
+deleted file mode 100644
+index 0405267b..00000000
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileSpokenSendRouteTest.kt
++++ /dev/null
+@@ -1,149 +0,0 @@
+-package dev.breaker.dictation.wiring
+-
+-import dev.breaker.dictation.core.model.CommitOutcome
+-import dev.breaker.dictation.core.model.DictationState
+-import dev.breaker.dictation.core.model.PhraseEvent
+-import dev.breaker.dictation.core.port.PhraseTrigger
+-import dev.breaker.dictation.core.usecase.SendResult
+-import org.junit.Assert.assertEquals
+-import org.junit.Test
+-
+-/**
+- * A spoken send from the phrase detector to the path that holds the take: the send handler routes it, and a
+- * take the tile holds reaches the tile's spoken send entry. The detector is a test-local fake that keeps its
+- * callback; the events are fired by the test on the test thread.
+- */
+-internal class TileSpokenSendRouteTest {
+-
+-    /** A detector that keeps the callback it is given. */
+-    private class FakeTrigger : PhraseTrigger {
+-        val callbacks: MutableList<(PhraseEvent) -> Unit> = ArrayList()
+-
+-        override val isListening: Boolean
+-            get() = callbacks.isNotEmpty()
+-
+-        override fun start(onPhrase: (PhraseEvent) -> Unit) {
+-            callbacks.add(onPhrase)
+-        }
+-
+-        override fun stop() {}
+-    }
+-
+-    /** A take that keeps the trim of each finish and counts its sends. */
+-    private class TrimTake : TakePort {
+-        val trims: MutableList<Long?> = ArrayList()
+-        var sends: Int = 0
+-        override var sessionState: DictationState = DictationState.IDLE
+-
+-        override fun begin(): BeginResult {
+-            sessionState = DictationState.RECORDING
+-            return BeginResult.Recording
+-        }
+-
+-        override fun finish(trimBeforeMs: Long?): FinishResult {
+-            trims.add(trimBeforeMs)
+-            sessionState = DictationState.SENDING
+-            return FinishResult.ReadyToSend(tileTranscription("hello there"))
+-        }
+-
+-        override fun send(): SendResult? {
+-            sends += 1
+-            sessionState = DictationState.IDLE
+-            return sentResult(CommitOutcome.COMMITTED, null)
+-        }
+-
+-        override fun cancel() {
+-            sessionState = DictationState.IDLE
+-        }
+-
+-        override fun resetAfterTaken() {}
+-    }
+-
+-    private val trigger = FakeTrigger()
+-    private val owner = TakeOwner()
+-    private val main = ManualMain()
+-    private val background = ManualBackground()
+-    private val take = TrimTake()
+-    private val tile = RecordingTile()
+-    private val home: MutableList<Long?> = ArrayList()
+-    private var hidden: Int = 0
+-
+-    private val coordinator = TileCoordinator(
+-        tile, main, background, OwnedTakePort(take, owner, TakeOwnerKind.TILE),
+-        FakeModelReady(true), RecordingModelNotice(), RecordingOpener(),
+-        RecordingClipboard(), {}, RecordingHistory(),
+-    )
+-
+-    private val handler = PhraseSendHandler(
+-        trigger = trigger,
+-        owner = owner,
+-        main = main,
+-        homeSend = { trim -> home.add(trim) },
+-        tileSend = { trim -> coordinator.onSpokenSend(trim) { hidden += 1 } },
+-        onUnavailable = {},
+-    )
+-
+-    init {
+-        coordinator.onArmedChanged(true)
+-    }
+-
+-    /** Runs the background and the main queue until both are empty, with a bound that fails by name. */
+-    private fun settle() {
+-        var passes = 0
+-        while (background.pending > 0 || main.pending > 0) {
+-            passes += 1
+-            check(passes <= 1_000) { "app: the spoken send route did not settle after 1000 passes" }
+-            background.runAll()
+-            main.drain()
+-        }
+-    }
+-
+-    /** The detector fires one send event on its callback, as the detection thread would. */
+-    private fun firePhraseSend(trim: Long?) {
+-        trigger.callbacks[0](PhraseEvent.Send(trim))
+-        settle()
+-    }
+-
+-    @Test
+-    fun `a spoken send after a close of a tile take finishes nothing and calls no hidden callback`() {
+-        coordinator.onBegin()
+-        settle()
+-        handler.start()
+-        coordinator.onCloseRequested()
+-        settle()
+-        firePhraseSend(1_500L)
+-        assertEquals(
+-            "app: a spoken send after a close of a tile take must finish nothing",
+-            emptyList<Long?>(),
+-            take.trims,
+-        )
+-        assertEquals("app: a spoken send after a close of a tile take must call no hidden callback", 0, hidden)
+-        assertEquals(
+-            "app: the close must cancel the tile take, leaving the session IDLE",
+-            DictationState.IDLE,
+-            take.sessionState,
+-        )
+-    }
+-
+-    @Test
+-    fun `a spoken send for a tile take finishes it with its trim when the tile is shown`() {
+-        coordinator.onBegin()
+-        settle()
+-        handler.start()
+-        firePhraseSend(1_500L)
+-        assertEquals("app: a spoken send for a shown tile take finishes it with its trim", listOf<Long?>(1_500L), take.trims)
+-        assertEquals("app: a spoken send for a shown tile take does not call the hidden callback", 0, hidden)
+-    }
+-
+-    @Test
+-    fun `a spoken send for a home take keeps its trim with the tile hidden and never calls the hidden callback`() {
+-        owner.begun(TakeOwnerKind.HOME)
+-        coordinator.onCloseRequested()
+-        settle()
+-        handler.start()
+-        firePhraseSend(1_500L)
+-        assertEquals("app: a spoken send for a home take keeps its trim", listOf<Long?>(1_500L), home)
+-        assertEquals("app: a spoken send for a home take never calls the tile hidden callback", 0, hidden)
+-        assertEquals("app: a spoken send for a home take finishes nothing on the tile", emptyList<Long?>(), take.trims)
+-    }
+-}
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileSpokenSendTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileSpokenSendTest.kt
+deleted file mode 100644
+index 87bae73b..00000000
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileSpokenSendTest.kt
++++ /dev/null
+@@ -1,146 +0,0 @@
+-package dev.breaker.dictation.wiring
+-
+-import dev.breaker.dictation.core.model.CommitOutcome
+-import dev.breaker.dictation.core.model.DictationState
+-import dev.breaker.dictation.core.usecase.SendResult
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Test
+-
+-/**
+- * The spoken send entry of the tile coordinator. A send that lands while the tile is shown finishes the take
+- * with its trim unchanged; a send that lands while the tile is hidden finishes nothing and calls the hidden
+- * callback once. Every test runs on the test thread over the manual queues.
+- */
+-internal class TileSpokenSendTest {
+-
+-    /** A take that keeps the trim of each finish and counts its sends. */
+-    private class TrimTake : TakePort {
+-        val trims: MutableList<Long?> = ArrayList()
+-        var sends: Int = 0
+-        override var sessionState: DictationState = DictationState.IDLE
+-
+-        override fun begin(): BeginResult {
+-            sessionState = DictationState.RECORDING
+-            return BeginResult.Recording
+-        }
+-
+-        override fun finish(trimBeforeMs: Long?): FinishResult {
+-            trims.add(trimBeforeMs)
+-            sessionState = DictationState.SENDING
+-            return FinishResult.ReadyToSend(tileTranscription("hello there"))
+-        }
+-
+-        override fun send(): SendResult? {
+-            sends += 1
+-            sessionState = DictationState.IDLE
+-            return sentResult(CommitOutcome.COMMITTED, null)
+-        }
+-
+-        override fun cancel() {
+-            sessionState = DictationState.IDLE
+-        }
+-
+-        override fun resetAfterTaken() {}
+-    }
+-
+-    /** One coordinator over the fakes, armed when built, with a count of the hidden callbacks. */
+-    private class SpokenRig {
+-        val tile = RecordingTile()
+-        val main = ManualMain()
+-        val background = ManualBackground()
+-        val take = TrimTake()
+-        var hidden: Int = 0
+-        val coordinator = TileCoordinator(
+-            tile, main, background, take, FakeModelReady(true), RecordingModelNotice(), RecordingOpener(),
+-            RecordingClipboard(), {}, RecordingHistory(),
+-        )
+-
+-        init {
+-            coordinator.onArmedChanged(true)
+-        }
+-
+-        /** Runs the background and the main queue until both are empty, with a bound that fails by name. */
+-        fun settle() {
+-            var passes = 0
+-            while (background.pending > 0 || main.pending > 0) {
+-                passes += 1
+-                check(passes <= 1_000) { "app: the spoken send rig did not settle after 1000 passes" }
+-                background.runAll()
+-                main.drain()
+-            }
+-        }
+-
+-        fun startRecording() {
+-            coordinator.onBegin()
+-            settle()
+-        }
+-
+-        fun closeTile() {
+-            coordinator.onCloseRequested()
+-            settle()
+-        }
+-
+-        fun spokenSend(trim: Long?) {
+-            coordinator.onSpokenSend(trim) { hidden += 1 }
+-        }
+-    }
+-
+-    @Test
+-    fun `a spoken send while the tile is shown finishes the take once with its trim unchanged`() {
+-        val rig = SpokenRig()
+-        rig.startRecording()
+-        rig.spokenSend(1_500L)
+-        rig.settle()
+-        assertEquals("app: a spoken send while the tile is shown finishes with its trim", listOf<Long?>(1_500L), rig.take.trims)
+-        assertEquals("app: a spoken send while the tile is shown sends once", 1, rig.take.sends)
+-        assertEquals("app: a spoken send while the tile is shown does not call the hidden callback", 0, rig.hidden)
+-    }
+-
+-    @Test
+-    fun `a spoken send while the tile is hidden does nothing and calls the hidden callback once`() {
+-        val rig = SpokenRig()
+-        rig.startRecording()
+-        rig.closeTile()
+-        rig.spokenSend(1_500L)
+-        rig.settle()
+-        assertEquals("app: a spoken send while the tile is hidden calls the hidden callback once", 1, rig.hidden)
+-        assertEquals("app: a spoken send while the tile is hidden finishes nothing", emptyList<Long?>(), rig.take.trims)
+-        assertEquals("app: a spoken send while the tile is hidden sends nothing", 0, rig.take.sends)
+-        assertFalse("app: the tile stays hidden after a spoken send", rig.tile.shown)
+-    }
+-
+-    @Test
+-    fun `a spoken send with the tile hidden and no take running calls the hidden callback once and finishes nothing`() {
+-        val rig = SpokenRig()
+-        rig.closeTile()
+-        rig.spokenSend(null)
+-        rig.settle()
+-        assertEquals("app: a spoken send with no take calls the hidden callback once", 1, rig.hidden)
+-        assertEquals("app: a spoken send with no take finishes nothing", emptyList<Long?>(), rig.take.trims)
+-        assertEquals("app: a spoken send with no take sends nothing", 0, rig.take.sends)
+-    }
+-
+-    @Test
+-    fun `a second spoken send before the first finish settles does not finish the take again`() {
+-        val rig = SpokenRig()
+-        rig.startRecording()
+-        rig.spokenSend(1_500L)
+-        rig.spokenSend(250L)
+-        rig.settle()
+-        assertEquals("app: the second spoken send is dropped and only the first trim finishes", listOf<Long?>(1_500L), rig.take.trims)
+-        assertEquals("app: the take is sent once", 1, rig.take.sends)
+-        assertEquals("app: no spoken send reaches the hidden callback", 0, rig.hidden)
+-    }
+-
+-    @Test
+-    fun `a plain send with the tile hidden still finishes a recording take`() {
+-        val rig = SpokenRig()
+-        rig.startRecording()
+-        rig.closeTile()
+-        rig.coordinator.onSend(1_500L)
+-        rig.settle()
+-        assertEquals("app: a plain send with the tile hidden finishes the take with its trim", listOf<Long?>(1_500L), rig.take.trims)
+-        assertEquals("app: a plain send with the tile hidden sends the take once", 1, rig.take.sends)
+-    }
+-}
+diff --git a/decisions/ADR-024-tile-feedback-and-visibility.md b/decisions/ADR-024-tile-feedback-and-visibility.md
+index eb904a1f..7c35972d 100644
+--- a/decisions/ADR-024-tile-feedback-and-visibility.md
++++ b/decisions/ADR-024-tile-feedback-and-visibility.md
+@@ -1,6 +1,6 @@
+ # ADR-024: The tile shows busy and loudness, and hides itself when no keyboard is in use
+ 
+-**Status:** accepted, amended 2026-10-12 (busy cue: no spinner; shake, keyboard and battery), amended 2026-10-14 (level feed), amended 2026-10-15 (a shake only shows the tile), amended 2026-10-17 (X and check size and spacing), amended 2026-10-20 (keyboard visibility design note), amended 2026-10-29 (keyboard tile built: hold during a take, close, debounce window), amended 2026-10-29 (a user close during a take cancels it)
++**Status:** accepted, amended 2026-10-12 (busy cue: no spinner; shake, keyboard and battery), amended 2026-10-14 (level feed), amended 2026-10-15 (a shake only shows the tile), amended 2026-10-17 (X and check size and spacing), amended 2026-10-20 (keyboard visibility design note), amended 2026-10-29 (keyboard tile built: hold during a take, close, debounce window)
+ **Date:** 2026-10-12
+ 
+ ## Context
+@@ -106,7 +106,3 @@ Amended 2026-10-29: the keyboard show, the held hide and the close record, as bu
+ - **Decision location.** The decision is the top-level function `decision` in `KeyboardTileDecision.kt`, not a member of `TileCoordinator`. Its inputs are four booleans and two time stamps. `KeyboardTileSession` calls it for `TileCoordinator`.
+ - **Debounce.** The debounce time stays 250 ms. A reading inside the window is held, and only the newest held reading is re-evaluated, once, when the window ends. A reading still held when a take begins is acted at once, and its hide is held to the take end. A keyboard show or a switch-off drops a held hide, and a switch-off also cancels the pending re-evaluation.
+ - **Shake.** The shake behaves as before; the shake and the keyboard show now share one check.
+-
+-Amended 2026-10-29: a user close during a take, as built.
+-
+-- **Close cancels the take.** A close by the user while a take is recording, or while its begin is pending, ends that take the way Cancel ends it (nothing is finished or sent, the audio is dropped, the tile goes back to armed), and then hides the tile. A close while the Home holds the take, with no take in flight, during a send, a microphone yield or a device failure cancels nothing. A keyboard hide during a take is still held.
+diff --git a/decisions/ADR-029-spoken-send-wiring.md b/decisions/ADR-029-spoken-send-wiring.md
+index 04770588..97827da1 100644
+--- a/decisions/ADR-029-spoken-send-wiring.md
++++ b/decisions/ADR-029-spoken-send-wiring.md
+@@ -1,11 +1,11 @@
+ # ADR-029: The spoken send ("And I'm Gone") is wired through one app class, PhraseSendHandler
+ 
+-**Status:** accepted, amended 2026-10-29 (a spoken Send acts only while the tile is shown)
++**Status:** accepted
+ **Date:** 2026-10-20
+ **Approved by:** the project owner (2026-10-20 order)
+ 
+-Accepted. Built: the app wiring (PhraseSendHandler, the feed tap and the owner link) is in the app module.
+-It carries out ADR-004 (two phrases, audio trimmed at the send-phrase
++This is an approved design. It is PLANNED: none of the code below exists in
++main yet. It carries out ADR-004 (two phrases, audio trimmed at the send-phrase
+ onset) and keeps ADR-022's microphone-sharing rules.
+ 
+ ## Context
+@@ -74,7 +74,3 @@ take.
+ Rules out: finishing a take from the word-stream thread; a second copy of the
+ once-per-take rule in the tile or the Home code; a feed that can block or
+ crash audio capture; adding the registry edge before the code that uses it.
+-
+-Amended 2026-10-29: a spoken Send for a take the tile holds acts only while the
+-tile is shown. With the tile hidden it does nothing and logs one line through
+-the existing phrase reason.
+diff --git a/modules.toml b/modules.toml
+index 8ba60bbe..7dcd0093 100644
+--- a/modules.toml
++++ b/modules.toml
+@@ -14,7 +14,7 @@ card = "android/AGENTS.md"
+ path = "android/app"
+ owns = "Android entry point, dependency injection wiring, Gradle build."
+ does_not_own = "Screen implementations (ui); domain logic (core)."
+-depends_on = ["android", "android_core", "android_ui", "android_settings", "android_history", "android_audio", "android_format", "android_transport", "android_overlay", "android_stt_ondevice", "shared_ui_tokens", "shared_model_registry", "android_commit", "android_commit_accessibility", "android_gesture", "android_phrases"]
++depends_on = ["android", "android_core", "android_ui", "android_settings", "android_history", "android_audio", "android_format", "android_transport", "android_overlay", "android_stt_ondevice", "shared_ui_tokens", "shared_model_registry", "android_commit", "android_commit_accessibility", "android_gesture"]
+ public = "App entry, DI container"
+ card = "android/app/AGENTS.md"
+ 

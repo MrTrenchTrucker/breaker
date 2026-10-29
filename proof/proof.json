@@ -1,0 +1,2894 @@
+{
+ "name": "proof-phrases",
+ "tip": {
+  "tree": "a8502182b487ccaeba264e8d37c86a88809b5190"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "app: phrase feed tap passes each audio frame on to the phrase detector after the take's listener",
+   "base_tree": "b5600650a1a182fe47433e13e8af24a689ffb7cf",
+   "item_tip_tree": "1cc0db7a99dee44b3624c3c7e39d5c9722d4a9f8",
+   "new_production_classes": [
+    "PhraseFeedTap"
+   ],
+   "test_fixtures_overlaid": []
+  },
+  {
+   "item": "b",
+   "title": "app: pass the send trim from the take port through to the runner finish",
+   "base_tree": "1cc0db7a99dee44b3624c3c7e39d5c9722d4a9f8",
+   "item_tip_tree": "f575c6afd142ef6442f374cfae9ae3354262fbc2",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [
+    "HomeTakeFakes.kt",
+    "TileFakes.kt"
+   ],
+   "red_tree_stubs": {
+    "files": [
+     "HomeTakeAdapter.kt",
+     "HomeTakeWiring.kt",
+     "TakeFinisher.kt",
+     "TakeOwner.kt",
+     "TakePortAdapter.kt",
+     "TileCoordinator.kt",
+     "TilePorts.kt"
+    ],
+    "note": "signature-only: the port, the two adapters, the finisher and the two onSend entries take the item's trimBeforeMs parameter and drop it, exactly as base behaves; four existing tests that only change their fake finish signature ride along, so the leg compiles on base and fails on the trim assertions"
+   }
+  },
+  {
+   "item": "c",
+   "title": "app: route the spoken send phrase to the take that holds it",
+   "base_tree": "f575c6afd142ef6442f374cfae9ae3354262fbc2",
+   "item_tip_tree": "5330b34d6cf2e8730584d033e6b9d127bbfc8135",
+   "new_production_classes": [
+    "PhraseSendHandler"
+   ],
+   "test_fixtures_overlaid": []
+  },
+  {
+   "item": "d",
+   "title": "app: wire spoken send into the take owner, the feed tap and the phrase stream provider",
+   "base_tree": "5330b34d6cf2e8730584d033e6b9d127bbfc8135",
+   "item_tip_tree": "497856142d6a0c60458d13f83870d55df28fd992",
+   "new_production_classes": [
+    "PhraseStreamProvider",
+    "PhraseTakeLink"
+   ],
+   "test_fixtures_overlaid": [
+    "PhraseTestFakes.kt"
+   ]
+  },
+  {
+   "item": "e",
+   "title": "app: build the phrase stream in one plain function that releases the recognizer once",
+   "base_tree": "497856142d6a0c60458d13f83870d55df28fd992",
+   "item_tip_tree": "789f0df5cdae90f57945232511a15e6d2215aaf6",
+   "new_production_classes": [
+    "PhraseStreamBuild"
+   ],
+   "test_fixtures_overlaid": []
+  },
+  {
+   "item": "f",
+   "title": "app: declare the phrases edge and record spoken Send as built",
+   "base_tree": "789f0df5cdae90f57945232511a15e6d2215aaf6",
+   "item_tip_tree": "24fd12d707d85c3ff88a6c853fb7e64c3e599493",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [],
+   "red_not_run": "protected text only (cards, architecture, decision records): no test file changed"
+  },
+  {
+   "item": "g",
+   "title": "app: a spoken send for a take the tile holds does nothing while the tile is hidden",
+   "base_tree": "24fd12d707d85c3ff88a6c853fb7e64c3e599493",
+   "item_tip_tree": "882f7c035475d30681259bb9a3f1bb3042e2b80a",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": []
+  },
+  {
+   "item": "h",
+   "title": "docs: the app card, the architecture and the spoken send record say a spoken send needs the tile shown",
+   "base_tree": "882f7c035475d30681259bb9a3f1bb3042e2b80a",
+   "item_tip_tree": "14f440ce9bae6d67bdba4b04960bcf829981b7dc",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [],
+   "red_not_run": "protected text only (cards, architecture, decision records): no test file changed"
+  },
+  {
+   "item": "i",
+   "title": "app: a user close during a take cancels it before the tile hides",
+   "base_tree": "14f440ce9bae6d67bdba4b04960bcf829981b7dc",
+   "item_tip_tree": "3926c8150825eab70349cdfba94e169dc39cac3e",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": []
+  },
+  {
+   "item": "j",
+   "title": "docs: the app card, the architecture and the tile decision record say a user close during a take cancels it",
+   "base_tree": "3926c8150825eab70349cdfba94e169dc39cac3e",
+   "item_tip_tree": "a8502182b487ccaeba264e8d37c86a88809b5190",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [],
+   "red_not_run": "protected text only (cards, architecture, decision records): no test file changed"
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "red-a-01",
+   "kind": "red",
+   "item": "a",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateRules.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateRules.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.gates.AppLayoutGateTest"
+   ],
+   "patch": "proof/red/red-a-01.patch",
+   "tree": "843c2de6f983149f7cb834a0a13bce8fb5ee5ddf",
+   "predict": ""
+  },
+  {
+   "id": "red-a-02",
+   "kind": "red",
+   "item": "a",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseFeedTapTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseFeedTapTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.wiring.PhraseFeedTapTest"
+   ],
+   "patch": "proof/red/red-a-02.patch",
+   "tree": "6a9eba68bc64f411b0ec8a32d31aa4fab7c23cdc",
+   "predict": ""
+  },
+  {
+   "id": "red-b-03",
+   "kind": "red",
+   "item": "b",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/wiring/TakeTrimThroughPortTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/TakeTrimThroughPortTest.kt",
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/HomeTakeFakes.kt",
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileFakes.kt",
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/DeviceFailureYieldTest.kt",
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/HomeTakeAdapterCancelTest.kt",
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/HomeTakeAdapterThreadTest.kt",
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/TakeOwnerTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.wiring.TakeTrimThroughPortTest"
+   ],
+   "patch": "proof/red/red-b-03.patch",
+   "tree": "38f9b98b2b1fbc298fc44473543e96bd179da2bc",
+   "predict": "RED on assertions: every trim reaches the runner as null on base"
+  },
+  {
+   "id": "red-c-04",
+   "kind": "red",
+   "item": "c",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateRules.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateRules.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.gates.AppLayoutGateTest"
+   ],
+   "patch": "proof/red/red-c-04.patch",
+   "tree": "62ea5e5787e73312a5b1c3f0f3ac05f487d2a77c",
+   "predict": ""
+  },
+  {
+   "id": "red-c-05",
+   "kind": "red",
+   "item": "c",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseSendHandlerTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseSendHandlerTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.wiring.PhraseSendHandlerTest"
+   ],
+   "patch": "proof/red/red-c-05.patch",
+   "tree": "e42247e73839774e5af5733d5d0e27f2ba0ccdc0",
+   "predict": ""
+  },
+  {
+   "id": "red-d-06",
+   "kind": "red",
+   "item": "d",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateRules.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateRules.kt",
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseTestFakes.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.gates.AppLayoutGateTest"
+   ],
+   "patch": "proof/red/red-d-06.patch",
+   "tree": "4fc9f88920b72fc46286eea19e234e588991edc5",
+   "predict": ""
+  },
+  {
+   "id": "red-d-07",
+   "kind": "red",
+   "item": "d",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/gates/AppPrivacyScanTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/gates/AppPrivacyScanTest.kt",
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseTestFakes.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.gates.AppPrivacyScanTest"
+   ],
+   "patch": "proof/red/red-d-07.patch",
+   "tree": "3ad64e7599307d04e75c3ee7af71461b196a45dd",
+   "predict": ""
+  },
+  {
+   "id": "red-d-08",
+   "kind": "red",
+   "item": "d",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/gates/BuildFileGateTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/gates/BuildFileGateTest.kt",
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseTestFakes.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.gates.BuildFileGateTest"
+   ],
+   "patch": "proof/red/red-d-08.patch",
+   "tree": "0ee5292ea496990419318e1a39c5df2aa8e99ed0",
+   "predict": ""
+  },
+  {
+   "id": "red-d-09",
+   "kind": "red",
+   "item": "d",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/gates/HostGateTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/gates/HostGateTest.kt",
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseTestFakes.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.gates.HostGateTest"
+   ],
+   "patch": "proof/red/red-d-09.patch",
+   "tree": "34df89a1ed1aeec24b852bad93b0ab52a6bce4ff",
+   "predict": ""
+  },
+  {
+   "id": "red-d-10",
+   "kind": "red",
+   "item": "d",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/gates/PhraseReasonGateTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/gates/PhraseReasonGateTest.kt",
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseTestFakes.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.gates.PhraseReasonGateTest"
+   ],
+   "patch": "proof/red/red-d-10.patch",
+   "tree": "fa8a54e66e03a067153fda6525a25591fa90f572",
+   "predict": ""
+  },
+  {
+   "id": "red-d-11",
+   "kind": "red",
+   "item": "d",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/gates/RootSlotsGateTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/gates/RootSlotsGateTest.kt",
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseTestFakes.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.gates.RootSlotsGateTest"
+   ],
+   "patch": "proof/red/red-d-11.patch",
+   "tree": "01120234f8051535470ab0eb1803d8f5be2d3bb1",
+   "predict": ""
+  },
+  {
+   "id": "red-d-12",
+   "kind": "red",
+   "item": "d",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/wiring/DictationComponentPhraseTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/DictationComponentPhraseTest.kt",
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseTestFakes.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.wiring.DictationComponentPhraseTest"
+   ],
+   "patch": "proof/red/red-d-12.patch",
+   "tree": "947f6a2b40f54bc5d358788da0c0796b96316138",
+   "predict": ""
+  },
+  {
+   "id": "red-d-13",
+   "kind": "red",
+   "item": "d",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseSendWiringTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseSendWiringTest.kt",
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseTestFakes.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.wiring.PhraseSendWiringTest"
+   ],
+   "patch": "proof/red/red-d-13.patch",
+   "tree": "c8a9164401aeddd9579f5231f9ddcafae303b168",
+   "predict": ""
+  },
+  {
+   "id": "red-d-14",
+   "kind": "red",
+   "item": "d",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseStreamProviderTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseStreamProviderTest.kt",
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseTestFakes.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.wiring.PhraseStreamProviderTest"
+   ],
+   "patch": "proof/red/red-d-14.patch",
+   "tree": "fec3f07fc1d69fe68b05f8c9ae779e32d8cf5d40",
+   "predict": ""
+  },
+  {
+   "id": "red-d-15",
+   "kind": "red",
+   "item": "d",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseTakeLinkTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseTakeLinkTest.kt",
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseTestFakes.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.wiring.PhraseTakeLinkTest"
+   ],
+   "patch": "proof/red/red-d-15.patch",
+   "tree": "f12a695e5caa995a1a5901ebb52daa21d5ee742c",
+   "predict": ""
+  },
+  {
+   "id": "red-d-16",
+   "kind": "red",
+   "item": "d",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/wiring/TakeOwnerSlotsTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/TakeOwnerSlotsTest.kt",
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseTestFakes.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.wiring.TakeOwnerSlotsTest"
+   ],
+   "patch": "proof/red/red-d-16.patch",
+   "tree": "a45688aac92e2bf3d91416343786fcfe1dee8eda",
+   "predict": ""
+  },
+  {
+   "id": "red-e-17",
+   "kind": "red",
+   "item": "e",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateRules.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateRules.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.gates.AppLayoutGateTest"
+   ],
+   "patch": "proof/red/red-e-17.patch",
+   "tree": "a45700a6365eb7dd6ecc3c3e172803e8171c959c",
+   "predict": ""
+  },
+  {
+   "id": "red-e-18",
+   "kind": "red",
+   "item": "e",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseStreamBuildTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/PhraseStreamBuildTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.wiring.PhraseStreamBuildTest"
+   ],
+   "patch": "proof/red/red-e-18.patch",
+   "tree": "3893e6fc9885d8d40e9da141bd67e4b9ff66037d",
+   "predict": ""
+  },
+  {
+   "id": "red-g-19",
+   "kind": "red",
+   "item": "g",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/gates/TileSpokenSendGateTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/gates/TileSpokenSendGateTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.gates.TileSpokenSendGateTest"
+   ],
+   "patch": "proof/red/red-g-19.patch",
+   "tree": "ba3d861e166b08c8403d4f3f76e4515d5b53ca2f",
+   "predict": ""
+  },
+  {
+   "id": "red-g-20",
+   "kind": "red",
+   "item": "g",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileSpokenSendRouteTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileSpokenSendRouteTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.wiring.TileSpokenSendRouteTest"
+   ],
+   "patch": "proof/red/red-g-20.patch",
+   "tree": "8e895ea8721591fe073b7a64c033af7ace24359d",
+   "predict": ""
+  },
+  {
+   "id": "red-g-21",
+   "kind": "red",
+   "item": "g",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileSpokenSendTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileSpokenSendTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.wiring.TileSpokenSendTest"
+   ],
+   "patch": "proof/red/red-g-21.patch",
+   "tree": "e2a8515eeb7ccbf9211669f3e3461d56ae530f87",
+   "predict": ""
+  },
+  {
+   "id": "red-i-22",
+   "kind": "red",
+   "item": "i",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/wiring/CloseCancelsTakeRuleTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/CloseCancelsTakeRuleTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.wiring.CloseCancelsTakeRuleTest"
+   ],
+   "patch": "proof/red/red-i-22.patch",
+   "tree": "d72209825843c73a68d0350f2fa9b3c13fae0e0b",
+   "predict": ""
+  },
+  {
+   "id": "red-i-23",
+   "kind": "red",
+   "item": "i",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileShowGuardTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardTileShowGuardTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.wiring.KeyboardTileShowGuardTest"
+   ],
+   "patch": "proof/red/red-i-23.patch",
+   "tree": "0673a97c2dc9986303af9d506a8687bf26851b85",
+   "predict": ""
+  },
+  {
+   "id": "red-i-24",
+   "kind": "red",
+   "item": "i",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/wiring/ShakeShowsTileTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/ShakeShowsTileTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.wiring.ShakeShowsTileTest"
+   ],
+   "patch": "proof/red/red-i-24.patch",
+   "tree": "a2c5a9085d457b0e935b04e9d5fcbc4409875531",
+   "predict": ""
+  },
+  {
+   "id": "red-i-25",
+   "kind": "red",
+   "item": "i",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/wiring/TakeHeldElsewhereTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/TakeHeldElsewhereTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.wiring.TakeHeldElsewhereTest"
+   ],
+   "patch": "proof/red/red-i-25.patch",
+   "tree": "8f3d79d292464d1e3a8295e34b305e5862b073a2",
+   "predict": ""
+  },
+  {
+   "id": "red-i-26",
+   "kind": "red",
+   "item": "i",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileCloseCancelsTakeTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileCloseCancelsTakeTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.wiring.TileCloseCancelsTakeTest"
+   ],
+   "patch": "proof/red/red-i-26.patch",
+   "tree": "aaf0d0c68c7a7d10fcd8f02aa7861d0ab061b73c",
+   "predict": ""
+  },
+  {
+   "id": "red-i-27",
+   "kind": "red",
+   "item": "i",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileCloseGuardsTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileCloseGuardsTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.wiring.TileCloseGuardsTest"
+   ],
+   "patch": "proof/red/red-i-27.patch",
+   "tree": "ae797362b7802ee79a106a99c5692eaa36c58318",
+   "predict": ""
+  },
+  {
+   "id": "red-i-28",
+   "kind": "red",
+   "item": "i",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileSpokenSendRouteTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileSpokenSendRouteTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.wiring.TileSpokenSendRouteTest"
+   ],
+   "patch": "proof/red/red-i-28.patch",
+   "tree": "b84150e134a78c1873b5102d61aaec2bd2b812d7",
+   "predict": ""
+  },
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseFeedTap.kt",
+     "anchor": "                listener.onFrame(frame)\n                if (feedOpen.get()) {\n                    try {\n                        feed(frame)\n                    } catch (e: Exception) {\n                        // A feed that fails stops for this take; the frame has already gone on to the listener.\n                        feedOpen.set(false)\n                    } catch (e: LinkageError) {\n                        feedOpen.set(false)\n                    }\n                }\n",
+     "replacement": "                if (feedOpen.get()) {\n                    try {\n                        feed(frame)\n                    } catch (e: Exception) {\n                        // A feed that fails stops for this take; the frame has already gone on to the listener.\n                        feedOpen.set(false)\n                    } catch (e: LinkageError) {\n                        feedOpen.set(false)\n                    }\n                }\n                listener.onFrame(frame)\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.PhraseFeedTapTest#the listener gets each frame before feed, as the same array"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseFeedTap.kt",
+     "anchor": "                    try {\n                        feed(frame)\n                    } catch (e: Exception) {\n                        // A feed that fails stops for this take; the frame has already gone on to the listener.\n                        feedOpen.set(false)\n                    } catch (e: LinkageError) {\n                        feedOpen.set(false)\n                    }\n",
+     "replacement": "                    feed(frame)\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.PhraseFeedTapTest#an exception from feed leaves the take recording and stoppable",
+    "dev.breaker.dictation.wiring.PhraseFeedTapTest#a linkage error from feed leaves the take recording"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseFeedTap.kt",
+     "anchor": "} catch (e: LinkageError) {",
+     "replacement": "} catch (e: Error) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.PhraseFeedTapTest#an out of memory error from feed is not swallowed"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseFeedTap.kt",
+     "anchor": "                if (feedOpen.get()) {\n",
+     "replacement": "                if (true) {\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.PhraseFeedTapTest#after a failure feed is not called again in that take"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseFeedTap.kt",
+     "anchor": "    private val feedOpen: AtomicBoolean = AtomicBoolean(true)\n",
+     "replacement": "    private val feedOpen: AtomicBoolean = AtomicBoolean(true)\n    private var lastFrame: FloatArray? = null\n"
+    },
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseFeedTap.kt",
+     "anchor": "                listener.onFrame(frame)\n",
+     "replacement": "                listener.onFrame(frame)\n                lastFrame = frame\n"
+    },
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseFeedTap.kt",
+     "anchor": "        inner.stop()\n",
+     "replacement": "        lastFrame?.let { feed(it) }\n        inner.stop()\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.PhraseFeedTapTest#feed runs once per frame and stop replays no frame"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseFeedTap.kt",
+     "anchor": "        feedOpen.set(true)\n",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.PhraseFeedTapTest#a new start re-arms feeding"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TakeOwner.kt",
+     "anchor": "return inner.finish(trimBeforeMs)",
+     "replacement": "return inner.finish(null)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a trim of 1500 milliseconds keeps 24000 samples of the two seconds through the chain",
+    "a trim of 250 milliseconds keeps 4000 samples of the two seconds through the chain"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/HomeTakeWiring.kt",
+     "anchor": "= port.finish(trimBeforeMs)",
+     "replacement": "= port.finish(null)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a trim of 1500 milliseconds keeps 24000 samples of the two seconds through the chain",
+    "a trim of 250 milliseconds keeps 4000 samples of the two seconds through the chain"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TakePortAdapter.kt",
+     "anchor": "= runner.finish(trimBeforeMs)",
+     "replacement": "= runner.finish(null)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a trim of 1500 milliseconds keeps 24000 samples of the two seconds through the chain",
+    "a trim of 250 milliseconds keeps 4000 samples of the two seconds through the chain"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-10",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TakeFinisher.kt",
+     "anchor": "take.finish(trimBeforeMs)",
+     "replacement": "take.finish(null)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a tile send hands its trim of 1500 milliseconds through the finisher to the take finish"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-11",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "finisher.finishTake(trimBeforeMs)",
+     "replacement": "finisher.finishTake(null)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a tile send hands its trim of 1500 milliseconds through the finisher to the take finish"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-12",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/HomeTakeAdapter.kt",
+     "anchor": "finishAndSettle(trimBeforeMs)",
+     "replacement": "finishAndSettle()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a home send hands its trim of 1500 milliseconds to the take finish",
+    "a home send hands its trim of 250 milliseconds to the take finish"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-13",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/HomeTakeAdapter.kt",
+     "anchor": "try { take.finish(trimBeforeMs) }",
+     "replacement": "try { take.finish(null) }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a home send hands its trim of 1500 milliseconds to the take finish",
+    "a home send hands its trim of 250 milliseconds to the take finish"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-14",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/HomeTakeAdapter.kt",
+     "anchor": "try { take.finish(trimBeforeMs) }",
+     "replacement": "try { take.finish(trimBeforeMs ?: 0L) }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a home send with no trim hands null to the take finish",
+    "a home tap on a held take still finishes with no trim"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-15",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "finisher.finishTake(trimBeforeMs)",
+     "replacement": "finisher.finishTake(trimBeforeMs ?: 0L)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a tile send with no trim hands null to the take finish"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-16",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseSendHandler.kt",
+     "anchor": "        if (!listening.sent.compareAndSet(false, true)) return",
+     "replacement": "        Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a second send of the same take is dropped"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-17",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseSendHandler.kt",
+     "anchor": "        if (!listening.sent.compareAndSet(false, true)) return",
+     "replacement": "        if (listening.sent.get()) return; listening.sent.set(true)"
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "known probabilistic: only test 18 can kill it, and only on interleaving; no single-thread test can",
+   "note": ""
+  },
+  {
+   "id": "mut-18",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseSendHandler.kt",
+     "anchor": "        if (current.get() !== listening) return",
+     "replacement": "        Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a send after stop is dropped",
+    "a send from an earlier start is dropped after a newer start"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-19",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseSendHandler.kt",
+     "anchor": "        if (current.getAndSet(null) == null) return   // a second stop finds nothing to end",
+     "replacement": "        if (current.get() == null) return   // a second stop finds nothing to end"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a send after stop is dropped",
+    "stop called twice reaches the detector once"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-20",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseSendHandler.kt",
+     "anchor": "            null -> Unit  // no take held: the send is dropped",
+     "replacement": "            null -> homeSend(trimBeforeMs)  // no take held: the send is dropped"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a send with no take held is dropped"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-21",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseSendHandler.kt",
+     "anchor": "            TakeOwnerKind.HOME -> homeSend(trimBeforeMs)\n            TakeOwnerKind.TILE -> tileSend(trimBeforeMs)",
+     "replacement": "            TakeOwnerKind.HOME -> tileSend(trimBeforeMs)\n            TakeOwnerKind.TILE -> homeSend(trimBeforeMs)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the first send of a take reaches the home surface with its trim unchanged",
+    "the first send of a take reaches the tile surface with a null trim unchanged"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-22",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseSendHandler.kt",
+     "anchor": "        main.post { route(listening, event.trimBeforeMs) }",
+     "replacement": "        main.post { route(listening, null) }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the first send of a take reaches the home surface with its trim unchanged",
+    "a 250 millisecond trim reaches the home surface as 250"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-23",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseSendHandler.kt",
+     "anchor": "        if (listening !== current.get()) return",
+     "replacement": "        Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a send queued before stop is dropped when it is routed after stop"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-24",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseSendHandler.kt",
+     "anchor": "        main.post { route(listening, event.trimBeforeMs) }",
+     "replacement": "        route(listening, event.trimBeforeMs)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a send is routed on the main queue and not inline on the detection callback"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-25",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseSendHandler.kt",
+     "anchor": "        if (event !is PhraseEvent.Send) return",
+     "replacement": "        if (event !is PhraseEvent.Send) { listening.sent.set(true); return }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a wake event is ignored and leaves the gate open"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-26",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseSendHandler.kt",
+     "anchor": "        current.set(listening)",
+     "replacement": "        Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the first send of a take reaches the home surface with its trim unchanged",
+    "a send from an earlier start is dropped after a newer start"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-27",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseSendHandler.kt",
+     "anchor": "        guarded { trigger.stop() }   // the detector keeps the first callback if it is still running",
+     "replacement": "        Unit   // the detector keeps the first callback if it is still running"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "start stops the detector before it starts it"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-28",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseSendHandler.kt",
+     "anchor": "        } catch (e: LinkageError) {\n            refuse(listening)",
+     "replacement": "        } catch (e: IllegalStateException) {\n            refuse(listening)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a start refused with a link error is swallowed the same way"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-29",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseSendHandler.kt",
+     "anchor": "        } catch (e: LinkageError) {\n            refuse(listening)\n        }",
+     "replacement": "        } catch (e: LinkageError) {\n            refuse(listening)\n        } catch (e: VirtualMachineError) {\n            refuse(listening)\n        }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a virtual machine error from start is not swallowed"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-30",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseSendHandler.kt",
+     "anchor": "        main.post { onUnavailable() }",
+     "replacement": "        onUnavailable()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a refused start sends nothing, stops the detector and calls onUnavailable once on the main queue"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-31",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseSendHandler.kt",
+     "anchor": "        current.compareAndSet(listening, null)",
+     "replacement": "        Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a refused start sends nothing, stops the detector and calls onUnavailable once on the main queue"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-32",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseSendHandler.kt",
+     "anchor": "        guarded { trigger.stop() }   // the detector marks itself listening before its stream starts",
+     "replacement": "        Unit   // the detector marks itself listening before its stream starts"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a refused start sends nothing, stops the detector and calls onUnavailable once on the main queue",
+    "a start refused with a link error is swallowed the same way"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-33",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseSendHandler.kt",
+     "anchor": "\n        guarded { trigger.stop() }\n",
+     "replacement": "\n        trigger.stop()\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a stop the detector refuses with an exception is swallowed"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-34",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseSendHandler.kt",
+     "anchor": "        val listening = Listening()",
+     "replacement": "        val listening = current.get() ?: Listening()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the gate re-opens on the next start for a new take"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-35",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseSendHandler.kt",
+     "anchor": "        main.post { onUnavailable() }\n",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a refused start sends nothing, stops the detector and calls onUnavailable once on the main queue",
+    "a start refused with a link error is swallowed the same way"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-36",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TakeOwner.kt",
+     "anchor": "        if (held.getAndSet(null) != null) listenerSlot.get()?.cleared()",
+     "replacement": "        held.set(null)\n        listenerSlot.get()?.cleared()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.TakeOwnerSlotsTest#a settle fires cleared once and a second settle fires nothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-37",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TakeOwner.kt",
+     "anchor": "        if (now.mark !== mark) return",
+     "replacement": "        if (false) return"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.TakeOwnerSlotsTest#settledIf with a stale mark fires nothing and with the current mark fires once"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-38",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TakeOwner.kt",
+     "anchor": "        listenerSlot.get()?.begun(kind, taken.mark)",
+     "replacement": "        Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.TakeOwnerSlotsTest#begun fires the listener once with the kind and the take's own mark"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-39",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TakeOwner.kt",
+     "anchor": "        if (homeSend === entry) homeSend = null",
+     "replacement": "        homeSend = null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.TakeOwnerSlotsTest#a newer wiring's entry survives an older wiring's unwatchSwitch"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-40",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TakeOwner.kt",
+     "anchor": "        homeSend?.invoke(trimBeforeMs)",
+     "replacement": "        homeSend?.invoke(trimBeforeMs ?: 0L)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.TakeOwnerSlotsTest#sendToHome with a registered entry calls it once per send with the trim unchanged"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-41",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/HomeTakeWiring.kt",
+     "anchor": "        owner.clearHomeSendIf(sendEntry)",
+     "replacement": "        Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.TakeOwnerSlotsTest#after unwatchSwitch the Home send is dropped"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-42",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/HomeTakeWiring.kt",
+     "anchor": "        owner.setHomeSend(sendEntry)",
+     "replacement": "        Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.TakeOwnerSlotsTest#after unwatchSwitch the Home send is dropped"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-43",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseStreamProvider.kt",
+     "anchor": "        if (current != null && current.id == id) return",
+     "replacement": "        if (false) return"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.PhraseStreamProviderTest#a prepare with the stream for the current model id already held submits nothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-44",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseStreamProvider.kt",
+     "anchor": "        if (!building.compareAndSet(false, true)) return",
+     "replacement": "        building.set(true)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.PhraseStreamProviderTest#a second prepare while a build is in flight builds nothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-45",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseStreamProvider.kt",
+     "anchor": "            if (stream != null) held.set(Held(id, stream))",
+     "replacement": "            Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.PhraseStreamProviderTest#ready is null before the build ran and the stream after"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-46",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseStreamProvider.kt",
+     "anchor": "        } finally {\n            building.set(false)\n        }",
+     "replacement": "        } finally {\n            Unit\n        }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.PhraseStreamProviderTest#a failed build leaves ready null and the next prepare retries"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-47",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseStreamProvider.kt",
+     "anchor": "        return if (current.id == modelId()) current.stream else null",
+     "replacement": "        return current.stream"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.PhraseStreamProviderTest#a changed model id drops the old stream and builds the new one"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-48",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseStreamProvider.kt",
+     "anchor": "        if (current != null) held.compareAndSet(current, null)",
+     "replacement": "        Unit"
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "ready() already answers null when the id differs, so the drop only frees memory; no observable test can tell the two apart",
+   "note": ""
+  },
+  {
+   "id": "mut-49",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/DictationComponent.kt",
+     "anchor": "), { frame -> heldWords.feed(frame) }),",
+     "replacement": "), { _ -> }),"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.DictationComponentPhraseTest#a take feeds the held word stream with the frames it records"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-50",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/DictationComponent.kt",
+     "anchor": "        held.set(stream)",
+     "replacement": "        Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.DictationComponentPhraseTest#close stops the phrase detector and its word stream once"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-51",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/DictationComponent.kt",
+     "anchor": "        val stream: FedWordStream = supplier() ?: throw IllegalStateException(\"no phrase word stream is ready\")",
+     "replacement": "        val stream: FedWordStream = supplier() ?: return"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.DictationComponentPhraseTest#with no word stream the take still records and finishes, and only the phrase start is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-52",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/DictationComponent.kt",
+     "anchor": "            phrases.stop()",
+     "replacement": "            Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.DictationComponentPhraseTest#close stops the phrase detector and its word stream once"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-53",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/DictationComponent.kt",
+     "anchor": "        held.getAndSet(null)?.stop()",
+     "replacement": "        held.get()?.stop()"
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "not killed by a sequential test; PhraseDetector.stop already runs once per listening run, so the held stream is stopped once either way",
+   "note": ""
+  },
+  {
+   "id": "mut-54",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseTakeLink.kt",
+     "anchor": "        worker.submit { if (owner.mark() === mark) start() }",
+     "replacement": "        worker.submit { start() }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.PhraseTakeLinkTest#the submitted start does nothing once that take has ended",
+    "dev.breaker.dictation.wiring.PhraseTakeLinkTest#a start queued for an older take does nothing when a newer take has begun"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-55",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseTakeLink.kt",
+     "anchor": "        prepare()",
+     "replacement": "        Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.PhraseTakeLinkTest#begun prepares the stream once and submits one start to the worker"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-56",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseTakeLink.kt",
+     "anchor": "        worker.submit { stop() }",
+     "replacement": "        Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.PhraseTakeLinkTest#settled submits one stop and the stop runs after the start",
+    "dev.breaker.dictation.wiring.PhraseSendWiringTest#every end of a take stops the listening run exactly once"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-57",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseTakeLink.kt",
+     "anchor": "        worker.submit { if (owner.mark() === mark) start() }",
+     "replacement": "        if (owner.mark() === mark) start()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.PhraseTakeLinkTest#begun prepares the stream once and submits one start to the worker"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-58",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/host/TileHost.kt",
+     "anchor": "        takeOwner.setListener(PhraseTakeLink(takeWorker, takeOwner, { phraseStreams.prepare() }, { phraseHandler.start() }, { phraseHandler.stop() }))",
+     "replacement": "        Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.gates.HostGateTest#every rule holds on the real files"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-59",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/BreakerApp.kt",
+     "anchor": "        Log.w(\"BreakerApp\", reason, e)",
+     "replacement": "        Log.w(\"BreakerApp\", reason, e)\n        Log.w(\"BreakerApp\", reason, e)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.gates.AppPrivacyScanTest#the application class logs at most its one fixed warning and the purge file logs nothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-60",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/host/TileHost.kt",
+     "anchor": "        root.phraseWords = { phraseStreams.ready() }",
+     "replacement": "        Unit"
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "NOT KILLED: TileHost runs only on the device; no JVM test reads the root hook and no text rule pins this line",
+   "note": ""
+  },
+  {
+   "id": "mut-61",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/BreakerApp.kt",
+     "anchor": "            micSource = realMicSource,\n        ).also { root -> root.phraseWarn = { reason -> warn(reason) } }",
+     "replacement": "            micSource = realMicSource,\n        )"
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "NOT KILLED: the warn hook is set in the application class, which no JVM test builds; AppWiringGateTest pins the constructor call only",
+   "note": ""
+  },
+  {
+   "id": "mut-62",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/BreakerCompositionRoot.kt",
+     "anchor": "internal const val PHRASE_UNAVAILABLE_REASON: String = \"spoken send is off for this take\"",
+     "replacement": "internal const val PHRASE_UNAVAILABLE_REASON: String = \"spoken send is off for ${\"this\"} take\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.gates.PhraseReasonGateTest#the reason constant is one plain literal, the hook is called once with it, and warn gets only a literal or the hook argument"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-63",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/host/TileHost.kt",
+     "anchor": "    private val phraseUnavailable: () -> Unit = { root.phraseWarn?.invoke(PHRASE_UNAVAILABLE_REASON) }",
+     "replacement": "    private val phraseUnavailable: () -> Unit = { root.phraseWarn?.invoke(\"spoken send is off for this take\") }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.gates.PhraseReasonGateTest#the reason constant is one plain literal, the hook is called once with it, and warn gets only a literal or the hook argument"
+   ],
+   "rule": "re-anchored at the tip: S5 moved this hook call into the shared phraseUnavailable lambda",
+   "note": ""
+  },
+  {
+   "id": "mut-64",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/BreakerApp.kt",
+     "anchor": "        ).also { root -> root.phraseWarn = { reason -> warn(reason) } }",
+     "replacement": "        ).also { root -> root.phraseWarn = { reason -> warn(reason.trim()) } }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.gates.PhraseReasonGateTest#the reason constant is one plain literal, the hook is called once with it, and warn gets only a literal or the hook argument"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-65",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseStreamBuild.kt",
+     "anchor": "finally { loaded.recognizer.release() }",
+     "replacement": "finally { Unit }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.PhraseStreamBuildTest#a ready load releases the recognizer once and makes the stream from the loaded model",
+    "dev.breaker.dictation.wiring.PhraseStreamBuildTest#a stream that cannot be made gives null and the recognizer is still released once"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-66",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseStreamBuild.kt",
+     "anchor": "try { loaded.model } finally { loaded.recognizer.release() }",
+     "replacement": "loaded.model"
+    },
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseStreamBuild.kt",
+     "anchor": "return try { create(model) } catch (e: Exception) { null }",
+     "replacement": "return try { create(model).also { (loaded as ModelLoader.LoadResult.Ready).recognizer.release() } } catch (e: Exception) { null }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.PhraseStreamBuildTest#a stream that cannot be made gives null and the recognizer is still released once"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-67",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseStreamBuild.kt",
+     "anchor": "return try { create(model) } catch (e: Exception) { null }",
+     "replacement": "return try { create(model) } catch (e: Exception) { throw e }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.PhraseStreamBuildTest#a stream that cannot be made gives null and the recognizer is still released once"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-68",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseStreamBuild.kt",
+     "anchor": "val loaded: ModelLoader.LoadResult = try { load(modelId) } catch (e: Exception) { return null }",
+     "replacement": "val loaded: ModelLoader.LoadResult = try { load(modelId) } catch (e: Exception) { throw e }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.PhraseStreamBuildTest#a load that throws gives null and makes no stream"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-69",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseStreamBuild.kt",
+     "anchor": "is ModelLoader.LoadResult.Refused -> return null",
+     "replacement": "is ModelLoader.LoadResult.Refused -> return create(SherpaModel(\"\", java.io.File(\"\"), \"\"))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.PhraseStreamBuildTest#a refused load gives null and never makes a stream"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-70",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseStreamBuild.kt",
+     "anchor": "finally { loaded.recognizer.release() }",
+     "replacement": "finally { loaded.recognizer.release(); loaded.recognizer.release() }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.PhraseStreamBuildTest#a ready load releases the recognizer once and makes the stream from the loaded model",
+    "dev.breaker.dictation.wiring.PhraseStreamBuildTest#a stream that cannot be made gives null and the recognizer is still released once"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-71",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseStreamBuild.kt",
+     "anchor": "return try { create(model) } catch (e: Exception) { null }",
+     "replacement": "return try { create(model) } catch (e: Throwable) { null }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.PhraseStreamBuildTest#a virtual machine error from create is not swallowed"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-72",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseStreamBuild.kt",
+     "anchor": "val loaded: ModelLoader.LoadResult = try { load(modelId) } catch (e: Exception) { return null }",
+     "replacement": "val loaded: ModelLoader.LoadResult = try { load(modelId) } catch (e: Throwable) { return null }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.wiring.PhraseStreamBuildTest#a virtual machine error from load is not swallowed"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-73",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseSendHandler.kt",
+     "anchor": "    if (tileShown) onSend(trimBeforeMs) else onHidden()",
+     "replacement": "    onSend(trimBeforeMs)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a spoken send while the tile is hidden does nothing and calls the hidden callback once",
+    "a spoken send with the tile hidden and no take running calls the hidden callback once and finishes nothing",
+    "the spoken send rules hold on the real host, coordinator and handler files",
+    "each spoken send rule fires on each of its edited samples",
+    "each spoken send rule stays quiet on its harmless edits"
+   ],
+   "rule": "",
+   "note": "one listed killer was renamed by a later slice (a close now cancels the take) and is dropped"
+  },
+  {
+   "id": "mut-74",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseSendHandler.kt",
+     "anchor": "    if (tileShown) onSend(trimBeforeMs) else onHidden()",
+     "replacement": "    if (!tileShown) onSend(trimBeforeMs) else onHidden()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a spoken send while the tile is shown finishes the take once with its trim unchanged",
+    "a spoken send while the tile is hidden does nothing and calls the hidden callback once",
+    "a second spoken send before the first finish settles does not finish the take again",
+    "a spoken send for a tile take finishes it with its trim when the tile is shown",
+    "the spoken send rules hold on the real host, coordinator and handler files",
+    "each spoken send rule fires on each of its edited samples",
+    "each spoken send rule stays quiet on its harmless edits"
+   ],
+   "rule": "",
+   "note": "one listed killer was renamed by a later slice (a close now cancels the take) and is dropped"
+  },
+  {
+   "id": "mut-75",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseSendHandler.kt",
+     "anchor": "    if (tileShown) onSend(trimBeforeMs) else onHidden()",
+     "replacement": "    if (tileShown) onSend(trimBeforeMs) else Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a spoken send while the tile is hidden does nothing and calls the hidden callback once",
+    "a spoken send with the tile hidden and no take running calls the hidden callback once and finishes nothing",
+    "the spoken send rules hold on the real host, coordinator and handler files",
+    "each spoken send rule fires on each of its edited samples",
+    "each spoken send rule stays quiet on its harmless edits"
+   ],
+   "rule": "",
+   "note": "one listed killer was renamed by a later slice (a close now cancels the take) and is dropped"
+  },
+  {
+   "id": "mut-76",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseSendHandler.kt",
+     "anchor": "    if (tileShown) onSend(trimBeforeMs) else onHidden()",
+     "replacement": "    if (tileShown) onSend(trimBeforeMs) else { onHidden(); onHidden() }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a spoken send while the tile is hidden does nothing and calls the hidden callback once",
+    "a spoken send with the tile hidden and no take running calls the hidden callback once and finishes nothing",
+    "the spoken send rules hold on the real host, coordinator and handler files",
+    "each spoken send rule fires on each of its edited samples",
+    "each spoken send rule stays quiet on its harmless edits"
+   ],
+   "rule": "",
+   "note": "one listed killer was renamed by a later slice (a close now cancels the take) and is dropped"
+  },
+  {
+   "id": "mut-77",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseSendHandler.kt",
+     "anchor": "    if (tileShown) onSend(trimBeforeMs) else onHidden()",
+     "replacement": "    if (armed) onSend(trimBeforeMs) else onHidden()"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-78",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseSendHandler.kt",
+     "anchor": "    if (tileShown) onSend(trimBeforeMs) else onHidden()",
+     "replacement": "    if (tileShown) onSend(trimBeforeMs) else { onHidden(); onSend(trimBeforeMs) }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a spoken send while the tile is hidden does nothing and calls the hidden callback once",
+    "a spoken send with the tile hidden and no take running calls the hidden callback once and finishes nothing",
+    "the spoken send rules hold on the real host, coordinator and handler files",
+    "each spoken send rule fires on each of its edited samples",
+    "each spoken send rule stays quiet on its harmless edits"
+   ],
+   "rule": "",
+   "note": "one listed killer was renamed by a later slice (a close now cancels the take) and is dropped"
+  },
+  {
+   "id": "mut-79",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/PhraseSendHandler.kt",
+     "anchor": "    if (tileShown) onSend(trimBeforeMs) else onHidden()",
+     "replacement": "    if (tileShown) onSend(null) else onHidden()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a spoken send while the tile is shown finishes the take once with its trim unchanged",
+    "a second spoken send before the first finish settles does not finish the take again",
+    "a spoken send for a tile take finishes it with its trim when the tile is shown",
+    "the spoken send rules hold on the real host, coordinator and handler files",
+    "each spoken send rule fires on each of its edited samples",
+    "each spoken send rule stays quiet on its harmless edits"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-80",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "    internal var tileShown: Boolean = false; private set",
+     "replacement": "    internal var tileShown: Boolean = false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the spoken send rules hold on the real host, coordinator and handler files",
+    "each spoken send rule fires on each of its edited samples",
+    "each spoken send rule stays quiet on its harmless edits"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-81",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "    fun onSend(trimBeforeMs: Long? = null) {",
+     "replacement": "    fun onSend(trimBeforeMs: Long? = null) { if (!tileShown) return"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a plain send with the tile hidden still finishes a recording take"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-82",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "    fun onSend(trimBeforeMs: Long? = null) {",
+     "replacement": "    fun onSend(trimBeforeMs: Long? = null) { sendPushed = false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a second spoken send before the first finish settles does not finish the take again",
+    "three sends before the tile shows sending finish once and send once",
+    "a send tap during a taken transcription is refused and the take finishes once"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-83",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/host/TileHost.kt",
+     "anchor": "            tileSend = { trim -> toCoordinator { it.onSpokenSend(trim, phraseUnavailable) } },",
+     "replacement": "            tileSend = { trim -> toCoordinator { it.onSend(trim) } },"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the spoken send rules hold on the real host, coordinator and handler files",
+    "each spoken send rule fires on each of its edited samples",
+    "each spoken send rule stays quiet on its harmless edits"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-84",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/host/TileHost.kt",
+     "anchor": "            tileSend = { trim -> toCoordinator { it.onSpokenSend(trim, phraseUnavailable) } },",
+     "replacement": "            tileSend = { trim -> toCoordinator { it.onSpokenSend(trim, { }) } },"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the spoken send rules hold on the real host, coordinator and handler files",
+    "each spoken send rule fires on each of its edited samples",
+    "each spoken send rule stays quiet on its harmless edits"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-85",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/host/TileHost.kt",
+     "anchor": "            onUnavailable = phraseUnavailable,",
+     "replacement": "            onUnavailable = { root.phraseWarn?.invoke(PHRASE_UNAVAILABLE_REASON) },"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the spoken send rules hold on the real host, coordinator and handler files",
+    "each spoken send rule fires on each of its edited samples",
+    "each spoken send rule stays quiet on its harmless edits"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-86",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/host/TileHost.kt",
+     "anchor": "    private val phraseUnavailable: () -> Unit = { root.phraseWarn?.invoke(PHRASE_UNAVAILABLE_REASON) }",
+     "replacement": "    private val phraseUnavailable: () -> Unit = { }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the spoken send rules hold on the real host, coordinator and handler files",
+    "each spoken send rule fires on each of its edited samples",
+    "each spoken send rule stays quiet on its harmless edits"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-87",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/host/TileHost.kt",
+     "anchor": "            homeSend = { trim -> takeOwner.sendToHome(trim) },",
+     "replacement": "            homeSend = { trim -> toCoordinator { it.onSpokenSend(trim, phraseUnavailable) } },"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the spoken send rules hold on the real host, coordinator and handler files",
+    "each spoken send rule fires on each of its edited samples",
+    "each spoken send rule stays quiet on its harmless edits"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-88",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/host/TileHost.kt",
+     "anchor": "import dev.breaker.dictation.wiring.onSpokenSend",
+     "replacement": "import dev.breaker.dictation.wiring.onSend"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-89",
+   "kind": "mut",
+   "item": "i",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "pushed == TileState.RECORDING || beginPending, portCalls",
+     "replacement": "true, portCalls"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TileCloseGuardsTest#a user close with no take in flight cancels nothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-90",
+   "kind": "mut",
+   "item": "i",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "yield.yieldRunning(), sendPushed,",
+     "replacement": "yield.yieldRunning(), false,"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TileCloseGuardsTest#a user close while the text is on its way cancels nothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-91",
+   "kind": "mut",
+   "item": "i",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "beginPending, portCalls.heldElsewhereNow()",
+     "replacement": "beginPending, false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TileCloseGuardsTest#a user close while the Home holds the take cancels nothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-92",
+   "kind": "mut",
+   "item": "i",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "beginPending = false; generation += 1; yield.onBeginFailed()",
+     "replacement": "beginPending = false; yield.onBeginFailed()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TileCloseCancelsTakeTest#a user close during a pending begin cancels it and no recording face follows"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-93",
+   "kind": "mut",
+   "item": "i",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "beginPending = false; generation += 1",
+     "replacement": "generation += 1"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TileCloseCancelsTakeTest#a user close during a pending begin cancels it and no recording face follows",
+    "ShakeShowsTileTest#a shake after a close during a pending begin shows the closed tile and leaves no take recording",
+    "KeyboardTileShowGuardTest#a keyboard show after a close during a pending begin shows the tile and leaves no take recording"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-94",
+   "kind": "mut",
+   "item": "i",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "yield.onBeginFailed() // clears the busy flag only",
+     "replacement": "// no busy clear"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TileCloseCancelsTakeTest#a user close during a begin started from the busy face clears the busy face"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-95",
+   "kind": "mut",
+   "item": "i",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "            beginPending = false; generation += 1; yield.onBeginFailed() // clears the busy flag only\n            onCancel()\n",
+     "replacement": "            onCancel()\n            beginPending = false; generation += 1; yield.onBeginFailed() // clears the busy flag only\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TileCloseCancelsTakeTest#a user close during a begin started from the busy face clears the busy face"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-96",
+   "kind": "mut",
+   "item": "i",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "        if (closeCancelsTake(armed, failureBarrier(), yield.yieldRunning(), sendPushed,\n                pushed == TileState.RECORDING || beginPending, portCalls.heldElsewhereNow())) {\n            beginPending = false; generation += 1; yield.onBeginFailed() // clears the busy flag only\n            onCancel()\n        }\n        tileShowGuard.onCloseRequested()\n",
+     "replacement": "        tileShowGuard.onCloseRequested()\n        if (closeCancelsTake(armed, failureBarrier(), yield.yieldRunning(), sendPushed,\n                pushed == TileState.RECORDING || beginPending, portCalls.heldElsewhereNow())) {\n            beginPending = false; generation += 1; yield.onBeginFailed() // clears the busy flag only\n            onCancel()\n        }\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TileCloseCancelsTakeTest#a user close during a take ends it like Cancel and sends nothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-97",
+   "kind": "mut",
+   "item": "i",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "else keyboardTile.keepRaised()",
+     "replacement": "else { keyboardTile.keepRaised(); onCancel() }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TileCloseGuardsTest#a keyboard hide during a take is held and cancels nothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-98",
+   "kind": "mut",
+   "item": "i",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TilePorts.kt",
+     "anchor": "    val heldElsewhere: Boolean\n        get() = false",
+     "replacement": "    val heldElsewhere: Boolean\n        get() = true"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TileCloseCancelsTakeTest#a user close during a take ends it like Cancel and sends nothing",
+    "TileCloseCancelsTakeTest#a user close during a pending begin cancels it and no recording face follows",
+    "TileCloseCancelsTakeTest#a user close during a begin started from the busy face clears the busy face",
+    "TileCloseCancelsTakeTest#a user close drops a held keyboard hide before the cancel can apply it",
+    "TakeHeldElsewhereTest#a take port that does not override the held-elsewhere flag reports false",
+    "ShakeShowsTileTest#a shake after a close that ended a recording take shows the tile and begins no take",
+    "KeyboardTileShowGuardTest#a keyboard show after a close during a take shows the tile and begins no take"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-99",
+   "kind": "mut",
+   "item": "i",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TakeOwner.kt",
+     "anchor": "get() = owner.current().let { it != null && it != kind }",
+     "replacement": "get() = owner.current().let { it == null || it == kind }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TakeHeldElsewhereTest#the tile take port reports its own take as not held elsewhere",
+    "TakeHeldElsewhereTest#the tile take port reports a take held by the Home as held elsewhere",
+    "TakeHeldElsewhereTest#the tile take port reports no holder as not held elsewhere",
+    "TileCloseGuardsTest#a user close while the Home holds the take cancels nothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-100",
+   "kind": "mut",
+   "item": "i",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TakeOwner.kt",
+     "anchor": "get() = owner.current().let { it != null && it != kind }",
+     "replacement": "get() = owner.current().let { it != null }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TakeHeldElsewhereTest#the tile take port reports its own take as not held elsewhere"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-101",
+   "kind": "mut",
+   "item": "i",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TilePortCalls.kt",
+     "anchor": "take.heldElsewhere\n        } catch (e: Exception) {\n            false",
+     "replacement": "take.heldElsewhere\n        } catch (e: Exception) {\n            throw e"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TakeHeldElsewhereTest#a throwing held-elsewhere read is absorbed and the close still cancels and hides"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-102",
+   "kind": "mut",
+   "item": "i",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "        heldHide.clearOnClose()\n        if (closeCancelsTake(armed, failureBarrier(), yield.yieldRunning(), sendPushed,\n                pushed == TileState.RECORDING || beginPending, portCalls.heldElsewhereNow())) {\n            beginPending = false; generation += 1; yield.onBeginFailed() // clears the busy flag only\n            onCancel()\n        }\n",
+     "replacement": "        if (closeCancelsTake(armed, failureBarrier(), yield.yieldRunning(), sendPushed,\n                pushed == TileState.RECORDING || beginPending, portCalls.heldElsewhereNow())) {\n            beginPending = false; generation += 1; yield.onBeginFailed() // clears the busy flag only\n            onCancel()\n        }\n        heldHide.clearOnClose()\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TileCloseCancelsTakeTest#a user close drops a held keyboard hide before the cancel can apply it"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-103",
+   "kind": "mut",
+   "item": "i",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileShowGuard.kt",
+     "anchor": "): Boolean = armed && !failed && !yielding && !sending && inFlight && !heldElsewhere",
+     "replacement": "): Boolean = !failed && !yielding && !sending && inFlight && !heldElsewhere"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "CloseCancelsTakeRuleTest#a switch that is off stops a user close from cancelling"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-104",
+   "kind": "mut",
+   "item": "i",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileShowGuard.kt",
+     "anchor": "): Boolean = armed && !failed && !yielding && !sending && inFlight && !heldElsewhere",
+     "replacement": "): Boolean = armed && !yielding && !sending && inFlight && !heldElsewhere"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "CloseCancelsTakeRuleTest#a close during a device failure does not cancel the take"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-105",
+   "kind": "mut",
+   "item": "i",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileShowGuard.kt",
+     "anchor": "): Boolean = armed && !failed && !yielding && !sending && inFlight && !heldElsewhere",
+     "replacement": "): Boolean = armed && !failed && !sending && inFlight && !heldElsewhere"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "CloseCancelsTakeRuleTest#a close during a microphone yield does not cancel the take"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-106",
+   "kind": "mut",
+   "item": "i",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileShowGuard.kt",
+     "anchor": "): Boolean = armed && !failed && !yielding && !sending && inFlight && !heldElsewhere",
+     "replacement": "): Boolean = armed && !failed && !yielding && inFlight && !heldElsewhere"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "CloseCancelsTakeRuleTest#a close while the text is on its way does not cancel the take"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-107",
+   "kind": "mut",
+   "item": "i",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileShowGuard.kt",
+     "anchor": "): Boolean = armed && !failed && !yielding && !sending && inFlight && !heldElsewhere",
+     "replacement": "): Boolean = armed && !failed && !yielding && !sending && !heldElsewhere"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "CloseCancelsTakeRuleTest#a close with no take in flight does not cancel the take"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-108",
+   "kind": "mut",
+   "item": "i",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileShowGuard.kt",
+     "anchor": "): Boolean = armed && !failed && !yielding && !sending && inFlight && !heldElsewhere",
+     "replacement": "): Boolean = armed && !failed && !yielding && !sending && inFlight"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "CloseCancelsTakeRuleTest#a close while the Home holds the take does not cancel the take"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-109",
+   "kind": "mut",
+   "item": "i",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileShowGuard.kt",
+     "anchor": "): Boolean = armed && !failed && !yielding && !sending && inFlight && !heldElsewhere",
+     "replacement": "): Boolean = !armed && !failed && !yielding && !sending && inFlight && !heldElsewhere"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "CloseCancelsTakeRuleTest#all six terms clear make a user close cancel the take",
+    "CloseCancelsTakeRuleTest#a switch that is off stops a user close from cancelling"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-110",
+   "kind": "mut",
+   "item": "i",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileShowGuard.kt",
+     "anchor": "): Boolean = armed && !failed && !yielding && !sending && inFlight && !heldElsewhere",
+     "replacement": "): Boolean = armed && failed && !yielding && !sending && inFlight && !heldElsewhere"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "CloseCancelsTakeRuleTest#all six terms clear make a user close cancel the take",
+    "CloseCancelsTakeRuleTest#a close during a device failure does not cancel the take"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-111",
+   "kind": "mut",
+   "item": "i",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileShowGuard.kt",
+     "anchor": "): Boolean = armed && !failed && !yielding && !sending && inFlight && !heldElsewhere",
+     "replacement": "): Boolean = armed && !failed && yielding && !sending && inFlight && !heldElsewhere"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "CloseCancelsTakeRuleTest#all six terms clear make a user close cancel the take",
+    "CloseCancelsTakeRuleTest#a close during a microphone yield does not cancel the take"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-112",
+   "kind": "mut",
+   "item": "i",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileShowGuard.kt",
+     "anchor": "): Boolean = armed && !failed && !yielding && !sending && inFlight && !heldElsewhere",
+     "replacement": "): Boolean = armed && !failed && !yielding && sending && inFlight && !heldElsewhere"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "CloseCancelsTakeRuleTest#all six terms clear make a user close cancel the take",
+    "CloseCancelsTakeRuleTest#a close while the text is on its way does not cancel the take"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-113",
+   "kind": "mut",
+   "item": "i",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileShowGuard.kt",
+     "anchor": "): Boolean = armed && !failed && !yielding && !sending && inFlight && !heldElsewhere",
+     "replacement": "): Boolean = armed && !failed && !yielding && !sending && !inFlight && !heldElsewhere"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "CloseCancelsTakeRuleTest#all six terms clear make a user close cancel the take",
+    "CloseCancelsTakeRuleTest#a close with no take in flight does not cancel the take"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-114",
+   "kind": "mut",
+   "item": "i",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileShowGuard.kt",
+     "anchor": "): Boolean = armed && !failed && !yielding && !sending && inFlight && !heldElsewhere",
+     "replacement": "): Boolean = armed && !failed && !yielding && !sending && inFlight && heldElsewhere"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "CloseCancelsTakeRuleTest#all six terms clear make a user close cancel the take",
+    "CloseCancelsTakeRuleTest#a close while the Home holds the take does not cancel the take"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-115",
+   "kind": "mut",
+   "item": "i",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "            onCancel()\n",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a user close during a take ends it like Cancel and sends nothing"
+   ],
+   "rule": "S6's own new test alone must kill it (t2702)",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "android/app",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/DictationRunner.kt",
+     "anchor": "        if (idle.state != DictationState.IDLE) return BeginResult.Refused(RunnerSentences.BUSY)\n",
+     "replacement": "        return BeginResult.Refused(RunnerSentences.BUSY)\n"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "android/app",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/DictationRunner.kt",
+     "anchor": "        if (idle.state != DictationState.IDLE) return BeginResult.Refused(RunnerSentences.BUSY)\n",
+     "replacement": "        if (idle.state != DictationState.IDLE) return BeginResult.Refused(RunnerSentences.BUSY) // unchanged behaviour\n"
+    }
+   ]
+  }
+ ]
+}
