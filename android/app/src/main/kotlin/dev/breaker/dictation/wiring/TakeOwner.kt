@@ -114,6 +114,9 @@ internal class OwnedTakePort(
     override val sessionState: DictationState
         get() = inner.sessionState
 
+    override val heldElsewhere: Boolean
+        get() = owner.current().let { it != null && it != kind }
+
     override fun begin(): BeginResult {
         val answer: BeginResult = inner.begin()
         if (answer == BeginResult.Recording) {

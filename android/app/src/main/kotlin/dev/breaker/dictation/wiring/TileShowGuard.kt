@@ -102,3 +102,13 @@ internal class TileShowGuard(
         }
     }
 }
+
+/** True when a close cancels a take: armed, not failing, yielding or sending, in flight, not held elsewhere. */
+internal fun closeCancelsTake(
+    armed: Boolean,
+    failed: Boolean,
+    yielding: Boolean,
+    sending: Boolean,
+    inFlight: Boolean,
+    heldElsewhere: Boolean,
+): Boolean = armed && !failed && !yielding && !sending && inFlight && !heldElsewhere

@@ -41,18 +41,14 @@ class TileCoordinator(
     private var beginPending: Boolean = false
     private var pushed: TileState = TileState.IDLE
     private var generation: Int = 0
-
     /** The keyboard tile's session gate and anchor, driven by [onKeyboardReading]. Kept separate to stay within the line cap; it names no Android type. */
     private val keyboardTile = KeyboardTileSession()
-
     private val reevaluation: KeyboardReevaluation = KeyboardReevaluation(delayed) { ime, focus, dueMs -> act(keyboardTile.onKeyboardReading(ime, focus, dueMs)) }
-
     /** The taken-entry controller (the MIC_BUSY face and its settle). */
     internal val yield = TakeYieldController(
         background, main, take, TakeSettle(history, clipboard), takenNotice,
         { push(it) }, { sendPushed = false }, { generation }  // the one place push happens
     )
-
     /** The device failure entry: the cut is transcribed, saved and copied, with one sentence and no busy face. */
     internal val deviceFailure: DeviceFailureYield = DeviceFailureYield(
         background, main, take, TakeSettle(history, clipboard), { generation }
@@ -157,6 +153,11 @@ class TileCoordinator(
     fun onCloseRequested() {
         keyboardTile.onCloseRequested()
         heldHide.clearOnClose()
+        if (closeCancelsTake(armed, failureBarrier(), yield.yieldRunning(), sendPushed,
+                pushed == TileState.RECORDING || beginPending, portCalls.heldElsewhereNow())) {
+            beginPending = false; generation += 1; yield.onBeginFailed() // clears the busy flag only
+            onCancel()
+        }
         tileShowGuard.onCloseRequested()
         tileShown = false // a user close clears the record that the tile is shown
     }
@@ -296,5 +297,4 @@ class TileCoordinator(
         guarded { tile.setState(state) }
         if (heldHide.applyWhenIdle(inFlight())) { guarded { tile.hide() }; tileShown = false; keyboardTile.releaseRaised() }
     }
-
 }

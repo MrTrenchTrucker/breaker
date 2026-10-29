@@ -105,15 +105,24 @@ internal class TileSpokenSendRouteTest {
     }
 
     @Test
-    fun `a spoken send for a tile take reaches the hidden callback once when the tile is hidden`() {
+    fun `a spoken send after a close of a tile take finishes nothing and calls no hidden callback`() {
         coordinator.onBegin()
         settle()
         handler.start()
         coordinator.onCloseRequested()
         settle()
         firePhraseSend(1_500L)
-        assertEquals("app: a spoken send for a hidden tile take calls the hidden callback once", 1, hidden)
-        assertEquals("app: a spoken send for a hidden tile take finishes nothing", emptyList<Long?>(), take.trims)
+        assertEquals(
+            "app: a spoken send after a close of a tile take must finish nothing",
+            emptyList<Long?>(),
+            take.trims,
+        )
+        assertEquals("app: a spoken send after a close of a tile take must call no hidden callback", 0, hidden)
+        assertEquals(
+            "app: the close must cancel the tile take, leaving the session IDLE",
+            DictationState.IDLE,
+            take.sessionState,
+        )
     }
 
     @Test

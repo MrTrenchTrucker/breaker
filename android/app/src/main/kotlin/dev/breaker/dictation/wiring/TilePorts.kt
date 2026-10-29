@@ -72,6 +72,10 @@ interface TakePort {
 
     /** Moves a taken take from SENDING to IDLE without stopping the audio again. */
     fun resetAfterTaken()
+
+    /** True when a path other than this port's own kind holds the running take. */
+    val heldElsewhere: Boolean
+        get() = false
 }
 
 /** Whether the speech model the settings select is installed and unpacked. */

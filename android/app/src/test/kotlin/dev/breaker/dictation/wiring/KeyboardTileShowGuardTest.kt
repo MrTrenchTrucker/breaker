@@ -1,5 +1,6 @@
 package dev.breaker.dictation.wiring
 
+import dev.breaker.dictation.core.model.DictationState
 import dev.breaker.dictation.overlay.TileState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -33,30 +34,49 @@ class KeyboardTileShowGuardTest {
     }
 
     @Test
-    fun `a keyboard show during a take does not bring a closed tile back`() {
+    fun `a keyboard show after a close during a take shows the tile and begins no take`() {
         val r = TileRig()
         r.startRecording()
         r.coordinator.onCloseRequested()
         r.settle()
+        assertEquals("the close must cancel the take once", 1, r.take.cancelCalls)
         r.coordinator.onKeyboardReading(true, true, 2000L)
         r.settle()
-        assertFalse(
-            "TileCoordinator.onKeyboardReading: a keyboard show while the take records must not show a closed tile",
+        assertTrue(
+            "TileCoordinator.onKeyboardReading: a keyboard show after a close during a take must show the tile",
             r.tile.shown,
+        )
+        assertEquals("TileCoordinator.onKeyboardReading: a keyboard show must begin no take", 1, r.take.beginCalls)
+        assertEquals(
+            "TileCoordinator.onKeyboardReading: no take may record after the close",
+            DictationState.IDLE,
+            r.take.sessionState,
         )
     }
 
     @Test
-    fun `a keyboard show while a begin is pending does not bring a closed tile back`() {
+    fun `a keyboard show after a close during a pending begin shows the tile and leaves no take recording`() {
         val r = TileRig()
-        // No settle here: the begin stays queued on the background, so only the pending begin can block the show.
+        // No settle before the show: the begin stays queued, so the close and the show both happen before it runs.
         r.coordinator.onBegin()
         r.coordinator.onCloseRequested()
         r.coordinator.onKeyboardReading(true, true, 2000L)
         assertEquals("the begin must still be queued", 0, r.take.beginCalls)
-        assertFalse(
-            "TileCoordinator.onKeyboardReading: a keyboard show while a begin is pending must not show a closed tile",
+        assertTrue(
+            "TileCoordinator.onKeyboardReading: a keyboard show after a close must show the tile",
             r.tile.shown,
+        )
+        r.settle()
+        assertEquals("TileCoordinator.onKeyboardReading: only the tap's queued begin runs", 1, r.take.beginCalls)
+        assertEquals(
+            "TileCoordinator.onKeyboardReading: the close must cancel the pending begin once",
+            1,
+            r.take.cancelCalls,
+        )
+        assertEquals(
+            "TileCoordinator.onKeyboardReading: no take may record after the close",
+            DictationState.IDLE,
+            r.take.sessionState,
         )
     }
 
