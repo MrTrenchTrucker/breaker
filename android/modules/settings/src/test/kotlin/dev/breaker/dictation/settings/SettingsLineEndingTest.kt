@@ -24,8 +24,9 @@ import java.io.File
 class SettingsLineEndingTest : SettingsFileStoreTestBase() {
 
     /**
-     * The nine keys at non-default values, one per logical line, with the
-     * language's replaced by [damagedLanguage].
+     * Nine of the ten settings keys at non-default values, one per logical line,
+     * with the language's replaced by [damagedLanguage]. The keyboard switch is
+     * left out on purpose, so it loads at its default.
      */
     private fun linesWithDamagedLanguage(damagedLanguage: String): List<String> =
         nonDefaultLines.map { if (it.startsWith("$KEY_LANGUAGE=")) damagedLanguage else it }
@@ -50,10 +51,11 @@ class SettingsLineEndingTest : SettingsFileStoreTestBase() {
     private fun fileJoined(lines: List<String>, terminator: String): File =
         fileWithMixedTerminators(lines, List(lines.size) { terminator })
 
-    /** The nine keys at non-default values — text, not `Properties.store` output. */
+    /** Nine of the ten settings keys at non-default values; the keyboard switch is
+     * left out on purpose. Text, not `Properties.store` output. */
     private val nonDefaultLines = listOf(
         "mode=SERVER", "model_size=medium", "server_url=https://box.local",
-        "wake_gesture_enabled=false", "tile_position=0.25,0.75", "language=de",
+        "shake_wake_mode=OFF", "tile_position=0.25,0.75", "language=de",
         "preload_model=false", "formatting_enabled=false", "theme_mode=DARK",
     )
 
@@ -73,7 +75,7 @@ class SettingsLineEndingTest : SettingsFileStoreTestBase() {
         val written = validSettings()
         assertEquals("mode", written.mode, loaded.mode)
         assertEquals("model size", written.modelSize, loaded.modelSize)
-        assertEquals("wake gesture", written.wakeGestureEnabled, loaded.wakeGestureEnabled)
+        assertEquals("shake mode", written.shakeWakeMode, loaded.shakeWakeMode)
         assertEquals("tile x", written.tilePosition.x, loaded.tilePosition.x, 0f)
         assertEquals("tile y", written.tilePosition.y, loaded.tilePosition.y, 0f)
         assertEquals("preload model", written.preloadModel, loaded.preloadModel)
@@ -144,7 +146,7 @@ class SettingsLineEndingTest : SettingsFileStoreTestBase() {
             "  local",
             truncatedEscapeLanguage,
             "model_size=medium",
-            "wake_gesture_enabled=false",
+            "shake_wake_mode=OFF",
             "tile_position=0.25,0.75",
             "preload_model=false",
             "formatting_enabled=false",

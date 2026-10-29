@@ -1,6 +1,7 @@
 package dev.breaker.dictation.ui.screen.settings
 
 import dev.breaker.dictation.core.model.AppSettings
+import dev.breaker.dictation.core.model.ShakeWakeMode
 import dev.breaker.dictation.core.model.SttMode
 import dev.breaker.dictation.ui.screen.BottomStripes
 import dev.breaker.dictation.ui.screen.Label
@@ -76,12 +77,13 @@ internal class SettingsScreen {
      * The one-field change [intent] asks for, or null when this screen does not
      * offer it.
      *
-     * Only the three boolean switches and the routing mode are accepted, because
-     * those are the only settings this screen offers a control for. A routing
-     * mode is matched by its exact enum name and a boolean by the two literals
-     * [Boolean.toString] produces, so a name in another case and a word that is
-     * not a boolean are both refused rather than guessed at. The appearance is
-     * not a setting of this screen: its intents belong to the theme controller.
+     * Only the three switches, the routing mode and the shake to wake choice are
+     * accepted, because those are the only settings this screen offers a control
+     * for. A routing mode and a shake to wake mode are each matched by its exact
+     * enum name, and a switch by the two literals [Boolean.toString] produces, so
+     * a name in another case and a word that is not a boolean are both refused
+     * rather than guessed at. The appearance is not a setting of this screen: its
+     * intents belong to the theme controller.
      *
      * The returned function is a copy of its argument with one field changed and
      * every other field left as found. It reads nothing, writes nothing and does
@@ -89,7 +91,7 @@ internal class SettingsScreen {
      */
     fun editFor(intent: ScreenIntent): ((AppSettings) -> AppSettings)? = when (intent) {
         is ScreenIntent.SetRoutingMode -> routingEdit(intent.mode)
-        is ScreenIntent.SetSetting -> booleanEdit(intent.key, intent.value)
+        is ScreenIntent.SetSetting -> if (intent.key == SettingsIds.KEY_SHAKE_WAKE) shakeEdit(intent.value) else booleanEdit(intent.key, intent.value)
         ScreenIntent.ToggleTheme,
         ScreenIntent.UseSystemTheme,
         is ScreenIntent.SetThemeMode,
@@ -109,6 +111,15 @@ internal class SettingsScreen {
             ?.let { target -> { settings: AppSettings -> settings.copy(mode = target) } }
 
     /**
+     * The shake to wake mode [mode] names, as a change of that one field, or null
+     * when [mode] is not one of the three stored names. The match is exact and
+     * case-sensitive, as for a routing mode.
+     */
+    private fun shakeEdit(mode: String): ((AppSettings) -> AppSettings)? =
+        ShakeWakeMode.entries.firstOrNull { it.name == mode }
+            ?.let { target -> { settings: AppSettings -> settings.copy(shakeWakeMode = target) } }
+
+    /**
      * The change of the switch [key] to [value], or null when the screen has no
      * such switch or the value is not one [Boolean.toString] produces.
      */
@@ -116,7 +127,7 @@ internal class SettingsScreen {
         val asked = value.toBooleanStrictOrNull() ?: return null
         return when (key) {
             SettingsIds.KEY_PRELOAD -> { settings -> settings.copy(preloadModel = asked) }
-            SettingsIds.KEY_WAKE_GESTURE -> { settings -> settings.copy(wakeGestureEnabled = asked) }
+            SettingsIds.KEY_SHOW_TILE -> { settings -> settings.copy(showTileOnKeyboard = asked) }
             SettingsIds.KEY_FORMATTING -> { settings -> settings.copy(formattingEnabled = asked) }
             else -> null
         }

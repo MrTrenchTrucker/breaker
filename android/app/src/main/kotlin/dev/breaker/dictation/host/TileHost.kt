@@ -27,6 +27,7 @@ import dev.breaker.dictation.wiring.TakeOwner
 import dev.breaker.dictation.wiring.TakeOwnerKind
 import dev.breaker.dictation.wiring.TakePortAdapter
 import dev.breaker.dictation.wiring.TileCoordinator
+import dev.breaker.dictation.wiring.WakePolicy
 import dev.breaker.dictation.wiring.appGesture
 import dev.breaker.dictation.wiring.appTakenClipboard
 import dev.breaker.dictation.wiring.modelInstallPortFor
@@ -67,6 +68,7 @@ internal class TileHost(
     private val notifications = ModelNotifications(context)
     private val gesture = appGesture(context)
     private val selectedId: () -> String = { root.settingsStore.load().modelSize }
+    private val wake: WakePolicy = WakePolicy { root.settingsStore.load() } // read on the main looper, as selectedId is
 
     private val tile: OverlayTilePort = OverlayTilePort(
         context = context,
@@ -106,7 +108,8 @@ internal class TileHost(
             root.historyStore,
             main,
         )
-        val wiring = KeyboardTileWiring({ ime, focus, timeMs -> c.onKeyboardReading(ime, focus, timeMs) }, main)
+        c.wake = wake
+        val wiring = KeyboardTileWiring({ ime, focus, timeMs -> c.onKeyboardReading(ime, focus, timeMs) }, main, wake)
         wiring.start()
         c
     }

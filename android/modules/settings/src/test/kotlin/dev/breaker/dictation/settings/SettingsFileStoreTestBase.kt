@@ -1,6 +1,7 @@
 package dev.breaker.dictation.settings
 
 import dev.breaker.dictation.core.model.AppSettings
+import dev.breaker.dictation.core.model.ShakeWakeMode
 import dev.breaker.dictation.core.model.SttMode
 import dev.breaker.dictation.core.model.ThemeMode
 import dev.breaker.dictation.core.model.TilePosition
@@ -13,7 +14,7 @@ import java.util.Properties
 /**
  * The on-disk contract these tests assume, in one place.
  *
- * The file is a `java.util.Properties` document keyed by the ten keys below;
+ * The file is a `java.util.Properties` document keyed by the keys below;
  * `api_key` is deliberately NOT among them (see `SettingsKeystoreRefTest`).
  * `Properties.store()` writes a timestamp comment first and is an unordered
  * hashtable, so nothing here compares whole-file bytes or key order.
@@ -21,7 +22,8 @@ import java.util.Properties
 internal const val KEY_MODE = "mode"
 internal const val KEY_MODEL_SIZE = "model_size"
 internal const val KEY_SERVER_URL = "server_url"
-internal const val KEY_WAKE_GESTURE = "wake_gesture_enabled"
+internal const val KEY_SHAKE_WAKE = "shake_wake_mode"
+internal const val KEY_SHOW_TILE = "show_tile_on_keyboard"
 internal const val KEY_TILE_POSITION = "tile_position"
 internal const val KEY_LANGUAGE = "language"
 internal const val KEY_PRELOAD_MODEL = "preload_model"
@@ -30,14 +32,15 @@ internal const val KEY_THEME_MODE = "theme_mode"
 internal const val KEY_MICROPHONE_ASKED = "microphone_asked"
 
 /**
- * Every key a saved settings file carries: the nine settings keys and the
+ * Every key a saved settings file carries: the ten settings keys and the
  * microphone prompt flag. Nothing else is allowed.
  */
-internal val THE_TEN_KEYS: Set<String> = setOf(
+internal val THE_SAVED_KEYS: Set<String> = setOf(
     KEY_MODE,
     KEY_MODEL_SIZE,
     KEY_SERVER_URL,
-    KEY_WAKE_GESTURE,
+    KEY_SHAKE_WAKE,
+    KEY_SHOW_TILE,
     KEY_TILE_POSITION,
     KEY_LANGUAGE,
     KEY_PRELOAD_MODEL,
@@ -92,7 +95,8 @@ abstract class SettingsFileStoreTestBase {
         modelSize = "medium",
         serverUrl = "https://box.local",
         apiKeyRef = null,
-        wakeGestureEnabled = false,
+        shakeWakeMode = ShakeWakeMode.OFF,
+        showTileOnKeyboard = false,
         // Off-centre on purpose: the default is 0.5/0.5, so a value the store
         // never actually wrote could not satisfy this.
         tilePosition = tile,
@@ -118,7 +122,7 @@ abstract class SettingsFileStoreTestBase {
         props.setProperty(KEY_MODE, SttMode.SERVER.name)
         props.setProperty(KEY_MODEL_SIZE, "medium")
         props.setProperty(KEY_SERVER_URL, "https://box.local")
-        props.setProperty(KEY_WAKE_GESTURE, "false")
+        props.setProperty(KEY_SHAKE_WAKE, ShakeWakeMode.OFF.name)
         props.setProperty(KEY_TILE_POSITION, "0.25,0.75")
         props.setProperty(KEY_LANGUAGE, "de")
         props.setProperty(KEY_PRELOAD_MODEL, "false")
@@ -162,9 +166,9 @@ abstract class SettingsFileStoreTestBase {
             assertEquals("server address", written.serverUrl, loaded.serverUrl)
             checked += KEY_SERVER_URL
         }
-        if (exceptKey != KEY_WAKE_GESTURE) {
-            assertEquals("wake gesture", written.wakeGestureEnabled, loaded.wakeGestureEnabled)
-            checked += KEY_WAKE_GESTURE
+        if (exceptKey != KEY_SHAKE_WAKE) {
+            assertEquals("wake gesture", written.shakeWakeMode, loaded.shakeWakeMode)
+            checked += KEY_SHAKE_WAKE
         }
         if (exceptKey != KEY_TILE_POSITION) {
             assertEquals("tile x", written.tilePosition.x, loaded.tilePosition.x, 0f)
@@ -192,6 +196,12 @@ abstract class SettingsFileStoreTestBase {
             checked += KEY_MODEL_SIZE
         }
 
-        assertEquals("a key was left unchecked", 8, checked.size)
+        // The helper checks nine keys. When the key under test is one of them it is not checked, so eight remain.
+        val helperKeys = setOf(
+            KEY_MODE, KEY_SERVER_URL, KEY_SHAKE_WAKE, KEY_TILE_POSITION, KEY_LANGUAGE,
+            KEY_PRELOAD_MODEL, KEY_FORMATTING, KEY_THEME_MODE, KEY_MODEL_SIZE,
+        )
+        val expected = if (exceptKey in helperKeys) helperKeys.size - 1 else helperKeys.size
+        assertEquals("a key was left unchecked", expected, checked.size)
     }
 }

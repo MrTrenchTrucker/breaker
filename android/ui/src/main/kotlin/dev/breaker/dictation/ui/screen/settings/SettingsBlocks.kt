@@ -14,9 +14,7 @@ import dev.breaker.dictation.ui.screen.ScreenIntent
 import dev.breaker.dictation.ui.screen.SegmentCell
 import dev.breaker.dictation.ui.screen.SegmentedRow
 import dev.breaker.dictation.ui.screen.Space
-import dev.breaker.dictation.ui.screen.SwitchRow
 import dev.breaker.dictation.ui.screen.TextAlign
-import dev.breaker.dictation.ui.screen.TrimStripe
 import dev.breaker.dictation.ui.screen.TypeRole
 import dev.breaker.dictation.ui.screen.ValueField
 import dev.breaker.dictation.ui.screen.onboarding.SetupTexts
@@ -61,10 +59,16 @@ internal object SettingsIds {
     const val SWITCHES_BLOCK = "settings.switches"
     const val SWITCHES_HEADING = "settings.switches.heading"
     const val SWITCH_PRELOAD = "settings.preloadModel"
-    const val SWITCH_WAKE = "settings.wakeGestureEnabled"
+    const val SHAKE_WAKE_BLOCK = "settings.shakeWake"
+    const val SHAKE_WAKE_LABEL_ID = "settings.shakeWake.label"
+    const val SHAKE_WAKE_CELLS = "settings.shakeWake.cells"
+    const val SHAKE_WAKE_CELL_PREFIX = "settings.shakeWake."
+    const val SHAKE_WAKE_HELP_ID = "settings.shakeWake.help"
+    const val SWITCH_SHOW_TILE = "settings.showTileOnKeyboard"
     const val SWITCH_FORMATTING = "settings.formattingEnabled"
     const val HAIRLINE_PRELOAD = "settings.hairline.preload"
     const val HAIRLINE_WAKE = "settings.hairline.wake"
+    const val HAIRLINE_KEYBOARD = "settings.hairline.keyboard"
 
     const val VALUES_BLOCK = "settings.values"
     const val VALUES_HEADING = "settings.values.heading"
@@ -84,9 +88,10 @@ internal object SettingsIds {
     const val API_KEY_LABEL = "settings.apiKey.label"
     const val API_KEY_VALUE = "settings.apiKey.value"
 
-    /** The stored keys the three switches write; the screen reads them back when it edits. */
+    /** The stored keys the switches and the shake to wake choice write; the screen reads them back when it edits. */
     const val KEY_PRELOAD = "preloadModel"
-    const val KEY_WAKE_GESTURE = "wakeGestureEnabled"
+    const val KEY_SHAKE_WAKE = "shakeWakeMode"
+    const val KEY_SHOW_TILE = "showTileOnKeyboard"
     const val KEY_FORMATTING = "formattingEnabled"
 }
 
@@ -124,39 +129,6 @@ internal fun routingBlock(held: AppSettings): Box = Box(
             cells = SttMode.entries.map { routingCell(it, held) },
         ),
         bodyLabel(SettingsIds.ROUTING_HELP, SettingsTexts.ROUTING_AUTO_HELP, PaletteSlot.TEXT_MUTED),
-    ),
-)
-
-/** The dictation block: a heading and the three switches, with a hairline between each two rows. */
-internal fun switchesBlock(held: AppSettings): Box = Box(
-    id = SettingsIds.SWITCHES_BLOCK,
-    background = PaletteSlot.BACKGROUND,
-    gap = Space.S,
-    children = listOf(
-        sectionLabel(SettingsIds.SWITCHES_HEADING, SettingsTexts.DICTATION_HEADING),
-        switchRow(
-            SettingsIds.SWITCH_PRELOAD,
-            SettingsTexts.PRELOAD_LABEL,
-            SettingsTexts.PRELOAD_HELP,
-            SettingsIds.KEY_PRELOAD,
-            held.preloadModel,
-        ),
-        TrimStripe(SettingsIds.HAIRLINE_PRELOAD),
-        switchRow(
-            SettingsIds.SWITCH_WAKE,
-            SettingsTexts.WAKE_LABEL,
-            SettingsTexts.WAKE_HELP,
-            SettingsIds.KEY_WAKE_GESTURE,
-            held.wakeGestureEnabled,
-        ),
-        TrimStripe(SettingsIds.HAIRLINE_WAKE),
-        switchRow(
-            SettingsIds.SWITCH_FORMATTING,
-            SettingsTexts.FORMATTING_LABEL,
-            SettingsTexts.FORMATTING_HELP,
-            SettingsIds.KEY_FORMATTING,
-            held.formattingEnabled,
-        ),
     ),
 )
 
@@ -276,16 +248,6 @@ private fun routingWord(mode: SttMode): String = when (mode) {
     SttMode.SERVER -> SettingsTexts.ROUTING_SERVER
 }
 
-/** A switch: its label and line, its current state, and the opposite state as the value its intent asks for. */
-private fun switchRow(id: String, label: String, help: String, key: String, current: Boolean): SwitchRow =
-    SwitchRow(
-        id = id,
-        label = label,
-        help = help,
-        on = current,
-        intent = ScreenIntent.SetSetting(key, (!current).toString()),
-    )
-
 /**
  * The stored server address, or the words for none.
  *
@@ -305,10 +267,10 @@ private fun keyHeldText(held: AppSettings): String =
     if (held.apiKeyRef != null) SettingsTexts.HELD_TEXT else SettingsTexts.NOT_HELD_TEXT
 
 /** A heading: capitals in the display role, in the muted slot. */
-private fun sectionLabel(id: String, text: String): Label =
+internal fun sectionLabel(id: String, text: String): Label =
     Label(id = id, text = text, role = TypeRole.DISPLAY, color = PaletteSlot.TEXT_MUTED, caps = true)
 
-private fun bodyLabel(id: String, text: String, color: PaletteSlot): Label =
+internal fun bodyLabel(id: String, text: String, color: PaletteSlot): Label =
     Label(id = id, text = text, role = TypeRole.BODY, color = color)
 
 private fun monoLabel(id: String, text: String, color: PaletteSlot, align: TextAlign = TextAlign.START): Label =

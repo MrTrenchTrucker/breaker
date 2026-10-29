@@ -1,6 +1,7 @@
 package dev.breaker.dictation.overlay
 
 import dev.breaker.dictation.core.model.AppSettings
+import dev.breaker.dictation.core.model.ShakeWakeMode
 import dev.breaker.dictation.core.model.SttMode
 import dev.breaker.dictation.core.model.TilePosition
 import dev.breaker.shared.tokens.ThemeMode
@@ -28,7 +29,8 @@ internal object TestData {
         modelSize = "medium",
         serverUrl = "http://example.invalid:8080",
         apiKeyRef = "ref-1",
-        wakeGestureEnabled = false,
+        shakeWakeMode = ShakeWakeMode.OFF,
+        showTileOnKeyboard = false,
         tilePosition = position,
         language = "de",
         preloadModel = false,

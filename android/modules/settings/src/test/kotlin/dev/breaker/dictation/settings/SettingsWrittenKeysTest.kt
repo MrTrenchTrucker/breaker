@@ -23,7 +23,7 @@ import java.util.Properties
  * doc claims it is "used by tests to prove nothing extra is written" — which
  * was false until now. The second test is that proof, and it compares three
  * ways: the keys parsed from the saved file, `writtenKeys()`, and a
- * hand-written list of the ten names as string literals. The hand-written
+ * hand-written list of the eleven names as string literals. The hand-written
  * list is the part a two-sided comparison cannot supply: if `writtenKeys()`
  * were derived from the same settings the codec encodes, a codec that dropped a
  * blank `server_url` in both places would satisfy a file-vs-`writtenKeys()`
@@ -32,9 +32,9 @@ import java.util.Properties
 class SettingsWrittenKeysTest : SettingsFileStoreTestBase() {
 
     /**
-     * The ten key names, written out by hand.
+     * The eleven key names, written out by hand.
      *
-     * Deliberately not `THE_TEN_KEYS` and not `writtenKeys()`: both of those
+     * Deliberately not `THE_SAVED_KEYS` and not `writtenKeys()`: both of those
      * live in the same shape of knowledge as the code under test, so a codec
      * that lost a key on the way out would lose it on both sides of the
      * comparison and the test would still pass. Literals break that circle.
@@ -43,7 +43,8 @@ class SettingsWrittenKeysTest : SettingsFileStoreTestBase() {
         "mode",
         "model_size",
         "server_url",
-        "wake_gesture_enabled",
+        "shake_wake_mode",
+        "show_tile_on_keyboard",
         "tile_position",
         "language",
         "preload_model",
@@ -118,11 +119,11 @@ class SettingsWrittenKeysTest : SettingsFileStoreTestBase() {
      * Saved with a blank `server_url`, because a blank value is exactly the
      * case a codec can quietly drop: the key is absent-but-harmless, so nothing
      * downstream notices and no other test fails. Every other key is at a
-     * non-default value, so "all ten present" is not proven by a file of ten
+     * non-default value, so "all eleven present" is not proven by a file of eleven
      * blanks — presence and value are asserted separately.
      */
     @Test
-    fun `writtenKeys matches the saved file and the hand written ten names`() {
+    fun `writtenKeys matches the saved file and the hand written names`() {
         val file = newFile()
         val saved = validSettings().copy(serverUrl = "", microphoneAsked = true)
 
@@ -159,11 +160,12 @@ class SettingsWrittenKeysTest : SettingsFileStoreTestBase() {
             rawText.lines().any { it == "server_url=" },
         )
 
-        // The other nine at values a file of blanks could not produce.
+        // The other ten at values a file of blanks could not produce.
         assertEquals("microphone_asked", "true", raw.getProperty("microphone_asked"))
         assertEquals("mode", "SERVER", raw.getProperty("mode"))
         assertEquals("model_size", "medium", raw.getProperty("model_size"))
-        assertEquals("wake_gesture_enabled", "false", raw.getProperty("wake_gesture_enabled"))
+        assertEquals("shake_wake_mode", "OFF", raw.getProperty("shake_wake_mode"))
+        assertEquals("show_tile_on_keyboard", "false", raw.getProperty("show_tile_on_keyboard"))
         assertEquals("tile_position", "0.25,0.75", raw.getProperty("tile_position"))
         assertEquals("language", "de", raw.getProperty("language"))
         assertEquals("preload_model", "false", raw.getProperty("preload_model"))

@@ -19,7 +19,7 @@ import java.util.Properties
  * steps, so a test can make either one fail; the public constructor supplies
  * the real steps.
  *
- * **What this store holds.** Ten property keys of plain settings. It holds
+ * **What this store holds.** Eleven property keys of plain settings. It holds
  * **no secret**, and it does not put the key reference in the file either —
  * but it does persist that reference, through the [keystore] port rather than
  * on disk. [save] hands `apiKeyRef` to [Keystore.setActiveRef] and [load] reads
@@ -38,7 +38,7 @@ import java.util.Properties
  * way the test can tell a stored `false` from an absent key.
  *
  * **Missing file.** When [file] is not there — the first-run case, not an
- * error - [load] yields core's own defaults for the ten file-backed keys *and*
+ * error - [load] yields core's own defaults for the eleven file-backed keys *and*
  * the reference the [keystore] port remembers. A file that does not exist says
  * nothing about the credential, so the port answers for it;
  * `SettingsDefaultsTest.a missing file still reports the reference the port
@@ -70,10 +70,10 @@ class SettingsFileStore internal constructor(
         this(file, keystore, AtomicFileReplace::write, AtomicFileReplace::move)
 
     /**
-     * The stored settings, or core's defaults for the ten file-backed keys when
+     * The stored settings, or core's defaults for the eleven file-backed keys when
      * nothing is stored yet.
      *
-     * A missing [file] yields core's defaults for those ten keys *and* the
+     * A missing [file] yields core's defaults for those eleven keys *and* the
      * reference the [keystore] port remembers — the file cannot supply the
      * reference, so the port does, on this path and on every other one. A
      * present but damaged file is read key by key: an unparsable value, one

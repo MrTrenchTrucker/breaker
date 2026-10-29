@@ -13,7 +13,7 @@ import java.util.Locale
  * value and checks every other key still arrives.
  *
  * Four ways a value can be bad, all landing on the same fallback here:
- * it is missing; it does not parse (`wake_gesture_enabled=maybe`,
+ * it is missing; it does not parse (`formatting_enabled=maybe`,
  * `tile x=abc`); the value parses but core rejects it (`language=` blank,
  * `tile x=1.5`, `theme_mode=NEON`); or the key was on a logical line the
  * file's own parser rejected, in which case the value never reaches this file

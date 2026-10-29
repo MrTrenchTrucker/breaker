@@ -17,13 +17,14 @@ import java.io.File
 class SettingsDamagedTextTest : SettingsFileStoreTestBase() {
 
     /**
-     * The nine keys at non-default values, one per line. Text, not
+     * Nine of the ten settings keys at non-default values, one per line; the
+     * keyboard switch is left out on purpose. Text, not
      * `Properties.store`: the tests below are about bytes `store` never writes —
      * a truncated escape, a byte-order mark, a continuation.
      */
     private val nonDefaultLines = listOf(
         "mode=SERVER", "model_size=medium", "server_url=https://box.local",
-        "wake_gesture_enabled=false", "tile_position=0.25,0.75", "language=de",
+        "shake_wake_mode=OFF", "tile_position=0.25,0.75", "language=de",
         "preload_model=false", "formatting_enabled=false", "theme_mode=DARK",
     )
 

@@ -1,6 +1,7 @@
 package dev.breaker.dictation.ui.testing
 
 import dev.breaker.dictation.core.model.AppSettings
+import dev.breaker.dictation.core.model.ShakeWakeMode
 import dev.breaker.dictation.core.model.SttMode
 import dev.breaker.dictation.core.model.ThemeMode
 import dev.breaker.dictation.core.model.TilePosition
@@ -22,7 +23,8 @@ internal val NONDEFAULT: AppSettings = AppSettings(
     modelSize = "medium",
     serverUrl = "https://srv.example.invalid:8443",
     apiKeyRef = "REF-9f3k",
-    wakeGestureEnabled = false,
+    shakeWakeMode = ShakeWakeMode.OFF,
+    showTileOnKeyboard = false,
     tilePosition = TilePosition(0.2f, 0.8f),
     language = "de",
     preloadModel = false,

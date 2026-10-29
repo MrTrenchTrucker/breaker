@@ -21,7 +21,17 @@ class SettingsTextsTest {
             SettingsTexts.ROUTING_AUTO_HELP,
         )
         assertEquals("Keeps the model ready for a faster start.", SettingsTexts.PRELOAD_HELP)
-        assertEquals("Shake the phone to bring the tile back.", SettingsTexts.WAKE_HELP)
+        assertEquals("Shake to wake", SettingsTexts.SHAKE_WAKE_LABEL)
+        assertEquals("Keyboard only", SettingsTexts.SHAKE_KEYBOARD_ONLY)
+        assertEquals("Always", SettingsTexts.SHAKE_ALWAYS)
+        assertEquals("Off", SettingsTexts.SHAKE_OFF)
+        assertEquals(
+            "Always: shake the phone any time to bring the tile back. " +
+                "Keyboard only: shaking works only while the keyboard is open. Off: shaking does nothing.",
+            SettingsTexts.SHAKE_WAKE_HELP,
+        )
+        assertEquals("Show the tile when the keyboard opens", SettingsTexts.SHOW_TILE_LABEL)
+        assertEquals("The tile comes up by itself when a keyboard opens over a text field.", SettingsTexts.SHOW_TILE_HELP)
         assertEquals("Spoken lists become lists. Filler words go.", SettingsTexts.FORMATTING_HELP)
         assertEquals("Server address", SettingsTexts.SERVER_ROW_LABEL)
         assertEquals("English", SettingsTexts.LANGUAGE_ENGLISH)
