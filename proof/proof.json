@@ -1,0 +1,3463 @@
+{
+ "name": "proof-u2",
+ "tip": {
+  "tree": "a6ca3edf6053a12ff7241efa27d2d09ac8dc968e"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "updater: the installer port takes the checked digest and the size cap; the installed version can be unreadable",
+   "base_tree": "831ce1b37990e05cf28c37956241868437c73e7b",
+   "item_tip_tree": "082bf84c285133ecfe0e1c50bb06f29af826337e",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [
+    "CheckerFakes.kt"
+   ]
+  },
+  {
+   "item": "b",
+   "title": "updater: read the manifest over https with strict limits",
+   "base_tree": "082bf84c285133ecfe0e1c50bb06f29af826337e",
+   "item_tip_tree": "ebf7d3c5c94c1740655941e3fdef60d71876169b",
+   "new_production_classes": [
+    "CopyUpTo",
+    "HttpRules",
+    "ManifestHttpSource",
+    "StrictUtf8",
+    "UpdateHttpOpener"
+   ],
+   "test_fixtures_overlaid": [
+    "HttpFakes.kt"
+   ]
+  },
+  {
+   "item": "c",
+   "title": "updater: download the update file into app-private staging",
+   "base_tree": "ebf7d3c5c94c1740655941e3fdef60d71876169b",
+   "item_tip_tree": "3eba321ffb46cc0837c31f275b0bc507c1377b20",
+   "new_production_classes": [
+    "ApkStaging",
+    "HttpApkDownloader"
+   ],
+   "test_fixtures_overlaid": []
+  },
+  {
+   "item": "d",
+   "title": "updater: register the install module's public names",
+   "base_tree": "3eba321ffb46cc0837c31f275b0bc507c1377b20",
+   "item_tip_tree": "5358569907d150102683af38f82ac74ee640fe5a",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [],
+   "red_not_run": "registry and card lines only; no test"
+  },
+  {
+   "item": "e",
+   "title": "updater: decide what the first start shows from the install record and the session",
+   "base_tree": "5358569907d150102683af38f82ac74ee640fe5a",
+   "item_tip_tree": "a6ca3edf6053a12ff7241efa27d2d09ac8dc968e",
+   "new_production_classes": [
+    "CommitRouter",
+    "FirstStartDecision",
+    "InstallConfirmation"
+   ],
+   "test_fixtures_overlaid": [
+    "FirstStartTableRows.kt"
+   ]
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test"
+ },
+ "shards": 8,
+ "entries": [
+  {
+   "id": "red-a-01",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerDeltaTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerDeltaTest.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerFakes.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.CheckerDeltaTest"
+   ],
+   "patch": "proof/red/red-a-01.patch",
+   "tree": "7736bb443af951626a4446eec185db01be3d8bc6",
+   "predict": "COMPILE RED on the item's new members (InstalledReading, the new install parameters, the new sentences)"
+  },
+  {
+   "id": "red-b-02",
+   "kind": "red",
+   "item": "b",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CopyUpToTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CopyUpToTest.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/HttpFakes.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.CopyUpToTest"
+   ],
+   "patch": "proof/red/red-b-02.patch",
+   "tree": "7677a774d061af76ab93015df9f2017dbb6baae4",
+   "predict": "COMPILE RED on the item's new classes"
+  },
+  {
+   "id": "red-b-03",
+   "kind": "red",
+   "item": "b",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/HttpRulesTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/HttpRulesTest.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/HttpFakes.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.HttpRulesTest"
+   ],
+   "patch": "proof/red/red-b-03.patch",
+   "tree": "7c593d8a6bc02e88414999dd6da24473de9d3104",
+   "predict": "COMPILE RED on the item's new classes"
+  },
+  {
+   "id": "red-b-04",
+   "kind": "red",
+   "item": "b",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ManifestHttpSourceTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ManifestHttpSourceTest.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/HttpFakes.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.ManifestHttpSourceTest"
+   ],
+   "patch": "proof/red/red-b-04.patch",
+   "tree": "b492217782d7131730e479155f9e31b3cb5d6f12",
+   "predict": "COMPILE RED on the item's new classes"
+  },
+  {
+   "id": "red-b-05",
+   "kind": "red",
+   "item": "b",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ModuleHygieneTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ModuleHygieneTest.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/HttpFakes.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.ModuleHygieneTest"
+   ],
+   "patch": "proof/red/red-b-05.patch",
+   "tree": "4447760537b6b542460c077f69cd03b45c4a528a",
+   "predict": "COMPILE RED: the ride-along fixture HttpFakes names the item's new UpdateHttpOpener and UpdateHttpReply; the allow-list assertions are pinned by the hygiene mutants"
+  },
+  {
+   "id": "red-b-06",
+   "kind": "red",
+   "item": "b",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/StrictUtf8Test.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/StrictUtf8Test.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/HttpFakes.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.StrictUtf8Test"
+   ],
+   "patch": "proof/red/red-b-06.patch",
+   "tree": "80cc490e62e28bc2d3f67f76b0f3f22e7e61ec53",
+   "predict": "COMPILE RED on the item's new classes"
+  },
+  {
+   "id": "red-c-07",
+   "kind": "red",
+   "item": "c",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/HttpApkDownloaderTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/HttpApkDownloaderTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.HttpApkDownloaderTest"
+   ],
+   "patch": "proof/red/red-c-07.patch",
+   "tree": "364f0aad4b3eef022bde9cade40e6b4bcc08c5bc",
+   "predict": "COMPILE RED on the item's new classes"
+  },
+  {
+   "id": "red-c-08",
+   "kind": "red",
+   "item": "c",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ModuleHygieneTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ModuleHygieneTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.ModuleHygieneTest"
+   ],
+   "patch": "proof/red/red-c-08.patch",
+   "tree": "88cfbb16507a09ed9e02043d56aca95bae77fa9e",
+   "predict": "ASSERT RED: the allow-listed staging file does not exist at the item base"
+  },
+  {
+   "id": "red-c-09",
+   "kind": "red",
+   "item": "c",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/StagingNameTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/StagingNameTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.StagingNameTest"
+   ],
+   "patch": "proof/red/red-c-09.patch",
+   "tree": "b8a6a8adc868c9bbb2cc502695977cd8b4e9b637",
+   "predict": "COMPILE RED on the item's new classes"
+  },
+  {
+   "id": "red-e-10",
+   "kind": "red",
+   "item": "e",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CommitRouterTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CommitRouterTest.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/FirstStartTableRows.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.CommitRouterTest"
+   ],
+   "patch": "proof/red/red-e-10.patch",
+   "tree": "29b3e6849bc4e7494a9a7d144d7e8d728b99ab12",
+   "predict": "COMPILE RED on the item's new classes"
+  },
+  {
+   "id": "red-e-11",
+   "kind": "red",
+   "item": "e",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/FirstStartDecisionTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/FirstStartDecisionTest.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/FirstStartTableRows.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.FirstStartDecisionTest"
+   ],
+   "patch": "proof/red/red-e-11.patch",
+   "tree": "7fa43eaab532e4c79e4088a551f0e7be76a78ad3",
+   "predict": "COMPILE RED on the item's new classes"
+  },
+  {
+   "id": "red-e-12",
+   "kind": "red",
+   "item": "e",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/FirstStartRowsTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/FirstStartRowsTest.kt",
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/FirstStartTableRows.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.FirstStartRowsTest"
+   ],
+   "patch": "proof/red/red-e-12.patch",
+   "tree": "62c430fb5672ce4f154ba5d5edeab39007d0153d",
+   "predict": "COMPILE RED on the item's new classes"
+  },
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "            InstallerResult.DigestMismatch -> refused(UpdateSentences.DIGEST)",
+     "replacement": "            InstallerResult.DigestMismatch -> UpdateInstallResult.Failed(UpdateSentences.INSTALLER_FAILED)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a digest mismatch from the installer is refused with the digest sentence"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "        if (reading !is InstalledReading.Known) return UpdateCheckResult.Failed(UpdateSentences.INSTALLED_UNREADABLE)",
+     "replacement": "        checked = parsed; if (reading !is InstalledReading.Known) return UpdateCheckResult.Failed(UpdateSentences.INSTALLED_UNREADABLE)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an unreadable installed version stops check() before anything is remembered"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "        if (reading !is InstalledReading.Known) return UpdateInstallResult.Failed(UpdateSentences.INSTALLED_UNREADABLE)",
+     "replacement": "        if (reading !is InstalledReading.Known) return UpdateInstallResult.Refused(UpdateSentences.NOT_NEWER)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an unreadable installed version stops install() before recordUpdate"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "        if (reading !is InstalledReading.Known) return UpdateInstallResult.Failed(UpdateSentences.INSTALLED_UNREADABLE)",
+     "replacement": "        ledger.recordUpdate(now); if (reading !is InstalledReading.Known) return UpdateInstallResult.Failed(UpdateSentences.INSTALLED_UNREADABLE)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an unreadable installed version stops install() before recordUpdate"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "        if (reading !is InstalledReading.Known) return UpdateCheckResult.Failed(UpdateSentences.INSTALLED_UNREADABLE)",
+     "replacement": "        ledger.recordDefinitiveCheck(now); if (reading !is InstalledReading.Known) return UpdateCheckResult.Failed(UpdateSentences.INSTALLED_UNREADABLE)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an unreadable installed version stops check() before anything is remembered"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "            InstallerResult.DigestMismatch -> refused(UpdateSentences.DIGEST)",
+     "replacement": "            InstallerResult.DigestMismatch -> refused(UpdateSentences.INSTALLER_REFUSED)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a digest mismatch from the installer is refused with the digest sentence"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "            InstallerResult.DigestMismatch -> refused(UpdateSentences.DIGEST)",
+     "replacement": "            InstallerResult.DigestMismatch -> { ledger.recordUpdate(now); refused(UpdateSentences.DIGEST) }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a digest mismatch from the installer is refused with the digest sentence"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "            return installStaged(apk, release.sha256, now)",
+     "replacement": "            return installStaged(apk, now)"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "        when (installer.install(apk, sha256, apkByteCap)) {",
+     "replacement": "        when (installer.install(apk, apkByteCap, sha256)) {"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-10",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/PackageInstallerPort.kt",
+     "anchor": "    fun install(staged: StagedApk, expectedSha256: String, capBytes: Long): InstallerResult",
+     "replacement": "    fun install(staged: StagedApk, expectedSha256: String, capBytes: Int): InstallerResult"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-11",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "        when (installer.install(apk, sha256, apkByteCap)) {",
+     "replacement": "        when (installer.install(apk, sha256, MAX_APK_BYTES)) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the installer receives the verified digest and the byte cap"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-12",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ReleaseUpdateChecker.kt",
+     "anchor": "        when (installer.install(apk, sha256, apkByteCap)) {",
+     "replacement": "        when (installer.install(apk, sha256.drop(1), apkByteCap)) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the installer receives the verified digest and the byte cap"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-13",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerFakes.kt",
+     "anchor": "        return reading ?: InstalledReading.Known(build)",
+     "replacement": "        return reading ?: InstalledReading.Unreadable"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an installed build with the same code is up to date and records the check"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-14",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSentences.kt",
+     "anchor": "        INSTALLED_UNREADABLE,",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every new fixed sentence is listed in the fixed sentence list"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-15",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSentences.kt",
+     "anchor": "        CANCELLED,",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every new fixed sentence is listed in the fixed sentence list"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-16",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSentences.kt",
+     "anchor": "        UNCONFIRMED,",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every new fixed sentence is listed in the fixed sentence list"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-17",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSentences.kt",
+     "anchor": "        WAITING,",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every new fixed sentence is listed in the fixed sentence list"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-18",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateSentences.kt",
+     "anchor": "        NOT_FINISHED,",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every new fixed sentence is listed in the fixed sentence list"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-19",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/HttpRules.kt",
+     "anchor": "internal const val CONNECT_TIMEOUT_MS: Int = 10_000",
+     "replacement": "internal const val CONNECT_TIMEOUT_MS: Int = 0"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the connect and read timeouts are the named values in milliseconds"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-20",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/HttpRules.kt",
+     "anchor": "internal const val READ_TIMEOUT_MS: Int = 15_000",
+     "replacement": "internal const val READ_TIMEOUT_MS: Int = 150_000"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the connect and read timeouts are the named values in milliseconds"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-21",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/HttpRules.kt",
+     "anchor": "fun isSuccessStatus(status: Int): Boolean = status in 200..299",
+     "replacement": "fun isSuccessStatus(status: Int): Boolean = status in 200..301"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "only 200 to 299 are success statuses"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-22",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/HttpRules.kt",
+     "anchor": "if (!serverBase.regionMatches(0, HTTPS_PREFIX, 0, HTTPS_PREFIX.length, ignoreCase = true)) return null",
+     "replacement": "if (serverBase.isEmpty()) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an http base gives no manifest address"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-23",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/HttpRules.kt",
+     "anchor": "return serverBase.removeSuffix(\"/\") + MANIFEST_PATH",
+     "replacement": "return serverBase + MANIFEST_PATH"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a trailing slash on the base is removed once before the path"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-24",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/HttpRules.kt",
+     "anchor": "fun requestHeaders(): List<Pair<String, String>> = emptyList()",
+     "replacement": "fun requestHeaders(): List<Pair<String, String>> = listOf(\"Cookie\" to \"x\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the request carries no headers"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-25",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/CopyUpTo.kt",
+     "anchor": "if (read == 0) return null",
+     "replacement": "if (read == 0) return total"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a read that returns zero once gives null"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-26",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/CopyUpTo.kt",
+     "anchor": "while (room > 0L) {",
+     "replacement": "while (room >= 0L) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "copies exactly the limit when the input is longer",
+    "a zero limit copies nothing and reads nothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-27",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/CopyUpTo.kt",
+     "anchor": "val want = if (room >= COPY_CHUNK_BYTES) COPY_CHUNK_BYTES else room.toInt()",
+     "replacement": "val want = COPY_CHUNK_BYTES"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "copies exactly the limit when the input is longer"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-28",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/CopyUpTo.kt",
+     "anchor": "if (read == -1) return total",
+     "replacement": "if (read == -1) return limitBytes"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "copies everything when the input is shorter than the limit"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-29",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/CopyUpTo.kt",
+     "anchor": "if (read == -1) return total",
+     "replacement": "if (read == -1) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "empty input gives a count of zero"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-30",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/CopyUpTo.kt",
+     "anchor": "val read = try { input.read(buffer, 0, want) } catch (error: IOException) { return null }",
+     "replacement": "val read = input.read(buffer, 0, want)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a read IOException gives null"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-31",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/CopyUpTo.kt",
+     "anchor": "try { sink(buffer, 0, read) } catch (error: IOException) { return null }",
+     "replacement": "sink(buffer, 0, read)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a sink IOException gives null"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-32",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/CopyUpTo.kt",
+     "anchor": "val buffer = ByteArray(COPY_CHUNK_BYTES)",
+     "replacement": "input.close()\n    val buffer = ByteArray(COPY_CHUNK_BYTES)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the input is never closed"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-33",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/CopyUpTo.kt",
+     "anchor": "sink: (ByteArray, Int, Int) -> Unit): Long? {",
+     "replacement": "sink: (ByteArray, Int, Int) -> Unit): Long {"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-34",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StrictUtf8.kt",
+     "anchor": "internal fun decodeStrictUtf8(bytes: ByteArray): String? =",
+     "replacement": "internal fun decodeStrictUtf8(bytes: ByteArray): String ="
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-35",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StrictUtf8.kt",
+     "anchor": "if (isWellFormedUtf8(bytes)) String(bytes, Charsets.UTF_8) else null",
+     "replacement": "String(bytes, Charsets.UTF_8)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an overlong form gives null",
+    "a lone 0xFF byte gives null",
+    "a truncated three byte sequence gives null"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-36",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StrictUtf8.kt",
+     "anchor": "if (isWellFormedUtf8(bytes)) String(bytes, Charsets.UTF_8) else null",
+     "replacement": "if (isWellFormedUtf8(bytes)) String(bytes, Charsets.UTF_8).removePrefix(\"\\uFEFF\") else null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a byte order mark decodes to U+FEFF"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-37",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StrictUtf8.kt",
+     "anchor": "in 0xC2..0xDF -> listOf(2, 0x80, 0xBF)",
+     "replacement": "in 0xC0..0xDF -> listOf(2, 0x80, 0xBF)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an overlong form gives null"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-38",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StrictUtf8.kt",
+     "anchor": "0xE0 -> listOf(3, 0xA0, 0xBF)",
+     "replacement": "0xE0 -> listOf(3, 0x80, 0xBF)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an overlong form gives null"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-39",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StrictUtf8.kt",
+     "anchor": "0xF0 -> listOf(4, 0x90, 0xBF)",
+     "replacement": "0xF0 -> listOf(4, 0x80, 0xBF)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an overlong form gives null"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-40",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StrictUtf8.kt",
+     "anchor": "0xED -> listOf(3, 0x80, 0x9F)",
+     "replacement": "0xED -> listOf(3, 0x80, 0xBF)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an encoded surrogate gives null"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-41",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StrictUtf8.kt",
+     "anchor": "0xF4 -> listOf(4, 0x80, 0x8F)",
+     "replacement": "0xF4 -> listOf(4, 0x80, 0xBF)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a code point above U+10FFFF gives null"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-42",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StrictUtf8.kt",
+     "anchor": "else -> null",
+     "replacement": "else -> listOf(1, 0x80, 0xBF)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a lone 0xFF byte gives null"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-43",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StrictUtf8.kt",
+     "anchor": "if (i + length > bytes.size) return false",
+     "replacement": "if (i + length > bytes.size + 1) return false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a truncated three byte sequence gives null"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-44",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StrictUtf8.kt",
+     "anchor": "val allowed = if (k == 1) rule[1]..rule[2] else 0x80..0xBF",
+     "replacement": "val allowed = 0x80..0xBF"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an overlong form gives null",
+    "an encoded surrogate gives null"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-45",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StrictUtf8.kt",
+     "anchor": "i += length",
+     "replacement": "i += 1"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "valid text decodes to the same text"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-46",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/StrictUtf8.kt",
+     "anchor": "private fun leadRule(lead: Int): List<Int>? = when (lead) {",
+     "replacement": "private fun leadRule(lead: Int): List<Int> = when (lead) {"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-47",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateHttpOpener.kt",
+     "anchor": "connection.instanceFollowRedirects = false",
+     "replacement": "connection.instanceFollowRedirects = true"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the platform opener follows no redirect and sends only GET"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-48",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateHttpOpener.kt",
+     "anchor": "connection.requestMethod = \"GET\"",
+     "replacement": "connection.requestMethod = \"POST\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the platform opener follows no redirect and sends only GET"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-49",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateHttpOpener.kt",
+     "anchor": "connection.readTimeout = readTimeoutMs",
+     "replacement": "connection.readTimeout = readTimeoutMs\n        connection.setRequestProperty(\"Cookie\", \"x\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the platform opener applies only the request header list"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-50",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/UpdateHttpOpener.kt",
+     "anchor": "    fun open(url: String, connectTimeoutMs: Int, readTimeoutMs: Int): UpdateHttpReply",
+     "replacement": "    fun open(url: String, connectTimeoutMs: Int, readTimeoutMs: Int, headers: List<Pair<String, String>>): UpdateHttpReply"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-51",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestHttpSource.kt",
+     "anchor": "if (!HttpRules.isSuccessStatus(reply.status)) return ManifestLoad.Unavailable",
+     "replacement": "if (reply.status >= 400) return ManifestLoad.Unavailable"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a redirect is unavailable and its body is never read"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-52",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestHttpSource.kt",
+     "anchor": "if (reply.contentLength > ManifestReader.MAX_BYTES) return ManifestLoad.Unavailable",
+     "replacement": "if (reply.contentLength > Long.MAX_VALUE) return ManifestLoad.Unavailable"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a declared length over the cap is refused before any body byte is read"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-53",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestHttpSource.kt",
+     "anchor": "if (count > ManifestReader.MAX_BYTES) return ManifestLoad.Unavailable",
+     "replacement": "if (count > ManifestReader.MAX_BYTES.toLong() + 1L) return ManifestLoad.Unavailable"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a body of 65537 bytes is unavailable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-54",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestHttpSource.kt",
+     "anchor": "if (count > ManifestReader.MAX_BYTES) return ManifestLoad.Unavailable",
+     "replacement": "if (count >= ManifestReader.MAX_BYTES) return ManifestLoad.Unavailable"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a body of exactly 65536 bytes is read"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-55",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestHttpSource.kt",
+     "anchor": "if (reply.contentLength >= 0L && count < reply.contentLength) return ManifestLoad.Unavailable",
+     "replacement": "if (reply.contentLength < 0L && count < reply.contentLength) return ManifestLoad.Unavailable"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a declared length longer than the body is unavailable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-56",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestHttpSource.kt",
+     "anchor": "val text = decodeStrictUtf8(bytes.toByteArray()) ?: return ManifestLoad.Unavailable",
+     "replacement": "val text = String(bytes.toByteArray(), Charsets.UTF_8)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a malformed body is unavailable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-57",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestHttpSource.kt",
+     "anchor": "val url = HttpRules.manifestUrl(serverBase) ?: return ManifestLoad.Unavailable",
+     "replacement": "val url = HttpRules.manifestUrl(serverBase) ?: serverBase"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an http base gives unavailable and never calls the opener"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-58",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestHttpSource.kt",
+     "anchor": "return reply.use { readBody(it) }",
+     "replacement": "return readBody(reply)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the reply is closed on every path"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-59",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestHttpSource.kt",
+     "anchor": "opener.open(url, HttpRules.CONNECT_TIMEOUT_MS, HttpRules.READ_TIMEOUT_MS)",
+     "replacement": "opener.open(url, HttpRules.READ_TIMEOUT_MS, HttpRules.CONNECT_TIMEOUT_MS)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the opener gets the manifest address and the named timeouts"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-60",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestHttpSource.kt",
+     "anchor": "return ManifestLoad.Loaded(text, serverBase)",
+     "replacement": "return ManifestLoad.Loaded(text, serverBase + \"/\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a 200 with a valid body gives the text and the base unchanged"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-61",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestHttpSource.kt",
+     "anchor": "catch (error: IOException) {",
+     "replacement": "catch (error: IllegalStateException) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an IOException from the opener is unavailable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-62",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestHttpSource.kt",
+     "anchor": "import java.io.IOException",
+     "replacement": "import java.io.IOException\nimport java.net.URL"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "only the HTTP opener reaches the network"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-63",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestHttpSource.kt",
+     "anchor": "import java.io.IOException",
+     "replacement": "import java.io.IOException\nimport java.io.FileInputStream"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "file io is confined to the staging file and the clock is never read"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-64",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestHttpSource.kt",
+     "anchor": "if (!HttpRules.isSuccessStatus(reply.status)) return ManifestLoad.Unavailable",
+     "replacement": "val stamp = System.currentTimeMillis()\n        if (!HttpRules.isSuccessStatus(reply.status)) return ManifestLoad.Unavailable"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "file io is confined to the staging file and the clock is never read"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-65",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ModuleHygieneTest.kt",
+     "anchor": "setOf(\"UpdateHttpOpener.kt\")",
+     "replacement": "setOf(\"UpdateHttpOpener.kt\", \"ManifestHttpSource.kt\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an allow-list does not excuse a file it does not name"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-66",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ModuleHygieneTest.kt",
+     "anchor": "setOf(\"UpdateHttpOpener.kt\")",
+     "replacement": "setOf(\"UpdateHttpOpener.kt\", \"NoSuchFile.kt\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every allow-listed file name exists in the main sources"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-67",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ModuleHygieneTest.kt",
+     "anchor": "private val fileAllowed = setOf(\"ApkStaging.kt\")",
+     "replacement": "private val fileAllowed = setOf(\"ApkStaging.kt\", \"Missing.kt\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every allow-listed file name exists in the main sources"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-68",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/HttpRules.kt",
+     "anchor": "return serverBase.removeSuffix(\"/\") + MANIFEST_PATH",
+     "replacement": "return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "manifest address is built from an https base with the path added"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-69",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ManifestHttpSource.kt",
+     "anchor": "if (!HttpRules.isSuccessStatus(reply.status)) return ManifestLoad.Unavailable",
+     "replacement": "if (reply.status == 302) return ManifestLoad.Unavailable"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a 500 is unavailable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-70",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/HttpApkDownloader.kt",
+     "anchor": "        if (!HttpRules.isSuccessStatus(reply.status)) return ApkDownload.Unavailable",
+     "replacement": "        if (reply.status >= 400) return ApkDownload.Unavailable"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a 302 is unavailable and opens no output"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-71",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/HttpApkDownloader.kt",
+     "anchor": "        if (!HttpRules.isSuccessStatus(reply.status)) return ApkDownload.Unavailable",
+     "replacement": "        if (reply.status == 302) return ApkDownload.Unavailable"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a 404 is unavailable and opens no output"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-72",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/HttpApkDownloader.kt",
+     "anchor": "        val out = slot.openForWrite() ?: return ApkDownload.Unavailable",
+     "replacement": "        val out = slot.openForWrite() ?: return ApkDownload.Staged(slot.stagedApk())"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a slot that gives no output stream is unavailable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-73",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/HttpApkDownloader.kt",
+     "anchor": "            out.use { copyUpTo(reply.body, capBytes + 1L) { b, o, l -> out.write(b, o, l) } }",
+     "replacement": "            out.use { copyUpTo(reply.body, capBytes) { b, o, l -> out.write(b, o, l) } }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a 200 stages a file one byte past the cap when the body is longer"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-74",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/HttpApkDownloader.kt",
+     "anchor": "            out.use { copyUpTo(reply.body, capBytes + 1L) { b, o, l -> out.write(b, o, l) } }",
+     "replacement": "            out.use { copyUpTo(reply.body, Long.MAX_VALUE) { b, o, l -> out.write(b, o, l) } }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a 200 stages a file one byte past the cap when the body is longer"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-75",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/HttpApkDownloader.kt",
+     "anchor": "        if (reply.contentLength >= 0L && copied < reply.contentLength) return removedUnavailable()",
+     "replacement": "        if (reply.contentLength < 0L && copied < reply.contentLength) return removedUnavailable()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a body shorter than its declared length is unavailable and removes the file"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-76",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/HttpApkDownloader.kt",
+     "anchor": "        } catch (error: IOException) {",
+     "replacement": "        } catch (error: IllegalStateException) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an opener failure is unavailable and opens no output"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-77",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/HttpApkDownloader.kt",
+     "anchor": "        } catch (failure: IOException) {",
+     "replacement": "        } catch (failure: IllegalStateException) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a failure while closing the output is unavailable and removes the partial file"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-78",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/HttpApkDownloader.kt",
+     "anchor": "        return reply.use { writeBody(it) }",
+     "replacement": "        return writeBody(reply)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the reply is closed on every download path"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-79",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/HttpApkDownloader.kt",
+     "anchor": "            opener.open(apkUrl, HttpRules.CONNECT_TIMEOUT_MS, HttpRules.APK_READ_TIMEOUT_MS)",
+     "replacement": "            opener.open(apkUrl, HttpRules.CONNECT_TIMEOUT_MS, HttpRules.READ_TIMEOUT_MS)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the opener gets the apk address and the apk read timeout"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-80",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/HttpApkDownloader.kt",
+     "anchor": "        return ApkDownload.Staged(slot.stagedApk())",
+     "replacement": "        return ApkDownload.Unavailable"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a 200 stages a file one byte past the cap when the body is longer",
+    "a body of exactly the cap is staged whole"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-81",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/HttpApkDownloader.kt",
+     "anchor": "    private val capBytes: Long = MAX_APK_BYTES,",
+     "replacement": "    private val capBytes: Long = MAX_APK_BYTES - 1L,"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the download takes the byte cap as a constructor default of the named constant"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-82",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/HttpApkDownloader.kt",
+     "anchor": "        slot.removeQuietly()",
+     "replacement": "        Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a body shorter than its declared length is unavailable and removes the file",
+    "a write failure is unavailable and removes the partial file",
+    "a failure while closing the output is unavailable and removes the partial file",
+    "a short body leaves no staged file behind"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-83",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkStaging.kt",
+     "anchor": "internal const val STAGED_FILE_NAME: String = \"update-candidate.apk\"",
+     "replacement": "internal const val STAGED_FILE_NAME: String = \"update.apk\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the staged file has the fixed name and the URL does not name it"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-84",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkStaging.kt",
+     "anchor": "    override fun openForWrite(): OutputStream? = try { target.outputStream() } catch (error: IOException) { null }",
+     "replacement": "    override fun openForWrite(): OutputStream? = target.outputStream()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a missing folder gives no output stream"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-85",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkStaging.kt",
+     "anchor": "    override fun openForWrite(): OutputStream? = try { target.outputStream() } catch (error: IOException) { null }",
+     "replacement": "    override fun openForWrite(): OutputStream? = try { java.io.FileOutputStream(target, true) } catch (error: IOException) { null }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a second download replaces the earlier bytes"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-86",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkStaging.kt",
+     "anchor": "            Files.deleteIfExists(target.toPath())",
+     "replacement": "            Files.exists(target.toPath())"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "discard removes the staged file"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-87",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkStaging.kt",
+     "anchor": "            Files.deleteIfExists(target.toPath())",
+     "replacement": "            Files.delete(target.toPath())"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "discard of a missing file does not throw and leaves no leftover"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-88",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkStaging.kt",
+     "anchor": "            leftover = true",
+     "replacement": "            leftover = false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "discard of a file that cannot be removed does not throw and sets leftover"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-89",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkStaging.kt",
+     "anchor": "    override fun open(): InputStream? = try { Files.newInputStream(target.toPath()) } catch (error: IOException) { null }",
+     "replacement": "    override fun open(): InputStream? = Files.newInputStream(target.toPath())"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "open of a missing file is null"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-90",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkStaging.kt",
+     "anchor": "    override fun open(): InputStream? = try { Files.newInputStream(target.toPath()) } catch (error: IOException) { null }",
+     "replacement": "    override fun open(): InputStream? = null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "open of a staged file gives its bytes"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-91",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkStaging.kt",
+     "anchor": "        stagedApk().discard()",
+     "replacement": "        stagedApk()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a short body leaves no staged file behind"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-92",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ModuleHygieneTest.kt",
+     "anchor": "    private val fileAllowed = setOf(\"ApkStaging.kt\")",
+     "replacement": "    private val fileAllowed = setOf<String>()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "file io is confined to the staging file and the clock is never read"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-93",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ModuleHygieneTest.kt",
+     "anchor": "    private val fileAllowed = setOf(\"ApkStaging.kt\")",
+     "replacement": "    private val fileAllowed = setOf(\"ApkStaging.kt\", \"LedgerStore.kt\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every allow-listed file name exists in the main sources"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-94",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/HttpApkDownloader.kt",
+     "anchor": "    fun openForWrite(): OutputStream?",
+     "replacement": "    fun openForWrite(): OutputStream"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-95",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/HttpApkDownloader.kt",
+     "anchor": "    private val capBytes: Long = MAX_APK_BYTES,",
+     "replacement": "    private val capBytes: Int = MAX_APK_BYTES,"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-96",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkStaging.kt",
+     "anchor": "    override fun stagedApk(): StagedApk = FileStagedApk(target)",
+     "replacement": "    override fun stagedApk(): StagedApk? = FileStagedApk(target)"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-97",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "    private const val PENDING_LIMIT_MILLIS: Long = 86_400_000L",
+     "replacement": "    private const val PENDING_LIMIT_MILLIS: Long = 86_399_999L"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a start with an uncommitted session just under one day keeps the record and blocks installs"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-98",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "    private const val PENDING_LIMIT_MILLIS: Long = 86_400_000L",
+     "replacement": "    private const val PENDING_LIMIT_MILLIS: Long = 86_400_001L"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "a start with an unknown session at exactly one day shows not finished and clears the record",
+    "a start with an uncommitted session at exactly one day shows not finished and abandons the session",
+    "a start with a committed session at exactly one day clears the record and allows installs"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-99",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        if (input.record == RecordState.NONE) decideRecordless(input) else decideInFlight(input)",
+     "replacement": "        if (input.record == RecordState.IN_FLIGHT) decideRecordless(input) else decideInFlight(input)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "an installed code above the last seen code with no record shows the installed state",
+    "a final status with no record is not shown and keeps the last seen code",
+    "a start with a gone session and a code that rose shows the installed state and clears the record"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-100",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        StartEvent.FINAL_STATUS, StartEvent.DISMISS -> keepRecordless(input)",
+     "replacement": "        StartEvent.FINAL_STATUS, StartEvent.DISMISS -> keepRecordless(input).copy(installAllowed = false)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "a final status with no record is not shown and keeps the last seen code"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-101",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        StartEvent.START -> decideRecordlessStart(input)",
+     "replacement": "        StartEvent.START -> keepRecordless(input)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "an installed code above the last seen code with no record shows the installed state"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-102",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        val installed = input.installedCode ?: return keepRecordless(input)",
+     "replacement": "        val installed = input.installedCode ?: return keepRecordless(input).copy(shown = Shown.INSTALLED)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-103",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        StartDecision(Shown.NOTHING, null, RecordAction.KEEP, false, input.lastOutcome, input.lastSeenCode, true)",
+     "replacement": "        StartDecision(Shown.NOTHING, null, RecordAction.KEEP, false, input.lastOutcome, input.installedCode ?: input.lastSeenCode, true)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "a final status with no record is not shown and keeps the last seen code"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-104",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "            return StartDecision(Shown.INSTALLED, null, RecordAction.KEEP, false, null, installed, true)",
+     "replacement": "            return StartDecision(Shown.INSTALLED, null, RecordAction.KEEP, false, null, input.lastSeenCode, true)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "an installed code above the last seen code with no record shows the installed state"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-105",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        if (input.lastSeenCode == installed && input.lastOutcome != null) {",
+     "replacement": "        if (input.lastSeenCode == installed) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-106",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "            return StartDecision(Shown.SENTENCE, input.lastOutcome, RecordAction.KEEP, false, null, installed, true)",
+     "replacement": "            return StartDecision(Shown.SENTENCE, input.lastOutcome, RecordAction.CLEAR, false, null, installed, true)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-107",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        return StartDecision(Shown.NOTHING, null, RecordAction.KEEP, false, null, installed, true)",
+     "replacement": "        return StartDecision(Shown.INSTALLED, null, RecordAction.KEEP, false, null, installed, true)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-108",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        val seen = input.installedCode ?: input.lastSeenCode",
+     "replacement": "        val seen = input.lastSeenCode"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "a start with a gone session and a code that rose shows the installed state and clears the record",
+    "a start with an uncommitted session and a code that rose shows the installed state and abandons the session",
+    "a dismiss with an uncommitted session and a code that rose shows the installed state and abandons the session"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-109",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "            val abandon = input.session == SessionState.OPEN_NOT_COMMITTED",
+     "replacement": "            val abandon = input.session != SessionState.GONE"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "every reachable input keeps the invariants the design lists"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-110",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        val status = input.finalStatus",
+     "replacement": "        val status = input.finalStatus.takeIf { input.event == StartEvent.FINAL_STATUS }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "a dismiss with a committed session and a stored success shows the success sentence and clears the record"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-111",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "            val sentence = sentenceFor(status, input.installedCode == null)",
+     "replacement": "            val sentence = sentenceFor(status, false)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "a start with a gone session, a stored success and an unreadable code shows not finished and keeps the last seen code"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-112",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "            val stored = if (input.event == StartEvent.FINAL_STATUS) sentence else null",
+     "replacement": "            val stored = sentence"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "a dismiss with a committed session and a stored success shows the success sentence and clears the record"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-113",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "            return StartDecision(Shown.SENTENCE, sentence, RecordAction.CLEAR, false, stored, seen, true)",
+     "replacement": "            return StartDecision(Shown.SENTENCE, sentence, RecordAction.KEEP, false, stored, seen, true)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "a final status of aborted shows the cancelled sentence and stores it as the last outcome"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-114",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        if (input.event == StartEvent.DISMISS) {",
+     "replacement": "        if (input.event == StartEvent.DISMISS && input.session != SessionState.GONE) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "a dismiss with an uncommitted session under a day shows not finished and abandons the session"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-115",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "            return clearedNotFinished(seen, input.session == SessionState.OPEN_NOT_COMMITTED)",
+     "replacement": "            return clearedNotFinished(seen, false)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "a dismiss with an uncommitted session under a day shows not finished and abandons the session"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-116",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        return decideInFlightStart(input, seen, isExpired(input))",
+     "replacement": "        return decideInFlightStart(input, seen, false)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "every reachable input keeps the invariants the design lists",
+    "a start with an unknown session at exactly one day shows not finished and clears the record",
+    "a start with an uncommitted session at exactly one day shows not finished and abandons the session",
+    "a start with a committed session and a negative age shows not finished and clears the record",
+    "a start with a committed session at exactly one day clears the record and allows installs"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-117",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "            SessionState.GONE -> clearedNotFinished(seen, false)",
+     "replacement": "            SessionState.GONE -> clearedNotFinished(seen, true)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "every reachable input keeps the invariants the design lists",
+    "a missing last seen code is not read as a code that rose"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-118",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "                if (expired) clearedNotFinished(seen, true) else keptNotFinished(input, seen, true)",
+     "replacement": "                if (expired) clearedNotFinished(seen, false) else keptNotFinished(input, seen, true)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "a start with an uncommitted session at exactly one day shows not finished and abandons the session"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-119",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "                if (expired) clearedNotFinished(seen, true) else keptNotFinished(input, seen, true)",
+     "replacement": "                if (expired) clearedNotFinished(seen, true) else keptNotFinished(input, seen, false)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "a start with an uncommitted session just under one day keeps the record and blocks installs"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-120",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "                if (expired) clearedNotFinished(seen, false) else keptWaiting(input, seen)",
+     "replacement": "                if (expired) clearedNotFinished(seen, false) else clearedNotFinished(seen, false)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "a start with a committed session under a day shows waiting, keeps the record and blocks installs"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-121",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "                if (expired) clearedNotFinished(seen, false) else keptNotFinished(input, seen, false)",
+     "replacement": "                if (expired) clearedNotFinished(seen, true) else keptNotFinished(input, seen, false)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "a start with an unknown session at exactly one day shows not finished and clears the record"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-122",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "                if (expired) clearedNotFinished(seen, false) else keptNotFinished(input, seen, false)",
+     "replacement": "                if (expired) clearedNotFinished(seen, false) else keptWaiting(input, seen)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "a start with an unknown session under a day shows not finished, keeps the record and blocks installs"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-123",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        StartDecision(Shown.SENTENCE, UpdateSentences.NOT_FINISHED, RecordAction.CLEAR, abandon, null, seen, true)",
+     "replacement": "        StartDecision(Shown.SENTENCE, UpdateSentences.NOT_FINISHED, RecordAction.KEEP, abandon, null, seen, true)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "a dismiss with an uncommitted session under a day shows not finished and abandons the session"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-124",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        StartDecision(Shown.SENTENCE, UpdateSentences.NOT_FINISHED, RecordAction.CLEAR, abandon, null, seen, true)",
+     "replacement": "        StartDecision(Shown.SENTENCE, UpdateSentences.NOT_FINISHED, RecordAction.CLEAR, abandon, null, seen, false)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "a dismiss with an uncommitted session under a day shows not finished and abandons the session",
+    "a start with a committed session at exactly one day clears the record and allows installs"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-125",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        StartDecision(Shown.SENTENCE, UpdateSentences.NOT_FINISHED, RecordAction.KEEP, abandon, input.lastOutcome, seen, false)",
+     "replacement": "        StartDecision(Shown.SENTENCE, UpdateSentences.NOT_FINISHED, RecordAction.KEEP, abandon, null, seen, false)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-126",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        StartDecision(Shown.SENTENCE, UpdateSentences.NOT_FINISHED, RecordAction.KEEP, abandon, input.lastOutcome, seen, false)",
+     "replacement": "        StartDecision(Shown.SENTENCE, UpdateSentences.NOT_FINISHED, RecordAction.KEEP, abandon, input.lastOutcome, seen, true)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "a start with an uncommitted session just under one day keeps the record and blocks installs",
+    "a start with an unknown session under a day shows not finished, keeps the record and blocks installs"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-127",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        StartDecision(Shown.SENTENCE, UpdateSentences.WAITING, RecordAction.KEEP, false, input.lastOutcome, seen, false)",
+     "replacement": "        StartDecision(Shown.SENTENCE, UpdateSentences.NOT_FINISHED, RecordAction.KEEP, false, input.lastOutcome, seen, false)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "a start with a committed session under a day shows waiting, keeps the record and blocks installs"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-128",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        val age = input.nowMillis - input.recordWrittenAtMillis",
+     "replacement": "        val age = input.recordWrittenAtMillis - input.nowMillis"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "a start with an uncommitted session just under one day keeps the record and blocks installs",
+    "a start with a committed session under a day shows waiting, keeps the record and blocks installs"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-129",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        return age < 0L || age >= PENDING_LIMIT_MILLIS",
+     "replacement": "        return age < 0L || age > PENDING_LIMIT_MILLIS"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "a start with an uncommitted session at exactly one day shows not finished and abandons the session",
+    "a start with a committed session at exactly one day clears the record and allows installs"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-130",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        return age < 0L || age >= PENDING_LIMIT_MILLIS",
+     "replacement": "        return age >= PENDING_LIMIT_MILLIS"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a start with a committed session and a negative age shows not finished and clears the record"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-131",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        return age < 0L || age >= PENDING_LIMIT_MILLIS",
+     "replacement": "        return age <= 0L || age >= PENDING_LIMIT_MILLIS"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a record written at the instant of the start is not yet expired"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-132",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        val installed = input.installedCode ?: return false",
+     "replacement": "        val installed = input.installedCode ?: return true"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "a start with a gone session, a stored success and an unreadable code shows not finished and keeps the last seen code"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-133",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        val seen = input.lastSeenCode ?: return false",
+     "replacement": "        val seen = input.lastSeenCode ?: return true"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a missing last seen code is not read as a code that rose"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-134",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        return installed > seen",
+     "replacement": "        return installed >= seen"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "a dismiss with a committed session and a stored success shows the success sentence and clears the record"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-135",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        return installed > seen",
+     "replacement": "        return installed < seen"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "an installed code above the last seen code with no record shows the installed state"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-136",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        CommitStatus.Success -> if (unreadable) UpdateSentences.NOT_FINISHED else UpdateSentences.UNCONFIRMED",
+     "replacement": "        CommitStatus.Success -> if (unreadable) UpdateSentences.UNCONFIRMED else UpdateSentences.NOT_FINISHED"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "a start with a gone session, a stored success and an unreadable code shows not finished and keeps the last seen code",
+    "a start with a gone session, a stored success and an unchanged code shows the unconfirmed sentence"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-137",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        CommitStatus.Aborted -> UpdateSentences.CANCELLED",
+     "replacement": "        CommitStatus.Aborted -> UpdateSentences.WAITING"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "a final status of aborted shows the cancelled sentence and stores it as the last outcome"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-138",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        CommitStatus.RefusedByInstaller -> UpdateSentences.INSTALLER_REFUSED",
+     "replacement": "        CommitStatus.RefusedByInstaller -> UpdateSentences.INSTALLER_FAILED"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-139",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "        CommitStatus.StorageFailure, CommitStatus.OtherFailure -> UpdateSentences.INSTALLER_FAILED",
+     "replacement": "        CommitStatus.StorageFailure, CommitStatus.OtherFailure -> UpdateSentences.INSTALLER_REFUSED"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-140",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/CommitRouter.kt",
+     "anchor": "        if (status == CommitStatus.PendingUserAction && handle != null) {",
+     "replacement": "        if (status != CommitStatus.Aborted && handle != null) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the five other statuses never call the confirmation port"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-141",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/CommitRouter.kt",
+     "anchor": "            confirmation.startConfirmation(handle)",
+     "replacement": "            confirmation.startConfirmation(ConfirmationHandle(handle.opaque))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a pending user action with a handle starts the confirmation once with that same handle"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-142",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/CommitRouter.kt",
+     "anchor": "            confirmation.startConfirmation(handle)",
+     "replacement": "            confirmation.startConfirmation(handle); confirmation.startConfirmation(handle)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a pending user action with a handle starts the confirmation once with that same handle"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-143",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/CommitRouter.kt",
+     "anchor": "    internal fun onResult(status: CommitStatus, handle: ConfirmationHandle?) {",
+     "replacement": "    internal fun onResult(status: CommitStatus, handle: ConfirmationHandle?) { if (status == CommitStatus.PendingUserAction && handle == null) confirmation.startConfirmation(ConfirmationHandle(Unit))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a pending user action with no handle calls nothing on the confirmation port"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-144",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/FirstStartDecisionTest.kt",
+     "anchor": "    val ages = listOf(UNDER_A_DAY_MILLIS, A_DAY_MILLIS)",
+     "replacement": "    val ages = listOf(UNDER_A_DAY_MILLIS)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the enumeration has 1144 cells with 904 reachable and 240 unreachable, each unreachable one with a reason",
+    "each row covers the number of reachable cells listed for it"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-145",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/FirstStartTableRows.kt",
+     "anchor": "        cells = 212,",
+     "replacement": "        cells = 211,"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "each row covers the number of reachable cells listed for it"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-146",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "internal enum class StartEvent { START, FINAL_STATUS, DISMISS }",
+     "replacement": "internal enum class StartEvent { START, FINAL_STATUS, DISMISS, UNKNOWN }"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "the enumeration has 1144 cells with 904 reachable and 240 unreachable, each unreachable one with a reason",
+    "each row covers the number of reachable cells listed for it",
+    "every reachable input keeps the invariants the design lists",
+    "an installed code above the last seen code with no record shows the installed state",
+    "a final status with no record is not shown and keeps the last seen code",
+    "a dismiss with an uncommitted session under a day shows not finished and abandons the session",
+    "a dismiss with a committed session and a stored success shows the success sentence and clears the record",
+    "a start with a gone session and a code that rose shows the installed state and clears the record",
+    "a start with an uncommitted session and a code that rose shows the installed state and abandons the session",
+    "a start with an unknown session at exactly one day shows not finished and clears the record",
+    "a start with an uncommitted session at exactly one day shows not finished and abandons the session",
+    "a start with an uncommitted session just under one day keeps the record and blocks installs",
+    "a start with a committed session and a negative age shows not finished and clears the record",
+    "a start with a committed session under a day shows waiting, keeps the record and blocks installs",
+    "a start with a gone session, a stored success and an unreadable code shows not finished and keeps the last seen code",
+    "a final status of aborted shows the cancelled sentence and stores it as the last outcome",
+    "a start with a gone session, a stored success and an unchanged code shows the unconfirmed sentence",
+    "a start with an unknown session under a day shows not finished, keeps the record and blocks installs",
+    "a start with a committed session at exactly one day clears the record and allows installs",
+    "a dismiss with an uncommitted session and a code that rose shows the installed state and abandons the session",
+    "a missing last seen code is not read as a code that rose",
+    "a record written at the instant of the start is not yet expired",
+    "a pending user action with a handle starts the confirmation once with that same handle",
+    "the five other statuses never call the confirmation port",
+    "a pending user action with no handle calls nothing on the confirmation port"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-147",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "internal enum class SessionState { GONE, OPEN_COMMITTED, OPEN_NOT_COMMITTED, UNKNOWN }",
+     "replacement": "internal enum class SessionState { GONE, OPEN_COMMITTED, OPEN_NOT_COMMITTED }"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "the enumeration has 1144 cells with 904 reachable and 240 unreachable, each unreachable one with a reason",
+    "each row covers the number of reachable cells listed for it",
+    "every reachable input keeps the invariants the design lists",
+    "an installed code above the last seen code with no record shows the installed state",
+    "a final status with no record is not shown and keeps the last seen code",
+    "a dismiss with an uncommitted session under a day shows not finished and abandons the session",
+    "a dismiss with a committed session and a stored success shows the success sentence and clears the record",
+    "a start with a gone session and a code that rose shows the installed state and clears the record",
+    "a start with an uncommitted session and a code that rose shows the installed state and abandons the session",
+    "a start with an unknown session at exactly one day shows not finished and clears the record",
+    "a start with an uncommitted session at exactly one day shows not finished and abandons the session",
+    "a start with an uncommitted session just under one day keeps the record and blocks installs",
+    "a start with a committed session and a negative age shows not finished and clears the record",
+    "a start with a committed session under a day shows waiting, keeps the record and blocks installs",
+    "a start with a gone session, a stored success and an unreadable code shows not finished and keeps the last seen code",
+    "a final status of aborted shows the cancelled sentence and stores it as the last outcome",
+    "a start with a gone session, a stored success and an unchanged code shows the unconfirmed sentence",
+    "a start with an unknown session under a day shows not finished, keeps the record and blocks installs",
+    "a start with a committed session at exactly one day clears the record and allows installs",
+    "a dismiss with an uncommitted session and a code that rose shows the installed state and abandons the session",
+    "a missing last seen code is not read as a code that rose",
+    "a record written at the instant of the start is not yet expired",
+    "a pending user action with a handle starts the confirmation once with that same handle",
+    "the five other statuses never call the confirmation port",
+    "a pending user action with no handle calls nothing on the confirmation port"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-148",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "    val installedCode: Int?,",
+     "replacement": "    val installedCode: Long?,"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "the enumeration has 1144 cells with 904 reachable and 240 unreachable, each unreachable one with a reason",
+    "each row covers the number of reachable cells listed for it",
+    "every reachable input keeps the invariants the design lists",
+    "an installed code above the last seen code with no record shows the installed state",
+    "a final status with no record is not shown and keeps the last seen code",
+    "a dismiss with an uncommitted session under a day shows not finished and abandons the session",
+    "a dismiss with a committed session and a stored success shows the success sentence and clears the record",
+    "a start with a gone session and a code that rose shows the installed state and clears the record",
+    "a start with an uncommitted session and a code that rose shows the installed state and abandons the session",
+    "a start with an unknown session at exactly one day shows not finished and clears the record",
+    "a start with an uncommitted session at exactly one day shows not finished and abandons the session",
+    "a start with an uncommitted session just under one day keeps the record and blocks installs",
+    "a start with a committed session and a negative age shows not finished and clears the record",
+    "a start with a committed session under a day shows waiting, keeps the record and blocks installs",
+    "a start with a gone session, a stored success and an unreadable code shows not finished and keeps the last seen code",
+    "a final status of aborted shows the cancelled sentence and stores it as the last outcome",
+    "a start with a gone session, a stored success and an unchanged code shows the unconfirmed sentence",
+    "a start with an unknown session under a day shows not finished, keeps the record and blocks installs",
+    "a start with a committed session at exactly one day clears the record and allows installs",
+    "a dismiss with an uncommitted session and a code that rose shows the installed state and abandons the session",
+    "a missing last seen code is not read as a code that rose",
+    "a record written at the instant of the start is not yet expired",
+    "a pending user action with a handle starts the confirmation once with that same handle",
+    "the five other statuses never call the confirmation port",
+    "a pending user action with no handle calls nothing on the confirmation port"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-149",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "    val storeLastSeenCode: Int?,",
+     "replacement": "    val storeLastSeenCode: Int,"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "the enumeration has 1144 cells with 904 reachable and 240 unreachable, each unreachable one with a reason",
+    "each row covers the number of reachable cells listed for it",
+    "every reachable input keeps the invariants the design lists",
+    "an installed code above the last seen code with no record shows the installed state",
+    "a final status with no record is not shown and keeps the last seen code",
+    "a dismiss with an uncommitted session under a day shows not finished and abandons the session",
+    "a dismiss with a committed session and a stored success shows the success sentence and clears the record",
+    "a start with a gone session and a code that rose shows the installed state and clears the record",
+    "a start with an uncommitted session and a code that rose shows the installed state and abandons the session",
+    "a start with an unknown session at exactly one day shows not finished and clears the record",
+    "a start with an uncommitted session at exactly one day shows not finished and abandons the session",
+    "a start with an uncommitted session just under one day keeps the record and blocks installs",
+    "a start with a committed session and a negative age shows not finished and clears the record",
+    "a start with a committed session under a day shows waiting, keeps the record and blocks installs",
+    "a start with a gone session, a stored success and an unreadable code shows not finished and keeps the last seen code",
+    "a final status of aborted shows the cancelled sentence and stores it as the last outcome",
+    "a start with a gone session, a stored success and an unchanged code shows the unconfirmed sentence",
+    "a start with an unknown session under a day shows not finished, keeps the record and blocks installs",
+    "a start with a committed session at exactly one day clears the record and allows installs",
+    "a dismiss with an uncommitted session and a code that rose shows the installed state and abandons the session",
+    "a missing last seen code is not read as a code that rose",
+    "a record written at the instant of the start is not yet expired",
+    "a pending user action with a handle starts the confirmation once with that same handle",
+    "the five other statuses never call the confirmation port",
+    "a pending user action with no handle calls nothing on the confirmation port"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-150",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt",
+     "anchor": "    SENTENCE,",
+     "replacement": "    SENTENCE, WAITING,"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "the enumeration has 1144 cells with 904 reachable and 240 unreachable, each unreachable one with a reason",
+    "each row covers the number of reachable cells listed for it",
+    "every reachable input keeps the invariants the design lists",
+    "an installed code above the last seen code with no record shows the installed state",
+    "a final status with no record is not shown and keeps the last seen code",
+    "a dismiss with an uncommitted session under a day shows not finished and abandons the session",
+    "a dismiss with a committed session and a stored success shows the success sentence and clears the record",
+    "a start with a gone session and a code that rose shows the installed state and clears the record",
+    "a start with an uncommitted session and a code that rose shows the installed state and abandons the session",
+    "a start with an unknown session at exactly one day shows not finished and clears the record",
+    "a start with an uncommitted session at exactly one day shows not finished and abandons the session",
+    "a start with an uncommitted session just under one day keeps the record and blocks installs",
+    "a start with a committed session and a negative age shows not finished and clears the record",
+    "a start with a committed session under a day shows waiting, keeps the record and blocks installs",
+    "a start with a gone session, a stored success and an unreadable code shows not finished and keeps the last seen code",
+    "a final status of aborted shows the cancelled sentence and stores it as the last outcome",
+    "a start with a gone session, a stored success and an unchanged code shows the unconfirmed sentence",
+    "a start with an unknown session under a day shows not finished, keeps the record and blocks installs",
+    "a start with a committed session at exactly one day clears the record and allows installs",
+    "a dismiss with an uncommitted session and a code that rose shows the installed state and abandons the session",
+    "a missing last seen code is not read as a code that rose",
+    "a record written at the instant of the start is not yet expired",
+    "a pending user action with a handle starts the confirmation once with that same handle",
+    "the five other statuses never call the confirmation port",
+    "a pending user action with no handle calls nothing on the confirmation port"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-151",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/CommitRouter.kt",
+     "anchor": "    StorageFailure,",
+     "replacement": ""
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "the enumeration has 1144 cells with 904 reachable and 240 unreachable, each unreachable one with a reason",
+    "each row covers the number of reachable cells listed for it",
+    "every reachable input keeps the invariants the design lists",
+    "an installed code above the last seen code with no record shows the installed state",
+    "a final status with no record is not shown and keeps the last seen code",
+    "a dismiss with an uncommitted session under a day shows not finished and abandons the session",
+    "a dismiss with a committed session and a stored success shows the success sentence and clears the record",
+    "a start with a gone session and a code that rose shows the installed state and clears the record",
+    "a start with an uncommitted session and a code that rose shows the installed state and abandons the session",
+    "a start with an unknown session at exactly one day shows not finished and clears the record",
+    "a start with an uncommitted session at exactly one day shows not finished and abandons the session",
+    "a start with an uncommitted session just under one day keeps the record and blocks installs",
+    "a start with a committed session and a negative age shows not finished and clears the record",
+    "a start with a committed session under a day shows waiting, keeps the record and blocks installs",
+    "a start with a gone session, a stored success and an unreadable code shows not finished and keeps the last seen code",
+    "a final status of aborted shows the cancelled sentence and stores it as the last outcome",
+    "a start with a gone session, a stored success and an unchanged code shows the unconfirmed sentence",
+    "a start with an unknown session under a day shows not finished, keeps the record and blocks installs",
+    "a start with a committed session at exactly one day clears the record and allows installs",
+    "a dismiss with an uncommitted session and a code that rose shows the installed state and abandons the session",
+    "a missing last seen code is not read as a code that rose",
+    "a record written at the instant of the start is not yet expired",
+    "a pending user action with a handle starts the confirmation once with that same handle",
+    "the five other statuses never call the confirmation port",
+    "a pending user action with no handle calls nothing on the confirmation port"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-152",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/CommitRouter.kt",
+     "anchor": "        if (status == CommitStatus.PendingUserAction && handle != null) {",
+     "replacement": "        if (status == CommitStatus.PendingUserAction) {"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "the enumeration has 1144 cells with 904 reachable and 240 unreachable, each unreachable one with a reason",
+    "each row covers the number of reachable cells listed for it",
+    "every reachable input keeps the invariants the design lists",
+    "an installed code above the last seen code with no record shows the installed state",
+    "a final status with no record is not shown and keeps the last seen code",
+    "a dismiss with an uncommitted session under a day shows not finished and abandons the session",
+    "a dismiss with a committed session and a stored success shows the success sentence and clears the record",
+    "a start with a gone session and a code that rose shows the installed state and clears the record",
+    "a start with an uncommitted session and a code that rose shows the installed state and abandons the session",
+    "a start with an unknown session at exactly one day shows not finished and clears the record",
+    "a start with an uncommitted session at exactly one day shows not finished and abandons the session",
+    "a start with an uncommitted session just under one day keeps the record and blocks installs",
+    "a start with a committed session and a negative age shows not finished and clears the record",
+    "a start with a committed session under a day shows waiting, keeps the record and blocks installs",
+    "a start with a gone session, a stored success and an unreadable code shows not finished and keeps the last seen code",
+    "a final status of aborted shows the cancelled sentence and stores it as the last outcome",
+    "a start with a gone session, a stored success and an unchanged code shows the unconfirmed sentence",
+    "a start with an unknown session under a day shows not finished, keeps the record and blocks installs",
+    "a start with a committed session at exactly one day clears the record and allows installs",
+    "a dismiss with an uncommitted session and a code that rose shows the installed state and abandons the session",
+    "a missing last seen code is not read as a code that rose",
+    "a record written at the instant of the start is not yet expired",
+    "a pending user action with a handle starts the confirmation once with that same handle",
+    "the five other statuses never call the confirmation port",
+    "a pending user action with no handle calls nothing on the confirmation port"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-153",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/InstallConfirmation.kt",
+     "anchor": "    public fun startConfirmation(handle: ConfirmationHandle)",
+     "replacement": "    public fun startConfirmation(handle: ConfirmationHandle?)"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [
+    "every reachable input matches exactly one row and decides the way that row says",
+    "the enumeration has 1144 cells with 904 reachable and 240 unreachable, each unreachable one with a reason",
+    "each row covers the number of reachable cells listed for it",
+    "every reachable input keeps the invariants the design lists",
+    "an installed code above the last seen code with no record shows the installed state",
+    "a final status with no record is not shown and keeps the last seen code",
+    "a dismiss with an uncommitted session under a day shows not finished and abandons the session",
+    "a dismiss with a committed session and a stored success shows the success sentence and clears the record",
+    "a start with a gone session and a code that rose shows the installed state and clears the record",
+    "a start with an uncommitted session and a code that rose shows the installed state and abandons the session",
+    "a start with an unknown session at exactly one day shows not finished and clears the record",
+    "a start with an uncommitted session at exactly one day shows not finished and abandons the session",
+    "a start with an uncommitted session just under one day keeps the record and blocks installs",
+    "a start with a committed session and a negative age shows not finished and clears the record",
+    "a start with a committed session under a day shows waiting, keeps the record and blocks installs",
+    "a start with a gone session, a stored success and an unreadable code shows not finished and keeps the last seen code",
+    "a final status of aborted shows the cancelled sentence and stores it as the last outcome",
+    "a start with a gone session, a stored success and an unchanged code shows the unconfirmed sentence",
+    "a start with an unknown session under a day shows not finished, keeps the record and blocks installs",
+    "a start with a committed session at exactly one day clears the record and allows installs",
+    "a dismiss with an uncommitted session and a code that rose shows the installed state and abandons the session",
+    "a missing last seen code is not read as a code that rose",
+    "a record written at the instant of the start is not yet expired",
+    "a pending user action with a handle starts the confirmation once with that same handle",
+    "the five other statuses never call the confirmation port",
+    "a pending user action with no handle calls nothing on the confirmation port"
+   ],
+   "rule": "",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "android/modules/updater",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/VersionCode.kt",
+     "anchor": "    internal const val MAX: Int = 2_100_000_000\n",
+     "replacement": "    internal const val MAX: Int = 2_100_000_001\n"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "android/modules/updater",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/VersionCode.kt",
+     "anchor": "    internal const val MAX: Int = 2_100_000_000\n",
+     "replacement": "    internal const val MAX: Int = 2_100_000_000 // unchanged behaviour\n"
+    }
+   ]
+  }
+ ]
+}

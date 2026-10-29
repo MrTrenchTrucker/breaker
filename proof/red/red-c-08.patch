@@ -1,0 +1,1374 @@
+diff --git a/android/modules/updater/AGENTS.md b/android/modules/updater/AGENTS.md
+index 83d8439f..277b6430 100644
+--- a/android/modules/updater/AGENTS.md
++++ b/android/modules/updater/AGENTS.md
+@@ -11,7 +11,7 @@ at OUR server, signing key secured (never git) [1].
+ ## Owns
+ Daily update check + admin force-check, signed APK verify, rollback.
+ 
+-## Public Interface `core.UpdateChecker` port, and the install module's public names: UpdateInstallFacade, ConfirmationPort, ConfirmationHandle, CommitStatus, Shown, StartResult.
++## Public Interface `core.UpdateChecker` port.
+ 
+ **Check schedule (F20):**
+ - Automatic: once per day (on app start if > 24 h since last check, plus a
+diff --git a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkStaging.kt b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkStaging.kt
+deleted file mode 100644
+index 0a4d4c6b..00000000
+--- a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkStaging.kt
++++ /dev/null
+@@ -1,45 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import java.io.File
+-import java.io.IOException
+-import java.io.InputStream
+-import java.io.OutputStream
+-import java.nio.file.Files
+-
+-/** The fixed file name of the staged update. A download never takes its name from the URL. */
+-internal const val STAGED_FILE_NAME: String = "update-candidate.apk"
+-
+-/**
+- * The app-private folder that holds the staged update: one file under [STAGED_FILE_NAME]. Each write truncates it.
+- */
+-internal class ApkStaging(private val dir: File) : StagingSlot {
+-    private val target: File = File(dir, STAGED_FILE_NAME)
+-
+-    override fun openForWrite(): OutputStream? = try { target.outputStream() } catch (error: IOException) { null }
+-
+-    override fun stagedApk(): StagedApk = FileStagedApk(target)
+-
+-    override fun removeQuietly() {
+-        stagedApk().discard()
+-    }
+-}
+-
+-/**
+- * The staged update file, held until the install ends. [open] gives null when the file cannot be opened. [discard]
+- * never throws; a file it cannot remove is recorded in [leftover].
+- */
+-internal class FileStagedApk(private val target: File) : StagedApk {
+-    /** True when the last [discard] could not remove the file. */
+-    var leftover: Boolean = false
+-        private set
+-
+-    override fun open(): InputStream? = try { Files.newInputStream(target.toPath()) } catch (error: IOException) { null }
+-
+-    override fun discard() {
+-        try {
+-            Files.deleteIfExists(target.toPath())
+-        } catch (error: Exception) {
+-            leftover = true
+-        }
+-    }
+-}
+diff --git a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/CommitRouter.kt b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/CommitRouter.kt
+deleted file mode 100644
+index adf8601a..00000000
+--- a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/CommitRouter.kt
++++ /dev/null
+@@ -1,33 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-/** The end of a platform commit, as the app maps the platform's status. */
+-public enum class CommitStatus {
+-    /** The install was written and the platform reports success. */
+-    Success,
+-
+-    /** The platform needs the user to confirm the install. */
+-    PendingUserAction,
+-
+-    /** The session was cancelled or aborted before it was installed. */
+-    Aborted,
+-
+-    /** The installer refused the package. */
+-    RefusedByInstaller,
+-
+-    /** The device had no room for the package. */
+-    StorageFailure,
+-
+-    /** Any other failure of the commit. */
+-    OtherFailure,
+-}
+-
+-/** Starts a confirmation for a pending user action that carries a handle; every other result calls nothing. */
+-internal class CommitRouter(private val confirmation: ConfirmationPort) {
+-
+-    /** Routes one commit result to the confirmation port. */
+-    internal fun onResult(status: CommitStatus, handle: ConfirmationHandle?) {
+-        if (status == CommitStatus.PendingUserAction && handle != null) {
+-            confirmation.startConfirmation(handle)
+-        }
+-    }
+-}
+diff --git a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt
+deleted file mode 100644
+index 74cd9570..00000000
+--- a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/FirstStartDecision.kt
++++ /dev/null
+@@ -1,134 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-/** Whether an install record is open: none, or one attempt in flight. */
+-internal enum class RecordState { NONE, IN_FLIGHT }
+-
+-/** The platform state of the recorded session; UNKNOWN stands for a session query that failed. */
+-internal enum class SessionState { GONE, OPEN_COMMITTED, OPEN_NOT_COMMITTED, UNKNOWN }
+-
+-/** The call that asks for a decision: a start, a final status from the commit receiver, or the user's dismiss action. */
+-internal enum class StartEvent { START, FINAL_STATUS, DISMISS }
+-
+-/** What the caller does with the install record after a decision. */
+-internal enum class RecordAction { KEEP, CLEAR }
+-
+-/** What the first-start surface shows after a call. */
+-public enum class Shown {
+-    /** Show nothing. */
+-    NOTHING,
+-
+-    /** Show the installed state. */
+-    INSTALLED,
+-
+-    /** Show the sentence that the caller reads back. */
+-    SENTENCE,
+-}
+-
+-/** The facts that one decision reads. Every time is in epoch milliseconds. */
+-internal data class StartInput(
+-    val event: StartEvent,
+-    val record: RecordState,
+-    val recordWrittenAtMillis: Long,
+-    val nowMillis: Long,
+-    val installedCode: Int?,
+-    val lastSeenCode: Int?,
+-    val finalStatus: CommitStatus?,
+-    val session: SessionState,
+-    val lastOutcome: String?,
+-)
+-
+-/** The result of one decision. The record values are written after the call; a null text clears the stored outcome. */
+-internal data class StartDecision(
+-    val shown: Shown,
+-    val sentence: String?,
+-    val recordAction: RecordAction,
+-    val abandonRecordedSession: Boolean,
+-    val storeLastOutcome: String?,
+-    val storeLastSeenCode: Int?,
+-    val installAllowed: Boolean,
+-)
+-
+-/** The first-start decision: a pure function of its input, with no clock read, no file and no shared state. */
+-internal object FirstStartDecision {
+-    private const val PENDING_LIMIT_MILLIS: Long = 86_400_000L
+-
+-    /** Returns the decision for [input]. The table has one row for every reachable input. */
+-    internal fun decide(input: StartInput): StartDecision =
+-        if (input.record == RecordState.NONE) decideRecordless(input) else decideInFlight(input)
+-
+-    private fun decideRecordless(input: StartInput): StartDecision = when (input.event) {
+-        StartEvent.FINAL_STATUS, StartEvent.DISMISS -> keepRecordless(input)
+-        StartEvent.START -> decideRecordlessStart(input)
+-    }
+-
+-    private fun keepRecordless(input: StartInput): StartDecision =
+-        StartDecision(Shown.NOTHING, null, RecordAction.KEEP, false, input.lastOutcome, input.lastSeenCode, true)
+-
+-    private fun decideRecordlessStart(input: StartInput): StartDecision {
+-        val installed = input.installedCode ?: return keepRecordless(input)
+-        if (installedAbove(input)) {
+-            return StartDecision(Shown.INSTALLED, null, RecordAction.KEEP, false, null, installed, true)
+-        }
+-        if (input.lastSeenCode == installed && input.lastOutcome != null) {
+-            return StartDecision(Shown.SENTENCE, input.lastOutcome, RecordAction.KEEP, false, null, installed, true)
+-        }
+-        return StartDecision(Shown.NOTHING, null, RecordAction.KEEP, false, null, installed, true)
+-    }
+-
+-    private fun decideInFlight(input: StartInput): StartDecision {
+-        val seen = input.installedCode ?: input.lastSeenCode
+-        if (installedAbove(input)) {
+-            val abandon = input.session == SessionState.OPEN_NOT_COMMITTED
+-            return StartDecision(Shown.INSTALLED, null, RecordAction.CLEAR, abandon, null, seen, true)
+-        }
+-        val status = input.finalStatus
+-        if (status != null) {
+-            val sentence = sentenceFor(status, input.installedCode == null)
+-            val stored = if (input.event == StartEvent.FINAL_STATUS) sentence else null
+-            return StartDecision(Shown.SENTENCE, sentence, RecordAction.CLEAR, false, stored, seen, true)
+-        }
+-        if (input.event == StartEvent.DISMISS) {
+-            return clearedNotFinished(seen, input.session == SessionState.OPEN_NOT_COMMITTED)
+-        }
+-        return decideInFlightStart(input, seen, isExpired(input))
+-    }
+-
+-    private fun decideInFlightStart(input: StartInput, seen: Int?, expired: Boolean): StartDecision =
+-        when (input.session) {
+-            SessionState.GONE -> clearedNotFinished(seen, false)
+-            SessionState.OPEN_NOT_COMMITTED ->
+-                if (expired) clearedNotFinished(seen, true) else keptNotFinished(input, seen, true)
+-            SessionState.OPEN_COMMITTED ->
+-                if (expired) clearedNotFinished(seen, false) else keptWaiting(input, seen)
+-            SessionState.UNKNOWN ->
+-                if (expired) clearedNotFinished(seen, false) else keptNotFinished(input, seen, false)
+-        }
+-
+-    private fun clearedNotFinished(seen: Int?, abandon: Boolean): StartDecision =
+-        StartDecision(Shown.SENTENCE, UpdateSentences.NOT_FINISHED, RecordAction.CLEAR, abandon, null, seen, true)
+-
+-    private fun keptNotFinished(input: StartInput, seen: Int?, abandon: Boolean): StartDecision =
+-        StartDecision(Shown.SENTENCE, UpdateSentences.NOT_FINISHED, RecordAction.KEEP, abandon, input.lastOutcome, seen, false)
+-
+-    private fun keptWaiting(input: StartInput, seen: Int?): StartDecision =
+-        StartDecision(Shown.SENTENCE, UpdateSentences.WAITING, RecordAction.KEEP, false, input.lastOutcome, seen, false)
+-
+-    private fun installedAbove(input: StartInput): Boolean {
+-        val installed = input.installedCode ?: return false
+-        val seen = input.lastSeenCode ?: return false
+-        return installed > seen
+-    }
+-
+-    private fun isExpired(input: StartInput): Boolean {
+-        val age = input.nowMillis - input.recordWrittenAtMillis
+-        return age < 0L || age >= PENDING_LIMIT_MILLIS
+-    }
+-
+-    private fun sentenceFor(status: CommitStatus, unreadable: Boolean): String = when (status) {
+-        CommitStatus.Success -> if (unreadable) UpdateSentences.NOT_FINISHED else UpdateSentences.UNCONFIRMED
+-        CommitStatus.Aborted -> UpdateSentences.CANCELLED
+-        CommitStatus.RefusedByInstaller -> UpdateSentences.INSTALLER_REFUSED
+-        CommitStatus.StorageFailure, CommitStatus.OtherFailure -> UpdateSentences.INSTALLER_FAILED
+-        CommitStatus.PendingUserAction -> UpdateSentences.NOT_FINISHED
+-    }
+-}
+diff --git a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/HttpApkDownloader.kt b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/HttpApkDownloader.kt
+deleted file mode 100644
+index 9c7e5786..00000000
+--- a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/HttpApkDownloader.kt
++++ /dev/null
+@@ -1,57 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import java.io.IOException
+-import java.io.OutputStream
+-
+-/**
+- * The place a download writes to. A slot holds one staged file, and a new download replaces it.
+- *
+- * [openForWrite] gives the stream the bytes go to, or null when the file cannot be opened. [removeQuietly] removes the
+- * staged file after a failed download and never throws.
+- */
+-internal interface StagingSlot {
+-    fun openForWrite(): OutputStream?
+-    fun stagedApk(): StagedApk
+-    fun removeQuietly()
+-}
+-
+-/**
+- * Downloads the update file over https into [slot] and returns it as staged.
+- *
+- * The request uses the platform default trust store, with no custom trust manager and no certificate pin. It sends
+- * no request header and follows no redirect. At most [capBytes] plus one byte are written, so the checker can refuse
+- * a file that is over the cap. A non-2xx status, a short body, a write failure or a failure to close the output
+- * removes the partial file and gives [ApkDownload.Unavailable]. The reply is closed on every path.
+- */
+-internal class HttpApkDownloader(
+-    private val opener: UpdateHttpOpener,
+-    private val slot: StagingSlot,
+-    private val capBytes: Long = MAX_APK_BYTES,
+-) : ApkDownloader {
+-    override fun download(apkUrl: String): ApkDownload {
+-        val reply = try {
+-            opener.open(apkUrl, HttpRules.CONNECT_TIMEOUT_MS, HttpRules.APK_READ_TIMEOUT_MS)
+-        } catch (error: IOException) {
+-            return ApkDownload.Unavailable
+-        }
+-        return reply.use { writeBody(it) }
+-    }
+-
+-    private fun writeBody(reply: UpdateHttpReply): ApkDownload {
+-        if (!HttpRules.isSuccessStatus(reply.status)) return ApkDownload.Unavailable
+-        val out = slot.openForWrite() ?: return ApkDownload.Unavailable
+-        val copied: Long? = try {
+-            out.use { copyUpTo(reply.body, capBytes + 1L) { b, o, l -> out.write(b, o, l) } }
+-        } catch (failure: IOException) {
+-            null
+-        }
+-        if (copied == null) return removedUnavailable()
+-        if (reply.contentLength >= 0L && copied < reply.contentLength) return removedUnavailable()
+-        return ApkDownload.Staged(slot.stagedApk())
+-    }
+-
+-    private fun removedUnavailable(): ApkDownload {
+-        slot.removeQuietly()
+-        return ApkDownload.Unavailable
+-    }
+-}
+diff --git a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/InstallConfirmation.kt b/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/InstallConfirmation.kt
+deleted file mode 100644
+index 11a00d00..00000000
+--- a/android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/InstallConfirmation.kt
++++ /dev/null
+@@ -1,17 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-/**
+- * Starts the platform confirmation for an install that waits for the user.
+- *
+- * The app implements this port. The module calls it once for each pending user action that carries a handle.
+- */
+-public interface ConfirmationPort {
+-    /** Starts the confirmation for [handle]; the app opens its own screen from the value inside the handle. */
+-    public fun startConfirmation(handle: ConfirmationHandle)
+-}
+-
+-/** The value the app received with a pending user action. The module passes it on and never reads it. */
+-public class ConfirmationHandle(
+-    /** The platform value that the app stored with the handle. */
+-    public val opaque: Any,
+-)
+diff --git a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CommitRouterTest.kt b/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CommitRouterTest.kt
+deleted file mode 100644
+index e29f1f74..00000000
+--- a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CommitRouterTest.kt
++++ /dev/null
+@@ -1,54 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/** Pins which commit results start a confirmation, and that the handle passed on is the same object. */
+-internal class CommitRouterTest {
+-
+-    /** A confirmation port that counts its calls and keeps the last handle it was given. */
+-    private class RecordingPort : ConfirmationPort {
+-        var calls: Int = 0
+-        var last: ConfirmationHandle? = null
+-
+-        override fun startConfirmation(handle: ConfirmationHandle) {
+-            calls++
+-            last = handle
+-        }
+-    }
+-
+-    @Test
+-    fun `a pending user action with a handle starts the confirmation once with that same handle`() {
+-        val port = RecordingPort()
+-        val handle = ConfirmationHandle("platform value")
+-        CommitRouter(port).onResult(CommitStatus.PendingUserAction, handle)
+-        assertEquals(1, port.calls)
+-        assertTrue("the confirmation must receive the same handle object", port.last === handle)
+-    }
+-
+-    @Test
+-    fun `the five other statuses never call the confirmation port`() {
+-        val port = RecordingPort()
+-        val commitRouter = CommitRouter(port)
+-        val handle = ConfirmationHandle("platform value")
+-        val others = listOf(
+-            CommitStatus.Success,
+-            CommitStatus.Aborted,
+-            CommitStatus.RefusedByInstaller,
+-            CommitStatus.StorageFailure,
+-            CommitStatus.OtherFailure,
+-        )
+-        for (status in others) {
+-            commitRouter.onResult(status, handle)
+-        }
+-        assertEquals(0, port.calls)
+-    }
+-
+-    @Test
+-    fun `a pending user action with no handle calls nothing on the confirmation port`() {
+-        val port = RecordingPort()
+-        CommitRouter(port).onResult(CommitStatus.PendingUserAction, null)
+-        assertEquals(0, port.calls)
+-    }
+-}
+diff --git a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/FirstStartDecisionTest.kt b/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/FirstStartDecisionTest.kt
+deleted file mode 100644
+index 80c33c8f..00000000
+--- a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/FirstStartDecisionTest.kt
++++ /dev/null
+@@ -1,180 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/** The stored outcome text that the enumeration places in the last-outcome input. */
+-private const val EARLIER_OUTCOME: String = UpdateSentences.WAITING
+-
+-/** The reason given for the cells in which a session is not committed although the commit was already called. */
+-private const val UNREACHABLE_REASON: String =
+-    "a final status means commit was called, so the session cannot be OPEN_NOT_COMMITTED"
+-
+-/**
+- * One decision input. The record was written at [writtenAtMillis] (zero by default), and the clock reads
+- * [ageMillis] later.
+- */
+-internal fun startInput(
+-    event: StartEvent = StartEvent.START,
+-    record: RecordState = RecordState.IN_FLIGHT,
+-    session: SessionState = SessionState.GONE,
+-    ageMillis: Long = 0L,
+-    installed: Int? = 1,
+-    lastSeen: Int? = 1,
+-    status: CommitStatus? = null,
+-    lastOutcome: String? = null,
+-    writtenAtMillis: Long = 0L,
+-): StartInput = StartInput(
+-    event = event,
+-    record = record,
+-    recordWrittenAtMillis = writtenAtMillis,
+-    nowMillis = writtenAtMillis + ageMillis,
+-    installedCode = installed,
+-    lastSeenCode = lastSeen,
+-    finalStatus = status,
+-    session = session,
+-    lastOutcome = lastOutcome,
+-)
+-
+-/** Every cell of the product of the input components, under the reachability constraints of the design. */
+-private fun allCells(): List<StartInput> {
+-    val cells = mutableListOf<StartInput>()
+-    val codes = listOf(Pair<Int?, Int?>(3, 2), Pair<Int?, Int?>(2, 2), Pair<Int?, Int?>(1, 2), Pair<Int?, Int?>(null, 2))
+-    val outcomes: List<String?> = listOf(null, EARLIER_OUTCOME)
+-    val fiveStatuses: List<CommitStatus?> = listOf(
+-        CommitStatus.Success,
+-        CommitStatus.Aborted,
+-        CommitStatus.RefusedByInstaller,
+-        CommitStatus.StorageFailure,
+-        CommitStatus.OtherFailure,
+-    )
+-    val anyStatus: List<CommitStatus?> = listOf<CommitStatus?>(null) + fiveStatuses
+-    val sessions = listOf(
+-        SessionState.GONE,
+-        SessionState.OPEN_COMMITTED,
+-        SessionState.OPEN_NOT_COMMITTED,
+-        SessionState.UNKNOWN,
+-    )
+-    val ages = listOf(UNDER_A_DAY_MILLIS, A_DAY_MILLIS)
+-    for (event in listOf(StartEvent.START, StartEvent.FINAL_STATUS, StartEvent.DISMISS)) {
+-        val recordlessStatuses: List<CommitStatus?> =
+-            if (event == StartEvent.FINAL_STATUS) fiveStatuses else listOf<CommitStatus?>(null)
+-        val inFlightStatuses: List<CommitStatus?> = if (event == StartEvent.FINAL_STATUS) fiveStatuses else anyStatus
+-        for (outcome in outcomes) {
+-            for ((installed, seen) in codes) {
+-                for (status in recordlessStatuses) {
+-                    cells.add(
+-                        startInput(
+-                            event = event,
+-                            record = RecordState.NONE,
+-                            session = SessionState.GONE,
+-                            ageMillis = UNDER_A_DAY_MILLIS,
+-                            installed = installed,
+-                            lastSeen = seen,
+-                            status = status,
+-                            lastOutcome = outcome,
+-                        ),
+-                    )
+-                }
+-                for (session in sessions) {
+-                    for (age in ages) {
+-                        for (status in inFlightStatuses) {
+-                            cells.add(
+-                                startInput(
+-                                    event = event,
+-                                    record = RecordState.IN_FLIGHT,
+-                                    session = session,
+-                                    ageMillis = age,
+-                                    installed = installed,
+-                                    lastSeen = seen,
+-                                    status = status,
+-                                    lastOutcome = outcome,
+-                                ),
+-                            )
+-                        }
+-                    }
+-                }
+-            }
+-        }
+-    }
+-    return cells
+-}
+-
+-/** The reason an input cannot happen, or null when it is reachable. */
+-private fun unreachableReason(input: StartInput): String? {
+-    val inFlight = input.record == RecordState.IN_FLIGHT
+-    val notCommitted = input.session == SessionState.OPEN_NOT_COMMITTED
+-    return if (inFlight && notCommitted && input.finalStatus != null) UNREACHABLE_REASON else null
+-}
+-
+-/** Pins the first-start table on every enumerated cell, with the counts and the invariants of the design. */
+-internal class FirstStartDecisionTest {
+-
+-    @Test
+-    fun `every reachable input matches exactly one row and decides the way that row says`() {
+-        for (input in allCells()) {
+-            if (unreachableReason(input) != null) continue
+-            val matched = tableRows.filter { it.matches(input) }
+-            assertEquals("exactly one row must match $input", 1, matched.size)
+-            assertEquals("the decision for $input", matched[0].expect(input), FirstStartDecision.decide(input))
+-        }
+-    }
+-
+-    @Test
+-    fun `the enumeration has 1144 cells with 904 reachable and 240 unreachable, each unreachable one with a reason`() {
+-        val cells = allCells()
+-        assertEquals(1144, cells.size)
+-        val withReason = cells.filter { unreachableReason(it) != null }
+-        val notCommitted = cells.filter {
+-            it.record == RecordState.IN_FLIGHT && it.session == SessionState.OPEN_NOT_COMMITTED && it.finalStatus != null
+-        }
+-        assertEquals(240, withReason.size)
+-        assertEquals(notCommitted, withReason)
+-        assertEquals(904, cells.size - withReason.size)
+-    }
+-
+-    @Test
+-    fun `each row covers the number of reachable cells listed for it`() {
+-        val reachable = allCells().filter { unreachableReason(it) == null }
+-        assertEquals(904, reachable.size)
+-        for (row in tableRows) {
+-            assertEquals(row.describe, row.cells, reachable.count { row.matches(it) })
+-        }
+-    }
+-
+-    @Test
+-    fun `every reachable input keeps the invariants the design lists`() {
+-        for (input in allCells()) {
+-            if (unreachableReason(input) != null) continue
+-            val decision = FirstStartDecision.decide(input)
+-            if (input.record == RecordState.IN_FLIGHT && isPastLimit(input)) {
+-                assertEquals("an expired record is cleared for $input", RecordAction.CLEAR, decision.recordAction)
+-                assertTrue("an expired record never blocks installs for $input", decision.installAllowed)
+-            }
+-            if (input.record == RecordState.IN_FLIGHT && input.finalStatus != null) {
+-                assertEquals("a record with a final status is cleared for $input", RecordAction.CLEAR, decision.recordAction)
+-            }
+-            if (decision.abandonRecordedSession) {
+-                assertTrue(
+-                    "abandon only for an uncommitted session for $input",
+-                    input.session == SessionState.OPEN_NOT_COMMITTED,
+-                )
+-            }
+-            if (input.event != StartEvent.FINAL_STATUS) {
+-                val stored = decision.storeLastOutcome
+-                assertTrue(
+-                    "a stored outcome is none or the input outcome for $input",
+-                    stored == null || stored == input.lastOutcome,
+-                )
+-            }
+-            if (input.installedCode == null) {
+-                assertEquals(
+-                    "an unreadable code is never stored for $input",
+-                    input.lastSeenCode,
+-                    decision.storeLastSeenCode,
+-                )
+-            }
+-        }
+-    }
+-}
+diff --git a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/FirstStartRowsTest.kt b/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/FirstStartRowsTest.kt
+deleted file mode 100644
+index 4fe9a2e6..00000000
+--- a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/FirstStartRowsTest.kt
++++ /dev/null
+@@ -1,229 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import org.junit.Assert.assertEquals
+-import org.junit.Test
+-
+-/** Hand-written first-start cases, one per case the table must get right, each with its exact expected decision. */
+-internal class FirstStartRowsTest {
+-
+-    @Test
+-    fun `an installed code above the last seen code with no record shows the installed state`() {
+-        val input = startInput(event = StartEvent.START, record = RecordState.NONE, installed = 3, lastSeen = 2)
+-        assertEquals(
+-            StartDecision(Shown.INSTALLED, null, RecordAction.KEEP, false, null, 3, true),
+-            FirstStartDecision.decide(input),
+-        )
+-    }
+-
+-    @Test
+-    fun `a final status with no record is not shown and keeps the last seen code`() {
+-        val input = startInput(
+-            event = StartEvent.FINAL_STATUS,
+-            record = RecordState.NONE,
+-            installed = 3,
+-            lastSeen = 2,
+-            status = CommitStatus.Aborted,
+-        )
+-        assertEquals(
+-            StartDecision(Shown.NOTHING, null, RecordAction.KEEP, false, null, 2, true),
+-            FirstStartDecision.decide(input),
+-        )
+-    }
+-
+-    @Test
+-    fun `a dismiss with an uncommitted session under a day shows not finished and abandons the session`() {
+-        val input = startInput(
+-            event = StartEvent.DISMISS,
+-            session = SessionState.OPEN_NOT_COMMITTED,
+-            ageMillis = 3_600_000L,
+-        )
+-        assertEquals(
+-            StartDecision(Shown.SENTENCE, UpdateSentences.NOT_FINISHED, RecordAction.CLEAR, true, null, 1, true),
+-            FirstStartDecision.decide(input),
+-        )
+-    }
+-
+-    @Test
+-    fun `a dismiss with a committed session and a stored success shows the success sentence and clears the record`() {
+-        val input = startInput(
+-            event = StartEvent.DISMISS,
+-            session = SessionState.OPEN_COMMITTED,
+-            ageMillis = 3_600_000L,
+-            status = CommitStatus.Success,
+-        )
+-        assertEquals(
+-            StartDecision(Shown.SENTENCE, UpdateSentences.UNCONFIRMED, RecordAction.CLEAR, false, null, 1, true),
+-            FirstStartDecision.decide(input),
+-        )
+-    }
+-
+-    @Test
+-    fun `a start with a gone session and a code that rose shows the installed state and clears the record`() {
+-        val input = startInput(session = SessionState.GONE, ageMillis = 3_600_000L, installed = 3, lastSeen = 2)
+-        assertEquals(
+-            StartDecision(Shown.INSTALLED, null, RecordAction.CLEAR, false, null, 3, true),
+-            FirstStartDecision.decide(input),
+-        )
+-    }
+-
+-    @Test
+-    fun `a start with an uncommitted session and a code that rose shows the installed state and abandons the session`() {
+-        val input = startInput(
+-            session = SessionState.OPEN_NOT_COMMITTED,
+-            ageMillis = 3_600_000L,
+-            installed = 3,
+-            lastSeen = 2,
+-        )
+-        assertEquals(
+-            StartDecision(Shown.INSTALLED, null, RecordAction.CLEAR, true, null, 3, true),
+-            FirstStartDecision.decide(input),
+-        )
+-    }
+-
+-    @Test
+-    fun `a start with an unknown session at exactly one day shows not finished and clears the record`() {
+-        val input = startInput(session = SessionState.UNKNOWN, ageMillis = 86_400_000L)
+-        assertEquals(
+-            StartDecision(Shown.SENTENCE, UpdateSentences.NOT_FINISHED, RecordAction.CLEAR, false, null, 1, true),
+-            FirstStartDecision.decide(input),
+-        )
+-    }
+-
+-    @Test
+-    fun `a start with an uncommitted session at exactly one day shows not finished and abandons the session`() {
+-        val input = startInput(session = SessionState.OPEN_NOT_COMMITTED, ageMillis = 86_400_000L)
+-        assertEquals(
+-            StartDecision(Shown.SENTENCE, UpdateSentences.NOT_FINISHED, RecordAction.CLEAR, true, null, 1, true),
+-            FirstStartDecision.decide(input),
+-        )
+-    }
+-
+-    @Test
+-    fun `a start with an uncommitted session just under one day keeps the record and blocks installs`() {
+-        val input = startInput(session = SessionState.OPEN_NOT_COMMITTED, ageMillis = 86_399_999L)
+-        assertEquals(
+-            StartDecision(Shown.SENTENCE, UpdateSentences.NOT_FINISHED, RecordAction.KEEP, true, null, 1, false),
+-            FirstStartDecision.decide(input),
+-        )
+-    }
+-
+-    @Test
+-    fun `a start with a committed session and a negative age shows not finished and clears the record`() {
+-        val input = startInput(session = SessionState.OPEN_COMMITTED, ageMillis = -1_000L)
+-        assertEquals(
+-            StartDecision(Shown.SENTENCE, UpdateSentences.NOT_FINISHED, RecordAction.CLEAR, false, null, 1, true),
+-            FirstStartDecision.decide(input),
+-        )
+-    }
+-
+-    @Test
+-    fun `a start with a committed session under a day shows waiting, keeps the record and blocks installs`() {
+-        val input = startInput(session = SessionState.OPEN_COMMITTED, ageMillis = 3_600_000L)
+-        assertEquals(
+-            StartDecision(Shown.SENTENCE, UpdateSentences.WAITING, RecordAction.KEEP, false, null, 1, false),
+-            FirstStartDecision.decide(input),
+-        )
+-    }
+-
+-    @Test
+-    fun `a start with a gone session, a stored success and an unreadable code shows not finished and keeps the last seen code`() {
+-        val input = startInput(
+-            session = SessionState.GONE,
+-            ageMillis = 3_600_000L,
+-            installed = null,
+-            lastSeen = 2,
+-            status = CommitStatus.Success,
+-        )
+-        assertEquals(
+-            StartDecision(Shown.SENTENCE, UpdateSentences.NOT_FINISHED, RecordAction.CLEAR, false, null, 2, true),
+-            FirstStartDecision.decide(input),
+-        )
+-    }
+-
+-    @Test
+-    fun `a final status of aborted shows the cancelled sentence and stores it as the last outcome`() {
+-        val input = startInput(
+-            event = StartEvent.FINAL_STATUS,
+-            session = SessionState.OPEN_COMMITTED,
+-            ageMillis = 3_600_000L,
+-            status = CommitStatus.Aborted,
+-            lastOutcome = UpdateSentences.WAITING,
+-        )
+-        assertEquals(
+-            StartDecision(
+-                Shown.SENTENCE,
+-                UpdateSentences.CANCELLED,
+-                RecordAction.CLEAR,
+-                false,
+-                UpdateSentences.CANCELLED,
+-                1,
+-                true,
+-            ),
+-            FirstStartDecision.decide(input),
+-        )
+-    }
+-
+-    @Test
+-    fun `a start with a gone session, a stored success and an unchanged code shows the unconfirmed sentence`() {
+-        val input = startInput(session = SessionState.GONE, ageMillis = 3_600_000L, status = CommitStatus.Success)
+-        assertEquals(
+-            StartDecision(Shown.SENTENCE, UpdateSentences.UNCONFIRMED, RecordAction.CLEAR, false, null, 1, true),
+-            FirstStartDecision.decide(input),
+-        )
+-    }
+-
+-    @Test
+-    fun `a start with an unknown session under a day shows not finished, keeps the record and blocks installs`() {
+-        val input = startInput(session = SessionState.UNKNOWN, ageMillis = 3_600_000L)
+-        assertEquals(
+-            StartDecision(Shown.SENTENCE, UpdateSentences.NOT_FINISHED, RecordAction.KEEP, false, null, 1, false),
+-            FirstStartDecision.decide(input),
+-        )
+-    }
+-
+-    @Test
+-    fun `a start with a committed session at exactly one day clears the record and allows installs`() {
+-        val input = startInput(
+-            session = SessionState.OPEN_COMMITTED,
+-            ageMillis = 86_400_000L,
+-            writtenAtMillis = 1_000L,
+-        )
+-        assertEquals(
+-            StartDecision(Shown.SENTENCE, UpdateSentences.NOT_FINISHED, RecordAction.CLEAR, false, null, 1, true),
+-            FirstStartDecision.decide(input),
+-        )
+-    }
+-
+-    @Test
+-    fun `a dismiss with an uncommitted session and a code that rose shows the installed state and abandons the session`() {
+-        val input = startInput(
+-            event = StartEvent.DISMISS,
+-            session = SessionState.OPEN_NOT_COMMITTED,
+-            ageMillis = 3_600_000L,
+-            installed = 3,
+-            lastSeen = 2,
+-        )
+-        assertEquals(
+-            StartDecision(Shown.INSTALLED, null, RecordAction.CLEAR, true, null, 3, true),
+-            FirstStartDecision.decide(input),
+-        )
+-    }
+-
+-    @Test
+-    fun `a missing last seen code is not read as a code that rose`() {
+-        val input = startInput(session = SessionState.GONE, ageMillis = 3_600_000L, installed = 3, lastSeen = null)
+-        assertEquals(
+-            StartDecision(Shown.SENTENCE, UpdateSentences.NOT_FINISHED, RecordAction.CLEAR, false, null, 3, true),
+-            FirstStartDecision.decide(input),
+-        )
+-    }
+-
+-    @Test
+-    fun `a record written at the instant of the start is not yet expired`() {
+-        val input = startInput(session = SessionState.OPEN_COMMITTED, ageMillis = 0L)
+-        assertEquals(
+-            StartDecision(Shown.SENTENCE, UpdateSentences.WAITING, RecordAction.KEEP, false, null, 1, false),
+-            FirstStartDecision.decide(input),
+-        )
+-    }
+-}
+diff --git a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/FirstStartTableRows.kt b/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/FirstStartTableRows.kt
+deleted file mode 100644
+index 2e48a143..00000000
+--- a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/FirstStartTableRows.kt
++++ /dev/null
+@@ -1,256 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-/** Test-side model of one row of the first-start table: its predicate, its expected decision and its cell count. */
+-internal class CellRow(
+-    val describe: String,
+-    val matches: (StartInput) -> Boolean,
+-    val expect: (StartInput) -> StartDecision,
+-    val cells: Int,
+-)
+-
+-/** One day in milliseconds: the age at which a record counts as expired. */
+-internal const val A_DAY_MILLIS: Long = 86_400_000L
+-
+-/** An age under one day, in milliseconds. */
+-internal const val UNDER_A_DAY_MILLIS: Long = 3_600_000L
+-
+-private fun codeRose(input: StartInput): Boolean {
+-    val installed = input.installedCode ?: return false
+-    val seen = input.lastSeenCode ?: return false
+-    return installed > seen
+-}
+-
+-/** True when the record is at least one day old, or was written after the clock read, so it is not counted as current. */
+-internal fun isPastLimit(input: StartInput): Boolean {
+-    val age = input.nowMillis - input.recordWrittenAtMillis
+-    return age < 0L || age >= A_DAY_MILLIS
+-}
+-
+-private fun isUnderLimit(input: StartInput): Boolean = !isPastLimit(input)
+-
+-private fun seenOf(input: StartInput): Int? = input.installedCode ?: input.lastSeenCode
+-
+-private fun sentenceOf(status: CommitStatus, unreadable: Boolean): String = when (status) {
+-    CommitStatus.Success -> if (unreadable) UpdateSentences.NOT_FINISHED else UpdateSentences.UNCONFIRMED
+-    CommitStatus.Aborted -> UpdateSentences.CANCELLED
+-    CommitStatus.RefusedByInstaller -> UpdateSentences.INSTALLER_REFUSED
+-    CommitStatus.StorageFailure, CommitStatus.OtherFailure -> UpdateSentences.INSTALLER_FAILED
+-    CommitStatus.PendingUserAction -> UpdateSentences.NOT_FINISHED
+-}
+-
+-private fun keepsEverything(input: StartInput): StartDecision =
+-    StartDecision(Shown.NOTHING, null, RecordAction.KEEP, false, input.lastOutcome, input.lastSeenCode, true)
+-
+-private fun expectInstalledFromNone(input: StartInput): StartDecision =
+-    StartDecision(Shown.INSTALLED, null, RecordAction.KEEP, false, null, input.installedCode, true)
+-
+-private fun expectStoredSentence(input: StartInput): StartDecision =
+-    StartDecision(Shown.SENTENCE, input.lastOutcome, RecordAction.KEEP, false, null, input.installedCode, true)
+-
+-private fun expectNothingFromNone(input: StartInput): StartDecision =
+-    StartDecision(Shown.NOTHING, null, RecordAction.KEEP, false, null, input.installedCode, true)
+-
+-private fun expectInstalledInFlight(input: StartInput): StartDecision = StartDecision(
+-    Shown.INSTALLED,
+-    null,
+-    RecordAction.CLEAR,
+-    input.session == SessionState.OPEN_NOT_COMMITTED,
+-    null,
+-    seenOf(input),
+-    true,
+-)
+-
+-private fun expectFinalSentence(input: StartInput): StartDecision {
+-    val status = requireNotNull(input.finalStatus)
+-    val sentence = sentenceOf(status, input.installedCode == null)
+-    val stored = if (input.event == StartEvent.FINAL_STATUS) sentence else null
+-    return StartDecision(Shown.SENTENCE, sentence, RecordAction.CLEAR, false, stored, seenOf(input), true)
+-}
+-
+-private fun expectDismissNotFinished(input: StartInput): StartDecision = StartDecision(
+-    Shown.SENTENCE,
+-    UpdateSentences.NOT_FINISHED,
+-    RecordAction.CLEAR,
+-    input.session == SessionState.OPEN_NOT_COMMITTED,
+-    null,
+-    seenOf(input),
+-    true,
+-)
+-
+-private fun expectClearedNotFinished(input: StartInput): StartDecision = StartDecision(
+-    Shown.SENTENCE,
+-    UpdateSentences.NOT_FINISHED,
+-    RecordAction.CLEAR,
+-    false,
+-    null,
+-    seenOf(input),
+-    true,
+-)
+-
+-private fun expectUncommittedKept(input: StartInput): StartDecision = StartDecision(
+-    Shown.SENTENCE,
+-    UpdateSentences.NOT_FINISHED,
+-    RecordAction.KEEP,
+-    true,
+-    input.lastOutcome,
+-    seenOf(input),
+-    false,
+-)
+-
+-private fun expectUncommittedExpired(input: StartInput): StartDecision = StartDecision(
+-    Shown.SENTENCE,
+-    UpdateSentences.NOT_FINISHED,
+-    RecordAction.CLEAR,
+-    true,
+-    null,
+-    seenOf(input),
+-    true,
+-)
+-
+-private fun expectCommittedWaiting(input: StartInput): StartDecision = StartDecision(
+-    Shown.SENTENCE,
+-    UpdateSentences.WAITING,
+-    RecordAction.KEEP,
+-    false,
+-    input.lastOutcome,
+-    seenOf(input),
+-    false,
+-)
+-
+-private fun expectUnknownKept(input: StartInput): StartDecision = StartDecision(
+-    Shown.SENTENCE,
+-    UpdateSentences.NOT_FINISHED,
+-    RecordAction.KEEP,
+-    false,
+-    input.lastOutcome,
+-    seenOf(input),
+-    false,
+-)
+-
+-/** The fifteen rows of the first-start table, each with its predicate, its expected decision and its cell count. */
+-internal val tableRows: List<CellRow> = listOf(
+-    CellRow(
+-        describe = "no record and a final status",
+-        matches = { it.record == RecordState.NONE && it.event == StartEvent.FINAL_STATUS },
+-        expect = ::keepsEverything,
+-        cells = 40,
+-    ),
+-    CellRow(
+-        describe = "no record and a dismiss",
+-        matches = { it.record == RecordState.NONE && it.event == StartEvent.DISMISS },
+-        expect = ::keepsEverything,
+-        cells = 8,
+-    ),
+-    CellRow(
+-        describe = "no record, a start, and an installed code above the last seen code",
+-        matches = { it.record == RecordState.NONE && it.event == StartEvent.START && codeRose(it) },
+-        expect = ::expectInstalledFromNone,
+-        cells = 2,
+-    ),
+-    CellRow(
+-        describe = "no record, a start, equal codes, and a stored sentence",
+-        matches = {
+-            it.record == RecordState.NONE && it.event == StartEvent.START &&
+-                it.installedCode != null && it.installedCode == it.lastSeenCode && it.lastOutcome != null
+-        },
+-        expect = ::expectStoredSentence,
+-        cells = 1,
+-    ),
+-    CellRow(
+-        describe = "no record, a start, a readable code that is not above, and no stored sentence for equal codes",
+-        matches = {
+-            it.record == RecordState.NONE && it.event == StartEvent.START &&
+-                it.installedCode != null && !codeRose(it) &&
+-                !(it.installedCode == it.lastSeenCode && it.lastOutcome != null)
+-        },
+-        expect = ::expectNothingFromNone,
+-        cells = 3,
+-    ),
+-    CellRow(
+-        describe = "no record, a start, and an unreadable installed code",
+-        matches = { it.record == RecordState.NONE && it.event == StartEvent.START && it.installedCode == null },
+-        expect = ::keepsEverything,
+-        cells = 2,
+-    ),
+-    CellRow(
+-        describe = "a record in flight and an installed code above the last seen code",
+-        matches = { it.record == RecordState.IN_FLIGHT && codeRose(it) },
+-        expect = ::expectInstalledInFlight,
+-        cells = 212,
+-    ),
+-    CellRow(
+-        describe = "a record in flight, a final status, and no code above the last seen code",
+-        matches = { it.record == RecordState.IN_FLIGHT && !codeRose(it) && it.finalStatus != null },
+-        expect = ::expectFinalSentence,
+-        cells = 540,
+-    ),
+-    CellRow(
+-        describe = "a record in flight, a dismiss, no final status, and no code above the last seen code",
+-        matches = {
+-            it.record == RecordState.IN_FLIGHT && it.event == StartEvent.DISMISS &&
+-                !codeRose(it) && it.finalStatus == null
+-        },
+-        expect = ::expectDismissNotFinished,
+-        cells = 48,
+-    ),
+-    CellRow(
+-        describe = "a record in flight, a start, a gone session, and no final status",
+-        matches = {
+-            it.record == RecordState.IN_FLIGHT && it.event == StartEvent.START &&
+-                !codeRose(it) && it.session == SessionState.GONE && it.finalStatus == null
+-        },
+-        expect = ::expectClearedNotFinished,
+-        cells = 12,
+-    ),
+-    CellRow(
+-        describe = "a record in flight, a start, an uncommitted session under a day, and no final status",
+-        matches = {
+-            it.record == RecordState.IN_FLIGHT && it.event == StartEvent.START &&
+-                !codeRose(it) && it.session == SessionState.OPEN_NOT_COMMITTED &&
+-                isUnderLimit(it) && it.finalStatus == null
+-        },
+-        expect = ::expectUncommittedKept,
+-        cells = 6,
+-    ),
+-    CellRow(
+-        describe = "a record in flight, a start, an uncommitted session at a day or more, and no final status",
+-        matches = {
+-            it.record == RecordState.IN_FLIGHT && it.event == StartEvent.START &&
+-                !codeRose(it) && it.session == SessionState.OPEN_NOT_COMMITTED &&
+-                isPastLimit(it) && it.finalStatus == null
+-        },
+-        expect = ::expectUncommittedExpired,
+-        cells = 6,
+-    ),
+-    CellRow(
+-        describe = "a record in flight, a start, a committed session under a day, and no final status",
+-        matches = {
+-            it.record == RecordState.IN_FLIGHT && it.event == StartEvent.START &&
+-                !codeRose(it) && it.session == SessionState.OPEN_COMMITTED &&
+-                isUnderLimit(it) && it.finalStatus == null
+-        },
+-        expect = ::expectCommittedWaiting,
+-        cells = 6,
+-    ),
+-    CellRow(
+-        describe = "a record in flight, a start, an unknown session under a day, and no final status",
+-        matches = {
+-            it.record == RecordState.IN_FLIGHT && it.event == StartEvent.START &&
+-                !codeRose(it) && it.session == SessionState.UNKNOWN &&
+-                isUnderLimit(it) && it.finalStatus == null
+-        },
+-        expect = ::expectUnknownKept,
+-        cells = 6,
+-    ),
+-    CellRow(
+-        describe = "a record in flight, a start, a committed or unknown session at a day or more, and no final status",
+-        matches = {
+-            it.record == RecordState.IN_FLIGHT && it.event == StartEvent.START &&
+-                !codeRose(it) &&
+-                (it.session == SessionState.OPEN_COMMITTED || it.session == SessionState.UNKNOWN) &&
+-                isPastLimit(it) && it.finalStatus == null
+-        },
+-        expect = ::expectClearedNotFinished,
+-        cells = 12,
+-    ),
+-)
+diff --git a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/HttpApkDownloaderTest.kt b/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/HttpApkDownloaderTest.kt
+deleted file mode 100644
+index 6ad529c1..00000000
+--- a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/HttpApkDownloaderTest.kt
++++ /dev/null
+@@ -1,184 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import java.io.ByteArrayInputStream
+-import java.io.ByteArrayOutputStream
+-import java.io.File
+-import java.io.IOException
+-import java.io.InputStream
+-import java.io.OutputStream
+-import org.junit.Assert.assertArrayEquals
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/** Pins the download into a staging slot: the cap, the status rules, the failure paths, the timeouts and the close. */
+-internal class HttpApkDownloaderTest {
+-    private val cap = 4L
+-    private val apkUrl = "https://breaker.example.test/releases/update.apk"
+-    private val mainRoot = File("src/main/kotlin")
+-
+-    /** A slot that keeps the bytes it is given and counts how often it was opened and cleared. */
+-    private class RecordingSlot(
+-        private val refuseOutput: Boolean = false,
+-        private val failWrites: Boolean = false,
+-        private val failClose: Boolean = false,
+-    ) : StagingSlot {
+-        val written = ByteArrayOutputStream()
+-
+-        var opened: Int = 0
+-            private set
+-
+-        var removed: Int = 0
+-            private set
+-
+-        override fun openForWrite(): OutputStream? {
+-            opened += 1
+-            if (refuseOutput) return null
+-            if (failWrites) return FailingOutput()
+-            if (failClose) return FailingCloseOutput(written)
+-            return written
+-        }
+-
+-        override fun stagedApk(): StagedApk = object : StagedApk {
+-            override fun open(): InputStream? = null
+-
+-            override fun discard() {
+-            }
+-        }
+-
+-        override fun removeQuietly() {
+-            removed += 1
+-        }
+-    }
+-
+-    private fun downloader(opener: UpdateHttpOpener, slot: StagingSlot): HttpApkDownloader =
+-        HttpApkDownloader(opener, slot, cap)
+-
+-    private fun bytes(count: Int): ByteArray = ByteArray(count) { (it + 1).toByte() }
+-
+-    /** The text of the one main source named [name]; fails when the main folder does not hold exactly one such file. */
+-    private fun mainSourceNamed(name: String): String {
+-        val found = mainRoot.walkTopDown().filter { it.isFile && it.name == name }.toList()
+-        assertTrue("the main source $name was not found under the main folder", found.size == 1)
+-        return found.single().readText()
+-    }
+-
+-    @Test
+-    fun `a 200 stages a file one byte past the cap when the body is longer`() {
+-        val slot = RecordingSlot()
+-        val opener = ScriptedOpener(status = 200, body = ByteArrayInputStream(bytes(6)))
+-        val result = downloader(opener, slot).download(apkUrl)
+-        assertTrue(result is ApkDownload.Staged)
+-        assertArrayEquals(bytes(5), slot.written.toByteArray())
+-    }
+-
+-    @Test
+-    fun `a body of exactly the cap is staged whole`() {
+-        val slot = RecordingSlot()
+-        val opener = ScriptedOpener(status = 200, body = ByteArrayInputStream(bytes(4)))
+-        assertTrue(downloader(opener, slot).download(apkUrl) is ApkDownload.Staged)
+-        assertArrayEquals(bytes(4), slot.written.toByteArray())
+-    }
+-
+-    @Test
+-    fun `a body shorter than its declared length is unavailable and removes the file`() {
+-        val slot = RecordingSlot()
+-        val opener = ScriptedOpener(status = 200, contentLength = 10L, body = ByteArrayInputStream(bytes(4)))
+-        assertEquals(ApkDownload.Unavailable, downloader(opener, slot).download(apkUrl))
+-        assertEquals(1, slot.removed)
+-    }
+-
+-    @Test
+-    fun `a 404 is unavailable and opens no output`() {
+-        val slot = RecordingSlot()
+-        val opener = ScriptedOpener(status = 404, body = ByteArrayInputStream(bytes(4)))
+-        assertEquals(ApkDownload.Unavailable, downloader(opener, slot).download(apkUrl))
+-        assertEquals(0, slot.opened)
+-    }
+-
+-    @Test
+-    fun `a 302 is unavailable and opens no output`() {
+-        val body = TrackedStream(bytes(4))
+-        val slot = RecordingSlot()
+-        val opener = ScriptedOpener(status = 302, body = body)
+-        assertEquals(ApkDownload.Unavailable, downloader(opener, slot).download(apkUrl))
+-        assertEquals(0, slot.opened)
+-        assertEquals(0, body.readCalls)
+-    }
+-
+-    @Test
+-    fun `an opener failure is unavailable and opens no output`() {
+-        val slot = RecordingSlot()
+-        val opener = ScriptedOpener(failure = IOException("the test connection failed"))
+-        assertEquals(ApkDownload.Unavailable, downloader(opener, slot).download(apkUrl))
+-        assertEquals(0, slot.opened)
+-    }
+-
+-    @Test
+-    fun `a slot that gives no output stream is unavailable`() {
+-        val body = TrackedStream(bytes(4))
+-        val slot = RecordingSlot(refuseOutput = true)
+-        val opener = ScriptedOpener(status = 200, body = body)
+-        assertEquals(ApkDownload.Unavailable, downloader(opener, slot).download(apkUrl))
+-        assertTrue("the reply must be closed", body.closed)
+-    }
+-
+-    @Test
+-    fun `a write failure is unavailable and removes the partial file`() {
+-        val slot = RecordingSlot(failWrites = true)
+-        val opener = ScriptedOpener(status = 200, body = ByteArrayInputStream(bytes(4)))
+-        assertEquals(ApkDownload.Unavailable, downloader(opener, slot).download(apkUrl))
+-        assertEquals(1, slot.removed)
+-    }
+-
+-    @Test
+-    fun `a failure while closing the output is unavailable and removes the partial file`() {
+-        val slot = RecordingSlot(failClose = true)
+-        val opener = ScriptedOpener(status = 200, body = ByteArrayInputStream(bytes(4)))
+-        assertEquals(ApkDownload.Unavailable, downloader(opener, slot).download(apkUrl))
+-        assertEquals(1, slot.removed)
+-    }
+-
+-    @Test
+-    fun `the opener gets the apk address and the apk read timeout`() {
+-        val opener = ScriptedOpener(status = 200, body = ByteArrayInputStream(bytes(4)))
+-        downloader(opener, RecordingSlot()).download(apkUrl)
+-        assertEquals(
+-            listOf(OpenCall(apkUrl, HttpRules.CONNECT_TIMEOUT_MS, HttpRules.APK_READ_TIMEOUT_MS)),
+-            opener.calls,
+-        )
+-    }
+-
+-    @Test
+-    fun `the reply is closed on every download path`() {
+-        for (status in listOf(200, 404, 302)) {
+-            val body = TrackedStream(bytes(4))
+-            downloader(ScriptedOpener(status = status, body = body), RecordingSlot()).download(apkUrl)
+-            assertTrue("the reply for status $status must be closed", body.closed)
+-        }
+-    }
+-
+-    @Test
+-    fun `the download takes the byte cap as a constructor default of the named constant`() {
+-        val text = mainSourceNamed("HttpApkDownloader.kt")
+-        assertTrue(text.contains("private val capBytes: Long = MAX_APK_BYTES,"))
+-    }
+-}
+-
+-/** An output that refuses every byte, as a full disk does. */
+-private class FailingOutput : OutputStream() {
+-    override fun write(b: Int) {
+-        throw IOException("the test output cannot take bytes")
+-    }
+-}
+-
+-/** An output that keeps the bytes it is given and fails when it is closed. */
+-private class FailingCloseOutput(private val sink: OutputStream) : OutputStream() {
+-    override fun write(b: Int) {
+-        sink.write(b)
+-    }
+-
+-    override fun close() {
+-        throw IOException("the test output cannot be closed")
+-    }
+-}
+diff --git a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/StagingNameTest.kt b/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/StagingNameTest.kt
+deleted file mode 100644
+index 9239e964..00000000
+--- a/android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/StagingNameTest.kt
++++ /dev/null
+@@ -1,93 +0,0 @@
+-package dev.breaker.dictation.updater
+-
+-import java.io.ByteArrayInputStream
+-import java.io.File
+-import java.nio.file.Files
+-import org.junit.Assert.assertArrayEquals
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertNull
+-import org.junit.Assert.assertTrue
+-import org.junit.Rule
+-import org.junit.Test
+-import org.junit.rules.TemporaryFolder
+-
+-/** Pins the staged file on disk: its fixed name, its replacement, its discard, its open and the failure cleanup. */
+-internal class StagingNameTest {
+-    @get:Rule
+-    val tmp = TemporaryFolder()
+-
+-    private val apkUrl = "https://breaker.example.test/releases/update.apk"
+-
+-    private fun downloadInto(slot: StagingSlot, url: String, body: ByteArray): ApkDownload {
+-        val opener = ScriptedOpener(status = 200, body = ByteArrayInputStream(body))
+-        return HttpApkDownloader(opener, slot).download(url)
+-    }
+-
+-    @Test
+-    fun `the staged file has the fixed name and the URL does not name it`() {
+-        assertEquals("update-candidate.apk", STAGED_FILE_NAME)
+-        downloadInto(ApkStaging(tmp.root), "https://breaker.example.test/releases/evil.apk", ByteArray(3) { 7.toByte() })
+-        assertTrue(Files.exists(File(tmp.root, STAGED_FILE_NAME).toPath()))
+-        assertFalse(Files.exists(File(tmp.root, "evil.apk").toPath()))
+-    }
+-
+-    @Test
+-    fun `a second download replaces the earlier bytes`() {
+-        val slot = ApkStaging(tmp.root)
+-        downloadInto(slot, apkUrl, ByteArray(8) { 1.toByte() })
+-        downloadInto(slot, apkUrl, ByteArray(3) { 2.toByte() })
+-        assertArrayEquals(ByteArray(3) { 2.toByte() }, Files.readAllBytes(File(tmp.root, STAGED_FILE_NAME).toPath()))
+-    }
+-
+-    @Test
+-    fun `discard removes the staged file`() {
+-        val slot = ApkStaging(tmp.root)
+-        downloadInto(slot, apkUrl, ByteArray(3) { 2.toByte() })
+-        slot.stagedApk().discard()
+-        assertFalse(Files.exists(File(tmp.root, STAGED_FILE_NAME).toPath()))
+-    }
+-
+-    @Test
+-    fun `discard of a missing file does not throw and leaves no leftover`() {
+-        val staged = FileStagedApk(File(tmp.root, "missing.apk"))
+-        staged.discard()
+-        assertFalse(staged.leftover)
+-    }
+-
+-    @Test
+-    fun `discard of a file that cannot be removed does not throw and sets leftover`() {
+-        val target = File(tmp.root, STAGED_FILE_NAME)
+-        Files.createDirectory(target.toPath())
+-        Files.write(File(target, "child.bin").toPath(), ByteArray(1))
+-        val staged = FileStagedApk(target)
+-        staged.discard()
+-        assertTrue(staged.leftover)
+-    }
+-
+-    @Test
+-    fun `open of a missing file is null`() {
+-        assertNull(FileStagedApk(File(tmp.root, "missing.apk")).open())
+-    }
+-
+-    @Test
+-    fun `open of a staged file gives its bytes`() {
+-        val slot = ApkStaging(tmp.root)
+-        downloadInto(slot, apkUrl, ByteArray(9) { 9.toByte() })
+-        val stream = slot.stagedApk().open() ?: throw AssertionError("the staged file must open")
+-        stream.use { assertEquals(9, it.read()) }
+-    }
+-
+-    @Test
+-    fun `a missing folder gives no output stream`() {
+-        assertNull(ApkStaging(File(tmp.root, "no-such-folder")).openForWrite())
+-    }
+-
+-    @Test
+-    fun `a short body leaves no staged file behind`() {
+-        val slot = ApkStaging(tmp.root)
+-        val opener = ScriptedOpener(status = 200, contentLength = 10L, body = ByteArrayInputStream(ByteArray(4) { 1.toByte() }))
+-        assertEquals(ApkDownload.Unavailable, HttpApkDownloader(opener, slot).download(apkUrl))
+-        assertFalse(Files.exists(File(tmp.root, STAGED_FILE_NAME).toPath()))
+-    }
+-}
+diff --git a/modules.toml b/modules.toml
+index 52306e32..7dcd0093 100644
+--- a/modules.toml
++++ b/modules.toml
+@@ -168,7 +168,7 @@ path = "android/modules/updater"
+ owns = "Daily update check + admin force-check, signed APK verify, rollback."
+ does_not_own = "Update endpoint (server/sync-api); APK signing (server/deploy)."
+ depends_on = ["android", "android_core"]
+-public = "UpdateChecker, UpdateInstallFacade, ConfirmationPort, ConfirmationHandle, CommitStatus, Shown, StartResult"
++public = "UpdateChecker"
+ card = "android/modules/updater/AGENTS.md"
+ 
+ [module.android_crypto]
