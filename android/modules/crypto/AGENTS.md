@@ -16,7 +16,7 @@ Client-side key derivation (Argon2id + HKDF), DEK generation/wrap/unwrap,
 AES-256-GCM encrypt/decrypt, X25519 box keypair generation, sealed-box
 unsealing.
 
-## Public Interface `core.CryptoService` port.
+## Public Interface `core.CryptoService` port, and `KdfImpl`, the `core.KeyDerivation` implementation.
 
 **Key flow:**
 1. **Registration:** the client derives one Argon2id output from the

@@ -70,6 +70,16 @@ class KdfImplTest {
     private val v2Kek = "72f9ce458994fcd7beb55f1fa4d305997ca289a542915db54f2300b40040db04"
     private val v2Verifier = "d19a9dfc73751af0e7106f60ff33ef0d6ef38ab6970e3bf5ea1345f29d4983fd"
 
+    /**
+     * The parallelism-2 known-answer vector. ADR-006 accepts parallelism 1 to 4, so a lane
+     * count other than 1 is in scope, but V1-V3 only ever ran one lane. The three hex values
+     * are the independent oracle, not recomputed here: argon2-cffi 25.1.0 for Argon2id and
+     * RFC 5869 HKDF in Python for the split. They are not produced by KdfImpl or by Bouncy Castle.
+     */
+    private val p2Argon2id = "80d08e5c4456f32f427938aa21088a6df6141ab0f0ced7b9ddbe14e5cfce9a7f"
+    private val p2Kek = "d617353ac58a55671b5b4459a89554b404c0477bb3d04278c64134f89f6a551d"
+    private val p2Verifier = "a8ba9a3b92b71c4518c0bee3cc133488d69a1db08fa48ea898bb0995ea9174b5"
+
     private fun salt(hex: String): ByteArray = hexToBytes(hex)
 
     private fun DerivedKeys.kekHex() = kek.copyBytes().toHex()
@@ -135,6 +145,27 @@ class KdfImplTest {
         val keys = KdfImpl().deriveKeys(v.password, salt(v.saltHex), v.params)
         assertEquals("V3 key-encryption key", v.kek, keys.kekHex())
         assertEquals("V3 verifier", v.verifier, keys.verifierHex())
+    }
+
+    /**
+     * ADR-006 accepts parallelism 1 to 4, but V1-V3 only ran one lane; this pins parallelism 2 so a
+     * hard-coded lane count cannot pass unseen. The three hex values are argon2-cffi 25.1.0 and RFC 5869 HKDF in Python, computed outside KdfImpl (not by KdfImpl or Bouncy Castle). A failure means
+     * the two-lane Argon2id output, the split, or one HKDF label is not the value the independent
+     * oracle gives.
+     */
+    @Test
+    fun `parallelism two gives the independent argon2id, key and verifier`() {
+        val password = "breaker-kdf-parallelism-two"
+        val saltBytes = salt("000102030405060708090a0b0c0d0e0f")
+        val params = KdfParams(65536, 3, 2, 32, 1)
+
+        val tag = argon2id(passwordBytes(password), saltBytes, 65536, 3, 2, 32)
+        assertEquals("parallelism-two argon2id", p2Argon2id, tag.toHex())
+
+        val keys = KdfImpl().deriveKeys(password, saltBytes, params)
+        assertEquals("parallelism-two key-encryption key", p2Kek, keys.kekHex())
+        assertEquals("parallelism-two verifier", p2Verifier, keys.verifierHex())
+        assertNotEquals("parallelism-two key and verifier differ", p2Kek, p2Verifier)
     }
 
     /** A failure means a refused setting was accepted, or reported with another reason. */

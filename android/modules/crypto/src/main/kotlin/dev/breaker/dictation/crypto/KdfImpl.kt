@@ -113,7 +113,12 @@ internal fun argon2id(
     val generator = Argon2BytesGenerator()
     generator.init(parameters)
     val output = ByteArray(outputLength)
-    generator.generateBytes(password, output)
+    try {
+        generator.generateBytes(password, output)
+    } catch (t: Throwable) {
+        output.fill(0) // throw path: wipe the tag buffer before the exception leaves
+        throw t
+    }
     return output
 }
 
@@ -128,9 +133,20 @@ internal fun hkdfSha256(ikm: ByteArray, salt: ByteArray, info: ByteArray, length
     val generator = HKDFBytesGenerator(SHA256Digest())
     generator.init(HKDFParameters(ikm, salt, info))
     val output = ByteArray(length)
-    generator.generateBytes(output, 0, length)
+    try {
+        generator.generateBytes(output, 0, length)
+    } catch (t: Throwable) {
+        output.fill(0) // throw path: wipe the output buffer before the exception leaves
+        throw t
+    }
     return output
 }
+
+/**
+ * The HKDF extract salt. RFC 5869 section 2.2 treats an empty salt as HashLen (here 32)
+ * zero bytes, so the empty array and 32 zero bytes are the same input to Extract.
+ */
+private val EMPTY_SALT: ByteArray = ByteArray(0)
 
 /**
  * Splits one Argon2id output into two independent subkeys: the key-encryption key and
@@ -150,13 +166,13 @@ internal fun splitKeys(argonOutput: ByteArray): DerivedKeys {
     try {
         kekBytes = hkdfSha256(
             ikm = argonOutput,
-            salt = ByteArray(0),
+            salt = EMPTY_SALT,
             info = KEK_LABEL.toByteArray(Charsets.US_ASCII),
             length = KEY_LENGTH_BYTES,
         )
         verifierBytes = hkdfSha256(
             ikm = argonOutput,
-            salt = ByteArray(0),
+            salt = EMPTY_SALT,
             info = AUTH_VERIFIER_LABEL.toByteArray(Charsets.US_ASCII),
             length = KEY_LENGTH_BYTES,
         )
