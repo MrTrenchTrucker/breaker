@@ -124,4 +124,16 @@ class FirstRunWordsTest {
         assertFalse("the placeholder is left in: $line", line.contains("{size}"))
         assertEquals(SetupTexts.MODEL_STEP_LINE.replace("{size}", "365"), line)
     }
+
+    @Test
+    fun `the keyboard tile page names its heading and reason from the set-up texts`() {
+        assertEquals(SetupTexts.HEADING_KEYBOARD_TILE, FirstRunWords.heading(FirstRunPage.KEYBOARD_TILE))
+        assertEquals(SetupTexts.WHY_KEYBOARD_TILE, FirstRunWords.why(FirstRunPage.KEYBOARD_TILE))
+    }
+
+    @Test
+    fun `the keyboard tile page gives its privacy line as its one extra line`() {
+        assertEquals(listOf(SetupTexts.KEYBOARD_TILE_LIMITS), FirstRunWords.extras(FirstRunPage.KEYBOARD_TILE, state()))
+        assertEquals(listOf(SetupTexts.KEYBOARD_TILE_LIMITS), FirstRunWords.extras(FirstRunPage.KEYBOARD_TILE, state(accessibility = true)))
+    }
 }

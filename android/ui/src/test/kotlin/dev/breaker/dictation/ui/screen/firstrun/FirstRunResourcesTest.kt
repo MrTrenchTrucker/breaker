@@ -48,6 +48,20 @@ class FirstRunResourcesTest {
         assertTrue("the failure does not name the picture: ${failure?.message}", failure?.message?.contains(missing) == true)
     }
 
+    @Test
+    fun `the folder holds exactly twelve picture files`() {
+        assertEquals("picture files in ${folder.path}", 12, folder.listFiles()?.size ?: 0)
+    }
+
+    @Test
+    fun `the two keyboard tile pictures are 960 by 640 PNG files`() {
+        for (name in listOf("breaker_perm_kbtile_light", "breaker_perm_kbtile_dark")) {
+            assertTrue("$name does not start with the PNG signature", bytesOf(name).copyOfRange(0, 8).contentEquals(PNG_SIGNATURE))
+            assertEquals("$name width", 960, sizeOf(name).first)
+            assertEquals("$name height", 640, sizeOf(name).second)
+        }
+    }
+
     private fun bytesOf(name: String): ByteArray {
         val file = File(folder, "$name.png")
         assertTrue("$name.png is missing from ${folder.path}", file.isFile)

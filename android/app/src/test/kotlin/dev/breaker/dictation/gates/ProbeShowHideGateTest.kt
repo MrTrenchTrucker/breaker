@@ -7,12 +7,10 @@ import org.junit.Test
 /**
  * The show and hide paths of the tile do not know the keyboard signal probe.
  *
- * The probe reaches the tile only through the one pass-through in the tile host and the one
- * guarded hand-over in the tile port. The coordinator, the start and stop paths of the host and
- * the hide path of the port name none of the probe symbols. The bodies are cut from the real
- * text, which keeps its indentation, and are then read with comments and literal text removed by
- * the shared scanner. Each rule holds on the real files and fails on the plant samples written
- * beside it.
+ * The coordinator, the start and stop paths of the host and the hide path of the port name none of
+ * the probe symbols. The bodies are cut from the real text, which keeps its indentation, and are then
+ * read with comments and literal text removed by the shared scanner. Each rule holds on the real files
+ * and fails on the plant samples written beside it.
  */
 internal class ProbeShowHideGateTest {
 
@@ -22,20 +20,10 @@ internal class ProbeShowHideGateTest {
     private val portPath: String = dir + "host/OverlayTilePort.kt"
 
     private val probeSymbols: List<String> = listOf("KeyboardProbeReadings", "KeyboardSignal", "setImeProbe", "imeProbe", "ProbeSwitch")
-    private val hostSymbols: List<String> = probeSymbols.filter { it != "setImeProbe" }
 
     private val armedHeader: String = "fun onArmedChanged(armed: Boolean) {"
     private val launcherHeader: String = "fun onLauncherVisible() {"
     private val hideHeader: String = "override fun hide() {"
-    private val showHeader: String = "override fun show(): TileShow {"
-
-    private val setImeProbeWord: Regex = Regex("""\bsetImeProbe\b""")
-    private val declaration: Regex = Regex(
-        """fun setImeProbe\(listener: \(\(Int, Boolean\) -> Unit\)\?\) \{\s*main\.post \{\s*tile\.setImeProbe\(listener\)\s*\}\s*\}""",
-    )
-    private val guardedHandOver: Regex = Regex(
-        """tile\s*=\s*made\s+if\s*\(\s*imeProbe\s*!=\s*null\s*\)\s*made\.setImeProbe\(\s*imeProbe\s*\)\s+made\.setTheme\(theme\)""",
-    )
 
     /** The text of [path] in the main source set, as the file holds it (indentation kept). */
     private fun raw(path: String): String = AppSourceFiles.mainFile(path)
@@ -91,15 +79,11 @@ internal class ProbeShowHideGateTest {
     }
 
     @Test
-    fun `the tile host reaches the probe through setImeProbe only`() {
+    fun `the tile host names no probe symbol`() {
         val host: String = code(raw(hostPath))
-        assertEquals("app: TileHost names a probe symbol other than setImeProbe", emptyList<String>(), symbolsIn(host, hostSymbols))
-        assertEquals("app: TileHost does not hold the one setImeProbe declaration", 1, declaration.findAll(host).count())
-        assertEquals("app: TileHost names setImeProbe in another place", 2, setImeProbeWord.findAll(host).count())
-        val noPost: String = code(edited(raw(hostPath), "main.post {\n            tile.setImeProbe(listener)\n        }", "tile.setImeProbe(listener)"))
-        assertEquals("app: a setImeProbe that skips the main post was accepted", 0, declaration.findAll(noPost).count())
+        assertEquals("app: TileHost names a probe symbol", emptyList<String>(), symbolsIn(host, probeSymbols))
         val reader: String = code(edited(raw(hostPath), "    override fun openLauncher(route: String?) {", "    private fun reader() = KeyboardProbeReadings.isEnabled()\n\n    override fun openLauncher(route: String?) {"))
-        assertTrue("app: TileHost that reads the probe directly was accepted", symbolsIn(reader, hostSymbols).isNotEmpty())
+        assertTrue("app: TileHost that reads the probe directly was accepted", symbolsIn(reader, probeSymbols).isNotEmpty())
     }
 
     @Test
@@ -109,18 +93,5 @@ internal class ProbeShowHideGateTest {
         assertEquals("app: hide() names a probe symbol", emptyList<String>(), symbolsIn(code(hide), probeSymbols))
         val planted: String = bodyOf(edited(raw(portPath), hideHeader, "$hideHeader\n        imeProbe = null"), hideHeader)
         assertTrue("app: a hide() that touches the probe was accepted", symbolsIn(code(planted), probeSymbols).isNotEmpty())
-    }
-
-    @Test
-    fun `the tile port hands the probe listener over only when one is set`() {
-        val port: String = raw(portPath)
-        val show: String = bodyOf(port, showHeader)
-        assertTrue("app: show() of OverlayTilePort was not found", show.isNotEmpty())
-        assertEquals("app: show() does not hold exactly one setImeProbe call", 1, setImeProbeWord.findAll(code(show)).count())
-        assertEquals("app: show() does not hand the listener over under the guard", 1, guardedHandOver.findAll(code(show)).count())
-        val unguarded: String = bodyOf(edited(port, "if (imeProbe != null) made.setImeProbe(imeProbe)", "made.setImeProbe(imeProbe)"), showHeader)
-        assertEquals("app: an unguarded hand-over was accepted", 0, guardedHandOver.findAll(code(unguarded)).count())
-        val twice: String = bodyOf(edited(port, "made.setTheme(theme)", "made.setImeProbe(null)\n        made.setTheme(theme)"), showHeader)
-        assertEquals("app: a second setImeProbe call in show() was accepted", 2, setImeProbeWord.findAll(code(twice)).count())
     }
 }

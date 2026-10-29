@@ -43,14 +43,21 @@ Implements `commit(request: CommitRequest): CommitOutcomeResult`.
   no public way to read or clear the current field from outside this module,
   so text can only ever be inserted through the commit service's own
   explicit-send flow.
-- `KeyboardProbeReadings` is the probe's holder of the keyboard readings. It is probe
-  only and is removed together with the probe's setting selector before release.
+- `KeyboardProbeReadings` is the holder of the keyboard readings. It is not probe only:
+  its production seam (`publishLatest`, `readings`, `current`) feeds the keyboard tile in
+  every build. Its probe members (`setEnabled`, `isEnabled`, `publish`, `recent`): no release
+  code calls them; nothing here promises their removal. It holds two Booleans, the name of the
+  accessibility event and a time, and no node, window object or text: the accessibility
+  service reads the focused node's editable flag and the window types, then releases both.
   Its public members, one line each:
   - `setEnabled(on: Boolean)`: turns the probe on or off; turning it off clears the latest reading and the recent lines.
   - `isEnabled(): Boolean`: whether the probe is on.
+  - `shouldProcessEvent(eventPackage: String?, ownPackage: String): Boolean`: whether an event from a package is recorded; the probe's own package is skipped, and a null package is kept.
   - `publish(fieldFocus: Boolean, imeWindow: Boolean, lastEvent: String, time: Long)`: stores a reading and appends it to the recent lines while the probe is on.
+  - `publishLatest(fieldFocus: Boolean, imeWindow: Boolean, lastEvent: String, time: Long): ProbeReading`: stores the latest reading in every build, and appends it to the recent lines only while the probe is on.
   - `current(): ProbeReading?`: the latest reading, or null.
-  - `recent(): List<ProbeReading>`: a copy of the recent lines, oldest first, at most 40.
+  - `recent(): List<ProbeReading>`: a copy of the recent lines, oldest first, at most 200.
+  - `readings(): Flow<ProbeReading?>`: a live view of the latest reading; it re-emits on each change and carries the current value when a reader starts collecting.
   - `ProbeReading`: the data class of one reading.
 - Layout: seven pure Kotlin files in the module's package (no Android class is
   named in them) and five files in `adapter/`, the only place that names
@@ -180,9 +187,9 @@ agents, not required: an outside contributor may write the code themselves
   whatever text-insert mechanism publishes a focused field (today,
   `commit/accessibility`, ADR-022, once built) and the commit service that
   reads it. No test touches it; every test builds its own registry.
-  `KeyboardProbeReadings` is the probe's holder, probe only and removed with the
-  selector; its test resets it before and after every test.
-- The holder's public seam is publish-only on purpose: `publish(field)` is its
+  `KeyboardProbeReadings` is the holder of the keyboard readings, not probe only; its test
+  classes reset it before and after each test.
+- The focused-field holder's public seam is publish-only on purpose: `publish(field)` is its
   only public member, there is no public `current()` or `clearAll()`, so a
   sub-module can hand over a focused field but cannot read it back or peek at
   what another mechanism published — text only ever leaves through the commit

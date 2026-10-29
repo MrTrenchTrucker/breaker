@@ -23,10 +23,13 @@ internal object ProbeView {
     /** The probe guard as the first statement of the handler, at the start of the handler text. */
     val guardStart: Regex = Regex("""^\s*if\s*\(\s*event\s*==\s*null\s*\|\|\s*!\s*KeyboardProbeReadings\s*\.\s*isEnabled\s*\(\s*\)\s*\)\s*return\b""")
     private val guard: Regex = Regex("""if\s*\(\s*event\s*==\s*null\s*\|\|\s*!\s*KeyboardProbeReadings\s*\.\s*isEnabled\s*\(\s*\)\s*\)\s*return""")
+    /** The production contract's null-skip, stripped by the adapter/mapping views so they no longer carry it. */
+    private val nullSkip: Regex = Regex("""if\s*\(\s*event\s*==\s*null\s*\)\s*return""")
     private val decisionGuard: Regex = Regex(
         """if\s*\(\s*!\s*KeyboardProbeReadings\s*\.\s*shouldProcessEvent\s*\([^()]*(?:\([^()]*\)[^()]*)*\)\s*\)\s*return""",
     )
-    val probePublish: Regex = Regex("""KeyboardProbeReadings\s*\.\s*publish\s*\(""")
+    /** Re-based to the production call: the service now writes via publishLatest, not publish. */
+    val probePublish: Regex = Regex("""KeyboardProbeReadings\s*\.\s*publish(Latest)?\s*\(""")
     private val probeImport: Regex = Regex("""(?m)^\s*import\s+(android\.view\.accessibility\.AccessibilityWindowInfo|dev\.breaker\.dictation\.commit\.KeyboardProbeReadings)\s*$""")
     private val windowRead: Regex = Regex("""\bgetWindows\s*\(\s*\)|\bwindows\b|\brecycle\s*\(\s*\)""")
 
@@ -75,9 +78,10 @@ internal object ProbeView {
         return handler.substring(found.range.first, closeAfter(handler, found.range.last))
     }
 
-    /** The service for the adapter checks: the probe guard, the package decision, the probe publish, the probe imports and the window-list reads removed. */
+    /** The service for the adapter checks: the null-skip and production contract are stripped out so the older checks keep reading everything else in the service. */
     fun adapter(code: String): String {
-        val guarded: String = decisionGuard.replace(guard.replaceFirst(code, ""), "")
+        val unguarded: String = guard.replaceFirst(code, "").replace(nullSkip, "")
+        val guarded: String = decisionGuard.replace(unguarded, "")
         val plain: String = probeImport.replace(withoutCall(guarded, probePublish), "")
         val window: String = body(plain, WINDOW_FUNCTION) ?: return plain
         if (window.isBlank()) return plain
@@ -88,33 +92,17 @@ internal object ProbeView {
     fun mapping(code: String): String = withoutFunction(withoutFunction(adapter(code), FIELD_FUNCTION), WINDOW_FUNCTION)
 }
 
-internal class ProbeReadGateTest {
+internal class ProbeReadGateTest : ProbeGateTestBase() {
 
-    private val nodeFile: String = "adapter/AndroidFieldNode.kt"
-    private val serviceFile: String = "adapter/BreakerAccessibilityService.kt"
     private val windowList: Regex = Regex("""\bgetWindows\s*\(""")
     private val recycleCall: Regex = Regex("""\brecycle\s*\(\s*\)""")
     private val publishCall: Regex = Regex("""\bpublish\s*\(""")
+    private val publishLatestCall: Regex = Regex("""\bpublishLatest\s*\(""")
     private val windowType: Regex = Regex("""\bAccessibilityWindowInfo\b""")
     private val readsText: Regex = Regex("""\b(getText|text|getContentDescription|contentDescription|performAction)\b""")
 
     /** Any event member read outside the allowed two. */
     private val otherEventMembers: Regex = Regex("""\bevent\s*\.\s*\w+""")
-
-    private fun real(path: String): String {
-        val text: String = SourceFiles.mainSources()[path] ?: ""
-        assertTrue("commit/accessibility: the probe check did not find " + path, text.isNotBlank())
-        return text
-    }
-
-    private fun code(source: String): String = SourceFiles.strip(source).code
-
-    private fun count(rule: Regex, code: String): Int = rule.findAll(code).count()
-
-    private fun edit(source: String, from: String, to: String): String {
-        assertTrue("commit/accessibility: the probe check sample has no text " + from, source.contains(from))
-        return source.replaceFirst(from, to)
-    }
 
     private fun windowReads(node: String, service: String): Int =
         count(windowList, node) + count(windowList, ProbeView.withoutFunction(service, ProbeView.WINDOW_FUNCTION))
@@ -128,22 +116,33 @@ internal class ProbeReadGateTest {
             ProbeView.probeCall(ProbeView.body(service, ProbeView.HANDLER).orEmpty())
 
     @Test
-    fun `the handler returns before any read when the probe is off`() {
+    fun `the event handler skips a null event as its first statement`() {
         val handler: String = ProbeView.body(code(real(serviceFile)), ProbeView.HANDLER).orEmpty()
         assertTrue("commit/accessibility: the event handler has no body", handler.isNotBlank())
-        assertTrue(
-            "commit/accessibility: the first statement of the event handler is not the probe guard",
+        // The production contract: a null event is dropped before any read, not guarded on probe state.
+        assertFalse(
+            "commit/accessibility: the guard was still expected as the first statement of the event handler",
             ProbeView.guardStart.containsMatchIn(handler),
         )
-        val readFirst: String = "        val early = findFieldFocus()\n" + handler
-        assertFalse(
-            "commit/accessibility: a read before the probe guard was accepted",
-            ProbeView.guardStart.containsMatchIn(readFirst),
+        assertTrue(
+            "commit/accessibility: the first statement of the event handler should be a null skip",
+            "        if (event == null) return" in handler,
         )
     }
 
     @Test
-    fun `the service calls the package decision before any read`() {
+    fun `a sample without the null skip as first statement is refused`() {
+        val service: String = code(real(serviceFile))
+        val withoutSkip: String = edit(service, "        if (event == null) return\n", "")
+        val handler: String = ProbeView.body(code(withoutSkip), ProbeView.HANDLER).orEmpty()
+        assertTrue(
+            "commit/accessibility: a handler with the null skip removed still claimed to start with it",
+            !("        if (event == null) return" in handler),
+        )
+    }
+
+    @Test
+    fun `the service calls the package decision before any publish`() {
         val handler: String = ProbeView.body(code(real(serviceFile)), ProbeView.HANDLER).orEmpty()
         assertTrue("commit/accessibility: the event handler has no body", handler.isNotBlank())
         val decision: Int = handler.indexOf(ProbeView.PACKAGE_DECISION)
@@ -151,7 +150,7 @@ internal class ProbeReadGateTest {
             "commit/accessibility: the event handler does not call the package decision",
             decision >= 0,
         )
-        val publish: Int = handler.indexOf("KeyboardProbeReadings.publish")
+        val publish: Int = handler.indexOf("KeyboardProbeReadings.publishLatest")
         assertTrue(
             "commit/accessibility: the package decision is not called before the publish",
             decision < publish,
@@ -193,8 +192,8 @@ internal class ProbeReadGateTest {
         )
         val handler: String = ProbeView.body(service, ProbeView.HANDLER).orEmpty()
         assertTrue(
-            "commit/accessibility: the probe function is not called from the handler after the guard",
-            ProbeView.guardStart.containsMatchIn(handler) && handler.contains(ProbeView.WINDOW_FUNCTION + "()"),
+            "commit/accessibility: the null skip is not the first statement of the event handler",
+            "        if (event == null) return" in handler && handler.contains(ProbeView.WINDOW_FUNCTION + "()"),
         )
         assertEquals(
             "commit/accessibility: the window type is named outside its import and the probe function",
@@ -221,21 +220,21 @@ internal class ProbeReadGateTest {
 
     @Test
     fun `a second publish outside the probe path is refused`() {
-        val node: String = code(real(nodeFile))
         val service: String = code(real(serviceFile))
         val handler: String = ProbeView.body(service, ProbeView.HANDLER).orEmpty()
+        // The production handler publishes exactly one reading, on the ungated publishLatest; node file keeps none.
+        val node: String = code(real(nodeFile))
         assertEquals(
-            "commit/accessibility: the publish calls outside the probe path are not exactly the one holder publish",
+            "commit/accessibility: the handler is not the single publisher by publishLatest",
             1,
-            count(publishCall, node) + publishesOutsideHandler(service),
+            count(publishLatestCall, node) + publishesOutsideHandler(service),
         )
-        assertEquals("commit/accessibility: the probe path does not publish exactly once", 1, count(ProbeView.probePublish, handler))
-        assertEquals("commit/accessibility: the handler publishes something other than the probe", 1, count(publishCall, handler))
-        val sample: String = code(edit(real(serviceFile), "            handle?.close()", "            handle?.close()\n            publish(null)"))
+        // A second publishLatest anywhere in the file is refused.
+        val sample: String = edit(service, "            handle?.close()", "            handle?.close()\n            KeyboardProbeReadings.publishLatest(fieldFocus = true, imeWindow = false, lastEvent = \"x\", time = 0)")
         assertEquals(
-            "commit/accessibility: a second publish outside the probe path was not refused",
+            "commit/accessibility: a second publish_latest was not counted",
             2,
-            count(publishCall, node) + publishesOutsideHandler(sample),
+            count(publishLatestCall, sample),
         )
     }
 

@@ -2,6 +2,7 @@ package dev.breaker.dictation.ui.screen.firstrun
 
 import dev.breaker.dictation.ui.screen.onboarding.OpenAction
 import dev.breaker.dictation.ui.screen.onboarding.SetupState
+import dev.breaker.dictation.ui.screen.onboarding.SetupStep
 
 /*
  * What the last permission page lists as still missing, and the button each item offers.
@@ -19,11 +20,15 @@ internal data class MissingItem(val page: FirstRunPage, val action: OpenAction)
 internal object FirstRunMissing {
     /**
      * The items for every permission that is not granted, in the first-run order: microphone,
-     * overlay, notifications, accessibility.
+     * overlay, notifications, accessibility. A step that more than one page asks for is listed
+     * once, under the first of those pages.
      */
-    fun of(state: SetupState): List<MissingItem> =
-        FirstRunPages.ORDER.mapNotNull { page ->
+    fun of(state: SetupState): List<MissingItem> {
+        val listed = mutableSetOf<SetupStep>()
+        return FirstRunPages.ORDER.mapNotNull { page ->
             val step = FirstRunPages.setupStepOf(page) ?: return@mapNotNull null
+            if (!listed.add(step)) return@mapNotNull null
             state.actionFor(step)?.let { action -> MissingItem(page, action) }
         }
+    }
 }

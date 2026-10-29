@@ -32,6 +32,7 @@ class TileCoordinator(
     private val clipboard: TakenClipboard = object : TakenClipboard { override fun copy(text: String) {} },
     private val takenNotice: (String?) -> Unit = {},
     private val history: HistoryStore? = null,
+    private val delayed: DelayedPost = NoDelayedPost,
 ) {
     private var armed: Boolean = false
     private var sendPushed: Boolean = false
@@ -40,6 +41,11 @@ class TileCoordinator(
     private var beginPending: Boolean = false
     private var pushed: TileState = TileState.IDLE
     private var generation: Int = 0
+
+    /** The keyboard tile's session gate and anchor, driven by [onKeyboardReading]. Kept separate to stay within the line cap; it names no Android type. */
+    private val keyboardTile = KeyboardTileSession()
+
+    private val reevaluation: KeyboardReevaluation = KeyboardReevaluation(delayed) { ime, focus, dueMs -> act(keyboardTile.onKeyboardReading(ime, focus, dueMs)) }
 
     /** The taken-entry controller (the MIC_BUSY face and its settle). */
     internal val yield = TakeYieldController(
@@ -58,6 +64,12 @@ class TileCoordinator(
     /** True while the last show answered SHOWN; a refused or failed show and a switch-off clear it. A begin passes while it holds or while the user-closed flag holds. */
     private var tileShown: Boolean = false
 
+    private val heldHide: KeyboardHideHold = KeyboardHideHold()
+    private val portCalls: TilePortCalls = TilePortCalls(take, modelReady, background)
+
+    /** The one seam every keyboard-driven SHOW passes through; default true. A shake setting flips this property. When off, the coordinator does not put the tile back on screen. */
+    internal var keyboardAutoPop: Boolean = true
+
     /** Remembers the user closed the tile; cleared on launcher visible (through arm) or switch off/on. */
     internal val tileShowGuard: TileShowGuard = TileShowGuard(tile, modelNotice)
 
@@ -74,7 +86,7 @@ class TileCoordinator(
         val wasSent: Boolean = pushed == TileState.SENT
         lastCommit = null
         if (tileShowGuard.onBegin { shown -> tileShown = (shown == TileShow.SHOWN); if (shown == TileShow.SHOWN) push() } || !tileShown) return
-        if (!isModelReady()) {
+        if (!portCalls.isModelReady()) {
             if (wasSent) push()
             guarded { modelNotice.showMissing() }
             // The notification may be switched off for the app, so the tile says it too.
@@ -82,8 +94,9 @@ class TileCoordinator(
             return
         }
         beginPending = true
+        reevaluation.flush()
         val epoch: Int = generation
-        val queued: Boolean = submit {
+        val queued: Boolean = portCalls.submit {
             val result: BeginResult = try {
                 take.begin()
             } catch (e: Exception) {
@@ -98,7 +111,7 @@ class TileCoordinator(
     }
 
     /** A shake shows the tile when it is off screen or closed, and never begins a take. Main thread only. */
-    fun onShake() = tileShowGuard.onShake(armed && !beginPending && !sendPushed && !yield.yieldRunning() && !deviceFailure.running() && pushed != TileState.RECORDING, tileShown) { shown ->
+    fun onShake() = tileShowGuard.onShake(tileMayShow(), tileShown) { shown ->
         tileShown = (shown == TileShow.SHOWN); if (shown == TileShow.SHOWN) push() }
 
     /** The user cancelled the take: drop it and show the armed tile. */
@@ -111,7 +124,7 @@ class TileCoordinator(
         guarded { tile.clearNotice() }
         // The runner is still recording until the cancel below has run, so the session is given here.
         push(DictationState.IDLE)
-        submit { guarded { take.cancel() } }
+        portCalls.submit { guarded { take.cancel() } }
     }
 
     /** The user ended the take: finish, transcribe and send it. A repeat before the tile shows sending is ignored. */
@@ -121,7 +134,7 @@ class TileCoordinator(
         sendPushed = true
         push()
         val epoch: Int = generation
-        val queued: Boolean = submit {
+        val queued: Boolean = portCalls.submit {
             val end: TakeEnd = finisher.finishTake()
             main.post { if (epoch == generation) settle(end) }
         }
@@ -137,11 +150,37 @@ class TileCoordinator(
         lastFailed = false
         guarded { tile.clearNotice() }
         if (armed) push()
-        val route: String? = if (isModelReady()) null else ROUTE_MODEL_VALUE
+        val route: String? = if (portCalls.isModelReady()) null else ROUTE_MODEL_VALUE
         guarded { opener.openLauncher(route) }
     }
 
-    fun onCloseRequested() = tileShowGuard.onCloseRequested()
+    fun onCloseRequested() {
+        keyboardTile.onCloseRequested()
+        heldHide.clearOnClose()
+        tileShowGuard.onCloseRequested()
+        tileShown = false // a user close clears the record that the tile is shown
+    }
+
+    /** One probe reading on the main thread decides what to show or hide. Never begins a take; never touches an armed switch; ime gone resets session flags. */
+    fun onKeyboardReading(ime: Boolean, focus: Boolean, timeMs: Long) {
+        heldHide.onReading(ime)
+        if (!keyboardTile.inWindow(timeMs)) reevaluation.flush()
+        if (keyboardTile.inWindow(timeMs)) reevaluation.hold(ime, focus, timeMs, keyboardTile.anchorMs() + DEBOUNCE_MS)
+        else act(keyboardTile.onKeyboardReading(ime, focus, timeMs))
+    }
+
+    private fun act(decision: KeyboardDecision) {
+        when (decision) {
+            is KeyboardDecision.Show -> if (keyboardAutoPop) {
+                val wasShowing = tileShown
+                tileShowGuard.onShake(tileMayShow(), tileShown) { shown -> tileShown = (shown == TileShow.SHOWN); if (shown == TileShow.SHOWN) push() }
+                heldHide.clearOnShow()
+                keyboardTile.reportShown(wasShowing, tileShown)
+            }
+            is KeyboardDecision.Hide -> if (heldHide.hideNow(inFlight())) { guarded { tile.hide() }; tileShown = false } else keyboardTile.keepRaised()
+            KeyboardDecision.NoOp -> {}
+        }
+    }
 
     /** The microphone was taken by another app: cut the take and show the busy face. */
     fun onTakeMicTaken() {
@@ -159,14 +198,10 @@ class TileCoordinator(
         yield.onTakeEndedCleared()
     }
 
-    /**
-     * The microphone ended a take by itself with a device failure: transcribe what was captured, save and
-     * copy it, then show one sentence. Main thread only. False when the tile does not take the cut, and the
-     * caller ends the take the plain way.
-     */
+    /** The microphone ended a take with a device failure: transcribe, save and copy it, then show one sentence; False when the tile does not take the cut. Main thread only. */
     fun onTakeFailed(): Boolean {
         if (failureBarrier()) return false
-        if (!armed || sendPushed || sessionNow() != DictationState.RECORDING) return false
+        if (!armed || sendPushed || portCalls.sessionNow() != DictationState.RECORDING) return false
         sendPushed = true
         push()
         if (!deviceFailure.start()) {
@@ -180,10 +215,16 @@ class TileCoordinator(
     /** While a device failure is transcribed, the entries that start, end or change a take do nothing, but disarm and fail are not barred. */
     private fun failureBarrier(): Boolean = deviceFailure.running()
 
+    /** A take is in flight: a begin, a send, a yield or a device failure is open, or the tile shows the recording face. */
+    private fun inFlight(): Boolean = beginPending || sendPushed || yield.yieldRunning() || deviceFailure.running() || pushed == TileState.RECORDING
+
+    /** The one check for showing the tile: the switch is on and no take is in flight. A shake and a keyboard show both use it. */
+    private fun tileMayShow(): Boolean = armed && !inFlight()
+
     private fun arm() {
         tileShowGuard.clear()
         // A tile that was off has no take: the one cancel queued when it went off may not have run yet.
-        val session: DictationState = if (armed) sessionNow() else DictationState.IDLE
+        val session: DictationState = if (armed) portCalls.sessionNow() else DictationState.IDLE
         armed = true
         lastCommit = null
         val shown: TileShow = try {
@@ -209,11 +250,13 @@ class TileCoordinator(
         lastFailed = false
         beginPending = false
         tileShown = false
+        heldHide.clearOnSwitchOff(); keyboardTile.releaseRaised()
+        reevaluation.cancel()
         lastCommit = null
         push()
         yield.disarmCleared()
         deviceFailure.clear()
-        submit { guarded { take.cancel() } }
+        portCalls.submit { guarded { take.cancel() } }
         guarded { tile.hide() }
     }
 
@@ -246,41 +289,12 @@ class TileCoordinator(
         guarded { tile.showNotice(sentence) }
     }
 
-    private fun push(session: DictationState = sessionNow()) {
+    private fun push(session: DictationState = portCalls.sessionNow()) {
         val state: TileState = tileStateFor(
             armed, session, sendPushed, lastFailed, lastCommit, yield.micBusy.get())
         pushed = state
         guarded { tile.setState(state) }
+        if (heldHide.applyWhenIdle(inFlight())) { guarded { tile.hide() }; tileShown = false; keyboardTile.releaseRaised() }
     }
 
-    private fun sessionNow(): DictationState =
-        try {
-            take.sessionState
-        } catch (e: Exception) {
-            DictationState.IDLE
-        }
-
-    private fun isModelReady(): Boolean =
-        try {
-            modelReady.isReady()
-        } catch (e: Exception) {
-            false
-        }
-
-    /** True when [block] was handed to the background; a background that refuses is not an exception here. */
-    private fun submit(block: () -> Unit): Boolean =
-        try {
-            background.submit(block)
-            true
-        } catch (e: Exception) {
-            false
-        }
-
-    private fun guarded(block: () -> Unit) {
-        try {
-            block()
-        } catch (e: Exception) {
-            // A tile or notification that fails must not stop the take or reach the caller.
-        }
-    }
 }

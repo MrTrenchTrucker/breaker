@@ -6,11 +6,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The debug manifest holds the probe page without a launcher filter. The probe activity has no
- * launcher filter of its own; the launcher activity carries the one shortcut hook; the two probe
- * providers are not exported, and the mic probe receiver is exported for the debug broadcast. The
- * debug manifest is read as XML with the same parser and the same exact allow-list as the other
- * manifest rules. The rule holds on the real file and refuses the plant samples written beside it.
+ * The debug manifest holds the mic probe and nothing else: the mic probe receiver is exported for the
+ * debug broadcast, the mic probe provider is not exported, and no other element is allowed. The debug
+ * manifest is read as XML with the same parser and the same exact allow-list as the other manifest
+ * rules. The rule holds on the real file and refuses the plant samples written beside it.
  */
 internal class ProbeDebugManifestGateTest {
 
@@ -22,39 +21,6 @@ internal class ProbeDebugManifestGateTest {
                 name = "application",
                 attributes = emptyMap(),
                 children = listOf(
-                    XmlExpect(
-                        name = "activity",
-                        attributes = mapOf(
-                            "android:name" to ".probe.KeyboardProbeActivity",
-                            "android:exported" to "false",
-                            "android:label" to "Breaker probe",
-                            "android:theme" to "@android:style/Theme.DeviceDefault.NoActionBar",
-                        ),
-                        key = "android:name",
-                    ),
-                    XmlExpect(
-                        name = "activity",
-                        attributes = mapOf("android:name" to ".SettingsLauncherActivity"),
-                        children = listOf(
-                            XmlExpect(
-                                name = "meta-data",
-                                attributes = mapOf(
-                                    "android:name" to "android.app.shortcuts",
-                                    "android:resource" to "@xml/probe_shortcuts",
-                                ),
-                            ),
-                        ),
-                        key = "android:name",
-                    ),
-                    XmlExpect(
-                        name = "provider",
-                        attributes = mapOf(
-                            "android:name" to ".probe.ProbeStartProvider",
-                            "android:authorities" to "\${applicationId}.probe",
-                            "android:exported" to "false",
-                        ),
-                        key = "android:name",
-                    ),
                     XmlExpect(
                         name = "receiver",
                         attributes = mapOf(
@@ -97,7 +63,7 @@ internal class ProbeDebugManifestGateTest {
     }
 
     @Test
-    fun `the debug manifest holds the probe activity without a launcher filter and the shortcut hook the two unexported providers and the exported mic receiver`() {
+    fun `the debug manifest holds the exported mic receiver and the unexported mic provider and nothing more`() {
         val text: String = debugManifestText()
         assertEquals("app: the debug manifest is not the allowed one", emptyList<String>(), XmlAllowList.problems(XmlTree.parse(text), debugManifest))
         val second = XmlSamples.apply(
@@ -114,23 +80,11 @@ internal class ProbeDebugManifestGateTest {
             "manifest",
             text,
             XmlSample(
-                "the launcher filter on the probe activity",
-                "android:theme=\"@android:style/Theme.DeviceDefault.NoActionBar\" />",
-                "android:theme=\"@android:style/Theme.DeviceDefault.NoActionBar\">\n" +
-                    "            <intent-filter>\n" +
+                "the launcher filter on the mic receiver",
+                "<action android:name=\"dev.breaker.debug.MIC\" />",
+                "<action android:name=\"dev.breaker.debug.MIC\" />\n" +
                     "                <action android:name=\"android.intent.action.MAIN\" />\n" +
-                    "                <category android:name=\"android.intent.category.LAUNCHER\" />\n" +
-                    "            </intent-filter>\n" +
-                    "        </activity>",
-            ),
-        )
-        val hook = XmlSamples.apply(
-            "manifest",
-            text,
-            XmlSample(
-                "the shortcut hook removed",
-                "<meta-data\n                android:name=\"android.app.shortcuts\"\n                android:resource=\"@xml/probe_shortcuts\" />",
-                "",
+                    "                <category android:name=\"android.intent.category.LAUNCHER\" />",
             ),
         )
         val extraReceiver = XmlSamples.apply(
@@ -158,8 +112,7 @@ internal class ProbeDebugManifestGateTest {
         )
         assertTrue("app: the debug manifest accepted a second activity", XmlAllowList.problems(XmlTree.parse(second), debugManifest).isNotEmpty())
         assertTrue("app: the debug manifest accepted an exported provider", XmlAllowList.problems(XmlTree.parse(exported), debugManifest).isNotEmpty())
-        assertTrue("app: the debug manifest accepted a launcher filter on the probe activity", XmlAllowList.problems(XmlTree.parse(filter), debugManifest).isNotEmpty())
-        assertTrue("app: the debug manifest accepted a dropped shortcut hook", XmlAllowList.problems(XmlTree.parse(hook), debugManifest).isNotEmpty())
+        assertTrue("app: the debug manifest accepted a launcher filter on the mic receiver", XmlAllowList.problems(XmlTree.parse(filter), debugManifest).isNotEmpty())
         assertTrue("app: the debug manifest accepted an extra unlisted receiver", XmlAllowList.problems(XmlTree.parse(extraReceiver), debugManifest).isNotEmpty())
         assertTrue("app: the debug manifest accepted a mic receiver that is not exported", XmlAllowList.problems(XmlTree.parse(micNotExported), debugManifest).isNotEmpty())
         assertTrue("app: the debug manifest accepted a mic receiver with the wrong action", XmlAllowList.problems(XmlTree.parse(micWrongAction), debugManifest).isNotEmpty())

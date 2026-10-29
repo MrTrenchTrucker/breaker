@@ -6,16 +6,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The accessibility service config asks for focused-view events and window content,
- * and for nothing broader.
- *
- * An accessibility service can be configured to see every event of every app, to
- * perform gestures, to read the screen outside the focused field, to filter keys or
- * to take screenshots. This module needs none of that to find the focused field, so
- * the config holds exactly four attributes with exactly their values: one event type,
- * one feedback type, the window content capability, and the description string. The
- * file is parsed as XML, so comments are not content and attribute order does not
- * matter; an extra attribute, an extra element or another value fails.
+ * An accessibility service can be configured to see every event of every app, to perform gestures,
+ * to read the screen outside the focused field, to filter keys or to take screenshots. This module
+ * needs none of that to find the focused field; instead it is gated on exactly what it publishes:
+ * a release build sees only the keyboard window, so the config allows three event types (focus and two window events) and the
+ * interactive-windows flag, no more, no less. The file is parsed as XML, so comments are not content
+ * and attribute order does not matter; an extra attribute, an extra element or another value fails.
  *
  * The strings file is gated too: exactly the label and the description, the description short,
  * plain ASCII with escaped apostrophes, and still saying what the service does and does not do.
@@ -40,9 +36,10 @@ internal class ConfigGateTest {
 
     private val good: String = """<?xml version="1.0" encoding="utf-8"?>
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
-    android:accessibilityEventTypes="typeViewFocused"
+    android:accessibilityEventTypes="typeViewFocused|typeWindowsChanged|typeWindowStateChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:canRetrieveWindowContent="true"
+    android:accessibilityFlags="flagRetrieveInteractiveWindows"
     android:description="@string/commit_accessibility_service_description" />
 """
 
@@ -50,9 +47,10 @@ internal class ConfigGateTest {
         name = "accessibility-service",
         attributes = mapOf(
             "xmlns:android" to XmlTree.ANDROID_NAMESPACE,
-            "android:accessibilityEventTypes" to "typeViewFocused",
+            "android:accessibilityEventTypes" to "typeViewFocused|typeWindowsChanged|typeWindowStateChanged",
             "android:accessibilityFeedbackType" to "feedbackGeneric",
             "android:canRetrieveWindowContent" to "true",
+            "android:accessibilityFlags" to "flagRetrieveInteractiveWindows",
             "android:description" to "@string/$descriptionName",
         ),
     )
@@ -111,7 +109,7 @@ internal class ConfigGateTest {
     }
 
     @Test
-    fun `the real service config holds exactly the four allowed attributes`() {
+    fun `the real service config holds exactly the five allowed attributes`() {
         val text: String? = SourceFiles.mainFileOrNull("res/xml/commit_accessibility_service_config.xml")
         assertTrue("commit/accessibility: res/xml/commit_accessibility_service_config.xml is missing", text != null)
         assertTrue("commit/accessibility: res/xml/commit_accessibility_service_config.xml is empty", !text.isNullOrBlank())
@@ -140,8 +138,8 @@ internal class ConfigGateTest {
         assertEquals("commit/accessibility: a comment that names forbidden attributes was read as content", emptyList<String>(), configProblems(commented))
         val reordered: String = edit(
             good,
-            "android:canRetrieveWindowContent=\"true\"\n    android:description=\"@string/commit_accessibility_service_description\"",
-            "android:description=\"@string/commit_accessibility_service_description\"\n    android:canRetrieveWindowContent=\"true\"",
+            "android:accessibilityFlags=\"flagRetrieveInteractiveWindows\"\n    android:description=\"@string/commit_accessibility_service_description\"",
+            "android:description=\"@string/commit_accessibility_service_description\"\n    android:accessibilityFlags=\"flagRetrieveInteractiveWindows\"",
         )
         assertEquals("commit/accessibility: attribute order changed the verdict", emptyList<String>(), configProblems(reordered))
     }
@@ -150,8 +148,8 @@ internal class ConfigGateTest {
     fun `a config that asks for more than focused-view events and window content is rejected`() {
         assertRejected(
             "a second event type",
-            edit(good, "typeViewFocused", "typeViewFocused|typeViewClicked"),
-            "attribute android:accessibilityEventTypes is \"typeViewFocused|typeViewClicked\"",
+            edit(good, "typeViewFocused|typeWindowsChanged|typeWindowStateChanged", "typeViewFocused|typeViewClicked|typeWindowsChanged|typeWindowStateChanged"),
+            "attribute android:accessibilityEventTypes is \"typeViewFocused|typeViewClicked|typeWindowsChanged|typeWindowStateChanged\"",
         )
         assertRejected("every event type", edit(good, "typeViewFocused", "typeAllMask"), "attribute android:accessibilityEventTypes")
         assertRejected("another feedback type", edit(good, "feedbackGeneric", "feedbackSpoken"), "attribute android:accessibilityFeedbackType")
@@ -169,7 +167,6 @@ internal class ConfigGateTest {
             "android:canRequestEnhancedWebAccessibility=\"true\"",
             "android:canControlMagnification=\"true\"",
             "android:canTakeScreenshot=\"true\"",
-            "android:accessibilityFlags=\"flagRequestFilterKeyEvents\"",
             "android:packageNames=\"com.example.app\"",
             "android:notificationTimeout=\"100\"",
             "android:settingsActivity=\"com.example.Settings\"",
@@ -193,7 +190,7 @@ internal class ConfigGateTest {
             edit(good, "\n    android:description=\"@string/commit_accessibility_service_description\" />", " />"),
             "lacks the attribute android:description",
         )
-        assertRejected("no event type", edit(good, "\n    android:accessibilityEventTypes=\"typeViewFocused\"", ""), "lacks the attribute android:accessibilityEventTypes")
+        assertRejected("no event type", edit(good, "\n    android:accessibilityEventTypes=\"typeViewFocused|typeWindowsChanged|typeWindowStateChanged\"", ""), "lacks the attribute android:accessibilityEventTypes")
         assertRejected(
             "a child element",
             edit(good, "description\" />", "description\"><meta-data android:name=\"x\" /></accessibility-service>"),

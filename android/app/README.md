@@ -49,6 +49,16 @@ screen, the settings screen and the history screen, the manifest, and the Gradle
   Breaker comes to the front. After a send, the tile shows SENT when the text
   landed or only reached the clipboard, and FAILED with its sentence when the
   commit failed. It keeps that until the next action.
+- **The keyboard tile.** While dictation is switched on, the tile comes up when a keyboard is on
+  screen and a text field is in focus. It goes away when the keyboard goes away, but only if a
+  keyboard show brought it up. A keyboard show follows the same check as a shake: nothing is shown
+  while the switch is off or while a take is in flight. A keyboard-gone hide that comes during a
+  take is held and applied once when the take ends, and only if the keyboard is still gone. A
+  keyboard show, a switch-off or a user close drops a held hide. A user close also forgets that the
+  keyboard raised the tile, so a keyboard that goes away later does not hide a tile the user closed or
+  brought back with a shake, unless a keyboard show has raised it since. If the user closes the tile
+  while the keyboard is up, the tile stays down until the keyboard goes away and comes back; a close made
+  while no keyboard is up does not stop the next keyboard show from bringing the tile back.
 - **The user's switch-off.** When the user switches dictation off (the
   notification's "Switch off" button, or the switch on the Home card), the app keeps that in a small file in its
   files folder, and a start of the launcher from a notification or the tile no
@@ -56,7 +66,7 @@ screen, the settings screen and the history screen, the manifest, and the Gradle
   it on again, once for each activity the icon opens; a tap on the icon while
   Breaker is still open does not switch it on.
 
-**Debug builds only.** The debug source set (`android/app/src/debug/`) holds the keyboard signal probe: a long-press shortcut on the Breaker icon labelled `Breaker probe`, a start provider that starts the probe with the process, a debug selector, and an accessibility config overlay that adds the interactive-windows flag and the two window events. None of it is in the release build. The app code adds two plumbing members for the probe, `OverlayTilePort.setImeProbe` and `TileHost.setImeProbe`, which only hand a listener to the tile and change nothing about when the tile shows or hides. The debug source set also holds the Home mic probe: an exported broadcast receiver for the action `dev.breaker.debug.MIC` and a not-exported start provider, which push a mic state or trigger a Home redraw through the overlay's public `ScreenMicProbe` interface and log under `BreakerMicProbe`; they never start a take. The release build holds none of it, and the diagnostic parts in main (the `ScreenMicProbe` interface, the log sink and the touch-down and route log lines in `ScreenMicProbeKit`, the `HomeHostView` probe log lines) are removed before release. The host click decision in `ScreenMicProbeKit` is production code and stays.
+**Debug builds only.** The debug source set (`android/app/src/debug/`) holds the Home mic probe: an exported broadcast receiver for the action `dev.breaker.debug.MIC` and a not-exported start provider, which push a mic state or trigger a Home redraw through the overlay's public `ScreenMicProbe` interface and log under `BreakerMicProbe`; they never start a take. The release build holds none of it, and the diagnostic parts in main (the `ScreenMicProbe` interface, the log sink and the touch-down and route log lines in `ScreenMicProbeKit`, the `HomeHostView` probe log lines) are removed before release. The host click decision in `ScreenMicProbeKit` is production code and stays.
 
 ## The microphone service
 
@@ -119,9 +129,6 @@ of `AGENTS.md` lists the smaller open items.
   heard words, but the app does not use it yet, and no spoken off word is built.
   PLANNED: a `PhraseSendHandler` in the wiring owns the spoken Send (ADR-004); it
   needs an app edge to the phrases module that is not in the registry yet.
-- The keyboard tile (F41, ADR-024). PLANNED: a pure `TileCoordinator` decision
-  (show, hide or nothing); which keyboard signal wins is OPEN until the phone's
-  probe readings are in.
 - The secret-resolving device Keystore. The app keeps only the reference to the
   credential (`FileCredentialRefHolder`), never a secret; the Keystore that
   resolves the reference is not built and not verified.

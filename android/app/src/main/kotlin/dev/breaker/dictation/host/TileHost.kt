@@ -12,6 +12,7 @@ import dev.breaker.dictation.service.NotificationRoute
 import dev.breaker.dictation.wiring.CompositeLevelSink
 import dev.breaker.dictation.wiring.DisplayWatch
 import dev.breaker.dictation.wiring.ForwardingDownloadNotice
+import dev.breaker.dictation.wiring.KeyboardTileWiring
 import dev.breaker.dictation.wiring.LevelFeed
 import dev.breaker.dictation.wiring.LevelSink
 import dev.breaker.dictation.wiring.MicBusyPort
@@ -92,7 +93,7 @@ internal class TileHost(
     private val compositeLevelSink = CompositeLevelSink()
 
     private val coordinator: TileCoordinator by lazy {
-        TileCoordinator(
+        val c = TileCoordinator(
             noticePort,
             main,
             takeWorker,
@@ -103,7 +104,11 @@ internal class TileHost(
             appTakenClipboard(context),
             { text -> setNotificationLine(text) },
             root.historyStore,
+            main,
         )
+        val wiring = KeyboardTileWiring({ ime, focus, timeMs -> c.onKeyboardReading(ime, focus, timeMs) }, main)
+        wiring.start()
+        c
     }
 
     /** The Home's mic busy port: reads the shared flag, wires the one listener, forwards the begin answers. */
@@ -175,13 +180,6 @@ internal class TileHost(
     /** Sets the in-app download listener (called by the activity in onResume). */
     fun setDownloadListener(listener: ModelDownloadNotice?) {
         forwardingNotice.setListener(listener)
-    }
-
-    /** Probe only: hands the keyboard inset listener to the tile on the main thread; nothing else calls it. */
-    fun setImeProbe(listener: ((Int, Boolean) -> Unit)?) {
-        main.post {
-            tile.setImeProbe(listener)
-        }
     }
 
     override fun openLauncher(route: String?) {
