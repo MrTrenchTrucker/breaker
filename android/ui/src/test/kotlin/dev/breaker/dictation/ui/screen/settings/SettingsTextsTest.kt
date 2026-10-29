@@ -27,7 +27,7 @@ class SettingsTextsTest {
         assertEquals("Off", SettingsTexts.SHAKE_OFF)
         assertEquals(
             "Always: shake the phone any time to bring the tile back. " +
-                "Keyboard only: shaking works only while the keyboard is open. Off: shaking does nothing.",
+                "Keyboard only: shaking works only while the keyboard is open (needs the keyboard tile permission). Off: shaking does nothing.",
             SettingsTexts.SHAKE_WAKE_HELP,
         )
         assertEquals("Show the tile when the keyboard opens", SettingsTexts.SHOW_TILE_LABEL)

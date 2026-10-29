@@ -35,7 +35,8 @@ internal object SettingsTexts {
     const val SHAKE_ALWAYS = "Always"
     const val SHAKE_OFF = "Off"
     const val SHAKE_WAKE_HELP = "Always: shake the phone any time to bring the tile back. " +
-        "Keyboard only: shaking works only while the keyboard is open. Off: shaking does nothing."
+        "Keyboard only: shaking works only while the keyboard is open (needs the keyboard tile permission). " +
+        "Off: shaking does nothing."
     const val SHOW_TILE_LABEL = "Show the tile when the keyboard opens"
     const val SHOW_TILE_HELP = "The tile comes up by itself when a keyboard opens over a text field."
     const val FORMATTING_LABEL = "Formatting"

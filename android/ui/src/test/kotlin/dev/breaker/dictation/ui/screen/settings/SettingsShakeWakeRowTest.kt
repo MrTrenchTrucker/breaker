@@ -90,7 +90,7 @@ class SettingsShakeWakeRowTest {
         val help = labelOf(s, "settings.shakeWake.help")
         assertEquals(
             "Always: shake the phone any time to bring the tile back. " +
-                "Keyboard only: shaking works only while the keyboard is open. Off: shaking does nothing.",
+                "Keyboard only: shaking works only while the keyboard is open (needs the keyboard tile permission). Off: shaking does nothing.",
             help.text,
         )
         assertEquals(PaletteSlot.TEXT_MUTED, help.color)
