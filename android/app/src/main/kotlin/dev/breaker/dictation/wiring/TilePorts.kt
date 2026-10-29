@@ -62,7 +62,7 @@ interface TakePort {
     fun begin(): BeginResult
 
     /** Stops listening and turns the audio into text. Blocks. */
-    fun finish(): FinishResult
+    fun finish(trimBeforeMs: Long? = null): FinishResult
 
     /** Puts the text where the user is typing; null when there is nothing to send. */
     fun send(): SendResult?

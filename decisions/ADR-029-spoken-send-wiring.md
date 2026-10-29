@@ -4,8 +4,8 @@
 **Date:** 2026-10-20
 **Approved by:** the project owner (2026-10-20 order)
 
-This is an approved design. It is PLANNED: none of the code below exists in
-main yet. It carries out ADR-004 (two phrases, audio trimmed at the send-phrase
+Accepted. Built: the app wiring (PhraseSendHandler, the feed tap and the owner link) is in the app module.
+It carries out ADR-004 (two phrases, audio trimmed at the send-phrase
 onset) and keeps ADR-022's microphone-sharing rules.
 
 ## Context

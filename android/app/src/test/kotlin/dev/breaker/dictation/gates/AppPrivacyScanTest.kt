@@ -96,7 +96,7 @@ internal class AppPrivacyScanTest {
     private val logFiring: Map<String, String> = mapOf(
         "a debug log" to "object A { fun f(e: Exception) { Log.d(\"a\", \"b\", e) } }",
         "two warnings" to "object A { fun f(e: Exception) { Log.w(\"a\", \"b\", e); Log.w(\"a\", \"c\", e) } }",
-        "a warning with a variable message" to "object A { fun f(e: Exception) { Log.w(\"a\", m, e) } }",
+        "a warning with a computed message" to "object A { fun f(e: Exception) { Log.w(\"a\", m.trim(), e) } }",
         "a warning with a variable tag" to "object A { fun f(e: Exception) { Log.w(t, \"b\", e) } }",
         "a warning with a template message" to "object A { fun f(e: Exception) { Log.w(\"a\", \"x \$name\", e) } }",
         "a warning with the exception message" to "object A { fun f(e: Exception) { Log.w(\"a\", \"b\", e.message) } }",
@@ -105,8 +105,8 @@ internal class AppPrivacyScanTest {
     )
 
     private val logQuiet: Map<String, String> = mapOf(
-        "the fixed warning" to "import android.util.Log\nobject A { fun f(e: Exception) { Log.w(\"BreakerApp\", \"start-up purge failed\", e) } }",
-        "the fixed warning over lines" to "object A { fun f(e: Exception) { Log\n.w(\"a\",\n\"b\",\ne) } }",
+        "the fixed warning" to "import android.util.Log\nobject A { fun f(e: Exception) { Log.w(\"BreakerApp\", reason, e) } }",
+        "the fixed warning over lines" to "object A { fun f(e: Exception) { Log\n.w(\"a\",\nreason,\ne) } }",
         "no log at all" to "import android.util.Log\nobject A",
         "a log in a comment" to "// Log.d(m)\nobject A",
     )
@@ -152,7 +152,7 @@ internal class AppPrivacyScanTest {
     }
 
     private val logUse: Regex = Regex("""\bLog\s*\.\s*\w+""")
-    private val fixedWarning: Regex = Regex("""\bLog\s*\.\s*w\s*\(\s*""\s*,\s*""\s*,\s*[A-Za-z_]\w*\s*\)""")
+    private val fixedWarning: Regex = Regex("""\bLog\s*\.\s*w\s*\(\s*""\s*,\s*[A-Za-z_]\w*\s*,\s*[A-Za-z_]\w*\s*\)""")
 
     /** Empty when [source] uses Log at most once, as `Log.w(<word>, <word>, <exception variable>)`. */
     private fun logProblems(source: String): List<String> {

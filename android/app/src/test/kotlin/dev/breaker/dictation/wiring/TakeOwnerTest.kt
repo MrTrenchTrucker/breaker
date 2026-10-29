@@ -130,7 +130,7 @@ internal class TakeOwnerTest {
 
         override fun begin(): BeginResult = BeginResult.Recording
 
-        override fun finish(): FinishResult {
+        override fun finish(trimBeforeMs: Long?): FinishResult {
             seen.add(owner.current())
             return FinishResult.ReadyToSend(SAMPLE)
         }

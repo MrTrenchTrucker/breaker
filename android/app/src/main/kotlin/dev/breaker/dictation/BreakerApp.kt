@@ -74,7 +74,7 @@ class BreakerApp : android.app.Application() {
             serviceController = dictationServiceController,
             committer = textCommitter,
             micSource = realMicSource,
-        )
+        ).also { root -> root.phraseWarn = { reason -> warn(reason) } }
     }
 
     /** The on and off switch over the service; a switch-off is kept in a small file of the app. */
@@ -110,11 +110,16 @@ class BreakerApp : android.app.Application() {
         scheduleAppStartPurge(
             purgeScope,
             purge = { history.purgeExpired() },
-            onFailure = { e -> Log.w("BreakerApp", "start-up purge failed", e) },
+            onFailure = { e -> warn("start-up purge failed", e) },
         )
         dictationServiceController.setStateObserver { armed, reason ->
             armedSwitch.onStateChanged(armed, reason)
             tileHost.onArmedChanged(armed)
         }
+    }
+
+    /** The one log call of the application class: a fixed reason, and the exception when there is one. */
+    private fun warn(reason: String, e: Throwable? = null) {
+        Log.w("BreakerApp", reason, e)
     }
 }

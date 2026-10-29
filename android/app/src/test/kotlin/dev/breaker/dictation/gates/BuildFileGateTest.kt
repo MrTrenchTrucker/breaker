@@ -14,7 +14,7 @@ import org.junit.Test
  * (comments and string text are blanked first, so a word in a comment is not a use) and read
  * a text value from the list of literals the scanner keeps. They pin: the application id;
  * compileSdk, minSdk and targetSdk each assigned once, from the version
- * catalog entry of the same name; the dependency list is exactly the thirteen project
+ * catalog entry of the same name; the dependency list is exactly the fifteen project
  * dependencies (the commit module as an implementation, its accessibility adapter as a run-time
  * only dependency), the coroutines library, the unit test library and the speech engine release file as a
  * run-time only dependency (the value it names is pinned by BuildFileSherpaGateTest), in any order, and nothing
@@ -40,6 +40,7 @@ internal class BuildFileGateTest {
         "implementation :android:modules:stt-ondevice",
         "implementation :android:modules:commit",
         "implementation :android:modules:gesture",
+        "implementation :android:modules:phrases",
         "runtimeOnly :android:modules:commit:accessibility",
         "implementation :shared:modules:ui-tokens",
         "implementation :shared:modules:model-registry",
@@ -200,7 +201,7 @@ internal class BuildFileGateTest {
         XmlSample("version code zero", "versionCode = 1", "versionCode = 0", "versionCode is not assigned"),
         XmlSample("version name removed", "        versionName = \"0.1.0-debug\"\n", "", "versionName is not assigned"),
         XmlSample("version name blank", "versionName = \"0.1.0-debug\"", "versionName = \"\"", "versionName is not assigned"),
-        XmlSample("extra project dependency", "implementation(project(\":android:ui\"))", "implementation(project(\":android:ui\"))\n    implementation(project(\":android:modules:phrases\"))", "dependency not expected: implementation :android:modules:phrases"),
+        XmlSample("extra project dependency", "implementation(project(\":android:ui\"))", "implementation(project(\":android:ui\"))\n    implementation(project(\":android:modules:scratchpad\"))", "dependency not expected: implementation :android:modules:scratchpad"),
         XmlSample("project dependency exposed", "implementation(project(\":android:ui\"))", "api(project(\":android:ui\"))", "api( is used", "dependency missing: implementation :android:ui", "dependency not expected: api :android:ui"),
         XmlSample("extra test library", "testImplementation(libs.junit)", "testImplementation(libs.junit)\n    testImplementation(libs.kotlinx.coroutines.test)", "dependency not expected: testImplementation libs.kotlinx.coroutines.test"),
         XmlSample("a file dependency", "testImplementation(libs.junit)", "testImplementation(libs.junit)\n    implementation(files(\"local.jar\"))", "is not a project or catalog dependency"),

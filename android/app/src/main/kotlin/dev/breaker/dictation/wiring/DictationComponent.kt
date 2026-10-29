@@ -3,20 +3,25 @@ package dev.breaker.dictation.wiring
 import dev.breaker.dictation.audio.MicCapture
 import dev.breaker.dictation.audio.MicSourceException
 import dev.breaker.dictation.audio.MicSource
+import dev.breaker.dictation.core.model.WordUpdate
 import dev.breaker.dictation.core.port.Clock
 import dev.breaker.dictation.core.port.ConnectivityProbe
 import dev.breaker.dictation.core.port.Formatter
 import dev.breaker.dictation.core.port.HistoryStore
 import dev.breaker.dictation.core.port.IdSource
+import dev.breaker.dictation.core.port.PhraseTrigger
 import dev.breaker.dictation.core.port.SettingsStore
 import dev.breaker.dictation.core.port.SttEngine
 import dev.breaker.dictation.core.port.TextCommitter
 import dev.breaker.dictation.core.port.WavEncoder
+import dev.breaker.dictation.core.port.WordStream
 import dev.breaker.dictation.core.usecase.DictateUseCase
 import dev.breaker.dictation.core.usecase.SendUseCase
+import dev.breaker.dictation.phrases.PhraseDetector
 import dev.breaker.dictation.service.DictationServiceController
 import dev.breaker.dictation.service.DisarmReason
 import dev.breaker.dictation.service.ReportingMicSource
+import dev.breaker.dictation.stt.ondevice.FedWordStream
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CoroutineScope
@@ -58,10 +63,19 @@ class DictationComponent(
      * the take end runs; without a handler the fallback runs at once.
      */
     private val onDeviceFailure: ((() -> Unit) -> Unit)? = null,
+    /**
+     * Gives the phrase word stream for a listening run, or null when none is ready. The phrase detector
+     * takes it when a run starts, and the frames of each take are fed to it.
+     */
+    private val phraseWords: () -> FedWordStream? = { null },
 ) : AutoCloseable {
 
     private val runnerHolder = AtomicReference<DictationRunner?>(null)
     private val closed = AtomicBoolean(false)
+    private val heldWords = HeldWordStream(phraseWords)
+
+    /** The phrase detector: it listens through the held word stream and is stopped by [close]. */
+    val phrases: PhraseTrigger = PhraseDetector(heldWords)
 
     /** The runner that drives the dictation. */
     val runner: DictationRunner
@@ -85,7 +99,7 @@ class DictationComponent(
         val built = DictationRunner(
             dictate,
             SendUseCase(committer, history),
-            LevelTap(
+            PhraseFeedTap(LevelTap(
                 MicCapture(
                     reporting,
                     onTakeEnded = { failure ->
@@ -105,7 +119,7 @@ class DictationComponent(
                     },
                 ),
                 levelSink,
-            ),
+            ), { frame -> heldWords.feed(frame) }),
             controller,
             reporting,
         )
@@ -125,6 +139,11 @@ class DictationComponent(
         } catch (e: Exception) {
             // The service is switched off below whatever happened to the dictation.
         }
+        try {
+            phrases.stop()
+        } catch (e: Exception) {
+            // The service is switched off below whatever happened to the listening.
+        }
         controller.disarm(DisarmReason.OWNER_CLOSED)
         controller.setEndedListener(null)
     }
@@ -137,5 +156,32 @@ class DictationComponent(
         val job = scope.coroutineContext[Job]
         require(job != null) { "bindTo needs a scope that has a job, or it can never end" }
         return job.invokeOnCompletion { close() }
+    }
+}
+
+/**
+ * The word stream the phrase detector runs. When a listening run starts it takes the stream that the
+ * supplier holds at that moment and starts it. The frames of each take go to that stream. A start with
+ * no stream ready is refused by name.
+ */
+private class HeldWordStream(private val supplier: () -> FedWordStream?) : WordStream {
+    private val held = AtomicReference<FedWordStream?>(null)
+
+    override val isRunning: Boolean
+        get() = held.get()?.isRunning ?: false
+
+    override fun start(onUpdate: (WordUpdate) -> Unit) {
+        val stream: FedWordStream = supplier() ?: throw IllegalStateException("no phrase word stream is ready")
+        stream.start(onUpdate)
+        held.set(stream)
+    }
+
+    override fun stop() {
+        held.getAndSet(null)?.stop()
+    }
+
+    /** Offers a frame of the take to the held stream. A frame with no stream held is dropped. */
+    fun feed(frame: FloatArray) {
+        held.get()?.feed(frame)
     }
 }

@@ -77,6 +77,7 @@ dependencies {
     implementation(project(":shared:modules:model-registry"))
     implementation(project(":android:modules:commit"))
     implementation(project(":android:modules:gesture"))
+    implementation(project(":android:modules:phrases"))
     runtimeOnly(project(":android:modules:commit:accessibility"))
     implementation(libs.kotlinx.coroutines.core)
     runtimeOnly(sherpaCoordinate)

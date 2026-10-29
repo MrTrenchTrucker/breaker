@@ -19,7 +19,7 @@ sherpa-onnx local transcription (fallback engine), model lifecycle, checksum ver
 
 **In:** 16 kHz mono PCM float32.
 **Out:** `SttResult(text, segments, language)` or a failure result: `SttError.LOCAL_MODEL_MISSING` for model problems, `SttError.OTHER` for audio, engine and store problems. The engine class is `OnDeviceSttEngine`; user sentences come from `ErrorMapping`. A decode that does not finish before its deadline is an `OTHER` failure too (see Engine notes).
-The public classes for the native engine are `SherpaOnnxRecognizerFactory`, a `SherpaRecognizerFactory`, and `SherpaOnnxWordStreamFactory`, which creates a `FedWordStream`. `FedWordStream` is a public interface: a core `WordStream` that also takes audio through `feed(samples: FloatArray)`.
+The public classes for the native engine are `SherpaOnnxRecognizerFactory`, a `SherpaRecognizerFactory`, and `SherpaOnnxWordStreamFactory`, which creates a `FedWordStream`. `FedWordStream` is a public interface: a core `WordStream` that also takes audio through `feed(samples: FloatArray)`. Its two read-only members report the counters the stream maintains: `droppedChunks`, the chunks dropped since the last start() because the queue was full, and `droppedSamples`, the samples in those dropped chunks.
 The app passes `SherpaOnnxRecognizerFactory()` (optionally with a thread count) as the `factory`
 argument of `ModelLoader`; the default there is still `UnavailableRecognizerFactory`, which refuses.
 

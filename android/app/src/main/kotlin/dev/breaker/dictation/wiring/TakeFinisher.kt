@@ -16,9 +16,9 @@ internal sealed class TakeEnd {
 internal class TakeFinisher(private val take: TakePort) {
 
     /** Runs on the background: finishes the take and, when there is text, sends it once. */
-    fun finishTake(): TakeEnd {
+    fun finishTake(trimBeforeMs: Long? = null): TakeEnd {
         val finished: FinishResult = try {
-            take.finish()
+            take.finish(trimBeforeMs)
         } catch (e: Exception) {
             return dropTake(RunnerSentences.COULD_NOT_FINISH)
         }

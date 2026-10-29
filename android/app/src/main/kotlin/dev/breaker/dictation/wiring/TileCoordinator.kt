@@ -128,14 +128,14 @@ class TileCoordinator(
     }
 
     /** The user ended the take: finish, transcribe and send it. A repeat before the tile shows sending is ignored. */
-    fun onSend() {
+    fun onSend(trimBeforeMs: Long? = null) {
         if (failureBarrier()) return
         if (!armed || sendPushed) return
         sendPushed = true
         push()
         val epoch: Int = generation
         val queued: Boolean = portCalls.submit {
-            val end: TakeEnd = finisher.finishTake()
+            val end: TakeEnd = finisher.finishTake(trimBeforeMs)
             main.post { if (epoch == generation) settle(end) }
         }
         if (!queued) fail(RunnerSentences.COULD_NOT_FINISH)

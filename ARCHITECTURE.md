@@ -460,9 +460,9 @@ ends it.
 - **OPEN defects (ADR-026):** X and check not tappable while recording (blocker); Home lacks
   the tile's mic-busy and sending faces (same signal required); late transcript on Home;
   Settings narrower than Home on the phone (not reproduced on the emulator); Home mic ignores the stored theme (`setTheme` has no caller).
-- **Spoken Send (F5, ADR-029), PLANNED:** app class `PhraseSendHandler` alone owns detector
+- **Spoken Send (F5, ADR-029):** app class `PhraseSendHandler` alone owns detector
   start/stop, the audio tee and the one-Send-per-take gate; a hit submits `finish(trimBeforeMs)`
-  to the take worker. The app -> phrases edge lands with that code.
+  to the take worker. The app -> phrases edge is declared in `modules.toml` and in the app's Gradle build.
 
 **Overlay (floating tile):** `WindowManager` + `TYPE_APPLICATION_OVERLAY` with `FLAG_NOT_FOCUSABLE` (Android 11+). Tile has no long press: a tap starts dictation, a drag moves the tile or hides it (F38); tapping it starts dictation in place, on the tile — no Activity opens, so the app the user is typing in keeps focus and the user's own keyboard stays up (ADR-022). The tile IS the **CB mic glyph** — tap to talk. While recording, a **level meter** lights the mic's grille slots from left to right, and an X (cancel) and a check (send) sit either side of the mic, each 90% of the mic's size and about 8 dp from it; the check (or the send phrase) sends (F36). A notice on the tile (a sentence from the app, such as a missing speech model) widens it for a moment: it collapses back to the small tile on its own after 4 seconds, and a tap anywhere on it collapses it at once; the timer is the app's, the tile has no clock. Dragging the small tile shows the close target (F38). After the check tap the tile shows a busy cue until the outcome (F39), the level meter follows the voice level (F40), and the tile may hide while no text input is in use (F41, ADR-024). The overlay module also provides the same mic for an app screen, with no window, no drag and no notice strip; the app places it on Home (F45, ADR-026). Permission set: `SYSTEM_ALERT_WINDOW` (tile), mic, internet, foreground service, notifications (F11), plus the accessibility service — a Settings toggle onboarding leads the user to, not a runtime prompt (ADR-022) [1].
 
