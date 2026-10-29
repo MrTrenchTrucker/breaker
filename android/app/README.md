@@ -131,6 +131,9 @@ of `AGENTS.md` lists the smaller open items.
   phrase began, and every end of the take stops the detector. No spoken off word
   is built. A take that begins while no word stream is ready records and finishes
   as before, with spoken Send off for that take and one line in the log.
+  For a take the floating tile holds, a send phrase acts only while the tile is
+  shown; with the tile hidden it does nothing and logs one line through the
+  existing reason.
 - Spoken Send limit, open failure: a native open failure inside the word stream
   is not seen by the app. Spoken Send is off for that take and nothing is shown.
 - Spoken Send limit, service ends while the switch is already off: the owner is

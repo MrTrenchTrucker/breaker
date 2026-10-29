@@ -34,6 +34,7 @@ import dev.breaker.dictation.wiring.TileCoordinator
 import dev.breaker.dictation.wiring.appGesture
 import dev.breaker.dictation.wiring.appTakenClipboard
 import dev.breaker.dictation.wiring.modelInstallPortFor
+import dev.breaker.dictation.wiring.onSpokenSend
 
 /**
  * Where the floating tile and the speech model download are put together for the running app.
@@ -121,6 +122,9 @@ internal class TileHost(
     /** The phrase word stream for the model the settings select. Its build runs on [modelWorker]; a take only reads it. */
     private val phraseStreams: PhraseStreamProvider = PhraseStreamProvider(modelWorker, selectedId, { id -> root.buildWordStream(id) })
 
+    /** The phrase warning, used when the detector cannot start and when a spoken Send finds the tile hidden. */
+    private val phraseUnavailable: () -> Unit = { root.phraseWarn?.invoke(PHRASE_UNAVAILABLE_REASON) }
+
     /** The spoken Send: the detector's phrase reaches the path that holds the take, through the owner. */
     private val phraseHandler: PhraseSendHandler by lazy {
         PhraseSendHandler(
@@ -128,8 +132,8 @@ internal class TileHost(
             owner = takeOwner,
             main = main,
             homeSend = { trim -> takeOwner.sendToHome(trim) },
-            tileSend = { trim -> toCoordinator { it.onSend(trim) } },
-            onUnavailable = { root.phraseWarn?.invoke(PHRASE_UNAVAILABLE_REASON) },
+            tileSend = { trim -> toCoordinator { it.onSpokenSend(trim, phraseUnavailable) } },
+            onUnavailable = phraseUnavailable,
         )
     }
 

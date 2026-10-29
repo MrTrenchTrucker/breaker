@@ -62,7 +62,7 @@ class TileCoordinator(
     private val finisher: TakeFinisher = TakeFinisher(take)
 
     /** True while the last show answered SHOWN; a refused or failed show and a switch-off clear it. A begin passes while it holds or while the user-closed flag holds. */
-    private var tileShown: Boolean = false
+    internal var tileShown: Boolean = false; private set
 
     private val heldHide: KeyboardHideHold = KeyboardHideHold()
     private val portCalls: TilePortCalls = TilePortCalls(take, modelReady, background)

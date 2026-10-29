@@ -88,3 +88,11 @@ internal class PhraseSendHandler(
         }
     }
 }
+
+/**
+ * Hands a spoken Send for a take the tile holds to the coordinator's send while the tile is shown.
+ * With the tile hidden nothing is finished or pushed: [onHidden] runs once and the take is left as it is.
+ */
+internal fun TileCoordinator.onSpokenSend(trimBeforeMs: Long?, onHidden: () -> Unit) {
+    if (tileShown) onSend(trimBeforeMs) else onHidden()
+}
