@@ -92,6 +92,7 @@ app entry, DI container (composition root), Gradle build, and the file-backed cr
 - android_commit (registered in modules.toml): the text committer is made by its `CommitServices.create`, once per process.
 - android_commit_accessibility (registered in modules.toml): the accessibility service; its manifest entry merges into the app, which names only the component string.
 - android_gesture (registered in modules.toml): the shake detector handle; the app wraps it in ShakeGesture and nothing else of the module.
+- android_phrases (registered in modules.toml): the spoken Send phrase detector; the app feeds it each audio frame of a take and routes its send to the take that holds it.
 
 ## Invariants
 app launches to the home screen the ui module builds (on a phone with no speech model, the first-run view comes first); the settings column that Settings opens holds only the ui settings view, with the speech model download button and a download state line; DI wiring composes all modules.
