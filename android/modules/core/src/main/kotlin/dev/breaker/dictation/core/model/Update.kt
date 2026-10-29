@@ -33,3 +33,34 @@ sealed class UpdateCheckResult {
     /** The check could not finish. Silent retry later; the app still runs. */
     data class Failed(val reason: String) : UpdateCheckResult()
 }
+
+/**
+ * What an install attempt came to. A refused or failed install is a value here,
+ * never an exception.
+ */
+sealed class UpdateInstallResult {
+    /** The installer accepted the verified file. */
+    data object Installed : UpdateInstallResult()
+
+    /**
+     * The release was refused on purpose: a digest or signature mismatch, a wrong
+     * origin, a version that is not newer, or an install that is not allowed.
+     * [reason] is one short plain sentence for the user. It never holds a URL, a
+     * digest or key material.
+     */
+    data class Refused(val reason: String) : UpdateInstallResult() {
+        init {
+            require(reason.isNotBlank()) { "A refusal needs a reason" }
+        }
+    }
+
+    /**
+     * Something broke while installing: the network, the disk or the installer.
+     * [cause] is one short plain sentence, with the same rules as [Refused.reason].
+     */
+    data class Failed(val cause: String) : UpdateInstallResult() {
+        init {
+            require(cause.isNotBlank()) { "A failure needs a cause" }
+        }
+    }
+}

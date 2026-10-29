@@ -44,7 +44,7 @@ modules implement, and the use cases that run a dictation.
   `DerivedKeys`; the crypto module implements it and holds the parameter limits
   (core carries the values and judges nothing). `CryptoService` is unchanged.
 - `SyncService` — `pushPending()`, `enqueue(Transcription)`
-- `UpdateChecker` — `check(force)`, `install(release)`, `rollback()`
+- `UpdateChecker`: `check(force)`, `install(release)`, which returns `UpdateInstallResult`
 - `Clock` — `nowEpochMillis()`, and `IdSource` — `newId()`, so the domain never reads
   a clock or invents an identifier itself
 
@@ -86,7 +86,7 @@ modules implement, and the use cases that run a dictation.
   `final` and times, never the text.
 - `AuthSession`, `UserRole`, `TokenScope`
 - `SyncState`, `SyncReport`
-- `ReleaseInfo`, `UpdateCheckResult`
+- `ReleaseInfo`, `UpdateCheckResult`, `UpdateInstallResult` (Installed, Refused or Failed)
 
 **Use cases** (`usecase/`):
 - `DictateUseCase` — orchestrates audio → routing → STT → formatting → result (state machine).

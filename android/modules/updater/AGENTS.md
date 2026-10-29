@@ -11,7 +11,7 @@ at OUR server, signing key secured (never git) [1].
 ## Owns
 Daily update check + admin force-check, signed APK verify, rollback.
 
-## Public Interface `core.UpdateChecker` port.
+## Public Interface `core.UpdateChecker` port, and the install module's public names: UpdateInstallFacade, ConfirmationPort, ConfirmationHandle, CommitStatus, Shown, StartResult.
 
 **Check schedule (F20):**
 - Automatic: once per day (on app start if > 24 h since last check, plus a
