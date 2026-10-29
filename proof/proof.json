@@ -1,0 +1,403 @@
+{
+ "name": "proof-u4",
+ "tip": {
+  "tree": "7ba95331d76bf2bb25cf0d3de183717922010bc0"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "updater: judge the server base by the origin rule before the manifest request",
+   "base_tree": "4292c9dffbf8667d1dcb7e4788bc8a24e6abed66",
+   "item_tip_tree": "7ba95331d76bf2bb25cf0d3de183717922010bc0",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": []
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "red-a-01",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ApkOriginBaseAgreementTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ApkOriginBaseAgreementTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.ApkOriginBaseAgreementTest"
+   ],
+   "patch": "proof/red/red-a-01.patch",
+   "tree": "c7c9694eec91b4a37cd15a2b1d343d5dbc262118",
+   "predict": "COMPILE RED on the item's new member refusalForBase"
+  },
+  {
+   "id": "red-a-02",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerOriginBaseTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/CheckerOriginBaseTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.CheckerOriginBaseTest"
+   ],
+   "patch": "proof/red/red-a-02.patch",
+   "tree": "3bc8831f44351b127a0fa6d69d5000bd4f212c28",
+   "predict": "ASSERT RED: at the base a refused base (user information) is requested before the origin check"
+  },
+  {
+   "id": "red-a-03",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/HttpRulesOriginTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/HttpRulesOriginTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.HttpRulesOriginTest"
+   ],
+   "patch": "proof/red/red-a-03.patch",
+   "tree": "64cca9155120baaf89261f60e3b4e99aa65f3672",
+   "predict": "ASSERT RED: at the base manifestUrl gives an address for every https base the origin rule refuses"
+  },
+  {
+   "id": "red-a-04",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/updater",
+   "file": "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ManifestHttpSourceRefusedBaseTest.kt",
+   "files": [
+    "android/modules/updater/src/test/kotlin/dev/breaker/dictation/updater/ManifestHttpSourceRefusedBaseTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.updater.ManifestHttpSourceRefusedBaseTest"
+   ],
+   "patch": "proof/red/red-a-04.patch",
+   "tree": "49017ffc4d37916a09ecdc68873a272561e3316a",
+   "predict": "ASSERT RED: at the base an https base the origin rule refuses still reaches the opener"
+  },
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/HttpRules.kt",
+     "anchor": "if (ApkOrigin.refusalForBase(serverBase) != null) return null",
+     "replacement": "if (false) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an IPv6 literal base is refused before any request",
+    "a base with user information is refused before any request",
+    "a base with an empty label or an illegal host character is refused before any request",
+    "a base with port zero is refused before any request",
+    "a base with a port out of range or a non-digit port is refused before any request",
+    "a base with a fragment is refused before any request",
+    "an http base is refused before any request",
+    "a base with a space or a control character is refused before any request",
+    "a refused server base fails the check with no request download or install",
+    "manifestUrl is null for every refused base row and an address for every usable row",
+    "an http base gives no manifest address",
+    "an http base gives unavailable and never calls the opener"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/HttpRules.kt",
+     "anchor": "if (ApkOrigin.refusalForBase(serverBase) != null) return null",
+     "replacement": "if (ApkOrigin.refusalForBase(serverBase) == null) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an IPv6 literal base is refused before any request",
+    "a base with user information is refused before any request",
+    "a base with an empty label or an illegal host character is refused before any request",
+    "a base with port zero is refused before any request",
+    "a base with a port out of range or a non-digit port is refused before any request",
+    "a base with a fragment is refused before any request",
+    "an http base is refused before any request",
+    "a base with a space or a control character is refused before any request",
+    "a usable base makes exactly one request to the manifest address",
+    "a refused server base fails the check with no request download or install",
+    "a usable server base reaches the manifest once through the checker",
+    "manifestUrl is null for every refused base row and an address for every usable row",
+    "manifest address is built from an https base with the path added",
+    "an http base gives no manifest address",
+    "a trailing slash on the base is removed once before the path",
+    "an http base gives unavailable and never calls the opener",
+    "the opener gets the manifest address and the named timeouts"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/HttpRules.kt",
+     "anchor": "if (ApkOrigin.refusalForBase(serverBase) != null) return null",
+     "replacement": "if (ApkOrigin.refusalForBase(serverBase.substringBefore('#')) != null) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a base with a fragment is refused before any request",
+    "manifestUrl is null for every refused base row and an address for every usable row"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/HttpRules.kt",
+     "anchor": "if (ApkOrigin.refusalForBase(serverBase) != null) return null",
+     "replacement": "ApkOrigin.refusalForBase(serverBase)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an IPv6 literal base is refused before any request",
+    "a base with user information is refused before any request",
+    "a base with an empty label or an illegal host character is refused before any request",
+    "a base with port zero is refused before any request",
+    "a base with a port out of range or a non-digit port is refused before any request",
+    "a base with a fragment is refused before any request",
+    "an http base is refused before any request",
+    "a base with a space or a control character is refused before any request",
+    "a refused server base fails the check with no request download or install",
+    "manifestUrl is null for every refused base row and an address for every usable row",
+    "an http base gives no manifest address",
+    "an http base gives unavailable and never calls the opener"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkOrigin.kt",
+     "anchor": "refusalForBase(serverBase)?.let { return it }",
+     "replacement": "if (!serverBase.startsWith(\"https://\")) return OriginRefusal.NOT_HTTPS"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the base judge agrees with refusalFor on every row of the table",
+    "the base address is checked with the same rules"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkOrigin.kt",
+     "anchor": "internal fun refusalForBase(serverBase: String): OriginRefusal? = problemOf(serverBase)",
+     "replacement": "internal fun refusalForBase(serverBase: String): OriginRefusal? = null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an IPv6 literal base is refused before any request",
+    "a base with user information is refused before any request",
+    "a base with an empty label or an illegal host character is refused before any request",
+    "a base with port zero is refused before any request",
+    "a base with a port out of range or a non-digit port is refused before any request",
+    "a base with a fragment is refused before any request",
+    "an http base is refused before any request",
+    "a base with a space or a control character is refused before any request",
+    "a refused server base fails the check with no request download or install",
+    "the base judge agrees with refusalFor on every row of the table",
+    "manifestUrl is null for every refused base row and an address for every usable row",
+    "the base address is checked with the same rules",
+    "a fragment is refused",
+    "a plain http address is refused",
+    "an http base gives no manifest address",
+    "an http base gives unavailable and never calls the opener"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkOrigin.kt",
+     "anchor": "internal fun refusalForBase(serverBase: String): OriginRefusal? = problemOf(serverBase)",
+     "replacement": "internal fun refusalForBase(serverBase: String): OriginRefusal? = OriginRefusal.NOT_USABLE"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a usable base makes exactly one request to the manifest address",
+    "a usable server base reaches the manifest once through the checker",
+    "the base judge agrees with refusalFor on every row of the table",
+    "refusalFor still reports the apk host and port mismatch for a usable base",
+    "manifestUrl is null for every refused base row and an address for every usable row",
+    "the same origin with the same explicit port is accepted",
+    "the default port 443 is the same as an explicit 443",
+    "manifest address is built from an https base with the path added",
+    "a trailing slash on the base is removed once before the path",
+    "the opener gets the manifest address and the named timeouts"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkOrigin.kt",
+     "anchor": "internal fun refusalForBase(serverBase: String): OriginRefusal? = problemOf(serverBase)",
+     "replacement": "internal fun refusalForBase(serverBase: String): OriginRefusal? = problemOf(serverBase).let { if (it == OriginRefusal.NOT_HTTPS) null else it }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an http base is refused before any request",
+    "the base judge agrees with refusalFor on every row of the table",
+    "manifestUrl is null for every refused base row and an address for every usable row",
+    "the base address is checked with the same rules",
+    "a plain http address is refused",
+    "an http base gives no manifest address",
+    "an http base gives unavailable and never calls the opener"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkOrigin.kt",
+     "anchor": "internal fun refusalForBase(serverBase: String): OriginRefusal? = problemOf(serverBase)",
+     "replacement": "internal fun refusalForBase(serverBase: String, unused: Int): OriginRefusal? = problemOf(serverBase)"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "BROKE (signature: the two callers pass one argument)",
+   "note": ""
+  },
+  {
+   "id": "mut-10",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkOrigin.kt",
+     "anchor": "internal fun refusalForBase(serverBase: String): OriginRefusal? = problemOf(serverBase)",
+     "replacement": "internal fun refusalForBase(serverBase: String): Boolean = problemOf(serverBase) != null"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "BROKE (type: refusalFor returns the value as OriginRefusal?)",
+   "note": ""
+  },
+  {
+   "id": "mut-11",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/updater",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/ApkOrigin.kt",
+     "anchor": "refusalForBase(serverBase)?.let { return it }",
+     "replacement": "refusalForBase(serverBase.toString())?.let { return it }"
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "EQUIVALENT (String.toString returns the same String; no test can observe it)",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "android/modules/updater",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/VersionCode.kt",
+     "anchor": "    internal const val MAX: Int = 2_100_000_000\n",
+     "replacement": "    internal const val MAX: Int = 2_100_000_001\n"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "android/modules/updater",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "android/modules/updater/src/main/kotlin/dev/breaker/dictation/updater/VersionCode.kt",
+     "anchor": "    internal const val MAX: Int = 2_100_000_000\n",
+     "replacement": "    internal const val MAX: Int = 2_100_000_000 // unchanged behaviour\n"
+    }
+   ]
+  }
+ ]
+}
