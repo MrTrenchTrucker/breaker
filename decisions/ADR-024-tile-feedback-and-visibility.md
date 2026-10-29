@@ -1,6 +1,6 @@
 # ADR-024: The tile shows busy and loudness, and hides itself when no keyboard is in use
 
-**Status:** accepted, amended 2026-10-12 (busy cue: no spinner; shake, keyboard and battery), amended 2026-10-14 (level feed), amended 2026-10-15 (a shake only shows the tile), amended 2026-10-17 (X and check size and spacing), amended 2026-10-20 (keyboard visibility design note, C-4)
+**Status:** accepted, amended 2026-10-12 (busy cue: no spinner; shake, keyboard and battery), amended 2026-10-14 (level feed), amended 2026-10-15 (a shake only shows the tile), amended 2026-10-17 (X and check size and spacing), amended 2026-10-20 (keyboard visibility design note, C-4), amended 2026-10-29 (keyboard tile built: hold during a take, close, debounce window)
 **Date:** 2026-10-12
 
 ## Context
@@ -82,21 +82,10 @@ about 8 dp from the microphone's outline, which is two to three widths of the
 tile's glow. The recording window narrows to fit. Their shapes, colours and
 what each one does are unchanged.
 
-Amended 2026-10-20 (design note C-4 approved; project owner,
-2026-10-20 order). This is PLANNED: no code for it exists in main. It refines
-item 3.
-- **Signals.** Three readings can say a keyboard is in use: a focused editable
-  field (the accessibility service's focused node), a keyboard window
-  (`AccessibilityWindowInfo.TYPE_INPUT_METHOD` in `getWindows()`, which the
-  debug keyboard probe already reads), and a bottom inset that grew. Which one
-  wins is OPEN until the phone's probe readings are in (C-3: the debug keyboard
-  probe, PR #181, and its Share log, PR #186). The default proposal is the
-  keyboard window first; a reading can overturn it.
-- **Decision function.** The choice is one pure function in the app's
-  `TileCoordinator`: `decision(fieldFocused, imeWindowPresent, insetGrew,
-  currentShown, nowMs, lastChangeMs)` returns SHOW, HIDE or NO_OP;
-  `currentShown` is an input so that NO_OP is defined. The debounce time is
-  OPEN. The shake and microphone-yield tests belong to `TileCoordinator`, not
+Amended 2026-10-20 (design note C-4 approved; project owner). Built (the code is in main); item 3 was implemented as part of the release slice.
+- **Signals.** Three readings can say a keyboard is in use: a focused editable field (the accessibility service's focused node), a keyboard window (`AccessibilityWindowInfo.TYPE_INPUT_METHOD` in `getWindows()`, which the debug keyboard probe already reads), and a bottom inset that grew. The keyboard window is the chosen signal (the ruling — the debug probe readings confirmed window presence over field focus or bottom inset). The selector for choosing among signals is removed before release together with the losing signal's code, as noted under Developer setting below.
+- **Decision function.** The choice is one pure function in `KeyboardTileDecision.kt` (a top-level function of the wiring package; `KeyboardTileSession` calls it for `TileCoordinator`): `decision(imeWindowPresent, fieldFocused, keyboardRaised, closedDuringSession, nowMs, lastChangeMs)` returns SHOW, HIDE or NO_OP; the decision is built from exactly those four presence booleans and two time stamps (no insetGrew, no currentShown — the code's actual inputs). The debounce time is 250 ms. A reading that falls inside the window is held, and the newest held reading is re-evaluated once when the window ends, through the one pending post. A reading held when a take begins is acted at once, and its hide is held to the take end; a held hide keeps the raised mark, and it is applied at take end only when the last raw reading still says the keyboard is gone. A keyboard show or a switch-off drops a held hide; a switch-off that drops one also releases the raised mark, and a switch-off always cancels the pending post.
+  The shake and microphone-yield tests belong to `TileCoordinator`, not
   to the pure function.
 - **Developer setting.** The temporary selector is `KeyboardSignalSetting` in
   the app's `debug` source set, default OFF. At main it exists for the probe
@@ -109,3 +98,12 @@ item 3.
 - **Owners.** `commit` reads and publishes the signals; the app's
   `TileCoordinator` decides; `overlay` shows or hides the tile window. No new
   module.
+
+Amended 2026-10-29: the keyboard show, the held hide and the close record, as built.
+
+- **Keyboard show.** A keyboard reading that would put the tile up uses the same check as a shake: dictation must be switched on and no take may be in flight. A take is in flight while a begin is pending, a send is on its way, a microphone yield or a device failure is running, or the tile shows the recording face. When a keyboard show puts the tile up, the armed state is pushed to it.
+- **Held hide.** A keyboard-gone reading during a take in flight does not hide the tile at once. The hide is held, and the raised mark is kept with it. The held hide is applied once, when the take leaves flight, and only if the last raw keyboard reading still says the keyboard is gone. Every raw keyboard reading counts for this, including one inside the debounce window. A keyboard show, a switch-off or a user close clears a held hide.
+- **Close record.** A close by the user clears the coordinator's record that the tile is shown, drops a held hide and releases the raised mark. So a keyboard that goes away later does not hide the tile the user closed or brought back with a shake, unless a keyboard show has raised it since; a keyboard show after a close made outside a keyboard session raises the tile and sets the mark again. A close made while a keyboard session is active keeps the tile down until that session ends.
+- **Decision location.** The decision is the top-level function `decision` in `KeyboardTileDecision.kt`, not a member of `TileCoordinator`. Its inputs are four booleans and two time stamps. `KeyboardTileSession` calls it for `TileCoordinator`.
+- **Debounce.** The debounce time stays 250 ms. A reading inside the window is held, and only the newest held reading is re-evaluated, once, when the window ends. A reading still held when a take begins is acted at once, and its hide is held to the take end. A keyboard show or a switch-off drops a held hide, and a switch-off also cancels the pending re-evaluation.
+- **Shake.** The shake behaves as before; the shake and the keyboard show now share one check.

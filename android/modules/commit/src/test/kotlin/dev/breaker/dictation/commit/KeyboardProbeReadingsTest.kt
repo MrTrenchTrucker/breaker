@@ -8,6 +8,10 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.coroutines.startCoroutine
+import kotlinx.coroutines.flow.first
 
 /**
  * The probe holder: a disabled probe stores nothing, turning it off clears it, the
@@ -132,7 +136,7 @@ internal class KeyboardProbeReadingsTest {
 
     @Test
     fun `the public members are exactly the documented ones`() {
-        val documented: List<String> = listOf("current", "isEnabled", "publish", "recent", "setEnabled", "shouldProcessEvent")
+        val documented: List<String> = listOf("current", "isEnabled", "publish", "publishLatest", "readings", "recent", "setEnabled", "shouldProcessEvent")
         assertEquals(
             "commit: the public functions of KeyboardProbeReadings must be exactly the documented ones",
             documented,
@@ -175,5 +179,29 @@ internal class KeyboardProbeReadingsTest {
     @Test
     fun `the limit is two hundred`() {
         assertEquals("commit: the recent limit must be 200", 200, KeyboardProbeReadings.RECENT_LIMIT)
+    }
+
+    /** The latest reading the live view hands out now, read through the public flow. */
+    private fun liveViewLatest(): ProbeReading? {
+        var outcome: Result<ProbeReading?>? = null
+        val body: suspend () -> ProbeReading? = { KeyboardProbeReadings.readings().first() }
+        body.startCoroutine(Continuation(EmptyCoroutineContext) { outcome = it })
+        return checkNotNull(outcome) { "commit: the live view did not answer at once" }.getOrThrow()
+    }
+
+    @Test
+    fun `a reset hands null to the reader of the live view`() {
+        KeyboardProbeReadings.setEnabled(true)
+        KeyboardProbeReadings.publishLatest(fieldFocus = true, imeWindow = false, lastEvent = "typed", time = 9L)
+        assertEquals(
+            "commit: the reader of the live view must see the published reading",
+            9L,
+            liveViewLatest()?.time,
+        )
+        KeyboardProbeReadings.reset()
+        assertNull(
+            "commit: a reset must hand null to the reader of the live view",
+            liveViewLatest(),
+        )
     }
 }

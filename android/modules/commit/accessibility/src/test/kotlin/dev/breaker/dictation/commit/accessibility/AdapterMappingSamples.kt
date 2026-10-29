@@ -184,7 +184,7 @@ internal object MappingSamples {
 /** Edited copies of the real service file, each breaking one pinned member (or the class shape). */
 internal object ServiceSamples {
     private const val PUBLISH: String = "published = FocusedFieldHolder.publish(NodeFocusedField(AndroidNodeFinder(this), packageName))"
-    private const val EVENT_COMMENT: String = "        if (event == null || !KeyboardProbeReadings.isEnabled()) return\n"
+    private const val EVENT_COMMENT: String = "        if (event == null) return\n"
     private const val INTERRUPT: String = "    override fun onInterrupt() {\n    }\n\n"
     private const val CONNECTED: String = "super.onServiceConnected()\n        closePublished()\n"
     private const val UNBIND: String = "Boolean {\n        closePublished()\n"

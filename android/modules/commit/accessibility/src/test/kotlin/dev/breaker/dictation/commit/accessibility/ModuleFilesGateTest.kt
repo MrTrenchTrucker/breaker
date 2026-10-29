@@ -41,6 +41,8 @@ internal class ModuleFilesGateTest {
         "src/test/kotlin/dev/breaker/dictation/commit/accessibility/AdapterMappingGateTest.kt",
         "src/test/kotlin/dev/breaker/dictation/commit/accessibility/AdapterMappingSamples.kt",
         "src/test/kotlin/dev/breaker/dictation/commit/accessibility/ConfigGateTest.kt",
+        "src/test/kotlin/dev/breaker/dictation/commit/accessibility/ConfigRequiredSetTest.kt",
+        "src/test/kotlin/dev/breaker/dictation/commit/accessibility/ConfigUnionTest.kt",
         "src/test/kotlin/dev/breaker/dictation/commit/accessibility/FakeFieldNode.kt",
         "src/test/kotlin/dev/breaker/dictation/commit/accessibility/FakeFieldNodeSwitchesTest.kt",
         "src/test/kotlin/dev/breaker/dictation/commit/accessibility/FakeFieldNodeTest.kt",

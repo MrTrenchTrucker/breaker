@@ -112,7 +112,7 @@ the app's, not this module's.
   commit that only reached the clipboard (open: the app's decision).
 - Sound or haptics, a time limit on the notice, and the window-ownership check.
 - OPEN on the Home mic (phone test): the X and the check do not answer a tap while recording (cause not found); the app does not yet push `MIC_BUSY` and `SENDING` to it, so it does not show the tile's busy and sending faces; it follows the phone's light/dark setting, not the stored theme.
-- PLANNED (F41, ADR-024, no code): the keyboard tile. The tile window stays here; the app decides show and hide.
+- Nothing here decides the keyboard tile. This module keeps the tile window; the app decides when it shows and hides, from the keyboard readings.
 
 Nothing has been run on a device yet; the module card lists what the tests check
 and what is not verified on a device.

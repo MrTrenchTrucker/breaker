@@ -17,10 +17,11 @@ import dev.breaker.dictation.commit.adapter.FocusedFieldHolder
  * service asks it to insert text on an explicit send. The commit path never reads an
  * event, never keeps a node or any text, and never acts on its own.
  *
- * A debug probe path sits beside it and is off by default. When the probe is on, each
- * window event records two readings into [KeyboardProbeReadings]: whether the focused
- * field of the active window is editable, and whether a keyboard window is open. The
- * probe never reads text or content.
+ * On every window-relevant event it publishes one reading (the two presence booleans plus
+ * the event name and time) through [KeyboardProbeReadings.publishLatest], whether or not
+ * the debug probe is on: a release build reads the keyboard state of the phone with the
+ * probe off by default. The probe path keeps its own recent lines only while it is on;
+ * it never reads text or content, and no new read of any text property appears here.
  */
 class BreakerAccessibilityService : AccessibilityService() {
 
@@ -33,11 +34,12 @@ class BreakerAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // Probe path only: with the probe off, this returns before any read.
-        if (event == null || !KeyboardProbeReadings.isEnabled()) return
+        // A null event would NPE downstream, so drop it first — this is the production contract, not a probe guard.
+        if (event == null) return
         // An event from Breaker's own package is the probe's own UI reacting to itself: skip it.
+        // Production read: publish the latest reading whether or not the debug probe is on, so a release build sees the keyboard state of the phone.
         if (!KeyboardProbeReadings.shouldProcessEvent(event.packageName?.toString(), packageName)) return
-        KeyboardProbeReadings.publish(
+        KeyboardProbeReadings.publishLatest(
             fieldFocus = findFieldFocus(),
             imeWindow = hasInputMethodWindow(),
             lastEvent = AccessibilityEvent.eventTypeToString(event.eventType),

@@ -54,7 +54,7 @@ Every statement below about what the service reads, requests or does describes t
 | `adapter/AndroidFieldNode.kt` | The node adapter and the finder: one framework call per member, except `isPassword`, which reads two (the platform flag, then the input type); the active window's root and its input-focused node only. |
 | `adapter/BreakerAccessibilityService.kt` | The accessibility service: publishes the resolver on connect, closes the handle on unbind and destroy. When the debug probe is on, the service only checks whether a keyboard window is open and reads which field has focus, never any text. |
 | `src/main/AndroidManifest.xml` | Declares the one service, bound only by the system. |
-| `src/main/res/xml/commit_accessibility_service_config.xml` | The service config: focused-view events, window content access, nothing else. |
+| `src/main/res/xml/commit_accessibility_service_config.xml` | The service config: the three event types (`typeViewFocused`, `typeWindowsChanged`, `typeWindowStateChanged`) plus the interactive-windows flag and window-content access; nothing else. |
 | `src/main/res/values/strings.xml` | The service label and the description Android shows in its accessibility list. |
 
 Only the two main files in `adapter/` name Android (a test file may name the platform's input type constants to pin copies). Everything else is plain Kotlin that a
@@ -62,9 +62,7 @@ JVM test runs without a device. Only the service class is public; the rest is in
 
 ## What it deliberately does not do
 
-- It reads nothing from an event. The event callback only checks the probe switch and
-  returns at once; nothing in the release build turns that switch on (`ProbeReleaseGateTest` pins that). The config lists one
-  event type only because the framework wants one.
+- In a release build the service reads two keyboard-presence booleans (field focus, and whether an input-method window is present), the event name, and the time on every window-relevant event via `publishLatest`; it never reads any text or node content, keeps nothing across events, and the debug probe's own page/lines are unchanged. The release build always sends these readings — the debug probe switch only gates the probe's own recent-history store, not the production reading; nothing turns the production read off (`ProbeReleaseGateTest` pins that). The config lists the three event types plus the interactive-windows flag because a window-relevant reading is published on every such event.
 - It keeps nothing: no node, no text, no field state between two calls.
 - It logs, stores and sends nothing, and has no clipboard code. The clipboard fallback
   belongs to the parent.
