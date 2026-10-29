@@ -1,0 +1,2193 @@
+diff --git a/server/modules/sync-api/AGENTS.md b/server/modules/sync-api/AGENTS.md
+index 8a2c73bb..71fdb04b 100644
+--- a/server/modules/sync-api/AGENTS.md
++++ b/server/modules/sync-api/AGENTS.md
+@@ -20,7 +20,7 @@ here (N13).
+ - `POST /v1/auth/salt` — `{username} -> {salt, kdf_params, kdf_version}`.
+   **No decoy**: an unknown username gets an honest "no such account" (ADR-006
+   — account discovery sits inside the VPN perimeter, docs/01/05).
+-- `POST /v1/auth/login` (on main today every key field is `null` and `key_version` is 0, because key storage is not built; the text after this note is the finished response) — `{username, auth_verifier} -> {token, role,
++- `POST /v1/auth/login` — `{username, auth_verifier} -> {token, role,
+   wrapped_dek, wrapped_box_privkey, box_pubkey, key_version, prev_wrapped_dek,
+   reset_at, rekeyed_at}` (the three key fields (one of them, `box_pubkey`,
+   plain rather than wrapped) are `null` together for a keyless account;
+@@ -87,7 +87,7 @@ here (N13).
+   to tell "an ordinary change" and "the change after a reset" apart, it just
+   accepts the new wrapped/plain values for the fields it owns and deletes any
+   pending-sealed row still sealed to the `box_pubkey` it just replaced.
+-- `POST /v1/sync` — push transcriptions. (Finished design, not built yet: the replace and the lower-version 409. Built today: the 409 above the current key_version.) Idempotent (N12) on the **pair**
++- `POST /v1/sync` — push transcriptions. Idempotent (N12) on the **pair**
+   (`client_id`, `key_version`), not on `client_id` alone: the same pair is a
+   no-op (two devices' AES-256-GCM ciphertexts for the same plaintext never
+   match on their own, because each uses a fresh nonce, so this is a real
+@@ -238,7 +238,7 @@ completes it by rotating the DEK at the account's next password change
+   accepts a same-or-lower `new_key_version` (test: replay an old value,
+   confirm the 4xx) — there is no call shape that re-wraps without advancing
+   it.
+-- (Finished design, not built yet.) `POST /v1/sync` never treats a higher-`key_version` push at an existing
++- `POST /v1/sync` never treats a higher-`key_version` push at an existing
+   `client_id` as a duplicate, and never treats a lower one as an update — the
+   first replaces, the second is refused (test: push both orders, confirm the
+   replace and the 409).
+@@ -363,14 +363,14 @@ agents, not required: an outside contributor may write the code themselves
+ - The token store knows no caller: a route must check the token's `kind` and
+   its effective scope itself. Which endpoint takes which token:
+   - `POST /v1/auth/keys`, `POST /v1/auth/change-password`, `POST /v1/sync` and
+-    `GET /v1/sync/pending-sealed` and `GET /v1/transcriptions` need a session token; an agent token is
++    `GET /v1/sync/pending-sealed` need a session token; an agent token is
+     refused.
+   - `POST /v1/audio/transcriptions` and `GET /v1/jobs/{id}` accept an agent
+     token or a session token.
+   - The admin endpoints need role admin for a session token and effective
+     scope admin for an agent token.
+-- Logout (`POST /v1/auth/logout`) revokes only the presented session token and answers 204; any token that is not a live session (an agent token included) gets 401. There is no session expiry yet, so a session row stays until
+-  `change-password`, a reset, logout or the deletion of the account removes it. Rows
++- There is no logout and no session expiry yet, so a session row stays until
++  `change-password`, a reset or the deletion of the account removes it. Rows
+   that are revoked or expired are never purged yet.
+ - A revoked row is kept (a soft revoke), so a token id is never reused and
+   revoking twice changes nothing.
+diff --git a/server/modules/sync-api/README.md b/server/modules/sync-api/README.md
+index 36a1dc0c..b84ca732 100644
+--- a/server/modules/sync-api/README.md
++++ b/server/modules/sync-api/README.md
+@@ -1,91 +1,18 @@
+-# sync-api - README
++# sync-api — README
+ 
+-The server's main API. It keeps accounts and logins, the agent-token revoke route, and the transcription sync routes: a phone pushes one transcription, and the account pulls its own transcriptions back. Every user's data is kept apart from every other user's (ADR-014). The sync routes accept only key_version 0, the development-only plaintext form. Encrypted storage (ADR-006) is not built yet.
++The server's main API: accounts and logins (users, tokens, roles), syncing transcriptions, and the app's update check. It keeps every user's data separate from everyone else's (N13), and it only ever stores encrypted transcriptions once an account has its keys (ADR-006).
+ 
+-## What the module does today
++## What is in the module today
+ 
+-- Health: `GET /health` answers that the service is up. It touches no data.
+-- Accounts: register a username with its salt, KDF settings and auth verifier; look up the salt and KDF settings for a username; log in; log out. The first account ever registered is the admin, and every later account is a user. The auth verifier is kept only as a salted hash.
+-- Tokens: a login issues a session token. Only a SHA-256 hash of each token text is stored, never the token. Agent tokens are created by the token store, which has no HTTP route yet. An admin can revoke an agent token with `DELETE /v1/admin/agent-tokens/{id}`.
+-- Transcription sync: `POST /v1/sync` stores one transcription, and `GET /v1/transcriptions` returns the account's own rows. Both are written for key_version 0 only (see the rules below).
+-- Storage is SQLite. The schema is versioned, and the server brings the file to the current version when it starts.
++- A health check at `GET /health`. It answers `{"status":"ok"}` and touches nothing else.
++- The account store (SQLite): register an account, look up its salt, and check a login verifier. The auth verifier is kept only as a salted hash, and registration refuses key-derivation settings outside the allowed bounds.
++- The token store (SQLite): user session tokens, issued at login, and agent tokens, minted for an owner account with a scope (`transcribe` or `admin`) and an optional expiry. Only a SHA-256 hash of each token is stored, never the token itself. A token never carries more than its owner's role. Revoking works three ways: one agent token, every other session token of an account, or every token of an account. No HTTP route uses the store yet.
++- A versioned database schema, migrated to the current version when the server starts.
+ 
+-## Routes
++The account HTTP routes (register, salt, login) and everything else the card lists are not built yet.
+ 
+-| Method and path | Who may call it | Success | Other answers |
+-|---|---|---|---|
+-| GET /health | anyone | 200 `{"status":"ok"}` | none |
+-| POST /v1/auth/register | anyone | 201 `{"username","role"}` | 400 invalid_field; 409 username_taken |
+-| POST /v1/auth/salt | anyone | 200 salt, kdf_params, kdf_version | 400 bad_request; 404 no_such_account |
+-| POST /v1/auth/login | anyone | 200 token and role, with the key fields | 400 bad_request; 401 unauthorized |
+-| POST /v1/auth/logout | a session token | 204, no body | 401 unauthorized, also for an agent token |
+-| DELETE /v1/admin/agent-tokens/{id} | an admin session token, or an agent token of admin scope | 204, also when already revoked | 401 unauthorized; 403 forbidden (not an admin); 404 not_found |
+-| POST /v1/sync | a session token only | 204, no body | 400 bad_request; 401; 403 forbidden (agent token); 409 conflict; 413 payload_too_large |
+-| GET /v1/transcriptions | a session token only | 200, a JSON array | 401; 403 forbidden (agent token) |
++## Run it
+ 
+-Notes on the routes that exist now:
++Set `BREAKER_SYNC_API_HOST` (default `127.0.0.1`), `BREAKER_SYNC_API_PORT` (default `8080`) and `BREAKER_SYNC_API_DB` (required: the path of the SQLite file), then start `main`. The entry point `main` is not covered by unit tests, because it needs a real socket; everything it calls is.
+ 
+-- Register body: `username` (1 to 64 characters from A-Z, a-z, 0-9, `.`, `_`, `-`; compared in lower case), `salt` (base64, 16 bytes), `kdf_params` (`memory_kib` 65536 to 262144, `iterations` 3 to 10, `parallelism` 1 to 4), `kdf_version` (1), `auth_verifier` (base64, 32 bytes). A value out of range is refused with 400, and nothing is stored.
+-- Login returns `role`, a `token`, and the key fields `wrapped_dek`, `wrapped_box_privkey`, `box_pubkey`, `prev_wrapped_dek`, `reset_at` and `rekeyed_at`, which are null, with `key_version` 0. Key storage is not built, so every account answers this way today.
+-- Logout revokes only the session token that was presented. The account's other sessions and its agent tokens are not touched.
+-- The admin revoke route answers 404 when the id is not an agent token row (an unknown id, or the id of a session token).
+-
+-## The sync routes
+-
+-### POST /v1/sync (a phone pushes one transcription)
+-
+-1. The token is checked first. A missing, unknown, expired or revoked token gets 401. A live agent token gets 403. The body of a request that has no good session token is never read.
+-2. A `Content-Length` above 131072 bytes gets 413 at once. Otherwise the body is read up to 131072 bytes. A body that is larger gets 413, and the rest of it is not read.
+-3. The body must be one UTF-8 JSON object with exactly three keys: `client_id` (a string), `key_version` (a JSON integer from 0 to 2147483647: no sign, no fraction, no exponent, no leading zero except 0 itself) and `encrypted` (a non-empty string). Any other body gets 400.
+-4. `client_id` must be a lower-case canonical UUID: 8-4-4-4-12 lower-case hex digits with hyphens. Otherwise 400.
+-5. `encrypted` must be strict base64 at every key_version: the standard alphabet, padded, a length that is a multiple of 4, `=` only at the end (at most two), and zero unused bits in the last group. Otherwise 400. The text is never put into a message.
+-6. The decoded size of `encrypted` is worked out from its length and its padding, which step 5 has already checked, so the text does not need decoding for it. More than 65536 bytes gets 413. Exactly 65536 bytes passes.
+-7. At key_version 0 only, the decoded text must be a sync body: one JSON object with the keys `v`, `text`, `source`, `model`, `duration_ms` and `created_at` and no other key. The reader accepts the keys in any order. Its format is defined in the sync operation of the API contract (`shared/modules/api-contracts/openapi.yaml`), which holds the full rules. The decoded fields are dropped at once. Otherwise 400.
+-8. A `key_version` above the account's current key_version gets 409 with nothing stored. The text is not read as a sync body in that case. Every account is at key_version 0 today, because no code can raise it.
+-9. The store writes the row. A new pair (`client_id`, `key_version`) gets 204. A pair that is already on file also gets 204, and nothing changes.
+-
+-### GET /v1/transcriptions (the account pulls its own rows)
+-
+-- Session token only: 401 for no good token, 403 for an agent token.
+-- 200 with a JSON array. Each item has exactly four fields: `client_id`, `key_version`, `encrypted` (exactly as stored) and `stored_at`.
+-- `stored_at` is the time the server stored the row, in RFC 3339 UTC, to whole seconds. The store cuts the time to the whole second when it stores the row, so the stored value and the shown value are the same second. The cut is never a rounding, for example `2026-10-11T12:00:05Z`.
+-- Order: `stored_at` ascending, then `client_id` ascending. The order uses the same whole-second time that is shown, so two rows that show the same `stored_at` are ordered by `client_id`.
+-- An account with nothing stored gets `[]`.
+-
+-## Rules a reader needs
+-
+-- One row per account and client id. The row keeps `client_id`, `key_version`, the `encrypted` text exactly as received, and `stored_at`, which is held as whole seconds.
+-- A pair pushed again is a no-op. The first text and the first `stored_at` are kept.
+-- Replacing a row with a higher key_version is not built. A push above the current key_version is refused with 409 whatever the row holds.
+-- Every query is scoped to the account that made the request. An account never sees another account's rows, and its pushes are stored under its own account.
+-- An agent token gets 403 on both sync routes. Logout refuses an agent token with 401, a different answer on purpose.
+-- Size limits: the raw request body is at most 131072 bytes, and the decoded `encrypted` text is at most 65536 bytes. Both refusals come before anything is written. At every key_version the strict base64 check runs before the size check, so a text that is not strict base64 is refused with 400 even when it is longer than the limit. A 400 or 413 body is a fixed sentence that never repeats the input.
+-- Only key_version 0 is stored today. The check that `encrypted` is a valid sync body exists only for this development-only plaintext form, and it goes away when encryption ships.
+-- No log line, error message or response carries the `encrypted` text or the decoded text.
+-
+-## Storage
+-
+-- `accounts` (schema version 1): one row per account, with the username, the client salt, the KDF settings, the hashed verifier and the role.
+-- `tokens` (schema version 2): one row per token. Only the SHA-256 hash of the token text is stored. A revoked row is kept, so a revoked token id is never reused.
+-- `transcriptions` (added with the sync routes, schema version 3): one row per account and client id, with `key_version`, the `encrypted` text and the stored time in milliseconds. The stored time is always a whole second: the store cuts it when the row is stored. A UNIQUE constraint on the account and client id is the second guard. Deleting an account deletes its rows.
+-
+-## Not built yet
+-
+-- Key versions 1 and above: the encrypted form (planned for Phase 19), the replace of a row by a higher key_version, and the 409 for a lower key_version. Only the 409 above the current key_version is built.
+-- Account keys and changes, planned for Phase 19: `POST /v1/auth/keys`, `POST /v1/auth/change-password` and `POST /v1/auth/complete-reset`.
+-- Pending-sealed agent-token results, planned for Phase 20: `GET /v1/sync/pending-sealed`.
+-- Other admin routes: creating and listing agent tokens over HTTP, roles, health, the transcription service, the test service, account reset and clear-store. Also `GET /v1/updates/latest.json`.
+-- The retention purge (the 90-day rule of ADR-010) and tombstones.
+-- Session expiry: a session token never expires today.
+-
+-## Configuration
+-
+-- `BREAKER_SYNC_API_DB` (required): the path of the SQLite file.
+-- `BREAKER_SYNC_API_HOST` (optional): the host to listen on. The default is the loopback address.
+-- `BREAKER_SYNC_API_PORT` (optional): the port to listen on. The default is 8080.
+-
+-## Tests
+-
+-The unit tests are Kotlin, under `src/test/kotlin`, and run with the module's Gradle test task (`:server:modules:sync-api:test`). The structural contract test is `tests/contract/test_sync_api_contract.py`. The module card, `AGENTS.md` in this folder, is the full reference.
+-
+-- The route tests cannot prove that a chunked request carried no Content-Length: a body of 131072 bytes or 131073 bytes gets the same answer whichever branch reads it.
++Full module card, including how to run its tests: `AGENTS.md` in this folder.
+diff --git a/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiApplication.kt b/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiApplication.kt
+index 80cdef16..9497559e 100644
+--- a/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiApplication.kt
++++ b/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiApplication.kt
+@@ -6,10 +6,7 @@ import dev.breaker.server.syncapi.auth.authLoginRoute
+ import dev.breaker.server.syncapi.auth.authLogoutRoute
+ import dev.breaker.server.syncapi.auth.authRegisterRoute
+ import dev.breaker.server.syncapi.auth.authSaltRoute
+-import dev.breaker.server.syncapi.sync.syncPushRoute
+-import dev.breaker.server.syncapi.sync.transcriptionsPullRoute
+ import dev.breaker.server.syncapi.tokens.TokenStore
+-import dev.breaker.server.syncapi.transcriptions.TranscriptionStore
+ import io.ktor.http.ContentType
+ import io.ktor.server.application.Application
+ import io.ktor.server.application.call
+@@ -17,7 +14,7 @@ import io.ktor.server.response.respondText
+ import io.ktor.server.routing.get
+ import io.ktor.server.routing.routing
+ 
+-internal fun Application.syncApiModule(accountStore: AccountStore, tokenStore: TokenStore, transcriptionStore: TranscriptionStore) {
++internal fun Application.syncApiModule(accountStore: AccountStore, tokenStore: TokenStore) {
+     routing {
+         // The health route must stay free of authentication and of any data access:
+         // a monitor must be able to call it when the database or the login is broken.
+@@ -29,7 +26,5 @@ internal fun Application.syncApiModule(accountStore: AccountStore, tokenStore: T
+         authLoginRoute(accountStore, tokenStore)
+         authLogoutRoute(tokenStore)
+         adminRevokeAgentTokenRoute(tokenStore)
+-        syncPushRoute(tokenStore, transcriptionStore)
+-        transcriptionsPullRoute(tokenStore, transcriptionStore)
+     }
+ }
+diff --git a/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiMain.kt b/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiMain.kt
+index 2a8a6cb1..45811fc1 100644
+--- a/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiMain.kt
++++ b/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiMain.kt
+@@ -3,7 +3,6 @@ package dev.breaker.server.syncapi
+ import dev.breaker.server.syncapi.accounts.AccountStore
+ import dev.breaker.server.syncapi.db.SqliteDatabase
+ import dev.breaker.server.syncapi.tokens.TokenStore
+-import dev.breaker.server.syncapi.transcriptions.TranscriptionStore
+ import io.ktor.server.application.ApplicationStopped
+ import io.ktor.server.cio.CIO
+ import io.ktor.server.engine.embeddedServer
+@@ -21,9 +20,8 @@ fun main() {
+     val db = SqliteDatabase.open(config.dbPath)
+     val accountStore = AccountStore(db)
+     val tokenStore = TokenStore(db)
+-    val transcriptionStore = TranscriptionStore(db)
+     embeddedServer(CIO, host = config.host, port = config.port) {
+-        syncApiModule(accountStore, tokenStore, transcriptionStore)
++        syncApiModule(accountStore, tokenStore)
+         monitor.subscribe(ApplicationStopped) { db.close() }
+     }.start(wait = true)
+ }
+diff --git a/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/SessionBearer.kt b/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/SessionBearer.kt
+deleted file mode 100644
+index fb5e1745..00000000
+--- a/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/SessionBearer.kt
++++ /dev/null
+@@ -1,64 +0,0 @@
+-package dev.breaker.server.syncapi.auth
+-
+-import dev.breaker.server.syncapi.tokens.ResolvedToken
+-import dev.breaker.server.syncapi.tokens.TokenKind
+-import dev.breaker.server.syncapi.tokens.TokenStore
+-import io.ktor.http.ContentType
+-import io.ktor.http.HttpStatusCode
+-import io.ktor.server.application.ApplicationCall
+-import io.ktor.server.response.respondText
+-
+-/** The outcome of checking the bearer credential of a route that needs a user session. */
+-internal sealed class SessionCheck {
+-    /** A live session token; [token] carries the account the route scopes its work to. */
+-    class Live(val token: ResolvedToken) : SessionCheck()
+-
+-    /** No credential, a malformed one, or one that is unknown, expired or revoked. */
+-    object Unauthorized : SessionCheck()
+-
+-    /** A live agent token, which a session-only route refuses. */
+-    object Forbidden : SessionCheck()
+-}
+-
+-/**
+- * Checks the `Authorization` header of a route that needs a live user session token.
+- *
+- * The header is read with the same rules as the logout route: the scheme is case-insensitive,
+- * the credential follows one space, and it is non-empty and holds no whitespace. An unknown,
+- * expired or revoked token is [SessionCheck.Unauthorized]; a live agent token is
+- * [SessionCheck.Forbidden]. The presented text is never kept in a result.
+- */
+-internal suspend fun checkSessionBearer(header: String?, tokenStore: TokenStore): SessionCheck {
+-    val presented = bearerCredential(header) ?: return SessionCheck.Unauthorized
+-    val resolved = tokenStore.resolve(presented) ?: return SessionCheck.Unauthorized
+-    if (resolved.kind == TokenKind.AGENT) return SessionCheck.Forbidden
+-    return SessionCheck.Live(resolved)
+-}
+-
+-/** Answers a refusal from [checkSessionBearer] with its fixed body. */
+-internal suspend fun ApplicationCall.respondSessionRefusal(refusal: SessionCheck) {
+-    if (refusal == SessionCheck.Forbidden) {
+-        respondText(FORBIDDEN_AGENT_BODY, ContentType.Application.Json, HttpStatusCode.Forbidden)
+-    } else {
+-        respondText(UNAUTHORIZED_SESSION_BODY, ContentType.Application.Json, HttpStatusCode.Unauthorized)
+-    }
+-}
+-
+-private fun bearerCredential(header: String?): String? {
+-    if (header == null) return null
+-    val separator = header.indexOf(' ')
+-    if (separator <= 0) return null
+-    if (!header.substring(0, separator).equals(BEARER_SCHEME, ignoreCase = true)) return null
+-    val token = header.substring(separator + 1)
+-    if (token.isEmpty()) return null
+-    if (token.any { character -> character.isWhitespace() }) return null
+-    return token
+-}
+-
+-private const val BEARER_SCHEME = "Bearer"
+-
+-internal const val UNAUTHORIZED_SESSION_BODY =
+-    """{"error":"unauthorized","message":"Invalid or missing user session token"}"""
+-
+-internal const val FORBIDDEN_AGENT_BODY =
+-    """{"error":"forbidden","message":"User session token required; an agent token is refused"}"""
+diff --git a/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/JsonText.kt b/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/JsonText.kt
+deleted file mode 100644
+index 7adcb7e7..00000000
+--- a/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/JsonText.kt
++++ /dev/null
+@@ -1,29 +0,0 @@
+-package dev.breaker.server.syncapi.sync
+-
+-private const val HEX_DIGITS = "0123456789abcdef"
+-
+-/**
+- * Appends [value] as one JSON string: the quotation mark, the backslash and the control characters
+- * are escaped, and every other character is written as it is.
+- */
+-internal fun appendJsonString(out: StringBuilder, value: String) {
+-    out.append('"')
+-    for (c in value) {
+-        when {
+-            c == '"' -> out.append("\\\"")
+-            c == '\\' -> out.append("\\\\")
+-            c == '\b' -> out.append("\\b")
+-            c == '\u000C' -> out.append("\\f")
+-            c == '\n' -> out.append("\\n")
+-            c == '\r' -> out.append("\\r")
+-            c == '\t' -> out.append("\\t")
+-            c.code < 0x20 -> {
+-                out.append("\\u00")
+-                out.append(HEX_DIGITS[c.code shr 4])
+-                out.append(HEX_DIGITS[c.code and 0x0F])
+-            }
+-            else -> out.append(c)
+-        }
+-    }
+-    out.append('"')
+-}
+diff --git a/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/PushRequestReader.kt b/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/PushRequestReader.kt
+deleted file mode 100644
+index 0e6bae51..00000000
+--- a/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/PushRequestReader.kt
++++ /dev/null
+@@ -1,202 +0,0 @@
+-package dev.breaker.server.syncapi.sync
+-
+-import java.nio.ByteBuffer
+-import java.nio.charset.CharacterCodingException
+-import java.nio.charset.CodingErrorAction
+-
+-/**
+- * One push body. Its text form names the client id and the key version only: the encrypted text
+- * is never printed through this class.
+- */
+-internal data class PushRequest(val clientId: String, val keyVersion: Int, val encrypted: String) {
+-    override fun toString(): String = "PushRequest(clientId=$clientId, keyVersion=$keyVersion)"
+-}
+-
+-/**
+- * Reads the one JSON object a push body may be: exactly the keys `client_id`, `key_version` and
+- * `encrypted`, each once, with a string, an integer and a non-empty string. The bytes must be
+- * UTF-8 without a byte order mark, and nothing but whitespace may follow the object. Returns null
+- * for every refusal; the input text is not kept in any refusal.
+- */
+-internal fun parsePushRequest(raw: ByteArray): PushRequest? {
+-    val text = decodeUtf8OrNull(raw) ?: return null
+-    if (text.startsWith('\uFEFF')) return null
+-    return try {
+-        PushReader(text).readObject()
+-    } catch (refusal: PushRefusal) {
+-        null
+-    }
+-}
+-
+-private fun decodeUtf8OrNull(raw: ByteArray): String? {
+-    val decoder = Charsets.UTF_8.newDecoder()
+-        .onMalformedInput(CodingErrorAction.REPORT)
+-        .onUnmappableCharacter(CodingErrorAction.REPORT)
+-    return try {
+-        decoder.decode(ByteBuffer.wrap(raw)).toString()
+-    } catch (refusal: CharacterCodingException) {
+-        null
+-    }
+-}
+-
+-/** Thrown inside the reader to stop; it carries no input text. */
+-private class PushRefusal : RuntimeException("sync push body refused")
+-
+-private const val CLIENT_ID_KEY = "client_id"
+-private const val KEY_VERSION_KEY = "key_version"
+-private const val ENCRYPTED_KEY = "encrypted"
+-
+-private class PushReader(private val text: String) {
+-    private var pos = 0
+-    private var clientId: String? = null
+-    private var keyVersion: Int? = null
+-    private var encrypted: String? = null
+-
+-    fun readObject(): PushRequest {
+-        skipWhitespace()
+-        expect('{')
+-        skipWhitespace()
+-        if (peek() == '}') {
+-            pos++
+-        } else {
+-            while (true) {
+-                skipWhitespace()
+-                val key = readString()
+-                skipWhitespace()
+-                expect(':')
+-                skipWhitespace()
+-                readMember(key)
+-                skipWhitespace()
+-                when (next()) {
+-                    ',' -> continue
+-                    '}' -> break
+-                    else -> refuse()
+-                }
+-            }
+-        }
+-        skipWhitespace()
+-        if (pos != text.length) refuse()
+-        return PushRequest(clientId ?: refuse(), keyVersion ?: refuse(), encrypted ?: refuse())
+-    }
+-
+-    private fun readMember(key: String) {
+-        when (key) {
+-            CLIENT_ID_KEY -> {
+-                if (clientId != null) refuse()
+-                clientId = readStringValue()
+-            }
+-            KEY_VERSION_KEY -> {
+-                if (keyVersion != null) refuse()
+-                keyVersion = readKeyVersion()
+-            }
+-            ENCRYPTED_KEY -> {
+-                if (encrypted != null) refuse()
+-                val value = readStringValue()
+-                if (value.isEmpty()) refuse()
+-                encrypted = value
+-            }
+-            else -> refuse()
+-        }
+-    }
+-
+-    private fun readStringValue(): String {
+-        if (peek() != '"') refuse()
+-        return readString()
+-    }
+-
+-    /** Reads `0`, or a digit string with no leading zero that fits in an Int: no sign, fraction or exponent. */
+-    private fun readKeyVersion(): Int {
+-        val start = pos
+-        while (pos < text.length && text[pos] in '0'..'9') pos++
+-        val digits = text.substring(start, pos)
+-        if (digits.isEmpty()) refuse()
+-        if (digits.length > 1 && digits[0] == '0') refuse()
+-        val value = digits.toLongOrNull() ?: refuse()
+-        if (value > Int.MAX_VALUE) refuse()
+-        return value.toInt()
+-    }
+-
+-    private fun readString(): String {
+-        expect('"')
+-        val out = StringBuilder()
+-        while (true) {
+-            val c = next()
+-            when {
+-                c == '"' -> return out.toString()
+-                c == '\\' -> appendEscape(out)
+-                c.code < 0x20 -> refuse()
+-                else -> out.append(c)
+-            }
+-        }
+-    }
+-
+-    private fun appendEscape(out: StringBuilder) {
+-        when (next()) {
+-            '"' -> out.append('"')
+-            '\\' -> out.append('\\')
+-            '/' -> out.append('/')
+-            'b' -> out.append('\b')
+-            'f' -> out.append('\u000C')
+-            'n' -> out.append('\n')
+-            'r' -> out.append('\r')
+-            't' -> out.append('\t')
+-            'u' -> appendUnicodeEscape(out)
+-            else -> refuse()
+-        }
+-    }
+-
+-    /** A surrogate escape is kept only as a high and low pair; a lone surrogate is refused. */
+-    private fun appendUnicodeEscape(out: StringBuilder) {
+-        val code = hex4()
+-        if (code in 0xDC00..0xDFFF) refuse()
+-        if (code in 0xD800..0xDBFF) {
+-            if (next() != '\\') refuse()
+-            if (next() != 'u') refuse()
+-            val low = hex4()
+-            if (low !in 0xDC00..0xDFFF) refuse()
+-            out.append(code.toChar()).append(low.toChar())
+-        } else {
+-            out.append(code.toChar())
+-        }
+-    }
+-
+-    private fun hex4(): Int {
+-        var value = 0
+-        repeat(4) {
+-            val digit = hexDigit(next())
+-            if (digit < 0) refuse()
+-            value = value * 16 + digit
+-        }
+-        return value
+-    }
+-
+-    private fun hexDigit(c: Char): Int = when (c) {
+-        in '0'..'9' -> c - '0'
+-        in 'a'..'f' -> c - 'a' + 10
+-        in 'A'..'F' -> c - 'A' + 10
+-        else -> -1
+-    }
+-
+-    private fun skipWhitespace() {
+-        while (pos < text.length && (text[pos] == ' ' || text[pos] == '\t' || text[pos] == '\n' || text[pos] == '\r')) {
+-            pos++
+-        }
+-    }
+-
+-    private fun peek(): Char {
+-        if (pos >= text.length) refuse()
+-        return text[pos]
+-    }
+-
+-    private fun next(): Char {
+-        val c = peek()
+-        pos++
+-        return c
+-    }
+-
+-    private fun expect(c: Char) {
+-        if (next() != c) refuse()
+-    }
+-
+-    private fun refuse(): Nothing = throw PushRefusal()
+-}
+diff --git a/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/StrictBase64.kt b/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/StrictBase64.kt
+deleted file mode 100644
+index 63a5f866..00000000
+--- a/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/StrictBase64.kt
++++ /dev/null
+@@ -1,21 +0,0 @@
+-package dev.breaker.server.syncapi.sync
+-
+-import java.util.Base64
+-
+-/**
+- * True when [text] is canonical standard base64: the standard alphabet, padded to a whole number
+- * of four-character groups, with no non-zero bits after the last byte. The decoder accepts some
+- * texts that do not encode back to themselves (no padding, or non-zero trailing bits); those are
+- * refused here. The text is never put into a message.
+- *
+- * The shared codec keeps the same rule in a private function, so this file repeats it.
+- */
+-internal fun isStrictBase64(text: String): Boolean {
+-    if (text.isEmpty()) return false
+-    val decoded = try {
+-        Base64.getDecoder().decode(text)
+-    } catch (refusal: IllegalArgumentException) {
+-        return false
+-    }
+-    return Base64.getEncoder().encodeToString(decoded) == text
+-}
+diff --git a/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncLimits.kt b/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncLimits.kt
+deleted file mode 100644
+index 8b8b3918..00000000
+--- a/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncLimits.kt
++++ /dev/null
+@@ -1,43 +0,0 @@
+-package dev.breaker.server.syncapi.sync
+-
+-import io.ktor.server.application.ApplicationCall
+-import io.ktor.server.request.receiveChannel
+-import io.ktor.utils.io.ByteReadChannel
+-import io.ktor.utils.io.readAvailable
+-
+-/** The most bytes a push body may hold on the wire. A body over this is answered 413 and not stored. */
+-internal const val MAX_RAW_BYTES: Int = 131072
+-
+-/** The most bytes the decoded `encrypted` text may hold. Checked before the content check. */
+-internal const val MAX_DECODED_BYTES: Long = 65536L
+-
+-/**
+- * The number of bytes a standard base64 text decodes to, computed from its length and padding alone.
+- * For a padded or unpadded standard base64 text this is the decoded byte count.
+- */
+-internal fun decodedByteCount(encrypted: String): Long {
+-    val unpadded = encrypted.length - encrypted.takeLastWhile { it == '=' }.length
+-    return (unpadded * 3L) / 4
+-}
+-
+-/**
+- * Reads the request body and gives up once it holds more than [MAX_RAW_BYTES] bytes.
+- *
+- * Relies on two calls: `io.ktor.server.request.receiveChannel` (ktor-server-core), which returns an
+- * `io.ktor.utils.io.ByteReadChannel`, and `ByteReadChannel.readAvailable(dst, offset, length)`,
+- * which returns the number of bytes read and -1 once the channel is closed. The buffer holds one
+- * byte more than the limit, so a body that fills it is over the limit. Returns null for an
+- * over-limit body; the bytes past the limit are not read.
+- */
+-internal suspend fun readBoundedBody(call: ApplicationCall): ByteArray? {
+-    val channel: ByteReadChannel = call.receiveChannel()
+-    val buffer = ByteArray(MAX_RAW_BYTES + 1)
+-    var total = 0
+-    while (total <= MAX_RAW_BYTES) {
+-        val read = channel.readAvailable(buffer, total, buffer.size - total)
+-        if (read < 0) break
+-        total += read
+-    }
+-    if (total > MAX_RAW_BYTES) return null
+-    return buffer.copyOf(total)
+-}
+diff --git a/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncPushRoute.kt b/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncPushRoute.kt
+deleted file mode 100644
+index 47f44215..00000000
+--- a/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncPushRoute.kt
++++ /dev/null
+@@ -1,96 +0,0 @@
+-package dev.breaker.server.syncapi.sync
+-
+-import dev.breaker.server.syncapi.auth.SessionCheck
+-import dev.breaker.server.syncapi.auth.checkSessionBearer
+-import dev.breaker.server.syncapi.auth.respondSessionRefusal
+-import dev.breaker.server.syncapi.tokens.TokenStore
+-import dev.breaker.server.syncapi.transcriptions.KeyVersions
+-import dev.breaker.server.syncapi.transcriptions.PushResult
+-import dev.breaker.server.syncapi.transcriptions.TranscriptionStore
+-import dev.breaker.shared.api.sync.SyncBodyCodec
+-import dev.breaker.shared.api.sync.SyncBodyException
+-import io.ktor.http.ContentType
+-import io.ktor.http.HttpHeaders
+-import io.ktor.http.HttpStatusCode
+-import io.ktor.server.application.ApplicationCall
+-import io.ktor.server.response.respond
+-import io.ktor.server.response.respondText
+-import io.ktor.server.routing.Route
+-import io.ktor.server.routing.post
+-
+-/**
+- * Installs `POST /v1/sync`: one transcription pushed by a user session.
+- *
+- * Checks run in this order: the session (before the body is read), the declared length, the
+- * bounded read, the strict body reader, the client id, the strict base64 check of the encrypted
+- * text (for every key version), the decoded size, then, for key version zero, the codec check.
+- * The store runs last and refuses a key version above the current one. The decoded value of the
+- * codec check is discarded at once.
+- */
+-internal fun Route.syncPushRoute(tokenStore: TokenStore, transcriptionStore: TranscriptionStore) {
+-    post("/v1/sync") {
+-        val session = checkSessionBearer(call.request.headers[HttpHeaders.Authorization], tokenStore)
+-        if (session !is SessionCheck.Live) {
+-            call.respondSessionRefusal(session)
+-            return@post
+-        }
+-        val declared = call.request.headers[HttpHeaders.ContentLength]?.toLongOrNull()
+-        if (declared != null && declared > MAX_RAW_BYTES) {
+-            call.respondTooLarge()
+-            return@post
+-        }
+-        val raw = readBoundedBody(call)
+-        if (raw == null) {
+-            call.respondTooLarge()
+-            return@post
+-        }
+-        val request = parsePushRequest(raw)
+-        if (request == null) {
+-            call.respondBadRequest()
+-            return@post
+-        }
+-        if (!SyncBodyCodec.isClientId(request.clientId)) {
+-            call.respondBadRequest()
+-            return@post
+-        }
+-        if (!isStrictBase64(request.encrypted)) {
+-            call.respondBadRequest()
+-            return@post
+-        }
+-        if (decodedByteCount(request.encrypted) > MAX_DECODED_BYTES) {
+-            call.respondTooLarge()
+-            return@post
+-        }
+-        if (request.keyVersion <= KeyVersions.CURRENT) {
+-            try {
+-                SyncBodyCodec.decodePlain(request.encrypted)
+-            } catch (refusal: SyncBodyException) {
+-                call.respondBadRequest()
+-                return@post
+-            }
+-        }
+-        val result = transcriptionStore.push(session.token.accountId, request.clientId, request.keyVersion, request.encrypted)
+-        when (result) {
+-            PushResult.Stored, PushResult.AlreadyHeld -> call.respond(HttpStatusCode.NoContent)
+-            PushResult.VersionRefused -> call.respondConflict()
+-        }
+-    }
+-}
+-
+-private suspend fun ApplicationCall.respondBadRequest() =
+-    respondText(PUSH_BAD_REQUEST_BODY, ContentType.Application.Json, HttpStatusCode.BadRequest)
+-
+-private suspend fun ApplicationCall.respondTooLarge() =
+-    respondText(PUSH_PAYLOAD_TOO_LARGE_BODY, ContentType.Application.Json, HttpStatusCode.PayloadTooLarge)
+-
+-private suspend fun ApplicationCall.respondConflict() =
+-    respondText(PUSH_CONFLICT_BODY, ContentType.Application.Json, HttpStatusCode.Conflict)
+-
+-private const val PUSH_BAD_REQUEST_BODY =
+-    """{"error":"bad_request","message":"The sync push body is not a valid transcription push."}"""
+-
+-private const val PUSH_PAYLOAD_TOO_LARGE_BODY =
+-    """{"error":"payload_too_large","message":"The sync push is larger than the allowed size."}"""
+-
+-private const val PUSH_CONFLICT_BODY =
+-    """{"error":"conflict","message":"A key_version above the account's current key_version is refused"}"""
+diff --git a/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/TranscriptionsPullRoute.kt b/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/TranscriptionsPullRoute.kt
+deleted file mode 100644
+index ea5cb35a..00000000
+--- a/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/TranscriptionsPullRoute.kt
++++ /dev/null
+@@ -1,48 +0,0 @@
+-package dev.breaker.server.syncapi.sync
+-
+-import dev.breaker.server.syncapi.auth.SessionCheck
+-import dev.breaker.server.syncapi.auth.checkSessionBearer
+-import dev.breaker.server.syncapi.auth.respondSessionRefusal
+-import dev.breaker.server.syncapi.tokens.TokenStore
+-import dev.breaker.server.syncapi.transcriptions.TranscriptionStore
+-import io.ktor.http.ContentType
+-import io.ktor.http.HttpHeaders
+-import io.ktor.http.HttpStatusCode
+-import io.ktor.server.response.respondText
+-import io.ktor.server.routing.Route
+-import io.ktor.server.routing.get
+-import java.time.Instant
+-import java.time.temporal.ChronoUnit
+-
+-/**
+- * Installs `GET /v1/transcriptions`: the account's own rows, oldest first, as a JSON array of
+- * `client_id`, `key_version`, `encrypted` and `stored_at` (RFC 3339, UTC, whole seconds).
+- */
+-internal fun Route.transcriptionsPullRoute(tokenStore: TokenStore, transcriptionStore: TranscriptionStore) {
+-    get("/v1/transcriptions") {
+-        val session = checkSessionBearer(call.request.headers[HttpHeaders.Authorization], tokenStore)
+-        if (session !is SessionCheck.Live) {
+-            call.respondSessionRefusal(session)
+-            return@get
+-        }
+-        val rows = transcriptionStore.list(session.token.accountId)
+-        val body = StringBuilder()
+-        body.append('[')
+-        rows.forEachIndexed { index, row ->
+-            if (index > 0) body.append(',')
+-            body.append("{\"client_id\":")
+-            appendJsonString(body, row.clientId)
+-            body.append(",\"key_version\":").append(row.keyVersion)
+-            body.append(",\"encrypted\":")
+-            appendJsonString(body, row.encrypted)
+-            body.append(",\"stored_at\":")
+-            appendJsonString(body, storedAtText(row.storedAtMs))
+-            body.append('}')
+-        }
+-        body.append(']')
+-        call.respondText(body.toString(), ContentType.Application.Json, HttpStatusCode.OK)
+-    }
+-}
+-
+-/** The stored time as RFC 3339 UTC in whole seconds: the fraction is cut off, never rounded. */
+-internal fun storedAtText(epochMs: Long): String = Instant.ofEpochMilli(epochMs).truncatedTo(ChronoUnit.SECONDS).toString()
+diff --git a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/HealthRouteTest.kt b/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/HealthRouteTest.kt
+index bbef0597..a94e5d81 100644
+--- a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/HealthRouteTest.kt
++++ b/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/HealthRouteTest.kt
+@@ -5,7 +5,6 @@ import dev.breaker.server.syncapi.accounts.AccountStore
+ import dev.breaker.server.syncapi.db.TestDatabases
+ import dev.breaker.server.syncapi.tokens.TokenFixtures
+ import dev.breaker.server.syncapi.tokens.TokenStore
+-import dev.breaker.server.syncapi.transcriptions.TranscriptionStore
+ import io.ktor.client.request.get
+ import io.ktor.client.request.post
+ import io.ktor.client.statement.bodyAsText
+@@ -25,20 +24,18 @@ class HealthRouteTest {
+ 
+     private lateinit var accountStore: AccountStore
+     private lateinit var tokenStore: TokenStore
+-    private lateinit var transcriptionStore: TranscriptionStore
+ 
+     @Before
+     fun setUp() {
+         val temp = TestDatabases.openTemp()
+         accountStore = AccountFixtures.newStore(temp)
+         tokenStore = TokenFixtures.tokenStore(temp, Clock.systemUTC())
+-        transcriptionStore = TranscriptionStore(temp.db, Clock.systemUTC())
+     }
+ 
+     @Test
+     fun `GET health answers 200`() = runBlocking<Unit> {
+         testApplication {
+-            application { syncApiModule(accountStore, tokenStore, transcriptionStore) }
++            application { syncApiModule(accountStore, tokenStore) }
+             val response = client.get("/health")
+             assertEquals("GET /health status", HttpStatusCode.OK, response.status)
+         }
+@@ -47,7 +44,7 @@ class HealthRouteTest {
+     @Test
+     fun `GET health body is exactly the status ok object`() = runBlocking<Unit> {
+         testApplication {
+-            application { syncApiModule(accountStore, tokenStore, transcriptionStore) }
++            application { syncApiModule(accountStore, tokenStore) }
+             val response = client.get("/health")
+             assertEquals("GET /health body", """{"status":"ok"}""", response.bodyAsText())
+         }
+@@ -56,7 +53,7 @@ class HealthRouteTest {
+     @Test
+     fun `GET health is served as json`() = runBlocking<Unit> {
+         testApplication {
+-            application { syncApiModule(accountStore, tokenStore, transcriptionStore) }
++            application { syncApiModule(accountStore, tokenStore) }
+             val response = client.get("/health")
+             assertEquals(
+                 "GET /health content type",
+@@ -69,7 +66,7 @@ class HealthRouteTest {
+     @Test
+     fun `GET health works without any Authorization header`() = runBlocking<Unit> {
+         testApplication {
+-            application { syncApiModule(accountStore, tokenStore, transcriptionStore) }
++            application { syncApiModule(accountStore, tokenStore) }
+             val response = client.get("/health")
+             assertEquals("unauthenticated GET /health status", HttpStatusCode.OK, response.status)
+         }
+@@ -78,7 +75,7 @@ class HealthRouteTest {
+     @Test
+     fun `POST to health is not a success and is answered 404 or 405`() = runBlocking<Unit> {
+         testApplication {
+-            application { syncApiModule(accountStore, tokenStore, transcriptionStore) }
++            application { syncApiModule(accountStore, tokenStore) }
+             val response = client.post("/health")
+             val code = response.status.value
+             assertFalse("POST /health must not be a 2xx but was $code", code in 200..299)
+@@ -89,7 +86,7 @@ class HealthRouteTest {
+     @Test
+     fun `an unknown path is answered 404`() = runBlocking<Unit> {
+         testApplication {
+-            application { syncApiModule(accountStore, tokenStore, transcriptionStore) }
++            application { syncApiModule(accountStore, tokenStore) }
+             val response = client.get("/nope")
+             assertEquals("GET /nope status", HttpStatusCode.NotFound, response.status)
+         }
+diff --git a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/JsonTextTest.kt b/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/JsonTextTest.kt
+deleted file mode 100644
+index 56430456..00000000
+--- a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/JsonTextTest.kt
++++ /dev/null
+@@ -1,44 +0,0 @@
+-package dev.breaker.server.syncapi.sync
+-
+-import org.junit.Assert.assertEquals
+-import org.junit.Test
+-
+-/** The JSON string writer, pinned by the exact output of each escape it writes. */
+-internal class JsonTextTest {
+-
+-    private fun escaped(text: String): String {
+-        val out = StringBuilder()
+-        appendJsonString(out, text)
+-        return out.toString()
+-    }
+-
+-    @Test
+-    fun `a backspace is written as the two characters backslash and b`() {
+-        assertEquals("\"\\b\"", escaped("\b"))
+-    }
+-
+-    @Test
+-    fun `a form feed is written as the two characters backslash and f`() {
+-        assertEquals("\"\\f\"", escaped("\u000C"))
+-    }
+-
+-    @Test
+-    fun `a carriage return is written as the two characters backslash and r`() {
+-        assertEquals("\"\\r\"", escaped("\r"))
+-    }
+-
+-    @Test
+-    fun `a newline and a tab are written as backslash n and backslash t`() {
+-        assertEquals("\"a\\n\\tb\"", escaped("a\n\tb"))
+-    }
+-
+-    @Test
+-    fun `a quotation mark and a backslash are escaped`() {
+-        assertEquals("\"a\\\"b\\\\c\"", escaped("a\"b\\c"))
+-    }
+-
+-    @Test
+-    fun `another control character is written as a six character unicode escape`() {
+-        assertEquals("\"\\u0001\\u001f\"", escaped("\u0001\u001f"))
+-    }
+-}
+diff --git a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/PushRequestReaderTest.kt b/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/PushRequestReaderTest.kt
+deleted file mode 100644
+index 90f87959..00000000
+--- a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/PushRequestReaderTest.kt
++++ /dev/null
+@@ -1,133 +0,0 @@
+-package dev.breaker.server.syncapi.sync
+-
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertNull
+-import org.junit.Test
+-
+-/** The strict reader of one push body, tested without the HTTP layer. */
+-internal class PushRequestReaderTest {
+-
+-    private val enc = "AQID"
+-
+-    private fun parse(text: String): PushRequest? = parsePushRequest(utf8(text))
+-
+-    @Test
+-    fun `a well formed push object is read into client id, key version and text`() {
+-        val parsed = parse(pushBody(CLIENT_ID, "3", enc))
+-        assertEquals(CLIENT_ID, parsed?.clientId)
+-        assertEquals(3, parsed?.keyVersion)
+-        assertEquals(enc, parsed?.encrypted)
+-    }
+-
+-    @Test
+-    fun `keys may arrive in any order and JSON whitespace is allowed around them`() {
+-        val text = " {\n\t\"encrypted\" : \"$enc\" ,\r\n  \"key_version\":0,\"client_id\":\"$CLIENT_ID\" }\n"
+-        val parsed = parse(text)
+-        assertEquals(CLIENT_ID, parsed?.clientId)
+-        assertEquals(0, parsed?.keyVersion)
+-        assertEquals(enc, parsed?.encrypted)
+-    }
+-
+-    @Test
+-    fun `a byte order mark before the object is refused`() {
+-        assertNull("a leading byte order mark", parse("\uFEFF" + pushBody(CLIENT_ID, "0", enc)))
+-    }
+-
+-    @Test
+-    fun `bytes that are not valid UTF-8 are refused`() {
+-        val valid = utf8(pushBody(CLIENT_ID, "0", enc))
+-        assertNull("an invalid lead byte", parsePushRequest(byteArrayOf(0xFF.toByte()) + valid))
+-    }
+-
+-    @Test
+-    fun `bytes after the closing brace are refused`() {
+-        assertNull("a letter after the object", parse(pushBody(CLIENT_ID, "0", enc) + " x"))
+-        assertNull("a second object", parse(pushBody(CLIENT_ID, "0", enc) + "{}"))
+-    }
+-
+-    @Test
+-    fun `a duplicate key is refused`() {
+-        val text = """{"client_id":"$CLIENT_ID","client_id":"$CLIENT_ID","key_version":0,"encrypted":"$enc"}"""
+-        assertNull(parse(text))
+-    }
+-
+-    @Test
+-    fun `an unknown key is refused`() {
+-        val text = """{"client_id":"$CLIENT_ID","key_version":0,"encrypted":"$enc","extra":1}"""
+-        assertNull(parse(text))
+-    }
+-
+-    @Test
+-    fun `a missing key is refused`() {
+-        assertNull("no key_version", parse("""{"client_id":"$CLIENT_ID","encrypted":"$enc"}"""))
+-        assertNull("no client_id", parse("""{"key_version":0,"encrypted":"$enc"}"""))
+-        assertNull("no encrypted", parse("""{"client_id":"$CLIENT_ID","key_version":0}"""))
+-    }
+-
+-    @Test
+-    fun `key version with a sign, a fraction, an exponent or a leading zero is refused`() {
+-        for (version in listOf("-1", "-0", "+1", "1.0", "0.0", "1e0", "1E2", "01")) {
+-            assertNull("key_version $version", parse(pushBody(CLIENT_ID, version, enc)))
+-        }
+-    }
+-
+-    @Test
+-    fun `key version zero and the largest Int are accepted and one above the largest Int is refused`() {
+-        assertEquals(0, parse(pushBody(CLIENT_ID, "0", enc))?.keyVersion)
+-        assertEquals(Int.MAX_VALUE, parse(pushBody(CLIENT_ID, "2147483647", enc))?.keyVersion)
+-        assertNull(parse(pushBody(CLIENT_ID, "2147483648", enc)))
+-    }
+-
+-    @Test
+-    fun `a value of the wrong JSON type for its key is refused`() {
+-        assertNull("client id as a number", parse("""{"client_id":1,"key_version":0,"encrypted":"$enc"}"""))
+-        assertNull("key version as a string", parse("""{"client_id":"$CLIENT_ID","key_version":"0","encrypted":"$enc"}"""))
+-        assertNull("encrypted as a number", parse("""{"client_id":"$CLIENT_ID","key_version":0,"encrypted":7}"""))
+-        assertNull("encrypted as null", parse("""{"client_id":"$CLIENT_ID","key_version":0,"encrypted":null}"""))
+-        assertNull("key version as an object", parse("""{"client_id":"$CLIENT_ID","key_version":{},"encrypted":"$enc"}"""))
+-    }
+-
+-    @Test
+-    fun `an empty encrypted text is refused`() {
+-        assertNull(parse(pushBody(CLIENT_ID, "0", "")))
+-    }
+-
+-    @Test
+-    fun `a lone surrogate escape in a string is refused and a surrogate pair is accepted`() {
+-        assertNull("a lone high surrogate", parse("""{"client_id":"$CLIENT_ID","key_version":0,"encrypted":"\uD800"}"""))
+-        assertNull("a high surrogate then a non surrogate", parse("""{"client_id":"$CLIENT_ID","key_version":0,"encrypted":"\uD800A"}"""))
+-        assertNull("a lone low surrogate", parse("""{"client_id":"$CLIENT_ID","key_version":0,"encrypted":"\uDC00"}"""))
+-        val pair = parse("{\"client_id\":\"$CLIENT_ID\",\"key_version\":0,\"encrypted\":\"\\uD83D\\uDE00\"}")
+-        assertEquals("a surrogate pair is one character", "\uD83D\uDE00", pair?.encrypted)
+-    }
+-
+-    @Test
+-    fun `a high surrogate escape followed by something other than a low surrogate escape is refused`() {
+-        assertNull("a plain letter", parse("""{"client_id":"$CLIENT_ID","key_version":0,"encrypted":"\uD800A"}"""))
+-        assertNull("a non low escape", parse("""{"client_id":"$CLIENT_ID","key_version":0,"encrypted":"\uD800\u0041"}"""))
+-        assertNull("the letter u and digits without a backslash", parse("""{"client_id":"$CLIENT_ID","key_version":0,"encrypted":"\uD800uDC00"}"""))
+-        assertNull("the missing backslash before a low surrogate escape", parse("""{"client_id":"$CLIENT_ID","key_version":0,"encrypted":"\uD800XuDC00"}"""))
+-    }
+-
+-    @Test
+-    fun `an escaped slash in the encrypted text is read as the slash character`() {
+-        val parsed = parse("""{"client_id":"$CLIENT_ID","key_version":0,"encrypted":"AB\/CD"}""")
+-        assertEquals("AB/CD", parsed?.encrypted)
+-    }
+-
+-    @Test
+-    fun `an empty body, an array, a lone brace and a truncated object are refused without an exception`() {
+-        assertNull("an empty body", parse(""))
+-        assertNull("an array", parse("[]"))
+-        assertNull("a lone brace", parse("{"))
+-        assertNull("a truncated object", parse(pushBody(CLIENT_ID, "0", enc).dropLast(1)))
+-    }
+-
+-    @Test
+-    fun `the text form of a parsed request names the client id and key version and no encrypted text`() {
+-        val parsed = parse(pushBody(CLIENT_ID, "0", "ZW5jcnlwdGVkLW1hcmtlcg=="))
+-        assertEquals("PushRequest(clientId=$CLIENT_ID, keyVersion=0)", parsed.toString())
+-        assertFalse(parsed.toString().contains("ZW5jcnlwdGVk"))
+-    }
+-}
+diff --git a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/StrictBase64Test.kt b/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/StrictBase64Test.kt
+deleted file mode 100644
+index b59fe080..00000000
+--- a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/StrictBase64Test.kt
++++ /dev/null
+@@ -1,62 +0,0 @@
+-package dev.breaker.server.syncapi.sync
+-
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/** The strict base64 rule: canonical standard base64 only, decided on the text itself. */
+-internal class StrictBase64Test {
+-
+-    @Test
+-    fun `canonical padded base64 is strict`() {
+-        assertTrue("four characters", isStrictBase64("AQID"))
+-        assertTrue("two bytes with one padding character", isStrictBase64("AQI="))
+-        assertTrue("one byte with two padding characters", isStrictBase64("AQ=="))
+-    }
+-
+-    @Test
+-    fun `unpadded base64 is not strict`() {
+-        assertFalse("two characters", isStrictBase64("AQ"))
+-        assertFalse("three characters", isStrictBase64("AQI"))
+-    }
+-
+-    @Test
+-    fun `base64 with non zero trailing bits is not strict`() {
+-        assertFalse("AR== has a set bit below the byte", isStrictBase64("AR=="))
+-        assertFalse("AQJ= has set bits below the byte", isStrictBase64("AQJ="))
+-    }
+-
+-    @Test
+-    fun `the url safe alphabet is not strict`() {
+-        assertFalse(isStrictBase64("-_8="))
+-    }
+-
+-    @Test
+-    fun `whitespace inside base64 is not strict`() {
+-        assertFalse("a space", isStrictBase64("AQ ID"))
+-        assertFalse("a line feed", isStrictBase64("AQID\n"))
+-    }
+-
+-    @Test
+-    fun `a character after the padding or a third padding character is not strict`() {
+-        assertFalse(isStrictBase64("AQ=I"))
+-        assertFalse(isStrictBase64("AQ==="))
+-    }
+-
+-    @Test
+-    fun `an empty text is not strict`() {
+-        assertFalse(isStrictBase64(""))
+-    }
+-
+-    @Test
+-    fun `canonical base64 with a plus and a slash is strict`() {
+-        assertTrue("four pluses encode to three bytes that re-encode to the same text", isStrictBase64("++++"))
+-        assertTrue("four slashes encode to three bytes that re-encode to the same text", isStrictBase64("////"))
+-    }
+-
+-    @Test
+-    fun `the url safe runs of minus and underscore are not strict`() {
+-        assertFalse("four minus signs", isStrictBase64("----"))
+-        assertFalse("four underscores", isStrictBase64("____"))
+-    }
+-}
+diff --git a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncAuthPushTest.kt b/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncAuthPushTest.kt
+deleted file mode 100644
+index a565bc30..00000000
+--- a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncAuthPushTest.kt
++++ /dev/null
+@@ -1,119 +0,0 @@
+-package dev.breaker.server.syncapi.sync
+-
+-import io.ktor.client.statement.bodyAsText
+-import io.ktor.http.HttpStatusCode
+-import io.ktor.server.testing.testApplication
+-import kotlinx.coroutines.runBlocking
+-import org.junit.Assert.assertEquals
+-import org.junit.Before
+-import org.junit.Test
+-
+-/** The push route's authentication: 401 for a missing, unknown, expired or revoked token, 403 for an agent token. */
+-internal class SyncAuthPushTest : SyncRouteTestBase() {
+-
+-    private val body = utf8(pushBody(CLIENT_ID, "0", validEncrypted()))
+-
+-    @Before
+-    fun setUp() {
+-        openSyncStores()
+-    }
+-
+-    @Test
+-    fun `a push without a token answers 401 with the session body`() = runBlocking<Unit> {
+-        account("alice", 1)
+-        testApplication {
+-            application { installSyncRoutes() }
+-            val response = client.postSync(null, body)
+-            assertEquals("status", HttpStatusCode.Unauthorized, response.status)
+-            assertEquals("body", UNAUTHORIZED_SESSION_BODY, response.bodyAsText())
+-        }
+-        assertEquals("nothing stored", 0L, storedRowCount())
+-    }
+-
+-    @Test
+-    fun `a push with a garbage token answers 401`() = runBlocking<Unit> {
+-        account("alice", 1)
+-        testApplication {
+-            application { installSyncRoutes() }
+-            val response = client.postSync(bearer("A".repeat(43)), body)
+-            assertEquals("status", HttpStatusCode.Unauthorized, response.status)
+-            assertEquals("body", UNAUTHORIZED_SESSION_BODY, response.bodyAsText())
+-        }
+-    }
+-
+-    @Test
+-    fun `a push with a Basic scheme answers 401`() = runBlocking<Unit> {
+-        val alice = account("alice", 1)
+-        val token = issueSession(alice)
+-        testApplication {
+-            application { installSyncRoutes() }
+-            val response = client.postSync("Basic ${token.secret.reveal()}", body)
+-            assertEquals("status", HttpStatusCode.Unauthorized, response.status)
+-        }
+-        assertEquals("nothing stored", 0L, storedRowCount())
+-    }
+-
+-    @Test
+-    fun `a push with a revoked session answers 401`() = runBlocking<Unit> {
+-        val alice = account("alice", 1)
+-        val token = issueSession(alice)
+-        revoke(token)
+-        testApplication {
+-            application { installSyncRoutes() }
+-            val response = client.postSync(bearer(token.secret.reveal()), body)
+-            assertEquals("status", HttpStatusCode.Unauthorized, response.status)
+-            assertEquals("body", UNAUTHORIZED_SESSION_BODY, response.bodyAsText())
+-        }
+-        assertEquals("nothing stored", 0L, storedRowCount())
+-    }
+-
+-    @Test
+-    fun `a push with an expired session answers 401`() = runBlocking<Unit> {
+-        val alice = account("alice", 1)
+-        val token = issueSession(alice)
+-        expire(token)
+-        testApplication {
+-            application { installSyncRoutes() }
+-            val response = client.postSync(bearer(token.secret.reveal()), body)
+-            assertEquals("status", HttpStatusCode.Unauthorized, response.status)
+-        }
+-    }
+-
+-    @Test
+-    fun `a push with an agent token answers 403 with the agent body`() = runBlocking<Unit> {
+-        val alice = account("alice", 1)
+-        val agent = issueAgent(alice)
+-        testApplication {
+-            application { installSyncRoutes() }
+-            val response = client.postSync(bearer(agent.secret.reveal()), body)
+-            assertEquals("status", HttpStatusCode.Forbidden, response.status)
+-            assertEquals("body", FORBIDDEN_AGENT_BODY, response.bodyAsText())
+-        }
+-        assertEquals("nothing stored", 0L, storedRowCount())
+-    }
+-
+-    @Test
+-    fun `the 401 and 403 push bodies are the pinned strings`() = runBlocking<Unit> {
+-        val alice = account("alice", 1)
+-        val agent = issueAgent(alice)
+-        testApplication {
+-            application { installSyncRoutes() }
+-            val missing = client.postSync(null, body)
+-            val wrongKind = client.postSync(bearer(agent.secret.reveal()), body)
+-            assertEquals("401 body", UNAUTHORIZED_SESSION_BODY, missing.bodyAsText())
+-            assertEquals("403 body", FORBIDDEN_AGENT_BODY, wrongKind.bodyAsText())
+-        }
+-    }
+-
+-    @Test
+-    fun `a lowercase bearer scheme is accepted on the push and on the pull`() = runBlocking<Unit> {
+-        val token = issueSession(account("alice", 1)).secret.reveal()
+-        testApplication {
+-            application { installSyncRoutes() }
+-            val push = client.postSync("bearer $token", body)
+-            assertEquals("push status", HttpStatusCode.NoContent, push.status)
+-            val pull = client.pullSync("bearer $token")
+-            assertEquals("pull status", HttpStatusCode.OK, pull.status)
+-        }
+-    }
+-}
+diff --git a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncIsolationTest.kt b/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncIsolationTest.kt
+deleted file mode 100644
+index bd0ea321..00000000
+--- a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncIsolationTest.kt
++++ /dev/null
+@@ -1,57 +0,0 @@
+-package dev.breaker.server.syncapi.sync
+-
+-import io.ktor.client.statement.bodyAsText
+-import io.ktor.http.HttpStatusCode
+-import io.ktor.server.testing.testApplication
+-import kotlinx.coroutines.runBlocking
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertTrue
+-import org.junit.Before
+-import org.junit.Test
+-
+-/** One account never sees or changes another account's rows. */
+-internal class SyncIsolationTest : SyncRouteTestBase() {
+-
+-    @Before
+-    fun setUp() {
+-        openSyncStores()
+-    }
+-
+-    @Test
+-    fun `an account pulls only its own rows`() = runBlocking<Unit> {
+-        val alice = bearer(issueSession(account("alice", 1)).secret.reveal())
+-        val bob = bearer(issueSession(account("bob", 2)).secret.reveal())
+-        testApplication {
+-            application { installSyncRoutes() }
+-            assertEquals("alice push", HttpStatusCode.NoContent, client.postSync(alice, utf8(pushBody(CLIENT_ID, "0", validEncrypted("alice")))).status)
+-            assertEquals("bob push", HttpStatusCode.NoContent, client.postSync(bob, utf8(pushBody(SECOND_CLIENT_ID, "0", validEncrypted("bob")))).status)
+-            val aliceView = client.pullSync(alice).bodyAsText()
+-            val bobView = client.pullSync(bob).bodyAsText()
+-            assertTrue("alice sees her row", aliceView.contains(CLIENT_ID))
+-            assertFalse("alice does not see bob's row", aliceView.contains(SECOND_CLIENT_ID))
+-            assertTrue("bob sees his row", bobView.contains(SECOND_CLIENT_ID))
+-            assertFalse("bob does not see alice's row", bobView.contains(CLIENT_ID))
+-        }
+-    }
+-
+-    @Test
+-    fun `a push of another account's client id is stored for the pushing account and leaves the other row unchanged`() =
+-        runBlocking<Unit> {
+-            val alice = bearer(issueSession(account("alice", 1)).secret.reveal())
+-            val bob = bearer(issueSession(account("bob", 2)).secret.reveal())
+-            val aliceText = validEncrypted("alice")
+-            val bobText = validEncrypted("bob")
+-            testApplication {
+-                application { installSyncRoutes() }
+-                client.postSync(alice, utf8(pushBody(CLIENT_ID, "0", aliceText)))
+-                val bobPush = client.postSync(bob, utf8(pushBody(CLIENT_ID, "0", bobText)))
+-                assertEquals("bob's push of the same client id", HttpStatusCode.NoContent, bobPush.status)
+-                val bobView = client.pullSync(bob).bodyAsText()
+-                val aliceView = client.pullSync(alice).bodyAsText()
+-                assertTrue("bob holds his own text", bobView.contains("\"encrypted\":\"$bobText\""))
+-                assertTrue("alice keeps her text", aliceView.contains("\"encrypted\":\"$aliceText\""))
+-                assertFalse("alice does not hold bob's text", aliceView.contains(bobText))
+-            }
+-        }
+-}
+diff --git a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncLogPolicyTest.kt b/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncLogPolicyTest.kt
+deleted file mode 100644
+index 1c60146c..00000000
+--- a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncLogPolicyTest.kt
++++ /dev/null
+@@ -1,79 +0,0 @@
+-package dev.breaker.server.syncapi.sync
+-
+-import io.ktor.client.statement.bodyAsText
+-import io.ktor.http.HttpStatusCode
+-import io.ktor.server.testing.testApplication
+-import java.io.ByteArrayOutputStream
+-import java.io.PrintStream
+-import kotlinx.coroutines.runBlocking
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Before
+-import org.junit.Test
+-
+-/** The log policy: the encrypted text and the decoded text never reach standard output or standard error. */
+-internal class SyncLogPolicyTest : SyncRouteTestBase() {
+-
+-    private val marker = "MARKER-PLAIN-7f3a"
+-
+-    @Before
+-    fun setUp() {
+-        openSyncStores()
+-    }
+-
+-    /** Runs [block] with standard output and standard error captured, and returns what was written. */
+-    private fun captureOutput(block: () -> Unit): String {
+-        val buffer = ByteArrayOutputStream()
+-        val originalOut = System.out
+-        val originalErr = System.err
+-        try {
+-            val sink = PrintStream(buffer, true, Charsets.UTF_8)
+-            System.setOut(sink)
+-            System.setErr(sink)
+-            block()
+-        } finally {
+-            System.setOut(originalOut)
+-            System.setErr(originalErr)
+-        }
+-        return String(buffer.toByteArray(), Charsets.UTF_8)
+-    }
+-
+-    @Test
+-    fun `a push and a pull write neither the encrypted text nor the decoded text to the captured output`() =
+-        runBlocking<Unit> {
+-            val auth = bearer(issueSession(account("alice", 1)).secret.reveal())
+-            val encrypted = validEncrypted(marker)
+-            val output = captureOutput {
+-                runBlocking {
+-                    testApplication {
+-                        application { installSyncRoutes() }
+-                        client.postSync(auth, utf8(pushBody(CLIENT_ID, "0", encrypted)))
+-                        client.pullSync(auth)
+-                    }
+-                }
+-            }
+-            assertFalse("the decoded text is not logged", output.contains(marker))
+-            assertFalse("the encrypted text is not logged", output.contains(encrypted))
+-        }
+-
+-    @Test
+-    fun `a refused body writes neither the decoded text nor its encrypted form to the captured output`() =
+-        runBlocking<Unit> {
+-            val auth = bearer(issueSession(account("alice", 1)).secret.reveal())
+-            val encrypted = encryptedOf(syncBodyJson(marker, source = "Local"))
+-            var refusedBody = ""
+-            val output = captureOutput {
+-                runBlocking {
+-                    testApplication {
+-                        application { installSyncRoutes() }
+-                        val response = client.postSync(auth, utf8(pushBody(CLIENT_ID, "0", encrypted)))
+-                        assertEquals("status", HttpStatusCode.BadRequest, response.status)
+-                        refusedBody = response.bodyAsText()
+-                    }
+-                }
+-            }
+-            assertEquals("the refusal body is the fixed one", BAD_REQUEST_BODY, refusedBody)
+-            assertFalse("the decoded text is not logged", output.contains(marker))
+-            assertFalse("the encrypted text is not logged", output.contains(encrypted))
+-        }
+-}
+diff --git a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncPushGoodPathTest.kt b/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncPushGoodPathTest.kt
+deleted file mode 100644
+index 0db9b051..00000000
+--- a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncPushGoodPathTest.kt
++++ /dev/null
+@@ -1,95 +0,0 @@
+-package dev.breaker.server.syncapi.sync
+-
+-import io.ktor.client.statement.bodyAsText
+-import io.ktor.http.HttpStatusCode
+-import io.ktor.server.testing.testApplication
+-import kotlinx.coroutines.runBlocking
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertTrue
+-import org.junit.Before
+-import org.junit.Test
+-
+-/** The push route on a good body: status, the stored row, retries and the stored text. */
+-internal class SyncPushGoodPathTest : SyncRouteTestBase() {
+-
+-    @Before
+-    fun setUp() {
+-        openSyncStores()
+-    }
+-
+-    @Test
+-    fun `a good push answers 204 with no body and the pull shows the row`() = runBlocking<Unit> {
+-        val alice = account("alice", 1)
+-        val auth = bearer(issueSession(alice).secret.reveal())
+-        testApplication {
+-            application { installSyncRoutes() }
+-            val push = client.postSync(auth, utf8(pushBody(CLIENT_ID, "0", validEncrypted())))
+-            assertEquals("push status", HttpStatusCode.NoContent, push.status)
+-            assertEquals("a 204 carries no body", "", push.bodyAsText())
+-            val pull = client.pullSync(auth)
+-            assertEquals("pull status", HttpStatusCode.OK, pull.status)
+-            assertTrue("the pull shows the pushed client id", pull.bodyAsText().contains("\"client_id\":\"$CLIENT_ID\""))
+-        }
+-    }
+-
+-    @Test
+-    fun `a retry of the same pair answers 204 and leaves one row`() = runBlocking<Unit> {
+-        val alice = account("alice", 1)
+-        val auth = bearer(issueSession(alice).secret.reveal())
+-        val body = utf8(pushBody(CLIENT_ID, "0", validEncrypted()))
+-        testApplication {
+-            application { installSyncRoutes() }
+-            assertEquals("first push", HttpStatusCode.NoContent, client.postSync(auth, body).status)
+-            assertEquals("retry", HttpStatusCode.NoContent, client.postSync(auth, body).status)
+-            val pulled = client.pullSync(auth).bodyAsText()
+-            assertEquals("one row after the retry", 1, pulled.split("\"client_id\"").size - 1)
+-        }
+-    }
+-
+-    @Test
+-    fun `a repeated pair with different text answers 204 and keeps the first text`() = runBlocking<Unit> {
+-        val alice = account("alice", 1)
+-        val auth = bearer(issueSession(alice).secret.reveal())
+-        val first = validEncrypted("first-text")
+-        val second = validEncrypted("second-text")
+-        testApplication {
+-            application { installSyncRoutes() }
+-            assertEquals("first push", HttpStatusCode.NoContent, client.postSync(auth, utf8(pushBody(CLIENT_ID, "0", first))).status)
+-            assertEquals("second push", HttpStatusCode.NoContent, client.postSync(auth, utf8(pushBody(CLIENT_ID, "0", second))).status)
+-            val pulled = client.pullSync(auth).bodyAsText()
+-            assertTrue("the first text is kept", pulled.contains("\"encrypted\":\"$first\""))
+-            assertFalse("the second text is not stored", pulled.contains(second))
+-        }
+-    }
+-
+-    @Test
+-    fun `the stored text is the encrypted string exactly as it was sent`() = runBlocking<Unit> {
+-        val alice = account("alice", 1)
+-        val auth = bearer(issueSession(alice).secret.reveal())
+-        // Spaces, a reordered key and a different key order: the same body, not in canonical form.
+-        val spelled = encryptedOf(
+-            """{ "v" : 1, "text": "hi", "source": "local", "model": "base.en", "duration_ms": 1500, """ +
+-                """"created_at": "2023-11-14T22:13:20.000Z" }""",
+-        )
+-        testApplication {
+-            application { installSyncRoutes() }
+-            val push = client.postSync(auth, utf8(pushBody(CLIENT_ID, "0", spelled)))
+-            assertEquals("push status", HttpStatusCode.NoContent, push.status)
+-            val pulled = client.pullSync(auth).bodyAsText()
+-            assertTrue("the stored text is the sent text", pulled.contains("\"encrypted\":\"$spelled\""))
+-        }
+-    }
+-
+-    @Test
+-    fun `a key version zero push is stored with key version zero`() = runBlocking<Unit> {
+-        val alice = account("alice", 1)
+-        val auth = bearer(issueSession(alice).secret.reveal())
+-        testApplication {
+-            application { installSyncRoutes() }
+-            client.postSync(auth, utf8(pushBody(CLIENT_ID, "0", validEncrypted())))
+-            val pulled = client.pullSync(auth).bodyAsText()
+-            assertTrue("key version zero is stored", pulled.contains("\"key_version\":0"))
+-        }
+-    }
+-}
+diff --git a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncPushRefusalTest.kt b/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncPushRefusalTest.kt
+deleted file mode 100644
+index 1eeaabcc..00000000
+--- a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncPushRefusalTest.kt
++++ /dev/null
+@@ -1,254 +0,0 @@
+-package dev.breaker.server.syncapi.sync
+-
+-import io.ktor.client.statement.bodyAsText
+-import io.ktor.http.HttpStatusCode
+-import io.ktor.server.testing.testApplication
+-import kotlinx.coroutines.runBlocking
+-import org.junit.Assert.assertEquals
+-import org.junit.Before
+-import org.junit.Test
+-
+-/** The push route on refused bodies: each refusal has its fixed status and body, and stores nothing. */
+-internal class SyncPushRefusalTest : SyncRouteTestBase() {
+-
+-    private val enc = "AQID"
+-
+-    @Before
+-    fun setUp() {
+-        openSyncStores()
+-    }
+-
+-    @Test
+-    fun `malformed JSON shapes answer 400 and store nothing`() = runBlocking<Unit> {
+-        val auth = bearer(issueSession(account("alice", 1)).secret.reveal())
+-        val cases = listOf(
+-            "a bare word" to utf8("not json"),
+-            "an array" to utf8("[]"),
+-            "an empty body" to utf8(""),
+-            "a truncated object" to utf8(pushBody(CLIENT_ID, "0", enc).dropLast(1)),
+-        )
+-        testApplication {
+-            application { installSyncRoutes() }
+-            for ((label, body) in cases) {
+-                val response = client.postSync(auth, body)
+-                assertEquals("$label answers 400", HttpStatusCode.BadRequest, response.status)
+-                assertEquals("$label body", BAD_REQUEST_BODY, response.bodyAsText())
+-            }
+-        }
+-        assertEquals("nothing stored", 0L, storedRowCount())
+-    }
+-
+-    @Test
+-    fun `wrong field shapes answer 400 and store nothing`() = runBlocking<Unit> {
+-        val auth = bearer(issueSession(account("alice", 1)).secret.reveal())
+-        val cases = listOf(
+-            "a missing key" to utf8("""{"client_id":"$CLIENT_ID","encrypted":"$enc"}"""),
+-            "an unknown key" to utf8("""{"client_id":"$CLIENT_ID","key_version":0,"encrypted":"$enc","x":1}"""),
+-            "a duplicate key" to utf8("""{"client_id":"$CLIENT_ID","client_id":"$CLIENT_ID","key_version":0,"encrypted":"$enc"}"""),
+-            "a key version as a string" to utf8(pushBody(CLIENT_ID, "\"0\"", enc)),
+-            "a negative key version" to utf8(pushBody(CLIENT_ID, "-1", enc)),
+-            "a fractional key version" to utf8(pushBody(CLIENT_ID, "1.0", enc)),
+-            "an exponent key version" to utf8(pushBody(CLIENT_ID, "1e0", enc)),
+-            "a key version with a leading zero" to utf8(pushBody(CLIENT_ID, "01", enc)),
+-            "a key version above the Int range" to utf8(pushBody(CLIENT_ID, "2147483648", enc)),
+-            "a byte order mark" to utf8("\uFEFF" + pushBody(CLIENT_ID, "0", enc)),
+-            "bytes after the object" to utf8(pushBody(CLIENT_ID, "0", enc) + " x"),
+-            "bytes that are not UTF-8" to byteArrayOf(0xFF.toByte()) + utf8(pushBody(CLIENT_ID, "0", enc)),
+-        )
+-        testApplication {
+-            application { installSyncRoutes() }
+-            for ((label, body) in cases) {
+-                val response = client.postSync(auth, body)
+-                assertEquals("$label answers 400", HttpStatusCode.BadRequest, response.status)
+-                assertEquals("$label body", BAD_REQUEST_BODY, response.bodyAsText())
+-            }
+-        }
+-        assertEquals("nothing stored", 0L, storedRowCount())
+-    }
+-
+-    @Test
+-    fun `a client id that is upper case, short, long, not hex or without hyphens answers 400 and stores nothing`() =
+-        runBlocking<Unit> {
+-            val auth = bearer(issueSession(account("alice", 1)).secret.reveal())
+-            val cases = listOf(
+-                "an upper case client id" to CLIENT_ID.uppercase(),
+-                "a short client id" to CLIENT_ID.dropLast(1),
+-                "a long client id" to CLIENT_ID + "0",
+-                "a client id with a non hex character" to "g" + CLIENT_ID.drop(1),
+-                "a client id without hyphens" to CLIENT_ID.replace("-", ""),
+-            )
+-            testApplication {
+-                application { installSyncRoutes() }
+-                for ((label, id) in cases) {
+-                    val response = client.postSync(auth, utf8(pushBody(id, "0", validEncrypted())))
+-                    assertEquals("$label answers 400", HttpStatusCode.BadRequest, response.status)
+-                    assertEquals("$label body", BAD_REQUEST_BODY, response.bodyAsText())
+-                }
+-            }
+-            assertEquals("nothing stored", 0L, storedRowCount())
+-        }
+-
+-    @Test
+-    fun `an encrypted text that is not base64 or not a sync body answers 400 and stores nothing`() = runBlocking<Unit> {
+-        val auth = bearer(issueSession(account("alice", 1)).secret.reveal())
+-        val cases = listOf(
+-            "text that is not base64" to "!!!!",
+-            "base64 without padding" to "AQ",
+-            "base64 with a URL safe character" to "-_8=",
+-            "base64 of text that is not an object" to encryptedOf("hello"),
+-            "base64 of an array" to encryptedOf("[]"),
+-            "base64 of a sync body with another source" to encryptedOf(syncBodyJson("hello", source = "Local")),
+-            "base64 of a sync body with a missing key" to encryptedOf("""{"v":1,"text":"hello"}"""),
+-        )
+-        testApplication {
+-            application { installSyncRoutes() }
+-            for ((label, text) in cases) {
+-                val response = client.postSync(auth, utf8(pushBody(CLIENT_ID, "0", text)))
+-                assertEquals("$label answers 400", HttpStatusCode.BadRequest, response.status)
+-                assertEquals("$label body", BAD_REQUEST_BODY, response.bodyAsText())
+-            }
+-        }
+-        assertEquals("nothing stored", 0L, storedRowCount())
+-    }
+-
+-    @Test
+-    fun `a key version above the current answers 409 and stores nothing`() = runBlocking<Unit> {
+-        val auth = bearer(issueSession(account("alice", 1)).secret.reveal())
+-        testApplication {
+-            application { installSyncRoutes() }
+-            val response = client.postSync(auth, utf8(pushBody(CLIENT_ID, "1", validEncrypted())))
+-            assertEquals("status", HttpStatusCode.Conflict, response.status)
+-            assertEquals("body", CONFLICT_BODY, response.bodyAsText())
+-        }
+-        assertEquals("nothing stored", 0L, storedRowCount())
+-    }
+-
+-    @Test
+-    fun `a key version above the current with text that is not base64 answers 400 and stores nothing`() =
+-        runBlocking<Unit> {
+-            val auth = bearer(issueSession(account("alice", 1)).secret.reveal())
+-            testApplication {
+-                application { installSyncRoutes() }
+-                val response = client.postSync(auth, utf8(pushBody(CLIENT_ID, "1", "!!!!")))
+-                assertEquals("status", HttpStatusCode.BadRequest, response.status)
+-                assertEquals("body", BAD_REQUEST_BODY, response.bodyAsText())
+-            }
+-            assertEquals("nothing stored", 0L, storedRowCount())
+-        }
+-
+-    @Test
+-    fun `a key version above the current with a bad client id answers 400`() = runBlocking<Unit> {
+-        val auth = bearer(issueSession(account("alice", 1)).secret.reveal())
+-        testApplication {
+-            application { installSyncRoutes() }
+-            val response = client.postSync(auth, utf8(pushBody(CLIENT_ID.uppercase(), "1", validEncrypted())))
+-            assertEquals("status", HttpStatusCode.BadRequest, response.status)
+-            assertEquals("body", BAD_REQUEST_BODY, response.bodyAsText())
+-        }
+-    }
+-
+-    @Test
+-    fun `a key version above the current with text over the decoded limit answers 413`() = runBlocking<Unit> {
+-        val auth = bearer(issueSession(account("alice", 1)).secret.reveal())
+-        testApplication {
+-            application { installSyncRoutes() }
+-            val response = client.postSync(auth, utf8(pushBody(CLIENT_ID, "1", encryptedOfSize(65537))))
+-            assertEquals("status", HttpStatusCode.PayloadTooLarge, response.status)
+-            assertEquals("body", PAYLOAD_TOO_LARGE_BODY, response.bodyAsText())
+-        }
+-        assertEquals("nothing stored", 0L, storedRowCount())
+-    }
+-
+-    @Test
+-    fun `key version one with an empty encrypted text answers 400 and not 409`() = runBlocking<Unit> {
+-        val auth = bearer(issueSession(account("alice", 1)).secret.reveal())
+-        testApplication {
+-            application { installSyncRoutes() }
+-            val response = client.postSync(auth, utf8(pushBody(CLIENT_ID, "1", "")))
+-            assertEquals("status", HttpStatusCode.BadRequest, response.status)
+-            assertEquals("body", BAD_REQUEST_BODY, response.bodyAsText())
+-        }
+-    }
+-
+-    @Test
+-    fun `the same valid body with a good client id answers 204 and stores one row`() = runBlocking<Unit> {
+-        val auth = bearer(issueSession(account("alice", 1)).secret.reveal())
+-        testApplication {
+-            application { installSyncRoutes() }
+-            val response = client.postSync(auth, utf8(pushBody(CLIENT_ID, "0", validEncrypted())))
+-            assertEquals("status", HttpStatusCode.NoContent, response.status)
+-        }
+-        assertEquals("one row stored", 1L, storedRowCount())
+-    }
+-
+-    @Test
+-    fun `a key version one with text that is not padded answers 400 and stores nothing`() = runBlocking<Unit> {
+-        val auth = bearer(issueSession(account("alice", 1)).secret.reveal())
+-        testApplication {
+-            application { installSyncRoutes() }
+-            for (text in listOf("AQ", "AQI")) {
+-                val response = client.postSync(auth, utf8(pushBody(CLIENT_ID, "1", text)))
+-                assertEquals("$text answers 400", HttpStatusCode.BadRequest, response.status)
+-                assertEquals("$text body", BAD_REQUEST_BODY, response.bodyAsText())
+-            }
+-        }
+-        assertEquals("nothing stored", 0L, storedRowCount())
+-    }
+-
+-    @Test
+-    fun `a text with non zero trailing bits answers 400 at key version zero and at key version one`() =
+-        runBlocking<Unit> {
+-            val auth = bearer(issueSession(account("alice", 1)).secret.reveal())
+-            testApplication {
+-                application { installSyncRoutes() }
+-                for (version in listOf("0", "1")) {
+-                    for (text in listOf("AR==", "AQJ=")) {
+-                        val response = client.postSync(auth, utf8(pushBody(CLIENT_ID, version, text)))
+-                        assertEquals("$text at key version $version", HttpStatusCode.BadRequest, response.status)
+-                    }
+-                }
+-            }
+-            assertEquals("nothing stored", 0L, storedRowCount())
+-        }
+-
+-    @Test
+-    fun `a non canonical text over the decoded limit answers 400 and not 413`() = runBlocking<Unit> {
+-        val auth = bearer(issueSession(account("alice", 1)).secret.reveal())
+-        val texts = listOf("A".repeat(87383) + "!", "A".repeat(87380) + "AQJ=")
+-        testApplication {
+-            application { installSyncRoutes() }
+-            for (version in listOf("0", "1")) {
+-                for (text in texts) {
+-                    val response = client.postSync(auth, utf8(pushBody(CLIENT_ID, version, text)))
+-                    assertEquals("key version $version answers 400", HttpStatusCode.BadRequest, response.status)
+-                }
+-            }
+-        }
+-        assertEquals("nothing stored", 0L, storedRowCount())
+-    }
+-
+-    @Test
+-    fun `a key version above the current with canonical base64 that is not a sync body answers 409`() =
+-        runBlocking<Unit> {
+-            val auth = bearer(issueSession(account("alice", 1)).secret.reveal())
+-            testApplication {
+-                application { installSyncRoutes() }
+-                val response = client.postSync(auth, utf8(pushBody(CLIENT_ID, "1", encryptedOf("hello"))))
+-                assertEquals("status", HttpStatusCode.Conflict, response.status)
+-                assertEquals("body", CONFLICT_BODY, response.bodyAsText())
+-            }
+-            assertEquals("nothing stored", 0L, storedRowCount())
+-        }
+-
+-    @Test
+-    fun `a key version above the current with exactly 65536 decoded bytes answers 409`() = runBlocking<Unit> {
+-        val auth = bearer(issueSession(account("alice", 1)).secret.reveal())
+-        testApplication {
+-            application { installSyncRoutes() }
+-            val response = client.postSync(auth, utf8(pushBody(CLIENT_ID, "1", encryptedOfSize(65536))))
+-            assertEquals("status", HttpStatusCode.Conflict, response.status)
+-            assertEquals("body", CONFLICT_BODY, response.bodyAsText())
+-        }
+-        assertEquals("nothing stored", 0L, storedRowCount())
+-    }
+-}
+diff --git a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncPushSizeTest.kt b/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncPushSizeTest.kt
+deleted file mode 100644
+index d0fd176c..00000000
+--- a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncPushSizeTest.kt
++++ /dev/null
+@@ -1,137 +0,0 @@
+-package dev.breaker.server.syncapi.sync
+-
+-import io.ktor.client.HttpClient
+-import io.ktor.client.request.header
+-import io.ktor.client.request.post
+-import io.ktor.client.request.setBody
+-import io.ktor.client.statement.HttpResponse
+-import io.ktor.client.statement.bodyAsText
+-import io.ktor.http.ContentType
+-import io.ktor.http.HttpHeaders
+-import io.ktor.http.HttpStatusCode
+-import io.ktor.http.contentType
+-import io.ktor.server.testing.testApplication
+-import io.ktor.utils.io.ByteReadChannel
+-import kotlinx.coroutines.runBlocking
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertTrue
+-import org.junit.Before
+-import org.junit.Test
+-
+-/** The raw body limit, the decoded text limit, and the order of the limit against authentication. */
+-internal class SyncPushSizeTest : SyncRouteTestBase() {
+-
+-    private val rawLimit = 131072
+-    private val decodedLimit = 65536
+-
+-    @Before
+-    fun setUp() {
+-        openSyncStores()
+-    }
+-
+-    /** A push whose JSON body is padded with spaces to exactly [size] bytes. */
+-    private fun paddedPush(size: Int): ByteArray {
+-        val json = pushBody(CLIENT_ID, "0", validEncrypted())
+-        return utf8(json + " ".repeat(size - json.length))
+-    }
+-
+-    /** The same push body sent as a channel, so the request has no declared length. */
+-    private suspend fun HttpClient.postWithoutLength(authorization: String, body: ByteArray): HttpResponse =
+-        post(SYNC_PATH) {
+-            header(HttpHeaders.Authorization, authorization)
+-            contentType(ContentType.Application.Json)
+-            setBody(ByteReadChannel(body))
+-        }
+-
+-    @Test
+-    fun `a raw body of exactly 131072 bytes is accepted`() = runBlocking<Unit> {
+-        val auth = bearer(issueSession(account("alice", 1)).secret.reveal())
+-        val body = paddedPush(rawLimit)
+-        assertEquals("the body is exactly the limit", rawLimit, body.size)
+-        testApplication {
+-            application { installSyncRoutes() }
+-            val response = client.postSync(auth, body)
+-            assertEquals("status", HttpStatusCode.NoContent, response.status)
+-        }
+-        assertEquals("one row stored", 1L, storedRowCount())
+-    }
+-
+-    @Test
+-    fun `a raw body of 131073 bytes answers 413 and stores nothing`() = runBlocking<Unit> {
+-        val auth = bearer(issueSession(account("alice", 1)).secret.reveal())
+-        val body = paddedPush(rawLimit + 1)
+-        assertEquals("the body is one over the limit", rawLimit + 1, body.size)
+-        testApplication {
+-            application { installSyncRoutes() }
+-            val response = client.postSync(auth, body)
+-            assertEquals("status", HttpStatusCode.PayloadTooLarge, response.status)
+-            assertEquals("body", PAYLOAD_TOO_LARGE_BODY, response.bodyAsText())
+-        }
+-        assertEquals("nothing stored", 0L, storedRowCount())
+-    }
+-
+-    @Test
+-    fun `a body without a declared length that runs past the limit answers 413`() = runBlocking<Unit> {
+-        val auth = bearer(issueSession(account("alice", 1)).secret.reveal())
+-        val body = paddedPush(rawLimit + 1)
+-        testApplication {
+-            application { installSyncRoutes() }
+-            val response = client.postWithoutLength(auth, body)
+-            assertEquals("status", HttpStatusCode.PayloadTooLarge, response.status)
+-            assertEquals("body", PAYLOAD_TOO_LARGE_BODY, response.bodyAsText())
+-        }
+-        assertEquals("nothing stored", 0L, storedRowCount())
+-    }
+-
+-    @Test
+-    fun `a chunked body of exactly the limit is accepted`() = runBlocking<Unit> {
+-        val auth = bearer(issueSession(account("alice", 1)).secret.reveal())
+-        val body = paddedPush(rawLimit)
+-        testApplication {
+-            application { installSyncRoutes() }
+-            val response = client.postWithoutLength(auth, body)
+-            assertEquals("status", HttpStatusCode.NoContent, response.status)
+-        }
+-        assertEquals("one row stored", 1L, storedRowCount())
+-    }
+-
+-    @Test
+-    fun `an encrypted text decoding to exactly 65536 bytes is accepted`() = runBlocking<Unit> {
+-        val auth = bearer(issueSession(account("alice", 1)).secret.reveal())
+-        val encrypted = encryptedOf(syncBodyOfSize(decodedLimit))
+-        assertEquals("the decoded body is exactly the limit", decodedLimit, utf8(syncBodyOfSize(decodedLimit)).size)
+-        testApplication {
+-            application { installSyncRoutes() }
+-            val response = client.postSync(auth, utf8(pushBody(CLIENT_ID, "0", encrypted)))
+-            assertEquals("status", HttpStatusCode.NoContent, response.status)
+-        }
+-        assertEquals("one row stored", 1L, storedRowCount())
+-    }
+-
+-    @Test
+-    fun `an encrypted text decoding to 65537 bytes answers 413 and stores nothing`() = runBlocking<Unit> {
+-        val auth = bearer(issueSession(account("alice", 1)).secret.reveal())
+-        val encrypted = encryptedOf(syncBodyOfSize(decodedLimit + 1))
+-        assertEquals("the decoded body is one over the limit", decodedLimit + 1, utf8(syncBodyOfSize(decodedLimit + 1)).size)
+-        testApplication {
+-            application { installSyncRoutes() }
+-            val response = client.postSync(auth, utf8(pushBody(CLIENT_ID, "0", encrypted)))
+-            assertEquals("status", HttpStatusCode.PayloadTooLarge, response.status)
+-            assertEquals("body", PAYLOAD_TOO_LARGE_BODY, response.bodyAsText())
+-        }
+-        assertEquals("nothing stored", 0L, storedRowCount())
+-    }
+-
+-    @Test
+-    fun `an unauthenticated oversize request answers 401, not 413`() = runBlocking<Unit> {
+-        account("alice", 1)
+-        val body = paddedPush(rawLimit + 1)
+-        testApplication {
+-            application { installSyncRoutes() }
+-            val response = client.postSync(null, body)
+-            assertEquals("status", HttpStatusCode.Unauthorized, response.status)
+-            assertEquals("body", UNAUTHORIZED_SESSION_BODY, response.bodyAsText())
+-        }
+-        assertTrue("nothing stored", storedRowCount() == 0L)
+-    }
+-}
+diff --git a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncRouteWiringTest.kt b/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncRouteWiringTest.kt
+deleted file mode 100644
+index af5353b5..00000000
+--- a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncRouteWiringTest.kt
++++ /dev/null
+@@ -1,48 +0,0 @@
+-package dev.breaker.server.syncapi.sync
+-
+-import dev.breaker.server.syncapi.accounts.AccountFixtures
+-import dev.breaker.server.syncapi.syncApiModule
+-import io.ktor.client.request.get
+-import io.ktor.client.request.post
+-import io.ktor.client.statement.bodyAsText
+-import io.ktor.http.HttpStatusCode
+-import io.ktor.server.testing.testApplication
+-import kotlinx.coroutines.runBlocking
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertTrue
+-import org.junit.Before
+-import org.junit.Test
+-
+-/** The module wiring: both sync routes are installed at their exact paths, and nothing else answers there. */
+-internal class SyncRouteWiringTest : SyncRouteTestBase() {
+-
+-    @Before
+-    fun setUp() {
+-        openSyncStores()
+-    }
+-
+-    @Test
+-    fun `the full module answers both sync routes at their exact paths`() = runBlocking<Unit> {
+-        val auth = bearer(issueSession(account("alice", 1)).secret.reveal())
+-        testApplication {
+-            application { syncApiModule(AccountFixtures.newStore(temp), tokenStore, transcriptionStore) }
+-            val push = client.postSync(auth, utf8(pushBody(CLIENT_ID, "0", validEncrypted())))
+-            assertEquals("push path", HttpStatusCode.NoContent, push.status)
+-            val pull = client.pullSync(auth)
+-            assertEquals("pull path", HttpStatusCode.OK, pull.status)
+-            assertTrue("the pull shows the row", pull.bodyAsText().contains(CLIENT_ID))
+-        }
+-    }
+-
+-    @Test
+-    fun `other methods and paths on the sync paths are not successes`() = runBlocking<Unit> {
+-        testApplication {
+-            application { syncApiModule(AccountFixtures.newStore(temp), tokenStore, transcriptionStore) }
+-            val getSync = client.get(SYNC_PATH)
+-            val postPull = client.post(PULL_PATH)
+-            assertTrue("GET $SYNC_PATH must not be a 2xx", getSync.status.value !in 200..299)
+-            assertTrue("POST $PULL_PATH must not be a 2xx", postPull.status.value !in 200..299)
+-            assertEquals("a trailing slash is not the route", HttpStatusCode.NotFound, client.post("$SYNC_PATH/").status)
+-        }
+-    }
+-}
+diff --git a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncSourceScanTest.kt b/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncSourceScanTest.kt
+deleted file mode 100644
+index 1701f98f..00000000
+--- a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncSourceScanTest.kt
++++ /dev/null
+@@ -1,104 +0,0 @@
+-package dev.breaker.server.syncapi.sync
+-
+-import java.io.File
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/**
+- * Text scans of the new production files: no print or log call, no interpolation of the encrypted text,
+- * and no binding of the decoded body. Each rule has a control line it must flag, so an empty scan cannot pass.
+- */
+-internal class SyncSourceScanTest {
+-
+-    private val syncDir = File("src/main/kotlin/dev/breaker/server/syncapi/sync")
+-    private val sessionFile = File("src/main/kotlin/dev/breaker/server/syncapi/auth/SessionBearer.kt")
+-
+-    private val logPropertyPattern = Regex("\\.log\\.")
+-    private val logMethodPattern = Regex("\\.(info|debug|warn|error|trace)\\(")
+-    private val loggingPatterns = listOf(
+-        Regex("\\bprint(ln)?\\("),
+-        Regex("System\\.(out|err)"),
+-        Regex("\\bLogger\\b|LoggerFactory"),
+-        Regex("printStackTrace"),
+-        Regex("\\.log\\("),
+-        logPropertyPattern,
+-        logMethodPattern,
+-    )
+-    private val interpolationPattern = Regex("\\$\\{?[A-Za-z_.]*encrypted")
+-    private val decodedBindingPatterns = listOf(
+-        Regex("=\\s*SyncBodyCodec\\.decodePlain"),
+-        Regex("SyncBodyCodec\\.decodePlain\\([^)]*\\)\\s*\\."),
+-    )
+-
+-    private fun scannedFiles(): List<File> {
+-        val syncFiles = syncDir.listFiles { file -> file.name.endsWith(".kt") }?.toList().orEmpty()
+-        return syncFiles + listOf(sessionFile).filter { it.isFile }
+-    }
+-
+-    private fun lines(files: List<File>): List<String> =
+-        files.flatMap { file -> file.readLines().map { line -> "${file.name}: $line" } }
+-
+-    @Test
+-    fun `the sync folder and the session bearer file hold the expected files`() {
+-        val names = scannedFiles().map { it.name }.toSet()
+-        val expected = setOf(
+-            "SyncPushRoute.kt",
+-            "TranscriptionsPullRoute.kt",
+-            "PushRequestReader.kt",
+-            "SyncLimits.kt",
+-            "JsonText.kt",
+-            "SessionBearer.kt",
+-        )
+-        assertTrue("expected $expected, found $names", names.containsAll(expected))
+-    }
+-
+-    @Test
+-    fun `the sync folder and the session bearer file contain no print, log or stack trace call`() {
+-        val files = scannedFiles()
+-        assertTrue("no files were scanned", files.isNotEmpty())
+-        val found = lines(files).filter { line -> loggingPatterns.any { it.containsMatchIn(line) } }
+-        assertEquals("print or log calls", emptyList<String>(), found)
+-    }
+-
+-    @Test
+-    fun `the print and log rule flags a line that prints`() {
+-        val control = "        println(\"x\")"
+-        assertTrue("the rule fires", loggingPatterns.any { it.containsMatchIn(control) })
+-    }
+-
+-    @Test
+-    fun `no sync file interpolates the encrypted text into a string`() {
+-        val files = scannedFiles()
+-        assertTrue("no files were scanned", files.isNotEmpty())
+-        val found = lines(files).filter { interpolationPattern.containsMatchIn(it) }
+-        assertEquals("interpolations of the encrypted text", emptyList<String>(), found)
+-        assertTrue("the rule fires on an interpolated value", interpolationPattern.containsMatchIn("\"x \${request.encrypted}\""))
+-    }
+-
+-    @Test
+-    fun `the push route keeps the decoded value out of any binding`() {
+-        val files = scannedFiles()
+-        assertTrue("no files were scanned", files.isNotEmpty())
+-        val found = lines(files).filter { line -> decodedBindingPatterns.any { it.containsMatchIn(line) } }
+-        assertEquals("bindings of the decoded value", emptyList<String>(), found)
+-        val control = "        val decoded = SyncBodyCodec.decodePlain(request.encrypted)"
+-        assertTrue("the rule fires on a bound decode", decodedBindingPatterns.any { it.containsMatchIn(control) })
+-    }
+-
+-    @Test
+-    fun `the log property rule flags a read of the application log`() {
+-        val sample = "        val sink = call.application.log.encrypted"
+-        assertTrue("the rule is in the scanned list", loggingPatterns.contains(logPropertyPattern))
+-        assertTrue("the rule fires", logPropertyPattern.containsMatchIn(sample))
+-    }
+-
+-    @Test
+-    fun `the logger method rule flags a call such as logger dot info`() {
+-        assertTrue("the rule is in the scanned list", loggingPatterns.contains(logMethodPattern))
+-        val samples = listOf("logger.info(text)", "logger.debug(text)", "logger.warn(text)", "logger.error(text)", "logger.trace(text)")
+-        for (sample in samples) {
+-            assertTrue("the rule fires on $sample", logMethodPattern.containsMatchIn(sample))
+-        }
+-    }
+-}
+diff --git a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/TranscriptionsPullTest.kt b/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/TranscriptionsPullTest.kt
+deleted file mode 100644
+index 52e5ed3e..00000000
+--- a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/TranscriptionsPullTest.kt
++++ /dev/null
+@@ -1,154 +0,0 @@
+-package dev.breaker.server.syncapi.sync
+-
+-import dev.breaker.server.syncapi.tokens.TokenFixtures
+-import dev.breaker.server.syncapi.transcriptions.TranscriptionFixtures
+-import io.ktor.client.statement.bodyAsText
+-import io.ktor.http.ContentType
+-import io.ktor.http.HttpStatusCode
+-import io.ktor.http.contentType
+-import io.ktor.server.testing.testApplication
+-import java.time.Duration
+-import kotlinx.coroutines.runBlocking
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertTrue
+-import org.junit.Before
+-import org.junit.Test
+-
+-/** The pull route's body: the empty array, the four fields, the time form, the order and the escaping. */
+-internal class TranscriptionsPullTest : SyncRouteTestBase() {
+-
+-    private val enc = validEncrypted("hello")
+-
+-    @Before
+-    fun setUp() {
+-        openSyncStores()
+-    }
+-
+-    @Test
+-    fun `an account with nothing stored pulls an empty array`() = runBlocking<Unit> {
+-        val auth = bearer(issueSession(account("alice", 1)).secret.reveal())
+-        testApplication {
+-            application { installSyncRoutes() }
+-            val response = client.pullSync(auth)
+-            assertEquals("status", HttpStatusCode.OK, response.status)
+-            assertEquals("body", "[]", response.bodyAsText())
+-        }
+-    }
+-
+-    @Test
+-    fun `a pull returns exactly the four fields of a row in the pinned form`() = runBlocking<Unit> {
+-        val auth = bearer(issueSession(account("alice", 1)).secret.reveal())
+-        val expected = "[{\"client_id\":\"$CLIENT_ID\",\"key_version\":0,\"encrypted\":\"$enc\"," +
+-            "\"stored_at\":\"$START_STORED_AT\"}]"
+-        testApplication {
+-            application { installSyncRoutes() }
+-            client.postSync(auth, utf8(pushBody(CLIENT_ID, "0", enc)))
+-            assertEquals("body", expected, client.pullSync(auth).bodyAsText())
+-        }
+-    }
+-
+-    @Test
+-    fun `each row keeps its own client id, key version and encrypted text`() = runBlocking<Unit> {
+-        val alice = account("alice", 1)
+-        val auth = bearer(issueSession(alice).secret.reveal())
+-        val first = validEncrypted("first")
+-        val second = validEncrypted("second")
+-        insertRow(alice, CLIENT_ID, 0, first, 1_700_000_000_000L)
+-        insertRow(alice, SECOND_CLIENT_ID, 1, second, 1_700_000_000_000L)
+-        testApplication {
+-            application { installSyncRoutes() }
+-            val body = client.pullSync(auth).bodyAsText()
+-            assertTrue("the first row", body.contains("\"client_id\":\"$CLIENT_ID\",\"key_version\":0,\"encrypted\":\"$first\""))
+-            assertTrue("the second row", body.contains("\"client_id\":\"$SECOND_CLIENT_ID\",\"key_version\":1,\"encrypted\":\"$second\""))
+-        }
+-    }
+-
+-    @Test
+-    fun `stored_at is whole seconds in RFC 3339 form ending in Z`() = runBlocking<Unit> {
+-        val auth = bearer(issueSession(account("alice", 1)).secret.reveal())
+-        val stamp = Regex("\"stored_at\":\"\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z\"")
+-        testApplication {
+-            application { installSyncRoutes() }
+-            client.postSync(auth, utf8(pushBody(CLIENT_ID, "0", enc)))
+-            assertTrue("the stored_at form", stamp.containsMatchIn(client.pullSync(auth).bodyAsText()))
+-        }
+-    }
+-
+-    @Test
+-    fun `stored_at on the wire is the whole second when the clock stood 600 milliseconds past it`() =
+-        runBlocking<Unit> {
+-            val auth = bearer(issueSession(account("alice", 1)).secret.reveal())
+-            clock.advance(Duration.ofMillis(600))
+-            testApplication {
+-                application { installSyncRoutes() }
+-                client.postSync(auth, utf8(pushBody(CLIENT_ID, "0", enc)))
+-                val body = client.pullSync(auth).bodyAsText()
+-                assertTrue("the stored time is the whole second", body.contains("\"stored_at\":\"$START_STORED_AT\""))
+-                assertTrue("not rounded up", !body.contains("22:13:21Z"))
+-            }
+-        }
+-
+-    @Test
+-    fun `a stored time with a millisecond part is shown cut to its second`() = runBlocking<Unit> {
+-        val alice = account("alice", 1)
+-        val auth = bearer(issueSession(alice).secret.reveal())
+-        insertRow(alice, CLIENT_ID, 0, enc, TokenFixtures.START.toEpochMilli() + 600L)
+-        testApplication {
+-            application { installSyncRoutes() }
+-            val body = client.pullSync(auth).bodyAsText()
+-            assertTrue("cut to the second", body.contains("\"stored_at\":\"$START_STORED_AT\""))
+-            assertTrue("not rounded up", !body.contains("22:13:21Z"))
+-        }
+-    }
+-
+-    @Test
+-    fun `two rows stored in different seconds pull as exactly two objects in order`() = runBlocking<Unit> {
+-        val auth = bearer(issueSession(account("alice", 1)).secret.reveal())
+-        testApplication {
+-            application { installSyncRoutes() }
+-            client.postSync(auth, utf8(pushBody(CLIENT_ID, "0", enc)))
+-            clock.advance(Duration.ofSeconds(1))
+-            client.postSync(auth, utf8(pushBody(SECOND_CLIENT_ID, "0", enc)))
+-            val expected = "[{\"client_id\":\"$CLIENT_ID\",\"key_version\":0,\"encrypted\":\"$enc\"," +
+-                "\"stored_at\":\"$START_STORED_AT\"},{\"client_id\":\"$SECOND_CLIENT_ID\",\"key_version\":0," +
+-                "\"encrypted\":\"$enc\",\"stored_at\":\"2023-11-14T22:13:21Z\"}]"
+-            assertEquals("body", expected, client.pullSync(auth).bodyAsText())
+-        }
+-    }
+-
+-    @Test
+-    fun `rows sharing one stored time come back ordered by client id`() = runBlocking<Unit> {
+-        val auth = bearer(issueSession(account("alice", 1)).secret.reveal())
+-        testApplication {
+-            application { installSyncRoutes() }
+-            client.postSync(auth, utf8(pushBody(SECOND_CLIENT_ID, "0", enc)))
+-            client.postSync(auth, utf8(pushBody(CLIENT_ID, "0", enc)))
+-            val body = client.pullSync(auth).bodyAsText()
+-            assertTrue("the smaller client id comes first", body.indexOf(CLIENT_ID) < body.indexOf(SECOND_CLIENT_ID))
+-        }
+-    }
+-
+-    @Test
+-    fun `a pull answers with application json`() = runBlocking<Unit> {
+-        val auth = bearer(issueSession(account("alice", 1)).secret.reveal())
+-        testApplication {
+-            application { installSyncRoutes() }
+-            val response = client.pullSync(auth)
+-            assertEquals("content type", ContentType.Application.Json, response.contentType()?.withoutParameters())
+-        }
+-    }
+-
+-    @Test
+-    fun `a stored value that needs escapes comes back escaped and parses to the same text`() = runBlocking<Unit> {
+-        val alice = account("alice", 1)
+-        val auth = bearer(issueSession(alice).secret.reveal())
+-        val raw = "a\"b\\c\u0001d\ne\tf"
+-        TranscriptionFixtures.push(transcriptionStore, alice, CLIENT_ID, 0, raw)
+-        val expected = "[{\"client_id\":\"$CLIENT_ID\",\"key_version\":0," +
+-            "\"encrypted\":\"a\\\"b\\\\c\\u0001d\\ne\\tf\",\"stored_at\":\"$START_STORED_AT\"}]"
+-        testApplication {
+-            application { installSyncRoutes() }
+-            assertEquals("body", expected, client.pullSync(auth).bodyAsText())
+-        }
+-    }
+-}

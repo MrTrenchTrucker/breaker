@@ -1,0 +1,2351 @@
+{
+ "name": "proof-sync-api",
+ "tip": {
+  "tree": "0a2446c67840a2b95c8f6950e81b2b02d9496e4f"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "sync-api: store transcriptions per account (schema v3 and a store)",
+   "base_tree": "3dbd2c9c05cddd97b60b64af2f15eb6d40886169",
+   "item_tip_tree": "f2f652560c29a937062386e4f10065e1f77aca39",
+   "new_production_classes": [
+    "SchemaV3",
+    "TranscriptionResults",
+    "TranscriptionStore"
+   ],
+   "test_fixtures_overlaid": [
+    "TranscriptionFixtures.kt"
+   ],
+   "red_tree_stubs": {
+    "files": [
+     "TranscriptionFixtures.kt"
+    ],
+    "note": "signature-only: the store types of this item (PushResult, StoredTranscription, TranscriptionStore with push and list) are declared at the end of the ride-along fixture so it compiles on the base; every store call throws, because the base has no store. Legs that test the schema and the migration then fail on their own assertions (the version is still 2, no transcriptions table), and store legs fail on the missing behaviour"
+   }
+  },
+  {
+   "item": "b",
+   "title": "sync-api: the sync push and transcription pull routes",
+   "base_tree": "f2f652560c29a937062386e4f10065e1f77aca39",
+   "item_tip_tree": "0d9c92e3a1e2d249c8e393d02d301dda3d7f8aae",
+   "new_production_classes": [
+    "SessionBearer",
+    "JsonText",
+    "PushRequestReader",
+    "StrictBase64",
+    "SyncLimits",
+    "SyncPushRoute",
+    "TranscriptionsPullRoute"
+   ],
+   "test_fixtures_overlaid": [
+    "SyncRouteSupport.kt"
+   ]
+  },
+  {
+   "item": "c",
+   "title": "sync-api: README describes the routes that exist and the two sync routes",
+   "base_tree": "0d9c92e3a1e2d249c8e393d02d301dda3d7f8aae",
+   "item_tip_tree": "ecca6c7b17920a69a8598daba818ba8819114ec7",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [],
+   "red_not_run": "README only (no code, no test)"
+  },
+  {
+   "item": "d",
+   "title": "docs: the sync contract names its limits and refusals, and the sync-api card says what is built",
+   "base_tree": "ecca6c7b17920a69a8598daba818ba8819114ec7",
+   "item_tip_tree": "0a2446c67840a2b95c8f6950e81b2b02d9496e4f",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [],
+   "red_not_run": "protected text only (openapi description + responses, the sync-api card)"
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "red-a-01",
+   "kind": "red",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/db/MigrationsTest.kt",
+   "files": [
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/db/MigrationsTest.kt",
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionFixtures.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.syncapi.db.MigrationsTest"
+   ],
+   "patch": "proof/red/red-a-01.patch",
+   "tree": "ea1a671499d85a53471eacfa15795bd4abc41a70",
+   "predict": ""
+  },
+  {
+   "id": "red-a-02",
+   "kind": "red",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/db/SchemaV2MigrationTest.kt",
+   "files": [
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/db/SchemaV2MigrationTest.kt",
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionFixtures.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.syncapi.db.SchemaV2MigrationTest"
+   ],
+   "patch": "proof/red/red-a-02.patch",
+   "tree": "b0f4aaff88e11299ff590169d49cb3da6dd9d5ea",
+   "predict": ""
+  },
+  {
+   "id": "red-a-03",
+   "kind": "red",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/db/SchemaV2Test.kt",
+   "files": [
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/db/SchemaV2Test.kt",
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionFixtures.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.syncapi.db.SchemaV2Test"
+   ],
+   "patch": "proof/red/red-a-03.patch",
+   "tree": "442ba315a04454121c59a442051207e32e2f007a",
+   "predict": ""
+  },
+  {
+   "id": "red-a-04",
+   "kind": "red",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/db/SchemaV3RowsTest.kt",
+   "files": [
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/db/SchemaV3RowsTest.kt",
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionFixtures.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.syncapi.db.SchemaV3RowsTest"
+   ],
+   "patch": "proof/red/red-a-04.patch",
+   "tree": "14ec061d0756417ede30437fb7ea493e367ea88e",
+   "predict": ""
+  },
+  {
+   "id": "red-a-05",
+   "kind": "red",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/db/SchemaV3Test.kt",
+   "files": [
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/db/SchemaV3Test.kt",
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionFixtures.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.syncapi.db.SchemaV3Test"
+   ],
+   "patch": "proof/red/red-a-05.patch",
+   "tree": "df55f6958f627f02df8ca2c3a67ceb701eef3f6a",
+   "predict": ""
+  },
+  {
+   "id": "red-a-06",
+   "kind": "red",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionResultsTest.kt",
+   "files": [
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionResultsTest.kt",
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionFixtures.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.syncapi.transcriptions.TranscriptionResultsTest"
+   ],
+   "patch": "proof/red/red-a-06.patch",
+   "tree": "d4ae5034a82201aa537e089b6be38900729858ba",
+   "predict": ""
+  },
+  {
+   "id": "red-a-07",
+   "kind": "red",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionSourceScanTest.kt",
+   "files": [
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionSourceScanTest.kt",
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionFixtures.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.syncapi.transcriptions.TranscriptionSourceScanTest"
+   ],
+   "patch": "proof/red/red-a-07.patch",
+   "tree": "d14e305a52b4d2f844039e8cc8c7f0f4e05729c2",
+   "predict": ""
+  },
+  {
+   "id": "red-a-08",
+   "kind": "red",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStoreOrderTest.kt",
+   "files": [
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStoreOrderTest.kt",
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionFixtures.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.syncapi.transcriptions.TranscriptionStoreOrderTest"
+   ],
+   "patch": "proof/red/red-a-08.patch",
+   "tree": "1073ec973e1b5c117c3979a3c377ef93ba83b1ba",
+   "predict": ""
+  },
+  {
+   "id": "red-a-09",
+   "kind": "red",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStoreTest.kt",
+   "files": [
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStoreTest.kt",
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionFixtures.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.syncapi.transcriptions.TranscriptionStoreTest"
+   ],
+   "patch": "proof/red/red-a-09.patch",
+   "tree": "fe535dce19fcc200d55687cc4cb4e367fdbf7235",
+   "predict": ""
+  },
+  {
+   "id": "red-b-10",
+   "kind": "red",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/HealthRouteTest.kt",
+   "files": [
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/HealthRouteTest.kt",
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncRouteSupport.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.syncapi.HealthRouteTest"
+   ],
+   "patch": "proof/red/red-b-10.patch",
+   "tree": "adaadee33433423c7c36675513aeb55d838bef00",
+   "predict": ""
+  },
+  {
+   "id": "red-b-11",
+   "kind": "red",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/JsonTextTest.kt",
+   "files": [
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/JsonTextTest.kt",
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncRouteSupport.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.syncapi.sync.JsonTextTest"
+   ],
+   "patch": "proof/red/red-b-11.patch",
+   "tree": "c1e2c3b854fd32d6d59ec18ba8617788f454c42a",
+   "predict": ""
+  },
+  {
+   "id": "red-b-12",
+   "kind": "red",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/PushRequestReaderTest.kt",
+   "files": [
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/PushRequestReaderTest.kt",
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncRouteSupport.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.syncapi.sync.PushRequestReaderTest"
+   ],
+   "patch": "proof/red/red-b-12.patch",
+   "tree": "0e2b0e50cf7c14a30861e894bbd50509d83ec251",
+   "predict": ""
+  },
+  {
+   "id": "red-b-13",
+   "kind": "red",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/StrictBase64Test.kt",
+   "files": [
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/StrictBase64Test.kt",
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncRouteSupport.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.syncapi.sync.StrictBase64Test"
+   ],
+   "patch": "proof/red/red-b-13.patch",
+   "tree": "d2734cabf99eeefe70e1d6b6560b9bd0e92af4c1",
+   "predict": ""
+  },
+  {
+   "id": "red-b-14",
+   "kind": "red",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncAuthPullTest.kt",
+   "files": [
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncAuthPullTest.kt",
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncRouteSupport.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.syncapi.sync.SyncAuthPullTest"
+   ],
+   "patch": "proof/red/red-b-14.patch",
+   "tree": "3cf37962d5f26bcfef135a0713365204bfff6e89",
+   "predict": ""
+  },
+  {
+   "id": "red-b-15",
+   "kind": "red",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncAuthPushTest.kt",
+   "files": [
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncAuthPushTest.kt",
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncRouteSupport.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.syncapi.sync.SyncAuthPushTest"
+   ],
+   "patch": "proof/red/red-b-15.patch",
+   "tree": "271007c3cbca5c184697bbfa109815d99d64d0b2",
+   "predict": ""
+  },
+  {
+   "id": "red-b-16",
+   "kind": "red",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncIsolationTest.kt",
+   "files": [
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncIsolationTest.kt",
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncRouteSupport.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.syncapi.sync.SyncIsolationTest"
+   ],
+   "patch": "proof/red/red-b-16.patch",
+   "tree": "390265084e59cff7f38a78d7c8a520724da3f2fc",
+   "predict": ""
+  },
+  {
+   "id": "red-b-17",
+   "kind": "red",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncLogPolicyTest.kt",
+   "files": [
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncLogPolicyTest.kt",
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncRouteSupport.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.syncapi.sync.SyncLogPolicyTest"
+   ],
+   "patch": "proof/red/red-b-17.patch",
+   "tree": "a37311c76bf51119dcc8c44290ec62bfdf533bc5",
+   "predict": ""
+  },
+  {
+   "id": "red-b-18",
+   "kind": "red",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncPushGoodPathTest.kt",
+   "files": [
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncPushGoodPathTest.kt",
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncRouteSupport.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.syncapi.sync.SyncPushGoodPathTest"
+   ],
+   "patch": "proof/red/red-b-18.patch",
+   "tree": "56ba1c5df84a9f836aa4aac75851fde1930c9c80",
+   "predict": ""
+  },
+  {
+   "id": "red-b-19",
+   "kind": "red",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncPushRefusalTest.kt",
+   "files": [
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncPushRefusalTest.kt",
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncRouteSupport.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.syncapi.sync.SyncPushRefusalTest"
+   ],
+   "patch": "proof/red/red-b-19.patch",
+   "tree": "f3bece7b59afe1c0d122883ae3bc0994e55e9582",
+   "predict": ""
+  },
+  {
+   "id": "red-b-20",
+   "kind": "red",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncPushSizeTest.kt",
+   "files": [
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncPushSizeTest.kt",
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncRouteSupport.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.syncapi.sync.SyncPushSizeTest"
+   ],
+   "patch": "proof/red/red-b-20.patch",
+   "tree": "053fef67c87726939c45a58d73ba5d0406188b22",
+   "predict": ""
+  },
+  {
+   "id": "red-b-21",
+   "kind": "red",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncRouteWiringTest.kt",
+   "files": [
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncRouteWiringTest.kt",
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncRouteSupport.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.syncapi.sync.SyncRouteWiringTest"
+   ],
+   "patch": "proof/red/red-b-21.patch",
+   "tree": "97e09bc1edd3dd0787d9220dc764216ff9b3e878",
+   "predict": ""
+  },
+  {
+   "id": "red-b-22",
+   "kind": "red",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncSourceScanTest.kt",
+   "files": [
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncSourceScanTest.kt",
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncRouteSupport.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.syncapi.sync.SyncSourceScanTest"
+   ],
+   "patch": "proof/red/red-b-22.patch",
+   "tree": "9e8d231039962d12446fb087c38b124fb870df2f",
+   "predict": ""
+  },
+  {
+   "id": "red-b-23",
+   "kind": "red",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/TranscriptionsPullTest.kt",
+   "files": [
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/TranscriptionsPullTest.kt",
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncRouteSupport.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.syncapi.sync.TranscriptionsPullTest"
+   ],
+   "patch": "proof/red/red-b-23.patch",
+   "tree": "207e98e392978807fa5e90b63d92e5e139ef4701",
+   "predict": ""
+  },
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "WHERE account_id = ? ORDER BY stored_at_ms ASC, client_id ASC",
+     "replacement": "WHERE ? >= 0 ORDER BY stored_at_ms ASC, client_id ASC"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TranscriptionStoreTest#the list returns only the rows of the asking account",
+    "TranscriptionStoreTest#an account with nothing stored gets an empty list",
+    "TranscriptionSourceScanTest#every SQL statement in the transcription store names the account column"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "WHERE account_id = ? AND client_id = ?",
+     "replacement": "WHERE ? >= 0 AND client_id = ?"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TranscriptionStoreTest#the existence check of a push looks only at the asking account",
+    "TranscriptionSourceScanTest#every SQL statement in the transcription store names the account column"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "if (keyVersion > KeyVersions.CURRENT) {",
+     "replacement": "if (false) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TranscriptionStoreTest#a push above the current key version answers version refused and stores nothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "PushResult.AlreadyHeld",
+     "replacement": "PushResult.Stored"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TranscriptionStoreTest#a second push of the same pair answers already held and keeps one row"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "} else if (rowExists(connection, accountId, clientId)) {",
+     "replacement": "} else if (rowExists(connection, accountId, clientId)) {\n                insertRow(connection, accountId, clientId, keyVersion, encrypted, nowMs)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TranscriptionStoreTest#a second push of the same pair answers already held and keeps one row",
+    "TranscriptionStoreTest#a repeated push keeps the first encrypted text and the first stored time"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "ORDER BY stored_at_ms ASC, client_id ASC",
+     "replacement": "ORDER BY client_id ASC, stored_at_ms ASC"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TranscriptionStoreOrderTest#the list orders rows by stored time ascending"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "ORDER BY stored_at_ms ASC, client_id ASC",
+     "replacement": "ORDER BY stored_at_ms DESC, client_id DESC"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TranscriptionStoreOrderTest#the list orders rows by stored time ascending",
+    "TranscriptionStoreOrderTest#rows that share one stored time are ordered by client id and not by insertion"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "ORDER BY stored_at_ms ASC, client_id ASC",
+     "replacement": "ORDER BY id ASC"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TranscriptionStoreOrderTest#rows that share one stored time are ordered by client id and not by insertion"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "val nowMs = (clock.millis() / 1000) * 1000",
+     "replacement": "val nowMs = 0L"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TranscriptionStoreOrderTest#the list orders rows by stored time ascending",
+    "TranscriptionStoreOrderTest#the stored time of a row is read from the injected clock",
+    "TranscriptionStoreTest#a repeated push keeps the first encrypted text and the first stored time"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-10",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "insertRow(connection, accountId, clientId, keyVersion, encrypted, nowMs)",
+     "replacement": "try {\n                    insertRow(connection, accountId, clientId, keyVersion, encrypted, nowMs)\n                } catch (failure: java.sql.SQLException) {\n                    return@transaction PushResult.VersionRefused\n                }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TranscriptionStoreTest#a push that the database check refuses throws and stores nothing",
+    "TranscriptionStoreTest#a push for an account that does not exist throws and stores nothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-11",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV3.kt",
+     "anchor": "CHECK (length(client_id) = 36)",
+     "replacement": "CHECK (length(client_id) BETWEEN 35 AND 36)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SchemaV3RowsTest#a client id of 35 characters is refused and one of 36 is accepted",
+    "TranscriptionStoreTest#a push that the database check refuses throws and stores nothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-12",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV3.kt",
+     "anchor": "CHECK (length(client_id) = 36)",
+     "replacement": "CHECK (length(client_id) BETWEEN 36 AND 37)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SchemaV3RowsTest#a client id of 37 characters is refused and one of 36 is accepted"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-13",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV3.kt",
+     "anchor": "CHECK (key_version >= 0)",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SchemaV3RowsTest#a negative key version is refused and key version zero is accepted",
+    "TranscriptionStoreTest#a push that the database check refuses throws and stores nothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-14",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV3.kt",
+     "anchor": "CHECK (length(encrypted) > 0)",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SchemaV3RowsTest#an empty encrypted text is refused and a non empty one is accepted",
+    "TranscriptionStoreTest#a push that the database check refuses throws and stores nothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-15",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV3.kt",
+     "anchor": "UNIQUE (account_id, client_id)",
+     "replacement": "CHECK (1 = 1)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SchemaV3RowsTest#a second row for the same account and client id is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-16",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV3.kt",
+     "anchor": "UNIQUE (account_id, client_id)",
+     "replacement": "UNIQUE (client_id)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SchemaV3RowsTest#the same client id may be held by two different accounts",
+    "TranscriptionStoreTest#the existence check of a push looks only at the asking account"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-17",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV3.kt",
+     "anchor": "REFERENCES accounts(id) ON DELETE CASCADE",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SchemaV3RowsTest#a row for an account that does not exist is refused",
+    "SchemaV3RowsTest#deleting an account deletes its transcriptions and leaves other accounts rows",
+    "TranscriptionStoreTest#a push for an account that does not exist throws and stores nothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-18",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV3.kt",
+     "anchor": "ON DELETE CASCADE",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SchemaV3RowsTest#deleting an account deletes its transcriptions and leaves other accounts rows"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-19",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV3.kt",
+     "anchor": "ON transcriptions (account_id, stored_at_ms, client_id)",
+     "replacement": "ON transcriptions (account_id, client_id, stored_at_ms)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SchemaV3Test#the transcription index covers account stored time and client id in that order"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-20",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/Migrations.kt",
+     "anchor": "listOf(SchemaV1.MIGRATION, SchemaV2.MIGRATION, SchemaV3.MIGRATION)",
+     "replacement": "listOf(SchemaV1.MIGRATION, SchemaV2.MIGRATION)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SchemaV3Test#a fresh file database is at version 3 with the transcription table",
+    "SchemaV3Test#a version 2 database upgrades to version 3 and keeps its account and token",
+    "MigrationsTest#a fresh database ends at the latest version with the accounts and tokens tables",
+    "MigrationsTest#reopening a migrated file changes nothing and keeps stored rows",
+    "TranscriptionStoreTest#a second push of the same pair answers already held and keeps one row"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-21",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionResults.kt",
+     "anchor": "override fun toString(): String = \"StoredTranscription(clientId=$clientId, keyVersion=$keyVersion)\"",
+     "replacement": "override fun toString(): String = \"StoredTranscription(clientId=$clientId, keyVersion=$keyVersion, encrypted=$encrypted)\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TranscriptionResultsTest#a stored transcription prints its client id and key version and never its text"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-22",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV3.kt",
+     "anchor": "CREATE INDEX transcriptions_account_stored ON transcriptions (account_id, stored_at_ms, client_id)",
+     "replacement": "DELETE FROM accounts"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SchemaV3Test#the transcription index covers account stored time and client id in that order",
+    "SchemaV3Test#a version 2 database upgrades to version 3 and keeps its account and token"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-23",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "statement.setInt(3, keyVersion)",
+     "replacement": "statement.setInt(3, keyVersion + 1)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TranscriptionStoreTest#a push at the current key version is stored with that version"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-24",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "insertRow(connection, accountId, clientId, keyVersion, encrypted, nowMs)",
+     "replacement": "println(encrypted)\n                insertRow(connection, accountId, clientId, keyVersion, encrypted, nowMs)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TranscriptionSourceScanTest#no transcription file prints logs compares or overwrites a row"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-25",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "insertRow(connection, accountId, clientId, keyVersion, encrypted, nowMs)",
+     "replacement": "try {\n                    insertRow(connection, accountId, clientId, keyVersion, encrypted, nowMs)\n                } catch (failure: java.sql.SQLException) {\n                    throw java.sql.SQLException(\"sync-api: could not store $encrypted\", failure)\n                }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TranscriptionStoreTest#a push for an account that does not exist throws and stores nothing",
+    "TranscriptionStoreTest#a push that the database check refuses throws and stores nothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-26",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "val nowMs = (clock.millis() / 1000) * 1000",
+     "replacement": "val nowMs = clock.millis()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TranscriptionStoreOrderTest#two rows pushed in one second are ordered by client id whatever their milliseconds",
+    "TranscriptionStoreTest#a push at 999 milliseconds stores the whole second below it"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-27",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "val nowMs = (clock.millis() / 1000) * 1000",
+     "replacement": "val nowMs = ((clock.millis() + 500) / 1000) * 1000"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TranscriptionStoreOrderTest#two rows pushed in one second are ordered by client id whatever their milliseconds",
+    "TranscriptionStoreTest#a push at 999 milliseconds stores the whole second below it"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-28",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "val nowMs = (clock.millis() / 1000) * 1000",
+     "replacement": "val nowMs = (clock.millis() / 60000) * 60000"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TranscriptionStoreTest#a push at 999 milliseconds stores the whole second below it",
+    "TranscriptionStoreTest#a repeated push keeps the first encrypted text and the first stored time",
+    "TranscriptionStoreOrderTest#the stored time of a row is read from the injected clock"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-29",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "insertRow(connection, accountId, clientId, keyVersion, encrypted, nowMs)",
+     "replacement": "logger.warn(encrypted)\n        insertRow(connection, accountId, clientId, keyVersion, encrypted, nowMs)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TranscriptionSourceScanTest#no transcription file prints logs compares or overwrites a row"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-30",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "insertRow(connection, accountId, clientId, keyVersion, encrypted, nowMs)",
+     "replacement": "application.log.run(encrypted)\n        insertRow(connection, accountId, clientId, keyVersion, encrypted, nowMs)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TranscriptionSourceScanTest#no transcription file prints logs compares or overwrites a row"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-31",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionSourceScanTest.kt",
+     "anchor": "Regex(\"\"\"\\.log\\.\"\"\")",
+     "replacement": "Regex(\"\"\"\\.logx\\.\"\"\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TranscriptionSourceScanTest#no transcription file prints logs compares or overwrites a row"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-32",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionSourceScanTest.kt",
+     "anchor": "(info|debug|warn|error|trace)",
+     "replacement": "(info|debug|warn|trace)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TranscriptionSourceScanTest#no transcription file prints logs compares or overwrites a row"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-33",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncLimits.kt",
+     "anchor": "internal const val MAX_RAW_BYTES: Int = 131072",
+     "replacement": "internal const val MAX_RAW_BYTES: Int = 131071"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncPushSizeTest#a raw body of exactly 131072 bytes is accepted"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-34",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncLimits.kt",
+     "anchor": "internal const val MAX_RAW_BYTES: Int = 131072",
+     "replacement": "internal const val MAX_RAW_BYTES: Int = 131073"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncPushSizeTest#a raw body of 131073 bytes answers 413 and stores nothing",
+    "SyncPushSizeTest#a body without a declared length that runs past the limit answers 413"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-35",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncLimits.kt",
+     "anchor": "internal const val MAX_DECODED_BYTES: Long = 65536L",
+     "replacement": "internal const val MAX_DECODED_BYTES: Long = 65535L"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncPushSizeTest#an encrypted text decoding to exactly 65536 bytes is accepted"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-36",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncLimits.kt",
+     "anchor": "internal const val MAX_DECODED_BYTES: Long = 65536L",
+     "replacement": "internal const val MAX_DECODED_BYTES: Long = 65537L"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncPushSizeTest#an encrypted text decoding to 65537 bytes answers 413 and stores nothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-37",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncLimits.kt",
+     "anchor": "return (unpadded * 3L) / 4",
+     "replacement": "return (unpadded * 3L) / 4 + 1"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncPushSizeTest#an encrypted text decoding to exactly 65536 bytes is accepted"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-38",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncPushRoute.kt",
+     "anchor": "if (declared != null && declared > MAX_RAW_BYTES) {",
+     "replacement": "if (declared != null && declared >= MAX_RAW_BYTES) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncPushSizeTest#a raw body of exactly 131072 bytes is accepted"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-39",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncLimits.kt",
+     "anchor": "if (total > MAX_RAW_BYTES) return null",
+     "replacement": "if (total > MAX_RAW_BYTES) return buffer.copyOf(total)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncPushSizeTest#a body without a declared length that runs past the limit answers 413"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-40",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncPushRoute.kt",
+     "anchor": "val session = checkSessionBearer(call.request.headers[HttpHeaders.Authorization], tokenStore)",
+     "replacement": "if ((call.request.headers[HttpHeaders.ContentLength]?.toLongOrNull() ?: 0L) > MAX_RAW_BYTES) { call.respondTooLarge(); return@post }; val session = checkSessionBearer(call.request.headers[HttpHeaders.Authorization], tokenStore)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncPushSizeTest#an unauthenticated oversize request answers 401, not 413"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-41",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncPushRoute.kt",
+     "anchor": "val session = checkSessionBearer(call.request.headers[HttpHeaders.Authorization], tokenStore)",
+     "replacement": "val early = readBoundedBody(call); if (early == null) { call.respondTooLarge(); return@post }; val session = checkSessionBearer(call.request.headers[HttpHeaders.Authorization], tokenStore)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncPushSizeTest#an unauthenticated oversize request answers 401, not 413"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-42",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/SessionBearer.kt",
+     "anchor": "val resolved = tokenStore.resolve(presented) ?: return SessionCheck.Unauthorized",
+     "replacement": "val resolved = tokenStore.resolve(presented) ?: return SessionCheck.Forbidden"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncAuthPushTest#a push with a garbage token answers 401",
+    "SyncAuthPushTest#a push with a revoked session answers 401",
+    "SyncAuthPushTest#a push with an expired session answers 401",
+    "SyncAuthPullTest#a pull with a revoked session answers 401",
+    "SyncAuthPullTest#a pull with an expired session answers 401"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-43",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/SessionBearer.kt",
+     "anchor": "val presented = bearerCredential(header) ?: return SessionCheck.Unauthorized",
+     "replacement": "val presented = bearerCredential(header) ?: return SessionCheck.Forbidden"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncAuthPushTest#a push without a token answers 401 with the session body",
+    "SyncAuthPushTest#a push with a Basic scheme answers 401",
+    "SyncAuthPushTest#the 401 and 403 push bodies are the pinned strings",
+    "SyncAuthPullTest#a pull without a token answers 401 with the session body",
+    "SyncAuthPullTest#the 401 and 403 pull bodies are the pinned strings"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-44",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/SessionBearer.kt",
+     "anchor": "if (resolved.kind == TokenKind.AGENT) return SessionCheck.Forbidden",
+     "replacement": "if (resolved.kind == TokenKind.AGENT) return SessionCheck.Live(resolved)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncAuthPushTest#a push with an agent token answers 403 with the agent body",
+    "SyncAuthPullTest#a pull with an agent token answers 403 with the agent body"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-45",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/SessionBearer.kt",
+     "anchor": "if (resolved.kind == TokenKind.AGENT) return SessionCheck.Forbidden",
+     "replacement": "if (resolved.kind == TokenKind.AGENT) return SessionCheck.Unauthorized"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncAuthPushTest#a push with an agent token answers 403 with the agent body",
+    "SyncAuthPullTest#a pull with an agent token answers 403 with the agent body",
+    "SyncAuthPushTest#the 401 and 403 push bodies are the pinned strings"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-46",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncPushRoute.kt",
+     "anchor": "val result = transcriptionStore.push(session.token.accountId, request.clientId, request.keyVersion, request.encrypted)",
+     "replacement": "val result = transcriptionStore.push(session.token.accountId, request.clientId, KeyVersions.CURRENT, request.encrypted)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncPushRefusalTest#a key version above the current answers 409 and stores nothing",
+    "SyncPushRefusalTest#a key version above the current with canonical base64 that is not a sync body answers 409",
+    "SyncPushRefusalTest#a key version above the current with exactly 65536 decoded bytes answers 409"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-47",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncPushRoute.kt",
+     "anchor": "SyncBodyCodec.decodePlain(request.encrypted)",
+     "replacement": "Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncPushRefusalTest#an encrypted text that is not base64 or not a sync body answers 400 and stores nothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-48",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncPushRoute.kt",
+     "anchor": "val result = transcriptionStore.push(session.token.accountId, request.clientId, request.keyVersion, request.encrypted)",
+     "replacement": "val result = transcriptionStore.push(session.token.accountId, request.clientId, request.keyVersion, SyncBodyCodec.encodePlain(SyncBodyCodec.decodePlain(request.encrypted)))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncPushGoodPathTest#the stored text is the encrypted string exactly as it was sent"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-49",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncPushRoute.kt",
+     "anchor": "if (!SyncBodyCodec.isClientId(request.clientId)) {",
+     "replacement": "if (false) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncPushRefusalTest#a client id that is upper case, short, long, not hex or without hyphens answers 400 and stores nothing",
+    "SyncPushRefusalTest#a key version above the current with a bad client id answers 400"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-50",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncPushRoute.kt",
+     "anchor": "respondText(PUSH_BAD_REQUEST_BODY, ContentType.Application.Json, HttpStatusCode.BadRequest)",
+     "replacement": "respondText(PUSH_BAD_REQUEST_BODY + request.headers[HttpHeaders.Authorization].orEmpty(), ContentType.Application.Json, HttpStatusCode.BadRequest)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncPushRefusalTest#malformed JSON shapes answer 400 and store nothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-51",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncPushRoute.kt",
+     "anchor": "SyncBodyCodec.decodePlain(request.encrypted)",
+     "replacement": "SyncBodyCodec.decodePlain(request.encrypted).also { System.err.println(it) }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncLogPolicyTest#a push and a pull write neither the encrypted text nor the decoded text to the captured output"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-52",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncPushRoute.kt",
+     "anchor": "val result = transcriptionStore.push(session.token.accountId, request.clientId, request.keyVersion, request.encrypted)",
+     "replacement": "System.out.println(request.encrypted); val result = transcriptionStore.push(session.token.accountId, request.clientId, request.keyVersion, request.encrypted)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncLogPolicyTest#a push and a pull write neither the encrypted text nor the decoded text to the captured output"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-53",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncPushRoute.kt",
+     "anchor": "SyncBodyCodec.decodePlain(request.encrypted)",
+     "replacement": "val decodedValue = SyncBodyCodec.decodePlain(request.encrypted)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncSourceScanTest#the push route keeps the decoded value out of any binding"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-54",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncPushRoute.kt",
+     "anchor": "PushResult.VersionRefused -> call.respondConflict()",
+     "replacement": "PushResult.VersionRefused -> call.respond(HttpStatusCode.NoContent)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncPushRefusalTest#a key version above the current answers 409 and stores nothing",
+    "SyncPushRefusalTest#a key version above the current with canonical base64 that is not a sync body answers 409",
+    "SyncPushRefusalTest#a key version above the current with exactly 65536 decoded bytes answers 409"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-55",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncPushRoute.kt",
+     "anchor": "PushResult.Stored, PushResult.AlreadyHeld -> call.respond(HttpStatusCode.NoContent)",
+     "replacement": "PushResult.Stored, PushResult.AlreadyHeld -> call.respondConflict()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncPushGoodPathTest#a good push answers 204 with no body and the pull shows the row",
+    "SyncPushGoodPathTest#a retry of the same pair answers 204 and leaves one row",
+    "SyncPushGoodPathTest#a repeated pair with different text answers 204 and keeps the first text"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-56",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/PushRequestReader.kt",
+     "anchor": "if (digits.length > 1 && digits[0] == '0') refuse()",
+     "replacement": "Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "PushRequestReaderTest#key version with a sign, a fraction, an exponent or a leading zero is refused",
+    "SyncPushRefusalTest#wrong field shapes answer 400 and store nothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-57",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/PushRequestReader.kt",
+     "anchor": "            if (low !in 0xDC00..0xDFFF) refuse()",
+     "replacement": "            Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "PushRequestReaderTest#a high surrogate escape followed by something other than a low surrogate escape is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-58",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/PushRequestReader.kt",
+     "anchor": "'/' -> out.append('/')",
+     "replacement": "'/' -> out.append('\\\\')"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "PushRequestReaderTest#an escaped slash in the encrypted text is read as the slash character"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-59",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/PushRequestReader.kt",
+     "anchor": "override fun toString(): String = \"PushRequest(clientId=$clientId, keyVersion=$keyVersion)\"",
+     "replacement": "override fun toString(): String = \"PushRequest(encrypted=$encrypted)\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "PushRequestReaderTest#the text form of a parsed request names the client id and key version and no encrypted text"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-60",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/TranscriptionsPullRoute.kt",
+     "anchor": "val rows = transcriptionStore.list(session.token.accountId)",
+     "replacement": "val rows = transcriptionStore.list(session.token.accountId).reversed()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TranscriptionsPullTest#rows sharing one stored time come back ordered by client id",
+    "TranscriptionsPullTest#two rows stored in different seconds pull as exactly two objects in order"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-61",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/TranscriptionsPullRoute.kt",
+     "anchor": "val rows = transcriptionStore.list(session.token.accountId)",
+     "replacement": "val rows = transcriptionStore.list(session.token.accountId + 1)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncIsolationTest#an account pulls only its own rows"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-62",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/TranscriptionsPullRoute.kt",
+     "anchor": "internal fun storedAtText(epochMs: Long): String = Instant.ofEpochMilli(epochMs).truncatedTo(ChronoUnit.SECONDS).toString()",
+     "replacement": "internal fun storedAtText(epochMs: Long): String = Instant.ofEpochMilli(epochMs + 500L).truncatedTo(ChronoUnit.SECONDS).toString()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TranscriptionsPullTest#a stored time with a millisecond part is shown cut to its second"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-63",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/JsonText.kt",
+     "anchor": "c == '\"' -> out.append(\"\\\\\\\"\")",
+     "replacement": "c == '\"' -> out.append('\"')"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TranscriptionsPullTest#a stored value that needs escapes comes back escaped and parses to the same text"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-64",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/TranscriptionsPullRoute.kt",
+     "anchor": "call.respondText(body.toString(), ContentType.Application.Json, HttpStatusCode.OK)",
+     "replacement": "call.respondText(body.toString(), ContentType.Text.Plain, HttpStatusCode.OK)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TranscriptionsPullTest#a pull answers with application json"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-65",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/TranscriptionsPullRoute.kt",
+     "anchor": "val session = checkSessionBearer(call.request.headers[HttpHeaders.Authorization], tokenStore)",
+     "replacement": "val session = SessionCheck.Live(dev.breaker.server.syncapi.tokens.ResolvedToken(0L, 1L, dev.breaker.server.syncapi.accounts.Role.ADMIN, dev.breaker.server.syncapi.tokens.TokenKind.SESSION, null, null))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncAuthPullTest#a pull without a token answers 401 with the session body",
+    "SyncAuthPullTest#a pull with a revoked session answers 401",
+    "SyncAuthPullTest#a pull with an expired session answers 401",
+    "SyncAuthPullTest#a pull with an agent token answers 403 with the agent body",
+    "SyncAuthPullTest#the 401 and 403 pull bodies are the pinned strings"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-66",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncPushRoute.kt",
+     "anchor": "val session = checkSessionBearer(call.request.headers[HttpHeaders.Authorization], tokenStore)",
+     "replacement": "val session = SessionCheck.Live(dev.breaker.server.syncapi.tokens.ResolvedToken(0L, 1L, dev.breaker.server.syncapi.accounts.Role.ADMIN, dev.breaker.server.syncapi.tokens.TokenKind.SESSION, null, null))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncAuthPushTest#a push without a token answers 401 with the session body",
+    "SyncAuthPushTest#a push with a garbage token answers 401",
+    "SyncAuthPushTest#a push with a revoked session answers 401",
+    "SyncAuthPushTest#a push with an agent token answers 403 with the agent body",
+    "SyncPushSizeTest#an unauthenticated oversize request answers 401, not 413"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-67",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/JsonText.kt",
+     "anchor": "            c == '\\b' -> out.append(\"\\\\b\")",
+     "replacement": "            c == '\\b' -> out.append(\"\\\\f\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JsonTextTest#a backspace is written as the two characters backslash and b"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-68",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/JsonText.kt",
+     "anchor": "            c == '\\u000C' -> out.append(\"\\\\f\")",
+     "replacement": "            c == '\\u000C' -> out.append(\"\\\\b\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JsonTextTest#a form feed is written as the two characters backslash and f"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-69",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/JsonText.kt",
+     "anchor": "            c == '\\r' -> out.append(\"\\\\r\")",
+     "replacement": "            // a carriage return is written by the generic branch"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JsonTextTest#a carriage return is written as the two characters backslash and r"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-70",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/SessionBearer.kt",
+     "anchor": "    if (!header.substring(0, separator).equals(BEARER_SCHEME, ignoreCase = true)) return null",
+     "replacement": "    if (!header.substring(0, separator).equals(BEARER_SCHEME)) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncAuthPushTest#a lowercase bearer scheme is accepted on the push and on the pull"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-71",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/TranscriptionsPullRoute.kt",
+     "anchor": "            if (index > 0) body.append(',')",
+     "replacement": "            if (index > 0) body.append(';')"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TranscriptionsPullTest#two rows stored in different seconds pull as exactly two objects in order"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-72",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/TranscriptionsPullRoute.kt",
+     "anchor": "        body.append(']')",
+     "replacement": "        body.append(')')"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "TranscriptionsPullTest#two rows stored in different seconds pull as exactly two objects in order"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-73",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncPushRoute.kt",
+     "anchor": "        if (!isStrictBase64(request.encrypted)) {",
+     "replacement": "        if (request.keyVersion <= KeyVersions.CURRENT && !isStrictBase64(request.encrypted)) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncPushRefusalTest#a key version above the current with text that is not base64 answers 400 and stores nothing",
+    "SyncPushRefusalTest#a key version one with text that is not padded answers 400 and stores nothing",
+    "SyncPushRefusalTest#a text with non zero trailing bits answers 400 at key version zero and at key version one",
+    "SyncPushRefusalTest#a non canonical text over the decoded limit answers 400 and not 413"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-74",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncPushRoute.kt",
+     "anchor": "        if (!isStrictBase64(request.encrypted)) {",
+     "replacement": "        if (false) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncPushRefusalTest#a key version above the current with text that is not base64 answers 400 and stores nothing",
+    "SyncPushRefusalTest#a key version one with text that is not padded answers 400 and stores nothing",
+    "SyncPushRefusalTest#a text with non zero trailing bits answers 400 at key version zero and at key version one",
+    "SyncPushRefusalTest#a non canonical text over the decoded limit answers 400 and not 413"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-75",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncPushRoute.kt",
+     "anchor": "        if (request.keyVersion <= KeyVersions.CURRENT) {",
+     "replacement": "        if (true) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncPushRefusalTest#a key version above the current with canonical base64 that is not a sync body answers 409"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-76",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/StrictBase64.kt",
+     "anchor": "    return Base64.getEncoder().encodeToString(decoded) == text",
+     "replacement": "    return true"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "StrictBase64Test#unpadded base64 is not strict",
+    "StrictBase64Test#base64 with non zero trailing bits is not strict",
+    "SyncPushRefusalTest#a key version one with text that is not padded answers 400 and stores nothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-77",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/StrictBase64.kt",
+     "anchor": "    return Base64.getEncoder().encodeToString(decoded) == text",
+     "replacement": "    return text.length % 4 == 0"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "StrictBase64Test#base64 with non zero trailing bits is not strict",
+    "SyncPushRefusalTest#a text with non zero trailing bits answers 400 at key version zero and at key version one"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-78",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/StrictBase64.kt",
+     "anchor": "    if (text.isEmpty()) return false",
+     "replacement": "    Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "StrictBase64Test#an empty text is not strict"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-79",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/PushRequestReader.kt",
+     "anchor": "            if (next() != '\\\\') refuse()",
+     "replacement": "            Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "PushRequestReaderTest#a high surrogate escape followed by something other than a low surrogate escape is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-80",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncLimits.kt",
+     "anchor": "    if (total > MAX_RAW_BYTES) return null",
+     "replacement": "    if (total >= MAX_RAW_BYTES) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncPushSizeTest#a chunked body of exactly the limit is accepted",
+    "SyncPushSizeTest#a raw body of exactly 131072 bytes is accepted"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-81",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncSourceScanTest.kt",
+     "anchor": "    private val logPropertyPattern = Regex(\"\\\\.log\\\\.\")",
+     "replacement": "    private val logPropertyPattern = Regex(\"\\\\.logs\\\\.\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncSourceScanTest#the log property rule flags a read of the application log"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-82",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncSourceScanTest.kt",
+     "anchor": "    private val logMethodPattern = Regex(\"\\\\.(info|debug|warn|error|trace)\\\\(\")",
+     "replacement": "    private val logMethodPattern = Regex(\"\\\\.(info|debug|warn|error)\\\\(\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncSourceScanTest#the logger method rule flags a call such as logger dot info"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-83",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/sync/SyncSourceScanTest.kt",
+     "anchor": "        logPropertyPattern,",
+     "replacement": "        logMethodPattern,"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncSourceScanTest#the log property rule flags a read of the application log"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-84",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/JsonText.kt",
+     "anchor": "            c == '\\n' -> out.append(\"\\\\n\")",
+     "replacement": "            c == '\\n' -> out.append(\"\\\\t\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JsonTextTest#a newline and a tab are written as backslash n and backslash t"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-85",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/JsonText.kt",
+     "anchor": "            c.code < 0x20 -> {",
+     "replacement": "            c.code < 0x00 -> {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JsonTextTest#another control character is written as a six character unicode escape"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-86",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/StrictBase64.kt",
+     "anchor": "    return Base64.getEncoder().encodeToString(decoded) == text",
+     "replacement": "    return false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "StrictBase64Test#canonical padded base64 is strict"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-87",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/StrictBase64.kt",
+     "anchor": "    } catch (refusal: IllegalArgumentException) {\n        return false",
+     "replacement": "    } catch (refusal: IllegalArgumentException) {\n        return true"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "StrictBase64Test#the url safe alphabet is not strict",
+    "StrictBase64Test#whitespace inside base64 is not strict"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-88",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/JsonText.kt",
+     "anchor": "            c == '\\\\' -> out.append(\"\\\\\\\\\")",
+     "replacement": "            c == '\\\\' -> out.append(\"\\\\\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JsonTextTest#a quotation mark and a backslash are escaped"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-89",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/JsonText.kt",
+     "anchor": "            c == '\"' -> out.append(\"\\\\\\\"\")",
+     "replacement": "            c == '\"' -> out.append(\"\\\"\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JsonTextTest#a quotation mark and a backslash are escaped"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-90",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncPushRoute.kt",
+     "anchor": "        val request = parsePushRequest(raw)",
+     "replacement": "        val request = parsePushRequest(raw).also { println(String(raw)) }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncLogPolicyTest#a refused body writes neither the decoded text nor its encrypted form to the captured output"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-91",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncPushRoute.kt",
+     "anchor": "        if (!isStrictBase64(request.encrypted)) {",
+     "replacement": "        if (true) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncPushRefusalTest#the same valid body with a good client id answers 204 and stores one row"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-92",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/StrictBase64.kt",
+     "anchor": "        Base64.getDecoder().decode(text)",
+     "replacement": "        Base64.getUrlDecoder().decode(text)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "StrictBase64Test#canonical base64 with a plus and a slash is strict"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-93",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncPushRoute.kt",
+     "anchor": "val declared = call.request.headers[HttpHeaders.ContentLength]?.toLongOrNull()",
+     "replacement": "val declared: Long? = null"
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "Removing the Content-Length pre-check leaves every observable answer unchanged: the bounded read still answers 413 for a body over the limit, and the body is read only up to the limit either way. Kept",
+   "note": ""
+  },
+  {
+   "id": "mut-94",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/PushRequestReader.kt",
+     "anchor": "if (text.startsWith('\\uFEFF')) return null",
+     "replacement": "Unit"
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "Removing the explicit byte-order-mark line leaves every observable answer unchanged: the character is not whitespace to the object reader, so the object reader refuses it at its first character and th",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "server/modules/sync-api",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncLimits.kt",
+     "anchor": "internal const val MAX_RAW_BYTES: Int = 131072\n",
+     "replacement": "internal const val MAX_RAW_BYTES: Int = 131071\n"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "server/modules/sync-api",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/sync/SyncLimits.kt",
+     "anchor": "internal const val MAX_RAW_BYTES: Int = 131072\n",
+     "replacement": "internal const val MAX_RAW_BYTES: Int = 131072 // unchanged\n"
+    }
+   ]
+  }
+ ]
+}
