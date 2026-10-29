@@ -1,6 +1,9 @@
 package dev.breaker.dictation.commit
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 
 /**
@@ -26,9 +29,11 @@ data class ProbeReading(
 )
 
 /**
- * The one process-wide holder for the keyboard-signal probe readings. It is
- * probe only: it is removed together with the probe's setting selector before
- * release.
+ * The one process-wide holder for the keyboard-signal readings. The probe's
+ * own members ([publish], [recent], [isEnabled] and the recent lines) are
+ * removed together with the probe's setting selector before release; the
+ * production seam ([publishLatest], [readings], [current]) stays, because the
+ * keyboard tile's show-and-hide decision reads it in a release build.
  *
  * It is a plain object because three modules share no constructor: this
  * module, the accessibility module that writes the readings, and the app that
@@ -38,12 +43,14 @@ data class ProbeReading(
  *
  * [shouldProcessEvent] decides whether an event from a package is worth recording: the
  * probe's own package is skipped, so the probe never floods its own readings list.
- * [publish] is the writer's one write: the accessibility service calls it on
- * each wake event while the probe is on. [current] and [recent] are the
- * reader's: the debug page shows the latest reading and the recent lines,
- * oldest first. [setEnabled] turns the probe on and off. Turning it off clears
- * the latest reading and the recent lines, and while it is off [publish]
- * stores nothing.
+ * [publish] is the probe's write: the accessibility service calls it on each
+ * wake event while the probe is on. [publishLatest] is the production write:
+ * it stores the latest reading whether or not the probe is on, so the reader
+ * of [readings] always sees the keyboard state of the phone. [current] and
+ * [recent] are the reader's: the debug page shows the latest reading and the
+ * recent lines, oldest first. [setEnabled] turns the probe on and off. Turning
+ * it off clears the latest reading and the recent lines, and while it is off
+ * [publish] stores nothing.
  *
  * Every change is one compare-and-set of an immutable value, so any caller may
  * call any member, and no member waits for another.
@@ -106,7 +113,21 @@ object KeyboardProbeReadings {
         }
     }
 
-    /** The latest reading, or null when nothing has been published since the probe was turned on. */
+    /**
+     * The production write: it stores the latest reading whether or not the probe is on, so the
+     * reader of [readings] sees the keyboard state of the phone at all times. A line for the
+     * recent list is appended only while the probe is on, exactly as [publish] does.
+     */
+    fun publishLatest(fieldFocus: Boolean, imeWindow: Boolean, lastEvent: String, time: Long): ProbeReading {
+        val reading = ProbeReading(fieldFocus, imeWindow, lastEvent, time)
+        state.update { current ->
+            val lines = if (current.enabled) (current.lines + reading).takeLast(RECENT_LIMIT) else current.lines
+            current.copy(latest = reading, lines = lines)
+        }
+        return reading
+    }
+
+    /** The latest reading, or null when nothing has been published yet or a clear happened. */
     fun current(): ProbeReading? = state.value.latest
 
     /** A copy of the recent lines, oldest first, at most [RECENT_LIMIT]. */
@@ -116,6 +137,15 @@ object KeyboardProbeReadings {
     internal fun reset() {
         state.update { switchedOff }
     }
+
+    /**
+     * The live view of the latest reading: it re-emits whenever the latest reading changes,
+     * and it carries the current value at the moment a reader starts collecting. While a
+     * reading is live the value stays on it until the next change; a clear or a disable
+     * hands out null again. A reader that starts collecting after a change sees that change
+     * as its first value, not the one before it.
+     */
+    fun readings(): Flow<ProbeReading?> = state.map { it.latest }.distinctUntilChanged()
 
     private fun withLine(current: State, reading: ProbeReading): State {
         val lines: List<ProbeReading> = current.lines + reading

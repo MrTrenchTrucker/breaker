@@ -89,9 +89,14 @@ From ADR-022, enforced by tests that read this module's own files:
   happens to see.
   - Tested by: `AdapterGateTest`, `NodeFocusedFieldRefusalTest`,
     `NodeFocusedFieldPrivacyTest`, `NodeFocusedFieldInsertTest`.
-- The service config requests only focused-view events and
-  `canRetrieveWindowContent` — nothing broader than finding the focused field
-  needs.
+- The service config requests the three event types
+  (`typeViewFocused`, `typeWindowsChanged`, `typeWindowStateChanged`) plus
+  `flagRetrieveInteractiveWindows` and `canRetrieveWindowContent`. It now
+  publishes a keyboard-presence reading (two booleans + the event name + time)
+  on every window-relevant event via `publishLatest`; the release build keeps
+  this read always active — the debug probe switch only gates the probe's own
+  recent-history store, never the production reading. Probe off by default in
+  a release build.
   - Tested by: `ConfigGateTest`, `ManifestGateTest`, `ModuleFilesGateTest`.
 - When the debug probe is on, the service only checks whether a keyboard window is open and reads which field has focus, never any text.
   - Tested by: `ProbeReadGateTest`.

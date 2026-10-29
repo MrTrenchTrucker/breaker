@@ -26,12 +26,17 @@ Pure Kotlin (seven files), in `src/main/kotlin/dev/breaker/dictation/commit/`:
   main thread or the deadline claims it (exactly one wins). A started block is
   waited for and reports what it did; a block not started at the deadline is
   dropped and the call fails as not responding.
-- `KeyboardProbeReadings.kt` - the probe's holder of the keyboard readings, probe only
-  and removed with the probe's selector. Its public members, one line each:
+- `KeyboardProbeReadings.kt` - the holder of the keyboard readings. Its production seam
+  (`publishLatest`, `readings`, `current`) feeds the keyboard tile in every build; its
+  probe members (`setEnabled`, `isEnabled`, `publish`, `recent`): no release code calls them;
+  nothing here promises their removal. Its public members, one line each:
   `setEnabled(on)` turns the probe on or off (off clears the readings);
-  `isEnabled()`; `publish(fieldFocus, imeWindow, lastEvent, time)` stores a reading
-  while the probe is on; `current()` returns the latest reading or null;
-  `recent()` returns a copy of the last 40 readings, oldest first.
+  `isEnabled()`; `shouldProcessEvent(eventPackage, ownPackage)` skips the probe's own
+  package; `publish(fieldFocus, imeWindow, lastEvent, time)` stores a reading while the
+  probe is on; `publishLatest(...)` stores the latest reading in every build;
+  `current()` returns the latest reading or null; `recent()` returns a copy of the last
+  200 readings, oldest first; `readings()` is a live view of the latest reading;
+  `ProbeReading` is the data class of one reading: two Booleans, an event name and a time.
 
 Android adapters (five files, the only ones that name Android classes), in
 `src/main/kotlin/dev/breaker/dictation/commit/adapter/`:

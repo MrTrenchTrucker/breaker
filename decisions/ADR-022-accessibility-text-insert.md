@@ -52,11 +52,13 @@ This supersedes ADR-005. Breaker no longer ships its own keyboard.
 ## Consequences
 An accessibility service is a powerful permission; Android lets it read what
 is on screen. The limits we keep, stated honestly rather than left implicit:
-the service's config requests only what inserting text needs (focused-view
-events, `canRetrieveWindowContent` only because finding the focused field
-needs it); it never stores or logs screen content or field text; it never
-sends anything off the device; it acts only on an explicit send; it never
-inserts into password fields (`isPassword`). Onboarding explains the
+the service's config requests only what inserting text needs (`typeViewFocused`,
+`typeWindowsChanged`, `typeWindowStateChanged`, and `flagRetrieveInteractiveWindows`,
+which together carry the keyboard-presence signal that the tile reads to decide when to
+show or hide - the keyboard visibility design note) plus `canRetrieveWindowContent` only because finding the
+focused field needs it; it never stores or logs screen content or field text; it never
+sends anything off the device; it acts only on an explicit send; it never inserts into
+password fields (`isPassword`). Onboarding explains the
 permission plainly before sending the user to Settings, and walks the
 Android 13+ "restricted setting" step: sideloaded apps show accessibility
 services as restricted until the user allows it in the app's info screen.
@@ -113,7 +115,10 @@ Rules in: the accessibility service as the text-insert mechanism; in-place
 dictation from the floating tile (no Activity opens while dictating);
 clipboard fallback when there is no focused field or the insert is refused;
 onboarding that covers both the permission grant and the restricted-setting
-step; the limits above (focused-view + window-content access only, no
+step; the limits above (the event types `typeViewFocused`, `typeWindowsChanged`
+and `typeWindowStateChanged` plus `flagRetrieveInteractiveWindows` for the
+keyboard-presence signal — this is the window scope, not focused-view only, and
+no new file type or device location is read beyond what one insert needs; no
 storage or logging of screen content, no network egress, explicit-send-only,
 never into password fields).
 
