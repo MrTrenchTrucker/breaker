@@ -1,6 +1,6 @@
 # ADR-029: The spoken send ("And I'm Gone") is wired through one app class, PhraseSendHandler
 
-**Status:** accepted
+**Status:** accepted, amended 2026-10-29 (a spoken Send acts only while the tile is shown)
 **Date:** 2026-10-20
 **Approved by:** the project owner (2026-10-20 order)
 
@@ -74,3 +74,7 @@ take.
 Rules out: finishing a take from the word-stream thread; a second copy of the
 once-per-take rule in the tile or the Home code; a feed that can block or
 crash audio capture; adding the registry edge before the code that uses it.
+
+Amended 2026-10-29: a spoken Send for a take the tile holds acts only while the
+tile is shown. With the tile hidden it does nothing and logs one line through
+the existing phrase reason.
