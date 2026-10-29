@@ -34,6 +34,7 @@ kotlin {
 
 dependencies {
     implementation(project(":android:modules:core"))
+    implementation(libs.bouncycastle.bcprov)
 
     testImplementation(libs.junit)
 }

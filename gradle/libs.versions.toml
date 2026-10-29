@@ -4,6 +4,7 @@
 # changes it for every module; no module build file pins a version itself.
 
 [versions]
+bouncycastle = "1.86"   # read 2026-10-29 from https://repo1.maven.org/maven2/org/bouncycastle/bcprov-jdk18on/maven-metadata.xml (Bouncy Castle)
 agp = "9.4.1"   # read 2026-10-04 from https://dl.google.com/android/maven2/com/android/tools/build/gradle/maven-metadata.xml
 kotlin = "2.4.20"   # read 2026-10-04 from https://kotlinlang.org/docs/whatsnew24.html
 compileSdk = "36"   # read 2026-10-04 from https://dl.google.com/android/repository/repository2-3.xml (platforms;android-36 = platform-36_r02.zip)
@@ -21,6 +22,9 @@ sherpa-onnx = "1.13.8"   # read 2026-10-08 from https://github.com/MrTrenchTruck
 
 [libraries]
 junit = { module = "junit:junit", version.ref = "junit" }
+# Argon2id + HKDF-SHA256 in android/modules/crypto (KdfImpl.kt). Bouncy Castle is the
+# crypto module's Argon2id/HKDF provider.
+bouncycastle-bcprov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
 # Test-only in the android modules (real SQLite for HistorySql on the desktop JVM, never shipped there); the runtime driver in server/modules/sync-api.
 sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite-jdbc" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
