@@ -1,0 +1,215 @@
+{
+ "name": "proof-2f",
+ "tip": {
+  "tree": "3dbd2c9c05cddd97b60b64af2f15eb6d40886169"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "keyboard tile: exact privacy line, split test files, docs follow the config",
+   "base_tree": "b11de35d0773e9925891fde9946b3c18896a40b0",
+   "item_tip_tree": "3dbd2c9c05cddd97b60b64af2f15eb6d40886169",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [
+    "ProbeGateTestBase.kt",
+    "SetupTextsTestBase.kt"
+   ]
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test"
+ },
+ "shards": 1,
+ "entries": [
+  {
+   "id": "red-a-01",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/commit/accessibility",
+   "file": "android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ModuleFilesGateTest.kt",
+   "files": [
+    "android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ModuleFilesGateTest.kt",
+    "android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ProbeGateTestBase.kt",
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/onboarding/SetupTextsTestBase.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.commit.accessibility.ModuleFilesGateTest"
+   ],
+   "patch": "proof/red/red-a-01.patch",
+   "tree": "fe7fd1fd9222a7f2974d85287f9b908bf3b75bef",
+   "predict": "ASSERT RED: the pinned list names the new clock test file, absent on the base"
+  },
+  {
+   "id": "red-a-02",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/commit/accessibility",
+   "file": "android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ProbeClockGateTest.kt",
+   "files": [
+    "android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ProbeClockGateTest.kt",
+    "android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ProbeGateTestBase.kt",
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/onboarding/SetupTextsTestBase.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.commit.accessibility.ProbeClockGateTest"
+   ],
+   "patch": "proof/red/red-a-02.patch",
+   "tree": "2e189ff60123325790a5879ca84659a6af144e68",
+   "predict": "NOT RED: the clock pin already holds on the base (moved, not new behaviour)"
+  },
+  {
+   "id": "red-a-03",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/commit/accessibility",
+   "file": "android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ProbeReadGateTest.kt",
+   "files": [
+    "android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ProbeReadGateTest.kt",
+    "android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ProbeGateTestBase.kt",
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/onboarding/SetupTextsTestBase.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.commit.accessibility.ProbeReadGateTest"
+   ],
+   "patch": "proof/red/red-a-03.patch",
+   "tree": "37f374fc50c2b7cdb1fc5a90faa5c015e410c7e2",
+   "predict": "NOT RED: the moved tests are unchanged"
+  },
+  {
+   "id": "red-a-04",
+   "kind": "red",
+   "item": "a",
+   "module": "android/ui",
+   "file": "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/onboarding/SetupTextsTest.kt",
+   "files": [
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/onboarding/SetupTextsTest.kt",
+    "android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ProbeGateTestBase.kt",
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/onboarding/SetupTextsTestBase.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.ui.screen.onboarding.SetupTextsTest"
+   ],
+   "patch": "proof/red/red-a-04.patch",
+   "tree": "677337a2944dd66441800f1058b3fac85add7013",
+   "predict": "NOT RED: the moved rules hold for every text on both trees"
+  },
+  {
+   "id": "red-a-05",
+   "kind": "red",
+   "item": "a",
+   "module": "android/ui",
+   "file": "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/onboarding/SetupWordingTest.kt",
+   "files": [
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/onboarding/SetupWordingTest.kt",
+    "android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ProbeGateTestBase.kt",
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/onboarding/SetupTextsTestBase.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.ui.screen.onboarding.SetupWordingTest"
+   ],
+   "patch": "proof/red/red-a-05.patch",
+   "tree": "4a46936409dff472bb9ff5d2961dce4aadec0169",
+   "predict": "ASSERT RED: the pinning test fails on the old privacy sentence; the other moved tests pass"
+  },
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/onboarding/SetupTexts.kt",
+     "anchor": "saves nothing",
+     "replacement": "saves something"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SetupWordingTest.the keyboard tile privacy line names what is looked at and what is remembered"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/commit/accessibility",
+   "edits": [
+    {
+     "file": "android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ModuleFilesGateTest.kt",
+     "anchor": "\"src/test/kotlin/dev/breaker/dictation/commit/accessibility/ProbeClockGateTest.kt\",",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "ModuleFilesGateTest.the module folder holds exactly the pinned files"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/commit/accessibility",
+   "edits": [
+    {
+     "file": "android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ModuleFilesGateTest.kt",
+     "anchor": "\"src/test/kotlin/dev/breaker/dictation/commit/accessibility/ProbeGateTestBase.kt\",",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "ModuleFilesGateTest.the module folder holds exactly the pinned files"
+   ],
+   "rule": "",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "android/app",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/DictationRunner.kt",
+     "anchor": "        if (idle.state != DictationState.IDLE) return BeginResult.Refused(RunnerSentences.BUSY)\n",
+     "replacement": "        return BeginResult.Refused(RunnerSentences.BUSY)\n"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "android/app",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/DictationRunner.kt",
+     "anchor": "        if (idle.state != DictationState.IDLE) return BeginResult.Refused(RunnerSentences.BUSY)\n",
+     "replacement": "        if (idle.state != DictationState.IDLE) return BeginResult.Refused(RunnerSentences.BUSY) // unchanged behaviour\n"
+    }
+   ]
+  }
+ ]
+}

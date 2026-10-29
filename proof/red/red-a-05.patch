@@ -1,0 +1,527 @@
+diff --git a/android/modules/commit/accessibility/AGENTS.md b/android/modules/commit/accessibility/AGENTS.md
+index 369a4c23..c928e2ce 100644
+--- a/android/modules/commit/accessibility/AGENTS.md
++++ b/android/modules/commit/accessibility/AGENTS.md
+@@ -13,7 +13,7 @@ approach (ADR-005, now dead code in `commit/ime`).
+ **First working piece built.** The service, the focused-field resolver that it
+ publishes into the parent, and the pure insert rule exist, with tests that read
+ this module's own files. **Not built yet:** `ACTION_PASTE` (it would come only
+-behind a parent clipboard seam), and
++behind a parent clipboard seam), zero event types in the service config, and
+ anything proven on a device: nothing here has been run on a device.
+ 
+ **Build phase:** Phase 7. Needs first: `commit` (this module's parent, for the
+@@ -23,8 +23,8 @@ focused-field registry it publishes into).
+ 
+ This module owns:
+ - The accessibility service itself (`AccessibilityService`), its service
+-  config (requesting the three event types, `flagRetrieveInteractiveWindows` and `canRetrieveWindowContent`,
+-  because finding the focused field and reading keyboard presence need them — nothing more).
++  config (requesting only focused-view events and `canRetrieveWindowContent`,
++  because finding the focused field needs it — nothing more).
+ - Finding the currently focused editable node.
+ - Inserting text: reading the field's current text and selection, building the
+   new text, `AccessibilityNodeInfo.ACTION_SET_TEXT` to merge it in at the
+@@ -123,8 +123,8 @@ Production code in every build, not a probe. On every window-relevant event the
+     `NodeFocusedFieldPrivacyTest`, `NodeFocusedFieldErrorTest`.
+   - Gates that read the module's own files: `PureFilesScanTest`, `PrivacyScanTest`,
+     `TestRulesScanTest`, `ManifestGateTest`, `ConfigGateTest`, `AdapterGateTest`,
+-    `AdapterMappingGateTest`, `FieldStateFlagsGateTest`, `ProbeReadGateTest`, `ProbeClockGateTest`, `ModuleFilesGateTest` (with the helpers `SourceFiles.kt`,
+-    `XmlFiles.kt`, the shared base `ProbeGateTestBase.kt` and the sample files `AdapterGateSamples.kt`, `AdapterMappingSamples.kt`).
++    `AdapterMappingGateTest`, `FieldStateFlagsGateTest`, `ProbeReadGateTest`, `ModuleFilesGateTest` (with the helpers `SourceFiles.kt`,
++    `XmlFiles.kt` and the sample files `AdapterGateSamples.kt`, `AdapterMappingSamples.kt`).
+ - Contract: `tests/contract/test_commit_accessibility_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_commit_accessibility_contract.py`
+ - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
+ 
+@@ -187,7 +187,7 @@ agents, not required: an outside contributor may write the code themselves
+ - Not verified on a device (nothing in this module has been run on one):
+   - `findFocus(FOCUS_INPUT)` at send time while the floating tile is showing.
+   - The cases where the active window has no root.
+-  - The three event types and the interactive-windows flag in the service config.
++  - Zero event types in the service config.
+   - WebView fields.
+   - `ACTION_SET_SELECTION` right after `ACTION_SET_TEXT` (a stale selection).
+   - Hint text handling, and the refusal of this app's own fields in practice.
+diff --git a/android/modules/commit/accessibility/README.md b/android/modules/commit/accessibility/README.md
+index 8a9e1b70..8afcfa88 100644
+--- a/android/modules/commit/accessibility/README.md
++++ b/android/modules/commit/accessibility/README.md
+@@ -79,7 +79,7 @@ JVM test runs without a device. Only the service class is public; the rest is in
+    `toString`, a string template, a toast, the clipboard, a file or the network.
+ 3. Classes that can carry text are not data classes and print a fixed redacted text.
+ 4. Act only on an explicit send, never on what the service happens to see.
+-5. Ask for the least the platform allows: the three event types, the interactive-windows flag and window content only.
++5. Ask for the least the platform allows: focused-view events and window content only.
+ 
+ ## Tests
+ 
+@@ -112,7 +112,6 @@ is in `AGENTS.md`. Every test message starts with "commit/accessibility:".
+   - `ProbeReadGateTest`: the window list is read in one place only, and the handler publishes
+     from one place only; the handler's first statement is the null skip, with no probe-state
+     guard; every listed window is recycled once; the probe path never reads text or content.
+-  - `ProbeClockGateTest`: the reading stamp is the monotonic millisecond count, and the service reads no wall clock.
+   - `ModuleFilesGateTest`: the module folder holds exactly the pinned files. A new file
+     must be added to its list on purpose.
+ - The gate tests hold samples that fire each rule and samples that stay quiet. The two
+@@ -124,7 +123,7 @@ Nothing in this module has been run on a device.
+ 
+ - `findFocus` with input focus at send time while the floating tile is showing.
+ - The cases where the active window has no root.
+-- The three event types and the interactive-windows flag in the service config.
++- Whether the config can ask for zero event types.
+ - WebView fields.
+ - `ACTION_SET_SELECTION` right after `ACTION_SET_TEXT` (a stale selection).
+ - Hint text handling, and the refusal of this app's own fields in practice.
+diff --git a/android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ModuleFilesGateTest.kt b/android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ModuleFilesGateTest.kt
+index 1ce99123..276b3117 100644
+--- a/android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ModuleFilesGateTest.kt
++++ b/android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ModuleFilesGateTest.kt
+@@ -21,6 +21,7 @@ import org.junit.Test
+  * samples below prove each of them without touching the disk.
+  */
+ internal class ModuleFilesGateTest {
++
+     /** Every file the module folder may hold, sorted. */
+     private val pinned: List<String> = listOf(
+         "AGENTS.md",
+@@ -62,8 +63,6 @@ internal class ModuleFilesGateTest {
+         "src/test/kotlin/dev/breaker/dictation/commit/accessibility/NodeFocusedFieldSetTextRefusalTest.kt",
+         "src/test/kotlin/dev/breaker/dictation/commit/accessibility/PasswordInputTypeTest.kt",
+         "src/test/kotlin/dev/breaker/dictation/commit/accessibility/PrivacyScanTest.kt",
+-        "src/test/kotlin/dev/breaker/dictation/commit/accessibility/ProbeClockGateTest.kt",
+-        "src/test/kotlin/dev/breaker/dictation/commit/accessibility/ProbeGateTestBase.kt",
+         "src/test/kotlin/dev/breaker/dictation/commit/accessibility/ProbeReadGateTest.kt",
+         "src/test/kotlin/dev/breaker/dictation/commit/accessibility/PureFilesScanTest.kt",
+         "src/test/kotlin/dev/breaker/dictation/commit/accessibility/SourceFiles.kt",
+diff --git a/android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ProbeClockGateTest.kt b/android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ProbeClockGateTest.kt
+deleted file mode 100644
+index a9871c61..00000000
+--- a/android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ProbeClockGateTest.kt
++++ /dev/null
+@@ -1,65 +0,0 @@
+-package dev.breaker.dictation.commit.accessibility
+-
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/**
+- * The reading stamp: the service stamps each reading from the monotonic clock and reads no wall clock.
+- */
+-internal class ProbeClockGateTest : ProbeGateTestBase() {
+-
+-    /** The reading stamp is read from the raw service text: the view above strips the publish call, stamp included. */
+-    private val stampCall: Regex = Regex("""\btime\s*=\s*([^,\n]*),""")
+-    private val wallClock: Regex = Regex("""\bcurrentTimeMillis\b""")
+-    private val monotonicStamp: String = "System.nanoTime() / 1_000_000L"
+-
+-    private fun stampValues(source: String): List<String> =
+-        stampCall.findAll(code(source)).map { it.groupValues[1].trim() }.toList()
+-
+-    private fun wallClockProblems(source: String): List<String> {
+-        val problems: MutableList<String> = ArrayList()
+-        if (stampValues(source) != listOf(monotonicStamp)) {
+-            problems.add("the reading stamp is not the monotonic millisecond count")
+-        }
+-        if (count(wallClock, code(source)) > 0) {
+-            problems.add("the service reads the wall clock")
+-        }
+-        return problems
+-    }
+-
+-    @Test
+-    fun `the service stamps each reading from the monotonic clock and never reads the wall clock`() {
+-        assertEquals(
+-            "commit/accessibility: the service clock check failed",
+-            emptyList<String>(),
+-            wallClockProblems(real(serviceFile)),
+-        )
+-    }
+-
+-    @Test
+-    fun `a stamp from the wall clock, a stamp without the division or a second wall clock read is refused`() {
+-        val good: String = "class S {\n    fun publish() = publishLatest(\n        time = System.nanoTime() / 1_000_000L,\n    )\n}\n"
+-        assertEquals("commit/accessibility: the clock sample is not quiet", emptyList<String>(), wallClockProblems(good))
+-        val fires: Map<String, String> = mapOf(
+-            "the stamp on the wall clock" to edit(good, "System.nanoTime() / 1_000_000L", "System.currentTimeMillis()"),
+-            "a stamp without the division" to edit(good, " / 1_000_000L", ""),
+-            "a second wall clock read" to edit(good, "    )\n}", "    )\n    val t = System.currentTimeMillis()\n}"),
+-        )
+-        for ((label, source) in fires) {
+-            assertTrue("commit/accessibility: the clock check missed " + label, wallClockProblems(source).isNotEmpty())
+-        }
+-    }
+-
+-    @Test
+-    fun `a comment or a string that names the wall clock is not refused`() {
+-        val good: String = "class S {\n    fun publish() = publishLatest(\n        time = System.nanoTime() / 1_000_000L,\n    )\n}\n"
+-        val quiet: Map<String, String> = mapOf(
+-            "a comment naming it" to edit(good, "        time = System.nanoTime()", "        // time = System.currentTimeMillis(),\n        time = System.nanoTime()"),
+-            "a string naming it" to edit(good, "    fun publish()", "    val note = \"time = System.currentTimeMillis(), wall\"\n    fun publish()"),
+-        )
+-        for ((label, source) in quiet) {
+-            assertEquals("commit/accessibility: the clock check flagged " + label, emptyList<String>(), wallClockProblems(source))
+-        }
+-    }
+-}
+diff --git a/android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ProbeReadGateTest.kt b/android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ProbeReadGateTest.kt
+index e8ba5526..f2c04b67 100644
+--- a/android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ProbeReadGateTest.kt
++++ b/android/modules/commit/accessibility/src/test/kotlin/dev/breaker/dictation/commit/accessibility/ProbeReadGateTest.kt
+@@ -92,8 +92,10 @@ internal object ProbeView {
+     fun mapping(code: String): String = withoutFunction(withoutFunction(adapter(code), FIELD_FUNCTION), WINDOW_FUNCTION)
+ }
+ 
+-internal class ProbeReadGateTest : ProbeGateTestBase() {
++internal class ProbeReadGateTest {
+ 
++    private val nodeFile: String = "adapter/AndroidFieldNode.kt"
++    private val serviceFile: String = "adapter/BreakerAccessibilityService.kt"
+     private val windowList: Regex = Regex("""\bgetWindows\s*\(""")
+     private val recycleCall: Regex = Regex("""\brecycle\s*\(\s*\)""")
+     private val publishCall: Regex = Regex("""\bpublish\s*\(""")
+@@ -104,6 +106,21 @@ internal class ProbeReadGateTest : ProbeGateTestBase() {
+     /** Any event member read outside the allowed two. */
+     private val otherEventMembers: Regex = Regex("""\bevent\s*\.\s*\w+""")
+ 
++    private fun real(path: String): String {
++        val text: String = SourceFiles.mainSources()[path] ?: ""
++        assertTrue("commit/accessibility: the probe check did not find " + path, text.isNotBlank())
++        return text
++    }
++
++    private fun code(source: String): String = SourceFiles.strip(source).code
++
++    private fun count(rule: Regex, code: String): Int = rule.findAll(code).count()
++
++    private fun edit(source: String, from: String, to: String): String {
++        assertTrue("commit/accessibility: the probe check sample has no text " + from, source.contains(from))
++        return source.replaceFirst(from, to)
++    }
++
+     private fun windowReads(node: String, service: String): Int =
+         count(windowList, node) + count(windowList, ProbeView.withoutFunction(service, ProbeView.WINDOW_FUNCTION))
+ 
+@@ -270,4 +287,58 @@ internal class ProbeReadGateTest : ProbeGateTestBase() {
+             count(readsText, probeText(sample)) > 0,
+         )
+     }
++
++    /** The reading stamp is read from the raw service text: the view above strips the publish call, stamp included. */
++    private val stampCall: Regex = Regex("""\btime\s*=\s*([^,\n]*),""")
++    private val wallClock: Regex = Regex("""\bcurrentTimeMillis\b""")
++    private val monotonicStamp: String = "System.nanoTime() / 1_000_000L"
++
++    private fun stampValues(source: String): List<String> =
++        stampCall.findAll(code(source)).map { it.groupValues[1].trim() }.toList()
++
++    private fun wallClockProblems(source: String): List<String> {
++        val problems: MutableList<String> = ArrayList()
++        if (stampValues(source) != listOf(monotonicStamp)) {
++            problems.add("the reading stamp is not the monotonic millisecond count")
++        }
++        if (count(wallClock, code(source)) > 0) {
++            problems.add("the service reads the wall clock")
++        }
++        return problems
++    }
++
++    @Test
++    fun `the service stamps each reading from the monotonic clock and never reads the wall clock`() {
++        assertEquals(
++            "commit/accessibility: the service clock check failed",
++            emptyList<String>(),
++            wallClockProblems(real(serviceFile)),
++        )
++    }
++
++    @Test
++    fun `a stamp from the wall clock, a stamp without the division or a second wall clock read is refused`() {
++        val good: String = "class S {\n    fun publish() = publishLatest(\n        time = System.nanoTime() / 1_000_000L,\n    )\n}\n"
++        assertEquals("commit/accessibility: the clock sample is not quiet", emptyList<String>(), wallClockProblems(good))
++        val fires: Map<String, String> = mapOf(
++            "the stamp on the wall clock" to edit(good, "System.nanoTime() / 1_000_000L", "System.currentTimeMillis()"),
++            "a stamp without the division" to edit(good, " / 1_000_000L", ""),
++            "a second wall clock read" to edit(good, "    )\n}", "    )\n    val t = System.currentTimeMillis()\n}"),
++        )
++        for ((label, source) in fires) {
++            assertTrue("commit/accessibility: the clock check missed " + label, wallClockProblems(source).isNotEmpty())
++        }
++    }
++
++    @Test
++    fun `a comment or a string that names the wall clock is not refused`() {
++        val good: String = "class S {\n    fun publish() = publishLatest(\n        time = System.nanoTime() / 1_000_000L,\n    )\n}\n"
++        val quiet: Map<String, String> = mapOf(
++            "a comment naming it" to edit(good, "        time = System.nanoTime()", "        // time = System.currentTimeMillis(),\n        time = System.nanoTime()"),
++            "a string naming it" to edit(good, "    fun publish()", "    val note = \"time = System.currentTimeMillis(), wall\"\n    fun publish()"),
++        )
++        for ((label, source) in quiet) {
++            assertEquals("commit/accessibility: the clock check flagged " + label, emptyList<String>(), wallClockProblems(source))
++        }
++    }
+ }
+diff --git a/android/modules/commit/src/main/kotlin/dev/breaker/dictation/commit/KeyboardProbeReadings.kt b/android/modules/commit/src/main/kotlin/dev/breaker/dictation/commit/KeyboardProbeReadings.kt
+index 2028535b..7b1e9ef1 100644
+--- a/android/modules/commit/src/main/kotlin/dev/breaker/dictation/commit/KeyboardProbeReadings.kt
++++ b/android/modules/commit/src/main/kotlin/dev/breaker/dictation/commit/KeyboardProbeReadings.kt
+@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.map
+ import kotlinx.coroutines.flow.update
+ 
+ /**
+- * One read of the keyboard signals that the accessibility service publishes.
++ * One read of the keyboard signals the probe is meant to measure.
+  *
+  * [fieldFocus] is whether the active window's input-focused node is editable
+  * (the field the other app is typing in). [imeWindow] is whether the
+diff --git a/android/ui/AGENTS.md b/android/ui/AGENTS.md
+index 81438263..34a8cc69 100644
+--- a/android/ui/AGENTS.md
++++ b/android/ui/AGENTS.md
+@@ -9,13 +9,13 @@ off. Built so far: the home screen, the settings screen, the first-run flow, the
+ **Build phase:** Phase 1 (the app shell's first screens). Each screen arrives with its feature's phase, and the Trucking theme with Phase 22. Needs first: `core` and `shared/ui-tokens` (both on `main`).
+ 
+ ## Owns
+-the home screen (its on/off card, the big mic slot the app's mic view fills, the last transcript with its Copy button, and the menu drawer that offers History, Settings, How it works and About); the home screen's state and the handler of its taps (`screen/home/`), and its host view (`render/HomeHostView.kt`); the How it works and About screens (`screen/howitworks/` and `screen/about/`); the shared transcript card (`screen/history/TranscriptCard.kt`, drawn by Home without a Delete); the MenuIcon and Switch nodes; the brand art views (`render/BrandArtViews.kt`); the gutter (the 16 dp `gutterDp` metric the host applies around every screen's content); the screen node model (`screen/Screen.kt`: Box with pad, gap, spread, outline, edge and onClick; Label with caps and italic; Action with its kit look; TrimStripe; TagPill; CollapsibleText; SegmentedRow; SwitchRow; ValueField; MenuIcon and Switch with their descriptions; BackArrow with its description; Rule; BottomStripes with the plain variant; Spacer; Dot; TouchGap; the KitLook values RAISED, NEUTRAL, DANGER, OUTLINED and TEXT); the title bar (`screen/TitleBar.kt`) and the spacing reader (`render/SpaceScale.kt`); screen components; the first-run flow for a phone with no speech model (screen/firstrun/: the welcome, the five permission pages, the missing list on the last permission page, and the model download page; drawn by render/FirstRunHostView.kt, render/FirstRunPageViews.kt and render/FirstRunDownloadPage.kt); the thin adapters in render/ that read the phone's permission state and open its settings pages; the history screen (the list, copy, delete with a 5-second Undo, load more) and its thin adapters in render/ for the clipboard and the delayed work; every store and clipboard call runs on one process-wide serial dispatcher (screen/history/HistoryDispatcher.kt), and while a read is out the screen shows the last drawn state; consumes `shared/ui-tokens` (Trucking theme); the controls kit, all of it internal - the main, neutral, outlined, destructive and full-width buttons, the switch, the three badges, the text field, the four slanted step marks and the model download bar, over their plain-Kotlin geometry, palette and shade factors and the download bar's numbers (DownloadBarMath) (`ui/controls/` and `ui/render/controls/`); the switch toggles on a tap and reports the new value through onToggled, and a screen reader is told it is a switch with its checked state; the step marks light the current step; a button is as wide as its label plus 16 dp each side, and never narrower than the art's 170 px (113.33 dp), or than the compact floor of 93.33 dp for the History entry buttons that set the compact flag (see the compact width invariant); the text field draws in the monospace face.
++the home screen (its on/off card, the big mic slot the app's mic view fills, the last transcript with its Copy button, and the menu drawer that offers History, Settings, How it works and About); the home screen's state and the handler of its taps (`screen/home/`), and its host view (`render/HomeHostView.kt`); the How it works and About screens (`screen/howitworks/` and `screen/about/`); the shared transcript card (`screen/history/TranscriptCard.kt`, drawn by Home without a Delete); the MenuIcon and Switch nodes; the brand art views (`render/BrandArtViews.kt`); the gutter (the 16 dp `gutterDp` metric the host applies around every screen's content); the screen node model (`screen/Screen.kt`: Box with pad, gap, spread, outline, edge and onClick; Label with caps and italic; Action with its kit look; TrimStripe; TagPill; CollapsibleText; SegmentedRow; SwitchRow; ValueField; MenuIcon and Switch with their descriptions; BackArrow with its description; Rule; BottomStripes with the plain variant; Spacer; Dot; TouchGap; the KitLook values RAISED, NEUTRAL, DANGER, OUTLINED and TEXT); the title bar (`screen/TitleBar.kt`) and the spacing reader (`render/SpaceScale.kt`); screen components; the first-run flow for a phone with no speech model (screen/firstrun/: the welcome, the four permission pages, the missing list on the last permission page, and the model download page; drawn by render/FirstRunHostView.kt, render/FirstRunPageViews.kt and render/FirstRunDownloadPage.kt); the thin adapters in render/ that read the phone's permission state and open its settings pages; the history screen (the list, copy, delete with a 5-second Undo, load more) and its thin adapters in render/ for the clipboard and the delayed work; every store and clipboard call runs on one process-wide serial dispatcher (screen/history/HistoryDispatcher.kt), and while a read is out the screen shows the last drawn state; consumes `shared/ui-tokens` (Trucking theme); the controls kit, all of it internal - the main, neutral, outlined, destructive and full-width buttons, the switch, the three badges, the text field, the four slanted step marks and the model download bar, over their plain-Kotlin geometry, palette and shade factors and the download bar's numbers (DownloadBarMath) (`ui/controls/` and `ui/render/controls/`); the switch toggles on a tap and reports the new value through onToggled, and a screen reader is told it is a switch with its checked state; the step marks light the current step; a button is as wide as its label plus 16 dp each side, and never narrower than the art's 170 px (113.33 dp), or than the compact floor of 93.33 dp for the History entry buttons that set the compact flag (see the compact width invariant); the text field draws in the monospace face.
+ 
+ ## Public Interface
+ Ten declarations; everything else in the module is internal or private.
+ - `createHomeView(context, switch, modelReady, lastDictationAt, lastTranscript, transcriptTime, onCopy, onHistory, onHowItWorks, onAbout, onSettings, onTap, settings, micView, usableHeightDp, onShownMode)`: builds the home screen as a view. It reads the stored theme through `settings` when the view is built. The app passes the switch, the answers for the model, the last dictation and the last transcript, the phone's time for the transcript, the copy request, the four screen requests (history, how it works, about and settings), the request for a take from the big mic, the settings store, the mic view placed in the big slot, the usable height in dp, and the handler handed the mode the view draws in; every fact is read again on each drawing.
+ - `createSettingsView(context, settings, modelReady, downloadLine, onDownloadModel)`: builds the settings screen as a view. The app passes the settings store, and the model download's answers: `modelReady` says whether the speech model is on the phone, `downloadLine` gives the sentence under the model download (or null), and `onDownloadModel` asks the app to start the download. The model download line is drawn with the ui kit's DownloadBarView. It draws live through the theme controller, not the stored-theme reader.
+-- `createFirstRunView(context, accessibilityServiceComponent, modelReady, downloadLine, modelDownloadMb, onDownloadModel, settings, onFinished)`: builds the first-run view: the welcome, the five permission pages (microphone, overlay, notifications, accessibility and the keyboard tile) and the model download page, in that order. `onFinished` is called once, when the speech model is on the phone on the download page. The phone's light or dark mode is read once from `context`, and the stored theme is read through `settings` when the view is built; what is granted is read again each time a page is drawn. `onDownloadModel` asks the app to start the download, `downloadLine` and `modelDownloadMb` describe it, `modelReady` says whether the model is on the phone, and `settings` is the app's settings store, in which the microphone prompt flag is kept. The view answers `ModelStepControl`.
++- `createFirstRunView(context, accessibilityServiceComponent, modelReady, downloadLine, modelDownloadMb, onDownloadModel, settings, onFinished)`: builds the first-run view: the welcome, the four permission pages (microphone, overlay, notifications, accessibility) and the model download page, in that order. `onFinished` is called once, when the speech model is on the phone on the download page. The phone's light or dark mode is read once from `context`, and the stored theme is read through `settings` when the view is built; what is granted is read again each time a page is drawn. `onDownloadModel` asks the app to start the download, `downloadLine` and `modelDownloadMb` describe it, `modelReady` says whether the model is on the phone, and `settings` is the app's settings store, in which the microphone prompt flag is kept. The view answers `ModelStepControl`.
+ - `createHistoryView(context, history, settings)`: builds the history screen as a view. It reads the stored theme through `settings` when the view is built. `history` is core's `HistoryStore` port; `list(limit)` and `delete(id)` are the only calls the screen makes. The screen follows the stored theme and keeps no setting of its own.
+ - `createHowItWorksView(context, settings)`: builds the How it works screen as a view. It reads the stored theme through `settings` when the view is built. The screen reuses the welcome headings and whys from the first-run pages.
+ - `createAboutView(context, settings)`: builds the About screen as a view. It reads the stored theme through `settings` when the view is built. The screen shows exactly two lines: what Breaker does and the license. No version line unless one already exists on main.
+@@ -94,7 +94,7 @@ screens render with ui-tokens; light/dark toggle persists (F25).
+   - controls/: `ControlsViewGateTest`, `ControlsCompactWidthTest`, `DownloadBarMathTest`, `DownloadBarViewGateTest`
+   - screen/: `NodeModelTest`
+   - screen/home/: `HomeIntentHandlerTest`, `HomeScreenTest`, `HomeScreenNoticeTest`, `HomeTextsTest`, `HomeGeometryTest`.
+-  - screen/onboarding/: `AccessibilityListTest`, `SetupIntentHandlerTest`, `SetupModelTest`, `SetupScreenTest`, `SetupTextsTest`, `SetupWordingTest`
++  - screen/onboarding/: `AccessibilityListTest`, `SetupIntentHandlerTest`, `SetupModelTest`, `SetupScreenTest`, `SetupTextsTest`
+     - `SetupIntentHandlerThemeModeTest`: each theme mode name is refused by the first-run handler, and the switch and the rows are left alone.
+   - screen/settings/: `SettingsIntentHandlerSetupTest`, `SettingsIntentHandlerTest`, `SettingsScreenEditTest`, `SettingsScreenTest`
+     - `SettingsAppearanceTest`: the three theme cells, their mode names and the selected cell.
+diff --git a/android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/onboarding/SetupTexts.kt b/android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/onboarding/SetupTexts.kt
+index 42c1ceb8..a1d794b8 100644
+--- a/android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/onboarding/SetupTexts.kt
++++ b/android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/onboarding/SetupTexts.kt
+@@ -83,8 +83,7 @@ internal object SetupTexts {
+     const val KEYBOARD_TILE_LIMITS =
+         "What Breaker looks at for this: only whether a text field is selected and whether the keyboard is open. " +
+             "It never reads what is in the field or on your screen. " +
+-            "It remembers only the latest of those two yes-or-no answers while the app runs, saves nothing, " +
+-            "and sends nothing off the phone."
++            "It keeps nothing and sends nothing off the phone."
+ 
+     /** The extra confirmation Android 13 and newer can ask for. */
+     const val RESTRICTED_INTRO =
+diff --git a/android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/onboarding/SetupTextsTest.kt b/android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/onboarding/SetupTextsTest.kt
+index adfea07c..4f9eafd8 100644
+--- a/android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/onboarding/SetupTextsTest.kt
++++ b/android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/onboarding/SetupTextsTest.kt
+@@ -1,5 +1,6 @@
+ package dev.breaker.dictation.ui.screen.onboarding
+ 
++import java.lang.reflect.Modifier
+ import org.junit.Assert.assertEquals
+ import org.junit.Assert.assertFalse
+ import org.junit.Assert.assertNotEquals
+@@ -15,7 +16,7 @@ import org.junit.Test
+  * Every constant is found by reading the object's own fields, so a constant added later is held
+  * to the same rules without anyone remembering to list it.
+  */
+-internal class SetupTextsTest : SetupTextsTestBase() {
++class SetupTextsTest {
+     private val longest = 400
+     private val highestAscii = 127
+ 
+@@ -34,6 +35,9 @@ internal class SetupTextsTest : SetupTextsTestBase() {
+     /** The text that opens a ticket number, which is banned as a prefix rather than a word. */
+     private val bannedPrefix = joined("R", "C-")
+ 
++    private fun wordPattern(word: String) =
++        Regex("(?<![A-Za-z0-9-])" + Regex.escape(word) + "(?![A-Za-z0-9-])", RegexOption.IGNORE_CASE)
++
+     private val quoted = Regex("\"[^\"]*\"")
+ 
+     private val restricted = Regex("restricted", RegexOption.IGNORE_CASE)
+@@ -52,6 +56,21 @@ internal class SetupTextsTest : SetupTextsTestBase() {
+         }
+     }
+ 
++    /** Every String constant of the texts object, by name, read from its fields. */
++    private fun constants(): Map<String, String> =
++        SetupTexts::class.java.declaredFields
++            .filter { Modifier.isStatic(it.modifiers) && it.type == String::class.java }
++            .associate { field ->
++                field.setAccessible(true)
++                field.name to (field.get(null) as String)
++            }
++
++    private val texts = constants()
++
++    private fun text(name: String): String = texts[name] ?: error("no constant named $name")
++
++    private fun countOf(text: String, needle: String): Int = text.split(needle).size - 1
++
+     private val required = listOf(
+         "TITLE", "INTRO", "STATUS_GRANTED", "STATUS_NOT_GRANTED",
+         "HEADING_OVERLAY", "HEADING_MICROPHONE", "HEADING_NOTIFICATIONS", "HEADING_ACCESSIBILITY",
+@@ -171,9 +190,155 @@ internal class SetupTextsTest : SetupTextsTestBase() {
+         assertEquals("two notices share one text", notices.size, notices.toSet().size)
+     }
+ 
++    @Test
++    fun `the notifications note names all three things that are lost`() {
++        val note = text("NOTIFICATIONS_LOST")
++        assertTrue("it says Breaker still works", note.contains("Breaker still works"))
++        assertTrue("no notice while it is on", note.contains("you see no notice while it is on"))
++        assertTrue("no switching off from the shade", note.contains("you cannot switch it off from the notification shade"))
++        assertTrue("no opening of the history", note.contains("the notice cannot open your history"))
++    }
++
++    @Test
++    fun `the accessibility limits state all five promises`() {
++        val limits = text("ACCESSIBILITY_LIMITS")
++        val promises = listOf(
++            "it acts only when you send",
++            "reads only the one field it types into",
++            "never fills a password field",
++            "keeps nothing from your screen",
++            "sends nothing off the phone",
++        )
++        for (promise in promises) {
++            assertTrue("the limits do not say \"$promise\"", limits.contains(promise))
++        }
++        assertTrue(
++            "the limits do not add the keyboard sentence right after the field sentence",
++            limits.contains(
++                "It reads only the one field it types into. It also notices, without reading anything, " +
++                    "whether a text field is selected and whether the keyboard is open. It never fills a password field.",
++            ),
++        )
++    }
++
++    @Test
++    fun `the three restricted steps name the menu words exactly, and the allow words once`() {
++        val steps = listOf(text("RESTRICTED_STEP_1"), text("RESTRICTED_STEP_2"), text("RESTRICTED_STEP_3"))
++        val allow = "Allow restricted settings"
++        assertEquals("the exact menu words, counted over the three steps", 1, steps.sumOf { countOf(it, allow) })
++        assertEquals("the menu words belong in step 2", 1, countOf(steps[1], allow))
++        assertTrue("step 2 quotes the menu words", steps[1].contains("\"$allow\""))
++        assertTrue("step 1 quotes Android's own label", steps[0].contains("\"Restricted setting\""))
++        assertTrue("step 1 opens accessibility settings", steps[0].startsWith("Open accessibility settings. "))
++        assertTrue("step 1 says to tap Breaker", steps[0].contains("tap Breaker"))
++        assertTrue("step 1 names the list of installed apps", steps[0].contains("\"Installed apps\""))
++        assertTrue("step 1 names the list of downloaded apps", steps[0].contains("\"Downloaded apps\""))
++        assertTrue("step 2 says app info", steps[1].contains("app info"))
++        assertTrue("step 2 says where the dots are", steps[1].contains("three dots at the top right"))
++        assertTrue("step 3 goes back to accessibility settings", steps[2].startsWith("Go back to accessibility settings and "))
++        assertTrue("step 3 says to turn on Breaker's access", steps[2].contains("turn on Breaker's accessibility access"))
++        assertTrue("step 3 says to press Allow", steps[2].contains("press Allow"))
++        assertTrue("step 3 ends by sending the user back", steps[2].endsWith("Then come back here."))
++        assertFalse("step 3 repeats the menu words", steps[2].contains(allow))
++    }
++
++    @Test
++    fun `the word switch is kept for Breaker's own switch and never names the accessibility toggle`() {
++        val about = listOf(
++            "HEADING_ACCESSIBILITY", "WHY_ACCESSIBILITY", "ACCESSIBILITY_LIMITS", "BUTTON_ACCESSIBILITY_LIST",
++            "RESTRICTED_INTRO", "RESTRICTED_STEP_1", "RESTRICTED_STEP_2", "RESTRICTED_STEP_3", "WARNING_NO_ACCESSIBILITY",
++        )
++        for (name in about) {
++            assertFalse("$name uses the word switch", wordPattern("switch").containsMatchIn(text(name)))
++        }
++    }
++
++    @Test
++    fun `the display over other apps page has one name in every text that names it`() {
++        val name = "Display over other apps"
++        val anyName = Regex("over other apps", RegexOption.IGNORE_CASE)
++        for ((constant, shown) in texts) {
++            val named = anyName.findAll(shown).count()
++            val exact = countOf(shown, name)
++            assertEquals("$constant names the page in a different way", named, exact)
++        }
++        assertEquals(name, text("HEADING_OVERLAY"))
++        for (constant in listOf("WHY_OVERLAY", "BUTTON_OVERLAY_PAGE", "WARNING_NO_OVERLAY")) {
++            assertTrue("$constant does not name the page", text(constant).contains("\"$name\""))
++        }
++    }
++
++    @Test
++    fun `the reasons for the tile and the microphone promise no more than is true`() {
++        assertTrue("the tile starts it", text("WHY_OVERLAY").contains("You tap the tile to start."))
++        assertFalse("the tile is not said to stop it", text("WHY_OVERLAY").contains("stop"))
++        assertTrue("the microphone records when started", text("WHY_MICROPHONE").contains("It records only when you start it."))
++        assertFalse("the microphone is not tied to the tile", text("WHY_MICROPHONE").contains("tile"))
++    }
++
++    @Test
++    fun `the introduction says that only the microphone is needed to switch Breaker on`() {
++        assertTrue(text("INTRO").contains("Only the microphone is needed to switch Breaker on"))
++    }
++
++    @Test
++    fun `the accessibility reason leaves the clipboard to the warning`() {
++        assertFalse("the reason repeats the clipboard sentence", text("WHY_ACCESSIBILITY").contains("clipboard"))
++        assertTrue("the warning keeps the clipboard sentence", text("WARNING_NO_ACCESSIBILITY").contains("clipboard"))
++    }
++
++    @Test
++    fun `the notifications reason promises a notice only when notices are allowed`() {
++        val why = text("WHY_NOTIFICATIONS")
++        assertTrue("the notice is conditional", why.startsWith("When notices are allowed, Breaker shows one while it is on."))
++        assertFalse("the old unconditional wording is back", why.contains("shows a quiet notice"))
++        assertTrue("the step is still optional", why.contains("You can skip this step."))
++    }
++
++    @Test
++    fun `the accessibility settings page has one name in the steps and on the button`() {
++        val page = "accessibility settings"
++        for (constant in listOf("RESTRICTED_STEP_1", "RESTRICTED_STEP_3", "BUTTON_ACCESSIBILITY_LIST")) {
++            assertTrue("$constant does not call the page \"$page\"", text(constant).contains(page, ignoreCase = true))
++        }
++        for ((constant, shown) in texts) {
++            assertFalse("$constant calls the page a list", shown.contains("accessibility list", ignoreCase = true))
++        }
++    }
++
++    @Test
++    fun `the switch texts say what the user must know before turning it on`() {
++        val note = text("SWITCH_NOTE_ONGOING_NOTICE")
++        assertTrue("the notice is promised only when notices are allowed", note.startsWith("When notices are allowed"))
++        assertTrue("the notice is shown while Breaker is on", note.contains("shows one while it is on"))
++        assertFalse("no promise that depends on the phone", note.contains("stays") || note.contains("indicator"))
++        assertTrue("the microphone is the reason", text("SWITCH_NEEDS_MICROPHONE").contains("microphone"))
++        assertTrue("no tile", text("WARNING_NO_OVERLAY").contains("no tile"))
++        assertTrue("the clipboard", text("WARNING_NO_ACCESSIBILITY").contains("clipboard"))
++    }
++
+     @Test
+     fun `no text is left for a warning about notifications`() {
+         assertFalse("WARNING_NO_NOTIFICATIONS is still defined", "WARNING_NO_NOTIFICATIONS" in texts)
+         assertEquals("the warning texts", listOf("WARNING_NO_ACCESSIBILITY", "WARNING_NO_OVERLAY"), texts.keys.filter { it.startsWith("WARNING_") }.sorted())
+     }
++
++
++    @Test
++    fun `the keyboard tile page has the heading and the reason the set-up texts give it`() {
++        assertEquals("Floating tile with your keyboard", text("HEADING_KEYBOARD_TILE"))
++        assertEquals(
++            "When you open the keyboard to type in any app, Breaker can bring up its tile for you. " +
++                "It uses the same accessibility access as the page before.",
++            text("WHY_KEYBOARD_TILE"),
++        )
++    }
++
++    @Test
++    fun `the keyboard tile privacy line says no text is read and nothing is kept`() {
++        val privacy = text("KEYBOARD_TILE_LIMITS")
++        assertTrue("the privacy line does not say the field and the screen are never read", privacy.contains("It never reads what is in the field or on your screen."))
++        assertTrue("the privacy line does not say nothing is kept", privacy.contains("It keeps nothing"))
++        assertTrue("the privacy line does not say nothing is sent off the phone", privacy.contains("sends nothing off the phone."))
++    }
+ }
