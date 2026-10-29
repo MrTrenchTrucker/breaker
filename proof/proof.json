@@ -1,0 +1,2190 @@
+{
+ "name": "proof-f99",
+ "tip": {
+  "tree": "80e68b32c9469812e5f867031fae980764db5c25"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "settings: the shake to wake choice and the keyboard tile switch",
+   "base_tree": "3dbd2c9c05cddd97b60b64af2f15eb6d40886169",
+   "item_tip_tree": "87c9580fe8e12729f0bb10973edac427ebcbf1de",
+   "new_production_classes": [
+    "SettingsSwitchRows"
+   ],
+   "test_fixtures_overlaid": [
+    "TestData.kt",
+    "SettingsFileStoreTestBase.kt",
+    "FakeSettingsStore.kt"
+   ],
+   "red_tree_stubs": {
+    "files": [
+     "Settings.kt",
+     "SettingsFileStoreTestBase.kt"
+    ],
+    "note": "signature-only: AppSettings gains the two new fields with their defaults beside the base wakeGestureEnabled (base code still writes and reads only the old key), ShakeWakeMode is declared, and shakeArms answers true for every mode, which is base behaviour (every shake wakes); the shared test fixtures that name the new fields then compile on base, so each leg fails on its own assertions; and the settings test fixture, which rides along in every leg, gets back the two names this item removes from it (KEY_WAKE_GESTURE and THE_TEN_KEYS, with their base meaning) so the untouched base settings tests in the same leg still compile; no leg runs those tests"
+   }
+  },
+  {
+   "item": "b",
+   "title": "app: a shake and the keyboard tile follow the shake to wake choice and the keyboard tile switch",
+   "base_tree": "87c9580fe8e12729f0bb10973edac427ebcbf1de",
+   "item_tip_tree": "5eec7201c245dc03deeb572b3768d8489e99e0fe",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": []
+  },
+  {
+   "item": "c",
+   "title": "settings: the fixture comments say which keys the fixtures hold",
+   "base_tree": "5eec7201c245dc03deeb572b3768d8489e99e0fe",
+   "item_tip_tree": "87842cf6a4ab500a344d95e8eeddd1fc3bb0bb9c",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [],
+   "red_not_run": "test fixture comments only (no behaviour): a red leg would pass by design"
+  },
+  {
+   "item": "d",
+   "title": "docs: the cards and the architecture name the shake to wake choice and the keyboard tile switch",
+   "base_tree": "87842cf6a4ab500a344d95e8eeddd1fc3bb0bb9c",
+   "item_tip_tree": "58d01bc40d6df2d99df04bcb4c7d8341fb10bfcd",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [],
+   "red_not_run": "protected text only (cards, architecture)"
+  },
+  {
+   "item": "e",
+   "title": "app: the keyboard auto-pop comment says what sets it",
+   "base_tree": "58d01bc40d6df2d99df04bcb4c7d8341fb10bfcd",
+   "item_tip_tree": "ed569640e4de1c59dc1d318dc24a3339b1cfc642",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [],
+   "red_not_run": "one KDoc comment in main code, no test change"
+  },
+  {
+   "item": "f",
+   "title": "docs: the app card, the architecture and the tile decision record follow the shake to wake choice",
+   "base_tree": "ed569640e4de1c59dc1d318dc24a3339b1cfc642",
+   "item_tip_tree": "6806ad508697803944e745306d10d911ee1dfc16",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [],
+   "red_not_run": "protected text only (cards, architecture, decision record)"
+  },
+  {
+   "item": "g",
+   "title": "settings: the keyboard only help names the permission it needs",
+   "base_tree": "6806ad508697803944e745306d10d911ee1dfc16",
+   "item_tip_tree": "f98c061a3f4b1f8418ca91dd8134b875ae846052",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": []
+  },
+  {
+   "item": "h",
+   "title": "settings tests: the credential guard lets the keyboard switch key through by exact name",
+   "base_tree": "f98c061a3f4b1f8418ca91dd8134b875ae846052",
+   "item_tip_tree": "80e68b32c9469812e5f867031fae980764db5c25",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [
+    "SettingsFileStoreTestBase.kt"
+   ],
+   "red_not_run": "test-only change: the credential-guard fixture and its new test; a red leg would carry the fixture and pass, so its proof is its six mutants"
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "red-a-01",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/core",
+   "file": "android/modules/core/src/test/kotlin/dev/breaker/dictation/core/model/AppSettingsMicrophoneAskedTest.kt",
+   "files": [
+    "android/modules/core/src/test/kotlin/dev/breaker/dictation/core/model/AppSettingsMicrophoneAskedTest.kt",
+    "android/modules/overlay/src/test/kotlin/dev/breaker/dictation/overlay/TestData.kt",
+    "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt",
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/testing/FakeSettingsStore.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.core.model.AppSettingsMicrophoneAskedTest"
+   ],
+   "patch": "proof/red/red-a-01.patch",
+   "tree": "9618c6e9dc71c6763d71f6794e7eb92d44676bdd",
+   "predict": ""
+  },
+  {
+   "id": "red-a-02",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/core",
+   "file": "android/modules/core/src/test/kotlin/dev/breaker/dictation/core/model/AppSettingsPositionTest.kt",
+   "files": [
+    "android/modules/core/src/test/kotlin/dev/breaker/dictation/core/model/AppSettingsPositionTest.kt",
+    "android/modules/overlay/src/test/kotlin/dev/breaker/dictation/overlay/TestData.kt",
+    "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt",
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/testing/FakeSettingsStore.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.core.model.AppSettingsPositionTest"
+   ],
+   "patch": "proof/red/red-a-02.patch",
+   "tree": "a3e9694c5738d620b9f38c56d7c6c6a43964b7eb",
+   "predict": ""
+  },
+  {
+   "id": "red-a-03",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/core",
+   "file": "android/modules/core/src/test/kotlin/dev/breaker/dictation/core/model/ShakeWakeModeTest.kt",
+   "files": [
+    "android/modules/core/src/test/kotlin/dev/breaker/dictation/core/model/ShakeWakeModeTest.kt",
+    "android/modules/overlay/src/test/kotlin/dev/breaker/dictation/overlay/TestData.kt",
+    "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt",
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/testing/FakeSettingsStore.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.core.model.ShakeWakeModeTest"
+   ],
+   "patch": "proof/red/red-a-03.patch",
+   "tree": "381de868d1f93016cd2590d16fcebc3f5cdc49f0",
+   "predict": ""
+  },
+  {
+   "id": "red-a-04",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/core",
+   "file": "android/modules/core/src/test/kotlin/dev/breaker/dictation/core/model/ThemeModeTest.kt",
+   "files": [
+    "android/modules/core/src/test/kotlin/dev/breaker/dictation/core/model/ThemeModeTest.kt",
+    "android/modules/overlay/src/test/kotlin/dev/breaker/dictation/overlay/TestData.kt",
+    "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt",
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/testing/FakeSettingsStore.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.core.model.ThemeModeTest"
+   ],
+   "patch": "proof/red/red-a-04.patch",
+   "tree": "9aed979f09b69abf99dc2c11332c95dfa644440f",
+   "predict": ""
+  },
+  {
+   "id": "red-a-05",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/overlay",
+   "file": "android/modules/overlay/src/test/kotlin/dev/breaker/dictation/overlay/TileControllerPersistTest.kt",
+   "files": [
+    "android/modules/overlay/src/test/kotlin/dev/breaker/dictation/overlay/TileControllerPersistTest.kt",
+    "android/modules/overlay/src/test/kotlin/dev/breaker/dictation/overlay/TestData.kt",
+    "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt",
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/testing/FakeSettingsStore.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.overlay.TileControllerPersistTest"
+   ],
+   "patch": "proof/red/red-a-05.patch",
+   "tree": "52210c6d64a3131048890bc85c99f269dc9b9ca0",
+   "predict": ""
+  },
+  {
+   "id": "red-a-06",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/settings",
+   "file": "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsDamagedTextTest.kt",
+   "files": [
+    "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsDamagedTextTest.kt",
+    "android/modules/overlay/src/test/kotlin/dev/breaker/dictation/overlay/TestData.kt",
+    "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt",
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/testing/FakeSettingsStore.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.settings.SettingsDamagedTextTest"
+   ],
+   "patch": "proof/red/red-a-06.patch",
+   "tree": "cef2c7a4c20bd9b0f237bb2e3df6c87693fcfb62",
+   "predict": ""
+  },
+  {
+   "id": "red-a-07",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/settings",
+   "file": "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsDefaultsTest.kt",
+   "files": [
+    "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsDefaultsTest.kt",
+    "android/modules/overlay/src/test/kotlin/dev/breaker/dictation/overlay/TestData.kt",
+    "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt",
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/testing/FakeSettingsStore.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.settings.SettingsDefaultsTest"
+   ],
+   "patch": "proof/red/red-a-07.patch",
+   "tree": "5681c86a12aa4e108ddc7571f49e8119480488b9",
+   "predict": ""
+  },
+  {
+   "id": "red-a-08",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/settings",
+   "file": "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsEnumMappingTest.kt",
+   "files": [
+    "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsEnumMappingTest.kt",
+    "android/modules/overlay/src/test/kotlin/dev/breaker/dictation/overlay/TestData.kt",
+    "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt",
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/testing/FakeSettingsStore.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.settings.SettingsEnumMappingTest"
+   ],
+   "patch": "proof/red/red-a-08.patch",
+   "tree": "2b88b10e17f45073fa63204416347e1b41afbd54",
+   "predict": ""
+  },
+  {
+   "id": "red-a-09",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/settings",
+   "file": "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFallbackIsolationTest.kt",
+   "files": [
+    "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFallbackIsolationTest.kt",
+    "android/modules/overlay/src/test/kotlin/dev/breaker/dictation/overlay/TestData.kt",
+    "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt",
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/testing/FakeSettingsStore.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.settings.SettingsFallbackIsolationTest"
+   ],
+   "patch": "proof/red/red-a-09.patch",
+   "tree": "9ab2d73c66ad737b943f0d06d33b9aedf8e88df1",
+   "predict": ""
+  },
+  {
+   "id": "red-a-10",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/settings",
+   "file": "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsKeystoreRefTest.kt",
+   "files": [
+    "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsKeystoreRefTest.kt",
+    "android/modules/overlay/src/test/kotlin/dev/breaker/dictation/overlay/TestData.kt",
+    "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt",
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/testing/FakeSettingsStore.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.settings.SettingsKeystoreRefTest"
+   ],
+   "patch": "proof/red/red-a-10.patch",
+   "tree": "d8312a0b9cf429910be305ef377269a30c6ec98b",
+   "predict": ""
+  },
+  {
+   "id": "red-a-11",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/settings",
+   "file": "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsLineEndingTest.kt",
+   "files": [
+    "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsLineEndingTest.kt",
+    "android/modules/overlay/src/test/kotlin/dev/breaker/dictation/overlay/TestData.kt",
+    "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt",
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/testing/FakeSettingsStore.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.settings.SettingsLineEndingTest"
+   ],
+   "patch": "proof/red/red-a-11.patch",
+   "tree": "52099c0c2940f354517cc019e8ddec65e3c3ba2e",
+   "predict": ""
+  },
+  {
+   "id": "red-a-12",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/settings",
+   "file": "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsMicrophoneAskedTest.kt",
+   "files": [
+    "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsMicrophoneAskedTest.kt",
+    "android/modules/overlay/src/test/kotlin/dev/breaker/dictation/overlay/TestData.kt",
+    "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt",
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/testing/FakeSettingsStore.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.settings.SettingsMicrophoneAskedTest"
+   ],
+   "patch": "proof/red/red-a-12.patch",
+   "tree": "33756b9ca02a59dc7f80f1f004f565e8de167beb",
+   "predict": ""
+  },
+  {
+   "id": "red-a-13",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/settings",
+   "file": "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsPersistenceTest.kt",
+   "files": [
+    "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsPersistenceTest.kt",
+    "android/modules/overlay/src/test/kotlin/dev/breaker/dictation/overlay/TestData.kt",
+    "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt",
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/testing/FakeSettingsStore.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.settings.SettingsPersistenceTest"
+   ],
+   "patch": "proof/red/red-a-13.patch",
+   "tree": "1b43dbedd5a45ab0ce066662d23755203a5689f3",
+   "predict": ""
+  },
+  {
+   "id": "red-a-14",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/settings",
+   "file": "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsShakeWakeMigrationTest.kt",
+   "files": [
+    "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsShakeWakeMigrationTest.kt",
+    "android/modules/overlay/src/test/kotlin/dev/breaker/dictation/overlay/TestData.kt",
+    "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt",
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/testing/FakeSettingsStore.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.settings.SettingsShakeWakeMigrationTest"
+   ],
+   "patch": "proof/red/red-a-14.patch",
+   "tree": "199ac12ea781175912556841ecb1516453059ca4",
+   "predict": ""
+  },
+  {
+   "id": "red-a-15",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/settings",
+   "file": "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsShakeWakeModeTest.kt",
+   "files": [
+    "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsShakeWakeModeTest.kt",
+    "android/modules/overlay/src/test/kotlin/dev/breaker/dictation/overlay/TestData.kt",
+    "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt",
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/testing/FakeSettingsStore.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.settings.SettingsShakeWakeModeTest"
+   ],
+   "patch": "proof/red/red-a-15.patch",
+   "tree": "be152e5cc7360e76f8b95e60fab23a3e4b54c4a9",
+   "predict": ""
+  },
+  {
+   "id": "red-a-16",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/settings",
+   "file": "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsWrittenKeysTest.kt",
+   "files": [
+    "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsWrittenKeysTest.kt",
+    "android/modules/overlay/src/test/kotlin/dev/breaker/dictation/overlay/TestData.kt",
+    "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt",
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/testing/FakeSettingsStore.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.settings.SettingsWrittenKeysTest"
+   ],
+   "patch": "proof/red/red-a-16.patch",
+   "tree": "680457ecb3886ba0d5abd0714a52273b5a1e1d86",
+   "predict": ""
+  },
+  {
+   "id": "red-a-17",
+   "kind": "red",
+   "item": "a",
+   "module": "android/ui",
+   "file": "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsLookTest.kt",
+   "files": [
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsLookTest.kt",
+    "android/modules/overlay/src/test/kotlin/dev/breaker/dictation/overlay/TestData.kt",
+    "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt",
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/testing/FakeSettingsStore.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.ui.screen.settings.SettingsLookTest"
+   ],
+   "patch": "proof/red/red-a-17.patch",
+   "tree": "f083ce72d28aeb55a61f3222bd534a72d082d7bf",
+   "predict": ""
+  },
+  {
+   "id": "red-a-18",
+   "kind": "red",
+   "item": "a",
+   "module": "android/ui",
+   "file": "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsScreenEditTest.kt",
+   "files": [
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsScreenEditTest.kt",
+    "android/modules/overlay/src/test/kotlin/dev/breaker/dictation/overlay/TestData.kt",
+    "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt",
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/testing/FakeSettingsStore.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.ui.screen.settings.SettingsScreenEditTest"
+   ],
+   "patch": "proof/red/red-a-18.patch",
+   "tree": "4d3ab19297a6126d0e4174c463cb37a011f8c032",
+   "predict": ""
+  },
+  {
+   "id": "red-a-19",
+   "kind": "red",
+   "item": "a",
+   "module": "android/ui",
+   "file": "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsScreenTest.kt",
+   "files": [
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsScreenTest.kt",
+    "android/modules/overlay/src/test/kotlin/dev/breaker/dictation/overlay/TestData.kt",
+    "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt",
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/testing/FakeSettingsStore.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.ui.screen.settings.SettingsScreenTest"
+   ],
+   "patch": "proof/red/red-a-19.patch",
+   "tree": "f4894e9441899bf91062cfb502cc1089649fd91a",
+   "predict": ""
+  },
+  {
+   "id": "red-a-20",
+   "kind": "red",
+   "item": "a",
+   "module": "android/ui",
+   "file": "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsShakeWakeRowTest.kt",
+   "files": [
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsShakeWakeRowTest.kt",
+    "android/modules/overlay/src/test/kotlin/dev/breaker/dictation/overlay/TestData.kt",
+    "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt",
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/testing/FakeSettingsStore.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.ui.screen.settings.SettingsShakeWakeRowTest"
+   ],
+   "patch": "proof/red/red-a-20.patch",
+   "tree": "45a85852e17d552be9a93f5949fdb24644d884e8",
+   "predict": ""
+  },
+  {
+   "id": "red-a-21",
+   "kind": "red",
+   "item": "a",
+   "module": "android/ui",
+   "file": "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsTextsTest.kt",
+   "files": [
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsTextsTest.kt",
+    "android/modules/overlay/src/test/kotlin/dev/breaker/dictation/overlay/TestData.kt",
+    "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt",
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/testing/FakeSettingsStore.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.ui.screen.settings.SettingsTextsTest"
+   ],
+   "patch": "proof/red/red-a-21.patch",
+   "tree": "94a2c26ec0b1aa355bd3f32fd4955d5050e7518f",
+   "predict": ""
+  },
+  {
+   "id": "red-b-22",
+   "kind": "red",
+   "item": "b",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/gates/TileHostWakePolicyGateTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/gates/TileHostWakePolicyGateTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.gates.TileHostWakePolicyGateTest"
+   ],
+   "patch": "proof/red/red-b-22.patch",
+   "tree": "a33c07ba9c0cb8344d1089e8dc6054730ecf761e",
+   "predict": ""
+  },
+  {
+   "id": "red-b-23",
+   "kind": "red",
+   "item": "b",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardWakeWiringTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/KeyboardWakeWiringTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.wiring.KeyboardWakeWiringTest"
+   ],
+   "patch": "proof/red/red-b-23.patch",
+   "tree": "4c77b0842679a0e05a31ef3677e2e32e46332faa",
+   "predict": ""
+  },
+  {
+   "id": "red-b-24",
+   "kind": "red",
+   "item": "b",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/wiring/WakePolicyCoordinatorTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/WakePolicyCoordinatorTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.wiring.WakePolicyCoordinatorTest"
+   ],
+   "patch": "proof/red/red-b-24.patch",
+   "tree": "8bdaae68989f2bea2ca57ca7954558b90cdf8e6f",
+   "predict": ""
+  },
+  {
+   "id": "red-b-25",
+   "kind": "red",
+   "item": "b",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/wiring/WakePolicyTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/WakePolicyTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.wiring.WakePolicyTest"
+   ],
+   "patch": "proof/red/red-b-25.patch",
+   "tree": "00a206aecf1340a92def04579ceaac554ec791af",
+   "predict": ""
+  },
+  {
+   "id": "red-g-26",
+   "kind": "red",
+   "item": "g",
+   "module": "android/ui",
+   "file": "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsShakeWakeRowTest.kt",
+   "files": [
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsShakeWakeRowTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.ui.screen.settings.SettingsShakeWakeRowTest"
+   ],
+   "patch": "proof/red/red-g-26.patch",
+   "tree": "80dd594096f9c25108079d09fe42a09fae20ed31",
+   "predict": ""
+  },
+  {
+   "id": "red-g-27",
+   "kind": "red",
+   "item": "g",
+   "module": "android/ui",
+   "file": "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsTextsTest.kt",
+   "files": [
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsTextsTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.ui.screen.settings.SettingsTextsTest"
+   ],
+   "patch": "proof/red/red-g-27.patch",
+   "tree": "444fd4041766067b1cbcf96aaf632ebb46d5990a",
+   "predict": ""
+  },
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/settings",
+   "edits": [
+    {
+     "file": "android/modules/settings/src/main/kotlin/dev/breaker/dictation/settings/SettingsPropertiesCodec.kt",
+     "anchor": "return if (SettingsValidation.booleanOrFallback(raw, true)) ShakeWakeMode.ALWAYS else ShakeWakeMode.OFF",
+     "replacement": "return if (SettingsValidation.booleanOrFallback(raw, true)) ShakeWakeMode.OFF else ShakeWakeMode.ALWAYS"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsShakeWakeMigrationTest#a file with only wake_gesture_enabled true migrates to ALWAYS",
+    "SettingsShakeWakeMigrationTest#a file with only wake_gesture_enabled false migrates to OFF",
+    "SettingsShakeWakeMigrationTest#an unparsable wake_gesture_enabled migrates to ALWAYS",
+    "SettingsShakeWakeMigrationTest#a file with the old key false loads as OFF and after one save holds shake_wake_mode OFF and no old key"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/core",
+   "edits": [
+    {
+     "file": "android/modules/core/src/main/kotlin/dev/breaker/dictation/core/model/Settings.kt",
+     "anchor": "ShakeWakeMode.KEYBOARD_ONLY -> keyboardUp",
+     "replacement": "ShakeWakeMode.KEYBOARD_ONLY -> true"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "ShakeWakeModeTest#KEYBOARD_ONLY shakes the arms exactly when the keyboard is up"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/core",
+   "edits": [
+    {
+     "file": "android/modules/core/src/main/kotlin/dev/breaker/dictation/core/model/Settings.kt",
+     "anchor": "ShakeWakeMode.ALWAYS -> true",
+     "replacement": "ShakeWakeMode.ALWAYS -> false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "ShakeWakeModeTest#ALWAYS shakes the arms whether the keyboard is up or down"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/core",
+   "edits": [
+    {
+     "file": "android/modules/core/src/main/kotlin/dev/breaker/dictation/core/model/Settings.kt",
+     "anchor": "ShakeWakeMode.OFF -> false",
+     "replacement": "ShakeWakeMode.OFF -> true"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "ShakeWakeModeTest#OFF never shakes the arms whether the keyboard is up or down"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/settings",
+   "edits": [
+    {
+     "file": "android/modules/settings/src/main/kotlin/dev/breaker/dictation/settings/SettingsPropertiesCodec.kt",
+     "anchor": "properties.getProperty(KEY_SHAKE_WAKE_MODE), ShakeWakeMode.entries.toTypedArray(), legacy,",
+     "replacement": "null, ShakeWakeMode.entries.toTypedArray(), legacy,"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsShakeWakeMigrationTest#when both keys are present the new key wins"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/settings",
+   "edits": [
+    {
+     "file": "android/modules/settings/src/main/kotlin/dev/breaker/dictation/settings/SettingsPropertiesCodec.kt",
+     "anchor": "properties[KEY_SHAKE_WAKE_MODE] = settings.shakeWakeMode.name",
+     "replacement": "properties[KEY_SHAKE_WAKE_MODE] = settings.shakeWakeMode.name\n        properties[KEY_WAKE_GESTURE_ENABLED] = \"true\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsShakeWakeModeTest#encode never writes the old wake_gesture_enabled key",
+    "SettingsWrittenKeysTest#writtenKeys matches the saved file and the hand written names",
+    "SettingsShakeWakeMigrationTest#a file with the old key false loads as OFF and after one save holds shake_wake_mode OFF and no old key"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/core",
+   "edits": [
+    {
+     "file": "android/modules/core/src/main/kotlin/dev/breaker/dictation/core/model/Settings.kt",
+     "anchor": "val showTileOnKeyboard: Boolean = true,",
+     "replacement": "val showTileOnKeyboard: Boolean = false,"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "ShakeWakeModeTest#a fresh settings value shakes ALWAYS and shows the tile on a keyboard",
+    "SettingsShakeWakeModeTest#an absent show_tile_on_keyboard loads as true"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/settings",
+   "edits": [
+    {
+     "file": "android/modules/settings/src/main/kotlin/dev/breaker/dictation/settings/SettingsPropertiesCodec.kt",
+     "anchor": "properties.getProperty(KEY_SHOW_TILE_ON_KEYBOARD), defaults.showTileOnKeyboard,",
+     "replacement": "properties.getProperty(KEY_SHAKE_WAKE_MODE), defaults.showTileOnKeyboard,"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsShakeWakeModeTest#show_tile_on_keyboard false loads as false"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/settings",
+   "edits": [
+    {
+     "file": "android/modules/settings/src/main/kotlin/dev/breaker/dictation/settings/SettingsPropertiesCodec.kt",
+     "anchor": "        KEY_SHOW_TILE_ON_KEYBOARD,",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsWrittenKeysTest#writtenKeys matches the saved file and the hand written names"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-10",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/core",
+   "edits": [
+    {
+     "file": "android/modules/core/src/main/kotlin/dev/breaker/dictation/core/model/Settings.kt",
+     "anchor": "val shakeWakeMode: ShakeWakeMode = ShakeWakeMode.ALWAYS,",
+     "replacement": "val shakeWakeMode: ShakeWakeMode = ShakeWakeMode.KEYBOARD_ONLY,"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "ShakeWakeModeTest#a fresh settings value shakes ALWAYS and shows the tile on a keyboard",
+    "SettingsDefaultsTest#a missing file loads the core defaults"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-11",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/settings",
+   "edits": [
+    {
+     "file": "android/modules/settings/src/main/kotlin/dev/breaker/dictation/settings/SettingsPropertiesCodec.kt",
+     "anchor": "SettingsValidation.booleanOrFallback(raw, true)",
+     "replacement": "SettingsValidation.booleanOrFallback(raw, false)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsShakeWakeMigrationTest#an unparsable wake_gesture_enabled migrates to ALWAYS"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-12",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/settings",
+   "edits": [
+    {
+     "file": "android/modules/settings/src/main/kotlin/dev/breaker/dictation/settings/SettingsPropertiesCodec.kt",
+     "anchor": "val legacy = legacyShakeWakeMode(properties) ?: fallback",
+     "replacement": "val legacy = legacyShakeWakeMode(properties) ?: ShakeWakeMode.OFF"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsShakeWakeMigrationTest#a file with neither shake key loads ALWAYS",
+    "SettingsDefaultsTest#a missing file loads the core defaults"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-13",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/core",
+   "edits": [
+    {
+     "file": "android/modules/core/src/main/kotlin/dev/breaker/dictation/core/model/Settings.kt",
+     "anchor": "enum class ShakeWakeMode { ALWAYS, KEYBOARD_ONLY, OFF }",
+     "replacement": "enum class ShakeWakeMode { KEYBOARD_ONLY, ALWAYS, OFF }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "ShakeWakeModeTest#ShakeWakeMode has exactly the three values in order"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-14",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/core",
+   "edits": [
+    {
+     "file": "android/modules/core/src/main/kotlin/dev/breaker/dictation/core/model/Settings.kt",
+     "anchor": "ShakeWakeMode.KEYBOARD_ONLY -> keyboardUp",
+     "replacement": "ShakeWakeMode.KEYBOARD_ONLY -> !keyboardUp"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "ShakeWakeModeTest#KEYBOARD_ONLY shakes the arms exactly when the keyboard is up"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-15",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/settings",
+   "edits": [
+    {
+     "file": "android/modules/settings/src/main/kotlin/dev/breaker/dictation/settings/SettingsPropertiesCodec.kt",
+     "anchor": "KEY_SHOW_TILE_ON_KEYBOARD = \"show_tile_on_keyboard\"",
+     "replacement": "KEY_SHOW_TILE_ON_KEYBOARD = \"wake_gesture_enabled\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsShakeWakeModeTest#show_tile_on_keyboard false loads as false",
+    "SettingsShakeWakeModeTest#show_tile_on_keyboard is never read from the old key"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-16",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/settings",
+   "edits": [
+    {
+     "file": "android/modules/settings/src/main/kotlin/dev/breaker/dictation/settings/SettingsPropertiesCodec.kt",
+     "anchor": "properties[KEY_SHOW_TILE_ON_KEYBOARD] = settings.showTileOnKeyboard.toString()",
+     "replacement": "properties[KEY_SHOW_TILE_ON_KEYBOARD] = (!settings.showTileOnKeyboard).toString()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsShakeWakeModeTest#every shake wake mode and both switch values survive a new store instance over the same file"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-17",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/core",
+   "edits": [
+    {
+     "file": "android/modules/core/src/main/kotlin/dev/breaker/dictation/core/model/Settings.kt",
+     "anchor": "fun ShakeWakeMode.shakeArms(keyboardUp: Boolean): Boolean = when (this) {",
+     "replacement": "fun ShakeWakeMode.shakeArms(keyboardUp: Int): Boolean = when (this) {"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-18",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/core",
+   "edits": [
+    {
+     "file": "android/modules/core/src/main/kotlin/dev/breaker/dictation/core/model/Settings.kt",
+     "anchor": "val showTileOnKeyboard: Boolean = true,",
+     "replacement": "val showTileOnKeyboard: Int = 1,"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-19",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/settings",
+   "edits": [
+    {
+     "file": "android/modules/settings/src/main/kotlin/dev/breaker/dictation/settings/SettingsPropertiesCodec.kt",
+     "anchor": "shakeWakeMode = decodeShakeWakeMode(properties, defaults.shakeWakeMode),",
+     "replacement": "shakeWakeMode = decodeShakeWakeMode(properties, ShakeWakeMode.OFF),"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsDefaultsTest#a missing file loads the core defaults",
+    "SettingsShakeWakeMigrationTest#a file with neither shake key loads ALWAYS"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-20",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/settings",
+   "edits": [
+    {
+     "file": "android/modules/settings/src/main/kotlin/dev/breaker/dictation/settings/SettingsPropertiesCodec.kt",
+     "anchor": "properties.getProperty(KEY_SHOW_TILE_ON_KEYBOARD), defaults.showTileOnKeyboard,",
+     "replacement": "properties.getProperty(KEY_SHOW_TILE_ON_KEYBOARD), false,"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsFallbackIsolationTest#an unparseable boolean falls back alone",
+    "SettingsShakeWakeMigrationTest#an unparsable new key with no legacy key falls back to ALWAYS",
+    "SettingsShakeWakeModeTest#an unparseable shake wake name falls back alone"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-21",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/settings",
+   "edits": [
+    {
+     "file": "android/modules/settings/src/main/kotlin/dev/breaker/dictation/settings/SettingsPropertiesCodec.kt",
+     "anchor": "properties.getProperty(KEY_SHOW_TILE_ON_KEYBOARD), defaults.showTileOnKeyboard,",
+     "replacement": "properties.getProperty(KEY_WAKE_GESTURE_ENABLED), defaults.showTileOnKeyboard,"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsShakeWakeModeTest#show_tile_on_keyboard is never read from the old key"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-22",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/settings",
+   "edits": [
+    {
+     "file": "android/modules/settings/src/main/kotlin/dev/breaker/dictation/settings/SettingsPropertiesCodec.kt",
+     "anchor": "properties.getProperty(KEY_SHAKE_WAKE_MODE), ShakeWakeMode.entries.toTypedArray(), legacy,",
+     "replacement": "properties.getProperty(KEY_SHAKE_WAKE_MODE), ShakeWakeMode.entries.toTypedArray(), ShakeWakeMode.ALWAYS,"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsShakeWakeMigrationTest#an unparsable new key falls back to the legacy value when it is present"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-23",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsSwitchRows.kt",
+     "anchor": "            cells = ShakeWakeMode.entries.map { shakeWakeCell(it, held) },",
+     "replacement": "            cells = ShakeWakeMode.entries.reversed().map { shakeWakeCell(it, held) },"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsShakeWakeRowTest#the shake to wake row holds three cells in the order Always, Keyboard only, Off for every stored mode"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-24",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsSwitchRows.kt",
+     "anchor": "    intent = ScreenIntent.SetSetting(SettingsIds.KEY_SHAKE_WAKE, mode.name),",
+     "replacement": "    intent = ScreenIntent.SetSetting(SettingsIds.KEY_SHAKE_WAKE, ShakeWakeMode.OFF.name),"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsShakeWakeRowTest#each shake to wake cell asks for the shake key with its own mode name"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-25",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsSwitchRows.kt",
+     "anchor": "    selected = held.shakeWakeMode == mode,",
+     "replacement": "    selected = held.shakeWakeMode != mode,"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsShakeWakeRowTest#exactly one shake to wake cell is selected and it is the stored mode"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-26",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsSwitchRows.kt",
+     "anchor": "    ShakeWakeMode.KEYBOARD_ONLY -> SettingsTexts.SHAKE_KEYBOARD_ONLY",
+     "replacement": "    ShakeWakeMode.KEYBOARD_ONLY -> SettingsTexts.SHAKE_ALWAYS"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsShakeWakeRowTest#the shake to wake row holds three cells in the order Always, Keyboard only, Off for every stored mode"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-27",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsSwitchRows.kt",
+     "anchor": "        on = current,",
+     "replacement": "        on = !current,"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsShakeWakeRowTest#the keyboard switch sits under the shake row and carries its key and the stored value",
+    "SettingsLookTest#each switch row carries its label help state and the opposite intent",
+    "SettingsScreenTest#each switch asks for its own key at the opposite of its current value"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-28",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsSwitchRows.kt",
+     "anchor": "        intent = ScreenIntent.SetSetting(key, (!current).toString()),",
+     "replacement": "        intent = ScreenIntent.SetSetting(key, current.toString()),"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsShakeWakeRowTest#the keyboard switch sits under the shake row and carries its key and the stored value",
+    "SettingsLookTest#each switch row carries its label help state and the opposite intent",
+    "SettingsScreenTest#each switch asks for its own key at the opposite of its current value"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-29",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsSwitchRows.kt",
+     "anchor": "        keyboardRow(held),",
+     "replacement": "        formattingRow(held),"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsLookTest#the blocks come in the agreed order and each block holds its rows in order",
+    "SettingsShakeWakeRowTest#the keyboard switch sits under the shake row and carries its key and the stored value"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-30",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsSwitchRows.kt",
+     "anchor": "        formattingRow(held),",
+     "replacement": "        formattingRow(held),\n        keyboardRow(held),"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsLookTest#the blocks come in the agreed order and each block holds its rows in order"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-31",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsSwitchRows.kt",
+     "anchor": "        TrimStripe(SettingsIds.HAIRLINE_KEYBOARD),",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsLookTest#the blocks come in the agreed order and each block holds its rows in order"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-32",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsBlocks.kt",
+     "anchor": "    const val KEY_SHOW_TILE = \"showTileOnKeyboard\"",
+     "replacement": "    const val KEY_SHOW_TILE = \"preloadModel\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsScreenEditTest#each switch key changes exactly its own field and keeps every other field",
+    "SettingsLookTest#each switch row carries its label help state and the opposite intent",
+    "SettingsScreenTest#each switch asks for its own key at the opposite of its current value",
+    "SettingsShakeWakeRowTest#the keyboard switch sits under the shake row and carries its key and the stored value"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-33",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsBlocks.kt",
+     "anchor": "    const val KEY_SHAKE_WAKE = \"shakeWakeMode\"",
+     "replacement": "    const val KEY_SHAKE_WAKE = \"shakeWake\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsShakeWakeRowTest#each shake to wake cell asks for the shake key with its own mode name",
+    "SettingsScreenEditTest#each shake to wake mode name sets that mode and keeps every other field"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-34",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsBlocks.kt",
+     "anchor": "    const val SHAKE_WAKE_CELLS = \"settings.shakeWake.cells\"",
+     "replacement": "    const val SHAKE_WAKE_CELLS = \"settings.shakeWake.row\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsShakeWakeRowTest#the shake to wake row holds three cells in the order Always, Keyboard only, Off for every stored mode",
+    "SettingsShakeWakeRowTest#exactly one shake to wake cell is selected and it is the stored mode",
+    "SettingsShakeWakeRowTest#each shake to wake cell asks for the shake key with its own mode name"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-35",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsScreen.kt",
+     "anchor": "        is ScreenIntent.SetSetting -> if (intent.key == SettingsIds.KEY_SHAKE_WAKE) shakeEdit(intent.value) else booleanEdit(intent.key, intent.value)",
+     "replacement": "        is ScreenIntent.SetSetting -> if (intent.key == SettingsIds.KEY_SHAKE_WAKE) booleanEdit(intent.key, intent.value) else booleanEdit(intent.key, intent.value)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsScreenEditTest#each shake to wake mode name sets that mode and keeps every other field"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-36",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsScreen.kt",
+     "anchor": "        ShakeWakeMode.entries.firstOrNull { it.name == mode }",
+     "replacement": "        ShakeWakeMode.entries.firstOrNull { it.name == mode } ?: ShakeWakeMode.OFF"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsScreenEditTest#a shake to wake name that is not one of the three is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-37",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsScreen.kt",
+     "anchor": "        ShakeWakeMode.entries.firstOrNull { it.name == mode }",
+     "replacement": "        ShakeWakeMode.entries.firstOrNull { it.name.equals(mode, ignoreCase = true) }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsScreenEditTest#a shake to wake name that is not one of the three is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-38",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsScreen.kt",
+     "anchor": "            SettingsIds.KEY_SHOW_TILE -> { settings -> settings.copy(showTileOnKeyboard = asked) }",
+     "replacement": "            SettingsIds.KEY_SHOW_TILE -> { settings -> settings.copy(preloadModel = asked) }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsScreenEditTest#each switch key changes exactly its own field and keeps every other field"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-39",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsScreen.kt",
+     "anchor": "        val asked = value.toBooleanStrictOrNull() ?: return null",
+     "replacement": "        val asked = value.toBooleanStrictOrNull() ?: (value == \"ALWAYS\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsScreenEditTest#the shake key refuses a boolean and the keyboard switch refuses a mode name"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-40",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsScreen.kt",
+     "anchor": "        val asked = value.toBooleanStrictOrNull() ?: return null",
+     "replacement": "        val asked = value.toBooleanStrictOrNull() ?: value.equals(\"on\", ignoreCase = true)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsScreenEditTest#a value that is not exactly what a switch sends is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-41",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsScreen.kt",
+     "anchor": "            SettingsIds.KEY_SHOW_TILE -> { settings -> settings.copy(showTileOnKeyboard = asked) }",
+     "replacement": "            \"wakeGestureEnabled\" -> { settings -> settings.copy(showTileOnKeyboard = asked) }\n            SettingsIds.KEY_SHOW_TILE -> { settings -> settings.copy(showTileOnKeyboard = asked) }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsScreenEditTest#a key the screen offers no switch for is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-42",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsTexts.kt",
+     "anchor": "    const val SHAKE_OFF = \"Off\"",
+     "replacement": "    const val SHAKE_OFF = \"OFF\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsShakeWakeRowTest#the shake to wake row holds three cells in the order Always, Keyboard only, Off for every stored mode",
+    "SettingsTextsTest#every new settings text equals its approved words exactly"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-43",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsTexts.kt",
+     "anchor": "    const val SHOW_TILE_HELP = \"The tile comes up by itself when a keyboard opens over a text field.\"",
+     "replacement": "    const val SHOW_TILE_HELP = \"The tile comes up by itself when a keyboard opens over a text field\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsShakeWakeRowTest#the keyboard switch carries its label and help line",
+    "SettingsTextsTest#every new settings text equals its approved words exactly",
+    "SettingsLookTest#each switch row carries its label help state and the opposite intent"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-44",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsTexts.kt",
+     "anchor": "    const val SHOW_TILE_LABEL = \"Show the tile when the keyboard opens\"",
+     "replacement": "    const val SHOW_TILE_LABEL = \"Show the tile when a keyboard opens\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsShakeWakeRowTest#the keyboard switch carries its label and help line",
+    "SettingsTextsTest#every new settings text equals its approved words exactly",
+    "SettingsLookTest#each switch row carries its label help state and the opposite intent"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-45",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsTexts.kt",
+     "anchor": "    const val SHAKE_WAKE_LABEL = \"Shake to wake\"",
+     "replacement": "    const val SHAKE_WAKE_LABEL = \"Shake to wake up\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsShakeWakeRowTest#the shake to wake label and help line carry the exact sentences",
+    "SettingsTextsTest#every new settings text equals its approved words exactly"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-46",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileWiring.kt",
+     "anchor": "    fun shakeMayShow(): Boolean = settings().shakeWakeMode.shakeArms(keyboardUp)",
+     "replacement": "    fun shakeMayShow(): Boolean = true"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "keyboard only mode refuses a shake with the keyboard down",
+    "off mode refuses a shake with the keyboard down",
+    "off mode refuses a shake with the keyboard up",
+    "off mode makes a shake with the tile hidden show nothing",
+    "keyboard only refuses a shake when no keyboard window is up",
+    "keyboard only refuses a shake after the keyboard window has gone",
+    "keyboard only refuses a shake before any keyboard reading",
+    "keyboard only refuses a shake after the signal is lost",
+    "both off means neither a shake nor a keyboard reading shows the tile"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-47",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileWiring.kt",
+     "anchor": "    fun shakeMayShow(): Boolean = settings().shakeWakeMode.shakeArms(keyboardUp)",
+     "replacement": "    fun shakeMayShow(): Boolean = settings().shakeWakeMode.shakeArms(true)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "keyboard only mode refuses a shake with the keyboard down",
+    "keyboard only refuses a shake when no keyboard window is up",
+    "keyboard only refuses a shake after the keyboard window has gone",
+    "keyboard only refuses a shake before any keyboard reading",
+    "keyboard only refuses a shake after the signal is lost"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-48",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileWiring.kt",
+     "anchor": "    fun shakeMayShow(): Boolean = settings().shakeWakeMode.shakeArms(keyboardUp)",
+     "replacement": "    fun shakeMayShow(): Boolean = settings().shakeWakeMode.shakeArms(keyboardUp) && keyboardUp"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "always mode lets a shake show with the keyboard down",
+    "always mode shows a closed tile on a shake as before",
+    "keyboard switch off leaves a shake in always mode able to show the tile"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-49",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileWiring.kt",
+     "anchor": "        keyboardUp = imeWindow",
+     "replacement": "        keyboardUp = keyboardUp"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a window reading sets the keyboard flag that keyboard only reads",
+    "keyboard only shows a closed tile on a shake while a keyboard window is up",
+    "a reading with the keyboard window up sets the policy flag",
+    "the baseline seeds the policy flag before any new reading",
+    "the policy flag is set before the keyboard entry is called"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-50",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileWiring.kt",
+     "anchor": "        keyboardUp = false",
+     "replacement": "        Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a lost signal clears the keyboard flag",
+    "keyboard only refuses a shake after the signal is lost",
+    "a null reading clears the policy flag and does not call the keyboard entry"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-51",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileWiring.kt",
+     "anchor": "    fun keyboardMayRaise(): Boolean = settings().showTileOnKeyboard",
+     "replacement": "    fun keyboardMayRaise(): Boolean = true"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "keyboard raise follows the keyboard switch",
+    "keyboard switch off stops a keyboard reading from raising the tile"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-52",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileWiring.kt",
+     "anchor": "    fun keyboardMayRaise(): Boolean = settings().showTileOnKeyboard",
+     "replacement": "    fun keyboardMayRaise(): Boolean = settings().showTileOnKeyboard && shakeMayShow()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "keyboard raise follows the keyboard switch",
+    "shake off with the keyboard switch on still lets a keyboard reading raise the tile"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-53",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileWiring.kt",
+     "anchor": "internal class WakePolicy(private val settings: () -> AppSettings) {",
+     "replacement": "internal class WakePolicy(settingsNow: () -> AppSettings) {\n    private val settings: () -> AppSettings = settingsNow().let { once -> { once } }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a changed settings answer is seen by the next check",
+    "a settings change between two shakes is honoured by the second shake"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-54",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileWiring.kt",
+     "anchor": "        fun permissive(): WakePolicy = WakePolicy { AppSettings() }",
+     "replacement": "        fun permissive(): WakePolicy = WakePolicy { AppSettings(showTileOnKeyboard = false) }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the permissive policy is always mode with the keyboard switch on",
+    "the default policy keeps keyboard show and hide as before",
+    "a keyboard show brings up a fresh not-yet-shown tile",
+    "a keyboard hide takes the tile off screen",
+    "a close during a take drops the held hide, so the take end applies no hide",
+    "a keyboard gone reading while a take records keeps the tile up"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-55",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "    fun onShake() = tileShowGuard.onShake(tileMayShow() && wake.shakeMayShow(), tileShown) { shown ->",
+     "replacement": "    fun onShake() = tileShowGuard.onShake(wake.shakeMayShow() && tileMayShow(), tileShown) { shown ->"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a shake while a take is in flight reads no settings"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-56",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "    fun onShake() = tileShowGuard.onShake(tileMayShow() && wake.shakeMayShow(), tileShown) { shown ->",
+     "replacement": "    fun onShake() = tileShowGuard.onShake(tileMayShow() && wake.keyboardMayRaise(), tileShown) { shown ->"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "off mode makes a shake with the tile hidden show nothing",
+    "keyboard only refuses a shake when no keyboard window is up",
+    "keyboard only refuses a shake after the keyboard window has gone",
+    "keyboard only refuses a shake before any keyboard reading",
+    "keyboard only refuses a shake after the signal is lost",
+    "keyboard switch off leaves a shake in always mode able to show the tile"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-57",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "            is KeyboardDecision.Show -> if (keyboardAutoPop && wake.keyboardMayRaise()) {",
+     "replacement": "            is KeyboardDecision.Show -> if (keyboardAutoPop && wake.keyboardMayRaise() && wake.shakeMayShow()) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "shake off with the keyboard switch on still lets a keyboard reading raise the tile"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-58",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "            is KeyboardDecision.Show -> if (keyboardAutoPop && wake.keyboardMayRaise()) {",
+     "replacement": "            is KeyboardDecision.Show -> if (keyboardAutoPop) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "keyboard switch off stops a keyboard reading from raising the tile",
+    "both off means neither a shake nor a keyboard reading shows the tile"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-59",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "internal var wake: WakePolicy = WakePolicy.permissive()",
+     "replacement": "internal var wake: WakePolicy? = null"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-60",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/host/TileHost.kt",
+     "anchor": "        c.wake = wake",
+     "replacement": "        c.wake = WakePolicy.permissive()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every wake policy rule holds on the real tile host"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-61",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/host/TileHost.kt",
+     "anchor": "main, wake)",
+     "replacement": "main)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every wake policy rule holds on the real tile host"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-62",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileWiring.kt",
+     "anchor": "        wake?.onReading(baseline?.imeWindow ?: false)",
+     "replacement": "        wake?.onReading(false)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the baseline seeds the policy flag before any new reading"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-63",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileWiring.kt",
+     "anchor": "                    wake?.let { policy -> post.post { policy.onSignalLost() } }",
+     "replacement": "                    post.post { readEntry(false, false, 0L) }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a null reading clears the policy flag and does not call the keyboard entry",
+    "without a policy a null reading posts nothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-64",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileWiring.kt",
+     "anchor": "                    wake?.let { policy -> post.post { policy.onSignalLost() } }",
+     "replacement": "                    Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a null reading clears the policy flag and does not call the keyboard entry"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-65",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileWiring.kt",
+     "anchor": "        wake?.onReading(reading.imeWindow)\n        readEntry(reading.imeWindow, reading.fieldFocus, reading.time)",
+     "replacement": "        readEntry(reading.imeWindow, reading.fieldFocus, reading.time)\n        wake?.onReading(reading.imeWindow)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the policy flag is set before the keyboard entry is called"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-66",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileWiring.kt",
+     "anchor": "        wake?.onReading(reading.imeWindow)",
+     "replacement": "        Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a reading with the keyboard window up sets the policy flag",
+    "a reading without the keyboard window clears the policy flag",
+    "the policy flag is set before the keyboard entry is called"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-67",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileWiring.kt",
+     "anchor": "                    wake?.let { policy -> post.post { policy.onSignalLost() } }",
+     "replacement": "                    post.post { }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a null reading clears the policy flag and does not call the keyboard entry",
+    "without a policy a null reading posts nothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-68",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsTexts.kt",
+     "anchor": "open (needs the keyboard tile permission). \" +",
+     "replacement": "open. \" +"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsTextsTest#every new settings text equals its approved words exactly",
+    "SettingsShakeWakeRowTest#the shake to wake label and help line carry the exact sentences"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-69",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsTexts.kt",
+     "anchor": "(needs the keyboard tile permission)",
+     "replacement": "(needs the keyboard tile permissions)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsTextsTest#every new settings text equals its approved words exactly",
+    "SettingsShakeWakeRowTest#the shake to wake label and help line carry the exact sentences"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-70",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsTexts.kt",
+     "anchor": "open (needs the keyboard tile permission). \" +\n        \"Off: shaking does nothing.\"",
+     "replacement": "open. \" +\n        \"Off: shaking does nothing. (needs the keyboard tile permission).\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsTextsTest#every new settings text equals its approved words exactly",
+    "SettingsShakeWakeRowTest#the shake to wake label and help line carry the exact sentences"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-71",
+   "kind": "mut",
+   "item": "g",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsTexts.kt",
+     "anchor": "open (needs",
+     "replacement": "open(needs"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsTextsTest#every new settings text equals its approved words exactly",
+    "SettingsShakeWakeRowTest#the shake to wake label and help line carry the exact sentences"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-72",
+   "kind": "mut",
+   "item": "h",
+   "module": "android/modules/settings",
+   "edits": [
+    {
+     "file": "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt",
+     "anchor": "        key != CREDENTIAL_GUARD_EXEMPT_KEY &&",
+     "replacement": "        key.isNotEmpty() &&"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsKeystoreRefTest#`saving a reference adds no credential key to the file`",
+    "SettingsKeystoreRefTest#`saving a reference leaves nothing secret-shaped behind`",
+    "SettingsPersistenceTest#`a saved file carries exactly the saved keys and no credential key`",
+    "SettingsWrittenKeysTest#`the credential guard allows only the keyboard switch key by exact name`"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-73",
+   "kind": "mut",
+   "item": "h",
+   "module": "android/modules/settings",
+   "edits": [
+    {
+     "file": "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt",
+     "anchor": "        key != CREDENTIAL_GUARD_EXEMPT_KEY &&",
+     "replacement": "        !key.startsWith(CREDENTIAL_GUARD_EXEMPT_KEY) &&"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsWrittenKeysTest#`the credential guard allows only the keyboard switch key by exact name`"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-74",
+   "kind": "mut",
+   "item": "h",
+   "module": "android/modules/settings",
+   "edits": [
+    {
+     "file": "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt",
+     "anchor": "        key != CREDENTIAL_GUARD_EXEMPT_KEY &&",
+     "replacement": "        !key.endsWith(CREDENTIAL_GUARD_EXEMPT_KEY) &&"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsWrittenKeysTest#`the credential guard allows only the keyboard switch key by exact name`"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-75",
+   "kind": "mut",
+   "item": "h",
+   "module": "android/modules/settings",
+   "edits": [
+    {
+     "file": "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt",
+     "anchor": "        key != CREDENTIAL_GUARD_EXEMPT_KEY &&",
+     "replacement": "        !key.contains(\"keyboard\") &&"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsWrittenKeysTest#`the credential guard allows only the keyboard switch key by exact name`"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-76",
+   "kind": "mut",
+   "item": "h",
+   "module": "android/modules/settings",
+   "edits": [
+    {
+     "file": "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt",
+     "anchor": "        key != CREDENTIAL_GUARD_EXEMPT_KEY &&",
+     "replacement": "        !key.equals(CREDENTIAL_GUARD_EXEMPT_KEY, ignoreCase = true) &&"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsWrittenKeysTest#`the credential guard allows only the keyboard switch key by exact name`"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-77",
+   "kind": "mut",
+   "item": "h",
+   "module": "android/modules/settings",
+   "edits": [
+    {
+     "file": "android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt",
+     "anchor": "internal const val CREDENTIAL_GUARD_EXEMPT_KEY = \"show_tile_on_keyboard\"",
+     "replacement": "internal const val CREDENTIAL_GUARD_EXEMPT_KEY = \"show_tile_on_keybaord\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SettingsKeystoreRefTest#`saving a reference adds no credential key to the file`",
+    "SettingsKeystoreRefTest#`saving a reference leaves nothing secret-shaped behind`",
+    "SettingsPersistenceTest#`a saved file carries exactly the saved keys and no credential key`",
+    "SettingsWrittenKeysTest#`the credential guard allows only the keyboard switch key by exact name`"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-78",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/overlay",
+   "edits": [
+    {
+     "file": "android/modules/overlay/src/main/kotlin/dev/breaker/dictation/overlay/TileController.kt",
+     "anchor": "            settings.save(settings.load().copy(tilePosition = position))",
+     "replacement": "            settings.save(settings.load().copy(tilePosition = position, shakeWakeMode = dev.breaker.dictation.core.model.ShakeWakeMode.ALWAYS))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "dev.breaker.dictation.overlay.TileControllerPersistTest#every other setting is kept when the position is saved"
+   ],
+   "rule": "pins red-a-05: the position save must keep the new shake mode (fixture seeds OFF)",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "android/app",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/DictationRunner.kt",
+     "anchor": "        if (idle.state != DictationState.IDLE) return BeginResult.Refused(RunnerSentences.BUSY)\n",
+     "replacement": "        return BeginResult.Refused(RunnerSentences.BUSY)\n"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "android/app",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/DictationRunner.kt",
+     "anchor": "        if (idle.state != DictationState.IDLE) return BeginResult.Refused(RunnerSentences.BUSY)\n",
+     "replacement": "        if (idle.state != DictationState.IDLE) return BeginResult.Refused(RunnerSentences.BUSY) // unchanged behaviour\n"
+    }
+   ]
+  }
+ ]
+}

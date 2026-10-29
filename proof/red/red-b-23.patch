@@ -1,0 +1,1087 @@
+diff --git a/ARCHITECTURE.md b/ARCHITECTURE.md
+index ee334d8d..54b5ef39 100644
+--- a/ARCHITECTURE.md
++++ b/ARCHITECTURE.md
+@@ -74,10 +74,8 @@ admins.
+       **recording starts automatically**. A **shake** only brings the floating tile
+       up: it never starts recording and never opens the microphone, so a bump in a
+       moving vehicle cannot start a recording. A tap on the tile starts recording.
+-      A shake works from any app and, under the Always choice, with the keyboard open.
+-      Under Keyboard only it works only while a keyboard window is up; under Off it never shows
+-      the tile. It keeps working whether or not the tile is on screen, for as long as dictation
+-      is switched on.
++      A shake works from any app and with the keyboard open, and keeps working
++      whether or not the tile is on screen, for as long as dictation is switched on.
+ - F5. **"And I'm Gone"** (voice phrase) OR tap tile → stop + send → commit text to
+       focused field.
+ - F6. If no text field is focused, or the accessibility insert is refused →
+@@ -88,7 +86,7 @@ admins.
+ - F9. The send phrase "And I'm Gone" is excluded from the transcription (audio
+       trimmed at phrase onset).
+ - F10. Settings: mode, model size, server URL/API key, voice phrases on/off,
+-      shake to wake (always, keyboard only or off), keyboard tile switch on/off, formatting on/off, tile position, language.
++      shake on/off, formatting on/off, tile position, language.
+ - F11. On first open, the app shows a short welcome (its content is not fixed
+       here), then asks for each permission it needs (microphone, display over
+       other apps, notifications, accessibility service) on a screen of its
+@@ -178,7 +176,7 @@ admins.
+       into the field (ADR-022).
+ - F38. **Close the tile by dragging:** dragging the small tile shows a close
+       target (an X in a circle) near the bottom of the screen; dropping the tile on
+-      it hides the tile. Dictation stays switched on, so a shake brings the tile back when the shake to wake choice allows it,
++      it hides the tile. Dictation stays switched on, so a shake brings the tile back,
+       and "Breaker Breaker" brings it back and starts recording (F4); opening Breaker from its icon
+       shows it again. Switching dictation off stays in the notification and the app.
+ - F39. **Busy cue:** from the check tap until the final outcome the tile shows
+@@ -188,9 +186,9 @@ admins.
+       loud the voice is; the app works out the level from the audio it already
+       receives and passes it to the tile (ADR-024).
+ - F41. **Hide without a keyboard:** the tile comes up by itself when a keyboard opens over
+-      an editable text field, while dictation and the keyboard tile switch are switched on. It goes away when the keyboard
++      an editable text field, while dictation is switched on. It goes away when the keyboard
+       that brought it up goes. A tile the user closes while that keyboard is up stays closed
+-      until the next keyboard session, and a shake still brings it back when the shake to wake choice allows it (F4, F38).
++      until the next keyboard session, and a shake still brings it back (F4, F38).
+ - F42. **Normal-looking text:** a transcript the speech engine prints entirely in
+       capitals is turned into lower case, with the capital "I" restored, before it
+       is formatted (ADR-023).
+@@ -425,7 +423,7 @@ routes it, so no audio waits on a probe and none is dropped (ADR-002).
+ **Gesture (shake-to-wake):** `SensorManager` accelerometer; shake = high-pass
+ filtered magnitude threshold crossings in a 500 ms window. The detector stays
+ registered for as long as dictation is switched on, whatever the tile shows and
+-whether or not the keyboard is up; a detection means "show the tile" when the shake to wake choice allows it, and never begins a recording (F4). Only
++whether or not the keyboard is up; a detection always means "show the tile" and never begins a recording (F4). Only
+ switching dictation off, or the system stopping the app in the background (F12),
+ ends it.
+ 
+@@ -477,8 +475,8 @@ as it is; no keyboard window hides the tile only when the session raised it. A r
+ of the last acted change is held, and the newest held reading is acted on once when that window ends.
+ The readings come from the accessibility service on each window
+ event: the keyboard window is an input-method window in the window list, and the field is the
+-input-focused node's editable flag. No text is read. A keyboard show needs the keyboard tile switch on and goes through the same take check as a
+-shake (dictation switched on and no take in flight). The shake to wake choice decides a shake, and the keyboard tile switch decides a keyboard show. A hide that comes during a take is held and
++input-focused node's editable flag. No text is read. A keyboard show goes through the same check as a
++shake (dictation switched on and no take in flight). A hide that comes during a take is held and
+ applied once when the take ends, if the keyboard is still gone. A keyboard show drops a held hide.
+ A reading held when a take starts is acted at once, and a hide it brings is held to the take end.
+ The bottom inset is not an input of the decision.
+diff --git a/android/app/AGENTS.md b/android/app/AGENTS.md
+index 09d44998..d944c120 100644
+--- a/android/app/AGENTS.md
++++ b/android/app/AGENTS.md
+@@ -50,7 +50,7 @@ app-level composition of all modules. Concretely, the app's own types are:
+   - `LevelFeed` - the `LevelSink` that carries a level from the audio dispatch thread to the tile on the main thread, through `MainPost`. The posted block forwards the level only while the take's session state is `RECORDING` at that moment (`TRANSCRIBING` is excluded), so the state is read on main.
+   - `TilePorts.kt` - the ports of the tile: `TileShow`, `TilePort`, `MainPost`, `Background`, `TakePort`, `ModelReady`, `ModelNotice`, `Opener`, and `ROUTE_MODEL_VALUE` ("model", equal to `NotificationRoute.ROUTE_MODEL`). `TakePort` also has `resetAfterTaken`, which `TakePortAdapter` passes to the runner.
+   - `tileStateFor` - the one function that decides which state the tile shows; the busy face of a taken take (`micBusy`) comes after the off switch and before the sending, failed and sent states.
+-  - `TileCoordinator` - what each tap does and which state the tile shows: `onArmedChanged`, `onBegin`, `onShake` (a shake shows a closed or hidden tile when the shake to wake choice allows it, and begins nothing), `onCancel`, `onSend`, `onTap`, `onTakeEnded` (wired through `MainPost` when the mic ends by itself) and `onTakeMicTaken` (wired through `MainPost` by the tile host, for a take cut by the microphone); `onBegin` also needs the tile to be showing, so a failed or refused show means no begin. It is called on the main thread only; the take runs through `Background` and the answers come back through `MainPost`. `TakePortAdapter` presents the runner as a `TakePort`.
++  - `TileCoordinator` - what each tap does and which state the tile shows: `onArmedChanged`, `onBegin`, `onShake` (a shake shows a closed or hidden tile and begins nothing), `onCancel`, `onSend`, `onTap`, `onTakeEnded` (wired through `MainPost` when the mic ends by itself) and `onTakeMicTaken` (wired through `MainPost` by the tile host, for a take cut by the microphone); `onBegin` also needs the tile to be showing, so a failed or refused show means no begin. It is called on the main thread only; the take runs through `Background` and the answers come back through `MainPost`. `TakePortAdapter` presents the runner as a `TakePort`.
+   - `TakeYield.kt` (`TakeYieldController`, internal): the taken branch of the coordinator, with the busy face flag, the lead line at the cut, the finish, reset and save on the background, and the copy and the settle line on the main thread (invariants 19 to 24). The settle always runs, even when the save to history fails.
+   - `TakenClipboard.kt` - the one-method seam a taken take copies through (`copy(text)`), main thread only; the Android copy is `TakenClipboardAndroid` in the host package, built by `appTakenClipboard(context)`.
+   - `TakenSentences.kt` - the pinned lines of a taken take (`LEAD`, `SAVED_AND_COPIED`, `TAKEN_NOTHING_HEARD`, `NOT_CONVERTED`, `COPIED_NOT_SAVED` and `STILL_TAKEN`), Kotlin constants, not string resources.
+@@ -200,7 +200,7 @@ code.
+ - **Emulator gate before any APK.** JVM tests and source-text gates cannot see Android layout or lifecycle. A change that touches layout, Views, redraws or the activity lifecycle is run on the Android 16 emulator (API 36) before an APK goes out: upgrade over the previous APK (with the first-run marker) and a fresh install, at window heights 1500, 1800, 2000, 2400 px and 1440x3120 at density 560, plus background/foreground, rotation and dark mode: full Home every time, no crash. The emulator cannot record audio, so recording states are pushed into the mic through a debug-source-set hook (that hook is not in main yet). Three launch defects were found only there and are fixed in main: the redraw re-adding the one mic view (ui `attachMicSlot` detaches it first), the unset `settingsView` on first run (`SettingsViewSetBeforeFirstRunTest`), and a blank Home on a tall phone (ui `TouchGapView` measures itself, `TouchGapMeasureGateTest`).
+ - **OPEN defects from the APK 8 phone test** (cause not found unless stated; required behaviour): (A, blocker) while recording, the X and check on the Home mic are drawn but not tappable and the take sticks; required: X cancels, check finishes, a second tap on the mic finishes. (B) Home mic must show the tile's mic-busy face (`TileState.MIC_BUSY`) from the same signal, no copy. (C) Home mic must show the tile's sending look from the end of recording until the result, then idle. (D) the new transcript must be on Home as soon as the take settles. (G) Settings is narrower than Home: the activity wraps Settings in its own column and `ScrollView` and the host adds its gutter again; required: one gutter applied in one place and the same content edge on every screen. (H, follow-up) the Home mic follows the phone's night mode, not the stored theme (`HomeScreenMic.setTheme` has no caller).
+ - **Persistence (OPEN).** The model is in `filesDir/models` (`LocalModelStore`), settings in `filesDir/settings.properties`, history in the app-private SQLite file `breaker_history.db`; `install -r` keeps them and an uninstall wipes them. `purgeExpired()` runs at start with the fixed 90-day window, and the speech module's `ModelLoader` deletes a model that fails verification. The project owner saw history and the model gone after an update; not reproduced: the gate reviewer's emulator test: an in-place update from APK 6 to APK 8 keeps history and model; APKs 1-5 were each signed with a different key, so 5 to 6 could not install over (INSTALL_FAILED_UPDATE_INCOMPATIBLE) and needed an uninstall; APKs 6, 7 and 8 share one key (cert SHA-256 a8225bc3). Required: an update keeps history, settings and the model. RULED by the project owner: an uninstall removes everything (ADR-028 Decision 2); BUILT manifest change: the manifest sets `allowBackup=false` plus `dataExtractionRules` and `fullBackupContent` that exclude every domain (the two rules files hold an exclude for all five domains in each section; `UninstallCleanGateTest` reads them).
+-- **Keyboard tile, built:** `decision(imeWindowPresent, fieldFocused, keyboardRaised, closedDuringSession, nowMs, lastChangeMs)` in `KeyboardTileDecision.kt` returns SHOW, HIDE or NO_OP. It is a top-level function of the wiring package, not a member of `TileCoordinator`; its readings are the keyboard window and the focused text field. The debounce is 250 ms: a reading inside the window is held, and the newest held reading is re-evaluated once when the window ends, through one pending post. `TileCoordinator.onKeyboardReading` acts on the result, `KeyboardTileSession` keeps the session flags, and `KeyboardHideHold` holds a keyboard-gone hide that comes during a take. `WakePolicy` in the same file keeps the keyboard flag from the readings and answers two questions: whether a shake may show the tile, from the shake to wake choice, and whether a keyboard reading may raise it, from the keyboard tile switch. **PLANNED, no code:** `PhraseSendHandler` (spoken Send, ADR-004), the one owner of phrase detector start/stop, the audio tee and the one-Send-per-take gate. It needs a new `app -> android_phrases` edge, which is registered in `modules.toml` and included in `settings.gradle.kts` but is not yet a dependency of the app, and it lands with that code, after the Home mic fixes.
++- **Keyboard tile, built:** `decision(imeWindowPresent, fieldFocused, keyboardRaised, closedDuringSession, nowMs, lastChangeMs)` in `KeyboardTileDecision.kt` returns SHOW, HIDE or NO_OP. It is a top-level function of the wiring package, not a member of `TileCoordinator`; its readings are the keyboard window and the focused text field. The debounce is 250 ms: a reading inside the window is held, and the newest held reading is re-evaluated once when the window ends, through one pending post. `TileCoordinator.onKeyboardReading` acts on the result, `KeyboardTileSession` keeps the session flags, and `KeyboardHideHold` holds a keyboard-gone hide that comes during a take. **PLANNED, no code:** `PhraseSendHandler` (spoken Send, ADR-004), the one owner of phrase detector start/stop, the audio tee and the one-Send-per-take gate. It needs a new `app -> android_phrases` edge, which is registered in `modules.toml` and included in `settings.gradle.kts` but is not yet a dependency of the app, and it lands with that code, after the Home mic fixes.
+ - **Start-up purge is one-shot and only logged.** `BreakerApp` schedules
+   `SqliteHistoryStore.purgeExpired()` once on an app-lifetime coroutine scope
+   on the I/O dispatcher (`createPurgeScope`), off the main thread. A failure is passed to a callback that logs it
+@@ -260,7 +260,7 @@ code.
+ - A late destroy of an old service instance can mark the next one off and drop its capture (the service has no instance token).
+ - `TileHost` builds its coordinator, and with it `compositionRoot.dictation` and the ended listener, the first time the service goes on; a launcher start with the switch off builds nothing.
+ - **NOT VERIFIED on a device** (the SENT state): how the green ring looks on the tile; whether the clipboard confirmation is seen; a tap on a tile that shows SENT.
+-- A shake of the phone goes to `TileCoordinator.onShake`, which never begins a take. With the switch off, or a take running, it does nothing; with the shake to wake choice off, or on keyboard only while no keyboard window is up, it does nothing too. With the tile on screen and not closed by the user it does nothing. Otherwise it calls `TileShowGuard.onShake`, which shows the tile and clears the user's close only when the show succeeds; a refused show says the tile is unavailable and the next shake tries again (see rule 18). `ShakeShowsTileTest` pins this. A removal of the tile by the window system is not seen by the app (see the device check list below). **NOT VERIFIED on a device**: the no-overlay case and the first-ever no-permission case (see the device check list below).
++- A shake of the phone goes to `TileCoordinator.onShake`, which never begins a take. With the switch off, or a take running, it does nothing. With the tile on screen and not closed by the user it does nothing. Otherwise it calls `TileShowGuard.onShake`, which shows the tile and clears the user's close only when the show succeeds; a refused show says the tile is unavailable and the next shake tries again (see rule 18). `ShakeShowsTileTest` pins this. A removal of the tile by the window system is not seen by the app (see the device check list below). **NOT VERIFIED on a device**: the no-overlay case and the first-ever no-permission case (see the device check list below).
+ - The sensor is started as soon as the service is armed, whether or not the tile can be shown, so a shake with no tile on screen reaches `TileCoordinator.onShake`, which brings the tile back if it can be shown and begins nothing.
+ - A start the sensor refuses (for example, a phone with no accelerometer) leaves nothing listening. It is tried again at the next switch-on.
+ - The sensor is registered only while the service is on: it is registered when the service goes on and released when it goes off or the service ends.
+diff --git a/android/app/README.md b/android/app/README.md
+index fba780dd..6e543287 100644
+--- a/android/app/README.md
++++ b/android/app/README.md
+@@ -49,11 +49,10 @@ screen, the settings screen and the history screen, the manifest, and the Gradle
+   Breaker comes to the front. After a send, the tile shows SENT when the text
+   landed or only reached the clipboard, and FAILED with its sentence when the
+   commit failed. It keeps that until the next action.
+-- **The keyboard tile.** While dictation is switched on and the keyboard tile switch in Settings is on
+-  (it is on by default), the tile comes up when a keyboard is on
++- **The keyboard tile.** While dictation is switched on, the tile comes up when a keyboard is on
+   screen and a text field is in focus. It goes away when the keyboard goes away, but only if a
+-  keyboard show brought it up. A keyboard show is not made while dictation is switched off, while a
+-  take is in flight, or while the keyboard tile switch is off; the shake mode does not apply to it. A keyboard-gone hide that comes during a
++  keyboard show brought it up. A keyboard show follows the same check as a shake: nothing is shown
++  while the switch is off or while a take is in flight. A keyboard-gone hide that comes during a
+   take is held and applied once when the take ends, and only if the keyboard is still gone. A
+   keyboard show, a switch-off or a user close drops a held hide. A user close also forgets that the
+   keyboard raised the tile, so a keyboard that goes away later does not hide a tile the user closed or
+@@ -88,7 +87,7 @@ as described in ADR-022 as amended:
+   already running. Sending, cancelling, an error or a second tap on the Home big mic (for a take the Home tap began) ends the recording; the service
+   stays on. The app shows the tile while the service is on and hides it when the
+   service ends or the user switches off.
+-- A shake of the phone, read from the accelerometer, never begins a recording. It goes to the tile: with the tile closed or hidden it brings the tile back, and with the tile on screen or during a recording it does nothing. The sensor runs only while the service is on. The shake to wake choice in Settings decides which shakes count: Always (a shake brings the tile back at any time; a fresh install), Keyboard only (a shake counts only while a keyboard window is open, which needs the accessibility service to know it) or Off (a shake does nothing, and the sensor still runs and ignores it). Whether a shake brings the tile back with no overlay permission is a device check, not a verified fact (see the Known Gotchas section of `AGENTS.md`).
++- A shake of the phone, read from the accelerometer, never begins a recording. It goes to the tile: with the tile closed or hidden it brings the tile back, and with the tile on screen or during a recording it does nothing. The sensor runs only while the service is on. Whether a shake brings the tile back with no overlay permission is a device check, not a verified fact (see the Known Gotchas section of `AGENTS.md`).
+ - The service stops when the user switches dictation off, when the part that owns
+   the dictation is closed, or when it is started with nothing switched on. If it
+   ends on its own, the dictation under way is dropped.
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/host/TileHost.kt b/android/app/src/main/kotlin/dev/breaker/dictation/host/TileHost.kt
+index 0e8d25d3..cbf070cd 100644
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/host/TileHost.kt
++++ b/android/app/src/main/kotlin/dev/breaker/dictation/host/TileHost.kt
+@@ -27,7 +27,6 @@ import dev.breaker.dictation.wiring.TakeOwner
+ import dev.breaker.dictation.wiring.TakeOwnerKind
+ import dev.breaker.dictation.wiring.TakePortAdapter
+ import dev.breaker.dictation.wiring.TileCoordinator
+-import dev.breaker.dictation.wiring.WakePolicy
+ import dev.breaker.dictation.wiring.appGesture
+ import dev.breaker.dictation.wiring.appTakenClipboard
+ import dev.breaker.dictation.wiring.modelInstallPortFor
+@@ -68,7 +67,6 @@ internal class TileHost(
+     private val notifications = ModelNotifications(context)
+     private val gesture = appGesture(context)
+     private val selectedId: () -> String = { root.settingsStore.load().modelSize }
+-    private val wake: WakePolicy = WakePolicy { root.settingsStore.load() } // read on the main looper, as selectedId is
+ 
+     private val tile: OverlayTilePort = OverlayTilePort(
+         context = context,
+@@ -108,8 +106,7 @@ internal class TileHost(
+             root.historyStore,
+             main,
+         )
+-        c.wake = wake
+-        val wiring = KeyboardTileWiring({ ime, focus, timeMs -> c.onKeyboardReading(ime, focus, timeMs) }, main, wake)
++        val wiring = KeyboardTileWiring({ ime, focus, timeMs -> c.onKeyboardReading(ime, focus, timeMs) }, main)
+         wiring.start()
+         c
+     }
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileWiring.kt b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileWiring.kt
+index 5553c5b7..3e2ef3ab 100644
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileWiring.kt
++++ b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/KeyboardTileWiring.kt
+@@ -2,8 +2,6 @@ package dev.breaker.dictation.wiring
+ 
+ import dev.breaker.dictation.commit.ProbeReading
+ import dev.breaker.dictation.commit.KeyboardProbeReadings
+-import dev.breaker.dictation.core.model.AppSettings
+-import dev.breaker.dictation.core.model.shakeArms
+ import kotlinx.coroutines.CoroutineScope
+ import kotlinx.coroutines.Dispatchers
+ import kotlinx.coroutines.Job
+@@ -17,8 +15,7 @@ import kotlinx.coroutines.launch
+  *
+  * One instance owns one collection of [KeyboardProbeReadings.readings] for the lifetime it is given:
+  * it starts when constructed (the host builds it together with the coordinator) and stops only when a
+- * caller calls [stop]. A null reading, produced by a clear or disable of the probe, feeds the entry nothing
+- * and clears the keyboard flag of the wake policy when one is given; every
++ * caller calls [stop]. Null readings — produced by a clear or disable of the probe — feed nothing; every
+  * non-null reading is posted once to [post], so the main thread sees each distinct state change exactly
+  * once. This file names the holder, but no other file in the app does: it reaches the production seam
+  * here and nowhere else. It never shows or hides a tile itself — it only hands readings to the
+@@ -28,7 +25,6 @@ import kotlinx.coroutines.launch
+ internal class KeyboardTileWiring(
+     private val readEntry: (Boolean, Boolean, Long) -> Unit,
+     private val post: MainPost,
+-    private val wake: WakePolicy? = null,
+ ) {
+ 
+     /** The collection scope; a supervisor child so a failing reader cannot cancel the wiring. Recreated per start. */
+@@ -45,25 +41,17 @@ internal class KeyboardTileWiring(
+         // Capture the current reading so the replayed-at-attach value can be skipped without eating any
+         // genuine post-start emission: collect only readings that differ from what was already current.
+         baseline = KeyboardProbeReadings.current()
+-        wake?.onReading(baseline?.imeWindow ?: false)
+         scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+         job = scope!!.launch {
+             KeyboardProbeReadings.readings().collect { reading ->
+-                if (reading == null) {
+-                    wake?.let { policy -> post.post { policy.onSignalLost() } }
+-                } else if (reading != baseline) {
+-                    post.post { deliver(reading) }
++                if (reading == null || reading != baseline) {
++                    val timeMs: Long = reading?.time ?: return@collect
++                    post.post { readEntry(reading.imeWindow, reading.fieldFocus, timeMs) }
+                 }
+             }
+         }
+     }
+ 
+-    /** Hands one reading to the wake policy first and then to the keyboard entry; runs on the main thread. */
+-    private fun deliver(reading: ProbeReading) {
+-        wake?.onReading(reading.imeWindow)
+-        readEntry(reading.imeWindow, reading.fieldFocus, reading.time)
+-    }
+-
+     /** Stops the collection; safe to call when it was never started. */
+     fun stop() {
+         job?.cancel()
+@@ -75,33 +63,3 @@ internal class KeyboardTileWiring(
+ 
+     private var started = false
+ }
+-
+-/**
+- * Answers whether a shake may show the tile and whether a keyboard reading may raise it. The keyboard
+- * flag is the window flag of the newest raw reading, and a lost signal clears it. Each answer reads the
+- * settings once, when it is asked, so a change in the settings applies to the next event.
+- */
+-internal class WakePolicy(private val settings: () -> AppSettings) {
+-    private var keyboardUp: Boolean = false
+-
+-    /** Sets the keyboard flag from the window flag of the newest raw keyboard reading. */
+-    fun onReading(imeWindow: Boolean) {
+-        keyboardUp = imeWindow
+-    }
+-
+-    /** A lost keyboard signal counts as the keyboard being gone. */
+-    fun onSignalLost() {
+-        keyboardUp = false
+-    }
+-
+-    /** Whether a shake may show the tile, given the shake mode and the keyboard flag. */
+-    fun shakeMayShow(): Boolean = settings().shakeWakeMode.shakeArms(keyboardUp)
+-
+-    /** Whether a keyboard reading may raise the tile, as the keyboard switch says. */
+-    fun keyboardMayRaise(): Boolean = settings().showTileOnKeyboard
+-
+-    companion object {
+-        /** The answers of a fresh install: a shake always shows the tile and a keyboard reading raises it. */
+-        fun permissive(): WakePolicy = WakePolicy { AppSettings() }
+-    }
+-}
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt
+index bdc70723..6bf18e68 100644
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt
++++ b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt
+@@ -67,9 +67,9 @@ class TileCoordinator(
+     private val heldHide: KeyboardHideHold = KeyboardHideHold()
+     private val portCalls: TilePortCalls = TilePortCalls(take, modelReady, background)
+ 
+-    /** The one seam every keyboard-driven SHOW passes through; default true. Nothing in the app sets it; the keyboard tile switch is read through [wake]. When off, the coordinator does not put the tile back on screen. */
++    /** The one seam every keyboard-driven SHOW passes through; default true. A shake setting flips this property. When off, the coordinator does not put the tile back on screen. */
+     internal var keyboardAutoPop: Boolean = true
+-    internal var wake: WakePolicy = WakePolicy.permissive() // the default keeps the old behaviour
++
+     /** Remembers the user closed the tile; cleared on launcher visible (through arm) or switch off/on. */
+     internal val tileShowGuard: TileShowGuard = TileShowGuard(tile, modelNotice)
+ 
+@@ -111,7 +111,7 @@ class TileCoordinator(
+     }
+ 
+     /** A shake shows the tile when it is off screen or closed, and never begins a take. Main thread only. */
+-    fun onShake() = tileShowGuard.onShake(tileMayShow() && wake.shakeMayShow(), tileShown) { shown ->
++    fun onShake() = tileShowGuard.onShake(tileMayShow(), tileShown) { shown ->
+         tileShown = (shown == TileShow.SHOWN); if (shown == TileShow.SHOWN) push() }
+ 
+     /** The user cancelled the take: drop it and show the armed tile. */
+@@ -171,7 +171,7 @@ class TileCoordinator(
+ 
+     private fun act(decision: KeyboardDecision) {
+         when (decision) {
+-            is KeyboardDecision.Show -> if (keyboardAutoPop && wake.keyboardMayRaise()) {
++            is KeyboardDecision.Show -> if (keyboardAutoPop) {
+                 val wasShowing = tileShown
+                 tileShowGuard.onShake(tileMayShow(), tileShown) { shown -> tileShown = (shown == TileShow.SHOWN); if (shown == TileShow.SHOWN) push() }
+                 heldHide.clearOnShow()
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/gates/TileHostWakePolicyGateTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/gates/TileHostWakePolicyGateTest.kt
+deleted file mode 100644
+index 5632898d..00000000
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/gates/TileHostWakePolicyGateTest.kt
++++ /dev/null
+@@ -1,112 +0,0 @@
+-package dev.breaker.dictation.gates
+-
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertThrows
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/**
+- * Pins the wake policy of the tile host: one policy is built over the settings store, the tile
+- * coordinator and the keyboard wiring both receive that same policy, and the shake trigger line stays as
+- * it is. The rules read the comment-stripped host source; each rule holds on the real file, is broken by
+- * edited samples, stays quiet on a comment-only edit, and an edit whose target text is missing fails by name.
+- */
+-internal class TileHostWakePolicyGateTest {
+-
+-    private val path: String = "kotlin/dev/breaker/dictation/host/TileHost.kt"
+-
+-    private class Rule(val name: String, val holds: (String) -> Boolean)
+-    private class Sample(val rule: String, val old: String, val new: String)
+-
+-    /** The pattern must match the code exactly [times] times. */
+-    private fun rx(name: String, pattern: String, times: Int = 1) =
+-        Rule(name) { Regex(pattern).findAll(it).count() == times }
+-
+-    private val rules: List<Rule> = listOf(
+-        Rule("THE_POLICY_IS_BUILT_ONCE_OVER_THE_SETTINGS_STORE") { code ->
+-            Regex("""\bprivate\s+val\s+wake\s*:\s*WakePolicy\s*=\s*WakePolicy\s*\{\s*root\s*\.\s*settingsStore\s*\.\s*load\s*\(\s*\)\s*\}""").findAll(code).count() == 1 &&
+-                Regex("""\bWakePolicy\s*[({]""").findAll(code).count() == 1
+-        },
+-        rx("THE_COORDINATOR_GETS_THE_SAME_POLICY", """\bc\s*\.\s*wake\s*=\s*wake\b"""),
+-        rx("THE_KEYBOARD_WIRING_GETS_THE_SAME_POLICY", """\bKeyboardTileWiring\s*\(\s*\{[^}]*\}\s*,\s*main\s*,\s*wake\s*\)"""),
+-        rx("THE_SHAKE_TRIGGER_IS_UNCHANGED", """\bgesture\s*\.\s*start\s*\{\s*toCoordinator\s*\{\s*it\s*\.\s*onShake\s*\(\s*\)\s*\}\s*\}"""),
+-    )
+-
+-    /** Edits that break one rule each; every rule has at least two. */
+-    private val firing: List<Sample> = listOf(
+-        Sample("THE_POLICY_IS_BUILT_ONCE_OVER_THE_SETTINGS_STORE", "WakePolicy { root.settingsStore.load() }", "WakePolicy { AppSettings() }"),
+-        Sample("THE_POLICY_IS_BUILT_ONCE_OVER_THE_SETTINGS_STORE", "private val wake: WakePolicy = WakePolicy { root.settingsStore.load() }", "private val wake: WakePolicy = WakePolicy.permissive()"),
+-        Sample("THE_COORDINATOR_GETS_THE_SAME_POLICY", "c.wake = wake", "c.wake = WakePolicy.permissive()"),
+-        Sample("THE_COORDINATOR_GETS_THE_SAME_POLICY", "        c.wake = wake\n", ""),
+-        Sample("THE_KEYBOARD_WIRING_GETS_THE_SAME_POLICY", "main, wake)", "main)"),
+-        Sample("THE_KEYBOARD_WIRING_GETS_THE_SAME_POLICY", "main, wake)", "main, WakePolicy.permissive())"),
+-        Sample("THE_SHAKE_TRIGGER_IS_UNCHANGED", "gesture.start { toCoordinator { it.onShake() } }", "gesture.start { toCoordinator { it.onBegin() } }"),
+-        Sample("THE_SHAKE_TRIGGER_IS_UNCHANGED", "gesture.start { toCoordinator { it.onShake() } }", "gesture.start { toCoordinator { it.onShake() } }\n        gesture.start { toCoordinator { it.onShake() } }"),
+-    )
+-
+-    /** Edits that change only a comment or the spacing; no rule may fire on them. */
+-    private val quiet: List<Sample> = listOf(
+-        Sample("THE_COORDINATOR_GETS_THE_SAME_POLICY", "c.wake = wake", "c.wake = wake // the same policy"),
+-        Sample("THE_COORDINATOR_GETS_THE_SAME_POLICY", "c.wake = wake", "c.wake   =   wake"),
+-        Sample("THE_SHAKE_TRIGGER_IS_UNCHANGED", "gesture.start { toCoordinator { it.onShake() } }", "gesture.start {   toCoordinator {  it.onShake()  }   }"),
+-    )
+-
+-    /** The comment-stripped host source with [old] replaced by [new]; fails by name when the text is absent. */
+-    private fun codeOf(old: String? = null, new: String = ""): String {
+-        val text: String = AppSourceFiles.mainFile(path)
+-        if (old == null) return AppSourceFiles.strip(text).code
+-        val at: Int = text.indexOf(old)
+-        check(at >= 0) { "app: a tile host wake policy sample lost its text '$old' in $path" }
+-        return AppSourceFiles.strip(text.substring(0, at) + new + text.substring(at + old.length)).code
+-    }
+-
+-    @Test
+-    fun `every wake policy rule holds on the real tile host`() {
+-        assertTrue("app: $path was read as empty", codeOf().isNotBlank())
+-        for (rule in rules) assertTrue("app: $path breaks rule ${rule.name}", rule.holds(codeOf()))
+-    }
+-
+-    @Test
+-    fun `the firing samples cover each wake policy rule at least twice`() {
+-        val names: List<String> = rules.map { it.name }
+-        assertEquals("app: a wake policy rule name is used twice", names.toSet().size, names.size)
+-        assertEquals("app: a firing sample belongs to an unknown rule or a rule has none", names.toSet(), firing.map { it.rule }.toSet())
+-        for (rule in rules) {
+-            val count: Int = firing.count { it.rule == rule.name }
+-            assertTrue("app: wake policy rule ${rule.name} needs at least two firing samples, has $count", count >= 2)
+-        }
+-    }
+-
+-    @Test
+-    fun `every wake policy rule fires on each of its edited samples`() {
+-        val byName: Map<String, Rule> = rules.associateBy { it.name }
+-        for (sample in firing) {
+-            val rule: Rule = byName.getValue(sample.rule)
+-            assertFalse(
+-                "app: wake policy rule ${sample.rule} must fire on the edit '${sample.old}' => '${sample.new}'",
+-                rule.holds(codeOf(sample.old, sample.new)),
+-            )
+-        }
+-    }
+-
+-    @Test
+-    fun `no wake policy rule fires on a comment-only edit`() {
+-        for (sample in quiet) {
+-            for (rule in rules) {
+-                assertTrue(
+-                    "app: wake policy rule ${rule.name} must stay quiet on the harmless edit '${sample.old}' => '${sample.new}'",
+-                    rule.holds(codeOf(sample.old, sample.new)),
+-                )
+-            }
+-        }
+-    }
+-
+-    @Test
+-    fun `a wake policy sample whose target text is missing fails by name`() {
+-        val thrown = assertThrows("app: a missing target must fail", IllegalStateException::class.java) {
+-            codeOf("no such text in the tile host", "x")
+-        }
+-        assertTrue("app: the failure must name the lost text, got ${thrown.message}", thrown.message!!.contains("no such text in the tile host"))
+-    }
+-}
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/WakePolicyCoordinatorTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/WakePolicyCoordinatorTest.kt
+deleted file mode 100644
+index ad6e96c1..00000000
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/WakePolicyCoordinatorTest.kt
++++ /dev/null
+@@ -1,221 +0,0 @@
+-package dev.breaker.dictation.wiring
+-
+-import dev.breaker.dictation.core.model.AppSettings
+-import dev.breaker.dictation.core.model.ShakeWakeMode
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/**
+- * The coordinator with a wake policy: a shake shows the tile only when the shake mode allows it, and a
+- * keyboard reading raises the tile only when the keyboard switch is on. The rig is the one in TileFakes.kt.
+- * The keyboard flag of a policy is set by the test on the policy object, as the keyboard wiring does.
+- */
+-class WakePolicyCoordinatorTest {
+-
+-    private fun shows(r: TileRig): Int = r.tile.calls.count { it == "show" }
+-
+-    private fun hides(r: TileRig): Int = r.tile.calls.count { it == "hide" }
+-
+-    @Test
+-    fun `off mode makes a shake with the tile hidden show nothing`() {
+-        val r = TileRig()
+-        r.coordinator.wake = WakePolicy { AppSettings(shakeWakeMode = ShakeWakeMode.OFF) }
+-        r.coordinator.onCloseRequested()
+-        r.tile.calls.clear()
+-        r.coordinator.onShake()
+-        r.settle()
+-        assertEquals("app: a shake in off mode must make no tile show call", 0, shows(r))
+-        assertFalse("app: the tile must stay hidden after a shake in off mode", r.tile.shown)
+-    }
+-
+-    @Test
+-    fun `always mode shows a closed tile on a shake as before`() {
+-        val r = TileRig()
+-        r.coordinator.wake = WakePolicy { AppSettings(shakeWakeMode = ShakeWakeMode.ALWAYS) }
+-        r.coordinator.onCloseRequested()
+-        r.tile.calls.clear()
+-        r.coordinator.onShake()
+-        r.settle()
+-        assertEquals("app: a shake in always mode must show the tile once", 1, shows(r))
+-        assertTrue("app: the tile must be shown after a shake in always mode", r.tile.shown)
+-    }
+-
+-    @Test
+-    fun `keyboard only shows a closed tile on a shake while a keyboard window is up`() {
+-        val r = TileRig()
+-        val policy = WakePolicy { AppSettings(shakeWakeMode = ShakeWakeMode.KEYBOARD_ONLY) }
+-        r.coordinator.wake = policy
+-        policy.onReading(true)
+-        r.coordinator.onCloseRequested()
+-        r.tile.calls.clear()
+-        r.coordinator.onShake()
+-        r.settle()
+-        assertEquals("app: a shake in keyboard only mode with the window up must show the tile once", 1, shows(r))
+-    }
+-
+-    @Test
+-    fun `keyboard only refuses a shake when no keyboard window is up`() {
+-        val r = TileRig()
+-        val policy = WakePolicy { AppSettings(shakeWakeMode = ShakeWakeMode.KEYBOARD_ONLY) }
+-        r.coordinator.wake = policy
+-        policy.onReading(false)
+-        r.coordinator.onCloseRequested()
+-        r.tile.calls.clear()
+-        r.coordinator.onShake()
+-        r.settle()
+-        assertEquals("app: a shake in keyboard only mode with no window must make no show call", 0, shows(r))
+-    }
+-
+-    @Test
+-    fun `keyboard only refuses a shake after the keyboard window has gone`() {
+-        val r = TileRig()
+-        val policy = WakePolicy { AppSettings(shakeWakeMode = ShakeWakeMode.KEYBOARD_ONLY) }
+-        r.coordinator.wake = policy
+-        policy.onReading(true)
+-        policy.onReading(false)
+-        r.coordinator.onCloseRequested()
+-        r.tile.calls.clear()
+-        r.coordinator.onShake()
+-        r.settle()
+-        assertEquals("app: a shake after the keyboard window has gone must make no show call", 0, shows(r))
+-    }
+-
+-    @Test
+-    fun `keyboard only refuses a shake before any keyboard reading`() {
+-        val r = TileRig()
+-        r.coordinator.wake = WakePolicy { AppSettings(shakeWakeMode = ShakeWakeMode.KEYBOARD_ONLY) }
+-        r.coordinator.onCloseRequested()
+-        r.tile.calls.clear()
+-        r.coordinator.onShake()
+-        r.settle()
+-        assertEquals("app: a shake before any keyboard reading must make no show call", 0, shows(r))
+-    }
+-
+-    @Test
+-    fun `keyboard only refuses a shake after the signal is lost`() {
+-        val r = TileRig()
+-        val policy = WakePolicy { AppSettings(shakeWakeMode = ShakeWakeMode.KEYBOARD_ONLY) }
+-        r.coordinator.wake = policy
+-        policy.onReading(true)
+-        policy.onSignalLost()
+-        r.coordinator.onCloseRequested()
+-        r.tile.calls.clear()
+-        r.coordinator.onShake()
+-        r.settle()
+-        assertEquals("app: a shake after the signal is lost must make no show call", 0, shows(r))
+-    }
+-
+-    @Test
+-    fun `keyboard switch off stops a keyboard reading from raising the tile`() {
+-        val r = TileRig()
+-        r.coordinator.wake = WakePolicy { AppSettings(showTileOnKeyboard = false) }
+-        r.coordinator.onCloseRequested()
+-        r.tile.calls.clear()
+-        r.coordinator.onKeyboardReading(true, true, 1000L)
+-        r.settle()
+-        assertEquals("app: a keyboard reading with the switch off must make no show call", 0, shows(r))
+-        assertFalse("app: the tile must stay hidden when the keyboard switch is off", r.tile.shown)
+-    }
+-
+-    @Test
+-    fun `keyboard switch off leaves a shake in always mode able to show the tile`() {
+-        val r = TileRig()
+-        r.coordinator.wake = WakePolicy { AppSettings(shakeWakeMode = ShakeWakeMode.ALWAYS, showTileOnKeyboard = false) }
+-        r.coordinator.onCloseRequested()
+-        r.tile.calls.clear()
+-        r.coordinator.onShake()
+-        r.settle()
+-        assertEquals("app: a shake in always mode must show the tile with the keyboard switch off", 1, shows(r))
+-    }
+-
+-    @Test
+-    fun `shake off with the keyboard switch on still lets a keyboard reading raise the tile`() {
+-        val r = TileRig()
+-        r.coordinator.wake = WakePolicy { AppSettings(shakeWakeMode = ShakeWakeMode.OFF, showTileOnKeyboard = true) }
+-        r.coordinator.onCloseRequested()
+-        r.tile.calls.clear()
+-        r.coordinator.onKeyboardReading(true, true, 1000L)
+-        r.settle()
+-        assertEquals("app: a keyboard reading must raise the tile when the shake is off and the switch is on", 1, shows(r))
+-        assertTrue("app: the tile must be shown after the keyboard raise", r.tile.shown)
+-    }
+-
+-    @Test
+-    fun `both off means neither a shake nor a keyboard reading shows the tile`() {
+-        val r = TileRig()
+-        r.coordinator.wake = WakePolicy { AppSettings(shakeWakeMode = ShakeWakeMode.OFF, showTileOnKeyboard = false) }
+-        r.coordinator.onCloseRequested()
+-        r.tile.calls.clear()
+-        r.coordinator.onShake()
+-        r.coordinator.onKeyboardReading(true, true, 1000L)
+-        r.settle()
+-        assertEquals("app: with both answers off no show call may be made", 0, shows(r))
+-    }
+-
+-    @Test
+-    fun `keyboard switch on lets a keyboard reading raise the tile`() {
+-        val r = TileRig()
+-        r.coordinator.wake = WakePolicy { AppSettings(shakeWakeMode = ShakeWakeMode.ALWAYS, showTileOnKeyboard = true) }
+-        r.coordinator.onCloseRequested()
+-        r.tile.calls.clear()
+-        r.coordinator.onKeyboardReading(true, true, 1000L)
+-        r.settle()
+-        assertEquals("app: a keyboard reading with the switch on must raise the tile once", 1, shows(r))
+-    }
+-
+-    @Test
+-    fun `a settings change between two shakes is honoured by the second shake`() {
+-        val r = TileRig()
+-        var first = true
+-        r.coordinator.wake = WakePolicy {
+-            if (first) {
+-                first = false
+-                AppSettings(shakeWakeMode = ShakeWakeMode.OFF)
+-            } else {
+-                AppSettings(shakeWakeMode = ShakeWakeMode.ALWAYS)
+-            }
+-        }
+-        r.coordinator.onCloseRequested()
+-        r.tile.calls.clear()
+-        r.coordinator.onShake()
+-        r.settle()
+-        assertEquals("app: the first shake in off mode must make no show call", 0, shows(r))
+-        r.coordinator.onShake()
+-        r.settle()
+-        assertEquals("app: the second shake, after the mode became always, must show the tile", 1, shows(r))
+-    }
+-
+-    @Test
+-    fun `a shake while a take is in flight reads no settings`() {
+-        val r = TileRig()
+-        var reads = 0
+-        r.coordinator.wake = WakePolicy {
+-            reads += 1
+-            AppSettings(shakeWakeMode = ShakeWakeMode.ALWAYS)
+-        }
+-        r.startRecording()
+-        reads = 0
+-        r.coordinator.onShake()
+-        r.settle()
+-        assertEquals("app: a shake while a take is in flight must read no settings", 0, reads)
+-        assertEquals("app: a shake while a take is in flight must begin no take", 1, r.take.beginCalls)
+-    }
+-
+-    @Test
+-    fun `the default policy keeps keyboard show and hide as before`() {
+-        val r = TileRig(arm = false)
+-        r.tile.showResult = TileShow.NO_PERMISSION
+-        r.coordinator.onArmedChanged(true)
+-        r.tile.showResult = TileShow.SHOWN
+-        r.tile.calls.clear()
+-        r.coordinator.onKeyboardReading(true, true, 1000L)
+-        r.settle()
+-        assertTrue("app: the default policy must let a keyboard reading raise the tile", r.tile.shown)
+-        r.coordinator.onKeyboardReading(false, false, 1500L)
+-        r.settle()
+-        assertFalse("app: the default policy must let a keyboard gone reading take the tile down", r.tile.shown)
+-        assertEquals("app: one hide call for the keyboard gone reading", 1, hides(r))
+-    }
+-}
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/WakePolicyTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/wiring/WakePolicyTest.kt
+deleted file mode 100644
+index dcb4e1e0..00000000
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/wiring/WakePolicyTest.kt
++++ /dev/null
+@@ -1,132 +0,0 @@
+-package dev.breaker.dictation.wiring
+-
+-import dev.breaker.dictation.core.model.AppSettings
+-import dev.breaker.dictation.core.model.ShakeWakeMode
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/**
+- * The answers of the wake policy: whether a shake may show the tile and whether a keyboard reading may
+- * raise it. Each answer is read from the settings through the supplier the policy was built with, and
+- * the keyboard flag is set only by the window readings and the lost signal the wiring passes in.
+- */
+-class WakePolicyTest {
+-
+-    private fun policy(mode: ShakeWakeMode, keyboardSwitch: Boolean = true): WakePolicy =
+-        WakePolicy { AppSettings(shakeWakeMode = mode, showTileOnKeyboard = keyboardSwitch) }
+-
+-    @Test
+-    fun `always mode lets a shake show with the keyboard down`() {
+-        val p = policy(ShakeWakeMode.ALWAYS)
+-        assertTrue("app: always mode must let a shake show with no keyboard up", p.shakeMayShow())
+-    }
+-
+-    @Test
+-    fun `always mode lets a shake show with the keyboard up`() {
+-        val p = policy(ShakeWakeMode.ALWAYS)
+-        p.onReading(true)
+-        assertTrue("app: always mode must let a shake show with the keyboard up", p.shakeMayShow())
+-    }
+-
+-    @Test
+-    fun `keyboard only mode refuses a shake with the keyboard down`() {
+-        val p = policy(ShakeWakeMode.KEYBOARD_ONLY)
+-        p.onReading(false)
+-        assertFalse("app: keyboard only mode must refuse a shake with the keyboard down", p.shakeMayShow())
+-    }
+-
+-    @Test
+-    fun `keyboard only mode lets a shake show with the keyboard up`() {
+-        val p = policy(ShakeWakeMode.KEYBOARD_ONLY)
+-        p.onReading(true)
+-        assertTrue("app: keyboard only mode must let a shake show with the keyboard up", p.shakeMayShow())
+-    }
+-
+-    @Test
+-    fun `off mode refuses a shake with the keyboard down`() {
+-        val p = policy(ShakeWakeMode.OFF)
+-        assertFalse("app: off mode must refuse a shake with the keyboard down", p.shakeMayShow())
+-    }
+-
+-    @Test
+-    fun `off mode refuses a shake with the keyboard up`() {
+-        val p = policy(ShakeWakeMode.OFF)
+-        p.onReading(true)
+-        assertFalse("app: off mode must refuse a shake with the keyboard up", p.shakeMayShow())
+-    }
+-
+-    @Test
+-    fun `a fresh policy starts with the keyboard down so keyboard only refuses`() {
+-        val p = policy(ShakeWakeMode.KEYBOARD_ONLY)
+-        assertFalse("app: before any keyboard reading keyboard only must refuse a shake", p.shakeMayShow())
+-    }
+-
+-    @Test
+-    fun `a window reading sets the keyboard flag that keyboard only reads`() {
+-        val p = policy(ShakeWakeMode.KEYBOARD_ONLY)
+-        p.onReading(true)
+-        assertTrue("app: a reading with the window up must set the keyboard flag", p.shakeMayShow())
+-    }
+-
+-    @Test
+-    fun `a reading without the window clears the keyboard flag`() {
+-        val p = policy(ShakeWakeMode.KEYBOARD_ONLY)
+-        p.onReading(true)
+-        p.onReading(false)
+-        assertFalse("app: a reading without the window must clear the keyboard flag", p.shakeMayShow())
+-    }
+-
+-    @Test
+-    fun `a lost signal clears the keyboard flag`() {
+-        val p = policy(ShakeWakeMode.KEYBOARD_ONLY)
+-        p.onReading(true)
+-        p.onSignalLost()
+-        assertFalse("app: a lost keyboard signal must clear the keyboard flag", p.shakeMayShow())
+-    }
+-
+-    @Test
+-    fun `keyboard raise follows the keyboard switch`() {
+-        assertTrue("app: the keyboard switch on must allow a keyboard raise", policy(ShakeWakeMode.OFF, true).keyboardMayRaise())
+-        assertFalse("app: the keyboard switch off must refuse a keyboard raise", policy(ShakeWakeMode.ALWAYS, false).keyboardMayRaise())
+-    }
+-
+-    @Test
+-    fun `the settings are read once per shake check`() {
+-        var reads = 0
+-        val p = WakePolicy {
+-            reads += 1
+-            AppSettings()
+-        }
+-        p.shakeMayShow()
+-        assertEquals("app: one shake check must read the settings exactly once", 1, reads)
+-    }
+-
+-    @Test
+-    fun `the settings are read once per keyboard check`() {
+-        var reads = 0
+-        val p = WakePolicy {
+-            reads += 1
+-            AppSettings()
+-        }
+-        p.keyboardMayRaise()
+-        assertEquals("app: one keyboard check must read the settings exactly once", 1, reads)
+-    }
+-
+-    @Test
+-    fun `a changed settings answer is seen by the next check`() {
+-        var mode: ShakeWakeMode = ShakeWakeMode.ALWAYS
+-        val p = WakePolicy { AppSettings(shakeWakeMode = mode) }
+-        assertTrue("app: the first check must see always mode", p.shakeMayShow())
+-        mode = ShakeWakeMode.OFF
+-        assertFalse("app: the next check must see the changed mode", p.shakeMayShow())
+-    }
+-
+-    @Test
+-    fun `the permissive policy is always mode with the keyboard switch on`() {
+-        val p = WakePolicy.permissive()
+-        assertTrue("app: the permissive policy must let a shake show", p.shakeMayShow())
+-        assertTrue("app: the permissive policy must let a keyboard raise the tile", p.keyboardMayRaise())
+-    }
+-}
+diff --git a/android/modules/core/AGENTS.md b/android/modules/core/AGENTS.md
+index dbeb91d6..082ad97b 100644
+--- a/android/modules/core/AGENTS.md
++++ b/android/modules/core/AGENTS.md
+@@ -54,11 +54,9 @@ modules implement, and the use cases that run a dictation.
+ - `DictationSession(state, lastError, lastTranscription)` with `DictationState`
+   (IDLE|ARMED|RECORDING|TRANSCRIBING|SENDING|ERROR), and `DictationResult` (Success|Failure)
+ - `AppSettings(mode: AUTO|LOCAL|SERVER, modelSize, serverUrl, apiKeyRef,
+-  shakeWakeMode, showTileOnKeyboard, tilePosition, language, preloadModel, formattingEnabled,
+-  themeMode: SYSTEM|LIGHT|DARK, microphoneAsked)`, `SttMode`, `ThemeMode`, `ShakeWakeMode`, `TilePosition`
++  wakeGestureEnabled, tilePosition, language, preloadModel, formattingEnabled,
++  themeMode: SYSTEM|LIGHT|DARK, microphoneAsked)`, `SttMode`, `ThemeMode`, `TilePosition`
+   `microphoneAsked` is bookkeeping: whether the system microphone prompt was shown once. It is not a user setting.
+-  `ShakeWakeMode` is the three-way shake-to-wake setting (ALWAYS, KEYBOARD_ONLY, OFF); a fresh install is ALWAYS. Its pure rule `shakeArms(keyboardUp)` says whether a shake may bring the tile back.
+-  `showTileOnKeyboard` is the switch that shows the tile when a keyboard opens over a text field; a fresh install is on.
+ - `SttRequest`, `SttResult`, `SttSegment`, `AudioFormat` (16 kHz, one channel), and
+   `SttError(LOCAL_MODEL_MISSING, SERVER_UNREACHABLE, TIMEOUT, OTHER)`
+ - `CommitRequest` (never empty) and `CommitOutcome(COMMITTED|COPIED|FAILED)`
+diff --git a/android/modules/settings/AGENTS.md b/android/modules/settings/AGENTS.md
+index 93b726c8..68ed41c9 100644
+--- a/android/modules/settings/AGENTS.md
++++ b/android/modules/settings/AGENTS.md
+@@ -28,11 +28,9 @@ implementation:
+ 
+ **Keys:** mode, model_size, server_url, api_key (Android Keystore, encrypted at
+ rest — T2) *(the device Keystore is not built yet — see Known Gotchas)*,
+-shake_wake_mode, show_tile_on_keyboard, tile_position, language, preload_model,
++wake_gesture_enabled, tile_position, language, preload_model,
+ formatting_enabled, theme_mode, microphone_asked.
+ 
+-`shake_wake_mode` is the three-way shake-to-wake setting (ALWAYS|KEYBOARD_ONLY|OFF) and `show_tile_on_keyboard` the tile-on-keyboard switch. The old `wake_gesture_enabled` boolean is read only when `shake_wake_mode` does not name a mode (true becomes ALWAYS, false becomes OFF) and is never written.
+-
+ **Model registry:** `ModelCatalog` reads `shared/model-registry` (model list,
+ sizes, URLs, SHA-256 pins); `stt-ondevice` reads the same registry for download
+ + verify, which is its work, not this module's.
+@@ -114,7 +112,7 @@ agents, not required: an outside contributor may write the code themselves
+   `Keystore` port and never writes it to the settings file. A fake port lives in the
+   same process, so it cannot prove survival across process death — that is the platform
+   Keystore's job, and it arrives with the device implementation.
+-- The settings file holds **eleven** of the card's twelve keys. `api_key` is deliberately
++- The settings file holds **ten** of the card's eleven keys. `api_key` is deliberately
+   absent: the credential reference travels through the `Keystore` port, never through
+   `java.util.Properties`. A reader counting keys will find one short and that is
+   correct.
+diff --git a/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsDamagedTextTest.kt b/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsDamagedTextTest.kt
+index 773e4ff5..7012223d 100644
+--- a/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsDamagedTextTest.kt
++++ b/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsDamagedTextTest.kt
+@@ -17,8 +17,7 @@ import java.io.File
+ class SettingsDamagedTextTest : SettingsFileStoreTestBase() {
+ 
+     /**
+-     * Nine of the ten settings keys at non-default values, one per line; the
+-     * keyboard switch is left out on purpose. Text, not
++     * The nine keys at non-default values, one per line. Text, not
+      * `Properties.store`: the tests below are about bytes `store` never writes —
+      * a truncated escape, a byte-order mark, a continuation.
+      */
+diff --git a/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt b/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt
+index a53e556b..a7983f5c 100644
+--- a/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt
++++ b/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt
+@@ -58,20 +58,6 @@ internal val THE_SAVED_KEYS: Set<String> = setOf(
+ internal val CREDENTIAL_LIKE_SUBSTRINGS: List<String> =
+     listOf("api", "key", "token", "secret", "password")
+ 
+-/**
+- * The one property key the guard does not report. Its name contains the letters
+- * of a credential word only as part of "keyboard", and the key holds an on/off
+- * switch, not a credential.
+- *
+- * The comparison is exact and case-sensitive, because the settings file writes
+- * lower-case keys. A key that only contains this name, or spells it in upper
+- * case, is still reported.
+- *
+- * It is a literal of its own, not a reference to the shared key constant, so a
+- * rename of that constant cannot silently change what the guard allows.
+- */
+-internal const val CREDENTIAL_GUARD_EXEMPT_KEY = "show_tile_on_keyboard"
+-
+ /**
+  * The credential-shaped keys among [keys] — where [keys] are the keys parsed
+  * out of a file on disk, never the keys the writer believed it wrote.
+@@ -79,14 +65,10 @@ internal const val CREDENTIAL_GUARD_EXEMPT_KEY = "show_tile_on_keyboard"
+  * The input has to come from the file. A guard handed the writer's own key
+  * list can only ever see its own output, so it can never catch a key the
+  * writer never intended to write, which is the only thing it is here for.
+- *
+- * One key is exempt: a key equal to [CREDENTIAL_GUARD_EXEMPT_KEY], compared
+- * case-sensitively, is not reported. Every other key is matched as before.
+  */
+ internal fun credentialLikeKeysIn(keys: Collection<String>): Set<String> =
+     keys.filterTo(mutableSetOf()) { key ->
+-        key != CREDENTIAL_GUARD_EXEMPT_KEY &&
+-            CREDENTIAL_LIKE_SUBSTRINGS.any { key.contains(it, ignoreCase = true) }
++        CREDENTIAL_LIKE_SUBSTRINGS.any { key.contains(it, ignoreCase = true) }
+     }
+ 
+ /**
+diff --git a/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsKeystoreRefTest.kt b/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsKeystoreRefTest.kt
+index f9222905..a4ebfd43 100644
+--- a/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsKeystoreRefTest.kt
++++ b/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsKeystoreRefTest.kt
+@@ -21,7 +21,7 @@ import java.util.Properties
+  *
+  * `AppSettings.apiKeyRef` is a *reference* (the core model says so itself), so
+  * what must never happen is the store writing that reference — or reading one
+- * back - into the same plaintext properties file as the eleven harmless
++ * back — into the same plaintext properties file as the eight harmless
+  * settings. What must happen instead is that the reference is persisted
+  * **through the port**, so a later store instance over the same port still sees
+  * it. The store is constructed as `SettingsFileStore(file, keystore)`.
+diff --git a/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsLineEndingTest.kt b/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsLineEndingTest.kt
+index f200f5d6..6f496039 100644
+--- a/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsLineEndingTest.kt
++++ b/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsLineEndingTest.kt
+@@ -24,9 +24,8 @@ import java.io.File
+ class SettingsLineEndingTest : SettingsFileStoreTestBase() {
+ 
+     /**
+-     * Nine of the ten settings keys at non-default values, one per logical line,
+-     * with the language's replaced by [damagedLanguage]. The keyboard switch is
+-     * left out on purpose, so it loads at its default.
++     * The nine keys at non-default values, one per logical line, with the
++     * language's replaced by [damagedLanguage].
+      */
+     private fun linesWithDamagedLanguage(damagedLanguage: String): List<String> =
+         nonDefaultLines.map { if (it.startsWith("$KEY_LANGUAGE=")) damagedLanguage else it }
+@@ -51,8 +50,7 @@ class SettingsLineEndingTest : SettingsFileStoreTestBase() {
+     private fun fileJoined(lines: List<String>, terminator: String): File =
+         fileWithMixedTerminators(lines, List(lines.size) { terminator })
+ 
+-    /** Nine of the ten settings keys at non-default values; the keyboard switch is
+-     * left out on purpose. Text, not `Properties.store` output. */
++    /** The nine keys at non-default values — text, not `Properties.store` output. */
+     private val nonDefaultLines = listOf(
+         "mode=SERVER", "model_size=medium", "server_url=https://box.local",
+         "shake_wake_mode=OFF", "tile_position=0.25,0.75", "language=de",
+diff --git a/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsMicrophoneAskedTest.kt b/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsMicrophoneAskedTest.kt
+index 4a092c3d..987e6e38 100644
+--- a/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsMicrophoneAskedTest.kt
++++ b/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsMicrophoneAskedTest.kt
+@@ -17,8 +17,7 @@ import java.io.File
+  */
+ class SettingsMicrophoneAskedTest : SettingsFileStoreTestBase() {
+ 
+-    /** Nine of the ten settings keys as text, at the values [validSettings] carries.
+-     * The keyboard switch is left out on purpose, so it loads at its default, true. */
++    /** The nine settings keys as text, at the values [validSettings] carries. */
+     private val nineKeyLines = listOf(
+         "mode=SERVER",
+         "model_size=medium",
+diff --git a/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsWrittenKeysTest.kt b/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsWrittenKeysTest.kt
+index 030b6970..6418554b 100644
+--- a/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsWrittenKeysTest.kt
++++ b/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsWrittenKeysTest.kt
+@@ -112,53 +112,6 @@ class SettingsWrittenKeysTest : SettingsFileStoreTestBase() {
+         )
+     }
+ 
+-    /**
+-     * The exemption is one exact, case-sensitive name. Each planted key below
+-     * checks one way the exemption could go wrong:
+-     *
+-     * - show_tile_on_keyboard is the switch itself; it must not be reported.
+-     * - show_tile_on_keyboard_token starts with the switch name and adds a
+-     *   credential word; a prefix match would hide it.
+-     * - app_show_tile_on_keyboard ends with the switch name and adds a prefix;
+-     *   a suffix match would hide it.
+-     * - keyboard_api_key shares only the word "keyboard" with the switch name;
+-     *   a match on that word alone would hide it.
+-     * - SHOW_TILE_ON_KEYBOARD_KEY is a credential-shaped name in upper case; the
+-     *   substring match must still report it.
+-     * - SHOW_TILE_ON_KEYBOARD is the switch name in upper case; an ignore-case
+-     *   comparison would hide it.
+-     */
+-    @Test
+-    fun `the credential guard allows only the keyboard switch key by exact name`() {
+-        val props = Properties()
+-        props.setProperty("show_tile_on_keyboard", "true")
+-        props.setProperty("show_tile_on_keyboard_token", "PLANTED")
+-        props.setProperty("app_show_tile_on_keyboard", "PLANTED")
+-        props.setProperty("keyboard_api_key", "PLANTED")
+-        props.setProperty("SHOW_TILE_ON_KEYBOARD_KEY", "PLANTED")
+-        props.setProperty("SHOW_TILE_ON_KEYBOARD", "PLANTED")
+-        val file = newFile()
+-        file.outputStream().use { props.store(it, "planted") }
+-
+-        val reported = credentialLikeKeysIn(rawPropertiesOf(file).stringPropertyNames())
+-
+-        assertEquals(
+-            "the guard must report exactly the planted keys other than show_tile_on_keyboard, got $reported",
+-            setOf(
+-                "show_tile_on_keyboard_token",
+-                "app_show_tile_on_keyboard",
+-                "keyboard_api_key",
+-                "SHOW_TILE_ON_KEYBOARD_KEY",
+-                "SHOW_TILE_ON_KEYBOARD",
+-            ),
+-            reported,
+-        )
+-        assertTrue(
+-            "show_tile_on_keyboard was reported: $reported",
+-            !reported.contains("show_tile_on_keyboard"),
+-        )
+-    }
+-
+     /**
+      * `writtenKeys()` is a real contract, checked from both ends and from the
+      * middle.
+diff --git a/android/ui/AGENTS.md b/android/ui/AGENTS.md
+index eb17262b..81438263 100644
+--- a/android/ui/AGENTS.md
++++ b/android/ui/AGENTS.md
+@@ -71,7 +71,7 @@ screens render with ui-tokens; light/dark toggle persists (F25).
+ - A redraw re-parents the mic: `show()` runs on every redraw (`showLine`, `showRecording` and `refresh` each draw the screen again) and builds a new tree, so `attachMicSlot` removes the mic from its old parent before it adds it (without that the first resume threw IllegalStateException). Tested by: `HomeHostMicParentGateTest` (source text). Whether a redraw during `RECORDING` cancels a touch on the mic is OPEN (one lead for the stuck X and check, see Known Gotchas).
+ - Rule R2, the render layer: every custom or plain View measures itself (`onMeasure` from its own size, `resolveSize`), never the default; a View built outside a draw and re-added on a redraw is detached from its old parent first; a value that may be unset on some path (lateinit, lazy) is never passed eagerly; no redraw re-parents a view in the middle of a touch gesture on it. `TouchGapView` (`render/NodeViews.kt`) measures `resolveSize(side, spec)` on both axes: with the default measure it took the whole AT_MOST height in the ScrollView's fill pass (`openForBleed`), the top bar became window-tall and Home was blank on a 1440x3120 phone. Tested by: `TouchGapMeasureGateTest`, `TouchGapRulesTest`. OPEN: the rest of the render layer is not yet audited against R2 (see the History defect in Known Gotchas). Layout and lifecycle changes are proven on an Android 16 emulator before an APK ships; JVM tests and source-text gates cannot see layout.
+ - Rule R3, one gutter in one place: bars and cutout are margins on the screen root, the 16 dp gutter is padding, applied once, and every screen uses the same content edge. OPEN: Settings is drawn in a narrower band than Home (see Known Gotchas).
+-- The Settings view draws live through the theme controller. `SettingsHostView` redraws the whole screen when the theme changes, and its model download bar takes the same theme, so no part keeps a fixed theme. The view has no setup block and no History button; its sections are the theme, the routing, the shake to wake row, the three switches, the server and API key values, and the speech model row.
++- The Settings view draws live through the theme controller. `SettingsHostView` redraws the whole screen when the theme changes, and its model download bar takes the same theme, so no part keeps a fixed theme. The view has no setup block and no History button; its sections are the theme, the routing, the three switches, the server and API key values, and the speech model row.
+ 
+ ## Does Not Own
+ - Business logic (core)
+@@ -96,7 +96,7 @@ screens render with ui-tokens; light/dark toggle persists (F25).
+   - screen/home/: `HomeIntentHandlerTest`, `HomeScreenTest`, `HomeScreenNoticeTest`, `HomeTextsTest`, `HomeGeometryTest`.
+   - screen/onboarding/: `AccessibilityListTest`, `SetupIntentHandlerTest`, `SetupModelTest`, `SetupScreenTest`, `SetupTextsTest`, `SetupWordingTest`
+     - `SetupIntentHandlerThemeModeTest`: each theme mode name is refused by the first-run handler, and the switch and the rows are left alone.
+-  - screen/settings/: `SettingsIntentHandlerSetupTest`, `SettingsIntentHandlerTest`, `SettingsScreenEditTest`, `SettingsScreenTest`, `SettingsShakeWakeRowTest`
++  - screen/settings/: `SettingsIntentHandlerSetupTest`, `SettingsIntentHandlerTest`, `SettingsScreenEditTest`, `SettingsScreenTest`
+     - `SettingsAppearanceTest`: the three theme cells, their mode names and the selected cell.
+     - `SettingsIntentHandlerThemeTest`: a theme mode name reaches the theme controller exactly, and a name that is not exact is refused.
+   - screen/history/:
+diff --git a/android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsTexts.kt b/android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsTexts.kt
+index 2c1d69d3..4c480b60 100644
+--- a/android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsTexts.kt
++++ b/android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsTexts.kt
+@@ -35,8 +35,7 @@ internal object SettingsTexts {
+     const val SHAKE_ALWAYS = "Always"
+     const val SHAKE_OFF = "Off"
+     const val SHAKE_WAKE_HELP = "Always: shake the phone any time to bring the tile back. " +
+-        "Keyboard only: shaking works only while the keyboard is open (needs the keyboard tile permission). " +
+-        "Off: shaking does nothing."
++        "Keyboard only: shaking works only while the keyboard is open. Off: shaking does nothing."
+     const val SHOW_TILE_LABEL = "Show the tile when the keyboard opens"
+     const val SHOW_TILE_HELP = "The tile comes up by itself when a keyboard opens over a text field."
+     const val FORMATTING_LABEL = "Formatting"
+diff --git a/android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsShakeWakeRowTest.kt b/android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsShakeWakeRowTest.kt
+index a30ab060..d53d0d8f 100644
+--- a/android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsShakeWakeRowTest.kt
++++ b/android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsShakeWakeRowTest.kt
+@@ -90,7 +90,7 @@ class SettingsShakeWakeRowTest {
+         val help = labelOf(s, "settings.shakeWake.help")
+         assertEquals(
+             "Always: shake the phone any time to bring the tile back. " +
+-                "Keyboard only: shaking works only while the keyboard is open (needs the keyboard tile permission). Off: shaking does nothing.",
++                "Keyboard only: shaking works only while the keyboard is open. Off: shaking does nothing.",
+             help.text,
+         )
+         assertEquals(PaletteSlot.TEXT_MUTED, help.color)
+diff --git a/android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsTextsTest.kt b/android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsTextsTest.kt
+index 5f841895..fb009103 100644
+--- a/android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsTextsTest.kt
++++ b/android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsTextsTest.kt
+@@ -27,7 +27,7 @@ class SettingsTextsTest {
+         assertEquals("Off", SettingsTexts.SHAKE_OFF)
+         assertEquals(
+             "Always: shake the phone any time to bring the tile back. " +
+-                "Keyboard only: shaking works only while the keyboard is open (needs the keyboard tile permission). Off: shaking does nothing.",
++                "Keyboard only: shaking works only while the keyboard is open. Off: shaking does nothing.",
+             SettingsTexts.SHAKE_WAKE_HELP,
+         )
+         assertEquals("Show the tile when the keyboard opens", SettingsTexts.SHOW_TILE_LABEL)
+diff --git a/decisions/ADR-024-tile-feedback-and-visibility.md b/decisions/ADR-024-tile-feedback-and-visibility.md
+index 94108e68..7c35972d 100644
+--- a/decisions/ADR-024-tile-feedback-and-visibility.md
++++ b/decisions/ADR-024-tile-feedback-and-visibility.md
+@@ -1,6 +1,6 @@
+ # ADR-024: The tile shows busy and loudness, and hides itself when no keyboard is in use
+ 
+-**Status:** accepted, amended 2026-10-12 (busy cue: no spinner; shake, keyboard and battery), amended 2026-10-14 (level feed), amended 2026-10-15 (a shake only shows the tile), amended 2026-10-17 (X and check size and spacing), amended 2026-10-20 (keyboard visibility design note), amended 2026-10-29 (keyboard tile built: hold during a take, close, debounce window), amended 2026-10-29 (shake to wake choice and keyboard tile switch)
++**Status:** accepted, amended 2026-10-12 (busy cue: no spinner; shake, keyboard and battery), amended 2026-10-14 (level feed), amended 2026-10-15 (a shake only shows the tile), amended 2026-10-17 (X and check size and spacing), amended 2026-10-20 (keyboard visibility design note), amended 2026-10-29 (keyboard tile built: hold during a take, close, debounce window)
+ **Date:** 2026-10-12
+ 
+ ## Context
+@@ -105,8 +105,4 @@ Amended 2026-10-29: the keyboard show, the held hide and the close record, as bu
+ - **Close record.** A close by the user clears the coordinator's record that the tile is shown, drops a held hide and releases the raised mark. So a keyboard that goes away later does not hide the tile the user closed or brought back with a shake, unless a keyboard show has raised it since; a keyboard show after a close made outside a keyboard session raises the tile and sets the mark again. A close made while a keyboard session is active keeps the tile down until that session ends.
+ - **Decision location.** The decision is the top-level function `decision` in `KeyboardTileDecision.kt`, not a member of `TileCoordinator`. Its inputs are four booleans and two time stamps. `KeyboardTileSession` calls it for `TileCoordinator`.
+ - **Debounce.** The debounce time stays 250 ms. A reading inside the window is held, and only the newest held reading is re-evaluated, once, when the window ends. A reading still held when a take begins is acted at once, and its hide is held to the take end. A keyboard show or a switch-off drops a held hide, and a switch-off also cancels the pending re-evaluation.
+-- **Shake.** The shake behaves as before, under the shake to wake choice; the shake and the keyboard show share the take check, and each has its own switch.
+-
+-Amended 2026-10-29: the shake to wake choice (always, keyboard only, or off) and the keyboard tile switch
+-are settings. A shake shows the tile only when the choice allows it, and a keyboard show raises the tile only
+-when the keyboard tile switch is on. Dictation switched on and no take in flight still gate both.
++- **Shake.** The shake behaves as before; the shake and the keyboard show now share one check.
+diff --git a/docs/01-requirements.md b/docs/01-requirements.md
+index 0f24a66c..4f1ba3a5 100644
+--- a/docs/01-requirements.md
++++ b/docs/01-requirements.md
+@@ -18,7 +18,7 @@
+ - **F9** The send phrase "And I'm Gone" is **excluded** from the transcription
+   (audio trimmed at phrase onset).
+ - **F10** Settings: mode, model size, server URL/API key, voice phrases on/off,
+-  shake to wake (always, keyboard only or off), keyboard tile switch on/off, formatting on/off, tile position, language.
++  shake on/off, formatting on/off, tile position, language.
+ - **F11** On first open, the app shows a short welcome (its content is not fixed
+   here), then asks for each permission it needs (microphone, display over other
+   apps, notifications, accessibility service) on a screen of its own that says
+diff --git a/modules.toml b/modules.toml
+index e07f156f..7dcd0093 100644
+--- a/modules.toml
++++ b/modules.toml
+@@ -31,7 +31,7 @@ path = "android/modules/core"
+ owns = "Domain models, ports, use cases. No Android imports."
+ does_not_own = "Android platform code; adapters."
+ depends_on = ["android"]
+-public = "Domain models (including HeardWord, WordUpdate, ShakeWakeMode), ports (including KeyDerivation, WordStream), use cases"
++public = "Domain models (including HeardWord, WordUpdate), ports (including KeyDerivation, WordStream), use cases"
+ card = "android/modules/core/AGENTS.md"
+ 
+ [module.android_audio]

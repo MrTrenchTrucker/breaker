@@ -1,0 +1,139 @@
+diff --git a/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt b/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt
+index a53e556b..a7983f5c 100644
+--- a/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt
++++ b/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsFileStoreTestBase.kt
+@@ -58,20 +58,6 @@ internal val THE_SAVED_KEYS: Set<String> = setOf(
+ internal val CREDENTIAL_LIKE_SUBSTRINGS: List<String> =
+     listOf("api", "key", "token", "secret", "password")
+ 
+-/**
+- * The one property key the guard does not report. Its name contains the letters
+- * of a credential word only as part of "keyboard", and the key holds an on/off
+- * switch, not a credential.
+- *
+- * The comparison is exact and case-sensitive, because the settings file writes
+- * lower-case keys. A key that only contains this name, or spells it in upper
+- * case, is still reported.
+- *
+- * It is a literal of its own, not a reference to the shared key constant, so a
+- * rename of that constant cannot silently change what the guard allows.
+- */
+-internal const val CREDENTIAL_GUARD_EXEMPT_KEY = "show_tile_on_keyboard"
+-
+ /**
+  * The credential-shaped keys among [keys] — where [keys] are the keys parsed
+  * out of a file on disk, never the keys the writer believed it wrote.
+@@ -79,14 +65,10 @@ internal const val CREDENTIAL_GUARD_EXEMPT_KEY = "show_tile_on_keyboard"
+  * The input has to come from the file. A guard handed the writer's own key
+  * list can only ever see its own output, so it can never catch a key the
+  * writer never intended to write, which is the only thing it is here for.
+- *
+- * One key is exempt: a key equal to [CREDENTIAL_GUARD_EXEMPT_KEY], compared
+- * case-sensitively, is not reported. Every other key is matched as before.
+  */
+ internal fun credentialLikeKeysIn(keys: Collection<String>): Set<String> =
+     keys.filterTo(mutableSetOf()) { key ->
+-        key != CREDENTIAL_GUARD_EXEMPT_KEY &&
+-            CREDENTIAL_LIKE_SUBSTRINGS.any { key.contains(it, ignoreCase = true) }
++        CREDENTIAL_LIKE_SUBSTRINGS.any { key.contains(it, ignoreCase = true) }
+     }
+ 
+ /**
+diff --git a/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsKeystoreRefTest.kt b/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsKeystoreRefTest.kt
+index f9222905..a4ebfd43 100644
+--- a/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsKeystoreRefTest.kt
++++ b/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsKeystoreRefTest.kt
+@@ -21,7 +21,7 @@ import java.util.Properties
+  *
+  * `AppSettings.apiKeyRef` is a *reference* (the core model says so itself), so
+  * what must never happen is the store writing that reference — or reading one
+- * back - into the same plaintext properties file as the eleven harmless
++ * back — into the same plaintext properties file as the eight harmless
+  * settings. What must happen instead is that the reference is persisted
+  * **through the port**, so a later store instance over the same port still sees
+  * it. The store is constructed as `SettingsFileStore(file, keystore)`.
+diff --git a/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsWrittenKeysTest.kt b/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsWrittenKeysTest.kt
+index 030b6970..6418554b 100644
+--- a/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsWrittenKeysTest.kt
++++ b/android/modules/settings/src/test/kotlin/dev/breaker/dictation/settings/SettingsWrittenKeysTest.kt
+@@ -112,53 +112,6 @@ class SettingsWrittenKeysTest : SettingsFileStoreTestBase() {
+         )
+     }
+ 
+-    /**
+-     * The exemption is one exact, case-sensitive name. Each planted key below
+-     * checks one way the exemption could go wrong:
+-     *
+-     * - show_tile_on_keyboard is the switch itself; it must not be reported.
+-     * - show_tile_on_keyboard_token starts with the switch name and adds a
+-     *   credential word; a prefix match would hide it.
+-     * - app_show_tile_on_keyboard ends with the switch name and adds a prefix;
+-     *   a suffix match would hide it.
+-     * - keyboard_api_key shares only the word "keyboard" with the switch name;
+-     *   a match on that word alone would hide it.
+-     * - SHOW_TILE_ON_KEYBOARD_KEY is a credential-shaped name in upper case; the
+-     *   substring match must still report it.
+-     * - SHOW_TILE_ON_KEYBOARD is the switch name in upper case; an ignore-case
+-     *   comparison would hide it.
+-     */
+-    @Test
+-    fun `the credential guard allows only the keyboard switch key by exact name`() {
+-        val props = Properties()
+-        props.setProperty("show_tile_on_keyboard", "true")
+-        props.setProperty("show_tile_on_keyboard_token", "PLANTED")
+-        props.setProperty("app_show_tile_on_keyboard", "PLANTED")
+-        props.setProperty("keyboard_api_key", "PLANTED")
+-        props.setProperty("SHOW_TILE_ON_KEYBOARD_KEY", "PLANTED")
+-        props.setProperty("SHOW_TILE_ON_KEYBOARD", "PLANTED")
+-        val file = newFile()
+-        file.outputStream().use { props.store(it, "planted") }
+-
+-        val reported = credentialLikeKeysIn(rawPropertiesOf(file).stringPropertyNames())
+-
+-        assertEquals(
+-            "the guard must report exactly the planted keys other than show_tile_on_keyboard, got $reported",
+-            setOf(
+-                "show_tile_on_keyboard_token",
+-                "app_show_tile_on_keyboard",
+-                "keyboard_api_key",
+-                "SHOW_TILE_ON_KEYBOARD_KEY",
+-                "SHOW_TILE_ON_KEYBOARD",
+-            ),
+-            reported,
+-        )
+-        assertTrue(
+-            "show_tile_on_keyboard was reported: $reported",
+-            !reported.contains("show_tile_on_keyboard"),
+-        )
+-    }
+-
+     /**
+      * `writtenKeys()` is a real contract, checked from both ends and from the
+      * middle.
+diff --git a/android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsTexts.kt b/android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsTexts.kt
+index 2c1d69d3..4c480b60 100644
+--- a/android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsTexts.kt
++++ b/android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsTexts.kt
+@@ -35,8 +35,7 @@ internal object SettingsTexts {
+     const val SHAKE_ALWAYS = "Always"
+     const val SHAKE_OFF = "Off"
+     const val SHAKE_WAKE_HELP = "Always: shake the phone any time to bring the tile back. " +
+-        "Keyboard only: shaking works only while the keyboard is open (needs the keyboard tile permission). " +
+-        "Off: shaking does nothing."
++        "Keyboard only: shaking works only while the keyboard is open. Off: shaking does nothing."
+     const val SHOW_TILE_LABEL = "Show the tile when the keyboard opens"
+     const val SHOW_TILE_HELP = "The tile comes up by itself when a keyboard opens over a text field."
+     const val FORMATTING_LABEL = "Formatting"
+diff --git a/android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsTextsTest.kt b/android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsTextsTest.kt
+index 5f841895..fb009103 100644
+--- a/android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsTextsTest.kt
++++ b/android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/settings/SettingsTextsTest.kt
+@@ -27,7 +27,7 @@ class SettingsTextsTest {
+         assertEquals("Off", SettingsTexts.SHAKE_OFF)
+         assertEquals(
+             "Always: shake the phone any time to bring the tile back. " +
+-                "Keyboard only: shaking works only while the keyboard is open (needs the keyboard tile permission). Off: shaking does nothing.",
++                "Keyboard only: shaking works only while the keyboard is open. Off: shaking does nothing.",
+             SettingsTexts.SHAKE_WAKE_HELP,
+         )
+         assertEquals("Show the tile when the keyboard opens", SettingsTexts.SHOW_TILE_LABEL)
