@@ -8,6 +8,7 @@ import dev.breaker.dictation.ui.screen.onboarding.PlatformStatus
 import dev.breaker.dictation.ui.screen.onboarding.SetupIntentHandler
 import dev.breaker.dictation.ui.screen.onboarding.SetupScreen
 import dev.breaker.dictation.ui.screen.onboarding.SetupState
+import dev.breaker.dictation.ui.screen.onboarding.SetupTexts
 import dev.breaker.dictation.ui.testing.FakeBreakerSwitch
 import dev.breaker.dictation.ui.testing.FakeSetupPlatform
 import dev.breaker.dictation.ui.theme.PaletteSlot
@@ -38,7 +39,7 @@ class FirstRunNextTest {
             FirstRunPage.MICROPHONE -> allGranted.copy(microphone = grantOwn)
             FirstRunPage.OVERLAY -> allGranted.copy(overlay = grantOwn)
             FirstRunPage.NOTIFICATIONS -> allGranted.copy(notifications = grantOwn)
-            FirstRunPage.ACCESSIBILITY -> allGranted.copy(accessibility = grantOwn)
+            FirstRunPage.ACCESSIBILITY, FirstRunPage.KEYBOARD_TILE -> allGranted.copy(accessibility = grantOwn)
             else -> allGranted
         }
         val state = SetupState(
@@ -64,6 +65,7 @@ class FirstRunNextTest {
             FirstRunPage.OVERLAY,
             FirstRunPage.NOTIFICATIONS,
             FirstRunPage.ACCESSIBILITY,
+            FirstRunPage.KEYBOARD_TILE,
         )
         for (page in pages) {
             assertEquals(
@@ -161,5 +163,89 @@ class FirstRunNextTest {
                 raisedFace,
             )
         }
+    }
+
+    /** A page as drawn for the given platform answers, with no notice and no download under way. */
+    private fun shownWith(page: FirstRunPage, status: PlatformStatus): FirstRunShown {
+        val state = SetupState(
+            status = status,
+            switchedOn = false,
+            micAskedBefore = false,
+            notificationsAskedBefore = false,
+        )
+        return FirstRunShown(
+            page = page,
+            step = FirstRunPages.stepOf(page),
+            state = state,
+            notice = null,
+            missing = FirstRunMissing.of(state),
+            download = DownloadShown(DownloadPhase.CHECKING, 0, 0, null),
+        )
+    }
+
+    @Test
+    fun `every page is ready exactly when the grant it names is given, for every combination of answers`() {
+        val named = mapOf(
+            "WELCOME" to "",
+            "MICROPHONE" to "microphone",
+            "OVERLAY" to "overlay",
+            "NOTIFICATIONS" to "notifications",
+            "ACCESSIBILITY" to "accessibility",
+            "KEYBOARD_TILE" to "accessibility",
+            "DOWNLOAD" to "",
+        )
+        assertEquals(
+            "ui: first run: the pages with an expected readiness are not the pages of the first run",
+            named.keys,
+            FirstRunPage.entries.map { it.name }.toSet(),
+        )
+        for (bits in 0 until 16) {
+            val status = PlatformStatus(
+                overlay = (bits and 1) != 0,
+                microphone = (bits and 2) != 0,
+                notifications = (bits and 4) != 0,
+                accessibility = (bits and 8) != 0,
+                sdkInt = 36,
+            )
+            val given = mapOf(
+                "overlay" to status.overlay,
+                "microphone" to status.microphone,
+                "notifications" to status.notifications,
+                "accessibility" to status.accessibility,
+            )
+            for (page in FirstRunPage.entries) {
+                val grant = named.getValue(page.name)
+                val expected = grant.isEmpty() || given.getValue(grant)
+                assertEquals(
+                    "ui: first run: readiness of ${page.name} with answers $bits",
+                    expected,
+                    FirstRunNext.ready(shownWith(page, status)),
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `the keyboard tile page shows not done and the grey Next while accessibility is off, and done with the raised Next once it is on`() {
+        val off = shownWith(
+            FirstRunPage.KEYBOARD_TILE,
+            PlatformStatus(overlay = true, microphone = true, notifications = true, accessibility = false, sdkInt = 36),
+        )
+        assertEquals(
+            "ui: first run: the keyboard tile page with accessibility off does not show the not-granted word",
+            SetupTexts.STATUS_NOT_GRANTED,
+            FirstRunWords.status(FirstRunNext.ready(off)),
+        )
+        assertEquals("ui: first run: the keyboard tile Next is not grey with accessibility off", KitLook.NEUTRAL, FirstRunNext.look(off))
+        val on = shownWith(
+            FirstRunPage.KEYBOARD_TILE,
+            PlatformStatus(overlay = true, microphone = true, notifications = true, accessibility = true, sdkInt = 36),
+        )
+        assertEquals(
+            "ui: first run: the keyboard tile page with accessibility on does not show the granted word",
+            SetupTexts.STATUS_GRANTED,
+            FirstRunWords.status(FirstRunNext.ready(on)),
+        )
+        assertEquals("ui: first run: the keyboard tile Next is not raised with accessibility on", KitLook.RAISED, FirstRunNext.look(on))
     }
 }

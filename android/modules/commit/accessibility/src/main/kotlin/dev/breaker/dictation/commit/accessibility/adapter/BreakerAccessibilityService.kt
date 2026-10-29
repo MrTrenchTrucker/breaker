@@ -18,9 +18,9 @@ import dev.breaker.dictation.commit.adapter.FocusedFieldHolder
  * event, never keeps a node or any text, and never acts on its own.
  *
  * On every window-relevant event it publishes one reading (the two presence booleans plus
- * the event name and time) through [KeyboardProbeReadings.publishLatest], whether or not
- * the debug probe is on: a release build reads the keyboard state of the phone with the
- * probe off by default. The probe path keeps its own recent lines only while it is on;
+ * the event name and time) through [KeyboardProbeReadings.publishLatest] on every such
+ * event, so a release build reads the keyboard state of the phone. The probe path keeps
+ * its own recent lines only while the probe is on;
  * it never reads text or content, and no new read of any text property appears here.
  */
 class BreakerAccessibilityService : AccessibilityService() {
@@ -36,14 +36,14 @@ class BreakerAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         // A null event would NPE downstream, so drop it first — this is the production contract, not a probe guard.
         if (event == null) return
-        // An event from Breaker's own package is the probe's own UI reacting to itself: skip it.
-        // Production read: publish the latest reading whether or not the debug probe is on, so a release build sees the keyboard state of the phone.
+        // An event from Breaker's own package is Breaker's own UI reacting to itself: skip it.
+        // Production read: publish the latest reading on every event, so a release build sees the keyboard state of the phone.
         if (!KeyboardProbeReadings.shouldProcessEvent(event.packageName?.toString(), packageName)) return
         KeyboardProbeReadings.publishLatest(
             fieldFocus = findFieldFocus(),
             imeWindow = hasInputMethodWindow(),
             lastEvent = AccessibilityEvent.eventTypeToString(event.eventType),
-            time = System.currentTimeMillis(),
+            time = System.nanoTime() / 1_000_000L,
         )
     }
 
@@ -64,7 +64,7 @@ class BreakerAccessibilityService : AccessibilityService() {
 
     /**
      * The keyboard-window signal: true when the window list carries an input-method window (the
-     * keyboard). Needs the `flagRetrieveInteractiveWindows` config flag, which the debug build sets.
+     * keyboard). Needs the `flagRetrieveInteractiveWindows` config flag, which the service config sets.
      * Each window in the list is recycled once.
      */
     private fun hasInputMethodWindow(): Boolean {

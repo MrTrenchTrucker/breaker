@@ -1,6 +1,5 @@
 package dev.breaker.dictation.ui.screen.onboarding
 
-import java.lang.reflect.Modifier
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -16,7 +15,7 @@ import org.junit.Test
  * Every constant is found by reading the object's own fields, so a constant added later is held
  * to the same rules without anyone remembering to list it.
  */
-class SetupTextsTest {
+internal class SetupTextsTest : SetupTextsTestBase() {
     private val longest = 400
     private val highestAscii = 127
 
@@ -34,9 +33,6 @@ class SetupTextsTest {
 
     /** The text that opens a ticket number, which is banned as a prefix rather than a word. */
     private val bannedPrefix = joined("R", "C-")
-
-    private fun wordPattern(word: String) =
-        Regex("(?<![A-Za-z0-9-])" + Regex.escape(word) + "(?![A-Za-z0-9-])", RegexOption.IGNORE_CASE)
 
     private val quoted = Regex("\"[^\"]*\"")
 
@@ -56,21 +52,6 @@ class SetupTextsTest {
         }
     }
 
-    /** Every String constant of the texts object, by name, read from its fields. */
-    private fun constants(): Map<String, String> =
-        SetupTexts::class.java.declaredFields
-            .filter { Modifier.isStatic(it.modifiers) && it.type == String::class.java }
-            .associate { field ->
-                field.setAccessible(true)
-                field.name to (field.get(null) as String)
-            }
-
-    private val texts = constants()
-
-    private fun text(name: String): String = texts[name] ?: error("no constant named $name")
-
-    private fun countOf(text: String, needle: String): Int = text.split(needle).size - 1
-
     private val required = listOf(
         "TITLE", "INTRO", "STATUS_GRANTED", "STATUS_NOT_GRANTED",
         "HEADING_OVERLAY", "HEADING_MICROPHONE", "HEADING_NOTIFICATIONS", "HEADING_ACCESSIBILITY",
@@ -78,6 +59,7 @@ class SetupTextsTest {
         "BUTTON_REQUEST_MICROPHONE", "BUTTON_REQUEST_NOTIFICATIONS", "BUTTON_OVERLAY_PAGE",
         "BUTTON_NOTIFICATION_PAGE", "BUTTON_ACCESSIBILITY_LIST", "BUTTON_APP_INFO", "BUTTON_CHECK_AGAIN",
         "NOTIFICATIONS_LOST", "ACCESSIBILITY_LIMITS",
+        "HEADING_KEYBOARD_TILE", "WHY_KEYBOARD_TILE", "KEYBOARD_TILE_LIMITS",
         "RESTRICTED_INTRO", "RESTRICTED_STEP_1", "RESTRICTED_STEP_2", "RESTRICTED_STEP_3",
         "SWITCH_HEADING", "SWITCH_ON_STATE", "SWITCH_OFF_STATE", "BUTTON_SWITCH_ON", "BUTTON_SWITCH_OFF",
         "SWITCH_NEEDS_MICROPHONE", "SWITCH_NOTE_ONGOING_NOTICE",
@@ -187,126 +169,6 @@ class SetupTextsTest {
         assertEquals("two buttons share one text", buttons.size, buttons.toSet().size)
         val notices = listOf("COULD_NOT_CHECK", "COULD_NOT_OPEN", "SWITCH_FAILED", "NOT_ACCEPTED").map { text("NOTICE_$it") }
         assertEquals("two notices share one text", notices.size, notices.toSet().size)
-    }
-
-    @Test
-    fun `the notifications note names all three things that are lost`() {
-        val note = text("NOTIFICATIONS_LOST")
-        assertTrue("it says Breaker still works", note.contains("Breaker still works"))
-        assertTrue("no notice while it is on", note.contains("you see no notice while it is on"))
-        assertTrue("no switching off from the shade", note.contains("you cannot switch it off from the notification shade"))
-        assertTrue("no opening of the history", note.contains("the notice cannot open your history"))
-    }
-
-    @Test
-    fun `the accessibility limits state all five promises`() {
-        val limits = text("ACCESSIBILITY_LIMITS")
-        val promises = listOf(
-            "it acts only when you send",
-            "reads only the one field it types into",
-            "never fills a password field",
-            "keeps nothing from your screen",
-            "sends nothing off the phone",
-        )
-        for (promise in promises) {
-            assertTrue("the limits do not say \"$promise\"", limits.contains(promise))
-        }
-    }
-
-    @Test
-    fun `the three restricted steps name the menu words exactly, and the allow words once`() {
-        val steps = listOf(text("RESTRICTED_STEP_1"), text("RESTRICTED_STEP_2"), text("RESTRICTED_STEP_3"))
-        val allow = "Allow restricted settings"
-        assertEquals("the exact menu words, counted over the three steps", 1, steps.sumOf { countOf(it, allow) })
-        assertEquals("the menu words belong in step 2", 1, countOf(steps[1], allow))
-        assertTrue("step 2 quotes the menu words", steps[1].contains("\"$allow\""))
-        assertTrue("step 1 quotes Android's own label", steps[0].contains("\"Restricted setting\""))
-        assertTrue("step 1 opens accessibility settings", steps[0].startsWith("Open accessibility settings. "))
-        assertTrue("step 1 says to tap Breaker", steps[0].contains("tap Breaker"))
-        assertTrue("step 1 names the list of installed apps", steps[0].contains("\"Installed apps\""))
-        assertTrue("step 1 names the list of downloaded apps", steps[0].contains("\"Downloaded apps\""))
-        assertTrue("step 2 says app info", steps[1].contains("app info"))
-        assertTrue("step 2 says where the dots are", steps[1].contains("three dots at the top right"))
-        assertTrue("step 3 goes back to accessibility settings", steps[2].startsWith("Go back to accessibility settings and "))
-        assertTrue("step 3 says to turn on Breaker's access", steps[2].contains("turn on Breaker's accessibility access"))
-        assertTrue("step 3 says to press Allow", steps[2].contains("press Allow"))
-        assertTrue("step 3 ends by sending the user back", steps[2].endsWith("Then come back here."))
-        assertFalse("step 3 repeats the menu words", steps[2].contains(allow))
-    }
-
-    @Test
-    fun `the word switch is kept for Breaker's own switch and never names the accessibility toggle`() {
-        val about = listOf(
-            "HEADING_ACCESSIBILITY", "WHY_ACCESSIBILITY", "ACCESSIBILITY_LIMITS", "BUTTON_ACCESSIBILITY_LIST",
-            "RESTRICTED_INTRO", "RESTRICTED_STEP_1", "RESTRICTED_STEP_2", "RESTRICTED_STEP_3", "WARNING_NO_ACCESSIBILITY",
-        )
-        for (name in about) {
-            assertFalse("$name uses the word switch", wordPattern("switch").containsMatchIn(text(name)))
-        }
-    }
-
-    @Test
-    fun `the display over other apps page has one name in every text that names it`() {
-        val name = "Display over other apps"
-        val anyName = Regex("over other apps", RegexOption.IGNORE_CASE)
-        for ((constant, shown) in texts) {
-            val named = anyName.findAll(shown).count()
-            val exact = countOf(shown, name)
-            assertEquals("$constant names the page in a different way", named, exact)
-        }
-        assertEquals(name, text("HEADING_OVERLAY"))
-        for (constant in listOf("WHY_OVERLAY", "BUTTON_OVERLAY_PAGE", "WARNING_NO_OVERLAY")) {
-            assertTrue("$constant does not name the page", text(constant).contains("\"$name\""))
-        }
-    }
-
-    @Test
-    fun `the reasons for the tile and the microphone promise no more than is true`() {
-        assertTrue("the tile starts it", text("WHY_OVERLAY").contains("You tap the tile to start."))
-        assertFalse("the tile is not said to stop it", text("WHY_OVERLAY").contains("stop"))
-        assertTrue("the microphone records when started", text("WHY_MICROPHONE").contains("It records only when you start it."))
-        assertFalse("the microphone is not tied to the tile", text("WHY_MICROPHONE").contains("tile"))
-    }
-
-    @Test
-    fun `the introduction says that only the microphone is needed to switch Breaker on`() {
-        assertTrue(text("INTRO").contains("Only the microphone is needed to switch Breaker on"))
-    }
-
-    @Test
-    fun `the accessibility reason leaves the clipboard to the warning`() {
-        assertFalse("the reason repeats the clipboard sentence", text("WHY_ACCESSIBILITY").contains("clipboard"))
-        assertTrue("the warning keeps the clipboard sentence", text("WARNING_NO_ACCESSIBILITY").contains("clipboard"))
-    }
-
-    @Test
-    fun `the notifications reason promises a notice only when notices are allowed`() {
-        val why = text("WHY_NOTIFICATIONS")
-        assertTrue("the notice is conditional", why.startsWith("When notices are allowed, Breaker shows one while it is on."))
-        assertFalse("the old unconditional wording is back", why.contains("shows a quiet notice"))
-        assertTrue("the step is still optional", why.contains("You can skip this step."))
-    }
-
-    @Test
-    fun `the accessibility settings page has one name in the steps and on the button`() {
-        val page = "accessibility settings"
-        for (constant in listOf("RESTRICTED_STEP_1", "RESTRICTED_STEP_3", "BUTTON_ACCESSIBILITY_LIST")) {
-            assertTrue("$constant does not call the page \"$page\"", text(constant).contains(page, ignoreCase = true))
-        }
-        for ((constant, shown) in texts) {
-            assertFalse("$constant calls the page a list", shown.contains("accessibility list", ignoreCase = true))
-        }
-    }
-
-    @Test
-    fun `the switch texts say what the user must know before turning it on`() {
-        val note = text("SWITCH_NOTE_ONGOING_NOTICE")
-        assertTrue("the notice is promised only when notices are allowed", note.startsWith("When notices are allowed"))
-        assertTrue("the notice is shown while Breaker is on", note.contains("shows one while it is on"))
-        assertFalse("no promise that depends on the phone", note.contains("stays") || note.contains("indicator"))
-        assertTrue("the microphone is the reason", text("SWITCH_NEEDS_MICROPHONE").contains("microphone"))
-        assertTrue("no tile", text("WARNING_NO_OVERLAY").contains("no tile"))
-        assertTrue("the clipboard", text("WARNING_NO_ACCESSIBILITY").contains("clipboard"))
     }
 
     @Test

@@ -64,7 +64,7 @@ x86_64). It lives outside this repository. The emulator cannot record audio
 (no speech model, and the native libraries are arm64 only), so the recording
 states of the mic are proven through a hook in the app's `debug` source set
 that pushes a state into the mic. That hook is PLANNED: it does not exist in
-main yet (`android/app/src/debug` holds only the keyboard probe). Until it
+main yet (`android/app/src/debug` holds only the Home mic probe). Until it
 exists, the recording states are proven on a real phone only.
 
 **R2. Views measure themselves and survive a redraw.**

@@ -92,10 +92,8 @@ internal object ProbeView {
     fun mapping(code: String): String = withoutFunction(withoutFunction(adapter(code), FIELD_FUNCTION), WINDOW_FUNCTION)
 }
 
-internal class ProbeReadGateTest {
+internal class ProbeReadGateTest : ProbeGateTestBase() {
 
-    private val nodeFile: String = "adapter/AndroidFieldNode.kt"
-    private val serviceFile: String = "adapter/BreakerAccessibilityService.kt"
     private val windowList: Regex = Regex("""\bgetWindows\s*\(""")
     private val recycleCall: Regex = Regex("""\brecycle\s*\(\s*\)""")
     private val publishCall: Regex = Regex("""\bpublish\s*\(""")
@@ -105,21 +103,6 @@ internal class ProbeReadGateTest {
 
     /** Any event member read outside the allowed two. */
     private val otherEventMembers: Regex = Regex("""\bevent\s*\.\s*\w+""")
-
-    private fun real(path: String): String {
-        val text: String = SourceFiles.mainSources()[path] ?: ""
-        assertTrue("commit/accessibility: the probe check did not find " + path, text.isNotBlank())
-        return text
-    }
-
-    private fun code(source: String): String = SourceFiles.strip(source).code
-
-    private fun count(rule: Regex, code: String): Int = rule.findAll(code).count()
-
-    private fun edit(source: String, from: String, to: String): String {
-        assertTrue("commit/accessibility: the probe check sample has no text " + from, source.contains(from))
-        return source.replaceFirst(from, to)
-    }
 
     private fun windowReads(node: String, service: String): Int =
         count(windowList, node) + count(windowList, ProbeView.withoutFunction(service, ProbeView.WINDOW_FUNCTION))

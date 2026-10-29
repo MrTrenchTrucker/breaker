@@ -12,7 +12,7 @@ import dev.breaker.dictation.ui.screen.onboarding.SetupStep
  */
 
 /** The pages of the first run. */
-internal enum class FirstRunPage { WELCOME, MICROPHONE, OVERLAY, NOTIFICATIONS, ACCESSIBILITY, DOWNLOAD }
+internal enum class FirstRunPage { WELCOME, MICROPHONE, OVERLAY, NOTIFICATIONS, ACCESSIBILITY, KEYBOARD_TILE, DOWNLOAD }
 
 /** The rules about the pages: their order, their step marks, their setup steps and their swipes. */
 internal object FirstRunPages {
@@ -23,21 +23,23 @@ internal object FirstRunPages {
         FirstRunPage.OVERLAY,
         FirstRunPage.NOTIFICATIONS,
         FirstRunPage.ACCESSIBILITY,
+        FirstRunPage.KEYBOARD_TILE,
         FirstRunPage.DOWNLOAD,
     )
 
     /** How many step marks the permission pages show. */
-    const val STEP_COUNT: Int = 4
+    const val STEP_COUNT: Int = 5
 
     /** The page after [page] in [ORDER], or null after the last page. */
     fun next(page: FirstRunPage): FirstRunPage? = ORDER.getOrNull(ORDER.indexOf(page) + 1)
 
-    /** The one-based step mark of [page]: 1 to 4 on the permission pages, 0 on the other two. */
+    /** The one-based step mark of [page]: 1 to 5 on the permission pages, 0 on the other two. */
     fun stepOf(page: FirstRunPage): Int = when (page) {
         FirstRunPage.MICROPHONE -> 1
         FirstRunPage.OVERLAY -> 2
         FirstRunPage.NOTIFICATIONS -> 3
         FirstRunPage.ACCESSIBILITY -> 4
+        FirstRunPage.KEYBOARD_TILE -> 5
         FirstRunPage.WELCOME, FirstRunPage.DOWNLOAD -> 0
     }
 
@@ -47,12 +49,13 @@ internal object FirstRunPages {
         FirstRunPage.OVERLAY -> SetupStep.OVERLAY
         FirstRunPage.NOTIFICATIONS -> SetupStep.NOTIFICATIONS
         FirstRunPage.ACCESSIBILITY -> SetupStep.ACCESSIBILITY
+        FirstRunPage.KEYBOARD_TILE -> SetupStep.ACCESSIBILITY
         FirstRunPage.WELCOME, FirstRunPage.DOWNLOAD -> null
     }
 
     /** Whether [page] is the last permission page, the one that lists what is still missing. */
-    fun isLastPermission(page: FirstRunPage): Boolean = page == FirstRunPage.ACCESSIBILITY
+    fun isLastPermission(page: FirstRunPage): Boolean = page == FirstRunPage.KEYBOARD_TILE
 
-    /** Whether a right-to-left swipe moves [page] on: true on the four permission pages only. */
+    /** Whether a right-to-left swipe moves [page] on: true on the five permission pages only. */
     fun swipes(page: FirstRunPage): Boolean = setupStepOf(page) != null
 }

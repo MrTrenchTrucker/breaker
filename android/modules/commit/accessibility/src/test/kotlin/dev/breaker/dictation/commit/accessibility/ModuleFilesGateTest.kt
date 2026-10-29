@@ -21,7 +21,6 @@ import org.junit.Test
  * samples below prove each of them without touching the disk.
  */
 internal class ModuleFilesGateTest {
-
     /** Every file the module folder may hold, sorted. */
     private val pinned: List<String> = listOf(
         "AGENTS.md",
@@ -63,6 +62,8 @@ internal class ModuleFilesGateTest {
         "src/test/kotlin/dev/breaker/dictation/commit/accessibility/NodeFocusedFieldSetTextRefusalTest.kt",
         "src/test/kotlin/dev/breaker/dictation/commit/accessibility/PasswordInputTypeTest.kt",
         "src/test/kotlin/dev/breaker/dictation/commit/accessibility/PrivacyScanTest.kt",
+        "src/test/kotlin/dev/breaker/dictation/commit/accessibility/ProbeClockGateTest.kt",
+        "src/test/kotlin/dev/breaker/dictation/commit/accessibility/ProbeGateTestBase.kt",
         "src/test/kotlin/dev/breaker/dictation/commit/accessibility/ProbeReadGateTest.kt",
         "src/test/kotlin/dev/breaker/dictation/commit/accessibility/PureFilesScanTest.kt",
         "src/test/kotlin/dev/breaker/dictation/commit/accessibility/SourceFiles.kt",

@@ -8,6 +8,7 @@ import dev.breaker.dictation.ui.testing.FakeBreakerSwitch
 import dev.breaker.dictation.ui.testing.FakeSetupPlatform
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -53,11 +54,27 @@ class FirstRunControllerSwitchTest {
         )
     }
 
+    /**
+     * Advances [controller] until it shows [wanted]. The walk takes at most one step per page of
+     * the first run, so a page the order never reaches fails here, naming the page and the steps taken.
+     */
+    private fun walkTo(controller: FirstRunController, wanted: FirstRunPage) {
+        var steps = 0
+        while (controller.page != wanted) {
+            assertTrue(
+                "the walk did not reach $wanted in $steps steps; it stopped on ${controller.page}",
+                steps < FirstRunPage.entries.size,
+            )
+            controller.advance()
+            steps++
+        }
+    }
+
     @Test
     fun `a refused switch-on is shown as the app's sentence on every page`() {
         for (page in walk) {
             val r = Rig()
-            while (r.controller.page != page) r.controller.advance()
+            walkTo(r.controller, page)
             r.controller.switchRefused(refusal)
             assertEquals("on $page", refusal, r.controller.shown().notice)
         }
@@ -116,7 +133,7 @@ class FirstRunControllerSwitchTest {
         r.controller.advance()
         assertEquals(0, r.finished)
         r.modelThrows = true
-        repeat(4) { r.controller.advance() }
+        repeat(5) { r.controller.advance() }
         assertEquals(FirstRunPage.DOWNLOAD, r.controller.page)
         assertEquals("the kept answer finishes the first run once", 1, r.finished)
     }

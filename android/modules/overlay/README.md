@@ -100,7 +100,7 @@ The tile keeps its position as fractions of the range it can move over and saves
 it once when a drag ends. The foreground service that keeps the process alive is
 the app's, not this module's.
 
-`FloatingTile.setImeProbe(listener)` is probe only and is removed with the keyboard-signal selector: a non-null listener is told when the bottom keyboard inset of the tile's window changes, and null turns it off. It never shows or hides the tile.
+`FloatingTile.setImeProbe(listener)`: a non-null listener is told when the bottom keyboard inset of the tile's window changes, and null turns it off. It never shows or hides the tile. No app code calls it.
 
 ## ScreenMic: the same mic on an app screen
 

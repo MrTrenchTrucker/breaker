@@ -235,4 +235,19 @@ internal class KeyboardReevaluationTest {
         s.rig.settle()
         assertEquals("the switch-off released the raised mark, so the later gone reading does nothing", 1, s.hides())
     }
+
+    @Test
+    fun `a reading stamped before the last acted change is held to the window end and then applied`() {
+        val s = Setup().raisedByKeyboard()
+        s.coordinator.onKeyboardReading(false, false, 900L)
+        s.rig.settle()
+        assertEquals("the backward reading is held, one post", 1, s.delayed.posts.size)
+        assertEquals("the post is due 350 ms from now: window end 1250 minus stamp 900", 350L, s.delayed.posts.single().dueAt)
+        assertEquals("no hide while the held reading waits", 0, s.hides())
+        assertTrue("the tile stays up while the reading is held", s.rig.tile.shown)
+        s.delayed.advance(350L)
+        s.rig.settle()
+        assertEquals("the held reading hides the tile once, at the window end", 1, s.hides())
+        assertFalse("the tile is down after the window end", s.rig.tile.shown)
+    }
 }

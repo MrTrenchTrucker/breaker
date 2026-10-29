@@ -15,7 +15,7 @@ sealed interface KeyboardDecision {
     object NoOp : KeyboardDecision
 }
 
-/** The debounce window in milliseconds: a reading inside it gets NoOp from the pure function and from the session, and the coordinator holds the newest such reading and re-evaluates it once when the window ends. Named so the coordinator and the debug page share one value. */
+/** The debounce window in milliseconds: a reading inside it gets NoOp from the pure function and from the session, and the coordinator holds the newest such reading and re-evaluates it once when the window ends. Named once so that every debounce check in the keyboard tile uses the same value. */
 internal const val DEBOUNCE_MS: Long = 250
 
 /**
@@ -25,9 +25,9 @@ internal const val DEBOUNCE_MS: Long = 250
  * The inputs are exactly six: [imeWindowPresent] (a keyboard window is open), [fieldFocused] (an
  * editable field is focused), [keyboardRaised] (this session raised a tile that was not showing
  * before it started) and [closedDuringSession] (the user closed the tile while this session was
- * active). [nowMs] is the current wall-clock time; [lastChangeMs] is the last time this function's
- * inputs changed. The result is pure: nothing of its own state beyond what it is given, so a test can
- * pin every path by calling it directly.
+ * active). [nowMs] is the current monotonic millisecond count and [lastChangeMs] is the count
+ * at the last change of the inputs; only their difference is used, never as a calendar time.
+ * The result is pure: no state beyond what it is given, so a test can pin every path by calling it.
  */
 internal fun decision(
     imeWindowPresent: Boolean,

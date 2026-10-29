@@ -1,6 +1,6 @@
 # AGENTS.md — android/modules/commit/accessibility/
 
-> Scope: every statement in this card about what the service reads, requests or does describes the RELEASE build. The debug build adds a keyboard probe; "Debug probe build" below says what it adds and where it differs.
+> Scope: every statement in this card about what the service reads, requests or does holds in every build: the debug and release builds carry the same service config and the same service code. The keyboard reading is described under "Keyboard reading in every build" below.
 
 ## Purpose
 
@@ -13,7 +13,7 @@ approach (ADR-005, now dead code in `commit/ime`).
 **First working piece built.** The service, the focused-field resolver that it
 publishes into the parent, and the pure insert rule exist, with tests that read
 this module's own files. **Not built yet:** `ACTION_PASTE` (it would come only
-behind a parent clipboard seam), zero event types in the service config, and
+behind a parent clipboard seam), and
 anything proven on a device: nothing here has been run on a device.
 
 **Build phase:** Phase 7. Needs first: `commit` (this module's parent, for the
@@ -23,8 +23,8 @@ focused-field registry it publishes into).
 
 This module owns:
 - The accessibility service itself (`AccessibilityService`), its service
-  config (requesting only focused-view events and `canRetrieveWindowContent`,
-  because finding the focused field needs it — nothing more).
+  config (requesting the three event types, `flagRetrieveInteractiveWindows` and `canRetrieveWindowContent`,
+  because finding the focused field and reading keyboard presence need them — nothing more).
 - Finding the currently focused editable node.
 - Inserting text: reading the field's current text and selection, building the
   new text, `AccessibilityNodeInfo.ACTION_SET_TEXT` to merge it in at the
@@ -93,24 +93,23 @@ From ADR-022, enforced by tests that read this module's own files:
   (`typeViewFocused`, `typeWindowsChanged`, `typeWindowStateChanged`) plus
   `flagRetrieveInteractiveWindows` and `canRetrieveWindowContent`. It now
   publishes a keyboard-presence reading (two booleans + the event name + time)
-  on every window-relevant event via `publishLatest`; the release build keeps
-  this read always active — the debug probe switch only gates the probe's own
-  recent-history store, never the production reading. Probe off by default in
-  a release build.
+  on every window-relevant event via `publishLatest`, in every build. The probe
+  switch (`KeyboardProbeReadings.setEnabled`) gates only the recent lines; no
+  release code turns it on, so a release build keeps no recent lines.
   - Tested by: `ConfigGateTest`, `ManifestGateTest`, `ModuleFilesGateTest`.
-- When the debug probe is on, the service only checks whether a keyboard window is open and reads which field has focus, never any text.
+- On every window-relevant event the service checks whether a keyboard window is open and whether the focused field is editable; it reads no text.
   - Tested by: `ProbeReadGateTest`.
 
-## Debug probe build
+## Keyboard reading in every build
 
-Temporary, debug build only. It goes before release. When the debug probe is on, the service only checks whether a keyboard window is open and reads which field has focus, never any text.
+Production code in every build, not a probe. On every window-relevant event the service checks whether a keyboard window is open and whether the focused field is editable, and publishes the two Booleans, the event name and a time to the commit module's `KeyboardProbeReadings` with `publishLatest`. It never reads any text or content.
 
-- What it adds: a debug overlay of the service config (`android/app/src/debug/res/xml/commit_accessibility_service_config.xml`, the same file name, so in the debug build it replaces this module's file). It adds `flagRetrieveInteractiveWindows` (flag 0x40) and three event types: `typeViewFocused`, `typeWindowsChanged` and `typeWindowStateChanged`. This module's own config, manifest and gates are byte-identical to main, so the release build keeps the config described in the rest of this file.
-- When it runs: the probe path is compiled into every build, but it runs only while `KeyboardProbeReadings.isEnabled()` is true. Only debug code turns that on (the "Breaker probe" page and its start provider, in the app's debug source set). The first statement of `onAccessibilityEvent` returns at once when the event is null or the probe is off, before any read. With the debug config and the probe off, the system still sends the events and the handler returns at once.
-- What it reads when it is on: whether the active window's input-focused node is editable (the existing finder; the node is released once), whether the window list holds an input-method window (each listed window is recycled once), the event's name, and the time. It publishes these into the parent's `KeyboardProbeReadings` (memory only, the last 40 lines). It never reads text or content, and it changes nothing on the screen or about when the tile shows.
-- Release builds carry none of the debug parts: no probe page, no start provider, no selector, no debug config overlay. The app's `ProbeReleaseGateTest` pins that (release manifest, release sources, release resources hold no service config). The probe code in the service itself is compiled into release but cannot be turned on there: the same test pins that no file outside the debug source set calls `KeyboardProbeReadings.setEnabled`.
+- The service config is the one in this module's `src/main/res/xml/` in every build: the three event types, the interactive-windows flag and window-content access. No build overrides it.
+- When it runs: on every event of the three types. `onAccessibilityEvent` returns at once when the event is null; an event from Breaker's own package is skipped; nothing else gates the reading.
+- What it reads: whether the active window's input-focused node is editable (the node is released once), whether the window list holds an input-method window (each listed window is recycled once), the event's name, and the time. It publishes these with `publishLatest`; the recent lines are kept only while the probe switch is on, and no release code turns it on. It never reads text or content, and it changes nothing on the screen.
+- The probe switch (`KeyboardProbeReadings.setEnabled`) has no caller outside the tests. The app's `ProbeReleaseGateTest` pins that no main source of the app or of any module calls it.
 - The insert rule, the refusals and the password rule above are not touched by it.
-- Tested by: `ProbeReadGateTest` (this module); `ProbeReleaseGateTest` (the app module: the release build holds none of the debug parts, and no file outside the debug source set turns the probe on) and `ProbeShowHideGateTest` (the probe cannot change when the tile shows or hides).
+- Tested by: `ProbeReadGateTest` (this module); `ProbeReleaseGateTest` (the app module: no main source turns the probe switch on) and `ProbeShowHideGateTest` (the show and hide paths of the tile name no probe symbol).
 
 ## Test Locations
 - Unit (Kotlin): `android/modules/commit/accessibility/src/test/kotlin/`. Run: `./gradlew :android:modules:commit:accessibility:test`
@@ -124,8 +123,8 @@ Temporary, debug build only. It goes before release. When the debug probe is on,
     `NodeFocusedFieldPrivacyTest`, `NodeFocusedFieldErrorTest`.
   - Gates that read the module's own files: `PureFilesScanTest`, `PrivacyScanTest`,
     `TestRulesScanTest`, `ManifestGateTest`, `ConfigGateTest`, `AdapterGateTest`,
-    `AdapterMappingGateTest`, `FieldStateFlagsGateTest`, `ProbeReadGateTest`, `ModuleFilesGateTest` (with the helpers `SourceFiles.kt`,
-    `XmlFiles.kt` and the sample files `AdapterGateSamples.kt`, `AdapterMappingSamples.kt`).
+    `AdapterMappingGateTest`, `FieldStateFlagsGateTest`, `ProbeReadGateTest`, `ProbeClockGateTest`, `ModuleFilesGateTest` (with the helpers `SourceFiles.kt`,
+    `XmlFiles.kt`, the shared base `ProbeGateTestBase.kt` and the sample files `AdapterGateSamples.kt`, `AdapterMappingSamples.kt`).
 - Contract: `tests/contract/test_commit_accessibility_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_commit_accessibility_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
@@ -143,7 +142,7 @@ one module at a time. The owner does not write the module's code. The owner:
   tests;
 - coordinates and orchestrates those sub-agents, checks every piece of their
   work, and sends back anything that is wrong until it is right;
-- convenes a small council of sub-agents to advise on design, risks and tests
+- asks a small set of reviewers for advice on design, risks and tests
   before and during the build;
 - hands the finished, checked module directly to the reviewer as a single pull
   request.
@@ -188,7 +187,7 @@ agents, not required: an outside contributor may write the code themselves
 - Not verified on a device (nothing in this module has been run on one):
   - `findFocus(FOCUS_INPUT)` at send time while the floating tile is showing.
   - The cases where the active window has no root.
-  - Zero event types in the service config.
+  - The three event types and the interactive-windows flag in the service config.
   - WebView fields.
   - `ACTION_SET_SELECTION` right after `ACTION_SET_TEXT` (a stale selection).
   - Hint text handling, and the refusal of this app's own fields in practice.

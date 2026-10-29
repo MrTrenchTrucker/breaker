@@ -135,7 +135,7 @@ get darker and are flat, and white in the dark theme. They sit on the dark body.
   audio capture and the audio-level feed (the app's), the foreground service (the app's), asking the user for the
   overlay permission (the app's), and any gesture or phrase code.
 - OPEN (Home mic, from the phone test): (a) BLOCKER: while recording, the X and the check on the Home mic are drawn but do not answer a tap and the take gets stuck; cause not found (leads: the tile's overlay window over the mic, the zone mapping in the centred slot, a parent taking the touch, a Home redraw re-parenting the mic mid-gesture). Required: X cancels, check finishes, a second tap on the mic finishes. (b) The app pushes only `IDLE`, `ARMED` and `RECORDING` to the Home mic; required: it shows `MIC_BUSY` from the same signal as the tile and `SENDING` from the end of recording until the result, then idle (ScreenMic already draws the busy sign for `MIC_BUSY`; it has no busy pulse). (c) `ScreenMic.setTheme` has no caller: the Home mic follows the phone's light/dark setting, not the stored theme.
-- Keyboard tile: this module keeps owning the tile window; the show/hide decision is the app's (`TileCoordinator` acts on `decision` in `KeyboardTileDecision.kt`), which reads the keyboard window and the focused text field. `setImeProbe` is the probe only.
+- Keyboard tile: this module keeps owning the tile window; the show/hide decision is the app's (`TileCoordinator` acts on `decision` in `KeyboardTileDecision.kt`), which reads the keyboard window and the focused text field. `setImeProbe` has no app caller.
 
 **Build phase:** Phase 6, together with `gesture`. Needs first: `core` and `ui-tokens` (both on main).
 
@@ -225,7 +225,7 @@ FloatingTile (via create), FloatingTile.setImeProbe, ShowResult, TileState, Scre
     different state; the module has no timer.
   - `clearNotice`: takes the sentence away; does nothing when there is none.
   - `setDescription`: the words a screen reader reads for the tile; null removes them.
-- `FloatingTile.setImeProbe(listener)`: probe only, removed with the keyboard-signal selector. A non-null listener is told the bottom keyboard inset and its visibility when they change; null turns it off. It never shows or hides the tile.
+- `FloatingTile.setImeProbe(listener)`: a non-null listener is told the bottom keyboard inset and its visibility when they change; null turns it off. It never shows or hides the tile. No app code calls it.
 - `ShowResult`, in this order, and what the app should do:
   - `SHOWN`: the tile is on screen. Nothing more to do.
   - `ALREADY_SHOWN`: it was already on screen. Nothing changed.

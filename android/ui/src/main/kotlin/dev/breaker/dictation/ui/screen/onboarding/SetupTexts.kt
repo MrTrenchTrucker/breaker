@@ -65,9 +65,26 @@ internal object SetupTexts {
     const val ACCESSIBILITY_LIMITS =
         "What Breaker does with this access: it acts only when you send. " +
             "It reads only the one field it types into. " +
+            "It also notices, without reading anything, " +
+                "whether a text field is selected and whether the keyboard is open. " +
             "It never fills a password field. " +
             "It keeps nothing from your screen. " +
             "It sends nothing off the phone."
+
+    /** The keyboard tile page: its heading. */
+    const val HEADING_KEYBOARD_TILE = "Floating tile with your keyboard"
+
+    /** The keyboard tile page: the reason shown under its heading. */
+    const val WHY_KEYBOARD_TILE =
+        "When you open the keyboard to type in any app, Breaker can bring up its tile for you. " +
+            "It uses the same accessibility access as the page before."
+
+    /** The keyboard tile page: what Breaker looks at, and what it keeps. */
+    const val KEYBOARD_TILE_LIMITS =
+        "What Breaker looks at for this: only whether a text field is selected and whether the keyboard is open. " +
+            "It never reads what is in the field or on your screen. " +
+            "It remembers only the latest of those two yes-or-no answers while the app runs, saves nothing, " +
+            "and sends nothing off the phone."
 
     /** The extra confirmation Android 13 and newer can ask for. */
     const val RESTRICTED_INTRO =

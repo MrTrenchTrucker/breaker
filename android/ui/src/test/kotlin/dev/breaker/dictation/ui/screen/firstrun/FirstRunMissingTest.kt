@@ -111,4 +111,52 @@ class FirstRunMissingTest {
             FirstRunMissing.of(state(missing)).map { it.page }.filter { it == FirstRunPage.WELCOME || it == FirstRunPage.DOWNLOAD },
         )
     }
+
+
+    @Test
+    fun `the accessibility item is listed once when only accessibility is missing`() {
+        assertEquals(
+            "ui: first run: a missing accessibility permission did not give one accessibility item",
+            listOf(MissingItem(FirstRunPage.ACCESSIBILITY, OpenAction.ACCESSIBILITY_LIST)),
+            FirstRunMissing.of(state(phone(accessibility = false))),
+        )
+    }
+
+    @Test
+    fun `the accessibility item is listed once when all four permissions are missing`() {
+        val missing = phone(overlay = false, microphone = false, notifications = false, accessibility = false)
+        val actions = FirstRunMissing.of(state(missing)).map { it.action }
+        assertEquals(
+            "ui: first run: the accessibility action is listed more than once",
+            1,
+            actions.count { it == OpenAction.ACCESSIBILITY_LIST },
+        )
+    }
+
+    @Test
+    fun `no action is listed twice in the missing list`() {
+        val missing = phone(overlay = false, microphone = false, notifications = false, accessibility = false)
+        assertEquals(
+            "ui: first run: the missing list lists an action twice",
+            emptyList<OpenAction>(),
+            duplicateActions(FirstRunMissing.of(state(missing))),
+        )
+    }
+
+    @Test
+    fun `the de-duplication check reports a list that lists one action twice`() {
+        val planted = listOf(
+            MissingItem(FirstRunPage.ACCESSIBILITY, OpenAction.ACCESSIBILITY_LIST),
+            MissingItem(FirstRunPage.ACCESSIBILITY, OpenAction.ACCESSIBILITY_LIST),
+        )
+        assertEquals(
+            "ui: first run: the de-duplication check did not report the planted repeat",
+            listOf(OpenAction.ACCESSIBILITY_LIST),
+            duplicateActions(planted),
+        )
+    }
+
+    /** The actions that more than one item of [items] carries, in the order they first appear. */
+    private fun duplicateActions(items: List<MissingItem>): List<OpenAction> =
+        items.groupBy { it.action }.filterValues { it.size > 1 }.keys.toList()
 }

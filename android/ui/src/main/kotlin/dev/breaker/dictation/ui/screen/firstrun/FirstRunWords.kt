@@ -23,6 +23,7 @@ internal object FirstRunWords {
         FirstRunPage.OVERLAY -> SetupTexts.HEADING_OVERLAY
         FirstRunPage.NOTIFICATIONS -> SetupTexts.HEADING_NOTIFICATIONS
         FirstRunPage.ACCESSIBILITY -> SetupTexts.HEADING_ACCESSIBILITY
+        FirstRunPage.KEYBOARD_TILE -> SetupTexts.HEADING_KEYBOARD_TILE
         FirstRunPage.WELCOME, FirstRunPage.DOWNLOAD -> null
     }
 
@@ -32,6 +33,7 @@ internal object FirstRunWords {
         FirstRunPage.OVERLAY -> SetupTexts.WHY_OVERLAY
         FirstRunPage.NOTIFICATIONS -> SetupTexts.WHY_NOTIFICATIONS
         FirstRunPage.ACCESSIBILITY -> SetupTexts.WHY_ACCESSIBILITY
+        FirstRunPage.KEYBOARD_TILE -> SetupTexts.WHY_KEYBOARD_TILE
         FirstRunPage.WELCOME, FirstRunPage.DOWNLOAD -> null
     }
 
@@ -55,7 +57,7 @@ internal object FirstRunWords {
      * The accessibility page lists the limits Breaker keeps, and on Android 13 and newer,
      * while accessibility is not on, the three steps of the restricted-setting help. The
      * notifications page lists what is lost without them, for as long as they are not
-     * granted. Every other page has no extra lines.
+     * granted. The keyboard tile page lists its privacy line. Every other page has no extra lines.
      */
     fun extras(page: FirstRunPage, state: SetupState): List<String> = when (page) {
         FirstRunPage.ACCESSIBILITY -> buildList {
@@ -73,6 +75,7 @@ internal object FirstRunWords {
             } else {
                 emptyList()
             }
+        FirstRunPage.KEYBOARD_TILE -> listOf(SetupTexts.KEYBOARD_TILE_LIMITS)
         FirstRunPage.WELCOME, FirstRunPage.MICROPHONE, FirstRunPage.OVERLAY, FirstRunPage.DOWNLOAD -> emptyList()
     }
 
