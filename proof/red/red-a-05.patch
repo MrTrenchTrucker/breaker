@@ -1,0 +1,676 @@
+diff --git a/android/app/README.md b/android/app/README.md
+index c1ab421e..e5682451 100644
+--- a/android/app/README.md
++++ b/android/app/README.md
+@@ -15,13 +15,13 @@ screen, the settings screen and the history screen, the manifest, and the Gradle
+ ## What it puts together
+ 
+ - **The home screen.** The launcher opens on the Home screen the ui module builds, after the first-run view on a phone with no speech model: an on/off card with the switch, the speech model row (Ready, or "Not downloaded"), the server row ("Not available") and the last dictation; a big mic; the last transcript with a Copy button, which is drawn only while there is a transcript; and a menu with History, Settings, How it works and About. History and Settings open their screens. How it works and About open their own screens. The big mic is the overlay module's `ScreenMic` (ADR-026), which ui places in its slot and the app composes (`wiring/HomeScreenMic.kt`, `HomeTakeWiring.createScreenMic`, `host/ActivityHelpers.createHomeMic`). A tap starts a take (or answers why it cannot); while it records, X cancels (nothing saved, the mic released) and the check or a second tap finishes it (saved to History, copied to the clipboard); begin, cancel and finish run on the one take worker the tile also uses, never the main thread. The take's line shows below the last transcript. One level source feeds the tile and the Home mic (`TileHost`'s composite level sink). OPEN from the APK 8 phone test: the X and check are not tappable while recording (blocker), and the Home mic does not yet show the tile's mic-busy face or sending look, nor the new transcript as soon as the take settles (`AGENTS.md`, Known Gotchas). Apart from the first-run view, screens open only from this menu, and the two notification routes are the only other entries: the model route opens Settings and asks for its download button to be in focus (a device check is owed), and the history route opens History. On Home, Back closes an open menu first. Back from How it works, About or Settings returns to Home; Back from History returns to Settings when Settings is open, and to Home otherwise. `SettingsLauncherActivity.kt` sits at the 300-line cap for every Kotlin file of this module.
+-- **The window colour.** `paintWindowBackground` (`wiring/AndroidInsets.kt`) paints the window from the palette: painted when the activity is created; a theme switched inside Settings is not repainted until the app is reopened. When the settings fail to load, the window falls back to the default theme instead of crashing the launch.
++- **The window colour.** `paintWindowBackground` (`wiring/AndroidInsets.kt`) paints the window from the palette: painted when the activity is created; a theme switched inside Settings is not repainted until the app is reopened.
+ - **Settings and the credential reference.** The settings store is built over
+   the app's files folder (`settings.properties`), together with a small file that holds the reference to
+   the user's credential (never the secret itself).
+ - **History.** The history database (app-private, `breaker_history.db`) opens on its first use, which is the one
+   start-up clean-up of old rows. That clean-up runs on the background (I/O)
+-  dispatcher, never on the main thread. The clean-up guards against a forward clock jump: it purges strictly when the phone keeps its clock automatically, and when automatic time is off and the last purge is more than 30 days old it skips the purge and reports clock skew for at most seven days, then purges as normal, so a jumped clock never deletes rows that are not really old. The Home menu opens the history screen, and a tap
++  dispatcher, never on the main thread. The Home menu opens the history screen, and a tap
+   on the notification opens the same screen.
+ - **Dictation.** A `DictationComponent` joins the microphone capture of the audio
+   module, the on-device rule-based formatter of the format module, the
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/AndroidAutomaticTimeOn.kt b/android/app/src/main/kotlin/dev/breaker/dictation/AndroidAutomaticTimeOn.kt
+deleted file mode 100644
+index 5ce7f513..00000000
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/AndroidAutomaticTimeOn.kt
++++ /dev/null
+@@ -1,20 +0,0 @@
+-package dev.breaker.dictation
+-
+-import android.content.ContentResolver
+-import android.provider.Settings
+-
+-/**
+- * The real [AutomaticTimeOn]: it reads `Settings.Global.AUTO_TIME` over the
+- * app's [ContentResolver].
+- *
+- * `AUTO_TIME` is `1` when the system sets the clock from the network or a time
+- * server and `0` when the user set it by hand; the default is `1`, the network
+- * clock a phone carries by default. Reading it needs no permission, so this is
+- * one platform call and nothing else. A resolver that cannot answer is read as
+- * automatic time on: the default is the safe one for the retention rule, because
+- * suspecting a jump only ever *delays* a purge, and a false "manual" would delay
+- * one it did not need to.
+- */
+-class AndroidAutomaticTimeOn(private val resolver: ContentResolver) : AutomaticTimeOn {
+-    override fun isOn(): Boolean = Settings.Global.getInt(resolver, Settings.Global.AUTO_TIME, 1) == 1
+-}
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/AutomaticTimeOn.kt b/android/app/src/main/kotlin/dev/breaker/dictation/AutomaticTimeOn.kt
+deleted file mode 100644
+index 192d1d5e..00000000
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/AutomaticTimeOn.kt
++++ /dev/null
+@@ -1,19 +0,0 @@
+-package dev.breaker.dictation
+-
+-/**
+- * Whether the phone keeps its clock set automatically.
+- *
+- * A phone that sets its clock itself (the network or a time server drives it)
+- * cannot have jumped forward on its own: the instant it says is trustworthy, so
+- * an old [lastPurgeAt] beside a new now means the rows really are old and the
+- * retention purge runs as written. A phone whose clock is set by hand can jump
+- * forward and fool the retention rule into seeing rows as older than they are.
+- *
+- * This is the seam that reads that setting. The real reading is
+- * [AndroidAutomaticTimeOn]; the value is taken from `Settings.Global.AUTO_TIME`,
+- * which needs no permission. Kept as a seam so the guard's rule is testable on a
+- * plain JVM, where the platform setting cannot be read.
+- */
+-fun interface AutomaticTimeOn {
+-    fun isOn(): Boolean
+-}
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/BreakerApp.kt b/android/app/src/main/kotlin/dev/breaker/dictation/BreakerApp.kt
+index 04e7df38..2837a515 100644
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/BreakerApp.kt
++++ b/android/app/src/main/kotlin/dev/breaker/dictation/BreakerApp.kt
+@@ -43,16 +43,6 @@ class BreakerApp : android.app.Application() {
+ 
+     private val purgeScope = createPurgeScope()
+ 
+-    /** Whether the phone sets its clock automatically; the purge guard reads it to trust or suspect `now`. */
+-    private val automaticTimeOn: AutomaticTimeOn by lazy {
+-        AndroidAutomaticTimeOn(applicationContext.contentResolver)
+-    }
+-
+-    /** The two instants the purge guard keeps: when the last purge ran and when a deferral began. */
+-    private val purgeBookkeeping: PurgeBookkeepingStore by lazy {
+-        PurgeBookkeepingStore(File(filesDir, PurgeBookkeepingStore.FILE_NAME))
+-    }
+-
+     private val history: SqliteHistoryStore by lazy {
+         SqliteHistoryStore.create(applicationContext, SystemClockAdapter)
+     }
+@@ -119,14 +109,7 @@ class BreakerApp : android.app.Application() {
+         super.onCreate()
+         scheduleAppStartPurge(
+             purgeScope,
+-            purge = {
+-                runGuardedStartPurge(
+-                    now = SystemClockAdapter.nowEpochMillis(),
+-                    autoTimeOn = automaticTimeOn.isOn(),
+-                    store = purgeBookkeeping,
+-                    purge = { history.purgeExpired() },
+-                )
+-            },
++            purge = { history.purgeExpired() },
+             onFailure = { e -> Log.w("BreakerApp", "start-up purge failed", e) },
+         )
+         dictationServiceController.setStateObserver { armed, reason ->
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/PurgeBookkeepingStore.kt b/android/app/src/main/kotlin/dev/breaker/dictation/PurgeBookkeepingStore.kt
+deleted file mode 100644
+index a8741dd4..00000000
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/PurgeBookkeepingStore.kt
++++ /dev/null
+@@ -1,92 +0,0 @@
+-package dev.breaker.dictation
+-
+-import java.io.File
+-import java.io.IOException
+-import java.nio.charset.StandardCharsets
+-import java.nio.file.Files
+-import java.nio.file.StandardCopyOption
+-
+-/**
+- * Remembers the two instants the start-up purge guard needs: the wall-clock
+- * instant the last purge actually RAN ([lastPurgeAt]), and, once a forward clock
+- * jump is suspected, the instant the capped deferral began
+- * ([deferralStartedAt]). Both are `0` when unset.
+- *
+- * The store is one small two-line file in the app's files folder, written the
+- * same way as [FirstRunDoneStore]: a temporary file beside it, renamed over it
+- * in one atomic step, and no exception ever escapes — a bookkeeping write that
+- * failed only means the guard re-derives its decision next start, which is safe
+- * because the decision is conservative. The two longs are read back together,
+- * so a partial or unreadable file answers unset for both rather than one.
+- *
+- * It keys the retention overrun on [lastPurgeAt], the last purge that ran, and
+- * never on the newest record: a row stamped under a wrong clock must not end the
+- * protection.
+- */
+-class PurgeBookkeepingStore(private val file: File) {
+-
+-    /** The instant the last purge ran, or [UNSET] when none has run yet. Never throws. */
+-    fun lastPurgeAt(): Long = readPair().first
+-
+-    /** The instant the capped deferral began, or [UNSET] when no jump is being deferred. Never throws. */
+-    fun deferralStartedAt(): Long = readPair().second
+-
+-    /** Record that a purge ran at [at], leaving the deferral as it was. Returns false when the write failed. */
+-    fun recordLastPurgeAt(at: Long): Boolean = write(at, readPair().second)
+-
+-    /** Record that a deferral began at [at], leaving the last purge as it was. Returns false when the write failed. */
+-    fun recordDeferralStartedAt(at: Long): Boolean = write(readPair().first, at)
+-
+-    /** Clear the deferral, leaving the last purge as it was. Returns false when the write failed. */
+-    fun clearDeferralStartedAt(): Boolean = write(readPair().first, UNSET)
+-
+-    /** Both instants at once; an unreadable or absent file answers unset for both. Never throws. */
+-    private fun readPair(): Pair<Long, Long> =
+-        try {
+-            val lines = Files.readAllLines(file.toPath())
+-            val first = lines.getOrElse(0) { "" }.toLongOrNull() ?: UNSET
+-            val second = lines.getOrElse(1) { "" }.toLongOrNull() ?: UNSET
+-            first to second
+-        } catch (e: Exception) {
+-            UNSET to UNSET
+-        }
+-
+-    /** Writes both instants to a temporary file and renames it over the store in one step. */
+-    private fun write(first: Long, second: Long): Boolean =
+-        try {
+-            writeMark("$first\n$second\n")
+-            true
+-        } catch (e: Exception) {
+-            false
+-        }
+-
+-    private fun writeMark(text: String) {
+-        val folder = file.absoluteFile.parentFile ?: throw IOException("the purge bookkeeping has no folder")
+-        Files.createDirectories(folder.toPath())
+-        val temp = File(folder, file.name + TEMP_SUFFIX)
+-        try {
+-            Files.write(temp.toPath(), text.toByteArray(StandardCharsets.UTF_8))
+-            Files.move(temp.toPath(), file.toPath(), StandardCopyOption.ATOMIC_MOVE)
+-        } catch (e: IOException) {
+-            discard(temp)
+-            throw e
+-        }
+-    }
+-
+-    private fun discard(temp: File) {
+-        try {
+-            Files.deleteIfExists(temp.toPath())
+-        } catch (e: IOException) {
+-            // The write already failed; a leftover temporary file is replaced by the next write.
+-        }
+-    }
+-
+-    companion object {
+-        const val FILE_NAME: String = "purge-bookkeeping"
+-
+-        /** The value an unset instant holds: no purge has run, or no deferral has begun. */
+-        const val UNSET: Long = 0L
+-
+-        private const val TEMP_SUFFIX: String = ".tmp"
+-    }
+-}
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/PurgeGuard.kt b/android/app/src/main/kotlin/dev/breaker/dictation/PurgeGuard.kt
+deleted file mode 100644
+index 47e438df..00000000
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/PurgeGuard.kt
++++ /dev/null
+@@ -1,112 +0,0 @@
+-package dev.breaker.dictation
+-
+-import dev.breaker.dictation.history.PurgeReport
+-
+-/**
+- * The start-up purge's decision: run it now ([GO]) or skip it and report clock
+- * skew ([DEFERRED_SKEW]).
+- *
+- * The rule, in full:
+- * - Automatic time ON -> [GO]. The clock is trustworthy, so the retention purge
+- *   runs strictly (delete the rows older than the window), exactly as ADR-010
+- *   says. A network clock cannot have jumped forward on its own.
+- * - Automatic time OFF and no purge has ever run ([lastPurgeAt] is unset) ->
+- *   [GO]. There is no baseline to compare against, so there is no jump to
+- *   suspect; run the purge and record the instant it ran.
+- * - Automatic time OFF and now is at most `graceDays` past [lastPurgeAt] ->
+- *   [GO]. Nothing suggests a jump yet; the rows are not overrun.
+- * - Automatic time OFF and more than `graceDays` past [lastPurgeAt] -> a forward
+- *   jump is SUSPECTED. Skip the purge and report skew, for at most `capDays`
+- *   counted from the first skipped start ([deferralStartedAt]); once the cap is
+- *   reached, purge as normal ([GO]).
+- *
+- * The trigger keys on [lastPurgeAt], the last purge that actually ran, never on
+- * the newest record: a row stamped under a wrong clock does not end the
+- * protection. The decision is a pure function of these four instants and the
+- * automatic-time flag, so it is tested on a plain JVM.
+- */
+-object PurgeGuard {
+-
+-    /** Days an old [lastPurgeAt] may sit before a forward jump is suspected, when automatic time is off. */
+-    const val GRACE_DAYS: Long = 30
+-
+-    /** Days a suspected jump is deferred for, at most, before the purge runs regardless. */
+-    const val CAP_DAYS: Long = 7
+-
+-    private const val MS_PER_DAY: Long = 24L * 60L * 60L * 1000L
+-
+-    fun decide(
+-        now: Long,
+-        autoTimeOn: Boolean,
+-        lastPurgeAt: Long,
+-        deferralStartedAt: Long,
+-        graceDays: Long = GRACE_DAYS,
+-        capDays: Long = CAP_DAYS,
+-    ): PurgeDecision {
+-        if (autoTimeOn) return PurgeDecision.GO
+-        if (lastPurgeAt == PurgeBookkeepingStore.UNSET) return PurgeDecision.GO
+-        val jumpSuspected = now > lastPurgeAt + graceDays * MS_PER_DAY
+-        if (!jumpSuspected) return PurgeDecision.GO
+-        if (deferralStartedAt == PurgeBookkeepingStore.UNSET) return PurgeDecision.DEFERRED_SKEW
+-        if (now >= deferralStartedAt + capDays * MS_PER_DAY) return PurgeDecision.GO
+-        return PurgeDecision.DEFERRED_SKEW
+-    }
+-}
+-
+-/** Whether the start-up purge runs now or is skipped for a suspected clock skew. */
+-enum class PurgeDecision { GO, DEFERRED_SKEW }
+-
+-/**
+- * The start-up purge's own result, decided by the app (not history): it either
+- * ran and carries history's [PurgeReport] ([Purged]), or it was skipped for a
+- * suspected forward clock jump ([Skipped]). The skip is the app guard's call, so
+- * this type lives here in the app, never in the history module.
+- */
+-sealed interface PurgeOutcome {
+-    /** The purge ran; [report] is history's own report. */
+-    data class Purged(val report: PurgeReport) : PurgeOutcome
+-
+-    /** The purge was skipped for a suspected forward clock jump. */
+-    data object Skipped : PurgeOutcome
+-}
+-
+-/**
+- * Runs the start-up purge under [PurgeGuard], off the caller's thread (the app
+- * schedules it on the I/O scope). It reads the two bookkeeping instants, decides,
+- * and does exactly one of:
+- * - [PurgeDecision.GO]: run [purge], then record `lastPurgeAt = now` and clear
+- *   the deferral, so a later jump gets its own fresh cap. The result is
+- *   [Purged], carrying the purge's own report.
+- * - [PurgeDecision.DEFERRED_SKEW]: record `deferralStartedAt = now` when no
+- *   deferral is running yet, and return [Skipped]; the skip is the result.
+- *
+- * [purge] is the real retention cleanup (`history.purgeExpired()`); the returned
+- * [PurgeOutcome] is how the skip is made observable to the app, so this stays
+- * testable on a plain JVM.
+- */
+-fun runGuardedStartPurge(
+-    now: Long,
+-    autoTimeOn: Boolean,
+-    store: PurgeBookkeepingStore,
+-    purge: () -> PurgeReport,
+-): PurgeOutcome {
+-    val deferralStartedAt = store.deferralStartedAt()
+-    val decision = PurgeGuard.decide(
+-        now = now,
+-        autoTimeOn = autoTimeOn,
+-        lastPurgeAt = store.lastPurgeAt(),
+-        deferralStartedAt = deferralStartedAt,
+-    )
+-    return when (decision) {
+-        PurgeDecision.GO -> {
+-            val report = purge()
+-            store.recordLastPurgeAt(now)
+-            store.clearDeferralStartedAt()
+-            PurgeOutcome.Purged(report)
+-        }
+-        PurgeDecision.DEFERRED_SKEW -> {
+-            if (deferralStartedAt == PurgeBookkeepingStore.UNSET) store.recordDeferralStartedAt(now)
+-            PurgeOutcome.Skipped
+-        }
+-    }
+-}
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/SettingsLauncherActivity.kt b/android/app/src/main/kotlin/dev/breaker/dictation/SettingsLauncherActivity.kt
+index 5670000a..b3b14d75 100644
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/SettingsLauncherActivity.kt
++++ b/android/app/src/main/kotlin/dev/breaker/dictation/SettingsLauncherActivity.kt
+@@ -57,7 +57,7 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
+         super.onCreate(savedInstanceState)
+         iconLaunch = IconLaunchOnce(savedInstanceState?.getBoolean(ICON_LAUNCH_DONE_KEY, false) ?: false)
+         val app = applicationContext as BreakerApp
+-        paintWindowBackground(this, dev.breaker.dictation.wiring.themeModeOrDefault(app.settingsStore, dev.breaker.dictation.core.model.ThemeMode.SYSTEM))
++        paintWindowBackground(this, app.settingsStore.load().themeMode)
+         settingsView = android.view.View(this)
+         val modelReady = StoreModelReady(app.compositionRoot.modelStore) { app.settingsStore.load().modelSize }
+         val firstRunDone = FirstRunDoneStore(File(app.filesDir, FirstRunDoneStore.FILE_NAME))
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/ThemeModeSupport.kt b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/ThemeModeSupport.kt
+deleted file mode 100644
+index b8591470..00000000
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/ThemeModeSupport.kt
++++ /dev/null
+@@ -1,20 +0,0 @@
+-package dev.breaker.dictation.wiring
+-
+-import dev.breaker.dictation.core.model.ThemeMode
+-import dev.breaker.dictation.core.port.SettingsStore
+-import java.io.IOException
+-
+-/**
+- * Reads the stored [ThemeMode], falling back to [default] when the store cannot be read.
+- *
+- * [SettingsStore.load] propagates an [IOException] by design: an unreadable settings file is an
+- * error the store leaves for its caller, not a damaged key it silently substitutes. The launch path
+- * that paints the window background reads the theme once at create time, so it guards here — a
+- * settings file that cannot be read answers the default theme instead of crashing the activity.
+- */
+-internal fun themeModeOrDefault(store: SettingsStore, default: ThemeMode): ThemeMode =
+-    try {
+-        store.load().themeMode
+-    } catch (e: IOException) {
+-        default
+-    }
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/PurgeGuardTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/PurgeGuardTest.kt
+deleted file mode 100644
+index ff2724ad..00000000
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/PurgeGuardTest.kt
++++ /dev/null
+@@ -1,209 +0,0 @@
+-package dev.breaker.dictation
+-
+-import dev.breaker.dictation.history.PurgeReport
+-import java.io.File
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertTrue
+-import org.junit.Rule
+-import org.junit.Test
+-import org.junit.rules.TemporaryFolder
+-
+-/**
+- * The start-up purge clock-skip guard, end to end over the real bookkeeping store on a temp folder.
+- *
+- * The purge is a fake that counts its calls; the clock and the automatic-time
+- * flag are passed in. Together the tests below pin the rule: purge strictly when the clock is
+- * trustworthy, suspect a forward jump only when it is not and the last real purge is old enough, defer
+- * a suspected jump for at most seven days, key the trigger on the persisted last purge and never on a
+- * new record, and treat a first run with no baseline as no suspicion at all. The guard's own result is
+- * the app's [PurgeOutcome]: the skip tests assert the [PurgeOutcome.Skipped] case, the GO tests the
+- * [PurgeOutcome.Purged] case and read the wrapped history report.
+- */
+-class PurgeGuardTest {
+-
+-    @get:Rule
+-    val tmp = TemporaryFolder()
+-
+-    private val MS_PER_DAY = 24L * 60L * 60L * 1000L
+-
+-    /** The automatic-time seam read to a boolean, so the fake fun interface is exercised. */
+-    private fun autoTime(on: Boolean): Boolean = AutomaticTimeOn { on }.isOn()
+-
+-    private fun store(): PurgeBookkeepingStore = PurgeBookkeepingStore(File(tmp.root, PurgeBookkeepingStore.FILE_NAME))
+-
+-    /** A purge fake that counts its calls and reports the given counts. */
+-    private class PurgeFake(private val purged: Int = 0, private val tombstoned: Int = 0) {
+-        var calls = 0
+-        fun run(now: Long): PurgeReport {
+-            calls++
+-            return PurgeReport(purged = purged, tombstoned = tombstoned, cutoff = now)
+-        }
+-    }
+-
+-    /** Asserts the outcome is the purge case and returns the wrapped history report. */
+-    private fun assertPurged(outcome: PurgeOutcome, message: String): PurgeReport {
+-        assertTrue(message, outcome is PurgeOutcome.Purged)
+-        return (outcome as PurgeOutcome.Purged).report
+-    }
+-
+-    // (i) auto OFF + jump -> purge NOT called, deferral persisted.
+-    @Test
+-    fun `auto time off and a forward jump skips the purge`() {
+-        val store = store()
+-        val now = 2_000_000_000_000L
+-        store.recordLastPurgeAt(now - 40 * MS_PER_DAY)
+-        val purge = PurgeFake(purged = 5, tombstoned = 5)
+-
+-        val outcome = runGuardedStartPurge(
+-            now = now,
+-            autoTimeOn = autoTime(false),
+-            store = store,
+-            purge = { purge.run(now) },
+-        )
+-
+-        assertEquals("a forward jump with auto time off must not purge", 0, purge.calls)
+-        assertTrue("the outcome must be the skip case", outcome is PurgeOutcome.Skipped)
+-        assertEquals("the deferral must be persisted", now, store.deferralStartedAt())
+-    }
+-
+-    // (ii) then advance now with a new record stamped under the jump (lastPurgeAt unchanged) -> STILL no purge.
+-    @Test
+-    fun `a new record stamped under the jump does not end the deferral`() {
+-        val store = store()
+-        val start = 2_000_000_000_000L
+-        val lastPurgeAt = start - 40 * MS_PER_DAY
+-        store.recordLastPurgeAt(lastPurgeAt)
+-
+-        // The first skipped start begins the deferral.
+-        val first = PurgeFake()
+-        runGuardedStartPurge(now = start, autoTimeOn = autoTime(false), store = store, purge = { first.run(start) })
+-        assertEquals("the first suspected jump must not purge", 0, first.calls)
+-        val deferral = store.deferralStartedAt()
+-        assertEquals("the deferral begins at the first skipped start", start, deferral)
+-
+-        // Advance now; a new record would carry a timestamp near `later`, but lastPurgeAt is unchanged
+-        // because only a purge writes it. The trigger must follow lastPurgeAt, not the newest record.
+-        val later = deferral + 3 * MS_PER_DAY
+-        val second = PurgeFake()
+-        val outcome = runGuardedStartPurge(now = later, autoTimeOn = autoTime(false), store = store, purge = { second.run(later) })
+-
+-        assertEquals("a new record under the jump must still not purge", 0, second.calls)
+-        assertTrue("the skip must be reported again", outcome is PurgeOutcome.Skipped)
+-        assertEquals("lastPurgeAt must be unchanged (only a purge writes it)", lastPurgeAt, store.lastPurgeAt())
+-        assertEquals("the deferral must not be restarted by a new record", deferral, store.deferralStartedAt())
+-    }
+-
+-    // (iii) 7 days after deferralStartedAt -> purge runs (GO); after the cap purge, deferral is unset again.
+-    @Test
+-    fun `seven days after the deferral began the purge runs and the deferral is cleared`() {
+-        val store = store()
+-        val start = 2_000_000_000_000L
+-        store.recordLastPurgeAt(start - 40 * MS_PER_DAY)
+-
+-        runGuardedStartPurge(now = start, autoTimeOn = autoTime(false), store = store, purge = { error("must not purge before the cap") })
+-        val deferral = store.deferralStartedAt()
+-
+-        val capDay = deferral + 7 * MS_PER_DAY
+-        val purge = PurgeFake(purged = 6, tombstoned = 6)
+-        val outcome = runGuardedStartPurge(now = capDay, autoTimeOn = autoTime(false), store = store, purge = { purge.run(capDay) })
+-
+-        assertEquals("after the 7-day cap the purge must run", 1, purge.calls)
+-        val report = assertPurged(outcome, "the cap purge is a GO, not a skip")
+-        assertEquals("the cap purge carries its own report", 6, report.purged)
+-        assertEquals("lastPurgeAt must be updated by the cap purge", capDay, store.lastPurgeAt())
+-        assertEquals("the deferral must be cleared after the purge runs", PurgeBookkeepingStore.UNSET, store.deferralStartedAt())
+-    }
+-
+-    // (iv) auto ON + jump -> purge runs (ADR-010 strict).
+-    @Test
+-    fun `auto time on runs the purge even across a forward jump`() {
+-        val store = store()
+-        val now = 2_000_000_000_000L
+-        store.recordLastPurgeAt(now - 400 * MS_PER_DAY)
+-        val purge = PurgeFake(purged = 9, tombstoned = 9)
+-
+-        val outcome = runGuardedStartPurge(now = now, autoTimeOn = autoTime(true), store = store, purge = { purge.run(now) })
+-
+-        assertEquals("auto time on must purge strictly across a jump", 1, purge.calls)
+-        val report = assertPurged(outcome, "auto time on is a GO, not a skip")
+-        assertEquals("the auto-time-on purge carries its own report", 9, report.purged)
+-        assertEquals("lastPurgeAt must be updated", now, store.lastPurgeAt())
+-    }
+-
+-    // (v) control: normal clock, auto ON, expired rows present -> purge deletes (guard does not neuter it).
+-    @Test
+-    fun `a normal auto-time-on clock purges its expired rows`() {
+-        val store = store()
+-        val now = 2_000_000_000_000L
+-        store.recordLastPurgeAt(now - 10 * MS_PER_DAY)
+-        val cutoff = now - 90 * MS_PER_DAY
+-        val purge = PurgeFake(purged = 4, tombstoned = 4)
+-
+-        val outcome = runGuardedStartPurge(now = now, autoTimeOn = autoTime(true), store = store, purge = { purge.run(cutoff) })
+-
+-        assertEquals("a normal clock must purge its expired rows", 1, purge.calls)
+-        val report = assertPurged(outcome, "a normal auto-time-on clock is a GO, not a skip")
+-        assertEquals(4, report.purged)
+-        assertTrue(report.isConsistent)
+-    }
+-
+-    // (vi) auto OFF, lastPurgeAt unset -> purge runs, lastPurgeAt saved.
+-    @Test
+-    fun `auto time off with no baseline purges and records the instant`() {
+-        val store = store()
+-        val now = 2_000_000_000_000L
+-        // lastPurgeAt is unset (0): the first time this code runs, no baseline to suspect a jump from.
+-        val purge = PurgeFake(purged = 2, tombstoned = 2)
+-
+-        val outcome = runGuardedStartPurge(now = now, autoTimeOn = autoTime(false), store = store, purge = { purge.run(now) })
+-
+-        assertEquals("unset lastPurgeAt is no suspicion: the purge must run", 1, purge.calls)
+-        val report = assertPurged(outcome, "no baseline is a GO, not a skip")
+-        assertEquals("the no-baseline purge carries its own report", 2, report.purged)
+-        assertEquals("the instant must be recorded", now, store.lastPurgeAt())
+-        assertEquals("no deferral is started with no baseline", PurgeBookkeepingStore.UNSET, store.deferralStartedAt())
+-    }
+-
+-    @Test
+-    fun `decide goes within the grace window when auto time is off`() {
+-        val now = 2_000_000_000_000L
+-        assertEquals(PurgeDecision.GO, PurgeGuard.decide(now, autoTimeOn = false, lastPurgeAt = now - 29 * MS_PER_DAY, deferralStartedAt = 0))
+-    }
+-
+-    @Test
+-    fun `decide suspects a jump just past the grace window`() {
+-        val now = 2_000_000_000_000L
+-        // Exactly at the grace edge a row is kept (no jump); one millisecond past it, a jump is suspected.
+-        assertEquals(PurgeDecision.GO, PurgeGuard.decide(now, autoTimeOn = false, lastPurgeAt = now - 30 * MS_PER_DAY, deferralStartedAt = 0))
+-        assertEquals(PurgeDecision.DEFERRED_SKEW, PurgeGuard.decide(now, autoTimeOn = false, lastPurgeAt = now - 30 * MS_PER_DAY - 1, deferralStartedAt = 0))
+-    }
+-
+-    @Test
+-    fun `decide caps the deferral exactly at seven days`() {
+-        val now = 2_000_000_000_000L
+-        val deferral = now - 7 * MS_PER_DAY
+-        // Exactly seven days after the deferral the purge runs; one millisecond earlier it is still deferred.
+-        assertEquals(PurgeDecision.GO, PurgeGuard.decide(now, autoTimeOn = false, lastPurgeAt = now - 40 * MS_PER_DAY, deferralStartedAt = deferral))
+-        assertEquals(PurgeDecision.DEFERRED_SKEW, PurgeGuard.decide(now - 1, autoTimeOn = false, lastPurgeAt = now - 40 * MS_PER_DAY, deferralStartedAt = deferral))
+-    }
+-
+-    @Test
+-    fun `the bookkeeping store reads unset before any write`() {
+-        val store = store()
+-        assertEquals(PurgeBookkeepingStore.UNSET, store.lastPurgeAt())
+-        assertEquals(PurgeBookkeepingStore.UNSET, store.deferralStartedAt())
+-    }
+-
+-    @Test
+-    fun `the bookkeeping store keeps both instants and clears the deferral`() {
+-        val store = store()
+-        val now = 2_000_000_000_000L
+-        store.recordLastPurgeAt(now)
+-        store.recordDeferralStartedAt(now + 1)
+-        assertEquals(now, store.lastPurgeAt())
+-        assertEquals(now + 1, store.deferralStartedAt())
+-        store.clearDeferralStartedAt()
+-        assertEquals("the last purge survives a deferral clear", now, store.lastPurgeAt())
+-        assertEquals("the deferral is cleared", PurgeBookkeepingStore.UNSET, store.deferralStartedAt())
+-    }
+-}
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateTest.kt
+index bd6af769..8fc77d1d 100644
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateTest.kt
++++ b/android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateTest.kt
+@@ -22,13 +22,13 @@ internal class AppLayoutGateTest {
+ 
+     /** Main files that touch no Android type, by path below the package folder. */
+     private val plainFiles: Set<String> = setOf(
+-        "AppStartPurge.kt", "BreakerCompositionRoot.kt", "FileCredentialRefHolder.kt", "PurgeScope.kt", "SystemClockAdapter.kt", "AutomaticTimeOn.kt", "PurgeBookkeepingStore.kt", "PurgeGuard.kt",
++        "AppStartPurge.kt", "BreakerCompositionRoot.kt", "FileCredentialRefHolder.kt", "PurgeScope.kt", "SystemClockAdapter.kt",
+         "service/DictationServiceController.kt", "service/NotificationRoute.kt", "service/ReportingMicSource.kt",
+         "service/ServiceStartDecision.kt", "service/ServiceStartHandler.kt", "service/ServiceTypes.kt",
+         "wiring/DictationComponent.kt", "wiring/DictationRunner.kt", "wiring/Insets.kt", "wiring/LazyHistoryStore.kt", "wiring/FirstRunDoneStore.kt",
+         "wiring/UnavailableSlots.kt", "wiring/UuidIdSource.kt", "wiring/Rebuilt.kt", "wiring/ClockText.kt",
+         "wiring/TilePorts.kt", "wiring/DelayedPost.kt", "wiring/NoticeClearingTilePort.kt", "wiring/TileStateMap.kt", "wiring/TileCoordinator.kt", "wiring/TileShowGuard.kt", "wiring/TakePortAdapter.kt", "wiring/NoopPorts.kt",
+-        "wiring/ArmedSwitch.kt", "wiring/DisplayWatch.kt", "wiring/LaunchRule.kt", "wiring/IconLaunchOnce.kt", "wiring/OffStore.kt", "wiring/ModelSupport.kt", "wiring/ThemeModeSupport.kt", "wiring/Swaps.kt",
++        "wiring/ArmedSwitch.kt", "wiring/DisplayWatch.kt", "wiring/LaunchRule.kt", "wiring/IconLaunchOnce.kt", "wiring/OffStore.kt", "wiring/ModelSupport.kt", "wiring/Swaps.kt",
+         "wiring/BreakerSwitchAdapter.kt", "wiring/ForwardingDownloadNotice.kt",
+         "wiring/TakeYield.kt", "wiring/TakenClipboard.kt",
+         "wiring/TakenSentences.kt", "wiring/TakeSettle.kt", "wiring/DeviceFailureSentences.kt", "wiring/DeviceFailureYield.kt", "wiring/TakeFinisher.kt",
+@@ -39,7 +39,7 @@ internal class AppLayoutGateTest {
+ 
+     /** Main files that are the layer over the platform and name Android types. */
+     private val androidFiles: Set<String> = setOf(
+-        "BreakerApp.kt", "SettingsLauncherActivity.kt", "AndroidAutomaticTimeOn.kt", "service/AndroidMicPermission.kt",
++        "BreakerApp.kt", "SettingsLauncherActivity.kt", "service/AndroidMicPermission.kt",
+         "service/AndroidServiceLauncher.kt", "service/DictationForegroundService.kt", "service/DictationNotification.kt",
+         "service/ModelNotifications.kt", "host/AppThreads.kt", "host/OverlayTilePort.kt", "host/TileHost.kt", "host/DisplayChangeAndroid.kt",
+         "wiring/AndroidSwaps.kt", "wiring/AndroidInsets.kt", "wiring/ThemedScreens.kt",
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/gates/SettingsLaunchThemeGuardGateTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/gates/SettingsLaunchThemeGuardGateTest.kt
+deleted file mode 100644
+index 5a7f2028..00000000
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/gates/SettingsLaunchThemeGuardGateTest.kt
++++ /dev/null
+@@ -1,50 +0,0 @@
+-package dev.breaker.dictation.gates
+-
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/**
+- * Pins the settings-load crash guard in the launch path. [SettingsLauncherActivity.onCreate] paints
+- * the window background from `themeModeOrDefault(app.settingsStore, ...)`, which falls back to the
+- * default theme when the store cannot be read; it must never read `settingsStore.load().themeMode`
+- * directly, because that throws on an unreadable file and crashes create.
+- *
+- * Reads the REAL activity source, proves the pin holds on that text, then applies the single mutant
+- * that reverts onCreate to the raw call and asserts the anchor is gone — so a regression that drops
+- * the guard fails RED, never merely red. Behaviour of the helper itself (throw -> default, read ->
+- * stored) lives in ThemeModeOrDefaultTest; this test only pins the wiring so a silent drop is caught.
+- */
+-internal class SettingsLaunchThemeGuardGateTest {
+-
+-    private fun flat(text: String): String = text.replace(Regex("""\s+"""), "")
+-
+-    @Test
+-    fun `onCreate paints the window through themeModeOrDefault, not a raw store load`() {
+-        val activityCode = flat(
+-            AppSourceFiles.strip(
+-                AppSourceFiles.mainFile("kotlin/dev/breaker/dictation/SettingsLauncherActivity.kt"),
+-            ).code,
+-        )
+-
+-        assertTrue(
+-            "onCreate must route the launch theme through themeModeOrDefault(app.settingsStore, <default>)",
+-            activityCode.contains("themeModeOrDefault(app.settingsStore,"),
+-        )
+-        assertFalse(
+-            "onCreate must not read settingsStore.load().themeMode directly — that throws on an unreadable file",
+-            activityCode.contains("settingsStore.load().themeMode"),
+-        )
+-
+-        // MUTANT: revert onCreate to the raw, unguarded load().themeMode. The pin's negative anchor
+-        // must fire on this transform, so the mutant is provably killed.
+-        val mutant = activityCode.replace(
+-            "themeModeOrDefault(app.settingsStore,dev.breaker.dictation.core.model.ThemeMode.SYSTEM)",
+-            "app.settingsStore.load().themeMode",
+-        )
+-        assertTrue(
+-            "mutant reintroduces the raw settingsStore.load().themeMode call, which the pin must catch",
+-            mutant.contains("settingsStore.load().themeMode"),
+-        )
+-    }
+-}
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/gates/WindowBackgroundGateTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/gates/WindowBackgroundGateTest.kt
+index b587228c..2a08e989 100644
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/gates/WindowBackgroundGateTest.kt
++++ b/android/app/src/test/kotlin/dev/breaker/dictation/gates/WindowBackgroundGateTest.kt
+@@ -71,7 +71,7 @@ internal class WindowBackgroundGateTest {
+     fun `the window background call passes the stored theme mode`() {
+         assertTrue(
+             "paintWindowBackground must receive the stored themeMode, not a hardcoded mode",
+-            flat(activityCode).contains("paintWindowBackground(this,dev.breaker.dictation.wiring.themeModeOrDefault(app.settingsStore,dev.breaker.dictation.core.model.ThemeMode.SYSTEM))"),
++            flat(activityCode).contains("paintWindowBackground(this,app.settingsStore.load().themeMode)"),
+         )
+     }
+ }

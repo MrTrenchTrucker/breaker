@@ -1,0 +1,255 @@
+{
+ "name": "proof-1z",
+ "tip": {
+  "tree": "a89f7b23a61aa627ff11ee0a6bfb6bf6f3f741aa"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "start-up purge clock guard and settings-load theme fallback",
+   "base_tree": "f8bfa6af9f3e0af4c7dd7469fd6b152f0b5625f7",
+   "item_tip_tree": "a89f7b23a61aa627ff11ee0a6bfb6bf6f3f741aa",
+   "new_production_classes": [
+    "AndroidAutomaticTimeOn",
+    "AutomaticTimeOn",
+    "PurgeBookkeepingStore",
+    "PurgeGuard",
+    "ThemeModeSupport"
+   ]
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "red-a-01",
+   "kind": "red",
+   "item": "a",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/PurgeGuardTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/PurgeGuardTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.PurgeGuardTest"
+   ],
+   "patch": "proof/red/red-a-01.patch",
+   "tree": "ee5c1f45a663190568913dcce56a2414a2b01dbf",
+   "predict": "COMPILE RED: PurgeGuard and its store are new in this item"
+  },
+  {
+   "id": "red-a-02",
+   "kind": "red",
+   "item": "a",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.gates.AppLayoutGateTest"
+   ],
+   "patch": "proof/red/red-a-02.patch",
+   "tree": "9f73c0da6f41bad3efe66aad294645af41f50891",
+   "predict": "ASSERT RED: the layout lists name files this item adds"
+  },
+  {
+   "id": "red-a-03",
+   "kind": "red",
+   "item": "a",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/gates/SettingsLaunchThemeGuardGateTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/gates/SettingsLaunchThemeGuardGateTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.gates.SettingsLaunchThemeGuardGateTest"
+   ],
+   "patch": "proof/red/red-a-03.patch",
+   "tree": "13e2b931f1738773b10f3b5825f3bd2cbebf3d7c",
+   "predict": "ASSERT RED: the base launcher activity has no theme load guard"
+  },
+  {
+   "id": "red-a-04",
+   "kind": "red",
+   "item": "a",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/gates/WindowBackgroundGateTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/gates/WindowBackgroundGateTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.gates.WindowBackgroundGateTest"
+   ],
+   "patch": "proof/red/red-a-04.patch",
+   "tree": "1717a80bb19ed60ecdc5d91511d2d8e9449a2b0f",
+   "predict": "ASSERT RED: the base still calls the unguarded theme load"
+  },
+  {
+   "id": "red-a-05",
+   "kind": "red",
+   "item": "a",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/wiring/ThemeModeOrDefaultTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/ThemeModeOrDefaultTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.wiring.ThemeModeOrDefaultTest"
+   ],
+   "patch": "proof/red/red-a-05.patch",
+   "tree": "8e782b95ff541b42df552d7d102e663f28a63f5e",
+   "predict": "COMPILE RED: themeModeOrDefault is new in this item"
+  },
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/PurgeGuard.kt",
+     "anchor": "        if (autoTimeOn) return PurgeDecision.GO",
+     "replacement": "        if (false) return PurgeDecision.GO"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "auto time on runs the purge even across a forward jump"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/PurgeGuard.kt",
+     "anchor": "        val jumpSuspected = now > lastPurgeAt + graceDays * MS_PER_DAY",
+     "replacement": "        val jumpSuspected = true"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "decide goes within the grace window when auto time is off"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/PurgeGuard.kt",
+     "anchor": "        if (now >= deferralStartedAt + capDays * MS_PER_DAY) return PurgeDecision.GO",
+     "replacement": "        if (false) return PurgeDecision.GO"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "seven days after the deferral began the purge runs and the deferral is cleared"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/PurgeGuard.kt",
+     "anchor": "            if (deferralStartedAt == PurgeBookkeepingStore.UNSET) store.recordDeferralStartedAt(now)",
+     "replacement": "            store.recordDeferralStartedAt(now)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a new record stamped under the jump does not end the deferral"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/PurgeGuard.kt",
+     "anchor": "        if (lastPurgeAt == PurgeBookkeepingStore.UNSET) return PurgeDecision.GO",
+     "replacement": "        if (false) return PurgeDecision.GO"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "auto time off with no baseline purges and records the instant"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/PurgeGuard.kt",
+     "anchor": "            PurgeOutcome.Skipped",
+     "replacement": "            PurgeOutcome.Purged(PurgeReport(purged = 0, tombstoned = 0, cutoff = now))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "auto time off and a forward jump skips the purge"
+   ],
+   "rule": "",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "android/app",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/DictationRunner.kt",
+     "anchor": "        if (idle.state != DictationState.IDLE) return BeginResult.Refused(RunnerSentences.BUSY)\n",
+     "replacement": "        return BeginResult.Refused(RunnerSentences.BUSY)\n"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "android/app",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/DictationRunner.kt",
+     "anchor": "        if (idle.state != DictationState.IDLE) return BeginResult.Refused(RunnerSentences.BUSY)\n",
+     "replacement": "        if (idle.state != DictationState.IDLE) return BeginResult.Refused(RunnerSentences.BUSY) // unchanged behaviour\n"
+    }
+   ]
+  }
+ ]
+}
