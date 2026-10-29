@@ -764,15 +764,14 @@ on-device model + checksums (licensing permitting) so the phone downloads it fro
 the Breaker container instead of upstream. Until then the phone downloads it from
 GitHub and treats it as untrusted until checked (F43, ADR-025, [2]); moving the
 host changes the model registry and ADR-025 together.
-**Update rollback (D28):** the updater keeps the previous APK; a rollback button
-restores it if a release misbehaves.
+**Update rollback:** there is no kept APK and no rollback button. To go back, the project publishes the older source as a new release with a higher versionCode and a higher version name; devices take it on their next check through the same verified install path.
 
 ## 15. Deployment & Git
 
 **Deploy (F19):** the Breaker server stack (docker-compose: whisper-server,
 sync-api, web-fe, training) **pulls the latest tagged version from the user's
-local GIT server** on deploy. Tagged releases → build → serve. Rollback = deploy
-previous tag.
+local GIT server** on deploy. Tagged releases -> build -> serve. A rollback publishes the older source as a new release
+with a higher versionCode and a higher version name, not a redeploy of the old tag.
 
 **Containers:** each service is a container; the web-fe is a **Debian-based**
 container. All bind to the ZeroTier interface only. TLS via the self-hosted CA.
@@ -783,8 +782,8 @@ force-resets its `module/*` branches holding unpushed work.
 
 **APK signing:** the deploy pipeline signs each tagged release's APK with a
 dedicated **APK signing key** (generated once, stored in a secrets store — never
-in git, unlike the base repo's plaintext cert [1]). The public key + SHA-256 are
-served on `/v1/updates/latest.json` for client verification.
+in git, unlike the base repo's plaintext cert [1]). The public halves of the manifest signing keys are pinned in the app, as a list of key id and key pairs.
+The version code, the SHA-256 and the signature come in `/v1/updates/latest.json`, which may also carry a key id that selects one pinned key. The update host never supplies a key.
 
 **Update endpoint:** `sync-api` exposes `GET /v1/updates/latest.json` (sole registered owner per modules.toml/its own AGENTS.md — both `updater` and `web-fe`'s cards explicitly disclaim owning it), which resolves the latest GIT tag and returns version, APK URL, SHA-256, and signature.
 
@@ -966,7 +965,7 @@ See `docs/04-build-order.md`. Summary:
 - D26. **Training compute** — CPU default (confirm KWS model size); GPU via the
       local inference engine (Local Inference) if required.
 - D27. **Log policy** — events only, per-user, never plaintext (F32).
-- D28. **Update rollback** — previous APK retained; one-tap rollback.
+- **Update rollback** -- no kept APK; a rollback is a new, higher release of the older source.
 - D29. **Agent token scopes** — `transcribe` (default) | `admin` (F31).
 
 **Risks:**

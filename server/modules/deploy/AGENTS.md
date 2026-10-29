@@ -14,19 +14,19 @@ and ship updates.
   perms, never in git.
 - `apk-signing/` — **APK signing key** (generated once, stored in a secrets
   store, never git — unlike the base repo's plaintext cert [1]). Signing step in
-  the build pipeline; public key + SHA-256 published on `/v1/updates/latest.json`.
+  the build pipeline. The manifest is signed with its own key, separate from the APK signing key. The version code, the version name, the SHA-256 and the signature are published on `/v1/updates/latest.json`; the public keys are pinned in the app and are not published there.
 - `git-pull.sh` — pull the latest **tagged release** from the local GIT server,
-  build, sign, serve (F19). Rollback = deploy previous tag.
+  build, sign, serve. A rollback publishes the older source as a new release with a higher versionCode and a higher version name, not a redeploy of the old tag.
 - `NOTICE` — server-side copy of the licensing notice (XIAOMI sherpa-onnx +
   OpenWhispr authors + modifications statement) for any shipped artifacts.
-- `scripts/` — install, update, rollback, health-check.
+- `scripts/` -- install, update, health-check, and a rollback that publishes the older source as a new, higher release.
 - **Persistence (F31):** all server data (DB, models, config, signing key)
   lives on **docker volumes / disk** — nothing in ephemeral container layers, so
   recovery via an admin-scoped token is always possible.
 - **Signing key custody:** keep an offline copy of the APK signing key (lost key
   = unsigned updates).
 
-**Update pipeline (F20/F21):** tagged release → build APK → sign → push to
+**Update pipeline:** tagged release -> build APK, with a higher versionCode and version name -> sign -> push to
 web-fe → `/v1/updates/latest.json` updated → clients notified on their daily
 check (or admin force-check).
 

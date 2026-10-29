@@ -178,8 +178,7 @@ local inference engine and uses Local Inference (FIFO multi-agent, Fast Lane pri
 Logs record events per-user only — never plaintext transcriptions (F32, T22).
 
 **D28 — Update rollback.**
-The updater keeps the previous APK; a rollback button restores it if a release
-misbehaves.
+There is no kept APK and no rollback button. A rollback is a new release with a higher versionCode and a higher version name, built from the older source.
 
 **D29 — Agent token scopes.**
 `transcribe` (default) | `admin`. Admin-scoped tokens can trigger an account reset

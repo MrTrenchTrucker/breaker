@@ -1,7 +1,7 @@
 // android/modules/updater — UpdateChecker.
 //
 // Card: android/modules/updater/AGENTS.md   Registry: modules.toml [module.android_updater]
-// Owns: Daily update check + admin force-check, signed APK verify, rollback.
+// Owns: Daily update check + admin force-check, signed APK verify, and the install of a verified APK. No rollback.
 // Depends on: android, android_core
 // Cross-module calls go through the core ports or the app's own
 // dependency wiring; this module never reaches into a sibling's code.

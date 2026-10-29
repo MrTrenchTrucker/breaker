@@ -21,7 +21,7 @@ phase number. Agents build from `AGENTS.md` files in each module.
 | 12 | **web-fe** — Debian container website: registration card, login, dashboard, admin panel | Coding | Register → first account admin; dashboard shows own transcriptions (F15, F22) |
 | 13 | **training** — training container + training-client: record samples, upload, train, download per-user model | Coding | Trained model downloads + verifies; phrase detection improves (F16) |
 | 14 | **APK hosting + cert serving + sideload docs** — APK + CA cert on web-fe; docs/06 | Coding + Bug Hunt | Download + install path works; cert install → HTTPS trusted (F17, F18) |
-| 15 | **Git-pull deploy pipeline** — pull latest tagged release, build, sign, serve | Coding | Deploy from tag; rollback works (F19) |
+| 15 | **Git-pull deploy pipeline** -- pull latest tagged release, build, sign, serve | Coding | Deploy from tag; a rollback is a new, higher release of the older source |
 | 16 | **updater + updates API + APK signing** — daily check + admin force-check; `/v1/updates/latest.json`; signed APK + SHA-256 verify; secure signing key | Coding + Bug Hunt | Daily check notifies; force-check works; tampered APK refused (T11); signing key not in git |
 | 17 | **FE registration + roles polish** — registration card UX, first-account-is-admin, admin assignment | Coding + Bug Hunt | First account = admin; admins assign admins; no self-promotion (F22, T16) |
 | 18 | **(absorbed into Phase 4 — see that row.)** Kept as a numbered slot so Phase 19-22 references elsewhere don't shift; no separate deliverable here. | — | — |

@@ -61,7 +61,7 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-008](ADR-008-configurable-service.md) | Admin-configurable transcription service | accepted |
 | [ADR-009](ADR-009-roles-tokens.md) | Roles + agent tokens (first-account-is-admin) | accepted |
 | [ADR-010](ADR-010-retention.md) | Retention policy — 3-month TTL, audio deletes on completion | accepted |
-| [ADR-011](ADR-011-updates.md) | Updates — daily check + signed APK + rollback | accepted |
+| [ADR-011](ADR-011-updates.md) | Updates, daily check + signed APK + version-code order | accepted, amended 2026-10-29 |
 | [ADR-012](ADR-012-trucking-ui.md) | Trucking UI + CB mic motif (supersedes CB Radio palette) | accepted |
 | [ADR-013](ADR-013-model-hosting.md) | Model hosting in the Breaker container + checksum verification | accepted |
 | [ADR-014](ADR-014-multi-user-isolation.md) | Multi-user isolation, server-enforced | accepted |
