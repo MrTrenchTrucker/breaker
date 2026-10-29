@@ -168,7 +168,7 @@ path = "android/modules/updater"
 owns = "Daily update check + admin force-check, signed APK verify, rollback."
 does_not_own = "Update endpoint (server/sync-api); APK signing (server/deploy)."
 depends_on = ["android", "android_core"]
-public = "UpdateChecker"
+public = "UpdateChecker, UpdateInstallFacade, ConfirmationPort, ConfirmationHandle, CommitStatus, Shown, StartResult"
 card = "android/modules/updater/AGENTS.md"
 
 [module.android_crypto]

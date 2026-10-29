@@ -17,6 +17,7 @@ import dev.breaker.dictation.core.model.SttMode
 import dev.breaker.dictation.core.model.SttRequest
 import dev.breaker.dictation.core.model.Transcription
 import dev.breaker.dictation.core.model.TranscriptionSource
+import dev.breaker.dictation.core.model.UpdateInstallResult
 import dev.breaker.dictation.core.model.WordUpdate
 import dev.breaker.dictation.core.model.WrappedDek
 import dev.breaker.dictation.core.testing.FakeTextCommitter
@@ -196,12 +197,14 @@ class PortContractTest {
         }
         assertEquals(PhraseKind.WAKE, training.recordSample(PhraseKind.WAKE).kind)
 
-        val updater = object : UpdateChecker {
+        val updater: UpdateChecker = object : UpdateChecker {
             override fun check(force: Boolean) = null
-            override fun install(release: ReleaseInfo) = Unit
-            override fun rollback() = Unit
+            override fun install(release: ReleaseInfo): UpdateInstallResult = UpdateInstallResult.Installed
         }
         assertNull(updater.check(force = true))
+        val release = ReleaseInfo(version = "1.0.0", apkUrl = "https://breaker.example.test/app.apk", sha256 = "digest", signature = "signature")
+        val result: UpdateInstallResult = updater.install(release)
+        assertEquals(UpdateInstallResult.Installed, result)
     }
 
     @Test

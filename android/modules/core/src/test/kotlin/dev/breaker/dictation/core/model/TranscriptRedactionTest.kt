@@ -247,6 +247,8 @@ class TranscriptRedactionTest {
         "AppSettings" to "settings; the key is a reference, never the credential",
         "EncryptedText" to "the sealed form of a transcript: ciphertext, nonce and tag, not readable text",
         "KdfParams" to "five numbers, no text",
+        "UpdateInstallResult.Refused" to "a short plain reason that a release was refused; never a URL, a digest or key material",
+        "UpdateInstallResult.Failed" to "a short plain cause of a failed install; never a URL, a digest or key material",
     )
 
     private val declaration = Regex("""^(\s*)(?:(?:public|internal|private|protected)\s+)?data\s+class\s+(\w+)""")
