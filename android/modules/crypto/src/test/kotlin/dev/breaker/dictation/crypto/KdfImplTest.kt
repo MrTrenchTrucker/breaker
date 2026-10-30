@@ -1,5 +1,6 @@
 package dev.breaker.dictation.crypto
 
+import dev.breaker.dictation.core.model.DerivedKeys
 import dev.breaker.dictation.core.model.KdfParams
 import dev.breaker.dictation.core.model.KdfRefusal
 import dev.breaker.dictation.core.model.KdfRefusal.BAD_SALT_LENGTH
