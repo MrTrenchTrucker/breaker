@@ -174,6 +174,16 @@ class JdkSendTest {
     }
 
     @Test
+    fun `a send 1xx status is a reply with an empty body`() {
+        val body = CountingBody("x".toByteArray())
+        val connection = FakeHttpConnection(101, -1L, body)
+        val reply = transportOver(connection, SeamRecord()).send(getRequest(1_000L))
+        assertEquals(101, reply.status)
+        assertEquals("a body byte was returned for a 1xx status", 0, reply.body.size)
+        assertEquals("the input stream was read for a 1xx status", 0, body.reads)
+    }
+
+    @Test
     fun `a send cap above MAX_BYTES_REPLY is refused before any connection`() {
         val record = SeamRecord()
         val connection = FakeHttpConnection(200, 0L, CountingBody(ByteArray(0)))
