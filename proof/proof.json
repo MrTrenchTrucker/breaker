@@ -1,0 +1,276 @@
+{
+ "name": "proof-depth",
+ "tip": {
+  "tree": "a2dba083b1abb547a2a51c88e98c4d27114808c5"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "api-contracts: the sync body scanner refuses an object or array as a member value",
+   "base_tree": "3dbd2c9c05cddd97b60b64af2f15eb6d40886169",
+   "item_tip_tree": "a2dba083b1abb547a2a51c88e98c4d27114808c5",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": []
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "red-a-01",
+   "kind": "red",
+   "item": "a",
+   "module": "shared/modules/api-contracts",
+   "file": "shared/modules/api-contracts/src/test/kotlin/dev/breaker/shared/api/sync/SyncBodyDepthTest.kt",
+   "files": [
+    "shared/modules/api-contracts/src/test/kotlin/dev/breaker/shared/api/sync/SyncBodyDepthTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.shared.api.sync.SyncBodyDepthTest"
+   ],
+   "patch": "proof/red/red-a-01.patch",
+   "tree": "f10addf9f0d8ec9d72a052abec5602f932d8728f",
+   "predict": "RED by assertion on the base (the test compiles there): every level two member value is refused later as unknown_key, not as syntax; the deep array test fails with a StackOverflowError (or, if the stack holds, with unknown_key). GREEN after the change."
+  },
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "shared/modules/api-contracts",
+   "edits": [
+    {
+     "file": "shared/modules/api-contracts/src/main/kotlin/dev/breaker/shared/api/sync/SyncBodyJson.kt",
+     "anchor": "private const val MAX_NESTING_DEPTH = 1",
+     "replacement": "private const val MAX_NESTING_DEPTH = 2"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncBodyDepthTest#refuses every level two member value as a syntax error"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "shared/modules/api-contracts",
+   "edits": [
+    {
+     "file": "shared/modules/api-contracts/src/main/kotlin/dev/breaker/shared/api/sync/SyncBodyJson.kt",
+     "anchor": "            c == '{' -> {\n                if (depth + 1 > MAX_NESTING_DEPTH) refuse(SyncBodyFamily.SYNTAX)\n                parseObject(depth + 1)",
+     "replacement": "            c == '{' -> {\n                if (depth + 1 >= MAX_NESTING_DEPTH) refuse(SyncBodyFamily.SYNTAX)\n                parseObject(depth + 1)"
+    },
+    {
+     "file": "shared/modules/api-contracts/src/main/kotlin/dev/breaker/shared/api/sync/SyncBodyJson.kt",
+     "anchor": "            c == '[' -> {\n                if (depth + 1 > MAX_NESTING_DEPTH) refuse(SyncBodyFamily.SYNTAX)\n                parseArray(depth + 1)",
+     "replacement": "            c == '[' -> {\n                if (depth + 1 >= MAX_NESTING_DEPTH) refuse(SyncBodyFamily.SYNTAX)\n                parseArray(depth + 1)"
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "Note: equivalent. A member value is only ever checked at depth 1 or more, so depth + 1 is at least 2 and both operators refuse every container; the top object is read by the document entry, never through this check.",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "shared/modules/api-contracts",
+   "edits": [
+    {
+     "file": "shared/modules/api-contracts/src/main/kotlin/dev/breaker/shared/api/sync/SyncBodyJson.kt",
+     "anchor": "            c == '{' -> {\n                if (depth + 1 > MAX_NESTING_DEPTH) refuse(SyncBodyFamily.SYNTAX)\n                parseObject(depth + 1)",
+     "replacement": "            c == '{' -> {\n                parseObject(depth + 1)"
+    },
+    {
+     "file": "shared/modules/api-contracts/src/main/kotlin/dev/breaker/shared/api/sync/SyncBodyJson.kt",
+     "anchor": "            c == '[' -> {\n                if (depth + 1 > MAX_NESTING_DEPTH) refuse(SyncBodyFamily.SYNTAX)\n                parseArray(depth + 1)",
+     "replacement": "            c == '[' -> {\n                parseArray(depth + 1)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncBodyDepthTest#refuses every level two member value as a syntax error",
+    "SyncBodyDepthTest#refuses a deeply nested array member value as a syntax error"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "shared/modules/api-contracts",
+   "edits": [
+    {
+     "file": "shared/modules/api-contracts/src/main/kotlin/dev/breaker/shared/api/sync/SyncBodyJson.kt",
+     "anchor": "members[key] = parseValue(depth)",
+     "replacement": "members[key] = parseValue(depth - 1)"
+    },
+    {
+     "file": "shared/modules/api-contracts/src/main/kotlin/dev/breaker/shared/api/sync/SyncBodyJson.kt",
+     "anchor": "        while (true) {\n            parseValue(depth)",
+     "replacement": "        while (true) {\n            parseValue(depth - 1)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncBodyDepthTest#refuses every level two member value as a syntax error",
+    "SyncBodyDepthTest#refuses a deeply nested array member value as a syntax error"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "shared/modules/api-contracts",
+   "edits": [
+    {
+     "file": "shared/modules/api-contracts/src/main/kotlin/dev/breaker/shared/api/sync/SyncBodyJson.kt",
+     "anchor": "            c == '{' -> {\n                if (depth + 1 > MAX_NESTING_DEPTH) refuse(SyncBodyFamily.SYNTAX)\n                parseObject(depth + 1)",
+     "replacement": "            c == '{' -> {\n                if (depth + 1 > MAX_NESTING_DEPTH) refuse(SyncBodyFamily.TYPE)\n                parseObject(depth + 1)"
+    },
+    {
+     "file": "shared/modules/api-contracts/src/main/kotlin/dev/breaker/shared/api/sync/SyncBodyJson.kt",
+     "anchor": "            c == '[' -> {\n                if (depth + 1 > MAX_NESTING_DEPTH) refuse(SyncBodyFamily.SYNTAX)\n                parseArray(depth + 1)",
+     "replacement": "            c == '[' -> {\n                if (depth + 1 > MAX_NESTING_DEPTH) refuse(SyncBodyFamily.TYPE)\n                parseArray(depth + 1)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncBodyDepthTest#refuses every level two member value as a syntax error",
+    "SyncBodyDepthTest#refuses a deeply nested array member value as a syntax error"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "shared/modules/api-contracts",
+   "edits": [
+    {
+     "file": "shared/modules/api-contracts/src/main/kotlin/dev/breaker/shared/api/sync/SyncBodyJson.kt",
+     "anchor": "            c == '[' -> {\n                if (depth + 1 > MAX_NESTING_DEPTH) refuse(SyncBodyFamily.SYNTAX)\n                parseArray(depth + 1)",
+     "replacement": "            c == '[' -> {\n                if (depth + 1 > MAX_NESTING_DEPTH) refuse(SyncBodyFamily.SYNTAX)\n                parseArray(depth)"
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "Note: equivalent. At cap 1 the check on the line above refuses every container member value before this call, so the argument of this call is never reached.",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "shared/modules/api-contracts",
+   "edits": [
+    {
+     "file": "shared/modules/api-contracts/src/main/kotlin/dev/breaker/shared/api/sync/SyncBodyJson.kt",
+     "anchor": "        val obj = parseObject(1)",
+     "replacement": "        val obj = parseObject(0)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncBodyDepthTest#refuses every level two member value as a syntax error"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "shared/modules/api-contracts",
+   "edits": [
+    {
+     "file": "shared/modules/api-contracts/src/main/kotlin/dev/breaker/shared/api/sync/SyncBodyJson.kt",
+     "anchor": "            c == '[' -> {\n                if (depth + 1 > MAX_NESTING_DEPTH) refuse(SyncBodyFamily.SYNTAX)\n                parseArray(depth + 1)",
+     "replacement": "            c == '[' -> {\n                parseArray(depth + 1)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncBodyDepthTest#refuses every level two member value as a syntax error",
+    "SyncBodyDepthTest#refuses a deeply nested array member value as a syntax error"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "a",
+   "module": "shared/modules/api-contracts",
+   "edits": [
+    {
+     "file": "shared/modules/api-contracts/src/main/kotlin/dev/breaker/shared/api/sync/SyncBodyJson.kt",
+     "anchor": "            c == '{' -> {\n                if (depth + 1 > MAX_NESTING_DEPTH) refuse(SyncBodyFamily.SYNTAX)\n                parseObject(depth + 1)",
+     "replacement": "            c == '{' -> {\n                parseObject(depth + 1)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SyncBodyDepthTest#refuses every level two member value as a syntax error"
+   ],
+   "rule": "",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "shared/modules/api-contracts",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "shared/modules/api-contracts/src/main/kotlin/dev/breaker/shared/api/sync/SyncBodyException.kt",
+     "anchor": "    const val SYNTAX = \"syntax\"\n",
+     "replacement": "    const val SYNTAX = \"syntax2\"\n"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "shared/modules/api-contracts",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "shared/modules/api-contracts/src/main/kotlin/dev/breaker/shared/api/sync/SyncBodyException.kt",
+     "anchor": "    const val SYNTAX = \"syntax\"\n",
+     "replacement": "    const val SYNTAX = \"syntax\" // unchanged behaviour\n"
+    }
+   ]
+  }
+ ]
+}

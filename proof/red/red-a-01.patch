@@ -1,0 +1,83 @@
+diff --git a/shared/modules/api-contracts/src/main/kotlin/dev/breaker/shared/api/sync/SyncBodyJson.kt b/shared/modules/api-contracts/src/main/kotlin/dev/breaker/shared/api/sync/SyncBodyJson.kt
+index 3db38ab2..7daede20 100644
+--- a/shared/modules/api-contracts/src/main/kotlin/dev/breaker/shared/api/sync/SyncBodyJson.kt
++++ b/shared/modules/api-contracts/src/main/kotlin/dev/breaker/shared/api/sync/SyncBodyJson.kt
+@@ -10,11 +10,6 @@ internal sealed class JsonValue {
+ 
+ private val HEX_DIGITS = "0123456789abcdef"
+ 
+-// The sync body is a flat object of the six scalar keys only (the R1 body description in
+-// openapi.yaml: v, text, source, model, duration_ms, created_at, "No other key is allowed"). The top object is level 1,
+-// so any object or array as a member value is refused before it is entered.
+-private const val MAX_NESTING_DEPTH = 1
+-
+ /** Writes value as a JSON string into out. Refuses a lone surrogate; writes everything else raw except the escapes. */
+ internal fun writeJsonString(out: StringBuilder, value: String) {
+     out.append('"')
+@@ -64,7 +59,7 @@ internal class SyncBodyScanner(private val src: String) {
+         skipWs()
+         if (pos >= src.length) refuse(SyncBodyFamily.TRUNCATED)
+         if (src[pos] != '{') refuse(SyncBodyFamily.NOT_OBJECT)
+-        val obj = parseObject(1)
++        val obj = parseObject()
+         skipWs()
+         if (pos < src.length) refuse(SyncBodyFamily.TRAILING)
+         return obj
+@@ -86,7 +81,7 @@ internal class SyncBodyScanner(private val src: String) {
+         pos++
+     }
+ 
+-    private fun parseObject(depth: Int): LinkedHashMap<String, JsonValue> {
++    private fun parseObject(): LinkedHashMap<String, JsonValue> {
+         pos++
+         skipWs()
+         val members = LinkedHashMap<String, JsonValue>()
+@@ -101,7 +96,7 @@ internal class SyncBodyScanner(private val src: String) {
+             skipWs()
+             expect(':')
+             skipWs()
+-            members[key] = parseValue(depth)
++            members[key] = parseValue()
+             skipWs()
+             val c = peek()
+             if (c == ',') {
+@@ -117,18 +112,16 @@ internal class SyncBodyScanner(private val src: String) {
+         }
+     }
+ 
+-    private fun parseValue(depth: Int): JsonValue {
++    private fun parseValue(): JsonValue {
+         val c = peek()
+         return when {
+             c == '"' -> JsonValue.Str(parseString())
+             c == '{' -> {
+-                if (depth + 1 > MAX_NESTING_DEPTH) refuse(SyncBodyFamily.SYNTAX)
+-                parseObject(depth + 1)
++                parseObject()
+                 JsonValue.Nested
+             }
+             c == '[' -> {
+-                if (depth + 1 > MAX_NESTING_DEPTH) refuse(SyncBodyFamily.SYNTAX)
+-                parseArray(depth + 1)
++                parseArray()
+                 JsonValue.Nested
+             }
+             c == 't' -> {
+@@ -148,7 +141,7 @@ internal class SyncBodyScanner(private val src: String) {
+         }
+     }
+ 
+-    private fun parseArray(depth: Int) {
++    private fun parseArray() {
+         pos++
+         skipWs()
+         if (peek() == ']') {
+@@ -156,7 +149,7 @@ internal class SyncBodyScanner(private val src: String) {
+             return
+         }
+         while (true) {
+-            parseValue(depth)
++            parseValue()
+             skipWs()
+             val c = peek()
+             if (c == ',') {
