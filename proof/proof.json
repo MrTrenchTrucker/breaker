@@ -1,0 +1,344 @@
+{
+ "name": "proof-crypto",
+ "tip": {
+  "tree": "e7da508cb4f05bbca961f6a9e60fe360f717f729"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "crypto: derive the key-encryption key and the verifier with Argon2id and HKDF from the pinned library",
+   "base_tree": "3dbd2c9c05cddd97b60b64af2f15eb6d40886169",
+   "item_tip_tree": "30ca8c0f47c5fcff0703a2b705377482457cac43",
+   "new_production_classes": [
+    "KdfImpl"
+   ],
+   "test_fixtures_overlaid": []
+  },
+  {
+   "item": "b",
+   "title": "build: the verification metadata pins the BouncyCastle artifacts the Android plugin resolves",
+   "base_tree": "30ca8c0f47c5fcff0703a2b705377482457cac43",
+   "item_tip_tree": "a5b2e5449174d63774a5b1e43bdab051433a631b",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [],
+   "red_not_run": "build verification metadata only (checksums for the Android plugin BouncyCastle 1.80.2); no code, no test"
+  },
+  {
+   "item": "c",
+   "title": "crypto: the key derivation test imports the derived keys type",
+   "base_tree": "a5b2e5449174d63774a5b1e43bdab051433a631b",
+   "item_tip_tree": "f31572d56386bb3ff5c2fa2f68826abb8c7f852f",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [],
+   "red_not_run": "one import line in a test file; it lets the item a test compile; no main code"
+  },
+  {
+   "item": "d",
+   "title": "crypto: the key derivation test builds its hex text one byte at a time",
+   "base_tree": "f31572d56386bb3ff5c2fa2f68826abb8c7f852f",
+   "item_tip_tree": "e7da508cb4f05bbca961f6a9e60fe360f717f729",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [],
+   "red_not_run": "a test helper fix (toHex) so the item a test compiles; no main code"
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "red-a-01",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "file": "android/modules/crypto/src/test/kotlin/dev/breaker/dictation/crypto/KdfImplTest.kt",
+   "files": [
+    "android/modules/crypto/src/test/kotlin/dev/breaker/dictation/crypto/KdfImplTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.crypto.KdfImplTest"
+   ],
+   "patch": "proof/red/red-a-01.patch",
+   "tree": "a1a02113758004f8dbbe8400294665555212e121",
+   "predict": "COMPILE RED on the item's new class KdfImpl and its internal functions"
+  },
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/KdfImpl.kt",
+     "anchor": "            info = KEK_LABEL.toByteArray(Charsets.US_ASCII),",
+     "replacement": "            info = AUTH_VERIFIER_LABEL.toByteArray(Charsets.US_ASCII),"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "V1 main gives the independent argon2id, key and verifier",
+    "V2 nfc composed and decomposed give the same independent argon2id, key and verifier",
+    "V3 alt params gives the independent argon2id, key and verifier"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/KdfImpl.kt",
+     "anchor": "    Normalizer.normalize(password, Normalizer.Form.NFC).toByteArray(Charsets.UTF_8)",
+     "replacement": "    password.toByteArray(Charsets.UTF_8)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "V2 nfc composed and decomposed give the same independent argon2id, key and verifier"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/KdfImpl.kt",
+     "anchor": "                kdfParams.memoryKib, kdfParams.iterations, kdfParams.parallelism, kdfParams.outputLength,",
+     "replacement": "                ARGON2_MEMORY_KIB, ARGON2_ITERATIONS, ARGON2_PARALLELISM, ARGON2_OUTPUT_LENGTH,"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "V3 alt params gives the independent argon2id, key and verifier"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/KdfImpl.kt",
+     "anchor": "    if (params.version != KDF_VERSION) throw KdfRefused(KdfRefusal.UNSUPPORTED_VERSION)",
+     "replacement": "    // UNSUPPORTED_VERSION check removed"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a version other than 1 is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "gradle/verification-metadata.xml",
+     "anchor": "            <sha256 value=\"2af190b300cbb0b35e248ccf5f4a06b6072030aeb3da7a98ec73abe5b4cb371f\" origin=\"Maven Central .sha256, recomputed\"/>",
+     "replacement": "            <sha256 value=\"2af190b300cbb0b35e248ccf5f4a06b6072030aeb3da7a98ec73abe5b4cb371e\" origin=\"Maven Central .sha256, recomputed\"/>"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "Gradle dependency verification must refuse the jar whose sha256 no longer matches",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/KdfImpl.kt",
+     "anchor": "    if (params.memoryKib < ARGON2_MEMORY_KIB) throw KdfRefused(KdfRefusal.MEMORY_BELOW_FLOOR)",
+     "replacement": "    if (params.memoryKib <= ARGON2_MEMORY_KIB) throw KdfRefused(KdfRefusal.MEMORY_BELOW_FLOOR)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "memory at the floor and at the ceiling is accepted"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/KdfImpl.kt",
+     "anchor": "    if (params.memoryKib > MEMORY_MAX_KIB) throw KdfRefused(KdfRefusal.MEMORY_ABOVE_CEILING)",
+     "replacement": "    if (params.memoryKib >= MEMORY_MAX_KIB) throw KdfRefused(KdfRefusal.MEMORY_ABOVE_CEILING)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "memory at the floor and at the ceiling is accepted"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/KdfImpl.kt",
+     "anchor": "    if (params.outputLength != ARGON2_OUTPUT_LENGTH) throw KdfRefused(KdfRefusal.OUTPUT_LENGTH_NOT_32)",
+     "replacement": "    if (params.outputLength == ARGON2_OUTPUT_LENGTH) throw KdfRefused(KdfRefusal.OUTPUT_LENGTH_NOT_32)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "output length other than 32 is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/KdfImpl.kt",
+     "anchor": "    if (salt.size != ARGON2_SALT_LENGTH_BYTES) throw KdfRefused(KdfRefusal.BAD_SALT_LENGTH)",
+     "replacement": "    if (salt.size == ARGON2_SALT_LENGTH_BYTES) throw KdfRefused(KdfRefusal.BAD_SALT_LENGTH)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a salt that is not 16 bytes is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-10",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/KdfImpl.kt",
+     "anchor": "    if (salt.size != ARGON2_SALT_LENGTH_BYTES) throw KdfRefused(KdfRefusal.BAD_SALT_LENGTH)\n    if (params.version != KDF_VERSION) throw KdfRefused(KdfRefusal.UNSUPPORTED_VERSION)",
+     "replacement": "    if (params.version != KDF_VERSION) throw KdfRefused(KdfRefusal.UNSUPPORTED_VERSION)\n    if (salt.size != ARGON2_SALT_LENGTH_BYTES) throw KdfRefused(KdfRefusal.BAD_SALT_LENGTH)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "only salt and version bad reports the salt before the version"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-11",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/KdfImpl.kt",
+     "anchor": "private val EMPTY_SALT: ByteArray = ByteArray(0)",
+     "replacement": "private val EMPTY_SALT: ByteArray = ByteArray(1) { 0x01.toByte() }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "V1 main gives the independent argon2id, key and verifier",
+    "V2 nfc composed and decomposed give the same independent argon2id, key and verifier",
+    "V3 alt params gives the independent argon2id, key and verifier",
+    "parallelism two gives the independent argon2id, key and verifier"
+   ],
+   "rule": "Note (corrected): one zero byte as the HKDF salt equals the empty salt, because HMAC pads a short key with zero bytes (measured: same extract), so that version was equivalent; this salt is one 0x01 byte, which changes every output",
+   "note": ""
+  },
+  {
+   "id": "mut-12",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/KdfImpl.kt",
+     "anchor": "        .withParallelism(parallelism)",
+     "replacement": "        .withParallelism(1)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "parallelism two gives the independent argon2id, key and verifier"
+   ],
+   "rule": "",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "android/modules/crypto",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/KdfImpl.kt",
+     "anchor": "internal const val KEK_LABEL = \"breaker-kek-v1\"\n",
+     "replacement": "internal const val KEK_LABEL = \"breaker-kek-v9\"\n"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "android/modules/crypto",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/KdfImpl.kt",
+     "anchor": "internal const val KEK_LABEL = \"breaker-kek-v1\"\n",
+     "replacement": "internal const val KEK_LABEL = \"breaker-kek-v1\" // unchanged behaviour\n"
+    }
+   ]
+  }
+ ]
+}
