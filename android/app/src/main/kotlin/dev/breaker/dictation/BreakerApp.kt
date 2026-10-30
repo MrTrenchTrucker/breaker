@@ -43,6 +43,16 @@ class BreakerApp : android.app.Application() {
 
     private val purgeScope = createPurgeScope()
 
+    /** Whether the phone sets its clock automatically; the purge guard reads it to trust or suspect `now`. */
+    private val automaticTimeOn: AutomaticTimeOn by lazy {
+        AndroidAutomaticTimeOn(applicationContext.contentResolver)
+    }
+
+    /** The two instants the purge guard keeps: when the last purge ran and when a deferral began. */
+    private val purgeBookkeeping: PurgeBookkeepingStore by lazy {
+        PurgeBookkeepingStore(File(filesDir, PurgeBookkeepingStore.FILE_NAME))
+    }
+
     private val history: SqliteHistoryStore by lazy {
         SqliteHistoryStore.create(applicationContext, SystemClockAdapter)
     }
@@ -109,7 +119,14 @@ class BreakerApp : android.app.Application() {
         super.onCreate()
         scheduleAppStartPurge(
             purgeScope,
-            purge = { history.purgeExpired() },
+            purge = {
+                runGuardedStartPurge(
+                    now = SystemClockAdapter.nowEpochMillis(),
+                    autoTimeOn = automaticTimeOn.isOn(),
+                    store = purgeBookkeeping,
+                    purge = { history.purgeExpired() },
+                )
+            },
             onFailure = { e -> Log.w("BreakerApp", "start-up purge failed", e) },
         )
         dictationServiceController.setStateObserver { armed, reason ->
