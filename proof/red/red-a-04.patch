@@ -1,0 +1,1314 @@
+diff --git a/android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt b/android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt
+deleted file mode 100644
+index 73fbf175..00000000
+--- a/android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt
++++ /dev/null
+@@ -1,79 +0,0 @@
+-package dev.breaker.dictation.auth.client
+-
+-import dev.breaker.dictation.core.model.TokenScope
+-import dev.breaker.dictation.core.model.UserRole
+-import java.security.SecureRandom
+-
+-/**
+- * The fixed numbers and rules of the account calls. Every function here is pure: no network,
+- * no keys and no storage.
+- */
+-internal object AccountRules {
+-    const val MEMORY_KIB = 65536
+-    const val ITERATIONS = 3
+-    const val PARALLELISM = 1
+-    const val KDF_VERSION = 1
+-    const val OUTPUT_LENGTH = 32
+-    const val SALT_BYTES = 16
+-    const val MIN_PASSWORD_CHARS = 12
+-
+-    const val REGISTER_PATH = "/v1/auth/register"
+-    const val SALT_PATH = "/v1/auth/salt"
+-    const val LOGIN_PATH = "/v1/auth/login"
+-    const val LOGOUT_PATH = "/v1/auth/logout"
+-
+-    private const val HTTPS_PREFIX = "https://"
+-
+-    /**
+-     * True when [password] has at least [MIN_PASSWORD_CHARS] Unicode code points. The password is
+-     * counted as it is given, before the crypto module normalises it. Used at registration only;
+-     * login never applies this rule.
+-     */
+-    fun isLongEnough(password: String): Boolean =
+-        password.codePointCount(0, password.length) >= MIN_PASSWORD_CHARS
+-
+-    /**
+-     * The URL for [path] under [base], or null when [base] is not usable as a server address.
+-     * The base must be https, and it may not hold a question mark or a hash. The authority, the
+-     * part between the scheme and the first slash, must not be empty, must not start with a colon
+-     * and must not hold an at sign, so a user name or a missing host is refused. Nothing after the
+-     * scheme may be whitespace or a control character. Every trailing slash on the base is removed
+-     * before the path is added.
+-     */
+-    fun endpoint(base: String, path: String): String? {
+-        if (!hasHttpsScheme(base)) return null
+-        if (base.contains('?') || base.contains('#')) return null
+-        val afterScheme = base.substring(HTTPS_PREFIX.length)
+-        val authority = afterScheme.substringBefore('/')
+-        if (authority.isEmpty()) return null
+-        if (authority.startsWith(':')) return null
+-        if (authority.contains('@')) return null
+-        if (afterScheme.any { it.isWhitespace() || Character.isISOControl(it) }) return null
+-        return base.trimEnd('/') + path
+-    }
+-
+-    /** [SALT_BYTES] random bytes from a secure random source, for the salt of a new account. */
+-    fun secureSalt(): ByteArray {
+-        val bytes = ByteArray(SALT_BYTES)
+-        SecureRandom().nextBytes(bytes)
+-        return bytes
+-    }
+-
+-    /**
+-     * The scopes a token of [role] carries, kept as the phone's display copy only. The server
+-     * decides what the account may do. This function is the one place that copy is made.
+-     */
+-    fun scopesFor(role: UserRole): Set<TokenScope> = when (role) {
+-        UserRole.USER -> setOf(TokenScope.TRANSCRIBE)
+-        UserRole.ADMIN -> setOf(TokenScope.TRANSCRIBE, TokenScope.ADMIN)
+-    }
+-
+-    /**
+-     * True when the start of [base] is the https scheme. Only ASCII letters fold to the scheme,
+-     * so a look-alike letter from another alphabet is refused.
+-     */
+-    private fun hasHttpsScheme(base: String): Boolean {
+-        if (base.length <= HTTPS_PREFIX.length) return false
+-        return base.substring(0, HTTPS_PREFIX.length).lowercase() == HTTPS_PREFIX
+-    }
+-}
+diff --git a/android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AuthFailure.kt b/android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AuthFailure.kt
+deleted file mode 100644
+index 2e7b00bf..00000000
+--- a/android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AuthFailure.kt
++++ /dev/null
+@@ -1,31 +0,0 @@
+-package dev.breaker.dictation.auth.client
+-
+-/** Why an account call failed. Each reason has one fixed sentence, and no sentence carries any input. */
+-enum class AuthFailureReason {
+-    BAD_CREDENTIALS,
+-    NO_SUCH_ACCOUNT,
+-    USERNAME_TAKEN,
+-    WEAK_PASSWORD,
+-    SERVER_UNREACHABLE,
+-    SERVER_ERROR,
+-    UNREADABLE_REPLY,
+-    BAD_SERVER_ADDRESS
+-}
+-
+-/**
+- * A refused or failed account call. The message is the fixed sentence for its reason, and no
+- * cause is attached. A key-derivation refusal is never wrapped in this type; it passes through
+- * unchanged.
+- */
+-class AuthFailure(val reason: AuthFailureReason) : RuntimeException(sentenceFor(reason))
+-
+-private fun sentenceFor(reason: AuthFailureReason): String = when (reason) {
+-    AuthFailureReason.BAD_CREDENTIALS -> "The username or password was not accepted."
+-    AuthFailureReason.NO_SUCH_ACCOUNT -> "No account with that username exists."
+-    AuthFailureReason.USERNAME_TAKEN -> "That username is already taken."
+-    AuthFailureReason.WEAK_PASSWORD -> "The password is too short."
+-    AuthFailureReason.SERVER_UNREACHABLE -> "The server could not be reached."
+-    AuthFailureReason.SERVER_ERROR -> "The server could not complete the request."
+-    AuthFailureReason.UNREADABLE_REPLY -> "The server's reply could not be read."
+-    AuthFailureReason.BAD_SERVER_ADDRESS -> "The server address must start with https://."
+-}
+diff --git a/android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AuthHttp.kt b/android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AuthHttp.kt
+deleted file mode 100644
+index 9c97fd90..00000000
+--- a/android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AuthHttp.kt
++++ /dev/null
+@@ -1,35 +0,0 @@
+-package dev.breaker.dictation.auth.client
+-
+-/**
+- * The network port of the account calls. The app supplies the implementation, in the same way
+- * the sync module takes its uploader from the app. This module has no HTTP client of its own.
+- *
+- * One request gives one reply. The implementation throws java.io.IOException when the server
+- * cannot be reached or the reply cannot be read. A non-2xx status is a reply, not an exception.
+- * The implementation sends exactly the headers it is given, follows no redirect, adds no header
+- * of its own and caps the size of the reply.
+- */
+-fun interface AuthHttp {
+-    fun send(request: AuthHttpRequest): AuthHttpReply
+-}
+-
+-/**
+- * One request as the account calls build it. The headers carry the bearer token and the body
+- * carries the auth verifier, so [toString] prints only the method.
+- */
+-class AuthHttpRequest(
+-    val method: String,
+-    val url: String,
+-    val headers: List<Pair<String, String>>,
+-    val body: ByteArray?,
+-) {
+-    override fun toString(): String = "AuthHttpRequest(method=$method)"
+-}
+-
+-/**
+- * One answer from the server: the status and the whole body. [toString] prints only the status,
+- * because the body can carry a token or a record.
+- */
+-class AuthHttpReply(val status: Int, val body: ByteArray) {
+-    override fun toString(): String = "AuthHttpReply(status=$status)"
+-}
+diff --git a/android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt b/android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt
+deleted file mode 100644
+index ae73e279..00000000
+--- a/android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt
++++ /dev/null
+@@ -1,265 +0,0 @@
+-package dev.breaker.dictation.auth.client
+-
+-import dev.breaker.dictation.core.model.AuthSession
+-import dev.breaker.dictation.core.model.TokenScope
+-import dev.breaker.dictation.core.model.UserRole
+-
+-/**
+- * The text form of a signed-in session, as the vault keeps it.
+- *
+- * The text is one JSON object with the keys user_id, username, token, role and scopes, with
+- * no whitespace. [decode] is strict: any text outside that shape returns null. Nothing is
+- * thrown and no part of the input is echoed.
+- */
+-internal object SessionRecord {
+-    /** The longest text [decode] reads, counted in UTF-16 units (the Kotlin String length). */
+-    private const val MAX_CHARS = 16384
+-    private const val HEX_DIGITS = "0123456789abcdef"
+-
+-    /** Writes the session as record text. */
+-    fun encode(session: AuthSession): String {
+-        val out = StringBuilder()
+-        out.append("{\"user_id\":")
+-        writeString(out, session.userId)
+-        out.append(",\"username\":")
+-        writeString(out, session.username)
+-        out.append(",\"token\":")
+-        writeString(out, session.token)
+-        out.append(",\"role\":\"")
+-        out.append(roleName(session.role))
+-        out.append("\",\"scopes\":[")
+-        out.append(scopeArray(session.scopes))
+-        out.append("]}")
+-        return out.toString()
+-    }
+-
+-    /** Reads a record, or returns null for any text that is not exactly one well-formed record. */
+-    fun decode(text: String): AuthSession? {
+-        if (text.length > MAX_CHARS) return null
+-        return try {
+-            RecordParser(text).parseSession()
+-        } catch (refused: Refused) {
+-            null
+-        } catch (refusal: IllegalArgumentException) {
+-            null
+-        }
+-    }
+-
+-    private fun roleName(role: UserRole): String = when (role) {
+-        UserRole.ADMIN -> "admin"
+-        UserRole.USER -> "user"
+-    }
+-
+-    /** The scope names in enum order (transcribe, then admin), whatever order the set has. */
+-    private fun scopeArray(scopes: Set<TokenScope>): String {
+-        var transcribe = false
+-        var admin = false
+-        for (scope in scopes) {
+-            when (scope) {
+-                TokenScope.TRANSCRIBE -> { transcribe = true }
+-                TokenScope.ADMIN -> { admin = true }
+-            }
+-        }
+-        val out = StringBuilder()
+-        if (transcribe) out.append("\"transcribe\"")
+-        if (transcribe && admin) out.append(',')
+-        if (admin) out.append("\"admin\"")
+-        return out.toString()
+-    }
+-
+-    /** Writes a JSON string: quote, backslash and control characters escaped; a valid pair raw. */
+-    private fun writeString(out: StringBuilder, value: String) {
+-        out.append('"')
+-        var i = 0
+-        while (i < value.length) {
+-            val c = value[i]
+-            if (c.isHighSurrogate() && i + 1 < value.length && value[i + 1].isLowSurrogate()) {
+-                out.append(c)
+-                out.append(value[i + 1])
+-                i += 2
+-                continue
+-            }
+-            if (c.isSurrogate()) {
+-                writeUnicodeEscape(out, c.code)
+-            } else {
+-                writeChar(out, c)
+-            }
+-            i++
+-        }
+-        out.append('"')
+-    }
+-
+-    private fun writeChar(out: StringBuilder, c: Char) {
+-        val code = c.code
+-        when {
+-            c == '"' -> out.append("\\\"")
+-            c == '\\' -> out.append("\\\\")
+-            code == 0x08 -> out.append("\\b")
+-            code == 0x09 -> out.append("\\t")
+-            code == 0x0A -> out.append("\\n")
+-            code == 0x0C -> out.append("\\f")
+-            code == 0x0D -> out.append("\\r")
+-            code < 0x20 -> writeUnicodeEscape(out, code)
+-            else -> out.append(c)
+-        }
+-    }
+-
+-    /** Writes a \u escape with four lowercase hex digits. */
+-    private fun writeUnicodeEscape(out: StringBuilder, code: Int) {
+-        out.append("\\u")
+-        out.append(HEX_DIGITS[(code shr 12) and 0x0F])
+-        out.append(HEX_DIGITS[(code shr 8) and 0x0F])
+-        out.append(HEX_DIGITS[(code shr 4) and 0x0F])
+-        out.append(HEX_DIGITS[code and 0x0F])
+-    }
+-}
+-
+-/** Raised inside the parser to refuse a record. It has no message, so no input is echoed. */
+-private class Refused : RuntimeException()
+-
+-/** A parsed member value: a string, or an array of strings. */
+-private sealed class Member
+-private class TextMember(val text: String) : Member()
+-private class ListMember(val items: List<String>) : Member()
+-
+-/** Reads one record. Every failure throws [Refused]; no character is read without a bounds check. */
+-private class RecordParser(private val text: String) {
+-    private var pos = 0
+-
+-    fun parseSession(): AuthSession {
+-        expect('{')
+-        val members = LinkedHashMap<String, Member>()
+-        while (true) {
+-            val key = readString(allowEscapes = false)
+-            if (members.containsKey(key)) throw Refused()
+-            expect(':')
+-            members[key] = readMember()
+-            val sep = nextChar()
+-            if (sep == ',') continue
+-            if (sep == '}') break
+-            throw Refused()
+-        }
+-        if (pos != text.length) throw Refused()
+-        return build(members)
+-    }
+-
+-    private fun build(members: Map<String, Member>): AuthSession {
+-        if (members.size != 5) throw Refused()
+-        val userId = (members["user_id"] as? TextMember)?.text ?: throw Refused()
+-        val username = (members["username"] as? TextMember)?.text ?: throw Refused()
+-        val token = (members["token"] as? TextMember)?.text ?: throw Refused()
+-        val roleName = (members["role"] as? TextMember)?.text ?: throw Refused()
+-        val scopeNames = (members["scopes"] as? ListMember)?.items ?: throw Refused()
+-        val role = roleOf(roleName)
+-        val scopes = LinkedHashSet<TokenScope>()
+-        for (name in scopeNames) {
+-            if (!scopes.add(scopeOf(name))) throw Refused()
+-        }
+-        return AuthSession(userId, username, token, role, scopes)
+-    }
+-
+-    private fun roleOf(name: String): UserRole = when (name) {
+-        "admin" -> UserRole.ADMIN
+-        "user" -> UserRole.USER
+-        else -> throw Refused()
+-    }
+-
+-    private fun scopeOf(name: String): TokenScope = when (name) {
+-        "transcribe" -> TokenScope.TRANSCRIBE
+-        "admin" -> TokenScope.ADMIN
+-        else -> throw Refused()
+-    }
+-
+-    private fun readMember(): Member = when (peekChar()) {
+-        '"' -> TextMember(readString(allowEscapes = true))
+-        '[' -> ListMember(readList())
+-        else -> throw Refused()
+-    }
+-
+-    private fun readList(): List<String> {
+-        expect('[')
+-        val items = ArrayList<String>()
+-        if (peekChar() == ']') {
+-            pos++
+-            return items
+-        }
+-        while (true) {
+-            items.add(readString(allowEscapes = true))
+-            val after = nextChar()
+-            if (after == ',') continue
+-            if (after == ']') return items
+-            throw Refused()
+-        }
+-    }
+-
+-    private fun readString(allowEscapes: Boolean): String {
+-        expect('"')
+-        val out = StringBuilder()
+-        while (true) {
+-            val c = nextChar()
+-            when {
+-                c == '"' -> return out.toString()
+-                c == '\\' -> {
+-                    if (!allowEscapes) throw Refused()
+-                    readEscape(out)
+-                }
+-                c.isHighSurrogate() -> {
+-                    if (pos >= text.length || !text[pos].isLowSurrogate()) throw Refused()
+-                    out.append(c)
+-                    out.append(text[pos])
+-                    pos++
+-                }
+-                c.isLowSurrogate() -> throw Refused()
+-                c.code < 0x20 -> throw Refused()
+-                else -> out.append(c)
+-            }
+-        }
+-    }
+-
+-    private fun readEscape(out: StringBuilder) {
+-        when (nextChar()) {
+-            '"' -> out.append('"')
+-            '\\' -> out.append('\\')
+-            '/' -> out.append('/')
+-            'b' -> out.append('\u0008')
+-            'f' -> out.append('\u000C')
+-            'n' -> out.append('\n')
+-            'r' -> out.append('\r')
+-            't' -> out.append('\t')
+-            'u' -> out.append(readHex4().toChar())
+-            else -> throw Refused()
+-        }
+-    }
+-
+-    private fun readHex4(): Int {
+-        var value = 0
+-        var n = 0
+-        while (n < 4) {
+-            value = value * 16 + hexValue(nextChar())
+-            n++
+-        }
+-        return value
+-    }
+-
+-    private fun hexValue(c: Char): Int = when (c) {
+-        in '0'..'9' -> c.code - '0'.code
+-        in 'a'..'f' -> c.code - 'a'.code + 10
+-        in 'A'..'F' -> c.code - 'A'.code + 10
+-        else -> throw Refused()
+-    }
+-
+-    private fun expect(c: Char) {
+-        if (nextChar() != c) throw Refused()
+-    }
+-
+-    private fun peekChar(): Char {
+-        if (pos >= text.length) throw Refused()
+-        return text[pos]
+-    }
+-
+-    private fun nextChar(): Char {
+-        val c = peekChar()
+-        pos++
+-        return c
+-    }
+-}
+diff --git a/android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionVault.kt b/android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionVault.kt
+deleted file mode 100644
+index a511c29c..00000000
+--- a/android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionVault.kt
++++ /dev/null
+@@ -1,18 +0,0 @@
+-package dev.breaker.dictation.auth.client
+-
+-/**
+- * Keeps one opaque string for the signed-in session. The auth client writes the session
+- * record here after a successful sign-in and reads it back at start-up.
+- *
+- * This module gives no protection at rest. It hands the string to the implementation as it
+- * is and reads it back unchanged. Until the app backs this port with the Android Keystore,
+- * the stored string has no protection at rest.
+- *
+- * [save] may throw when the implementation cannot store the string. [load] returns null when
+- * nothing is stored. [clear] removes whatever is stored.
+- */
+-interface SessionVault {
+-    fun save(record: String)
+-    fun load(): String?
+-    fun clear()
+-}
+diff --git a/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/AccountRulesConstantsTest.kt b/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/AccountRulesConstantsTest.kt
+deleted file mode 100644
+index 6ff7c2ff..00000000
+--- a/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/AccountRulesConstantsTest.kt
++++ /dev/null
+@@ -1,46 +0,0 @@
+-package dev.breaker.dictation.auth.client
+-
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-class AccountRulesConstantsTest {
+-    @Test
+-    fun `the account rule constants keep the values the key rules fix`() {
+-        assertEquals("memory in KiB", 65536, AccountRules.MEMORY_KIB)
+-        assertEquals("iterations", 3, AccountRules.ITERATIONS)
+-        assertEquals("parallelism", 1, AccountRules.PARALLELISM)
+-        assertEquals("kdf version", 1, AccountRules.KDF_VERSION)
+-        assertEquals("output length", 32, AccountRules.OUTPUT_LENGTH)
+-        assertEquals("salt bytes", 16, AccountRules.SALT_BYTES)
+-        assertEquals("minimum password characters", 12, AccountRules.MIN_PASSWORD_CHARS)
+-    }
+-
+-    @Test
+-    fun `the four account paths name the register, salt, login and logout endpoints`() {
+-        assertEquals("/v1/auth/register", AccountRules.REGISTER_PATH)
+-        assertEquals("/v1/auth/salt", AccountRules.SALT_PATH)
+-        assertEquals("/v1/auth/login", AccountRules.LOGIN_PATH)
+-        assertEquals("/v1/auth/logout", AccountRules.LOGOUT_PATH)
+-    }
+-
+-    @Test
+-    fun `a password of eleven characters is too short for registration`() {
+-        assertTrue("eleven characters was accepted", !AccountRules.isLongEnough("abcdefghijk"))
+-    }
+-
+-    @Test
+-    fun `a password of twelve characters is long enough for registration`() {
+-        assertTrue("twelve characters was refused", AccountRules.isLongEnough("abcdefghijkl"))
+-    }
+-
+-    @Test
+-    fun `the length rule counts code points so a character outside the basic plane counts once`() {
+-        // Ten ASCII characters and one surrogate pair: 12 UTF-16 units, 11 code points.
+-        val tenPlusOne = "abcdefghij\uD83D\uDE00"
+-        // Eleven ASCII characters and one surrogate pair: 13 UTF-16 units, 12 code points.
+-        val elevenPlusOne = "abcdefghijk\uD83D\uDE00"
+-        assertTrue("ten characters and one outside the basic plane was accepted", !AccountRules.isLongEnough(tenPlusOne))
+-        assertTrue("eleven characters and one outside the basic plane was refused", AccountRules.isLongEnough(elevenPlusOne))
+-    }
+-}
+diff --git a/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/AuthFailureTest.kt b/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/AuthFailureTest.kt
+deleted file mode 100644
+index 08cb7eb8..00000000
+--- a/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/AuthFailureTest.kt
++++ /dev/null
+@@ -1,66 +0,0 @@
+-package dev.breaker.dictation.auth.client
+-
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertNull
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-class AuthFailureTest {
+-    private val sentences = listOf(
+-        AuthFailureReason.BAD_CREDENTIALS to "The username or password was not accepted.",
+-        AuthFailureReason.NO_SUCH_ACCOUNT to "No account with that username exists.",
+-        AuthFailureReason.USERNAME_TAKEN to "That username is already taken.",
+-        AuthFailureReason.WEAK_PASSWORD to "The password is too short.",
+-        AuthFailureReason.SERVER_UNREACHABLE to "The server could not be reached.",
+-        AuthFailureReason.SERVER_ERROR to "The server could not complete the request.",
+-        AuthFailureReason.UNREADABLE_REPLY to "The server's reply could not be read.",
+-        AuthFailureReason.BAD_SERVER_ADDRESS to "The server address must start with https://.",
+-    )
+-
+-    @Test
+-    fun `each failure reason carries the fixed sentence written for it`() {
+-        for (case in sentences) {
+-            assertEquals("the sentence for ${case.first.name} changed", case.second, AuthFailure(case.first).message)
+-        }
+-    }
+-
+-    @Test
+-    fun `the failure has exactly eight reasons, one for each account outcome`() {
+-        assertEquals(
+-            "the failure reasons changed",
+-            listOf(
+-                "BAD_CREDENTIALS",
+-                "NO_SUCH_ACCOUNT",
+-                "USERNAME_TAKEN",
+-                "WEAK_PASSWORD",
+-                "SERVER_UNREACHABLE",
+-                "SERVER_ERROR",
+-                "UNREADABLE_REPLY",
+-                "BAD_SERVER_ADDRESS",
+-            ),
+-            AuthFailureReason.entries.map { it.name },
+-        )
+-    }
+-
+-    @Test
+-    fun `a failure has no cause attached`() {
+-        for (case in sentences) {
+-            assertNull("a cause was attached to ${case.first.name}", AuthFailure(case.first).cause)
+-        }
+-    }
+-
+-    @Test
+-    fun `a failure text never repeats the reason name or any input`() {
+-        for (case in sentences) {
+-            val text = AuthFailure(case.first).message ?: ""
+-            assertTrue("the failure text repeated ${case.first.name}", !text.contains(case.first.name))
+-        }
+-    }
+-
+-    @Test
+-    fun `a failure keeps the reason it was built with`() {
+-        for (case in sentences) {
+-            assertEquals("the failure lost its reason", case.first, AuthFailure(case.first).reason)
+-        }
+-    }
+-}
+diff --git a/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/AuthHttpTypesTest.kt b/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/AuthHttpTypesTest.kt
+deleted file mode 100644
+index bb80dcb9..00000000
+--- a/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/AuthHttpTypesTest.kt
++++ /dev/null
+@@ -1,52 +0,0 @@
+-package dev.breaker.dictation.auth.client
+-
+-import java.nio.charset.StandardCharsets
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-class AuthHttpTypesTest {
+-    private val request = AuthHttpRequest(
+-        method = "POST",
+-        url = "https://box.example/v1/auth/login",
+-        headers = listOf("Authorization" to "Bearer bearer-value-x"),
+-        body = "verifier-value-x".toByteArray(StandardCharsets.UTF_8),
+-    )
+-
+-    @Test
+-    fun `a request prints only its method when it is converted to text`() {
+-        assertEquals("AuthHttpRequest(method=POST)", request.toString())
+-    }
+-
+-    @Test
+-    fun `a request text never carries the url, a header value or the body bytes`() {
+-        val text = request.toString()
+-        assertTrue("the request text carried the url", !text.contains("box.example"))
+-        assertTrue("the request text carried a header value", !text.contains("bearer-value-x"))
+-        assertTrue("the request text carried the body", !text.contains("verifier-value-x"))
+-    }
+-
+-    @Test
+-    fun `a reply prints only its status when it is converted to text`() {
+-        val reply = AuthHttpReply(401, "reply-body-x".toByteArray(StandardCharsets.UTF_8))
+-        assertEquals("AuthHttpReply(status=401)", reply.toString())
+-    }
+-
+-    @Test
+-    fun `a reply text never carries its body bytes`() {
+-        val reply = AuthHttpReply(200, "reply-body-x".toByteArray(StandardCharsets.UTF_8))
+-        assertTrue("the reply text carried the body", !reply.toString().contains("reply-body-x"))
+-    }
+-
+-    @Test
+-    fun `an http port answers each request with the reply the app builds`() {
+-        val seen = mutableListOf<AuthHttpRequest>()
+-        val port = AuthHttp { sent ->
+-            seen.add(sent)
+-            AuthHttpReply(204, ByteArray(0))
+-        }
+-        val reply = port.send(request)
+-        assertEquals(204, reply.status)
+-        assertTrue("the port did not receive the request it was given", seen.size == 1 && seen[0] === request)
+-    }
+-}
+diff --git a/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/FakeSessionVault.kt b/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/FakeSessionVault.kt
+deleted file mode 100644
+index 409b8d75..00000000
+--- a/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/FakeSessionVault.kt
++++ /dev/null
+@@ -1,39 +0,0 @@
+-package dev.breaker.dictation.auth.client
+-
+-/**
+- * Hand-written test double for [SessionVault]. It records the name of each call, never its
+- * content. A test can tell it to fail a save: the exception it was given is thrown unchanged
+- * and nothing is stored.
+- */
+-class FakeSessionVault : SessionVault {
+-    /** The name of every call made on the port, in order: "save", "load" or "clear". */
+-    val calls: MutableList<String> = mutableListOf()
+-
+-    /** When set, [save] records its call, throws this exact object and stores nothing. */
+-    var saveFailure: RuntimeException? = null
+-
+-    /** The string the vault holds, or null. Read by tests only; [toString] never prints it. */
+-    var stored: String? = null
+-
+-    override fun save(record: String) {
+-        calls += "save"
+-        val failure = saveFailure
+-        if (failure != null) throw failure
+-        stored = record
+-    }
+-
+-    override fun load(): String? {
+-        calls += "load"
+-        return stored
+-    }
+-
+-    override fun clear() {
+-        calls += "clear"
+-        stored = null
+-    }
+-
+-    override fun toString(): String = "FakeSessionVault"
+-}
+-
+-/** The exception a test hands the fake to make its save fail. Its message holds no input. */
+-class FakeVaultRefusal : RuntimeException("the fake vault was told to refuse the save")
+diff --git a/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/FakeSessionVaultTest.kt b/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/FakeSessionVaultTest.kt
+deleted file mode 100644
+index bd161e3a..00000000
+--- a/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/FakeSessionVaultTest.kt
++++ /dev/null
+@@ -1,59 +0,0 @@
+-package dev.breaker.dictation.auth.client
+-
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertNull
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-class FakeSessionVaultTest {
+-
+-    @Test
+-    fun `load returns null before anything is saved`() {
+-        val fake = FakeSessionVault()
+-        assertNull("nothing was saved yet", fake.load())
+-    }
+-
+-    @Test
+-    fun `load returns the last saved string until clear`() {
+-        val fake = FakeSessionVault()
+-        fake.save("first")
+-        fake.save("second")
+-        assertEquals("the last save wins", "second", fake.load())
+-        fake.clear()
+-        assertNull("clear removes the stored string", fake.load())
+-    }
+-
+-    @Test
+-    fun `a save told to fail throws that exact object and stores nothing`() {
+-        val fake = FakeSessionVault()
+-        fake.save("kept")
+-        val failure = FakeVaultRefusal()
+-        fake.saveFailure = failure
+-        var thrown: RuntimeException? = null
+-        try {
+-            fake.save("lost")
+-        } catch (refusal: RuntimeException) {
+-            thrown = refusal
+-        }
+-        assertTrue("the thrown object must be the one the test gave", thrown === failure)
+-        assertEquals("a failed save must not replace the stored string", "kept", fake.load())
+-    }
+-
+-    @Test
+-    fun `the fake records each call by name and never its content`() {
+-        val fake = FakeSessionVault()
+-        fake.save("secret-record-text")
+-        fake.load()
+-        fake.clear()
+-        assertEquals("only call names are recorded", listOf("save", "load", "clear"), fake.calls)
+-    }
+-
+-    @Test
+-    fun `the fake's string form carries no stored content`() {
+-        val fake = FakeSessionVault()
+-        fake.save("secret-record-text")
+-        assertFalse("toString must not print the stored text", fake.toString().contains("secret"))
+-        assertEquals("toString is the fixed name", "FakeSessionVault", fake.toString())
+-    }
+-}
+diff --git a/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/LaneSourceScanTest.kt b/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/LaneSourceScanTest.kt
+deleted file mode 100644
+index 8d9bada3..00000000
+--- a/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/LaneSourceScanTest.kt
++++ /dev/null
+@@ -1,46 +0,0 @@
+-package dev.breaker.dictation.auth.client
+-
+-import java.io.File
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-class LaneSourceScanTest {
+-    private val folder = "src/main/kotlin/dev/breaker/dictation/auth/client"
+-    private val laneFiles = listOf("AuthHttp.kt", "AuthFailure.kt", "AccountRules.kt")
+-
+-    private val offender = Regex(
+-        """(\bprintln\s*\(|\bprint\s*\(|\bprintStackTrace\s*\(|\bLog\.|\bLogger\b|\bSystem\.(out|err)\b|java\.util\.logging|^import\s+(javax\.crypto|dev\.breaker\.dictation\.crypto)\b)""",
+-        RegexOption.MULTILINE,
+-    )
+-
+-    private fun offenders(name: String, text: String): List<String> {
+-        val found = mutableListOf<String>()
+-        for (match in offender.findAll(text)) {
+-            found.add("$name: ${match.value}")
+-        }
+-        return found
+-    }
+-
+-    @Test
+-    fun `the lane's main files print nothing and import no crypto code`() {
+-        val found = mutableListOf<String>()
+-        for (name in laneFiles) {
+-            found.addAll(offenders(name, File(folder, name).readText()))
+-        }
+-        assertTrue("a lane file holds a print, log or crypto import: $found", found.isEmpty())
+-    }
+-
+-    @Test
+-    fun `the scan flags a print call and a crypto import in planted text`() {
+-        val planted = "import javax.crypto.Cipher\nfun leak() = println(\"x\")\nimport dev.breaker.dictation.crypto.Thing\n"
+-        val found = offenders("planted.kt", planted)
+-        assertTrue("the scan let the planted print or crypto import through: $found", found.size == 3)
+-    }
+-
+-    @Test
+-    fun `the scan leaves ordinary code alone`() {
+-        val ordinary = "import java.security.SecureRandom\nval label = \"print the form\"\nval logger = 1\n"
+-        val found = offenders("ordinary.kt", ordinary)
+-        assertTrue("the scan flagged ordinary code: $found", found.isEmpty())
+-    }
+-}
+diff --git a/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/SaltAndScopeRulesTest.kt b/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/SaltAndScopeRulesTest.kt
+deleted file mode 100644
+index 644e2ff1..00000000
+--- a/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/SaltAndScopeRulesTest.kt
++++ /dev/null
+@@ -1,31 +0,0 @@
+-package dev.breaker.dictation.auth.client
+-
+-import dev.breaker.dictation.core.model.TokenScope
+-import dev.breaker.dictation.core.model.UserRole
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-class SaltAndScopeRulesTest {
+-    @Test
+-    fun `a secure salt is sixteen bytes long`() {
+-        assertEquals("salt length", 16, AccountRules.secureSalt().size)
+-    }
+-
+-    @Test
+-    fun `two secure salts differ`() {
+-        val first = AccountRules.secureSalt()
+-        val second = AccountRules.secureSalt()
+-        assertTrue("two salts were equal", !first.contentEquals(second))
+-    }
+-
+-    @Test
+-    fun `the user role gets the transcribe scope and nothing else`() {
+-        assertEquals(setOf(TokenScope.TRANSCRIBE), AccountRules.scopesFor(UserRole.USER))
+-    }
+-
+-    @Test
+-    fun `the admin role gets the transcribe and admin scopes`() {
+-        assertEquals(setOf(TokenScope.TRANSCRIBE, TokenScope.ADMIN), AccountRules.scopesFor(UserRole.ADMIN))
+-    }
+-}
+diff --git a/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/SessionRecordHostileTest.kt b/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/SessionRecordHostileTest.kt
+deleted file mode 100644
+index 4373172f..00000000
+--- a/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/SessionRecordHostileTest.kt
++++ /dev/null
+@@ -1,173 +0,0 @@
+-package dev.breaker.dictation.auth.client
+-
+-import dev.breaker.dictation.core.model.AuthSession
+-import dev.breaker.dictation.core.model.TokenScope
+-import dev.breaker.dictation.core.model.UserRole
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertNull
+-import org.junit.Test
+-
+-private const val BASE =
+-    "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":\"tok\",\"role\":\"user\",\"scopes\":[\"transcribe\"]}"
+-
+-private const val EMPTY_TEXT = ""
+-private const val WHITESPACE_ONLY = " \t\r\n "
+-private const val ARRAY_TEXT = "[]"
+-private const val JSON_STRING_TEXT = "\"text\""
+-private const val NULL_LITERAL = "null"
+-private const val NUMBER_TEXT = "42"
+-private const val OPEN_BRACE = "{"
+-private const val CUT_INSIDE_MEMBER = "{\"user_id\":\"u-1\""
+-private const val MISSING_CLOSE_BRACE = "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":\"tok\",\"role\":\"user\",\"scopes\":[\"transcribe\"]"
+-private const val MISSING_SCOPES = "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":\"tok\",\"role\":\"user\"}"
+-private const val EXTRA_KEY = "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":\"tok\",\"role\":\"user\",\"scopes\":[\"transcribe\"],\"extra\":\"x\"}"
+-private const val REPEATED_USER_ID = "{\"user_id\":\"u-1\",\"user_id\":\"u-2\",\"username\":\"alice\",\"token\":\"tok\",\"role\":\"user\",\"scopes\":[\"transcribe\"]}"
+-private const val ROLE_NUMBER = "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":\"tok\",\"role\":1,\"scopes\":[\"transcribe\"]}"
+-private const val SCOPES_STRING = "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":\"tok\",\"role\":\"user\",\"scopes\":\"transcribe\"}"
+-private const val SCOPES_NULL = "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":\"tok\",\"role\":\"user\",\"scopes\":null}"
+-private const val USER_ID_NULL = "{\"user_id\":null,\"username\":\"alice\",\"token\":\"tok\",\"role\":\"user\",\"scopes\":[\"transcribe\"]}"
+-private const val USERNAME_TRUE = "{\"user_id\":\"u-1\",\"username\":true,\"token\":\"tok\",\"role\":\"user\",\"scopes\":[\"transcribe\"]}"
+-private const val TOKEN_OBJECT = "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":{},\"role\":\"user\",\"scopes\":[\"transcribe\"]}"
+-private const val TOKEN_ARRAY = "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":[\"tok\"],\"role\":\"user\",\"scopes\":[\"transcribe\"]}"
+-private const val ROLE_UPPER_CASE = "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":\"tok\",\"role\":\"ADMIN\",\"scopes\":[\"transcribe\"]}"
+-private const val ROLE_UNKNOWN = "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":\"tok\",\"role\":\"root\",\"scopes\":[\"transcribe\"]}"
+-private const val SCOPE_UNKNOWN = "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":\"tok\",\"role\":\"user\",\"scopes\":[\"write\"]}"
+-private const val SCOPE_UPPER_CASE = "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":\"tok\",\"role\":\"user\",\"scopes\":[\"TRANSCRIBE\"]}"
+-private const val SCOPE_REPEATED = "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":\"tok\",\"role\":\"user\",\"scopes\":[\"transcribe\",\"transcribe\"]}"
+-private const val TOKEN_BLANK = "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":\"  \",\"role\":\"user\",\"scopes\":[\"transcribe\"]}"
+-private const val USERNAME_EMPTY = "{\"user_id\":\"u-1\",\"username\":\"\",\"token\":\"tok\",\"role\":\"user\",\"scopes\":[\"transcribe\"]}"
+-private const val TEXT_AFTER_OBJECT = BASE + "x"
+-private const val SECOND_OBJECT = BASE + BASE
+-private const val OBJECT_TRAILING_COMMA = "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":\"tok\",\"role\":\"user\",\"scopes\":[\"transcribe\"],}"
+-private const val ARRAY_TRAILING_COMMA = "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":\"tok\",\"role\":\"user\",\"scopes\":[\"transcribe\",]}"
+-private const val MISSING_COLON = "{\"user_id\" \"u-1\",\"username\":\"alice\",\"token\":\"tok\",\"role\":\"user\",\"scopes\":[\"transcribe\"]}"
+-private const val SINGLE_QUOTES = "{'user_id':'u-1','username':'alice','token':'tok','role':'user','scopes':['transcribe']}"
+-private const val UNQUOTED_KEY = "{user_id:\"u-1\",\"username\":\"alice\",\"token\":\"tok\",\"role\":\"user\",\"scopes\":[\"transcribe\"]}"
+-private const val RAW_CONTROL_IN_STRING = "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":\"tok\u0001\",\"role\":\"user\",\"scopes\":[\"transcribe\"]}"
+-private const val RAW_TAB_IN_STRING = "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":\"tok\t\",\"role\":\"user\",\"scopes\":[\"transcribe\"]}"
+-private const val UNKNOWN_ESCAPE = "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":\"t\\q\",\"role\":\"user\",\"scopes\":[\"transcribe\"]}"
+-private const val SHORT_UNICODE_ESCAPE = "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":\"\\u12\",\"role\":\"user\",\"scopes\":[\"transcribe\"]}"
+-private const val NON_HEX_ESCAPE = "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":\"\\u00G1\",\"role\":\"user\",\"scopes\":[\"transcribe\"]}"
+-private const val RAW_LONE_HIGH_SURROGATE = "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":\"tok\uD800\",\"role\":\"user\",\"scopes\":[\"transcribe\"]}"
+-private const val RAW_LONE_LOW_SURROGATE = "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":\"tok\uDC00\",\"role\":\"user\",\"scopes\":[\"transcribe\"]}"
+-private const val BYTE_ORDER_MARK = "\uFEFF" + BASE
+-private const val OBJECT_INSIDE_SCOPES = "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":\"tok\",\"role\":\"user\",\"scopes\":[{\"a\":1}]}"
+-private const val NUMBER_INSIDE_SCOPES = "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":\"tok\",\"role\":\"user\",\"scopes\":[1]}"
+-private const val UNTERMINATED_STRING = "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":\"tok"
+-private const val ESCAPED_KEY = "{\"us\\u0065r_id\":\"u-1\",\"username\":\"alice\",\"token\":\"tok\",\"role\":\"user\",\"scopes\":[\"transcribe\"]}"
+-private const val RAW_NUL_IN_STRING = "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":\"tok\u0000\",\"role\":\"user\",\"scopes\":[\"transcribe\"]}"
+-private const val SPACE_AFTER_COLON = "{\"user_id\": \"u-1\",\"username\":\"alice\",\"token\":\"tok\",\"role\":\"user\",\"scopes\":[\"transcribe\"]}"
+-private const val NEWLINE_AFTER_OBJECT = BASE + "\n"
+-private const val MISSING_ROLE_AND_EXTRA_KEY = "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":\"tok\",\"scopes\":[\"transcribe\"],\"extra\":\"x\"}"
+-
+-private val SAMPLES: List<Pair<String, String>> = listOf(
+-    "empty" to EMPTY_TEXT,
+-    "whitespace only" to WHITESPACE_ONLY,
+-    "array" to ARRAY_TEXT,
+-    "JSON string" to JSON_STRING_TEXT,
+-    "null literal" to NULL_LITERAL,
+-    "number" to NUMBER_TEXT,
+-    "open brace only" to OPEN_BRACE,
+-    "cut inside a member" to CUT_INSIDE_MEMBER,
+-    "missing closing brace" to MISSING_CLOSE_BRACE,
+-    "missing scopes" to MISSING_SCOPES,
+-    "extra key" to EXTRA_KEY,
+-    "repeated user_id" to REPEATED_USER_ID,
+-    "role as a number" to ROLE_NUMBER,
+-    "scopes as a string" to SCOPES_STRING,
+-    "scopes null" to SCOPES_NULL,
+-    "user_id null" to USER_ID_NULL,
+-    "username true" to USERNAME_TRUE,
+-    "token object" to TOKEN_OBJECT,
+-    "token array" to TOKEN_ARRAY,
+-    "upper case role" to ROLE_UPPER_CASE,
+-    "unknown role" to ROLE_UNKNOWN,
+-    "unknown scope" to SCOPE_UNKNOWN,
+-    "upper case scope" to SCOPE_UPPER_CASE,
+-    "repeated scope" to SCOPE_REPEATED,
+-    "blank token" to TOKEN_BLANK,
+-    "empty username" to USERNAME_EMPTY,
+-    "text after the object" to TEXT_AFTER_OBJECT,
+-    "second object" to SECOND_OBJECT,
+-    "trailing comma in the object" to OBJECT_TRAILING_COMMA,
+-    "trailing comma in the array" to ARRAY_TRAILING_COMMA,
+-    "missing colon" to MISSING_COLON,
+-    "single quotes" to SINGLE_QUOTES,
+-    "unquoted key" to UNQUOTED_KEY,
+-    "raw U+0001 in a string" to RAW_CONTROL_IN_STRING,
+-    "raw tab in a string" to RAW_TAB_IN_STRING,
+-    "unknown escape" to UNKNOWN_ESCAPE,
+-    "short unicode escape" to SHORT_UNICODE_ESCAPE,
+-    "non-hex unicode escape" to NON_HEX_ESCAPE,
+-    "raw lone high surrogate" to RAW_LONE_HIGH_SURROGATE,
+-    "raw lone low surrogate" to RAW_LONE_LOW_SURROGATE,
+-    "byte order mark" to BYTE_ORDER_MARK,
+-    "object inside scopes" to OBJECT_INSIDE_SCOPES,
+-    "number inside scopes" to NUMBER_INSIDE_SCOPES,
+-    "unterminated string" to UNTERMINATED_STRING,
+-    "escaped key" to ESCAPED_KEY,
+-    "raw NUL in a string" to RAW_NUL_IN_STRING,
+-    "space after the colon" to SPACE_AFTER_COLON,
+-    "newline after the object" to NEWLINE_AFTER_OBJECT,
+-    "no role and one extra key" to MISSING_ROLE_AND_EXTRA_KEY,
+-)
+-
+-class SessionRecordHostileTest {
+-
+-    private fun refuseAll(label: String, texts: List<String>) {
+-        for (text in texts) {
+-            assertNull(label, SessionRecord.decode(text))
+-        }
+-    }
+-
+-    @Test
+-    fun `decode returns null and never throws on each hostile sample`() {
+-        for (sample in SAMPLES) {
+-            var result: AuthSession? = null
+-            try {
+-                result = SessionRecord.decode(sample.second)
+-            } catch (thrown: Throwable) {
+-                throw AssertionError("decode threw on the sample " + sample.first)
+-            }
+-            assertNull("decode must refuse the sample " + sample.first, result)
+-        }
+-    }
+-
+-    @Test
+-    fun `decode refuses raw control characters and bad escapes inside strings`() {
+-        refuseAll("control or escape", listOf(RAW_CONTROL_IN_STRING, RAW_TAB_IN_STRING, UNKNOWN_ESCAPE, SHORT_UNICODE_ESCAPE, NON_HEX_ESCAPE, RAW_NUL_IN_STRING))
+-    }
+-
+-    @Test
+-    fun `decode refuses a raw lone surrogate and a byte order mark`() {
+-        refuseAll("surrogate or byte order mark", listOf(RAW_LONE_HIGH_SURROGATE, RAW_LONE_LOW_SURROGATE, BYTE_ORDER_MARK))
+-    }
+-
+-    @Test
+-    fun `decode accepts text exactly at the length cap`() {
+-        val text = recordOfLength(16384)
+-        assertEquals("the sample is exactly at the cap", 16384, text.length)
+-        assertEquals(
+-            "a record at the cap is read",
+-            AuthSession("u-1", "x" + "a".repeat(16384 - encodedBase().length), "tok", UserRole.USER, setOf(TokenScope.TRANSCRIBE)),
+-            SessionRecord.decode(text),
+-        )
+-    }
+-
+-    @Test
+-    fun `decode refuses text one character over the length cap`() {
+-        val text = recordOfLength(16385)
+-        assertEquals("the sample is one over the cap", 16385, text.length)
+-        assertNull("a record one over the cap is refused", SessionRecord.decode(text))
+-    }
+-
+-    /** The encoded text of a session whose username is a single letter, used to size the samples. */
+-    private fun encodedBase(): String =
+-        SessionRecord.encode(AuthSession("u-1", "x", "tok", UserRole.USER, setOf(TokenScope.TRANSCRIBE)))
+-
+-    /** A valid record of exactly [total] UTF-16 units: only the username grows. */
+-    private fun recordOfLength(total: Int): String {
+-        val username = "x" + "a".repeat(total - encodedBase().length)
+-        return SessionRecord.encode(AuthSession("u-1", username, "tok", UserRole.USER, setOf(TokenScope.TRANSCRIBE)))
+-    }
+-}
+diff --git a/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/SessionRecordRefusalTest.kt b/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/SessionRecordRefusalTest.kt
+deleted file mode 100644
+index 5a85b677..00000000
+--- a/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/SessionRecordRefusalTest.kt
++++ /dev/null
+@@ -1,132 +0,0 @@
+-package dev.breaker.dictation.auth.client
+-
+-import dev.breaker.dictation.core.model.AuthSession
+-import dev.breaker.dictation.core.model.TokenScope
+-import dev.breaker.dictation.core.model.UserRole
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertNull
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-private const val BASE =
+-    "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":\"tok\",\"role\":\"user\",\"scopes\":[\"transcribe\"]}"
+-
+-class SessionRecordRefusalTest {
+-
+-    /** Returns the base record with one piece replaced; fails if the piece is not in the base. */
+-    private fun edit(old: String, new: String): String {
+-        assertTrue("the edit target must be in the base record: " + old, BASE.contains(old))
+-        return BASE.replace(old, new)
+-    }
+-
+-    private fun refuseAll(label: String, texts: List<String>) {
+-        for (text in texts) {
+-            assertNull(label, SessionRecord.decode(text))
+-        }
+-    }
+-
+-    @Test
+-    fun `decode refuses text that is empty or only whitespace`() {
+-        refuseAll("empty or blank text", listOf("", " "))
+-    }
+-
+-    @Test
+-    fun `decode refuses text that is not a JSON object`() {
+-        refuseAll("not an object", listOf("[]", "\"text\"", "null", "42"))
+-    }
+-
+-    @Test
+-    fun `decode refuses a missing key`() {
+-        refuseAll(
+-            "missing key",
+-            listOf(
+-                edit(",\"scopes\":[\"transcribe\"]", ""),
+-                "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":\"tok\",\"scopes\":[\"transcribe\"],\"extra\":\"x\"}",
+-            ),
+-        )
+-    }
+-
+-    @Test
+-    fun `decode refuses an extra key`() {
+-        refuseAll("extra key", listOf(edit("\"scopes\":[\"transcribe\"]}", "\"scopes\":[\"transcribe\"],\"extra\":\"x\"}")))
+-    }
+-
+-    @Test
+-    fun `decode refuses a repeated key`() {
+-        refuseAll("repeated key", listOf(edit("\"username\":\"alice\"", "\"username\":\"alice\",\"username\":\"bob\"")))
+-    }
+-
+-    @Test
+-    fun `decode refuses a value of the wrong type`() {
+-        refuseAll("wrong type", listOf(edit("\"role\":\"user\"", "\"role\":1"), edit("\"username\":\"alice\"", "\"username\":true")))
+-    }
+-
+-    @Test
+-    fun `decode refuses an unknown role name`() {
+-        refuseAll("unknown role", listOf(edit("\"role\":\"user\"", "\"role\":\"root\""), edit("\"role\":\"user\"", "\"role\":\"ADMIN\"")))
+-    }
+-
+-    @Test
+-    fun `decode refuses an unknown or differently cased scope name`() {
+-        refuseAll("unknown scope", listOf(edit("[\"transcribe\"]", "[\"write\"]"), edit("[\"transcribe\"]", "[\"TRANSCRIBE\"]")))
+-    }
+-
+-    @Test
+-    fun `decode refuses a repeated scope name`() {
+-        refuseAll("repeated scope", listOf(edit("[\"transcribe\"]", "[\"transcribe\",\"transcribe\"]")))
+-    }
+-
+-    @Test
+-    fun `decode refuses a blank token because the session refuses it`() {
+-        refuseAll("blank token", listOf(edit("\"token\":\"tok\"", "\"token\":\"  \"")))
+-    }
+-
+-    @Test
+-    fun `decode refuses text after the object`() {
+-        refuseAll("text after the object", listOf(BASE + "x", BASE + BASE))
+-    }
+-
+-    @Test
+-    fun `decode refuses a trailing comma in the object or the array`() {
+-        refuseAll(
+-            "trailing comma",
+-            listOf(
+-                edit(",\"scopes\":[\"transcribe\"]}", ",\"scopes\":[\"transcribe\"],}"),
+-                edit("[\"transcribe\"]", "[\"transcribe\",]"),
+-            ),
+-        )
+-    }
+-
+-    @Test
+-    fun `decode refuses JSON whitespace between tokens and after the object`() {
+-        refuseAll(
+-            "whitespace",
+-            listOf(edit("\"user_id\":", "\"user_id\": "), BASE + "\n"),
+-        )
+-    }
+-
+-    @Test
+-    fun `decode accepts an empty scope array`() {
+-        val text = edit("[\"transcribe\"]", "[]")
+-        assertEquals(
+-            "an empty scope set is a valid session",
+-            AuthSession("u-1", "alice", "tok", UserRole.USER, emptySet()),
+-            SessionRecord.decode(text),
+-        )
+-    }
+-
+-    @Test
+-    fun `decode accepts the five keys in any order`() {
+-        val text = "{\"scopes\":[\"transcribe\"],\"role\":\"user\",\"token\":\"tok\",\"username\":\"alice\",\"user_id\":\"u-1\"}"
+-        assertEquals(
+-            "key order does not matter on decode",
+-            AuthSession("u-1", "alice", "tok", UserRole.USER, setOf(TokenScope.TRANSCRIBE)),
+-            SessionRecord.decode(text),
+-        )
+-    }
+-
+-    @Test
+-    fun `decode refuses an escaped spelling of a key`() {
+-        refuseAll("escaped key", listOf(edit("\"user_id\"", "\"us\\u0065r_id\"")))
+-    }
+-}
+diff --git a/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/SessionRecordRoundTripTest.kt b/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/SessionRecordRoundTripTest.kt
+deleted file mode 100644
+index 1a21a0a9..00000000
+--- a/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/SessionRecordRoundTripTest.kt
++++ /dev/null
+@@ -1,84 +0,0 @@
+-package dev.breaker.dictation.auth.client
+-
+-import dev.breaker.dictation.core.model.AuthSession
+-import dev.breaker.dictation.core.model.TokenScope
+-import dev.breaker.dictation.core.model.UserRole
+-import org.junit.Assert.assertEquals
+-import org.junit.Test
+-
+-class SessionRecordRoundTripTest {
+-
+-    private fun roundTrip(session: AuthSession): AuthSession? = SessionRecord.decode(SessionRecord.encode(session))
+-
+-    @Test
+-    fun `a round trip returns an equal admin session`() {
+-        val session = AuthSession("u-9", "root", "t-admin", UserRole.ADMIN, setOf(TokenScope.ADMIN, TokenScope.TRANSCRIBE))
+-        assertEquals(session, roundTrip(session))
+-    }
+-
+-    @Test
+-    fun `a round trip returns an equal user session`() {
+-        val session = AuthSession("u-1", "alice", "t-user", UserRole.USER, setOf(TokenScope.TRANSCRIBE))
+-        assertEquals(session, roundTrip(session))
+-    }
+-
+-    @Test
+-    fun `a round trip keeps quotes backslashes and control characters`() {
+-        val token = "\"\\\u0001\u001F\t\n\r\u0008\u000C end"
+-        val session = AuthSession("u-1", "a \"quoted\" name", token, UserRole.USER, setOf(TokenScope.TRANSCRIBE))
+-        assertEquals(session, roundTrip(session))
+-    }
+-
+-    @Test
+-    fun `a round trip keeps non-ASCII characters and a surrogate pair`() {
+-        val token = "caf\u00E9 \u65E5 \uD83D\uDE00"
+-        val session = AuthSession("u-2", "b\u00FCrger", token, UserRole.USER, setOf(TokenScope.TRANSCRIBE))
+-        assertEquals(session, roundTrip(session))
+-    }
+-
+-    @Test
+-    fun `a round trip keeps an empty scope set`() {
+-        val session = AuthSession("u-3", "carol", "t-empty", UserRole.USER, emptySet())
+-        assertEquals(session, roundTrip(session))
+-    }
+-
+-    @Test
+-    fun `a round trip keeps a lone surrogate written as an escape`() {
+-        val session = AuthSession("u-4", "dave", "x\uD800y", UserRole.USER, setOf(TokenScope.TRANSCRIBE))
+-        assertEquals(session, roundTrip(session))
+-    }
+-
+-    @Test
+-    fun `encode writes the documented key order and no spaces`() {
+-        val session = AuthSession("u-1", "alice", "tok", UserRole.USER, setOf(TokenScope.TRANSCRIBE))
+-        assertEquals(
+-            "the documented shape",
+-            "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":\"tok\",\"role\":\"user\",\"scopes\":[\"transcribe\"]}",
+-            SessionRecord.encode(session),
+-        )
+-    }
+-
+-    @Test
+-    fun `encode writes the admin role and both scopes in enum order`() {
+-        val session = AuthSession("u-9", "root", "t", UserRole.ADMIN, setOf(TokenScope.ADMIN, TokenScope.TRANSCRIBE))
+-        assertEquals(
+-            "scopes follow the enum order, not the set order",
+-            "{\"user_id\":\"u-9\",\"username\":\"root\",\"token\":\"t\",\"role\":\"admin\",\"scopes\":[\"transcribe\",\"admin\"]}",
+-            SessionRecord.encode(session),
+-        )
+-    }
+-
+-    @Test
+-    fun `encode escapes quote backslash and control characters as the documented forms`() {
+-        val token = "\"\\\u0001\u001F\t\n\r\u0008\u000C\u00E9\uD83D\uDE00"
+-        val session = AuthSession("u-1", "alice", token, UserRole.USER, setOf(TokenScope.TRANSCRIBE))
+-        val expectedToken = "\\\"" + "\\\\" + "\\u0001" + "\\u001f" + "\\t" + "\\n" + "\\r" + "\\b" + "\\f" +
+-            "\u00E9" + "\uD83D\uDE00"
+-        assertEquals(
+-            "the escapes in the documented form, with non-ASCII and the pair written raw",
+-            "{\"user_id\":\"u-1\",\"username\":\"alice\",\"token\":\"" + expectedToken +
+-                "\",\"role\":\"user\",\"scopes\":[\"transcribe\"]}",
+-            SessionRecord.encode(session),
+-        )
+-    }
+-}
+diff --git a/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/SessionVaultSourceScanTest.kt b/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/SessionVaultSourceScanTest.kt
+deleted file mode 100644
+index dda12a4a..00000000
+--- a/android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/SessionVaultSourceScanTest.kt
++++ /dev/null
+@@ -1,62 +0,0 @@
+-package dev.breaker.dictation.auth.client
+-
+-import java.io.File
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/**
+- * Checks the source text of the session record and the vault port: no log or print call, and no
+- * import of a crypto or security package. A missing file is a failure, never a pass, and the
+- * patterns are first shown to fire on planted samples.
+- */
+-class SessionVaultSourceScanTest {
+-    private val folder = "src/main/kotlin/dev/breaker/dictation/auth/client/"
+-    private val mainFiles = listOf("SessionRecord.kt", "SessionVault.kt")
+-    private val logCall = Regex("\\b(println|print)\\s*\\(|\\bLog\\.|\\bLogger\\b|\\bjava\\.util\\.logging\\b|\\bSystem\\.(out|err)\\b")
+-    private val cryptoImport = Regex("^import\\s+.*\\b(crypto|security)\\b", RegexOption.MULTILINE)
+-
+-    private fun sourceOf(name: String): String {
+-        val file = File(folder + name)
+-        assertTrue("the main source must exist and be scanned: " + name, file.isFile)
+-        return file.readText()
+-    }
+-
+-    @Test
+-    fun `the session record and vault sources contain no log or print call`() {
+-        val hits = ArrayList<String>()
+-        for (name in mainFiles) {
+-            if (logCall.containsMatchIn(sourceOf(name))) hits.add(name)
+-        }
+-        assertTrue("log or print call in: " + hits, hits.isEmpty())
+-    }
+-
+-    @Test
+-    fun `the session record and vault sources import no crypto or security package`() {
+-        val hits = ArrayList<String>()
+-        for (name in mainFiles) {
+-            if (cryptoImport.containsMatchIn(sourceOf(name))) hits.add(name)
+-        }
+-        assertTrue("crypto or security import in: " + hits, hits.isEmpty())
+-    }
+-
+-    @Test
+-    fun `the source scan finds a planted log call and a planted crypto import`() {
+-        assertTrue("a planted print call is found", logCall.containsMatchIn("fun f() { println(\"x\") }"))
+-        assertTrue("a planted crypto import is found", cryptoImport.containsMatchIn("import javax.crypto.Cipher\n"))
+-        assertFalse("a clean import is not flagged", cryptoImport.containsMatchIn("import dev.breaker.dictation.core.model.AuthSession"))
+-        assertFalse("a clean line is not flagged", logCall.containsMatchIn("val fingerprint = 1"))
+-    }
+-
+-    @Test
+-    fun `a missing source file is reported and never passes`() {
+-        var passed = false
+-        try {
+-            sourceOf("NoSuchFile.kt")
+-            passed = true
+-        } catch (expected: AssertionError) {
+-            passed = false
+-        }
+-        assertFalse("a missing source file must not pass the scan", passed)
+-    }
+-}

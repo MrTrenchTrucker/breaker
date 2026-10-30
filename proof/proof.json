@@ -1,0 +1,1992 @@
+{
+ "name": "proof-auth-s2",
+ "tip": {
+  "tree": "1e590ce0ce844cc40b4ee6d03e15a2c7503e4c10"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "auth-client: the HTTP port, the fixed-text failures and the account rules",
+   "base_tree": "3dbd2c9c05cddd97b60b64af2f15eb6d40886169",
+   "item_tip_tree": "74cbf734421ca16aafdf3129e939d7c44e8ae232",
+   "new_production_classes": [
+    "AccountRules",
+    "AuthFailure",
+    "AuthHttp"
+   ],
+   "test_fixtures_overlaid": []
+  },
+  {
+   "item": "b",
+   "title": "auth-client: the session vault port, the session record and a fake vault",
+   "base_tree": "74cbf734421ca16aafdf3129e939d7c44e8ae232",
+   "item_tip_tree": "1e590ce0ce844cc40b4ee6d03e15a2c7503e4c10",
+   "new_production_classes": [
+    "SessionRecord",
+    "SessionVault"
+   ],
+   "test_fixtures_overlaid": [
+    "FakeSessionVault.kt"
+   ],
+   "red_tree_stubs": {
+    "files": [
+     "FakeSessionVault.kt"
+    ],
+    "note": "signature-only: the vault port this item adds (save/load/clear) is declared at the end of the ride-along fake so the fake compiles on the base; SessionRecord is not stubbed, so legs that use it stay COMPILE RED on their own item, and the source-scan leg fails on its own assertions"
+   }
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "red-a-01",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "file": "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/AccountRulesConstantsTest.kt",
+   "files": [
+    "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/AccountRulesConstantsTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.auth.client.AccountRulesConstantsTest"
+   ],
+   "patch": "proof/red/red-a-01.patch",
+   "tree": "c11df3b3de5ae57e0ac89a50a4d764a8b1048580",
+   "predict": ""
+  },
+  {
+   "id": "red-a-02",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "file": "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/AuthFailureTest.kt",
+   "files": [
+    "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/AuthFailureTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.auth.client.AuthFailureTest"
+   ],
+   "patch": "proof/red/red-a-02.patch",
+   "tree": "3b928054a29d5484b384a89f681c3161f20ad8dc",
+   "predict": ""
+  },
+  {
+   "id": "red-a-03",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "file": "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/AuthHttpTypesTest.kt",
+   "files": [
+    "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/AuthHttpTypesTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.auth.client.AuthHttpTypesTest"
+   ],
+   "patch": "proof/red/red-a-03.patch",
+   "tree": "f4618b0bd69e53ee26ad69b27f055d7f9bf42d92",
+   "predict": ""
+  },
+  {
+   "id": "red-a-04",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "file": "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/EndpointRulesTest.kt",
+   "files": [
+    "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/EndpointRulesTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.auth.client.EndpointRulesTest"
+   ],
+   "patch": "proof/red/red-a-04.patch",
+   "tree": "c7d64f97d336d37499648a2e3ca41b5f5732d24f",
+   "predict": ""
+  },
+  {
+   "id": "red-a-05",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "file": "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/LaneSourceScanTest.kt",
+   "files": [
+    "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/LaneSourceScanTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.auth.client.LaneSourceScanTest"
+   ],
+   "patch": "proof/red/red-a-05.patch",
+   "tree": "07e0df833992fe8bcc90e271a920a5be3704cc21",
+   "predict": ""
+  },
+  {
+   "id": "red-a-06",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "file": "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/SaltAndScopeRulesTest.kt",
+   "files": [
+    "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/SaltAndScopeRulesTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.auth.client.SaltAndScopeRulesTest"
+   ],
+   "patch": "proof/red/red-a-06.patch",
+   "tree": "f1ae45a4852f240babb28d8debd4f6b77a525bc9",
+   "predict": ""
+  },
+  {
+   "id": "red-b-07",
+   "kind": "red",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "file": "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/FakeSessionVaultTest.kt",
+   "files": [
+    "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/FakeSessionVaultTest.kt",
+    "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/FakeSessionVault.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.auth.client.FakeSessionVaultTest"
+   ],
+   "patch": "proof/red/red-b-07.patch",
+   "tree": "7bc1b11602cc8f5294951e674309af818dcb9ba7",
+   "predict": ""
+  },
+  {
+   "id": "red-b-08",
+   "kind": "red",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "file": "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/SessionRecordHostileTest.kt",
+   "files": [
+    "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/SessionRecordHostileTest.kt",
+    "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/FakeSessionVault.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.auth.client.SessionRecordHostileTest"
+   ],
+   "patch": "proof/red/red-b-08.patch",
+   "tree": "d3fe153feb6efe5aef081feb43979b2968aa72e1",
+   "predict": ""
+  },
+  {
+   "id": "red-b-09",
+   "kind": "red",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "file": "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/SessionRecordRefusalTest.kt",
+   "files": [
+    "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/SessionRecordRefusalTest.kt",
+    "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/FakeSessionVault.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.auth.client.SessionRecordRefusalTest"
+   ],
+   "patch": "proof/red/red-b-09.patch",
+   "tree": "42352a6e459951c9b3db71db59d1b32e550e2316",
+   "predict": ""
+  },
+  {
+   "id": "red-b-10",
+   "kind": "red",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "file": "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/SessionRecordRoundTripTest.kt",
+   "files": [
+    "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/SessionRecordRoundTripTest.kt",
+    "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/FakeSessionVault.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.auth.client.SessionRecordRoundTripTest"
+   ],
+   "patch": "proof/red/red-b-10.patch",
+   "tree": "5c39ec9a407695bf732ea4bc1eff2cfbdd69acf7",
+   "predict": ""
+  },
+  {
+   "id": "red-b-11",
+   "kind": "red",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "file": "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/SessionVaultSourceScanTest.kt",
+   "files": [
+    "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/SessionVaultSourceScanTest.kt",
+    "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/FakeSessionVault.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.auth.client.SessionVaultSourceScanTest"
+   ],
+   "patch": "proof/red/red-b-11.patch",
+   "tree": "f1f9e04380eca86878f6e2e3c6e5d11669cd6f9d",
+   "predict": ""
+  },
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AuthHttp.kt",
+     "anchor": "\"AuthHttpRequest(method=$method)\"",
+     "replacement": "\"AuthHttpRequest(method=$method, url=$url)\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "AuthHttpTypesTest#a request text never carries the url, a header value or the body bytes",
+    "AuthHttpTypesTest#a request prints only its method when it is converted to text"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AuthHttp.kt",
+     "anchor": "\"AuthHttpRequest(method=$method)\"",
+     "replacement": "\"AuthHttpRequest(method=$method, headers=$headers)\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "AuthHttpTypesTest#a request text never carries the url, a header value or the body bytes",
+    "AuthHttpTypesTest#a request prints only its method when it is converted to text"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AuthHttp.kt",
+     "anchor": "\"AuthHttpRequest(method=$method)\"",
+     "replacement": "\"AuthHttpRequest(method=$method, bodyBytes=${body?.size ?: 0})\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "AuthHttpTypesTest#a request prints only its method when it is converted to text"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AuthHttp.kt",
+     "anchor": "\"AuthHttpReply(status=$status)\"",
+     "replacement": "\"AuthHttpReply(status=$status, body=${body.size})\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "AuthHttpTypesTest#a reply prints only its status when it is converted to text"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AuthHttp.kt",
+     "anchor": "fun send(request: AuthHttpRequest): AuthHttpReply",
+     "replacement": "fun send(request: AuthHttpRequest): Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "AuthHttpTypesTest#an http port answers each request with the reply the app builds"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AuthFailure.kt",
+     "anchor": "AuthFailureReason.WEAK_PASSWORD -> \"The password is too short.\"",
+     "replacement": "AuthFailureReason.WEAK_PASSWORD -> \"The password is too weak.\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "AuthFailureTest#each failure reason carries the fixed sentence written for it"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AuthFailure.kt",
+     "anchor": "AuthFailureReason.BAD_CREDENTIALS -> \"The username or password was not accepted.\"",
+     "replacement": "AuthFailureReason.BAD_CREDENTIALS -> \"No account with that username exists.\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "AuthFailureTest#each failure reason carries the fixed sentence written for it"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AuthFailure.kt",
+     "anchor": "RuntimeException(sentenceFor(reason))",
+     "replacement": "RuntimeException(sentenceFor(reason) + \" \" + reason.name)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "AuthFailureTest#each failure reason carries the fixed sentence written for it",
+    "AuthFailureTest#a failure text never repeats the reason name or any input"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AuthFailure.kt",
+     "anchor": "RuntimeException(sentenceFor(reason))",
+     "replacement": "RuntimeException(sentenceFor(reason), IllegalStateException())"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "AuthFailureTest#a failure has no cause attached"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-10",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AuthFailure.kt",
+     "anchor": "    BAD_SERVER_ADDRESS",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "AuthFailureTest#the failure has exactly eight reasons, one for each account outcome"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-11",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt",
+     "anchor": "const val MEMORY_KIB = 65536",
+     "replacement": "const val MEMORY_KIB = 65535"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "AccountRulesConstantsTest#the account rule constants keep the values the key rules fix"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-12",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt",
+     "anchor": "const val ITERATIONS = 3",
+     "replacement": "const val ITERATIONS = 4"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "AccountRulesConstantsTest#the account rule constants keep the values the key rules fix"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-13",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt",
+     "anchor": "const val PARALLELISM = 1",
+     "replacement": "const val PARALLELISM = 2"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "AccountRulesConstantsTest#the account rule constants keep the values the key rules fix"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-14",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt",
+     "anchor": "const val KDF_VERSION = 1",
+     "replacement": "const val KDF_VERSION = 2"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "AccountRulesConstantsTest#the account rule constants keep the values the key rules fix"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-15",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt",
+     "anchor": "const val OUTPUT_LENGTH = 32",
+     "replacement": "const val OUTPUT_LENGTH = 16"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "AccountRulesConstantsTest#the account rule constants keep the values the key rules fix"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-16",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt",
+     "anchor": "const val SALT_BYTES = 16",
+     "replacement": "const val SALT_BYTES = 15"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "AccountRulesConstantsTest#the account rule constants keep the values the key rules fix",
+    "SaltAndScopeRulesTest#a secure salt is sixteen bytes long"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-17",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt",
+     "anchor": "const val MIN_PASSWORD_CHARS = 12",
+     "replacement": "const val MIN_PASSWORD_CHARS = 11"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "AccountRulesConstantsTest#the account rule constants keep the values the key rules fix",
+    "AccountRulesConstantsTest#a password of eleven characters is too short for registration"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-18",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt",
+     "anchor": "const val REGISTER_PATH = \"/v1/auth/register\"",
+     "replacement": "const val REGISTER_PATH = \"/v1/auth/signup\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "AccountRulesConstantsTest#the four account paths name the register, salt, login and logout endpoints"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-19",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt",
+     "anchor": "const val SALT_PATH = \"/v1/auth/salt\"",
+     "replacement": "const val SALT_PATH = \"/v1/auth/salts\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "AccountRulesConstantsTest#the four account paths name the register, salt, login and logout endpoints"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-20",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt",
+     "anchor": "const val LOGIN_PATH = \"/v1/auth/login\"",
+     "replacement": "const val LOGIN_PATH = \"/v1/auth/signin\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "AccountRulesConstantsTest#the four account paths name the register, salt, login and logout endpoints"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-21",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt",
+     "anchor": "const val LOGOUT_PATH = \"/v1/auth/logout\"",
+     "replacement": "const val LOGOUT_PATH = \"/v1/auth/signout\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "AccountRulesConstantsTest#the four account paths name the register, salt, login and logout endpoints"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-22",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt",
+     "anchor": ">= MIN_PASSWORD_CHARS",
+     "replacement": "> MIN_PASSWORD_CHARS"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "AccountRulesConstantsTest#a password of twelve characters is long enough for registration"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-23",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt",
+     "anchor": "password.codePointCount(0, password.length)",
+     "replacement": "password.length"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "AccountRulesConstantsTest#the length rule counts code points so a character outside the basic plane counts once"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-24",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt",
+     "anchor": "return base.substring(0, HTTPS_PREFIX.length).lowercase() == HTTPS_PREFIX",
+     "replacement": "return base.regionMatches(0, HTTPS_PREFIX, 0, HTTPS_PREFIX.length, ignoreCase = true)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "EndpointRulesTest#a look-alike non-ASCII letter in the scheme is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-25",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt",
+     "anchor": ".lowercase() == HTTPS_PREFIX",
+     "replacement": "== HTTPS_PREFIX"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "EndpointRulesTest#the https scheme is accepted in any letter case"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-26",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt",
+     "anchor": "return base.substring(0, HTTPS_PREFIX.length).lowercase() == HTTPS_PREFIX",
+     "replacement": "return base.substring(0, 7).lowercase() == \"http://\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "EndpointRulesTest#a plain http base is refused in any letter case",
+    "EndpointRulesTest#an https base joins the account path after it",
+    "EndpointRulesTest#the https scheme is accepted in any letter case"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-27",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt",
+     "anchor": "if (authority.isEmpty()) return null",
+     "replacement": "if (authority.length < 0) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "EndpointRulesTest#an address with an empty authority is refused",
+    "EndpointRulesTest#a base with an empty host is refused whatever its slashes"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-28",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt",
+     "anchor": "if (base.length <= HTTPS_PREFIX.length) return false",
+     "replacement": "if (base.length < 0) return false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "EndpointRulesTest#a blank or empty base is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-29",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt",
+     "anchor": "afterScheme.any { it.isWhitespace() || Character.isISOControl(it) }",
+     "replacement": "afterScheme.any { Character.isISOControl(it) }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "EndpointRulesTest#a base with a space after the scheme is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-30",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt",
+     "anchor": "afterScheme.any { it.isWhitespace() || Character.isISOControl(it) }",
+     "replacement": "afterScheme.any { it.isWhitespace() }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "EndpointRulesTest#a base with a control character after the scheme is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-31",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt",
+     "anchor": "return base.trimEnd('/') + path",
+     "replacement": "return base + path"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "EndpointRulesTest#trailing slashes on the base never change the url before the path",
+    "EndpointRulesTest#a base with two trailing slashes never gives a double slash before the path"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-32",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt",
+     "anchor": "return base.trimEnd('/') + path",
+     "replacement": "return base.removeSuffix(\"/\") + path"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "EndpointRulesTest#a base with two trailing slashes never gives a double slash before the path",
+    "EndpointRulesTest#trailing slashes on the base never change the url before the path"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-33",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt",
+     "anchor": "SecureRandom().nextBytes(bytes)",
+     "replacement": "val unused = bytes.size"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SaltAndScopeRulesTest#two secure salts differ"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-34",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt",
+     "anchor": "UserRole.USER -> setOf(TokenScope.TRANSCRIBE)",
+     "replacement": "UserRole.USER -> setOf(TokenScope.TRANSCRIBE, TokenScope.ADMIN)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SaltAndScopeRulesTest#the user role gets the transcribe scope and nothing else"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-35",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt",
+     "anchor": "UserRole.ADMIN -> setOf(TokenScope.TRANSCRIBE, TokenScope.ADMIN)",
+     "replacement": "UserRole.ADMIN -> setOf(TokenScope.TRANSCRIBE)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SaltAndScopeRulesTest#the admin role gets the transcribe and admin scopes"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-36",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt",
+     "anchor": "internal object AccountRules {",
+     "replacement": "internal object AccountRules {\n    private fun trace(text: String) = println(text)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "LaneSourceScanTest#the lane's main files print nothing and import no crypto code"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-37",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/LaneSourceScanTest.kt",
+     "anchor": "^import\\s+(javax\\.crypto|dev\\.breaker\\.dictation\\.crypto)\\b",
+     "replacement": "^import\\s+(nothing-matches-here)\\b"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "LaneSourceScanTest#the scan flags a print call and a crypto import in planted text"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-38",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/LaneSourceScanTest.kt",
+     "anchor": "\\bprintln\\s*\\(|",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "LaneSourceScanTest#the scan flags a print call and a crypto import in planted text"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-39",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt",
+     "anchor": "if (authority.startsWith(':')) return null",
+     "replacement": "if (authority.startsWith('!')) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "EndpointRulesTest#an address with a leading colon in the authority is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-40",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt",
+     "anchor": "if (authority.contains('@')) return null",
+     "replacement": "if (authority.contains('!')) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "EndpointRulesTest#an address with an at sign in the authority is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-41",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt",
+     "anchor": "base.contains('?')",
+     "replacement": "base.contains('!')"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "EndpointRulesTest#an address with a question mark is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-42",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt",
+     "anchor": "base.contains('#')",
+     "replacement": "base.contains('!')"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "EndpointRulesTest#an address with a hash is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-43",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "        out.append(\",\\\"username\\\":\")",
+     "replacement": "        out.append(\",\\\"name\\\":\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordRoundTripTest#encode writes the documented key order and no spaces",
+    "SessionRecordRoundTripTest#a round trip returns an equal user session"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-44",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "        UserRole.ADMIN -> \"admin\"",
+     "replacement": "        UserRole.ADMIN -> \"ADMIN\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordRoundTripTest#encode writes the admin role and both scopes in enum order",
+    "SessionRecordRoundTripTest#a round trip returns an equal admin session"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-45",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "            c == '\"' -> out.append(\"\\\\\\\"\")",
+     "replacement": "            c == '\"' -> out.append('\"')"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordRoundTripTest#a round trip keeps quotes backslashes and control characters",
+    "SessionRecordRoundTripTest#encode escapes quote backslash and control characters as the documented forms"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-46",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "            c == '\\\\' -> out.append(\"\\\\\\\\\")",
+     "replacement": "            c == '\\\\' -> out.append('\\\\')"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordRoundTripTest#a round trip keeps quotes backslashes and control characters",
+    "SessionRecordRoundTripTest#encode escapes quote backslash and control characters as the documented forms"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-47",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "            code < 0x20 -> writeUnicodeEscape(out, code)",
+     "replacement": "            code < 0x20 -> out.append(c)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordRoundTripTest#encode escapes quote backslash and control characters as the documented forms",
+    "SessionRecordRoundTripTest#a round trip keeps quotes backslashes and control characters"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-48",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "        if (admin) out.append(\"\\\"admin\\\"\")",
+     "replacement": "        if (admin && !transcribe) out.append(\"\\\"admin\\\"\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordRoundTripTest#encode writes the admin role and both scopes in enum order",
+    "SessionRecordRoundTripTest#a round trip returns an equal admin session"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-49",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "        if (transcribe) out.append(\"\\\"transcribe\\\"\")",
+     "replacement": "        if (admin) out.append(\"\\\"admin\\\"\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordRoundTripTest#encode writes the admin role and both scopes in enum order",
+    "SessionRecordRoundTripTest#a round trip returns an equal admin session"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-50",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "            code < 0x20 -> writeUnicodeEscape(out, code)",
+     "replacement": "            code < 0x20 || code > 0x7E -> writeUnicodeEscape(out, code)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordRoundTripTest#encode escapes quote backslash and control characters as the documented forms"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-51",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "            if (c.isHighSurrogate() && i + 1 < value.length && value[i + 1].isLowSurrogate()) {",
+     "replacement": "            if (false) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordRoundTripTest#encode escapes quote backslash and control characters as the documented forms"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-52",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "            if (c.isSurrogate()) {",
+     "replacement": "            if (false) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordRoundTripTest#a round trip keeps a lone surrogate written as an escape"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-53",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "    private const val HEX_DIGITS = \"0123456789abcdef\"",
+     "replacement": "    private const val HEX_DIGITS = \"0123456789ABCDEF\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordRoundTripTest#encode escapes quote backslash and control characters as the documented forms"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-54",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "    fun encode(session: AuthSession): String {",
+     "replacement": "    fun encode(session: AuthSession): String { println(\"x\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionVaultSourceScanTest#the session record and vault sources contain no log or print call"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-55",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionVault.kt",
+     "anchor": "package dev.breaker.dictation.auth.client",
+     "replacement": "package dev.breaker.dictation.auth.client\n\nimport javax.crypto.Cipher"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionVaultSourceScanTest#the session record and vault sources import no crypto or security package"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-56",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionVault.kt",
+     "anchor": "    fun load(): String?",
+     "replacement": "    fun load(): String"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-57",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "            if (members.containsKey(key)) throw Refused()",
+     "replacement": "            if (members.containsKey(key) && key.isEmpty()) throw Refused()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordRefusalTest#decode refuses a repeated key",
+    "SessionRecordHostileTest#decode returns null and never throws on each hostile sample"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-58",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "        if (members.size != 5) throw Refused()",
+     "replacement": "        if (members.size < 5) throw Refused()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordRefusalTest#decode refuses an extra key",
+    "SessionRecordHostileTest#decode returns null and never throws on each hostile sample"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-59",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "        val roleName = (members[\"role\"] as? TextMember)?.text ?: throw Refused()",
+     "replacement": "        val roleName = (members[\"role\"] as? TextMember)?.text ?: \"user\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordRefusalTest#decode refuses a missing key",
+    "SessionRecordHostileTest#decode returns null and never throws on each hostile sample"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-60",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "        if (text.length > MAX_CHARS) return null",
+     "replacement": "        if (text.length > MAX_CHARS * 4) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordHostileTest#decode refuses text one character over the length cap"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-61",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "        if (text.length > MAX_CHARS) return null",
+     "replacement": "        if (text.length >= MAX_CHARS) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordHostileTest#decode accepts text exactly at the length cap"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-62",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "        if (pos != text.length) throw Refused()",
+     "replacement": "        if (pos > text.length) throw Refused()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordRefusalTest#decode refuses text after the object",
+    "SessionRecordRefusalTest#decode refuses JSON whitespace between tokens and after the object"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-63",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "        if (pos != text.length) throw Refused()",
+     "replacement": "        while (pos < text.length && text[pos] == '\\n') pos++; if (pos != text.length) throw Refused()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordRefusalTest#decode refuses JSON whitespace between tokens and after the object"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-64",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "        \"user\" -> UserRole.USER",
+     "replacement": "        \"user\", \"root\" -> UserRole.USER"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordRefusalTest#decode refuses an unknown role name",
+    "SessionRecordHostileTest#decode returns null and never throws on each hostile sample"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-65",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "        \"admin\" -> UserRole.ADMIN",
+     "replacement": "        \"admin\", \"ADMIN\" -> UserRole.ADMIN"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordRefusalTest#decode refuses an unknown role name",
+    "SessionRecordHostileTest#decode returns null and never throws on each hostile sample"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-66",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "        \"user\" -> UserRole.USER",
+     "replacement": "        \"user\" -> UserRole.ADMIN"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordRoundTripTest#a round trip returns an equal user session",
+    "SessionRecordRoundTripTest#encode writes the documented key order and no spaces"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-67",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "            if (!scopes.add(scopeOf(name))) throw Refused()",
+     "replacement": "            scopes.add(scopeOf(name))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordRefusalTest#decode refuses a repeated scope name",
+    "SessionRecordHostileTest#decode returns null and never throws on each hostile sample"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-68",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "        for (name in scopeNames) {",
+     "replacement": "        for (name in scopeNames) { if (name == \"write\") { scopes.add(TokenScope.ADMIN); continue }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordRefusalTest#decode refuses an unknown or differently cased scope name",
+    "SessionRecordHostileTest#decode returns null and never throws on each hostile sample"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-69",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "        } catch (refusal: IllegalArgumentException) {",
+     "replacement": "        } catch (refusal: ArithmeticException) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordRefusalTest#decode refuses a blank token because the session refuses it",
+    "SessionRecordHostileTest#decode returns null and never throws on each hostile sample"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-70",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "        } catch (refused: Refused) {",
+     "replacement": "        } catch (refused: IllegalStateException) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordRefusalTest#decode refuses text that is empty or only whitespace",
+    "SessionRecordHostileTest#decode returns null and never throws on each hostile sample"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-71",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "                c.code < 0x20 -> throw Refused()",
+     "replacement": "                c.code < 0x20 && c.code != 0x09 -> throw Refused()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordHostileTest#decode refuses raw control characters and bad escapes inside strings"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-72",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "                c.code < 0x20 -> throw Refused()",
+     "replacement": "                c.code < 0x20 && c.code != 0 -> throw Refused()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordHostileTest#decode refuses raw control characters and bad escapes inside strings"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-73",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "                c.isLowSurrogate() -> throw Refused()",
+     "replacement": "                c.isLowSurrogate() -> out.append(c)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordHostileTest#decode refuses a raw lone surrogate and a byte order mark"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-74",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "        expect('{')",
+     "replacement": "        if (peekChar() == '\ufeff') pos++; expect('{')"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordHostileTest#decode refuses a raw lone surrogate and a byte order mark"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-75",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "    private fun peekChar(): Char {",
+     "replacement": "    private fun peekChar(): Char { while (pos < text.length && text[pos] == ' ') pos++"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordRefusalTest#decode refuses JSON whitespace between tokens and after the object"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-76",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "        if (peekChar() == ']') {",
+     "replacement": "        if (false) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordRoundTripTest#a round trip keeps an empty scope set",
+    "SessionRecordRefusalTest#decode accepts an empty scope array"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-77",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "    private fun hexValue(c: Char): Int = when (c) {",
+     "replacement": "    private fun hexValue(c: Char): Int = if (c == 'G') 0 else when (c) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordHostileTest#decode refuses raw control characters and bad escapes inside strings"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-78",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "        if (members.size != 5) throw Refused()",
+     "replacement": "        if (members.size != 5 || members.keys.toList()[0] != \"user_id\") throw Refused()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordRefusalTest#decode accepts the five keys in any order"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-79",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "            if (after == ',') continue",
+     "replacement": "            if (after == ',') { if (peekChar() == ']') { pos++; return items }; continue }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordRefusalTest#decode refuses a trailing comma in the object or the array"
+   ],
+   "rule": "Note (corrected): the first version did not consume the character, so the input was still refused (equivalent)",
+   "note": ""
+  },
+  {
+   "id": "mut-80",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "            if (sep == ',') continue",
+     "replacement": "            if (sep == ',') { if (peekChar() == '}') { pos++; break }; continue }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordRefusalTest#decode refuses a trailing comma in the object or the array"
+   ],
+   "rule": "Note (corrected): the first version did not consume the character, so the input was still refused (equivalent)",
+   "note": ""
+  },
+  {
+   "id": "mut-81",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "            '\\\\' -> out.append('\\\\')",
+     "replacement": "            '\\\\' -> out.append('\\\\')\n            'q' -> out.append('q')"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordHostileTest#decode refuses raw control characters and bad escapes inside strings"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-82",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "            val key = readString(allowEscapes = false)",
+     "replacement": "            val key = readString(allowEscapes = true)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordRefusalTest#decode refuses an escaped spelling of a key",
+    "SessionRecordHostileTest#decode returns null and never throws on each hostile sample"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-83",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/SessionRecord.kt",
+     "anchor": "        '[' -> ListMember(readList())",
+     "replacement": "        '[' -> ListMember(readList())\n        't' -> { expect('t'); expect('r'); expect('u'); expect('e'); TextMember(\"true\") }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SessionRecordRefusalTest#decode refuses a value of the wrong type",
+    "SessionRecordHostileTest#decode returns null and never throws on each hostile sample"
+   ],
+   "rule": "Note (corrected): the first version did not consume the character, so the input was still refused (equivalent)",
+   "note": ""
+  },
+  {
+   "id": "mut-84",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/FakeSessionVault.kt",
+     "anchor": "        if (failure != null) throw failure",
+     "replacement": "        if (failure != null) calls += \"ignored\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "FakeSessionVaultTest#a save told to fail throws that exact object and stores nothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-85",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/FakeSessionVault.kt",
+     "anchor": "        if (failure != null) throw failure",
+     "replacement": "        if (failure != null) { stored = record; throw failure }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "FakeSessionVaultTest#a save told to fail throws that exact object and stores nothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-86",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/FakeSessionVault.kt",
+     "anchor": "    override fun toString(): String = \"FakeSessionVault\"",
+     "replacement": "    override fun toString(): String = \"FakeSessionVault \" + stored"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "FakeSessionVaultTest#the fake's string form carries no stored content"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-87",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/FakeSessionVault.kt",
+     "anchor": "        calls += \"save\"",
+     "replacement": "        calls += \"save \" + record"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "FakeSessionVaultTest#the fake records each call by name and never its content"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-88",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/FakeSessionVault.kt",
+     "anchor": "        return stored",
+     "replacement": "        return stored ?: \"\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "FakeSessionVaultTest#load returns null before anything is saved"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-89",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/auth-client",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/test/kotlin/dev/breaker/dictation/auth/client/FakeSessionVault.kt",
+     "anchor": "        stored = null",
+     "replacement": "        stored = stored"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "FakeSessionVaultTest#load returns the last saved string until clear"
+   ],
+   "rule": "",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "android/modules/auth-client",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt",
+     "anchor": "    const val MIN_PASSWORD_CHARS = 12\n",
+     "replacement": "    const val MIN_PASSWORD_CHARS = 11\n"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "android/modules/auth-client",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "android/modules/auth-client/src/main/kotlin/dev/breaker/dictation/auth/client/AccountRules.kt",
+     "anchor": "    const val MIN_PASSWORD_CHARS = 12\n",
+     "replacement": "    const val MIN_PASSWORD_CHARS = 12 // unchanged\n"
+    }
+   ]
+  }
+ ]
+}
