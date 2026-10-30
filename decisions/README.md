@@ -80,5 +80,6 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-027](ADR-027-view-measure-rules-and-emulator-gate.md) | App screens follow three layout rules and are proven on an Android 16 emulator before an APK ships | accepted |
 | [ADR-028](ADR-028-keep-history-settings-and-model-across-updates.md) | An app update keeps the history, the settings and the speech model | accepted |
 | [ADR-029](ADR-029-spoken-send-wiring.md) | The spoken send ("And I'm Gone") is wired through one app class, PhraseSendHandler | accepted |
+| [ADR-030](ADR-030-one-http-client-for-server-calls.md) | One HTTP client for server calls, with no hidden defaults | accepted |
 
-Next free number: **ADR-030**.
+Next free number: **ADR-031**.
