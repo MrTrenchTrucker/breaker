@@ -94,8 +94,7 @@ class Scanner:
         if c == '"':
             return ("str", self.string())
         if c in "{[":
-            self.container(c, "}" if c == "{" else "]")
-            return ("nested", None)
+            raise Refusal("syntax")
         if c in "tfn":
             word = {"t": "true", "f": "false", "n": "null"}[c]
             for ch in word:

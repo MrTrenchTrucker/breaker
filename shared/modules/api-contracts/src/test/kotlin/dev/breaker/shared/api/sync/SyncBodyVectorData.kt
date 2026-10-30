@@ -119,6 +119,10 @@ internal object SyncBodyVectorData {
         RefuseText("body-truncated", "{\"v\":1,\"text\":\"hi\",\"source\":\"local\",\"model\":\"m\",\"duration_ms\":1,\"created_at\":\"2026-10-21T12:00:00.000Z\"", "truncated"),
         RefuseText("body-trailing-bytes", "{\"v\":1,\"text\":\"hi\",\"source\":\"local\",\"model\":\"m\",\"duration_ms\":1,\"created_at\":\"2026-10-21T12:00:00.000Z\"}x", "trailing"),
         RefuseText("body-syntax-trailing-comma", "{\"v\":1,\"text\":\"hi\",\"source\":\"local\",\"model\":\"m\",\"duration_ms\":1,\"created_at\":\"2026-10-21T12:00:00.000Z\",}", "syntax"),
+        RefuseText("body-nested-text-empty-object", "{\"v\":1,\"text\":{},\"source\":\"local\",\"model\":\"m\",\"duration_ms\":1,\"created_at\":\"2026-10-21T12:00:00.000Z\"}", "syntax"),
+        RefuseText("body-nested-text-object-with-key", "{\"v\":1,\"text\":{\"a\":1},\"source\":\"local\",\"model\":\"m\",\"duration_ms\":1,\"created_at\":\"2026-10-21T12:00:00.000Z\"}", "syntax"),
+        RefuseText("body-nested-text-empty-array", "{\"v\":1,\"text\":[],\"source\":\"local\",\"model\":\"m\",\"duration_ms\":1,\"created_at\":\"2026-10-21T12:00:00.000Z\"}", "syntax"),
+        RefuseText("body-nested-text-array-with-elements", "{\"v\":1,\"text\":[1,2],\"source\":\"local\",\"model\":\"m\",\"duration_ms\":1,\"created_at\":\"2026-10-21T12:00:00.000Z\"}", "syntax"),
     )
 
     val refusePlain: List<RefusePlain> = listOf(
