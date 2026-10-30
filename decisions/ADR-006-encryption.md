@@ -293,7 +293,10 @@ core port, `core.KeyDerivation` (one `deriveKeys` call that returns both
 values, implemented by `android/modules/crypto`); `core.CryptoService` gains
 only the DEK generation/wrap + box-keypair operations when Phase 19 builds
 them — it is not changed by this documentation change set itself (see
-`android/modules/crypto/AGENTS.md`).
+`android/modules/crypto/AGENTS.md`). The `android/modules/crypto` module
+implements Argon2id and HKDF-SHA256 with Bouncy Castle `bcprov-jdk18on:1.86`;
+its Gradle dependency-verification entry is narrow by design and verifies only
+`org.bouncycastle` (full verification-metadata comes later).
 
 Rules out: server-side search; a decoy salt response; citing queue rate
 limits (T18) as a defense for auth endpoints, which are unauthenticated and
