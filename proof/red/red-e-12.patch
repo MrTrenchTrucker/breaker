@@ -1,0 +1,311 @@
+diff --git a/android/modules/http/AGENTS.md b/android/modules/http/AGENTS.md
+index c03f6f5a..46fca3f5 100644
+--- a/android/modules/http/AGENTS.md
++++ b/android/modules/http/AGENTS.md
+@@ -11,7 +11,7 @@ The decision that sets this module is "one HTTP client for server calls": one mo
+ - GET and POST, with request headers and an optional request body of known length. A body is always sent with a fixed length; there is no chunked upload.
+ - No redirect following: a 3xx is returned as a reply and never followed.
+ - No cache on any request.
+-- https only: the scheme must be ASCII and equal "https" ignoring ASCII case only. An address that breaks this, has no host, or holds whitespace or a control character, or has an at sign in its authority (the text between "://" and the first '/', '?' or '#'), or that the platform cannot parse, is refused before any connection. A host holding a non-ASCII character is refused as well (punycode is the caller's job).
++- https only: the scheme must be ASCII and equal "https" ignoring ASCII case only. An address that breaks this, has no host, or holds whitespace or a control character is refused before any connection. A host holding a non-ASCII character is refused as well (punycode is the caller's job).
+ - Connect and read timeouts, and a reply-size cap, named by the caller on every request.
+ - Two reply shapes behind one interface: a bytes reply read in memory (the send call) and a stream reply whose body the caller reads (the open call).
+ - Fixed-length replies: a body that ends before its announced length is refused.
+@@ -53,11 +53,11 @@ The module uses the JDK HttpURLConnection only. The main code has no third-party
+ - Each timeout is in 1 to 600_000 ms. Any other value throws IllegalArgumentException before any connection.
+ - Reply caps: the send call accepts a cap from 1 to 16_777_216 bytes (MAX_BYTES_REPLY). The open call accepts a cap from 1 to 1_073_741_824 bytes (MAX_STREAM_REPLY). Every request names its own cap inside the range of the call it uses.
+ - No overall deadline. The module sets connect and read timeouts only; a caller that needs a limit on the whole call wraps the call itself.
+-- https only: the scheme must be ASCII and equal "https" ignoring ASCII case only. An address that breaks this, has no host, holds whitespace or a control character, has an at sign in its authority (the text between "://" and the first '/', '?' or '#'), or that the platform cannot parse, is refused with HttpRefusal NOT_HTTPS before any connection. The scheme check is ASCII only. A host holding a non-ASCII character is refused as NOT_HTTPS (punycode is the caller's job), so no look-alike host reaches the platform resolver.
++- https only: the scheme must be ASCII and equal "https" ignoring ASCII case only. An address that breaks this, has no host, or holds whitespace or a control character, is refused with HttpRefusal NOT_HTTPS before any connection. The scheme check is ASCII only. A host holding a non-ASCII character is refused as NOT_HTTPS (punycode is the caller's job), so no look-alike host reaches the platform resolver.
+ - A header whose name is empty, or whose name or value holds a CR or an LF, is refused with HttpRefusal BAD_HEADER before any connection.
+ - No redirect is followed. A 3xx is a reply. The open call carries its Location header in the StreamReply; the send call returns the status and the body only.
+ - No cache on any request.
+-- A status from 100 up is a reply on both calls, never an exception. A status from 200 to 399 has its body read from the input stream, so a 3xx keeps its body, since no redirect is followed. A status of 400 or more has its body read from the error stream, or from an empty stream when there is none. A status from 100 to 199, which the platform normally consumes itself, is read like a status of 400 or more, so its body is the error stream or, as the platform leaves that empty below 400, an empty body. Every body is read under the same cap, and the open call hands over the same stream. A status below 100 is a plain IOException with a fixed message, thrown before any body is read, and the connection is released.
++- A non-2xx status is a reply on both calls, never an exception. Its body is read under the same cap. The open call hands over the error stream, or an empty stream when there is none.
+ - A connection problem is an IOException that is not an HttpRefusal.
+ - The request body is sent with a known length. A GET has no body.
+ - Send call: an announced length above the reply cap throws HttpRefusal REPLY_TOO_LARGE before any body byte is read. A body that reaches the cap plus one byte throws HttpRefusal REPLY_TOO_LARGE. A body that ends before its announced length throws HttpRefusal LENGTH_MISMATCH.
+diff --git a/android/modules/http/README.md b/android/modules/http/README.md
+index 7caf0a6f..d6294a09 100644
+--- a/android/modules/http/README.md
++++ b/android/modules/http/README.md
+@@ -33,9 +33,9 @@ fun download(transport: HttpTransport, url: String, out: java.io.OutputStream):
+ 
+ ## Rules and refusals
+ 
+-- Only https. The scheme must be ASCII and equal "https" ignoring ASCII case only. An http address, an empty host, a host with a non-ASCII character (punycode is the caller's job), an at sign in the authority (the text between "://" and the first '/', '?' or '#'), a space or control character in the address, or an address the platform cannot parse is refused (`NOT_HTTPS`) before any connection. A header with a CR or LF, or an empty name, is refused (`BAD_HEADER`).
++- Only https. The scheme must be ASCII and equal "https" ignoring ASCII case only. An http address, an empty host, a host with a non-ASCII character (punycode is the caller's job), or a space or control character in the address is refused (`NOT_HTTPS`) before any connection. A header with a CR or LF, or an empty name, is refused (`BAD_HEADER`).
+ - No redirect is followed: a 3xx is a reply, with its Location on the `StreamReply`. No cache. A request body is sent with its length known in advance.
+-- A status from 100 up is a reply, not an exception, and its body is read under the same cap. A 2xx or 3xx body comes from the input stream, since no redirect is followed; a status of 400 or more gives its body from the error stream, or an empty body when there is none. A status from 100 to 199, which the platform normally consumes itself, is read like a status of 400 or more, so its body is empty, since the platform leaves the error stream null below 400. A status below 100 is a plain IOException with a fixed message, thrown before any body is read. A body that ends before its announced length is refused (`LENGTH_MISMATCH`).
++- A non-2xx status is a reply, not an exception, and its body is read under the same cap. A body that ends before its announced length is refused (`LENGTH_MISMATCH`).
+ 
+ `HttpRefusal` is an `IOException` with one of four reasons (`HttpRefusalReason`); `REPLY_TOO_LARGE` means an announced length over the cap, or a body that passes it. Callers catch `HttpRefusal` before `IOException`, because a refusal is not an unreachable server. Any other `IOException` is a connection problem. No header or body is ever printed, logged or put in an exception; `CallRequest` prints only its method, and `BytesReply` and `StreamReply` print only their status.
+ 
+diff --git a/android/modules/http/src/main/kotlin/dev/breaker/dictation/http/HttpRules.kt b/android/modules/http/src/main/kotlin/dev/breaker/dictation/http/HttpRules.kt
+index 830acfb5..427b44c0 100644
+--- a/android/modules/http/src/main/kotlin/dev/breaker/dictation/http/HttpRules.kt
++++ b/android/modules/http/src/main/kotlin/dev/breaker/dictation/http/HttpRules.kt
+@@ -6,8 +6,7 @@ package dev.breaker.dictation.http
+  *
+  * An address must be https: its scheme is ASCII and equals https ignoring ASCII case only, it holds no
+  * whitespace and no control character, and its host is non-empty and ASCII. A host with a non-ASCII
+- * character is refused, because converting a host to punycode is the caller's job. An at sign in the
+- * authority, which is the text before the first slash, question mark or hash, is refused as well.
++ * character is refused, because converting a host to punycode is the caller's job.
+  */
+ internal object HttpRules {
+     private const val SCHEME_SEPARATOR = "://"
+@@ -36,24 +35,20 @@ internal object HttpRules {
+         if (separator < 0) return false
+         val scheme = url.substring(0, separator)
+         if (!isAsciiHttps(scheme)) return false
+-        val authority = authorityOf(url.substring(separator + SCHEME_SEPARATOR.length))
+-        if (authority.contains('@')) return false
+-        val host = hostOf(authority)
++        val host = hostOf(url.substring(separator + SCHEME_SEPARATOR.length))
+         return host.isNotEmpty() && host.all { it.code < ASCII_CHARS }
+     }
+ 
+     private fun isAsciiHttps(scheme: String): Boolean =
+         scheme.all { it.code < ASCII_CHARS } && scheme.equals(HTTPS_SCHEME, ignoreCase = true)
+ 
+-    /** The authority of an address after its scheme: the text up to the first slash, question mark or hash. */
+-    private fun authorityOf(afterScheme: String): String =
+-        afterScheme.takeWhile { it != '/' && it != '?' && it != '#' }
+-
+-    /** The host of an authority with no user information: the text before the port, or a bracketed IPv6 address. */
+-    private fun hostOf(authority: String): String {
+-        if (!authority.startsWith('[')) return authority.substringBefore(':')
+-        val close = authority.indexOf(']')
+-        return if (close < 0) "" else authority.substring(0, close + 1)
++    /** The host of an address after its scheme: the text after the last user-information sign, before the port. */
++    private fun hostOf(afterScheme: String): String {
++        val authority = afterScheme.takeWhile { it != '/' && it != '?' && it != '#' }
++        val hostAndPort = authority.substringAfterLast('@')
++        if (!hostAndPort.startsWith('[')) return hostAndPort.substringBefore(':')
++        val close = hostAndPort.indexOf(']')
++        return if (close < 0) "" else hostAndPort.substring(0, close + 1)
+     }
+ 
+     private fun hasLineBreak(text: String): Boolean = text.any { it == '\r' || it == '\n' }
+diff --git a/android/modules/http/src/main/kotlin/dev/breaker/dictation/http/JdkHttpTransport.kt b/android/modules/http/src/main/kotlin/dev/breaker/dictation/http/JdkHttpTransport.kt
+index c6d5cad8..e0eaa9d1 100644
+--- a/android/modules/http/src/main/kotlin/dev/breaker/dictation/http/JdkHttpTransport.kt
++++ b/android/modules/http/src/main/kotlin/dev/breaker/dictation/http/JdkHttpTransport.kt
+@@ -4,7 +4,6 @@ import java.io.ByteArrayInputStream
+ import java.io.IOException
+ import java.io.InputStream
+ import java.net.HttpURLConnection
+-import java.net.MalformedURLException
+ import java.net.URL
+ 
+ /**
+@@ -31,7 +30,7 @@ class JdkHttpTransport internal constructor(
+         HttpRules.checkBeforeConnect(request)
+         val connection = connect(request)
+         try {
+-            val status = statusOf(connection)
++            val status = connection.responseCode
+             val announced = connection.contentLengthLong
+             HttpRules.checkAnnouncedLength(announced, cap)
+             val reader = CappedBody(sourceOf(connection, status), cap, announced) {}
+@@ -46,7 +45,7 @@ class JdkHttpTransport internal constructor(
+         HttpRules.checkBeforeConnect(request)
+         val connection = connect(request)
+         try {
+-            val status = statusOf(connection)
++            val status = connection.responseCode
+             val announced = connection.contentLengthLong
+             val body = CappedBody(sourceOf(connection, status), request.limits.maxReplyBytes, announced) {
+                 connection.disconnect()
+@@ -86,30 +85,18 @@ class JdkHttpTransport internal constructor(
+         }
+     }
+ 
+-    /** The status of [connection]. A value below 100 has no usable status line, so it is a connection problem. */
+-    private fun statusOf(connection: HttpURLConnection): Int {
+-        val status = connection.responseCode
+-        if (status < 100) throw IOException(NO_STATUS_MESSAGE)
+-        return status
+-    }
+-
+-    /** A status from 200 to 399 is read from the input stream; any other status from the error stream, or an empty one. */
++    /** A success reply is read from the input stream; any other status from the error stream, or an empty one. */
+     private fun sourceOf(connection: HttpURLConnection, status: Int): InputStream {
+-        if (status in 200..399) return connection.inputStream
++        if (status in 200..299) return connection.inputStream
+         return connection.errorStream ?: ByteArrayInputStream(ByteArray(0))
+     }
+ }
+ 
+ private const val SEND_CAP_MESSAGE = "the send call refuses a reply cap above its ceiling"
+-private const val NO_STATUS_MESSAGE = "the server sent no usable status line"
+ 
+ /** The platform connection for [url]. */
+-internal fun platformConnection(url: String): HttpURLConnection {
+-    val opened = try {
+-        URL(url).openConnection()
+-    } catch (malformed: MalformedURLException) {
+-        throw HttpRefusal(HttpRefusalReason.NOT_HTTPS)
+-    }
++private fun platformConnection(url: String): HttpURLConnection {
++    val opened = URL(url).openConnection()
+     if (opened !is HttpURLConnection) throw IOException("not an http connection")
+     return opened
+ }
+diff --git a/android/modules/http/src/test/kotlin/dev/breaker/dictation/http/JdkOpenTest.kt b/android/modules/http/src/test/kotlin/dev/breaker/dictation/http/JdkOpenTest.kt
+index 2a13625a..681895ff 100644
+--- a/android/modules/http/src/test/kotlin/dev/breaker/dictation/http/JdkOpenTest.kt
++++ b/android/modules/http/src/test/kotlin/dev/breaker/dictation/http/JdkOpenTest.kt
+@@ -4,7 +4,6 @@ import org.junit.Assert.assertArrayEquals
+ import org.junit.Assert.assertEquals
+ import org.junit.Assert.assertTrue
+ import org.junit.Test
+-import java.io.IOException
+ 
+ private const val OPEN_URL = "https://example.test/open-path"
+ 
+@@ -96,26 +95,6 @@ class JdkOpenTest {
+         reply.close()
+     }
+ 
+-    @Test
+-    fun `an open 3xx reply comes back with its body and its location`() {
+-        val connection = FakeHttpConnection(301, 5L, CountingBody("moved".toByteArray()))
+-        connection.location = "https://example.test/moved"
+-        val reply = transportOver(connection, SeamRecord()).open(openRequest(1_000L))
+-        assertEquals(301, reply.status)
+-        assertEquals("https://example.test/moved", reply.location)
+-        assertArrayEquals("moved".toByteArray(), readAllOf(reply.body))
+-        reply.close()
+-    }
+-
+-    @Test
+-    fun `an open 4xx reply without an error stream hands over an empty body`() {
+-        val connection = FakeHttpConnection(404, 0L, CountingBody(ByteArray(0)))
+-        val reply = transportOver(connection, SeamRecord()).open(openRequest(1_000L))
+-        assertEquals(404, reply.status)
+-        assertEquals(0, readAllOf(reply.body).size)
+-        reply.close()
+-    }
+-
+     @Test
+     fun `an open 3xx reply is returned as it came and not followed`() {
+         val connection = FakeHttpConnection(301, 0L, CountingBody(ByteArray(0)))
+@@ -129,28 +108,6 @@ class JdkOpenTest {
+         reply.close()
+     }
+ 
+-    @Test
+-    fun `an open status below 100 is an IOException with a fixed message and no body read`() {
+-        val body = CountingBody("never".toByteArray())
+-        val connection = FakeHttpConnection(-1, 5L, body)
+-        val failure = failureOf { transportOver(connection, SeamRecord()).open(openRequest(1_000L)) }
+-        assertEquals(IOException::class.java, failure?.javaClass)
+-        assertEquals("the server sent no usable status line", failure?.message)
+-        assertEquals("a body byte was read", 0, body.reads)
+-        assertEquals("the connection was not released", 1, connection.disconnects)
+-    }
+-
+-    @Test
+-    fun `an open 1xx status is a reply with an empty body`() {
+-        val body = CountingBody("x".toByteArray())
+-        val connection = FakeHttpConnection(101, -1L, body)
+-        val reply = transportOver(connection, SeamRecord()).open(openRequest(1_000L))
+-        assertEquals(101, reply.status)
+-        assertEquals("a body byte was returned for a 1xx status", 0, readAllOf(reply.body).size)
+-        assertEquals("the input stream was read for a 1xx status", 0, body.reads)
+-        reply.close()
+-    }
+-
+     @Test
+     fun `an open connection problem is an IOException and releases the connection`() {
+         val connection = FakeHttpConnection(200, 0L, CountingBody(ByteArray(0)))
+diff --git a/android/modules/http/src/test/kotlin/dev/breaker/dictation/http/JdkRulesTest.kt b/android/modules/http/src/test/kotlin/dev/breaker/dictation/http/JdkRulesTest.kt
+index da8db31e..198b5ae7 100644
+--- a/android/modules/http/src/test/kotlin/dev/breaker/dictation/http/JdkRulesTest.kt
++++ b/android/modules/http/src/test/kotlin/dev/breaker/dictation/http/JdkRulesTest.kt
+@@ -1,7 +1,6 @@
+ package dev.breaker.dictation.http
+ 
+ import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertNull
+ import org.junit.Assert.assertTrue
+ import org.junit.Test
+ import java.io.IOException
+@@ -82,32 +81,20 @@ class JdkRulesTest {
+     }
+ 
+     @Test
+-    fun `an address with user information and a port is refused NOT_HTTPS before any connection`() {
++    fun `an address with user information and a port is accepted as given`() {
++        val url = "https://user@example.test:8443/p?q"
+         val record = SeamRecord()
+-        val refusal = refusedWith {
+-            transportOver(connectionOk(), record).send(requestTo("https://user@example.test:8443/p?q", emptyList()))
+-        }
+-        assertEquals(HttpRefusalReason.NOT_HTTPS, refusal?.reason)
+-        assertEquals("a connection was opened for user information", 0, record.opened)
+-    }
+-
+-    @Test
+-    fun `a non ASCII user part is refused NOT_HTTPS before any connection`() {
+-        val record = SeamRecord()
+-        val refusal = refusedWith {
+-            transportOver(connectionOk(), record).send(requestTo("https://ex\u00E4mple@example.test/x", emptyList()))
+-        }
+-        assertEquals(HttpRefusalReason.NOT_HTTPS, refusal?.reason)
+-        assertEquals("a connection was opened for user information", 0, record.opened)
++        val reply = transportOver(connectionOk(), record).send(requestTo(url, emptyList()))
++        assertEquals(200, reply.status)
++        assertEquals(listOf(url), record.urls)
+     }
+ 
+     @Test
+-    fun `an at sign only in the path or the query is not the authority and the address is accepted`() {
+-        val url = "https://example.test/p@x?q=a@b"
++    fun `a non ASCII user part is not the host and the address is accepted`() {
+         val record = SeamRecord()
+-        val reply = transportOver(connectionOk(), record).send(requestTo(url, emptyList()))
++        val reply = transportOver(connectionOk(), record).send(requestTo("https://ex\u00E4mple@example.test/x", emptyList()))
+         assertEquals(200, reply.status)
+-        assertEquals(listOf(url), record.urls)
++        assertEquals(1, record.opened)
+     }
+ 
+     @Test
+@@ -152,13 +139,6 @@ class JdkRulesTest {
+         }
+     }
+ 
+-    @Test
+-    fun `a platform url the platform cannot parse is refused NOT_HTTPS with no cause`() {
+-        val refusal = refusedWith { platformConnection("https://host:abc/") }
+-        assertEquals(HttpRefusalReason.NOT_HTTPS, refusal?.reason)
+-        assertNull("the refusal carries a cause", refusal?.cause)
+-    }
+-
+     @Test
+     fun `a refusal caught first routes to the refusal handler and a connection problem to the second`() {
+         val refusedAtAddress = routed {
+diff --git a/android/modules/http/src/test/kotlin/dev/breaker/dictation/http/JdkSendTest.kt b/android/modules/http/src/test/kotlin/dev/breaker/dictation/http/JdkSendTest.kt
+index f72ad801..97516cdc 100644
+--- a/android/modules/http/src/test/kotlin/dev/breaker/dictation/http/JdkSendTest.kt
++++ b/android/modules/http/src/test/kotlin/dev/breaker/dictation/http/JdkSendTest.kt
+@@ -173,16 +173,6 @@ class JdkSendTest {
+         assertEquals("the connection was not released", 1, connection.disconnects)
+     }
+ 
+-    @Test
+-    fun `a send 1xx status is a reply with an empty body`() {
+-        val body = CountingBody("x".toByteArray())
+-        val connection = FakeHttpConnection(101, -1L, body)
+-        val reply = transportOver(connection, SeamRecord()).send(getRequest(1_000L))
+-        assertEquals(101, reply.status)
+-        assertEquals("a body byte was returned for a 1xx status", 0, reply.body.size)
+-        assertEquals("the input stream was read for a 1xx status", 0, body.reads)
+-    }
+-
+     @Test
+     fun `a send cap above MAX_BYTES_REPLY is refused before any connection`() {
+         val record = SeamRecord()

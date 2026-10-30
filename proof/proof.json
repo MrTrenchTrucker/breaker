@@ -1,0 +1,1498 @@
+{
+ "name": "proof-http",
+ "tip": {
+  "tree": "a3a461c325d77b25e38bd73f0d50dbc02423389a"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "http: the module folder, card, registry entry, build file, README and contract test",
+   "base_tree": "3dbd2c9c05cddd97b60b64af2f15eb6d40886169",
+   "item_tip_tree": "c231acb0353279ce0ee4464a4f7acff3c105f2cb",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [],
+   "red_not_run": "module setup only (card, registry entry, build file, README, Python contract-test stub); the contract test and its three controls (card, registry block, include removed) were run by the gate locally, exact red sets"
+  },
+  {
+   "item": "b",
+   "title": "http: the client interface, the call types and the refusals",
+   "base_tree": "c231acb0353279ce0ee4464a4f7acff3c105f2cb",
+   "item_tip_tree": "df75676773d665ee12c1a31cd5389c28a9660089",
+   "new_production_classes": [
+    "BytesReply",
+    "CallLimits",
+    "CallMethod",
+    "CallRequest",
+    "HttpRefusal",
+    "HttpTransport",
+    "StreamReply"
+   ],
+   "test_fixtures_overlaid": []
+  },
+  {
+   "item": "c",
+   "title": "http: refuse any default-named identifier in the main code",
+   "base_tree": "df75676773d665ee12c1a31cd5389c28a9660089",
+   "item_tip_tree": "58ef7e450678ef55860f46dae7d222e89ff4220e",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": []
+  },
+  {
+   "item": "d",
+   "title": "http: the JDK client",
+   "base_tree": "58ef7e450678ef55860f46dae7d222e89ff4220e",
+   "item_tip_tree": "a96711e0cfd92b61f0bd6facaaeea98e2ad2eb4c",
+   "new_production_classes": [
+    "CappedBody",
+    "HttpRules",
+    "JdkHttpTransport"
+   ],
+   "test_fixtures_overlaid": [
+    "FakeHttpConnection.kt"
+   ]
+  },
+  {
+   "item": "e",
+   "title": "http: a redirect body is read, an address with user information is refused",
+   "base_tree": "a96711e0cfd92b61f0bd6facaaeea98e2ad2eb4c",
+   "item_tip_tree": "8c7c3f5b09c2ad81413fde241f1983bf0b7db293",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [
+    "FakeHttpConnection.kt"
+   ]
+  },
+  {
+   "item": "f",
+   "title": "http: a 1xx status is a reply with an empty body",
+   "base_tree": "8c7c3f5b09c2ad81413fde241f1983bf0b7db293",
+   "item_tip_tree": "519b9ed678800d989a549de2a82cd8be7d2839b3",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": []
+  },
+  {
+   "item": "g",
+   "title": "http: the card and README name every refusal and how each status is read",
+   "base_tree": "519b9ed678800d989a549de2a82cd8be7d2839b3",
+   "item_tip_tree": "a3a461c325d77b25e38bd73f0d50dbc02423389a",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [],
+   "red_not_run": "card and README text only"
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "red-b-01",
+   "kind": "red",
+   "item": "b",
+   "module": "android/modules/http",
+   "file": "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/CallLimitsTest.kt",
+   "files": [
+    "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/CallLimitsTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.http.CallLimitsTest"
+   ],
+   "patch": "proof/red/red-b-01.patch",
+   "tree": "a577dcd6b25782379d1866930b7b7e39a5290b05",
+   "predict": "COMPILE RED: the item's new main types do not exist on the base"
+  },
+  {
+   "id": "red-b-02",
+   "kind": "red",
+   "item": "b",
+   "module": "android/modules/http",
+   "file": "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/CallRequestTest.kt",
+   "files": [
+    "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/CallRequestTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.http.CallRequestTest"
+   ],
+   "patch": "proof/red/red-b-02.patch",
+   "tree": "9f374361c3ee4e4076f05bca77b79b4b0ac514fd",
+   "predict": "COMPILE RED: the item's new main types do not exist on the base"
+  },
+  {
+   "id": "red-b-03",
+   "kind": "red",
+   "item": "b",
+   "module": "android/modules/http",
+   "file": "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/HttpRefusalTest.kt",
+   "files": [
+    "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/HttpRefusalTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.http.HttpRefusalTest"
+   ],
+   "patch": "proof/red/red-b-03.patch",
+   "tree": "86c4e3e8d37a38569449362493a1b115d4bafe7a",
+   "predict": "COMPILE RED: the item's new main types do not exist on the base"
+  },
+  {
+   "id": "red-b-04",
+   "kind": "red",
+   "item": "b",
+   "module": "android/modules/http",
+   "file": "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/ReplyTypesTest.kt",
+   "files": [
+    "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/ReplyTypesTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.http.ReplyTypesTest"
+   ],
+   "patch": "proof/red/red-b-04.patch",
+   "tree": "6c850285a5489e7436179195dd89b9692103b230",
+   "predict": "COMPILE RED: the item's new main types do not exist on the base"
+  },
+  {
+   "id": "red-b-05",
+   "kind": "red",
+   "item": "b",
+   "module": "android/modules/http",
+   "file": "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/SourceScanTest.kt",
+   "files": [
+    "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/SourceScanTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.http.SourceScanTest"
+   ],
+   "patch": "proof/red/red-b-05.patch",
+   "tree": "1d14e212f1a74de1cc831a21885a16237d01007a",
+   "predict": "ASSERT RED: the main source folder does not exist on the base (mainSources asserts it)"
+  },
+  {
+   "id": "red-c-06",
+   "kind": "red",
+   "item": "c",
+   "module": "android/modules/http",
+   "file": "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/SourceScanTest.kt",
+   "files": [
+    "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/SourceScanTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.http.SourceScanTest"
+   ],
+   "patch": "proof/red/red-c-06.patch",
+   "tree": "58ef7e450678ef55860f46dae7d222e89ff4220e",
+   "predict": "NOT RED by design: a scan that passes on clean main code; the new default-name rule is pinned by mutant T:M24 (a DEFAULT constant inserted in CallLimits.kt)"
+  },
+  {
+   "id": "red-d-07",
+   "kind": "red",
+   "item": "d",
+   "module": "android/modules/http",
+   "file": "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/JdkOpenTest.kt",
+   "files": [
+    "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/JdkOpenTest.kt",
+    "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/FakeHttpConnection.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.http.JdkOpenTest"
+   ],
+   "patch": "proof/red/red-d-07.patch",
+   "tree": "fe1f21c07964f52bb182770462897d63d266825d",
+   "predict": "COMPILE RED: the item's new main types do not exist on the base (JdkHttpTransport, CappedBody)"
+  },
+  {
+   "id": "red-d-08",
+   "kind": "red",
+   "item": "d",
+   "module": "android/modules/http",
+   "file": "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/JdkRulesTest.kt",
+   "files": [
+    "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/JdkRulesTest.kt",
+    "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/FakeHttpConnection.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.http.JdkRulesTest"
+   ],
+   "patch": "proof/red/red-d-08.patch",
+   "tree": "d843af5b860b0319d01469260c101748fe5f40c4",
+   "predict": "COMPILE RED: the item's new main types do not exist on the base (JdkHttpTransport, HttpRules)"
+  },
+  {
+   "id": "red-d-09",
+   "kind": "red",
+   "item": "d",
+   "module": "android/modules/http",
+   "file": "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/JdkSendTest.kt",
+   "files": [
+    "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/JdkSendTest.kt",
+    "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/FakeHttpConnection.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.http.JdkSendTest"
+   ],
+   "patch": "proof/red/red-d-09.patch",
+   "tree": "19b0afd0c118e79a9e13c380ee75c5336127e229",
+   "predict": "COMPILE RED: the item's new main types do not exist on the base (JdkHttpTransport, HttpRules, CappedBody)"
+  },
+  {
+   "id": "red-e-10",
+   "kind": "red",
+   "item": "e",
+   "module": "android/modules/http",
+   "file": "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/JdkOpenTest.kt",
+   "files": [
+    "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/JdkOpenTest.kt",
+    "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/FakeHttpConnection.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.http.JdkOpenTest"
+   ],
+   "patch": "proof/red/red-e-10.patch",
+   "tree": "4f8cd8b15fd3fbf5f948f06bab91f152ce14c529",
+   "predict": "ASSERT RED: with the platform-like fake (error stream only at 400 and up) the base reads a 3xx body from the error stream and fails LENGTH_MISMATCH; status -1 is not an IOException on the base"
+  },
+  {
+   "id": "red-e-11",
+   "kind": "red",
+   "item": "e",
+   "module": "android/modules/http",
+   "file": "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/JdkRulesTest.kt",
+   "files": [
+    "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/JdkRulesTest.kt",
+    "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/FakeHttpConnection.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.http.JdkRulesTest"
+   ],
+   "patch": "proof/red/red-e-11.patch",
+   "tree": "45ab6f765c58568ba4426c5c557bd55dcc442745",
+   "predict": "COMPILE RED: platformConnection is private on the base (internal at the tip)"
+  },
+  {
+   "id": "red-e-12",
+   "kind": "red",
+   "item": "e",
+   "module": "android/modules/http",
+   "file": "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/JdkSendTest.kt",
+   "files": [
+    "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/JdkSendTest.kt",
+    "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/FakeHttpConnection.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.http.JdkSendTest"
+   ],
+   "patch": "proof/red/red-e-12.patch",
+   "tree": "58e54409ccf6f19d66b155c02562749b51603c9f",
+   "predict": "ASSERT RED: same as the open leg for the send call (3xx body, status -1)"
+  },
+  {
+   "id": "red-f-13",
+   "kind": "red",
+   "item": "f",
+   "module": "android/modules/http",
+   "file": "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/JdkOpenTest.kt",
+   "files": [
+    "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/JdkOpenTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.http.JdkOpenTest"
+   ],
+   "patch": "proof/red/red-f-13.patch",
+   "tree": "f03ca55e5b33dcb236b6fd7c000b75dcb4975c00",
+   "predict": "NOT RED by design: pins behaviour the base already has (a 1xx takes the else branch); pinned by mutant J:M32 (range 100..399)"
+  },
+  {
+   "id": "red-f-14",
+   "kind": "red",
+   "item": "f",
+   "module": "android/modules/http",
+   "file": "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/JdkSendTest.kt",
+   "files": [
+    "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/JdkSendTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.http.JdkSendTest"
+   ],
+   "patch": "proof/red/red-f-14.patch",
+   "tree": "a099c25e9e0d82c11280af880c6529a244a80b46",
+   "predict": "NOT RED by design: as the open leg; pinned by mutant J:M32"
+  },
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/CallLimits.kt",
+     "anchor": "require(connectTimeoutMs in 1..MAX_TIMEOUT_MS)",
+     "replacement": "require(connectTimeoutMs in 0..MAX_TIMEOUT_MS)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "CallLimitsTest#a connect timeout of 0 and of 600001 is refused",
+    "CallLimitsTest#refusal messages are fixed and hold no digit"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/CallLimits.kt",
+     "anchor": "require(readTimeoutMs in 1..MAX_TIMEOUT_MS)",
+     "replacement": "require(readTimeoutMs in 1..(MAX_TIMEOUT_MS + 1))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "CallLimitsTest#a read timeout of 0 and of 600001 is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/CallLimits.kt",
+     "anchor": "require(maxReplyBytes in 1L..MAX_STREAM_REPLY)",
+     "replacement": "require(maxReplyBytes in 0L..MAX_STREAM_REPLY)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "CallLimitsTest#a reply cap of 0 and of one byte over MAX_STREAM_REPLY is refused",
+    "CallLimitsTest#refusal messages are fixed and hold no digit"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/CallLimits.kt",
+     "anchor": "require(maxReplyBytes in 1L..MAX_STREAM_REPLY)",
+     "replacement": "require(maxReplyBytes in 1L..MAX_BYTES_REPLY)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "CallLimitsTest#a reply cap above MAX_BYTES_REPLY is accepted here because only the send call refuses it",
+    "CallLimitsTest#a reply cap of 1 and of MAX_STREAM_REPLY is accepted"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/CallLimits.kt",
+     "anchor": "const val MAX_STREAM_REPLY: Long = 1_073_741_824L",
+     "replacement": "const val MAX_STREAM_REPLY: Long = 1_073_741_823L"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "CallLimitsTest#the constants hold the numbers of the card"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/CallLimits.kt",
+     "anchor": "require(readTimeoutMs in 1..MAX_TIMEOUT_MS) { OUT_OF_RANGE_TIMEOUT }",
+     "replacement": "Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "CallLimitsTest#a read timeout of 0 and of 600001 is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/CallRequest.kt",
+     "anchor": "require(method == CallMethod.POST || body == null) { \"a GET request has no body\" }",
+     "replacement": "Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "CallRequestTest#a GET with a body is refused at construction"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/CallRequest.kt",
+     "anchor": "override fun toString(): String = \"CallRequest(method=$method)\"",
+     "replacement": "override fun toString(): String = \"CallRequest(method=$method, url=$url)\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "CallRequestTest#the request string prints the method only"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/BytesReply.kt",
+     "anchor": "override fun toString(): String = \"BytesReply(status=$status)\"",
+     "replacement": "override fun toString(): String = \"BytesReply(status=$status, body=${body.decodeToString()})\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "ReplyTypesTest#the bytes reply string prints the status only"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-10",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/StreamReply.kt",
+     "anchor": "        body.close()",
+     "replacement": "        Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "ReplyTypesTest#closing the stream reply closes its body"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-11",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/StreamReply.kt",
+     "anchor": "override fun toString(): String = \"StreamReply(status=$status)\"",
+     "replacement": "override fun toString(): String = \"StreamReply(status=$status, location=$location)\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "ReplyTypesTest#the stream reply string prints the status only"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-12",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/HttpRefusal.kt",
+     "anchor": ") : IOException(sentenceOf(reason))",
+     "replacement": ") : RuntimeException(sentenceOf(reason))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "HttpRefusalTest#a refusal is an IOException",
+    "HttpRefusalTest#catching HttpRefusal first routes a refusal to it and a plain IOException to the second handler"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-13",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/HttpRefusal.kt",
+     "anchor": ") : IOException(sentenceOf(reason))",
+     "replacement": ") : IOException(sentenceOf(reason), RuntimeException(\"cause\"))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "HttpRefusalTest#a refusal has no cause and keeps its reason"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-14",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/HttpRefusal.kt",
+     "anchor": "HttpRefusalReason.BAD_HEADER -> \"a header name or value is not allowed\"",
+     "replacement": "HttpRefusalReason.BAD_HEADER -> \"the address is not usable over https\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "HttpRefusalTest#each reason has its own fixed sentence and the sentence is the same on every refusal"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-15",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/HttpRefusal.kt",
+     "anchor": "enum class HttpRefusalReason { NOT_HTTPS, BAD_HEADER, REPLY_TOO_LARGE, LENGTH_MISMATCH }",
+     "replacement": "enum class HttpRefusalReason { BAD_HEADER, NOT_HTTPS, REPLY_TOO_LARGE, LENGTH_MISMATCH }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "HttpRefusalTest#the enum holds the four refusal reasons in order"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-16",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/CallLimits.kt",
+     "anchor": "    val maxReplyBytes: Long,",
+     "replacement": "    val maxReplyBytes: Long = 65_536L,"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SourceScanTest#no constructor or function parameter has a default value"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-17",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/CallRequest.kt",
+     "anchor": "    init {",
+     "replacement": "    private val defaultConnectTimeoutMs = 1_500\n\n    init {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SourceScanTest#no timeout or cap literal sits outside CallLimits"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-18",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/StreamReply.kt",
+     "anchor": "import java.io.InputStream",
+     "replacement": "import java.io.InputStream\nimport java.util.logging.Logger"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SourceScanTest#no log print or crypto name appears in the main sources"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-19",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/CallLimits.kt",
+     "anchor": "require(connectTimeoutMs in 1..MAX_TIMEOUT_MS)",
+     "replacement": "require(connectTimeoutMs in 2..MAX_TIMEOUT_MS)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "CallLimitsTest#a connect and a read timeout of 1 and of 600000 are accepted"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-20",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/CallLimits.kt",
+     "anchor": "require(connectTimeoutMs in 1..MAX_TIMEOUT_MS) { OUT_OF_RANGE_TIMEOUT }",
+     "replacement": "require(connectTimeoutMs in 1..MAX_TIMEOUT_MS) { \"a timeout is outside its range, got $connectTimeoutMs\" }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "CallLimitsTest#refusal messages are fixed and hold no digit"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-21",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/test/kotlin/dev/breaker/dictation/http/SourceScanTest.kt",
+     "anchor": "if (topLevelEquals(params)) params.trim() else null",
+     "replacement": "null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SourceScanTest#each scan fires on a planted violation and stays quiet on clean code"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-22",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/CallLimits.kt",
+     "anchor": "require(maxReplyBytes in 1L..MAX_STREAM_REPLY)",
+     "replacement": "require(maxReplyBytes in 1L until MAX_STREAM_REPLY)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "CallLimitsTest#a reply cap of 1 and of MAX_STREAM_REPLY is accepted"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-23",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/CallRequest.kt",
+     "anchor": "require(method == CallMethod.POST || body == null) { \"a GET request has no body\" }",
+     "replacement": "require(method == CallMethod.GET || body == null) { \"a GET request has no body\" }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "CallRequestTest#a GET with a body is refused at construction",
+    "CallRequestTest#a GET without a body and a POST with or without a body are accepted"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-24",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/CallRequest.kt",
+     "anchor": "    val url: String,",
+     "replacement": "    private val url: String,"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [
+    "CallRequestTest#the request keeps the values it was built with"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-25",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/BytesReply.kt",
+     "anchor": "    val body: ByteArray,",
+     "replacement": "    private val body: ByteArray,"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [
+    "ReplyTypesTest#the bytes reply keeps its status and its body"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-26",
+   "kind": "mut",
+   "item": "b",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/StreamReply.kt",
+     "anchor": "    val contentLength: Long,",
+     "replacement": "    private val contentLength: Long,"
+    }
+   ],
+   "expect": "broke",
+   "expected_red": [
+    "ReplyTypesTest#the stream reply keeps its status location type and length"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-27",
+   "kind": "mut",
+   "item": "c",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/CallLimits.kt",
+     "anchor": "const val MAX_STREAM_REPLY: Long = 1_073_741_824L",
+     "replacement": "const val MAX_STREAM_REPLY: Long = 1_073_741_824L\n\n        const val DEFAULT_READ_TIMEOUT_MS = 1"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "SourceScanTest#no identifier in the main code names a default"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-28",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/JdkHttpTransport.kt",
+     "anchor": "connection.instanceFollowRedirects = false",
+     "replacement": "connection.instanceFollowRedirects = true"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JdkSendTest#a send 3xx reply is returned as it came and not followed",
+    "JdkOpenTest#an open 3xx reply is returned as it came and not followed"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-29",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/JdkHttpTransport.kt",
+     "anchor": "connection.useCaches = false",
+     "replacement": "connection.useCaches = true"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JdkSendTest#a send sets the timeouts the method and no redirect or cache from the request"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-30",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/JdkHttpTransport.kt",
+     "anchor": "connection.connectTimeout = request.limits.connectTimeoutMs",
+     "replacement": "connection.connectTimeout = request.limits.readTimeoutMs"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JdkSendTest#a send sets the timeouts the method and no redirect or cache from the request"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-31",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/JdkHttpTransport.kt",
+     "anchor": "connection.requestMethod = request.method.name",
+     "replacement": "connection.requestMethod = \"GET\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JdkSendTest#a send sets the timeouts the method and no redirect or cache from the request"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-32",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/JdkHttpTransport.kt",
+     "anchor": "connection.setFixedLengthStreamingMode(body.size)",
+     "replacement": "connection.setChunkedStreamingMode(0)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JdkSendTest#a send POST body goes out with a fixed length"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-33",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/JdkHttpTransport.kt",
+     "anchor": "if (status in 200..399) return connection.inputStream",
+     "replacement": "if (status >= 0) return connection.inputStream"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JdkSendTest#a send non 2xx reply reads its error body under the cap",
+    "JdkOpenTest#an open non 2xx reply hands over the error stream read under the cap"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-34",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/JdkHttpTransport.kt",
+     "anchor": "HttpRules.checkAnnouncedLength(announced, cap)",
+     "replacement": "HttpRules.checkAnnouncedLength(announced, cap * 3L)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JdkSendTest#a send refuses an announced length over the cap before any body byte is read"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-35",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/CappedBody.kt",
+     "anchor": "if (served + count > cap) throw HttpRefusal(HttpRefusalReason.REPLY_TOO_LARGE)",
+     "replacement": "if (served + count > cap + 1L) throw HttpRefusal(HttpRefusalReason.REPLY_TOO_LARGE)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JdkOpenTest#a stream read past the cap throws a refusal for REPLY_TOO_LARGE"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-36",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/CappedBody.kt",
+     "anchor": "if (announced >= 0L && served < announced) throw HttpRefusal(HttpRefusalReason.LENGTH_MISMATCH)",
+     "replacement": "if (announced < 0L && served < announced) throw HttpRefusal(HttpRefusalReason.LENGTH_MISMATCH)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JdkSendTest#a send body shorter than its announced length is a length mismatch",
+    "JdkOpenTest#a stream body that ends before its announced length throws LENGTH_MISMATCH"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-37",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/CappedBody.kt",
+     "anchor": "val ask = if (length.toLong() <= room) length else (room + 1L).toInt()",
+     "replacement": "val ask = length"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JdkSendTest#a send stops reading at the cap and does not read an endless body",
+    "JdkOpenTest#a stream read stops at the cap and does not read an endless body"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-38",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/CappedBody.kt",
+     "anchor": "onClose()",
+     "replacement": "Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JdkOpenTest#closing the stream reply closes the body and disconnects"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-39",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/CappedBody.kt",
+     "anchor": "source.close()",
+     "replacement": "Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JdkOpenTest#closing the stream reply closes the body and disconnects"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-40",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/JdkHttpTransport.kt",
+     "anchor": "connection.setRequestProperty(name, value)",
+     "replacement": "Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JdkSendTest#a send request headers are set on the connection"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-41",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/JdkHttpTransport.kt",
+     "anchor": "connection.getHeaderField(\"Location\")",
+     "replacement": "null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JdkOpenTest#an open reply carries its status location type and length"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-42",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/HttpRules.kt",
+     "anchor": "scheme.all { it.code < ASCII_CHARS } && scheme.equals(HTTPS_SCHEME, ignoreCase = true)",
+     "replacement": "scheme.equals(HTTPS_SCHEME, ignoreCase = true)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JdkRulesTest#the long s sample scheme is refused NOT_HTTPS"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-43",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/HttpRules.kt",
+     "anchor": "if (url.any { it.isWhitespace() || Character.isISOControl(it) }) return false",
+     "replacement": "if (url.any { it == '\\u0000' }) return false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JdkRulesTest#a space or control character in the address is refused NOT_HTTPS"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-44",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/HttpRules.kt",
+     "anchor": "host.isNotEmpty() && host.all { it.code < ASCII_CHARS }",
+     "replacement": "host.all { it.code < ASCII_CHARS }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JdkRulesTest#an empty host is refused NOT_HTTPS"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-45",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/HttpRules.kt",
+     "anchor": "host.isNotEmpty() && host.all { it.code < ASCII_CHARS }",
+     "replacement": "host.isNotEmpty()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JdkRulesTest#a non ASCII host is refused NOT_HTTPS before any connection"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-46",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/HttpRules.kt",
+     "anchor": "afterScheme.takeWhile { it != '/' && it != '?' && it != '#' }",
+     "replacement": "afterScheme"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JdkRulesTest#an at sign only in the path or the query is not the authority and the address is accepted"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-47",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/HttpRules.kt",
+     "anchor": "if (name.isEmpty() || hasLineBreak(name) || hasLineBreak(value))",
+     "replacement": "if (hasLineBreak(name) || hasLineBreak(value))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JdkRulesTest#a header with an empty name is refused BAD_HEADER before any connection"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-48",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/HttpRules.kt",
+     "anchor": "if (name.isEmpty() || hasLineBreak(name) || hasLineBreak(value))",
+     "replacement": "if (name.isEmpty() || hasLineBreak(name))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JdkRulesTest#a header name or value with a CR or LF is refused BAD_HEADER before any connection"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-49",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/JdkHttpTransport.kt",
+     "anchor": "require(cap <= CallLimits.MAX_BYTES_REPLY) { SEND_CAP_MESSAGE }",
+     "replacement": "require(cap <= CallLimits.MAX_STREAM_REPLY) { SEND_CAP_MESSAGE }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JdkSendTest#a send cap above MAX_BYTES_REPLY is refused before any connection"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-50",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/HttpRules.kt",
+     "anchor": "if (!isHttpsAddress(request.url)) throw HttpRefusal(HttpRefusalReason.NOT_HTTPS)",
+     "replacement": "if (request.url.isEmpty()) throw HttpRefusal(HttpRefusalReason.NOT_HTTPS)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JdkRulesTest#an http address is refused NOT_HTTPS before any connection"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-51",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/JdkHttpTransport.kt",
+     "anchor": "connection.contentType, announced, body)",
+     "replacement": "connection.contentType, -1L, body)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JdkOpenTest#an open reply carries its status location type and length"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-52",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/JdkHttpTransport.kt",
+     "anchor": "return connection.errorStream ?: ByteArrayInputStream(ByteArray(0))",
+     "replacement": "return ByteArrayInputStream(ByteArray(0))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JdkSendTest#a send non 2xx reply reads its error body under the cap",
+    "JdkOpenTest#an open non 2xx reply hands over the error stream read under the cap"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-53",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/JdkHttpTransport.kt",
+     "anchor": "connection.doOutput = true",
+     "replacement": "connection.doOutput = false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JdkSendTest#a send sets the timeouts the method and no redirect or cache from the request"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-54",
+   "kind": "mut",
+   "item": "d",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/HttpRules.kt",
+     "anchor": "private const val HTTPS_SCHEME = \"https\"",
+     "replacement": "private const val HTTPS_SCHEME = \"http\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JdkSendTest#a send reply comes back with its status and its body"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-55",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/JdkHttpTransport.kt",
+     "anchor": "if (status in 200..399) return connection.inputStream",
+     "replacement": "if (status in 200..299) return connection.inputStream"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JdkSendTest#a send 3xx reply comes back with its body",
+    "JdkOpenTest#an open 3xx reply comes back with its body and its location"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-56",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/JdkHttpTransport.kt",
+     "anchor": "if (status < 100) throw IOException(NO_STATUS_MESSAGE)",
+     "replacement": "Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JdkSendTest#a send status below 100 is an IOException with a fixed message and no body read",
+    "JdkOpenTest#an open status below 100 is an IOException with a fixed message and no body read"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-57",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/HttpRules.kt",
+     "anchor": "if (authority.contains('@')) return false",
+     "replacement": "Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JdkRulesTest#an address with user information and a port is refused NOT_HTTPS before any connection"
+   ],
+   "rule": "Note: the non-ASCII-user-part test stays green under this mutant (the host keeps its non-ASCII character), so only the user-information test is named",
+   "note": ""
+  },
+  {
+   "id": "mut-58",
+   "kind": "mut",
+   "item": "e",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/JdkHttpTransport.kt",
+     "anchor": "} catch (malformed: MalformedURLException) {",
+     "replacement": "} catch (malformed: IllegalStateException) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JdkRulesTest#a platform url the platform cannot parse is refused NOT_HTTPS with no cause"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-59",
+   "kind": "mut",
+   "item": "f",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/JdkHttpTransport.kt",
+     "anchor": "if (status in 200..399) return connection.inputStream",
+     "replacement": "if (status in 100..399) return connection.inputStream"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "JdkSendTest#a send 1xx status is a reply with an empty body",
+    "JdkOpenTest#an open 1xx status is a reply with an empty body"
+   ],
+   "rule": "",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "android/modules/http",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/CallLimits.kt",
+     "anchor": "        const val MAX_TIMEOUT_MS: Int = 600_000\n",
+     "replacement": "        const val MAX_TIMEOUT_MS: Int = 600_001\n"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "android/modules/http",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/CallLimits.kt",
+     "anchor": "        const val MAX_TIMEOUT_MS: Int = 600_000\n",
+     "replacement": "        const val MAX_TIMEOUT_MS: Int = 600_000 // unchanged\n"
+    }
+   ]
+  }
+ ]
+}
