@@ -254,10 +254,10 @@ class KdfImplTest {
 
     private fun ByteArray.toHex(): String {
         val digits = "0123456789abcdef"
-        return CharArray(size * 2) { i ->
-            val v = this[i].toInt() and 0xff
+        return joinToString("") { b ->
+            val v = b.toInt() and 0xff
             "" + digits[v shr 4] + digits[v and 0x0f]
-        }.concatToString()
+        }
     }
 
     private fun hexToBytes(s: String): ByteArray = ByteArray(s.length / 2) { i ->
