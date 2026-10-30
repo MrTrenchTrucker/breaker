@@ -11,7 +11,7 @@ The decision that sets this module is "one HTTP client for server calls": one mo
 - GET and POST, with request headers and an optional request body of known length. A body is always sent with a fixed length; there is no chunked upload.
 - No redirect following: a 3xx is returned as a reply and never followed.
 - No cache on any request.
-- https only: the scheme must be ASCII and equal "https" ignoring ASCII case only. An address that breaks this, has no host, or holds whitespace or a control character is refused before any connection. A host holding a non-ASCII character is refused as well (punycode is the caller's job).
+- https only: the scheme must be ASCII and equal "https" ignoring ASCII case only. An address that breaks this, has no host, or holds whitespace or a control character, or has an at sign in its authority (the text between "://" and the first '/', '?' or '#'), or that the platform cannot parse, is refused before any connection. A host holding a non-ASCII character is refused as well (punycode is the caller's job).
 - Connect and read timeouts, and a reply-size cap, named by the caller on every request.
 - Two reply shapes behind one interface: a bytes reply read in memory (the send call) and a stream reply whose body the caller reads (the open call).
 - Fixed-length replies: a body that ends before its announced length is refused.
@@ -53,11 +53,11 @@ The module uses the JDK HttpURLConnection only. The main code has no third-party
 - Each timeout is in 1 to 600_000 ms. Any other value throws IllegalArgumentException before any connection.
 - Reply caps: the send call accepts a cap from 1 to 16_777_216 bytes (MAX_BYTES_REPLY). The open call accepts a cap from 1 to 1_073_741_824 bytes (MAX_STREAM_REPLY). Every request names its own cap inside the range of the call it uses.
 - No overall deadline. The module sets connect and read timeouts only; a caller that needs a limit on the whole call wraps the call itself.
-- https only: the scheme must be ASCII and equal "https" ignoring ASCII case only. An address that breaks this, has no host, or holds whitespace or a control character, is refused with HttpRefusal NOT_HTTPS before any connection. The scheme check is ASCII only. A host holding a non-ASCII character is refused as NOT_HTTPS (punycode is the caller's job), so no look-alike host reaches the platform resolver.
+- https only: the scheme must be ASCII and equal "https" ignoring ASCII case only. An address that breaks this, has no host, holds whitespace or a control character, has an at sign in its authority (the text between "://" and the first '/', '?' or '#'), or that the platform cannot parse, is refused with HttpRefusal NOT_HTTPS before any connection. The scheme check is ASCII only. A host holding a non-ASCII character is refused as NOT_HTTPS (punycode is the caller's job), so no look-alike host reaches the platform resolver.
 - A header whose name is empty, or whose name or value holds a CR or an LF, is refused with HttpRefusal BAD_HEADER before any connection.
 - No redirect is followed. A 3xx is a reply. The open call carries its Location header in the StreamReply; the send call returns the status and the body only.
 - No cache on any request.
-- A non-2xx status is a reply on both calls, never an exception. Its body is read under the same cap. The open call hands over the error stream, or an empty stream when there is none.
+- A status from 100 up is a reply on both calls, never an exception. A status from 200 to 399 has its body read from the input stream, so a 3xx keeps its body, since no redirect is followed. A status of 400 or more has its body read from the error stream, or from an empty stream when there is none. A status from 100 to 199, which the platform normally consumes itself, is read like a status of 400 or more, so its body is the error stream or, as the platform leaves that empty below 400, an empty body. Every body is read under the same cap, and the open call hands over the same stream. A status below 100 is a plain IOException with a fixed message, thrown before any body is read, and the connection is released.
 - A connection problem is an IOException that is not an HttpRefusal.
 - The request body is sent with a known length. A GET has no body.
 - Send call: an announced length above the reply cap throws HttpRefusal REPLY_TOO_LARGE before any body byte is read. A body that reaches the cap plus one byte throws HttpRefusal REPLY_TOO_LARGE. A body that ends before its announced length throws HttpRefusal LENGTH_MISMATCH.

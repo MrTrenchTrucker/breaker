@@ -33,9 +33,9 @@ fun download(transport: HttpTransport, url: String, out: java.io.OutputStream): 
 
 ## Rules and refusals
 
-- Only https. The scheme must be ASCII and equal "https" ignoring ASCII case only. An http address, an empty host, a host with a non-ASCII character (punycode is the caller's job), or a space or control character in the address is refused (`NOT_HTTPS`) before any connection. A header with a CR or LF, or an empty name, is refused (`BAD_HEADER`).
+- Only https. The scheme must be ASCII and equal "https" ignoring ASCII case only. An http address, an empty host, a host with a non-ASCII character (punycode is the caller's job), an at sign in the authority (the text between "://" and the first '/', '?' or '#'), a space or control character in the address, or an address the platform cannot parse is refused (`NOT_HTTPS`) before any connection. A header with a CR or LF, or an empty name, is refused (`BAD_HEADER`).
 - No redirect is followed: a 3xx is a reply, with its Location on the `StreamReply`. No cache. A request body is sent with its length known in advance.
-- A non-2xx status is a reply, not an exception, and its body is read under the same cap. A body that ends before its announced length is refused (`LENGTH_MISMATCH`).
+- A status from 100 up is a reply, not an exception, and its body is read under the same cap. A 2xx or 3xx body comes from the input stream, since no redirect is followed; a status of 400 or more gives its body from the error stream, or an empty body when there is none. A status from 100 to 199, which the platform normally consumes itself, is read like a status of 400 or more, so its body is empty, since the platform leaves the error stream null below 400. A status below 100 is a plain IOException with a fixed message, thrown before any body is read. A body that ends before its announced length is refused (`LENGTH_MISMATCH`).
 
 `HttpRefusal` is an `IOException` with one of four reasons (`HttpRefusalReason`); `REPLY_TOO_LARGE` means an announced length over the cap, or a body that passes it. Callers catch `HttpRefusal` before `IOException`, because a refusal is not an unreachable server. Any other `IOException` is a connection problem. No header or body is ever printed, logged or put in an exception; `CallRequest` prints only its method, and `BytesReply` and `StreamReply` print only their status.
 
