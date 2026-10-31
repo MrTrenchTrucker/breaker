@@ -42,6 +42,7 @@ formatted when `formatting_enabled` is off.
 - android (registered in modules.toml)
 - android_core (registered in modules.toml)
 - shared_format_prompts (registered in modules.toml)
+- android_http (registered in modules.toml)
 
 ## Does Not Own
 - The LLM itself (server)
@@ -79,6 +80,7 @@ agents, not required: an outside contributor may write the code themselves
 
 ## Known Gotchas
 - Formatting must be non-destructive (N9) — diff-check tests.
+- `ServerLlmFormatter` asks `{base}/v1/chat/completions`; the base address, the key and the model name come from three providers read on every call. On ANY problem (a blank base or model, a transport error, a status other than 200, a reply that cannot be read or has the wrong shape, or an answer the N9 guard refuses) it returns what the fallback `Formatter` returns; a blank transcript comes back unchanged with no call. The guard accepts an answer only when it is not blank, is at most four times the transcript length plus 64 characters, every word of it is a word of the transcript (list numbers of up to three digits aside), and at least half as many words that are not numbers remain as the transcript had. The adapter is a library: no app slot uses it yet.
 
 ## Deliberate limits of the rule-based formatter
 

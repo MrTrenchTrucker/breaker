@@ -35,6 +35,7 @@ kotlin {
 dependencies {
     implementation(project(":android:modules:core"))
     implementation(project(":shared:modules:format-prompts"))
+    implementation(project(":android:modules:http"))
 
     testImplementation(libs.junit)
 }
