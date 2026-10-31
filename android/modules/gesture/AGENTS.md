@@ -23,6 +23,7 @@ hands each detection to the tile's shake path, which shows a closed or hidden ti
 ## Invariants
 - A detection fires reliably (tune threshold on target device).
 - Threshold (THRESHOLD_G): 0.65
+- Sample magnitude cap (MAX_SAMPLE_G): 3.3 (= 2 x (THRESHOLD_G + the 1.0 g crossing point)); a finite sample magnitude is held to this, and a non-finite sample (NaN, +Inf, -Inf) is dropped from the filter and the crossings (its timestamp still advances and the gap rule still applies).
 - Fixtures (raw input amplitude -> reached AC): hand 8 Hz 1.0926 g -> ~0.98 g AC, softer 8 Hz 0.8762 g -> ~0.79 g AC, walking 2 Hz 0.8485 g -> ~0.53 g AC, bumpy 3 Hz 1.0817 g -> ~0.86 g AC, vibration 7 Hz 0.52 g -> ~0.47 g AC (assumed), rest/tilt. One phone, one person.
 - Tuned on one measured hand shake (2.06 g raw) on one phone plus synthetic fixtures; the vibration amplitude is an assumption; other phones are a device check. Device checks: hand shake (keyboard up); walking 1 min with the phone in a pocket; phone in a truck cab mount while driving 10 min - no false shake detection.
 - No false shake detections from normal walking (test on device).
@@ -32,7 +33,7 @@ hands each detection to the tile's shake path, which shows a closed or hidden ti
 Shake-to-wake (accelerometer).
 
 ## Public Interface
-ShakeHandle - the public entry: `ShakeHandle.create(onShake, port: ShakePort)` wires a port to the detector (the SensorManager-backed port is `SensorManagerShakeSource`; tests pass a fake port). Start/stop on the main thread; a start the port refuses reports false and stays retryable. The detector itself is module-internal, reached only through the handle.
+ShakeHandle - the public entry: `ShakeHandle.create(onShake, port: ShakePort)` wires a port to the detector (the SensorManager-backed port is `SensorManagerShakeSource`; tests pass a fake port). Start/stop on the main thread; a start the port refuses reports false and stays retryable. Both `start()` and `stop()` reset the detector's filter state (the low-pass term, the previous-magnitude bookkeeping, the last timestamp, the cooldown, and the crossing list), so a start after a stop begins fresh. The detector itself is module-internal, reached only through the handle.
 
 ## Depends On
 - android (registered in modules.toml)
@@ -75,3 +76,4 @@ agents, not required: an outside contributor may write the code themselves
 ## Known Gotchas
 - Device check (not covered by unit tests): a real shake fires once; screen-off delivery works; events arrive on the main looper (no Handler registered).
 - Fold-over: the detector reads the magnitude |a|, so a swing larger than 1 g along gravity folds over each cycle and gives about twice the crossing rate (a 3 Hz swing gives ~6 Hz of crossings). A strong swing (2.1 g AC) therefore fires; a light canary below 1 g (0.8 g AC) does not.
+- Non-finite and extreme samples: a sample whose magnitude is not finite (NaN, +Inf, -Inf) is dropped from the filter and the crossings (its timestamp still advances and the gap rule still applies), so one bad reading cannot disable the detector; a finite magnitude above MAX_SAMPLE_G (3.3 g) is capped so one extreme reading cannot blind the low-pass filter for a magnitude-scaled window.

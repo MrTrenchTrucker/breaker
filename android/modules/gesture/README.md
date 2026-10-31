@@ -13,13 +13,14 @@ The detector does two things per sample:
 1. Runs a one-pole high-pass filter over the acceleration **magnitude** (the vector length of `x, y, z`, in m/s^2, divided by gravity so it reads in g). The filtered value is `hp = mag - lp`, where the low-pass term `lp` drifts toward `mag`.
 2. Watches that filtered value for positive-going threshold crossings - a moment where it rises above the crossing threshold after having been below it - and remembers when each one happened, within a sliding time window.
 
-If two samples arrive far apart, the state that would have been carried forward is reset; a sample whose timestamp does not increase is ignored outright (see Timestamps) rather than resetting anything.
+If two samples arrive far apart, the state that would have been carried forward is reset; a sample whose timestamp does not increase is ignored outright (see Timestamps) rather than resetting anything. A sample whose magnitude is not finite (NaN, +Inf, -Inf) is dropped from the filter and the crossing list only: it leaves the low-pass term and the crossings unchanged, but its timestamp still advances and is measured by the gap rule, which can still reset the detection state; any finite magnitude is capped at `MAX_SAMPLE_G` (3.3 g) so one extreme-but-finite reading cannot drive the low-pass term far enough to blind the filter.
 
 ## The constants
 
 | Name | Value | Role |
 | --- | --- | --- |
 | `THRESHOLD_G` | `0.65` | Magnitude, in g, above which a positive-going step counts as a crossing. |
+| `MAX_SAMPLE_G` | `3.3` | Cap on a single finite sample magnitude (`2 * (THRESHOLD_G + the 1.0 g crossing point)`); one extreme-but-finite reading is held to this so it cannot drive the low-pass term far enough to blind the detector. Non-finite magnitudes are dropped before the cap is applied. |
 | `CROSSING_COUNT` | `3` | Crossings needed within the window to fire. |
 | `WINDOW_MS` | `500` | Window span (inclusive: an exact 500 ms span still counts). Crossings older than this are pruned before a decision. |
 | `COOLDOWN_MS` | `2000` | Refractory after a fire; one shake fires once. |
@@ -30,7 +31,7 @@ All of these are named constants on `ShakeDetector` with KDoc stating their valu
 
 ## Start / stop
 
-`start()` enables listening; `stop()` disables it. While stopped, every sample is discarded - no state changes accumulate. Calling `start()` again resumes from whatever the current state is (a gap on the first fed sample then falls out under the gap rule). This keeps the sensor quiet by default and on battery.
+`start()` enables listening; `stop()` disables it. While stopped, every sample is discarded - no state changes accumulate. Both `start()` and `stop()` reset the detector's filter state (the low-pass term, the previous-magnitude bookkeeping, the last timestamp, the cooldown, and the crossing list), so a `start()` after a `stop()` begins fresh rather than resuming from where the detector left off. This keeps the sensor quiet by default and on battery.
 
 The handle's start/stop run on the main thread; its listener registers with no Handler, so samples and the onShake callback are delivered on the main looper - the handle is not thread-safe beyond that.
 
