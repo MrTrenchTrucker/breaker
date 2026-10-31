@@ -1,0 +1,317 @@
+{
+ "name": "proof-app-server-link",
+ "tip": {
+  "tree": "10cebbd8424c63e0bd0ff7ae6d7a6f3563f5ee84"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "app: the composition root builds the real server engine over the stored address and the session seam",
+   "base_tree": "473f28a7c5aad236eddd948469a257609062c28a",
+   "item_tip_tree": "10cebbd8424c63e0bd0ff7ae6d7a6f3563f5ee84",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [
+    "ServerLinkFakes.kt"
+   ],
+   "red_not_run": "the server link tests call composition root parameters that do not exist on main (serverEngineFactory, sessionToken), so every one of them fails to compile there and no red leg is run. The mutants and the two controls carry the proof; the one existing test that changes by behaviour only, the server mode test of the dictation flow, is covered by mutants A8 and A10."
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/BreakerCompositionRoot.kt",
+     "anchor": "    private val serverUrl: () -> String = { settingsStore.load().serverUrl }",
+     "replacement": "    private val serverUrl: () -> String = { settingsStore.load().modelSize }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the engine reads the saved address again at each call",
+    "the probe dials the stored address and a reachable answer sends an automatic take to the server engine",
+    "the default root with no session answers the engine's key sentence and makes no connection",
+    "the three-argument and the supplier constructors give the factory the stored address and the session seam",
+    "server mode with no address fails with the engine's address sentence"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/BreakerCompositionRoot.kt",
+     "anchor": "    private val serverUrl: () -> String = { settingsStore.load().serverUrl }",
+     "replacement": "    private val serverUrl: () -> String = { settingsStore.load().serverUrl.replace(\"http://\", \"https://\") }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an http address is refused by the server engine with its own sentence and no connection is made",
+    "the probe dials the stored address and a reachable answer sends an automatic take to the server engine"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/BreakerCompositionRoot.kt",
+     "anchor": "            serverEngine = serverEngineFactory(serverUrl, serverApiKey),",
+     "replacement": "            serverEngine = serverEngineFactory({ \"https://127.0.0.1:1\" }, serverApiKey),"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the engine reads the saved address again at each call",
+    "the probe dials the stored address and a reachable answer sends an automatic take to the server engine",
+    "the three-argument and the supplier constructors give the factory the stored address and the session seam",
+    "an http address is refused by the server engine with its own sentence and no connection is made",
+    "server mode with no address fails with the engine's address sentence"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/BreakerCompositionRoot.kt",
+     "anchor": "    private val serverApiKey: () -> String? = { sessionToken() }",
+     "replacement": "    private val serverApiKey: () -> String? = { \"stand-in-token\" }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the key is read on every call so a new session reaches the next take",
+    "the default root with no session answers the engine's key sentence and makes no connection",
+    "the three-argument and the supplier constructors give the factory the stored address and the session seam"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/BreakerCompositionRoot.kt",
+     "anchor": "    private val serverApiKey: () -> String? = { sessionToken() }",
+     "replacement": "    private val serverApiKey: () -> String? = sessionToken().let { key -> { key } }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the key is read on every call so a new session reaches the next take"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/BreakerCompositionRoot.kt",
+     "anchor": "private val NO_SESSION: () -> String? = { null }",
+     "replacement": "private val NO_SESSION: () -> String? = { \"stand-in-token\" }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the default root with no session answers the engine's key sentence and makes no connection"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/BreakerCompositionRoot.kt",
+     "anchor": "    private val sessionToken: () -> String? = NO_SESSION,",
+     "replacement": "    private val sessionToken: () -> String? = { \"stand-in-token\" },"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the default root with no session answers the engine's key sentence and makes no connection"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/BreakerCompositionRoot.kt",
+     "anchor": "    { serverUrl, apiKey -> SttServerEngine(serverUrl, apiKey) }",
+     "replacement": "    { serverUrl, apiKey -> dev.breaker.dictation.wiring.UnavailableSttEngine(dev.breaker.dictation.core.model.SttError.OTHER, \"x\") }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the default root with no session answers the engine's key sentence and makes no connection",
+    "server mode with no address fails with the engine's address sentence"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/BreakerCompositionRoot.kt",
+     "anchor": "            serverEngine = serverEngineFactory(serverUrl, serverApiKey),",
+     "replacement": "            serverEngine = serverEngineFactory(serverUrl, serverApiKey).also { it.transcribe(dev.breaker.dictation.core.model.SttRequest(pcm = FloatArray(1), wavBytes = byteArrayOf(1), model = \"small\", language = \"en\")) },"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the server engine is not called while the dictation is built",
+    "the server engine runs on the take worker and never on the calling thread",
+    "the probe dials the stored address and a reachable answer sends an automatic take to the server engine",
+    "the key is read on every call so a new session reaches the next take"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-10",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/BreakerCompositionRoot.kt",
+     "anchor": "            serverEngine = serverEngineFactory(serverUrl, serverApiKey),",
+     "replacement": "            serverEngine = serverEngineFactory(serverUrl, serverApiKey).let { inner -> object : dev.breaker.dictation.core.port.SttEngine { override fun transcribe(request: dev.breaker.dictation.core.model.SttRequest): dev.breaker.dictation.core.model.SttResult = inner.transcribe(request).let { r -> if (r is dev.breaker.dictation.core.model.SttResult.Failure) dev.breaker.dictation.core.model.SttResult.Success(\"\") else r } } },"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an http address is refused by the server engine with its own sentence and no connection is made",
+    "the default root with no session answers the engine's key sentence and makes no connection",
+    "server mode with no address fails with the engine's address sentence"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-11",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/build.gradle.kts",
+     "anchor": "    implementation(project(\":android:modules:stt-server\"))",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the composition root text gate"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-12",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/BreakerCompositionRoot.kt",
+     "anchor": "                serverUrlProvider = serverUrl,",
+     "replacement": "                serverUrlProvider = { settingsStore.load().serverUrl.trim() },"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the composition root text gate"
+   ],
+   "rule": "",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "android/app",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/BreakerCompositionRoot.kt",
+     "anchor": "    private val serverApiKey: () -> String? = { sessionToken() }",
+     "replacement": "    private val serverApiKey: () -> String? = { \"stand-in-token\" }"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "android/app",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/BreakerCompositionRoot.kt",
+     "anchor": "private val NO_SESSION: () -> String? = { null }",
+     "replacement": "private val NO_SESSION: () -> String? = { null } // unchanged behaviour"
+    }
+   ]
+  }
+ ]
+}
