@@ -37,7 +37,6 @@ internal fun Route.transcriptionRoutes(
 ) {
     post("/v1/audio/transcriptions") {
         var readAudio: ByteArray? = null
-        var readModel: String? = null
         var tooLarge = false
 
         try {
@@ -49,7 +48,7 @@ internal fun Route.transcriptionRoutes(
                         if (bytes.size > MAX_AUDIO_BYTES) tooLarge = true else readAudio = bytes
                     }
                     part is PartData.FormItem && part.name == "model" -> {
-                        readModel = part.value
+                        // accept and ignore: the configured downstream model serves every job
                     }
                     part is PartData.FormItem && part.name == "language" -> {
                         // accept and ignore (not stored yet)
@@ -67,7 +66,6 @@ internal fun Route.transcriptionRoutes(
         // Read the collected fields once: the lambda above writes these vars, so they cannot be
         // smart-cast to non-null afterwards; the vals below can.
         val audio = readAudio
-        val model = readModel
 
         when {
             tooLarge -> {
@@ -75,9 +73,6 @@ internal fun Route.transcriptionRoutes(
             }
             audio == null || audio.isEmpty() -> {
                 respondError(call, HttpStatusCode.BadRequest, "the file part is required")
-            }
-            model == null || model.isBlank() -> {
-                respondError(call, HttpStatusCode.BadRequest, "the model part is required")
             }
             else -> {
                 val jobId = store.enqueue(OWNER_ACCOUNT_ID, audio)
