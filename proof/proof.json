@@ -1,0 +1,265 @@
+{
+ "name": "proof-mic-take-hold",
+ "tip": {
+  "tree": "7864bba7f014306ceeb68346a3e489d2190864b7"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "a microphone take that arrives while a begin is pending is held until the begin settles",
+   "base_tree": "7e05ad11eaad182a1ee85d8da423b6a32cb732e7",
+   "item_tip_tree": "7864bba7f014306ceeb68346a3e489d2190864b7",
+   "new_production_classes": [
+    "MicTakeHold"
+   ],
+   "test_fixtures_overlaid": []
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "red-a-01",
+   "kind": "red",
+   "item": "a",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateRules.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateRules.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.gates.AppLayoutGateTest"
+   ],
+   "patch": "proof/red/red-a-01.patch",
+   "tree": "b43f96cf39b7ed92de7067634617c75ca124e47e",
+   "predict": ""
+  },
+  {
+   "id": "red-a-02",
+   "kind": "red",
+   "item": "a",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileCoordinatorYieldSendRaceTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/TileCoordinatorYieldSendRaceTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.wiring.TileCoordinatorYieldSendRaceTest"
+   ],
+   "patch": "proof/red/red-a-02.patch",
+   "tree": "d0419ffea8aa20dd148840bdc48e6c85b4fdcd55",
+   "predict": "RED: tests 1 to 6 fail on main (the yield starts at once; the send race; a stale take replays)"
+  },
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "if (beginPending) { micTakeHold.onMicTakenWhilePending(); return }",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a send is refused while the microphone yield runs",
+    "a mic take during a pending begin starts the yield only after the begin settles",
+    "a taken begin drops the held mic take with no second yield",
+    "a failed begin shows the sentence and does not replay",
+    "cancel while a begin is pending drops the held take",
+    "disarm while a begin is pending drops the held take"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "is BeginResult.Refused -> { fail(result.sentence); micTakeHold.replayIfHeld() }",
+     "replacement": "is BeginResult.Refused -> { fail(result.sentence) }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a send is refused while the microphone yield runs"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "is BeginResult.Taken -> { micTakeHold.clear(); yield.beginRefusedAsTaken() }",
+     "replacement": "is BeginResult.Taken -> { yield.beginRefusedAsTaken() }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a taken begin drops the held mic take with no second yield"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "is BeginResult.Failed -> { micTakeHold.clear(); yield.onBeginFailed(); fail(result.sentence) }",
+     "replacement": "is BeginResult.Failed -> { yield.onBeginFailed(); fail(result.sentence) }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a failed begin shows the sentence and does not replay"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "micTakeHold.clear()\n        yield.disarmCleared()",
+     "replacement": "yield.disarmCleared()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "disarm while a begin is pending drops the held take"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "if (!armed || yield.yieldRunning()) return\n        micTakeHold.clear()",
+     "replacement": "if (!armed || yield.yieldRunning()) return"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "cancel while a begin is pending drops the held take"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "if (beginPending) { micTakeHold.onMicTakenWhilePending(); return }",
+     "replacement": "if (beginPending) { sendPushed = true; yield.onTakeMicTaken(); return }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a send is refused while the microphone yield runs",
+    "a mic take during a pending begin starts the yield only after the begin settles",
+    "a taken begin drops the held mic take with no second yield",
+    "a failed begin shows the sentence and does not replay",
+    "cancel while a begin is pending drops the held take",
+    "disarm while a begin is pending drops the held take"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "is BeginResult.Recording -> { yield.onBeginAccepted(); push(); micTakeHold.replayIfHeld() }",
+     "replacement": "is BeginResult.Recording -> { yield.onBeginAccepted(); push() }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a mic take during a pending begin starts the yield only after the begin settles"
+   ],
+   "rule": "",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "android/app",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "if (beginPending) { micTakeHold.onMicTakenWhilePending(); return }",
+     "replacement": ""
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "android/app",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileCoordinator.kt",
+     "anchor": "private val micTakeHold = MicTakeHold { sendPushed = true; yield.onTakeMicTaken() }",
+     "replacement": "private val micTakeHold = MicTakeHold { sendPushed = true; yield.onTakeMicTaken() } // unchanged behaviour"
+    }
+   ]
+  }
+ ]
+}
