@@ -48,4 +48,12 @@ internal class HomeSentencesTest {
         assertFalse("app: home: no off means the tap is not blocked", switch.isUserSwitchedOff())
         assertSame("app: the stored-off check armAtStart uses must arm", StartResult.Started, switch.armAtStart())
     }
+
+    @Test
+    fun `the failed function answers the engine sentence unchanged`() {
+        val lines: OutcomeLines = HomeSentences.lines
+        assertTrue("settle: home lines exposes a failed function", lines.failed != null)
+        assertEquals("settle: home failed returns its argument for the key sentence", "The server key is not set.", lines.failed?.invoke("The server key is not set."))
+        assertEquals("settle: home failed returns its argument for the address sentence", "The server address is not set.", lines.failed?.invoke("The server address is not set."))
+    }
 }

@@ -1,6 +1,7 @@
 package dev.breaker.dictation.wiring
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
@@ -35,5 +36,10 @@ internal class DeviceFailureSentencesTest {
         assertEquals(DeviceFailureSentences.NOTHING_HEARD, lines.blank)
         assertEquals(DeviceFailureSentences.LEAD, lines.noAudio)
         assertEquals(DeviceFailureSentences.NOT_CONVERTED, lines.notConverted)
+    }
+
+    @Test
+    fun `device failure lines expose no failed function`() {
+        assertNull("settle: device failure lines must not set `failed`", DeviceFailureSentences.lines.failed)
     }
 }
