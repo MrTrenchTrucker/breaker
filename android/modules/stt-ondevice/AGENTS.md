@@ -300,6 +300,9 @@ it.
 - `DownloadPolicyContractTest` reads the real model registry against the default `DownloadLimits`:
   every registry address must be https on a first-hop host, and every entry must fit under the
   default size cap.
+- `DownloadLimitsSchemeTest` covers `isHttpsScheme` and the scheme guard in
+  `DownloadLimits.isAllowed`: the long-s look-alike `http\u017F` is refused, ASCII `https` in any
+  letter case is accepted, and `http`, `httpss` and `ftp` are refused.
 - The unpack tests are `EntryRulesTest`, `BoundedStreamTest`, `ExtractionProfilesTest` (pins each
   profile against the listing of the real archive), `ModelExtractorTest`,
   `ModelExtractorRefusalTest`, `ModelExtractorBoundsTest`, `ModelExtractorCrashTest`,

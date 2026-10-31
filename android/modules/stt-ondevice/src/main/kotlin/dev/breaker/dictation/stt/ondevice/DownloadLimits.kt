@@ -49,7 +49,7 @@ data class DownloadLimits(
     internal fun isAllowed(url: URI, hopIndex: Int): Boolean {
         val scheme = url.scheme
         if (scheme == null) return false
-        if (!scheme.equals("https", ignoreCase = true)) return false
+        if (!isHttpsScheme(scheme)) return false
         val host = url.host
         if (host == null) return false
         val lowerHost = host.lowercase()
@@ -61,3 +61,5 @@ data class DownloadLimits(
         return port == 443
     }
 }
+
+internal fun isHttpsScheme(scheme: String): Boolean = scheme.length == 5 && scheme.lowercase() == "https"
