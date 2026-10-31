@@ -1,0 +1,49 @@
+# Failing-first runs and mutants for a batch, from proof/proof.json (see proof/run.py).
+# Carried only on dev/proof-* branches, which are deleted once their batch merges; it never
+# enters a batch branch or main. Read-only token, no secrets, no pull_request trigger.
+name: proof
+
+on:
+  push:
+    branches: ["dev/proof-**"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: proof-${{ github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    name: Shards
+    if: github.server_url == 'https://github.com'
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: m
+        run: python3 proof/run.py --matrix >> "$GITHUB_OUTPUT"
+
+  run:
+    name: Shard ${{ matrix.shard }}
+    needs: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Gradle wrapper is the published one
+        uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: gradle
+      - name: Android SDK platform 36
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0" > /dev/null
+      - name: Baseline, controls, mutants and failing-first runs
+        run: python3 proof/run.py --shard ${{ matrix.shard }}

@@ -1,0 +1,287 @@
+{
+ "name": "proof-https-scheme-lookalike",
+ "tip": {
+  "tree": "7e05ad11eaad182a1ee85d8da423b6a32cb732e7"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "https scheme check: look-alike letters in the server address and the model download policy",
+   "base_tree": "d5b01b2b34165d740c91ee76a06b06962bd91e9c",
+   "item_tip_tree": "7e05ad11eaad182a1ee85d8da423b6a32cb732e7",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [],
+   "red_tree_stubs": {
+    "files": [
+     "DownloadLimits.kt"
+    ],
+    "note": "signature-only: the helper this item adds is declared at the end of the download policy file with the base behaviour (equals ignoring case), so the scheme test file compiles on main and fails on its own assertion"
+   }
+  },
+  {
+   "item": "b",
+   "title": "bearer scheme word on the logout and token revoke routes: a look-alike spelling stays refused",
+   "base_tree": "d5b01b2b34165d740c91ee76a06b06962bd91e9c",
+   "item_tip_tree": "7e05ad11eaad182a1ee85d8da423b6a32cb732e7",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [],
+   "red_not_run": "the two bearer route test files pass on main by design (the route already refuses a look-alike scheme word); their red legs are not run, and the mutants below are what prove they can fail."
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "red-a-01",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/stt-ondevice",
+   "file": "android/modules/stt-ondevice/src/test/kotlin/dev/breaker/dictation/stt/ondevice/DownloadLimitsSchemeTest.kt",
+   "files": [
+    "android/modules/stt-ondevice/src/test/kotlin/dev/breaker/dictation/stt/ondevice/DownloadLimitsSchemeTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.stt.ondevice.DownloadLimitsSchemeTest"
+   ],
+   "patch": "proof/red/red-a-01.patch",
+   "tree": "88011df38a10036ff1b2da976813109f1e65a098",
+   "predict": "RED: one test (the long-s https look-alike scheme is refused) fails on main with the stubbed helper, the other five pass"
+  },
+  {
+   "id": "red-a-02",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/stt-server",
+   "file": "android/modules/stt-server/src/test/kotlin/dev/breaker/dictation/stt/server/ServerEndpointSchemeTest.kt",
+   "files": [
+    "android/modules/stt-server/src/test/kotlin/dev/breaker/dictation/stt/server/ServerEndpointSchemeTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.stt.server.ServerEndpointSchemeTest"
+   ],
+   "patch": "proof/red/red-a-02.patch",
+   "tree": "20d1c839e5c05de786ba79ceeac16deb0eb73359",
+   "predict": "RED: one test (a long-s https look-alike is refused with the https sentence) fails on main, the other six pass"
+  },
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/stt-server",
+   "edits": [
+    {
+     "file": "android/modules/stt-server/src/main/kotlin/dev/breaker/dictation/stt/server/ServerEndpoint.kt",
+     "anchor": "if (head.length < HTTPS_PREFIX.length || head.any { it.code > 0x7F } || head.lowercase() != HTTPS_PREFIX) {",
+     "replacement": "if (!head.regionMatches(0, HTTPS_PREFIX, 0, HTTPS_PREFIX.length, ignoreCase = true)) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a long-s https look-alike is refused with the https sentence"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/stt-server",
+   "edits": [
+    {
+     "file": "android/modules/stt-server/src/main/kotlin/dev/breaker/dictation/stt/server/ServerEndpoint.kt",
+     "anchor": "head.lowercase() != HTTPS_PREFIX",
+     "replacement": "head != HTTPS_PREFIX"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a real https address is accepted whatever the case of its scheme"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/stt-server",
+   "edits": [
+    {
+     "file": "android/modules/stt-server/src/main/kotlin/dev/breaker/dictation/stt/server/ServerEndpoint.kt",
+     "anchor": "head.any { it.code > 0x7F }",
+     "replacement": "base.any { it.code > 0x7F }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a non-ASCII host is outside the scheme guard and is accepted"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/stt-ondevice",
+   "edits": [
+    {
+     "file": "android/modules/stt-ondevice/src/main/kotlin/dev/breaker/dictation/stt/ondevice/DownloadLimits.kt",
+     "anchor": "scheme.length == 5 && scheme.lowercase() == \"https\"",
+     "replacement": "scheme.equals(\"https\", ignoreCase = true)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the long-s https look-alike scheme is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/stt-ondevice",
+   "edits": [
+    {
+     "file": "android/modules/stt-ondevice/src/main/kotlin/dev/breaker/dictation/stt/ondevice/DownloadLimits.kt",
+     "anchor": "scheme.lowercase() == \"https\"",
+     "replacement": "scheme == \"https\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a real https scheme is accepted in any ASCII case"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthLogoutRoute.kt",
+     "anchor": "if (!header.substring(0, separator).equals(BEARER_SCHEME, ignoreCase = true)) return null",
+     "replacement": "if (false) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a Cyrillic Bearer look-alike is refused with 401 and leaves the token live"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthLogoutRoute.kt",
+     "anchor": "ignoreCase = true",
+     "replacement": "ignoreCase = false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the ASCII Bearer scheme is accepted in any case and logs out"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/admin/AdminRevokeAgentTokenRoute.kt",
+     "anchor": "if (!scheme.equals(\"bearer\", ignoreCase = true)) return \"\"",
+     "replacement": "if (false) return \"\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a Cyrillic Bearer look-alike is refused with 401 and leaves the agent token live"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "b",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/admin/AdminRevokeAgentTokenRoute.kt",
+     "anchor": "ignoreCase = true",
+     "replacement": "ignoreCase = false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the ASCII bearer scheme is accepted in any case and revokes"
+   ],
+   "rule": "",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "android/modules/stt-ondevice",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "android/modules/stt-ondevice/src/main/kotlin/dev/breaker/dictation/stt/ondevice/DownloadLimits.kt",
+     "anchor": "if (!isHttpsScheme(scheme)) return false",
+     "replacement": "if (false) return false"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "android/modules/stt-server",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "android/modules/stt-server/src/main/kotlin/dev/breaker/dictation/stt/server/ServerEndpoint.kt",
+     "anchor": "private const val HTTPS_PREFIX = \"https://\"",
+     "replacement": "private const val HTTPS_PREFIX = \"https://\" // unchanged behaviour"
+    }
+   ]
+  }
+ ]
+}

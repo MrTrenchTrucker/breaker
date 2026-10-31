@@ -1,0 +1,320 @@
+diff --git a/android/modules/stt-ondevice/AGENTS.md b/android/modules/stt-ondevice/AGENTS.md
+index abfd2c6c..1bb9e5cb 100644
+--- a/android/modules/stt-ondevice/AGENTS.md
++++ b/android/modules/stt-ondevice/AGENTS.md
+@@ -300,9 +300,6 @@ it.
+ - `DownloadPolicyContractTest` reads the real model registry against the default `DownloadLimits`:
+   every registry address must be https on a first-hop host, and every entry must fit under the
+   default size cap.
+-- `DownloadLimitsSchemeTest` covers `isHttpsScheme` and the scheme guard in
+-  `DownloadLimits.isAllowed`: the long-s look-alike `http\u017F` is refused, ASCII `https` in any
+-  letter case is accepted, and `http`, `httpss` and `ftp` are refused.
+ - The unpack tests are `EntryRulesTest`, `BoundedStreamTest`, `ExtractionProfilesTest` (pins each
+   profile against the listing of the real archive), `ModelExtractorTest`,
+   `ModelExtractorRefusalTest`, `ModelExtractorBoundsTest`, `ModelExtractorCrashTest`,
+diff --git a/android/modules/stt-ondevice/src/main/kotlin/dev/breaker/dictation/stt/ondevice/DownloadLimits.kt b/android/modules/stt-ondevice/src/main/kotlin/dev/breaker/dictation/stt/ondevice/DownloadLimits.kt
+index 6888fc9a..87c0c4b5 100644
+--- a/android/modules/stt-ondevice/src/main/kotlin/dev/breaker/dictation/stt/ondevice/DownloadLimits.kt
++++ b/android/modules/stt-ondevice/src/main/kotlin/dev/breaker/dictation/stt/ondevice/DownloadLimits.kt
+@@ -49,7 +49,7 @@ data class DownloadLimits(
+     internal fun isAllowed(url: URI, hopIndex: Int): Boolean {
+         val scheme = url.scheme
+         if (scheme == null) return false
+-        if (!isHttpsScheme(scheme)) return false
++        if (!scheme.equals("https", ignoreCase = true)) return false
+         val host = url.host
+         if (host == null) return false
+         val lowerHost = host.lowercase()
+@@ -62,4 +62,4 @@ data class DownloadLimits(
+     }
+ }
+ 
+-internal fun isHttpsScheme(scheme: String): Boolean = scheme.length == 5 && scheme.lowercase() == "https"
++internal fun isHttpsScheme(scheme: String): Boolean = scheme.equals("https", ignoreCase = true)
+diff --git a/android/modules/stt-ondevice/src/test/kotlin/dev/breaker/dictation/stt/ondevice/DownloadLimitsSchemeTest.kt b/android/modules/stt-ondevice/src/test/kotlin/dev/breaker/dictation/stt/ondevice/DownloadLimitsSchemeTest.kt
+deleted file mode 100644
+index 64ad8b85..00000000
+--- a/android/modules/stt-ondevice/src/test/kotlin/dev/breaker/dictation/stt/ondevice/DownloadLimitsSchemeTest.kt
++++ /dev/null
+@@ -1,63 +0,0 @@
+-package dev.breaker.dictation.stt.ondevice
+-
+-import java.net.URI
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertTrue
+-import org.junit.Test
+-
+-/**
+- * Scheme-only tests for [isHttpsScheme] and [DownloadLimits.isAllowed] -- the https
+- * look-alike guard.
+- *
+- * The scheme word must be plain ASCII "https" (length 5, case-insensitive). A
+- * long-s look-alike such as "http\u017F" (U+017F uppercases to S) must be refused,
+- * while "HTTPS" and "https" are accepted.
+- *
+- * On the BASE code (before the isHttpsScheme helper existed) these tests do not
+- * compile; after the fix they are GREEN.
+- */
+-class DownloadLimitsSchemeTest {
+-
+-    private val limits = DownloadLimits()
+-
+-    // ---------- isHttpsScheme directly ----------
+-
+-    @Test
+-    fun `the long-s https look-alike scheme is refused`() {
+-        // \u017F (long s) uppercases to S, so a case-insensitive equals would
+-        // wrongly accept it. isHttpsScheme rejects it outright.
+-        assertFalse("isHttpsScheme must refuse a long-s look-alike", isHttpsScheme("http\u017F"))
+-    }
+-
+-    @Test
+-    fun `a real https scheme is accepted in any ASCII case`() {
+-        assertTrue("isHttpsScheme accepts lowercase", isHttpsScheme("https"))
+-        assertTrue("isHttpsScheme accepts uppercase", isHttpsScheme("HTTPS"))
+-        assertTrue("isHttpsScheme accepts mixed case", isHttpsScheme("Https"))
+-    }
+-
+-    @Test
+-    fun `a scheme that is not exactly https is refused`() {
+-        assertFalse("isHttpsScheme refuses http", isHttpsScheme("http"))
+-        assertFalse("isHttpsScheme refuses httpss", isHttpsScheme("httpss"))
+-        assertFalse("isHttpsScheme refuses ftp", isHttpsScheme("ftp"))
+-    }
+-
+-    // ---------- isAllowed through DownloadLimits (mirrors DownloadPolicyContractTest) ----------
+-
+-    @Test
+-    fun `an upper-case HTTPS scheme is accepted as the first request`() {
+-        assertTrue(
+-            "policy: upper-case HTTPS on the first hop",
+-            limits.isAllowed(URI("HTTPS://api.github.com/x"), 0),
+-        )
+-    }
+-
+-    @Test
+-    fun `a plain http scheme on a first-hop host is refused`() {
+-        assertFalse(
+-            "policy: http must be refused even on an allowed host",
+-            limits.isAllowed(URI("http://api.github.com/x"), 0),
+-        )
+-    }
+-}
+diff --git a/android/modules/stt-server/src/main/kotlin/dev/breaker/dictation/stt/server/ServerEndpoint.kt b/android/modules/stt-server/src/main/kotlin/dev/breaker/dictation/stt/server/ServerEndpoint.kt
+index 248f0935..530cb2e3 100644
+--- a/android/modules/stt-server/src/main/kotlin/dev/breaker/dictation/stt/server/ServerEndpoint.kt
++++ b/android/modules/stt-server/src/main/kotlin/dev/breaker/dictation/stt/server/ServerEndpoint.kt
+@@ -18,8 +18,7 @@ internal object ServerEndpoint {
+     fun addressProblem(base: String?): String? {
+         if (base == null || base.isBlank()) return FailureSentences.NO_ADDRESS
+         if (base.any { it == ' ' || Character.isISOControl(it) }) return FailureSentences.ADDRESS_NOT_HTTPS
+-        val head = base.take(HTTPS_PREFIX.length)
+-        if (head.length < HTTPS_PREFIX.length || head.any { it.code > 0x7F } || head.lowercase() != HTTPS_PREFIX) {
++        if (!base.regionMatches(0, HTTPS_PREFIX, 0, HTTPS_PREFIX.length, ignoreCase = true)) {
+             return FailureSentences.ADDRESS_NOT_HTTPS
+         }
+         val authority = base.substring(HTTPS_PREFIX.length).substringBefore('/')
+diff --git a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/admin/AdminRevokeAgentTokenRouteSchemeTest.kt b/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/admin/AdminRevokeAgentTokenRouteSchemeTest.kt
+deleted file mode 100644
+index b426ddf7..00000000
+--- a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/admin/AdminRevokeAgentTokenRouteSchemeTest.kt
++++ /dev/null
+@@ -1,97 +0,0 @@
+-package dev.breaker.server.syncapi.admin
+-
+-import dev.breaker.server.syncapi.accounts.AccountFixtures
+-import dev.breaker.server.syncapi.db.TempDatabase
+-import dev.breaker.server.syncapi.db.TempDatabaseTest
+-import dev.breaker.server.syncapi.tokens.AgentScope
+-import dev.breaker.server.syncapi.tokens.IssuedToken
+-import dev.breaker.server.syncapi.tokens.TokenFixtures
+-import dev.breaker.server.syncapi.tokens.TokenStore
+-import io.ktor.client.request.delete
+-import io.ktor.client.request.header
+-import io.ktor.client.statement.bodyAsText
+-import io.ktor.http.HttpStatusCode
+-import io.ktor.server.testing.testApplication
+-import kotlinx.coroutines.runBlocking
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertTrue
+-import org.junit.Before
+-import org.junit.Test
+-
+-/**
+- * Scheme-only tests for [adminRevokeAgentTokenRoute] -- `DELETE /v1/admin/agent-tokens/{id}`.
+- *
+- * The bearer scheme word is case-insensitive, but it must be the ASCII word
+- * "bearer" -- a Cyrillic look-alike such as "B\u0435\u0430r\u0435r" is NOT a match and is
+- * refused with 401, so the agent token stays live.
+- */
+-internal class AdminRevokeAgentTokenRouteSchemeTest : TempDatabaseTest() {
+-
+-    private lateinit var temp: TempDatabase
+-    private lateinit var tokenStore: TokenStore
+-
+-    @Before
+-    fun setUp() {
+-        temp = openTemp()
+-        tokenStore = TokenFixtures.tokenStore(temp, AccountFixtures.fixedClock)
+-    }
+-
+-    // ---------- helpers (copied verbatim from AdminRevokeAgentTokenRouteTest) ----------
+-
+-    private fun register(name: String, seed: Int) = TokenFixtures.register(temp, name, seed)
+-
+-    private fun session(accountId: Long): IssuedToken = TokenFixtures.issuedOf(runBlocking { tokenStore.issueSession(accountId) })
+-
+-    private fun agent(accountId: Long, scope: AgentScope = AgentScope.TRANSCRIBE): IssuedToken =
+-        TokenFixtures.issuedOf(runBlocking { tokenStore.issueAgent(accountId, scope, "agent-label", null) })
+-
+-
+-    private fun resolves(token: IssuedToken): Boolean =
+-        runBlocking { tokenStore.resolve(token.secret.reveal()) } != null
+-
+-    // ---------- Authorization scheme parsing ----------
+-
+-    @Test
+-    fun `a Cyrillic Bearer look-alike is refused with 401 and leaves the agent token live`() = runBlocking<Unit> {
+-        val admin = register("alice", 1)
+-        val adminSession = session(admin.accountId)
+-        val target = agent(admin.accountId)
+-        assertTrue("the agent token must resolve before the refused call", resolves(target))
+-
+-        // "B\u0435\u0430r\u0435r" with Cyrillic e (U+0435) and a (U+0430) -- looks like "Bearer"
+-        // but equals("bearer", ignoreCase = true) is false.
+-        val lookalike = "B\u0435\u0430r\u0435r ${adminSession.secret.reveal()}"
+-
+-        testApplication {
+-            application { adminRevokeAgentTokenRoute(tokenStore) }
+-            val response = client.delete("/v1/admin/agent-tokens/${target.tokenId}") {
+-                header("Authorization", lookalike)
+-            }
+-            assertEquals("a Cyrillic look-alike scheme must be refused", HttpStatusCode.Unauthorized, response.status)
+-            assertEquals("the 401 body is fixed", UNAUTHORIZED_BODY, response.bodyAsText())
+-        }
+-
+-        assertTrue("a refused call must not revoke the agent token", resolves(target))
+-    }
+-
+-    @Test
+-    fun `the ASCII bearer scheme is accepted in any case and revokes`() = runBlocking<Unit> {
+-        val admin = register("alice", 1)
+-        val adminSession = session(admin.accountId)
+-        val token = adminSession.secret.reveal()
+-
+-        testApplication {
+-            application { adminRevokeAgentTokenRoute(tokenStore) }
+-            for (scheme in listOf("bearer", "Bearer", "BEARER")) {
+-                val target = agent(admin.accountId)
+-                assertTrue("the agent token must resolve before scheme '$scheme'", resolves(target))
+-                val response = client.delete("/v1/admin/agent-tokens/${target.tokenId}") {
+-                    header("Authorization", "$scheme $token")
+-                }
+-                assertEquals("scheme '$scheme' must be accepted", HttpStatusCode.NoContent, response.status)
+-                assertFalse("the agent token must be revoked after scheme '$scheme'", resolves(target))
+-            }
+-        }
+-    }
+-}
+diff --git a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/auth/AuthLogoutRouteSchemeTest.kt b/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/auth/AuthLogoutRouteSchemeTest.kt
+deleted file mode 100644
+index f0eaaa97..00000000
+--- a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/auth/AuthLogoutRouteSchemeTest.kt
++++ /dev/null
+@@ -1,95 +0,0 @@
+-package dev.breaker.server.syncapi.auth
+-
+-import dev.breaker.server.syncapi.accounts.AccountFixtures
+-import dev.breaker.server.syncapi.db.TempDatabase
+-import dev.breaker.server.syncapi.db.TempDatabaseTest
+-import dev.breaker.server.syncapi.tokens.IssuedToken
+-import dev.breaker.server.syncapi.tokens.TokenFixtures
+-import dev.breaker.server.syncapi.tokens.TokenStore
+-import io.ktor.client.request.header
+-import io.ktor.client.request.post
+-import io.ktor.client.statement.bodyAsText
+-import io.ktor.http.HttpStatusCode
+-import io.ktor.server.testing.testApplication
+-import kotlinx.coroutines.runBlocking
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertFalse
+-import org.junit.Assert.assertTrue
+-import org.junit.Before
+-import org.junit.Test
+-
+-/**
+- * Scheme-only tests for [authLogoutRoute] -- `POST /v1/auth/logout`.
+- *
+- * The bearer scheme word is case-insensitive (RFC 6750), but it must be the
+- * ASCII word "Bearer" -- a Cyrillic look-alike such as "B\u0435\u0430r\u0435r" (B + U+0435 + U+0430
+- * + r + U+0435 + r) is NOT a match and is refused with 401, so the live token
+- * survives.
+- */
+-internal class AuthLogoutRouteSchemeTest : TempDatabaseTest() {
+-
+-    private lateinit var temp: TempDatabase
+-    private lateinit var tokenStore: TokenStore
+-
+-    @Before
+-    fun setUp() {
+-        temp = openTemp()
+-        tokenStore = TokenFixtures.tokenStore(temp, AccountFixtures.fixedClock)
+-    }
+-
+-    // ---------- helpers (copied verbatim from AuthLogoutRouteTest) ----------
+-
+-    private fun register(name: String = "alice", seed: Int = 1) =
+-        TokenFixtures.register(temp, name, seed)
+-
+-    private fun session(accountId: Long): IssuedToken = TokenFixtures.issuedOf(runBlocking { tokenStore.issueSession(accountId) })
+-
+-
+-    private fun resolves(token: IssuedToken): Boolean =
+-        runBlocking { tokenStore.resolve(token.secret.reveal()) } != null
+-
+-    // ---------- Authorization scheme parsing ----------
+-
+-    @Test
+-    fun `a Cyrillic Bearer look-alike is refused with 401 and leaves the token live`() = runBlocking<Unit> {
+-        val account = register()
+-        val token = session(account.accountId)
+-        assertTrue("a fresh session token must resolve before the refused call", resolves(token))
+-
+-        // "B\u0435\u0430r\u0435r" with Cyrillic e (U+0435) and a (U+0430) -- looks like "Bearer"
+-        // but equals("Bearer", ignoreCase = true) is false.
+-        val lookalike = "B\u0435\u0430r\u0435r ${token.secret.reveal()}"
+-
+-        testApplication {
+-            application { authLogoutRoute(tokenStore) }
+-            val response = client.post("/v1/auth/logout") {
+-                header("Authorization", lookalike)
+-            }
+-            assertEquals("a Cyrillic look-alike scheme must be refused", HttpStatusCode.Unauthorized, response.status)
+-            assertEquals("the 401 body is fixed", UNAUTHORIZED_BODY, response.bodyAsText())
+-        }
+-
+-        assertTrue("a refused call must not revoke the live token", resolves(token))
+-    }
+-
+-    @Test
+-    fun `the ASCII Bearer scheme is accepted in any case and logs out`() = runBlocking<Unit> {
+-        val account = register()
+-
+-        for (scheme in listOf("Bearer", "bearer", "BEARER")) {
+-            val token = session(account.accountId)
+-            testApplication {
+-                application { authLogoutRoute(tokenStore) }
+-                val response = client.post("/v1/auth/logout") {
+-                    header("Authorization", "$scheme ${token.secret.reveal()}")
+-                }
+-                assertEquals("scheme '$scheme' must be accepted", HttpStatusCode.NoContent, response.status)
+-            }
+-            assertFalse("the token of scheme '$scheme' must be revoked", resolves(token))
+-        }
+-    }
+-
+-    private companion object {
+-        const val UNAUTHORIZED_BODY = """{"error":"unauthorized","message":"Invalid or missing token"}"""
+-    }
+-}
