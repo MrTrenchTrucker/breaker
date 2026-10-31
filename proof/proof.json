@@ -1,0 +1,148 @@
+{
+ "name": "proof-home-mic-engine-sentence",
+ "tip": {
+  "tree": "4dd1739c49cea4e8f426f4ec7323368e3d8c579c"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "app: the Home mic shows the engine's own sentence for a failed take",
+   "base_tree": "f1de918d5bca013dab4eb84ee0a5e0fca12fa689",
+   "item_tip_tree": "4dd1739c49cea4e8f426f4ec7323368e3d8c579c",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [],
+   "red_not_run": "the new tests use a constructor parameter and a member (failed) that do not exist on main, so every one of them fails to compile there and no red leg is run. The mutants and the two controls carry the proof."
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TakeSettle.kt",
+     "anchor": "        finished is FinishResult.Failed && finished.sentence != EMPTY_TAKE_SENTENCE -> lines.failed?.invoke(finished.sentence) ?: lines.notConverted",
+     "replacement": "        finished is FinishResult.Failed && finished.sentence != EMPTY_TAKE_SENTENCE -> lines.notConverted"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a take set to show the engine sentence answers that sentence for a failure",
+    "a Home take that fails with an engine sentence settles with exactly that line"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/HomeSentences.kt",
+     "anchor": "        failed = { sentence -> sentence },",
+     "replacement": "        failed = { _ -> \"x\" },"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the failed function answers the engine sentence unchanged",
+    "a Home take that fails with an engine sentence settles with exactly that line"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TakeSettle.kt",
+     "anchor": "        finished is FinishResult.Failed && finished.sentence == EMPTY_TAKE_SENTENCE -> lines.noAudio",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "with that probe the empty take sentence still answers the no-audio line and a missing result still answers the not-converted line"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/DeviceFailureSentences.kt",
+     "anchor": "    val lines: OutcomeLines = OutcomeLines(SAVED_AND_COPIED, COPIED_NOT_SAVED, NOTHING_HEARD, LEAD, NOT_CONVERTED)",
+     "replacement": "    val lines: OutcomeLines = OutcomeLines(SAVED_AND_COPIED, COPIED_NOT_SAVED, NOTHING_HEARD, LEAD, NOT_CONVERTED, failed = { it })"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "device failure lines expose no failed function"
+   ],
+   "rule": "",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "android/app",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/TakeSettle.kt",
+     "anchor": "        finished is FinishResult.Failed && finished.sentence != EMPTY_TAKE_SENTENCE -> lines.failed?.invoke(finished.sentence) ?: lines.notConverted",
+     "replacement": "        finished is FinishResult.Failed && finished.sentence != EMPTY_TAKE_SENTENCE -> lines.notConverted"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "android/app",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/HomeSentences.kt",
+     "anchor": "        failed = { sentence -> sentence },",
+     "replacement": "        failed = { sentence -> sentence }, // unchanged behaviour"
+    }
+   ]
+  }
+ ]
+}
