@@ -70,7 +70,7 @@ card = "android/modules/transport/AGENTS.md"
 path = "android/modules/format"
 owns = "Whisper Flow-style formatting: server LLM + rule-based local formatter."
 does_not_own = "The LLM itself (server); prompts live in shared/format-prompts."
-depends_on = ["android", "android_core", "shared_format_prompts"]
+depends_on = ["android", "android_core", "shared_format_prompts", "android_http"]
 public = "Formatter"
 card = "android/modules/format/AGENTS.md"
 
