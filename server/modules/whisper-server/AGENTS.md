@@ -10,7 +10,7 @@ Do NOT build a new transcription engine — this module never runs Whisper
 itself; it queues, shapes the contract, and proxies.
 
 **API (contract in `shared/api-contracts`):**
-- `POST /v1/audio/transcriptions` — multipart `file` (WAV/MP3/OGG), `model`,
+- `POST /v1/audio/transcriptions` — multipart `file` (WAV/MP3/OGG), optional `model` (ignored),
   `language` → `202 { job_id, status: "queued" }`
 - `GET /v1/jobs/{job_id}` → `{ status: queued|processing|done|failed, result:
   { text, segments[], language } | null }`
@@ -186,18 +186,18 @@ agents, not required: an outside contributor may write the code themselves
   `http/TranscriptionApi.kt` (`TranscriptionApi(store, wakeWorker).install(app)`), the module's
   public entry point. The runnable entry point ships here; the engine is CIO, and tests use
   `embeddedServer`.
-- `POST /v1/audio/transcriptions` takes a multipart `file` part and a `model` part, both required;
-  an optional `language` part is accepted and ignored. It enqueues a job and answers
+- `POST /v1/audio/transcriptions` takes a multipart `file` part (required); optional `model` and
+  `language` parts are accepted and ignored. It enqueues a job and answers
   `202 { job_id, status: "queued" }`, then wakes the worker.
 - The upload cap is 25 MiB (`MAX_AUDIO_BYTES`), the OpenAI audio-transcriptions limit this
   OpenAI-shaped front follows. It is enforced while the part is read (a counted read plus Ktor's
   form-field limit), never by reading the whole body first; over the cap is `413`.
-- A missing or empty `file` part is `400`; a missing or blank `model` part is `400`.
+- A missing or empty `file` part is `400`; a missing or blank `model` part is accepted and ignored.
 - `GET /v1/jobs/{job_id}` answers `{ status, result }` for a known id and `404` for an unknown one;
   a `failed` job also carries the stored `error`. Results stay fetchable for the result window
   (see Result retention above).
-- **Honest limits of this slice:** the `model` part is required but not stored (there is no column;
-  the configured downstream model serves every job); the `language` part is not stored; there is no
+- **Honest limits of this slice:** the `model` part is optional and ignored (the forwarder sends the
+  configured downstream model for every job); the `language` part is not stored; there is no
   auth yet, so every job is enqueued under one owner constant (`OWNER_ACCOUNT_ID`) until `sync-api`
   lands; no audio-format check is done (the downstream service decides).
 - `json/Json.kt` holds the one shared `escapeJsonString`, used by both the forwarder and the HTTP

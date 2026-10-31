@@ -139,22 +139,24 @@ internal class TranscriptionRoutesTest {
     }
 
     @Test
-    fun `a request without a model part is rejected with 400`() {
+    fun `a request without a model part is accepted with 202 and a queued job`() {
         val store = openStore()
         withTranscriptionApi(store) { client ->
             val response = client.postAudio(multipartBody(file = JobFixtures.audio(1), model = null))
-            assertEquals(400, response.status.value)
-            assertEquals("{\"error\":\"the model part is required\"}", response.bodyAsText())
+            assertEquals(202, response.status.value)
+            assertEquals("{\"job_id\":1,\"status\":\"queued\"}", response.bodyAsText())
+            assertEquals(JobStatus.QUEUED, store.get(1)?.status)
         }
     }
 
     @Test
-    fun `a request with a blank model part is rejected with 400`() {
+    fun `a request with a blank model part is accepted with 202 and a queued job`() {
         val store = openStore()
         withTranscriptionApi(store) { client ->
             val response = client.postAudio(multipartBody(file = JobFixtures.audio(1), model = "   "))
-            assertEquals(400, response.status.value)
-            assertEquals("{\"error\":\"the model part is required\"}", response.bodyAsText())
+            assertEquals(202, response.status.value)
+            assertEquals("{\"job_id\":1,\"status\":\"queued\"}", response.bodyAsText())
+            assertEquals(JobStatus.QUEUED, store.get(1)?.status)
         }
     }
 
