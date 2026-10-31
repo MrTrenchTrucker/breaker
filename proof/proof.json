@@ -1,0 +1,199 @@
+{
+ "name": "proof-whisper-contract-fix",
+ "tip": {
+  "tree": "174d8c2677505cda733b84b7c4af33ecf818b339"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "whisper-server: the queued answer carries job_id as a string and every done answer carries language",
+   "base_tree": "792f052494bfcf6149f95487cdc23a844f1b980d",
+   "item_tip_tree": "174d8c2677505cda733b84b7c4af33ecf818b339",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": []
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "red-a-01",
+   "kind": "red",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "file": "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/WhisperServerTest.kt",
+   "files": [
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/WhisperServerTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.whisper.WhisperServerTest"
+   ],
+   "patch": "proof/red/red-a-01.patch",
+   "tree": "e72fef8a1655d08d0ff8aaabf0fa8d42ae6f4cd6",
+   "predict": "RED on base: the end to end enqueue test expects a quoted id"
+  },
+  {
+   "id": "red-a-02",
+   "kind": "red",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "file": "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutesTest.kt",
+   "files": [
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutesTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.whisper.http.TranscriptionRoutesTest"
+   ],
+   "patch": "proof/red/red-a-02.patch",
+   "tree": "c46189d18d2de71bfd831da7b9212d186ac6af3c",
+   "predict": "RED on base: the four route tests that pin the queued body expect a quoted id"
+  },
+  {
+   "id": "red-a-03",
+   "kind": "red",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "file": "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/worker/HttpTranscriptionForwarderTest.kt",
+   "files": [
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/worker/HttpTranscriptionForwarderTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.whisper.worker.HttpTranscriptionForwarderTest"
+   ],
+   "patch": "proof/red/red-a-03.patch",
+   "tree": "c3febfbc9219b7d05081a90802db550b4a02590a",
+   "predict": "RED on base: the seven forwarder tests with no downstream language expect an empty language key"
+  },
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutes.kt",
+     "anchor": "                call.respondText(\"{\\\"job_id\\\":\\\"$jobId\\\",\\\"status\\\":\\\"queued\\\"}\", ContentType.Application.Json, HttpStatusCode.Accepted)",
+     "replacement": "                call.respondText(\"{\\\"job_id\\\":$jobId,\\\"status\\\":\\\"queued\\\"}\", ContentType.Application.Json, HttpStatusCode.Accepted)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every route test that pins the queued body",
+    "the server answers 202 with a queued job id as a string"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/worker/HttpTranscriptionForwarder.kt",
+     "anchor": "            append(escapeJsonString(parsed.language ?: \"\"))",
+     "replacement": "            append(escapeJsonString(parsed.language ?: \"und\"))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every forwarder test whose downstream body has no language"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/worker/HttpTranscriptionForwarder.kt",
+     "anchor": "            append(\",\\\"language\\\":\")",
+     "replacement": "            if (parsed.language != null) append(\",\\\"language\\\":\")"
+    },
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/worker/HttpTranscriptionForwarder.kt",
+     "anchor": "            append(escapeJsonString(parsed.language ?: \"\"))",
+     "replacement": "            parsed.language?.let { append(escapeJsonString(it)) }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every forwarder test whose downstream body has no language"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/worker/HttpTranscriptionForwarder.kt",
+     "anchor": "            append(escapeJsonString(parsed.language ?: \"\"))",
+     "replacement": "            append(escapeJsonString(\"\"))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every forwarder test whose downstream body has a language"
+   ],
+   "rule": "",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "server/modules/whisper-server",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutes.kt",
+     "anchor": "                call.respondText(\"{\\\"job_id\\\":\\\"$jobId\\\",\\\"status\\\":\\\"queued\\\"}\", ContentType.Application.Json, HttpStatusCode.Accepted)",
+     "replacement": "                call.respondText(\"{\\\"job_id\\\":$jobId,\\\"status\\\":\\\"queued\\\"}\", ContentType.Application.Json, HttpStatusCode.Accepted)"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "server/modules/whisper-server",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutes.kt",
+     "anchor": "                call.respondText(\"{\\\"job_id\\\":\\\"$jobId\\\",\\\"status\\\":\\\"queued\\\"}\", ContentType.Application.Json, HttpStatusCode.Accepted)",
+     "replacement": "                call.respondText(\"{\\\"job_id\\\":\\\"$jobId\\\",\\\"status\\\":\\\"queued\\\"}\", ContentType.Application.Json, HttpStatusCode.Accepted) // unchanged behaviour"
+    }
+   ]
+  }
+ ]
+}
