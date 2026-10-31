@@ -142,10 +142,8 @@ class HttpTranscriptionForwarder(
                 append("}")
             }
             append("]")
-            parsed.language?.let { lang ->
-                append(",\"language\":")
-                append(escapeJsonString(lang))
-            }
+            append(",\"language\":")
+            append(escapeJsonString(parsed.language ?: ""))
             append("}")
         }
         return ForwardOutcome.Success(resultJson)

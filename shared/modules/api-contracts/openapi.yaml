@@ -1020,7 +1020,7 @@ components:
           description: The individual segments of the transcription
         language:
           type: string
-          description: The detected or specified language
+          description: The detected or specified language; empty when the service reported none
     Segment:
       type: object
       required:

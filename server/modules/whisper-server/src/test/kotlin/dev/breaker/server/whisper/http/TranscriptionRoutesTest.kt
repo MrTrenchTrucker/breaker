@@ -61,7 +61,7 @@ internal class TranscriptionRoutesTest {
         withTranscriptionApi(store) { client ->
             val response = client.postAudio(multipartBody(file = JobFixtures.audio(1), model = "m"))
             assertEquals(202, response.status.value)
-            assertEquals("{\"job_id\":1,\"status\":\"queued\"}", response.bodyAsText())
+            assertEquals("{\"job_id\":\"1\",\"status\":\"queued\"}", response.bodyAsText())
             assertEquals(JobStatus.QUEUED, store.get(1)?.status)
         }
     }
@@ -96,7 +96,7 @@ internal class TranscriptionRoutesTest {
                 multipartBody(file = JobFixtures.audio(1), model = "m", extra = "foo" to "bar"),
             )
             assertEquals(202, response.status.value)
-            assertEquals("{\"job_id\":1,\"status\":\"queued\"}", response.bodyAsText())
+            assertEquals("{\"job_id\":\"1\",\"status\":\"queued\"}", response.bodyAsText())
             assertEquals(JobStatus.QUEUED, store.get(1)?.status)
         }
     }
@@ -144,7 +144,7 @@ internal class TranscriptionRoutesTest {
         withTranscriptionApi(store) { client ->
             val response = client.postAudio(multipartBody(file = JobFixtures.audio(1), model = null))
             assertEquals(202, response.status.value)
-            assertEquals("{\"job_id\":1,\"status\":\"queued\"}", response.bodyAsText())
+            assertEquals("{\"job_id\":\"1\",\"status\":\"queued\"}", response.bodyAsText())
             assertEquals(JobStatus.QUEUED, store.get(1)?.status)
         }
     }
@@ -155,7 +155,7 @@ internal class TranscriptionRoutesTest {
         withTranscriptionApi(store) { client ->
             val response = client.postAudio(multipartBody(file = JobFixtures.audio(1), model = "   "))
             assertEquals(202, response.status.value)
-            assertEquals("{\"job_id\":1,\"status\":\"queued\"}", response.bodyAsText())
+            assertEquals("{\"job_id\":\"1\",\"status\":\"queued\"}", response.bodyAsText())
             assertEquals(JobStatus.QUEUED, store.get(1)?.status)
         }
     }

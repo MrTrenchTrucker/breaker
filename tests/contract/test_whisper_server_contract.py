@@ -96,6 +96,30 @@ class ServerModulesWhisperServerContractTest(contract_support.ModuleContractTest
             f"whisper-server contract: only the file part is required, got {schema['required']!r}"
         )
 
+    def test_job_accepted_job_id_is_a_string(self):
+        """the enqueue answer carries job_id as a JSON string, the type the schema names.
+
+        whisper-server writes the id quoted and the phone client reads a string, so the schema
+        must not describe a number.
+        """
+        spec = _load_openapi()
+        job_id = spec["components"]["schemas"]["JobAccepted"]["properties"]["job_id"]
+        assert job_id["type"] == "string", (
+            f"whisper-server contract: job_id must be a string, got {job_id['type']!r}"
+        )
+
+    def test_transcription_result_language_may_be_empty(self):
+        """the done answer always carries language; it is the empty string when none was reported.
+
+        The server writes the key on every done answer, so the contract field says when it is empty.
+        """
+        spec = _load_openapi()
+        language = spec["components"]["schemas"]["TranscriptionResult"]["properties"]["language"]
+        assert "empty when the service reported none" in language["description"], (
+            "whisper-server contract: the language description must say it is empty when the "
+            "service reported none"
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -77,7 +77,7 @@ internal fun Route.transcriptionRoutes(
             else -> {
                 val jobId = store.enqueue(OWNER_ACCOUNT_ID, audio)
                 wakeWorker()
-                call.respondText("{\"job_id\":$jobId,\"status\":\"queued\"}", ContentType.Application.Json, HttpStatusCode.Accepted)
+                call.respondText("{\"job_id\":\"$jobId\",\"status\":\"queued\"}", ContentType.Application.Json, HttpStatusCode.Accepted)
             }
         }
     }

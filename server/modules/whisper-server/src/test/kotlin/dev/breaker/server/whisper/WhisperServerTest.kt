@@ -100,7 +100,7 @@ internal class WhisperServerTest {
 
         val response = client.send(request, HttpResponse.BodyHandlers.ofString())
         assertEquals(202, response.statusCode())
-        assertTrue(response.body().contains("\"job_id\":1"))
+        assertTrue(response.body().contains("\"job_id\":\"1\""))
         assertEquals(JobStatus.QUEUED, store.get(1)?.status)
 
         server.stop(1000, 5000)
