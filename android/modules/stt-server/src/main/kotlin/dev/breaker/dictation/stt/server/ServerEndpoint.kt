@@ -18,7 +18,8 @@ internal object ServerEndpoint {
     fun addressProblem(base: String?): String? {
         if (base == null || base.isBlank()) return FailureSentences.NO_ADDRESS
         if (base.any { it == ' ' || Character.isISOControl(it) }) return FailureSentences.ADDRESS_NOT_HTTPS
-        if (!base.regionMatches(0, HTTPS_PREFIX, 0, HTTPS_PREFIX.length, ignoreCase = true)) {
+        val head = base.take(HTTPS_PREFIX.length)
+        if (head.length < HTTPS_PREFIX.length || head.any { it.code > 0x7F } || head.lowercase() != HTTPS_PREFIX) {
             return FailureSentences.ADDRESS_NOT_HTTPS
         }
         val authority = base.substring(HTTPS_PREFIX.length).substringBefore('/')
