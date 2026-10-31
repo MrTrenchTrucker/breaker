@@ -153,5 +153,4 @@ agents, not required: an outside contributor may write the code themselves
   - the certificate state of the real server. The module trusts the platform
     only, with no pinning and no custom CA, so the real certificate has not
     been checked;
-  - an end-to-end dictation on a phone. The app does not use this engine yet;
-    wiring it is a separate change.
+  - an end-to-end dictation on a phone. The app uses this engine through its composition root (in automatic mode only when the probe answers, in server mode always); an end-to-end run on a phone is not verified yet.

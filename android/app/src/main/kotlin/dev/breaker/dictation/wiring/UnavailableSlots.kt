@@ -8,9 +8,6 @@ import dev.breaker.dictation.core.model.SttRequest
 import dev.breaker.dictation.core.model.SttResult
 import dev.breaker.dictation.core.port.SttEngine
 
-/** What the server slot tells the user while no server engine is installed. */
-const val SERVER_UNAVAILABLE_DETAIL: String = "Server transcription is not available yet."
-
 /** What the microphone slot says when it is asked to open. */
 const val MIC_UNAVAILABLE_MESSAGE: String = "The microphone is not available yet."
 

@@ -119,10 +119,7 @@ the requests live in ui's screen.
 These are the main parts still not built in the app; the Known Gotchas section
 of `AGENTS.md` lists the smaller open items.
 
-- The server speech engine. Its slot holds a stand-in that answers with a plain
-  failure sentence and never a success: "Server transcription is not available
-  yet." (`SERVER_UNAVAILABLE_DETAIL` in `wiring/UnavailableSlots.kt`, wired at
-  `BreakerCompositionRoot.kt` `serverEngine = UnavailableSttEngine(`). The
+- The sign-in session. The server engine is wired to the real engine, but it needs a signed-in session before it can reach a server: until sign-in plugs one in, the key is not set, the engine says so, and nothing is sent.
   on-device engine with its recognizer, its model store and the download are
   built; the recognizer has run on a phone in test builds.
 - The spoken phrases. The phrases module detects the wake and send phrases in
@@ -141,8 +138,7 @@ and the on/off switch on Home (with the switch in
 the cases not yet checked on a device are in the "Not verified" section of this
 README and the Known Gotchas section of `AGENTS.md`.
 
-The server formatter slot holds the on-device rule-based formatter, and the
-server path is not reached while the server engine slot fails.
+The server formatter slot holds the on-device rule-based formatter. The server engine sends nothing before a signed-in session is plugged in (see the sign-in bullet above).
 
 ## Running the tests
 
