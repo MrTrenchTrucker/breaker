@@ -47,7 +47,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/JobAccepted"
               example:
-                job_id: "job-12345"
+                job_id: "12345"
                 status: "queued"
         "401":
           description: Unauthorized
@@ -82,7 +82,7 @@ paths:
           required: true
           schema:
             type: string
-          description: The job ID returned when the job was created
+          description: The job ID returned when the job was created; an opaque string the client echoes back unchanged and never parses (the server emits an opaque numeric-ish id).
       responses:
         "200":
           description: Job status and result (if done)
@@ -112,14 +112,17 @@ paths:
                 error: "unauthorized"
                 message: "Invalid or missing token"
         "404":
-          description: Job not found
+          description: Job not found — the job_id is unknown, non-numeric, or its result has passed its TTL
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              # NOTE (pre-existing shape mismatch, out of scope for this slice and NOT fixed here): the
+              # server's real 404 body is the single-field object {"error":"unknown or expired"} with no
+              # `message`, so it does not match the two-field Error schema above. Flagged, not restructured.
               example:
-                error: "not_found"
-                message: "Job does not exist"
+                error: "unknown or expired"
+                message: "The job id is unknown, or its result has passed its retention window"
   /v1/auth/register:
     post:
       summary: Register a new account

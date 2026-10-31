@@ -32,9 +32,9 @@ itself; it queues, shapes the contract, and proxies.
   concurrent callers (multiple users, plus any agent tokens per F27) from
   hammering the downstream engine at once — that is the reason this module
   exists as its own container instead of as a patch to Whisper X (F23).
-- Health: `GET /health` → `{ status: "ok", forwarding_to: "...", uptime }`.
+- Health: `GET /health` → `{ status: "ok", forwarding_to: "...", uptime }`, unauthenticated. `uptime` is the running time rendered as `HhMmSs` (for example `1h2m3s`), measured from a monotonic clock (`System.nanoTime`), so a wall-clock step cannot change it. `forwarding_to` is the configured downstream reduced to scheme + host + port only (no path, userinfo, query or fragment, any of which can carry a token); it is the literal `unparseable` when the URL is not http or https, has no host, or has a port that is not 1-65535. Both values are computed once at startup by `buildTranscriptionApi`.
 
-**Build phase:** Phase 4; it can start right after Phase 0. The token checks come with `sync-api` (Phase 11) and sealing results to the owner in Phase 20. Needs first: `api-contracts`.
+**Build phase:** Phase 4; it can start right after Phase 0. The token checks and owner sealing land with `sync-api` (Phase 19/20, not built). Needs first: `api-contracts`.
 
 ## Invariants
 - Correct JSON for a known test WAV (golden transcript match).
@@ -81,19 +81,18 @@ Separately, when the requester was an agent token, this module looks up the
 owning account's box public key (the token already carries an owner
 account, ADR-009). **If the account has no box public key** — pre-Phase-19
 and never yet logged in, or mid-reset (ADR-018) — no sealed copy is made and
-nothing is sent to `sync-api`'s pending-sealed store; the agent's own
+nothing is sent to sync-api (Phase 19/20, not built); the agent's own
 `GET /v1/jobs/{job_id}` read is unaffected either way, so nothing about F27
 breaks for that job. If the account does have a box public key, this module
 seals a copy of the plaintext result to it with **libsodium
 `crypto_box_seal`** (a libsodium JVM binding — no Tink; ADR-018), then
-forwards the sealed copy to `sync-api`'s pending-sealed store. This is a
-server-internal call, not part of the public API surface. Before Phase
+forwards the sealed copy to sync-api (Phase 19/20, not built). Before Phase
 19/20 ship, no account has a box public key yet, so agent-token results are
 simply not sealed — that lands with the rest of ADR-018, not before, and the
 same no-key rule above is what covers it, not a separate phase check.
 
 ## Owns
-/v1/audio/transcriptions + FIFO queue worker + job API, forwarding to the admin-configured service, and (for agent-token jobs whose owner has a box public key) sealing a copy of the completed result to that key and forwarding it to sync-api's pending-sealed store (ADR-018).
+/v1/audio/transcriptions + FIFO queue worker + job API, forwarding to the admin-configured service, and (for agent-token jobs whose owner has a box public key) sealing a copy of the completed result to that key for the sync-api pending-sealed store (Phase 19/20, not built) (ADR-018).
 
 ## Public Interface
 TranscriptionApi, QueueWorker
@@ -101,7 +100,6 @@ TranscriptionApi, QueueWorker
 ## Depends On
 - server (registered in modules.toml)
 - shared_api_contracts (registered in modules.toml)
-- server_sync_api (registered in modules.toml)
 
 ## Does Not Own
 - The configured transcription service itself
@@ -155,10 +153,56 @@ agents, not required: an outside contributor may write the code themselves
   — it never replaces the plaintext result the requester itself polls for
   (ADR-015's job contract is unchanged, ADR-018).
 - Sealing is unauthenticated by construction (`crypto_box_seal`): this module
-  trusts whatever `box_pubkey` `sync-api` hands back. It is not a defense
+  trusts whatever `box_pubkey` sync-api (Phase 19/20, not built) hands back. It is not a defense
   against an attacker who can already write that row, and the pending-sealed
   store it forwards to is only as trustworthy as whoever can write to it —
   a forged row there converts into an ordinary-looking transcription on the
   owner's next login, with no review (T26, ADR-018).
 - An owner account with no box public key yet gets no sealed copy, not a
   dropped job and not a plaintext one — see the Owner sealed-box step above.
+- A job-store failure never ends the worker: each store call goes through one retry helper that
+  pauses and tries again, a failed complete or fail is held and re-sent, and a cancelled worker still
+  stops at once. The one place this module logs is a single `java.util.logging` line in
+  `worker/QueueWorker.kt` for such a failure, carrying only the operation, the job id and the
+  exception class name — never the exception message, the audio or the result. `SourceScanTest`
+  allows `Logger` in that one file only (it is still reported in every other main file) and
+  `QueueWorkerLoggingTest` pins what the line may contain. Reason: a store failure that stalls the
+  queue without a trace is worse than one minimal line.
+
+## Forwarder contract
+- A forwarder must bound its own call: it must not make an unbounded HTTP request.
+  The worker's retry logic assumes each forward completes in a reasonable time.
+- The stored error text is bounded at 500 characters (JobPolicy.ERROR_TEXT_LIMIT).
+  The worker applies .take(ERROR_TEXT_LIMIT) to the full formatted failure string.
+- The forwarder is `HttpTranscriptionForwarder`. It makes ONE attempt per call and never retries
+  itself; the queue worker owns the retry schedule (3 attempts, 10 s apart).
+- It asks the downstream for `verbose_json` (`response_format=verbose_json`).
+- `TranscriptionResponse` reads a plain-text body as the text, with no segments and no language.
+- The request timeout defaults to 60 s and is admin-set (`DownstreamConfig.requestTimeout`); it
+  bounds how long a long audio upload may take, so a stuck downstream cannot hold the worker.
+- Failure messages are fixed strings: they never contain the downstream URL or the API key.
+- A 2xx answer whose content type is not JSON is refused before parsing, so the plain-text branch
+  of `TranscriptionResponse` is reached only by direct callers, never through the forwarder.
+
+## HTTP front
+
+- The two public routes live in `http/TranscriptionRoutes.kt` and are installed by
+  `http/TranscriptionApi.kt` (`TranscriptionApi(store, wakeWorker).install(app)`), the module's
+  public entry point. The runnable entry point ships here; the engine is CIO, and tests use
+  `embeddedServer`.
+- `POST /v1/audio/transcriptions` takes a multipart `file` part and a `model` part, both required;
+  an optional `language` part is accepted and ignored. It enqueues a job and answers
+  `202 { job_id, status: "queued" }`, then wakes the worker.
+- The upload cap is 25 MiB (`MAX_AUDIO_BYTES`), the OpenAI audio-transcriptions limit this
+  OpenAI-shaped front follows. It is enforced while the part is read (a counted read plus Ktor's
+  form-field limit), never by reading the whole body first; over the cap is `413`.
+- A missing or empty `file` part is `400`; a missing or blank `model` part is `400`.
+- `GET /v1/jobs/{job_id}` answers `{ status, result }` for a known id and `404` for an unknown one;
+  a `failed` job also carries the stored `error`. Fetch-once result deletion is the store's
+  (`JobStore.fetch`), unchanged.
+- **Honest limits of this slice:** the `model` part is required but not stored (there is no column;
+  the configured downstream model serves every job); the `language` part is not stored; there is no
+  auth yet, so every job is enqueued under one owner constant (`OWNER_ACCOUNT_ID`) until `sync-api`
+  lands; no audio-format check is done (the downstream service decides).
+- `json/Json.kt` holds the one shared `escapeJsonString`, used by both the forwarder and the HTTP
+  layer so the two cannot disagree about escaping.
