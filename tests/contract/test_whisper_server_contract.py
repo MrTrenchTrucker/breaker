@@ -81,6 +81,21 @@ class ServerModulesWhisperServerContractTest(contract_support.ModuleContractTest
             "whisper-server contract: the job_id parameter must say the client echoes it back unchanged"
         )
 
+    def test_transcription_request_requires_only_the_file_part(self):
+        """the transcription request schema requires only `file`; `model` and `language` are optional.
+
+        whisper-server accepts a missing or blank `model` part and ignores it (the forwarder sends
+        its configured downstream model), so the contract must not list `model` as required.
+        """
+        spec = _load_openapi()
+        schema = (
+            spec["paths"]["/v1/audio/transcriptions"]["post"]["requestBody"]["content"]
+            ["multipart/form-data"]["schema"]
+        )
+        assert schema["required"] == ["file"], (
+            f"whisper-server contract: only the file part is required, got {schema['required']!r}"
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
