@@ -96,6 +96,7 @@ server-side (T16).
 ## Depends On
 - android (registered in modules.toml)
 - android_core (registered in modules.toml)
+- shared_api_contracts (registered in modules.toml)
 
 ## Does Not Own
 - Key derivation (crypto)
