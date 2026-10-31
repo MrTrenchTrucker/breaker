@@ -1,0 +1,129 @@
+{
+ "name": "proof-username-vectors",
+ "tip": {
+  "tree": "f1de918d5bca013dab4eb84ee0a5e0fca12fa689"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "api-contracts: one table of usernames, checked by the server rule and by a stdlib oracle",
+   "base_tree": "10cebbd8424c63e0bd0ff7ae6d7a6f3563f5ee84",
+   "item_tip_tree": "f1de918d5bca013dab4eb84ee0a5e0fca12fa689",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [
+    "UsernameVectorData.kt"
+   ],
+   "red_not_run": "the new tests are pins over a rule that already behaves as the table says: they pass on main by design, so no red leg is run. The mutants and the two controls carry the proof; the python oracle test is a stdlib test run outside the Gradle rig."
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/UsernameRules.kt",
+     "anchor": "        if (name.length < 1 || name.length > MAX_LENGTH) {",
+     "replacement": "        if (name.length < 1 || name.length > MAX_LENGTH + 1) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every vector gets the answer the table gives (sixty-five-chars)"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/UsernameRules.kt",
+     "anchor": "                ch == '.' || ch == '_' || ch == '-'",
+     "replacement": "                ch == '_' || ch == '-'"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every vector gets the answer the table gives (dot-inside, only-dots)"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/UsernameRules.kt",
+     "anchor": "            val allowed = (ch in 'a'..'z') || (ch in 'A'..'Z') || (ch in '0'..'9') ||",
+     "replacement": "            val allowed = ch.isLetterOrDigit() ||"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every vector gets the answer the table gives (latin-e-acute, cyrillic-a, cjk, fullwidth-a)"
+   ],
+   "rule": "",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "server/modules/sync-api",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/UsernameRules.kt",
+     "anchor": "        if (name.length < 1 || name.length > MAX_LENGTH) {",
+     "replacement": "        if (name.length < 1 || name.length > MAX_LENGTH + 1) {"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "server/modules/sync-api",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/UsernameRules.kt",
+     "anchor": "        if (name.length < 1 || name.length > MAX_LENGTH) {",
+     "replacement": "        if (name.length < 1 || name.length > MAX_LENGTH) { // unchanged behaviour"
+    }
+   ]
+  }
+ ]
+}
