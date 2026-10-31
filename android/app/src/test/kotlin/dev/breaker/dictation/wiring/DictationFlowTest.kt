@@ -25,8 +25,9 @@ import org.junit.rules.TemporaryFolder
 
 /**
  * A dictation through the pieces the composition root builds: the real probe, the real on-device
- * engine over the root's own model folder, the fake committer handed to the root, the unavailable
- * server and microphone slots, the rule-based formatters and the real capture over a scripted microphone.
+ * engine over the root's own model folder, the fake committer handed to the root, the real server engine
+ * over the empty default address, the unavailable microphone slot, the rule-based formatters and the real
+ * capture over a scripted microphone.
  */
 class DictationFlowTest {
     @get:Rule
@@ -139,10 +140,10 @@ class DictationFlowTest {
     }
 
     @Test
-    fun `server mode fails with the server sentence`() {
+    fun `server mode with no address fails with the engine's address sentence`() {
         assertEquals(
-            "app: server mode should end at the server slot",
-            FinishResult.Failed(SERVER_UNAVAILABLE_DETAIL),
+            "app: server mode with no address should end at the server engine",
+            FinishResult.Failed("The server address is not set."),
             dictate(mode = SttMode.SERVER),
         )
     }

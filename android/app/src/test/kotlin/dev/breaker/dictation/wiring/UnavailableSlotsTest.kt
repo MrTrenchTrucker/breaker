@@ -22,7 +22,7 @@ import org.junit.Test
 
 class UnavailableSlotsTest {
     private val localSlot = UnavailableSttEngine(SttError.LOCAL_MODEL_MISSING, STAND_IN_LOCAL_DETAIL)
-    private val serverSlot = UnavailableSttEngine(SttError.OTHER, SERVER_UNAVAILABLE_DETAIL)
+    private val serverSlot = UnavailableSttEngine(SttError.OTHER, "Server transcription is not available yet.")
 
     private fun request(samples: Int = 160, model: String = "small") =
         SttRequest(pcm = FloatArray(samples) { 0.1f }, wavBytes = byteArrayOf(1), model = model, language = "en")
@@ -42,7 +42,6 @@ class UnavailableSlotsTest {
 
     @Test
     fun `the sentences the slots give are the plain words the user is shown`() {
-        assertEquals("app: the server slot sentence changed", "Server transcription is not available yet.", SERVER_UNAVAILABLE_DETAIL)
         assertEquals("app: the microphone slot sentence changed", "The microphone is not available yet.", MIC_UNAVAILABLE_MESSAGE)
     }
 
@@ -56,7 +55,7 @@ class UnavailableSlotsTest {
             )
             assertEquals(
                 "app: the server slot should answer its own failure for any request",
-                SttResult.Failure(SttError.OTHER, SERVER_UNAVAILABLE_DETAIL),
+                SttResult.Failure(SttError.OTHER, "Server transcription is not available yet."),
                 serverSlot.transcribe(asked),
             )
         }
@@ -93,7 +92,7 @@ class UnavailableSlotsTest {
         assertTrue("app: a server dictation over the slot should fail, got $result", result is DictationResult.Failure)
         val failure = result as DictationResult.Failure
         assertEquals("app: the server slot error should be OTHER", SttError.OTHER, failure.error)
-        assertEquals("app: the failure should carry the server slot's sentence", SERVER_UNAVAILABLE_DETAIL, failure.detail)
+        assertEquals("app: the failure should carry the server slot's sentence", "Server transcription is not available yet.", failure.detail)
         assertEquals("app: a server dictation must not reach the on-device engine", 0, local.calls)
     }
 

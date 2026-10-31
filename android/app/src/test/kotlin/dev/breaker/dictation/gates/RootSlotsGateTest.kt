@@ -15,7 +15,7 @@ import org.junit.Test
  * the parameter the app hands in, the microphone from its swap function and the recognizer from its swap value, and the file
  * names no placeholder for them; the encoder is the 16-bit encoder; the on-device engine slot is the
  * on-device engine over the root's own model store and no placeholder engine stands in for it; the
- * server engine slot is the unavailable engine with the other error. Each rule holds on the real file, is broken by at least two edited samples,
+ * server engine slot is the real engine the factory builds over the stored address and the session seam. Each rule holds on the real file, is broken by at least two edited samples,
  * and stays quiet on harmless edits; a sample whose target text is missing fails by name, so it
  * cannot go quiet by a typo.
  */
@@ -40,7 +40,6 @@ internal class RootSlotsGateTest {
     private fun bound(slot: String, value: String): String = """\b$slot\s*=\s*$value(?=\s*[,)])"""
 
     private val ruleBased: String = """RuleBasedFormatter\s*\(\s*\)"""
-    private val unavailableEngine: String = """UnavailableSttEngine\s*\(\s*SttError\s*\.\s*"""
 
     private val rules: List<Rule> = listOf(
         Rule("LOCAL_FORMATTER_IS_RULE_BASED") { has(it, bound("localFormatter", ruleBased)) },
@@ -69,8 +68,8 @@ internal class RootSlotsGateTest {
         Rule("NO_PLACEHOLDER_LOCAL_ENGINE") {
             !has(it, """\bUnavailableSttEngine\s*\(\s*SttError\s*\.\s*LOCAL_MODEL_MISSING\b""")
         },
-        Rule("SERVER_ENGINE_IS_OTHER") {
-            has(it, bound("serverEngine", """${unavailableEngine}OTHER\s*,\s*SERVER_UNAVAILABLE_DETAIL\s*\)"""))
+        Rule("SERVER_ENGINE_IS_THE_FACTORY") {
+            has(it, bound("serverEngine", """\bserverEngineFactory\s*\(\s*serverUrl\s*,\s*serverApiKey\s*\)"""))
         },
     )
 
@@ -84,6 +83,7 @@ internal class RootSlotsGateTest {
     private val encoderLine = "wavEncoder = Pcm16WavEncoder()"
     private val lazyOpen = "val dictation: DictationComponent by lazy {"
     private val helperFun = "private fun neverArmedController()"
+    private val serverEngineLine = "serverEngine = serverEngineFactory(serverUrl, serverApiKey),"
 
     /** Per rule: edits (old to new) that must break it. */
     private val firing: Map<String, List<Pair<String, String>>> = mapOf(
@@ -162,13 +162,14 @@ internal class RootSlotsGateTest {
         ),
         "NO_PLACEHOLDER_LOCAL_ENGINE" to listOf(
             engineLine to "localEngine = UnavailableSttEngine(SttError.LOCAL_MODEL_MISSING, \"x\")",
-            "serverEngine = UnavailableSttEngine(SttError.OTHER" to "serverEngine = UnavailableSttEngine(SttError.LOCAL_MODEL_MISSING",
+            serverEngineLine to "serverEngine = UnavailableSttEngine(SttError.LOCAL_MODEL_MISSING, \"x\"),",
             "ids = UuidIdSource()" to "ids = UuidIdSource(), spare = UnavailableSttEngine(SttError.LOCAL_MODEL_MISSING, d)",
         ),
-        "SERVER_ENGINE_IS_OTHER" to listOf(
-            "SttError.OTHER" to "SttError.LOCAL_MODEL_MISSING",
-            "serverEngine = UnavailableSttEngine(" to "serverEngine = FakeSttEngine(",
-            "SERVER_UNAVAILABLE_DETAIL)" to "MIC_UNAVAILABLE_MESSAGE)",
+        "SERVER_ENGINE_IS_THE_FACTORY" to listOf(
+            serverEngineLine to "serverEngine = serverEngineFactory(serverApiKey, serverUrl),",
+            serverEngineLine to "serverEngine = serverEngineFactory(serverUrl, { null }),",
+            serverEngineLine to "serverEngine = UnavailableSttEngine(SttError.OTHER, \"x\"),",
+            serverEngineLine to "",
         ),
     )
 
@@ -185,6 +186,7 @@ internal class RootSlotsGateTest {
         storeLine to "val modelStore: LocalModelStore =\n        LocalModelStore(",
         "factory = RECOGNIZER_FACTORY" to "factory =\n                RECOGNIZER_FACTORY",
         engineLine to "localEngine = OnDeviceSttEngine(\n                ModelLoader(store = modelStore, factory = RECOGNIZER_FACTORY),\n            )",
+        serverEngineLine to "serverEngine =\n            serverEngineFactory(serverUrl, serverApiKey),",
     )
 
     private fun realCode(): String = AppSourceFiles.strip(AppSourceFiles.mainFile(rootPath)).code

@@ -73,6 +73,7 @@ dependencies {
     implementation(project(":android:ui"))
     implementation(project(":android:modules:overlay"))
     implementation(project(":android:modules:stt-ondevice"))
+    implementation(project(":android:modules:stt-server"))
     implementation(project(":shared:modules:ui-tokens"))
     implementation(project(":shared:modules:model-registry"))
     implementation(project(":android:modules:commit"))

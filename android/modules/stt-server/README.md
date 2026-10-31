@@ -13,8 +13,7 @@ container directly.
     val result = engine.transcribe(request)
 
 The app passes two providers, read once per call: the base address (https only)
-and the API key. The module reads no settings and no storage. The app does not
-use this engine yet; wiring it is a separate change.
+and the API key. The module reads no settings and no storage. The app uses this engine through its composition root (in automatic mode only when the probe answers, in server mode always).
 
 ## What a call does
 

@@ -203,12 +203,12 @@ class DictationComponentTest {
 
     @Test
     fun `with the server engine out and formatting on, a server dictation fails and the server formatter is never reached`() {
-        val slot = UnavailableSttEngine(SttError.OTHER, SERVER_UNAVAILABLE_DETAIL)
+        val slot = UnavailableSttEngine(SttError.OTHER, "Server transcription is not available yet.")
         val built = Built(mode = SttMode.SERVER, serverEngine = slot)
         built.listen()
         assertEquals(
             "app: a server dictation over the unavailable slot should carry the slot's sentence",
-            FinishResult.Failed(SERVER_UNAVAILABLE_DETAIL),
+            FinishResult.Failed("Server transcription is not available yet."),
             built.runner.finish(),
         )
         assertEquals("app: the server formatter must not be reached while the server engine fails", 0, built.serverFormatter.calls)
