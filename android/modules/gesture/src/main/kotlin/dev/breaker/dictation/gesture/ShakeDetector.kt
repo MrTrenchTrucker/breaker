@@ -60,20 +60,40 @@ internal class ShakeDetector private constructor(
     }
 
     /**
-     * Begin accepting samples. While stopped, [feed] ignores every sample; the detection
-     * state itself is kept, so starting again resumes from where the detector left off.
+     * Begin accepting samples from a clean filter: [resetFilterState] runs first, so any
+     * state left from an earlier run - the low-pass term, the previous-magnitude
+     * bookkeeping, the last timestamp, the cooldown, and the crossing list - is cleared.
+     * While stopped, [feed] ignores every sample.
      */
     fun start() {
+        resetFilterState()
         started = true
     }
 
     /**
-     * Stop accepting samples. The detection state is kept and not cleared: a later
-     * [start] resumes from it, and a break longer than [LARGE_GAP_MS] resets state via
-     * the gap rule on the first sample fed after the break.
+     * Stop accepting samples and clear the detection state: [resetFilterState] runs, so a
+     * later [start] begins fresh rather than resuming. The low-pass term, the
+     * previous-magnitude bookkeeping, the last timestamp, the cooldown, and the crossing
+     * list are all returned to their initial values.
      */
     fun stop() {
+        resetFilterState()
         started = false
+    }
+
+    /**
+     * Return every detection field to its initial value: the low-pass term back to one g,
+     * the previous-magnitude bookkeeping and cooldown cleared, and the crossing list
+     * emptied. Called by both [start] and [stop] so a run never resumes across one.
+     */
+    private fun resetFilterState() {
+        lpMag = 1.0
+        prevMag = null
+        prevAbove = false
+        lastMag = 0.0
+        lastTimestamp = null
+        coolUntil = null
+        crossings.clear()
     }
 
     /**
@@ -81,6 +101,12 @@ internal class ShakeDetector private constructor(
      * While stopped every sample is ignored entirely: no state changes occur.
      *
      * Sample rules (all timestamps are [Sample.timestampMs]):
+     * - a sample whose magnitude is not finite (NaN, +Inf, -Inf) is dropped from the
+     *   filter and the crossing list only: it leaves the low-pass term and the crossings
+     *   unchanged, but its timestamp still advances the last-accepted timestamp and is
+     *   measured by the gap rule below, which can still reset the detection state; a finite
+     *   magnitude is capped at [MAX_SAMPLE_G] so one extreme reading cannot drive the
+     *   low-pass term far enough to blind the filter;
      * - a timestamp not increasing past the last accepted one is ignored outright;
      * - a gap larger than [LARGE_GAP_MS] resets all detection state, and that sample
      *   then consumes no detection of its own;
@@ -117,7 +143,12 @@ internal class ShakeDetector private constructor(
             return
         }
 
-        val mag = sampleMagnitude(sample)
+        val magRaw = sampleMagnitude(sample)
+        // A non-finite magnitude (NaN, +Inf, -Inf) is dropped outright: one bad reading
+        // would otherwise poison the low-pass term for good. Checked on the raw magnitude,
+        // before the cap below.
+        if (!magRaw.isFinite()) return
+        val mag = minOf(magRaw, MAX_SAMPLE_G)
         lastMag = mag
 
         // First sample (or the one right after a reset): seed the low-pass term.
@@ -170,7 +201,7 @@ internal class ShakeDetector private constructor(
     private fun sampleMagnitude(sample: Sample): Double {
         val sum = (sample.x * sample.x + sample.y * sample.y + sample.z * sample.z).toDouble()
         val m = sqrt(sum) / gravity
-        return if (m < 0.0) 0.0 else m
+        return m
     }
 
     /**
@@ -196,6 +227,13 @@ internal class ShakeDetector private constructor(
         /** The filtered (high-pass) magnitude threshold, in g's, that counts as a
          * positive-going crossing. */
         const val THRESHOLD_G = 0.65
+
+        /**
+         * Cap, in g, on a single finite sample magnitude: `2 * (THRESHOLD_G + the 1.0 g
+         * crossing point)`. One extreme-but-finite reading is held to this so it cannot
+         * drive the low-pass term far enough to blind the detector for a magnitude-scaled
+         * window. Non-finite magnitudes are dropped before this cap is applied. */
+        const val MAX_SAMPLE_G = 3.3
 
         /** Number of positive-high crossings required inside the window to declare a shake. */
         const val CROSSING_COUNT = 3

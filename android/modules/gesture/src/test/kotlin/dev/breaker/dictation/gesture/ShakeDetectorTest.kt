@@ -10,6 +10,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
@@ -445,5 +446,194 @@ class ShakeDetectorTest {
         out += spike(t0 + spacing_ms, rate_hz) // second at t0 + spacing
         out += rest_run(200.0, rate_hz, t0 + spacing_ms + 15.0)
         return out
+    }
+
+    // ---- Robustness: non-finite and extreme samples, and start/stop state reset ----
+
+    /** Feed [first] at t=0, then a real shake offset 500 ms past it; return the fire count. */
+    private fun firesAfter(first: ShakeDetector.Sample): Long {
+        var count = 0L
+        ShakeDetector.create { count++ }.let { det ->
+            det.start()
+            det.feed(first)
+            for (s in shake(50)) det.feed(ShakeDetector.Sample(s.x, s.y, s.z, s.timestampMs + 500L))
+        }
+        return count
+    }
+
+    /** Pump every sample of [samples] into [det]. */
+    private fun pump(det: ShakeDetector, samples: List<ShakeDetector.Sample>) {
+        for (s in samples) det.feed(s)
+    }
+
+    /** One positive-going crossing: a rest prefix settles the filter to baseline, then a
+     *  three-sample spike lifts the filtered term above threshold exactly once. */
+    private fun oneCrossing(t0: Double): List<ShakeDetector.Sample> {
+        val out = ArrayList<ShakeDetector.Sample>()
+        out += rest_run(100.0, 200, t0)
+        out += spike(t0 + 110.0, 200)
+        return out
+    }
+
+    /** A NaN component makes the sample magnitude non-finite; it must be dropped, not
+     *  disable the detector, so a following real shake still fires once. */
+    @Test fun nan_sample_dropped_shake_still_fires() =
+        assertEquals("a NaN-magnitude sample must be dropped, not disable the detector", 1L, firesAfter(ShakeDetector.Sample(Float.NaN, 0f, 0f, 0L)))
+
+    /** Twin of the NaN pin for a positive-infinite component. */
+    @Test fun pos_inf_sample_dropped_shake_still_fires() =
+        assertEquals("a positive-infinite sample magnitude must be dropped, not disable the detector", 1L, firesAfter(ShakeDetector.Sample(Float.POSITIVE_INFINITY, 0f, 0f, 0L)))
+
+    /** Twin of the NaN pin for a negative-infinite component (its square is +Inf). */
+    @Test fun neg_inf_sample_dropped_shake_still_fires() =
+        assertEquals("a negative-infinite sample magnitude must be dropped, not disable the detector", 1L, firesAfter(ShakeDetector.Sample(Float.NEGATIVE_INFINITY, 0f, 0f, 0L)))
+
+    /** The non-finite sample is DROPPED, not clamped to a spike: it adds no crossing, so
+     *  two real crossings stay at two and only the third real crossing (all within the
+     *  window) fires. */
+    @Test fun inf_between_crossings_dropped_third_crossing_fires() {
+        var count = 0L
+        val det = ShakeDetector.create { count++ }
+        det.start()
+        pump(det, oneCrossing(0.0))
+        pump(det, oneCrossing(150.0))
+        assertEquals("two crossings must not fire", 0L, count)
+        val between = oneCrossing(150.0).last()
+        det.feed(ShakeDetector.Sample(Float.POSITIVE_INFINITY, 0f, 0f, between.timestampMs + 5))
+        assertEquals("a positive-infinite sample must be dropped and add no crossing", 0L, count)
+        pump(det, oneCrossing(between.timestampMs + 30.0))
+        assertEquals("the third real crossing after a dropped non-finite sample must fire once", 1L, count)
+    }
+
+    /** A huge but finite sample is capped, so the low-pass term stays bounded and the
+     *  detector recovers within the window: a shake 0.5 s later fires exactly once. */
+    @Test fun huge_finite_spike_capped_then_shake_fires() =
+        assertEquals("a huge finite sample must be capped so a later shake fires once", 1L, firesAfter(ShakeDetector.Sample((1e10 * G).toFloat(), 0f, 0f, 0L)))
+
+    /** A start() clears accumulated crossings: two crossings, a restart, two more still do
+     *  not fire, and a third crossing after the restart fires once. */
+    @Test fun start_clears_accumulated_crossings() {
+        var count = 0L
+        val det = ShakeDetector.create { count++ }
+        det.start()
+        pump(det, oneCrossing(0.0))
+        pump(det, oneCrossing(200.0))
+        assertEquals("two crossings must not fire", 0L, count)
+        det.start()
+        pump(det, oneCrossing(500.0))
+        pump(det, oneCrossing(700.0))
+        assertEquals("a start must clear the earlier crossings, so two more still do not fire", 0L, count)
+        pump(det, oneCrossing(900.0))
+        assertEquals("the third crossing after a start must fire once", 1L, count)
+    }
+
+    /** A stop() clears accumulated crossings too: the same shape with stop()+start()
+     *  between the two crossing groups, so the third crossing after restart fires once. */
+    @Test fun stop_then_start_clears_accumulated_crossings() {
+        var count = 0L
+        val det = ShakeDetector.create { count++ }
+        det.start()
+        pump(det, oneCrossing(0.0))
+        pump(det, oneCrossing(200.0))
+        assertEquals("two crossings must not fire", 0L, count)
+        det.stop()
+        det.start()
+        pump(det, oneCrossing(500.0))
+        pump(det, oneCrossing(700.0))
+        assertEquals("a stop then start must clear the earlier crossings, so two more still do not fire", 0L, count)
+        pump(det, oneCrossing(900.0))
+        assertEquals("the third crossing after a stop+start must fire once", 1L, count)
+    }
+
+    /** The reset also clears the cooldown: a shake fires, an immediate restart clears the
+     *  cooldown, and a second shake inside the old cooldown window fires again. */
+    @Test fun start_clears_cooldown_second_shake_fires() {
+        var count = 0L
+        val det = ShakeDetector.create { count++ }
+        det.start()
+        pump(det, burst_crossings(3, 150.0, 200, t0 = 0.0))
+        assertEquals("the first shake fires once", 1L, count)
+        det.start()
+        pump(det, burst_crossings(3, 150.0, 200, t0 = 450.0))
+        assertEquals("a start must clear the cooldown so the second shake fires", 2L, count)
+    }
+
+    /** x = y = z at 1e20 g: each squared component overflows Float to +Inf, so the sample
+     *  magnitude is non-finite and is dropped; a following real shake fires once. */
+    @Test fun overflowed_sample_dropped_shake_fires() =
+        assertEquals("an overflowed (non-finite) sample must be dropped, then the shake fires once", 1L, firesAfter(ShakeDetector.Sample(1e20f, 1e20f, 1e20f, 0L)))
+
+    /** A non-finite sample is dropped from the filter, not clamped to a spike. Seated on a settled
+     *  low-pass (below threshold, no prior crossing), a clamped-to-spike reading there would be a
+     *  spurious first crossing: two real crossings after it would then be three and fire early. With
+     *  the drop in place the two real crossings stay at two (no fire) and only the third fires. */
+    @Test fun inf_after_settle_dropped_no_false_shake() {
+        var count = 0L
+        val det = ShakeDetector.create { count++ }
+        det.start()
+        pump(det, rest_run(300.0, 200, 0.0)) // settle the low-pass to baseline, below threshold
+        det.feed(ShakeDetector.Sample(Float.POSITIVE_INFINITY, 0f, 0f, 300L))
+        pump(det, oneCrossing(320.0))
+        pump(det, oneCrossing(470.0))
+        assertEquals("two real crossings after a dropped non-finite sample must not fire", 0L, count)
+        pump(det, oneCrossing(620.0))
+        assertEquals("the third real crossing after a dropped non-finite sample must fire once", 1L, count)
+    }
+
+    /** stop() returns the filter to rest. An above-threshold sample leaves a non-zero AC term while
+     *  running; stop() must reset the low-pass and last magnitude so that term returns to zero, and a
+     *  later start begins from a settled filter rather than carrying a motion-biased term forward. */
+    @Test fun stop_clears_ac_term() {
+        val det = ShakeDetector.create { }
+        det.start()
+        pump(det, rest_run(200.0, 200, 0.0))
+        det.feed(ShakeDetector.Sample((SPIKE_G * G).toFloat(), 0f, 0f, 200L))
+        assertTrue("an above-threshold sample must leave a non-zero AC term before stop, got ${det.lastAcTerm}", det.lastAcTerm != 0.0)
+        det.stop()
+        assertTrue("stop must reset the filter so the AC term returns to zero, got ${det.lastAcTerm}", det.lastAcTerm == 0.0)
+    }
+
+    /** A reset must return the low-pass term to one g of rest. A run of high-magnitude samples drives the
+     *  low-pass well above one g; stop() then start() reset it, so the two following resting (1.0 g) samples
+     *  sit on a settled one-g low-pass and their AC term is numerically zero. A reset that skipped restoring
+     *  the low-pass would leave that stale elevated term behind, so the same resting samples then read a large
+     *  AC term (the last magnitude minus the still-high low-pass) instead. */
+    @Test fun reset_restores_low_pass_to_rest() {
+        val det = ShakeDetector.create { }
+        det.start()
+        // Drive the low-pass term well above one g with a burst of high-magnitude samples.
+        for (i in 0 until 60) det.feed(ShakeDetector.Sample((5.0 * G).toFloat(), 0f, 0f, (i * 5).toLong()))
+        // stop() then start() both run the filter-state reset.
+        det.stop()
+        det.start()
+        det.feed(ShakeDetector.Sample((1.0 * G).toFloat(), 0f, 0f, 0L))
+        det.feed(ShakeDetector.Sample((1.0 * G).toFloat(), 0f, 0f, 5L))
+        assertTrue(
+            "a reset must restore the low-pass to one g of rest, so a resting sample after stop+start has a " +
+                "zero AC term; a stale elevated low-pass leaves a large AC term, got ${det.lastAcTerm}",
+            abs(det.lastAcTerm) < 1e-6,
+        )
+    }
+
+    /** A single extreme-but-finite sample must be capped so it cannot blind the filter. Seated at rest, one
+     *  ~100 g sample arrives on a large (sub-reset) gap, then a real shake 50 ms later. With the finite cap in
+     *  place the sample is held near the crossing point, so the low-pass barely moves and the shake still
+     *  crosses and fires once; with a cap large enough to pass ~100 g the sample drives the low-pass term far
+     *  up and blinds the filter, so the shake that follows decays back too late to reach three crossings and
+     *  never fires. */
+    @Test fun huge_sample_then_real_shake_fires() {
+        var count = 0L
+        val det = ShakeDetector.create { count++ }
+        det.start()
+        // Settle at rest so the huge sample is a filter step, not the seeding first sample.
+        for (i in 0 until 20) det.feed(ShakeDetector.Sample((BASELINE_G * G).toFloat(), 0f, 0f, (i * 5).toLong()))
+        // One ~100 g sample, 800 ms after the last rest sample: a large but sub-reset gap, so its big
+        // inter-sample step moves the low-pass far up under a too-large cap while staying capped low here.
+        val huge_t = 95L + 800L
+        det.feed(ShakeDetector.Sample((100.0 * G).toFloat(), 0f, 0f, huge_t))
+        // A real shake 50 ms after the huge sample.
+        val shake_t0 = huge_t + 50L
+        for (s in shake(200, 300.0)) det.feed(ShakeDetector.Sample(s.x, s.y, s.z, s.timestampMs + shake_t0))
+        assertEquals("a capped extreme sample must not blind a shake that follows shortly after, got $count fires", 1L, count)
     }
 }

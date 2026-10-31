@@ -42,8 +42,8 @@ class ShakeHandle internal constructor(
     }
 
     /**
-     * Unregister the sensor and stop accepting samples. The detector keeps its state,
-     * so a later [start] resumes from where it left off.
+     * Unregister the sensor and stop accepting samples. The detector clears its detection
+     * state, so a later [start] begins fresh rather than resuming from where it left off.
      */
     fun stop() {
         if (!started) return
