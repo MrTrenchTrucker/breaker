@@ -99,7 +99,7 @@ internal class HttpTranscriptionForwarderTest {
         assertTrue("whisper-server: expected Success but was $outcome", outcome is ForwardOutcome.Success)
         assertEquals(
             "whisper-server: the result must be the exact expected json",
-            "{\"text\":\"hello world\",\"segments\":[]}",
+            "{\"text\":\"hello world\",\"segments\":[],\"language\":\"\"}",
             (outcome as ForwardOutcome.Success).result,
         )
     }
@@ -125,7 +125,7 @@ internal class HttpTranscriptionForwarderTest {
         assertTrue("whisper-server: expected Success but was $outcome", outcome is ForwardOutcome.Success)
         assertEquals(
             "whisper-server: the result must be the exact expected json",
-            "{\"text\":\"hello world\",\"segments\":[]}",
+            "{\"text\":\"hello world\",\"segments\":[],\"language\":\"\"}",
             (outcome as ForwardOutcome.Success).result,
         )
     }
@@ -177,7 +177,7 @@ internal class HttpTranscriptionForwarderTest {
         assertTrue("whisper-server: expected Success but was $outcome", outcome is ForwardOutcome.Success)
         assertEquals(
             "whisper-server: the result must be the exact expected json",
-            "{\"text\":\"real\",\"segments\":[{\"start\":0.0,\"end\":1.0,\"text\":\"seg\"}]}",
+            "{\"text\":\"real\",\"segments\":[{\"start\":0.0,\"end\":1.0,\"text\":\"seg\"}],\"language\":\"\"}",
             (outcome as ForwardOutcome.Success).result,
         )
     }
@@ -203,7 +203,7 @@ internal class HttpTranscriptionForwarderTest {
         assertTrue("whisper-server: expected Success but was $outcome", outcome is ForwardOutcome.Success)
         assertEquals(
             "whisper-server: the result must be the exact expected json",
-            "{\"text\":\"hello {world}\",\"segments\":[]}",
+            "{\"text\":\"hello {world}\",\"segments\":[],\"language\":\"\"}",
             (outcome as ForwardOutcome.Success).result,
         )
     }
@@ -217,7 +217,7 @@ internal class HttpTranscriptionForwarderTest {
         assertTrue("whisper-server: expected Success but was $outcome", outcome is ForwardOutcome.Success)
         assertEquals(
             "whisper-server: the result must be the exact expected json",
-            "{\"text\":\"hello\",\"segments\":[]}",
+            "{\"text\":\"hello\",\"segments\":[],\"language\":\"\"}",
             (outcome as ForwardOutcome.Success).result,
         )
     }
@@ -250,7 +250,7 @@ internal class HttpTranscriptionForwarderTest {
         assertTrue("whisper-server: expected Success but was $second", second is ForwardOutcome.Success)
         assertEquals(
             "whisper-server: the result must be the exact expected json",
-            "{\"text\":\"second\",\"segments\":[]}",
+            "{\"text\":\"second\",\"segments\":[],\"language\":\"\"}",
             (second as ForwardOutcome.Success).result,
         )
     }
@@ -318,7 +318,7 @@ internal class HttpTranscriptionForwarderTest {
         assertTrue("whisper-server: expected Success but was $outcome", outcome is ForwardOutcome.Success)
         assertEquals(
             "whisper-server: the result must be the exact expected json",
-            "{\"text\":\"hello\",\"segments\":[]}",
+            "{\"text\":\"hello\",\"segments\":[],\"language\":\"\"}",
             (outcome as ForwardOutcome.Success).result,
         )
     }

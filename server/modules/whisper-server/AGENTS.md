@@ -51,7 +51,7 @@ itself; it queues, shapes the contract, and proxies.
 
 **FIFO transcription queue (F23):** the transcription service is CPU-bound —
 concurrent requests would contend. A queue serializes jobs:
-- `POST /v1/audio/transcriptions` → enqueue → `{ job_id, status: "queued" }`.
+- `POST /v1/audio/transcriptions` → enqueue → `{ job_id, status: "queued" }` (`job_id` is a JSON string).
 - A single worker processes one job at a time (strict FIFO, fair across users),
   forwarding audio (WAV 16 kHz mono PCM) to the **admin-configured
   transcription service** (F26) — Docker network, IP, or external URL. The
@@ -173,7 +173,7 @@ agents, not required: an outside contributor may write the code themselves
 - The forwarder is `HttpTranscriptionForwarder`. It makes ONE attempt per call and never retries
   itself; the queue worker owns the retry schedule (3 attempts, 10 s apart).
 - It asks the downstream for `verbose_json` (`response_format=verbose_json`).
-- `TranscriptionResponse` reads a plain-text body as the text, with no segments and no language.
+- `TranscriptionResponse` reads a plain-text body as the text, with no segments and an empty language.
 - The request timeout defaults to 60 s and is admin-set (`DownstreamConfig.requestTimeout`); it
   bounds how long a long audio upload may take, so a stuck downstream cannot hold the worker.
 - Failure messages are fixed strings: they never contain the downstream URL or the API key.
@@ -188,7 +188,7 @@ agents, not required: an outside contributor may write the code themselves
   `embeddedServer`.
 - `POST /v1/audio/transcriptions` takes a multipart `file` part (required); optional `model` and
   `language` parts are accepted and ignored. It enqueues a job and answers
-  `202 { job_id, status: "queued" }`, then wakes the worker.
+  `202 { job_id, status: "queued" }` (`job_id` a JSON string), then wakes the worker.
 - The upload cap is 25 MiB (`MAX_AUDIO_BYTES`), the OpenAI audio-transcriptions limit this
   OpenAI-shaped front follows. It is enforced while the part is read (a counted read plus Ktor's
   form-field limit), never by reading the whole body first; over the cap is `413`.
