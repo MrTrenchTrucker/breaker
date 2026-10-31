@@ -8,6 +8,9 @@ import org.junit.Test
 /** Distinct words per outcome, so a line that answers the wrong outcome is named by its word. */
 private val probe = OutcomeLines(savedAndCopied = "SAVED", copiedNotSaved = "COPIED", blank = "BLANK", noAudio = "NOAUDIO", notConverted = "NOTCONVERTED")
 
+/** A probe with a `failed` function that prepends a marker to the engine's sentence. */
+private val failedProbe = OutcomeLines(savedAndCopied = "SAVED", copiedNotSaved = "COPIED", blank = "BLANK", noAudio = "NOAUDIO", notConverted = "NOTCONVERTED", failed = { s -> "SHOWN:" + s })
+
 /** A clipboard that throws on every copy. */
 private class ThrowingClipboard : TakenClipboard {
     override fun copy(text: String) {
@@ -75,6 +78,21 @@ internal class TakeSettleTest {
         assertEquals("settle: a missing result answers the not converted line", "NOTCONVERTED", settle.line(null, false, probe))
         assertFalse("settle: a failure saves nothing", settle.save(other))
         assertFalse("settle: a missing result saves nothing", settle.save(null))
+    }
+
+    @Test
+    fun `a take set to show the engine sentence answers that sentence for a failure`() {
+        val settle = TakeSettle(RecordingHistory(), RecordingClipboard())
+        val finished = FinishResult.Failed("The server key is not set.")
+        assertEquals("settle: a failed take with a `failed` probe answers the engine sentence", "SHOWN:The server key is not set.", settle.line(finished, false, failedProbe))
+    }
+
+    @Test
+    fun `with that probe the empty take sentence still answers the no-audio line and a missing result still answers the not-converted line`() {
+        val settle = TakeSettle(RecordingHistory(), RecordingClipboard())
+        val empty = FinishResult.Failed(EMPTY_TAKE_SENTENCE)
+        assertEquals("settle: an empty take sentence answers the no audio line", "NOAUDIO", settle.line(empty, false, failedProbe))
+        assertEquals("settle: a missing result answers the not converted line", "NOTCONVERTED", settle.line(null, false, failedProbe))
     }
 
     @Test

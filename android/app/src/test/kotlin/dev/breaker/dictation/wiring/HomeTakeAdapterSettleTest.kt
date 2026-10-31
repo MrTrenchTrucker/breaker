@@ -173,6 +173,15 @@ internal class HomeTakeAdapterSettleTest {
         assertEquals("app: home: the line is the runner's own", RunnerSentences.NOTHING_HEARD, lines.last())
     }
 
+    @Test
+    fun `a Home take that fails with an engine sentence settles with exactly that line`() {
+        take.finishResult = FinishResult.Failed("The server key is not set.")
+        val a = adapter(homeSwitch(off = false).switch)
+        a.onTap()
+        a.onTap()
+        assertEquals("app: home: an engine failure settles with the engine sentence", "The server key is not set.", lines.last())
+    }
+
     /** The switch the adapter is given, with the launcher it must never have to call. */
     private class HomeSwitch(val switch: ArmedSwitch, val launcher: FakeLauncher)
 }

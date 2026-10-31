@@ -12,6 +12,8 @@ internal class OutcomeLines(
     val blank: String,
     val noAudio: String,
     val notConverted: String,
+    /** When set, a failed take answers the line this function builds from the engine's sentence. */
+    val failed: ((String) -> String)? = null,
 )
 
 /**
@@ -44,6 +46,7 @@ internal class TakeSettle(private val history: HistoryStore?, private val clipbo
         }
         finished is FinishResult.ReadyToSend -> lines.blank
         finished is FinishResult.Failed && finished.sentence == EMPTY_TAKE_SENTENCE -> lines.noAudio
+        finished is FinishResult.Failed && finished.sentence != EMPTY_TAKE_SENTENCE -> lines.failed?.invoke(finished.sentence) ?: lines.notConverted
         else -> lines.notConverted
     }
 }

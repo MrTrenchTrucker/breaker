@@ -20,5 +20,6 @@ internal object HomeSentences {
         RunnerSentences.NOTHING_HEARD,
         RunnerSentences.NOTHING_HEARD,
         EndingTexts.NOT_CONVERTED,
+        failed = { sentence -> sentence },
     )
 }
