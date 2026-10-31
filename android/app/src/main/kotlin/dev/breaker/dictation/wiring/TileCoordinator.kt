@@ -39,14 +39,15 @@ class TileCoordinator(
     private var lastFailed: Boolean = false
     private var lastCommit: CommitOutcome? = null
     private var beginPending: Boolean = false
+    private val micTakeHold = MicTakeHold { sendPushed = true; yield.onTakeMicTaken() }
+
+
+
     private var pushed: TileState = TileState.IDLE
     private var generation: Int = 0
-
     /** The keyboard tile's session gate and anchor, driven by [onKeyboardReading]. Kept separate to stay within the line cap; it names no Android type. */
     private val keyboardTile = KeyboardTileSession()
-
     private val reevaluation: KeyboardReevaluation = KeyboardReevaluation(delayed) { ime, focus, dueMs -> act(keyboardTile.onKeyboardReading(ime, focus, dueMs)) }
-
     /** The taken-entry controller (the MIC_BUSY face and its settle). */
     internal val yield = TakeYieldController(
         background, main, take, TakeSettle(history, clipboard), takenNotice,
@@ -118,6 +119,7 @@ class TileCoordinator(
     fun onCancel() {
         if (failureBarrier()) return
         if (!armed || yield.yieldRunning()) return
+        micTakeHold.clear()
         lastFailed = false
         sendPushed = false
         lastCommit = null
@@ -126,7 +128,6 @@ class TileCoordinator(
         push(DictationState.IDLE)
         portCalls.submit { guarded { take.cancel() } }
     }
-
     /** The user ended the take: finish, transcribe and send it. A repeat before the tile shows sending is ignored. */
     fun onSend() {
         if (failureBarrier()) return
@@ -186,6 +187,7 @@ class TileCoordinator(
     fun onTakeMicTaken() {
         if (failureBarrier()) return
         if (!armed || sendPushed) return
+        if (beginPending) { micTakeHold.onMicTakenWhilePending(); return }
         sendPushed = true
         yield.onTakeMicTaken()
     }
@@ -254,6 +256,7 @@ class TileCoordinator(
         reevaluation.cancel()
         lastCommit = null
         push()
+        micTakeHold.clear()
         yield.disarmCleared()
         deviceFailure.clear()
         portCalls.submit { guarded { take.cancel() } }
@@ -263,13 +266,12 @@ class TileCoordinator(
     private fun beginSettled(result: BeginResult) {
         beginPending = false
         when (result) {
-            is BeginResult.Recording -> { yield.onBeginAccepted(); push() }
-            is BeginResult.Taken -> { yield.beginRefusedAsTaken() }  // no FAILED push
-            is BeginResult.Refused -> fail(result.sentence)
-            is BeginResult.Failed -> { yield.onBeginFailed(); fail(result.sentence) }
+            is BeginResult.Recording -> { yield.onBeginAccepted(); push(); micTakeHold.replayIfHeld() }
+            is BeginResult.Taken -> { micTakeHold.clear(); yield.beginRefusedAsTaken() }
+            is BeginResult.Refused -> { fail(result.sentence); micTakeHold.replayIfHeld() }
+            is BeginResult.Failed -> { micTakeHold.clear(); yield.onBeginFailed(); fail(result.sentence) }
         }
     }
-
     private fun settle(end: TakeEnd) {
         sendPushed = false
         when (end) {
@@ -279,7 +281,6 @@ class TileCoordinator(
             is TakeEnd.Failure -> fail(end.sentence)
         }
     }
-
     private fun fail(sentence: String) {
         sendPushed = false
         lastFailed = true
@@ -288,7 +289,6 @@ class TileCoordinator(
         // A notice is cleared by a state change, so it is shown after the state.
         guarded { tile.showNotice(sentence) }
     }
-
     private fun push(session: DictationState = portCalls.sessionNow()) {
         val state: TileState = tileStateFor(
             armed, session, sendPushed, lastFailed, lastCommit, yield.micBusy.get())
@@ -296,5 +296,4 @@ class TileCoordinator(
         guarded { tile.setState(state) }
         if (heldHide.applyWhenIdle(inFlight())) { guarded { tile.hide() }; tileShown = false; keyboardTile.releaseRaised() }
     }
-
 }
