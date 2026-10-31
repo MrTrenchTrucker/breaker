@@ -26,6 +26,7 @@ internal class HttpTranscriptionForwarderTest {
     private var responseContentType: String = "application/json"
     private var delayMillis: Long = 0
     private var holdResponse: Boolean = false
+    private var responseChunked: Boolean = false
     private val releaseServer = CountDownLatch(1)
     private val requestArrived = CountDownLatch(1)
     private val requestCount = java.util.concurrent.atomic.AtomicInteger(0)
@@ -46,7 +47,7 @@ internal class HttpTranscriptionForwarderTest {
             if (holdResponse) { releaseServer.await() }
             val bytes = responseBody.toByteArray(Charsets.UTF_8)
             exchange.responseHeaders.add("Content-Type", responseContentType)
-            exchange.sendResponseHeaders(responseCode, bytes.size.toLong())
+            exchange.sendResponseHeaders(responseCode, if (responseChunked) 0L else bytes.size.toLong())
             exchange.responseBody.use { it.write(bytes) }
         }
         server.start()
@@ -85,6 +86,10 @@ internal class HttpTranscriptionForwarderTest {
     private fun forward(requestTimeout: Duration = Duration.ofSeconds(5)): ForwardOutcome {
         return runBlocking { withTimeout(30_000L) { forwarder(requestTimeout).forward(ForwardRequest(1L, byteArrayOf(1, 2, 3), 1)) } }
     }
+
+    private val limitSentence = "whisper-server: the transcription service returned a response larger than the limit"
+
+    private fun jsonBodyOfSize(size: Int): String = "{\"text\":\"" + "a".repeat(size - 11) + "\"}"
 
     @Test
     fun `a golden answer with valid json text returns success`() {
@@ -453,5 +458,39 @@ internal class HttpTranscriptionForwarderTest {
         val payload = receivedBody.copyOfRange(start + marker.size, start + marker.size + audio.size)
         assertTrue("whisper-server: the file part must carry exactly the audio bytes", payload.contentEquals(audio))
         assertTrue("whisper-server: the boundary must close the body", bodyText.contains("--$boundary--"))
+    }
+
+    @Test
+    fun `a response one byte over the limit is refused without a content length`() {
+        responseChunked = true
+        responseCode = 200
+        responseBody = jsonBodyOfSize(MAX_FORWARDER_RESPONSE_BYTES + 1)
+        val outcome = forward()
+        assertTrue("whisper-server: expected Failure but was $outcome", outcome is ForwardOutcome.Failure)
+        assertEquals(limitSentence, (outcome as ForwardOutcome.Failure).reason)
+    }
+
+    @Test
+    fun `a response with a declared length over the limit is refused`() {
+        responseChunked = false
+        responseCode = 200
+        responseBody = jsonBodyOfSize(MAX_FORWARDER_RESPONSE_BYTES + 1)
+        val outcome = forward()
+        assertTrue("whisper-server: expected Failure but was $outcome", outcome is ForwardOutcome.Failure)
+        assertEquals(limitSentence, (outcome as ForwardOutcome.Failure).reason)
+    }
+
+    @Test
+    fun `a response exactly at the limit is accepted`() {
+        responseChunked = false
+        responseCode = 200
+        responseBody = jsonBodyOfSize(MAX_FORWARDER_RESPONSE_BYTES)
+        val outcome = forward()
+        assertTrue("whisper-server: expected Success but was $outcome", outcome is ForwardOutcome.Success)
+    }
+
+    @Test
+    fun `the response limit is exactly one mebibyte`() {
+        assertEquals(1_048_576, MAX_FORWARDER_RESPONSE_BYTES)
     }
 }

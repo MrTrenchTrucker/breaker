@@ -11,6 +11,10 @@ import java.util.UUID
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import java.nio.ByteBuffer
+import java.util.concurrent.CompletionStage
+import java.util.concurrent.Flow
+import java.util.concurrent.CompletableFuture
 
 // Admin-configurable: URL, API key, model, timeouts.
 data class DownstreamConfig(
@@ -21,6 +25,48 @@ data class DownstreamConfig(
     val requestTimeout: Duration = Duration.ofSeconds(60),
 )
 
+internal const val MAX_FORWARDER_RESPONSE_BYTES: Int = 1024 * 1024
+
+// Private size-limited body subscriber that cancels subscription once the response
+// would exceed MAX_FORWARDER_RESPONSE_BYTES.
+private class LimitedBodySubscriber(private val limit: Int) : HttpResponse.BodySubscriber<ByteArray?> {
+    private val future = CompletableFuture<ByteArray?>()
+    private val stream = ByteArrayOutputStream()
+    private var subscription: Flow.Subscription? = null
+    private var over = false
+
+    override fun getBody(): CompletionStage<ByteArray?> = future
+
+    override fun onSubscribe(subscription: Flow.Subscription) {
+        this.subscription = subscription
+        subscription.request(Long.MAX_VALUE)
+    }
+
+    override fun onNext(buffers: List<ByteBuffer>) {
+        if (over) return
+        for (buffer in buffers) {
+            val size = buffer.remaining()
+            if (stream.size() + size > limit) {
+                over = true
+                subscription?.cancel()
+                future.complete(null)
+                return
+            }
+            val bytes = ByteArray(size)
+            buffer.get(bytes)
+            stream.write(bytes, 0, size)
+        }
+    }
+
+    override fun onError(throwable: Throwable) {
+        if (!over) future.completeExceptionally(throwable)
+    }
+
+    override fun onComplete() {
+        if (!over) future.complete(stream.toByteArray())
+    }
+}
+
 // Single-attempt: QueueWorker owns retry logic.
 class HttpTranscriptionForwarder(
     private val config: DownstreamConfig,
@@ -29,6 +75,10 @@ class HttpTranscriptionForwarder(
     private val client: HttpClient = HttpClient.newBuilder()
         .connectTimeout(config.connectTimeout)
         .build()
+
+    private val limitedBody = HttpResponse.BodyHandler<ByteArray?> {
+        LimitedBodySubscriber(MAX_FORWARDER_RESPONSE_BYTES)
+    }
 
     override suspend fun forward(request: ForwardRequest): ForwardOutcome {
         if (request.audio.isEmpty()) return ForwardOutcome.Failure("whisper-server: the audio is empty")
@@ -63,7 +113,7 @@ class HttpTranscriptionForwarder(
         }
     }
 
-    private fun handleResponse(response: HttpResponse<ByteArray>): ForwardOutcome {
+    private fun handleResponse(response: HttpResponse<ByteArray?>): ForwardOutcome {
         val statusCode = response.statusCode()
         if (statusCode !in 200..299) {
             return ForwardOutcome.Failure("whisper-server: the transcription service returned HTTP $statusCode")
@@ -72,7 +122,8 @@ class HttpTranscriptionForwarder(
         if (!contentType.lowercase().contains("application/json")) {
             return ForwardOutcome.Failure("whisper-server: the transcription service returned an unexpected content type")
         }
-        val responseBody = String(response.body(), Charsets.UTF_8)
+        val bodyBytes = response.body() ?: return ForwardOutcome.Failure("whisper-server: the transcription service returned a response larger than the limit")
+        val responseBody = String(bodyBytes, Charsets.UTF_8)
         if (responseBody.isBlank()) {
             return ForwardOutcome.Failure("whisper-server: the transcription service returned an empty response")
         }
@@ -100,9 +151,9 @@ class HttpTranscriptionForwarder(
         return ForwardOutcome.Success(resultJson)
     }
 
-    private suspend fun sendAsync(request: HttpRequest): HttpResponse<ByteArray> =
+    private suspend fun sendAsync(request: HttpRequest): HttpResponse<ByteArray?> =
         suspendCancellableCoroutine { continuation ->
-            val future = client.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
+            val future = client.sendAsync(request, limitedBody)
             future.whenComplete { response, error ->
                 if (error != null) continuation.resumeWithException(error) else continuation.resume(response)
             }

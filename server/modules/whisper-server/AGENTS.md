@@ -59,11 +59,7 @@ concurrent requests would contend. A queue serializes jobs:
 - `GET /v1/jobs/{job_id}` → `{ status: queued|processing|done|failed, result }`.
 - Jobs persist in SQLite → restart-safe (no queued audio lost).
 - No priority in v1; per-user rate limits + job size caps (T18).
-- **Result retention (ADR-018):** a completed job's `result` is deleted from
-  this store as soon as its requester fetches it once, and — if nobody ever
-  fetches it — 24 hours after the job finished, whichever comes first. Until
-  then the result sits here in **plaintext**, same as the queued audio does
-  before the job finishes.
+- **Result retention (ADR-018):** a completed job's `result` stays fetchable for `RESULT_WINDOW_MS` after the job finished (default 10 minutes, set by `BREAKER_WHISPER_RESULT_TTL_S`, at most 24 hours); every `GET /v1/jobs/{job_id}` inside that window returns the same result, and after the window the result is erased and the answer is `404` (unknown or expired). Until then the result sits here in **plaintext**, same as the queued audio does before the job finishes.
 
 **Retry + audio lifecycle (F28):** failed jobs auto-retry **3× at 10 s
 intervals** before failing. The audio file is deleted once the job finishes
@@ -198,8 +194,8 @@ agents, not required: an outside contributor may write the code themselves
   form-field limit), never by reading the whole body first; over the cap is `413`.
 - A missing or empty `file` part is `400`; a missing or blank `model` part is `400`.
 - `GET /v1/jobs/{job_id}` answers `{ status, result }` for a known id and `404` for an unknown one;
-  a `failed` job also carries the stored `error`. Fetch-once result deletion is the store's
-  (`JobStore.fetch`), unchanged.
+  a `failed` job also carries the stored `error`. Results stay fetchable for the result window
+  (see Result retention above).
 - **Honest limits of this slice:** the `model` part is required but not stored (there is no column;
   the configured downstream model serves every job); the `language` part is not stored; there is no
   auth yet, so every job is enqueued under one owner constant (`OWNER_ACCOUNT_ID`) until `sync-api`

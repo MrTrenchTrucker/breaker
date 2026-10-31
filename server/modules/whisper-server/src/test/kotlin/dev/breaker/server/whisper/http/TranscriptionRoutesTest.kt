@@ -89,6 +89,19 @@ internal class TranscriptionRoutesTest {
     }
 
     @Test
+    fun `a request with an unknown extra part is accepted and the job is queued`() {
+        val store = openStore()
+        withTranscriptionApi(store) { client ->
+            val response = client.postAudio(
+                multipartBody(file = JobFixtures.audio(1), model = "m", extra = "foo" to "bar"),
+            )
+            assertEquals(202, response.status.value)
+            assertEquals("{\"job_id\":1,\"status\":\"queued\"}", response.bodyAsText())
+            assertEquals(JobStatus.QUEUED, store.get(1)?.status)
+        }
+    }
+
+    @Test
     fun `a request without a file part is rejected with 400`() {
         val store = openStore()
         withTranscriptionApi(store) { client ->

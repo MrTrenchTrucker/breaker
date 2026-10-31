@@ -34,6 +34,7 @@ internal fun multipartBody(
     file: ByteArray?,
     model: String?,
     language: String? = null,
+    extra: Pair<String, String>? = null,
 ): MultiPartFormDataContent = MultiPartFormDataContent(
     formData {
         if (file != null) {
@@ -41,5 +42,6 @@ internal fun multipartBody(
         }
         if (model != null) append("model", model)
         if (language != null) append("language", language)
+        if (extra != null) append(extra.first, extra.second)
     },
 )
