@@ -164,6 +164,11 @@ OpenAPI spec (openapi.yaml); Kotlin request and response types
   `src/test/kotlin/dev/breaker/shared/api/sync/` checks them, and the stdlib oracle
   `tests/unit/shared/api-contracts/test_sync_body_vectors.py` re-derives them. The
   spec pins are in `tests/unit/shared/api-contracts/test_sync_body_spec.py`.
+- Username vectors: `examples/username_vectors.json` holds the one table of names
+  and answers for the username pattern. The stdlib test
+  `tests/unit/shared/api-contracts/test_username_vectors.py` checks the table
+  against the pattern in `openapi.yaml` and against the Kotlin literal copy in the
+  sync-api tests; each side of the system checks the same table.
 - Contract: `tests/contract/test_api_contracts_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_api_contracts_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
