@@ -1,0 +1,383 @@
+{
+ "name": "proof-format-llm-formatter-r3",
+ "tip": {
+  "tree": "c99f96e19fb2e5d4d24811ad266b241b2d7daee1"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "format: a server language-model formatter that falls back on any problem, with its JSON reader and its content guard",
+   "base_tree": "792f052494bfcf6149f95487cdc23a844f1b980d",
+   "item_tip_tree": "c99f96e19fb2e5d4d24811ad266b241b2d7daee1",
+   "new_production_classes": [
+    "JsonReader",
+    "N9Guard",
+    "ServerLlmFormatter"
+   ],
+   "test_fixtures_overlaid": [
+    "FormatterFakes.kt"
+   ],
+   "red_not_run": "the formatter, its JSON reader and its content guard are new classes: every test of this change fails to compile on main, so no red leg is run. The mutants and the two controls carry the proof."
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/format",
+   "edits": [
+    {
+     "file": "android/modules/format/src/main/kotlin/dev/breaker/dictation/format/ServerLlmFormatter.kt",
+     "anchor": "        val url = baseUrl().removeSuffix(\"/\") + \"/v1/chat/completions\"",
+     "replacement": "        val url = baseUrl().removeSuffix(\"/\") + \"/v1/chat\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "url strips one trailing slash",
+    "url keeps no trailing slash"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/format",
+   "edits": [
+    {
+     "file": "android/modules/format/src/main/kotlin/dev/breaker/dictation/format/ServerLlmFormatter.kt",
+     "anchor": "        if (key != null && key.isNotBlank()) headers += \"Authorization\" to \"Bearer $key\"",
+     "replacement": "        if (key != null) headers += \"Authorization\" to \"Bearer $key\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "header order with blank key"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/format",
+   "edits": [
+    {
+     "file": "android/modules/format/src/main/kotlin/dev/breaker/dictation/format/ServerLlmFormatter.kt",
+     "anchor": "        if (reply.status != 200) return null\n",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "status 500 with a valid reply falls back once"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/format",
+   "edits": [
+    {
+     "file": "android/modules/format/src/main/kotlin/dev/breaker/dictation/format/ServerLlmFormatter.kt",
+     "anchor": "        if (rawText.isBlank()) return rawText\n",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "blank raw text returns as is no call"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/format",
+   "edits": [
+    {
+     "file": "android/modules/format/src/main/kotlin/dev/breaker/dictation/format/ServerLlmFormatter.kt",
+     "anchor": "        val maxTokens = PromptParameters.maxTokensFor((rawText.length + 3) / 4)",
+     "replacement": "        val maxTokens = PromptParameters.maxTokensFor(rawText.length / 8)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "max tokens follows the length of a long text"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/format",
+   "edits": [
+    {
+     "file": "android/modules/format/src/main/kotlin/dev/breaker/dictation/format/N9Guard.kt",
+     "anchor": "        if (candidate.length > 4 * rawText.length + 64) return false",
+     "replacement": "        if (candidate.length > 4 * rawText.length) return false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "guard accepts a candidate exactly at the length limit"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/format",
+   "edits": [
+    {
+     "file": "android/modules/format/src/main/kotlin/dev/breaker/dictation/format/N9Guard.kt",
+     "anchor": "        if (candidate.length > 4 * rawText.length + 64) return false",
+     "replacement": "        if (candidate.length > rawText.length + 64) return false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "guard accepts a candidate exactly at the length limit"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/format",
+   "edits": [
+    {
+     "file": "android/modules/format/src/main/kotlin/dev/breaker/dictation/format/N9Guard.kt",
+     "anchor": "            if (allDigits && t.length <= 3) continue",
+     "replacement": "            if (allDigits) continue"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "guard refuses a four digit number not in the raw"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/format",
+   "edits": [
+    {
+     "file": "android/modules/format/src/main/kotlin/dev/breaker/dictation/format/N9Guard.kt",
+     "anchor": "        return nonDigitCandidateCount >= rawWords / 2",
+     "replacement": "        return nonDigitCandidateCount >= 0"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "guard refuses a truncated answer that drops most words",
+    "content dropped most words falls back once"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-10",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/format",
+   "edits": [
+    {
+     "file": "android/modules/format/src/main/kotlin/dev/breaker/dictation/format/N9Guard.kt",
+     "anchor": "        return nonDigitCandidateCount >= rawWords / 2",
+     "replacement": "        return nonDigitCandidateCount >= rawTokens.size / 2"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "guard accepts an all digit raw"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-11",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/format",
+   "edits": [
+    {
+     "file": "android/modules/format/src/main/kotlin/dev/breaker/dictation/format/JsonReader.kt",
+     "anchor": "            if (text.startsWith(\"null\", pos)) { pos += 4; return JsonNull }",
+     "replacement": "            if (text.startsWith(\"null\", pos)) { pos += 4; return null }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "logprobs null yields JsonNull and a equals one",
+    "real reply with null logprobs and big numbers returns content"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-12",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/format",
+   "edits": [
+    {
+     "file": "android/modules/format/src/main/kotlin/dev/breaker/dictation/format/JsonReader.kt",
+     "anchor": "            return text.substring(start, pos).toDoubleOrNull()",
+     "replacement": "            return text.substring(start, pos).toIntOrNull()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "created big int and x exponent parse as doubles"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-13",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/format",
+   "edits": [
+    {
+     "file": "android/modules/format/src/main/kotlin/dev/breaker/dictation/format/JsonReader.kt",
+     "anchor": "    private const val MAX_DEPTH = 16",
+     "replacement": "    private const val MAX_DEPTH = 17"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "depth 17 nested arrays return null"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-14",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/format",
+   "edits": [
+    {
+     "file": "android/modules/format/src/main/kotlin/dev/breaker/dictation/format/JsonReader.kt",
+     "anchor": "    private const val MAX_DEPTH = 16",
+     "replacement": "    private const val MAX_DEPTH = 15"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "depth 16 nested arrays parse not null"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-15",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/format",
+   "edits": [
+    {
+     "file": "android/modules/format/src/main/kotlin/dev/breaker/dictation/format/JsonReader.kt",
+     "anchor": "        if (!parser.atEnd()) return null\n",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "valid object followed by junk returns null"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-16",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/format",
+   "edits": [
+    {
+     "file": "android/modules/format/src/main/kotlin/dev/breaker/dictation/format/JsonReader.kt",
+     "anchor": "                                if (digit < 0) return null\n",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "bad hex in u escape returns null without throwing"
+   ],
+   "rule": "",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "android/modules/format",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "android/modules/format/src/main/kotlin/dev/breaker/dictation/format/JsonReader.kt",
+     "anchor": "            if (text.startsWith(\"null\", pos)) { pos += 4; return JsonNull }",
+     "replacement": "            if (text.startsWith(\"null\", pos)) { pos += 4; return null }"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "android/modules/format",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "android/modules/format/src/main/kotlin/dev/breaker/dictation/format/JsonReader.kt",
+     "anchor": "    private const val MAX_DEPTH = 16",
+     "replacement": "    private const val MAX_DEPTH = 16 // unchanged behaviour"
+    }
+   ]
+  }
+ ]
+}
