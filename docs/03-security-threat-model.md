@@ -96,7 +96,7 @@ Items tagged **[Phase 0–8]** are what the Phase 9 gate blocks on — they must
 - [ ] Encryption verified: ciphertext at rest; server cannot decrypt without user password (F24) **[Phase 19]**
 - [ ] Queue verified: concurrent requests serialize FIFO; restart-safe (F23) **[Phase 4]**
 - [ ] Service config verified: connectivity test works; misconfigured URL fails clearly (F26) **[Phase 20]**
-- [ ] Agent tokens verified: scoped, revocable, rate-limited; results to owner (F27, T19) **[Phase 20]**
+- [ ] Agent tokens verified: scoped, revocable, rate-limited; results to owner (F27, T19) **[Phase 20]** (whisper-server: no auth until sync-api lands, so no test yet)
 - [ ] Model tamper test: corrupt/pinned-mismatch model refused (T21); checksum.txt verified [2] **[Phase 3]**
 - [ ] Retention verified: 3-month TTL; audio deleted on job completion; 3× retry @10 s (F28) **[Phase 21]**
 - [ ] Log audit: no plaintext transcription content in any log (F32, T22) **[Phase 21]**
