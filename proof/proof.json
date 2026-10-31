@@ -1,0 +1,215 @@
+{
+ "name": "proof-whisper-fix-round",
+ "tip": {
+  "tree": "1f1f8640d832cd3aa0a11949dc00e3903181d7b2"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "whisper-server: the forwarder refuses a downstream response larger than one mebibyte",
+   "base_tree": "7ca7342bc137d78078be80a3fc75b001eed63e42",
+   "item_tip_tree": "1f1f8640d832cd3aa0a11949dc00e3903181d7b2",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [
+    "RouteFixtures.kt"
+   ],
+   "red_tree_stubs": {
+    "files": [
+     "HttpTranscriptionForwarder.kt"
+    ],
+    "note": "adds only the size constant the new tests name, keeping base behaviour (the reply is still read without a limit), so the leg compiles on base and fails on an assertion"
+   }
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "red-a-01",
+   "kind": "red",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "file": "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/worker/HttpTranscriptionForwarderTest.kt",
+   "files": [
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/worker/HttpTranscriptionForwarderTest.kt",
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/http/RouteFixtures.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.whisper.worker.HttpTranscriptionForwarderTest"
+   ],
+   "patch": "proof/red/red-a-01.patch",
+   "tree": "64d0a2b73009629e05bed989ee749362e62fcb88",
+   "predict": "RED: the two over-limit tests fail on base (the reply is accepted); the at-limit test passes on base (control)"
+  },
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/worker/HttpTranscriptionForwarder.kt",
+     "anchor": "            if (stream.size() + size > limit) {",
+     "replacement": "            if (stream.size() + size >= limit) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a response exactly at the limit is accepted"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/worker/HttpTranscriptionForwarder.kt",
+     "anchor": "internal const val MAX_FORWARDER_RESPONSE_BYTES: Int = 1024 * 1024",
+     "replacement": "internal const val MAX_FORWARDER_RESPONSE_BYTES: Int = 1024 * 1024 - 1"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a response exactly at the limit is accepted",
+    "the response limit is exactly one mebibyte"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/worker/HttpTranscriptionForwarder.kt",
+     "anchor": "internal const val MAX_FORWARDER_RESPONSE_BYTES: Int = 1024 * 1024",
+     "replacement": "internal const val MAX_FORWARDER_RESPONSE_BYTES: Int = 2 * 1024 * 1024"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a response one byte over the limit is refused without a content length",
+    "a response with a declared length over the limit is refused",
+    "the response limit is exactly one mebibyte"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/worker/HttpTranscriptionForwarder.kt",
+     "anchor": "                future.complete(null)",
+     "replacement": "                future.complete(stream.toByteArray())"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a response one byte over the limit is refused without a content length",
+    "a response with a declared length over the limit is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/worker/HttpTranscriptionForwarder.kt",
+     "anchor": "        val bodyBytes = response.body() ?: return ForwardOutcome.Failure(\"whisper-server: the transcription service returned a response larger than the limit\")",
+     "replacement": "        val bodyBytes = response.body() ?: return ForwardOutcome.Failure(\"whisper-server: too large\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a response one byte over the limit is refused without a content length",
+    "a response with a declared length over the limit is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/worker/HttpTranscriptionForwarder.kt",
+     "anchor": "            stream.write(bytes, 0, size)",
+     "replacement": "            stream.write(bytes, 0, 0)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a response one byte over the limit is refused without a content length",
+    "a response with a declared length over the limit is refused",
+    "a response exactly at the limit is accepted"
+   ],
+   "rule": "",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "server/modules/whisper-server",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/worker/HttpTranscriptionForwarder.kt",
+     "anchor": "            if (stream.size() + size > limit) {",
+     "replacement": "            if (false) {"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "server/modules/whisper-server",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/worker/HttpTranscriptionForwarder.kt",
+     "anchor": "    private var over = false",
+     "replacement": "    private var over = false // unchanged behaviour"
+    }
+   ]
+  }
+ ]
+}

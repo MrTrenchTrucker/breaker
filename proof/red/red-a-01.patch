@@ -1,0 +1,177 @@
+diff --git a/docs/03-security-threat-model.md b/docs/03-security-threat-model.md
+index 82153aa3..958889fc 100644
+--- a/docs/03-security-threat-model.md
++++ b/docs/03-security-threat-model.md
+@@ -96,7 +96,7 @@ Items tagged **[Phase 0–8]** are what the Phase 9 gate blocks on — they must
+ - [ ] Encryption verified: ciphertext at rest; server cannot decrypt without user password (F24) **[Phase 19]**
+ - [ ] Queue verified: concurrent requests serialize FIFO; restart-safe (F23) **[Phase 4]**
+ - [ ] Service config verified: connectivity test works; misconfigured URL fails clearly (F26) **[Phase 20]**
+-- [ ] Agent tokens verified: scoped, revocable, rate-limited; results to owner (F27, T19) **[Phase 20]** (whisper-server: no auth until sync-api lands, so no test yet)
++- [ ] Agent tokens verified: scoped, revocable, rate-limited; results to owner (F27, T19) **[Phase 20]**
+ - [ ] Model tamper test: corrupt/pinned-mismatch model refused (T21); checksum.txt verified [2] **[Phase 3]**
+ - [ ] Retention verified: 3-month TTL; audio deleted on job completion; 3× retry @10 s (F28) **[Phase 21]**
+ - [ ] Log audit: no plaintext transcription content in any log (F32, T22) **[Phase 21]**
+diff --git a/server/modules/whisper-server/AGENTS.md b/server/modules/whisper-server/AGENTS.md
+index fdcdfcdd..d87b1aa5 100644
+--- a/server/modules/whisper-server/AGENTS.md
++++ b/server/modules/whisper-server/AGENTS.md
+@@ -59,7 +59,11 @@ concurrent requests would contend. A queue serializes jobs:
+ - `GET /v1/jobs/{job_id}` → `{ status: queued|processing|done|failed, result }`.
+ - Jobs persist in SQLite → restart-safe (no queued audio lost).
+ - No priority in v1; per-user rate limits + job size caps (T18).
+-- **Result retention (ADR-018):** a completed job's `result` stays fetchable for `RESULT_WINDOW_MS` after the job finished (default 10 minutes, set by `BREAKER_WHISPER_RESULT_TTL_S`, at most 24 hours); every `GET /v1/jobs/{job_id}` inside that window returns the same result, and after the window the result is erased and the answer is `404` (unknown or expired). Until then the result sits here in **plaintext**, same as the queued audio does before the job finishes.
++- **Result retention (ADR-018):** a completed job's `result` is deleted from
++  this store as soon as its requester fetches it once, and — if nobody ever
++  fetches it — 24 hours after the job finished, whichever comes first. Until
++  then the result sits here in **plaintext**, same as the queued audio does
++  before the job finishes.
+ 
+ **Retry + audio lifecycle (F28):** failed jobs auto-retry **3× at 10 s
+ intervals** before failing. The audio file is deleted once the job finishes
+@@ -194,8 +198,8 @@ agents, not required: an outside contributor may write the code themselves
+   form-field limit), never by reading the whole body first; over the cap is `413`.
+ - A missing or empty `file` part is `400`; a missing or blank `model` part is `400`.
+ - `GET /v1/jobs/{job_id}` answers `{ status, result }` for a known id and `404` for an unknown one;
+-  a `failed` job also carries the stored `error`. Results stay fetchable for the result window
+-  (see Result retention above).
++  a `failed` job also carries the stored `error`. Fetch-once result deletion is the store's
++  (`JobStore.fetch`), unchanged.
+ - **Honest limits of this slice:** the `model` part is required but not stored (there is no column;
+   the configured downstream model serves every job); the `language` part is not stored; there is no
+   auth yet, so every job is enqueued under one owner constant (`OWNER_ACCOUNT_ID`) until `sync-api`
+diff --git a/server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/worker/HttpTranscriptionForwarder.kt b/server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/worker/HttpTranscriptionForwarder.kt
+index d47dd610..5879c488 100644
+--- a/server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/worker/HttpTranscriptionForwarder.kt
++++ b/server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/worker/HttpTranscriptionForwarder.kt
+@@ -11,10 +11,6 @@ import java.util.UUID
+ import kotlinx.coroutines.suspendCancellableCoroutine
+ import kotlin.coroutines.resume
+ import kotlin.coroutines.resumeWithException
+-import java.nio.ByteBuffer
+-import java.util.concurrent.CompletionStage
+-import java.util.concurrent.Flow
+-import java.util.concurrent.CompletableFuture
+ 
+ // Admin-configurable: URL, API key, model, timeouts.
+ data class DownstreamConfig(
+@@ -25,48 +21,6 @@ data class DownstreamConfig(
+     val requestTimeout: Duration = Duration.ofSeconds(60),
+ )
+ 
+-internal const val MAX_FORWARDER_RESPONSE_BYTES: Int = 1024 * 1024
+-
+-// Private size-limited body subscriber that cancels subscription once the response
+-// would exceed MAX_FORWARDER_RESPONSE_BYTES.
+-private class LimitedBodySubscriber(private val limit: Int) : HttpResponse.BodySubscriber<ByteArray?> {
+-    private val future = CompletableFuture<ByteArray?>()
+-    private val stream = ByteArrayOutputStream()
+-    private var subscription: Flow.Subscription? = null
+-    private var over = false
+-
+-    override fun getBody(): CompletionStage<ByteArray?> = future
+-
+-    override fun onSubscribe(subscription: Flow.Subscription) {
+-        this.subscription = subscription
+-        subscription.request(Long.MAX_VALUE)
+-    }
+-
+-    override fun onNext(buffers: List<ByteBuffer>) {
+-        if (over) return
+-        for (buffer in buffers) {
+-            val size = buffer.remaining()
+-            if (stream.size() + size > limit) {
+-                over = true
+-                subscription?.cancel()
+-                future.complete(null)
+-                return
+-            }
+-            val bytes = ByteArray(size)
+-            buffer.get(bytes)
+-            stream.write(bytes, 0, size)
+-        }
+-    }
+-
+-    override fun onError(throwable: Throwable) {
+-        if (!over) future.completeExceptionally(throwable)
+-    }
+-
+-    override fun onComplete() {
+-        if (!over) future.complete(stream.toByteArray())
+-    }
+-}
+-
+ // Single-attempt: QueueWorker owns retry logic.
+ class HttpTranscriptionForwarder(
+     private val config: DownstreamConfig,
+@@ -76,10 +30,6 @@ class HttpTranscriptionForwarder(
+         .connectTimeout(config.connectTimeout)
+         .build()
+ 
+-    private val limitedBody = HttpResponse.BodyHandler<ByteArray?> {
+-        LimitedBodySubscriber(MAX_FORWARDER_RESPONSE_BYTES)
+-    }
+-
+     override suspend fun forward(request: ForwardRequest): ForwardOutcome {
+         if (request.audio.isEmpty()) return ForwardOutcome.Failure("whisper-server: the audio is empty")
+         val boundary = "----Breaker${UUID.randomUUID()}"
+@@ -113,7 +63,7 @@ class HttpTranscriptionForwarder(
+         }
+     }
+ 
+-    private fun handleResponse(response: HttpResponse<ByteArray?>): ForwardOutcome {
++    private fun handleResponse(response: HttpResponse<ByteArray>): ForwardOutcome {
+         val statusCode = response.statusCode()
+         if (statusCode !in 200..299) {
+             return ForwardOutcome.Failure("whisper-server: the transcription service returned HTTP $statusCode")
+@@ -122,8 +72,7 @@ class HttpTranscriptionForwarder(
+         if (!contentType.lowercase().contains("application/json")) {
+             return ForwardOutcome.Failure("whisper-server: the transcription service returned an unexpected content type")
+         }
+-        val bodyBytes = response.body() ?: return ForwardOutcome.Failure("whisper-server: the transcription service returned a response larger than the limit")
+-        val responseBody = String(bodyBytes, Charsets.UTF_8)
++        val responseBody = String(response.body(), Charsets.UTF_8)
+         if (responseBody.isBlank()) {
+             return ForwardOutcome.Failure("whisper-server: the transcription service returned an empty response")
+         }
+@@ -151,9 +100,9 @@ class HttpTranscriptionForwarder(
+         return ForwardOutcome.Success(resultJson)
+     }
+ 
+-    private suspend fun sendAsync(request: HttpRequest): HttpResponse<ByteArray?> =
++    private suspend fun sendAsync(request: HttpRequest): HttpResponse<ByteArray> =
+         suspendCancellableCoroutine { continuation ->
+-            val future = client.sendAsync(request, limitedBody)
++            val future = client.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
+             future.whenComplete { response, error ->
+                 if (error != null) continuation.resumeWithException(error) else continuation.resume(response)
+             }
+@@ -184,3 +133,5 @@ class HttpTranscriptionForwarder(
+         return output.toByteArray()
+     }
+ }
++
++internal const val MAX_FORWARDER_RESPONSE_BYTES: Int = 1024 * 1024
+diff --git a/server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutesTest.kt b/server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutesTest.kt
+index 6dbdf81f..89262d51 100644
+--- a/server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutesTest.kt
++++ b/server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutesTest.kt
+@@ -88,19 +88,6 @@ internal class TranscriptionRoutesTest {
+         }
+     }
+ 
+-    @Test
+-    fun `a request with an unknown extra part is accepted and the job is queued`() {
+-        val store = openStore()
+-        withTranscriptionApi(store) { client ->
+-            val response = client.postAudio(
+-                multipartBody(file = JobFixtures.audio(1), model = "m", extra = "foo" to "bar"),
+-            )
+-            assertEquals(202, response.status.value)
+-            assertEquals("{\"job_id\":1,\"status\":\"queued\"}", response.bodyAsText())
+-            assertEquals(JobStatus.QUEUED, store.get(1)?.status)
+-        }
+-    }
+-
+     @Test
+     fun `a request without a file part is rejected with 400`() {
+         val store = openStore()
