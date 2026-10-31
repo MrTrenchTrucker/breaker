@@ -1,0 +1,29 @@
+{
+  "pattern": "^[A-Za-z0-9._-]{1,64}$",
+  "vectors": [
+    {"name": "one-letter", "input": "a", "valid": true},
+    {"name": "letters-and-digits", "input": "user01", "valid": true},
+    {"name": "upper-case", "input": "Alice", "valid": true},
+    {"name": "dot-inside", "input": "a.b", "valid": true},
+    {"name": "hyphen-inside", "input": "a-b", "valid": true},
+    {"name": "underscore-inside", "input": "a_b", "valid": true},
+    {"name": "only-dots", "input": "..", "valid": true},
+    {"name": "sixty-four-chars", "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "valid": true},
+    {"name": "sixty-five-chars", "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "valid": false},
+    {"name": "empty", "input": "", "valid": false},
+    {"name": "space-inside", "input": "a b", "valid": false},
+    {"name": "leading-space", "input": " a", "valid": false},
+    {"name": "trailing-space", "input": "a ", "valid": false},
+    {"name": "bang", "input": "a!", "valid": false},
+    {"name": "at-sign", "input": "a@b", "valid": false},
+    {"name": "slash", "input": "a/b", "valid": false},
+    {"name": "tab-inside", "input": "a\u0009b", "valid": false},
+    {"name": "trailing-newline", "input": "a\u000a", "valid": false},
+    {"name": "nul-char", "input": "a\u0000", "valid": false},
+    {"name": "latin-e-acute", "input": "caf\u00e9", "valid": false},
+    {"name": "cyrillic-a", "input": "\u0430dmin", "valid": false},
+    {"name": "cjk", "input": "\u6f22\u5b57", "valid": false},
+    {"name": "fullwidth-a", "input": "\uff41", "valid": false},
+    {"name": "emoji-pair", "input": "a\uD83D\uDE00", "valid": false}
+  ]
+}
