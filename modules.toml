@@ -197,9 +197,9 @@ card = "server/AGENTS.md"
 
 [module.server_whisper]
 path = "server/modules/whisper-server"
-owns = "/v1/audio/transcriptions + FIFO queue worker + job API, forwarding to the admin-configured service, and (for agent-token jobs whose owner has a box public key) sealing a copy of the completed result to that key and forwarding it to sync-api's pending-sealed store (ADR-018)."
+owns = "/v1/audio/transcriptions + FIFO queue worker + job API, forwarding to the admin-configured service. (Phase 19/20, not built: for agent-token jobs whose owner has a box public key, sealing a copy of the completed result to that key for sync-api's pending-sealed store, ADR-018.)"
 does_not_own = "The configured transcription service itself; auth (sync-api)."
-depends_on = ["server", "shared_api_contracts", "server_sync_api"]
+depends_on = ["server", "shared_api_contracts"]
 public = "TranscriptionApi, QueueWorker"
 card = "server/modules/whisper-server/AGENTS.md"
 
