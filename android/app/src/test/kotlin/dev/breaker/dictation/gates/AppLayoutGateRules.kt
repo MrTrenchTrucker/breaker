@@ -26,7 +26,7 @@ open class AppLayoutGateRules {
         "wiring/TilePorts.kt", "wiring/TilePortCalls.kt", "wiring/DelayedPost.kt", "wiring/NoticeClearingTilePort.kt", "wiring/TileStateMap.kt", "wiring/TileCoordinator.kt", "wiring/TileShowGuard.kt", "wiring/KeyboardHideHold.kt", "wiring/KeyboardReevaluation.kt", "wiring/TakePortAdapter.kt", "wiring/NoopPorts.kt", "wiring/KeyboardTileDecision.kt", "wiring/KeyboardTileSession.kt", "wiring/BlockGuard.kt", "wiring/KeyboardTileWiring.kt",
         "wiring/ArmedSwitch.kt", "wiring/DisplayWatch.kt", "wiring/LaunchRule.kt", "wiring/IconLaunchOnce.kt", "wiring/OffStore.kt", "wiring/ModelSupport.kt", "wiring/ThemeModeSupport.kt", "wiring/Swaps.kt",
         "wiring/BreakerSwitchAdapter.kt", "wiring/ForwardingDownloadNotice.kt",
-        "wiring/TakeYield.kt", "wiring/TakenClipboard.kt",
+        "wiring/TakeYield.kt", "wiring/TakenClipboard.kt", "wiring/MicTakeHold.kt",
         "wiring/TakenSentences.kt", "wiring/TakeSettle.kt", "wiring/DeviceFailureSentences.kt", "wiring/DeviceFailureYield.kt", "wiring/TakeFinisher.kt",
         "wiring/HomeTakeAdapter.kt", "wiring/EndingTexts.kt", "wiring/HomeSentences.kt", "wiring/TakeOwner.kt", "wiring/MicBusyPort.kt",
         "wiring/CompositeLevelSink.kt", "wiring/HomeLevelFeed.kt", "wiring/LevelMap.kt", "wiring/LevelMeter.kt", "wiring/LevelFeed.kt", "wiring/LevelTap.kt", "wiring/NoiseFloor.kt",
