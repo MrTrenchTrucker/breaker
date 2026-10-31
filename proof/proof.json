@@ -1,0 +1,230 @@
+{
+ "name": "proof-gesture-nonfinite",
+ "tip": {
+  "tree": "792f052494bfcf6149f95487cdc23a844f1b980d"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "gesture: non-finite accelerometer samples are dropped, one sample's size is capped, and start and stop clear the detection state",
+   "base_tree": "29c7bcadc63230aacf9d434381e52721485d07ba",
+   "item_tip_tree": "792f052494bfcf6149f95487cdc23a844f1b980d",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": []
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "red-a-01",
+   "kind": "red",
+   "item": "a",
+   "module": "android/modules/gesture",
+   "file": "android/modules/gesture/src/test/kotlin/dev/breaker/dictation/gesture/ShakeDetectorTest.kt",
+   "files": [
+    "android/modules/gesture/src/test/kotlin/dev/breaker/dictation/gesture/ShakeDetectorTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.gesture.ShakeDetectorTest"
+   ],
+   "patch": "proof/red/red-a-01.patch",
+   "tree": "ba1f14ecec1bd40603721a575ff01926603b244c",
+   "predict": "RED on main: a NaN or infinite sample poisons the filter or counts as a spike, and start/stop keep state, so the thirteen new tests that feed those cases fail there while the old tests pass"
+  },
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/gesture",
+   "edits": [
+    {
+     "file": "android/modules/gesture/src/main/kotlin/dev/breaker/dictation/gesture/ShakeDetector.kt",
+     "anchor": "        if (!magRaw.isFinite()) return\n",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "nan_sample_dropped_shake_still_fires",
+    "neg_inf_sample_dropped_shake_still_fires",
+    "inf_between_crossings_dropped_third_crossing_fires",
+    "inf_after_settle_dropped_no_false_shake"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/gesture",
+   "edits": [
+    {
+     "file": "android/modules/gesture/src/main/kotlin/dev/breaker/dictation/gesture/ShakeDetector.kt",
+     "anchor": "        if (!magRaw.isFinite()) return\n",
+     "replacement": ""
+    },
+    {
+     "file": "android/modules/gesture/src/main/kotlin/dev/breaker/dictation/gesture/ShakeDetector.kt",
+     "anchor": "        val mag = minOf(magRaw, MAX_SAMPLE_G)",
+     "replacement": "        val mag = minOf(magRaw, MAX_SAMPLE_G)\n        if (!mag.isFinite()) return"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "inf_between_crossings_dropped_third_crossing_fires",
+    "inf_after_settle_dropped_no_false_shake"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/gesture",
+   "edits": [
+    {
+     "file": "android/modules/gesture/src/main/kotlin/dev/breaker/dictation/gesture/ShakeDetector.kt",
+     "anchor": "        val mag = minOf(magRaw, MAX_SAMPLE_G)",
+     "replacement": "        val mag = magRaw"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "huge_finite_spike_capped_then_shake_fires",
+    "huge_sample_then_real_shake_fires"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/gesture",
+   "edits": [
+    {
+     "file": "android/modules/gesture/src/main/kotlin/dev/breaker/dictation/gesture/ShakeDetector.kt",
+     "anchor": "        const val MAX_SAMPLE_G = 3.3",
+     "replacement": "        const val MAX_SAMPLE_G = Double.POSITIVE_INFINITY"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "huge_finite_spike_capped_then_shake_fires",
+    "huge_sample_then_real_shake_fires"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/gesture",
+   "edits": [
+    {
+     "file": "android/modules/gesture/src/main/kotlin/dev/breaker/dictation/gesture/ShakeDetector.kt",
+     "anchor": "        resetFilterState()\n        started = false",
+     "replacement": "        started = false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "stop_clears_ac_term"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/gesture",
+   "edits": [
+    {
+     "file": "android/modules/gesture/src/main/kotlin/dev/breaker/dictation/gesture/ShakeDetector.kt",
+     "anchor": "        resetFilterState()\n        started = true",
+     "replacement": "        started = true"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "start_clears_accumulated_crossings",
+    "start_clears_cooldown_second_shake_fires"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/gesture",
+   "edits": [
+    {
+     "file": "android/modules/gesture/src/main/kotlin/dev/breaker/dictation/gesture/ShakeDetector.kt",
+     "anchor": "        lastTimestamp = null\n        coolUntil = null\n        crossings.clear()\n    }",
+     "replacement": "        lastTimestamp = null\n        crossings.clear()\n    }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "start_clears_cooldown_second_shake_fires"
+   ],
+   "rule": "",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "android/modules/gesture",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "android/modules/gesture/src/main/kotlin/dev/breaker/dictation/gesture/ShakeDetector.kt",
+     "anchor": "        val mag = minOf(magRaw, MAX_SAMPLE_G)",
+     "replacement": "        val mag = magRaw"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "android/modules/gesture",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "android/modules/gesture/src/main/kotlin/dev/breaker/dictation/gesture/ShakeDetector.kt",
+     "anchor": "        const val MAX_SAMPLE_G = 3.3",
+     "replacement": "        const val MAX_SAMPLE_G = 3.3 // unchanged behaviour"
+    }
+   ]
+  }
+ ]
+}

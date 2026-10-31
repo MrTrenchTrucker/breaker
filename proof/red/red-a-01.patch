@@ -1,0 +1,170 @@
+diff --git a/android/modules/gesture/AGENTS.md b/android/modules/gesture/AGENTS.md
+index a2e0b1b2..834d0c9f 100644
+--- a/android/modules/gesture/AGENTS.md
++++ b/android/modules/gesture/AGENTS.md
+@@ -23,7 +23,6 @@ hands each detection to the tile's shake path, which shows a closed or hidden ti
+ ## Invariants
+ - A detection fires reliably (tune threshold on target device).
+ - Threshold (THRESHOLD_G): 0.65
+-- Sample magnitude cap (MAX_SAMPLE_G): 3.3 (= 2 x (THRESHOLD_G + the 1.0 g crossing point)); a finite sample magnitude is held to this, and a non-finite sample (NaN, +Inf, -Inf) is dropped from the filter and the crossings (its timestamp still advances and the gap rule still applies).
+ - Fixtures (raw input amplitude -> reached AC): hand 8 Hz 1.0926 g -> ~0.98 g AC, softer 8 Hz 0.8762 g -> ~0.79 g AC, walking 2 Hz 0.8485 g -> ~0.53 g AC, bumpy 3 Hz 1.0817 g -> ~0.86 g AC, vibration 7 Hz 0.52 g -> ~0.47 g AC (assumed), rest/tilt. One phone, one person.
+ - Tuned on one measured hand shake (2.06 g raw) on one phone plus synthetic fixtures; the vibration amplitude is an assumption; other phones are a device check. Device checks: hand shake (keyboard up); walking 1 min with the phone in a pocket; phone in a truck cab mount while driving 10 min - no false shake detection.
+ - No false shake detections from normal walking (test on device).
+@@ -33,7 +32,7 @@ hands each detection to the tile's shake path, which shows a closed or hidden ti
+ Shake-to-wake (accelerometer).
+ 
+ ## Public Interface
+-ShakeHandle - the public entry: `ShakeHandle.create(onShake, port: ShakePort)` wires a port to the detector (the SensorManager-backed port is `SensorManagerShakeSource`; tests pass a fake port). Start/stop on the main thread; a start the port refuses reports false and stays retryable. Both `start()` and `stop()` reset the detector's filter state (the low-pass term, the previous-magnitude bookkeeping, the last timestamp, the cooldown, and the crossing list), so a start after a stop begins fresh. The detector itself is module-internal, reached only through the handle.
++ShakeHandle - the public entry: `ShakeHandle.create(onShake, port: ShakePort)` wires a port to the detector (the SensorManager-backed port is `SensorManagerShakeSource`; tests pass a fake port). Start/stop on the main thread; a start the port refuses reports false and stays retryable. The detector itself is module-internal, reached only through the handle.
+ 
+ ## Depends On
+ - android (registered in modules.toml)
+@@ -76,4 +75,3 @@ agents, not required: an outside contributor may write the code themselves
+ ## Known Gotchas
+ - Device check (not covered by unit tests): a real shake fires once; screen-off delivery works; events arrive on the main looper (no Handler registered).
+ - Fold-over: the detector reads the magnitude |a|, so a swing larger than 1 g along gravity folds over each cycle and gives about twice the crossing rate (a 3 Hz swing gives ~6 Hz of crossings). A strong swing (2.1 g AC) therefore fires; a light canary below 1 g (0.8 g AC) does not.
+-- Non-finite and extreme samples: a sample whose magnitude is not finite (NaN, +Inf, -Inf) is dropped from the filter and the crossings (its timestamp still advances and the gap rule still applies), so one bad reading cannot disable the detector; a finite magnitude above MAX_SAMPLE_G (3.3 g) is capped so one extreme reading cannot blind the low-pass filter for a magnitude-scaled window.
+diff --git a/android/modules/gesture/README.md b/android/modules/gesture/README.md
+index 408255d3..f0d0e120 100644
+--- a/android/modules/gesture/README.md
++++ b/android/modules/gesture/README.md
+@@ -13,14 +13,13 @@ The detector does two things per sample:
+ 1. Runs a one-pole high-pass filter over the acceleration **magnitude** (the vector length of `x, y, z`, in m/s^2, divided by gravity so it reads in g). The filtered value is `hp = mag - lp`, where the low-pass term `lp` drifts toward `mag`.
+ 2. Watches that filtered value for positive-going threshold crossings - a moment where it rises above the crossing threshold after having been below it - and remembers when each one happened, within a sliding time window.
+ 
+-If two samples arrive far apart, the state that would have been carried forward is reset; a sample whose timestamp does not increase is ignored outright (see Timestamps) rather than resetting anything. A sample whose magnitude is not finite (NaN, +Inf, -Inf) is dropped from the filter and the crossing list only: it leaves the low-pass term and the crossings unchanged, but its timestamp still advances and is measured by the gap rule, which can still reset the detection state; any finite magnitude is capped at `MAX_SAMPLE_G` (3.3 g) so one extreme-but-finite reading cannot drive the low-pass term far enough to blind the filter.
++If two samples arrive far apart, the state that would have been carried forward is reset; a sample whose timestamp does not increase is ignored outright (see Timestamps) rather than resetting anything.
+ 
+ ## The constants
+ 
+ | Name | Value | Role |
+ | --- | --- | --- |
+ | `THRESHOLD_G` | `0.65` | Magnitude, in g, above which a positive-going step counts as a crossing. |
+-| `MAX_SAMPLE_G` | `3.3` | Cap on a single finite sample magnitude (`2 * (THRESHOLD_G + the 1.0 g crossing point)`); one extreme-but-finite reading is held to this so it cannot drive the low-pass term far enough to blind the detector. Non-finite magnitudes are dropped before the cap is applied. |
+ | `CROSSING_COUNT` | `3` | Crossings needed within the window to fire. |
+ | `WINDOW_MS` | `500` | Window span (inclusive: an exact 500 ms span still counts). Crossings older than this are pruned before a decision. |
+ | `COOLDOWN_MS` | `2000` | Refractory after a fire; one shake fires once. |
+@@ -31,7 +30,7 @@ All of these are named constants on `ShakeDetector` with KDoc stating their valu
+ 
+ ## Start / stop
+ 
+-`start()` enables listening; `stop()` disables it. While stopped, every sample is discarded - no state changes accumulate. Both `start()` and `stop()` reset the detector's filter state (the low-pass term, the previous-magnitude bookkeeping, the last timestamp, the cooldown, and the crossing list), so a `start()` after a `stop()` begins fresh rather than resuming from where the detector left off. This keeps the sensor quiet by default and on battery.
++`start()` enables listening; `stop()` disables it. While stopped, every sample is discarded - no state changes accumulate. Calling `start()` again resumes from whatever the current state is (a gap on the first fed sample then falls out under the gap rule). This keeps the sensor quiet by default and on battery.
+ 
+ The handle's start/stop run on the main thread; its listener registers with no Handler, so samples and the onShake callback are delivered on the main looper - the handle is not thread-safe beyond that.
+ 
+diff --git a/android/modules/gesture/src/main/kotlin/dev/breaker/dictation/gesture/ShakeDetector.kt b/android/modules/gesture/src/main/kotlin/dev/breaker/dictation/gesture/ShakeDetector.kt
+index c4a52d6e..b27ee70d 100644
+--- a/android/modules/gesture/src/main/kotlin/dev/breaker/dictation/gesture/ShakeDetector.kt
++++ b/android/modules/gesture/src/main/kotlin/dev/breaker/dictation/gesture/ShakeDetector.kt
+@@ -60,53 +60,27 @@ internal class ShakeDetector private constructor(
+     }
+ 
+     /**
+-     * Begin accepting samples from a clean filter: [resetFilterState] runs first, so any
+-     * state left from an earlier run - the low-pass term, the previous-magnitude
+-     * bookkeeping, the last timestamp, the cooldown, and the crossing list - is cleared.
+-     * While stopped, [feed] ignores every sample.
++     * Begin accepting samples. While stopped, [feed] ignores every sample; the detection
++     * state itself is kept, so starting again resumes from where the detector left off.
+      */
+     fun start() {
+-        resetFilterState()
+         started = true
+     }
+ 
+     /**
+-     * Stop accepting samples and clear the detection state: [resetFilterState] runs, so a
+-     * later [start] begins fresh rather than resuming. The low-pass term, the
+-     * previous-magnitude bookkeeping, the last timestamp, the cooldown, and the crossing
+-     * list are all returned to their initial values.
++     * Stop accepting samples. The detection state is kept and not cleared: a later
++     * [start] resumes from it, and a break longer than [LARGE_GAP_MS] resets state via
++     * the gap rule on the first sample fed after the break.
+      */
+     fun stop() {
+-        resetFilterState()
+         started = false
+     }
+ 
+-    /**
+-     * Return every detection field to its initial value: the low-pass term back to one g,
+-     * the previous-magnitude bookkeeping and cooldown cleared, and the crossing list
+-     * emptied. Called by both [start] and [stop] so a run never resumes across one.
+-     */
+-    private fun resetFilterState() {
+-        lpMag = 1.0
+-        prevMag = null
+-        prevAbove = false
+-        lastMag = 0.0
+-        lastTimestamp = null
+-        coolUntil = null
+-        crossings.clear()
+-    }
+-
+     /**
+      * Advance the detector with one reading, firing [onShake] when a shake is found.
+      * While stopped every sample is ignored entirely: no state changes occur.
+      *
+      * Sample rules (all timestamps are [Sample.timestampMs]):
+-     * - a sample whose magnitude is not finite (NaN, +Inf, -Inf) is dropped from the
+-     *   filter and the crossing list only: it leaves the low-pass term and the crossings
+-     *   unchanged, but its timestamp still advances the last-accepted timestamp and is
+-     *   measured by the gap rule below, which can still reset the detection state; a finite
+-     *   magnitude is capped at [MAX_SAMPLE_G] so one extreme reading cannot drive the
+-     *   low-pass term far enough to blind the filter;
+      * - a timestamp not increasing past the last accepted one is ignored outright;
+      * - a gap larger than [LARGE_GAP_MS] resets all detection state, and that sample
+      *   then consumes no detection of its own;
+@@ -143,12 +117,7 @@ internal class ShakeDetector private constructor(
+             return
+         }
+ 
+-        val magRaw = sampleMagnitude(sample)
+-        // A non-finite magnitude (NaN, +Inf, -Inf) is dropped outright: one bad reading
+-        // would otherwise poison the low-pass term for good. Checked on the raw magnitude,
+-        // before the cap below.
+-        if (!magRaw.isFinite()) return
+-        val mag = minOf(magRaw, MAX_SAMPLE_G)
++        val mag = sampleMagnitude(sample)
+         lastMag = mag
+ 
+         // First sample (or the one right after a reset): seed the low-pass term.
+@@ -201,7 +170,7 @@ internal class ShakeDetector private constructor(
+     private fun sampleMagnitude(sample: Sample): Double {
+         val sum = (sample.x * sample.x + sample.y * sample.y + sample.z * sample.z).toDouble()
+         val m = sqrt(sum) / gravity
+-        return m
++        return if (m < 0.0) 0.0 else m
+     }
+ 
+     /**
+@@ -228,13 +197,6 @@ internal class ShakeDetector private constructor(
+          * positive-going crossing. */
+         const val THRESHOLD_G = 0.65
+ 
+-        /**
+-         * Cap, in g, on a single finite sample magnitude: `2 * (THRESHOLD_G + the 1.0 g
+-         * crossing point)`. One extreme-but-finite reading is held to this so it cannot
+-         * drive the low-pass term far enough to blind the detector for a magnitude-scaled
+-         * window. Non-finite magnitudes are dropped before this cap is applied. */
+-        const val MAX_SAMPLE_G = 3.3
+-
+         /** Number of positive-high crossings required inside the window to declare a shake. */
+         const val CROSSING_COUNT = 3
+ 
+diff --git a/android/modules/gesture/src/main/kotlin/dev/breaker/dictation/gesture/ShakeHandle.kt b/android/modules/gesture/src/main/kotlin/dev/breaker/dictation/gesture/ShakeHandle.kt
+index 8e7b4e47..6ef22454 100644
+--- a/android/modules/gesture/src/main/kotlin/dev/breaker/dictation/gesture/ShakeHandle.kt
++++ b/android/modules/gesture/src/main/kotlin/dev/breaker/dictation/gesture/ShakeHandle.kt
+@@ -42,8 +42,8 @@ class ShakeHandle internal constructor(
+     }
+ 
+     /**
+-     * Unregister the sensor and stop accepting samples. The detector clears its detection
+-     * state, so a later [start] begins fresh rather than resuming from where it left off.
++     * Unregister the sensor and stop accepting samples. The detector keeps its state,
++     * so a later [start] resumes from where it left off.
+      */
+     fun stop() {
+         if (!started) return
