@@ -1,0 +1,173 @@
+{
+ "name": "proof-whisper-model-optional",
+ "tip": {
+  "tree": "620a6a21f3dcd4fd93ade4505f989f2f999914df"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "whisper-server: a missing or blank model part is accepted and ignored",
+   "base_tree": "1f1f8640d832cd3aa0a11949dc00e3903181d7b2",
+   "item_tip_tree": "620a6a21f3dcd4fd93ade4505f989f2f999914df",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": []
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "red-a-01",
+   "kind": "red",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "file": "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutesTest.kt",
+   "files": [
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutesTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.whisper.http.TranscriptionRoutesTest"
+   ],
+   "patch": "proof/red/red-a-01.patch",
+   "tree": "fbb76d5ffebfca9be4bc0da9757be9cf33a1c32a",
+   "predict": "RED on base: the missing-model and blank-model tests get 400 there and expect 202; every other test of the file passes"
+  },
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutes.kt",
+     "anchor": "                        // accept and ignore: the configured downstream model serves every job",
+     "replacement": "                        if (part.value.isBlank()) tooLarge = true"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a request with a blank model part is accepted with 202 and a queued job"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutes.kt",
+     "anchor": "        var tooLarge = false",
+     "replacement": "        var tooLarge = false\n        var sawModel = false"
+    },
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutes.kt",
+     "anchor": "                        // accept and ignore: the configured downstream model serves every job",
+     "replacement": "                        sawModel = true"
+    },
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutes.kt",
+     "anchor": "            else -> {",
+     "replacement": "            !sawModel -> {\n                respondError(call, HttpStatusCode.BadRequest, \"the model part is required\")\n            }\n            else -> {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a request without a model part is accepted with 202 and a queued job"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutes.kt",
+     "anchor": "        var tooLarge = false",
+     "replacement": "        var tooLarge = false\n        var sawModel = false"
+    },
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutes.kt",
+     "anchor": "                        // accept and ignore: the configured downstream model serves every job",
+     "replacement": "                        sawModel = part.value.isNotBlank()"
+    },
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutes.kt",
+     "anchor": "            else -> {",
+     "replacement": "            !sawModel -> {\n                respondError(call, HttpStatusCode.BadRequest, \"the model part is required\")\n            }\n            else -> {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a request without a model part is accepted with 202 and a queued job",
+    "a request with a blank model part is accepted with 202 and a queued job"
+   ],
+   "rule": "",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "server/modules/whisper-server",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutes.kt",
+     "anchor": "        var tooLarge = false",
+     "replacement": "        var tooLarge = false\n        var sawModel = false"
+    },
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutes.kt",
+     "anchor": "                        // accept and ignore: the configured downstream model serves every job",
+     "replacement": "                        sawModel = true"
+    },
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutes.kt",
+     "anchor": "            else -> {",
+     "replacement": "            !sawModel -> {\n                respondError(call, HttpStatusCode.BadRequest, \"the model part is required\")\n            }\n            else -> {"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "server/modules/whisper-server",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutes.kt",
+     "anchor": "                        // accept and ignore: the configured downstream model serves every job",
+     "replacement": "                        // accept and ignore: the configured downstream model serves every job (unchanged behaviour)"
+    }
+   ]
+  }
+ ]
+}

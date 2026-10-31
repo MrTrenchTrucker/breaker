@@ -1,0 +1,119 @@
+diff --git a/server/modules/whisper-server/AGENTS.md b/server/modules/whisper-server/AGENTS.md
+index ccd05f64..fdcdfcdd 100644
+--- a/server/modules/whisper-server/AGENTS.md
++++ b/server/modules/whisper-server/AGENTS.md
+@@ -10,7 +10,7 @@ Do NOT build a new transcription engine — this module never runs Whisper
+ itself; it queues, shapes the contract, and proxies.
+ 
+ **API (contract in `shared/api-contracts`):**
+-- `POST /v1/audio/transcriptions` — multipart `file` (WAV/MP3/OGG), optional `model` (ignored),
++- `POST /v1/audio/transcriptions` — multipart `file` (WAV/MP3/OGG), `model`,
+   `language` → `202 { job_id, status: "queued" }`
+ - `GET /v1/jobs/{job_id}` → `{ status: queued|processing|done|failed, result:
+   { text, segments[], language } | null }`
+@@ -186,18 +186,18 @@ agents, not required: an outside contributor may write the code themselves
+   `http/TranscriptionApi.kt` (`TranscriptionApi(store, wakeWorker).install(app)`), the module's
+   public entry point. The runnable entry point ships here; the engine is CIO, and tests use
+   `embeddedServer`.
+-- `POST /v1/audio/transcriptions` takes a multipart `file` part (required); optional `model` and
+-  `language` parts are accepted and ignored. It enqueues a job and answers
++- `POST /v1/audio/transcriptions` takes a multipart `file` part and a `model` part, both required;
++  an optional `language` part is accepted and ignored. It enqueues a job and answers
+   `202 { job_id, status: "queued" }`, then wakes the worker.
+ - The upload cap is 25 MiB (`MAX_AUDIO_BYTES`), the OpenAI audio-transcriptions limit this
+   OpenAI-shaped front follows. It is enforced while the part is read (a counted read plus Ktor's
+   form-field limit), never by reading the whole body first; over the cap is `413`.
+-- A missing or empty `file` part is `400`; a missing or blank `model` part is accepted and ignored.
++- A missing or empty `file` part is `400`; a missing or blank `model` part is `400`.
+ - `GET /v1/jobs/{job_id}` answers `{ status, result }` for a known id and `404` for an unknown one;
+   a `failed` job also carries the stored `error`. Results stay fetchable for the result window
+   (see Result retention above).
+-- **Honest limits of this slice:** the `model` part is optional and ignored (the forwarder sends the
+-  configured downstream model for every job); the `language` part is not stored; there is no
++- **Honest limits of this slice:** the `model` part is required but not stored (there is no column;
++  the configured downstream model serves every job); the `language` part is not stored; there is no
+   auth yet, so every job is enqueued under one owner constant (`OWNER_ACCOUNT_ID`) until `sync-api`
+   lands; no audio-format check is done (the downstream service decides).
+ - `json/Json.kt` holds the one shared `escapeJsonString`, used by both the forwarder and the HTTP
+diff --git a/server/modules/whisper-server/README.md b/server/modules/whisper-server/README.md
+index c44c239c..d5e4c662 100644
+--- a/server/modules/whisper-server/README.md
++++ b/server/modules/whisper-server/README.md
+@@ -10,10 +10,10 @@ Full module card, including how to run its tests: `AGENTS.md` in this folder.
+ 
+ ## HTTP front
+ 
+-`POST /v1/audio/transcriptions` takes a multipart `file` (the audio), the only required part. Optional `model` and `language` parts are accepted and ignored for now. The upload is capped at 25 MiB; over that is refused. It answers `202 { job_id, status: "queued" }` and wakes the worker. `GET /v1/jobs/{job_id}` answers the job's status and, once done, its result. A done result is
++`POST /v1/audio/transcriptions` takes a multipart `file` (the audio) and a `model` part; both are required. An optional `language` part is accepted and ignored for now. The upload is capped at 25 MiB; over that is refused. It answers `202 { job_id, status: "queued" }` and wakes the worker. `GET /v1/jobs/{job_id}` answers the job's status and, once done, its result. A done result is
+ idempotently re-fetchable for a short TTL after completion (default 10 minutes,
+ `BREAKER_WHISPER_RESULT_TTL_S`, an upper bound of 86400 s = 24 h): every GET inside that window returns the same `done` result. After
+ the window a store purge erases the result and a GET returns `404` reason `unknown or expired` — an
+ unknown id gives the same `404`. Audio is erased on completion (ADR-010), unchanged.
+ 
+-The `model` part is optional and ignored - the configured downstream model serves every job today; per-request model selection is a later schema change. There is no auth on these routes yet; every job is enqueued under one owner until the auth module lands.
++The `model` part is required but NOT stored yet - the configured downstream model serves every job today; per-request model selection is a later schema change. There is no auth on these routes yet; every job is enqueued under one owner until the auth module lands.
+diff --git a/server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutes.kt b/server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutes.kt
+index 9c7c53bf..a4b08941 100644
+--- a/server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutes.kt
++++ b/server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/TranscriptionRoutes.kt
+@@ -37,6 +37,7 @@ internal fun Route.transcriptionRoutes(
+ ) {
+     post("/v1/audio/transcriptions") {
+         var readAudio: ByteArray? = null
++        var readModel: String? = null
+         var tooLarge = false
+ 
+         try {
+@@ -48,7 +49,7 @@ internal fun Route.transcriptionRoutes(
+                         if (bytes.size > MAX_AUDIO_BYTES) tooLarge = true else readAudio = bytes
+                     }
+                     part is PartData.FormItem && part.name == "model" -> {
+-                        // accept and ignore: the configured downstream model serves every job
++                        readModel = part.value
+                     }
+                     part is PartData.FormItem && part.name == "language" -> {
+                         // accept and ignore (not stored yet)
+@@ -66,6 +67,7 @@ internal fun Route.transcriptionRoutes(
+         // Read the collected fields once: the lambda above writes these vars, so they cannot be
+         // smart-cast to non-null afterwards; the vals below can.
+         val audio = readAudio
++        val model = readModel
+ 
+         when {
+             tooLarge -> {
+@@ -74,6 +76,9 @@ internal fun Route.transcriptionRoutes(
+             audio == null || audio.isEmpty() -> {
+                 respondError(call, HttpStatusCode.BadRequest, "the file part is required")
+             }
++            model == null || model.isBlank() -> {
++                respondError(call, HttpStatusCode.BadRequest, "the model part is required")
++            }
+             else -> {
+                 val jobId = store.enqueue(OWNER_ACCOUNT_ID, audio)
+                 wakeWorker()
+diff --git a/tests/contract/test_whisper_server_contract.py b/tests/contract/test_whisper_server_contract.py
+index 9d41d428..15047a58 100644
+--- a/tests/contract/test_whisper_server_contract.py
++++ b/tests/contract/test_whisper_server_contract.py
+@@ -81,21 +81,6 @@ class ServerModulesWhisperServerContractTest(contract_support.ModuleContractTest
+             "whisper-server contract: the job_id parameter must say the client echoes it back unchanged"
+         )
+ 
+-    def test_transcription_request_requires_only_the_file_part(self):
+-        """the transcription request schema requires only `file`; `model` and `language` are optional.
+-
+-        whisper-server accepts a missing or blank `model` part and ignores it (the forwarder sends
+-        its configured downstream model), so the contract must not list `model` as required.
+-        """
+-        spec = _load_openapi()
+-        schema = (
+-            spec["paths"]["/v1/audio/transcriptions"]["post"]["requestBody"]["content"]
+-            ["multipart/form-data"]["schema"]
+-        )
+-        assert schema["required"] == ["file"], (
+-            f"whisper-server contract: only the file part is required, got {schema['required']!r}"
+-        )
+-
+ 
+ if __name__ == "__main__":
+     unittest.main()
