@@ -1,7 +1,7 @@
 // server/modules/deploy — DeployScripts.
 //
 // Card: server/modules/deploy/AGENTS.md   Registry: modules.toml [module.server_deploy]
-// Owns: Git-pull deploy, docker-compose, certs, APK signing, ZT bind, volumes, NOTICE.
+// Owns: Git-pull deploy, docker-compose, certs, APK signing, VPN bind, volumes, NOTICE.
 // Depends on: server
 // Cross-module calls go through the core ports or the app's own
 // dependency wiring; this module never reaches into a sibling's code.

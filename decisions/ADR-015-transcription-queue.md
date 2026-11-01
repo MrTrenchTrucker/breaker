@@ -1,6 +1,6 @@
 # ADR-015: Async transcription job queue, hosted in Breaker's own whisper-server (not the Whisper X container)
 
-**Status:** accepted
+**Status:** accepted, amended 2026-11-01 (the job owner will come from the token; how the token is checked is open)
 **Date:** 2026-09-30
 
 ## Context
@@ -14,7 +14,7 @@ A queue design was already ratified on F23 (queue) and F26/F27 (admin-configurab
 ## Decision
 1. **Shape:** the transcription contract is **async only**. There is no synchronous 200-with-body variant. `POST /v1/audio/transcriptions` always enqueues and returns `202 { job_id, status: "queued" }`; the caller always polls `GET /v1/jobs/{job_id}` for the result.
 2. **Location:** the endpoint, the FIFO worker, and the job store live in **Breaker's own `server/modules/whisper-server` container** — a new container in Breaker's docker-compose, alongside sync-api/web-fe/training/deploy. It is not a patch to the Whisper X container's source, and the Whisper X container is not modified by this project.
-3. **Forwarding:** whisper-server forwards each job's audio to the admin-configured downstream transcription service (F26/ADR-008). The default configured target is the existing Whisper X container over ZeroTier — unchanged, exactly as it runs today, and swappable per F26.
+3. **Forwarding:** whisper-server forwards each job's audio to the admin-configured downstream transcription service (F26/ADR-008). The default configured target is the existing Whisper X container over a VPN — unchanged, exactly as it runs today, and swappable per F26.
 4. **Why a queue in front, not a patch inside:** F23 already specifies this queue for exactly this reason — serializing every caller (multiple Breaker users, plus any agent tokens) without Whisper X's own code needing to know Breaker exists. docs/01:106's "no new server STT service" is read narrowly, as "no new transcription engine" — whisper-server is glue and contention control, not a competing Whisper implementation.
 
 ## Reasons
@@ -28,3 +28,5 @@ A queue design was already ratified on F23 (queue) and F26/F27 (admin-configurab
 - `android/modules/stt-server` polls instead of reading a body from the POST; `core.SttEngine`'s public shape (`SttResult`) is unchanged, so `transport` and everything above it needs no change.
 - `shared/modules/api-contracts` keeps exactly one transcription contract (async); the sync variant is deleted from the spec, not just deprioritized.
 - Out of scope for this ADR: how queued job results are protected at rest (agent tokens vs. encryption by default, F24/F27) — a separate decision.
+
+Amended 2026-11-01: jobs are to be owned by the account of the session token (ADR-031) and a missing, unknown, revoked or expired token refused with nothing enqueued, instead of one fixed owner. How whisper-server learns that a token is live is an open question (ARCHITECTURE R31); nothing is built yet.

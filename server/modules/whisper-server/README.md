@@ -17,3 +17,5 @@ the window a store purge erases the result and a GET returns `404` reason `unkno
 unknown id gives the same `404`. Audio is erased on completion (ADR-010), unchanged.
 
 The `model` part is optional and ignored - the configured downstream model serves every job today; per-request model selection is a later schema change. There is no auth on these routes yet; every job is enqueued under one owner until the auth module lands.
+
+**Token check (open).** Jobs are to be owned by the account of the caller's session token, and a missing, unknown, revoked or expired token refused with nothing enqueued; today the service checks no token. How it learns that a token is live is an open question (`ARCHITECTURE.md` R31).

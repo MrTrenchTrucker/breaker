@@ -10,7 +10,7 @@ cases) + `ui` (views) + `modules/*` (adapters).
 `com.edib.openwhispr`, in-app updater deleted, Gradle SHA-256 pinned, no cloud
 fallthrough, NOTICE added.
 
-**Priority:** **server-primary** — Local Server via ZeroTier is the primary
+**Priority:** **server-primary** — Local Server over a VPN or other private link is the primary
 transcription + formatting path; on-device sherpa-onnx is the fallback.
 
 **Voice control (v1):** "Breaker Breaker" (wake + auto-record) and "And I'm Gone"

@@ -81,7 +81,7 @@ not here.
    choosing a name. This repo's scope decision (docs/01 "Out of scope", docs/05
    "Deferred / out of scope") puts auth hardening out of scope for v1; neither
    list names account enumeration by that term, but this repo reads
-   "auth hardening" as covering it too — the VPN/ZeroTier perimeter is the
+   "auth hardening" as covering it too — the VPN perimeter is the
    auth layer for now, so account existence is not worth hiding behind it. A
    decoy salt would only pretend otherwise, so none is used.
 2. The client re-derives the same Argon2id output locally and HKDF-splits it

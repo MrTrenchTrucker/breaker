@@ -1,6 +1,6 @@
 # ADR-009: Roles + agent tokens (first-account-is-admin)
 
-**Status:** accepted
+**Status:** accepted, amended 2026-11-01 (a session token expires 30 days after its last use)
 **Date:** 2026-09-29
 
 ## Context
@@ -28,3 +28,5 @@ who completes the reset; the account's very next password change — every
 password change rotates the DEK and box keypair, with no reset-specific case
 needed (ADR-006) — is what bounds that gap (ADR-018).
 Rules out: self-promotion, last-admin deletion.
+
+Amended 2026-11-01: a session token expires 30 days after its last use, and each use moves the expiry to 30 days from that moment (ADR-031). An admin can still revoke a session at once. Agent tokens keep their own optional expiry and are never moved by a use.

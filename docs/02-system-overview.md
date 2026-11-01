@@ -9,7 +9,7 @@
 │  gesture ──shake──▶ tile · overlay ──tap──▶ record / tap──▶ send              │
 │                                                                               │
 │  audio ──pcm16/16k──▶ core DictateUseCase ──asks──▶ transport (probe)         │
-│     ├─ server reachable ──▶ stt-server (Breaker whisper-server, via ZT) ──▶   │
+│     ├─ server reachable ──▶ stt-server (Breaker whisper-server, via VPN) ──▶  │
 │     │                        format (server LLM) ──formatted text──▶ commit   │
 │     └─ server down ──▶ stt-ondevice (sherpa-onnx) ──raw text──▶               │
 │                          format (rule-based) ──formatted text──▶ commit       │
@@ -23,13 +23,13 @@
 │  auth-client ──login/register──▶ token + role for sync/training/STT           │
 │  updater ──daily check + admin force-check──▶ signed APK install              │
 └────────────────────────────────────────────────────────────────────────────────┘
-                              │  ZeroTier VPN (TLS via self-hosted CA)
+                              │  VPN (TLS from the server's own certificate)
                               ▼
 ┌─── Local Server ───────────────────────────────────────────────────────────────────┐
 │  whisper-server ── /v1/audio/transcriptions + FIFO queue                     │
 │                   ──▶ forwards to admin-configured service (Docker/IP/ext)    │
 │  sync-api ── /v1/sync + /v1/auth (users, roles, agent tokens) + updates      │
-│  web-fe ── Debian container: website (client-side decrypt) + APK + cert +    │
+│  web-fe ── Debian container: website (client-side decrypt) + APK +           │
 │            model hosting + admin panel (service config, store clear)         │
 │  training ── per-user voice phrase model training (CPU; GPU via Local Inference)   │
 │  deploy ── git pull (latest tagged) · docker-compose · certs · APK signing   │

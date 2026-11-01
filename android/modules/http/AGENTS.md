@@ -87,4 +87,4 @@ fragile.
 - updater: connect 10_000 ms; manifest read 15_000 ms with a manifest cap of 65_536 bytes; APK read 30_000 ms with an APK cap of 268_435_456 bytes (256 MiB). The APK downloader and the update checker take that APK cap as a constructor default. This module must not copy such a default.
 - The three clients need different caps for their jobs. A default copied from stt-server would cap the APK download at 4 MiB, and any single default would be wrong for at least two of the three clients.
 - Error bodies differ. stt-server reads the error stream of a non-2xx reply; the updater reads no error body. This module reads a non-2xx body under the same cap, as the Invariants say.
-- Trust: the platform trust store only, with no certificate pin and no custom trust manager. In the updater the manifest signature, not TLS, is the authority for update content.
+- Trust: the platform trust store only, with no certificate pin and no custom trust manager (ADR-032, decided in principle and not built, will add trust in the paired server's certificate fingerprint here, and only here). In the updater the manifest signature, not TLS, is the authority for update content.

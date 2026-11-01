@@ -1,7 +1,7 @@
 // server/modules/web-fe — WebApp.
 //
 // Card: server/modules/web-fe/AGENTS.md   Registry: modules.toml [module.server_web_fe]
-// Owns: Debian container website (client-side decrypt, Trucking UI), APK/cert/model hosting,...
+// Owns: Debian container website (client-side decrypt, Trucking UI), APK/model hosting,...
 // Depends on: server, server_sync_api, shared_ui_tokens
 // Cross-module calls go through the core ports or the app's own
 // dependency wiring; this module never reaches into a sibling's code.

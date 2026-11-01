@@ -377,9 +377,9 @@ agents, not required: an outside contributor may write the code themselves
     token or a session token.
   - The admin endpoints need role admin for a session token and effective
     scope admin for an agent token.
-- There is no logout and no session expiry yet, so a session row stays until
-  `change-password`, a reset or the deletion of the account removes it. Rows
-  that are revoked or expired are never purged yet.
+- A session row ends by expiry (30 days after its last use, ADR-031), logout,
+  `change-password`, a reset or the deletion of the account. Rows that are
+  revoked or expired are never purged yet.
 - A revoked row is kept (a soft revoke), so a token id is never reused and
   revoking twice changes nothing.
 - An agent token's label is 1 to 64 characters with no control characters. It

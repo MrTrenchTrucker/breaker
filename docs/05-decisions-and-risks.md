@@ -71,7 +71,7 @@ per-user KWS model, the phone downloads it (F16).
 Each user's transcriptions, trained models, and settings are scoped by user_id
 server-side (N13). Tokens in the Android Keystore.
 
-**D14 — Web FE = Debian container** on Local Server; also hosts APK + CA cert.
+**D14 — Web FE = Debian container** on Local Server; also hosts the APK (the CA-certificate download is superseded, ADR-032).
 
 **D15 — Deploy = git-pull of latest tagged release** from local GIT server.
 
@@ -212,19 +212,19 @@ failed → local fallback, **red** = complete failure (F36).
 | R1 | Overlay focus limits on newer Android | Med | Tile is tap-only; dictation happens in place on the tile — no window takes focus (ADR-022) |
 | R2 | Shake sensor missing or stopped by the system on some devices | Med | Fallback: always-visible tile toggle |
 | R3 | On-device model accuracy vs speed | Low | S25 Ultra 16 GB → small/medium fine; size is a setting |
-| R4 | ZeroTier flakiness on mobile networks | Med | Probe TTL + auto-fallback to local; never block on server |
+| R4 | VPN flakiness on mobile networks | Med | Probe TTL + auto-fallback to local; never block on server |
 | R5 | Accessibility-service permission UX friction, including the Android 13+ "restricted setting" step for sideloaded apps | Low | Onboarding screen walks the user to the accessibility settings and through the restricted-setting step |
 | R6 | **Missing server endpoint** — server path blocked until `/v1/audio/transcriptions` is added | High | Phase 4 first priority after Phase 0 |
 | R7 | **Base code never built/run** — compilation + runtime unverified | High | Phase 0 build + smoke-test gate |
 | R8 | ASR model upstream terms (outside Security Review audit) | Med | Per-model license recorded in model-registry |
-| R9 | Local Server cert infra state UNKNOWN | High | Phase 4 starts with verification script before TLS changes |
+| R9 | Local Server cert infra state UNKNOWN | High | Phase 4 starts with verification script before TLS changes; the server now makes its own certificate (ADR-032, decided in principle), so the open part is the pairing and renewal design |
 | R10 | **LLM formatting could hallucinate** | Med | Temperature 0, plain-text output (structured/JSON mode off), non-destructive prompt, diff-check tests (N9) |
 | R11 | **High-power mode dependency** — app must verify power-saving is off | Med | Detect + prompt at startup (F12); battery itself is a non-issue (plugged in) |
 | R12 | **Phrase-detection false positives** ("Breaker Breaker" heard in normal speech) | Med | Target < 1/day on device; tune threshold/matching; shake remains reliable fallback |
 | R13 | **Multi-user isolation bugs** | High | Server-enforced scoping (N13) + cross-user tests; never trust client claims |
 | R14 | **Sync conflicts/duplicates** | Med | Idempotent sync (N12): (client id, key_version) pair dedupe |
 | R15 | **Training sample privacy** | Med | User-scoped storage, TLS, token auth, user-deletable |
-| R16 | **Sideload friction for friends/family** | Med | Clear how-to (docs/06) + cert install + APK SHA-256 published |
+| R16 | **Sideload friction for friends/family** | Med | Clear how-to (docs/06) + the one-time pairing + APK SHA-256 published |
 | R17 | **Update tampering / signing key compromise** | High | Signed APK + SHA-256 verify; key in secrets store (never git [1]); rotation procedure |
 | R18 | **Admin escalation / role abuse** | Med | First-account-is-admin bootstrap; audited role changes; no self-promotion (T16) |
 | R19 | **Queue backpressure / long waits under load** | Med | Job status UX ("queued…"), timeouts, per-user rate limits (T18) |
@@ -241,9 +241,11 @@ failed → local fallback, **red** = complete failure (F36).
 | R30 | **Last-admin lockout** | Low | Prevented by rule: last admin cannot delete or be demoted (F33) |
 
 ## Deferred / out of scope (user decisions)
-- **Auth hardening** (brute-force protection, session expiry, refresh) — the
-  VPN/ZeroTier perimeter is the auth layer for now; an auth server may come later.
-- **Certificate lifecycle** — manual re-issue by the admin; out of scope for the
-  Breaker app (the app uses certs, it doesn't manage them).
+- **Auth hardening** (brute-force protection, refresh) — the VPN perimeter is the
+  auth layer for now; an auth server may come later. Session expiry is no
+  longer deferred: 30 days after the last use (ADR-031).
+- **Certificate lifecycle** — the server makes and keeps its own certificate
+  (ADR-032, decided in principle); how a certificate is replaced or renewed
+  without breaking paired phones is part of the design still to be done.
 - **Formal backups** — multi-drive redundancy + device copies of transcriptions;
   no dedicated backup subsystem.

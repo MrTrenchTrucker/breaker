@@ -59,13 +59,13 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-006](ADR-006-encryption.md) | Encryption by default — per-user DEK, password-wrapped | accepted, amended 2026-09-30 and 2026-10-01 |
 | [ADR-007](ADR-007-fifo-queue.md) | FIFO transcription queue | accepted |
 | [ADR-008](ADR-008-configurable-service.md) | Admin-configurable transcription service | accepted |
-| [ADR-009](ADR-009-roles-tokens.md) | Roles + agent tokens (first-account-is-admin) | accepted |
+| [ADR-009](ADR-009-roles-tokens.md) | Roles + agent tokens (first-account-is-admin) | accepted, amended 2026-11-01 |
 | [ADR-010](ADR-010-retention.md) | Retention policy — 3-month TTL, audio deletes on completion | accepted |
 | [ADR-011](ADR-011-updates.md) | Updates — daily check + signed APK + rollback | accepted |
 | [ADR-012](ADR-012-trucking-ui.md) | Trucking UI + CB mic motif (supersedes CB Radio palette) | accepted |
 | [ADR-013](ADR-013-model-hosting.md) | Model hosting in the Breaker container + checksum verification | accepted |
 | [ADR-014](ADR-014-multi-user-isolation.md) | Multi-user isolation, server-enforced | accepted |
-| [ADR-015](ADR-015-transcription-queue.md) | Async transcription job queue, hosted in Breaker's own whisper-server (not the Whisper X container) | accepted |
+| [ADR-015](ADR-015-transcription-queue.md) | Async transcription job queue, hosted in Breaker's own whisper-server (not the Whisper X container) | accepted, amended 2026-11-01 |
 | [ADR-016](ADR-016-model-registry-codegen.md) | Model registry compiled to Kotlin; no YAML parsing on the phone | accepted |
 | [ADR-017](ADR-017-server-language.md) | Breaker's server services are written in Kotlin on the JVM | accepted |
 | [ADR-018](ADR-018-owner-sealed-box.md) | Owner sealed box for agent-token job results; account reset | accepted, amended 2026-10-20 |
@@ -80,6 +80,9 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-027](ADR-027-view-measure-rules-and-emulator-gate.md) | App screens follow three layout rules and are proven on an Android 16 emulator before an APK ships | accepted |
 | [ADR-028](ADR-028-keep-history-settings-and-model-across-updates.md) | An app update keeps the history, the settings and the speech model | accepted |
 | [ADR-029](ADR-029-spoken-send-wiring.md) | The spoken send ("And I'm Gone") is wired through one app class, PhraseSendHandler | accepted |
-| [ADR-030](ADR-030-one-http-client-for-server-calls.md) | One HTTP client for server calls, with no hidden defaults | accepted |
+| [ADR-030](ADR-030-one-http-client-for-server-calls.md) | One HTTP client for server calls, with no hidden defaults | accepted, amended 2026-11-01 |
+| [ADR-031](ADR-031-session-expires-after-30-days-idle.md) | A session token expires 30 days after its last use | accepted |
+| [ADR-032](ADR-032-server-certificate-and-pairing.md) | The server makes its own certificate, and the one-time sign-in pairs the phone with it | accepted in principle, details to be designed |
+| [ADR-033](ADR-033-signed-out-is-a-quiet-notice-on-home.md) | Signed out is a quiet notice on Home, and nothing is forced | accepted |
 
-Next free number: **ADR-031**.
+Next free number: **ADR-034**.

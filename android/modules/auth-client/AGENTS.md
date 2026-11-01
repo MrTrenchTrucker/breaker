@@ -93,6 +93,8 @@ server-side (T16).
   the DEK and box keypair, with no reset-specific case needed — is what
   bounds that gap.
 
+- Planned (ADR-031, ADR-033), not built: a session token the server issues expires 30 days after its last use. The client keeps no clock for it: it learns that a session is no longer live when the server refuses the key, and `currentSession()` reports what was stored, not whether the server still accepts it. The signed-out notice on Home is fed from this; nothing in this module opens a sign-in screen.
+
 ## Depends On
 - android (registered in modules.toml)
 - android_core (registered in modules.toml)

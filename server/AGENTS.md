@@ -9,7 +9,7 @@ and wires the app to it.
 **Stack (existing):** CPU Whisper with minimal lag; single/multi-speaker
 diarization available; **LLM endpoint `/v1/chat/completions` already exists**
 (used for formatting). The existing pipeline runs in the **Whisper X
-container**, reachable via ZeroTier — Breaker does not modify it.
+container**, reachable over the VPN — Breaker does not modify it.
 
 **The gap:** nothing today exposes an OpenAI-shaped, queued,
 multi-user-safe `/v1/audio/transcriptions`. Phase 4 closes it by building
@@ -20,7 +20,7 @@ admin-configured service (default: the Whisper X container above).
 `/v1/chat/completions` endpoint with the strict prompt from
 `shared/format-prompts` — no new LLM service needed.
 
-**Lanes:** Coding builds the endpoint add-on; Bug Hunt verifies (ZT bind, auth, TLS).
+**Lanes:** Coding builds the endpoint add-on; Bug Hunt verifies (VPN bind, auth, TLS).
 
 **Module map:**
 - `whisper-server` — add `POST /v1/audio/transcriptions` + **FIFO queue worker +
@@ -28,7 +28,7 @@ admin-configured service (default: the Whisper X container above).
 - `sync-api` — auth (users, roles, agent tokens), sync, updates, retention,
   store clear, log policy
 - `web-fe` — Debian container website (client-side decrypt, Trucking UI),
-  APK + cert + model hosting, admin panel
+  APK + model hosting, admin panel
 - `training` — per-user voice phrase model training (CPU; GPU via Local Inference)
 - `deploy` — VPN wiring, TLS, API key, APK signing, git-pull, NOTICE, volumes
 
@@ -39,7 +39,7 @@ admin-configured service (default: the Whisper X container above).
   { job_id, status: "queued" }`; `curl .../v1/jobs/{job_id}` (polled) returns the
   finished JSON text once `status: "done"` (via the FIFO queue → configured
   service).
-- Service bound to ZeroTier interface only (not 0.0.0.0).
+- Service bound to VPN interface only (not 0.0.0.0).
 - API key required; TLS verified; no plaintext key in logs.
 - Ciphertext only at rest (F24); no plaintext transcriptions in logs (F32).
 
@@ -87,4 +87,4 @@ agents, not required: an outside contributor may write the code themselves
 (`.github/CONTRIBUTING.md`).
 
 ## Known Gotchas
-- Local Server cert infra state was UNKNOWN — verify before TLS changes (R9).
+- Local Server cert infra state was UNKNOWN — verify before TLS changes (R9). The server now makes its own certificate on first start (ADR-032, decided in principle); the pairing and the renewal are still to be designed.

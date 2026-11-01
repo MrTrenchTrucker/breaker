@@ -2,12 +2,12 @@
 
 ## Purpose
 
-Debian container website (client-side decrypt, Trucking UI), APK/cert/model hosting, admin panel. Debian container website for Breaker: registration, login, and
+Debian container website (client-side decrypt, Trucking UI), APK/model hosting, admin panel. Debian container website for Breaker: registration, login, and
 view/search/copy of the user's transcriptions from any device on the VPN.
-Also hosts the APK and CA certificate for download (F15, F17, F18).
+Also hosts the APK for download (F15, F17). The CA-certificate download of F18 is superseded: the server makes its own certificate and the one-time sign-in pairs the phone with it (ADR-032, decided in principle).
 
 **Pages:**
-- **Landing** — Breaker intro + download links: APK, CA certificate, docs.
+- **Landing** — Breaker intro + download links: APK, docs.
 - **Auth** — login form; **registration card on first login** (F22): if no
   accounts exist yet, the first registration creates the **admin** account.
   **Complete reset** — shown instead of the ordinary login form when the
@@ -40,10 +40,9 @@ Also hosts the APK and CA certificate for download (F15, F17, F18).
 
 **Hosting:**
 - `/Breaker.apk` — latest signed APK (from the git-pull build).
-- `/Breaker-CA.crt` — the self-hosted CA certificate (one-time install, F18).
 - Published SHA-256 for the APK on the download page (tamper check).
 
-**Security:** standard web hardening — HTTPS only (self-hosted CA), CSP, input
+**Security:** standard web hardening — HTTPS only (the server's own certificate, ADR-032), CSP, input
 escaping, no secrets in frontend. All data fetched via `sync-api` with the
 user's token; the FE itself never touches raw audio.
 
@@ -150,9 +149,8 @@ automatically; it looks like the Android app.
   underline stripe + **Log In button top-right** (always visible, no scrolling).
   Hero card ("Your words, your rig") + registration card on first visit (first
   account = admin). Download badges: **Get the App** (primary green) ·
-  **Install Certificate** (black outline) · **Get the Model** (white outline).
-  Four clear paths for every visitor: **Log In · Register · Get the App · Get
-  the Cert**.
+  **Get the Model** (white outline). Three clear paths for every visitor: **Log
+  In · Register · Get the App**.
 - **Auth** — login + registration card (first account = admin) + complete-reset
   form (shown given a reset code instead of ordinary login).
 - **Dashboard** — transcriptions: list, search (client-side), copy, **delete
@@ -173,17 +171,17 @@ automatically; it looks like the Android app.
   tokens, store clear (per-user/all), health, force update check, reset
   account (shows the one-time code once).
 
-**Build phase:** Phase 12 (APK and certificate hosting in Phase 14, roles polish in 17, client-side crypto in 19, admin config in 20, the theme in 22). Needs first: `sync-api` (Phase 11) and `ui-tokens` (on main).
+**Build phase:** Phase 12 (APK hosting in Phase 14, roles polish in 17, client-side crypto in 19, admin config in 20, the theme in 22). Needs first: `sync-api` (Phase 11) and `ui-tokens` (on main).
 
 ## Invariants
 - First visitor sees a registration card; first account = admin (F22).
 - Landing shows the login path + download badges without scrolling (F35).
 - Login → dashboard shows only that user's transcriptions (N13).
 - Admin panel visible only to admins; role changes take effect immediately.
-- APK + cert downloads work over HTTPS with no cert warnings (after CA install).
+- APK downloads work over HTTPS with no certificate warnings (after the one-time pairing, ADR-032).
 
 ## Owns
-Debian container website (client-side decrypt, Trucking UI), APK/cert/model hosting, admin panel.
+Debian container website (client-side decrypt, Trucking UI), APK/model hosting, admin panel.
 
 ## Public Interface
 WebApp

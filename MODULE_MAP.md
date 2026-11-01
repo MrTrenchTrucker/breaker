@@ -31,9 +31,9 @@
 |--------|------|-----|
 | `whisper-server` | `server/modules/whisper-server/` | `/v1/audio/transcriptions` + FIFO queue → configured service |
 | `sync-api` | `server/modules/sync-api/` | Auth (users, roles, agent tokens), sync, updates, retention, store clear |
-| `web-fe` | `server/modules/web-fe/` | Debian container website (client-side decrypt, Trucking UI) + APK/cert/model hosting + admin panel |
+| `web-fe` | `server/modules/web-fe/` | Debian container website (client-side decrypt, Trucking UI) + APK/model hosting + admin panel |
 | `training` | `server/modules/training/` | Per-user voice phrase model training (CPU; GPU via Local Inference) |
-| `deploy` | `server/modules/deploy/` | Git-pull deploy, docker-compose, certs, APK signing, ZT bind |
+| `deploy` | `server/modules/deploy/` | Git-pull deploy, docker-compose, certs, APK signing, VPN bind |
 
 ## shared/ — contracts + registry
 | Module | Path | Job |

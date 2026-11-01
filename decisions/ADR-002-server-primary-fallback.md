@@ -5,7 +5,7 @@ recorded before routing; no 5 s buffer)
 **Date:** 2026-09-29
 
 ## Context
-Local Server's CPU Whisper + LLM pipeline is already operational over ZeroTier,
+Local Server's CPU Whisper + LLM pipeline is already operational over a VPN,
 but mobile networks are flaky. The base repo silently fell through
 to cloud when no local model existed — a behavior we must not inherit [1].
 

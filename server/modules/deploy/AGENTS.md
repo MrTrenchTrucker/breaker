@@ -2,14 +2,16 @@
 
 ## Purpose
 
-Git-pull deploy, docker-compose, certs, APK signing, ZT bind, volumes, NOTICE. Wire Breaker's own containers (whisper-server, sync-api, web-fe, training) to Local Server, securely —
+Git-pull deploy, docker-compose, certs, APK signing, VPN bind, volumes, NOTICE. Wire Breaker's own containers (whisper-server, sync-api, web-fe, training) to Local Server, securely —
 and ship updates.
 
 **Components:**
-- `zt-bind.sh` — verify/bind endpoints to the ZeroTier interface only.
+- `vpn-bind.sh` — verify/bind endpoints to the VPN interface only.
 - `tls/` — cert handling. **Verify Local Server cert infra state FIRST** (last known
   configuration is stale/unconfirmed; current state UNKNOWN). Inspection
-  script before any TLS change (R9).
+  script before any TLS change (R9). Decided in principle (ADR-032): the server
+  container makes its own certificate on first start and keeps it; the admin sets
+  up no certificate authority; the details are to be designed.
 - `auth/` — API key generation + rotation; key in env/secret file with 0600
   perms, never in git.
 - `apk-signing/` — **APK signing key** (generated once, stored in a secrets
@@ -34,18 +36,18 @@ check (or admin force-check).
 Local Server's network-exposed path** — server transcription uses the existing
 Whisper X container, so the transducer OOB write (issue #3983) is not reachable
 from server audio in the current design [2]. All containers remain
-network-isolated (ZT-only bind).
+network-isolated (VPN-only bind).
 
-**Build phase:** Phase 14 (APK and certificate serving) and Phase 15 (the git-pull deploy pipeline).
+**Build phase:** Phase 14 (APK serving and the server's own certificate) and Phase 15 (the git-pull deploy pipeline).
 
 ## Invariants
-- Port scan from non-ZT interface shows nothing (ZT-only bind, T3).
+- Port scan from non-VPN interface shows nothing (VPN-only bind, T3).
 - No API key, signing key, or secrets in logs/env dumps/git history (T2, T12).
 - Signed APK + SHA-256 verify path tested; tampered APK refused (T11).
-- Every Breaker endpoint answers only on the ZeroTier interface (`zt-bind.sh`). TLS handshake verified; cert not expired.
+- Every Breaker endpoint answers only on the VPN interface (`vpn-bind.sh`). TLS handshake verified; cert not expired.
 
 ## Owns
-Git-pull deploy, docker-compose, certs, APK signing, ZT bind, volumes, NOTICE.
+Git-pull deploy, docker-compose, certs, APK signing, VPN bind, volumes, NOTICE.
 
 ## Public Interface
 DeployScripts

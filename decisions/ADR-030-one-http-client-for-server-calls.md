@@ -1,6 +1,6 @@
 # ADR-030: One HTTP client for server calls, with no hidden defaults
 
-**Status:** accepted
+**Status:** accepted, amended 2026-11-01 (trust: the paired server, in principle)
 **Date:** 2026-10-30
 **Approved by:** a maintainer, under the project owner's delegation (2026-10-29)
 
@@ -43,3 +43,5 @@ The three clients differ because their jobs differ: a LAN transcription reply, a
 Rules in: movers move one at a time, each in its own later change, and none moves in the change that creates the module. The stt-server, stt-ondevice and updater clients each move in their own later change, with their own numbers. sync is not a mover: it has no HTTP client today, and a later app adapter may build its uploader on this module. The auth adapter maps the AuthHttp port onto the `send` call. The APK and model movers use the `open` call. The module's card and README state the same two ceilings and the same rules.
 
 Rules out: any default timeout or reply cap in any signature or constant of the module. A single ceiling for both calls, because a 1 GiB bytes call would let a reply of that size sit in memory. A shared base class over the three existing clients. Keeping the three existing clients as they are. A default set copied from the stt-server client, whose 4 MiB cap would refuse an APK download of 268_435_456 bytes. Moving more than one existing client in the change that creates the module. A second HTTP client for calls to the server.
+
+Amended 2026-11-01: items 3 and 9 (the platform trust store only) stay true until ADR-032 is built. ADR-032, decided in principle, will add one more thing this client trusts: the certificate of the server the phone was paired with, by its fingerprint. That trust code lives in this client and nowhere else, and the client still refuses plain http.
