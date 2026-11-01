@@ -2,13 +2,13 @@
 
 ## Purpose
 
-Login/register, token storage (Android Keystore), roles/scopes. Login/register and token management (F14, F22). The user's token
+Login/register, token storage (Android Keystore, decided and not built), roles/scopes. Login/register and token management (F14, F22). The user's token
 authenticates sync, training, and transcription API calls.
 
 **Build phase:** Phase 11 (key bootstrap and re-key in Phase 19, reset in Phase 20). Needs first: `core` (on main) and the server's `sync-api`.
 
 ## Owns
-Login/register, token storage (Android Keystore), roles/scopes.
+Login/register, token storage (Android Keystore, decided and not built), roles/scopes.
 
 ## Public Interface `core.AuthService` port.
 
@@ -29,7 +29,7 @@ Login/register, token storage (Android Keystore), roles/scopes.
   wrapped with the current one while a re-key is unfinished, else `null`,
   handed to crypto so the re-key can finish), and `reset_at`/`rekeyed_at`
   (the account's last-reset and last-rekey timestamps, or `null`). Token →
-  **Android Keystore**, never plaintext. If the returned `kdf_params` are
+  **Android Keystore** (decided and not built), never plaintext. If the returned `kdf_params` are
   below ADR-006's floor, this module refuses to proceed rather than derive
   against them — a server cannot talk a client down. If the wrapped keys
   come back null, this module hands the fresh KEK to crypto to bootstrap
@@ -81,7 +81,7 @@ server-side (T16).
 
 ## Invariants
 - Register → first account admin; second account user (F22).
-- Login → token in Keystore; logout wipes it.
+- Login → token in the Android Keystore (decided and not built); logout wipes it.
 - Force-check button visible only to admins (F21).
 - Change-password revokes every other outstanding token; it requires both
   the live token AND `old_auth_verifier` — a token alone is refused.
@@ -135,7 +135,7 @@ agents, not required: an outside contributor may write the code themselves
 (`.github/CONTRIBUTING.md`).
 
 ## Known Gotchas
-- Tokens in the Android Keystore, never plaintext; roles server-enforced.
+- Tokens go in the Android Keystore, never plaintext (decided and not built); roles server-enforced.
 - Key derivation reaches it as `core.KeyDerivation` (`deriveKeys`), wired by `android/app` (ADR-001); it never imports `crypto`.
 - `core.KeyDerivation` (`deriveKeys`, implemented by the crypto module) comes
   when Phase 11 builds it; the DEK/box-keypair calls stay on

@@ -94,6 +94,6 @@ agents, not required: an outside contributor may write the code themselves
 - Tombstones for deleted records (a separate sync path, not in the body).
 - Everything at `key_version` 1 or higher: the authenticated encryption form, the `key_version` replace, the re-key, and fetching pending sealed agent-token results (ADR-018, Phases 19 and 20).
 - Wiring the module into `android/app`.
-- PLANNED, ADR-035, not built: the pull. After each drain the module asks the server for the rows changed since its last pull, keeps a changes-since cursor, and hands the pulled rows to history. A row is matched by its client id, so a row this device pushed is not stored twice. The server has no pull route yet: `GET /v1/transcriptions` is in the API contract and is not built; ADR-035 asks for it with a changes-since cursor.
-- PLANNED, ADR-035, not built: the pulled deletes. A delete made on another device reaches history's `applyRemoteDelete`.
+- PLANNED, ADR-035, not built: the pull. After each drain the module asks the server for the rows changed since its last pull, keeps a changes-since cursor (the server's change number, sent back as `since`), and hands the pulled rows to history. A row is matched by its client id, so a row this device pushed is not stored twice. The server has no pull route yet: `GET /v1/transcriptions` is in the API contract and is not built; ADR-035 decides it with a changes-since cursor and a `since` query parameter; that is decided and not built.
+- PLANNED, ADR-035, not built: the pulled deletes. A delete made on another device arrives as a flag on the row in the same change feed as the rows, and reaches history's `applyRemoteDelete`. A remote delete is applied even if this device saved the same id again.
 

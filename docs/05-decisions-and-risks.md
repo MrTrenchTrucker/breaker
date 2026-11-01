@@ -69,7 +69,7 @@ per-user KWS model, the phone downloads it (F16).
 
 **D13 — Multi-user = isolated namespaces, server-enforced auth.**
 Each user's transcriptions, trained models, and settings are scoped by user_id
-server-side (N13). Tokens in the Android Keystore.
+server-side (N13). Tokens go in the Android Keystore, decided and not built.
 
 **D14 — Web FE = Debian container** on Local Server; also hosts the APK. Plain HTTP on Local Server; TLS is the admin's choice via any reverse proxy (ADR-034); no CA certificate to download.
 

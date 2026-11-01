@@ -42,7 +42,7 @@ then the tombstone table only grows, and they stay internal to this module. The
 module defines a 90-day tombstone window, measured from the delete. That is a
 module design choice; the spec sets no tombstone lifetime.
 
-Planned (ADR-035, not built): the sync module will call `applyRemoteDelete` for a delete made on another device, and will hand the rows it pulls to this module. Nothing of that is built yet.
+Planned (ADR-035, not built): the sync module will call `applyRemoteDelete` for a delete made on another device, and will hand the rows it pulls to this module. The merge is decided and not built: a remote delete is applied even if this device saved the same id again, and a local delete followed by a local save of the same id clears the local tombstone. Nothing of that is built yet.
 
 ## Public surface
 

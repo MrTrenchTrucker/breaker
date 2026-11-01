@@ -1,6 +1,6 @@
 # ADR-036: Sign-in from the website hands the login to the app
 
-**Status:** accepted; the points under To be designed are open
+**Status:** accepted; the hand-off is decided, not built; the points still open are under To be designed
 **Date:** 2026-11-01
 **Approved by:** the project owner, 2026-11-01
 
@@ -67,8 +67,8 @@ Nothing of this is built. There is no hand-off route, no code kind and no wrong-
 ## To be designed (not decided here)
 
 - The route names and the wire form of the challenge, the code and the exchange.
-- The sealed package's format and key type (ADR-035).
+- The encoding of the keys inside the sealed package (ADR-035). Its construction and key type are decided there, and not built.
 - How the app limits plain http to the configured server, and the matching change to its HTTP client (ADR-034).
 - How the wrong-password limit counts failures and where the 15-minute wait is kept.
 - The exact words on the website and in the app, and where the sign-in notice sits on Home (ADR-033).
-- What the device list shows for each device.
+- The exact words of the one hint line on the device list. The hint says, decided and not built, that a lost phone keeps what it already stored, and that a password change re-keys. The device list itself is decided, not built: one row per session, showing the device name the app gives at sign-in (the person may rename it) and a last-seen date derived from the session's expiry.

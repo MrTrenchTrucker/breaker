@@ -59,7 +59,7 @@ written and kept; no shipped code reads or sweeps them yet, because the port
 that lets sync reach them is deferred. The 90-day tombstone window, measured
 from the delete, is a module design choice; the spec sets no tombstone lifetime.
 
-**Planned (ADR-035), not built:** the sync module will hand the rows it pulls from the server to this module, and will call `applyRemoteDelete` for a delete made on another device. History stays the only module that writes the local store. The port that sync uses to reach history is to be designed; no shipped code calls the methods yet.
+**Planned (ADR-035), not built:** the sync module will hand the rows it pulls from the server to this module, and will call `applyRemoteDelete` for a delete made on another device. The merge is decided and not built: a remote delete is applied even if this device saved the same id again, and a local delete followed by a local save of the same id clears the local tombstone, so the row is live again. History stays the only module that writes the local store. The port that sync uses to reach history is to be designed; no shipped code calls the methods yet.
 
 ## Invariants
 - Every transcription saved regardless of source (F7).
@@ -127,12 +127,7 @@ code.
   deferred, so the tombstone table only grows until it lands.
 - A tombstone can outlive a re-save of its id. `save` replaces a row by id and never touches the tombstones table, so
   `delete` of X followed by `save` of X leaves a live row and a pending tombstone for one id, and only the age sweep
-  removes it. Two cases look alike today and may deserve different answers. A tombstone recorded by a REMOTE delete
-  (`applyRemoteDelete`) is held across a local re-save on purpose (tests pin it); that is arguably right, because the
-  server should learn that the earlier content was deleted even if new content landed under the same id. A tombstone
-  recorded by a LOCAL `delete` arguably should clear when the same id is saved again: the row is live again, and once
-  sync carries tombstones it would otherwise tell the server to delete a row the user dictated again. Whether to split
-  the two is the open design question for whoever designs sync; change neither case before that design exists.
+  removes it. Decided and not built: a tombstone recorded by a REMOTE delete (`applyRemoteDelete`) is held across a local re-save, because the server wins for a delete made on another device. A tombstone recorded by a LOCAL `delete` is cleared when the same id is saved again, so the row is live again. Until that is built, the code keeps the tombstone in both cases, as the first part of this entry says.
 - Keep the store at one per process, shared through the app's wiring. Each `create()`
   opens its own database handle on the same file, so two stores on one file would contend for the write lock
   (expected from how SQLite locks a file; no test here shows it). Close the store on
