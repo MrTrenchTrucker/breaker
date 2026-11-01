@@ -17,7 +17,7 @@ import java.net.URL
  * an IOException. The connection is always released at the end.
  *
  * Nothing here logs, prints a header or puts a header value in an exception.
- * This class does not enforce https; the engine does that before it calls here.
+ * This class does not check the scheme; the engine accepts only an http or https address before it calls here.
  */
 internal class JdkServerHttp(
     private val openConnection: (String) -> HttpURLConnection = ::openPlatformConnection,

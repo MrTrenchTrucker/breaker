@@ -12,12 +12,12 @@ container directly.
     )
     val result = engine.transcribe(request)
 
-The app passes two providers, read once per call: the base address (https only)
-and the API key. ADR-034 decides that the app will accept an http server address; this module still refuses it until the slice for that lands (not built). The module reads no settings and no storage. The app uses this engine through its composition root (in automatic mode only when the probe answers, in server mode always).
+The app passes two providers, read once per call: the base address (http or https)
+and the API key. The address setter, the settings line about an unencrypted connection and the settings screen are decided in ADR-034 and not built. The module reads no settings and no storage. The app uses this engine through its composition root (in automatic mode only when the probe answers, in server mode always).
 
 ## What a call does
 
-1. Checks the address (https, a host, no user information, no spaces), the key
+1. Checks the address (http or https, a host, no user information, no spaces), the key
    and the form fields. A failed check sends nothing.
 2. Posts the WAV to `/v1/audio/transcriptions` once and expects a job id.
 3. Polls `/v1/jobs/{job_id}` with growing pauses until the job is done, has

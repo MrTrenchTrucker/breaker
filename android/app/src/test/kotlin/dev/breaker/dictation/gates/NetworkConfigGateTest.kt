@@ -6,12 +6,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The network security config refuses clear text for every host and trusts only the
- * system certificate store, and the manifest points at it.
+ * The network security config permits clear text for the platform and trusts only the
+ * system certificate store, and the manifest points at it and says the same about clear text.
  *
- * A config can allow clear text for one host, trust certificates the user installed,
+ * The app accepts a plain http address for the one server the user configures, and its own
+ * code refuses plain http to every other host, so the platform must let clear text through.
+ * A config can also allow clear text for one host, trust certificates the user installed,
  * trust an app-bundled authority, or loosen everything in a debug build. The app
- * needs none of that, so the file holds one base-config with clear text off and one
+ * needs none of that, so the file holds one base-config with clear text on and one
  * trust anchor, the system store, and nothing else: no host entry, no debug override,
  * no pinned key, no extra attribute. The file is parsed as XML, so comments are not
  * content and attribute order does not matter.
@@ -22,7 +24,7 @@ internal class NetworkConfigGateTest {
 
     private val good: String = """<?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <base-config cleartextTrafficPermitted="false">
+    <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
@@ -34,7 +36,7 @@ internal class NetworkConfigGateTest {
     <application
         android:name=".BreakerApp"
         android:networkSecurityConfig="@xml/network_security_config"
-        android:usesCleartextTraffic="false" />
+        android:usesCleartextTraffic="true" />
 </manifest>
 """
 
@@ -44,7 +46,9 @@ internal class NetworkConfigGateTest {
         children = listOf(
             XmlExpect(
                 name = "base-config",
-                attributes = mapOf("cleartextTrafficPermitted" to "false"),
+                // True because the app accepts a plain http address for the configured server; the app's own code
+                // refuses plain http to every other host.
+                attributes = mapOf("cleartextTrafficPermitted" to "true"),
                 children = listOf(
                     XmlExpect(
                         name = "trust-anchors",
@@ -85,14 +89,15 @@ internal class NetworkConfigGateTest {
     }
 
     private val firing: List<XmlSample> = listOf(
-        XmlSample("clear text permitted", "cleartextTrafficPermitted=\"false\"", "cleartextTrafficPermitted=\"true\"", "attribute cleartextTrafficPermitted is \"true\""),
-        XmlSample("clear text not stated", " cleartextTrafficPermitted=\"false\"", "", "lacks the attribute cleartextTrafficPermitted"),
+        // Clear text is now permitted in the base config, so the wrong value is the old one: switching it off again must be reported.
+        XmlSample("clear text switched off", "cleartextTrafficPermitted=\"true\"", "cleartextTrafficPermitted=\"false\"", "attribute cleartextTrafficPermitted is \"false\""),
+        XmlSample("clear text not stated", " cleartextTrafficPermitted=\"true\"", "", "lacks the attribute cleartextTrafficPermitted"),
         XmlSample("a host entry with a clear text exception", "</network-security-config>", "<domain-config cleartextTrafficPermitted=\"true\"><domain includeSubdomains=\"true\">example.com</domain></domain-config>\n</network-security-config>", "holds the element <domain-config>"),
         XmlSample("a host entry for a local address", "</network-security-config>", "<domain-config cleartextTrafficPermitted=\"true\"><domain>10.0.2.2</domain></domain-config>\n</network-security-config>", "holds the element <domain-config>"),
         XmlSample("a debug override", "</network-security-config>", "<debug-overrides><trust-anchors><certificates src=\"user\" /></trust-anchors></debug-overrides>\n</network-security-config>", "holds the element <debug-overrides>"),
         XmlSample("a pinned key beside the base config", "</network-security-config>", "<pin-set><pin digest=\"SHA-256\">AAAA</pin></pin-set>\n</network-security-config>", "holds the element <pin-set>"),
         XmlSample("a pinned key inside the base config", "</base-config>", "<pin-set><pin digest=\"SHA-256\">AAAA</pin></pin-set>\n    </base-config>", "holds the element <pin-set>"),
-        XmlSample("a second base config", "</network-security-config>", "<base-config cleartextTrafficPermitted=\"false\" />\n</network-security-config>", "holds the element <base-config>"),
+        XmlSample("a second base config", "</network-security-config>", "<base-config cleartextTrafficPermitted=\"true\" />\n</network-security-config>", "holds the element <base-config>"),
         XmlSample("user certificates", "src=\"system\"", "src=\"user\"", "attribute src is \"user\""),
         XmlSample("a raw resource authority", "src=\"system\"", "src=\"@raw/extra_ca\"", "attribute src is \"@raw/extra_ca\""),
         XmlSample("user certificates beside the system store", "<certificates src=\"system\" />", "<certificates src=\"system\" />\n            <certificates src=\"user\" />", "holds the element <certificates>"),
@@ -102,18 +107,18 @@ internal class NetworkConfigGateTest {
         XmlSample("an attribute on the anchors", "<trust-anchors>", "<trust-anchors extra=\"1\">", "has the attribute extra"),
         XmlSample("another attribute on the base config", "<base-config ", "<base-config android:foo=\"1\" ", "has the attribute android:foo"),
         XmlSample("an attribute on the root", "<network-security-config>", "<network-security-config xmlns:android=\"http://schemas.android.com/apk/res/android\">", "has the attribute xmlns:android"),
-        XmlSample("no base config", "    <base-config cleartextTrafficPermitted=\"false\">\n        <trust-anchors>\n            <certificates src=\"system\" />\n        </trust-anchors>\n    </base-config>\n", "", "lacks the element <base-config>"),
-        XmlSample("character data in the base config", "cleartextTrafficPermitted=\"false\">", "cleartextTrafficPermitted=\"false\">text", "holds character data"),
+        XmlSample("no base config", "    <base-config cleartextTrafficPermitted=\"true\">\n        <trust-anchors>\n            <certificates src=\"system\" />\n        </trust-anchors>\n    </base-config>\n", "", "lacks the element <base-config>"),
+        XmlSample("character data in the base config", "cleartextTrafficPermitted=\"true\">", "cleartextTrafficPermitted=\"true\">text", "holds character data"),
     )
 
     private val quiet: List<XmlSample> = listOf(
-        XmlSample("a comment that names forbidden things", "<base-config", "<!-- domain-config debug-overrides pin-set src=\"user\" cleartextTrafficPermitted=\"true\" -->\n    <base-config"),
+        XmlSample("a comment that names forbidden things", "<base-config", "<!-- domain-config debug-overrides pin-set src=\"user\" cleartextTrafficPermitted=\"false\" -->\n    <base-config"),
         XmlSample("single quotes and spacing on the anchor", "<certificates src=\"system\" />", "<certificates  src='system'  />"),
         XmlSample("no declaration line", "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n", ""),
     )
 
     @Test
-    fun `the real network config holds one base config with clear text off and the system store only`() {
+    fun `the real network config holds one base config with clear text on and the system store only`() {
         val text: String = AppSourceFiles.mainFile(configPath)
         assertTrue("app: src/main/$configPath is empty", text.isNotBlank())
         val problems: List<String> = configProblems(text)
@@ -128,10 +133,13 @@ internal class NetworkConfigGateTest {
         assertTrue("app: $target is missing", AppSourceFiles.mainFileOrNull(target ?: "") != null)
     }
 
+    // This is the test that fails if only one of the two files is switched: it compares the real manifest
+    // value and the real config value in one list. Both now say true because the app accepts a plain http
+    // address for the configured server (its own code refuses plain http to every other host).
     @Test
-    fun `the manifest and the config both refuse clear text`() {
+    fun `the manifest and the config both permit clear text and agree`() {
         val settings: List<String?> = cleartextSettings(AppSourceFiles.mainFile("AndroidManifest.xml"), AppSourceFiles.mainFile(configPath))
-        assertEquals("app: clear text is not refused in both the manifest and the network config", listOf<String?>("false", "false"), settings)
+        assertEquals("app: clear text is not permitted in both the manifest and the network config", listOf<String?>("true", "true"), settings)
     }
 
     @Test
@@ -180,12 +188,13 @@ internal class NetworkConfigGateTest {
         assertNull("app: a missing pointer was read as one", configTarget(none))
         val empty = goodManifest.replace("@xml/network_security_config", "@xml/")
         assertNull("app: an empty xml name was read as a pointer", configTarget(empty))
-        assertEquals("app: the clear text values were misread", listOf<String?>("false", "false"), cleartextSettings(goodManifest, good))
-        val loose = good.replace("cleartextTrafficPermitted=\"false\"", "cleartextTrafficPermitted=\"true\"")
-        assertEquals("app: a config that allows clear text was read as refusing it", listOf<String?>("false", "true"), cleartextSettings(goodManifest, loose))
-        val manifestLoose = goodManifest.replace("usesCleartextTraffic=\"false\"", "usesCleartextTraffic=\"true\"")
-        assertEquals("app: a manifest that allows clear text was read as refusing it", listOf<String?>("true", "false"), cleartextSettings(manifestLoose, good))
-        val unstated = goodManifest.replace("\n        android:usesCleartextTraffic=\"false\"", "")
-        assertEquals("app: a manifest that states nothing was read as stating false", listOf<String?>(null, "false"), cleartextSettings(unstated, good))
+        // The good texts now say true, so each edit below switches the value off (or removes it) and the expected pair follows.
+        assertEquals("app: the clear text values were misread", listOf<String?>("true", "true"), cleartextSettings(goodManifest, good))
+        val configOff = good.replace("cleartextTrafficPermitted=\"true\"", "cleartextTrafficPermitted=\"false\"")
+        assertEquals("app: a config that switches clear text off was read as permitting it", listOf<String?>("true", "false"), cleartextSettings(goodManifest, configOff))
+        val manifestOff = goodManifest.replace("usesCleartextTraffic=\"true\"", "usesCleartextTraffic=\"false\"")
+        assertEquals("app: a manifest that switches clear text off was read as permitting it", listOf<String?>("false", "true"), cleartextSettings(manifestOff, good))
+        val unstated = goodManifest.replace("\n        android:usesCleartextTraffic=\"true\"", "")
+        assertEquals("app: a manifest that states nothing was read as stating true", listOf<String?>(null, "true"), cleartextSettings(unstated, good))
     }
 }

@@ -74,7 +74,7 @@ The job-queue mechanics (enqueue, poll, backoff) stay behind this port, so
 | TLS failure | `SERVER_UNREACHABLE`, at once, never retried |
 | connection refused or unknown host | `SERVER_UNREACHABLE` on the POST; counted as transient on a poll |
 
-**Transport:** https addresses only. Any other scheme, a missing host, user
+**Transport:** http and https addresses (https is the admin's choice, ADR-034). Any other scheme, a missing host, user
 information, or a space or control character is refused before anything is
 sent. Platform trust only: no certificate pinning, no custom CA, no TrustManager. No module in Breaker makes or pins a certificate; TLS is the admin's choice through any reverse proxy (ADR-034). Redirects are not followed and caches are off. Each call has a
 connect timeout (1.5 s by default), so a dead server is reported fast. Every
@@ -89,7 +89,7 @@ than in a hang.
 - Timeout/error at either step surfaced as `SttResult.failure`, never a
   hang (R4).
 - The upload is sent at most once. No retry of the POST.
-- Only https addresses are called. The check runs before any request. ADR-034 decides that the app will accept an http server address; this module still refuses it until the slice for that lands (not built).
+- Only http and https addresses are called, and only the one address the engine was given: every URL it calls is that base plus a fixed path. The check runs before any request and refuses another scheme, a missing host, user information, a space or a control character with one fixed sentence. It does not read ports, host characters or brackets. The address setter, the settings line about an unencrypted connection and the settings screen are decided in ADR-034 and not built.
 - The key never reaches a log line (the module logs nothing), an exception
   message, or a failure text.
 
@@ -135,6 +135,7 @@ agents, not required: an outside contributor may write the code themselves
 
 ## Known Gotchas
 - OpenAI-compatible contract lives in shared/api-contracts - no drift.
+- The address check is a deliberate duplicate. The engine's own check (`ServerEndpoint.addressProblem`) and the http module's rule (`ServerAddressRule`) are two copies on purpose until stt-server moves onto the http module, which is its own later slice. The engine's copy is looser: it reads only the start of the address and the text up to the first slash, because the engine sends to the one address it was given and there is no other host to protect. A table test in this module pins the addresses on which the two agree and, in named groups, the ones on which they differ.
 - The build wires both code edges: `project(":android:modules:core")` and
   `project(":shared:modules:api-contracts")`. The contract helper requires the
   api-contracts edge, because that module applies `kotlin.jvm` and

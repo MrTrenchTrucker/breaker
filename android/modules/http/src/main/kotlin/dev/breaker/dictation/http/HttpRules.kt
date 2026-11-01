@@ -4,19 +4,21 @@ package dev.breaker.dictation.http
  * The checks that run before a connection is opened, and before a body byte is read. Each refusal is an
  * HttpRefusal with a fixed reason; no check copies the value it refuses into a message.
  *
- * An address must be https: its scheme is ASCII and equals https ignoring ASCII case only, it holds no
- * whitespace and no control character, and its host is non-empty and ASCII. A host with a non-ASCII
- * character is refused, because converting a host to punycode is the caller's job. An at sign in the
- * authority, which is the text before the first slash, question mark or hash, is refused as well.
+ * An address must pass [ServerAddressRule]. An https address passes for any host when its scheme is ASCII
+ * and equals https ignoring ASCII case only, it holds no whitespace and no control character, and its host
+ * is non-empty and ASCII. A host with a non-ASCII character is refused, because converting a host to
+ * punycode is the caller's job. An at sign in the authority, which is the text before the first slash,
+ * question mark or hash, is refused as well. A plain http address passes only when it names the configured
+ * server; any other plain http address is refused.
  */
 internal object HttpRules {
     private const val SCHEME_SEPARATOR = "://"
     private const val HTTPS_SCHEME = "https"
     private const val ASCII_CHARS = 128
 
-    /** Refuses an address that is not https, then a header that is not usable. */
-    fun checkBeforeConnect(request: CallRequest) {
-        if (!isHttpsAddress(request.url)) throw HttpRefusal(HttpRefusalReason.NOT_HTTPS)
+    /** Refuses an address the rule does not permit for [configuredServer], then a header that is not usable. */
+    fun checkBeforeConnect(request: CallRequest, configuredServer: String) {
+        if (!ServerAddressRule.permits(request.url, configuredServer)) throw HttpRefusal(HttpRefusalReason.NOT_HTTPS)
         for ((name, value) in request.headers) {
             if (name.isEmpty() || hasLineBreak(name) || hasLineBreak(value)) {
                 throw HttpRefusal(HttpRefusalReason.BAD_HEADER)
@@ -29,7 +31,7 @@ internal object HttpRules {
         if (announced > cap) throw HttpRefusal(HttpRefusalReason.REPLY_TOO_LARGE)
     }
 
-    /** True when [url] is an https address the module connects to. */
+    /** True when [url] is an https address the module connects to. It is the https branch of [ServerAddressRule]. */
     fun isHttpsAddress(url: String): Boolean {
         if (url.any { it.isWhitespace() || Character.isISOControl(it) }) return false
         val separator = url.indexOf(SCHEME_SEPARATOR)

@@ -66,13 +66,34 @@ class KeySecrecyTest {
         }
     }
 
+    // Changed because the rule changed: a plain http address is now accepted by the engine, so the old
+    // expectation (refused, nothing sent) is false. What this file protects still has to hold on a plain
+    // http address: the key travels only in the Authorization header of each request.
     @Test
-    fun `a plain http address is refused and nothing is sent`() {
+    fun `a plain http address is accepted and the key still reaches the wire only in the authorization header`() {
         val ft = FakeTiming()
         val http = ScriptedHttp(listOf(reply(202, accepted()), reply(200, done())), ft.clock)
         val result = engineFor(http, ft.timing, base = "http://example.test:8080").transcribe(request())
+        assertTrue("the plain address was used", result is SttResult.Success)
+        assertEquals(2, http.requests.size)
+        for (sent in http.requests) {
+            assertTrue("the url carries no key", !sent.url.contains(KEY))
+            for ((name, value) in sent.headers) {
+                if (name != "Authorization") assertTrue("only the authorization header carries the key", !value.contains(KEY))
+            }
+            assertTrue("the authorization header carries the key", sent.headers["Authorization"] == "Bearer $KEY")
+        }
+    }
+
+    // Added with the change above: the refusal path the old test showed is still real for a plain http
+    // address that holds user information, and nothing is sent to it.
+    @Test
+    fun `a plain http address with user information is refused and nothing is sent`() {
+        val ft = FakeTiming()
+        val http = ScriptedHttp(listOf(reply(202, accepted()), reply(200, done())), ft.clock)
+        val result = engineFor(http, ft.timing, base = "http://someone@example.test:8080").transcribe(request())
         assertEquals(SttResult.Failure(SttError.OTHER, FailureSentences.ADDRESS_NOT_HTTPS), result)
-        assertTrue("nothing was sent to the plain address", http.requests.isEmpty())
+        assertTrue("nothing was sent to the refused address", http.requests.isEmpty())
     }
 
     @Test

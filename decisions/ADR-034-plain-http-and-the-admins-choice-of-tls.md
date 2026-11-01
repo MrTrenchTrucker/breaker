@@ -6,7 +6,7 @@
 
 ## Context
 
-ADR-032 decided that the Breaker server container makes its own certificate on first start, keeps it, and that the one-time sign-in teaches the phone to trust that exact server by fingerprint, so that HTTPS to Local Server is trusted with no certificate authority for the admin to set up. ADR-032 was decided in principle, details to be designed, and nothing of it is built: the code still refuses plain http, the manifest and network config still switch cleartext off, and no module makes or pins a certificate.
+ADR-032 decided that the Breaker server container makes its own certificate on first start, keeps it, and that the one-time sign-in teaches the phone to trust that exact server by fingerprint, so that HTTPS to Local Server is trusted with no certificate authority for the admin to set up. ADR-032 was decided in principle, details to be designed, and nothing of it is built: when this record was written the code refused plain http and the manifest and network config switched cleartext off, and no module makes or pins a certificate.
 
 The project owner reversed that decision, 2026-11-01:
 
@@ -46,7 +46,7 @@ Rules in: plain HTTP on the server side; TLS is the admin's choice via a reverse
 
 Rules out: a certificate authority for the admin to run; installing a certificate on the phone by hand as the normal route; a QR code or pairing step for sign-in; any module owning TLS or making certificates.
 
-Honesty: nothing of ADR-034 is built today. Every document that describes what the code does today (https only, cleartext off) stays true and gains one sentence: ADR-034 decides X; the code still does Y until the slice for it lands (not built). Nothing of ADR-032 was built either.
+Honesty: the code accepts plain http for the configured server only (the address rule in the http module, the check of the server engine, and cleartext permitted in the base network config with the manifest in agreement). The address setter, the settings line about an unencrypted connection and the settings screen are decided, not built. Nothing of ADR-032 was built either.
 
 ## To be designed (not decided here)
 

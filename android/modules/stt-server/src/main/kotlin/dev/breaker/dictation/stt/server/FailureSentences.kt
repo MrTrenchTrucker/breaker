@@ -7,7 +7,7 @@ package dev.breaker.dictation.stt.server
  */
 internal object FailureSentences {
     const val NO_ADDRESS = "The server address is not set."
-    const val ADDRESS_NOT_HTTPS = "The server address must be an https address with no spaces or user name."
+    const val ADDRESS_NOT_HTTPS = "The server address must be an http or https address with no spaces or user name."
     const val NO_KEY = "The server key is not set."
     const val KEY_NOT_USABLE = "The server key contains characters that cannot be sent."
     const val REQUEST_NOT_USABLE = "The recording could not be prepared for the server."

@@ -9,6 +9,7 @@ import java.net.URL
 
 private const val FAKE_URL = "https://example.test/fake-path"
 private const val SAFETY_LIMIT = 1_048_576L
+private const val NO_SERVER = ""
 
 /**
  * A scripted connection for the client tests. It is a real HttpURLConnection, so the values the client
@@ -106,14 +107,18 @@ internal class SeamRecord {
     val urls = ArrayList<String>()
 }
 
-/** A client whose connection seam hands out [connection] and records each opening in [record]. */
+/**
+ * A client whose connection seam hands out [connection] and records each opening in [record]. It has no
+ * configured server, as the no-argument client has, so every plain http address is refused.
+ */
 internal fun transportOver(connection: FakeHttpConnection, record: SeamRecord): JdkHttpTransport {
     val seam: (String) -> HttpURLConnection = { url ->
         record.opened += 1
         record.urls.add(url)
         connection
     }
-    return JdkHttpTransport(seam)
+    val noServer: () -> String = { NO_SERVER }
+    return JdkHttpTransport(seam, noServer)
 }
 
 /** Limits with the two timeouts the tests do not study and the given reply cap. */
