@@ -22,13 +22,13 @@ The questions were: 1, the automatic hand-off; 2, a 5-minute single-use code; 3,
 
 **The hand-off, in order:**
 
-1. The app starts the sign-in. It keeps a one-time secret and makes a fresh key pair for this one sign-in. It opens the Breaker website in the phone's browser with a one-time challenge made from the secret (the secret itself is not sent) and the app's public key.
+1. The app starts the sign-in. It keeps a one-time secret and makes a fresh key pair for this one sign-in. It opens the Breaker website in the phone's browser with a one-time challenge made from the secret (the challenge is the SHA-256 of the secret text, written as 43 URL-safe characters; the secret itself is not sent) and the app's public key.
 2. The person types the username and password on the website. Login itself does not change. The website page derives the KEK in the browser (ADR-006's web path) and seals the account's keys to the app's public key (ADR-035, point 6).
 3. After sign-in the website creates a one-time code, valid for 5 minutes and usable once. It sends the browser back to the app through a `breaker://` link that carries the code. The return is automatic: nothing is typed or copied.
 4. The app trades the code and its secret for its own session token and the sealed key package. It opens the package with its private key and wraps the keys for its own storage.
 5. A session from this hand-off is an ordinary session: it expires 30 days after its last use (ADR-031).
 
-**Server side.** Two new routes: a start route, where the website creates the code after sign-in, and an exchange route, where the app trades the code and its secret for a session token. Login is unchanged. The code is a new short-lived, single-use kind in the sync-api token store, so it survives a restart and has one place for its expiry. The sign-in page itself is served by web-fe; sync-api only serves the routes.
+**Server side.** Two new routes: a start route (`POST /v1/auth/handoff/start`), where the website creates the code after sign-in, and an exchange route (`POST /v1/auth/handoff/exchange`), where the app trades the code and its secret for a session token. Login is unchanged. The code is kept in its own table, `signin_handoff`, and not as a kind in the token store: a code held as a token kind would resolve as a Bearer token, and the new kind would force a rebuild of the tokens table. The tokens table gains only a device name, for session rows. The sign-in page itself is served by web-fe; sync-api only serves the routes.
 
 **Phone storage.** The session token is wrapped with an Android Keystore key from the start. It lives in the app's private storage and is not included in backups. There is no plain store behind a flag.
 
@@ -66,7 +66,7 @@ Of the hand-off, only `CryptoService.openSignInPackage` (with its parser and the
 
 ## To be designed (not decided here)
 
-- The route names and the wire form of the challenge, the code and the exchange.
+- The route names and the wire forms of the challenge, the code and the exchange are no longer open: the API contract (`shared/modules/api-contracts/openapi.yaml`) now holds them.
 - The encoding of the keys inside the sealed package (ADR-035). Its construction and key type are decided there, and not built.
 - How the app limits plain http to the configured server, and the matching change to its HTTP client (ADR-034).
 - How the wrong-password limit counts failures and where the 15-minute wait is kept.

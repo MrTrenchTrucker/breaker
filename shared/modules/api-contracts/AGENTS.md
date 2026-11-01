@@ -71,6 +71,21 @@ There is no synchronous 200-with-body variant — every transcription is a job.
   ONLY the presented token. → **204 No Content** | **401** `ApiError` for a missing, unknown or
   already-revoked token (nothing beyond "not a valid session" is disclosed). There is no standalone
   revoke-others route: other sessions are revoked only inside `change-password` (Phase 19).
+- **auth - sign-in hand-off (ADR-036)** - `POST /v1/auth/handoff/start`, user session token only (an
+  agent token is refused, 403, the same body as `/v1/sync`): `{challenge, sealed_package}` -> **201**
+  `{code}` | **400** | **401** | **403** | **413**. The code is valid for 5 minutes and usable once, it is
+  43 URL-safe characters (so it goes into a `breaker://` link with no escaping), and an account has at most
+  5 live codes (a sixth start ends the oldest and removes its package). `POST /v1/auth/handoff/exchange`,
+  no token (the code and the secret are the credential): `{code, secret, device_name?}` -> **200** `{token,
+  role, key_version, sealed_package, username, account_id}` | **400** (a 400 does not use up the code) |
+  **401** | **413**. The exchange has ONE refusal: **401** `ApiError` `Invalid sign-in code or secret`, the
+  same body for an unknown code, a code or secret of the wrong length or alphabet, a wrong secret, an
+  expired code and a code already used; no other status tells these cases apart, and a wrong secret does
+  not use up the code. The package is the sealed key package, exactly 113 bytes (65 + 48) written as
+  standard base64 (152 characters); the server stores it without opening it, checks only its length, and
+  deletes it when the code is used. The field is named `sealed_package` and NOT `package` because
+  `package` is a hard keyword in Kotlin and the Kotlin type must carry the field (`sealedPackage`). The
+  session from the exchange is an ordinary session that ends 30 days after its last use.
 - **auth — statuses of this slice** (every error body is the shared `ApiError`, never echoing a
   password, verifier, salt or token): register → **201** `{username, role}` | **400** naming the
   failing field (username charset or length, `kdf_version` other than 1, KDF values outside
@@ -170,6 +185,9 @@ OpenAPI spec (openapi.yaml); Kotlin request and response types
   against the pattern in `openapi.yaml` and against the Kotlin literal copy in the
   sync-api tests; each side of the system checks the same table.
 - Contract: `tests/contract/test_api_contracts_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_api_contracts_contract.py`
+- Sign-in hand-off: the stdlib test `tests/unit/shared/api-contracts/test_signin_handoff_contract.py`
+  pins the two hand-off paths, their statuses, the field sets and patterns of the four hand-off schemas,
+  the one refusal of the exchange, and the matching Kotlin types.
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
 ## Test Requirement
