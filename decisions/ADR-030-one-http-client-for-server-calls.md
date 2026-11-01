@@ -10,7 +10,7 @@ The Android app makes HTTP calls to the Local Server and to the update host from
 
 - The stt-server transcription client: connect 1_500 ms, post reply 10_000 ms, poll read 5_000 ms, reply cap 4 MiB (4_194_304 bytes).
 - The stt-ondevice model download client: its connect and read timeouts are caller-supplied. The caller holds defaults of 15_000 ms (connect) and 30_000 ms (read). The model reply cap is computed per model from its registry size `sizeMb` as (sizeMb + 1) * 1_048_576 bytes. The checksum list has its own cap of 1_048_576 bytes. The opener in `HttpFetch.kt` checks no reply size; the caller enforces both caps.
-- The updater client: connect 10_000 ms; read 15_000 ms for the manifest, with a cap of 65_536 bytes; read 30_000 ms for the APK, with a cap of 268_435_456 bytes (256 MiB). The updater's checker (ReleaseUpdateChecker.kt) also gives its APK cap a default value in its constructor, and the new module must not copy that pattern.
+- The updater client does not exist; no file named ReleaseUpdateChecker.kt exists. Decided limits (unchanged): connect 10_000 ms; read 15_000 ms for the manifest, with a cap of 65_536 bytes; read 30_000 ms for the APK, with a cap of 268_435_456 bytes (256 MiB). No client takes an APK cap as a constructor default, and the new module does not copy such a pattern.
 
 The three clients differ because their jobs differ: a LAN transcription reply, a model download, and an APK over the internet. They also repeat shared rules by hand. All three refuse redirects and caches, but they enforce https in different places. A rule that is correct in one client can drift in another, and no single default timeout or reply cap fits all three.
 
