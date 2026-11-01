@@ -403,7 +403,7 @@ regardless of which service is configured. Audio format: **WAV 16 kHz mono PCM**
 **Status:** main holds only the card and build file; the code is on the whisper-server
 branches and imports nothing from sync-api. PLANNED: a runnable `main` (`BREAKER_WHISPER_*`
 env, bound to 127.0.0.1). How the sealed copy reaches sync-api is OPEN until Phase 19/20
-(ADR-018); the registry's whisper-server -> sync-api edge is to be dropped.
+(ADR-018); the registry lists no whisper-server -> sync-api edge today. The token check is an HTTP contract (ADR-015, amended), not an import.
 
 ## 7. Transport & Fallback
 
@@ -757,7 +757,7 @@ then installs the APK. Honest note: pairing is superseded by ADR-034; no certifi
 reads the latest **tagged release from the user's local GIT server**. When a
 newer version exists:
 1. The app notifies the user ("Breaker 1.2.0 is available — update?").
-2. On confirm, it downloads the **signed APK** over HTTPS (trusted via our CA).
+2. On confirm, it downloads the **signed APK**. For an https address the APK address is trusted by the phone's normal trust. ADR-034 decides that a plain http address is allowed too; the app still refuses it until the slice for that lands (not built).
 3. It verifies the APK **signature + SHA-256** (published on the endpoint).
 4. Android installs over the existing app — same package ID + signature →
    treated as an update, **data/settings preserved**.
@@ -782,8 +782,8 @@ local GIT server** on deploy. Tagged releases → build → serve. Rollback = de
 previous tag.
 
 **Containers:** each service is a container; the web-fe is a **Debian-based**
-container. All bind to the VPN interface only. TLS from the server's own
-certificate (ADR-032, decided in principle).
+container. Every public listener binds to the VPN interface only. Internal listeners (the token-check routes) bind to loopback or the stack's internal network only,
+never the VPN interface. Breaker serves plain HTTP; TLS is the admin's choice through a reverse proxy in front of it (ADR-034).
 API keys + user tokens never in git.
 
 **Mirror:** after a GitHub main merge, sync the private mirror's `main` only; a full mirror
