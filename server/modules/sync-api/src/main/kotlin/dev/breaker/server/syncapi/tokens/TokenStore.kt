@@ -71,6 +71,17 @@ internal class TokenStore(
         }
     }
 
+    /**
+     * Peeks at the presented token without moving its expiry: the same live rule as resolve,
+     * but read-only. Session tokens are not slid and agent tokens are never touched.
+     */
+    suspend fun peek(presented: String): ResolvedToken? {
+        val secret = TokenSecret.parse(presented) ?: return null
+        val hash = secret.hash()
+        val nowMs = clock.millis()
+        return db.transaction<ResolvedToken?> { connection -> readLiveToken(connection, hash, nowMs) }
+    }
+
     private fun slideSessionExpiry(connection: Connection, tokenId: Long, nowMs: Long) {
         connection.prepareStatement(SLIDE_SESSION_SQL).use { statement ->
             statement.setLong(1, nowMs + SESSION_IDLE_LIFETIME.toMillis())

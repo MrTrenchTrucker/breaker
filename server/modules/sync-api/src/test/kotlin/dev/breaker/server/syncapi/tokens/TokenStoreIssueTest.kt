@@ -77,7 +77,7 @@ internal class TokenStoreIssueTest : TempDatabaseTest() {
     }
 
     @Test
-    fun `issueSession stores the clock time and no scope, label or expiry`() {
+    fun `issueSession stores the clock time and a thirty day expiry and no scope or label`() {
         clock.advance(Duration.ofMinutes(5))
         val id = issuedOf(session(userId)).tokenId
         assertEquals("sync-api: stored kind", "session", textColumn(id, "kind"))
