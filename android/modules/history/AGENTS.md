@@ -59,6 +59,8 @@ written and kept; no shipped code reads or sweeps them yet, because the port
 that lets sync reach them is deferred. The 90-day tombstone window, measured
 from the delete, is a module design choice; the spec sets no tombstone lifetime.
 
+**Planned (ADR-035), not built:** the sync module will hand the rows it pulls from the server to this module, and will call `applyRemoteDelete` for a delete made on another device. History stays the only module that writes the local store. The port that sync uses to reach history is to be designed; no shipped code calls the methods yet.
+
 ## Invariants
 - Every transcription saved regardless of source (F7).
 - Tap-to-copy works from history; delete works.

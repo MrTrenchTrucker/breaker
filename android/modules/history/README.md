@@ -42,6 +42,8 @@ then the tombstone table only grows, and they stay internal to this module. The
 module defines a 90-day tombstone window, measured from the delete. That is a
 module design choice; the spec sets no tombstone lifetime.
 
+Planned (ADR-035, not built): the sync module will call `applyRemoteDelete` for a delete made on another device, and will hand the rows it pulls to this module. Nothing of that is built yet.
+
 ## Public surface
 
 - `SqliteHistoryStore`, built only through `SqliteHistoryStore.create(context, clock)`.

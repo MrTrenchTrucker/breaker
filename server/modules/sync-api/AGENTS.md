@@ -156,6 +156,13 @@ here (N13).
 - **Multi-admin config:** concurrent edits to the transcription service config
   are **last-write-wins** (documented default; no locking in v1).
 
+**Planned (ADR-035, ADR-036), not built:**
+- `GET /v1/transcriptions` (listed above, not built yet) is built with a changes-since pull and a cursor. The wire form of the cursor is to be designed. Delete records are kept until every device that held the row has pulled it; how long they are kept for a device that never comes back is to be designed.
+- Sign-in from the website: a start route, where the website creates a one-time code after the person signs in (single use, 5 minutes, a new kind in the token store), and an exchange route, where the app trades the code and its one-time secret for a session token and the sealed key package. The website page makes the sealed package, sealed to the app's public key; the server stores and returns it and never opens it.
+- Wrong-password limit, on the sign-in path (website and device): after 5 wrong passwords for an account, sign-in for that account waits 15 minutes. It is on by default and the admin can turn it off. This changes the statement above that the repo ships no rate limiting on the auth endpoints, once it is built.
+- An admin route to end a session at once, built over the existing token-store functions (ADR-036).
+- A device list for an account (one row per session): sign-out for each device, and "sign out all my devices" from the website.
+
 **Roles (F22, T16):**
 - `admin` — first registered account; can assign/revoke admin, force update
   checks, view health.

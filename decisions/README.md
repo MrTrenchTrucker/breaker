@@ -56,7 +56,7 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-003](ADR-003-sherpa-onnx.md) | On-device engine = sherpa-onnx (pinned + verified) | accepted |
 | [ADR-004](ADR-004-two-phrases.md) | Voice control = two phrases ("Breaker Breaker" / "And I'm Gone") | accepted |
 | [ADR-005](ADR-005-ime-commit.md) | Text commit = IME-first with clipboard fallback | superseded by ADR-022 |
-| [ADR-006](ADR-006-encryption.md) | Encryption by default — per-user DEK, password-wrapped | accepted, amended 2026-09-30 and 2026-10-01 |
+| [ADR-006](ADR-006-encryption.md) | Encryption by default — per-user DEK, password-wrapped | accepted, amended 2026-09-30, 2026-10-01, 2026-10-21 and 2026-11-01 |
 | [ADR-007](ADR-007-fifo-queue.md) | FIFO transcription queue | accepted |
 | [ADR-008](ADR-008-configurable-service.md) | Admin-configurable transcription service | accepted |
 | [ADR-009](ADR-009-roles-tokens.md) | Roles + agent tokens (first-account-is-admin) | accepted, amended 2026-11-01 |
@@ -85,5 +85,7 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-032](ADR-032-server-certificate-and-pairing.md) | The server makes its own certificate, and the one-time sign-in pairs the phone with it | accepted in principle, details to be designed; superseded by ADR-034 |
 | [ADR-033](ADR-033-signed-out-is-a-quiet-notice-on-home.md) | Signed out is a quiet notice on Home, and nothing is forced | accepted |
 | [ADR-034](ADR-034-plain-http-and-the-admins-choice-of-tls.md) | Breaker serves plain HTTP; TLS is the admin's choice | accepted |
+| [ADR-035](ADR-035-several-devices-server-is-source-of-truth.md) | Several devices per account; the server is the source of truth | accepted; the points under To be designed are open |
+| [ADR-036](ADR-036-sign-in-from-the-website.md) | Sign-in from the website hands the login to the app | accepted; the points under To be designed are open |
 
-Next free number: **ADR-034**.
+Next free number: **ADR-037**.

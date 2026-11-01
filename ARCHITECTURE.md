@@ -528,6 +528,12 @@ client id atomically replaces the stored record rather than being treated as
 a duplicate push (ADR-006). No data loss on offline dictation. Auth via user
 token (section 12).
 
+**Several devices (ADR-035, planned, not built):** the server is the source of
+truth for an account's transcriptions. Each device pushes its queue, then pulls
+the rows the other devices recorded. A delete on any device reaches every
+device, and a device applies a pulled delete through the history module. The
+phone's sync module gains the pull; nothing of it is built yet.
+
 **Web FE (F15):** a Debian container website where the user logs in and views /
 searches / copies their transcriptions from any device on the VPN. Data is
 pulled from the same sync store. This makes "copy what I said earlier" easy from
@@ -582,6 +588,13 @@ enforced server-side** (N13) — never trust client-side scoping. The job
 API (whisper-server) will ask sync-api whether a token is live and fail closed
 (R31, ADR-015); nothing of that is built yet.
 
+**Several devices and sign-in from the website (ADR-035, ADR-036; planned, not built):**
+an account may use several devices. Signing in on the Breaker website hands the
+login to the app automatically, and a new device gets its keys sealed from that
+sign-in, so the password is typed once, on the website. The website lists the
+devices with a sign-out for each one. A wrong-password limit (5 tries, then a
+15-minute wait, which the admin can turn off) is planned with it.
+
 **Session lifetime (ADR-031):** a session token expires 30 days after its last
 use, and every authenticated use moves the expiry to 30 days from that moment.
 An admin can still revoke a session at once. A user who loses a phone has to do
@@ -593,7 +606,7 @@ expired or revoked session, or a key the server refused) nothing forces the
 user anywhere. The app keeps working offline exactly as it does today, and Home
 shows a quiet notice with a way to sign in.
 
-**Onboarding:** register → download APK → sign in (the intended flow, from ADR-034, is to sign in on the Breaker website; the design is open) → train phrases → grant permissions → enable high-power mode → GTG.
+**Onboarding:** register → download APK → sign in (on the Breaker website, which hands the login to the app: ADR-036, planned, not built) → train phrases → grant permissions → enable high-power mode → GTG.
 
 **Roles (F22):** two roles — `admin` and `user`. The **first account to register**
 is **admin by default**. Admins can: assign/revoke admin on other accounts,
@@ -842,7 +855,9 @@ smoke-test gate [1].
       scope (docs/01, docs/05 — read as covering enumeration too, though
       neither list names it; session expiry is not out of scope any more,
       ADR-031) and T18's per-user rate
-      limits do not apply to unauthenticated auth endpoints. Mitigations: an
+      limits do not apply to unauthenticated auth endpoints. ADR-036 plans a
+      wrong-password limit on sign-in (5 tries, then a 15-minute wait), not
+      built yet. Mitigations: an
       enforced Argon2id floor (server- and client-side, ADR-006) and a
       12-character minimum password. A raw (unhashed) leaked verifier is a
       stronger threat than guessing — see T27.
@@ -976,6 +991,12 @@ See `docs/04-build-order.md`. Summary:
       addresses and show one quiet line in settings on plain http; ADR-034
       decides it and supersedes ADR-032; not built, the code still refuses
       plain http.
+- D39. **Several devices; the server is the source of truth** - each device
+      pushes, then pulls; a delete reaches every device; a new device gets its
+      keys sealed from the website sign-in (ADR-035; not built).
+- D40. **Sign-in from the website hands the login to the app** - a one-time
+      code over a `breaker://` link plus a secret the app keeps; several
+      devices listed; wrong-password limit (ADR-036; not built).
 - D21. **Configurable transcription service** — admin-configured endpoint
       (Docker/IP/external), server-side proxy, connectivity test (F26).
 - D22. **Agent tokens** — admin-generated scoped API tokens; agents use the same
@@ -1072,6 +1093,8 @@ See `docs/04-build-order.md`. Summary:
 - **Auth hardening** (brute-force protection, refresh) — the VPN perimeter is the
   auth layer for now; an auth server may come later. Session expiry is no
   longer deferred: a session expires 30 days after its last use (ADR-031).
+  A wrong-password limit on sign-in is no longer deferred either: ADR-036
+  plans it (planned, not built).
 - **Certificate lifecycle** - superseded by ADR-034: Breaker serves plain HTTP; TLS is the admin's choice via any reverse proxy.
   No module makes, keeps, pins or renews a certificate (not built).
 - **Formal backups** — multi-drive redundancy + device copies of transcriptions;

@@ -38,6 +38,10 @@ Also hosts the APK for download (F15, F17). No certificate handling in Breaker; 
 - **Downloads → Models** (F30): on-device model + checksums served for phone
   download (licensing permitting; fallback to upstream with pinned checksums [2]).
 
+**Planned (ADR-036, not built): sign-in hand-off page.** When the app opens the Auth page with a one-time challenge and the app's public key, the page signs the person in. It then derives the KEK in the browser, unwraps the account's keys and seals them to the app's public key, and sends the browser back to the app through the `breaker://` link with a one-time code. The honest limit below applies to that sealing step too: this container serves the page's JavaScript.
+
+**Planned (ADR-035, ADR-036, not built): device list.** Settings lists each device of the account, with a sign-out for each one, and a "sign out all my devices" button.
+
 **Hosting:**
 - `/Breaker.apk` — latest signed APK (from the git-pull build).
 - Published SHA-256 for the APK on the download page (tamper check).
