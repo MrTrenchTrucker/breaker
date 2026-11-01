@@ -38,11 +38,18 @@ modules implement, and the use cases that run a dictation.
   Word times are capture-relative (see `HeardWord`). An adapter in another module
   implements it, and the app wires it.
 - `AuthService` — `register`, `login`, `logout`, `currentSession`
-- `CryptoService` — `unwrapDek`, `encrypt`, `decrypt`, `toEncryptedText`
+- `CryptoService` - five methods. `unwrapDek(WrappedDek, KeyEncryptionKey)` opens the data
+  key with the key-encryption key the caller derived, never a password.
+  `openSignInPackage(SealedSignInPackage, SignInPrivateKey)` opens the key package the
+  website sealed for one sign-in and returns `AccountKeys`. `encrypt` and `decrypt` take
+  the additional authenticated data as a byte array, which binds a text to its record.
+  `toEncryptedText` is unchanged. A refused operation throws `CryptoRefused` and returns
+  no partial result.
 - `KeyDerivation` — `deriveKeys(password, salt, kdfParams)`: derives the
   key-encryption key and the auth verifier in one call and returns both as
   `DerivedKeys`; the crypto module implements it and holds the parameter limits
-  (core carries the values and judges nothing). `CryptoService` is unchanged.
+  (core carries the values and judges nothing). `CryptoService` takes the key-encryption
+  key from this call and never sees the password.
 - `SyncService` — `pushPending()`, `enqueue(Transcription)`
 - `UpdateChecker` — `check(force)`, `install(release)`, `rollback()`
 - `Clock` — `nowEpochMillis()`, and `IdSource` — `newId()`, so the domain never reads
@@ -69,6 +76,15 @@ modules implement, and the use cases that run a dictation.
 - `KeyEncryptionKey` and `AuthVerifier` — each exactly 32 bytes, copied when
   built and copied when read, with `wipe()` and a `toString` that never prints
   the bytes; `DerivedKeys` is the pair, and its `wipe()` wipes both
+- `SignInPrivateKey` and `BoxPrivateKey` - each exactly 32 bytes (X25519), handled like
+  `KeyEncryptionKey`: copied when built and when read, with `wipe()` and a `toString`
+  that never prints the bytes. `SealedSignInPackage` is the key package the website
+  sealed for one sign-in: any non-empty byte array, handled the same way, with no fixed
+  length. `AccountKeys(dek, boxPrivateKey)` is the pair a package opens to, and its
+  `wipe()` wipes both
+- `CryptoRefused` - the one plain refusal of a cryptographic operation: an
+  IllegalArgumentException with a fixed message, no reason and no byte. It lives in core
+  so that callers that see only core can catch it
 - `KdfRefusal` — why a derivation was refused (MEMORY_BELOW_FLOOR,
   MEMORY_ABOVE_CEILING, ITERATIONS_BELOW_FLOOR, ITERATIONS_ABOVE_CEILING,
   PARALLELISM_BELOW_FLOOR, PARALLELISM_ABOVE_CEILING, OUTPUT_LENGTH_NOT_32,
