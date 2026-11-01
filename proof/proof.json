@@ -1,0 +1,1019 @@
+{
+ "name": "proof-sync-api-slice-1a",
+ "tip": {
+  "tree": "2865cb744a219013c8588ae231c76920ef9d6119"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "sync-api: the transcriptions table, POST /v1/sync and GET /v1/transcriptions",
+   "base_tree": "9a99b230b5ce66b9f5e5830996f0b589eeed966a",
+   "item_tip_tree": "2865cb744a219013c8588ae231c76920ef9d6119",
+   "new_production_classes": [
+    "SchemaV3",
+    "SyncBodyReader",
+    "SyncJsonReader",
+    "SyncPushBody",
+    "SyncResponses",
+    "SyncRoutes",
+    "SyncTimeFormat",
+    "TranscriptionStore",
+    "TranscriptionTypes"
+   ],
+   "test_fixtures_overlaid": [
+    "SyncRouteTestSupport.kt",
+    "TranscriptionFixtures.kt"
+   ],
+   "red_not_run": "The red leg is impossible: the new test classes need types that do not exist on the base, so no test class of this slice compiles there and no red run is possible; the mutants carry the proof."
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "\n                    PushResult.NoOp\n",
+     "replacement": "\n                    run { replaceRow(connection, accountId, clientId, keyVersion, encrypted, nowMs); PushResult.Replaced }\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a repeat of the same pair is a no-op and leaves one row"
+   ],
+   "rule": "A push of a stored pair at the same key version is a no-op and never overwrites the stored text.",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "\n                    PushResult.RefusedLower\n",
+     "replacement": "\n                    run { replaceRow(connection, accountId, clientId, keyVersion, encrypted, nowMs); PushResult.Replaced }\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a lower key version is refused and the stored row is kept"
+   ],
+   "rule": "The same client id stored at a higher key version refuses a lower key version and keeps the stored row.",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "\n                        PushResult.RefusedLower\n",
+     "replacement": "\n                        run { insertRow(connection, accountId, clientId, keyVersion, encrypted, nowMs); PushResult.Stored }\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a new client id below the account key version is refused and the same id at that version is stored"
+   ],
+   "rule": "A brand-new client id below the account key version is refused and nothing is stored.",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "\n                \"WHERE account_id = ? ORDER BY id\"\n",
+     "replacement": "\n                \"WHERE ? >= 0 ORDER BY id\"\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "one account never sees the rows of another account"
+   ],
+   "rule": "One account sees only the rows of its own account in the list.",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "\n            \"SELECT key_version FROM transcriptions WHERE account_id = ? AND client_id = ?\"\n",
+     "replacement": "\n            \"SELECT key_version FROM transcriptions WHERE ? >= 0 AND client_id = ?\"\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "two accounts with the same client id do not touch each other"
+   ],
+   "rule": "The stored-version lookup of a pair is per account, so two accounts may hold the same client id.",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncBodyReader.kt",
+     "anchor": "\n    if (declared != null && declared > SYNC_BODY_CAP_BYTES) {\n",
+     "replacement": "\n    if (declared != null && declared >= SYNC_BODY_CAP_BYTES) {\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a body of exactly the cap is accepted"
+   ],
+   "rule": "A declared body length of exactly the cap is accepted, and one byte more is refused.",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncBodyReader.kt",
+     "anchor": "\n    if (bytes.size > SYNC_BODY_CAP_BYTES) {\n",
+     "replacement": "\n    if (bytes.size >= SYNC_BODY_CAP_BYTES) {\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a body of exactly the cap is accepted"
+   ],
+   "rule": "A body read from the stream is accepted at exactly the cap and refused one byte above it.",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncRoutes.kt",
+     "anchor": "\n    if (resolved.kind != TokenKind.SESSION) {\n",
+     "replacement": "\n    if (false) {\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a push with an agent token answers 403 and stores nothing"
+   ],
+   "rule": "A valid agent token is refused with 403 on the push route; only a user session token passes.",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "\n            if (keyVersion > accountKeyVersion) {\n",
+     "replacement": "\n            if (false) {\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a push above the account key version is refused with 409 and the new text",
+    "a new client id above the account key version is refused and nothing is stored"
+   ],
+   "rule": "A push whose key version is above the account key version is refused with 409.",
+   "note": ""
+  },
+  {
+   "id": "mut-10",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "\n            if (keyVersion > accountKeyVersion) {\n",
+     "replacement": "\n            if (keyVersion > accountKeyVersion && readStoredKeyVersion(connection, accountId, clientId) == null) {\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a push above the account key version is refused even when the client id is stored"
+   ],
+   "rule": "The above-account check runs before the row lookup, so a stored row cannot be replaced by a push above the account key version.",
+   "note": ""
+  },
+  {
+   "id": "mut-11",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "\n            \"UPDATE transcriptions SET key_version = ?, encrypted = ?, stored_at_ms = ? \" +\n",
+     "replacement": "\n            \"UPDATE transcriptions SET key_version = ?, encrypted = ?, stored_at_ms = stored_at_ms + 0 * ? \" +\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a higher key version replaces the row and leaves one row with the new clock time"
+   ],
+   "rule": "A replace stores the server clock of the replace.",
+   "note": ""
+  },
+  {
+   "id": "mut-12",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncRoutes.kt",
+     "anchor": "\n                is PushResult.RefusedAboveAccount -> call.respondAboveAccount()\n",
+     "replacement": "\n                is PushResult.RefusedAboveAccount -> call.respondLowerRefused()\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a push above the account key version is refused with 409 and the new text"
+   ],
+   "rule": "The above-account refusal answers the above-account text.",
+   "note": ""
+  },
+  {
+   "id": "mut-13",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncPushBody.kt",
+     "anchor": "\n        val padding = character == '=' && index >= paddingStart\n",
+     "replacement": "\n        val padding = character == '='\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "each malformed push answers 400 with its fixed message and stores nothing"
+   ],
+   "rule": "An equals sign is allowed only as one or two characters at the very end of the encrypted text.",
+   "note": ""
+  },
+  {
+   "id": "mut-14",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncPushBody.kt",
+     "anchor": "\n    if (text.isEmpty() || text.length % 4 != 0) return false\n",
+     "replacement": "\n    if (text.isEmpty()) return false\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "each malformed push answers 400 with its fixed message and stores nothing"
+   ],
+   "rule": "Standard base64 text has a length that is a multiple of four.",
+   "note": ""
+  },
+  {
+   "id": "mut-15",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncJsonReader.kt",
+     "anchor": "\n            if (members.containsKey(key)) throw SyncJsonMalformed()\n",
+     "replacement": "\n            // the duplicate-key check is removed by this mutant\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "each malformed push answers 400 with its fixed message and stores nothing"
+   ],
+   "rule": "A repeated key in the body is a malformed body.",
+   "note": ""
+  },
+  {
+   "id": "mut-16",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncResponses.kt",
+     "anchor": "\n    respondSyncError(HttpStatusCode.ServiceUnavailable, \"unavailable\", MESSAGE_UNAVAILABLE)\n",
+     "replacement": "\n    respondSyncError(HttpStatusCode.BadRequest, \"unavailable\", MESSAGE_UNAVAILABLE)\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a push on a closed database answers 503 with the fixed body"
+   ],
+   "rule": "A store failure other than cancellation answers 503 with the fixed body.",
+   "note": ""
+  },
+  {
+   "id": "mut-17",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncRoutes.kt",
+     "anchor": "\n        throw cancellation\n",
+     "replacement": "\n        null\n"
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "Cancellation is rethrown in the token lookup and is not answered as a refusal.",
+   "note": ""
+  },
+  {
+   "id": "mut-18",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncRoutes.kt",
+     "anchor": "\n        respondUnavailable()\n",
+     "replacement": "\n        respondSessionRequired()\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a push with a closed token store answers 503 with the fixed body",
+    "a list with a closed token store answers 503 with the fixed body"
+   ],
+   "rule": "A failure of the token store answers 503 and not 401.",
+   "note": ""
+  },
+  {
+   "id": "mut-19",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "\n            statement.setLong(5, storedAtMs)\n",
+     "replacement": "\n            statement.setLong(5, 0L)\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a new client id is stored with the account key version and the server clock"
+   ],
+   "rule": "An insert stores the server clock as its stored time.",
+   "note": ""
+  },
+  {
+   "id": "mut-20",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncTimeFormat.kt",
+     "anchor": "\n    val year = if (month <= 2L) yearFromMarch + 1L else yearFromMarch\n",
+     "replacement": "\n    val year = yearFromMarch\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the epoch is written as midnight on the first of January 1970"
+   ],
+   "rule": "A January or February date is written with its calendar year.",
+   "note": ""
+  },
+  {
+   "id": "mut-21",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV3.kt",
+     "anchor": "\n        \"ALTER TABLE accounts ADD COLUMN key_version INTEGER NOT NULL DEFAULT 0 CHECK (key_version >= 0)\"\n",
+     "replacement": "\n        \"ALTER TABLE accounts ADD COLUMN key_version INTEGER NOT NULL DEFAULT 1 CHECK (key_version >= 0)\"\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a fresh database ends at version 3 with the transcriptions table and key version 0 for a new account"
+   ],
+   "rule": "Every new or existing account starts at key version 0.",
+   "note": ""
+  },
+  {
+   "id": "mut-22",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/Migrations.kt",
+     "anchor": "\n    val ALL: List<Migration> = listOf(SchemaV1.MIGRATION, SchemaV2.MIGRATION, SchemaV3.MIGRATION)\n",
+     "replacement": "\n    val ALL: List<Migration> = listOf(SchemaV1.MIGRATION, SchemaV2.MIGRATION)\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a fresh database ends at version 3 with the transcriptions table and key version 0 for a new account"
+   ],
+   "rule": "Migration 3 is registered after migration 2 in the migration list.",
+   "note": ""
+  },
+  {
+   "id": "mut-23",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV3.kt",
+     "anchor": "\n          client_id      TEXT    NOT NULL CHECK (length(client_id) = 36),\n",
+     "replacement": "\n          client_id      TEXT    NOT NULL CHECK (length(client_id) = 35),\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a client id of 35 or 37 characters is refused and one of 36 characters is accepted"
+   ],
+   "rule": "A client id is exactly 36 characters long.",
+   "note": ""
+  },
+  {
+   "id": "mut-24",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV3.kt",
+     "anchor": "\n          encrypted      TEXT    NOT NULL CHECK (length(encrypted) >= 1),\n",
+     "replacement": "\n          encrypted      TEXT    NOT NULL CHECK (length(encrypted) >= 0),\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an empty encrypted value is refused and a non empty one is accepted"
+   ],
+   "rule": "The encrypted text is at least one character long.",
+   "note": ""
+  },
+  {
+   "id": "mut-25",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV3.kt",
+     "anchor": "\n          key_version    INTEGER NOT NULL CHECK (key_version >= 0),\n",
+     "replacement": "\n          key_version    INTEGER NOT NULL CHECK (key_version >= -1),\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a negative key version on a transcription is refused and key version zero is accepted"
+   ],
+   "rule": "A transcription key version is at least 0.",
+   "note": ""
+  },
+  {
+   "id": "mut-26",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV3.kt",
+     "anchor": "\n        \"ALTER TABLE accounts ADD COLUMN key_version INTEGER NOT NULL DEFAULT 0 CHECK (key_version >= 0)\"\n",
+     "replacement": "\n        \"ALTER TABLE accounts ADD COLUMN key_version INTEGER NOT NULL DEFAULT 0 CHECK (key_version >= -1)\"\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a negative account key version is refused and a key version of one is accepted"
+   ],
+   "rule": "An account key version is at least 0.",
+   "note": ""
+  },
+  {
+   "id": "mut-27",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV3.kt",
+     "anchor": "\n          account_id     INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,\n",
+     "replacement": "\n          account_id     INTEGER NOT NULL REFERENCES accounts(id) ON DELETE RESTRICT,\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "deleting an account removes its transcriptions and keeps the rows of other accounts"
+   ],
+   "rule": "Deleting an account removes its transcriptions.",
+   "note": ""
+  },
+  {
+   "id": "mut-28",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV3.kt",
+     "anchor": "\n          UNIQUE (account_id, client_id)\n",
+     "replacement": "\n          UNIQUE (account_id, client_id, id)\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a second row for the same account and client id is refused and another account may hold the id"
+   ],
+   "rule": "At most one row exists for each account and client id pair.",
+   "note": ""
+  },
+  {
+   "id": "mut-29",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncPushBody.kt",
+     "anchor": "\n            character in '0'..'9' || character in 'a'..'f'\n",
+     "replacement": "\n            character in '0'..'9' || character in 'a'..'f' || character in 'A'..'F'\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "each malformed push answers 400 with its fixed message and stores nothing"
+   ],
+   "rule": "A client id uses lowercase hexadecimal digits only.",
+   "note": ""
+  },
+  {
+   "id": "mut-30",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncPushBody.kt",
+     "anchor": "\n            character == '+' || character == '/'\n",
+     "replacement": "\n            character == '+' || character == '/' || character == '-'\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "each malformed push answers 400 with its fixed message and stores nothing"
+   ],
+   "rule": "The encrypted text uses the standard base64 alphabet, so a hyphen is refused.",
+   "note": ""
+  },
+  {
+   "id": "mut-31",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncPushBody.kt",
+     "anchor": "\n            character == '+' || character == '/'\n",
+     "replacement": "\n            character == '+'\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a push whose text holds a slash is stored and listed"
+   ],
+   "rule": "A slash is a standard base64 character and is accepted in the encrypted text.",
+   "note": ""
+  },
+  {
+   "id": "mut-32",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncPushBody.kt",
+     "anchor": "\n    if (raw.length > 1 && raw[0] == '0') return null\n",
+     "replacement": "\n    if (false) return null\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "each malformed push answers 400 with its fixed message and stores nothing"
+   ],
+   "rule": "A key version has no leading zero.",
+   "note": ""
+  },
+  {
+   "id": "mut-33",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncPushBody.kt",
+     "anchor": "\n    if (number > MAX_KEY_VERSION) return null\n",
+     "replacement": "\n    if (number > MAX_KEY_VERSION + 1L) return null\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "each malformed push answers 400 with its fixed message and stores nothing"
+   ],
+   "rule": "A key version is at most the largest 32 bit signed integer.",
+   "note": ""
+  },
+  {
+   "id": "mut-34",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncPushBody.kt",
+     "anchor": "\n        val hyphenPosition = index == 8 || index == 13 || index == 18 || index == 23\n",
+     "replacement": "\n        val hyphenPosition = index == 8 || index == 13 || index == 18\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a first push answers 204 with no body"
+   ],
+   "rule": "A client id has a hyphen at index 23, in the 8-4-4-4-12 layout.",
+   "note": ""
+  },
+  {
+   "id": "mut-35",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncPushBody.kt",
+     "anchor": "\n            character == '+' || character == '/'\n",
+     "replacement": "\n            character == '+' || character == '/' || character == '_'\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "each malformed push answers 400 with its fixed message and stores nothing"
+   ],
+   "rule": "The encrypted text uses the standard base64 alphabet, so an underscore is refused.",
+   "note": ""
+  },
+  {
+   "id": "mut-36",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiApplication.kt",
+     "anchor": "\n        syncRoutes(tokenStore, transcriptionStore)\n",
+     "replacement": "\n        // the sync routes are not mounted by this mutant\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the public module mounts the push and the list so a pushed row is listed"
+   ],
+   "rule": "The public module mounts the sync routes, so a push and a list through it reach them.",
+   "note": ""
+  },
+  {
+   "id": "mut-37",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV3.kt",
+     "anchor": "\n        \"ALTER TABLE accounts ADD COLUMN key_version INTEGER NOT NULL DEFAULT 0 CHECK (key_version >= 0)\"\n",
+     "replacement": "\n        \"ALTER TABLE accounts ADD COLUMN key_version INTEGER DEFAULT 0 CHECK (key_version >= 0)\"\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a null account key version is refused and a key version of one is accepted"
+   ],
+   "rule": "The account key version column does not accept NULL.",
+   "note": ""
+  },
+  {
+   "id": "mut-38",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV3.kt",
+     "anchor": "\n          account_id     INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,\n",
+     "replacement": "\n          account_id     INTEGER REFERENCES accounts(id) ON DELETE CASCADE,\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a null account id is refused and a valid row is accepted"
+   ],
+   "rule": "The transcription account id column does not accept NULL.",
+   "note": ""
+  },
+  {
+   "id": "mut-39",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV3.kt",
+     "anchor": "\n          client_id      TEXT    NOT NULL CHECK (length(client_id) = 36),\n",
+     "replacement": "\n          client_id      TEXT    CHECK (length(client_id) = 36),\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a null client id is refused and a valid row is accepted"
+   ],
+   "rule": "The transcription client id column does not accept NULL.",
+   "note": ""
+  },
+  {
+   "id": "mut-40",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV3.kt",
+     "anchor": "\n          key_version    INTEGER NOT NULL CHECK (key_version >= 0),\n",
+     "replacement": "\n          key_version    INTEGER CHECK (key_version >= 0),\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a null key version on a transcription is refused and a valid row is accepted"
+   ],
+   "rule": "The transcription key version column does not accept NULL.",
+   "note": ""
+  },
+  {
+   "id": "mut-41",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV3.kt",
+     "anchor": "\n          encrypted      TEXT    NOT NULL CHECK (length(encrypted) >= 1),\n",
+     "replacement": "\n          encrypted      TEXT    CHECK (length(encrypted) >= 1),\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a null encrypted value is refused and a valid row is accepted"
+   ],
+   "rule": "The transcription encrypted column does not accept NULL.",
+   "note": ""
+  },
+  {
+   "id": "mut-42",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV3.kt",
+     "anchor": "\n          stored_at_ms   INTEGER NOT NULL,\n",
+     "replacement": "\n          stored_at_ms   INTEGER,\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a null stored time is refused and a valid row is accepted"
+   ],
+   "rule": "The transcription stored time column does not accept NULL.",
+   "note": ""
+  },
+  {
+   "id": "mut-43",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncRoutes.kt",
+     "anchor": "\n    if (!header.substring(0, separator).equals(BEARER_SCHEME, ignoreCase = true)) return null\n",
+     "replacement": "\n    if (false) return null\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a push with a Basic scheme carrying a live session token answers 401 and stores nothing",
+    "a list with a Basic scheme carrying a live session token answers 401"
+   ],
+   "rule": "The scheme of the Authorization header is Bearer, and a Basic header that carries a live session token is no token.",
+   "note": ""
+  },
+  {
+   "id": "mut-44",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/tokens/TokenStore.kt",
+     "anchor": "\n                \"WHERE t.token_hash = ? AND t.revoked_at_ms IS NULL \" +\n",
+     "replacement": "\n                \"WHERE t.token_hash = ? \" +\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a push and a list with a revoked session token answer 401",
+    "a push and a list with a revoked agent token answer 401 and not 403"
+   ],
+   "rule": "A revoked session token is refused at once; this is a mutation of the existing token store, exercised through the new route tests.",
+   "note": ""
+  },
+  {
+   "id": "mut-45",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/tokens/TokenStore.kt",
+     "anchor": "\n                \"AND (t.expires_at_ms IS NULL OR t.expires_at_ms > ?)\"\n",
+     "replacement": "\n                \"AND (t.expires_at_ms IS NULL OR ? > 0)\"\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a push and a list with a session token past its idle lifetime answer 401"
+   ],
+   "rule": "A session token is dead at its expiry instant; this is a mutation of the existing token store, exercised through the new route tests.",
+   "note": ""
+  },
+  {
+   "id": "mut-46",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncRoutes.kt",
+     "anchor": "\n                renderTranscriptions(transcriptionStore.list(accountId))\n",
+     "replacement": "\n                transcriptionStore.list(accountId)\n"
+    },
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncRoutes.kt",
+     "anchor": "\n            call.respondText(json, ContentType.Application.Json, HttpStatusCode.OK)\n",
+     "replacement": "\n            call.respondText(renderTranscriptions(json), ContentType.Application.Json, HttpStatusCode.OK)\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a stored time that cannot be formatted answers 503 with the fixed body"
+   ],
+   "rule": "A stored time that cannot be formatted answers 503 with the fixed body, not a 500, because the rendering is inside the try.",
+   "note": ""
+  },
+  {
+   "id": "mut-47",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncRoutes.kt",
+     "anchor": "\n                is PushResult.RefusedLower -> call.respondLowerRefused()\n",
+     "replacement": "\n                is PushResult.RefusedLower -> call.respondAboveAccount()\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a push below the stored key version of the same client is refused with 409 and the lower text"
+   ],
+   "rule": "A lower-version refusal answers the lower-version text, and an above-account refusal answers the above-account text.",
+   "note": ""
+  },
+  {
+   "id": "mut-48",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncPushBody.kt",
+     "anchor": "\n        text.endsWith(\"==\") -> text.length - 2\n",
+     "replacement": "\n        // the double padding branch is removed by this mutant\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a push whose text ends in two padding characters is stored and listed"
+   ],
+   "rule": "Two padding characters are a valid end of standard base64 text.",
+   "note": ""
+  },
+  {
+   "id": "mut-49",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncBodyReader.kt",
+     "anchor": "\n    if (declared != null && declared > SYNC_BODY_CAP_BYTES) {\n",
+     "replacement": "\n    if (false) {\n"
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "A declared body length over the cap is refused before the body is read.",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill-syncapi",
+   "module": "server/modules/sync-api",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncRoutes.kt",
+     "anchor": "\n                    call.respond(HttpStatusCode.NoContent)\n",
+     "replacement": "\n                    call.respond(HttpStatusCode.OK)\n"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive-syncapi",
+   "module": "server/modules/sync-api",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncRoutes.kt",
+     "anchor": "\n    return resolved.accountId\n",
+     "replacement": "\n    return resolved.accountId // unchanged behaviour\n"
+    }
+   ]
+  }
+ ]
+}
