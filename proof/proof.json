@@ -1,0 +1,199 @@
+{
+ "name": "proof-r2-cancellation-test",
+ "tip": {
+  "tree": "bbbc2f43f77a1e81ea39912e842186885d13346a"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "sync-api: serve, answer and refuse are internal top-level functions, and a test proves a cancelled token check is not answered 503",
+   "base_tree": "c0680de136e40a75215795f31be64da674aa1124",
+   "item_tip_tree": "bbbc2f43f77a1e81ea39912e842186885d13346a",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [],
+   "red_not_run": "the new test class calls serve as a top-level function, which is a local function on the base, so the class does not compile there and no red leg is possible; the mutants carry the proof"
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 1,
+ "entries": [
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceCheckRoutes.kt",
+     "anchor": "    } catch (cancellation: CancellationException) {\n        throw cancellation\n",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "cancellation is not answered with 503"
+   ],
+   "rule": "the cancellation branch of serve removed: cancellation falls into the catch-all and is answered 503",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceCheckRoutes.kt",
+     "anchor": "        refuse(call, HttpStatusCode.ServiceUnavailable, \"unavailable\")",
+     "replacement": "        refuse(call, HttpStatusCode.InternalServerError, \"unavailable\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "illegal state exception becomes 503 unavailable"
+   ],
+   "rule": "the store failure answer is 500",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceCheckRoutes.kt",
+     "anchor": "\"kind\":\"${resolved.kind.dbValue}\"",
+     "replacement": "\"kind\":\"${resolved.role.dbValue}\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "resolved token gives 200 with body"
+   ],
+   "rule": "kind written from the role",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceCheckRoutes.kt",
+     "anchor": "        refuse(call, HttpStatusCode.Unauthorized, \"not_live\")",
+     "replacement": "        refuse(call, HttpStatusCode.Forbidden, \"not_live\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "null resolved token gives 401 not live"
+   ],
+   "rule": "not live answers 403",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceCheckRoutes.kt",
+     "anchor": "        refuse(call, HttpStatusCode.Unauthorized, \"not_live\")",
+     "replacement": "        refuse(call, HttpStatusCode.Unauthorized, \"unavailable\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "null resolved token gives 401 not live"
+   ],
+   "rule": "not live body says unavailable",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceCheckRoutes.kt",
+     "anchor": "        throw cancellation\n",
+     "replacement": "        throw CancellationException(\"again\")\n"
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "equivalent: the rethrown cancellation is a new one with the same type, the handler sees the same thing",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceCheckRoutes.kt",
+     "anchor": "    call.respondText(\"\"\"{\"error\":\"$error\"}\"\"\", ContentType.Application.Json, status)",
+     "replacement": "    call.respondText(\"\"\"{\"error\":\"$error\"}\"\"\", ContentType.Application.Json, status)\n    // the answer is written once"
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "equivalent: a comment line",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill-sync-api",
+   "module": "server/modules/sync-api",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceCheckRoutes.kt",
+     "anchor": "        refuse(call, HttpStatusCode.Unauthorized, \"not_live\")",
+     "replacement": "        refuse(call, HttpStatusCode.Unauthorized, \"unknown\")"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive-sync-api",
+   "module": "server/modules/sync-api",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceCheckRoutes.kt",
+     "anchor": "internal fun Route.serviceCheckRoutes(store: TokenStore, serviceKey: String) {",
+     "replacement": "internal fun Route.serviceCheckRoutes(store: TokenStore, serviceKey: String) { // unchanged behaviour"
+    }
+   ]
+  }
+ ]
+}
