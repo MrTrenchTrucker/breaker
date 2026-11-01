@@ -1,0 +1,1014 @@
+{
+ "name": "proof-sync-api-internal-listener",
+ "tip": {
+  "tree": "1682dfbe9df0265e5f376d147b893ad7974900b0"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "sync-api: an internal listener for the token-check routes and a service key made on first start",
+   "base_tree": "b223637ec3d7ee76172f3979e13b0a18892e9b39",
+   "item_tip_tree": "1682dfbe9df0265e5f376d147b893ad7974900b0",
+   "new_production_classes": [
+    "SyncApiInternal",
+    "KeyLinker",
+    "ServiceKeyFile"
+   ],
+   "test_fixtures_overlaid": [],
+   "red_not_run": "the new tests need SyncApiConfig's new settings, ServiceKeyFile and internalModule, which do not exist on the base, so they do not compile there and no red leg is run. The mutants and the two controls carry the proof."
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiConfig.kt",
+     "anchor": "            require(!isWildcardHost(raw)) { \"sync-api: $ENV_INTERNAL_HOST must be a loopback or stack-internal address, not a wildcard\" }",
+     "replacement": "            require(true) { \"sync-api: $ENV_INTERNAL_HOST must be a loopback or stack-internal address, not a wildcard\" }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "each wildcard spelling of the family is refused for the internal host and the refusal names the variable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiConfig.kt",
+     "anchor": "            if (port != internalPort) return",
+     "replacement": "            if (true) return"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the same port on the same loopback host name is refused naming both port variables"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiConfig.kt",
+     "anchor": "        const val DEFAULT_INTERNAL_HOST = \"127.0.0.1\"",
+     "replacement": "        const val DEFAULT_INTERNAL_HOST = \"0.0.0.0\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the defaults are loopback on 8080 and 8081 with the key file next to the database"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiConfig.kt",
+     "anchor": "            val bothLoopback = publicName in LOOPBACK_HOSTS && internalName in LOOPBACK_HOSTS",
+     "replacement": "            val bothLoopback = false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "two loopback spellings on the same port collide in either order"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiConfig.kt",
+     "anchor": "            val publicWildcard = isWildcardHost(host)",
+     "replacement": "            val publicWildcard = false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the public wildcard family collides with any internal host on the same port"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiConfig.kt",
+     "anchor": "            val sameHost = publicName == internalName",
+     "replacement": "            val sameHost = false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "two equal host names on the same port collide even when one is spaced and capitalised"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiConfig.kt",
+     "anchor": "            if (raw == null) return Paths.get(dbPath).resolveSibling(SERVICE_KEY_FILE_NAME).toString()",
+     "replacement": "            if (raw == null) return SERVICE_KEY_FILE_NAME"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiConfig.kt",
+     "anchor": "            require(raw.isNotBlank()) { \"sync-api: $ENV_SERVICE_KEY_FILE is set but blank\" }",
+     "replacement": "            require(true) { \"sync-api: $ENV_SERVICE_KEY_FILE is set but blank\" }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiConfig.kt",
+     "anchor": "            } catch (_: InvalidPathException) {",
+     "replacement": "            } catch (_: IllegalStateException) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a NUL character in the database path is refused with a fresh message that copies neither the text nor a NUL"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-10",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiConfig.kt",
+     "anchor": "            require(raw.isNotBlank()) { \"sync-api: $ENV_INTERNAL_HOST is set but blank\" }",
+     "replacement": "            require(true) { \"sync-api: $ENV_INTERNAL_HOST is set but blank\" }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an empty or blank internal host is refused naming the variable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-11",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiConfig.kt",
+     "anchor": "        const val DEFAULT_INTERNAL_PORT = 8081",
+     "replacement": "        const val DEFAULT_INTERNAL_PORT = 8080"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-12",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiConfig.kt",
+     "anchor": "            val publicName = host.trim().lowercase()",
+     "replacement": "            val publicName = host.lowercase()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a public loopback name with capital letters and spaces still collides with loopback on the same port"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-13",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiConfig.kt",
+     "anchor": "            val folded = text.trim().lowercase()",
+     "replacement": "            val folded = text.lowercase()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-14",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiConfig.kt",
+     "anchor": "            return folded.isNotEmpty() && folded.all { it in \"0:.[]\" }",
+     "replacement": "            return folded.isNotEmpty() && folded.all { it in \":.[]\" }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "each wildcard spelling of the family is refused for the internal host and the refusal names the variable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-15",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiConfig.kt",
+     "anchor": "            return folded.isNotEmpty() && folded.all { it in \"0:.[]\" }",
+     "replacement": "            return folded.isNotEmpty() && folded.all { it in \"0:.\" }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "each wildcard spelling of the family is refused for the internal host and the refusal names the variable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-16",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiConfig.kt",
+     "anchor": "            refuseInvalidPathText(ENV_SERVICE_KEY_FILE, raw)",
+     "replacement": "            Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a NUL character in the explicit key file path is refused with a fresh message that copies neither the text nor a NUL"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-17",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiConfig.kt",
+     "anchor": "            refuseInvalidPathText(ENV_DB, raw)",
+     "replacement": "            Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a NUL character in the database path is refused with a fresh message that copies neither the text nor a NUL"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-18",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiConfig.kt",
+     "anchor": "                Paths.get(text)",
+     "replacement": "                Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-19",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiConfig.kt",
+     "anchor": "        private val LOOPBACK_HOSTS = setOf(\"127.0.0.1\", \"localhost\", \"::1\", \"[::1]\")",
+     "replacement": "        private val LOOPBACK_HOSTS = setOf(\"127.0.0.1\", \"::1\", \"[::1]\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-20",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiConfig.kt",
+     "anchor": "            val bothLoopback = publicName in LOOPBACK_HOSTS && internalName in LOOPBACK_HOSTS",
+     "replacement": "            val bothLoopback = publicName in LOOPBACK_HOSTS || internalName in LOOPBACK_HOSTS"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a named public host and a loopback internal host on the same port are accepted"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-21",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceKeyFile.kt",
+     "anchor": "        if (size > MAX_FILE_BYTES) {",
+     "replacement": "        if (size < 0L) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a file larger than a key is refused as too large and is not read as a key"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-22",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceKeyFile.kt",
+     "anchor": "        if (permissions.any { it in GROUP_OR_OTHER }) {",
+     "replacement": "        if (permissions.any { it in OWNER_ONLY } && false) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a file readable by its group is refused and the message names the path and the mode",
+    "a file writable by others is refused and the message names the path and the mode"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-23",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceKeyFile.kt",
+     "anchor": "        setOf(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE)",
+     "replacement": "        setOf(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE, PosixFilePermission.GROUP_READ)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a missing file gets a 43 character key that is owner only and has no newline"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-24",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceKeyFile.kt",
+     "anchor": "        if (end != KEY_LENGTH) {",
+     "replacement": "        if (end < KEY_LENGTH) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a malformed file is refused, the message names the path, and the file text is not in it"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-25",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceKeyFile.kt",
+     "anchor": "        code in 0x41..0x5A || code in 0x61..0x7A || code in 0x30..0x39 || code == 0x5F || code == 0x2D",
+     "replacement": "        code in 0x20..0x7E"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a malformed file is refused, the message names the path, and the file text is not in it"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-26",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceKeyFile.kt",
+     "anchor": "        val end = if (bytes.isNotEmpty() && bytes[bytes.size - 1].toInt() == NEWLINE) bytes.size - 1 else bytes.size",
+     "replacement": "        val end = bytes.size"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a file with one trailing newline is accepted, returned without it, and not rewritten"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-27",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceKeyFile.kt",
+     "anchor": "            refuse(path, \"must be readable and writable by its owner only, but its mode is ${PosixFilePermissions.toString(permissions)}\")",
+     "replacement": "            refuse(path, \"must be readable and writable by its owner only, but its mode is ${PosixFilePermissions.toString(permissions)}; contents \" + String(Files.readAllBytes(path), Charsets.US_ASCII))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a file readable by its group is refused and the message names the path and the mode",
+    "the key text is in no refusal message on any refusal path"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-28",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceKeyFile.kt",
+     "anchor": "            Files.deleteIfExists(temp)",
+     "replacement": "            temp.toString()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a successful start leaves exactly the key file in the folder"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-29",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceKeyFile.kt",
+     "anchor": "                readExisting(path)",
+     "replacement": "                refuse(path, \"could not be created\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a start that loses the race returns the winner's text and not its own key"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-30",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceKeyFile.kt",
+     "anchor": "            } catch (_: IOException) {",
+     "replacement": "            } catch (_: IOException) { return key"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a generic link failure is refused naming the path, with no key text and no temp file left"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-31",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceKeyFile.kt",
+     "anchor": "            return readExisting(path)",
+     "replacement": "            return newKey(random)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a second call returns the same text and leaves the file bytes and time unchanged"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-32",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceKeyFile.kt",
+     "anchor": "        val folder = path.toAbsolutePath().parent ?: refuse(path, \"could not be created\")",
+     "replacement": "        val folder = path.toAbsolutePath().parent.also { Files.createDirectories(it) }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a missing folder is refused naming the path and the folder is not made"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-33",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceKeyFile.kt",
+     "anchor": "    private const val KEY_RANDOM_BYTES = 32",
+     "replacement": "    private const val KEY_RANDOM_BYTES = 31"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a missing file gets a 43 character key that is owner only and has no newline"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-34",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/KeyLinker.kt",
+     "anchor": "        val FILES: KeyLinker = KeyLinker { target, existing -> Files.createLink(target, existing) }",
+     "replacement": "        val FILES: KeyLinker = KeyLinker { _, _ -> }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a missing file gets a 43 character key that is owner only and has no newline"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-35",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceKeyFile.kt",
+     "anchor": "            refuse(path, \"is larger than a key and was not read\")",
+     "replacement": "            refuse(path, \"is larger than a key and was not read: \" + String(Files.readAllBytes(path), Charsets.US_ASCII))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a file larger than a key is refused as too large and is not read as a key"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-36",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceKeyFile.kt",
+     "anchor": "                readExisting(path)",
+     "replacement": "                Files.readString(path)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a winner file readable by its group is refused and its text is never returned"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-37",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceKeyFile.kt",
+     "anchor": "        code in 0x41..0x5A || code in 0x61..0x7A || code in 0x30..0x39 || code == 0x5F || code == 0x2D",
+     "replacement": "        code in 0x41..0x5A || code in 0x61..0x7A || code in 0x30..0x39 || code == 0x2D"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a key made of underscores is accepted"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-38",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceKeyFile.kt",
+     "anchor": "        code in 0x41..0x5A || code in 0x61..0x7A || code in 0x30..0x39 || code == 0x5F || code == 0x2D",
+     "replacement": "        code in 0x41..0x59 || code in 0x61..0x7A || code in 0x30..0x39 || code == 0x5F || code == 0x2D"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a key with a capital Z is accepted"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-39",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceKeyFile.kt",
+     "anchor": "            } catch (_: UnsupportedOperationException) {",
+     "replacement": "            } catch (_: IllegalStateException) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a link that is not supported is refused naming the path, with no key text and no temp file left"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-40",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceKeyFile.kt",
+     "anchor": "        code in 0x41..0x5A || code in 0x61..0x7A || code in 0x30..0x39 || code == 0x5F || code == 0x2D",
+     "replacement": "        code in 0x41..0x5A || code in 0x61..0x7A || code in 0x30..0x39 || code == 0x5F"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a successful start leaves exactly the key file in the folder"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-41",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceKeyFile.kt",
+     "anchor": "        random.nextBytes(bytes)",
+     "replacement": "        random.nextBytes(bytes); println(bytes.size)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "no servicecheck file prints, writes to a system stream, logs or prints a stack trace"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-42",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceKeyFile.kt",
+     "anchor": "        code in 0x41..0x5A || code in 0x61..0x7A || code in 0x30..0x39 || code == 0x5F || code == 0x2D",
+     "replacement": "        code in 0x41..0x5A || code in 0x61..0x7A || code in 0x2F..0x39 || code == 0x5F || code == 0x2D"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "characters just outside the alphabet are refused one key at a time"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-43",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceKeyFile.kt",
+     "anchor": "        code in 0x41..0x5A || code in 0x61..0x7A || code in 0x30..0x39 || code == 0x5F || code == 0x2D",
+     "replacement": "        code in 0x41..0x5A || code in 0x61..0x7A || code in 0x30..0x3A || code == 0x5F || code == 0x2D"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "characters just outside the alphabet are refused one key at a time"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-44",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceKeyFile.kt",
+     "anchor": "        code in 0x41..0x5A || code in 0x61..0x7A || code in 0x30..0x39 || code == 0x5F || code == 0x2D",
+     "replacement": "        code in 0x40..0x5A || code in 0x61..0x7A || code in 0x30..0x39 || code == 0x5F || code == 0x2D"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "characters just outside the alphabet are refused one key at a time"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-45",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceKeyFile.kt",
+     "anchor": "        code in 0x41..0x5A || code in 0x61..0x7A || code in 0x30..0x39 || code == 0x5F || code == 0x2D",
+     "replacement": "        code in 0x41..0x5B || code in 0x61..0x7A || code in 0x30..0x39 || code == 0x5F || code == 0x2D"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "characters just outside the alphabet are refused one key at a time"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-46",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceKeyFile.kt",
+     "anchor": "        code in 0x41..0x5A || code in 0x61..0x7A || code in 0x30..0x39 || code == 0x5F || code == 0x2D",
+     "replacement": "        code in 0x41..0x5A || code in 0x60..0x7A || code in 0x30..0x39 || code == 0x5F || code == 0x2D"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "characters just outside the alphabet are refused one key at a time"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-47",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceKeyFile.kt",
+     "anchor": "        code in 0x41..0x5A || code in 0x61..0x7A || code in 0x30..0x39 || code == 0x5F || code == 0x2D",
+     "replacement": "        code in 0x41..0x5A || code in 0x61..0x7B || code in 0x30..0x39 || code == 0x5F || code == 0x2D"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "characters just outside the alphabet are refused one key at a time"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-48",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceKeyFile.kt",
+     "anchor": "        code in 0x41..0x5A || code in 0x61..0x7A || code in 0x30..0x39 || code == 0x5F || code == 0x2D",
+     "replacement": "        code in 0x41..0x5A || code in 0x61..0x7A || code in 0x2E..0x39 || code == 0x5F || code == 0x2D"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "characters just outside the alphabet are refused one key at a time"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-49",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiInternal.kt",
+     "anchor": "        serviceCheckRoutes(tokenStore, serviceKey)",
+     "replacement": "        // serviceCheckRoutes removed by this mutant"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "use with the right key and a live session token answers 200 with the account"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-50",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiInternal.kt",
+     "anchor": "        serviceCheckRoutes(tokenStore, serviceKey)",
+     "replacement": "        serviceCheckRoutes(tokenStore, \"not-the-key\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "use with the right key and a live session token answers 200 with the account"
+   ],
+   "rule": "",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "server/modules/sync-api",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiConfig.kt",
+     "anchor": "            require(!isWildcardHost(raw)) { \"sync-api: $ENV_INTERNAL_HOST must be a loopback or stack-internal address, not a wildcard\" }",
+     "replacement": "            require(true) { \"sync-api: $ENV_INTERNAL_HOST must be a loopback or stack-internal address, not a wildcard\" }"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "server/modules/sync-api",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiConfig.kt",
+     "anchor": "        const val SERVICE_KEY_FILE_NAME = \"service-key\"",
+     "replacement": "        const val SERVICE_KEY_FILE_NAME = \"service-key\" // unchanged behaviour"
+    }
+   ]
+  }
+ ]
+}
