@@ -400,9 +400,9 @@ reach phones and the FIFO queue works
 regardless of which service is configured. Audio format: **WAV 16 kHz mono PCM**
 — native to Whisper/WhisperX (MP3 would only add a lossy decode step).
 
-**Status:** main holds only the card and build file; the code is on the whisper-server
-branches and imports nothing from sync-api. PLANNED: a runnable `main` (`BREAKER_WHISPER_*`
-env, bound to 127.0.0.1). How the sealed copy reaches sync-api is OPEN until Phase 19/20
+**Status:** main holds the whisper-server source, with a main function, and it imports nothing from sync-api.
+Its settings are the `BREAKER_WHISPER_*` variables: HOST, PORT, DB, FORWARDER_URL and RESULT_TTL_S. The host defaults to 127.0.0.1.
+How the sealed copy reaches sync-api is OPEN until Phase 19/20
 (ADR-018); the registry lists no whisper-server -> sync-api edge today. The token check is an HTTP contract (ADR-015, amended), not an import.
 
 ## 7. Transport & Fallback
@@ -585,8 +585,8 @@ VPN can use Breaker. Each user gets an isolated namespace:
 in the Android Keystore (never plaintext). The web FE uses the same auth. All
 server APIs (sync, training, STT) require a valid user token. **Isolation is
 enforced server-side** (N13) — never trust client-side scoping. The job
-API (whisper-server) will ask sync-api whether a token is live and fail closed
-(R31, ADR-015); nothing of that is built yet.
+API (whisper-server) is ruled to ask sync-api whether a token is live and to fail closed
+(R31, ADR-015). The sync-api token-check routes and the service key are built, and whisper-server's client is built, not yet used by the job route.
 
 **Several devices and sign-in from the website (ADR-035, ADR-036; planned, not built):**
 an account may use several devices. Signing in on the Breaker website hands the
@@ -1073,7 +1073,7 @@ See `docs/04-build-order.md`. Summary:
       + type-to-confirm + clear warning (F33).
 - R30. **Last-admin lockout** — prevented by rule: last admin cannot delete or
       be demoted (F33).
-- R31. **How whisper-server learns that a token is live — RULED, not built.**
+- R31. **How whisper-server learns that a token is live — RULED. The client and the sync-api routes are built, not yet used by the job route.**
       Jobs are to be owned by the token's account, and a missing, unknown,
       revoked or expired token refused with nothing enqueued, under the same
       expiry rule as sync-api (ADR-031). The maintainers ruled that
