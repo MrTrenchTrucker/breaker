@@ -9,7 +9,6 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.call
-import io.ktor.server.request.receiveText
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
@@ -28,7 +27,7 @@ import java.util.Base64
 internal fun Application.authLoginRoute(accountStore: AccountStore, tokenStore: TokenStore) {
     routing {
         post("/v1/auth/login") {
-            val body = call.receiveText()
+            val body = call.receiveAuthBody() ?: return@post
             val request = parseLoginRequest(body)
             if (request == null) {
                 call.respondText(
