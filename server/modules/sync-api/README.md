@@ -6,10 +6,10 @@ The server's main API: accounts and logins (users, tokens, roles), syncing trans
 
 - A health check at `GET /health`. It answers `{"status":"ok"}` and touches nothing else.
 - The account store (SQLite): register an account, look up its salt, and check a login verifier. The auth verifier is kept only as a salted hash, and registration refuses key-derivation settings outside the allowed bounds.
-- The token store (SQLite): user session tokens, issued at login, and agent tokens, minted for an owner account with a scope (`transcribe` or `admin`) and an optional expiry. A session token expires 30 days after its last use, and each use moves that date out (ADR-031). Only a SHA-256 hash of each token is stored, never the token itself. A token never carries more than its owner's role. Revoking works three ways: one agent token, every other session token of an account, or every token of an account. No HTTP route uses the store yet.
+- The token store (SQLite): user session tokens, issued at login, and agent tokens, minted for an owner account with a scope (`transcribe` or `admin`) and an optional expiry. A session token expires 30 days after its last use, and each use moves that date out (ADR-031). Only a SHA-256 hash of each token is stored, never the token itself. A token never carries more than its owner's role. Revoking works three ways: one agent token, every other session token of an account, or every token of an account. The login, logout, agent-token revoke and token-check routes use it.
 - A versioned database schema, migrated to the current version when the server starts.
 
-The account HTTP routes (register, salt, login) and everything else the card lists are not built yet.
+The account HTTP routes (register, salt, login, logout), the admin route that revokes an agent token and the two internal token-check routes are installed. The sync, key and reset routes and the rest of what the card lists are not built yet.
 
 ## Run it
 

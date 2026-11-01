@@ -135,10 +135,8 @@ agents, not required: an outside contributor may write the code themselves
 (`.github/CONTRIBUTING.md`).
 
 ## Known Gotchas
-- On main this module has no code yet (its build file applies `base` only). Slices 1-3 (database, job store, queue
-  worker, forwarder, HTTP front) are on the module branch; a private work branch holds
-  the merge of main into `module/whisper-server`.
-- PLANNED (slice 4, no code yet): a runnable entry point, `main`, configured by `BREAKER_WHISPER_HOST`,
+- On main this module has source code: the database, the job store, the queue worker, the forwarder, the HTTP front and the runnable entry point (`WhisperServer.kt`, `WhisperConfig.kt`).
+- On main: a runnable entry point, `main`, configured by `BREAKER_WHISPER_HOST`,
   `BREAKER_WHISPER_PORT`, `BREAKER_WHISPER_DB` and `BREAKER_WHISPER_FORWARDER_URL`; it binds 127.0.0.1 by default,
   refuses a bad configuration, and shuts down cleanly with the active job put back in the queue. An `IOException`
   while reading an upload is a failure of its own, never a 413.
