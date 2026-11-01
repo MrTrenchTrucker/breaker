@@ -355,8 +355,8 @@ paths:
         Push a transcription for the authenticated account. Idempotent on
         the pair (client_id, key_version), not on client_id alone: the same
         pair is a no-op; the same client_id at a higher key_version is an
-        atomic replace (the stored row is swapped and the old row deleted in
-        the same transaction, once the new one has landed); the same
+        atomic replace (the stored row is updated in place: it is the same row, so it keeps its
+        place in the list, and the decision and the update share one transaction); the same
         client_id at a lower key_version, or a brand-new client_id below the
         account's current key_version, is refused (409). A pending-sealed
         re-upload sends client_id = the pending record's id at the
@@ -396,10 +396,13 @@ paths:
         30, or a year before 1970.
 
         The key_version 0 text is standard base64 (RFC 4648, plus and slash
-        alphabet) with padding, and with no line break or whitespace. The reader
-        refuses URL-safe characters, wrong or missing padding and non-zero bits
-        after the last data bit. The codec sets no size limit; the server route
-        sets one when it is built.
+        alphabet) with padding, and with no line break or whitespace. The reader refuses
+        URL-safe characters, wrong or missing padding and non-zero bits after the last data
+        bit. That is a rule of the reader, not of the server: the server does not check the
+        trailing bits. It stores the text as sent, after the checks of the 400 response.
+        The codec sets no size limit. The server route sets a limit of 1 MiB
+        (1,048,576 bytes) on the body of this operation: the exact limit is accepted, and one
+        byte more is refused with 413 before the body is parsed.
       operationId: syncPush
       security:
         - bearerAuth: []
@@ -416,6 +419,21 @@ paths:
       responses:
         "204":
           description: Pushed (stored, replaced, or the no-op of the same pair already on file)
+        "400":
+          description: >-
+            Bad request. The body is not one JSON object with exactly the keys client_id,
+            key_version and encrypted, or a field breaks its rule: client_id is not a
+            lowercase canonical UUID, key_version is not a whole number from 0 up to the
+            largest signed 32-bit integer, or encrypted is not non-empty standard base64
+            with correct padding and no whitespace. The message names the rule and never
+            echoes the input.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "bad_request"
+                message: "request body must be one JSON object with exactly the keys client_id, key_version and encrypted"
         "401":
           description: Missing or invalid user session token
           content:
@@ -435,7 +453,12 @@ paths:
                 error: "forbidden"
                 message: "User session token required; an agent token is refused"
         "409":
-          description: Version refused
+          description: >-
+            Version refused. A push whose key_version is above the account's current
+            key_version gets the message "key_version is above the account's current
+            key_version". A lower key_version for a client_id already stored, or a
+            brand-new client_id below the account's current key_version, gets the message
+            in the example.
           content:
             application/json:
               schema:
@@ -443,6 +466,24 @@ paths:
               example:
                 error: "conflict"
                 message: "A lower key_version is refused for this client_id"
+        "413":
+          description: Request entity too large. The body is over the 1 MiB cap (1,048,576 bytes). The exact cap is accepted; one byte more is refused before the body is parsed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "payload_too_large"
+                message: "Request body exceeds maximum allowed size"
+        "503":
+          description: A storage failure or a failed session check gets this answer. The body is fixed and no part of the failure is echoed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
   /v1/admin/agent-tokens:
     post:
       summary: Create an agent token
@@ -906,6 +947,15 @@ paths:
               example:
                 error: "forbidden"
                 message: "User session token required; an agent token is refused"
+        "503":
+          description: A storage failure, a stored time that cannot be formatted, or a failed session check gets this answer. The body is fixed and no part of the failure is echoed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
   /v1/sync/pending-sealed:
     get:
       summary: List the owner's still-sealed results

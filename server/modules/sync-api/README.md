@@ -1,15 +1,18 @@
 # sync-api — README
 
-The server's main API: accounts and logins (users, tokens, roles), syncing transcriptions, and the app's update check. It keeps every user's data separate from everyone else's (N13), and it only ever stores encrypted transcriptions once an account has its keys (ADR-006).
+The server's main API: accounts and logins (users, tokens, roles), syncing transcriptions, and the app's update check. It keeps every user's data separate from everyone else's (N13). It stores each transcription as an opaque string with its key_version and never opens it; before any key exists the stored text is the development-only form (ADR-006).
 
 ## What is in the module today
 
 - A health check at `GET /health`. It answers `{"status":"ok"}` and touches nothing else.
 - The account store (SQLite): register an account, look up its salt, and check a login verifier. The auth verifier is kept only as a salted hash, and registration refuses key-derivation settings outside the allowed bounds.
 - The token store (SQLite): user session tokens, issued at login, and agent tokens, minted for an owner account with a scope (`transcribe` or `admin`) and an optional expiry. A session token expires 30 days after its last use, and each use moves that date out (ADR-031). Only a SHA-256 hash of each token is stored, never the token itself. A token never carries more than its owner's role. Revoking works three ways: one agent token, every other session token of an account, or every token of an account. The login, logout, agent-token revoke and token-check routes use it.
+- The transcription store (SQLite): one row per account and client id, holding the stored
+  text and its key_version as pushed. A push is idempotent on the pair (client_id,
+  key_version), and a push body is at most 1 MiB.
 - A versioned database schema, migrated to the current version when the server starts.
 
-The account HTTP routes (register, salt, login, logout), the admin route that revokes an agent token and the two internal token-check routes are installed. The sync, key and reset routes and the rest of what the card lists are not built yet.
+The account HTTP routes (register, salt, login, logout), the admin route that revokes an agent token, the two internal token-check routes and the two transcription routes (POST /v1/sync and GET /v1/transcriptions) are installed. The key and reset routes and the rest of what the card lists are not built yet.
 
 Planned, not built (ADR-035, ADR-036): the changes-since pull, the routes for sign-in from the website, the wrong-password limit, an admin route to end a session, and the device list.
 
