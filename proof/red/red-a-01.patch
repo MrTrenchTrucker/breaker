@@ -1,0 +1,285 @@
+diff --git a/server/modules/sync-api/AGENTS.md b/server/modules/sync-api/AGENTS.md
+index 45cfcdb5..59c02243 100644
+--- a/server/modules/sync-api/AGENTS.md
++++ b/server/modules/sync-api/AGENTS.md
+@@ -259,15 +259,11 @@ completes it by rotating the DEK at the account's next password change
+   indexed equality on that hash (test: issue a token, search the database file
+   for its text and confirm it is not there; resolve the token and confirm the
+   row is found through its hash).
+-- A session token expires 30 days after its last use: login stores an expiry of
+-  now + 30 days, and every resolve of a live session token moves it to now + 30
+-  days (a session row with no expiry gets one at its next use). A token past its
+-  expiry is refused with the normal 401 and stays refused, also after a later
+-  try. An agent token has an optional expiry of its own, is dead at its expiry
+-  instant, not after it, and is never moved by a use (test: issue an agent token
+-  that expires in the future, resolve it just before and exactly at that instant,
+-  expect found and then no; resolve a session token on day 29 and expect found
+-  with the expiry moved, on day 30 unused and expect refused).
++- A session token never expires (session expiry is out of scope for this
++  product). An agent token has an optional expiry and is dead at its expiry
++  instant, not after it (test: issue an agent token that expires in the
++  future, resolve it just before and exactly at that instant, expect found and
++  then no; resolve a session token far in the future, expect found).
+ - A token never carries more than its owner's role (ADR-009). Minting an
+   admin-scoped agent token for an owner who is not an admin is refused. When a
+   token is resolved, the effective scope is `transcribe` whenever the owner is
+@@ -305,7 +301,6 @@ AuthApi, SyncApi, AdminApi
+ - Unit (Kotlin/Ktor, ADR-017): `server/modules/sync-api/src/test/kotlin/`. Run: `./gradlew :server:modules:sync-api:test`. The entry point `main` is not covered by unit tests, because it needs a real socket; every function it calls is.
+ - Username vectors: `UsernameVectorData.kt` is the literal copy of `shared/modules/api-contracts/examples/username_vectors.json`; `UsernameVectorsTest.kt` runs every row through `UsernameRules.isValid`, and the python test `tests/unit/shared/api-contracts/test_username_vectors.py` checks that the copy and the json agree.
+ - Body cap: `AuthBodyLimitTest.kt` sends each of the three open routes a body one byte over 4096 (refused with `413` and the fixed error, nothing stored) and a body of exactly 4096 (not refused), a chunked body with no declared length over the cap (refused), and pins the cap at 4096.
+-- Session expiry: `TokenStoreSessionExpiryTest.kt` (a new session stores now + 30 days; a session used on day 29 stays valid and moves forward; unused for 30 days is refused, one second earlier is not; an expired session stays refused after a later try; each use pushes the date out; a session with no expiry gets one at its next use; an agent token is not moved by a use), with `TokenStoreResolveTest.kt` (a session used every day still resolves after ten years) and `TokenStoreIssueTest.kt` (the stored expiry).
+ - Contract: `tests/contract/test_sync_api_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_sync_api_contract.py`
+ - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
+ 
+diff --git a/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/tokens/TokenStore.kt b/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/tokens/TokenStore.kt
+index 98d75ba6..3eb7af32 100644
+--- a/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/tokens/TokenStore.kt
++++ b/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/tokens/TokenStore.kt
+@@ -7,7 +7,6 @@ import java.sql.Connection
+ import java.sql.ResultSet
+ import java.sql.Types
+ import java.time.Clock
+-import java.time.Duration
+ import java.time.Instant
+ 
+ internal class TokenStore(
+@@ -23,7 +22,7 @@ internal class TokenStore(
+             if (readOwnerRole(connection, accountId) == null) {
+                 IssueResult.NoSuchAccount
+             } else {
+-                val id = insertToken(connection, accountId, TokenKind.SESSION, null, null, hash, nowMs, nowMs + SESSION_IDLE_LIFETIME.toMillis())
++                val id = insertToken(connection, accountId, TokenKind.SESSION, null, null, hash, nowMs, null)
+                 IssueResult.Issued(IssuedToken(id, secret, TokenKind.SESSION, null, null))
+             }
+         }
+@@ -62,21 +61,7 @@ internal class TokenStore(
+         val secret = TokenSecret.parse(presented) ?: return null
+         val hash = secret.hash()
+         val nowMs = clock.millis()
+-        return db.transaction<ResolvedToken?> { connection ->
+-            val token = readLiveToken(connection, hash, nowMs)
+-            if (token != null && token.kind == TokenKind.SESSION) {
+-                slideSessionExpiry(connection, token.tokenId, nowMs)
+-            }
+-            token
+-        }
+-    }
+-
+-    private fun slideSessionExpiry(connection: Connection, tokenId: Long, nowMs: Long) {
+-        connection.prepareStatement(SLIDE_SESSION_SQL).use { statement ->
+-            statement.setLong(1, nowMs + SESSION_IDLE_LIFETIME.toMillis())
+-            statement.setLong(2, tokenId)
+-            statement.executeUpdate()
+-        }
++        return db.transaction<ResolvedToken?> { connection -> readLiveToken(connection, hash, nowMs) }
+     }
+ 
+     suspend fun revokeAgentToken(tokenId: Long): Boolean {
+@@ -198,9 +183,6 @@ internal class TokenStore(
+ 
+     private companion object {
+         const val MAX_LABEL_CODE_POINTS = 64
+-        // A session token expires after 30 days with no use; each authenticated use moves the
+-        // expiry to now + 30 days. A session row without an expiry gets one at its next use.
+-        val SESSION_IDLE_LIFETIME: Duration = Duration.ofDays(30)
+ 
+         val SURROGATES: IntRange = Character.MIN_SURROGATE.code..Character.MAX_SURROGATE.code
+ 
+@@ -218,11 +200,6 @@ internal class TokenStore(
+                 "WHERE t.token_hash = ? AND t.revoked_at_ms IS NULL " +
+                 "AND (t.expires_at_ms IS NULL OR t.expires_at_ms > ?)"
+ 
+-        // Slides a session token's expiry to now + 30 days on each authenticated use.
+-        // Agent tokens are never touched by this (kind = 'session').
+-        const val SLIDE_SESSION_SQL =
+-            "UPDATE tokens SET expires_at_ms = ? WHERE id = ? AND kind = 'session'"
+-
+         const val SELECT_AGENT_EXISTS_SQL = "SELECT 1 FROM tokens WHERE id = ? AND kind = 'agent'"
+ 
+         const val REVOKE_AGENT_SQL =
+diff --git a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/tokens/TokenStoreResolveTest.kt b/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/tokens/TokenStoreResolveTest.kt
+index 2f8461c8..46e1fb54 100644
+--- a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/tokens/TokenStoreResolveTest.kt
++++ b/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/tokens/TokenStoreResolveTest.kt
+@@ -186,12 +186,10 @@ internal class TokenStoreResolveTest : TempDatabaseTest() {
+     }
+ 
+     @Test
+-    fun `a session token that is used every day keeps resolving ten years later`() {
++    fun `a session token still resolves ten years later`() {
+         val text = session(userId).secret.reveal()
+-        repeat(3650) {
+-            clock.advance(Duration.ofDays(1))
+-            assertNotNull("sync-api: session token still resolves after ${it + 1} days", resolve(text))
+-        }
++        clock.advance(Duration.ofDays(3650))
++        assertNotNull("sync-api: session token after 3650 days", resolve(text))
+     }
+ 
+     @Test
+@@ -227,14 +225,16 @@ internal class TokenStoreResolveTest : TempDatabaseTest() {
+     }
+ 
+     @Test
+-    fun `resolve never writes for an agent token or an expired token`() {
++    fun `resolve never writes, not even for an expired token`() {
+         val sessionToken = session(adminId)
+         val forever = agent(userId, AgentScope.TRANSCRIBE)
+         val expiring = agent(adminId, AgentScope.ADMIN, TokenFixtures.START.plusSeconds(60))
+         val before = snapshot()
+         assertEquals("sync-api: rows in the snapshot", 5, before.size)
+         repeat(5) {
++            assertNotNull("sync-api: session resolves", resolve(sessionToken.secret.reveal()))
+             assertNotNull("sync-api: agent token resolves", resolve(forever.secret.reveal()))
++            assertNotNull("sync-api: expiring token resolves while alive", resolve(expiring.secret.reveal()))
+         }
+         clock.set(TokenFixtures.START.plusSeconds(61))
+         repeat(5) { assertNull("sync-api: expired token", resolve(expiring.secret.reveal())) }
+diff --git a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/tokens/TokenStoreSessionExpiryTest.kt b/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/tokens/TokenStoreSessionExpiryTest.kt
+deleted file mode 100644
+index f0d7b547..00000000
+--- a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/tokens/TokenStoreSessionExpiryTest.kt
++++ /dev/null
+@@ -1,142 +0,0 @@
+-package dev.breaker.server.syncapi.tokens
+-
+-import dev.breaker.server.syncapi.db.TempDatabase
+-import dev.breaker.server.syncapi.db.TempDatabaseTest
+-import dev.breaker.server.syncapi.tokens.TokenFixtures.issuedOf
+-import java.time.Duration
+-import java.time.Instant
+-import kotlinx.coroutines.runBlocking
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertNotNull
+-import org.junit.Assert.assertNull
+-import org.junit.Before
+-import org.junit.Test
+-
+-// A session token lives 30 days after its last use; each authenticated use moves its expiry to now + 30 days.
+-// An agent token keeps its own optional expiry and is never moved by a use.
+-internal class TokenStoreSessionExpiryTest : TempDatabaseTest() {
+-
+-    private lateinit var temp: TempDatabase
+-    private lateinit var clock: MutableClock
+-    private lateinit var store: TokenStore
+-    private var userId: Long = 0L
+-
+-    @Before
+-    fun openStore() {
+-        temp = openTemp()
+-        clock = MutableClock(TokenFixtures.START)
+-        store = TokenFixtures.tokenStore(temp, clock)
+-        userId = TokenFixtures.register(temp, "member", 2).accountId
+-    }
+-
+-    private fun session(): IssuedToken = issuedOf(runBlocking { store.issueSession(userId) })
+-
+-    private fun agent(expiresAt: Instant?): IssuedToken =
+-        issuedOf(runBlocking { store.issueAgent(userId, AgentScope.TRANSCRIBE, "bot", expiresAt) })
+-
+-    private fun resolve(text: String): ResolvedToken? = runBlocking { store.resolve(text) }
+-
+-    private fun advanceDays(days: Long) = clock.advance(Duration.ofDays(days))
+-
+-    private fun expiresAt(id: Long): Long? =
+-        inTransaction<Long?>(temp) { connection ->
+-            connection.prepareStatement("SELECT expires_at_ms FROM tokens WHERE id = ?").use { statement ->
+-                statement.setLong(1, id)
+-                statement.executeQuery().use { rows ->
+-                    check(rows.next()) { "sync-api test: no token row with id $id" }
+-                    val value = rows.getLong(1)
+-                    if (rows.wasNull()) null else value
+-                }
+-            }
+-        }
+-
+-    private fun clearExpiry(id: Long) {
+-        runBlocking {
+-            temp.db.transaction { connection ->
+-                connection.prepareStatement("UPDATE tokens SET expires_at_ms = NULL WHERE id = ?").use { statement ->
+-                    statement.setLong(1, id)
+-                    statement.executeUpdate()
+-                }
+-            }
+-        }
+-    }
+-
+-    @Test
+-    fun `a new session expires thirty days after it was issued`() {
+-        val issued = session()
+-        assertEquals("sync-api: the stored expiry", clock.millis() + 2_592_000_000L, expiresAt(issued.tokenId))
+-    }
+-
+-    @Test
+-    fun `a session used on day 29 stays valid and its expiry moves forward`() {
+-        val issued = session()
+-        advanceDays(29)
+-        assertNotNull("sync-api: a session on day 29 resolves", resolve(issued.secret.reveal()))
+-        assertEquals("sync-api: the expiry moved to now + 30 days", clock.millis() + 2_592_000_000L, expiresAt(issued.tokenId))
+-    }
+-
+-    @Test
+-    fun `a session unused for 30 days is refused`() {
+-        val text = session().secret.reveal()
+-        advanceDays(30)
+-        assertNull("sync-api: a session on day 30 is refused", resolve(text))
+-    }
+-
+-    @Test
+-    fun `a session is still valid one second before the thirty days`() {
+-        val text = session().secret.reveal()
+-        clock.advance(Duration.ofDays(30).minusSeconds(1))
+-        assertNotNull("sync-api: a session one second before day 30 resolves", resolve(text))
+-    }
+-
+-    @Test
+-    fun `an expired session stays refused after a later try`() {
+-        val issued = session()
+-        advanceDays(31)
+-        assertNull("sync-api: a session on day 31 is refused", resolve(issued.secret.reveal()))
+-        val before = expiresAt(issued.tokenId)
+-        advanceDays(1)
+-        assertNull("sync-api: a session on day 32 is still refused", resolve(issued.secret.reveal()))
+-        assertEquals("sync-api: a refused try must not move the expiry", before, expiresAt(issued.tokenId))
+-    }
+-
+-    @Test
+-    fun `each use pushes the date out again`() {
+-        val text = session().secret.reveal()
+-        advanceDays(20)
+-        assertNotNull("sync-api: day 20 resolves", resolve(text))
+-        advanceDays(20)
+-        assertNotNull("sync-api: day 40 resolves", resolve(text))
+-        advanceDays(20)
+-        assertNotNull("sync-api: day 60 resolves", resolve(text))
+-        advanceDays(31)
+-        assertNull("sync-api: day 91, 31 days after the last use, is refused", resolve(text))
+-    }
+-
+-    @Test
+-    fun `a session issued with no expiry gets one at its next use`() {
+-        val issued = session()
+-        clearExpiry(issued.tokenId)
+-        assertNull("sync-api: the old shape has no expiry", expiresAt(issued.tokenId))
+-        advanceDays(3)
+-        assertNotNull("sync-api: the old shape still resolves", resolve(issued.secret.reveal()))
+-        assertEquals("sync-api: its next use sets now + 30 days", clock.millis() + 2_592_000_000L, expiresAt(issued.tokenId))
+-    }
+-
+-    @Test
+-    fun `an agent token is not moved by a use`() {
+-        val issued = agent(TokenFixtures.START.plus(Duration.ofDays(60)))
+-        val before = expiresAt(issued.tokenId)
+-        advanceDays(10)
+-        assertNotNull("sync-api: an agent token on day 10 resolves", resolve(issued.secret.reveal()))
+-        assertEquals("sync-api: the agent expiry did not move", before, expiresAt(issued.tokenId))
+-    }
+-
+-    @Test
+-    fun `an agent token without expiry stays without expiry after a use`() {
+-        val issued = agent(null)
+-        advanceDays(10)
+-        assertNotNull("sync-api: an agent token without expiry resolves", resolve(issued.secret.reveal()))
+-        assertNull("sync-api: it still has no expiry", expiresAt(issued.tokenId))
+-    }
+-}

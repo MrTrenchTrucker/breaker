@@ -1,0 +1,267 @@
+{
+ "name": "proof-session-expiry",
+ "tip": {
+  "tree": "08b3183236b71c9413c1612eed50967b1459e399"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "sync-api: a session token expires 30 days after its last use and each use moves the date out",
+   "base_tree": "1aa11ecd8a2f3536f3feca093a74d96c850e3ec7",
+   "item_tip_tree": "08b3183236b71c9413c1612eed50967b1459e399",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": []
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "red-a-01",
+   "kind": "red",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/tokens/TokenStoreIssueTest.kt",
+   "files": [
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/tokens/TokenStoreIssueTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.syncapi.tokens.TokenStoreIssueTest"
+   ],
+   "patch": "proof/red/red-a-01.patch",
+   "tree": "57383de24c40229f3d138bd1b54d84b3cdc148b6",
+   "predict": ""
+  },
+  {
+   "id": "red-a-02",
+   "kind": "red",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/tokens/TokenStoreResolveTest.kt",
+   "files": [
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/tokens/TokenStoreResolveTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.syncapi.tokens.TokenStoreResolveTest"
+   ],
+   "patch": "proof/red/red-a-02.patch",
+   "tree": "e2e11b30406516ed6d5e15acd1101a8122d635e0",
+   "predict": ""
+  },
+  {
+   "id": "red-a-03",
+   "kind": "red",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/tokens/TokenStoreSessionExpiryTest.kt",
+   "files": [
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/tokens/TokenStoreSessionExpiryTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.syncapi.tokens.TokenStoreSessionExpiryTest"
+   ],
+   "patch": "proof/red/red-a-03.patch",
+   "tree": "474fc83c67b4fd03696d64d7f36205ca9c59e9bb",
+   "predict": ""
+  },
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/tokens/TokenStore.kt",
+     "anchor": "                slideSessionExpiry(connection, token.tokenId, nowMs)",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a session used on day 29 stays valid and its expiry moves forward",
+    "each use pushes the date out again",
+    "a session issued with no expiry gets one at its next use",
+    "a session token that is used every day keeps resolving ten years later"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/tokens/TokenStore.kt",
+     "anchor": "        val SESSION_IDLE_LIFETIME: Duration = Duration.ofDays(30)",
+     "replacement": "        val SESSION_IDLE_LIFETIME: Duration = Duration.ofDays(29)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a new session expires thirty days after it was issued",
+    "a session used on day 29 stays valid and its expiry moves forward",
+    "a session is still valid one second before the thirty days"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/tokens/TokenStore.kt",
+     "anchor": "        val SESSION_IDLE_LIFETIME: Duration = Duration.ofDays(30)",
+     "replacement": "        val SESSION_IDLE_LIFETIME: Duration = Duration.ofDays(31)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a new session expires thirty days after it was issued",
+    "a session unused for 30 days is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/tokens/TokenStore.kt",
+     "anchor": "                \"AND (t.expires_at_ms IS NULL OR t.expires_at_ms > ?)\"",
+     "replacement": "                \"AND (1 = 1 OR t.expires_at_ms > ?)\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a session unused for 30 days is refused",
+    "an expired session stays refused after a later try",
+    "each use pushes the date out again"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/tokens/TokenStore.kt",
+     "anchor": "            if (token != null && token.kind == TokenKind.SESSION) {",
+     "replacement": "            if (token != null) {"
+    },
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/tokens/TokenStore.kt",
+     "anchor": "            \"UPDATE tokens SET expires_at_ms = ? WHERE id = ? AND kind = 'session'\"",
+     "replacement": "            \"UPDATE tokens SET expires_at_ms = ? WHERE id = ?\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an agent token is not moved by a use",
+    "an agent token without expiry stays without expiry after a use",
+    "resolve never writes for an agent token or an expired token"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/tokens/TokenStore.kt",
+     "anchor": "                val id = insertToken(connection, accountId, TokenKind.SESSION, null, null, hash, nowMs, nowMs + SESSION_IDLE_LIFETIME.toMillis())",
+     "replacement": "                val id = insertToken(connection, accountId, TokenKind.SESSION, null, null, hash, nowMs, null)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a new session expires thirty days after it was issued",
+    "a session unused for 30 days is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/tokens/TokenStore.kt",
+     "anchor": "            statement.setLong(1, nowMs + SESSION_IDLE_LIFETIME.toMillis())",
+     "replacement": "            statement.setLong(1, SESSION_IDLE_LIFETIME.toMillis())"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a session used on day 29 stays valid and its expiry moves forward",
+    "a session token that is used every day keeps resolving ten years later"
+   ],
+   "rule": "",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "server/modules/sync-api",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/tokens/TokenStore.kt",
+     "anchor": "        val SESSION_IDLE_LIFETIME: Duration = Duration.ofDays(30)",
+     "replacement": "        val SESSION_IDLE_LIFETIME: Duration = Duration.ofDays(29)"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "server/modules/sync-api",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/tokens/TokenStore.kt",
+     "anchor": "        val SESSION_IDLE_LIFETIME: Duration = Duration.ofDays(30)",
+     "replacement": "        val SESSION_IDLE_LIFETIME: Duration = Duration.ofDays(30) // unchanged behaviour"
+    }
+   ]
+  }
+ ]
+}
