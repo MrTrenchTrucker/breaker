@@ -176,6 +176,7 @@ the contract the code keeps and points here for the reasoning, per topic:
   measured and cached; only when the caller's budget wins that race is the
   result not learned, and that is the case above.
 - The probe never contacts any host other than the configured Local Server.
+- The probe is listed in the address rule: it dials only the configured address, and the scheme does not matter to it. An http, an https and a no-scheme address all dial the host and the port of that address, with 80 for http and 443 otherwise when no port is written. The probe keeps its own parse and does not call the rule.
 - Met and tested in core's `DictateUseCase`, listed so nobody rebuilds them
   here: server-primary picks the server when reachable and the phone when not
   (F1–F3); `LOCAL` with no model → `LOCAL_MODEL_MISSING` (fix #1 regression

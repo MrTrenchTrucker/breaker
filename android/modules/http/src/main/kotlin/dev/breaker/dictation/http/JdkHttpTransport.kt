@@ -17,18 +17,26 @@ import java.net.URL
  *
  * It never follows a redirect, never uses a cache, and sends a body with a fixed length. No header or
  * body reaches an exception message, a string form or a log.
+ *
+ * An https address is called for any host. A plain http address is called only when it names the server
+ * that the configured-server provider returns, which is read on every request and never kept; see
+ * [ServerAddressRule].
  */
 class JdkHttpTransport internal constructor(
     private val openConnection: (String) -> HttpURLConnection,
+    private val configuredServer: () -> String,
 ) : HttpTransport {
 
-    /** The transport over the platform connection. */
-    constructor() : this(::platformConnection)
+    /** The transport over the platform connection with no configured server: every plain http address is refused. */
+    constructor() : this(::platformConnection, { NO_CONFIGURED_SERVER })
+
+    /** The transport over the platform connection that also calls the server [configuredServer] names, read on every request. */
+    constructor(configuredServer: () -> String) : this(::platformConnection, configuredServer)
 
     override fun send(request: CallRequest): BytesReply {
         val cap = request.limits.maxReplyBytes
         require(cap <= CallLimits.MAX_BYTES_REPLY) { SEND_CAP_MESSAGE }
-        HttpRules.checkBeforeConnect(request)
+        HttpRules.checkBeforeConnect(request, configuredServer())
         val connection = connect(request)
         try {
             val status = statusOf(connection)
@@ -43,7 +51,7 @@ class JdkHttpTransport internal constructor(
     }
 
     override fun open(request: CallRequest): StreamReply {
-        HttpRules.checkBeforeConnect(request)
+        HttpRules.checkBeforeConnect(request, configuredServer())
         val connection = connect(request)
         try {
             val status = statusOf(connection)
@@ -102,6 +110,7 @@ class JdkHttpTransport internal constructor(
 
 private const val SEND_CAP_MESSAGE = "the send call refuses a reply cap above its ceiling"
 private const val NO_STATUS_MESSAGE = "the server sent no usable status line"
+private const val NO_CONFIGURED_SERVER = ""
 
 /** The platform connection for [url]. */
 internal fun platformConnection(url: String): HttpURLConnection {

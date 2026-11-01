@@ -18,9 +18,9 @@
     POST_NOTIFICATIONS                show the service's ongoing notification
     SYSTEM_ALERT_WINDOW               draw the floating dictation tile over other apps
 
-  Network traffic must be encrypted: cleartext is switched off here and in
-  res/xml/network_security_config.xml, which trusts only the system's
-  certificate authorities.
+  Cleartext is permitted here and in res/xml/network_security_config.xml, which
+  trusts only the system's certificate authorities. The app's own code refuses
+  plain http to every host except the configured server.
 
   The service is private to the app (not exported) and has no intent filter;
   its notification action reaches it through an explicit pending intent.
@@ -43,7 +43,7 @@
         android:name=".BreakerApp"
         android:label="@string/app_name"
         android:networkSecurityConfig="@xml/network_security_config"
-        android:usesCleartextTraffic="false"
+        android:usesCleartextTraffic="true"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"

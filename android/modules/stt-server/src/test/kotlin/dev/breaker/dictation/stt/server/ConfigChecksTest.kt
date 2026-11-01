@@ -21,10 +21,12 @@ class ConfigChecksTest {
         assertEquals(FailureSentences.NO_ADDRESS, ServerEndpoint.addressProblem("   "))
     }
 
+    // Changed because the rule changed: the engine now accepts a plain http address for the one address
+    // it was given, so the two spellings that used to give the refusal sentence now give no problem.
     @Test
-    fun `a plain http address is refused with the https sentence`() {
-        assertEquals(FailureSentences.ADDRESS_NOT_HTTPS, ServerEndpoint.addressProblem("http://example.test"))
-        assertEquals(FailureSentences.ADDRESS_NOT_HTTPS, ServerEndpoint.addressProblem("HTTP://example.test"))
+    fun `a plain http address is accepted whatever the case of its scheme`() {
+        assertNull(ServerEndpoint.addressProblem("http://example.test"))
+        assertNull(ServerEndpoint.addressProblem("HTTP://example.test"))
     }
 
     @Test

@@ -97,9 +97,9 @@ as described in ADR-022 as amended:
 
 ## Network
 
-Only encrypted (https) connections are allowed. Clear text is switched off in the
-manifest and in `res/xml/network_security_config.xml`, which has no exceptions and
-trusts only the system's certificate authorities. ADR-034 decides that the app will accept an http server address; this module still refuses it until the slice for that lands (not built). The manifest asks for exactly
+An https address uses the phone's normal trust. Clear text is permitted in the
+manifest and in `res/xml/network_security_config.xml`, which has no per-host exception and
+trusts only the system's certificate authorities. The app accepts a plain http address only for the configured server and refuses plain http to every other host in its own code (the http module's address rule, and the server engine's own check). The setter that stores the address, the settings line about an unencrypted connection and the settings screen are decided, not built. The manifest asks for exactly
 these permissions: internet, record audio, foreground service, foreground service
 of the microphone type, post notifications, and draw over other apps (six in all).
 None of them is asked for while the app runs in app code: the user grants the

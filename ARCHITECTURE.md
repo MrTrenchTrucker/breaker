@@ -757,7 +757,7 @@ container registers with the local inference engine and uses **Local Inference**
 **APK hosting (F17):** the server serves the signed Android APK (built from the
 latest tagged GIT release) so friends/family download it straight from the web FE.
 
-**Certificates (F18, superseded by ADR-034):** ADR-034 decides Breaker serves plain HTTP; TLS is the admin's choice via any reverse proxy. ADR-032 is superseded. The app still refuses plain http, and trusts the platform store only until this slice lands (not built).
+**Certificates (F18, superseded by ADR-034):** ADR-034 decides Breaker serves plain HTTP; TLS is the admin's choice via any reverse proxy. ADR-032 is superseded. The app accepts a plain http address only for the configured server (built: cleartext is permitted in the manifest and the network config, and plain http to every other host is refused in code); it trusts the platform store only. The address setter, the settings line and the settings screen are decided, not built.
 
 **Sideload (Android):** the user enables "install unknown apps" once (Samsung:
 Settings → Security & privacy → Install unknown apps → allow from this source),
@@ -770,7 +770,7 @@ then installs the APK. Honest note: pairing is superseded by ADR-034; no certifi
 reads the latest **tagged release from the user's local GIT server**. When a
 newer version exists:
 1. The app notifies the user ("Breaker 1.2.0 is available — update?").
-2. On confirm, it downloads the **signed APK**. For an https address the APK address is trusted by the phone's normal trust. ADR-034 decides that a plain http address is allowed too; the app still refuses it until the slice for that lands (not built).
+2. On confirm, it downloads the **signed APK**. For an https address the APK address is trusted by the phone's normal trust. ADR-034 decides that a plain http address is allowed too, because the update host is the configured server. The cleartext switch and the address rule are built; the updater that downloads the APK is not built.
 3. It verifies the APK **signature + SHA-256** (published on the endpoint).
 4. Android installs over the existing app — same package ID + signature →
    treated as an update, **data/settings preserved**.
@@ -989,8 +989,9 @@ See `docs/04-build-order.md`. Summary:
 - D38. **Breaker serves plain HTTP; TLS is the admin's choice** - any reverse
       proxy in front if https is wanted; the app will accept http and https
       addresses and show one quiet line in settings on plain http; ADR-034
-      decides it and supersedes ADR-032; not built, the code still refuses
-      plain http.
+      decides it and supersedes ADR-032; built: cleartext is permitted and
+      plain http is accepted for the configured server only; not built: the
+      quiet settings line, the address setter and the settings screen.
 - D39. **Several devices; the server is the source of truth** - each device
       pushes, then pulls; a delete reaches every device; a new device gets its
       keys sealed from the website sign-in (ADR-035; not built).

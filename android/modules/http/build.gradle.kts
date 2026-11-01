@@ -1,7 +1,7 @@
 // android/modules/http - the one HTTP client for calls to the Local Server and the update host.
 //
 // Card: android/modules/http/AGENTS.md   Registry: modules.toml [module.android_http]
-// Owns: GET and POST with request headers and a fixed-length body, no redirects, no cache, https only, connect and read timeouts, a reply-size cap, no logging of a header or a body.
+// Owns: GET and POST with request headers and a fixed-length body, no redirects, no cache, https for any host and plain http only for the configured server, connect and read timeouts, a reply-size cap, no logging of a header or a body.
 // Depends on: android, android_core
 // Cross-module calls go through the core ports or the app's own
 // dependency wiring; this module never reaches into a sibling's code.

@@ -11,11 +11,12 @@ import org.junit.Test
  * no-title-bar theme and the one microphone service, and nothing else.
  *
  * Adding a permission, a receiver, a provider, a second service, an export, an
- * intent filter on the service, a clear-text setting or any attribute or element
- * beyond the allow-list alters what the app may do on the phone, so it fails here
- * until it is argued for and the list is changed on purpose. The file is parsed as
- * XML, not searched as text: comments are not content, attribute order does not
- * matter, and nothing outside the allow-list passes.
+ * intent filter on the service, a clear-text setting that differs from the allow-list
+ * value (true, because the app accepts a plain http address for the configured server)
+ * or any attribute or element beyond the allow-list alters what the app may do on the
+ * phone, so it fails here until it is argued for and the list is changed on purpose.
+ * The file is parsed as XML, not searched as text: comments are not content,
+ * attribute order does not matter, and nothing outside the allow-list passes.
  */
 internal class ManifestGateTest {
 
@@ -40,7 +41,7 @@ internal class ManifestGateTest {
         android:name=".BreakerApp"
         android:label="@string/app_name"
         android:networkSecurityConfig="@xml/network_security_config"
-        android:usesCleartextTraffic="false"
+        android:usesCleartextTraffic="true"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -71,7 +72,9 @@ internal class ManifestGateTest {
                 "android:name" to ".BreakerApp",
                 "android:label" to "@string/app_name",
                 "android:networkSecurityConfig" to "@xml/network_security_config",
-                "android:usesCleartextTraffic" to "false",
+                // The app accepts a plain http address for the one configured server and refuses plain http to
+                // every other host in its own code, so the platform must permit cleartext: the value is now true.
+                "android:usesCleartextTraffic" to "true",
                 "android:allowBackup" to "false",
                 "android:dataExtractionRules" to "@xml/data_extraction_rules",
                 "android:fullBackupContent" to "@xml/backup_rules",
@@ -170,8 +173,9 @@ internal class ManifestGateTest {
         XmlSample("the service named outside the service package", ".service.DictationForegroundService", ".DictationForegroundService", "attribute android:name is \".DictationForegroundService\""),
         XmlSample("another service class", ".service.DictationForegroundService", ".service.Other", "attribute android:name is \".service.Other\""),
         XmlSample("no service", "        <service\n            android:name=\".service.DictationForegroundService\"\n            android:exported=\"false\"\n            android:foregroundServiceType=\"microphone\" />\n", "", "lacks the element <service>"),
-        XmlSample("clear text allowed", "android:usesCleartextTraffic=\"false\"", "android:usesCleartextTraffic=\"true\"", "attribute android:usesCleartextTraffic is \"true\""),
-        XmlSample("clear text not stated", "\n        android:usesCleartextTraffic=\"false\"", "", "lacks the attribute android:usesCleartextTraffic"),
+        // Cleartext is now permitted, so the wrong value is the old one: switching it off again must be reported.
+        XmlSample("clear text switched off", "android:usesCleartextTraffic=\"true\"", "android:usesCleartextTraffic=\"false\"", "attribute android:usesCleartextTraffic is \"false\""),
+        XmlSample("clear text not stated", "\n        android:usesCleartextTraffic=\"true\"", "", "lacks the attribute android:usesCleartextTraffic"),
         XmlSample("no network config", "\n        android:networkSecurityConfig=\"@xml/network_security_config\"", "", "lacks the attribute android:networkSecurityConfig"),
         XmlSample("another network config", "@xml/network_security_config", "@xml/other_config", "attribute android:networkSecurityConfig is \"@xml/other_config\""),
         XmlSample("another application class", "android:name=\".BreakerApp\"", "android:name=\".Other\"", "attribute android:name is \".Other\""),
@@ -196,7 +200,7 @@ internal class ManifestGateTest {
     )
 
     private val quiet: List<XmlSample> = listOf(
-        XmlSample("a comment that names forbidden things", "<application", "<!-- uses-permission android.permission.SYSTEM_ALERT_WINDOW android:exported=\"true\" <service android:name=\".X\" /> android:usesCleartextTraffic=\"true\" -->\n    <application"),
+        XmlSample("a comment that names forbidden things", "<application", "<!-- uses-permission android.permission.SYSTEM_ALERT_WINDOW android:exported=\"true\" <service android:name=\".X\" /> android:usesCleartextTraffic=\"false\" -->\n    <application"),
         XmlSample("a comment between the elements", "</activity>", "</activity>\n        <!-- receiver provider -->"),
         XmlSample("application attributes in another order", "android:name=\".BreakerApp\"\n        android:label=\"@string/app_name\"\n        android:networkSecurityConfig=\"@xml/network_security_config\"", "android:networkSecurityConfig=\"@xml/network_security_config\"\n        android:label=\"@string/app_name\"\n        android:name=\".BreakerApp\""),
         XmlSample("permissions in another order", "    <uses-permission android:name=\"android.permission.INTERNET\" />\n    <uses-permission android:name=\"android.permission.RECORD_AUDIO\" />", "    <uses-permission android:name=\"android.permission.RECORD_AUDIO\" />\n    <uses-permission android:name=\"android.permission.INTERNET\" />"),
