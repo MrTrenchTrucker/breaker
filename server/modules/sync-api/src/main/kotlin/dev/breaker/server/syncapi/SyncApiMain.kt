@@ -4,7 +4,6 @@ import dev.breaker.server.syncapi.accounts.AccountStore
 import dev.breaker.server.syncapi.db.SqliteDatabase
 import dev.breaker.server.syncapi.servicecheck.ServiceKeyFile
 import dev.breaker.server.syncapi.tokens.TokenStore
-import io.ktor.server.application.ApplicationStopped
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.embeddedServer
 import java.nio.file.Paths
@@ -44,12 +43,19 @@ fun main() {
     }
     val publicServer = embeddedServer(CIO, host = config.host, port = config.port) {
         syncApiModule(accountStore, tokenStore)
-        monitor.subscribe(ApplicationStopped) { db.close() }
     }
-    // When the public listener stops, or fails to start, the internal listener stops too.
+    // When the public listener stops, or fails to start, the internal listener stops and then the
+    // database closes, exactly once: no token check can reach a closed database.
     try {
         publicServer.start(wait = true)
     } finally {
-        internalServer.stop(1000, 5000)
+        try {
+            shutdownInOrder(
+                stopInternal = { internalServer.stop(1000, 5000) },
+                closeDatabase = { db.close() },
+            )
+        } catch (_: Exception) {
+            System.err.println("sync-api: a shutdown step failed")
+        }
     }
 }
