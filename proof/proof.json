@@ -1,0 +1,1230 @@
+{
+ "name": "proof-cleartext-s2",
+ "tip": {
+  "tree": "338594d6ce367563e7ffb6c1f028f643fadd180b"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "cleartext: a plain http address is accepted for the one configured server and refused for every other host",
+   "base_tree": "2865cb744a219013c8588ae231c76920ef9d6119",
+   "item_tip_tree": "338594d6ce367563e7ffb6c1f028f643fadd180b",
+   "new_production_classes": [
+    "ServerAddressRule"
+   ],
+   "test_fixtures_overlaid": [
+    "FakeHttpConnection.kt"
+   ],
+   "red_not_run": "the red leg is impossible: the new test classes need types that do not exist on the base, so none compiles there; the mutants carry the proof"
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/ServerAddressRule.kt",
+     "anchor": "        return wanted == own",
+     "replacement": "        return true"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a plain http host other than the configured server is not permitted",
+    "the effective port is compared as a number and a missing port means 80",
+    "a trailing dot is not stripped from the host",
+    "a bracketed IPv6 literal is compared as written after ASCII lower-casing",
+    "a send and an open to another http host are refused NOT_HTTPS with no connection opened",
+    "a send and an open to the configured host on another port are refused NOT_HTTPS with no connection opened",
+    "the configured server is read again on every request so a changed value takes effect on the next call",
+    "the configured server is read once per request for http and https alike and before the header check",
+    "the public constructor hands its configured server to the rule and the permitted address reaches the header check"
+   ],
+   "rule": "any plain http host is permitted whatever the configured server is",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/ServerAddressRule.kt",
+     "anchor": "        return PlainTarget(host.lowercase(), port)",
+     "replacement": "        return PlainTarget(host.lowercase(), PLAIN_PORT)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the effective port is compared as a number and a missing port means 80",
+    "a bracketed IPv6 literal is compared as written after ASCII lower-casing",
+    "a send and an open to the configured host on another port are refused NOT_HTTPS with no connection opened"
+   ],
+   "rule": "the port is ignored: every target is compared as port 80",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/ServerAddressRule.kt",
+     "anchor": "        return PlainTarget(host.lowercase(), port)",
+     "replacement": "        return PlainTarget(host, port)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the scheme and the host are compared without regard to ASCII letter case",
+    "a bracketed IPv6 literal is compared as written after ASCII lower-casing"
+   ],
+   "rule": "the host is compared case-sensitively",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/ServerAddressRule.kt",
+     "anchor": "        return PlainTarget(host.lowercase(), port)",
+     "replacement": "        return PlainTarget(host.lowercase().trimEnd('.'), port)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a trailing dot is not stripped from the host"
+   ],
+   "rule": "a trailing dot is stripped from the host",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/ServerAddressRule.kt",
+     "anchor": "        return PlainTarget(host.lowercase(), port)",
+     "replacement": "        return PlainTarget(if (host.startsWith('[')) java.net.InetAddress.getByName(host).hostAddress.lowercase() else host.lowercase(), port)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a bracketed IPv6 literal is compared as written after ASCII lower-casing"
+   ],
+   "rule": "a bracketed IPv6 literal is turned into the platform canonical form before the compare",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/ServerAddressRule.kt",
+     "anchor": "        val authority = afterScheme.takeWhile { it != '/' && it != '?' && it != '#' }\n        if (authority.contains('@')) return null",
+     "replacement": "        val authority = afterScheme.takeWhile { it != '/' && it != '?' && it != '#' }.substringAfterLast('@')"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "user information is not permitted and an at sign after the authority is ignored",
+    "an empty blank or unusable configured address permits no plain http but https stays permitted"
+   ],
+   "rule": "user information is cut off the authority instead of refusing the address",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/ServerAddressRule.kt",
+     "anchor": "        val own = plainTarget(configuredServer) ?: return false",
+     "replacement": "        val own = plainTarget(configuredServer.replaceFirst(\"https://\", \"http://\", ignoreCase = true)) ?: return false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a configured https address never permits plain http and look alike schemes are not permitted",
+    "an empty blank or unusable configured address permits no plain http but https stays permitted",
+    "a configured https address never permits plain http to the same host"
+   ],
+   "rule": "a configured https address is read as plain http (the user is moved down)",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/ServerAddressRule.kt",
+     "anchor": "        val own = plainTarget(configuredServer) ?: return false",
+     "replacement": "        val own = plainTarget(configuredServer) ?: return configuredServer.isBlank()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a plain http host other than the configured server is not permitted",
+    "an empty blank or unusable configured address permits no plain http but https stays permitted",
+    "an empty or blank configured server permits no plain http address",
+    "the no argument client refuses a plain http address as NOT_HTTPS and never reaches the header check",
+    "an http address is refused NOT_HTTPS before any connection",
+    "a refusal message holds no header or address text",
+    "a refusal caught first routes to the refusal handler and a connection problem to the second"
+   ],
+   "rule": "a blank configured address permits every plain http address",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/ServerAddressRule.kt",
+     "anchor": "        return if (value in FIRST_PORT..LAST_PORT) value else null",
+     "replacement": "        return value"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "ports outside 1 to 65535 or not plain digits are not permitted on either side",
+    "bracket text that is not one IPv6 literal of at least two colons is not permitted"
+   ],
+   "rule": "port 0 and ports above 65535 (up to five digits) are accepted",
+   "note": ""
+  },
+  {
+   "id": "mut-10",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/ServerAddressRule.kt",
+     "anchor": "        if (digits.isEmpty() || digits.length > PORT_DIGITS || !digits.all { isAsciiDigit(it) }) return null",
+     "replacement": "        if (digits.length > PORT_DIGITS || !digits.all { isAsciiDigit(it) }) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "ports outside 1 to 65535 or not plain digits are not permitted on either side",
+    "bracket text that is not one IPv6 literal of at least two colons is not permitted"
+   ],
+   "rule": "an empty port text is not refused: the number parse then throws NumberFormatException (red as a test error)",
+   "note": ""
+  },
+  {
+   "id": "mut-11",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/ServerAddressRule.kt",
+     "anchor": "        if (digits.isEmpty() || digits.length > PORT_DIGITS || !digits.all { isAsciiDigit(it) }) return null",
+     "replacement": "        if (digits.isEmpty() || !digits.all { isAsciiDigit(it) }) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "ports outside 1 to 65535 or not plain digits are not permitted on either side"
+   ],
+   "rule": "the five-digit limit on the port text is dropped: zero-padded 80 reads as port 80",
+   "note": ""
+  },
+  {
+   "id": "mut-12",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/ServerAddressRule.kt",
+     "anchor": "    fun permits(address: String, configuredServer: String): Boolean {",
+     "replacement": "    fun permits(address: String, configuredServer: String): Boolean {\n        if ((address + configuredServer).any { it.code >= ASCII_CHARS }) return false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a non ASCII character is refused in the scheme and the host and left alone in the path and the query",
+    "an empty blank or unusable configured address permits no plain http but https stays permitted"
+   ],
+   "rule": "a non-ASCII character is refused anywhere in either address, also in the path and the query",
+   "note": ""
+  },
+  {
+   "id": "mut-13",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/ServerAddressRule.kt",
+     "anchor": "        if (afterHost.isEmpty()) return PLAIN_PORT",
+     "replacement": "        if (afterHost.isEmpty()) return -1"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the effective port is compared as a number and a missing port means 80",
+    "the scheme and the host are compared without regard to ASCII letter case",
+    "a bracketed IPv6 literal is compared as written after ASCII lower-casing"
+   ],
+   "rule": "a missing port is not port 80, so an explicit :80 differs from no port",
+   "note": ""
+  },
+  {
+   "id": "mut-14",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/ServerAddressRule.kt",
+     "anchor": "        if (!scheme.all { it.code < ASCII_CHARS } || !scheme.equals(PLAIN_SCHEME, ignoreCase = true)) return null",
+     "replacement": "        if (!scheme.all { it.code < ASCII_CHARS } || !scheme.equals(PLAIN_SCHEME, ignoreCase = false)) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the scheme and the host are compared without regard to ASCII letter case"
+   ],
+   "rule": "the scheme is compared case-sensitively",
+   "note": ""
+  },
+  {
+   "id": "mut-15",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/ServerAddressRule.kt",
+     "anchor": "        if (text.any { it.isWhitespace() || Character.isISOControl(it) }) return null\n        val separator = text.indexOf(SCHEME_SEPARATOR)",
+     "replacement": "        val separator = text.indexOf(SCHEME_SEPARATOR)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "whitespace control characters and characters outside the host alphabet are not permitted"
+   ],
+   "rule": "whitespace and control characters no longer refuse a plain http address",
+   "note": ""
+  },
+  {
+   "id": "mut-16",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/ServerAddressRule.kt",
+     "anchor": "        host.isNotEmpty() && host.all { isAsciiLetter(it) || isAsciiDigit(it) || it == '-' || it == '.' || it == '_' }",
+     "replacement": "        host.isNotEmpty()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "whitespace control characters and characters outside the host alphabet are not permitted",
+    "a non ASCII character is refused in the scheme and the host and left alone in the path and the query"
+   ],
+   "rule": "any non-empty host text is accepted",
+   "note": ""
+  },
+  {
+   "id": "mut-17",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/ServerAddressRule.kt",
+     "anchor": "        if (inner.count { it == ':' } < IPV6_COLONS) return false\n        return inner.all { isHexDigit(it) || it == ':' || it == '.' }",
+     "replacement": "        return inner.all { isHexDigit(it) || it == ':' || it == '.' }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "bracket text that is not one IPv6 literal of at least two colons is not permitted"
+   ],
+   "rule": "a bracket with fewer than two colons is accepted as an IPv6 literal",
+   "note": ""
+  },
+  {
+   "id": "mut-18",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/ServerAddressRule.kt",
+     "anchor": "        if (HttpRules.isHttpsAddress(address)) return true\n        val wanted = plainTarget(address) ?: return false",
+     "replacement": "        val wanted = plainTarget(address) ?: return false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "https is permitted for any host whatever the configured server is",
+    "a configured https address never permits plain http and look alike schemes are not permitted",
+    "an empty blank or unusable configured address permits no plain http but https stays permitted",
+    "a non ASCII character is refused in the scheme and the host and left alone in the path and the query",
+    "the configured server is read once per request for http and https alike and before the header check",
+    "an https address is called for any host with no configured server and with another one",
+    "a configured https address never permits plain http to the same host",
+    "the https scheme is accepted in any ASCII case",
+    "an at sign only in the path or the query is not the authority and the address is accepted",
+    "a header with an empty name is refused BAD_HEADER before any connection",
+    "a header name or value with a CR or LF is refused BAD_HEADER before any connection",
+    "a refusal caught first routes to the refusal handler and a connection problem to the second"
+   ],
+   "rule": "the https branch is removed from the rule: https is no longer permitted",
+   "note": ""
+  },
+  {
+   "id": "mut-19",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/ServerAddressRule.kt",
+     "anchor": "    fun permits(address: String, configuredServer: String): Boolean {",
+     "replacement": "    fun permits(address: String, configuredServer: String): Boolean {\n        if (address.length >= 0) return false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "https is permitted for any host whatever the configured server is",
+    "the configured server itself is permitted with any path query or fragment",
+    "the effective port is compared as a number and a missing port means 80",
+    "the scheme and the host are compared without regard to ASCII letter case",
+    "a trailing dot is not stripped from the host",
+    "user information is not permitted and an at sign after the authority is ignored",
+    "a configured https address never permits plain http and look alike schemes are not permitted",
+    "an empty blank or unusable configured address permits no plain http but https stays permitted",
+    "a non ASCII character is refused in the scheme and the host and left alone in the path and the query",
+    "a bracketed IPv6 literal is compared as written after ASCII lower-casing",
+    "a send to the configured http address opens it once with that address",
+    "an open to the configured http address opens it once with that address",
+    "the configured server is read again on every request so a changed value takes effect on the next call",
+    "the configured server is read once per request for http and https alike and before the header check",
+    "an https address is called for any host with no configured server and with another one",
+    "a configured https address never permits plain http to the same host",
+    "a permitted plain http address still goes through the header check before any connection",
+    "the public constructor hands its configured server to the rule and the permitted address reaches the header check",
+    "the https scheme is accepted in any ASCII case",
+    "an at sign only in the path or the query is not the authority and the address is accepted",
+    "a header with an empty name is refused BAD_HEADER before any connection",
+    "a header name or value with a CR or LF is refused BAD_HEADER before any connection",
+    "a refusal caught first routes to the refusal handler and a connection problem to the second"
+   ],
+   "rule": "the rule permits nothing at all",
+   "note": ""
+  },
+  {
+   "id": "mut-20",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/ServerAddressRule.kt",
+     "anchor": "        if (authority.contains('@')) return null\n        return targetOf(authority)",
+     "replacement": "        return targetOf(authority)"
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "honest survivor: the explicit at-sign line is defence in depth, the host alphabet and the port digits already refuse an at sign",
+   "note": ""
+  },
+  {
+   "id": "mut-21",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/HttpRules.kt",
+     "anchor": "        if (!ServerAddressRule.permits(request.url, configuredServer)) throw HttpRefusal(HttpRefusalReason.NOT_HTTPS)",
+     "replacement": "        if (!HttpRules.isHttpsAddress(request.url)) throw HttpRefusal(HttpRefusalReason.NOT_HTTPS)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a send to the configured http address opens it once with that address",
+    "an open to the configured http address opens it once with that address",
+    "the configured server is read again on every request so a changed value takes effect on the next call",
+    "the configured server is read once per request for http and https alike and before the header check",
+    "a permitted plain http address still goes through the header check before any connection",
+    "the public constructor hands its configured server to the rule and the permitted address reaches the header check"
+   ],
+   "rule": "the transport asks only the old https check, never the rule: the configured server is refused",
+   "note": ""
+  },
+  {
+   "id": "mut-22",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/JdkHttpTransport.kt",
+     "anchor": "    constructor(configuredServer: () -> String) : this(::platformConnection, configuredServer)",
+     "replacement": "    constructor(configuredServer: () -> String) : this(::platformConnection, { NO_CONFIGURED_SERVER })"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the public constructor hands its configured server to the rule and the permitted address reaches the header check"
+   ],
+   "rule": "the public constructor throws its provider away and uses the empty server",
+   "note": ""
+  },
+  {
+   "id": "mut-23",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/JdkHttpTransport.kt",
+     "anchor": "private const val NO_CONFIGURED_SERVER = \"\"",
+     "replacement": "private const val NO_CONFIGURED_SERVER = \"http://server.test\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the no argument client refuses a plain http address as NOT_HTTPS and never reaches the header check"
+   ],
+   "rule": "the no-argument client is given a configured server",
+   "note": ""
+  },
+  {
+   "id": "mut-24",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/JdkHttpTransport.kt",
+     "anchor": "        require(cap <= CallLimits.MAX_BYTES_REPLY) { SEND_CAP_MESSAGE }\n        HttpRules.checkBeforeConnect(request, configuredServer())",
+     "replacement": "        require(cap <= CallLimits.MAX_BYTES_REPLY) { SEND_CAP_MESSAGE }\n        HttpRules.checkBeforeConnect(request, cachedServer)"
+    },
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/JdkHttpTransport.kt",
+     "anchor": "    override fun open(request: CallRequest): StreamReply {\n        HttpRules.checkBeforeConnect(request, configuredServer())",
+     "replacement": "    private val cachedServer: String by lazy { configuredServer() }\n\n    override fun open(request: CallRequest): StreamReply {\n        HttpRules.checkBeforeConnect(request, cachedServer)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the configured server is read again on every request so a changed value takes effect on the next call",
+    "the configured server is read once per request for http and https alike and before the header check"
+   ],
+   "rule": "the provider is read once and the value is kept for every later request",
+   "note": ""
+  },
+  {
+   "id": "mut-25",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/JdkHttpTransport.kt",
+     "anchor": "        require(cap <= CallLimits.MAX_BYTES_REPLY) { SEND_CAP_MESSAGE }\n        HttpRules.checkBeforeConnect(request, configuredServer())",
+     "replacement": "        require(cap <= CallLimits.MAX_BYTES_REPLY) { SEND_CAP_MESSAGE }\n        HttpRules.checkBeforeConnect(request, if (request.url.startsWith(\"https\", ignoreCase = true)) \"\" else configuredServer())"
+    },
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/JdkHttpTransport.kt",
+     "anchor": "    override fun open(request: CallRequest): StreamReply {\n        HttpRules.checkBeforeConnect(request, configuredServer())",
+     "replacement": "    override fun open(request: CallRequest): StreamReply {\n        HttpRules.checkBeforeConnect(request, if (request.url.startsWith(\"https\", ignoreCase = true)) \"\" else configuredServer())"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the configured server is read once per request for http and https alike and before the header check"
+   ],
+   "rule": "the provider is not read for an https request",
+   "note": ""
+  },
+  {
+   "id": "mut-26",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/http",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/JdkHttpTransport.kt",
+     "anchor": "        require(cap <= CallLimits.MAX_BYTES_REPLY) { SEND_CAP_MESSAGE }\n        HttpRules.checkBeforeConnect(request, configuredServer())",
+     "replacement": "        require(cap <= CallLimits.MAX_BYTES_REPLY) { SEND_CAP_MESSAGE }\n        HttpRules.checkBeforeConnect(request, if (request.headers.any { it.first.isEmpty() }) \"\" else configuredServer())"
+    },
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/JdkHttpTransport.kt",
+     "anchor": "    override fun open(request: CallRequest): StreamReply {\n        HttpRules.checkBeforeConnect(request, configuredServer())",
+     "replacement": "    override fun open(request: CallRequest): StreamReply {\n        HttpRules.checkBeforeConnect(request, if (request.headers.any { it.first.isEmpty() }) \"\" else configuredServer())"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the configured server is read once per request for http and https alike and before the header check",
+    "a permitted plain http address still goes through the header check before any connection",
+    "the public constructor hands its configured server to the rule and the permitted address reaches the header check"
+   ],
+   "rule": "the provider is read only after the header name passes (not read when the header name is empty)",
+   "note": ""
+  },
+  {
+   "id": "mut-27",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/transport",
+   "edits": [
+    {
+     "file": "android/modules/transport/src/main/kotlin/dev/breaker/dictation/transport/TcpConnectivityProbe.kt",
+     "anchor": "        return Target(host, port)",
+     "replacement": "        return Target(\"other.invalid\", port)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an http host name with an explicit port is dialled on that host and that port",
+    "an address with no scheme and a port is dialled on that host and that port",
+    "a bracketed address literal with no port is dialled on the default port of its scheme",
+    "a configured address that changes only its port changes the dialled port",
+    "a configured http address that changes its host changes the dialled host",
+    "a configured address that changes only its scheme changes the default port that is dialled",
+    "an address with no scheme is treated as https",
+    "a changed server address dials again at the same instant",
+    "every dial on one probe is the configured host and nothing else"
+   ],
+   "rule": "the probe dials another host than the configured one",
+   "note": ""
+  },
+  {
+   "id": "mut-28",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/transport",
+   "edits": [
+    {
+     "file": "android/modules/transport/src/main/kotlin/dev/breaker/dictation/transport/TcpConnectivityProbe.kt",
+     "anchor": "        return Target(host, port)",
+     "replacement": "        return Target(host, 9)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an http host name with an explicit port is dialled on that host and that port",
+    "an address with no scheme and a port is dialled on that host and that port",
+    "a bracketed address literal with no port is dialled on the default port of its scheme",
+    "a configured address that changes only its port changes the dialled port",
+    "a configured http address that changes its host changes the dialled host",
+    "a configured address that changes only its scheme changes the default port that is dialled",
+    "an explicit port is dialled as given",
+    "https dials 443 when no port is given",
+    "http dials 80 when no port is given",
+    "an address with no scheme is treated as https"
+   ],
+   "rule": "the written port and the default port are both ignored: every dial goes to one fixed port",
+   "note": ""
+  },
+  {
+   "id": "mut-29",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/transport",
+   "edits": [
+    {
+     "file": "android/modules/transport/src/main/kotlin/dev/breaker/dictation/transport/TcpConnectivityProbe.kt",
+     "anchor": "            else -> HTTP_PORT",
+     "replacement": "            else -> HTTPS_PORT"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a bracketed address literal with no port is dialled on the default port of its scheme",
+    "a configured http address that changes its host changes the dialled host",
+    "a configured address that changes only its scheme changes the default port that is dialled",
+    "http dials 80 when no port is given"
+   ],
+   "rule": "an http address with no port takes the https port",
+   "note": ""
+  },
+  {
+   "id": "mut-30",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/transport",
+   "edits": [
+    {
+     "file": "android/modules/transport/src/main/kotlin/dev/breaker/dictation/transport/TcpConnectivityProbe.kt",
+     "anchor": "            serverUrlProvider()",
+     "replacement": "            keptAddress"
+    },
+    {
+     "file": "android/modules/transport/src/main/kotlin/dev/breaker/dictation/transport/TcpConnectivityProbe.kt",
+     "anchor": "    /** One immutable entry, published as a whole: two separate fields could be read torn. */",
+     "replacement": "    private val keptAddress: String by lazy { serverUrlProvider() }\n\n    /** One immutable entry, published as a whole: two separate fields could be read torn. */"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a configured address that changes only its port changes the dialled port",
+    "a configured http address that changes its host changes the dialled host",
+    "a configured address that changes only its scheme changes the default port that is dialled",
+    "a changed server address dials again at the same instant",
+    "every dial on one probe is the configured host and nothing else"
+   ],
+   "rule": "the configured address is read once and kept: a later change of the address is never seen",
+   "note": ""
+  },
+  {
+   "id": "mut-31",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/stt-server",
+   "edits": [
+    {
+     "file": "android/modules/stt-server/src/main/kotlin/dev/breaker/dictation/stt/server/ServerEndpoint.kt",
+     "anchor": "            else -> null",
+     "replacement": "            else -> base.indexOf(SCHEME_SEPARATOR).let { if (it < 0) null else it + SCHEME_SEPARATOR.length }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the engine answers as written on these http addresses, which were checked against the rule by hand",
+    "a long-s https look-alike is refused with the address sentence",
+    "an address of another scheme sends nothing at all"
+   ],
+   "rule": "any scheme followed by the separator is accepted",
+   "note": ""
+  },
+  {
+   "id": "mut-32",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/stt-server",
+   "edits": [
+    {
+     "file": "android/modules/stt-server/src/main/kotlin/dev/breaker/dictation/stt/server/ServerEndpoint.kt",
+     "anchor": "        val usable = authority.isNotEmpty() && !authority.startsWith(':') && !authority.contains('@')",
+     "replacement": "        val usable = authority.isNotEmpty() && !authority.startsWith(':') && (prefixLength == HTTP_PREFIX.length || !authority.contains('@'))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the engine answers as written on these http addresses, which were checked against the rule by hand",
+    "the engine's check is stricter than the rule where an at sign follows a question mark or a hash",
+    "a plain http address with user information is refused and nothing is sent"
+   ],
+   "rule": "the user information test skipped for a plain http address",
+   "note": ""
+  },
+  {
+   "id": "mut-33",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/stt-server",
+   "edits": [
+    {
+     "file": "android/modules/stt-server/src/main/kotlin/dev/breaker/dictation/stt/server/ServerEndpoint.kt",
+     "anchor": "        if (base == null || base.isBlank()) return FailureSentences.NO_ADDRESS",
+     "replacement": "        if (base == null || base.isBlank()) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a blank address is refused with the no-address sentence",
+    "the engine answers as written on these http addresses, which were checked against the rule by hand"
+   ],
+   "rule": "a blank address gives no problem",
+   "note": ""
+  },
+  {
+   "id": "mut-34",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/stt-server",
+   "edits": [
+    {
+     "file": "android/modules/stt-server/src/main/kotlin/dev/breaker/dictation/stt/server/ServerEndpoint.kt",
+     "anchor": "            startsWithAsciiPrefix(base, HTTP_PREFIX) -> HTTP_PREFIX.length",
+     "replacement": "            startsWithAsciiPrefix(base, HTTP_PREFIX) -> null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a plain http address is accepted whatever the case of its scheme",
+    "a plain http address is accepted and the key still reaches the wire only in the authorization header",
+    "the engine answers as written on these http addresses, which were checked against the rule by hand",
+    "the engine's check is looser than the rule on purpose",
+    "every url the engine calls starts with an http base and nothing else reaches the transport",
+    "a base with a path keeps the path in front of both urls whether or not it ends in a slash",
+    "the base is read again on every call so the urls follow a changed address"
+   ],
+   "rule": "a plain http address is refused again",
+   "note": ""
+  },
+  {
+   "id": "mut-35",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/stt-server",
+   "edits": [
+    {
+     "file": "android/modules/stt-server/src/main/kotlin/dev/breaker/dictation/stt/server/ServerEndpoint.kt",
+     "anchor": "        return head.length == prefix.length && head.none { it.code > 0x7F } && head.lowercase() == prefix",
+     "replacement": "        return head.length == prefix.length && head.uppercase() == prefix.uppercase()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a long-s https look-alike is refused with the address sentence",
+    "the engine answers as written on these http addresses, which were checked against the rule by hand"
+   ],
+   "rule": "the scheme compare upper-cases both sides and drops the ASCII guard",
+   "note": ""
+  },
+  {
+   "id": "mut-36",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/stt-server",
+   "edits": [
+    {
+     "file": "android/modules/stt-server/src/main/kotlin/dev/breaker/dictation/stt/server/ServerEndpoint.kt",
+     "anchor": "            startsWithAsciiPrefix(base, HTTP_PREFIX) -> HTTP_PREFIX.length",
+     "replacement": "            startsWithAsciiPrefix(base, HTTP_PREFIX) -> HTTPS_PREFIX.length"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the engine answers as written on these http addresses, which were checked against the rule by hand",
+    "the engine's check is looser than the rule on purpose"
+   ],
+   "rule": "the http authority starts one character too late",
+   "note": ""
+  },
+  {
+   "id": "mut-37",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/stt-server",
+   "edits": [
+    {
+     "file": "android/modules/stt-server/src/main/kotlin/dev/breaker/dictation/stt/server/FailureSentences.kt",
+     "anchor": "    const val ADDRESS_NOT_HTTPS = \"The server address must be an http or https address with no spaces or user name.\"",
+     "replacement": "    const val ADDRESS_NOT_HTTPS = \"The server address must be an https address with no spaces or user name.\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the refusal sentence names both schemes"
+   ],
+   "rule": "the refusal sentence names only https again",
+   "note": ""
+  },
+  {
+   "id": "mut-38",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/stt-server",
+   "edits": [
+    {
+     "file": "android/modules/stt-server/src/main/kotlin/dev/breaker/dictation/stt/server/ServerEndpoint.kt",
+     "anchor": "    fun transcriptionsUrl(base: String): String = withoutTrailingSlash(base) + TRANSCRIPTIONS_PATH",
+     "replacement": "    fun transcriptionsUrl(base: String): String = withoutTrailingSlash(base.take(0) + HTTPS_PREFIX + \"other.test\") + TRANSCRIPTIONS_PATH"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the transcription URL is the base with the transcriptions path",
+    "one trailing slash on the base is dropped before the path is added",
+    "a path on the base stays in front of the transcriptions path",
+    "the enqueue call posts the audio once to the transcriptions address with the key only in its authorization header",
+    "every url the engine calls starts with an http base and nothing else reaches the transport",
+    "every url the engine calls starts with an https base and nothing else reaches the transport",
+    "a base with a path keeps the path in front of both urls whether or not it ends in a slash",
+    "the base is read again on every call so the urls follow a changed address"
+   ],
+   "rule": "the upload URL ignores the base",
+   "note": ""
+  },
+  {
+   "id": "mut-39",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/stt-server",
+   "edits": [
+    {
+     "file": "android/modules/stt-server/src/main/kotlin/dev/breaker/dictation/stt/server/ServerEndpoint.kt",
+     "anchor": "        return withoutTrailingSlash(base) + JOBS_PATH + jobId",
+     "replacement": "        return withoutTrailingSlash(base.take(0) + HTTPS_PREFIX + \"other.test\") + JOBS_PATH + jobId"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "one trailing slash on the base is dropped before the path is added",
+    "the job URL is the base with the jobs path and the job id",
+    "each poll is a get of the job address carrying the key and no body",
+    "a second call on the same engine gets its own answer and is not refused by the first abort",
+    "every url the engine calls starts with an http base and nothing else reaches the transport",
+    "every url the engine calls starts with an https base and nothing else reaches the transport",
+    "a base with a path keeps the path in front of both urls whether or not it ends in a slash",
+    "the base is read again on every call so the urls follow a changed address"
+   ],
+   "rule": "the job URL ignores the base",
+   "note": ""
+  },
+  {
+   "id": "mut-40",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/stt-ondevice",
+   "edits": [
+    {
+     "file": "android/modules/stt-ondevice/src/main/kotlin/dev/breaker/dictation/stt/ondevice/DownloadLimits.kt",
+     "anchor": "        if (!isHttpsScheme(scheme)) return false",
+     "replacement": "        if (!isHttpsScheme(scheme) && scheme.lowercase() != \"http\") return false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a plain http scheme on a first-hop host is refused",
+    "a first address that is not https on the first hop host makes no request",
+    "a redirect to http is refused",
+    "a refused first address is named by its lower-case host alone"
+   ],
+   "rule": "the download address policy lets a plain http address through",
+   "note": ""
+  },
+  {
+   "id": "mut-41",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/AndroidManifest.xml",
+     "anchor": "        android:usesCleartextTraffic=\"true\"",
+     "replacement": "        android:usesCleartextTraffic=\"false\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the real manifest declares exactly the six permissions, the launcher activity and the one service",
+    "the manifest and the config both permit clear text and agree"
+   ],
+   "rule": "the manifest keeps clear text switched off",
+   "note": ""
+  },
+  {
+   "id": "mut-42",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/res/xml/network_security_config.xml",
+     "anchor": "    <base-config cleartextTrafficPermitted=\"true\">",
+     "replacement": "    <base-config cleartextTrafficPermitted=\"false\">"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the real network config holds one base config with clear text on and the system store only",
+    "the manifest and the config both permit clear text and agree"
+   ],
+   "rule": "the network config keeps clear text switched off",
+   "note": ""
+  },
+  {
+   "id": "mut-43",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/AndroidManifest.xml",
+     "anchor": "        android:usesCleartextTraffic=\"true\"",
+     "replacement": "        android:usesCleartextTraffic=\"false\""
+    },
+    {
+     "file": "android/app/src/main/res/xml/network_security_config.xml",
+     "anchor": "    <base-config cleartextTrafficPermitted=\"true\">",
+     "replacement": "    <base-config cleartextTrafficPermitted=\"false\">"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the real manifest declares exactly the six permissions, the launcher activity and the one service",
+    "the real network config holds one base config with clear text on and the system store only",
+    "the manifest and the config both permit clear text and agree"
+   ],
+   "rule": "neither file is switched",
+   "note": ""
+  },
+  {
+   "id": "mut-44",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/test/kotlin/dev/breaker/dictation/gates/ManifestGateTest.kt",
+     "anchor": "                \"android:usesCleartextTraffic\" to \"true\",",
+     "replacement": "                \"android:usesCleartextTraffic\" to \"false\","
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the real manifest declares exactly the six permissions, the launcher activity and the one service",
+    "the exact good manifest passes, and so do comments, another attribute order and single quotes",
+    "a manifest with other values or missing parts is rejected with what is wrong"
+   ],
+   "rule": "the manifest allow-list still says clear text off",
+   "note": ""
+  },
+  {
+   "id": "mut-45",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/test/kotlin/dev/breaker/dictation/gates/NetworkConfigGateTest.kt",
+     "anchor": "                attributes = mapOf(\"cleartextTrafficPermitted\" to \"true\"),",
+     "replacement": "                attributes = mapOf(\"cleartextTrafficPermitted\" to \"false\"),"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the real network config holds one base config with clear text on and the system store only",
+    "the exact good config passes, with comments that name forbidden parts and in another spelling",
+    "a config with a host entry, an override, a pin, other anchors or other values is rejected with what is wrong"
+   ],
+   "rule": "the config allow-list still says clear text off",
+   "note": ""
+  },
+  {
+   "id": "mut-46",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/test/kotlin/dev/breaker/dictation/gates/NetworkConfigGateTest.kt",
+     "anchor": ", listOf<String?>(\"true\", \"true\"), settings)",
+     "replacement": ", listOf<String?>(\"false\", \"false\"), settings)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the manifest and the config both permit clear text and agree"
+   ],
+   "rule": "the agreement test expects the old pair",
+   "note": ""
+  },
+  {
+   "id": "mut-47",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/AndroidManifest.xml",
+     "anchor": "  Cleartext is permitted here and in res/xml/network_security_config.xml, which\n  trusts only the system's certificate authorities. The app's own code refuses\n  plain http to every host except the configured server.",
+     "replacement": "  Network traffic must be encrypted: cleartext is switched off here and in\n  res/xml/network_security_config.xml, which trusts only the system's\n  certificate authorities."
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "the manifest header comment restored to the old wording; nothing reads comments",
+   "note": ""
+  },
+  {
+   "id": "mut-48",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/res/xml/network_security_config.xml",
+     "anchor": "  Cleartext is permitted at the platform level: the app itself refuses plain http\n  in code to every host except the configured server. Only the system certificate\n  store is trusted. There is no per-host exception, no debug override, no user\n  certificate and no pinned key here.",
+     "replacement": "  Every connection must use https: clear text is refused for every host, and only\n  the system certificate store is trusted. There is no per-host exception, no\n  debug override, no user certificate and no pinned key here."
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "the config comment restored to the old wording; nothing reads comments",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill-http",
+   "module": "android/modules/http",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/ServerAddressRule.kt",
+     "anchor": "    private const val LAST_PORT = 65535",
+     "replacement": "    private const val LAST_PORT = 65534"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive-http",
+   "module": "android/modules/http",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "android/modules/http/src/main/kotlin/dev/breaker/dictation/http/ServerAddressRule.kt",
+     "anchor": "    private fun isAsciiDigit(c: Char): Boolean = c in '0'..'9'",
+     "replacement": "    private fun isAsciiDigit(c: Char): Boolean = c >= '0' && c <= '9'"
+    }
+   ]
+  },
+  {
+   "id": "ctl-kill-transport",
+   "module": "android/modules/transport",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "android/modules/transport/src/main/kotlin/dev/breaker/dictation/transport/TcpConnectivityProbe.kt",
+     "anchor": "        const val CONNECT_TIMEOUT_MS: Long = 1_500L",
+     "replacement": "        const val CONNECT_TIMEOUT_MS: Long = 1_501L"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive-transport",
+   "module": "android/modules/transport",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "android/modules/transport/src/main/kotlin/dev/breaker/dictation/transport/TcpConnectivityProbe.kt",
+     "anchor": "        if (text.isEmpty() || text.any { it !in '0'..'9' }) return null",
+     "replacement": "        if (text.isEmpty() || text.any { it < '0' || it > '9' }) return null"
+    }
+   ]
+  },
+  {
+   "id": "ctl-kill-stt-server",
+   "module": "android/modules/stt-server",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "android/modules/stt-server/src/main/kotlin/dev/breaker/dictation/stt/server/ServerEndpoint.kt",
+     "anchor": "    private const val MAX_JOB_ID_CHARS = 128",
+     "replacement": "    private const val MAX_JOB_ID_CHARS = 127"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive-stt-server",
+   "module": "android/modules/stt-server",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "android/modules/stt-server/src/main/kotlin/dev/breaker/dictation/stt/server/ServerEndpoint.kt",
+     "anchor": "    /** Returns the refusal for an API key, or null when the key can be sent in a header. */",
+     "replacement": "    /** Returns the refusal for an API key, or null when the key  can be sent in a header. */"
+    }
+   ]
+  },
+  {
+   "id": "ctl-kill-stt-ondevice",
+   "module": "android/modules/stt-ondevice",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "android/modules/stt-ondevice/src/main/kotlin/dev/breaker/dictation/stt/ondevice/DownloadLimits.kt",
+     "anchor": "    val maxRedirects: Int = 5,",
+     "replacement": "    val maxRedirects: Int = 4,"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive-stt-ondevice",
+   "module": "android/modules/stt-ondevice",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "android/modules/stt-ondevice/src/main/kotlin/dev/breaker/dictation/stt/ondevice/DownloadLimits.kt",
+     "anchor": "     * The largest body accepted for [entry].",
+     "replacement": "     * The  largest body accepted for [entry]."
+    }
+   ]
+  },
+  {
+   "id": "ctl-kill-app",
+   "module": "android/app",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "android/app/src/main/AndroidManifest.xml",
+     "anchor": "        android:allowBackup=\"false\"",
+     "replacement": "        android:allowBackup=\"true\""
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive-app",
+   "module": "android/app",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "android/app/src/main/AndroidManifest.xml",
+     "anchor": "  Permissions, each one used by the app:",
+     "replacement": "  Permissions,  each one used by the app:"
+    }
+   ]
+  }
+ ]
+}
