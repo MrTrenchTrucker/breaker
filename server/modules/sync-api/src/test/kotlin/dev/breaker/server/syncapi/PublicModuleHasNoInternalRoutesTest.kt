@@ -55,7 +55,11 @@ internal class PublicModuleHasNoInternalRoutesTest : TempDatabaseTest() {
                     if (onInternal) {
                         internalModule(store, SERVICE_KEY)
                     } else {
-                        syncApiModule(AccountFixtures.newStore(temp), store)
+                        syncApiModule(
+                            AccountFixtures.newStore(temp),
+                            store,
+                            dev.breaker.server.syncapi.transcriptions.SyncRouteTestSupport.newStore(temp),
+                        )
                     }
                 }
                 val response = client.post(path) {

@@ -89,23 +89,33 @@ here (N13).
   to tell "an ordinary change" and "the change after a reset" apart, it just
   accepts the new wrapped/plain values for the fields it owns and deletes any
   pending-sealed row still sealed to the `box_pubkey` it just replaced.
-- `POST /v1/sync` — push transcriptions. Idempotent (N12) on the **pair**
-  (`client_id`, `key_version`), not on `client_id` alone: the same pair is a
-  no-op (two devices' AES-256-GCM ciphertexts for the same plaintext never
-  match on their own, because each uses a fresh nonce, so this is a real
-  retry-dedupe, not a content hash); the same `client_id` at a **higher**
-  `key_version` is an atomic replace — this module swaps the stored row for
-  the new one and deletes the old one in the same transaction, only once the
-  new one has landed; the same `client_id` at a **lower** `key_version`, or a
-  brand-new `client_id` below the account's current `key_version`, is
-  refused (409). This one path carries the Phase 11–18 plaintext migration
-  (`key_version` 0 → 1) and every re-key (`n` → `n+1`) alike — neither is a
-  second, same-version push of a row already on file.
-- `GET /v1/transcriptions` — pull user's transcriptions (web FE + app; also
-  what the first-login bootstrap reads to find any plaintext rows to
-  migrate, ADR-006), each with its own `key_version` so a client can tell
-  which of its own rows still need replacing after an interrupted migration
-  or re-key.
+- `POST /v1/sync`: push one transcription. BUILT. Idempotent on the **pair** (`client_id`,
+  `key_version`), not on `client_id` alone. The body is one JSON object with exactly the
+  keys `client_id` (a lowercase canonical UUID), `key_version` (a whole number from 0 up to
+  the largest signed 32-bit integer) and `encrypted` (non-empty standard base64 with correct
+  padding and no whitespace). The server stores `encrypted` as an opaque string and never
+  decodes it. The body is at most 1 MiB (1,048,576 bytes): one byte more is refused with 413
+  `payload_too_large` before it is parsed. Any other shape or field is refused with 400
+  `bad_request` and a fixed message that never echoes the input. For a valid body: the same
+  pair is a no-op (204) and never overwrites the stored text; the same `client_id` at a
+  **higher** `key_version` replaces its one row in place (204); a `key_version` above the
+  account's current one is refused with 409 `conflict` and the message "key_version is above
+  the account's current key_version"; the same `client_id` at a **lower** `key_version`, or
+  a brand-new `client_id` below the account's current `key_version`, is refused with 409
+  `conflict` and the message "A lower key_version is refused for this client_id". The route
+  needs a user session token: no token, a malformed one or an unknown one is 401, and an
+  agent token is 403. A storage failure or a failed session check is 503 `unavailable`.
+  Every account is at `key_version` 0 until the key slices change it, so only key_version 0
+  is accepted today.
+- `GET /v1/transcriptions`: the caller's whole list of transcriptions. BUILT. Oldest first
+  by insert order; a replaced row keeps its place. Each item is
+  `{"client_id","key_version","encrypted","stored_at"}`, where `stored_at` is the UTC time
+  of the row's last write, written as `YYYY-MM-DDTHH:MM:SSZ` (whole seconds). An empty list
+  is `[]`. There is no paging, no filter and no `since` parameter: those are decided, not
+  built. It needs a user session token, with the same 401 and 403 answers as the push, and a
+  storage failure, a stored time that cannot be formatted, or a failed session check is 503
+  `unavailable`. The intended callers are the web FE and the app; the first-login bootstrap
+  that reads the list to migrate plaintext rows (ADR-006) is not built.
 - `GET /v1/sync/pending-sealed` — the authenticated owner's still-sealed
   agent-token job results (ADR-018): `[{id, sealed_box, created_at}]`. The
   owner's client unseals each and re-uploads it via `POST /v1/sync` with
@@ -157,7 +167,17 @@ here (N13).
   are **last-write-wins** (documented default; no locking in v1).
 
 **Planned (ADR-035, ADR-036), not built:**
-- `GET /v1/transcriptions` (listed above, not built yet) is decided, and not built, with a changes-since pull and a cursor. The cursor is a server-assigned change number, unique to the account and strictly increasing on every row write (insert, replace and delete). It is sent as an opaque string, and it is exclusive: the client asks for the changes after it. The client stores it and sends it back as a `since` query parameter on `GET /v1/transcriptions`, and the reply carries the next cursor. A delete is a flag on the row in the same feed: the row keeps its id, client id and change number, loses its body and is marked deleted. A delete record is purged once every live session of the account has pulled past it. A device whose session has expired signs in again and does a full resync, so it needs no old delete records. The sync routes and the transcriptions table come first, as their own slice, before the cursor.
+- The changes-since pull of `GET /v1/transcriptions` is decided, and not built, with a
+  cursor. The cursor is a server-assigned change number, unique to the account and strictly
+  increasing on every row write (insert, replace and delete). It is sent as an opaque
+  string, and it is exclusive: the client asks for the changes after it. The client stores
+  it and sends it back as a `since` query parameter on `GET /v1/transcriptions`, and the
+  reply carries the next cursor. A delete is a flag on the row in the same feed: the row
+  keeps its id, client id and change number, loses its body and is marked deleted. A delete
+  record is purged once every live session of the account has pulled past it. A device whose
+  session has expired signs in again and does a full resync, so it needs no old delete
+  records. The routes and the transcriptions table are BUILT (the two route bullets above).
+  The change number, the `since` parameter and the delete flag stay decided, not built.
 - Sign-in from the website: a start route, where the website creates a one-time code after the person signs in (single use, 5 minutes, a new kind in the token store), and an exchange route, where the app trades the code and its one-time secret for a session token and the sealed key package. The website page makes the sealed package, sealed to the app's public key; the server keeps it until the exchange, which hands it to the app and deletes it, never past the code's 5-minute expiry, and never opens it.
 - Wrong-password limit, on the sign-in path (website and device): after 5 wrong passwords for an account, sign-in for that account waits 15 minutes. It is on by default and the admin can turn it off. This changes the statement above that the repo ships no rate limiting on the auth endpoints, once it is built.
 - An admin route to end a session at once, built over the existing token-store functions (ADR-036).
@@ -251,7 +271,16 @@ completes it by rotating the DEK at the account's next password change
   `client_id` as a duplicate, and never treats a lower one as an update — the
   first replaces, the second is refused (test: push both orders, confirm the
   replace and the 409).
-- A push whose key_version is above the account's current key_version is refused (ADR-006: only the server sets it); built with the sync routes.
+- A push whose key_version is above the account's current key_version is refused with 409
+  `conflict` (ADR-006: only the server sets it). BUILT: the check runs before the row
+  lookup, so such a push never replaces a stored row.
+- A push body over 1 MiB (1,048,576 bytes) is refused with 413 `payload_too_large` before it
+  is parsed, and the exact cap is accepted. BUILT.
+- A repeat of the same pair is a no-op that never overwrites the stored text, and a higher
+  key_version replaces the one row of its client id in place, so the list keeps its place.
+  BUILT.
+- `GET /v1/transcriptions` returns only the rows of the caller's own account, oldest first.
+  BUILT.
 - A username is 1 to 64 characters from `A-Z a-z 0-9 . _ -` only. It is
   stored as typed; uniqueness and every lookup use its lower-case form, so
   "Bob" and "bob" cannot both exist and a lookup under another case finds the
@@ -335,6 +364,31 @@ AuthApi, SyncApi, AdminApi
 - Session expiry: `TokenStoreSessionExpiryTest.kt` (a new session stores now + 30 days; a session used on day 29 stays valid and moves forward; unused for 30 days is refused, one second earlier is not; an expired session stays refused after a later try; each use pushes the date out; a session with no expiry gets one at its next use; an agent token is not moved by a use), with `TokenStoreResolveTest.kt` (a session used every day still resolves after ten years) and `TokenStoreIssueTest.kt` (the stored expiry).
 - Internal token check: `tokens/TokenStorePeekTest.kt` (peek gives resolve's answer for a live session and writes nothing; it refuses expired, revoked, unknown and malformed tokens) `servicecheck/ServiceKeyTest.kt` (a blank, empty or whitespace-only key cannot be built; a missing or blank header, a longer, shorter or different key never matches) and `servicecheck/ServiceCheckRoutesTest.kt` (the key is checked first; every not-live cause gives the same 401; the 200 body; use moves a session expiry and peek does not; an agent token is never moved; neither the key nor the token reaches the output or a body; an oversized token is refused).
 - Internal listener and key file: `SyncApiConfigInternalTest.kt` (the internal settings and their defaults; the wildcard family refused for the internal host, with and without surrounding spaces; the public wildcard family and the loopback spellings colliding with the internal listener on one port; equal host names colliding; a named public host and a loopback internal host accepted; a NUL character in the database path or the key file path refused with a fresh message), `servicecheck/ServiceKeyFileTest.kt` (a new key with owner-only mode and no newline; the second start returns the same text without rewriting; malformed, too large, group or other readable, and missing-folder refusals name the path and never the key text; keys with underscores or a capital Z accepted; characters just outside the alphabet refused), `servicecheck/ServiceKeyFileRaceTest.kt` (a start that loses the race returns the winner's text, and a winner readable by its group is refused and its text is never returned; no temporary file is left; a leftover temporary file does not block a start; a failed or unsupported link is refused; the key text is in no refusal message), `servicecheck/ServiceCheckSourceScanTest.kt` (no servicecheck source file prints, writes to a system stream, logs or prints a stack trace; the scan reports each token in a text that holds it), `InternalModuleTest.kt` (the two routes with the right key; 403 for a wrong or missing key; 401 for no token; a GET is not 200; the health, auth and admin paths are 404 on the internal listener, and the public listener answers them, as the controls show) and `PublicModuleHasNoInternalRoutesTest.kt` (the two internal routes are 404 on the public listener, with the internal listener as the control). `main` is not covered by unit tests, because it needs sockets.
+- Transcriptions (BUILT): under `db/`, `SchemaV3MigrationTest.kt` (a fresh database ends at
+  version 3 with the transcriptions table and key_version 0 for a new account; an upgrade
+  from version 2 keeps the account at key_version 0). Under `transcriptions/`:
+  `TranscriptionStoreTest.kt` (a new client id; the same pair as a no-op; the same pair with
+  other text as a no-op; a higher key_version as one replaced row; a lower key_version
+  refused; an above-account push refused before the row lookup; a new client id below the
+  account refused; two accounts with one client id do not touch each other; a replace keeps
+  the list place; an account with no rows lists nothing; a push for a missing account
+  throws); `TranscriptionConcurrencyTest.kt` (two concurrent pushes of one pair leave one
+  row); `SyncRoutesPushTest.kt` (204 for a first and for a repeat push; 413 one byte over
+  the cap, with a declared length or chunked, and 204 at the cap; a text holding a slash and
+  a text with two padding characters are stored and listed; 400 for each validation failure
+  with its fixed message; 409 above the account; 409 for a lower version of a stored client
+  id; the largest key_version reaches the account check); `SyncRoutesListTest.kt` (an empty
+  list; the row shape with the injected clock time; oldest first; one account never sees
+  another account's rows; 503 for a stored time that cannot be formatted);
+  `SyncRoutesAuthTest.kt` (401 with no token, an unknown, malformed, revoked or expired
+  session token, or a Basic scheme with a live token; 403 for an agent token on both routes;
+  401 for a revoked agent token; a session token as the control);
+  `SyncRoutesClosedDatabaseTest.kt` (503 with the fixed body on a closed database, on both
+  routes); `SyncRoutesTokenStoreClosedTest.kt` (503 with the fixed body when the token store
+  is closed, on both routes); `SyncApiModuleRoutesTest.kt` (the public module mounts the
+  push and the list); `SyncTimeFormatTest.kt` (the stored time format, the leap day, dropped
+  milliseconds). Test-only helpers: `SyncRouteTestSupport.kt` and `TranscriptionFixtures.kt`
+  (the fixtures set accounts.key_version by SQL, because the store never does).
 - Contract: `tests/contract/test_sync_api_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_sync_api_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
@@ -399,8 +453,8 @@ agents, not required: an outside contributor may write the code themselves
   single-lane coroutine dispatcher.
 - The token store knows no caller: a route must check the token's `kind` and
   its effective scope itself. Which endpoint takes which token:
-  - `POST /v1/auth/keys`, `POST /v1/auth/change-password`, `POST /v1/sync` and
-    `GET /v1/sync/pending-sealed` need a session token; an agent token is
+  - `POST /v1/auth/keys`, `POST /v1/auth/change-password`, `POST /v1/sync`,
+    `GET /v1/transcriptions`, `GET /v1/sync/pending-sealed` need a session token; an agent token is
     refused.
   - `POST /v1/audio/transcriptions` and `GET /v1/jobs/{id}` accept an agent
     token or a session token.

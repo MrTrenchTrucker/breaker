@@ -61,7 +61,11 @@ internal class InternalModuleTest : TempDatabaseTest() {
                 application {
                     when (mount) {
                         Mount.INTERNAL -> internalModule(store, SERVICE_KEY)
-                        Mount.PUBLIC -> syncApiModule(AccountFixtures.newStore(temp), store)
+                        Mount.PUBLIC -> syncApiModule(
+                            AccountFixtures.newStore(temp),
+                            store,
+                            dev.breaker.server.syncapi.transcriptions.SyncRouteTestSupport.newStore(temp),
+                        )
                     }
                 }
                 val response = when (verb) {
