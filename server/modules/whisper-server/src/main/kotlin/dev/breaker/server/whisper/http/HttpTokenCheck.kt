@@ -31,7 +31,7 @@ internal class HttpTokenCheck(
         .connectTimeout(connectTimeout)
         .build()
 
-    private val accountIdRegex = Regex("\"account_id\"\\s*:\\s*(\\d{1,18})")
+    private val accountIdRegex = Regex("\"account_id\"\\s*:\\s*(\\d{1,18})\\s*[,}]")
 
     override suspend fun use(token: String): TokenAnswer =
         check("/internal/v1/token/use", token)

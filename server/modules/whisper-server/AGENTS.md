@@ -181,7 +181,7 @@ agents, not required: an outside contributor may write the code themselves
 
 ## Token check client
 - `TokenCheck` is the port that asks sync-api over HTTP whether a presented token is live: `use` (moves a session token's expiry) and `peek` (read only). `HttpTokenCheck` is the adapter: it POSTs to `/internal/v1/token/use` or `/internal/v1/token/peek`, with the service key in `X-Service-Key` and the presented token in `X-Presented-Token`.
-- The answer is `Live(accountId)` for a 200 that carries an account number, `NotLive` for a 401, and `Unavailable` for anything else (403, 5xx, a 200 without an account number, a refused connection, a timeout). The caller refuses the request on `Unavailable`.
+- The answer is `Live(accountId)` for a 200 whose body parses as `"account_id":N` with N a whole number of 1 to 18 digits followed by optional white space and then a comma or closing brace; `NotLive` for a 401; and `Unavailable` for anything else (403, 5xx, a 200 without a clean account number, 19+ digits, `12abc`, `7.5`, `-3`, a refused connection, a timeout). The caller refuses the request on `Unavailable`.
 - A token that is empty, or holds a character outside visible ASCII, is answered `NotLive` without a call.
 - The call is bounded: 3 s to connect and 5 s in total, and the 5 s cover the answer body as well as the headers; the answer body is read up to 4096 bytes, more is `Unavailable`. Every failure of the call except a cancel of the caller is `Unavailable`. The token and the key are never logged or put in an error text.
 
