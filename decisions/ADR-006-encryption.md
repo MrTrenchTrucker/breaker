@@ -316,7 +316,7 @@ alone authorizing a password change.
 - **R2, key_version 0.** The `encrypted` field is the standard padded base64, with no line wrap, of the R1 body. No cryptography is applied. This is the plaintext of Phases 11-18 in the sense of the 2026-10-01 amendment above: development-only until Phase 19. key_version 1 or higher is the Phase 19 form and is not built.
 - **R4, client id.** A client id is a lowercase canonical UUID. The pattern is in openapi.yaml. sync-api enforces it when its sync routes are built.
 - **R5, stored time.** TranscriptionRecord.created_at is renamed stored_at: it is when the server stored the row. The created_at inside the R1 body is when the transcription was made.
-- **R7, tombstones.** Deletes and tombstones are not in the R1 body. They are a separate sync path, designed later with the sync tombstone port.
+- **R7, tombstones.** Deletes and tombstones are not in the R1 body. A pulled delete is a flag on the row in the same change feed as the rows, as ADR-035 decides (decided and not built). How a delete is pushed is to be designed.
 
 ### Planned for Phase 19, not built
 
@@ -343,4 +343,5 @@ What this amendment changes:
 - A device may hold the account's keys without having derived the KEK itself. For that device, the trust in the key derivation is the website page's, not the device's.
 - The wrong-password limit in ADR-036 is the first limit on the sign-in path. The statements above that this repo ships no rate limiting describe the code before ADR-036 is built.
 
-Nothing of this is built. The format and the key type of the sealed package are to be designed (ADR-035).
+Nothing of this is built. The sealed package is an anonymous sealed box, the construction ADR-018 fixes, sealed to an X25519 key pair that the app makes in memory for one sign-in (decided, not built). The encoding of the keys inside the package is still to be designed (ADR-035).
+Planned, not built, in the same slice as the AAD change of point P3 above, so that the port changes once: `unwrapDek` takes the KEK, and the caller derives the KEK; a second operation, `openSignInPackage(sealedPackage, signInPrivateKey)`, opens the sign-in package with the sign-in private key and returns the account keys. Until that slice lands, the code has no second operation.

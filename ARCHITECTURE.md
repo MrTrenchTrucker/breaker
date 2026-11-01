@@ -582,7 +582,7 @@ VPN can use Breaker. Each user gets an isolated namespace:
 - Settings / API tokens
 
 **Auth:** server issues a token (session/JWT) on login; the Android app stores it
-in the Android Keystore (never plaintext). The web FE uses the same auth. All
+in the Android Keystore, decided and not built (never plaintext). The web FE uses the same auth. All
 server APIs (sync, training, STT) require a valid user token. **Isolation is
 enforced server-side** (N13) — never trust client-side scoping. The job
 API (whisper-server) is ruled to ask sync-api whether a token is live and to fail closed

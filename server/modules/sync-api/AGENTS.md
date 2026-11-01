@@ -149,7 +149,7 @@ here (N13).
   (DEK/keypair rotation at the account's next password change) are ADR-018's
   to state, not this module's to paper over. Logged as an event (F32).
 - `POST /v1/admin/clear-store` — **admin-only**: clear transcriptions per-user
-  or for all users, with confirmation (F29, T23). Tombstones propagate to phones.
+  or for all users, with confirmation (F29, T23). Deleted rows reach phones through the change feed, as a flag on the row (decided, not built).
 - Retention: transcriptions TTL = **3 months** (ADR-010 precise rule); purge job enforces it (F28).
 - **Log policy (F32):** events only, per-user — auth, admin actions, queue
   health. **Never plaintext transcriptions** (T22).
@@ -157,11 +157,11 @@ here (N13).
   are **last-write-wins** (documented default; no locking in v1).
 
 **Planned (ADR-035, ADR-036), not built:**
-- `GET /v1/transcriptions` (listed above, not built yet) is built with a changes-since pull and a cursor. The wire form of the cursor is to be designed. Delete records are kept until every device that held the row has pulled it; how long they are kept for a device that never comes back is to be designed.
-- Sign-in from the website: a start route, where the website creates a one-time code after the person signs in (single use, 5 minutes, a new kind in the token store), and an exchange route, where the app trades the code and its one-time secret for a session token and the sealed key package. The website page makes the sealed package, sealed to the app's public key; the server stores and returns it and never opens it.
+- `GET /v1/transcriptions` (listed above, not built yet) is decided, and not built, with a changes-since pull and a cursor. The cursor is a server-assigned change number, unique to the account and strictly increasing on every row write (insert, replace and delete). It is sent as an opaque string, and it is exclusive: the client asks for the changes after it. The client stores it and sends it back as a `since` query parameter on `GET /v1/transcriptions`, and the reply carries the next cursor. A delete is a flag on the row in the same feed: the row keeps its id, client id and change number, loses its body and is marked deleted. A delete record is purged once every live session of the account has pulled past it. A device whose session has expired signs in again and does a full resync, so it needs no old delete records. The sync routes and the transcriptions table come first, as their own slice, before the cursor.
+- Sign-in from the website: a start route, where the website creates a one-time code after the person signs in (single use, 5 minutes, a new kind in the token store), and an exchange route, where the app trades the code and its one-time secret for a session token and the sealed key package. The website page makes the sealed package, sealed to the app's public key; the server keeps it until the exchange, which hands it to the app and deletes it, never past the code's 5-minute expiry, and never opens it.
 - Wrong-password limit, on the sign-in path (website and device): after 5 wrong passwords for an account, sign-in for that account waits 15 minutes. It is on by default and the admin can turn it off. This changes the statement above that the repo ships no rate limiting on the auth endpoints, once it is built.
 - An admin route to end a session at once, built over the existing token-store functions (ADR-036).
-- A device list for an account (one row per session): sign-out for each device, and "sign out all my devices" from the website.
+- A device list for an account, decided and not built: one row per session, with a nullable device name that the app gives at sign-in and the person may rename, and a last-seen date derived from the session's sliding expiry. There is no devices table. Sign-out for each device, and "sign out all my devices" from the website.
 
 **Roles (F22, T16):**
 - `admin` — first registered account; can assign/revoke admin, force update

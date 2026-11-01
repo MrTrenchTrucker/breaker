@@ -45,7 +45,7 @@ unsealing.
 3. **Ordinary login:** re-derive KEK + auth verifier from the password and
    the stored salt/params; send only the auth verifier; unwrap the DEK with
    the KEK and the box private key with the DEK; cache both in memory only
-   (Android Keystore holds the wrapped copies, never the unwrapped keys).
+   (the Android Keystore is to hold the wrapped DEK, never the unwrapped keys; decided and not built).
    Also recompute the box public key from the just-unwrapped private key
    (`crypto_scalarmult_base`) and compare it to the `box_pubkey` the login
    response carried — a mismatch means the stored key was swapped since this
