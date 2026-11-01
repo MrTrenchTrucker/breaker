@@ -9,9 +9,9 @@ import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
 
-// The two internal routes that whisper-server will call. They are not mounted on any
-// listener here: where they listen and where the service key is made come in a later
-// slice. They are never on the VPN-facing interface.
+// The two internal routes that whisper-server calls. They are mounted only on the internal
+// listener, never on the public listener or the VPN interface. The service key they check
+// is made by the server on its first start.
 internal fun Route.serviceCheckRoutes(store: TokenStore, serviceKey: String) {
     val key = ServiceKey(serviceKey)
 

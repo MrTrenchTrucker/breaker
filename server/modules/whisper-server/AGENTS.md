@@ -100,6 +100,7 @@ TranscriptionApi, QueueWorker
 ## Does Not Own
 - The configured transcription service itself
 - Auth (sync-api)
+- TLS and certificates: Breaker serves plain HTTP; an admin who wants https puts a reverse proxy in front (ADR-034)
 
 ## Test Locations
 - Unit (Kotlin/Ktor, ADR-017): `server/modules/whisper-server/src/test/kotlin/`, created with the module's first code. Run: `./gradlew :server:modules:whisper-server:test` once this module's build file applies the Kotlin plugin (today it applies `base` only, so there is no test task yet).
@@ -141,10 +142,8 @@ agents, not required: an outside contributor may write the code themselves
   `BREAKER_WHISPER_PORT`, `BREAKER_WHISPER_DB` and `BREAKER_WHISPER_FORWARDER_URL`; it binds 127.0.0.1 by default,
   refuses a bad configuration, and shuts down cleanly with the active job put back in the queue. An `IOException`
   while reading an upload is a failure of its own, never a 413.
-- The `server_sync_api` entry under Depends On matches `modules.toml` today but is to be DROPPED: no code imports
-  sync-api, the branch's `SourceScanTest` forbids it, and the sealing hand-off to sync-api (ADR-018) is unshipped
-  (Phase 19/20). ADR-018's amendment of 2026-10-20 chooses no transport; a new ADR decides the transport, and any new
-  edge, when that phase is ordered. The registry edit is a code-order change, not a docs one.
+- The link from whisper-server to sync-api is an HTTP contract, not an import. whisper-server asks sync-api over HTTP whether a token is live, through the two internal token-check routes and a service key. No code imports sync-api, so no sync-api entry is listed under Depends On, and modules.toml lists none.
+  The sealing hand-off to sync-api (ADR-018) is unshipped (Phase 19/20). ADR-018's amendment of 2026-10-20 chooses no transport; a new ADR decides the transport when that phase is ordered.
 - FIFO: never start the next job until the active one returns; retry 3× at 10 s.
 - Written in Kotlin on the JVM with Ktor, compiled against api-contracts' Kotlin types (ADR-017).
 - The seal step only ever runs for an agent-token job, and only seals a copy
