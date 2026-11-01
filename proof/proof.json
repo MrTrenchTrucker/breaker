@@ -1,0 +1,246 @@
+{
+ "name": "proof-whisper-token-bound",
+ "tip": {
+  "tree": "69a9c947423c172e9ecb038c1c1958f49de78dbb"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "whisper-server: the token check reads a bounded answer and the total timeout covers the body",
+   "base_tree": "2891454e6c1dfd3c3c00eb71f4c039736f62163c",
+   "item_tip_tree": "69a9c947423c172e9ecb038c1c1958f49de78dbb",
+   "new_production_classes": [
+    "BoundedBody"
+   ],
+   "test_fixtures_overlaid": [],
+   "red_not_run": "the new test class needs BoundedBody and the bounded read, which do not exist on the base, so it does not compile there and no red leg is run. The mutants and the two controls carry the proof."
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/BoundedBody.kt",
+     "anchor": "            if (stream.size() + size > limit) {",
+     "replacement": "            if (stream.size() + size >= limit) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "exactly 4096 bytes with account_id at the start is live"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/BoundedBody.kt",
+     "anchor": "                future.complete(null)",
+     "replacement": "                future.complete(stream.toByteArray())"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a body over the cap with a good account number at the start is unavailable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/BoundedBody.kt",
+     "anchor": "        if (!over) future.complete(stream.toByteArray())",
+     "replacement": "        if (!over) future.complete(null)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "exactly 4096 bytes with account_id at the start is live",
+    "control small 200 is live and 401 is not live"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "        internal const val MAX_TOKEN_ANSWER_BYTES: Int = 4096",
+     "replacement": "        internal const val MAX_TOKEN_ANSWER_BYTES: Int = 4095"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "exactly 4096 bytes with account_id at the start is live"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "        internal const val MAX_TOKEN_ANSWER_BYTES: Int = 4096",
+     "replacement": "        internal const val MAX_TOKEN_ANSWER_BYTES: Int = 8192"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a body over the cap with a good account number at the start is unavailable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "                .orTimeout(totalTimeout.toMillis(), TimeUnit.MILLISECONDS)",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "headers sent then body held back beyond total timeout is unavailable",
+    "partial account_id then body held back is unavailable not live"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "                    401 -> TokenAnswer.NotLive",
+     "replacement": "                    401 -> TokenAnswer.Live(0)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "control small 200 is live and 401 is not live"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "            } catch (e: Exception) {",
+     "replacement": "            } catch (e: java.lang.IllegalStateException) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "headers sent then body held back beyond total timeout is unavailable",
+    "partial account_id then body held back is unavailable not live"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "                        val body = if (bodyBytes.size > MAX_TOKEN_ANSWER_BYTES) null else String(bodyBytes, Charsets.UTF_8)",
+     "replacement": "                        val body = if (bodyBytes.size >= MAX_TOKEN_ANSWER_BYTES) null else String(bodyBytes, Charsets.UTF_8)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "exactly 4096 bytes with account_id at the start is live"
+   ],
+   "rule": "",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "server/modules/whisper-server",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "                    401 -> TokenAnswer.NotLive",
+     "replacement": "                    401 -> TokenAnswer.Live(0)"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "server/modules/whisper-server",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/BoundedBody.kt",
+     "anchor": "    private var over = false",
+     "replacement": "    private var over = false // unchanged behaviour"
+    }
+   ]
+  }
+ ]
+}
