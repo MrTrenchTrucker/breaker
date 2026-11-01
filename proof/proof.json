@@ -1,0 +1,252 @@
+{
+ "name": "proof-sync-api-token-check",
+ "tip": {
+  "tree": "db4b12afefac3c3f88f673ef27df90f069e1736f"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "sync-api: a read-only token check and the two internal routes whisper-server will call",
+   "base_tree": "34665d18be7f91dae2a914d7a8488243735f3c6e",
+   "item_tip_tree": "db4b12afefac3c3f88f673ef27df90f069e1736f",
+   "new_production_classes": [
+    "ServiceCheckRoutes",
+    "ServiceKey"
+   ],
+   "test_fixtures_overlaid": [],
+   "red_not_run": "the new test files call TokenStore.peek and serviceCheckRoutes, which do not exist on main, so they do not compile there and no red leg is run. The mutants and the two controls carry the proof."
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/tokens/TokenStore.kt",
+     "anchor": "        return db.transaction<ResolvedToken?> { connection -> readLiveToken(connection, hash, nowMs) }",
+     "replacement": "        return resolve(presented)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "peek never moves the session expiry",
+    "peek with a live session token gives the same 200 and moves nothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceCheckRoutes.kt",
+     "anchor": "            refuse(call, HttpStatusCode.Unauthorized, \"not_live\")",
+     "replacement": "            refuse(call, HttpStatusCode.Forbidden, \"not_live\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an unknown token gives 401 and the same body on both routes",
+    "an expired session and a revoked agent token give the same 401 body",
+    "a missing or malformed presented token gives 401 and the same body",
+    "an oversized presented token gives 401 and the same body on both routes"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceCheckRoutes.kt",
+     "anchor": "        answer(call, store.resolve(call.request.headers[\"X-Presented-Token\"] ?: \"\"))",
+     "replacement": "        answer(call, store.peek(call.request.headers[\"X-Presented-Token\"] ?: \"\"))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "use with a live session token gives 200 and moves the expiry to now plus thirty days"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceCheckRoutes.kt",
+     "anchor": "        answer(call, store.peek(call.request.headers[\"X-Presented-Token\"] ?: \"\"))",
+     "replacement": "        answer(call, store.resolve(call.request.headers[\"X-Presented-Token\"] ?: \"\"))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "peek with a live session token gives the same 200 and moves nothing"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceKey.kt",
+     "anchor": "        return MessageDigest.isEqual(",
+     "replacement": "        return presented.startsWith(text) || MessageDigest.isEqual("
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a wrong key gives 403 and the fixed body on both routes",
+    "a key that is longer or shorter or differs by one character does not match"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceCheckRoutes.kt",
+     "anchor": "            \"\"\"{\"account_id\":${resolved.accountId},\"kind\":\"${resolved.kind.dbValue}\",\"role\":\"${resolved.role.dbValue}\"}\"\"\",",
+     "replacement": "            \"\"\"{\"account_id\":${resolved.accountId},\"kind\":\"session\",\"role\":\"${resolved.role.dbValue}\"}\"\"\","
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an agent token is reported as an agent with its owner role",
+    "an agent token with an expiry is not moved by use"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceKey.kt",
+     "anchor": "        require(text.isNotBlank())",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an empty key cannot be built",
+    "a whitespace only key cannot be built"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceKey.kt",
+     "anchor": "        if (presented == null) return false",
+     "replacement": "        if (presented == null) return true"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a missing key gives 403 and the fixed body on both routes",
+    "a missing or blank header never matches"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceKey.kt",
+     "anchor": "        require(text.isNotBlank())",
+     "replacement": "        require(text.isNotEmpty())"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a whitespace only key cannot be built"
+   ],
+   "rule": "",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "server/modules/sync-api",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceCheckRoutes.kt",
+     "anchor": "        answer(call, store.resolve(call.request.headers[\"X-Presented-Token\"] ?: \"\"))",
+     "replacement": "        answer(call, store.peek(call.request.headers[\"X-Presented-Token\"] ?: \"\"))"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "server/modules/sync-api",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceCheckRoutes.kt",
+     "anchor": "    val key = ServiceKey(serviceKey)",
+     "replacement": "    val key = ServiceKey(serviceKey) // unchanged behaviour"
+    }
+   ]
+  }
+ ]
+}
