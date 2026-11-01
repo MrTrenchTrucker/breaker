@@ -104,6 +104,7 @@ TranscriptionApi, QueueWorker
 ## Test Locations
 - Unit (Kotlin/Ktor, ADR-017): `server/modules/whisper-server/src/test/kotlin/`, created with the module's first code. Run: `./gradlew :server:modules:whisper-server:test` once this module's build file applies the Kotlin plugin (today it applies `base` only, so there is no test task yet).
 - Token check client: `server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/http/HttpTokenCheckTest.kt` runs `HttpTokenCheck` against a local fake server on 127.0.0.1: live, not live, unavailable (403, 500, no account number, refused connection, timeout), both paths and both headers, an empty or non-ASCII token never sent, a blank address or key refused, and nothing printed.
+- Token check client, bounded answer: `server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/http/HttpTokenCheckBoundTest.kt` runs `HttpTokenCheck` against fake servers that send too many bytes, exactly 4096 bytes, headers and then a body held back past the total timeout, a partial answer then a held body, a normal answer and a 401, and a closed port.
 - Contract: `tests/contract/test_whisper_server_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_whisper_server_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
@@ -185,7 +186,7 @@ agents, not required: an outside contributor may write the code themselves
 - `TokenCheck` is the port that asks sync-api over HTTP whether a presented token is live: `use` (moves a session token's expiry) and `peek` (read only). `HttpTokenCheck` is the adapter: it POSTs to `/internal/v1/token/use` or `/internal/v1/token/peek`, with the service key in `X-Service-Key` and the presented token in `X-Presented-Token`.
 - The answer is `Live(accountId)` for a 200 that carries an account number, `NotLive` for a 401, and `Unavailable` for anything else (403, 5xx, a 200 without an account number, a refused connection, a timeout). The caller refuses the request on `Unavailable`.
 - A token that is empty, or holds a character outside visible ASCII, is answered `NotLive` without a call.
-- The call is bounded: 3 s to connect and 5 s in total. The token and the key are never logged or put in an error text.
+- The call is bounded: 3 s to connect and 5 s in total, and the 5 s cover the answer body as well as the headers; the answer body is read up to 4096 bytes, more is `Unavailable`. Every failure of the call except a cancel of the caller is `Unavailable`. The token and the key are never logged or put in an error text.
 
 ## HTTP front
 
