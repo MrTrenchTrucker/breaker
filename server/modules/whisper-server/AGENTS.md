@@ -34,7 +34,7 @@ itself; it queues, shapes the contract, and proxies.
   exists as its own container instead of as a patch to Whisper X (F23).
 - Health: `GET /health` → `{ status: "ok", forwarding_to: "...", uptime }`, unauthenticated. `uptime` is the running time rendered as `HhMmSs` (for example `1h2m3s`), measured from a monotonic clock (`System.nanoTime`), so a wall-clock step cannot change it. `forwarding_to` is the configured downstream reduced to scheme + host + port only (no path, userinfo, query or fragment, any of which can carry a token); it is the literal `unparseable` when the URL is not http or https, has no host, or has a port that is not 1-65535. Both values are computed once at startup by `buildTranscriptionApi`.
 
-**Build phase:** Phase 4; it can start right after Phase 0. The token checks and owner sealing land with `sync-api` (Phase 19/20, not built). Jobs are to be owned by the token's account and a missing, unknown, revoked or expired token refused; how this module learns that a token is live is an open question (ARCHITECTURE R31). Needs first: `api-contracts`.
+**Build phase:** Phase 4; it can start right after Phase 0. The token checks and owner sealing land with `sync-api` (Phase 19/20, not built). Jobs are to be owned by the token's account and a missing, unknown, revoked or expired token refused; this module will ask sync-api over HTTP whether a token is live and fail closed when it cannot (ARCHITECTURE R31, ADR-015); the enqueue moves a session token's expiry, polls and the result fetch use a read-only check; not built. Needs first: `api-contracts`.
 
 ## Invariants
 - Correct JSON for a known test WAV (golden transcript match).

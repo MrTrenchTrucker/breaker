@@ -582,8 +582,9 @@ VPN can use Breaker. Each user gets an isolated namespace:
 **Auth:** server issues a token (session/JWT) on login; the Android app stores it
 in the Android Keystore (never plaintext). The web FE uses the same auth. All
 server APIs (sync, training, STT) require a valid user token. **Isolation is
-enforced server-side** (N13) — never trust client-side scoping. How the job
-API (whisper-server) learns that a token is live is not decided yet (R31).
+enforced server-side** (N13) — never trust client-side scoping. The job
+API (whisper-server) will ask sync-api whether a token is live and fail closed
+(R31, ADR-015); nothing of that is built yet.
 
 **Session lifetime (ADR-031):** a session token expires 30 days after its last
 use, and every authenticated use moves the expiry to 30 days from that moment.
@@ -889,7 +890,7 @@ smoke-test gate [1].
       (immediate session + wrapped keys, and the ability to overwrite them
       via change-password) — not merely offline-guessing bait (ADR-006).
 - APK tampering in transit → HTTPS + SHA-256 of APK published on the FE.
-- See `docs/03-security-threat-model.md` for the full table (T1–T31).
+- See `docs/03-security-threat-model.md` for the full table (T1–T32).
 
 ## 17. Build Order for Agents
 
@@ -984,6 +985,9 @@ See `docs/04-build-order.md`. Summary:
       principle, details to be designed (ADR-032).
 - D36. **Signed out = a quiet notice on Home, nothing forced** — the app keeps
       working offline (ADR-033).
+- D37. **whisper-server asks sync-api whether a token is live** — over HTTP,
+      fail closed, internal route with a service key made at first start
+      (ADR-015, amended; R31).
 - D21. **Configurable transcription service** — admin-configured endpoint
       (Docker/IP/external), server-side proxy, connectivity test (F26).
 - D22. **Agent tokens** — admin-generated scoped API tokens; agents use the same
@@ -1065,12 +1069,21 @@ See `docs/04-build-order.md`. Summary:
       + type-to-confirm + clear warning (F33).
 - R30. **Last-admin lockout** — prevented by rule: last admin cannot delete or
       be demoted (F33).
-- R31. **How whisper-server learns that a token is live — OPEN.** Jobs are to be
-      owned by the token's account, and a missing, unknown, revoked or expired
-      token refused with nothing enqueued, under the same expiry rule as
-      sync-api (ADR-031). The mechanism is not chosen; the options are being
-      written up with evidence, and the project owner and the maintainers rule.
-      Today the job API checks no token and every job has one fixed owner.
+- R31. **How whisper-server learns that a token is live — RULED, not built.**
+      Jobs are to be owned by the token's account, and a missing, unknown,
+      revoked or expired token refused with nothing enqueued, under the same
+      expiry rule as sync-api (ADR-031). The maintainers ruled that
+      whisper-server asks sync-api over HTTP (ADR-015, amended): the enqueue is
+      the use that moves a session token's expiry; polls and the result fetch
+      use a read-only check with the same live rule; if sync-api cannot be
+      reached the job is refused (503, nothing enqueued) and the phone falls back
+      to on-device; the sync-api route is internal only, never on the
+      VPN-facing interface, protected by a service key the server stack makes
+      for itself at first start; a revoke never lags. Rejected: a shared
+      database file, the token code as a shared library, a self-contained signed
+      token. Where the route listens and where the key is kept belong to the
+      deploy design and are not decided here. Today the job API checks no token
+      and every job has one fixed owner.
 
 **Deferred / out of scope (user decisions):**
 - **Auth hardening** (brute-force protection, refresh) — the VPN perimeter is the

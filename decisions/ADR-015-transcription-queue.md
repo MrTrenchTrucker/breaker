@@ -1,6 +1,6 @@
 # ADR-015: Async transcription job queue, hosted in Breaker's own whisper-server (not the Whisper X container)
 
-**Status:** accepted, amended 2026-11-01 (the job owner will come from the token; how the token is checked is open)
+**Status:** accepted, amended 2026-11-01 (the job owner will come from the token, checked by asking sync-api)
 **Date:** 2026-09-30
 
 ## Context
@@ -29,4 +29,13 @@ A queue design was already ratified on F23 (queue) and F26/F27 (admin-configurab
 - `shared/modules/api-contracts` keeps exactly one transcription contract (async); the sync variant is deleted from the spec, not just deprioritized.
 - Out of scope for this ADR: how queued job results are protected at rest (agent tokens vs. encryption by default, F24/F27) — a separate decision.
 
-Amended 2026-11-01: jobs are to be owned by the account of the session token (ADR-031) and a missing, unknown, revoked or expired token refused with nothing enqueued, instead of one fixed owner. How whisper-server learns that a token is live is an open question (ARCHITECTURE R31); nothing is built yet.
+Amended 2026-11-01: jobs are to be owned by the account of the session token (ADR-031) and a missing, unknown, revoked or expired token refused with nothing enqueued, instead of one fixed owner. The same day the open question was ruled by the maintainers, in the interest of the owner's rules (a revoke at once, the 30-day slide of ADR-031, and an app that keeps working offline, ADR-033):
+
+1. whisper-server asks sync-api over HTTP whether a token is live. sync-api stays the only writer and the only place the token rule lives.
+2. A job is owned by the account the token belongs to. A missing, unknown, revoked or expired token is refused and nothing is enqueued.
+3. If sync-api cannot be reached, whisper-server refuses the job (503, nothing enqueued): it fails closed. The phone already falls back to on-device dictation on a server failure (ADR-002), so the user keeps dictating.
+4. The enqueue is the use that moves a session token's expiry. Polls and the result fetch use a read-only check with the same live rule and no write, so a revoke or an expiry bites at once and there is no write per poll.
+5. The sync-api side is an internal route: never on the VPN-facing interface, reachable only by whisper-server inside the server stack, and protected by a service key that the stack makes for itself at first start (no admin set-up; the same principle as ADR-032). Where it listens and where the key is kept are part of the deploy design and are not decided here.
+6. A revoke never lags. No migration of jobs stored under the old fixed owner is required.
+
+Rejected: whisper-server opening sync-api's database file (a second writer and schema coupling); the token code as a shared library (it shares code, not data); a self-contained signed token (it cannot be revoked at once and cannot slide without a lookup). Nothing of this is built yet.

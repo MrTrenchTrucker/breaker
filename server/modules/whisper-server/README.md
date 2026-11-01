@@ -18,4 +18,4 @@ unknown id gives the same `404`. Audio is erased on completion (ADR-010), unchan
 
 The `model` part is optional and ignored - the configured downstream model serves every job today; per-request model selection is a later schema change. There is no auth on these routes yet; every job is enqueued under one owner until the auth module lands.
 
-**Token check (open).** Jobs are to be owned by the account of the caller's session token, and a missing, unknown, revoked or expired token refused with nothing enqueued; today the service checks no token. How it learns that a token is live is an open question (`ARCHITECTURE.md` R31).
+**Token check (ruled, not built).** Jobs are to be owned by the account of the caller's session token, and a missing, unknown, revoked or expired token refused with nothing enqueued; today the service checks no token. It will ask sync-api over HTTP whether a token is live (`ARCHITECTURE.md` R31, ADR-015): the enqueue moves the token's expiry, polls and the result fetch use a read-only check, and when sync-api cannot be reached the job is refused (503) and nothing is enqueued.

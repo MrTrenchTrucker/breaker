@@ -29,4 +29,4 @@ Rules out: a session that lives for ever; "session expiry" as deferred auth hard
 
 Amends: ADR-009 (tokens). Threat model: T30 (lost or stolen phone).
 
-Not decided here: how the job API (whisper-server) learns that a token is live, so that an expired or revoked token is refused there too. That is an open question: `ARCHITECTURE.md` R31. Until it is decided and built, the job API checks no token.
+How the job API (whisper-server) learns that a token is live, so that an expired or revoked token is refused there too, is ruled in ADR-015 (amended) and `ARCHITECTURE.md` R31: it asks sync-api. Until that is built, the job API checks no token.
