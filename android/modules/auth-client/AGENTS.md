@@ -137,7 +137,6 @@ agents, not required: an outside contributor may write the code themselves
 ## Known Gotchas
 - Tokens go in the Android Keystore, never plaintext (decided and not built); roles server-enforced.
 - Key derivation reaches it as `core.KeyDerivation` (`deriveKeys`), wired by `android/app` (ADR-001); it never imports `crypto`.
-- `core.KeyDerivation` (`deriveKeys`, implemented by the crypto module) comes
-  when Phase 11 builds it; the DEK/box-keypair calls stay on
-  `core.CryptoService` and come when Phase 19 builds them (ADR-006, ADR-018) —
-  this card describes the module's target flow, not a port that exists yet.
+- `core.KeyDerivation` (`deriveKeys`, implemented by the crypto module) is built: `KdfImpl` in the crypto module derives the keys. The five `core.CryptoService` operations
+  are built (see the core card); the DEK/box-keypair calls stay on `core.CryptoService` and come when Phase 19 builds them (ADR-006, ADR-018) —
+  this card's flow for those calls is still the target.
