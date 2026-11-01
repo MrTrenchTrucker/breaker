@@ -99,7 +99,7 @@ as described in ADR-022 as amended:
 
 Only encrypted (https) connections are allowed. Clear text is switched off in the
 manifest and in `res/xml/network_security_config.xml`, which has no exceptions and
-trusts only the system's certificate authorities (the paired-server trust of ADR-032, decided in principle, is not built). The manifest asks for exactly
+trusts only the system's certificate authorities. ADR-034 decides that the app will accept an http server address; this module still refuses it until the slice for that lands (not built). The manifest asks for exactly
 these permissions: internet, record audio, foreground service, foreground service
 of the microphone type, post notifications, and draw over other apps (six in all).
 None of them is asked for while the app runs in app code: the user grants the

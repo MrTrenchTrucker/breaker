@@ -82,7 +82,8 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-029](ADR-029-spoken-send-wiring.md) | The spoken send ("And I'm Gone") is wired through one app class, PhraseSendHandler | accepted |
 | [ADR-030](ADR-030-one-http-client-for-server-calls.md) | One HTTP client for server calls, with no hidden defaults | accepted, amended 2026-11-01 |
 | [ADR-031](ADR-031-session-expires-after-30-days-idle.md) | A session token expires 30 days after its last use | accepted |
-| [ADR-032](ADR-032-server-certificate-and-pairing.md) | The server makes its own certificate, and the one-time sign-in pairs the phone with it | accepted in principle, details to be designed |
+| [ADR-032](ADR-032-server-certificate-and-pairing.md) | The server makes its own certificate, and the one-time sign-in pairs the phone with it | accepted in principle, details to be designed; superseded by ADR-034 |
 | [ADR-033](ADR-033-signed-out-is-a-quiet-notice-on-home.md) | Signed out is a quiet notice on Home, and nothing is forced | accepted |
+| [ADR-034](ADR-034-plain-http-and-the-admins-choice-of-tls.md) | Breaker serves plain HTTP; TLS is the admin's choice | accepted |
 
 Next free number: **ADR-034**.

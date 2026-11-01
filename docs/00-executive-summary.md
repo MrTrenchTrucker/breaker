@@ -28,7 +28,7 @@ see ADR-006 and ADR-018 for the limits that come with an admin's actual
 capabilities (a forced account reset, control of the web FE's served code).
 
 **Distribution:** the server hosts the Android APK and the on-device model, and
-makes its own certificate (ADR-032, decided in principle). Updates check **once a day** for tagged releases from the
+serves plain HTTP; TLS is the admin's choice via any reverse proxy (ADR-034). Updates check **once a day** for tagged releases from the
 user's local GIT server, with an admin force-check button and signed-APK
 verification.
 

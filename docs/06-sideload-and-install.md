@@ -9,11 +9,7 @@
 
 ## Step 1 — Trust the server (one time)
 
-> This step is changing. The server will make its own certificate, and the
-> one-time sign-in in the app will pair the phone with it, so there is nothing to
-> install by hand and no certificate authority to set up (ADR-032, decided in
-> principle, details to be designed). The steps below are the route that applies
-> until that is built, and they will then go away.
+> This step is changing for ADR-034. Breaker serves plain HTTP; TLS is the admin's choice via any reverse proxy. There is no certificate authority to set up and no one-time sign-in pairs the phone. The steps below are the route that applies until that is built, and they will then go away.
 
 1. On the phone, open the server's web FE: `https://<breaker-host>/`
 2. Download the **Breaker CA certificate** (link on the FE home page).

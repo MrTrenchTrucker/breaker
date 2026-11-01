@@ -33,7 +33,7 @@
 | `sync-api` | `server/modules/sync-api/` | Auth (users, roles, agent tokens), sync, updates, retention, store clear |
 | `web-fe` | `server/modules/web-fe/` | Debian container website (client-side decrypt, Trucking UI) + APK/model hosting + admin panel |
 | `training` | `server/modules/training/` | Per-user voice phrase model training (CPU; GPU via Local Inference) |
-| `deploy` | `server/modules/deploy/` | Git-pull deploy, docker-compose, certs, APK signing, VPN bind |
+| `deploy` | `server/modules/deploy/` | Git-pull deploy, docker-compose, plain HTTP per ADR-034, APK signing, VPN bind |
 
 ## shared/ — contracts + registry
 | Module | Path | Job |

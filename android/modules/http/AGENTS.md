@@ -4,14 +4,14 @@
 
 The one HTTP client for calls from the phone to the Local Server and to the update host. It sends a GET or a POST, reads the reply under a reply-size cap that the caller names, and never writes a header or a body to a log, a string form or an error message. The module holds both reply shapes: a bytes reply for small bodies (the send call) and a stream reply for model and app downloads (the open call). Both calls are part of the module.
 
-The decision that sets this module is "one HTTP client for server calls": one module, no hidden defaults, two reply shapes, https only.
+The decision that sets this module is "one HTTP client for server calls": one module, no hidden defaults, two reply shapes, https only. ADR-034 decides that the app will accept an http server address; this module still refuses it until the slice for that lands (not built).
 
 ## Owns
 
 - GET and POST, with request headers and an optional request body of known length. A body is always sent with a fixed length; there is no chunked upload.
 - No redirect following: a 3xx is returned as a reply and never followed.
 - No cache on any request.
-- https only: the scheme must be ASCII and equal "https" ignoring ASCII case only. An address that breaks this, has no host, or holds whitespace or a control character, or has an at sign in its authority (the text between "://" and the first '/', '?' or '#'), or that the platform cannot parse, is refused before any connection. A host holding a non-ASCII character is refused as well (punycode is the caller's job).
+- https only: the scheme must be ASCII and equal "https" ignoring ASCII case only. An address that breaks this, has no host, or holds whitespace or a control character, or has an at sign in its authority (the text between "://" and the first '/', '?' or '#'), or that the platform cannot parse, is refused before any connection. A host holding a non-ASCII character is refused as well (punycode is the caller's job). ADR-034 decides that the app will accept an http server address; this module still refuses it until the slice for that lands (not built).
 - Connect and read timeouts, and a reply-size cap, named by the caller on every request.
 - Two reply shapes behind one interface: a bytes reply read in memory (the send call) and a stream reply whose body the caller reads (the open call).
 - Fixed-length replies: a body that ends before its announced length is refused.
@@ -23,6 +23,7 @@ The decision that sets this module is "one HTTP client for server calls": one mo
 - The meaning of a call, and any JSON (callers).
 - The server address (settings and app).
 - Tokens and sessions (auth-client).
+- TLS and certificates: Breaker serves plain HTTP; an admin who wants https puts a reverse proxy in front (ADR-034).
 - Retry and queueing (sync).
 - Pinning beyond the platform trust store, and certificate policy beyond the platform store.
 - The existing clients of stt-server, updater and stt-ondevice. This module does not take over their code; each one moves to this module on its own, later.
@@ -87,4 +88,4 @@ fragile.
 - updater: connect 10_000 ms; manifest read 15_000 ms with a manifest cap of 65_536 bytes; APK read 30_000 ms with an APK cap of 268_435_456 bytes (256 MiB). The APK downloader and the update checker take that APK cap as a constructor default. This module must not copy such a default.
 - The three clients need different caps for their jobs. A default copied from stt-server would cap the APK download at 4 MiB, and any single default would be wrong for at least two of the three clients.
 - Error bodies differ. stt-server reads the error stream of a non-2xx reply; the updater reads no error body. This module reads a non-2xx body under the same cap, as the Invariants say.
-- Trust: the platform trust store only, with no certificate pin and no custom trust manager (ADR-032, decided in principle and not built, will add trust in the paired server's certificate fingerprint here, and only here). In the updater the manifest signature, not TLS, is the authority for update content.
+- Trust: the platform trust store only, with no certificate pin and no custom trust manager. No module in Breaker makes or pins a certificate; TLS is the admin's choice through any reverse proxy (ADR-034). In the updater the manifest signature, not TLS, is the authority for update content.

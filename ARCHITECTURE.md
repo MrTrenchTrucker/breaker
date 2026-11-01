@@ -22,8 +22,7 @@ model (recorded in your own environment) is the upgrade path.
 **Multi-user + sync + web:** every user on the VPN gets an isolated account.
 Every transcription syncs to the server (even local-only mode) and is viewable,
 searchable, and copyable from a **web frontend** on any device. The server also
-hosts the Android APK, makes its own certificate for HTTPS (ADR-032, decided in
-principle), and pulls the latest tagged release from the user's local GIT server.
+hosts the Android APK, serves plain HTTP; TLS is the admin's choice via any reverse proxy (ADR-034), and pulls the latest tagged release from the user's local GIT server.
 
 The codebase is a **modular monorepo** forked from the swept OpenWhispr Android
 fork, rebuilt in **Kotlin / native Android**, with the Security Review's four security
@@ -109,11 +108,8 @@ admins.
       user's environment; the server trains a per-user model; the phone downloads it.
 - F17. **APK hosting:** the server serves the Android APK so users can download and
       sideload it easily.
-- F18. **Certificates:** the server container makes its own certificate on first
-      start and keeps it; the one-time sign-in also teaches the phone to trust
-      that exact server, so HTTPS is trusted with no certificate authority for
-      the admin to set up (ADR-032 — decided in principle, details to be
-      designed).
+- F18. **Certificates:** ADR-034 decides Breaker serves plain HTTP; TLS is the admin's choice via any reverse proxy (ADR-034). ADR-032 is superseded.
+      Until this slice lands, the code still trusts the platform store only (not built).
 - F19. **Deploy:** the Breaker server stack pulls the latest tagged version from the
       user's local GIT server.
 - F20. **Daily update check:** the app checks once a day for a newer tagged release
@@ -262,7 +258,7 @@ admins.
 │  training-client ──record samples──▶ upload──▶ download trained model         │
 │  auth-client ──login/register──▶ token for sync + training + STT              │
 └────────────────────────────────────────────────────────────────────────────────┘
-                              │  VPN (TLS from the server's own certificate)
+                              │  VPN (plain HTTP on Local Server; TLS only if an admin adds a reverse proxy - ADR-034)
                               ▼
 ┌─────────────────────────────── Local Server ──────────────────────────────────┐
 │  whisper-server ── /v1/audio/transcriptions                                   │
@@ -597,9 +593,7 @@ expired or revoked session, or a key the server refused) nothing forces the
 user anywhere. The app keeps working offline exactly as it does today, and Home
 shows a quiet notice with a way to sign in.
 
-**Onboarding:** register → download APK → one-time sign-in (which also pairs the
-phone with the server's own certificate, ADR-032, decided in principle) → train
-phrases → grant permissions → enable high-power mode → GTG.
+**Onboarding:** register → download APK → sign in (the intended flow, from ADR-034, is to sign in on the Breaker website; the design is open) → train phrases → grant permissions → enable high-power mode → GTG.
 
 **Roles (F22):** two roles — `admin` and `user`. The **first account to register**
 is **admin by default**. Admins can: assign/revoke admin on other accounts,
@@ -750,22 +744,11 @@ container registers with the local inference engine and uses **Local Inference**
 **APK hosting (F17):** the server serves the signed Android APK (built from the
 latest tagged GIT release) so friends/family download it straight from the web FE.
 
-**Certificates (F18, ADR-032 — decided in principle, details to be designed):**
-the Breaker server container makes its own certificate the first time it starts
-and keeps it. The admin sets up no certificate authority and installs nothing
-on the phone by hand. The one-time sign-in also teaches the phone to trust that
-exact server (for example a pairing code or a QR from the server that carries
-its address and the fingerprint of its certificate), so HTTPS to Local Server is
-trusted with no "connection not private" warnings. The app still refuses plain
-http, and a certificate that does not match what the phone was taught is
-refused, never silently trusted. Until this is built, the app trusts the
-platform store only.
+**Certificates (F18, superseded by ADR-034):** ADR-034 decides Breaker serves plain HTTP; TLS is the admin's choice via any reverse proxy. ADR-032 is superseded. The app still refuses plain http, and trusts the platform store only until this slice lands (not built).
 
 **Sideload (Android):** the user enables "install unknown apps" once (Samsung:
 Settings → Security & privacy → Install unknown apps → allow from this source),
-then installs the APK. Honest note: pairing the phone with the server (ADR-032)
-makes the *download* trusted; Android still shows a standard "unknown app" prompt on first install of
-a sideloaded APK — that's normal and expected for self-hosted apps.
+then installs the APK. Honest note: pairing is superseded by ADR-034; no certificate authority is needed; Android still shows a standard "unknown app" prompt on first install of a sideloaded APK - that's normal and expected for self-hosted apps.
 
 **Full how-to:** `docs/06-sideload-and-install.md`.
 
@@ -912,7 +895,7 @@ See `docs/04-build-order.md`. Summary:
 | 11 | `auth` + `sync` (server sync-api + android sync/auth-client) — ships ADR-006's client-side key derivation (Argon2id + HKDF split) so the password never leaves the device from the first login | Coding |
 | 12 | `web-fe` (Debian container website) | Coding |
 | 13 | `training` container + `training-client` | Coding |
-| 14 | APK hosting + sideload docs (the server's own certificate and the pairing: ADR-032) | Coding + Bug Hunt |
+| 14 | APK hosting + sideload docs (plain HTTP on Local Server; TLS is the admin's choice per ADR-034) | Coding + Bug Hunt |
 | 15 | Git-pull deploy pipeline | Coding |
 | 16 | `updater` (daily check + admin force-check) + `/v1/updates` + APK signing | Coding + Bug Hunt |
 | 17 | FE registration + roles (registration card, first-account-is-admin, admin assignment) | Coding + Bug Hunt |
@@ -943,8 +926,8 @@ See `docs/04-build-order.md`. Summary:
       local-only mode.
 - D12. **Training = server-side container** (phone records, server trains).
 - D13. **Multi-user = isolated namespaces, server-enforced auth.**
-- D14. **Web FE = Debian container** on Local Server; also hosts the APK (the
-      CA-certificate download is superseded, ADR-032).
+- D14. **Web FE = Debian container** on Local Server; also hosts the APK. Plain
+      HTTP on Local Server; TLS is the admin's choice via any reverse proxy (ADR-034).
 - D15. **Deploy = git-pull of latest tagged release** from local GIT server.
 - D16. **Updates = daily check + admin force-check** against `/v1/updates`, signed
       APK + SHA-256 verification, install-over preserves data. Rebuild of the
@@ -980,14 +963,19 @@ See `docs/04-build-order.md`. Summary:
       local fallback, red = complete failure (F36).
 - D34. **Sessions expire 30 days after last use** — sliding; admin revoke
       stays; agent tokens keep their own expiry (ADR-031).
-- D35. **The server makes its own certificate; the one-time sign-in pairs the
-      phone with it** — no certificate authority for the admin; decided in
-      principle, details to be designed (ADR-032).
+- D35. **Superseded by ADR-034: the server makes its own certificate; the one-time sign-in pairs the
+      phone with it** - ADR-034 decides plain HTTP; TLS is the admin's choice via any reverse proxy.
+      The pairing is dropped with ADR-032 (not built).
 - D36. **Signed out = a quiet notice on Home, nothing forced** — the app keeps
       working offline (ADR-033).
 - D37. **whisper-server asks sync-api whether a token is live** — over HTTP,
       fail closed, internal route with a service key made at first start
       (ADR-015, amended; R31).
+- D38. **Breaker serves plain HTTP; TLS is the admin's choice** - any reverse
+      proxy in front if https is wanted; the app will accept http and https
+      addresses and show one quiet line in settings on plain http; ADR-034
+      decides it and supersedes ADR-032; not built, the code still refuses
+      plain http.
 - D21. **Configurable transcription service** — admin-configured endpoint
       (Docker/IP/external), server-side proxy, connectivity test (F26).
 - D22. **Agent tokens** — admin-generated scoped API tokens; agents use the same
@@ -1016,19 +1004,14 @@ See `docs/04-build-order.md`. Summary:
 - R6. **Missing server endpoint** — server path blocked until `/v1/audio/transcriptions` [1].
 - R7. **Base code never built/run** — Phase 0 gate [1].
 - R8. ASR model upstream terms (outside Security Review audit) [1].
-- R9. Local Server cert infra state UNKNOWN — verify before TLS changes.
-      Amended: the server now makes its own certificate (ADR-032, decided in
-      principle), so what stays open is the design of the pairing and of
-      certificate renewal; the state of any existing certificate set-up is
-      still unverified.
+- R9. Local Server cert infra state UNKNOWN — verify before TLS changes. Amended by ADR-034: Breaker serves plain HTTP; TLS is the admin's choice via any reverse proxy. The open part of ADR-032 (pairing, renewal) is dropped with it; the state of any existing certificate set-up is still unverified.
 - R10. **LLM formatting could hallucinate** — temperature 0, diff-check tests.
 - R11. **High-power mode dependency** — verify + prompt (F12).
 - R12. **Phrase-detection false positives** — target < 1/day; shake fallback.
 - R13. **Multi-user isolation bugs** — server-enforced scoping + tests (N13).
 - R14. **Sync conflicts/duplicates** — idempotent sync (N12).
 - R15. **Training sample privacy** — user-scoped, deletable, TLS.
-- R16. **Sideload friction for friends/family** — clear how-to (docs/06) + the
-      one-time pairing + APK SHA-256 published.
+- R16. **Sideload friction for friends/family** — clear how-to (docs/06); plain HTTP on Local Server means no certificate authority to install (ADR-034); the one-time pairing is superseded.
 - R17. **Update tampering / signing key compromise** — signing key in secrets
       store (never git [1]); APK signature + SHA-256 verified before install;
       key rotation procedure.
@@ -1089,8 +1072,7 @@ See `docs/04-build-order.md`. Summary:
 - **Auth hardening** (brute-force protection, refresh) — the VPN perimeter is the
   auth layer for now; an auth server may come later. Session expiry is no
   longer deferred: a session expires 30 days after its last use (ADR-031).
-- **Certificate lifecycle** — the server makes and keeps its own certificate
-  (ADR-032, decided in principle); how a certificate is replaced or renewed
-  without breaking paired phones is part of the design still to be done.
+- **Certificate lifecycle** - superseded by ADR-034: Breaker serves plain HTTP; TLS is the admin's choice via any reverse proxy.
+  No module makes, keeps, pins or renews a certificate (not built).
 - **Formal backups** — multi-drive redundancy + device copies of transcriptions;
   no dedicated backup subsystem.

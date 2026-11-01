@@ -4,7 +4,7 @@
 
 Debian container website (client-side decrypt, Trucking UI), APK/model hosting, admin panel. Debian container website for Breaker: registration, login, and
 view/search/copy of the user's transcriptions from any device on the VPN.
-Also hosts the APK for download (F15, F17). The CA-certificate download of F18 is superseded: the server makes its own certificate and the one-time sign-in pairs the phone with it (ADR-032, decided in principle).
+Also hosts the APK for download (F15, F17). No certificate handling in Breaker; TLS is the admin's choice through any reverse proxy (ADR-034).
 
 **Pages:**
 - **Landing** — Breaker intro + download links: APK, docs.
@@ -42,8 +42,8 @@ Also hosts the APK for download (F15, F17). The CA-certificate download of F18 i
 - `/Breaker.apk` — latest signed APK (from the git-pull build).
 - Published SHA-256 for the APK on the download page (tamper check).
 
-**Security:** standard web hardening — HTTPS only (the server's own certificate, ADR-032), CSP, input
-escaping, no secrets in frontend. All data fetched via `sync-api` with the
+**Security:** standard web hardening — plain HTTP on Local Server; CSP, input
+escaping, no secrets in frontend. No certificate handling in Breaker; TLS is the admin's choice through any reverse proxy (ADR-034). All data fetched via `sync-api` with the
 user's token; the FE itself never touches raw audio.
 
 **Client-side derivation and decryption (F24, ADR-006):** transcriptions
@@ -178,7 +178,7 @@ automatically; it looks like the Android app.
 - Landing shows the login path + download badges without scrolling (F35).
 - Login → dashboard shows only that user's transcriptions (N13).
 - Admin panel visible only to admins; role changes take effect immediately.
-- APK downloads work over HTTPS with no certificate warnings (after the one-time pairing, ADR-032).
+- APK downloads work over plain HTTP on Local Server; no certificate warnings because no certificate authority is involved. No certificate handling in Breaker; TLS is the admin's choice through any reverse proxy (ADR-034).
 
 ## Owns
 Debian container website (client-side decrypt, Trucking UI), APK/model hosting, admin panel.
@@ -194,6 +194,7 @@ WebApp
 ## Does Not Own
 - API logic (sync-api)
 - Design tokens (shared/ui-tokens)
+- TLS and certificates: Breaker serves plain HTTP; an admin who wants https puts a reverse proxy in front (ADR-034).
 
 ## Test Locations
 - Unit (Kotlin/Ktor, ADR-017): `server/modules/web-fe/src/test/kotlin/`, created with the module's first code. Run: `./gradlew :server:modules:web-fe:test` once this module's build file applies the Kotlin plugin (today it applies `base` only, so there is no test task yet).

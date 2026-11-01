@@ -198,10 +198,7 @@ updated in the same PR as any code change to that module
 `tools/check_repo.py` verifies that and must print `REPO CONSISTENT`
 (`modules.toml` header comment; `.github/CONTRIBUTING.md` §3, §7).
 
-**Pairing** — The one-time step, done with the first sign-in, that teaches the
-phone to trust one exact server by the fingerprint of the certificate that server
-made for itself. Decided in principle (ADR-032); the details are still to be
-designed.
+**Pairing** - superseded by ADR-034: Breaker serves plain HTTP; TLS is the admin's choice via any reverse proxy. No one-time sign-in pairs the phone; no certificate fingerprint is taught. The details are still to be designed.
 
 **Requirement ID prefixes (F, N, T, R, D)** — Five separate numbered series
 used across the docs, and they do not share one counter:
@@ -294,9 +291,9 @@ reaches core (`android/modules/audio/AGENTS.md`).
 
 **VPN** — The private link the phone and Local Server communicate over: any
 VPN, or another way to connect the phone to the server or computer that runs the
-Breaker container. Breaker does not depend on one named product. HTTPS to the
-server is trusted through the server's own certificate and the one-time pairing
-(ADR-032, decided in principle); no certificate authority has to be set up.
+Breaker container. Breaker does not depend on one named product. Plain HTTP on
+Local Server (ADR-034); TLS only if an admin adds a reverse proxy. No
+certificate authority has to be set up.
 
 **Wake phrase / send phrase** — The two CB-slang voice triggers: **"Breaker
 Breaker"** (wake — the tile appears and recording starts automatically) and

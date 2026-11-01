@@ -7,11 +7,7 @@ and ship updates.
 
 **Components:**
 - `vpn-bind.sh` — verify/bind endpoints to the VPN interface only.
-- `tls/` — cert handling. **Verify Local Server cert infra state FIRST** (last known
-  configuration is stale/unconfirmed; current state UNKNOWN). Inspection
-  script before any TLS change (R9). Decided in principle (ADR-032): the server
-  container makes its own certificate on first start and keeps it; the admin sets
-  up no certificate authority; the details are to be designed.
+- `tls/` — no longer planned: no certificate handling in Breaker; TLS is the admin's choice through any reverse proxy (ADR-034).
 - `auth/` — API key generation + rotation; key in env/secret file with 0600
   perms, never in git.
 - `apk-signing/` — **APK signing key** (generated once, stored in a secrets
@@ -38,7 +34,7 @@ Whisper X container, so the transducer OOB write (issue #3983) is not reachable
 from server audio in the current design [2]. All containers remain
 network-isolated (VPN-only bind).
 
-**Build phase:** Phase 14 (APK serving and the server's own certificate) and Phase 15 (the git-pull deploy pipeline).
+**Build phase:** Phase 14 (APK serving) and Phase 15 (the git-pull deploy pipeline).
 
 ## Invariants
 - Port scan from non-VPN interface shows nothing (VPN-only bind, T3).
@@ -57,6 +53,7 @@ DeployScripts
 
 ## Does Not Own
 - Application logic of other server modules
+- TLS and certificates: Breaker serves plain HTTP; an admin who wants https puts a reverse proxy in front (ADR-034).
 
 ## Test Locations
 - Unit (Python): `tests/unit/server/deploy/`, created with the module's first code. Run: `python3 -m unittest discover -s tests/unit/server/deploy`

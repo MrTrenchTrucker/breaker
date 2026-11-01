@@ -55,6 +55,7 @@ Server entry, container wiring
 ## Does Not Own
 - Phone client (android/*)
 - Shared contracts (shared/*)
+- TLS and certificates: Breaker serves plain HTTP; an admin who wants https puts a reverse proxy in front (ADR-034).
 
 ## Test Locations
 - No unit tests: this folder only groups the modules under it and holds no code.
@@ -87,4 +88,4 @@ agents, not required: an outside contributor may write the code themselves
 (`.github/CONTRIBUTING.md`).
 
 ## Known Gotchas
-- Local Server cert infra state was UNKNOWN — verify before TLS changes (R9). The server now makes its own certificate on first start (ADR-032, decided in principle); the pairing and the renewal are still to be designed.
+- Local Server cert infra state was UNKNOWN — verify before TLS changes (R9). No module in Breaker makes or pins a certificate; TLS is the admin's choice through any reverse proxy (ADR-034).

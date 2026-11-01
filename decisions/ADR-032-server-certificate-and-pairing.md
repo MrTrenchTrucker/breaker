@@ -1,6 +1,8 @@
 # ADR-032: The server makes its own certificate, and the one-time sign-in pairs the phone with it
 
-**Status:** accepted in principle; the details are to be designed
+**Status:** superseded by ADR-034
+
+See ADR-034: Breaker serves plain HTTP; TLS is the admin's choice.
 **Date:** 2026-11-01
 **Approved by:** the project owner, in his own words below (the words "decided in principle" and the list of open points are the maintainers')
 
