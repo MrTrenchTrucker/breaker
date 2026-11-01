@@ -1,0 +1,204 @@
+{
+ "name": "proof-sync-api-shutdown-order",
+ "tip": {
+  "tree": "787d49b1f2e393a16f47455f5bb3598f6803ae14"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "sync-api: the internal listener stops before the database closes and a failing token store answers 503 with a fixed body",
+   "base_tree": "6954194b8035cc1bf9c614265f75518f4510d467",
+   "item_tip_tree": "787d49b1f2e393a16f47455f5bb3598f6803ae14",
+   "new_production_classes": [
+    "ShutdownOrder"
+   ],
+   "test_fixtures_overlaid": [],
+   "red_not_run": "the order test needs shutdownInOrder, which does not exist on the base, so it does not compile there and has no red leg; the closed-database test compiles on the base and is red-run. The mutants carry the proof for the order test."
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/ShutdownOrder.kt",
+     "anchor": "        stopInternal()",
+     "replacement": "        closeDatabase()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "stop internal then close database in order",
+    "throwing stop internal still closes the database and the failure reaches the caller"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceCheckRoutes.kt",
+     "anchor": "        } catch (_: Exception) {",
+     "replacement": "        } catch (_: java.lang.UnsupportedOperationException) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "closed database answers 503 with the fixed body and no exception text"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceCheckRoutes.kt",
+     "anchor": "            refuse(call, HttpStatusCode.ServiceUnavailable, \"unavailable\")",
+     "replacement": "            refuse(call, HttpStatusCode.ServiceUnavailable, \"unavailable: the database is closed\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "closed database answers 503 with the fixed body and no exception text"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceCheckRoutes.kt",
+     "anchor": "            refuse(call, HttpStatusCode.ServiceUnavailable, \"unavailable\")",
+     "replacement": "            refuse(call, HttpStatusCode.InternalServerError, \"unavailable\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "closed database answers 503 with the fixed body and no exception text"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceCheckRoutes.kt",
+     "anchor": "    post(\"/internal/v1/token/use\") {",
+     "replacement": "    post(\"/internal/v1/token/use\") {\n        serve(call) { store.resolve(call.request.headers[\"X-Presented-Token\"] ?: \"\") }\n        return@post"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "wrong key on a closed database is still 403"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/ShutdownOrder.kt",
+     "anchor": "    firstFailure?.let { throw it }",
+     "replacement": "    firstFailure?.let { }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "throwing stop internal still closes the database and the failure reaches the caller"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceCheckRoutes.kt",
+     "anchor": "            throw cancellation",
+     "replacement": "            refuse(call, HttpStatusCode.ServiceUnavailable, \"unavailable\")"
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "server/modules/sync-api",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceCheckRoutes.kt",
+     "anchor": "            HttpStatusCode.OK,",
+     "replacement": "            HttpStatusCode.Accepted,"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "server/modules/sync-api",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/servicecheck/ServiceCheckRoutes.kt",
+     "anchor": "    val key = ServiceKey(serviceKey)",
+     "replacement": "    val key = ServiceKey(serviceKey) // unchanged behaviour"
+    }
+   ]
+  }
+ ]
+}
