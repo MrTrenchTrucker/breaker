@@ -76,9 +76,7 @@ The job-queue mechanics (enqueue, poll, backoff) stay behind this port, so
 
 **Transport:** https addresses only. Any other scheme, a missing host, user
 information, or a space or control character is refused before anything is
-sent. Platform trust only: no certificate pinning, no custom CA, no
-TrustManager (ADR-032, decided in principle and not built, will add trust in the
-paired server's certificate fingerprint, inside the one client of ADR-030). Redirects are not followed and caches are off. Each call has a
+sent. Platform trust only: no certificate pinning, no custom CA, no TrustManager. No module in Breaker makes or pins a certificate; TLS is the admin's choice through any reverse proxy (ADR-034). Redirects are not followed and caches are off. Each call has a
 connect timeout (1.5 s by default), so a dead server is reported fast. Every
 exchange runs under a watchdog, so a stuck call ends at its deadline rather
 than in a hang.
@@ -91,7 +89,7 @@ than in a hang.
 - Timeout/error at either step surfaced as `SttResult.failure`, never a
   hang (R4).
 - The upload is sent at most once. No retry of the POST.
-- Only https addresses are called. The check runs before any request.
+- Only https addresses are called. The check runs before any request. ADR-034 decides that the app will accept an http server address; this module still refuses it until the slice for that lands (not built).
 - The key never reaches a log line (the module logs nothing), an exception
   message, or a failure text.
 
@@ -103,6 +101,7 @@ than in a hang.
 ## Does Not Own
 - Local transcription (stt-ondevice)
 - The server queue (server/whisper-server)
+- TLS and certificates: Breaker serves plain HTTP; an admin who wants https puts a reverse proxy in front (ADR-034).
 
 ## Test Locations
 - Unit (Kotlin): `android/modules/stt-server/src/test/kotlin/`, created with the module's first code. Run: `./gradlew :android:modules:stt-server:test`

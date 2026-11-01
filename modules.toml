@@ -157,8 +157,8 @@ card = "android/modules/auth-client/AGENTS.md"
 
 [module.android_http]
 path = "android/modules/http"
-owns = "The one HTTP client for calls to the Local Server and the update host: GET and POST, request headers, a request body of known length, no redirects, no cache, https only, connect and read timeouts, a reply-size cap, and no logging of a header or a body."
-does_not_own = "Call meaning and JSON (callers); the server address (settings, app); tokens and sessions (auth-client); retry and queueing (sync); pinning beyond the platform trust store."
+owns = "The one HTTP client for calls to the Local Server and the update host: GET and POST, request headers, a request body of known length, no redirects, no cache, https only, connect and read timeouts, a reply-size cap, and no logging of a header or a body. ADR-034 decides that the app will accept an http server address; this module still refuses it until the slice for that lands (not built)."
+does_not_own = "Call meaning and JSON (callers); the server address (settings, app); tokens and sessions (auth-client); retry and queueing (sync); pinning beyond the platform trust store; TLS and certificates (the admin's reverse proxy, ADR-034)."
 depends_on = ["android", "android_core"]
 public = "HttpTransport, JdkHttpTransport, CallMethod, CallRequest, CallLimits, BytesReply, StreamReply, HttpRefusal, HttpRefusalReason"
 card = "android/modules/http/AGENTS.md"
@@ -229,8 +229,8 @@ card = "server/modules/training/AGENTS.md"
 
 [module.server_deploy]
 path = "server/modules/deploy"
-owns = "Git-pull deploy, docker-compose, certs, APK signing, VPN bind, volumes, NOTICE."
-does_not_own = "Application logic of other server modules."
+owns = "Git-pull deploy, docker-compose, APK signing, VPN bind, volumes, NOTICE. No certificate handling in Breaker; TLS is the admin's choice through any reverse proxy (ADR-034)."
+does_not_own = "Application logic of other server modules; TLS and certificates (the admin's reverse proxy, ADR-034)."
 depends_on = ["server"]
 public = "DeployScripts"
 card = "server/modules/deploy/AGENTS.md"

@@ -13,7 +13,7 @@ container directly.
     val result = engine.transcribe(request)
 
 The app passes two providers, read once per call: the base address (https only)
-and the API key. The module reads no settings and no storage. The app uses this engine through its composition root (in automatic mode only when the probe answers, in server mode always).
+and the API key. ADR-034 decides that the app will accept an http server address; this module still refuses it until the slice for that lands (not built). The module reads no settings and no storage. The app uses this engine through its composition root (in automatic mode only when the probe answers, in server mode always).
 
 ## What a call does
 

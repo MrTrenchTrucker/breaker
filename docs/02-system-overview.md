@@ -23,7 +23,7 @@
 │  auth-client ──login/register──▶ token + role for sync/training/STT           │
 │  updater ──daily check + admin force-check──▶ signed APK install              │
 └────────────────────────────────────────────────────────────────────────────────┘
-                              │  VPN (TLS from the server's own certificate)
+                              |  VPN (plain HTTP on Local Server; TLS only if an admin adds a reverse proxy - ADR-034)
                               ▼
 ┌─── Local Server ───────────────────────────────────────────────────────────────────┐
 │  whisper-server ── /v1/audio/transcriptions + FIFO queue                     │

@@ -71,7 +71,7 @@ per-user KWS model, the phone downloads it (F16).
 Each user's transcriptions, trained models, and settings are scoped by user_id
 server-side (N13). Tokens in the Android Keystore.
 
-**D14 — Web FE = Debian container** on Local Server; also hosts the APK (the CA-certificate download is superseded, ADR-032).
+**D14 — Web FE = Debian container** on Local Server; also hosts the APK. Plain HTTP on Local Server; TLS is the admin's choice via any reverse proxy (ADR-034); no CA certificate to download.
 
 **D15 — Deploy = git-pull of latest tagged release** from local GIT server.
 
@@ -217,14 +217,14 @@ failed → local fallback, **red** = complete failure (F36).
 | R6 | **Missing server endpoint** — server path blocked until `/v1/audio/transcriptions` is added | High | Phase 4 first priority after Phase 0 |
 | R7 | **Base code never built/run** — compilation + runtime unverified | High | Phase 0 build + smoke-test gate |
 | R8 | ASR model upstream terms (outside Security Review audit) | Med | Per-model license recorded in model-registry |
-| R9 | Local Server cert infra state UNKNOWN | High | Phase 4 starts with verification script before TLS changes; the server now makes its own certificate (ADR-032, decided in principle), so the open part is the pairing and renewal design |
+| R9 | Local Server cert infra state UNKNOWN | High | Amended by ADR-034: Breaker serves plain HTTP; TLS is the admin's choice via any reverse proxy. The open part of ADR-032 (pairing, renewal) is dropped with it; the state of any existing certificate set-up is still unverified. |
 | R10 | **LLM formatting could hallucinate** | Med | Temperature 0, plain-text output (structured/JSON mode off), non-destructive prompt, diff-check tests (N9) |
 | R11 | **High-power mode dependency** — app must verify power-saving is off | Med | Detect + prompt at startup (F12); battery itself is a non-issue (plugged in) |
 | R12 | **Phrase-detection false positives** ("Breaker Breaker" heard in normal speech) | Med | Target < 1/day on device; tune threshold/matching; shake remains reliable fallback |
 | R13 | **Multi-user isolation bugs** | High | Server-enforced scoping (N13) + cross-user tests; never trust client claims |
 | R14 | **Sync conflicts/duplicates** | Med | Idempotent sync (N12): (client id, key_version) pair dedupe |
 | R15 | **Training sample privacy** | Med | User-scoped storage, TLS, token auth, user-deletable |
-| R16 | **Sideload friction for friends/family** | Med | Clear how-to (docs/06) + the one-time pairing + APK SHA-256 published |
+| R16 | **Sideload friction for friends/family** | Med | Clear how-to (docs/06); plain HTTP on Local Server means no certificate authority to install (ADR-034); the one-time pairing is superseded. |
 | R17 | **Update tampering / signing key compromise** | High | Signed APK + SHA-256 verify; key in secrets store (never git [1]); rotation procedure |
 | R18 | **Admin escalation / role abuse** | Med | First-account-is-admin bootstrap; audited role changes; no self-promotion (T16) |
 | R19 | **Queue backpressure / long waits under load** | Med | Job status UX ("queued…"), timeouts, per-user rate limits (T18) |
@@ -244,8 +244,7 @@ failed → local fallback, **red** = complete failure (F36).
 - **Auth hardening** (brute-force protection, refresh) — the VPN perimeter is the
   auth layer for now; an auth server may come later. Session expiry is no
   longer deferred: 30 days after the last use (ADR-031).
-- **Certificate lifecycle** — the server makes and keeps its own certificate
-  (ADR-032, decided in principle); how a certificate is replaced or renewed
-  without breaking paired phones is part of the design still to be done.
+- **Certificate lifecycle** - superseded by ADR-034: Breaker serves plain HTTP; TLS is the admin's choice via any reverse proxy.
+  No module makes, keeps, pins or renews a certificate (not built).
 - **Formal backups** — multi-drive redundancy + device copies of transcriptions;
   no dedicated backup subsystem.

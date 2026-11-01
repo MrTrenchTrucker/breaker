@@ -34,10 +34,7 @@
 - **F16** **Voice phrase training:** in-app flow to record wake/end phrases in the
   user's environment; the server trains a per-user model; the phone downloads it.
 - **F17** **APK hosting:** the server serves the Android APK for download.
-- **F18** **Certificates:** the server makes its own certificate on first start;
-  the one-time sign-in teaches the phone to trust that exact server, so HTTPS to
-  the server is trusted and the admin sets up no certificate authority (ADR-032,
-  decided in principle).
+- **F18** **Certificates:** ADR-034 decides Breaker serves plain HTTP; TLS is the admin's choice via any reverse proxy. ADR-034 decides that the app will show one quiet line in settings on a plain http address: the connection is not encrypted, use a VPN or an https address. Not built.
 - **F19** **Deploy:** the Breaker server stack pulls the latest tagged version from
   the user's local GIT server.
 - **F20** **Daily update check:** the app checks once a day for a newer tagged
@@ -135,7 +132,6 @@
 - Auth hardening (brute-force protection) — the VPN perimeter is the auth layer
   for now; an auth server may come later. Session expiry is in scope: 30 days
   after the last use (ADR-031).
-- Certificate lifecycle — the server makes and keeps its own certificate (ADR-032,
-  decided in principle); renewal without breaking paired phones is still to be
-  designed.
+- Certificate lifecycle - superseded by ADR-034: Breaker serves plain HTTP; TLS is the admin's choice via any reverse proxy.
+  No module makes, keeps, pins or renews a certificate (not built).
 - Formal backups — multi-drive redundancy + device copies of transcriptions.
