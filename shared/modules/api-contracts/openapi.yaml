@@ -302,6 +302,165 @@ paths:
               example:
                 error: "unauthorized"
                 message: "Invalid or missing token"
+  /v1/auth/handoff/start:
+    post:
+      summary: Start a sign-in hand-off
+      description: >-
+        Called by the website page, with the session token of the signed-in
+        user, to create a one-time sign-in code for the app. An agent token is
+        refused (403, the same answer as /v1/sync). The body holds exactly two
+        keys, challenge and sealed_package. The challenge is the SHA-256 of
+        the app's secret text, written as 43 URL-safe characters; the server
+        checks it by shape only. The sealed package is the account's keys
+        sealed to the app's public key, exactly 113 bytes written as standard
+        base64 (152 characters); the server stores it without opening it and
+        checks only its length. The answer holds the code.
+
+        The code is valid for 5 minutes from this call and can be used once.
+        It is 43 characters of letters, digits, hyphen and underscore, so it
+        can go into a breaker:// link with no escaping. An account has at most
+        5 live codes: a sixth start ends the oldest live code and removes its
+        package. This call has no effect on the person's own session.
+      operationId: handoffStart
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HandoffStartRequest"
+            example:
+              challenge: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+              sealed_package: "ZXhhbXBsZSBzZWFsZWQgcGFja2FnZSwgbm90IGEgcmVhbCBrZXkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+      responses:
+        "201":
+          description: Code created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HandoffStartResponse"
+              example:
+                code: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        "400":
+          description: >-
+            Bad request. The body is not one JSON object with exactly the two
+            keys challenge and sealed_package, or a value breaks its pattern.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "bad_request"
+                message: "Invalid request body"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing token"
+        "403":
+          description: Forbidden - a valid token of the wrong kind
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "forbidden"
+                message: "User session token required; an agent token is refused"
+        "413":
+          description: Request entity too large
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "payload_too_large"
+                message: "Request body exceeds maximum allowed size"
+  /v1/auth/handoff/exchange:
+    post:
+      summary: Trade a sign-in code for a session
+      description: >-
+        Called by the app. No token is sent: the code and the secret are the
+        credential. The server hashes the secret and compares it with the
+        challenge stored at start. On success the code is used up and the
+        stored package is deleted in the same step, and the sealed package
+        comes back once, in this answer only. The session is an ordinary
+        session that ends 30 days after its last use, and it carries the
+        device name if one was sent. No password and no plaintext key is ever
+        in this answer.
+
+        Every failure of the code or the secret gets one answer. The status is
+        401 and the body is the same, byte for byte, for an unknown code, a
+        code or secret of the wrong length or alphabet, a wrong secret, an
+        expired code and a code already used. No other status tells these
+        cases apart. A second exchange with the same code gets this 401. A
+        wrong secret does not use up the code, and neither does a 400.
+      operationId: handoffExchange
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HandoffExchangeRequest"
+            example:
+              code: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+              secret: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+              device_name: "Pixel 8"
+      responses:
+        "200":
+          description: Signed in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HandoffExchangeResponse"
+              example:
+                token: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                role: "user"
+                key_version: 0
+                sealed_package: "ZXhhbXBsZSBzZWFsZWQgcGFja2FnZSwgbm90IGEgcmVhbCBrZXkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+                username: "alice"
+                account_id: 1
+        "400":
+          description: >-
+            Bad request. The body is not one JSON object with the keys code,
+            secret and optionally device_name, or device_name is present, is
+            not null, and is not a string of 1 to 64 characters.
+            A 400 does not use up the code.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "bad_request"
+                message: "Invalid request body"
+        "401":
+          description: >-
+            Refused. This is the one answer for every failure of the code or
+            the secret: an unknown code, a code or secret of the wrong length
+            or alphabet, a wrong secret, an expired code and a code already
+            used. The body is the same, byte for byte, and no other status
+            tells these cases apart.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid sign-in code or secret"
+        "413":
+          description: Request entity too large
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "payload_too_large"
+                message: "Request body exceeds maximum allowed size"
   /v1/admin/agent-tokens/{id}:
     delete:
       summary: Revoke an agent token
@@ -1284,6 +1443,98 @@ components:
         message:
           type: string
           description: A human-readable error message
+    HandoffStartRequest:
+      type: object
+      required:
+        - challenge
+        - sealed_package
+      properties:
+        challenge:
+          type: string
+          pattern: "^[A-Za-z0-9_-]{43}$"
+          description: >-
+            The SHA-256 of the app's secret text, written as 43 URL-safe
+            characters (letters, digits, hyphen, underscore) with no padding
+        sealed_package:
+          type: string
+          pattern: "^[A-Za-z0-9+/]{151}=$"
+          minLength: 152
+          maxLength: 152
+          description: >-
+            The sealed key package, standard base64 with one equals sign of
+            padding, 152 characters that decode to exactly 113 bytes (65 + 48).
+            The server stores it without opening it
+    HandoffStartResponse:
+      type: object
+      required:
+        - code
+      properties:
+        code:
+          type: string
+          pattern: "^[A-Za-z0-9_-]{43}$"
+          description: >-
+            The one-time sign-in code, 43 characters of letters, digits,
+            hyphen and underscore, so it needs no escaping in a link
+    HandoffExchangeRequest:
+      type: object
+      required:
+        - code
+        - secret
+      properties:
+        code:
+          type: string
+          pattern: "^[A-Za-z0-9_-]{43}$"
+          description: The sign-in code from the start answer, 43 URL-safe characters
+        secret:
+          type: string
+          pattern: "^[A-Za-z0-9_-]{43}$"
+          description: The app's secret text, 43 URL-safe characters
+        device_name:
+          type: string
+          nullable: true
+          minLength: 1
+          maxLength: 64
+          description: >-
+            Optional name of the device. It may be left out or sent as null,
+            and both mean no name. When it is a string it is 1 to 64
+            characters, kept as sent with no trimming
+    HandoffExchangeResponse:
+      type: object
+      required:
+        - token
+        - role
+        - key_version
+        - sealed_package
+        - username
+        - account_id
+      properties:
+        token:
+          type: string
+          pattern: "^[A-Za-z0-9_-]{43}$"
+          description: The session token, 43 URL-safe characters
+        role:
+          type: string
+          description: The account role ("admin" or "user")
+        key_version:
+          type: integer
+          minimum: 0
+          description: The account's current DEK generation; 0 before first bootstrap
+        sealed_package:
+          type: string
+          pattern: "^[A-Za-z0-9+/]{151}=$"
+          minLength: 152
+          maxLength: 152
+          description: >-
+            The sealed key package exactly as stored at start, standard base64
+            of 113 bytes (152 characters). It comes back once, in this answer
+            only
+        username:
+          type: string
+          description: The account username
+        account_id:
+          type: integer
+          format: int64
+          description: The account id
     SyncPush:
       type: object
       required:
