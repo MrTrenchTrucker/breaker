@@ -35,6 +35,7 @@ here (N13).
   each on its own, ADR-006/ADR-018). Token required on all APIs. The raw `auth_verifier` this
   endpoint receives is a login credential in its own right — never logged
   (F32) — not merely guessing-bait; see the honest limit below.
+- The three routes that need no login (`register`, `salt` and `login`) read a request body of at most 4096 bytes: a longer body is refused with `413` and `payload_too_large` before it is parsed, whether its length is declared or not, and nothing is stored.
 - `POST /v1/auth/keys` — `{wrapped_dek, wrapped_box_privkey, box_pubkey}`,
   accepted only while the account has no keys yet; accepting it sets the
   account's `key_version` to its previous value + 1 (`0` → `1` on a first
@@ -299,6 +300,7 @@ AuthApi, SyncApi, AdminApi
 ## Test Locations
 - Unit (Kotlin/Ktor, ADR-017): `server/modules/sync-api/src/test/kotlin/`. Run: `./gradlew :server:modules:sync-api:test`. The entry point `main` is not covered by unit tests, because it needs a real socket; every function it calls is.
 - Username vectors: `UsernameVectorData.kt` is the literal copy of `shared/modules/api-contracts/examples/username_vectors.json`; `UsernameVectorsTest.kt` runs every row through `UsernameRules.isValid`, and the python test `tests/unit/shared/api-contracts/test_username_vectors.py` checks that the copy and the json agree.
+- Body cap: `AuthBodyLimitTest.kt` sends each of the three open routes a body one byte over 4096 (refused with `413` and the fixed error, nothing stored) and a body of exactly 4096 (not refused), a chunked body with no declared length over the cap (refused), and pins the cap at 4096.
 - Contract: `tests/contract/test_sync_api_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_sync_api_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 

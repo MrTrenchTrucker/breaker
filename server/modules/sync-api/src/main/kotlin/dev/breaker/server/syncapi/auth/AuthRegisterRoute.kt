@@ -6,7 +6,6 @@ import dev.breaker.server.syncapi.accounts.KdfParams
 import dev.breaker.server.syncapi.accounts.RegisterResult
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.request.receiveText
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
@@ -14,7 +13,7 @@ import java.util.Base64
 
 internal fun Route.authRegisterRoute(store: AccountStore) {
     post("/v1/auth/register") {
-        val body = call.receiveText()
+        val body = call.receiveAuthBody() ?: return@post
         val response = handleRegisterBody(store, body)
         call.respondText(response.body, ContentType.Application.Json, response.status)
     }

@@ -6,7 +6,6 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.call
-import io.ktor.server.request.receiveText
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
@@ -24,7 +23,7 @@ import java.util.Base64
 internal fun Application.authSaltRoute(store: AccountStore) {
     routing {
         post("/v1/auth/salt") {
-            val body = call.receiveText()
+            val body = call.receiveAuthBody() ?: return@post
             val username = extractUsername(body)
             if (username == null) {
                 call.respondText(
