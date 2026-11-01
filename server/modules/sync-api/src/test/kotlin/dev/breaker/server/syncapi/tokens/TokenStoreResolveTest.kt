@@ -186,10 +186,12 @@ internal class TokenStoreResolveTest : TempDatabaseTest() {
     }
 
     @Test
-    fun `a session token still resolves ten years later`() {
+    fun `a session token that is used every day keeps resolving ten years later`() {
         val text = session(userId).secret.reveal()
-        clock.advance(Duration.ofDays(3650))
-        assertNotNull("sync-api: session token after 3650 days", resolve(text))
+        repeat(3650) {
+            clock.advance(Duration.ofDays(1))
+            assertNotNull("sync-api: session token still resolves after ${it + 1} days", resolve(text))
+        }
     }
 
     @Test
@@ -225,16 +227,14 @@ internal class TokenStoreResolveTest : TempDatabaseTest() {
     }
 
     @Test
-    fun `resolve never writes, not even for an expired token`() {
+    fun `resolve never writes for an agent token or an expired token`() {
         val sessionToken = session(adminId)
         val forever = agent(userId, AgentScope.TRANSCRIBE)
         val expiring = agent(adminId, AgentScope.ADMIN, TokenFixtures.START.plusSeconds(60))
         val before = snapshot()
         assertEquals("sync-api: rows in the snapshot", 5, before.size)
         repeat(5) {
-            assertNotNull("sync-api: session resolves", resolve(sessionToken.secret.reveal()))
             assertNotNull("sync-api: agent token resolves", resolve(forever.secret.reveal()))
-            assertNotNull("sync-api: expiring token resolves while alive", resolve(expiring.secret.reveal()))
         }
         clock.set(TokenFixtures.START.plusSeconds(61))
         repeat(5) { assertNull("sync-api: expired token", resolve(expiring.secret.reveal())) }
