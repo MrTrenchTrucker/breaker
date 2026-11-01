@@ -17,7 +17,7 @@ phase number. Agents build from `AGENTS.md` files in each module.
 | 8 | **format** — server LLM formatter (via existing chat completions) + rule-based local formatter; non-destructive tests | Coding | Numbered-list example formats correctly (F8, N9); offline formatting works |
 | 9 | **E2E + bench + security review** — full flow test, on-device model bench, threat-model checklist | Bug Hunt | All F/N requirements in scope for Phases 0–8 met; docs/03 checklist items tagged for that scope signed off (items tagged with a later phase sign off at their own phase — see docs/03 phase tags) |
 | 10 | **phrases** — streaming ASR + phrase matching: "Breaker Breaker" wake + auto-record; "And I'm Gone" send + audio trim | Coding | Wake phrase starts recording; send phrase sends; phrase excluded from text (F4, F5, F9, N10) |
-| 11 | **auth + sync** — server sync-api (register/login/tokens, sync) + android sync + auth-client **+ `android/modules/crypto`'s derivation slice** (`deriveKeys` only — Argon2id + HKDF split into KEK + auth verifier, ADR-006). The password never leaves the device from this phase on, even though the DEK/AES-256-GCM and the ADR-018 box keypair don't exist until Phase 19 — `change-password` and any other key-bearing endpoint a builder wires before Phase 19 has nothing to re-wrap yet, so they wait for it too | Coding | First account = admin; login works; sync pushes + idempotent (F13, F14, N12, N13) |
+| 11 | **auth + sync** — server sync-api (register/login/tokens, sync) + android sync + auth-client **+ `android/modules/crypto`'s derivation slice** (`deriveKeys` only — Argon2id + HKDF split into KEK + auth verifier, ADR-006). The password never leaves the device from this phase on, even though the DEK generation and the ADR-018 box keypair don't exist until Phase 19 — `change-password` and any other key-bearing endpoint a builder wires before Phase 19 has nothing to re-wrap yet, so they wait for it too | Coding | First account = admin; login works; sync pushes + idempotent (F13, F14, N12, N13) |
 | 12 | **web-fe** — Debian container website: registration card, login, dashboard, admin panel | Coding | Register → first account admin; dashboard shows own transcriptions (F15, F22) |
 | 13 | **training** — training container + training-client: record samples, upload, train, download per-user model | Coding | Trained model downloads + verifies; phrase detection improves (F16) |
 | 14 | **APK hosting + sideload docs** — APK on web-fe; docs/06; plain HTTP on Local Server (ADR-034); no certificate authority to install | Coding + Bug Hunt | Download + install path works; no one-time sign-in pairs the phone; TLS only if an admin adds a reverse proxy (ADR-034) |
@@ -72,7 +72,7 @@ ever meets development data.
   ships sync (F13), four phases before the DEK exists (Phase 19), so every
   transcription a Phase 11–18 account pushes sits on the server as
   **plaintext** the whole time it waits for that account's first Phase-19
-  login. What Phase 19 adds is the DEK (AES-256-GCM) and the ADR-018 box
+  login. What Phase 19 adds is the DEK generation and wrap (the AES-256-GCM encrypt and decrypt operations are built in the sign-in slice) and the ADR-018 box
   keypair — both bootstrapped, per account, at that account's next login
   after Phase 19 ships (one mechanism for the keys themselves, whether the
   account is old or brand new) — **and** the one-time migration of that
@@ -81,7 +81,7 @@ ever meets development data.
   lands (see ADR-006). Because sync is development-only until Phase 19
   ("Gates and releases"), that migration only ever meets development data.
 - Phase 20 (agent tokens) depends on Phase 19 delivering the ADR-018
-  owner-keypair / sealed-box primitive, not only the DEK/AES-256-GCM
+  owner-keypair / sealed-box primitive, not only the DEK generation
   primitive — an agent-token result cannot be sealed to an owner who has no
   box keypair yet. The account reset (F31) depends on Phase 19 the same way:
   it leaves the account keyless, so the next login goes through Phase 19's

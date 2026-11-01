@@ -291,9 +291,9 @@ every call, revokes other user session tokens), the `key_version` field on
 every synced record and the atomic-replace path it drives, type-to-confirm on
 destructive actions. The Argon2id/HKDF derivation is its own
 core port, `core.KeyDerivation` (one `deriveKeys` call that returns both
-values, implemented by `android/modules/crypto`); `core.CryptoService` gains
-only the DEK generation/wrap + box-keypair operations when Phase 19 builds
-them — it is not changed by this documentation change set itself (see
+values, implemented by `android/modules/crypto`); `core.CryptoService` has five operations: `openSignInPackage` is new in the sign-in slice, and `unwrapDek` (the key-encryption
+key replaces the password) and `encrypt` and `decrypt` (associated data added as bytes) changed; `toEncryptedText` is unchanged. Only the DEK generation/wrap and box-keypair
+operations are still to come, when Phase 19 builds them (see the 2026-11-01 amendment below, and
 `android/modules/crypto/AGENTS.md`). The `android/modules/crypto` module
 implements Argon2id and HKDF-SHA256 with Bouncy Castle `bcprov-jdk18on:1.86`;
 its Gradle dependency-verification entry is narrow by design and verifies only
@@ -322,7 +322,7 @@ alone authorizing a password change.
 
 - P1 Framing for key_version 1 or higher: standard base64 of nonce (12 bytes), then ciphertext, then tag (16 bytes), under AES-256-GCM with the DEK; at least 28 decoded bytes.
 - P2 AAD is the UTF-8 bytes of client_id, a newline, and the decimal key_version. Decryption uses the row's returned key_version and the DEK of that version, so the server cannot move a body to another record or version.
-- P3 Interface change: core CryptoService encrypt and decrypt gain an AAD parameter. The Consequences above say CryptoService gains only DEK and box operations; this changes that.
+- P3 Interface change, built in the sign-in slice: core CryptoService encrypt and decrypt changed, each now takes an AAD parameter as bytes. The Consequences above said CryptoService would gain only DEK and box operations; this changed that.
 - P4 Nonces come only from a CSPRNG, with no caller-supplied nonce outside test vectors. Budget of 2^32 random nonces per DEK (NIST SP 800-38D, section 8.3). In JCA, updateAAD is called before doFinal.
 - P5 The sealed plaintext of an agent-token result is an R1 body with source server. Unseal refuses any other source (ADR-018).
 - P6 Vectors come from an independent oracle: published known-answer tests and independently generated framing vectors. Negatives include a wrong client_id, a wrong version, a flipped tag and 27 bytes.

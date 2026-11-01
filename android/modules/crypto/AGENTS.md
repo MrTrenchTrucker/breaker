@@ -91,7 +91,7 @@ unsealing.
   verifier without the password can also produce the KEK.
 - `generateDek() -> Dek` / `wrapDek(dek, kek) -> WrappedDek` (decided, not built:
   generating a data key and wrapping a new one are later work)
-- `unwrapDek(wrappedDek, kek) -> Dek` (built). The wrapped data key has ONE byte form,
+- `unwrapDek(wrappedDek, kek) -> DataEncryptionKey` (built). The wrapped data key has ONE byte form,
   so that the website page builds the same bytes: 60 raw bytes (not base64),
   nonce(12) || ciphertext(32) || tag(16), AES-256-GCM under the key-encryption key, with
   EMPTY associated data. Any other length, or a wrong key, is refused. The salt field of
@@ -157,8 +157,8 @@ The operations marked "decided, not built" above are still not built.
 - Ciphertext at rest; server cannot decrypt without the password (F24, T17) —
   this is not a claim that the password cannot be guessed offline (T25).
 - Logout wipes the DEK and box private key; re-login unwraps again.
-- A keyless account (no `wrapped_dek` yet) generates and uploads its DEK +
-  box keypair exactly once, on its first login after both exist client-side.
+- A keyless account (no `wrapped_dek` yet) will generate and upload its DEK +
+  box keypair exactly once, on its first login after both exist client-side (decided, not built: Phase 19).
 
 ## Depends On
 - android (registered in modules.toml)

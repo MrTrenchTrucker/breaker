@@ -62,7 +62,7 @@ Rules out: a verified app link and its host file; redeeming the code without the
 
 **Trust boundary, named.** The hand-off rests on the website page doing what it should. As ADR-006 says for the web path, anyone who can change the page can change what it does with the password. On plain http the code can be read in transit, but nobody else can redeem it without the app's secret. The token exchange is as readable as any plain-http call, which ADR-034 already accepts as a risk. The admin closes that risk with https.
 
-Nothing of this is built. There is no hand-off route, no code kind and no wrong-password limit in the code yet.
+Of the hand-off, only `CryptoService.openSignInPackage` (with its parser and the sealed-box open) is built. The sign-in routes, the website page, the server store for the key package, the device name and the device-list sign-out are not built. There is no hand-off route and no wrong-password limit in the code yet.
 
 ## To be designed (not decided here)
 
