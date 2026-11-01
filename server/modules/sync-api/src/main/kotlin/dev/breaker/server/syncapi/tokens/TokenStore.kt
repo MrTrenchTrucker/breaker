@@ -7,6 +7,7 @@ import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.Types
 import java.time.Clock
+import java.time.Duration
 import java.time.Instant
 
 internal class TokenStore(
@@ -22,7 +23,7 @@ internal class TokenStore(
             if (readOwnerRole(connection, accountId) == null) {
                 IssueResult.NoSuchAccount
             } else {
-                val id = insertToken(connection, accountId, TokenKind.SESSION, null, null, hash, nowMs, null)
+                val id = insertToken(connection, accountId, TokenKind.SESSION, null, null, hash, nowMs, nowMs + SESSION_IDLE_LIFETIME.toMillis())
                 IssueResult.Issued(IssuedToken(id, secret, TokenKind.SESSION, null, null))
             }
         }
@@ -61,7 +62,21 @@ internal class TokenStore(
         val secret = TokenSecret.parse(presented) ?: return null
         val hash = secret.hash()
         val nowMs = clock.millis()
-        return db.transaction<ResolvedToken?> { connection -> readLiveToken(connection, hash, nowMs) }
+        return db.transaction<ResolvedToken?> { connection ->
+            val token = readLiveToken(connection, hash, nowMs)
+            if (token != null && token.kind == TokenKind.SESSION) {
+                slideSessionExpiry(connection, token.tokenId, nowMs)
+            }
+            token
+        }
+    }
+
+    private fun slideSessionExpiry(connection: Connection, tokenId: Long, nowMs: Long) {
+        connection.prepareStatement(SLIDE_SESSION_SQL).use { statement ->
+            statement.setLong(1, nowMs + SESSION_IDLE_LIFETIME.toMillis())
+            statement.setLong(2, tokenId)
+            statement.executeUpdate()
+        }
     }
 
     suspend fun revokeAgentToken(tokenId: Long): Boolean {
@@ -183,6 +198,9 @@ internal class TokenStore(
 
     private companion object {
         const val MAX_LABEL_CODE_POINTS = 64
+        // A session token expires after 30 days with no use; each authenticated use moves the
+        // expiry to now + 30 days. A session row without an expiry gets one at its next use.
+        val SESSION_IDLE_LIFETIME: Duration = Duration.ofDays(30)
 
         val SURROGATES: IntRange = Character.MIN_SURROGATE.code..Character.MAX_SURROGATE.code
 
@@ -199,6 +217,11 @@ internal class TokenStore(
                 "JOIN accounts a ON a.id = t.account_id " +
                 "WHERE t.token_hash = ? AND t.revoked_at_ms IS NULL " +
                 "AND (t.expires_at_ms IS NULL OR t.expires_at_ms > ?)"
+
+        // Slides a session token's expiry to now + 30 days on each authenticated use.
+        // Agent tokens are never touched by this (kind = 'session').
+        const val SLIDE_SESSION_SQL =
+            "UPDATE tokens SET expires_at_ms = ? WHERE id = ? AND kind = 'session'"
 
         const val SELECT_AGENT_EXISTS_SQL = "SELECT 1 FROM tokens WHERE id = ? AND kind = 'agent'"
 

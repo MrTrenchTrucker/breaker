@@ -86,7 +86,7 @@ internal class TokenStoreIssueTest : TempDatabaseTest() {
         assertNotEquals("sync-api: the clock must have moved", TokenFixtures.START.toEpochMilli(), clock.millis())
         assertNull("sync-api: a session row stores no scope", textColumn(id, "scope"))
         assertNull("sync-api: a session row stores no label", textColumn(id, "label"))
-        assertNull("sync-api: a session row stores no expiry", longColumn(id, "expires_at_ms"))
+        assertEquals("sync-api: a session row stores now + 30 days", clock.millis() + 2_592_000_000, longColumn(id, "expires_at_ms"))
         assertNull("sync-api: a new row is not revoked", longColumn(id, "revoked_at_ms"))
     }
 

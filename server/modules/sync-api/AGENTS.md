@@ -259,11 +259,15 @@ completes it by rotating the DEK at the account's next password change
   indexed equality on that hash (test: issue a token, search the database file
   for its text and confirm it is not there; resolve the token and confirm the
   row is found through its hash).
-- A session token never expires (session expiry is out of scope for this
-  product). An agent token has an optional expiry and is dead at its expiry
-  instant, not after it (test: issue an agent token that expires in the
-  future, resolve it just before and exactly at that instant, expect found and
-  then no; resolve a session token far in the future, expect found).
+- A session token expires 30 days after its last use: login stores an expiry of
+  now + 30 days, and every resolve of a live session token moves it to now + 30
+  days (a session row with no expiry gets one at its next use). A token past its
+  expiry is refused with the normal 401 and stays refused, also after a later
+  try. An agent token has an optional expiry of its own, is dead at its expiry
+  instant, not after it, and is never moved by a use (test: issue an agent token
+  that expires in the future, resolve it just before and exactly at that instant,
+  expect found and then no; resolve a session token on day 29 and expect found
+  with the expiry moved, on day 30 unused and expect refused).
 - A token never carries more than its owner's role (ADR-009). Minting an
   admin-scoped agent token for an owner who is not an admin is refused. When a
   token is resolved, the effective scope is `transcribe` whenever the owner is
@@ -301,6 +305,7 @@ AuthApi, SyncApi, AdminApi
 - Unit (Kotlin/Ktor, ADR-017): `server/modules/sync-api/src/test/kotlin/`. Run: `./gradlew :server:modules:sync-api:test`. The entry point `main` is not covered by unit tests, because it needs a real socket; every function it calls is.
 - Username vectors: `UsernameVectorData.kt` is the literal copy of `shared/modules/api-contracts/examples/username_vectors.json`; `UsernameVectorsTest.kt` runs every row through `UsernameRules.isValid`, and the python test `tests/unit/shared/api-contracts/test_username_vectors.py` checks that the copy and the json agree.
 - Body cap: `AuthBodyLimitTest.kt` sends each of the three open routes a body one byte over 4096 (refused with `413` and the fixed error, nothing stored) and a body of exactly 4096 (not refused), a chunked body with no declared length over the cap (refused), and pins the cap at 4096.
+- Session expiry: `TokenStoreSessionExpiryTest.kt` (a new session stores now + 30 days; a session used on day 29 stays valid and moves forward; unused for 30 days is refused, one second earlier is not; an expired session stays refused after a later try; each use pushes the date out; a session with no expiry gets one at its next use; an agent token is not moved by a use), with `TokenStoreResolveTest.kt` (a session used every day still resolves after ten years) and `TokenStoreIssueTest.kt` (the stored expiry).
 - Contract: `tests/contract/test_sync_api_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_sync_api_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
