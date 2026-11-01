@@ -20,8 +20,9 @@ import java.lang.reflect.Method
  * An adapter must be writable against the port using only the domain types,
  * and a refusal must travel through the port as a typed exception. The shape
  * is pinned by reflection: one call, returning both keys together, so no
- * function exists that hands back one key alone. The existing crypto port is
- * checked to be unchanged, so key derivation stays a separate port.
+ * function exists that hands back one key alone. The crypto port is checked to
+ * have exactly its five methods and none that derives a key, so key derivation
+ * stays a separate port.
  */
 class KeyDerivationPortTest {
     private val params = KdfParams(
@@ -81,12 +82,12 @@ class KeyDerivationPortTest {
     }
 
     @Test
-    fun `the crypto service port is unchanged and does not derive keys`() {
+    fun `the crypto service port has exactly its five methods and does not derive keys`() {
         val names = realMethods(CryptoService::class.java).map { it.name }.toSet()
 
         assertEquals(
-            "CryptoService must keep exactly its four methods",
-            setOf("unwrapDek", "encrypt", "decrypt", "toEncryptedText"),
+            "CryptoService must have exactly its five methods",
+            setOf("unwrapDek", "openSignInPackage", "encrypt", "decrypt", "toEncryptedText"),
             names,
         )
         assertFalse("CryptoService must not gain deriveKeys", names.contains("deriveKeys"))

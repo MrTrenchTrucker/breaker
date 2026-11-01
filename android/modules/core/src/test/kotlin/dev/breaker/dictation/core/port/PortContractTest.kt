@@ -1,7 +1,9 @@
 package dev.breaker.dictation.core.port
 
+import dev.breaker.dictation.core.model.AccountKeys
 import dev.breaker.dictation.core.model.AppSettings
 import dev.breaker.dictation.core.model.AudioFormat
+import dev.breaker.dictation.core.model.BoxPrivateKey
 import dev.breaker.dictation.core.model.CipherText
 import dev.breaker.dictation.core.model.CommitRequest
 import dev.breaker.dictation.core.model.DataEncryptionKey
@@ -9,9 +11,12 @@ import dev.breaker.dictation.core.model.DictationResult
 import dev.breaker.dictation.core.model.DictationSession
 import dev.breaker.dictation.core.model.EncryptedText
 import dev.breaker.dictation.core.model.HeardWord
+import dev.breaker.dictation.core.model.KeyEncryptionKey
 import dev.breaker.dictation.core.model.PhraseEvent
 import dev.breaker.dictation.core.model.PhraseKind
 import dev.breaker.dictation.core.model.ReleaseInfo
+import dev.breaker.dictation.core.model.SealedSignInPackage
+import dev.breaker.dictation.core.model.SignInPrivateKey
 import dev.breaker.dictation.core.model.SttError
 import dev.breaker.dictation.core.model.SttMode
 import dev.breaker.dictation.core.model.SttRequest
@@ -142,20 +147,31 @@ class PortContractTest {
         val service = object : CryptoService {
             private val key = DataEncryptionKey(ByteArray(32) { 1 })
 
-            override fun unwrapDek(wrappedDek: WrappedDek, password: String): DataEncryptionKey = key
-            override fun encrypt(plaintext: String, dek: DataEncryptionKey): CipherText =
+            override fun unwrapDek(wrappedDek: WrappedDek, kek: KeyEncryptionKey): DataEncryptionKey = key
+
+            override fun openSignInPackage(
+                sealedPackage: SealedSignInPackage,
+                signInPrivateKey: SignInPrivateKey,
+            ): AccountKeys = AccountKeys(DataEncryptionKey(ByteArray(32) { 2 }), BoxPrivateKey(ByteArray(32) { 3 }))
+
+            override fun encrypt(plaintext: String, dek: DataEncryptionKey, aad: ByteArray): CipherText =
                 CipherText(plaintext.toByteArray(), ByteArray(12), ByteArray(16))
 
-            override fun decrypt(cipherText: CipherText, dek: DataEncryptionKey): String =
+            override fun decrypt(cipherText: CipherText, dek: DataEncryptionKey, aad: ByteArray): String =
                 String(cipherText.ciphertext)
 
             override fun toEncryptedText(cipherText: CipherText): EncryptedText =
                 EncryptedText("c", "n", "t")
         }
-        val key = service.unwrapDek(WrappedDek(ByteArray(8), ByteArray(16)), "password")
-        val cipher = service.encrypt("secret note", key)
-        assertEquals("secret note", service.decrypt(cipher, key))
+        val aad = "client-id\nkey-version".toByteArray()
+        val key = service.unwrapDek(WrappedDek(ByteArray(8), ByteArray(16)), KeyEncryptionKey(ByteArray(32)))
+        val cipher = service.encrypt("secret note", key, aad)
+        assertEquals("secret note", service.decrypt(cipher, key, aad))
         assertEquals(EncryptedText("c", "n", "t"), service.toEncryptedText(cipher))
+
+        val opened = service.openSignInPackage(SealedSignInPackage(ByteArray(80)), SignInPrivateKey(ByteArray(32)))
+        assertEquals("the opened package must hold a data key of 32 bytes", 32, opened.dek.bytes.size)
+        assertEquals("the opened package must hold a box key of 32 bytes", 32, opened.boxPrivateKey.copyBytes().size)
     }
 
     @Test

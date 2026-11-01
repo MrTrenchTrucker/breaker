@@ -9,14 +9,14 @@ transcriptions with AES-256-GCM, generates the owner's X25519 box keypair,
 and unseals agent-token results sealed to it — all locally. Nothing here ever
 sends the password, the KEK, or a plaintext DEK off the device.
 
-**Build phase:** Phase 11 builds key derivation only (`deriveKeys`); Phase 19 builds the DEK, AES-256-GCM, the box keypair and unsealing. Needs first: `core` (on main).
+**Build phase:** Phase 11 builds key derivation (`deriveKeys`). BUILT in the sign-in slice: unwrapping the data key with a key-encryption key, AES-256-GCM encrypt and decrypt with associated data, nonces from a secure random source, and opening a sign-in package (a sealed box) with the one-time private key. Decided, not built (Phase 19): generating the data key and the box keypair, wrapping a new data key, wrapping the box private key, unwrapping the box private key from its own wrapped form, unsealing results sealed to the account (`unsealAndReencrypt`), and the Android Keystore store. Needs first: `core` (on main).
 
 ## Owns
 Client-side key derivation (Argon2id + HKDF), DEK generation/wrap/unwrap,
 AES-256-GCM encrypt/decrypt, X25519 box keypair generation, sealed-box
 unsealing.
 
-## Public Interface `core.CryptoService` port, and `KdfImpl`, the `core.KeyDerivation` implementation.
+## Public Interface `core.CryptoService` port with its implementation `CryptoServiceImpl`, and `KdfImpl`, the `core.KeyDerivation` implementation.
 
 **Key flow:**
 1. **Registration:** the client derives one Argon2id output from the
@@ -89,23 +89,46 @@ unsealing.
   Argon2id run, then two HKDF expansions with distinct labels; there is no
   function that returns the KEK alone, so nothing that computes the auth
   verifier without the password can also produce the KEK.
-- `generateDek() -> Dek` / `wrapDek(dek, kek) -> WrappedDek` /
-  `unwrapDek(wrappedDek, kek) -> Dek`
-- `encrypt(plaintext, dek) -> {ciphertext, nonce, tag}`
-- `decrypt({ciphertext, nonce, tag}, dek) -> plaintext`
+- `generateDek() -> Dek` / `wrapDek(dek, kek) -> WrappedDek` (decided, not built:
+  generating a data key and wrapping a new one are later work)
+- `unwrapDek(wrappedDek, kek) -> Dek` (built). The wrapped data key has ONE byte form,
+  so that the website page builds the same bytes: 60 raw bytes (not base64),
+  nonce(12) || ciphertext(32) || tag(16), AES-256-GCM under the key-encryption key, with
+  EMPTY associated data. Any other length, or a wrong key, is refused. The salt field of
+  the wrapped key is not used. The caller derives the key-encryption key; no password
+  reaches this operation.
+- `encrypt(plaintext, dek, aad) -> {ciphertext, nonce, tag}` (built): AES-256-GCM with a
+  12-byte nonce that comes only from a secure random source and a 16-byte tag. The
+  associated data is opaque bytes built by the caller (the client id as UTF-8, a newline,
+  the decimal key version); that form is pinned by test vectors (ADR-006 P2).
+- `decrypt({ciphertext, nonce, tag}, dek, aad) -> plaintext` (built): refuses a nonce
+  that is not 12 bytes, a tag that is not 16 bytes, a key that is not 32 bytes, a wrong
+  key, wrong associated data and any damage, all as the one plain `CryptoRefused`.
+- `openSignInPackage(sealedPackage, signInPrivateKey) -> {dek, boxPrivateKey}` (built):
+  opens the sealed box (libsodium `crypto_box_seal`, the ADR-018 construction) with the
+  one-time private key, then reads the package plaintext. The package plaintext has ONE
+  byte form: exactly 65 bytes = 0x01 || data key (32) || box private key (32). It is
+  refused unless the length is exactly 65 and the first byte is 1; there is no key
+  version inside and the keys are not inspected. The shared known-answer vector (a real
+  `crypto_box_seal` box, with its secret key and public key) is in `SignInPackageTest`.
+  A sealed box uses a random ephemeral key, so the website page cannot reproduce those
+  bytes; its own test is to OPEN that box with the secret key and get the 65 bytes, and
+  to do its own seal-then-open round trip.
 - `generateBoxKeypair() -> {boxPubkey, boxPrivkey}` /
   `wrapBoxPrivkey(boxPrivkey, dek) -> WrappedBoxPrivkey` /
-  `unwrapBoxPrivkey(wrapped, dek) -> boxPrivkey`
-- `unsealAndReencrypt(sealedBox, boxPrivkey, dek) -> {ciphertext, nonce, tag}`
-  — libsodium `crypto_box_seal` open, immediately followed by an ordinary
-  `encrypt`. This module never seals (that happens server-side in
-  `whisper-server`, ADR-018) — it only opens.
+  `unwrapBoxPrivkey(wrapped, dek) -> boxPrivkey` (decided, not built: this module does
+  not yet generate, wrap or unwrap the account's box key pair)
+- `unsealAndReencrypt(sealedBox, boxPrivkey, dek) -> {ciphertext, nonce, tag}` (decided,
+  not built). This is the libsodium `crypto_box_seal` open, immediately followed by an
+  ordinary `encrypt`, applied to results sealed to the account. This module never seals
+  (that happens server-side in `whisper-server`, ADR-018); it only opens.
 
 `deriveKeys` implements its own core port, `core.KeyDerivation`;
-`core.CryptoService` (the port the other operations implement) gains only the
-DEK/box operations when Phase 19 builds them — see ADR-006's and ADR-018's
-Consequences for that timeline; this card describes the module's target
-shape, not a change to `core.CryptoService` itself.
+`core.CryptoService` is the port the other operations implement, and
+`CryptoServiceImpl` implements it. The port changed once, in the sign-in slice
+(ADR-006, planned items P1 to P4): `unwrapDek` takes the key-encryption key,
+`encrypt` and `decrypt` take the associated data, and `openSignInPackage` was added.
+The operations marked "decided, not built" above are still not built.
 
 **Security notes:**
 - Same Argon2id parameters, HKDF labels, and test vectors as the server and
@@ -149,7 +172,7 @@ shape, not a change to `core.CryptoService` itself.
   in `whisper-server`, using a JVM libsodium binding (ADR-018)
 
 ## Test Locations
-- Unit (Kotlin): `android/modules/crypto/src/test/kotlin/`, created with the module's first code. Run: `./gradlew :android:modules:crypto:test`
+- Unit (Kotlin): `android/modules/crypto/src/test/kotlin/`, one test class beside each implementation class. Run: `./gradlew :android:modules:crypto:test`
 - Contract: `tests/contract/test_crypto_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_crypto_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
@@ -183,6 +206,9 @@ agents, not required: an outside contributor may write the code themselves
 - KDF params + test vectors must match the server and web FE (interop); the
   sealed-box construction (libsodium `crypto_box_seal`, no Tink) must match
   `whisper-server`'s JVM binding, pinned by the same cross-platform vectors.
+- Bouncy Castle keeps its own internal copies of key material (the private-key
+  parameters, the key agreement and the cipher state), and this module cannot zero
+  them; it zeroes only the arrays it owns.
 - A keyless account's first login uploads its DEK + box keypair exactly
   once — the server refuses a second upload (ADR-006), so a retry after a
   dropped response must check whether the keys already landed before
@@ -192,3 +218,10 @@ agents, not required: an outside contributor may write the code themselves
   /v1/auth/keys`, no prior wrapped DEK to replace) and the second rides
   `POST /v1/auth/change-password`, which replaces the prior wrapped DEK on
   **every** call, not only one that happens to follow a reset (ADR-006).
+- The contract's `encrypted` field is ONE string: nonce || ciphertext || tag, joined and
+  base64-encoded together. `toEncryptedText` here still gives three separate base64
+  parts, and joining them into the single string is NOT built in this module. That is
+  the sync module's job.
+- The wrapped data key and the sign-in package plaintext have one byte form each (see
+  Interfaces). The website page must build exactly those bytes, so change neither form
+  without changing the page and the shared vectors in the same step.
