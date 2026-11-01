@@ -1,0 +1,161 @@
+{
+ "name": "proof-early-stop-test",
+ "tip": {
+  "tree": "ea7168546cf0f291e134846cdeba8b45e03b451d"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "whisper-server: a test that the answer cap stops the read early",
+   "base_tree": "bbbc2f43f77a1e81ea39912e842186885d13346a",
+   "item_tip_tree": "ea7168546cf0f291e134846cdeba8b45e03b451d",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [],
+   "red_not_run": "the production cap already exists on the base, so the new test is green there: it pins existing behaviour; the mutants carry the proof"
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 1,
+ "entries": [
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/BoundedBody.kt",
+     "anchor": "            if (stream.size() + size > limit) {",
+     "replacement": "            if (stream.size() + size > limit * 1000) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "earlyStopReadsFewerThan1500Chunks"
+   ],
+   "rule": "the cap raised x1000: the read stops only after 4 MB, so the server writes thousands of chunks",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/BoundedBody.kt",
+     "anchor": "            if (stream.size() + size > limit) {",
+     "replacement": "            if (stream.size() + size > limit * 100000) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "earlyStopReadsFewerThan1500Chunks"
+   ],
+   "rule": "the cap effectively removed: the read stops only at the total deadline",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/BoundedBody.kt",
+     "anchor": "                subscription?.cancel()\n                future.complete(null)",
+     "replacement": "                future.complete(null)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "earlyStopReadsFewerThan1500Chunks"
+   ],
+   "rule": "the cap branch no longer cancels the subscription: the exchange stays open and the server keeps writing",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/BoundedBody.kt",
+     "anchor": "                over = true\n                scheduled?.cancel(false)\n                subscription?.cancel()",
+     "replacement": "                over = true\n                subscription?.cancel()"
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "equivalent: the deadline timer is not cancelled on the cap path, its late fire is a no-op on a completed future",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/BoundedBody.kt",
+     "anchor": "        if (over) return\n",
+     "replacement": ""
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "equivalent: after the cap the subscription is cancelled, a late buffer only fills a stream nobody reads",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill-whisper",
+   "module": "server/modules/whisper-server",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "                    401 -> TokenAnswer.NotLive",
+     "replacement": "                    401 -> TokenAnswer.Unavailable"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive-whisper",
+   "module": "server/modules/whisper-server",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "                    401 -> TokenAnswer.NotLive",
+     "replacement": "                    401 -> TokenAnswer.NotLive // unchanged behaviour"
+    }
+   ]
+  }
+ ]
+}
