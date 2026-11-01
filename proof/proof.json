@@ -1,0 +1,720 @@
+{
+ "name": "proof-crypto-s1-s2",
+ "tip": {
+  "tree": "9a99b230b5ce66b9f5e5830996f0b589eeed966a"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "crypto: the core port takes the key-encryption key, the sign-in package and the associated data; the crypto module opens them",
+   "base_tree": "ecee8ae3de694ce164e67e2de9c15738c23595d6",
+   "item_tip_tree": "9a99b230b5ce66b9f5e5830996f0b589eeed966a",
+   "new_production_classes": [
+    "SignIn",
+    "CryptoServiceImpl",
+    "HSalsa20",
+    "NonceSource",
+    "SealedBoxOpener",
+    "SignInPackage"
+   ],
+   "test_fixtures_overlaid": [
+    "CryptoServiceTestFixture.kt"
+   ],
+   "red_not_run": "every test class of this slice uses types that do not exist on the base (the new core types, the new port methods), so none compiles there and no red leg is possible; the mutants carry the proof"
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/core",
+   "edits": [
+    {
+     "file": "android/modules/core/src/main/kotlin/dev/breaker/dictation/core/port/CryptoService.kt",
+     "anchor": "    fun unwrapDek(wrappedDek: WrappedDek, kek: KeyEncryptionKey): DataEncryptionKey",
+     "replacement": "    fun unwrapDek(wrappedDek: WrappedDek, kek: KeyEncryptionKey): DataEncryptionKey\n    fun unwrapDek(wrappedDek: WrappedDek, password: String): DataEncryptionKey = throw UnsupportedOperationException()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the crypto service port declares exactly its five methods",
+    "unwrapDek on the crypto service port takes the wrapped key and the key encryption key",
+    "the password taking unwrapDek is gone from the crypto service port",
+    "no crypto service method takes a text except the one to encrypt"
+   ],
+   "rule": "the password signature kept next to the new one",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/core",
+   "edits": [
+    {
+     "file": "android/modules/core/src/main/kotlin/dev/breaker/dictation/core/model/SignIn.kt",
+     "anchor": "            \"A sign-in private key must be $SIZE_BYTES bytes, got ${bytes.size}\"\n        }\n        key = bytes.copyOf()",
+     "replacement": "            \"A sign-in private key must be $SIZE_BYTES bytes, got ${bytes.size}\"\n        }\n        key = bytes"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a secret copies the caller array when it is built",
+    "wiping a secret zeroes it and leaves the other secrets and the caller array alone"
+   ],
+   "rule": "the sign-in key keeps the caller's array",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/core",
+   "edits": [
+    {
+     "file": "android/modules/core/src/main/kotlin/dev/breaker/dictation/core/model/SignIn.kt",
+     "anchor": "    fun wipe() = box.fill(0)",
+     "replacement": "    fun wipe() = Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "wiping a secret zeroes it and leaves the other secrets and the caller array alone"
+   ],
+   "rule": "wipe of the sealed package does nothing",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/core",
+   "edits": [
+    {
+     "file": "android/modules/core/src/main/kotlin/dev/breaker/dictation/core/model/SignIn.kt",
+     "anchor": "    override fun toString(): String = \"SignInPrivateKey($SIZE_BYTES bytes)\"",
+     "replacement": "    override fun toString(): String = \"SignInPrivateKey($SIZE_BYTES bytes, first=${key[0]})\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a secret prints a fixed text with only its size and keeps it after wipe"
+   ],
+   "rule": "toString prints the first key byte",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/core",
+   "edits": [
+    {
+     "file": "android/modules/core/src/main/kotlin/dev/breaker/dictation/core/model/SignIn.kt",
+     "anchor": "        require(bytes.size == SIZE_BYTES) {\n            \"A sign-in private key must be",
+     "replacement": "        require(bytes.size >= SIZE_BYTES) {\n            \"A sign-in private key must be"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a sign in private key refuses every length except 32 bytes"
+   ],
+   "rule": "size check of the sign-in key relaxed",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/core",
+   "edits": [
+    {
+     "file": "android/modules/core/src/main/kotlin/dev/breaker/dictation/core/model/SignIn.kt",
+     "anchor": "        boxPrivateKey.wipe()",
+     "replacement": "        Unit"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "wiping the account keys zeroes both members and the members are the ones passed in"
+   ],
+   "rule": "AccountKeys.wipe leaves the box key",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/HSalsa20.kt",
+     "anchor": "        val out = ByteArray(HSALSA20_OUTPUT_BYTES)",
+     "replacement": "        x[0] += SIGMA_0\n        x[5] += SIGMA_1\n        x[10] += SIGMA_2\n        x[15] += SIGMA_3\n        for (j in 0 until 4) x[6 + j] += hsalsaReadLe(input16, 4 * j)\n        val out = ByteArray(HSALSA20_OUTPUT_BYTES)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "hsalsa20 of a shared secret gives the libsodium beforenm key",
+    "hsalsa20 reproduces the published NaCl core vector",
+    "a real sealed box of an empty message opens at exactly 48 bytes",
+    "a real sealed box of a 1 byte message opens",
+    "a real sealed box of a 64 byte message opens",
+    "a real sealed box of a 100 byte message opens",
+    "opening leaves the box and the key as they were",
+    "a good box reaches the body cipher exactly once",
+    "the shared sign-in vector opens to the expected data key and box private key",
+    "opening leaves the sealed package and the private key object unchanged",
+    "opening the shared vector twice gives the same keys"
+   ],
+   "rule": "HSalsa20 keeps the final addition",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/HSalsa20.kt",
+     "anchor": "private val HSALSA20_OUTPUT_WORDS = intArrayOf(0, 5, 10, 15, 6, 7, 8, 9)",
+     "replacement": "private val HSALSA20_OUTPUT_WORDS = intArrayOf(0, 5, 10, 15, 6, 6, 8, 9)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "hsalsa20 of a shared secret gives the libsodium beforenm key",
+    "hsalsa20 reproduces the published NaCl core vector",
+    "a real sealed box of an empty message opens at exactly 48 bytes",
+    "a real sealed box of a 1 byte message opens",
+    "a real sealed box of a 64 byte message opens",
+    "a real sealed box of a 100 byte message opens",
+    "opening leaves the box and the key as they were",
+    "a good box reaches the body cipher exactly once",
+    "the shared sign-in vector opens to the expected data key and box private key",
+    "opening leaves the sealed package and the private key object unchanged",
+    "opening the shared vector twice gives the same keys"
+   ],
+   "rule": "one HSalsa20 output word index wrong",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/SealedBoxOpener.kt",
+     "anchor": "    digest.update(epk, 0, epk.size)\n    digest.update(rpk, 0, rpk.size)",
+     "replacement": "    digest.update(rpk, 0, rpk.size)\n    digest.update(epk, 0, epk.size)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a real sealed box of an empty message opens at exactly 48 bytes",
+    "a real sealed box of a 1 byte message opens",
+    "a real sealed box of a 64 byte message opens",
+    "a real sealed box of a 100 byte message opens",
+    "opening leaves the box and the key as they were",
+    "a good box reaches the body cipher exactly once",
+    "the shared sign-in vector opens to the expected data key and box private key",
+    "opening leaves the sealed package and the private key object unchanged",
+    "opening the shared vector twice gives the same keys"
+   ],
+   "rule": "nonce hashed over (rpk, epk)",
+   "note": ""
+  },
+  {
+   "id": "mut-10",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/SealedBoxOpener.kt",
+     "anchor": "            val expectedTag = sealedTag(polyKey, ciphertext)",
+     "replacement": "            val expectedTag = sealedTag(polyKey, box.copyOfRange(SEALED_EPK_BYTES, box.size))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a real sealed box of an empty message opens at exactly 48 bytes",
+    "a real sealed box of a 1 byte message opens",
+    "a real sealed box of a 64 byte message opens",
+    "a real sealed box of a 100 byte message opens",
+    "opening leaves the box and the key as they were",
+    "a good box reaches the body cipher exactly once",
+    "the shared sign-in vector opens to the expected data key and box private key",
+    "opening leaves the sealed package and the private key object unchanged",
+    "opening the shared vector twice gives the same keys"
+   ],
+   "rule": "Poly1305 over tag and ciphertext",
+   "note": ""
+  },
+  {
+   "id": "mut-11",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/SealedBoxOpener.kt",
+     "anchor": "            val expectedTag = sealedTag(polyKey, ciphertext)",
+     "replacement": "            val early = bodyCipher.apply(subkey, nonce, ciphertext)\n            val expectedTag = sealedTag(polyKey, ciphertext)"
+    },
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/SealedBoxOpener.kt",
+     "anchor": "            return bodyCipher.apply(subkey, nonce, ciphertext)",
+     "replacement": "            return early"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "one flipped bit in the tag is refused before the body cipher runs",
+    "one flipped bit in the tag of an empty message box is refused",
+    "one flipped bit in the ciphertext is refused before the body cipher runs",
+    "one flipped bit in the ephemeral key is refused before the body cipher runs",
+    "a wrong recipient private key is refused before the body cipher runs"
+   ],
+   "rule": "body cipher runs before the tag check",
+   "note": ""
+  },
+  {
+   "id": "mut-12",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/SealedBoxOpener.kt",
+     "anchor": "        if (box.size < SEALED_MIN_BOX_BYTES) throw CryptoRefused()",
+     "replacement": "        if (box.size <= SEALED_MIN_BOX_BYTES) throw CryptoRefused()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a real sealed box of an empty message opens at exactly 48 bytes"
+   ],
+   "rule": "the 48 byte box refused",
+   "note": ""
+  },
+  {
+   "id": "mut-13",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/SealedBoxOpener.kt",
+     "anchor": "        if (box.size < SEALED_MIN_BOX_BYTES) throw CryptoRefused()",
+     "replacement": "        if (box.size < SEALED_MIN_BOX_BYTES - 1) throw CryptoRefused()"
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "equivalent: a 47 byte box is refused later anyway",
+   "note": ""
+  },
+  {
+   "id": "mut-14",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/SealedBoxOpener.kt",
+     "anchor": "        if (recipientPrivateKey.size != SEALED_PRIVATE_KEY_BYTES) throw CryptoRefused()",
+     "replacement": "        if (recipientPrivateKey.size < SEALED_PRIVATE_KEY_BYTES) throw CryptoRefused()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a recipient key of 33 bytes is refused"
+   ],
+   "rule": "a 33 byte recipient key accepted",
+   "note": ""
+  },
+  {
+   "id": "mut-15",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/SealedBoxOpener.kt",
+     "anchor": "    for (b in bytes) seen = seen or b.toInt()",
+     "replacement": "    seen = bytes[0].toInt()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the all zero check sees a single set byte at any position"
+   ],
+   "rule": "all-zero check reads only the first byte",
+   "note": ""
+  },
+  {
+   "id": "mut-16",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/SealedBoxOpener.kt",
+     "anchor": "            engine.processBytes(skipped, 0, skipped.size, keystreamHead, 0)",
+     "replacement": "            // the 32 byte keystream skip removed"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a real sealed box of a 1 byte message opens",
+    "a real sealed box of a 64 byte message opens",
+    "a real sealed box of a 100 byte message opens",
+    "a good box reaches the body cipher exactly once",
+    "the shared sign-in vector opens to the expected data key and box private key",
+    "opening leaves the sealed package and the private key object unchanged",
+    "opening the shared vector twice gives the same keys"
+   ],
+   "rule": "the body is decrypted from keystream byte 0",
+   "note": ""
+  },
+  {
+   "id": "mut-17",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/SealedBoxOpener.kt",
+     "anchor": "            if (!MessageDigest.isEqual(expectedTag, tag)) throw CryptoRefused()",
+     "replacement": "            if (!expectedTag.contentEquals(tag)) throw CryptoRefused()"
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "the compare is not constant time: no test can see timing",
+   "note": ""
+  },
+  {
+   "id": "mut-18",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/CryptoServiceImpl.kt",
+     "anchor": "                val sealed = runGcm(Cipher.ENCRYPT_MODE, dek.bytes, nonce, aad, plainBytes)",
+     "replacement": "                val sealed = runGcm(Cipher.ENCRYPT_MODE, dek.bytes, nonce, ByteArray(0), plainBytes)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "encrypt gives the independent ciphertext nonce and tag for key version one",
+    "encrypt joined as nonce then ciphertext then tag equals the independent joined bytes",
+    "encrypt for key version two gives the same ciphertext and a different tag",
+    "an empty text and a text with non ascii letters make a round trip"
+   ],
+   "rule": "the associated data dropped from encrypt",
+   "note": ""
+  },
+  {
+   "id": "mut-19",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/CryptoServiceImpl.kt",
+     "anchor": "                aad = aad,",
+     "replacement": "                aad = ByteArray(0),"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "decrypt opens the independent vectors",
+    "an empty text and a text with non ascii letters make a round trip"
+   ],
+   "rule": "the associated data dropped from decrypt",
+   "note": ""
+  },
+  {
+   "id": "mut-20",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/CryptoServiceImpl.kt",
+     "anchor": "            if (wrapped.size != WRAPPED_DEK_BYTES) throw CryptoRefused()",
+     "replacement": "            // wrapped key length guard removed"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a valid wrapping of 31 or 33 key bytes built in the test is refused by the length guard alone",
+    "an independent valid wrapping of 31 key bytes is refused by the length guard",
+    "an independent valid wrapping of 33 key bytes is refused by the length guard"
+   ],
+   "rule": "unwrap length guard deleted",
+   "note": ""
+  },
+  {
+   "id": "mut-21",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/SignInPackage.kt",
+     "anchor": "plaintext.size != SIZE_BYTES ||",
+     "replacement": "plaintext.size < SIZE_BYTES ||"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "parse refuses 64 bytes 66 bytes and an empty array",
+    "a sealed package whose plaintext is 66 bytes is refused",
+    "parse zeroes its input after a refusal"
+   ],
+   "rule": "exact length relaxed to at least",
+   "note": ""
+  },
+  {
+   "id": "mut-22",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/SignInPackage.kt",
+     "anchor": "plaintext.size != SIZE_BYTES || plaintext[0].toInt() != FORMAT_VERSION",
+     "replacement": "plaintext.size != SIZE_BYTES"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "parse refuses version 0 and version 2 and a version byte with the top bit set",
+    "a sealed package with version two is refused",
+    "parse zeroes its input after a refusal"
+   ],
+   "rule": "version check removed",
+   "note": ""
+  },
+  {
+   "id": "mut-23",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/SignInPackage.kt",
+     "anchor": "            plaintext.fill(0)",
+     "replacement": "            // working plaintext not zeroed"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "parse zeroes its input after success and the keys it returned stay intact",
+    "parse zeroes its input after a refusal"
+   ],
+   "rule": "working copy not zeroed",
+   "note": ""
+  },
+  {
+   "id": "mut-24",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/SignInPackage.kt",
+     "anchor": "            return AccountKeys(DataEncryptionKey(dekBytes), BoxPrivateKey(boxBytes))",
+     "replacement": "            return AccountKeys(DataEncryptionKey(boxBytes), BoxPrivateKey(dekBytes))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the shared sign-in vector opens to the expected data key and box private key",
+    "parse reads the data key from bytes 1 to 32 and the box key from bytes 33 to 64"
+   ],
+   "rule": "data key and box key swapped",
+   "note": ""
+  },
+  {
+   "id": "mut-25",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/CryptoServiceImpl.kt",
+     "anchor": "            nonce = encoder.encodeToString(cipherText.nonce),",
+     "replacement": "            nonce = encoder.encodeToString(cipherText.ciphertext),"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "toEncryptedText gives three base64 strings that equal the independent ones",
+    "toEncryptedText of an empty ciphertext keeps the ciphertext an empty string"
+   ],
+   "rule": "toEncryptedText gives the ciphertext twice",
+   "note": ""
+  },
+  {
+   "id": "mut-26",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/CryptoServiceImpl.kt",
+     "anchor": "                kekBytes.fill(0)",
+     "replacement": "                kek.wipe()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "unwrapping does not change the key-encryption key and ignores the salt"
+   ],
+   "rule": "the service wipes the caller's key",
+   "note": ""
+  },
+  {
+   "id": "mut-27",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/CryptoServiceImpl.kt",
+     "anchor": "            if (nonce.size != GCM_NONCE_BYTES) throw CryptoRefused()",
+     "replacement": "            // nonce length check removed"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "encrypt refuses a nonce that is not 12 bytes"
+   ],
+   "rule": "encrypt nonce length not checked",
+   "note": ""
+  },
+  {
+   "id": "mut-28",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/CryptoServiceImpl.kt",
+     "anchor": "            if (cipherText.tag.size != GCM_TAG_BYTES) throw CryptoRefused()",
+     "replacement": "            // tag length check removed"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "decrypt refuses a tag of 15 bytes whose missing byte was moved to the end of the ciphertext"
+   ],
+   "rule": "decrypt tag length guard deleted",
+   "note": ""
+  },
+  {
+   "id": "mut-29",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/modules/crypto",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/CryptoServiceImpl.kt",
+     "anchor": "        if (dek.bytes.size != DEK_SIZE_BYTES) throw CryptoRefused()",
+     "replacement": "        // key size check removed"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "encrypt refuses a key that is not 32 bytes and does not ask for a nonce",
+    "encrypt refuses a key of 16 bytes that the cipher would accept",
+    "decrypt refuses a record that is genuine under a 16-byte key"
+   ],
+   "rule": "data key size guard deleted",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill-core",
+   "module": "android/modules/core",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "android/modules/core/src/main/kotlin/dev/breaker/dictation/core/model/SignIn.kt",
+     "anchor": "class CryptoRefused : IllegalArgumentException(\"Cryptographic operation refused\")",
+     "replacement": "class CryptoRefused : IllegalArgumentException(\"Refused\")"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive-core",
+   "module": "android/modules/core",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "android/modules/core/src/main/kotlin/dev/breaker/dictation/core/port/CryptoService.kt",
+     "anchor": "    fun toEncryptedText(cipherText: CipherText): EncryptedText",
+     "replacement": "    fun toEncryptedText(cipherText: CipherText): EncryptedText // unchanged behaviour"
+    }
+   ]
+  },
+  {
+   "id": "ctl-kill-crypto",
+   "module": "android/modules/crypto",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/SignInPackage.kt",
+     "anchor": "    const val FORMAT_VERSION = 1",
+     "replacement": "    const val FORMAT_VERSION = 2"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive-crypto",
+   "module": "android/modules/crypto",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/SignInPackage.kt",
+     "anchor": "    const val SIZE_BYTES = 65",
+     "replacement": "    const val SIZE_BYTES = 65 // unchanged behaviour"
+    }
+   ]
+  }
+ ]
+}
