@@ -1,0 +1,273 @@
+{
+ "name": "proof-sync-api-body-cap",
+ "tip": {
+  "tree": "1aa11ecd8a2f3536f3feca093a74d96c850e3ec7"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "sync-api: the three open auth routes refuse a request body over 4096 bytes with 413",
+   "base_tree": "519482db98c4fd507367faa1d19202d8a2e87cad",
+   "item_tip_tree": "1aa11ecd8a2f3536f3feca093a74d96c850e3ec7",
+   "new_production_classes": [
+    "AuthBodyLimit"
+   ],
+   "test_fixtures_overlaid": [],
+   "red_not_run": "the new test file reads MAX_AUTH_BODY_BYTES, which does not exist on main, so it does not compile there and no red leg is run. The mutants and the two controls carry the proof."
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthBodyLimit.kt",
+     "anchor": "internal const val MAX_AUTH_BODY_BYTES: Long = 4096L",
+     "replacement": "internal const val MAX_AUTH_BODY_BYTES: Long = Long.MAX_VALUE"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a register body over the cap is refused with 413 and the fixed error",
+    "a salt body over the cap is refused with 413",
+    "a login body over the cap is refused with 413",
+    "a refused register stores nothing",
+    "a chunked body over the cap is refused",
+    "the cap is 4096 bytes"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthBodyLimit.kt",
+     "anchor": "    if (bytes.size > MAX_AUTH_BODY_BYTES) {",
+     "replacement": "    if (bytes.size >= MAX_AUTH_BODY_BYTES) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a register body of exactly the cap is accepted",
+    "a salt body of exactly the cap is not refused",
+    "a login body of exactly the cap is not refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthBodyLimit.kt",
+     "anchor": "    if (bytes.size > MAX_AUTH_BODY_BYTES) {",
+     "replacement": "    if (false) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a chunked body over the cap is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthBodyLimit.kt",
+     "anchor": "    if (declared != null && declared > MAX_AUTH_BODY_BYTES) {",
+     "replacement": "    if (false) {"
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthBodyLimit.kt",
+     "anchor": "internal const val MAX_AUTH_BODY_BYTES: Long = 4096L",
+     "replacement": "internal const val MAX_AUTH_BODY_BYTES: Long = 8192L"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a register body over the cap is refused with 413 and the fixed error",
+    "a salt body over the cap is refused with 413",
+    "a login body over the cap is refused with 413",
+    "a refused register stores nothing",
+    "a chunked body over the cap is refused",
+    "the cap is 4096 bytes"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthBodyLimit.kt",
+     "anchor": "internal const val MAX_AUTH_BODY_BYTES: Long = 4096L",
+     "replacement": "internal const val MAX_AUTH_BODY_BYTES: Long = 4095L"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a register body of exactly the cap is accepted",
+    "a salt body of exactly the cap is not refused",
+    "a login body of exactly the cap is not refused",
+    "the cap is 4096 bytes"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthRegisterRoute.kt",
+     "anchor": "import io.ktor.server.response.respondText",
+     "replacement": "import io.ktor.server.request.receiveText\nimport io.ktor.server.response.respondText"
+    },
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthRegisterRoute.kt",
+     "anchor": "        val body = call.receiveAuthBody() ?: return@post",
+     "replacement": "        val body = call.receiveText()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a register body over the cap is refused with 413 and the fixed error",
+    "a refused register stores nothing",
+    "a chunked body over the cap is refused"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthSaltRoute.kt",
+     "anchor": "import io.ktor.server.response.respondText",
+     "replacement": "import io.ktor.server.request.receiveText\nimport io.ktor.server.response.respondText"
+    },
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthSaltRoute.kt",
+     "anchor": "            val body = call.receiveAuthBody() ?: return@post",
+     "replacement": "            val body = call.receiveText()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a salt body over the cap is refused with 413"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthLoginRoute.kt",
+     "anchor": "import io.ktor.server.response.respondText",
+     "replacement": "import io.ktor.server.request.receiveText\nimport io.ktor.server.response.respondText"
+    },
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthLoginRoute.kt",
+     "anchor": "            val body = call.receiveAuthBody() ?: return@post",
+     "replacement": "            val body = call.receiveText()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a login body over the cap is refused with 413"
+   ],
+   "rule": "",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "server/modules/sync-api",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthBodyLimit.kt",
+     "anchor": "internal const val MAX_AUTH_BODY_BYTES: Long = 4096L",
+     "replacement": "internal const val MAX_AUTH_BODY_BYTES: Long = Long.MAX_VALUE"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "server/modules/sync-api",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthBodyLimit.kt",
+     "anchor": "internal const val MAX_AUTH_BODY_BYTES: Long = 4096L",
+     "replacement": "internal const val MAX_AUTH_BODY_BYTES: Long = 4096L // unchanged behaviour"
+    }
+   ]
+  }
+ ]
+}
