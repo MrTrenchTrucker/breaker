@@ -131,6 +131,8 @@ app launches to the home screen the ui module builds (on a phone with no speech 
 
 29. Navigation: the Home menu is the one place screens open from, apart from the first-run view. The only other entries are the two notification routes: `ROUTE_MODEL` opens Settings and asks for its download button, and `ROUTE_HISTORY` opens History on a fresh create. On Home, Back closes an open menu first, and otherwise leaves the app. Back from How it works, About or Settings returns to Home. Back from History returns to Settings when Settings is open, and to Home otherwise. The Settings screen holds one settings view in its column, with no setup block and no History button. Tested by: `NavigationOnlyFromMenuTest`, `HistoryRouteGateTest`, `AppHostingGateTest` and `SettingsColumnSingleChildTest`.
 
+Planned (ADR-033), not built: Home shows a quiet notice with a way to sign in when there is no live session (a fresh install, an expired or revoked session, or a key the server refused). Nothing forces the user anywhere and the app keeps working offline as it does today. The words of the notice are approved by the project owner before they are written, and the notice does not change how an engine is picked.
+
 ## Swap Points
 Where a part that is not built is swapped for the real one. Each is one declaration in `wiring/Swaps.kt`, or in `wiring/AndroidSwaps.kt` when it needs an Android type (the text committer, the android half of the swap point); the composition root and the tile host read them, and nothing else names a placeholder. `SwapsTest` pins what each answers today.
 

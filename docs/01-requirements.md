@@ -2,7 +2,7 @@
 
 ## Functional
 - **F1** Dictate speech → **formatted** text (server path primary).
-- **F2** Server-first: when Local Server is reachable over ZeroTier, transcribe + format there.
+- **F2** Server-first: when Local Server is reachable over a VPN, transcribe + format there.
 - **F3** On-device fallback: server unreachable → local transcription + rule-based
   formatting. Dictation never stops.
 - **F4** **"Breaker Breaker"** (voice phrase) → floating tile appears AND
@@ -34,8 +34,10 @@
 - **F16** **Voice phrase training:** in-app flow to record wake/end phrases in the
   user's environment; the server trains a per-user model; the phone downloads it.
 - **F17** **APK hosting:** the server serves the Android APK for download.
-- **F18** **Certificates:** self-hosted CA cert served for one-time install so
-  HTTPS to the server is trusted.
+- **F18** **Certificates:** the server makes its own certificate on first start;
+  the one-time sign-in teaches the phone to trust that exact server, so HTTPS to
+  the server is trusted and the admin sets up no certificate authority (ADR-032,
+  decided in principle).
 - **F19** **Deploy:** the Breaker server stack pulls the latest tagged version from
   the user's local GIT server.
 - **F20** **Daily update check:** the app checks once a day for a newer tagged
@@ -128,9 +130,12 @@
   **queue/proxy** container in front of it — see ARCHITECTURE.md §6 — that is
   glue and contention control, not a new engine.)
 - Grammar voice commands ("copy #27") — deferred to v1.2.
-- Public internet exposure (VPN/ZeroTier only).
+- Public internet exposure (VPN only).
 - Text-to-speech (TTS) — deferred to a later revision.
-- Auth hardening (brute-force protection, session expiry) — the VPN/ZeroTier
-  perimeter is the auth layer for now; an auth server may come later.
-- Certificate lifecycle — manual re-issue by the admin; out of scope for the app.
+- Auth hardening (brute-force protection) — the VPN perimeter is the auth layer
+  for now; an auth server may come later. Session expiry is in scope: 30 days
+  after the last use (ADR-031).
+- Certificate lifecycle — the server makes and keeps its own certificate (ADR-032,
+  decided in principle); renewal without breaking paired phones is still to be
+  designed.
 - Formal backups — multi-drive redundancy + device copies of transcriptions.

@@ -31,7 +31,7 @@ breaker/
 
 ## Priority model
 
-**SERVER-PRIMARY:** Local Server via ZeroTier is the primary transcription +
+**SERVER-PRIMARY:** Local Server over a VPN or other private link is the primary transcription +
 formatting path. On-device sherpa-onnx is the automatic fallback for connectivity
 issues. Default mode = `server-primary`.
 
@@ -77,9 +77,9 @@ commands ("copy #27") deferred to v1.2.
 | `crypto` | Client-side key derivation (Argon2id + HKDF), DEK generation/wrap/unwrap, AES-256-GCM, X25519 box keypair, sealed-box unsealing (ADR-006, ADR-018) | `android/modules/crypto/` | Coding |
 | `whisper-server` | Add `/v1/audio/transcriptions` + **FIFO queue worker + job API**, forwarding to the **admin-configured** transcription service | `server/modules/whisper-server/` | Coding |
 | `sync-api` | Server API: auth, transcription sync, per-user isolation, **service config + agent tokens** | `server/modules/sync-api/` | Coding |
-| `web-fe` | Debian container website (view/search/copy, client-side decrypt) + APK + cert + **model hosting** + **Trucking theme (light/dark, responsive)** + **admin panel (service config, agent tokens, store clear)** + **account management** | `server/modules/web-fe/` | Coding |
+| `web-fe` | Debian container website (view/search/copy, client-side decrypt) + APK + **model hosting** + **Trucking theme (light/dark, responsive)** + **admin panel (service config, agent tokens, store clear)** + **account management** | `server/modules/web-fe/` | Coding |
 | `training` | Per-user voice phrase model training container | `server/modules/training/` | Coding |
-| `deploy` | Git-pull deploy, docker-compose, ZeroTier bind, TLS, NOTICE | `server/modules/deploy/` | Bug Hunt + Orchestration |
+| `deploy` | Git-pull deploy, docker-compose, VPN bind, TLS, NOTICE | `server/modules/deploy/` | Bug Hunt + Orchestration |
 | `api-contracts` | OpenAPI spec for transcription + sync + auth endpoints | `shared/modules/api-contracts/` | Orchestration |
 | `model-registry` | Model sizes, URLs, SHA-256 pins, per-model licenses | `shared/modules/model-registry/` | Orchestration |
 | `format-prompts` | Strict non-destructive formatting prompts for the server LLM | `shared/modules/format-prompts/` | Orchestration |

@@ -130,7 +130,7 @@ its owning lane (root `AGENTS.md` "The three lanes").
 
 **Local Server** — The user's own, already-operational self-hosted machine:
 a CPU Whisper + LLM pipeline (the existing Whisper X container, plus a
-`/v1/chat/completions` endpoint) reached over ZeroTier. Breaker's own server
+`/v1/chat/completions` endpoint) reached over a VPN. Breaker's own server
 modules run alongside it and never modify it (`ARCHITECTURE.md` Executive
 Summary; §6 "Server Transcription Service").
 
@@ -198,6 +198,11 @@ updated in the same PR as any code change to that module
 `tools/check_repo.py` verifies that and must print `REPO CONSISTENT`
 (`modules.toml` header comment; `.github/CONTRIBUTING.md` §3, §7).
 
+**Pairing** — The one-time step, done with the first sign-in, that teaches the
+phone to trust one exact server by the fingerprint of the certificate that server
+made for itself. Decided in principle (ADR-032); the details are still to be
+designed.
+
 **Requirement ID prefixes (F, N, T, R, D)** — Five separate numbered series
 used across the docs, and they do not share one counter:
 - **F** = Functional requirement — `docs/01-requirements.md` "Functional".
@@ -235,6 +240,11 @@ connect, 1.5 s timeout, cached 30 s); it transcribes and formats on Local
 Server if that is reachable, on the phone if not. No silent cloud
 fallthrough, ever (`ARCHITECTURE.md` §7 "Transport & Fallback", D6;
 `ADR-002-server-primary-fallback.md`; `android/modules/transport/AGENTS.md`).
+
+**Session (token)** — What a sign-in gives the phone. It expires 30 days after
+its last use, and each use moves that date out again; an admin can end it at once
+(ADR-031). When the phone has no live session, Home shows a quiet notice with a
+way to sign in and nothing is forced (ADR-033).
 
 **sherpa-onnx** — The on-device (fallback) speech-to-text engine, vendored
 from XIAOMI CORPORATION (Apache-2.0), already present in the forked base
@@ -282,6 +292,12 @@ the captured audio, so the silence around it can be trimmed. Part of the
 (`modules.toml` `[module.android_audio]`); its card says how the result
 reaches core (`android/modules/audio/AGENTS.md`).
 
+**VPN** — The private link the phone and Local Server communicate over: any
+VPN, or another way to connect the phone to the server or computer that runs the
+Breaker container. Breaker does not depend on one named product. HTTPS to the
+server is trusted through the server's own certificate and the one-time pairing
+(ADR-032, decided in principle); no certificate authority has to be set up.
+
 **Wake phrase / send phrase** — The two CB-slang voice triggers: **"Breaker
 Breaker"** (wake — the tile appears and recording starts automatically) and
 **"And I'm Gone"** (send — stop, trim the audio at the phrase's own onset so
@@ -301,9 +317,3 @@ issue and the pull request that closes it** (`agent-skills/README.md` "Words
 the skills use"). The rank skills describe a fuller, tracked work-order file
 (status, write-scope, check-ins); Breaker keeps no such file, so follow the
 issue, the module card and `.github/CONTRIBUTING.md` instead.
-
-**ZeroTier** — The VPN the phone and Local Server communicate over. HTTPS to
-the server is trusted once the phone installs the self-hosted CA certificate
-the server serves (one-time, from the web FE) — no further "connection not
-private" warnings on the VPN or local IP (`ARCHITECTURE.md` Executive
-Summary; `docs/06-sideload-and-install.md` Step 1).

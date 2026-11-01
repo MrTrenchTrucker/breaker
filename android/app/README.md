@@ -99,7 +99,7 @@ as described in ADR-022 as amended:
 
 Only encrypted (https) connections are allowed. Clear text is switched off in the
 manifest and in `res/xml/network_security_config.xml`, which has no exceptions and
-trusts only the system's certificate authorities. The manifest asks for exactly
+trusts only the system's certificate authorities (the paired-server trust of ADR-032, decided in principle, is not built). The manifest asks for exactly
 these permissions: internet, record audio, foreground service, foreground service
 of the microphone type, post notifications, and draw over other apps (six in all).
 None of them is asked for while the app runs in app code: the user grants the
@@ -119,7 +119,7 @@ the requests live in ui's screen.
 These are the main parts still not built in the app; the Known Gotchas section
 of `AGENTS.md` lists the smaller open items.
 
-- The sign-in session. The server engine is wired to the real engine, but it needs a signed-in session before it can reach a server: until sign-in plugs one in, the key is not set, the engine says so, and nothing is sent.
+- The sign-in session. The server engine is wired to the real engine, but it needs a signed-in session before it can reach a server: until sign-in plugs one in, the key is not set, the engine says so, and nothing is sent. Planned (ADR-033), not built: when there is no live session, Home shows a quiet notice with a way to sign in; nothing forces the user anywhere and the app keeps working offline.
   on-device engine with its recognizer, its model store and the download are
   built; the recognizer has run on a phone in test builds.
 - The spoken phrases. The phrases module detects the wake and send phrases in

@@ -78,10 +78,8 @@ The mic glyph + **level meter** show transmission state:
 - **Hero card:** "Your words, your rig." On first visit, the **registration
   card** sits beside it (first account = admin).
 - **Download badges** (rectangular, hard-edged): **Get the App** (primary
-  green) · **Install Certificate** (black outline) · **Get the Model** (white
-  outline).
-- Every visitor sees four clear paths: **Log In · Register · Get the App ·
-  Get the Cert**.
+  green) · **Get the Model** (white outline).
+- Every visitor sees three clear paths: **Log In · Register · Get the App**.
 
 ### Auth
 - Login form + registration card (stacked on mobile). First registration = admin.

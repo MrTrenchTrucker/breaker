@@ -73,6 +73,8 @@ screens render with ui-tokens; light/dark toggle persists (F25).
 - Rule R3, one gutter in one place: bars and cutout are margins on the screen root, the 16 dp gutter is padding, applied once, and every screen uses the same content edge. OPEN: Settings is drawn in a narrower band than Home (see Known Gotchas).
 - The Settings view draws live through the theme controller. `SettingsHostView` redraws the whole screen when the theme changes, and its model download bar takes the same theme, so no part keeps a fixed theme. The view has no setup block and no History button; its sections are the theme, the routing, the three switches, the server and API key values, and the speech model row.
 
+- Planned (ADR-033), not built: Home carries a quiet notice with a way to sign in, drawn from a state the app passes in. This module opens no sign-in screen by itself and nothing here blocks dictation, history or settings when the user is signed out.
+
 ## Does Not Own
 - Business logic (core)
 - Platform adapters (modules/*) other than the thin adapters in render/ (setup, clipboard, delayed work)

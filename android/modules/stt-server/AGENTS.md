@@ -77,13 +77,14 @@ The job-queue mechanics (enqueue, poll, backoff) stay behind this port, so
 **Transport:** https addresses only. Any other scheme, a missing host, user
 information, or a space or control character is refused before anything is
 sent. Platform trust only: no certificate pinning, no custom CA, no
-TrustManager. Redirects are not followed and caches are off. Each call has a
+TrustManager (ADR-032, decided in principle and not built, will add trust in the
+paired server's certificate fingerprint, inside the one client of ADR-030). Redirects are not followed and caches are off. Each call has a
 connect timeout (1.5 s by default), so a dead server is reported fast. Every
 exchange runs under a watchdog, so a stuck call ends at its deadline rather
 than in a hang.
 
 ## Invariants
-- End-to-end transcription from a phone over ZeroTier (F2) is not verified
+- End-to-end transcription from a phone over a VPN (F2) is not verified
   yet; it waits for the server module (Phase 4).
 - Correct JSON parse for both the enqueue response and the poll response,
   incl. segments + timestamps on `done`.

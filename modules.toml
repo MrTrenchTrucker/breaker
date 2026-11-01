@@ -213,7 +213,7 @@ card = "server/modules/sync-api/AGENTS.md"
 
 [module.server_web_fe]
 path = "server/modules/web-fe"
-owns = "Debian container website (client-side decrypt, Trucking UI), APK/cert/model hosting, admin panel."
+owns = "Debian container website (client-side decrypt, Trucking UI), APK/model hosting, admin panel."
 does_not_own = "API logic (sync-api); design tokens (shared/ui-tokens)."
 depends_on = ["server", "server_sync_api", "shared_ui_tokens"]
 public = "WebApp"
@@ -229,7 +229,7 @@ card = "server/modules/training/AGENTS.md"
 
 [module.server_deploy]
 path = "server/modules/deploy"
-owns = "Git-pull deploy, docker-compose, certs, APK signing, ZT bind, volumes, NOTICE."
+owns = "Git-pull deploy, docker-compose, certs, APK signing, VPN bind, volumes, NOTICE."
 does_not_own = "Application logic of other server modules."
 depends_on = ["server"]
 public = "DeployScripts"
