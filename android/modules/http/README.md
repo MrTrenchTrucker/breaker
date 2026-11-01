@@ -46,7 +46,7 @@ Every request names its own connect timeout, read timeout and reply cap. Nothing
 | Client | Connect | Read | Reply cap |
 |---|---|---|---|
 | stt-server (`ServerLimits.kt`) | 1_500 ms | 10_000 ms post, 5_000 ms poll | 4 MiB (`ServerHttp.kt`) |
-| updater (`HttpRules.kt`) | 10_000 ms | 15_000 ms manifest, 30_000 ms APK | 65_536 bytes manifest, 268_435_456 bytes APK |
+| updater (not built) | 10_000 ms | 15_000 ms manifest, 30_000 ms APK | 65_536 bytes manifest, 268_435_456 bytes APK |
 | stt-ondevice (`DownloadLimits.kt`) | caller-supplied, default 15_000 ms | caller-supplied, default 30_000 ms | caller-supplied, per model |
 
 - Timeouts: 1 to 600_000 ms each (`CallLimits.MAX_TIMEOUT_MS`).

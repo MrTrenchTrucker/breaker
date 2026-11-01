@@ -38,7 +38,7 @@ Note: Android's cleartext permission is a static per-domain setting in an xml fi
 
 Open points: how the website hands the login to the app; what protects the hand-off on plain http.
 
-7. Supersedes: ADR-032 is superseded by ADR-034. ADR-030 is amended: the http module no longer refuses http for the server address (the other fixed hosts, the update host and the model download hosts stay https only).
+7. Supersedes: ADR-032 is superseded by ADR-034. ADR-030 is amended: the http module no longer refuses http for the server address; the model download hosts stay https only. The update host is the configured server and follows it: a plain http APK address is allowed; its integrity rests on its SHA-256 check and on Android refusing an update signed by another key.
 
 ## Consequences
 
