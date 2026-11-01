@@ -1,0 +1,210 @@
+{
+ "name": "proof-whisper-account-id-strict",
+ "tip": {
+  "tree": "6954194b8035cc1bf9c614265f75518f4510d467"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "whisper-server: the token-check client takes an account number only when it is 1 to 18 digits and a comma or closing brace follows",
+   "base_tree": "e2bace8be7807854ec38cf86a302f5f6f25df431",
+   "item_tip_tree": "6954194b8035cc1bf9c614265f75518f4510d467",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": []
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "red-a-01",
+   "kind": "red",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "file": "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/http/HttpTokenCheckAccountIdTest.kt",
+   "files": [
+    "server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/http/HttpTokenCheckAccountIdTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.whisper.http.HttpTokenCheckAccountIdTest"
+   ],
+   "patch": "proof/red/red-a-01.patch",
+   "tree": "10f0bb17826159670ab239954e94a641e3d81d45",
+   "predict": ""
+  },
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "    private val accountIdRegex = Regex(\"\\\"account_id\\\"\\\\s*:\\\\s*(\\\\d{1,18})\\\\s*[,}]\")",
+     "replacement": "    private val accountIdRegex = Regex(\"\\\"account_id\\\"\\\\s*:\\\\s*(\\\\d{1,18})\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a nineteen digit account id is unavailable",
+    "a twenty digit account id is unavailable",
+    "an account id followed by letters is unavailable",
+    "a decimal and a negative account id are unavailable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "    private val accountIdRegex = Regex(\"\\\"account_id\\\"\\\\s*:\\\\s*(\\\\d{1,18})\\\\s*[,}]\")",
+     "replacement": "    private val accountIdRegex = Regex(\"\\\"account_id\\\"\\\\s*:\\\\s*(\\\\d{1,19})\\\\s*[,}]\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a nineteen digit account id is unavailable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "    private val accountIdRegex = Regex(\"\\\"account_id\\\"\\\\s*:\\\\s*(\\\\d{1,18})\\\\s*[,}]\")",
+     "replacement": "    private val accountIdRegex = Regex(\"\\\"account_id\\\"\\\\s*:\\\\s*(\\\\d{1,17})\\\\s*[,}]\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an eighteen digit account id stays live"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "    private val accountIdRegex = Regex(\"\\\"account_id\\\"\\\\s*:\\\\s*(\\\\d{1,18})\\\\s*[,}]\")",
+     "replacement": "    private val accountIdRegex = Regex(\"\\\"account_id\\\"\\\\s*:\\\\s*(\\\\d{1,18})\\\\s*.\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a nineteen digit account id is unavailable",
+    "a twenty digit account id is unavailable",
+    "an account id followed by letters is unavailable",
+    "a decimal and a negative account id are unavailable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "                        val match = body?.let { accountIdRegex.find(it) } ?: return@withContext TokenAnswer.Unavailable",
+     "replacement": "                        val match = body?.let { accountIdRegex.find(it) } ?: return@withContext TokenAnswer.Live(0)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a nineteen digit account id is unavailable",
+    "a twenty digit account id is unavailable",
+    "an account id followed by letters is unavailable",
+    "a decimal and a negative account id are unavailable",
+    "no account id key is unavailable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "                        TokenAnswer.Live(match.groupValues[1].toLong())",
+     "replacement": "                        TokenAnswer.Unavailable"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a normal id stays live",
+    "an eighteen digit account id stays live"
+   ],
+   "rule": "",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "server/modules/whisper-server",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "                    401 -> TokenAnswer.NotLive",
+     "replacement": "                    401 -> TokenAnswer.Live(0)"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "server/modules/whisper-server",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "        internal const val MAX_TOKEN_ANSWER_BYTES: Int = 4096",
+     "replacement": "        internal const val MAX_TOKEN_ANSWER_BYTES: Int = 4096 // unchanged behaviour"
+    }
+   ]
+  }
+ ]
+}
