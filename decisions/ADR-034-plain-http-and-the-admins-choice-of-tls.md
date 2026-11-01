@@ -22,7 +22,7 @@ and on how sign-in should feel:
 
 2. The app accepts http and https server addresses. An https address uses the phone's normal trust. A plain http address is allowed.
 
-3. On a plain http server address the app shows one quiet line in settings: the connection is not encrypted, use a VPN or an https address. The exact words are a proposal for the owner to approve: "This connection is not encrypted. Use a VPN or an https address."
+3. On a plain http server address the app shows one quiet line in settings: the connection is not encrypted, use a VPN or an https address. The project owner approved the exact words on 2026-11-01 ("It can say that in the settings."): "This connection is not encrypted. Use a VPN or an https address."
 
 4. Known and accepted risk: on a network without a VPN, plain http is readable by anyone on that network (the settings line names it).
 
