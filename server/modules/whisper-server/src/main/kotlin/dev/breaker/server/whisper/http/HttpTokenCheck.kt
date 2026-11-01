@@ -48,6 +48,7 @@ internal class HttpTokenCheck(
         if (token.isEmpty() || token.any { it.code !in 0x21..0x7E }) return TokenAnswer.NotLive
         return withContext(Dispatchers.IO) {
             try {
+                val deadlineNanos = System.nanoTime() + totalTimeout.toNanos()
                 val request = HttpRequest.newBuilder()
                     .uri(URI.create("${baseUrl.trimEnd('/')}$path"))
                     .timeout(totalTimeout)
@@ -55,7 +56,7 @@ internal class HttpTokenCheck(
                     .header("X-Presented-Token", token)
                     .POST(BodyPublishers.noBody())
                     .build()
-                val response = sendAsync(request)
+                val response = sendAsync(request, deadlineNanos)
                 when (response.statusCode()) {
                     200 -> {
                         val bodyBytes = response.body() ?: return@withContext TokenAnswer.Unavailable
@@ -76,9 +77,9 @@ internal class HttpTokenCheck(
         }
     }
 
-    private suspend fun sendAsync(request: HttpRequest): HttpResponse<ByteArray?> =
+    private suspend fun sendAsync(request: HttpRequest, deadlineNanos: Long): HttpResponse<ByteArray?> =
         suspendCancellableCoroutine { continuation ->
-            val future = client.sendAsync(request, boundedBody(MAX_TOKEN_ANSWER_BYTES))
+            val future = client.sendAsync(request, boundedBody(MAX_TOKEN_ANSWER_BYTES, deadlineNanos))
                 .orTimeout(totalTimeout.toMillis(), TimeUnit.MILLISECONDS)
             future.whenComplete { response, error ->
                 if (error != null) continuation.resumeWithException(error) else continuation.resume(response)
