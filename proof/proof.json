@@ -1,0 +1,363 @@
+{
+ "name": "proof-whisper-token-check-client",
+ "tip": {
+  "tree": "2891454e6c1dfd3c3c00eb71f4c039736f62163c"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "whisper-server: a client that asks sync-api whether a token is live",
+   "base_tree": "db4b12afefac3c3f88f673ef27df90f069e1736f",
+   "item_tip_tree": "2891454e6c1dfd3c3c00eb71f4c039736f62163c",
+   "new_production_classes": [
+    "HttpTokenCheck",
+    "TokenCheck"
+   ],
+   "test_fixtures_overlaid": [],
+   "red_not_run": "the new test file calls HttpTokenCheck and TokenAnswer, which do not exist on main, so it does not compile there and no red leg is run. The mutants and the two controls carry the proof."
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "                    401 -> TokenAnswer.NotLive",
+     "replacement": "                    401 -> TokenAnswer.Live(0)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a 401 answer is not live"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "                    else -> TokenAnswer.Unavailable",
+     "replacement": "                    else -> TokenAnswer.NotLive"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a 403 answer is unavailable",
+    "a 500 answer is unavailable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "                TokenAnswer.Unavailable",
+     "replacement": "                TokenAnswer.NotLive"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a refused connection is unavailable",
+    "an answer slower than the total timeout is unavailable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "            .timeout(totalTimeout)",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an answer slower than the total timeout is unavailable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "        check(\"/internal/v1/token/peek\", token)",
+     "replacement": "        check(\"/internal/v1/token/use\", token)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the same for peek",
+    "use posts to the use path and peek to the peek path with both headers"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "            .header(\"X-Service-Key\", serviceKey)",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "use posts to the use path and peek to the peek path with both headers",
+    "a 200 answer with an account number is live for use"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "                        val match = accountIdRegex.find(body) ?: return@withContext TokenAnswer.Unavailable",
+     "replacement": "                        val match = accountIdRegex.find(body) ?: return@withContext TokenAnswer.Live(0)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a 200 answer without an account number is unavailable"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "            .header(\"X-Presented-Token\", token)",
+     "replacement": "            .header(\"X-Presented-Token\", serviceKey)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "use posts to the use path and peek to the peek path with both headers",
+    "a 200 answer with an account number is live for use"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "        require(serviceKey.isNotBlank()) { \"serviceKey must not be blank\" }",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a blank address or a blank key is refused when the client is built"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-10",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "        require(baseUrl.isNotBlank()) { \"baseUrl must not be blank\" }",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a blank address or a blank key is refused when the client is built"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-11",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "            .POST(BodyPublishers.noBody())",
+     "replacement": "            .GET()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a 200 answer with an account number is live for use"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-12",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "        if (token.isEmpty() || token.any { it.code !in 0x21..0x7E }) return TokenAnswer.NotLive",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a token with a control character or a space or no characters is not live and is never sent"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-13",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "        if (token.isEmpty() || token.any { it.code !in 0x21..0x7E }) return TokenAnswer.NotLive",
+     "replacement": "        if (token.isEmpty() || token.any { it.code !in 0x20..0x7E }) return TokenAnswer.NotLive"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a token with a control character or a space or no characters is not live and is never sent"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-14",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "        if (token.isEmpty() || token.any { it.code !in 0x21..0x7E }) return TokenAnswer.NotLive",
+     "replacement": "        if (token.any { it.code !in 0x21..0x7E }) return TokenAnswer.NotLive"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a token with a control character or a space or no characters is not live and is never sent"
+   ],
+   "rule": "",
+   "note": ""
+  },
+  {
+   "id": "mut-15",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/whisper-server",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "            .header(\"X-Presented-Token\", token)",
+     "replacement": "            .header(\"X-Presented-Token\", token.also { println(it) })"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the presented token and the service key never leak into stdio"
+   ],
+   "rule": "",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill",
+   "module": "server/modules/whisper-server",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "        check(\"/internal/v1/token/peek\", token)",
+     "replacement": "        check(\"/internal/v1/token/use\", token)"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive",
+   "module": "server/modules/whisper-server",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "server/modules/whisper-server/src/main/kotlin/dev/breaker/server/whisper/http/HttpTokenCheck.kt",
+     "anchor": "    private val accountIdRegex = Regex(\"\\\"account_id\\\"\\\\s*:\\\\s*(\\\\d{1,18})\")",
+     "replacement": "    private val accountIdRegex = Regex(\"\\\"account_id\\\"\\\\s*:\\\\s*(\\\\d{1,18})\") // unchanged behaviour"
+    }
+   ]
+  }
+ ]
+}
