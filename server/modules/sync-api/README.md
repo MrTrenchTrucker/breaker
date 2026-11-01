@@ -11,6 +11,8 @@ The server's main API: accounts and logins (users, tokens, roles), syncing trans
 
 The account HTTP routes (register, salt, login, logout), the admin route that revokes an agent token and the two internal token-check routes are installed. The sync, key and reset routes and the rest of what the card lists are not built yet.
 
+Planned, not built (ADR-035, ADR-036): the changes-since pull, the routes for sign-in from the website, the wrong-password limit, an admin route to end a session, and the device list.
+
 ## Run it
 
 Set `BREAKER_SYNC_API_HOST` (default `127.0.0.1`), `BREAKER_SYNC_API_PORT` (default `8080`) and `BREAKER_SYNC_API_DB` (required: the path of the SQLite file), then start `main`. The entry point `main` is not covered by unit tests, because it needs a real socket; everything it calls is.

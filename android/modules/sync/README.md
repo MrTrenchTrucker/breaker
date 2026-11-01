@@ -23,6 +23,7 @@ The module has no HTTP client. The app supplies the `SyncUploader` and the `Conn
 - Telling a permanent server refusal from a transient failure. Until then, a row the server refuses for good returns `FAILED` on every push and blocks the rows behind it, and a skipped row is counted again on every drain.
 - Sending tombstones for deleted records.
 - The `key_version` 1 form, the `key_version` replace, the re-key, and fetching pending sealed agent-token results (ADR-018).
+- PLANNED (ADR-035, not built): the pull after each drain, with a changes-since cursor, and the hand-off of pulled rows and pulled deletes to history.
 
 ## Build and test
 

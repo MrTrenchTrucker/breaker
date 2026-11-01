@@ -117,7 +117,7 @@ compromised server can serve a version that captures the password or the DEK
 directly — no guessing needed (ADR-006). Protection (where it applies) is
 the password's strength times Argon2id cost, not an absolute guarantee, and
 this repo ships no rate limiting or account-enumeration defense (auth
-hardening is explicitly out of scope, above). Password change re-keys every
+hardening is explicitly out of scope, above; ADR-036 plans one exception, a wrong-password limit on sign-in, not built). Password change re-keys every
 time — a new DEK, a new box keypair, and a new `key_version` that the client
 re-encrypts and replaces the account's own records up to — so it bounds, but
 does not erase, exposure from an old database/backup copy that still holds a
@@ -243,7 +243,8 @@ failed → local fallback, **red** = complete failure (F36).
 ## Deferred / out of scope (user decisions)
 - **Auth hardening** (brute-force protection, refresh) — the VPN perimeter is the
   auth layer for now; an auth server may come later. Session expiry is no
-  longer deferred: 30 days after the last use (ADR-031).
+  longer deferred: 30 days after the last use (ADR-031). ADR-036 plans one
+  exception, a wrong-password limit on sign-in, not built.
 - **Certificate lifecycle** - superseded by ADR-034: Breaker serves plain HTTP; TLS is the admin's choice via any reverse proxy.
   No module makes, keeps, pins or renews a certificate (not built).
 - **Formal backups** — multi-drive redundancy + device copies of transcriptions;

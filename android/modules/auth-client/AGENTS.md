@@ -94,6 +94,7 @@ server-side (T16).
   bounds that gap.
 
 - Planned (ADR-031, ADR-033), not built: a session token the server issues expires 30 days after its last use. The client keeps no clock for it: it learns that a session is no longer live when the server refuses the key, and `currentSession()` reports what was stored, not whether the server still accepts it. The signed-out notice on Home is fed from this; nothing in this module opens a sign-in screen.
+- Planned (ADR-035, ADR-036), not built: the sign-in hand-off from the website. At the start of sign-in the app makes a one-time secret and a key pair, and sends a challenge made from the secret, with the public key, to the website. At the code exchange it receives its session token and the sealed key package. It opens the package with its private key, and stores the keys wrapped for its own use. The session token is wrapped with a Keystore key. The device's own password sign-in stays as the fallback. Sign-out ends this device only.
 
 ## Depends On
 - android (registered in modules.toml)

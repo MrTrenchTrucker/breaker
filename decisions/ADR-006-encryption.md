@@ -2,7 +2,8 @@
 
 **Status:** accepted, amended 2026-09-30 (client-side key derivation, the
 guarantee it actually gives, login, password change and account reset),
-amended 2026-10-01 (sync is development-only until Phase 19), amended 2026-10-21 (the sync body format)
+amended 2026-10-01 (sync is development-only until Phase 19), amended 2026-10-21 (the sync body format),
+amended 2026-11-01 (a device may receive its keys sealed from the website; ADR-035, ADR-036)
 **Date:** 2026-09-29
 
 See ADR-018 for agent-token and queued-job results, which cannot go through
@@ -326,3 +327,20 @@ alone authorizing a password change.
 - P5 The sealed plaintext of an agent-token result is an R1 body with source server. Unseal refuses any other source (ADR-018).
 - P6 Vectors come from an independent oracle: published known-answer tests and independently generated framing vectors. Negatives include a wrong client_id, a wrong version, a flipped tag and 27 bytes.
 - P7 What the server learns, stated plainly: client_id, key_version, stored_at, ciphertext length (no padding), push count and timing, and sealed-box sizes. It does not learn the text or the other metadata.
+
+## Amendment 2026-11-01: a device may receive its keys sealed from the website (ADR-035, ADR-036)
+
+Under the text above, a device that signs in derives the KEK itself, from the password it was typed on that device. A device that never sees the password cannot unwrap the DEK. ADR-035 (point 6) lets a new device receive the account's keys from the website sign-in instead. The website page derives the KEK in the browser (the web path described above), unwraps the account's keys and seals them to a fresh key pair that the app made for that one sign-in. The app opens the sealed package with its private key. ADR-036 decides the hand-off.
+
+What this amendment keeps:
+
+- The password still never reaches the server or the app in this path. The website page derives the KEK, as the web path already does, and the trust boundary of the web path applies to it.
+- The server stores and returns the sealed package. It never holds a key that opens it.
+- A device's own password sign-in still derives the KEK on the device. The sealed route is an addition, not a replacement.
+
+What this amendment changes:
+
+- A device may hold the account's keys without having derived the KEK itself. For that device, the trust in the key derivation is the website page's, not the device's.
+- The wrong-password limit in ADR-036 is the first limit on the sign-in path. The statements above that this repo ships no rate limiting describe the code before ADR-036 is built.
+
+Nothing of this is built. The format and the key type of the sealed package are to be designed (ADR-035).
