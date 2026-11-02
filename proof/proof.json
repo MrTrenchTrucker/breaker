@@ -1,0 +1,519 @@
+{
+ "name": "proof-sync-slice-2a",
+ "tip": {
+  "tree": "54b89ccb12681dd745594ed2a010fad8200650ab"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "sync-api: the GET feed with since, the page object, the 400 and the 410",
+   "base_tree": "b1c33d1f10773cf0d7b1c7a0b6043107f97fcfe4",
+   "item_tip_tree": "54b89ccb12681dd745594ed2a010fad8200650ab",
+   "new_production_classes": [
+    "TranscriptionPageReader"
+   ],
+   "test_fixtures_overlaid": [
+    "SyncRouteTestSupport.kt"
+   ],
+   "red_not_run": "the feed and its tests land together: on the base the new tests do not compile (the page type and the store page read are absent), so there is no assertion-red leg; the mutants carry the proof"
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionPageReader.kt",
+     "anchor": "since < purgedThrough",
+     "replacement": "since <= purgedThrough"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "sinceEqualToPurgedThroughIsNotGone"
+   ],
+   "rule": "a cursor equal to the purged floor is Gone",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionPageReader.kt",
+     "anchor": "const val PAGE_MAX_RECORDS = 100",
+     "replacement": "const val PAGE_MAX_RECORDS = 101"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "pageCapsAt100Records",
+    "hundredOneRowsPagesIntoTwo"
+   ],
+   "rule": "a page holds 101 records",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionPageReader.kt",
+     "anchor": "row.encrypted.length + 200L",
+     "replacement": "row.encrypted.length + 0L"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "pageCapsAtSizeLimit"
+   ],
+   "rule": "the size allowance per record is dropped",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionPageReader.kt",
+     "anchor": "emitted.last().change else head",
+     "replacement": "emitted.last().change else (since ?: head)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "sinceNAboveHeadReturnsEmptyMoreFalseNextHead",
+    "sinceNAboveHeadAnswersEmptyWithMoreFalseAndNextHead"
+   ],
+   "rule": "next after an empty page echoes the cursor instead of the head",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionPageReader.kt",
+     "anchor": "AND change_no > ? ORDER BY change_no LIMIT 101",
+     "replacement": "AND change_no >= ? ORDER BY change_no LIMIT 101"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "sinceNIncludesDeleteRecord"
+   ],
+   "rule": "a cursor is inclusive",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionPageReader.kt",
+     "anchor": "AND deleted = 0 ORDER BY change_no LIMIT 101",
+     "replacement": "AND deleted = 0 ORDER BY change_no DESC LIMIT 101"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "sinceNullReturnsLiveRowsOnly",
+    "listIsOldestFirstWithOneRowPerClientId"
+   ],
+   "rule": "the feed is newest first",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionPageReader.kt",
+     "anchor": "\"WHERE account_id = ? AND deleted = 0 ORDER BY",
+     "replacement": "\"WHERE deleted = 0 ORDER BY"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "anotherAccountRowsNeverAppear"
+   ],
+   "rule": "the live page reads every account",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionPageReader.kt",
+     "anchor": "statement.setLong(2, since)",
+     "replacement": "statement.setLong(2, since + 1)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "sinceZeroReturnsEverything"
+   ],
+   "rule": "the cursor is shifted by one",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionPageReader.kt",
+     "anchor": "(emitted.size >= maxRecords || running + recordSize > capSize)",
+     "replacement": "emitted.size >= maxRecords"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "pageCapsAtSizeLimit"
+   ],
+   "rule": "the size limit is dropped",
+   "note": ""
+  },
+  {
+   "id": "mut-10",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionPageReader.kt",
+     "anchor": "if (since != null && since < purgedThrough) return PageResult.Gone",
+     "replacement": "if (false) return PageResult.Gone"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "sinceBelowPurgedThroughIsGone",
+    "goneCursorAnswers410"
+   ],
+   "rule": "the gone check is dropped",
+   "note": ""
+  },
+  {
+   "id": "mut-11",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionPageReader.kt",
+     "anchor": "var more = false",
+     "replacement": "var more = true"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "moreFalseWhenPageFits"
+   ],
+   "rule": "more starts true",
+   "note": ""
+  },
+  {
+   "id": "mut-12",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncRoutes.kt",
+     "anchor": "\\\"deleted\\\":true,\\\"stored_at\\\"",
+     "replacement": "\\\"deleted\\\":false,\\\"stored_at\\\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "deleteRecordAnswers200WithDeleteShape",
+    "deletedRowIsListedAsDeleteRecord"
+   ],
+   "rule": "a delete record says deleted false",
+   "note": ""
+  },
+  {
+   "id": "mut-13",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncRoutes.kt",
+     "anchor": "\\\"change\\\":${row.change},\\\"deleted\\\":false",
+     "replacement": "\\\"change\\\":${row.change + 1},\\\"deleted\\\":false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "liveRecordAnswers200WithExactBody",
+    "pushedRowIsListedWithKeyVersionAndStoredTime"
+   ],
+   "rule": "a live record carries the wrong change number",
+   "note": ""
+  },
+  {
+   "id": "mut-14",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncRoutes.kt",
+     "anchor": "\\\"more\\\":$more}\"",
+     "replacement": "\\\"more\\\":true}\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "emptyPageAnswers200WithEmptyItems"
+   ],
+   "rule": "more is always true in the text",
+   "note": ""
+  },
+  {
+   "id": "mut-15",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncRoutes.kt",
+     "anchor": "    if (accountPart.length > 1 && accountPart.startsWith(\"0\")) return null",
+     "replacement": "    if (false) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "leadingZeroInAccountPartAnswers400"
+   ],
+   "rule": "a leading zero in the account part is accepted",
+   "note": ""
+  },
+  {
+   "id": "mut-16",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncRoutes.kt",
+     "anchor": "            if (since != null && parsed!!.first != accountId) {",
+     "replacement": "            if (false) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "anotherAccountTagAnswers400"
+   ],
+   "rule": "a cursor of another account is accepted",
+   "note": ""
+  },
+  {
+   "id": "mut-17",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncRoutes.kt",
+     "anchor": "changePart.toLongOrNull()?.let { change -> account to change }",
+     "replacement": "account to (changePart.toLongOrNull() ?: 0L)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "overflowChangePartAnswers400"
+   ],
+   "rule": "an overflowing change part becomes zero",
+   "note": ""
+  },
+  {
+   "id": "mut-18",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncRoutes.kt",
+     "anchor": "    if (resolved == null) {\n        respondSessionRequired()",
+     "replacement": "    if (resolved == null) {\n        respondAgentRefused()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "unknownTokenAnswers401"
+   ],
+   "rule": "an unknown token is answered as an agent token",
+   "note": ""
+  },
+  {
+   "id": "mut-19",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncRoutes.kt",
+     "anchor": "    if (resolved.kind != TokenKind.SESSION) {\n        respondAgentRefused()",
+     "replacement": "    if (resolved.kind != TokenKind.SESSION) {\n        respondSessionRequired()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "agentTokenAnswers403"
+   ],
+   "rule": "an agent token is answered 401",
+   "note": ""
+  },
+  {
+   "id": "mut-20",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncRoutes.kt",
+     "anchor": "    if (presented == null) {\n        respondSessionRequired()",
+     "replacement": "    if (presented == null) {\n        respondAgentRefused()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "noTokenAnswers401"
+   ],
+   "rule": "no token is answered as an agent token",
+   "note": ""
+  },
+  {
+   "id": "mut-21",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncRoutes.kt",
+     "anchor": "            if (sinceValue != null && parsed == null) {",
+     "replacement": "            if (false) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "malformedCursorAbcAnswers400",
+    "cursorOneMinusAnswers400",
+    "emptySinceValueAnswers400"
+   ],
+   "rule": "a malformed cursor reaches the store",
+   "note": ""
+  },
+  {
+   "id": "mut-22",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncRoutes.kt",
+     "anchor": "                throw cancellation\n            } catch (_: Exception) {\n                call.respondUnavailable()\n                return@get\n            }\n            when (page) {",
+     "replacement": "                throw cancellation\n            } catch (_: Exception) {\n                call.respondGone()\n                return@get\n            }\n            when (page) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "closedStoreAnswers503"
+   ],
+   "rule": "a store failure answers 410",
+   "note": ""
+  },
+  {
+   "id": "mut-23",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncTimeFormat.kt",
+     "anchor": "    require(epochMillis >= 0L)",
+     "replacement": "    require(epochMillis >= -1L)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "storedTimeThatCannotBeFormattedAnswers503WithFixedBody"
+   ],
+   "rule": "a time before 1970 is formatted",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill-sync2a",
+   "module": "server/modules/sync-api",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionPageReader.kt",
+     "anchor": "since < purgedThrough",
+     "replacement": "since <= purgedThrough"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive-sync2a",
+   "module": "server/modules/sync-api",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionPageReader.kt",
+     "anchor": "// The read side of the changes-since feed: one page of an account's transcriptions in change order.",
+     "replacement": "// The read side of the changes-since feed: one page of an account's transcriptions, in change order."
+    }
+   ]
+  }
+ ]
+}
