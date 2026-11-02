@@ -49,6 +49,10 @@ screen, the settings screen and the history screen, the manifest, and the Gradle
   Breaker comes to the front. After a send, the tile shows SENT when the text
   landed or only reached the clipboard, and FAILED with its sentence when the
   commit failed. It keeps that until the next action.
+  The busy face (the microphone with a red circle and slash) shows while another
+  app or a call holds the microphone. Today it clears only on a tap or the next
+  take. ADR-037 decides that the app clears it by itself once the microphone is
+  free; that is decided, not built.
 - **The keyboard tile.** While dictation is switched on, the tile comes up when a keyboard is on
   screen and a text field is in focus. It goes away when the keyboard goes away, but only if a
   keyboard show brought it up. A keyboard show follows the same check as a shake: nothing is shown

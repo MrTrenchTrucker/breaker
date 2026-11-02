@@ -205,6 +205,9 @@ default null (nobody is told, and behaviour is exactly as before). It adds no pu
   it and releases the device at once, reporting `MICROPHONE_TAKEN`; proven on the JVM against a fake. Still owed: a device
   check for an incoming call, an outgoing call, another recording app, and an incoming
   call with the app's accessibility service on).
+  ADR-037 (decided, not built) adds a watcher here: a port that reports when no other app holds
+  the microphone and the phone is not in a call, so the app can clear the busy face. Today
+  nothing in this module reports a release.
 - No `android.*` class is named anywhere in the module except `AudioRecordMicPort.kt`; this is
   checked by `AudioConfinementGateTest` on the source text, on the test sources, and on the
   compiled classes.
