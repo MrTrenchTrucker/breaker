@@ -23,10 +23,39 @@ internal class TokenStore(
             if (readOwnerRole(connection, accountId) == null) {
                 IssueResult.NoSuchAccount
             } else {
-                val id = insertToken(connection, accountId, TokenKind.SESSION, null, null, hash, nowMs, nowMs + SESSION_IDLE_LIFETIME.toMillis())
+                val id = insertToken(
+                    connection,
+                    accountId,
+                    TokenKind.SESSION,
+                    null,
+                    null,
+                    hash,
+                    nowMs,
+                    nowMs + SESSION_IDLE_LIFETIME.toMillis(),
+                    null,
+                )
                 IssueResult.Issued(IssuedToken(id, secret, TokenKind.SESSION, null, null))
             }
         }
+    }
+
+    // Issues a session inside the caller's open transaction, on the caller's connection, so the
+    // sign-in exchange can use the code and make the session in one commit. The caller has already
+    // checked the account. The name is kept as given; a null name means no name.
+    internal fun issueSessionOn(connection: Connection, accountId: Long, deviceName: String?, nowMs: Long): IssuedToken {
+        val secret = TokenSecret.generate(random)
+        val id = insertToken(
+            connection,
+            accountId,
+            TokenKind.SESSION,
+            null,
+            null,
+            secret.hash(),
+            nowMs,
+            nowMs + SESSION_IDLE_LIFETIME.toMillis(),
+            deviceName,
+        )
+        return IssuedToken(id, secret, TokenKind.SESSION, null, null)
     }
 
     suspend fun issueAgent(
@@ -51,7 +80,7 @@ internal class TokenStore(
                 IssueResult.ScopeNotAllowed
             } else {
                 val id =
-                    insertToken(connection, ownerAccountId, TokenKind.AGENT, scope, label, hash, nowMs, expiresAtMs)
+                    insertToken(connection, ownerAccountId, TokenKind.AGENT, scope, label, hash, nowMs, expiresAtMs, null)
                 val reported: Instant? = if (expiresAtMs == null) null else Instant.ofEpochMilli(expiresAtMs)
                 IssueResult.Issued(IssuedToken(id, secret, TokenKind.AGENT, scope, reported))
             }
@@ -113,18 +142,34 @@ internal class TokenStore(
         return changed > 0
     }
 
+    // The account's unredeemed sign-in codes are deleted in the same transaction. The count
+    // returned is the revoked token rows only.
     suspend fun revokeAllForAccount(accountId: Long): Int {
         val nowMs = clock.millis()
-        return db.transaction<Int> { connection -> revoke(connection, REVOKE_ALL_SQL, nowMs, accountId, null) }
+        return db.transaction<Int> { connection ->
+            val revoked = revoke(connection, REVOKE_ALL_SQL, nowMs, accountId, null)
+            deleteAccountHandoff(connection, accountId)
+            revoked
+        }
     }
 
     // keepTokenId is only excluded from the set of live sessions of this account. An
     // id that is not one of them (an agent token, another account's session, an
     // already revoked or unknown id) spares nothing: every live session is revoked.
+    // The account's unredeemed sign-in codes are deleted in the same transaction.
     suspend fun revokeOtherSessions(accountId: Long, keepTokenId: Long): Int {
         val nowMs = clock.millis()
         return db.transaction<Int> { connection ->
-            revoke(connection, REVOKE_OTHER_SESSIONS_SQL, nowMs, accountId, keepTokenId)
+            val revoked = revoke(connection, REVOKE_OTHER_SESSIONS_SQL, nowMs, accountId, keepTokenId)
+            deleteAccountHandoff(connection, accountId)
+            revoked
+        }
+    }
+
+    private fun deleteAccountHandoff(connection: Connection, accountId: Long) {
+        connection.prepareStatement(DELETE_ACCOUNT_HANDOFF_SQL).use { statement ->
+            statement.setLong(1, accountId)
+            statement.executeUpdate()
         }
     }
 
@@ -154,6 +199,7 @@ internal class TokenStore(
         hash: ByteArray,
         createdAtMs: Long,
         expiresAtMs: Long?,
+        deviceName: String?,
     ): Long {
         connection.prepareStatement(INSERT_SQL).use { statement ->
             statement.setLong(1, accountId)
@@ -163,6 +209,7 @@ internal class TokenStore(
             statement.setBytes(5, hash)
             statement.setLong(6, createdAtMs)
             if (expiresAtMs == null) statement.setNull(7, Types.BIGINT) else statement.setLong(7, expiresAtMs)
+            if (deviceName == null) statement.setNull(8, Types.VARCHAR) else statement.setString(8, deviceName)
             statement.executeUpdate()
         }
         return connection.createStatement().use { statement ->
@@ -218,8 +265,8 @@ internal class TokenStore(
         const val SELECT_ROLE_SQL = "SELECT role FROM accounts WHERE id = ?"
 
         const val INSERT_SQL =
-            "INSERT INTO tokens (account_id, kind, scope, label, token_hash, created_at_ms, expires_at_ms) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO tokens (account_id, kind, scope, label, token_hash, created_at_ms, expires_at_ms, device_name) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
 
         // One query: the owner's role is read now, never cached with the token. The
         // database compares hash to hash; the caller controls only the preimage.
@@ -247,5 +294,7 @@ internal class TokenStore(
         const val REVOKE_OTHER_SESSIONS_SQL =
             "UPDATE tokens SET revoked_at_ms = ? WHERE account_id = ? AND kind = 'session' " +
                 "AND revoked_at_ms IS NULL AND id <> ?"
+
+        const val DELETE_ACCOUNT_HANDOFF_SQL = "DELETE FROM signin_handoff WHERE account_id = ?"
     }
 }
