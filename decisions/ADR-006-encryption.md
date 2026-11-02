@@ -316,7 +316,7 @@ alone authorizing a password change.
 - **R2, key_version 0.** The `encrypted` field is the standard padded base64, with no line wrap, of the R1 body. No cryptography is applied. This is the plaintext of Phases 11-18 in the sense of the 2026-10-01 amendment above: development-only until Phase 19. key_version 1 or higher is the Phase 19 form and is not built.
 - **R4, client id.** A client id is a lowercase canonical UUID. The pattern is in openapi.yaml. sync-api enforces it when its sync routes are built.
 - **R5, stored time.** TranscriptionRecord.created_at is renamed stored_at: it is when the server stored the row. The created_at inside the R1 body is when the transcription was made.
-- **R7, tombstones.** Deletes and tombstones are not in the R1 body. A pulled delete is a flag on the row in the same change feed as the rows, as ADR-035 decides (decided and not built). How a delete is pushed is to be designed.
+- **R7, tombstones.** Deletes and tombstones are not in the R1 body. A pulled delete is a flag on the row in the same change feed as the rows, as ADR-035 decides (decided and not built). A delete is pushed by the DELETE route (ADR-035, built on the server).
 
 ### Planned for Phase 19, not built
 
