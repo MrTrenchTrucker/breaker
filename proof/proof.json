@@ -1,0 +1,331 @@
+{
+ "name": "proof-wrongpw-slice-2",
+ "tip": {
+  "tree": "14350610e4ea65642c675dbd4e5c369ff2232402"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "sync-api: the locked answer of the login route and the fail-open counting",
+   "base_tree": "fa191dd68a821331284c0956e6d61f561dad484d",
+   "item_tip_tree": "14350610e4ea65642c675dbd4e5c369ff2232402",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [],
+   "red_not_run": "the locked answer, the lock read and their tests land together: on the base the new tests do not compile (the Locked result and the lock read are absent), so there is no assertion-red leg; the mutants carry the proof"
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "        if (until > 0L) {",
+     "replacement": "        if (false) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "sixth wrong try inside the wait returns Locked and touches nothing",
+    "right password inside the wait returns Locked and touches nothing",
+    "an unknown name locked by five wrong tries returns Locked with 900 seconds",
+    "sixth wrong try inside the wait returns 423 with Retry-After",
+    "right password inside the wait returns 423",
+    "423 body is byte-for-byte equal for known and unknown name",
+    "five wrong tries lock and a right password inside the wait returns Locked and leaves the row"
+   ],
+   "rule": "the lock is never consulted",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "        if (until > 0L) {",
+     "replacement": "        if (until >= 0L) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "right password after the lock expires returns Verified and clears the row",
+    "right password after wait expires returns 200"
+   ],
+   "rule": "every name reads as locked",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "        if (until > 0L) {\n            return VerifyResult.Locked(SigninAttemptStore.retryAfterSeconds(until, clock.millis()))\n        }\n",
+     "replacement": ""
+    },
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "        // The transaction has ended: the slow hash must not hold the database lane.\n",
+     "replacement": "        if (until > 0L) {\n            return VerifyResult.Locked(SigninAttemptStore.retryAfterSeconds(until, clock.millis()))\n        }\n        // The transaction has ended: the slow hash must not hold the database lane.\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an unknown name locked by five wrong tries returns Locked with 900 seconds",
+    "423 body is byte-for-byte equal for known and unknown name"
+   ],
+   "rule": "the lock is checked after the unknown-name return",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptStore.kt",
+     "anchor": "(remaining + 999) / 1000",
+     "replacement": "remaining / 1000"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "retryAfterSeconds rounds up whole seconds",
+    "retryAfterSeconds is 1 for any positive sub-second remainder"
+   ],
+   "rule": "the seconds are rounded down",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptStore.kt",
+     "anchor": "return Math.max(1, (remaining + 999) / 1000)",
+     "replacement": "return (remaining + 999) / 1000"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "retryAfterSeconds is never less than 1"
+   ],
+   "rule": "the minimum of one second is dropped",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthLoginRoute.kt",
+     "anchor": "((result.secondsRemaining + 59) / 60).coerceAtLeast(1)",
+     "replacement": "(result.secondsRemaining / 60).coerceAtLeast(1)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a lock with 899 seconds left says 15 minutes and Retry-After 899"
+   ],
+   "rule": "the minutes in the body are rounded down",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthLoginRoute.kt",
+     "anchor": "                    call.response.headers.append(HttpHeaders.RetryAfter, result.secondsRemaining.toString())\n",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "sixth wrong try inside the wait returns 423 with Retry-After"
+   ],
+   "rule": "the Retry-After header is dropped",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthLoginRoute.kt",
+     "anchor": "HttpStatusCode.Locked,",
+     "replacement": "HttpStatusCode.TooManyRequests,"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "sixth wrong try inside the wait returns 423 with Retry-After",
+    "right password inside the wait returns 423",
+    "423 body is byte-for-byte equal for known and unknown name"
+   ],
+   "rule": "the status is 429",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "        guardCounting { attempts.clear(folded) }",
+     "replacement": "        attempts.clear(folded)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "verify fail-open on DROP TABLE wrong verifier returns Rejected nothing throws"
+   ],
+   "rule": "a failed clear changes the answer",
+   "note": ""
+  },
+  {
+   "id": "mut-10",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "        if (row == null) {\n            guardCounting { attempts.recordWrong(folded) }",
+     "replacement": "        if (row == null) {\n            attempts.recordWrong(folded)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "verify fail-open on DROP TABLE wrong verifier returns Rejected nothing throws"
+   ],
+   "rule": "a failed count of an unknown name changes the answer",
+   "note": ""
+  },
+  {
+   "id": "mut-11",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "        if (!matches) {\n            guardCounting { attempts.recordWrong(folded) }",
+     "replacement": "        if (!matches) {\n            attempts.recordWrong(folded)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "verify fail-open on DROP TABLE wrong verifier returns Rejected nothing throws"
+   ],
+   "rule": "a failed count of a wrong verifier changes the answer",
+   "note": ""
+  },
+  {
+   "id": "mut-12",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "        } catch (_: Exception) {\n            0L\n        }",
+     "replacement": "        } catch (_: Exception) {\n            throw IllegalStateException()\n        }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "verify fail-open on DROP TABLE wrong verifier returns Rejected nothing throws"
+   ],
+   "rule": "a failed lock read changes the answer",
+   "note": ""
+  },
+  {
+   "id": "mut-13",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "        if (until > 0L) {\n",
+     "replacement": "        if (until > 0L) {\n            guardCounting { attempts.recordWrong(folded) }\n"
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "EQUIVALENT: recordWrong on a locked row returns before any write on the same clock",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill-wp2",
+   "module": "server/modules/sync-api",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "        if (until > 0L) {",
+     "replacement": "        if (false) {"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive-wp2",
+   "module": "server/modules/sync-api",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "        // Lock check FIRST, before the row read, for known and unknown names alike. Fail open:\n        // a throwing read means not locked.",
+     "replacement": "        // Lock check FIRST, before the row read, for known and unknown names alike. Fail open:\n        // a throwing read means the name is not locked."
+    }
+   ]
+  }
+ ]
+}
