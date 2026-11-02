@@ -75,6 +75,8 @@ admins.
       moving vehicle cannot start a recording. A tap on the tile starts recording.
       A shake works from any app and with the keyboard open, and keeps working
       whether or not the tile is on screen, for as long as dictation is switched on.
+      A shake obeys the Wake Gesture setting: with it off, a shake brings nothing up.
+      The three-way choice (Keyboard only, Always, Off) is decided and not built.
 - F5. **"And I'm Gone"** (voice phrase) OR tap tile → stop + send → commit text to
       focused field.
 - F6. If no text field is focused, or the accessibility insert is refused →

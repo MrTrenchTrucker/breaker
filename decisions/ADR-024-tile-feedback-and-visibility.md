@@ -30,6 +30,8 @@ tile has no animated texture yet.
    both ways. It is removed before release, after the project owner picks one.
    A shake still brings the tile back while it is hidden this way, and never
    starts dictation (F4, F38).
+   The Wake Gesture setting also decides whether a shake is heard: with it off a shake is ignored
+   (the sensor still runs). The three-way choice is decided and not built.
 4. **Animated texture.** The tile gets an animated texture while it is
    listening and busy; the project owner suggested radio waves. This is graphics
    work: it waits for the art phase and lives in the design tokens and the

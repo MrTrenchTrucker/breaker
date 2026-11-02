@@ -27,6 +27,7 @@ import dev.breaker.dictation.wiring.TakeOwner
 import dev.breaker.dictation.wiring.TakeOwnerKind
 import dev.breaker.dictation.wiring.TakePortAdapter
 import dev.breaker.dictation.wiring.TileCoordinator
+import dev.breaker.dictation.wiring.WakeGestureGate
 import dev.breaker.dictation.wiring.appGesture
 import dev.breaker.dictation.wiring.appTakenClipboard
 import dev.breaker.dictation.wiring.modelInstallPortFor
@@ -46,6 +47,9 @@ import dev.breaker.dictation.wiring.modelInstallPortFor
  * The shake gesture is started when the service goes on and stopped when it goes off,
  * both on the main looper and in the order the changes happened; its trigger reaches the coordinator
  * through the same post as a tap on the tile. A shake only shows the tile.
+ * A shake reaches the coordinator only while the Wake Gesture switch is on; the switch is read on every
+ * shake (WakeGestureGate), so a toggle works at once in both directions. The sensor still starts whenever
+ * the service goes on: while the switch is off it runs and its shakes are ignored, a small battery cost.
  * The display-change listener is started when the service goes on and stopped when it goes off, on the main
  * looper beside the shake gesture, and tells the tile once per real change of the default display.
  * [onLauncherVisible] shows the tile again when the
@@ -67,6 +71,7 @@ internal class TileHost(
     private val notifications = ModelNotifications(context)
     private val gesture = appGesture(context)
     private val selectedId: () -> String = { root.settingsStore.load().modelSize }
+    private val wakeGate = WakeGestureGate { root.settingsStore.load().wakeGestureEnabled }
 
     private val tile: OverlayTilePort = OverlayTilePort(
         context = context,
@@ -160,9 +165,10 @@ internal class TileHost(
         }
     }
 
-    /** Shows the tile when the service goes on and hides it when the service goes off. Any thread. */
+    /** Shows the tile when the service goes on and hides it when it goes off. The sensor starts when the
+     * service goes on; a shake reaches the coordinator only while the Wake Gesture switch is on. Any thread. */
     fun onArmedChanged(armed: Boolean) {
-        main.post { if (armed) gesture.start { toCoordinator { it.onShake() } } else gesture.stop() }
+        main.post { if (armed) gesture.start { if (wakeGate.mayShake()) toCoordinator { it.onShake() } } else gesture.stop() }
         main.post { if (armed) displayWatch.start() else displayWatch.stop() }
         toCoordinator { it.onArmedChanged(armed) }
     }
