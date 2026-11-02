@@ -1,0 +1,579 @@
+{
+ "name": "proof-sync-slice-3",
+ "tip": {
+  "tree": "ee2e419c926b0160e02669dd1db42ab202c2b1f2"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "sync-api: the DELETE route, the store delete and the re-save mark on a push",
+   "base_tree": "acf5e9936acc3f932e545b288abbc28a33a3f49d",
+   "item_tip_tree": "ee2e419c926b0160e02669dd1db42ab202c2b1f2",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": [
+    "SyncRouteTestSupport.kt"
+   ],
+   "red_not_run": "the delete, the mark and their tests land together: on the base the new tests do not compile (the store delete and the push parameter are absent), so there is no assertion-red leg; the mutants carry the proof"
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "            \"UPDATE transcriptions SET encrypted = '-', stored_at_ms = ?, change_no = ?, deleted = 1 \" +",
+     "replacement": "            \"UPDATE transcriptions SET encrypted = '-', stored_at_ms = ?, change_no = ?, deleted = 0 \" +"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "liveRowDeleteTakesNextNumber",
+    "listLeavesOutADeletedRow",
+    "repeatDeleteTakesNoNumber",
+    "deleteLiveRowAnswers204"
+   ],
+   "rule": "a delete leaves deleted = 0",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "                val nowMs = clock.millis()\n                val changeNo = bumpChangeSeq(connection, accountId)\n                markDeleted(connection, accountId, clientId, nowMs, changeNo)",
+     "replacement": "                val nowMs = clock.millis()\n                val changeNo = 0L\n                markDeleted(connection, accountId, clientId, nowMs, changeNo)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "liveRowDeleteTakesNextNumber"
+   ],
+   "rule": "a delete takes no change number",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "            if (stored == null) {\n                DeleteResult.NoOp\n            } else if (stored.deleted == 1) {\n                DeleteResult.NoOp\n            } else {",
+     "replacement": "            if (stored == null) {\n                DeleteResult.NoOp\n            } else if (false) {\n                DeleteResult.NoOp\n            } else {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "repeatDeleteTakesNoNumber"
+   ],
+   "rule": "a repeat delete applies again and takes a number",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "            if (stored == null) {\n                DeleteResult.NoOp\n            } else if (stored.deleted == 1) {\n                DeleteResult.NoOp\n            } else {",
+     "replacement": "            if (stored == null) {\n                bumpChangeSeq(connection, accountId)\n                DeleteResult.NoOp\n            } else if (stored.deleted == 1) {\n                DeleteResult.NoOp\n            } else {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "unknownIdTakesNoNumber"
+   ],
+   "rule": "an unknown id takes a change number",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "            \"UPDATE transcriptions SET encrypted = '-', stored_at_ms = ?, change_no = ?, deleted = 1 \" +\n                \"WHERE account_id = ? AND client_id = ?\"",
+     "replacement": "            \"UPDATE transcriptions SET encrypted = '-', stored_at_ms = ?, change_no = ?, deleted = 1 \" +\n                \"WHERE account_id = ? OR client_id = ?\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "otherAccountRowUntouched"
+   ],
+   "rule": "the delete reaches the same client id of another account",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "                    if (!resave) {",
+     "replacement": "                    if (false) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "deleteThenPushWithoutMarkIsNoOp"
+   ],
+   "rule": "a push without the mark brings a deleted row back",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "            \"UPDATE transcriptions SET key_version = ?, encrypted = ?, stored_at_ms = ?, change_no = ?, deleted = 0 \" +",
+     "replacement": "            \"UPDATE transcriptions SET key_version = ?, encrypted = ?, stored_at_ms = ?, change_no = ?, deleted = 1 \" +"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "deleteThenPushWithMarkIsFreshSave",
+    "reanimateDeletedRowWithMarkAnswers204",
+    "postSyncExplicitResaveTrueOnDeletedRowAnswers204"
+   ],
+   "rule": "a re-save leaves deleted = 1",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "                        val changeNo = bumpChangeSeq(connection, accountId)\n                        reanimateRow(",
+     "replacement": "                        val changeNo = 0L\n                        reanimateRow("
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "deleteThenPushWithMarkIsFreshSave"
+   ],
+   "rule": "a re-save takes no change number",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "                } else if (stored.keyVersion == keyVersion) {",
+     "replacement": "                } else if (stored.keyVersion == keyVersion && !resave) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "markOnLiveRowChangesNothing"
+   ],
+   "rule": "the mark changes a live row of the same pair",
+   "note": ""
+  },
+  {
+   "id": "mut-10",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "                if (stored == null) {\n                    if (keyVersion < accountKeyVersion) {",
+     "replacement": "                if (stored == null) {\n                    if (true) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "markOnMissingRowInsertsAsToday"
+   ],
+   "rule": "a missing row is always refused as lower",
+   "note": ""
+  },
+  {
+   "id": "mut-11",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "                        PushResult.NoOp\n                    } else if (keyVersion < accountKeyVersion) {",
+     "replacement": "                        PushResult.NoOp\n                    } else if (false) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "postSyncResaveOnDeletedRowBelowAccountVersionAnswersRefused"
+   ],
+   "rule": "a re-save below the account key version is stored",
+   "note": ""
+  },
+  {
+   "id": "mut-12",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "                        PushResult.NoOp\n                    } else if (keyVersion < accountKeyVersion) {",
+     "replacement": "                        PushResult.NoOp\n                    } else if (keyVersion <= accountKeyVersion) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "postSyncResaveOnDeletedRowAtAccountVersionAnswers204"
+   ],
+   "rule": "a re-save at the account key version is refused",
+   "note": ""
+  },
+  {
+   "id": "mut-13",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "                \"WHERE account_id = ? AND deleted = 0 ORDER BY id\"",
+     "replacement": "                \"WHERE account_id = ? ORDER BY id\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "listLeavesOutADeletedRow"
+   ],
+   "rule": "the list returns deleted rows",
+   "note": ""
+  },
+  {
+   "id": "mut-14",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "            statement.setLong(1, storedAtMs)\n            statement.setLong(2, changeNo)",
+     "replacement": "            statement.setLong(1, 0L)\n            statement.setLong(2, changeNo)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "liveRowDeleteTakesNextNumber"
+   ],
+   "rule": "a delete does not store the time of the delete",
+   "note": ""
+  },
+  {
+   "id": "mut-15",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "                markDeleted(connection, accountId, clientId, nowMs, changeNo)\n                DeleteResult.Deleted",
+     "replacement": "                try { markDeleted(connection, accountId, clientId, nowMs, changeNo) } catch (_: Exception) { }\n                DeleteResult.Deleted"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "failedDeleteAfterBumpRollsBack"
+   ],
+   "rule": "a failed write after the bump is swallowed so the counter moves alone",
+   "note": ""
+  },
+  {
+   "id": "mut-16",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncRoutes.kt",
+     "anchor": "            if (!isCanonicalUuid(clientId)) {",
+     "replacement": "            if (false) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "deleteUppercaseIdAnswers400",
+    "deleteMissingHyphenIdAnswers400",
+    "deleteThirtySevenCharIdAnswers400"
+   ],
+   "rule": "a bad client id reaches the store",
+   "note": ""
+  },
+  {
+   "id": "mut-17",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncRoutes.kt",
+     "anchor": "                is DeleteResult.Deleted, is DeleteResult.NoOp ->\n                    call.respond(HttpStatusCode.NoContent)",
+     "replacement": "                is DeleteResult.Deleted, is DeleteResult.NoOp ->\n                    call.respond(HttpStatusCode.OK)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "deleteLiveRowAnswers204"
+   ],
+   "rule": "a delete answers 200",
+   "note": ""
+  },
+  {
+   "id": "mut-18",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncRoutes.kt",
+     "anchor": "                transcriptionStore.push(accountId, body.clientId, body.keyVersion, body.encrypted, body.resave)",
+     "replacement": "                transcriptionStore.push(accountId, body.clientId, body.keyVersion, body.encrypted, false)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "reanimateDeletedRowWithMarkAnswers204",
+    "postSyncExplicitResaveTrueOnDeletedRowAnswers204"
+   ],
+   "rule": "the route drops the mark",
+   "note": ""
+  },
+  {
+   "id": "mut-19",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncRoutes.kt",
+     "anchor": "            val accountId = call.sessionAccountOrRefuse(tokenStore) ?: return@delete",
+     "replacement": "            val accountId = 1L"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "deleteNoTokenAnswers401",
+    "deleteMalformedBearerAnswers401",
+    "deleteUnknownTokenAnswers401",
+    "deleteAgentTokenAnswers403"
+   ],
+   "rule": "the delete route skips the session check",
+   "note": ""
+  },
+  {
+   "id": "mut-20",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncRoutes.kt",
+     "anchor": "                transcriptionStore.delete(accountId, clientId)\n            } catch (cancellation: CancellationException) {\n                throw cancellation\n            } catch (_: Exception) {\n                call.respondUnavailable()",
+     "replacement": "                transcriptionStore.delete(accountId, clientId)\n            } catch (cancellation: CancellationException) {\n                throw cancellation\n            } catch (_: Exception) {\n                call.respondClientIdRefused()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "deleteClosedDatabaseAnswers503"
+   ],
+   "rule": "a store failure answers 400 instead of 503",
+   "note": ""
+  },
+  {
+   "id": "mut-21",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncPushBody.kt",
+     "anchor": "        (members.getValue(\"resave\") as? SyncJsonLiteral)?.text == \"true\"",
+     "replacement": "        (members.getValue(\"resave\") as? SyncJsonLiteral)?.text == \"false\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "resaveTrueFalseAbsentAreAccepted"
+   ],
+   "rule": "the mark is read inverted",
+   "note": ""
+  },
+  {
+   "id": "mut-22",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncPushBody.kt",
+     "anchor": "                (resaveValue.text != \"true\" && resaveValue.text != \"false\")) {",
+     "replacement": "                (resaveValue.text != \"true\")) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "resaveTrueFalseAbsentAreAccepted",
+    "postSyncExplicitResaveFalseAnswers204"
+   ],
+   "rule": "resave false is refused",
+   "note": ""
+  },
+  {
+   "id": "mut-23",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncPushBody.kt",
+     "anchor": "            if (resaveValue !is SyncJsonLiteral ||\n                (resaveValue.text != \"true\" && resaveValue.text != \"false\")) {",
+     "replacement": "            if (resaveValue is SyncJsonLiteral &&\n                (resaveValue.text != \"true\" && resaveValue.text != \"false\")) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "resaveTrueStringIsRefused",
+    "resaveNumberIsRefused"
+   ],
+   "rule": "a string or a number is accepted as resave",
+   "note": ""
+  },
+  {
+   "id": "mut-24",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncJsonReader.kt",
+     "anchor": "            literal(\"null\") -> SyncJsonLiteral(\"null\")",
+     "replacement": "            literal(\"null\") -> SyncJsonLiteral(\"true\")"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "resaveNullIsRefused"
+   ],
+   "rule": "null is read as true",
+   "note": ""
+  },
+  {
+   "id": "mut-25",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncJsonReader.kt",
+     "anchor": "            if (members.containsKey(key)) throw SyncJsonMalformed()",
+     "replacement": "            if (false) throw SyncJsonMalformed()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "duplicateResaveIsRefused"
+   ],
+   "rule": "a duplicate member is accepted",
+   "note": ""
+  },
+  {
+   "id": "mut-26",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncPushBody.kt",
+     "anchor": "            members.containsKey(\"encrypted\") &&\n            members.containsKey(\"resave\")) {",
+     "replacement": "            members.containsKey(\"encrypted\")) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "unknownFourthMemberIsRefused"
+   ],
+   "rule": "any fourth member is taken for resave",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill-sync3",
+   "module": "server/modules/sync-api",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "            \"UPDATE transcriptions SET encrypted = '-', stored_at_ms = ?, change_no = ?, deleted = 1 \" +",
+     "replacement": "            \"UPDATE transcriptions SET encrypted = '-', stored_at_ms = ?, change_no = ?, deleted = 0 \" +"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive-sync3",
+   "module": "server/modules/sync-api",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "     * change number. Runs in one transaction.",
+     "replacement": "     * change number. Runs in a single transaction."
+    }
+   ]
+  }
+ ]
+}
