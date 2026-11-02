@@ -19,7 +19,7 @@ internal class ShakeTriggerGateTest {
     private class Sample(val rule: String, val old: String, val new: String)
     private class Quiet(val old: String, val new: String)
 
-    private val trigger: Regex = Regex("""\bgesture\s*\.\s*start\s*\{\s*toCoordinator\s*\{\s*it\s*\.\s*onShake\s*\(\s*\)\s*\}\s*\}""")
+    private val trigger: Regex = Regex("""\bgesture\s*\.\s*start\s*\{\s*(?:if\s*\(\s*wakeGate\s*\.\s*mayShake\s*\(\s*\)\s*\)\s*)?toCoordinator\s*\{\s*it\s*\.\s*onShake\s*\(\s*\)\s*\}\s*\}""")
     private val triggerStart: Regex = Regex("""\bgesture\s*\.\s*start\s*\{""")
     private val beginCall: Regex = Regex("""\bit\s*\.\s*onBegin\s*\(\s*\)""")
     private val tapCallback: Regex = Regex("""\bonBegin\s*=\s*\{\s*toCoordinator\s*\{\s*it\s*\.\s*onBegin\s*\(\s*\)\s*\}\s*\}""")
@@ -34,17 +34,17 @@ internal class ShakeTriggerGateTest {
     )
 
     private val firing: List<Sample> = listOf(
-        Sample("THE_SHAKE_TRIGGER_ONLY_SHOWS", "gesture.start { toCoordinator { it.onShake() } }", "gesture.start { toCoordinator { it.onBegin() } }"),
-        Sample("THE_SHAKE_TRIGGER_ONLY_SHOWS", "gesture.start { toCoordinator { it.onShake() } }", "gesture.start { toCoordinator { it.onShake(); it.onBegin() } }"),
-        Sample("THE_SHAKE_TRIGGER_ONLY_SHOWS", "gesture.start { toCoordinator { it.onShake() } }", "gesture.start { toCoordinator { it.onShake() } }\n        gesture.start { toCoordinator { it.onBegin() } }"),
+        Sample("THE_SHAKE_TRIGGER_ONLY_SHOWS", "gesture.start { if (wakeGate.mayShake()) toCoordinator { it.onShake() } }", "gesture.start { toCoordinator { it.onBegin() } }"),
+        Sample("THE_SHAKE_TRIGGER_ONLY_SHOWS", "gesture.start { if (wakeGate.mayShake()) toCoordinator { it.onShake() } }", "gesture.start { toCoordinator { it.onShake(); it.onBegin() } }"),
+        Sample("THE_SHAKE_TRIGGER_ONLY_SHOWS", "gesture.start { if (wakeGate.mayShake()) toCoordinator { it.onShake() } }", "gesture.start { if (wakeGate.mayShake()) toCoordinator { it.onShake() } }\n        gesture.start { toCoordinator { it.onBegin() } }"),
         Sample("THE_TAP_IS_THE_ONLY_BEGIN", "onBegin = { toCoordinator { it.onBegin() } }", "onBegin = { toCoordinator { it.onShake() } }"),
         Sample("THE_TAP_IS_THE_ONLY_BEGIN", "onBegin = { toCoordinator { it.onBegin() } }", "onBegin = { toCoordinator { it.onBegin() } }\n    private val extra = { toCoordinator { it.onBegin() } }"),
-        Sample("THE_TAP_IS_THE_ONLY_BEGIN", "gesture.start { toCoordinator { it.onShake() } }", "gesture.start { toCoordinator { it.onBegin() } }"),
+        Sample("THE_TAP_IS_THE_ONLY_BEGIN", "gesture.start { if (wakeGate.mayShake()) toCoordinator { it.onShake() } }", "gesture.start { toCoordinator { it.onBegin() } }"),
     )
 
     private val quiet: List<Quiet> = listOf(
-        Quiet("gesture.start { toCoordinator { it.onShake() } }", "gesture.start { toCoordinator { it.onShake() } } // it.onBegin() is only a comment here"),
-        Quiet("gesture.start { toCoordinator { it.onShake() } }", "gesture.start {   toCoordinator {  it.onShake()  }   }"),
+        Quiet("gesture.start { if (wakeGate.mayShake()) toCoordinator { it.onShake() } }", "gesture.start { if (wakeGate.mayShake()) toCoordinator { it.onShake() } } // it.onBegin() is only a comment here"),
+        Quiet("gesture.start { if (wakeGate.mayShake()) toCoordinator { it.onShake() } }", "gesture.start {   if (wakeGate.mayShake())   toCoordinator {  it.onShake()  }   }"),
         Quiet("onBegin = { toCoordinator { it.onBegin() } }", "onBegin = { toCoordinator { it.onBegin() } /* the tap begins */ }"),
         Quiet("onBegin = { toCoordinator { it.onBegin() } }", "onBegin = {  toCoordinator {  it.onBegin()  }  }"),
     )
