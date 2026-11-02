@@ -3,6 +3,8 @@ package dev.breaker.server.syncapi
 import dev.breaker.server.syncapi.accounts.AccountFixtures
 import dev.breaker.server.syncapi.accounts.AccountStore
 import dev.breaker.server.syncapi.db.TestDatabases
+import dev.breaker.server.syncapi.handoff.HandoffFixtures
+import dev.breaker.server.syncapi.handoff.HandoffStore
 import dev.breaker.server.syncapi.tokens.TokenFixtures
 import dev.breaker.server.syncapi.tokens.TokenStore
 import io.ktor.client.request.get
@@ -24,6 +26,7 @@ class HealthRouteTest {
 
     private lateinit var accountStore: AccountStore
     private lateinit var tokenStore: TokenStore
+    private lateinit var handoffStore: HandoffStore
     private lateinit var transcriptionStore: dev.breaker.server.syncapi.transcriptions.TranscriptionStore
 
     @Before
@@ -31,13 +34,14 @@ class HealthRouteTest {
         val temp = TestDatabases.openTemp()
         accountStore = AccountFixtures.newStore(temp)
         tokenStore = TokenFixtures.tokenStore(temp, Clock.systemUTC())
+        handoffStore = HandoffFixtures.handoffStore(temp, tokenStore, AccountFixtures.fixedClock)
         transcriptionStore = dev.breaker.server.syncapi.transcriptions.SyncRouteTestSupport.newStore(temp)
     }
 
     @Test
     fun `GET health answers 200`() = runBlocking<Unit> {
         testApplication {
-            application { syncApiModule(accountStore, tokenStore, transcriptionStore) }
+            application { syncApiModule(accountStore, tokenStore, transcriptionStore, handoffStore) }
             val response = client.get("/health")
             assertEquals("GET /health status", HttpStatusCode.OK, response.status)
         }
@@ -46,7 +50,7 @@ class HealthRouteTest {
     @Test
     fun `GET health body is exactly the status ok object`() = runBlocking<Unit> {
         testApplication {
-            application { syncApiModule(accountStore, tokenStore, transcriptionStore) }
+            application { syncApiModule(accountStore, tokenStore, transcriptionStore, handoffStore) }
             val response = client.get("/health")
             assertEquals("GET /health body", """{"status":"ok"}""", response.bodyAsText())
         }
@@ -55,7 +59,7 @@ class HealthRouteTest {
     @Test
     fun `GET health is served as json`() = runBlocking<Unit> {
         testApplication {
-            application { syncApiModule(accountStore, tokenStore, transcriptionStore) }
+            application { syncApiModule(accountStore, tokenStore, transcriptionStore, handoffStore) }
             val response = client.get("/health")
             assertEquals(
                 "GET /health content type",
@@ -68,7 +72,7 @@ class HealthRouteTest {
     @Test
     fun `GET health works without any Authorization header`() = runBlocking<Unit> {
         testApplication {
-            application { syncApiModule(accountStore, tokenStore, transcriptionStore) }
+            application { syncApiModule(accountStore, tokenStore, transcriptionStore, handoffStore) }
             val response = client.get("/health")
             assertEquals("unauthenticated GET /health status", HttpStatusCode.OK, response.status)
         }
@@ -77,7 +81,7 @@ class HealthRouteTest {
     @Test
     fun `POST to health is not a success and is answered 404 or 405`() = runBlocking<Unit> {
         testApplication {
-            application { syncApiModule(accountStore, tokenStore, transcriptionStore) }
+            application { syncApiModule(accountStore, tokenStore, transcriptionStore, handoffStore) }
             val response = client.post("/health")
             val code = response.status.value
             assertFalse("POST /health must not be a 2xx but was $code", code in 200..299)
@@ -88,7 +92,7 @@ class HealthRouteTest {
     @Test
     fun `an unknown path is answered 404`() = runBlocking<Unit> {
         testApplication {
-            application { syncApiModule(accountStore, tokenStore, transcriptionStore) }
+            application { syncApiModule(accountStore, tokenStore, transcriptionStore, handoffStore) }
             val response = client.get("/nope")
             assertEquals("GET /nope status", HttpStatusCode.NotFound, response.status)
         }

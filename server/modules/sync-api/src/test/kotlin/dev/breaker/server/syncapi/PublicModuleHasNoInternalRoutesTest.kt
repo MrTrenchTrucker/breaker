@@ -4,6 +4,7 @@ import dev.breaker.server.syncapi.accounts.AccountFixtures
 import dev.breaker.server.syncapi.accounts.Role
 import dev.breaker.server.syncapi.db.TempDatabase
 import dev.breaker.server.syncapi.db.TempDatabaseTest
+import dev.breaker.server.syncapi.handoff.HandoffFixtures
 import dev.breaker.server.syncapi.tokens.IssuedToken
 import dev.breaker.server.syncapi.tokens.MutableClock
 import dev.breaker.server.syncapi.tokens.TokenFixtures
@@ -59,6 +60,7 @@ internal class PublicModuleHasNoInternalRoutesTest : TempDatabaseTest() {
                             AccountFixtures.newStore(temp),
                             store,
                             dev.breaker.server.syncapi.transcriptions.SyncRouteTestSupport.newStore(temp),
+                            HandoffFixtures.handoffStore(temp, store, AccountFixtures.fixedClock),
                         )
                     }
                 }
