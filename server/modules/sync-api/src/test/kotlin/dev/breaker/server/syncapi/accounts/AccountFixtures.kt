@@ -35,8 +35,8 @@ internal object AccountFixtures {
 
     fun salt(seed: Int): ByteArray = ByteArray(16) { index -> (seed * 17 + index * 5 + 3).toByte() }
 
-    fun newStore(temp: TempDatabase, hasher: VerifierHasher = fastHasher()): AccountStore =
-        AccountStore(temp.db, hasher, fixedClock)
+    fun newStore(temp: TempDatabase, hasher: VerifierHasher = fastHasher(), clock: Clock = fixedClock): AccountStore =
+        AccountStore(temp.db, hasher, clock)
 
     fun registered(result: RegisterResult): RegisterResult.Registered {
         if (result !is RegisterResult.Registered) {

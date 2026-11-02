@@ -11,6 +11,8 @@ internal class AccountStore(
     private val hasher: VerifierHasher = VerifierHasher(),
     private val clock: Clock = Clock.systemUTC(),
 ) {
+    internal val attempts = SigninAttemptStore(db, clock)
+
     private class AccountRow(val id: Long, val role: Role, val stored: StoredVerifier)
 
     suspend fun register(
@@ -60,10 +62,19 @@ internal class AccountStore(
         if (!UsernameRules.isValid(username)) return VerifyResult.Rejected
         val folded = UsernameRules.fold(username)
         val row = db.transaction<AccountRow?> { connection -> readAccountRow(connection, folded) }
-            ?: return VerifyResult.Rejected
+        if (row == null) {
+            // An unknown name counts like a wrong password. recordWrong is a transaction of its own.
+            attempts.recordWrong(folded)
+            return VerifyResult.Rejected
+        }
         // The transaction has ended: the slow hash must not hold the database lane.
         val matches = withContext(Dispatchers.Default) { hasher.matches(verifier, row.stored) }
-        return if (matches) VerifyResult.Verified(row.id, row.role) else VerifyResult.Rejected
+        if (!matches) {
+            attempts.recordWrong(folded)
+            return VerifyResult.Rejected
+        }
+        attempts.clear(folded)
+        return VerifyResult.Verified(row.id, row.role)
     }
 
     private fun insertAccount(
