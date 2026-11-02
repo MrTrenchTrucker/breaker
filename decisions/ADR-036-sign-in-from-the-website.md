@@ -1,6 +1,6 @@
 # ADR-036: Sign-in from the website hands the login to the app
 
-**Status:** accepted; the hand-off is decided, not built; the points still open are under To be designed
+**Status:** accepted; decided, built on the server, not built on the phone and the website; the points still open are under To be designed
 **Date:** 2026-11-01
 **Approved by:** the project owner, 2026-11-01
 
@@ -62,7 +62,7 @@ Rules out: a verified app link and its host file; redeeming the code without the
 
 **Trust boundary, named.** The hand-off rests on the website page doing what it should. As ADR-006 says for the web path, anyone who can change the page can change what it does with the password. On plain http the code can be read in transit, but nobody else can redeem it without the app's secret. The token exchange is as readable as any plain-http call, which ADR-034 already accepts as a risk. The admin closes that risk with https.
 
-Of the hand-off, only `CryptoService.openSignInPackage` (with its parser and the sealed-box open) is built. The sign-in routes, the website page, the server store for the key package, the device name and the device-list sign-out are not built. There is no hand-off route and no wrong-password limit in the code yet.
+Of the hand-off, `CryptoService.openSignInPackage` (with its parser and the sealed-box open) is built on the phone. The start route `POST /v1/auth/handoff/start`, the exchange route `POST /v1/auth/handoff/exchange`, migration 4 (the sign-in code table, its index, the device name column and the triggers), the code store and sweep, and the revoke rule are built on the server. Not built: the website page, the app side of the hand-off (making the key pair, calling the routes, the wiring), the wrong-password limit, and the device list with sign-out. Encoding decisions stay under To be designed.
 
 ## To be designed (not decided here)
 
