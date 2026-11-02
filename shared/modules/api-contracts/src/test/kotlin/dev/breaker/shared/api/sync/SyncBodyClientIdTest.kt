@@ -2,6 +2,7 @@ package dev.breaker.shared.api.sync
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
@@ -55,5 +56,6 @@ class SyncBodyClientIdTest {
         assertEquals("key version zero", 0, push.keyVersion)
         assertEquals("client id as given", validId, push.clientId)
         assertEquals("encrypted is the plain string", SyncBodyCodec.encodePlain(body()), push.encrypted)
+        assertNull("a plain push carries no re-save mark", push.resave)
     }
 }

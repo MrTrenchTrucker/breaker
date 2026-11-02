@@ -10,4 +10,5 @@ data class SyncPush(
     val clientId: String,
     val keyVersion: Int,
     val encrypted: String,
+    val resave: Boolean?,
 )

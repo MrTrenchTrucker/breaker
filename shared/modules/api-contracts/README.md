@@ -9,7 +9,9 @@ both the Android client (`stt-server`) and the server (`whisper-server`) impleme
 - `GET /health` — service health check
 - `POST /v1/sync` — push a transcription (idempotent on the client_id /
   key_version pair; at key_version 0 the encrypted text is the base64 of the R1 body, see AGENTS.md)
+- the optional boolean `resave` member of the `POST /v1/sync` body marks a re-save of an id the phone itself deleted
 - `GET /v1/transcriptions` — pull the account's transcriptions in pages (`since` cursor, at most 100 records or 4 MiB a page, delete records included)
+- `DELETE /v1/transcriptions/{client_id}` - delete a transcription (204 also for a repeat or unknown id)
 - `GET /v1/sync/pending-sealed` — the owner's still-sealed agent-token results
 - the four auth endpoints the Status line already names but never lists:
   - `POST /v1/auth/register` — register an account (never a password, never a DEK — the client derives the KEK and sends the verifier; first account = admin)

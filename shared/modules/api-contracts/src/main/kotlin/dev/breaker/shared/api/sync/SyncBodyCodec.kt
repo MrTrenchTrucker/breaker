@@ -66,7 +66,7 @@ object SyncBodyCodec {
     fun plainPush(clientId: String, body: SyncBody): SyncPush {
         if (!isClientId(clientId)) refuse(SyncBodyFamily.CLIENT_ID)
         val encrypted = encodePlain(body)
-        return SyncPush(clientId, 0, encrypted)
+        return SyncPush(clientId, 0, encrypted, null)
     }
 
     /** The created_at form of epoch milliseconds: UTC, always three fractional digits. */

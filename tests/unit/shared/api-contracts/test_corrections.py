@@ -190,7 +190,7 @@ class Correction6PathSetEqualityTest(unittest.TestCase):
     def test_path_set_equality(self):
         """Paths in the spec are exactly the three endpoints (no more, no less)."""
         paths = self.spec.get("paths", {})
-        expected_paths = {"/v1/audio/transcriptions", "/v1/jobs/{job_id}", "/health", "/v1/auth/register", "/v1/auth/salt", "/v1/auth/login", "/v1/auth/logout", "/v1/admin/agent-tokens/{id}", "/v1/admin/agent-tokens", "/v1/sync", "/v1/transcriptions", "/v1/sync/pending-sealed", "/v1/admin/roles", "/v1/admin/health", "/v1/admin/transcription-service", "/v1/admin/test-service", "/v1/admin/reset-account", "/v1/admin/clear-store", "/v1/auth/handoff/start", "/v1/auth/handoff/exchange"}
+        expected_paths = {"/v1/audio/transcriptions", "/v1/jobs/{job_id}", "/health", "/v1/auth/register", "/v1/auth/salt", "/v1/auth/login", "/v1/auth/logout", "/v1/admin/agent-tokens/{id}", "/v1/admin/agent-tokens", "/v1/sync", "/v1/transcriptions", "/v1/transcriptions/{client_id}", "/v1/sync/pending-sealed", "/v1/admin/roles", "/v1/admin/health", "/v1/admin/transcription-service", "/v1/admin/test-service", "/v1/admin/reset-account", "/v1/admin/clear-store", "/v1/auth/handoff/start", "/v1/auth/handoff/exchange"}
         self.assertEqual(set(paths.keys()), expected_paths,
                          "Paths must be exactly the union of base and admin-group paths")
 
