@@ -1,6 +1,7 @@
 package dev.breaker.server.syncapi.accounts
 
 import dev.breaker.server.syncapi.db.SqliteDatabase
+import dev.breaker.server.syncapi.settings.ServerSettingsStore
 import java.sql.Connection
 import java.time.Clock
 import java.util.concurrent.CancellationException
@@ -11,6 +12,7 @@ internal class AccountStore(
     private val db: SqliteDatabase,
     private val hasher: VerifierHasher = VerifierHasher(),
     private val clock: Clock = Clock.systemUTC(),
+    private val settings: ServerSettingsStore = ServerSettingsStore(db),
 ) {
     internal val attempts = SigninAttemptStore(db, clock)
 
@@ -74,8 +76,26 @@ internal class AccountStore(
         if (!UsernameRules.isValid(username)) return VerifyResult.Rejected
         val folded = UsernameRules.fold(username)
 
-        // Lock check FIRST, before the row read, for known and unknown names alike. Fail open:
-        // a throwing read means not locked.
+        // The admin switch is read live on every call: after the malformed-username
+        // return and before the lock check. A failed read counts as ON (the default).
+        val limitOn = try {
+            settings.wrongPwLimitEnabled()
+        } catch (c: CancellationException) {
+            throw c
+        } catch (_: Exception) {
+            true
+        }
+        if (!limitOn) {
+            // Switch OFF: no lock read, no count, no clear. Read the row, hash,
+            // return Rejected or Verified exactly as an account with no limit.
+            val row = db.transaction<AccountRow?> { connection -> readAccountRow(connection, folded) }
+            if (row == null) return VerifyResult.Rejected
+            val matches = withContext(Dispatchers.Default) { hasher.matches(verifier, row.stored) }
+            if (!matches) return VerifyResult.Rejected
+            return VerifyResult.Verified(row.id, row.role)
+        }
+
+        // Switch ON: the lock, count and clear path, unchanged.
         val until = try {
             attempts.lockedUntil(folded)
         } catch (c: CancellationException) {

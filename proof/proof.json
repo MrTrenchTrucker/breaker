@@ -1,0 +1,388 @@
+{
+ "name": "proof-wrongpw-slice-3a",
+ "tip": {
+  "tree": "e8e198b3e8eaedb9a6a6ac71b171118de4c7373d"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "sync-api: the wrong-password limit switch on the server (migration 7, the settings store, verify obeying the switch)",
+   "base_tree": "28748bcaa07bbd5fce594d970f7cf9a7ca23785a",
+   "item_tip_tree": "e8e198b3e8eaedb9a6a6ac71b171118de4c7373d",
+   "new_production_classes": [
+    "SchemaV7",
+    "ServerSettingsStore"
+   ],
+   "test_fixtures_overlaid": [],
+   "red_not_run": "the settings table, the store and the switch read land together with their tests: on the base the new tests do not compile (the store and the table are absent), so there is no assertion-red leg; the mutants carry the proof"
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/settings/ServerSettingsStore.kt",
+     "anchor": "                    } else {\n                        true\n                    }",
+     "replacement": "                    } else {\n                        false\n                    }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "absent row reads as enabled true",
+    "sixth wrong try inside the wait returns Locked and touches nothing"
+   ],
+   "rule": "an absent row reads off",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/settings/ServerSettingsStore.kt",
+     "anchor": "rows.getLong(1) != 0L",
+     "replacement": "rows.getLong(1) == 1L"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "sql int_value of 5 reads true and 0 reads false",
+    "a value wider than an int still reads true"
+   ],
+   "rule": "only a stored 1 reads on",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/settings/ServerSettingsStore.kt",
+     "anchor": "rows.getLong(1) != 0L",
+     "replacement": "rows.getInt(1) != 0"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a value wider than an int still reads true"
+   ],
+   "rule": "the value is read as a 32-bit int",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "        if (!limitOn) {\n",
+     "replacement": "        if (!limitOn && attempts.lockedUntil(folded) == 0L) {\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "switch off after locked returns Verified and keeps the locked row"
+   ],
+   "rule": "the off path still reads the lock",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "            if (row == null) return VerifyResult.Rejected\n",
+     "replacement": "            if (row == null) {\n                guardCounting { attempts.recordWrong(folded) }\n                return VerifyResult.Rejected\n            }\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "switch off unknown name returns Rejected with no row"
+   ],
+   "rule": "the off path counts an unknown name",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "            if (!matches) return VerifyResult.Rejected\n",
+     "replacement": "            if (!matches) {\n                guardCounting { attempts.recordWrong(folded) }\n                return VerifyResult.Rejected\n            }\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "switch off five wrong tries all return Rejected and signin_attempts has no row",
+    "switch off wrong try leaves existing row unchanged"
+   ],
+   "rule": "the off path counts a wrong verifier",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "            return VerifyResult.Verified(row.id, row.role)\n        }\n\n        // Switch ON",
+     "replacement": "            guardCounting { attempts.clear(folded) }\n            return VerifyResult.Verified(row.id, row.role)\n        }\n\n        // Switch ON"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "switch off after locked returns Verified and keeps the locked row"
+   ],
+   "rule": "the off path clears the row",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "            settings.wrongPwLimitEnabled()\n",
+     "replacement": "            true\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "switch off five wrong tries all return Rejected and signin_attempts has no row",
+    "switch off after locked returns Verified and keeps the locked row",
+    "switch off wrong try leaves existing row unchanged",
+    "switch off unknown name returns Rejected with no row"
+   ],
+   "rule": "the switch is never read",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "        } catch (_: Exception) {\n            true\n        }",
+     "replacement": "        } catch (_: Exception) {\n            false\n        }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "drop table server_settings behaves as on five wrong tries still lock"
+   ],
+   "rule": "a failed read of the switch counts as off",
+   "note": ""
+  },
+  {
+   "id": "mut-10",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/settings/ServerSettingsStore.kt",
+     "anchor": "\"INSERT INTO server_settings (setting_key, int_value) VALUES (?, ?) \" +\n                    \"ON CONFLICT(setting_key) DO UPDATE SET int_value = excluded.int_value\",",
+     "replacement": "\"INSERT INTO server_settings (setting_key, int_value) VALUES (?, ?)\","
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "set false then false again is still one row",
+    "set false reads false then set true reads true",
+    "the read is live flip read flip read"
+   ],
+   "rule": "a plain insert replaces the upsert",
+   "note": ""
+  },
+  {
+   "id": "mut-11",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/settings/ServerSettingsStore.kt",
+     "anchor": "val value = if (enabled) 1 else 0",
+     "replacement": "val value = if (enabled) 0 else 1"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "set false reads false then set true reads true",
+    "the read is live flip read flip read"
+   ],
+   "rule": "the stored value is inverted",
+   "note": ""
+  },
+  {
+   "id": "mut-12",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/Migrations.kt",
+     "anchor": "SchemaV6.MIGRATION, SchemaV7.MIGRATION)",
+     "replacement": "SchemaV6.MIGRATION)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "migration 7 applies to a fresh database and ends at user_version 7 with server_settings",
+    "an upgrade from version 6 keeps every row and adds an empty server_settings table"
+   ],
+   "rule": "migration 7 is not registered",
+   "note": ""
+  },
+  {
+   "id": "mut-13",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV7.kt",
+     "anchor": "BETWEEN 1 AND 64",
+     "replacement": "BETWEEN 1 AND 65"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "server_settings checks refuse an empty key and a 65-character key"
+   ],
+   "rule": "the key length bound is 65",
+   "note": ""
+  },
+  {
+   "id": "mut-14",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV7.kt",
+     "anchor": "BETWEEN 1 AND 64",
+     "replacement": "BETWEEN 0 AND 64"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "server_settings checks refuse an empty key and a 65-character key"
+   ],
+   "rule": "an empty key is allowed",
+   "note": ""
+  },
+  {
+   "id": "mut-15",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV7.kt",
+     "anchor": "int_value INTEGER NOT NULL)",
+     "replacement": "int_value INTEGER)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "server_settings refuses a null int_value"
+   ],
+   "rule": "a null value is allowed",
+   "note": ""
+  },
+  {
+   "id": "mut-16",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/settings/ServerSettingsStore.kt",
+     "anchor": "const val WRONG_PW_LIMIT_KEY = \"wrong_pw_limit\"",
+     "replacement": "const val WRONG_PW_LIMIT_KEY = \"wrong_pw_limit_x\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "sql int_value of 5 reads true and 0 reads false",
+    "a value wider than an int still reads true"
+   ],
+   "rule": "the key text differs from the stored one",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill-wp3",
+   "module": "server/modules/sync-api",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "            settings.wrongPwLimitEnabled()\n",
+     "replacement": "            true\n"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive-wp3",
+   "module": "server/modules/sync-api",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "        // Switch ON: the lock, count and clear path, unchanged.",
+     "replacement": "        // Switch ON: the lock, count and clear path, as before."
+    }
+   ]
+  }
+ ]
+}
