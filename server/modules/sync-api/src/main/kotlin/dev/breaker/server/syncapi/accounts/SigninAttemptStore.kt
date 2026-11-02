@@ -13,6 +13,12 @@ internal class SigninAttemptStore(
     companion object {
         const val LOCK_WAIT_MS: Long = 15 * 60 * 1000
         const val DEFAULT_MAX_ROWS: Int = 10_000
+
+        /** Whole seconds left in the lock, rounded UP, never less than 1. Pure. */
+        fun retryAfterSeconds(lockedUntilMs: Long, nowMs: Long): Long {
+            val remaining = lockedUntilMs - nowMs
+            return Math.max(1, (remaining + 999) / 1000)
+        }
     }
 
     // Records one wrong attempt for [foldedUsername]. Three cases:
@@ -142,6 +148,26 @@ internal class SigninAttemptStore(
                         AttemptInfo(rows.getLong(1), rows.getLong(2), rows.getLong(3))
                     } else {
                         null
+                    }
+                }
+            }
+        }
+    }
+
+    /** The stored locked_until_ms when the row exists and is greater than now,
+     * else 0L. One read in its own transaction. */
+    suspend fun lockedUntil(foldedName: String): Long {
+        return db.transaction<Long> { connection ->
+            connection.prepareStatement(
+                "SELECT locked_until_ms FROM signin_attempts WHERE username_lower = ?",
+            ).use { statement ->
+                statement.setString(1, foldedName)
+                statement.executeQuery().use { rows ->
+                    if (rows.next()) {
+                        val until = rows.getLong(1)
+                        if (until > clock.millis()) until else 0L
+                    } else {
+                        0L
                     }
                 }
             }

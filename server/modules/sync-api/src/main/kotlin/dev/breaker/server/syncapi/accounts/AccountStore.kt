@@ -3,6 +3,7 @@ package dev.breaker.server.syncapi.accounts
 import dev.breaker.server.syncapi.db.SqliteDatabase
 import java.sql.Connection
 import java.time.Clock
+import java.util.concurrent.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -58,24 +59,51 @@ internal class AccountStore(
         }
     }
 
+    // Runs a counting write inside try/catch: CancellationException is rethrown, any other exception
+    // is swallowed so a failed counting write never changes a login answer (fail open).
+    private suspend fun guardCounting(block: suspend () -> Unit) {
+        try {
+            block()
+        } catch (c: CancellationException) {
+            throw c
+        } catch (_: Exception) {
+        }
+    }
+
     suspend fun verify(username: String, verifier: AuthVerifier): VerifyResult {
         if (!UsernameRules.isValid(username)) return VerifyResult.Rejected
         val folded = UsernameRules.fold(username)
+
+        // Lock check FIRST, before the row read, for known and unknown names alike. Fail open:
+        // a throwing read means not locked.
+        val until = try {
+            attempts.lockedUntil(folded)
+        } catch (c: CancellationException) {
+            throw c
+        } catch (_: Exception) {
+            0L
+        }
+        if (until > 0L) {
+            return VerifyResult.Locked(SigninAttemptStore.retryAfterSeconds(until, clock.millis()))
+        }
+
         val row = db.transaction<AccountRow?> { connection -> readAccountRow(connection, folded) }
         if (row == null) {
-            // An unknown name counts like a wrong password. recordWrong is a transaction of its own.
-            attempts.recordWrong(folded)
+            guardCounting { attempts.recordWrong(folded) }
             return VerifyResult.Rejected
         }
         // The transaction has ended: the slow hash must not hold the database lane.
         val matches = withContext(Dispatchers.Default) { hasher.matches(verifier, row.stored) }
         if (!matches) {
-            attempts.recordWrong(folded)
+            guardCounting { attempts.recordWrong(folded) }
             return VerifyResult.Rejected
         }
-        attempts.clear(folded)
+        guardCounting { attempts.clear(folded) }
         return VerifyResult.Verified(row.id, row.role)
     }
+
+    /** Delegates to the attempt store: the locked_until_ms for [folded], else 0L. */
+    suspend fun lockedUntil(folded: String): Long = attempts.lockedUntil(folded)
 
     private fun insertAccount(
         connection: Connection,

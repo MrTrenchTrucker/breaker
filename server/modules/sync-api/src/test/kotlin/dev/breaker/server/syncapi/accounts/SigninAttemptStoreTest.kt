@@ -140,6 +140,40 @@ internal class SigninAttemptStoreTest : TempDatabaseTest() {
         assertEquals("stale partial count restarts at 1 after 15 minutes + 1 ms", 1L, wrongCount("alice"))
     }
 
+    // A clock set back after a lock can only extend the lock (a wrong try changes nothing while it reads locked).
+    @Test
+    fun `a clock set back after a lock keeps the lock and an advanced clock restarts the count`() {
+        register("alice", 1)
+        repeat(5) { runBlocking { store.attempts.recordWrong("alice") } }
+        assertEquals("count reaches 5", 5L, wrongCount("alice"))
+        val locked = lockedUntil("alice")
+        assertTrue("alice is locked", locked > start.toEpochMilli())
+        val backStore = SigninAttemptStore(temp.db, mutableClock(start.minusSeconds(1)), maxRows = 2)
+        assertEquals("the set-back clock still reads the lock", locked, runBlocking { backStore.lockedUntil("alice") })
+        runBlocking { backStore.recordWrong("alice") }
+        assertEquals("a wrong try on a set-back clock changes nothing", 5L, wrongCount("alice"))
+        assertEquals("the lock is the same after it", locked, lockedUntil("alice"))
+        val afterStore = SigninAttemptStore(temp.db, mutableClock(start.plusSeconds(16 * 60L)), maxRows = 2)
+        runBlocking { afterStore.recordWrong("alice") }
+        assertEquals("count restarts at 1 after the lock expired", 1L, wrongCount("alice"))
+        assertEquals("the lock is cleared after expiry", 0L, lockedUntil("alice"))
+    }
+
+    // At the row cap a row whose lock has expired is evictable: here it is also the oldest.
+    @Test
+    fun `at the row cap an expired lock row is evicted as the oldest unlocked row`() {
+        val firstStore = SigninAttemptStore(temp.db, mutableClock(start), maxRows = 2)
+        repeat(5) { runBlocking { firstStore.recordWrong("alice") } }
+        assertTrue("alice is locked", attemptOf("alice")!!.lockedUntilMs > start.toEpochMilli())
+        val secondStore = SigninAttemptStore(temp.db, mutableClock(start.plusSeconds(1)), maxRows = 2)
+        runBlocking { secondStore.recordWrong("bob") }
+        val lateStore = SigninAttemptStore(temp.db, mutableClock(start.plusSeconds(16 * 60L)), maxRows = 2)
+        runBlocking { lateStore.recordWrong("carol") }
+        assertNull("alice (expired lock, oldest) is evicted at the cap", attemptOf("alice"))
+        assertEquals("bob keeps his row", 1L, wrongCount("bob"))
+        assertEquals("carol has a row", 1L, wrongCount("carol"))
+    }
+
     @Test
     fun `clear deletes the row`() {
         register("alice", 1)
@@ -225,16 +259,18 @@ internal class SigninAttemptStoreTest : TempDatabaseTest() {
     }
 
     @Test
-    fun `five wrong tries lock and a right password afterwards still returns Verified and clears the row`() {
+    fun `five wrong tries lock and a right password inside the wait returns Locked and leaves the row`() {
         register("alice", 1)
         repeat(5) {
             runBlocking { store.verify("alice", AccountFixtures.verifier(2)) }
         }
         assertEquals("count reaches 5", 5L, wrongCount("alice"))
-        assertTrue("alice is locked", lockedUntil("alice") > start.toEpochMilli())
+        val locked = lockedUntil("alice")
+        assertTrue("alice is locked", locked > start.toEpochMilli())
         val result = runBlocking { store.verify("alice", AccountFixtures.verifier(1)) }
-        assertTrue("right password inside lock returns Verified", result is VerifyResult.Verified)
-        assertNull("row cleared after success", attemptOf("alice"))
+        assertTrue("right password inside the wait returns Locked", result is VerifyResult.Locked)
+        assertEquals("count untouched", 5L, wrongCount("alice"))
+        assertEquals("lock untouched", locked, lockedUntil("alice"))
     }
 
     @Test
