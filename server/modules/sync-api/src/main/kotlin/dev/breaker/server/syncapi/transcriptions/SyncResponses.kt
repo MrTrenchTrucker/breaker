@@ -52,3 +52,14 @@ internal suspend fun ApplicationCall.respondLowerRefused() {
 internal suspend fun ApplicationCall.respondClientIdRefused() {
     respondSyncError(HttpStatusCode.BadRequest, "bad_request", MESSAGE_CLIENT_ID_REFUSED)
 }
+
+internal const val MESSAGE_CURSOR_INVALID: String = "The cursor is invalid: check its account tag and pattern"
+internal const val MESSAGE_GONE: String = "The cursor is too old: list again without since"
+
+internal suspend fun ApplicationCall.respondGone() {
+    respondSyncError(HttpStatusCode.Gone, "gone", MESSAGE_GONE)
+}
+
+internal suspend fun ApplicationCall.respondCursorInvalid() {
+    respondSyncError(HttpStatusCode.BadRequest, "bad_request", MESSAGE_CURSOR_INVALID)
+}

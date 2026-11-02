@@ -14,7 +14,7 @@ The server's main API: accounts and logins (users, tokens, roles), syncing trans
 
 The account HTTP routes (register, salt, login, logout), the admin route that revokes an agent token, the two internal token-check routes and the three transcription routes (POST /v1/sync, GET /v1/transcriptions, DELETE /v1/transcriptions/{client_id}) are installed. The key and reset routes and the rest of what the card lists are not built yet.
 
-Planned, not built (ADR-035, ADR-036): the changes-since pull, the wrong-password limit, an admin route to end a session, and the device list. The sign-in hand-off (migration 4, the code store, the sweep, the revoke rule and the start and exchange routes) is built; the website page and the app wiring are not. The change number and the delete flag are built in the store (migration 5); the DELETE route is built; the feed that reads them is not.
+Planned, not built (ADR-035, ADR-036): the purge of delete records, the wrong-password limit, an admin route to end a session, and the device list. The sign-in hand-off (migration 4, the code store, the sweep, the revoke rule and the start and exchange routes) is built; the website page and the app wiring are not. The change number and the delete flag are built in the store (migration 5); the DELETE route is built; the read side of the feed (the since parameter, the page object, the 400 and the 410) is built; the purge is not.
 
 ## Run it
 

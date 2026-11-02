@@ -49,6 +49,10 @@ internal object SyncRouteTestSupport {
         """{"error":"conflict","message":"A lower key_version is refused for this client_id"}"""
     const val BAD_REQUEST_BODY =
         """{"error":"bad_request","message":"client id is not a lowercase canonical UUID"}"""
+    const val CURSOR_INVALID_BODY =
+        """{"error":"bad_request","message":"The cursor is invalid: check its account tag and pattern"}"""
+    const val GONE_BODY =
+        """{"error":"gone","message":"The cursor is too old: list again without since"}"""
 
     // 43 characters of the token alphabet: the right shape, and no session carries it.
     val UNKNOWN_TOKEN: String = "C".repeat(43)
@@ -184,7 +188,7 @@ internal object SyncRouteTestSupport {
     fun deleteTranscription(tokenStore: TokenStore, store: TranscriptionStore, token: String?, clientId: String): SyncReply =
         deleteTranscriptionWithAuthorization(tokenStore, store, token?.let { "Bearer $it" }, clientId)
 
-    // Sends the Authorization header exactly as given, or no header at all when it is null.
+    // Sends the Authorization header exactly as given, or no header at all when authorization is null.
     fun getListWithAuthorization(
         tokenStore: TokenStore,
         store: TranscriptionStore,
@@ -201,5 +205,48 @@ internal object SyncRouteTestSupport {
             }
         }
         return checkNotNull(reply)
+    }
+
+    // Sends GET /v1/transcriptions with an optional since query, and the Authorization header exactly
+    // as given, or no header at all when authorization is null.
+    fun getPageWithAuthorization(
+        tokenStore: TokenStore,
+        store: TranscriptionStore,
+        authorization: String?,
+        since: String?,
+    ): SyncReply {
+        var reply: SyncReply? = null
+        runBlocking {
+            testApplication {
+                application { syncRoutes(tokenStore, store) }
+                val path = since?.let { "/v1/transcriptions?since=$it" } ?: "/v1/transcriptions"
+                val response = client.get(path) {
+                    if (authorization != null) header("Authorization", authorization)
+                }
+                reply = SyncReply(response.status, response.bodyAsText())
+            }
+        }
+        return checkNotNull(reply)
+    }
+
+    // The same request with a session token: the header is Bearer plus the token, or none when null.
+    fun getPage(tokenStore: TokenStore, store: TranscriptionStore, token: String?, since: String?): SyncReply =
+        getPageWithAuthorization(tokenStore, store, token?.let { "Bearer $it" }, since)
+
+    // A page record rendered as JSON: live record with key_version and encrypted; delete record
+    // with neither.
+    fun pageRecordJson(
+        clientId: String,
+        change: Long,
+        deleted: Boolean,
+        keyVersion: Int?,
+        encrypted: String?,
+        storedAt: String,
+    ): String {
+        return if (deleted) {
+            "{\"client_id\":\"$clientId\",\"change\":$change,\"deleted\":true,\"stored_at\":\"$storedAt\"}"
+        } else {
+            "{\"client_id\":\"$clientId\",\"change\":$change,\"deleted\":false,\"key_version\":$keyVersion,\"encrypted\":\"$encrypted\",\"stored_at\":\"$storedAt\"}"
+        }
     }
 }

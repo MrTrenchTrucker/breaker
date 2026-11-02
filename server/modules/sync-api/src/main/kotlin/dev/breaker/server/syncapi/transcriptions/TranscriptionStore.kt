@@ -106,6 +106,10 @@ internal class TranscriptionStore(
     suspend fun list(accountId: Long): List<TranscriptionRow> =
         db.transaction<List<TranscriptionRow>> { connection -> readRows(connection, accountId) }
 
+    /** One page of the account's feed, ordered by change number ascending (see TranscriptionPageReader). */
+    suspend fun page(accountId: Long, since: Long?): PageResult =
+        db.transaction<PageResult> { connection -> TranscriptionPageReader.read(connection, accountId, since) }
+
     private fun readAccountKeyVersion(connection: Connection, accountId: Long): Int? =
         connection.prepareStatement(SELECT_ACCOUNT_KEY_VERSION_SQL).use { statement ->
             statement.setLong(1, accountId)
