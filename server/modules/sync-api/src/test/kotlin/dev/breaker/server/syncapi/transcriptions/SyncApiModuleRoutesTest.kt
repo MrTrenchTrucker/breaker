@@ -35,6 +35,8 @@ internal class SyncApiModuleRoutesTest : TempDatabaseTest() {
     private lateinit var store: TranscriptionStore
     private var token: String = ""
 
+    private var accountId: Long = 0L
+
     @Before
     fun setUp() {
         temp = openTemp()
@@ -43,7 +45,8 @@ internal class SyncApiModuleRoutesTest : TempDatabaseTest() {
         store = SyncRouteTestSupport.newStore(temp, clock)
         val alice = TokenFixtures.register(temp, "alice", 1)
         assertEquals("sync-api: the first account must be the admin", Role.ADMIN, alice.role)
-        token = SyncRouteTestSupport.sessionToken(tokenStore, alice.accountId)
+        accountId = alice.accountId
+        token = SyncRouteTestSupport.sessionToken(tokenStore, accountId)
     }
 
     @Test
@@ -62,7 +65,7 @@ internal class SyncApiModuleRoutesTest : TempDatabaseTest() {
             assertEquals("sync-api: module list status", HttpStatusCode.OK, listed.status)
             assertEquals(
                 "sync-api: module list body",
-                "[" + SyncRouteTestSupport.rowJson(CLIENT_ID, 0, ENCRYPTED, "2023-11-14T22:13:20Z") + "]",
+                "{\"items\":[" + SyncRouteTestSupport.pageRecordJson(CLIENT_ID, 1, false, 0, ENCRYPTED, "2023-11-14T22:13:20Z") + "],\"next\":\"$accountId-1\",\"more\":false}",
                 listed.bodyAsText(),
             )
         }

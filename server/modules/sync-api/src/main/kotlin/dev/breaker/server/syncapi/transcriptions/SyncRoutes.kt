@@ -17,8 +17,8 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import kotlinx.coroutines.CancellationException
 
-// POST /v1/sync (push one transcription) and GET /v1/transcriptions (the account's whole list, oldest
-// first). Both take a user session token only: no or unknown token is 401, an agent token is 403.
+// POST /v1/sync (push one transcription) and GET /v1/transcriptions (the account's feed, oldest
+// first, paged by since). Both take a user session token only: no or unknown token is 401, an agent token is 403.
 // A store failure other than cancellation answers 503 with a fixed body; cancellation is rethrown.
 internal fun Application.syncRoutes(tokenStore: TokenStore, transcriptionStore: TranscriptionStore) {
     routing {
@@ -52,17 +52,40 @@ internal fun Application.syncRoutes(tokenStore: TokenStore, transcriptionStore: 
 
         get("/v1/transcriptions") {
             val accountId = call.sessionAccountOrRefuse(tokenStore) ?: return@get
-            // The rendering is inside the try: a stored time that cannot be formatted is a failure of
-            // the store's data, so it answers 503 like a store failure and never a 500.
-            val json = try {
-                renderTranscriptions(transcriptionStore.list(accountId))
+            val sinceValue = call.request.queryParameters["since"]
+            val parsed = sinceValue?.let { parseSince(it) }
+            if (sinceValue != null && parsed == null) {
+                call.respondCursorInvalid()
+                return@get
+            }
+            val since = parsed?.second
+            if (since != null && parsed!!.first != accountId) {
+                call.respondCursorInvalid()
+                return@get
+            }
+            val page = try {
+                transcriptionStore.page(accountId, since)
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (_: Exception) {
                 call.respondUnavailable()
                 return@get
             }
-            call.respondText(json, ContentType.Application.Json, HttpStatusCode.OK)
+            when (page) {
+                is PageResult.Gone -> {
+                    call.respondGone()
+                    return@get
+                }
+                is PageResult.Page -> {
+                    val json = try {
+                        renderTranscriptionsPage(accountId, page.records, page.next, page.more)
+                    } catch (_: Exception) {
+                        call.respondUnavailable()
+                        return@get
+                    }
+                    call.respondText(json, ContentType.Application.Json, HttpStatusCode.OK)
+                }
+            }
         }
 
         delete("/v1/transcriptions/{client_id}") {
@@ -129,12 +152,34 @@ private fun presentedBearerToken(header: String?): String? {
 
 private const val BEARER_SCHEME = "Bearer"
 
-// The list as a JSON array. client_id and encrypted were checked when they were pushed (hex and
-// hyphens, or the base64 alphabet), so neither holds a quote, a backslash or a control character.
-private fun renderTranscriptions(rows: List<TranscriptionRow>): String {
-    val items = rows.map { row ->
-        "{\"client_id\":\"${row.clientId}\",\"key_version\":${row.keyVersion},\"encrypted\":\"${row.encrypted}\"," +
-            "\"stored_at\":\"${formatStoredAt(row.storedAtMs)}\"}"
+// The page object JSON: {items, next, more}. A live record renders key_version and encrypted;
+// a delete record renders neither. [accountId] is the session's account id in decimal.
+private fun renderTranscriptionsPage(
+    accountId: Long,
+    records: List<TranscriptionPageRecord>,
+    next: Long,
+    more: Boolean,
+): String {
+    val items = records.map { row ->
+        if (row.deleted) {
+            "{\"client_id\":\"${row.clientId}\",\"change\":${row.change},\"deleted\":true,\"stored_at\":\"${formatStoredAt(row.storedAtMs)}\"}"
+        } else {
+            "{\"client_id\":\"${row.clientId}\",\"change\":${row.change},\"deleted\":false,\"key_version\":${row.keyVersion},\"encrypted\":\"${row.encrypted}\",\"stored_at\":\"${formatStoredAt(row.storedAtMs)}\"}"
+        }
     }
-    return items.joinToString(separator = ",", prefix = "[", postfix = "]")
+    return "{\"items\":[${items.joinToString(",")}],\"next\":\"$accountId-$next\",\"more\":$more}"
+}
+
+private val CURSOR_PATTERN = Regex("^[0-9]{1,19}-[0-9]{1,19}$")
+
+// Parses the since query parameter: <account>-<change>. Returns the pair when the value matches
+// the pattern and both parts fit Longs; null otherwise (absent or malformed).
+private fun parseSince(value: String): Pair<Long, Long>? {
+    if (!CURSOR_PATTERN.matches(value)) return null
+    val hyphen = value.indexOf('-')
+    val accountPart = value.substring(0, hyphen)
+    // The account part is the decimal of the account id: no leading zero, so one account has one text.
+    if (accountPart.length > 1 && accountPart.startsWith("0")) return null
+    val changePart = value.substring(hyphen + 1)
+    return accountPart.toLongOrNull()?.let { account -> changePart.toLongOrNull()?.let { change -> account to change } }
 }
