@@ -1,0 +1,338 @@
+{
+ "name": "proof-sync-slice-1",
+ "tip": {
+  "tree": "b55df769987ff97a19818a83f6ab2a7d5cb4e072"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "sync-api: migration 5 and a change number on every transcription write",
+   "base_tree": "d1976b6dca7e3cb02f8754f64470718dc54d1214",
+   "item_tip_tree": "b55df769987ff97a19818a83f6ab2a7d5cb4e072",
+   "new_production_classes": [
+    "SchemaV5"
+   ],
+   "test_fixtures_overlaid": [],
+   "red_not_run": "the schema, the store change and their tests land together: on the base the new tests do not compile (the store and the columns are absent), so there is no assertion-red leg; the mutants carry the proof"
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV5.kt",
+     "anchor": "        \"ALTER TABLE accounts ADD COLUMN change_seq INTEGER NOT NULL DEFAULT 0 CHECK (change_seq >= 0)\"",
+     "replacement": "        \"ALTER TABLE accounts ADD COLUMN change_seq INTEGER NOT NULL DEFAULT 0 CHECK (change_seq >= -1)\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the new columns refuse a negative counter, a negative purge mark and a delete flag of 2"
+   ],
+   "rule": "the counter check lets -1 through",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV5.kt",
+     "anchor": "        \"ALTER TABLE accounts ADD COLUMN purged_through INTEGER NOT NULL DEFAULT 0 CHECK (purged_through >= 0)\"",
+     "replacement": "        \"ALTER TABLE accounts ADD COLUMN purged_through INTEGER NOT NULL DEFAULT 0 CHECK (purged_through >= -1)\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the new columns refuse a negative counter, a negative purge mark and a delete flag of 2"
+   ],
+   "rule": "the purge mark check lets -1 through",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV5.kt",
+     "anchor": "        \"ALTER TABLE transcriptions ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0 CHECK (deleted IN (0, 1))\"",
+     "replacement": "        \"ALTER TABLE transcriptions ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0 CHECK (deleted IN (0, 1, 2))\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the new columns refuse a negative counter, a negative purge mark and a delete flag of 2"
+   ],
+   "rule": "the delete flag allows 2",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV5.kt",
+     "anchor": "        \"CREATE UNIQUE INDEX transcriptions_account_change_no ON transcriptions (account_id, change_no)\"",
+     "replacement": "        \"CREATE INDEX transcriptions_account_change_no ON transcriptions (account_id, change_no)\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a fresh database ends at the latest version with the change columns, the delete flag, the pulled change column and the unique index",
+    "the unique index refuses a repeated change number of one account and accepts it on another account"
+   ],
+   "rule": "the index is not unique: two rows of one account can share a number",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV5.kt",
+     "anchor": "            \"SELECT id, row_number() OVER (PARTITION BY account_id ORDER BY id) AS n \" +",
+     "replacement": "            \"SELECT id, row_number() OVER (PARTITION BY account_id ORDER BY id DESC) AS n \" +"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an upgrade from version 4 keeps every row, numbers each account from 1 in id order and sets each counter"
+   ],
+   "rule": "the backfill numbers rows from the newest: the id order is reversed",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV5.kt",
+     "anchor": "            \"SELECT id, row_number() OVER (PARTITION BY account_id ORDER BY id) AS n \" +",
+     "replacement": "            \"SELECT id, row_number() OVER (ORDER BY id) AS n \" +"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an upgrade from version 4 keeps every row, numbers each account from 1 in id order and sets each counter"
+   ],
+   "rule": "the backfill numbers all rows together instead of per account",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV5.kt",
+     "anchor": "        \"UPDATE accounts SET change_seq = (SELECT count(*) FROM transcriptions WHERE account_id = accounts.id)\"",
+     "replacement": "        \"UPDATE accounts SET change_seq = (SELECT count(*) + 1 FROM transcriptions WHERE account_id = accounts.id)\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an upgrade from version 4 keeps every row, numbers each account from 1 in id order and sets each counter"
+   ],
+   "rule": "the starting counter is one too high",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV5.kt",
+     "anchor": "        \"ALTER TABLE tokens ADD COLUMN last_pulled_change INTEGER\"",
+     "replacement": "        \"ALTER TABLE tokens ADD COLUMN last_pulled_change INTEGER NOT NULL DEFAULT 0\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an upgrade from version 4 keeps every row, numbers each account from 1 in id order and sets each counter"
+   ],
+   "rule": "a token starts with a pulled number of 0 instead of never pulled",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/Migrations.kt",
+     "anchor": "        listOf(SchemaV1.MIGRATION, SchemaV2.MIGRATION, SchemaV3.MIGRATION, SchemaV4.MIGRATION, SchemaV5.MIGRATION)",
+     "replacement": "        listOf(SchemaV1.MIGRATION, SchemaV2.MIGRATION, SchemaV3.MIGRATION, SchemaV4.MIGRATION)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a fresh database ends at the latest version with the change columns, the delete flag, the pulled change column and the unique index"
+   ],
+   "rule": "migration 5 is not registered",
+   "note": ""
+  },
+  {
+   "id": "mut-10",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "        const val BUMP_CHANGE_SEQ_SQL = \"UPDATE accounts SET change_seq = change_seq + 1 WHERE id = ?\"",
+     "replacement": "        const val BUMP_CHANGE_SEQ_SQL = \"UPDATE accounts SET change_seq = change_seq + 2 WHERE id = ?\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "new client ids take 1 2 3 on one account while another account starts at 1",
+    "a replace takes the next number and bumps change_seq"
+   ],
+   "rule": "the counter moves by two: numbers skip",
+   "note": ""
+  },
+  {
+   "id": "mut-11",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "                    val changeNo = bumpChangeSeq(connection, accountId)\n                    replaceRow(connection, accountId, clientId, keyVersion, encrypted, nowMs, changeNo)",
+     "replacement": "                    val changeNo = 0L\n                    replaceRow(connection, accountId, clientId, keyVersion, encrypted, nowMs, changeNo)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a replace takes the next number and bumps change_seq"
+   ],
+   "rule": "a replace takes no new number",
+   "note": ""
+  },
+  {
+   "id": "mut-12",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "                } else if (stored.deleted == 1) {",
+     "replacement": "                } else if (stored.deleted == 99) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a deleted stored row at a lower version answers NoOp to a higher push with no number taken"
+   ],
+   "rule": "the deleted rule is gone: a higher push replaces a deleted row",
+   "note": ""
+  },
+  {
+   "id": "mut-13",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "            statement.setLong(6, changeNo)",
+     "replacement": "            statement.setLong(6, 0L)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "new client ids take 1 2 3 on one account while another account starts at 1"
+   ],
+   "rule": "an insert writes number 0 instead of the taken number",
+   "note": ""
+  },
+  {
+   "id": "mut-14",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "        if (updated != 1) {",
+     "replacement": "        if (updated < 0) {"
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "equivalent for the tests: a missing account is refused earlier, when the store reads the account's key version, so the bump never sees zero rows",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill-sync",
+   "module": "server/modules/sync-api",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/TranscriptionStore.kt",
+     "anchor": "        const val BUMP_CHANGE_SEQ_SQL = \"UPDATE accounts SET change_seq = change_seq + 1 WHERE id = ?\"",
+     "replacement": "        const val BUMP_CHANGE_SEQ_SQL = \"UPDATE accounts SET change_seq = change_seq + 2 WHERE id = ?\""
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive-sync",
+   "module": "server/modules/sync-api",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV5.kt",
+     "anchor": "    // Version 5 adds change numbers to transcriptions and accounts, plus a per-token",
+     "replacement": "    // Version 5 adds change numbers to transcriptions and accounts, plus a per token"
+    }
+   ]
+  }
+ ]
+}
