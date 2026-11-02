@@ -2,10 +2,12 @@ package dev.breaker.server.syncapi
 
 import dev.breaker.server.syncapi.accounts.AccountStore
 import dev.breaker.server.syncapi.admin.adminRevokeAgentTokenRoute
+import dev.breaker.server.syncapi.auth.authHandoffRoutes
 import dev.breaker.server.syncapi.auth.authLoginRoute
 import dev.breaker.server.syncapi.auth.authLogoutRoute
 import dev.breaker.server.syncapi.auth.authRegisterRoute
 import dev.breaker.server.syncapi.auth.authSaltRoute
+import dev.breaker.server.syncapi.handoff.HandoffStore
 import dev.breaker.server.syncapi.tokens.TokenStore
 import dev.breaker.server.syncapi.transcriptions.TranscriptionStore
 import dev.breaker.server.syncapi.transcriptions.syncRoutes
@@ -20,6 +22,7 @@ internal fun Application.syncApiModule(
     accountStore: AccountStore,
     tokenStore: TokenStore,
     transcriptionStore: TranscriptionStore,
+    handoffStore: HandoffStore,
 ) {
     routing {
         // The health route must stay free of authentication and of any data access:
@@ -30,6 +33,7 @@ internal fun Application.syncApiModule(
         authRegisterRoute(accountStore)
         authSaltRoute(accountStore)
         authLoginRoute(accountStore, tokenStore)
+        authHandoffRoutes(handoffStore, tokenStore)
         authLogoutRoute(tokenStore)
         adminRevokeAgentTokenRoute(tokenStore)
         syncRoutes(tokenStore, transcriptionStore)

@@ -4,6 +4,7 @@ import dev.breaker.server.syncapi.accounts.AccountFixtures
 import dev.breaker.server.syncapi.accounts.Role
 import dev.breaker.server.syncapi.db.TempDatabase
 import dev.breaker.server.syncapi.db.TempDatabaseTest
+import dev.breaker.server.syncapi.handoff.HandoffFixtures
 import dev.breaker.server.syncapi.syncApiModule
 import dev.breaker.server.syncapi.tokens.MutableClock
 import dev.breaker.server.syncapi.tokens.TokenFixtures
@@ -48,7 +49,7 @@ internal class SyncApiModuleRoutesTest : TempDatabaseTest() {
     @Test
     fun `the public module mounts the push and the list so a pushed row is listed`() = runBlocking<Unit> {
         testApplication {
-            application { syncApiModule(AccountFixtures.newStore(temp), tokenStore, store) }
+            application { syncApiModule(AccountFixtures.newStore(temp), tokenStore, store, HandoffFixtures.handoffStore(temp, tokenStore, AccountFixtures.fixedClock)) }
             val pushed = client.post("/v1/sync") {
                 header("Authorization", "Bearer $token")
                 setBody(SyncRouteTestSupport.pushBody(CLIENT_ID, "0", ENCRYPTED))
