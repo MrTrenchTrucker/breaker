@@ -31,7 +31,7 @@ internal class SchemaV2MigrationTest : TempDatabaseTest() {
         val second = reopen(first)
 
         inTransaction(second) { connection ->
-            assertEquals("sync-api: user_version after the upgrade", 3, TestDatabases.userVersion(connection))
+            assertEquals("sync-api: user_version after the upgrade", 4, TestDatabases.userVersion(connection))
             assertEquals(
                 "sync-api: accounts and tokens must both exist after the upgrade",
                 listOf("accounts", "tokens"),
