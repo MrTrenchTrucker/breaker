@@ -9,10 +9,10 @@ import org.junit.Test
 internal class SchemaV3MigrationTest : TempDatabaseTest() {
 
     @Test
-    fun `a fresh database ends at version 4 with the transcriptions table and key version 0 for a new account`() {
+    fun `a fresh database ends at the latest version with the transcriptions table and key version 0 for a new account`() {
         val temp = openTemp()
         inTransaction(temp) { connection ->
-            assertEquals("sync-api: fresh database user_version", 4, TestDatabases.userVersion(connection))
+            assertEquals("sync-api: fresh database user_version", 5, TestDatabases.userVersion(connection))
             assertEquals(
                 "sync-api: the transcriptions table is missing after the migrations",
                 listOf("transcriptions"),
@@ -31,7 +31,7 @@ internal class SchemaV3MigrationTest : TempDatabaseTest() {
     }
 
     @Test
-    fun `a version 2 database migrates to version 4 and keeps the account at key version 0`() {
+    fun `a version 2 database migrates to the latest version and keeps the account at key version 0`() {
         val first = openTemp(listOf(SchemaV1.MIGRATION, SchemaV2.MIGRATION))
         val verifierHash = ByteArray(32) { index -> (index + 40).toByte() }
         val createdAt = AccountFixtures.FIXED_MILLIS + 456L
@@ -54,7 +54,7 @@ internal class SchemaV3MigrationTest : TempDatabaseTest() {
         val second = reopen(first)
 
         inTransaction(second) { connection ->
-            assertEquals("sync-api: user_version after the upgrade", 4, TestDatabases.userVersion(connection))
+            assertEquals("sync-api: user_version after the upgrade", 5, TestDatabases.userVersion(connection))
             assertEquals(
                 "sync-api: the account was lost or duplicated by the upgrade",
                 listOf(1L),
