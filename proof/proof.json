@@ -1,0 +1,404 @@
+{
+ "name": "proof-wrongpw-slice-3b",
+ "tip": {
+  "tree": "17d01c91a6fd8e9fee679071c3cf6716c8f89eec"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "sync-api: the admin route that reads and flips the wrong-password limit, and the strict read of the stored switch",
+   "base_tree": "e8e198b3e8eaedb9a6a6ac71b171118de4c7373d",
+   "item_tip_tree": "17d01c91a6fd8e9fee679071c3cf6716c8f89eec",
+   "new_production_classes": [
+    "AdminWrongPwLimitRoute"
+   ],
+   "test_fixtures_overlaid": [],
+   "red_not_run": "the route, its tests and the strict read land together: on the base the new tests do not compile (the route is absent), so there is no assertion-red leg; the mutants carry the proof"
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/admin/AdminWrongPwLimitRoute.kt",
+     "anchor": "            if (!isAdmin(resolved)) {\n                call.respondText(FORBIDDEN_BODY, ContentType.Application.Json, HttpStatusCode.Forbidden)\n                return@get\n            }\n",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "GET with a plain user session token returns 403",
+    "GET with an agent token whose scope is not admin returns 403"
+   ],
+   "rule": "GET never checks the admin role",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/admin/AdminWrongPwLimitRoute.kt",
+     "anchor": "            if (!isAdmin(resolved)) {\n                call.respondText(FORBIDDEN_BODY, ContentType.Application.Json, HttpStatusCode.Forbidden)\n                return@put\n            }\n",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "PUT by a plain user returns 403 even with a bad body"
+   ],
+   "rule": "PUT never checks the admin role",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/admin/AdminWrongPwLimitRoute.kt",
+     "anchor": "HttpStatusCode.Unauthorized)\n                return@get",
+     "replacement": "HttpStatusCode.Forbidden)\n                return@get"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "GET without Authorization returns 401"
+   ],
+   "rule": "GET answers 403 for a missing token",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/admin/AdminWrongPwLimitRoute.kt",
+     "anchor": "            val stored = settings.wrongPwLimitEnabled()\n",
+     "replacement": "            val stored = enabled\n"
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "EQUIVALENT on a working store: the read-back equals the request",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/admin/AdminWrongPwLimitRoute.kt",
+     "anchor": "        if (enabledValue != null) return null\n",
+     "replacement": ""
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "EQUIVALENT: the member count check at the end still refuses a repeated member",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/admin/AdminWrongPwLimitRoute.kt",
+     "anchor": "        if (keyText != \"enabled\") return null\n",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every bad body answers 400 with the exact Error body and leaves the switch alone"
+   ],
+   "rule": "any member name is accepted",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/admin/AdminWrongPwLimitRoute.kt",
+     "anchor": "enabled must be true or false",
+     "replacement": "enabled must be a boolean"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every bad body answers 400 with the exact Error body and leaves the switch alone"
+   ],
+   "rule": "the 400 message changes",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/admin/AdminWrongPwLimitRoute.kt",
+     "anchor": "            settings.setWrongPwLimitEnabled(enabled)\n",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "PUT false then GET says false",
+    "PUT writes the switch into the store"
+   ],
+   "rule": "PUT never stores",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/admin/AdminWrongPwLimitRoute.kt",
+     "anchor": "call.respondText(\"\"\"{\"enabled\":$enabled}\"\"\"",
+     "replacement": "call.respondText(\"\"\"{\"enabled\":${!enabled}}\"\"\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "GET with the admin session token returns 200 and enabled true on a fresh database"
+   ],
+   "rule": "GET answers the inverted state",
+   "note": ""
+  },
+  {
+   "id": "mut-10",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/admin/AdminWrongPwLimitRoute.kt",
+     "anchor": "call.respondText(\"\"\"{\"enabled\":$enabled}\"\"\", ContentType.Application.Json, HttpStatusCode.OK)",
+     "replacement": "call.respondText(\"\"\"{\"enabled\":$enabled}\"\"\", ContentType.Text.Plain, HttpStatusCode.OK)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "GET with the admin session token returns 200 and enabled true on a fresh database"
+   ],
+   "rule": "GET answers plain text",
+   "note": ""
+  },
+  {
+   "id": "mut-11",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiApplication.kt",
+     "anchor": "        adminWrongPwLimitRoute(tokenStore, accountStore.settings)\n",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the application answers the admin route and refuses it without a token",
+    "turning the limit off lets a locked name in and turning it on locks it again",
+    "with the limit off five wrong tries leave no attempt row"
+   ],
+   "rule": "the route is not installed",
+   "note": ""
+  },
+  {
+   "id": "mut-12",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/admin/AdminWrongPwLimitRoute.kt",
+     "anchor": "        if (pos >= inner.length) return null\n    }\n",
+     "replacement": "    }\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every bad body answers 400 with the exact Error body and leaves the switch alone"
+   ],
+   "rule": "a trailing comma is accepted",
+   "note": ""
+  },
+  {
+   "id": "mut-13",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/admin/AdminWrongPwLimitRoute.kt",
+     "anchor": "private fun isJsonSpace(c: Char): Boolean = c == ' ' || c == '\\t' || c == '\\r' || c == '\\n'",
+     "replacement": "private fun isJsonSpace(c: Char): Boolean = c.isWhitespace()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every bad body answers 400 with the exact Error body and leaves the switch alone"
+   ],
+   "rule": "every Unicode space counts as JSON space",
+   "note": ""
+  },
+  {
+   "id": "mut-14",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/admin/AdminWrongPwLimitRoute.kt",
+     "anchor": "                        if (!hex.all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' }) return null\n",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every bad body answers 400 with the exact Error body and leaves the switch alone"
+   ],
+   "rule": "a bad unicode escape is parsed and throws",
+   "note": ""
+  },
+  {
+   "id": "mut-15",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/settings/ServerSettingsStore.kt",
+     "anchor": "!(rows.getString(2) == \"integer\" && rows.getLong(1) == 0L)",
+     "replacement": "rows.getLong(1) != 0L"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a stored real number reads on",
+    "a stored text value reads on",
+    "a stored empty text reads on"
+   ],
+   "rule": "a stored real or text reads as its integer cast",
+   "note": ""
+  },
+  {
+   "id": "mut-16",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/settings/ServerSettingsStore.kt",
+     "anchor": "rows.getString(2) == \"integer\" && ",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a stored text value reads on",
+    "a stored empty text reads on"
+   ],
+   "rule": "the type is not checked",
+   "note": ""
+  },
+  {
+   "id": "mut-17",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/admin/AdminWrongPwLimitRoute.kt",
+     "anchor": "        if (enabledValue != null) return null\n",
+     "replacement": ""
+    },
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/admin/AdminWrongPwLimitRoute.kt",
+     "anchor": "    if (fieldCount != 1 || enabledValue == null) return null\n",
+     "replacement": "    if (fieldCount < 0 || enabledValue == null) return null\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a repeated enabled member is refused",
+    "every bad body answers 400 with the exact Error body and leaves the switch alone"
+   ],
+   "rule": "a repeated member is accepted when both the early refusal and the count check are gone",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill-wp4",
+   "module": "server/modules/sync-api",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/admin/AdminWrongPwLimitRoute.kt",
+     "anchor": "            if (!isAdmin(resolved)) {\n                call.respondText(FORBIDDEN_BODY, ContentType.Application.Json, HttpStatusCode.Forbidden)\n                return@get\n            }\n",
+     "replacement": ""
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive-wp4",
+   "module": "server/modules/sync-api",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/admin/AdminWrongPwLimitRoute.kt",
+     "anchor": " * Both methods answer 401 before 403 before any body work.",
+     "replacement": " * Both methods answer 401 first, then 403, before any body work."
+    }
+   ]
+  }
+ ]
+}

@@ -12,7 +12,7 @@ internal class AccountStore(
     private val db: SqliteDatabase,
     private val hasher: VerifierHasher = VerifierHasher(),
     private val clock: Clock = Clock.systemUTC(),
-    private val settings: ServerSettingsStore = ServerSettingsStore(db),
+    internal val settings: ServerSettingsStore = ServerSettingsStore(db),
 ) {
     internal val attempts = SigninAttemptStore(db, clock)
 

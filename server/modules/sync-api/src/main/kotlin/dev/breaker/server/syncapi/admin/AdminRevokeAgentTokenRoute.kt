@@ -60,7 +60,7 @@ internal fun Application.adminRevokeAgentTokenRoute(tokenStore: TokenStore) {
  * own, so its owner's current role is the whole test; an agent token acts only at its
  * effective scope, which is `admin` only while its owner is an admin (ADR-009).
  */
-private fun isAdmin(resolved: ResolvedToken): Boolean =
+internal fun isAdmin(resolved: ResolvedToken): Boolean =
     if (resolved.kind == TokenKind.SESSION) {
         resolved.role == Role.ADMIN
     } else {
@@ -76,7 +76,7 @@ private fun isAdmin(resolved: ResolvedToken): Boolean =
  * shape check and is refused there. Anything else — a different scheme, a missing
  * space, a bare token with no scheme — is no token at all.
  */
-private fun bearerToken(header: String?): String {
+internal fun bearerToken(header: String?): String {
     if (header == null) return ""
     val separator = header.indexOf(' ')
     if (separator <= 0 || separator == header.length - 1) return ""
