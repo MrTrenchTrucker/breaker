@@ -38,6 +38,10 @@ armed pulse (shown, attached, visible, lit screen, animations on). It stops
 when the state leaves MIC_BUSY or SENDING, when the tile is hidden or detached, when the
 window is not visible, or when the screen turns off.
 
+The tile does not decide when the busy face ends. The app pushes the state, and it will clear
+the busy face itself once the microphone is free (ADR-037, decided, not built). Nothing here
+changes for that.
+
 ## The expanded tile and the meter
 
 While the state is `RECORDING` the tile widens to a window three 48 dp touch zones wide and one tile high: a red X (cancel) on
