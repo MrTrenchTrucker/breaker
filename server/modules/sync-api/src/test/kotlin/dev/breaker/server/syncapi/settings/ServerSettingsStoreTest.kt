@@ -83,6 +83,45 @@ internal class ServerSettingsStoreTest : TempDatabaseTest() {
     }
 
     @Test
+    fun `a stored real number reads on`() {
+        val temp = openTemp()
+        runBlocking {
+            temp.db.transaction { connection ->
+                connection.prepareStatement(
+                    "INSERT INTO server_settings (setting_key, int_value) VALUES ('wrong_pw_limit', 0.5)",
+                ).use { statement -> statement.executeUpdate() }
+            }
+        }
+        assertTrue("a stored 0.5 reads on", runBlocking { newStore(temp).wrongPwLimitEnabled() })
+    }
+
+    @Test
+    fun `a stored text value reads on`() {
+        val temp = openTemp()
+        runBlocking {
+            temp.db.transaction { connection ->
+                connection.prepareStatement(
+                    "INSERT INTO server_settings (setting_key, int_value) VALUES ('wrong_pw_limit', 'abc')",
+                ).use { statement -> statement.executeUpdate() }
+            }
+        }
+        assertTrue("a stored text value reads on", runBlocking { newStore(temp).wrongPwLimitEnabled() })
+    }
+
+    @Test
+    fun `a stored empty text reads on`() {
+        val temp = openTemp()
+        runBlocking {
+            temp.db.transaction { connection ->
+                connection.prepareStatement(
+                    "INSERT INTO server_settings (setting_key, int_value) VALUES ('wrong_pw_limit', '')",
+                ).use { statement -> statement.executeUpdate() }
+            }
+        }
+        assertTrue("a stored empty text reads on", runBlocking { newStore(temp).wrongPwLimitEnabled() })
+    }
+
+    @Test
     fun `the read is live flip read flip read`() {
         val temp = openTemp()
         val store = newStore(temp)
