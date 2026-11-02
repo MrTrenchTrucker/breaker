@@ -1638,7 +1638,7 @@ components:
           minLength: 152
           maxLength: 152
           description: >-
-            The sealed key package exactly as stored at start, standard base64
+            The sealed key package, carrying the same bytes the start stored, standard base64
             of 113 bytes (152 characters). It comes back once, in this answer
             only
         username:
