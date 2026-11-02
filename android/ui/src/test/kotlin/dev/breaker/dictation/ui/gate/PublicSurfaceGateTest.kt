@@ -34,6 +34,9 @@ private const val MODEL_CONTROL_FILE = "ModelStepControl.kt"
 /** The file of the download control, which is offered too. */
 private const val DOWNLOAD_CONTROL_FILE = "DownloadControl.kt"
 
+/** The auth entry file, offering two declarations together: the view builder and its control interface. */
+private const val AUTH_ENTRY_FILE = "AuthEntry.kt"
+
 /** The first declaration allowed to be offered. */
 private const val ENTRY_FUNCTION = "createSettingsView"
 
@@ -79,12 +82,22 @@ private const val SETTLED_HOME = "fun createHomeView(context: android.content.Co
 /** The home control, as written in its file. */
 private const val SETTLED_HOME_CONTROL = "interface HomeControl"
 
+/** The auth entry builder, as written in its file. */
+private const val SETTLED_AUTH_VIEW =
+    "fun createAuthView(context: android.content.Context, " +
+        "settings: dev.breaker.dictation.core.port.SettingsStore, " +
+        "onSubmit: (username: String, password: CharArray, register: Boolean) -> Unit): android.view.View"
+
+/** The auth control interface, as written in its file. */
+private const val SETTLED_AUTH_CONTROL = "interface AuthControl"
+
 /** Each offered file with the one shape it offers: nothing more, nothing less, nothing elsewhere. */
 private val SETTLED_SURFACE = setOf(
     ENTRY_FILE to SETTLED_ENTRY, ENTRY_FILE to SETTLED_HISTORY,
     ENTRY_FILE to SETTLED_HOW_IT_WORKS, ENTRY_FILE to SETTLED_ABOUT,
     HOME_ENTRY_FILE to SETTLED_HOME, HOME_ENTRY_FILE to SETTLED_HOME_CONTROL,
     SWITCH_FILE to SETTLED_SWITCH, MODEL_CONTROL_FILE to SETTLED_MODEL_CONTROL, DOWNLOAD_CONTROL_FILE to SETTLED_DOWNLOAD_CONTROL, FIRST_RUN_FILE to SETTLED_FIRST_RUN,
+    AUTH_ENTRY_FILE to SETTLED_AUTH_VIEW, AUTH_ENTRY_FILE to SETTLED_AUTH_CONTROL,
 )
 
 private fun isSettled(offered: List<Pair<String, String>>): Boolean =
@@ -104,10 +117,10 @@ class PublicSurfaceGateTest {
     fun `the entry functions, the switch and the model control are the only declarations offered`() {
         assertEquals(
             "declarations offered outside $ENTRY_FILE, $FIRST_RUN_FILE, $HOME_ENTRY_FILE, $SWITCH_FILE, $MODEL_CONTROL_FILE and $DOWNLOAD_CONTROL_FILE: $OFFERED",
-            setOf(ENTRY_FILE, FIRST_RUN_FILE, HOME_ENTRY_FILE, SWITCH_FILE, MODEL_CONTROL_FILE, DOWNLOAD_CONTROL_FILE),
+            setOf(ENTRY_FILE, FIRST_RUN_FILE, HOME_ENTRY_FILE, SWITCH_FILE, MODEL_CONTROL_FILE, DOWNLOAD_CONTROL_FILE, AUTH_ENTRY_FILE),
             OFFERED.map { it.first }.toSet(),
         )
-        assertEquals("declarations offered: $OFFERED", 10, OFFERED.size)
+        assertEquals("declarations offered: $OFFERED", 12, OFFERED.size)
     }
 
     @Test
@@ -151,7 +164,7 @@ class PublicSurfaceGateTest {
     @Test
     fun `every other file marks its declarations internal or private`() {
         val marked = MAIN_SOURCES
-            .filter { (path, _) -> path != ENTRY_FILE && path != HOME_ENTRY_FILE && path != FIRST_RUN_FILE && path != SWITCH_FILE && path != MODEL_CONTROL_FILE && path != DOWNLOAD_CONTROL_FILE }
+            .filter { (path, _) -> path != ENTRY_FILE && path != HOME_ENTRY_FILE && path != FIRST_RUN_FILE && path != SWITCH_FILE && path != MODEL_CONTROL_FILE && path != DOWNLOAD_CONTROL_FILE && path != AUTH_ENTRY_FILE }
             .flatMap { (path, text) -> topLevelDeclarationsIn(text).map { path to it } }
         assertTrue("no other file in the module declares anything at the top level", marked.isNotEmpty())
         val unmarked = marked.filterNot { (_, declaration) ->
