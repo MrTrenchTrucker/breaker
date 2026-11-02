@@ -1,0 +1,604 @@
+diff --git a/decisions/ADR-036-sign-in-from-the-website.md b/decisions/ADR-036-sign-in-from-the-website.md
+index cad54b23..bf09720b 100644
+--- a/decisions/ADR-036-sign-in-from-the-website.md
++++ b/decisions/ADR-036-sign-in-from-the-website.md
+@@ -1,6 +1,6 @@
+ # ADR-036: Sign-in from the website hands the login to the app
+ 
+-**Status:** accepted, amended 2026-11-02 (how the wrong-password limit works); decided, built on the server, not built on the phone and the website; the wrong-password limit is built on the server (counting, the locked answer, the admin switch and its route, the drop at registration, the clear hook and the sweep), while the admin reset and the password change that call the hook and the phone and website sides are not built; the points still open are under To be designed
++**Status:** accepted, amended 2026-11-02 (how the wrong-password limit works); decided, built on the server, not built on the phone and the website; the wrong-password limit is not built; the points still open are under To be designed
+ **Date:** 2026-11-01
+ **Approved by:** the project owner, 2026-11-01
+ 
+@@ -96,13 +96,13 @@ Of the hand-off, `CryptoService.openSignInPackage` (with its parser and the seal
+ 
+ ### What is built
+ 
+-Built on the server: the table and the counting, the locked answer, the admin switch and its route, the drop of the row at registration, the clear hook that the resets call, and the sweep (at boot and every five minutes). Not built: the admin reset and the password change themselves, which call the hook when they are built, and the phone and website sides.
++Nothing of the limit is built. The build is cut in slices: the table and the counting first, then the locked answer, then the admin switch and its contract, then the resets and the sweep.
+ 
+ ## To be designed (not decided here)
+ 
+ - The route names and the wire forms of the challenge, the code and the exchange are no longer open: the API contract (`shared/modules/api-contracts/openapi.yaml`) now holds them.
+ - The encoding of the keys inside the sealed package (ADR-035). Its construction and key type are decided there, and not built.
+ - How the app limits plain http to the configured server, and the matching change to its HTTP client (ADR-034).
+-- How the wrong-password limit counts failures and where the 15-minute wait is kept: decided in the amendment 2026-11-02 and built on the server.
++- How the wrong-password limit counts failures and where the 15-minute wait is kept: decided in the amendment 2026-11-02, not built.
+ - The exact words on the website and in the app, and where the sign-in notice sits on Home (ADR-033).
+ - The exact words of the one hint line on the device list. The hint says, decided and not built, that a lost phone keeps what it already stored, and that a password change re-keys. The device list itself is decided, not built: one row per session, showing the device name the app gives at sign-in (the person may rename it) and a last-seen date derived from the session's expiry.
+diff --git a/server/modules/sync-api/AGENTS.md b/server/modules/sync-api/AGENTS.md
+index 97ed6845..724ec829 100644
+--- a/server/modules/sync-api/AGENTS.md
++++ b/server/modules/sync-api/AGENTS.md
+@@ -188,7 +188,7 @@ here (N13).
+   records. The routes and the transcriptions table are BUILT (the two route bullets above).
+   The change number and the delete flag are BUILT in the store (migration 5: every insert and replace takes the next number of the account inside the write, and a push of a deleted row is a no-op); the DELETE route, the store delete and the resave mark are BUILT; the `since` parameter, the page object, the 400 and the 410 are BUILT; the purge and the write of the pulled number stay decided, not built.
+ - Sign-in from the website: a start route, where the website creates a one-time code after the person signs in (single use, 5 minutes, a new kind in the token store), and an exchange route, where the app trades the code and its one-time secret for a session token and the sealed key package. The website page makes the sealed package, sealed to the app's public key; the server keeps it until the exchange, which hands it to the app and deletes it, never past the code's 5-minute expiry, and never opens it. The store layer under both routes is BUILT: migration 4 (the device name column and the sign-in code table), the code store, the 60-second sweep that deletes dead codes, and the rule that ending a person's sessions also deletes that person's codes. The two routes (`POST /v1/auth/handoff/start`, user session token only, and `POST /v1/auth/handoff/exchange`, no token) are BUILT; the website page and the app wiring are not.
+-- Wrong-password limit, on the sign-in path (website and device): after 5 wrong passwords for an account, sign-in for that account waits 15 minutes. It is on by default and the admin can turn it off. The failure counting is BUILT (migration 6, the table signin_attempts, `accounts/SigninAttemptStore.kt`, called by `AccountStore.verify`) and the locked answer is BUILT: `verify` reads the lock first, for a known and an unknown name alike, before the account row and the hash, and the login route answers 423 with Retry-After in whole seconds (rounded up, at least 1) and the body `Too many wrong tries. Try again in N minutes.`; a right password inside the wait is refused the same way and touches nothing; a counting write that fails (the lock read, the count, the clear) never changes the answer. The 5th wrong try itself still answers the plain 401. The admin switch is BUILT on the server (migration 7, the table server_settings, `settings/ServerSettingsStore.kt`, read by `AccountStore.verify` on every attempt, default on; off = no counting, no refusing, no lock read, and the stored attempts are kept; a failed read of the switch counts as on; only a stored integer 0 reads off, any other stored value, even a real number or text, reads on). The admin route that flips it is BUILT: `admin/AdminWrongPwLimitRoute.kt`, GET and PUT /v1/admin/wrong-pw-limit, admin only; a missing or unknown token answers 401, a caller that is not an admin answers 403, and both come before the body is read; the PUT body is exactly one member, enabled, the literal true or false, and anything else answers 400 bad_request with the contract text; the answer is 200 with the stored state read back; a database failure is not caught (the contract has no 503 on the admin routes). The drop at registration is BUILT: `AccountStore.register` deletes the row left for the folded name inside the same transaction as the insert, after a successful insert only (a refused registration drops nothing). The clear hook is BUILT: `AccountStore.clearAttempts` deletes the row of a name for the admin reset and the password change to call (a malformed name touches nothing, a database error is not swallowed, no token is touched, so a signed-in session is not affected). The sweep is BUILT: `SigninAttemptStore.deleteStale` deletes expired locks and partial counts with no wrong try for more than 15 minutes, and `accounts/SigninAttemptSweep.kt` runs it at boot and then every 5 minutes inside the one sweep job that `SyncApiMain` starts with the application and stops before the database closes; a failed sweep is swallowed and never touches a sign-in, and the attempt-time rule still decides. Not built, decided: the admin reset and the password change themselves (they call the hook when they are built). This changes the statement above that the repo ships no rate limiting on the auth endpoints, once it is built.
++- Wrong-password limit, on the sign-in path (website and device): after 5 wrong passwords for an account, sign-in for that account waits 15 minutes. It is on by default and the admin can turn it off. The failure counting is BUILT (migration 6, the table signin_attempts, `accounts/SigninAttemptStore.kt`, called by `AccountStore.verify`) and the locked answer is BUILT: `verify` reads the lock first, for a known and an unknown name alike, before the account row and the hash, and the login route answers 423 with Retry-After in whole seconds (rounded up, at least 1) and the body `Too many wrong tries. Try again in N minutes.`; a right password inside the wait is refused the same way and touches nothing; a counting write that fails (the lock read, the count, the clear) never changes the answer. The 5th wrong try itself still answers the plain 401. The admin switch is BUILT on the server (migration 7, the table server_settings, `settings/ServerSettingsStore.kt`, read by `AccountStore.verify` on every attempt, default on; off = no counting, no refusing, no lock read, and the stored attempts are kept; a failed read of the switch counts as on; only a stored integer 0 reads off, any other stored value, even a real number or text, reads on). The admin route that flips it is BUILT: `admin/AdminWrongPwLimitRoute.kt`, GET and PUT /v1/admin/wrong-pw-limit, admin only; a missing or unknown token answers 401, a caller that is not an admin answers 403, and both come before the body is read; the PUT body is exactly one member, enabled, the literal true or false, and anything else answers 400 bad_request with the contract text; the answer is 200 with the stored state read back; a database failure is not caught (the contract has no 503 on the admin routes). Not built, decided: the resets on password change and admin reset, the drop of the row at registration, and the sweep. This changes the statement above that the repo ships no rate limiting on the auth endpoints, once it is built.
+ - An admin route to end a session at once, built over the existing token-store functions (ADR-036).
+ - A device list for an account, decided and not built: one row per session, with a nullable device name that the app gives at sign-in and the person may rename, and a last-seen date derived from the session's sliding expiry. There is no devices table. Sign-out for each device, and "sign out all my devices" from the website.
+ 
+@@ -400,7 +400,7 @@ AuthApi, SyncApi, AdminApi
+   (the fixtures set accounts.key_version by SQL, because the store never does).
+ - Sign-in hand-off (BUILT): under `db/`, `SchemaV4MigrationTest.kt` (a fresh database ends at the latest version with the sign-in code table, its index, the device name column and both triggers; an upgrade from version 3 keeps every row; the length and key checks of the table; a device name only on a session row). Under `handoff/`: `HandoffStoreStartTest.kt` (a started code and its stored hash; the created and expiry times; the cap of five live codes and which one is displaced; expired rows gone at the next start; an unknown account), `HandoffStoreRedeemTest.kt` (the session and package returned; a second redeem, a wrong secret, an expired code and an unknown code all give the one refusal; a code is dead at its expiry instant), `HandoffStoreRedeemGuardTest.kt` (a device name of 0 or 65 characters is refused before any change), `HandoffConcurrencyTest.kt` (two redeems of one code at once give one session), `HandoffSweepTest.kt` (the boot sweep, the 60-second interval, a failing sweep is swallowed). Under `tokens/`: `HandoffRevokeTest.kt` (ending an account's sessions deletes its codes and no other account's). `ShutdownOrderTest.kt` pins that the sweep stops after the internal engine and before the database closes. Under `auth/`: `AuthHandoffStartRouteTest.kt` (201 with a code; the fixed 401 and 403 bodies; a 400 for each fault of the body; a non-canonical but pattern-valid package is accepted; 413 over 4096 bytes), `AuthHandoffExchangeRouteTest.kt` (the 200 answer with the account's key_version; the device name rules; the one 401 for every refusal; a wrong secret leaves the code live), `AuthHandoffExchangeMoreTest.kt` (two exchanges at once give one session; the device name is stored; a package comes back as the canonical text of the stored bytes; a second account gets the role user; a code used as a Bearer token gets the 401; the issued session token works), `AuthHandoffExchangeCapTest.kt` (the 4096-byte cap, declared and chunked, on both routes), `AuthHandoffBodyShapeTest.kt` (malformed bodies are a 400 on both routes). Test-only helpers: `HandoffFixtures.kt`, `HandoffRouteTestBase.kt`, `HandoffReply.kt`.
+ - Change numbers (BUILT): under `db/`, `SchemaV5MigrationTest.kt` (a fresh database ends at the latest version with the change number columns, the delete flag, the pulled-change column and the unique index, and refuses a negative counter or a delete flag of 2; the unique index refuses a repeated number of one account and accepts it on another; an upgrade from version 4 keeps every row and numbers each account's rows 1 to N in id order). Under `transcriptions/`, `TranscriptionStoreChangeTest.kt` (new client ids take 1, 2, 3 per account, a replace takes the next number, a no-op or a refusal takes none, a push of a deleted row is a no-op), `TranscriptionStoreChangeOrderTest.kt` (the order of refusals; a failed insert after the counter bump rolls the counter back), `TranscriptionStoreChangeConcurrencyTest.kt` (two pushes at once get two different consecutive numbers), `TranscriptionStoreDeleteTest.kt` (delete takes the next number, repeat/unknown takes none, the mark reanimates), `SyncRoutesDeleteRouteTest.kt` (DELETE answers 204/400/401/403/503), `SyncPushBodyResaveTest.kt` (resave parsing), `SyncRoutesPushResaveTest.kt` (resave on the route), `TranscriptionStorePageTest.kt` (the page of the feed: live rows only without since, delete records, the 100-record and size limits, next and more, Gone), `SyncRoutesFeedTest.kt` (the feed routes with the store), `SyncRoutesFeedRouteTest.kt` (the exact page text, the 400, 401, 403, 410 and 503 answers) and `SyncRoutesListTest.kt` (the list answers in the page shape).
+-- Wrong-password counting and the locked answer (BUILT): under `db/`, `SchemaV6MigrationTest.kt` (a fresh database ends at the latest version with the signin_attempts table and refuses a negative count, a negative lock, a negative last attempt and a name that is upper case, empty or 65 characters long; an upgrade from version 5 keeps every row and adds an empty table). Under `accounts/`, `SigninAttemptStoreTest.kt` (the count, the lock at the fifth wrong try, a try inside a lock, an expired lock, the 15-minute expiry of a partial count and its exact edge, the row cap with its eviction order, and the counting through verify) `SigninAttemptStoreLockTest.kt` (the lock read, and the seconds left rounded up, at least 1), `AccountStoreLockedTest.kt` (the 6th try is Locked, a right password inside the wait is Locked and touches nothing, a locked unknown name gets the same answer, the count and the clear fail open when the table is gone), `AuthLoginRouteLockedTest.kt` (423 with the header and the body, equal for a known and an unknown name, 200 after the wait, 899 seconds say 15 minutes) and `AccountStoreCountingTest.kt` (an unknown name and a wrong verifier count, a right password clears the row, a malformed name touches no row). The switch (BUILT): `db/SchemaV7MigrationTest.kt` (a fresh database ends at version 7 with an empty server_settings table and refuses an empty key and a 65-character key; an upgrade from version 6 keeps every row), `settings/ServerSettingsStoreTest.kt` (an absent row reads on, only a stored integer 0 reads off, a wide value, a real number, text and empty text read on, the read is live) and `accounts/AccountStoreSwitchTest.kt` (off: no counting, no lock read, a locked name is let in at once and its row is kept; back on: locked again; a failed read of the switch counts as on). The switch route (BUILT): under `admin/`, `AdminWrongPwLimitRouteTest.kt` (401 without a token, with a bad header or with an unknown token, 403 for a plain user and for a non-admin agent token, GET answers the stored state, PUT false and true are read back, the content type is JSON), `AdminWrongPwLimitBodyTest.kt` (every bad body answers 400 with the exact Error body and leaves the switch alone, whitespace is accepted, a repeated member and trailing text are refused) and `AdminWrongPwLimitFlowTest.kt` (through the whole application: the route is wired, five wrong tries lock, turning the limit off lets the name in and keeps its row, turning it on locks it again, with the limit off no row is written). The drop, the hook and the sweep (BUILT): under `accounts/`, `AccountStoreRegisterDropTest.kt` (a locked or partly counted name is clean after its registration and signs in at once, capital letters fold, a taken name and every refused registration keep the row, other names are untouched), `AccountStoreClearAttemptsTest.kt` (a locked account signs in at once after the clear, the name is folded, a malformed name and a name without a row touch nothing, a session issued before the clear still resolves), `SigninAttemptStoreSweepTest.kt` (deleteStale at the edges: exactly 15 minutes kept and one millisecond more deleted, a lock ending exactly now deleted and one millisecond later kept, a live lock kept, the count returned) and `SigninAttemptSweepTest.kt` (a pass at once, a pass after every pause, a failed pass swallowed, a cancellation ends the loop, the interval is five minutes).
++- Wrong-password counting and the locked answer (BUILT): under `db/`, `SchemaV6MigrationTest.kt` (a fresh database ends at the latest version with the signin_attempts table and refuses a negative count, a negative lock, a negative last attempt and a name that is upper case, empty or 65 characters long; an upgrade from version 5 keeps every row and adds an empty table). Under `accounts/`, `SigninAttemptStoreTest.kt` (the count, the lock at the fifth wrong try, a try inside a lock, an expired lock, the 15-minute expiry of a partial count and its exact edge, the row cap with its eviction order, and the counting through verify) `SigninAttemptStoreLockTest.kt` (the lock read, and the seconds left rounded up, at least 1), `AccountStoreLockedTest.kt` (the 6th try is Locked, a right password inside the wait is Locked and touches nothing, a locked unknown name gets the same answer, the count and the clear fail open when the table is gone), `AuthLoginRouteLockedTest.kt` (423 with the header and the body, equal for a known and an unknown name, 200 after the wait, 899 seconds say 15 minutes) and `AccountStoreCountingTest.kt` (an unknown name and a wrong verifier count, a right password clears the row, a malformed name touches no row). The switch (BUILT): `db/SchemaV7MigrationTest.kt` (a fresh database ends at version 7 with an empty server_settings table and refuses an empty key and a 65-character key; an upgrade from version 6 keeps every row), `settings/ServerSettingsStoreTest.kt` (an absent row reads on, only a stored integer 0 reads off, a wide value, a real number, text and empty text read on, the read is live) and `accounts/AccountStoreSwitchTest.kt` (off: no counting, no lock read, a locked name is let in at once and its row is kept; back on: locked again; a failed read of the switch counts as on). The switch route (BUILT): under `admin/`, `AdminWrongPwLimitRouteTest.kt` (401 without a token, with a bad header or with an unknown token, 403 for a plain user and for a non-admin agent token, GET answers the stored state, PUT false and true are read back, the content type is JSON), `AdminWrongPwLimitBodyTest.kt` (every bad body answers 400 with the exact Error body and leaves the switch alone, whitespace is accepted, a repeated member and trailing text are refused) and `AdminWrongPwLimitFlowTest.kt` (through the whole application: the route is wired, five wrong tries lock, turning the limit off lets the name in and keeps its row, turning it on locks it again, with the limit off no row is written).
+ - Contract: `tests/contract/test_sync_api_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_sync_api_contract.py`
+ - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
+ 
+diff --git a/server/modules/sync-api/README.md b/server/modules/sync-api/README.md
+index 7120dd79..7fc9aa2b 100644
+--- a/server/modules/sync-api/README.md
++++ b/server/modules/sync-api/README.md
+@@ -14,7 +14,7 @@ The server's main API: accounts and logins (users, tokens, roles), syncing trans
+ 
+ The account HTTP routes (register, salt, login, logout), the admin routes that revoke an agent token and that read and flip the wrong-password limit, the two internal token-check routes and the three transcription routes (POST /v1/sync, GET /v1/transcriptions, DELETE /v1/transcriptions/{client_id}) are installed. The key and reset routes and the rest of what the card lists are not built yet.
+ 
+-Planned, not built (ADR-035, ADR-036): the purge of delete records, the admin reset and the password change that call the clear hook of the wrong-password limit (its failure counting, the locked answer, 423 with Retry-After, the on/off switch (migration 7, `server_settings`, `ServerSettingsStore`, read live on every attempt, default on, only a stored integer 0 is off, off = no counting, no refusing, stored attempts kept), the admin route that flips it, the drop of the row at registration, the hook `AccountStore.clearAttempts` and the sweep every five minutes are built), an admin route to end a session, and the device list. The sign-in hand-off (migration 4, the code store, the sweep, the revoke rule and the start and exchange routes) is built; the website page and the app wiring are not. The change number and the delete flag are built in the store (migration 5); the DELETE route is built; the read side of the feed (the since parameter, the page object, the 400 and the 410) is built; the purge is not.
++Planned, not built (ADR-035, ADR-036): the purge of delete records, the resets and the sweep of the wrong-password limit (its failure counting, the locked answer, 423 with Retry-After, the on/off switch (migration 7, `server_settings`, `ServerSettingsStore`, read live on every attempt, default on, only a stored integer 0 is off, off = no counting, no refusing, stored attempts kept) and the admin route that flips it are built), an admin route to end a session, and the device list. The sign-in hand-off (migration 4, the code store, the sweep, the revoke rule and the start and exchange routes) is built; the website page and the app wiring are not. The change number and the delete flag are built in the store (migration 5); the DELETE route is built; the read side of the feed (the since parameter, the page object, the 400 and the 410) is built; the purge is not.
+ 
+ ## Run it
+ 
+diff --git a/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiMain.kt b/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiMain.kt
+index c37e3775..69a07ceb 100644
+--- a/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiMain.kt
++++ b/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiMain.kt
+@@ -1,7 +1,6 @@
+ package dev.breaker.server.syncapi
+ 
+ import dev.breaker.server.syncapi.accounts.AccountStore
+-import dev.breaker.server.syncapi.accounts.runSigninAttemptSweep
+ import dev.breaker.server.syncapi.db.SqliteDatabase
+ import dev.breaker.server.syncapi.handoff.HandoffStore
+ import dev.breaker.server.syncapi.handoff.runHandoffSweep
+@@ -42,14 +41,9 @@ fun main() {
+         System.err.println(e.message)
+         exitProcess(2)
+     }
+-    // One job runs two sweeps: the hand-off sweep deletes expired sign-in codes (at boot, then every
+-    // minute) and the attempt sweep deletes dead wrong-password rows (at boot, then every five
+-    // minutes). Cancelling the job stops both. It starts once the stores exist and stops in
+-    // shutdownInOrder, before the database closes.
+-    val sweepJob = CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+-        launch { runHandoffSweep(handoffStore) }
+-        launch { runSigninAttemptSweep(accountStore.attempts) }
+-    }
++    // The sign-in sweep deletes expired hand-off codes once at boot and then every minute. It starts
++    // once the stores exist and stops in shutdownInOrder, before the database closes.
++    val sweepJob = CoroutineScope(SupervisorJob() + Dispatchers.Default).launch { runHandoffSweep(handoffStore) }
+     // The internal listener starts first and carries only the token-check routes.
+     val internalServer = embeddedServer(CIO, host = config.internalHost, port = config.internalPort) {
+         internalModule(tokenStore, serviceKey)
+diff --git a/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt b/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt
+index 51c82642..b679bdae 100644
+--- a/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt
++++ b/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt
+@@ -156,12 +156,6 @@ internal class AccountStore(
+             statement.setLong(12, createdAtMs)
+             statement.executeUpdate()
+         }
+-        // A row left over for this name (wrong tries made before the account existed) is dropped
+-        // in the same transaction, so a new account never starts locked.
+-        connection.prepareStatement(DROP_ATTEMPTS_SQL).use { statement ->
+-            statement.setString(1, folded)
+-            statement.executeUpdate()
+-        }
+         return connection.createStatement().use { statement ->
+             statement.executeQuery("SELECT id, role FROM accounts WHERE id = last_insert_rowid()").use { rows ->
+                 check(rows.next()) { "sync-api: the new account row could not be read back" }
+@@ -170,15 +164,7 @@ internal class AccountStore(
+         }
+     }
+ 
+-    /**
+-     * Deletes the wrong-password row of [username]. The admin reset and the password change call
+-     * it when they are built. A malformed name touches nothing. A database error is not swallowed,
+-     * so a reset never pretends it worked. It touches no token: a signed-in session is not affected.
+-     */
+-    suspend fun clearAttempts(username: String) {
+-        if (!UsernameRules.isValid(username)) return
+-        attempts.clear(UsernameRules.fold(username))
+-    }
++    suspend fun clearAttempts(username: String) {}
+ 
+     private fun readAccountRow(connection: Connection, folded: String): AccountRow? =
+         connection.prepareStatement(SELECT_VERIFIER_SQL).use { statement ->
+@@ -201,8 +187,6 @@ internal class AccountStore(
+             "SELECT salt, kdf_memory_kib, kdf_iterations, kdf_parallelism, kdf_version " +
+                 "FROM accounts WHERE username_lower = ?"
+ 
+-        const val DROP_ATTEMPTS_SQL = "DELETE FROM signin_attempts WHERE username_lower = ?"
+-
+         const val SELECT_VERIFIER_SQL =
+             "SELECT id, role, verifier_algo, verifier_iters, verifier_salt, verifier_hash " +
+                 "FROM accounts WHERE username_lower = ?"
+diff --git a/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptStore.kt b/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptStore.kt
+index 4da1d9ac..c88c6784 100644
+--- a/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptStore.kt
++++ b/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptStore.kt
+@@ -174,26 +174,7 @@ internal class SigninAttemptStore(
+         }
+     }
+ 
+-    // Housekeeping: deletes the rows recordWrong and lockedUntil already treat as no row, and
+-    // returns how many it deleted. Two kinds, with the same strict edges as recordWrong:
+-    //   1. An expired lock: locked_until_ms > 0 and not after now (a lock that ends at exactly
+-    //      now is expired).
+-    //   2. A partial count with no wrong try for MORE than one wait period: locked_until_ms = 0
+-    //      and last_attempt_ms before now minus the wait (exactly one wait period is kept).
+-    // A row locked now is never deleted. The attempt-time rule decides; this only tidies up.
+-    suspend fun deleteStale(): Int {
+-        val nowMs = clock.millis()
+-        return db.transaction<Int> { connection ->
+-            connection.prepareStatement(
+-                "DELETE FROM signin_attempts WHERE (locked_until_ms > 0 AND locked_until_ms <= ?) " +
+-                    "OR (locked_until_ms = 0 AND last_attempt_ms < ?)",
+-            ).use { statement ->
+-                statement.setLong(1, nowMs)
+-                statement.setLong(2, nowMs - LOCK_WAIT_MS)
+-                statement.executeUpdate()
+-            }
+-        }
+-    }
++    suspend fun deleteStale(): Int = 0
+ 
+     /** A read-only snapshot of one attempts row. */
+     data class AttemptInfo(
+@@ -202,3 +183,14 @@ internal class SigninAttemptStore(
+         val lastAttemptMs: Long,
+     )
+ }
++
++
++internal val SIGNIN_SWEEP_INTERVAL: java.time.Duration = java.time.Duration.ofMinutes(5)
++
++internal suspend fun runSigninAttemptSweep(
++    store: SigninAttemptStore,
++    interval: java.time.Duration = SIGNIN_SWEEP_INTERVAL,
++    pause: suspend (java.time.Duration) -> Unit = { kotlinx.coroutines.delay(it.toMillis()) },
++) {
++    pause(interval)
++}
+diff --git a/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptSweep.kt b/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptSweep.kt
+deleted file mode 100644
+index 40b0e24d..00000000
+--- a/server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptSweep.kt
++++ /dev/null
+@@ -1,31 +0,0 @@
+-package dev.breaker.server.syncapi.accounts
+-
+-import java.time.Duration
+-import kotlinx.coroutines.CancellationException
+-import kotlinx.coroutines.delay
+-
+-internal val SIGNIN_SWEEP_INTERVAL: Duration = Duration.ofMinutes(5)
+-
+-/**
+- * Deletes dead wrong-password rows: one sweep at boot, then one every [interval],
+- * until the coroutine is cancelled. A failure of one sweep is swallowed; the next
+- * tick retries. Cancellation is never swallowed. [pause] is the seam for a test: it
+- * waits for [interval], and a test passes a recording pause so no test waits five
+- * minutes.
+- */
+-internal suspend fun runSigninAttemptSweep(
+-    store: SigninAttemptStore,
+-    interval: Duration = SIGNIN_SWEEP_INTERVAL,
+-    pause: suspend (Duration) -> Unit = { delay(it.toMillis()) },
+-) {
+-    while (true) {
+-        try {
+-            store.deleteStale()
+-        } catch (cancellation: CancellationException) {
+-            throw cancellation
+-        } catch (_: Exception) {
+-            // Nothing is logged: the table holds only counts and timestamps, and the next tick retries.
+-        }
+-        pause(interval)
+-    }
+-}
+diff --git a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/accounts/AccountStoreClearAttemptsTest.kt b/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/accounts/AccountStoreClearAttemptsTest.kt
+deleted file mode 100644
+index f773ea08..00000000
+--- a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/accounts/AccountStoreClearAttemptsTest.kt
++++ /dev/null
+@@ -1,120 +0,0 @@
+-package dev.breaker.server.syncapi.accounts
+-
+-import dev.breaker.server.syncapi.db.TempDatabase
+-import dev.breaker.server.syncapi.db.TempDatabaseTest
+-import dev.breaker.server.syncapi.tokens.TokenFixtures
+-import dev.breaker.server.syncapi.tokens.TokenStore
+-import kotlinx.coroutines.runBlocking
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertNotNull
+-import org.junit.Assert.assertNull
+-import org.junit.Assert.assertTrue
+-import org.junit.Before
+-import org.junit.Test
+-
+-/** clearAttempts is the hook the admin reset and the password change call. */
+-internal class AccountStoreClearAttemptsTest : TempDatabaseTest() {
+-
+-    private lateinit var temp: TempDatabase
+-    private lateinit var store: AccountStore
+-
+-    @Before
+-    fun setUp() {
+-        temp = openTemp()
+-        store = AccountFixtures.newStore(temp)
+-    }
+-
+-    private fun registerAlice() {
+-        AccountFixtures.registered(
+-            runBlocking {
+-                store.register("alice", AccountFixtures.salt(1), AccountFixtures.validKdf, 1, AccountFixtures.verifier(1))
+-            },
+-        )
+-    }
+-
+-    private fun wrongTries(name: String, count: Int) {
+-        repeat(count) { runBlocking { store.verify(name, AccountFixtures.verifier(99)) } }
+-    }
+-
+-    private fun attemptOf(folded: String): SigninAttemptStore.AttemptInfo? =
+-        runBlocking { store.attempts.attemptOf(folded) }
+-
+-    private fun verify(name: String, seed: Int): VerifyResult =
+-        runBlocking { store.verify(name, AccountFixtures.verifier(seed)) }
+-
+-    private fun insertRow(folded: String, wrongCount: Long) {
+-        runBlocking {
+-            temp.db.transaction { connection ->
+-                connection.prepareStatement(
+-                    "INSERT INTO signin_attempts (username_lower, wrong_count, locked_until_ms, last_attempt_ms) VALUES (?, ?, 0, ?)",
+-                ).use { statement ->
+-                    statement.setString(1, folded)
+-                    statement.setLong(2, wrongCount)
+-                    statement.setLong(3, AccountFixtures.FIXED_MILLIS)
+-                    statement.executeUpdate()
+-                }
+-            }
+-        }
+-    }
+-
+-    @Test
+-    fun `a locked account signs in at once after its attempts are cleared`() {
+-        registerAlice()
+-        wrongTries("alice", 5)
+-        assertTrue("the account is locked", verify("alice", 1) is VerifyResult.Locked)
+-
+-        runBlocking { store.clearAttempts("alice") }
+-
+-        assertNull("the row is gone", attemptOf("alice"))
+-        assertTrue("the right password signs in", verify("alice", 1) is VerifyResult.Verified)
+-    }
+-
+-    @Test
+-    fun `clearAttempts folds the name`() {
+-        registerAlice()
+-        wrongTries("alice", 2)
+-
+-        runBlocking { store.clearAttempts("ALICE") }
+-
+-        assertNull("the row of the lower case name is gone", attemptOf("alice"))
+-    }
+-
+-    @Test
+-    fun `a malformed name touches nothing`() {
+-        registerAlice()
+-        wrongTries("alice", 2)
+-        // The table accepts any lower case text, so a row can sit under a malformed name.
+-        insertRow("bad name", 3L)
+-
+-        runBlocking { store.clearAttempts("bad name") }
+-        runBlocking { store.clearAttempts("") }
+-
+-        assertNotNull("the row under the malformed name is kept", attemptOf("bad name"))
+-        assertEquals("another row is kept", 2L, attemptOf("alice")!!.wrongCount)
+-    }
+-
+-    @Test
+-    fun `a name without a row is a no op`() {
+-        registerAlice()
+-        wrongTries("alice", 2)
+-
+-        runBlocking { store.clearAttempts("nobody") }
+-
+-        assertNull("nothing was created", attemptOf("nobody"))
+-        assertEquals("another row is kept", 2L, attemptOf("alice")!!.wrongCount)
+-    }
+-
+-    @Test
+-    fun `a session issued before the clear still resolves after it`() {
+-        val alice = TokenFixtures.register(temp, "alice", 1)
+-        val tokenStore: TokenStore = TokenFixtures.tokenStore(temp, AccountFixtures.fixedClock)
+-        val session = TokenFixtures.issuedOf(runBlocking { tokenStore.issueSession(alice.accountId) })
+-        wrongTries("alice", 5)
+-
+-        runBlocking { store.clearAttempts("alice") }
+-
+-        val resolved = runBlocking { tokenStore.resolve(session.secret.reveal()) }
+-        assertNotNull("the session still resolves", resolved)
+-        assertEquals("it is still alice's session", alice.accountId, resolved!!.accountId)
+-    }
+-}
+diff --git a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/accounts/AccountStoreRegisterDropTest.kt b/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/accounts/AccountStoreRegisterDropTest.kt
+deleted file mode 100644
+index 2d4b8cd5..00000000
+--- a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/accounts/AccountStoreRegisterDropTest.kt
++++ /dev/null
+@@ -1,122 +0,0 @@
+-package dev.breaker.server.syncapi.accounts
+-
+-import dev.breaker.server.syncapi.db.TempDatabase
+-import dev.breaker.server.syncapi.db.TempDatabaseTest
+-import kotlinx.coroutines.runBlocking
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertNotNull
+-import org.junit.Assert.assertNull
+-import org.junit.Assert.assertTrue
+-import org.junit.Before
+-import org.junit.Test
+-
+-/**
+- * A successful registration drops the wrong-password row left for that name. A failed one drops
+- * nothing, and no other name is touched.
+- */
+-internal class AccountStoreRegisterDropTest : TempDatabaseTest() {
+-
+-    private lateinit var temp: TempDatabase
+-    private lateinit var store: AccountStore
+-
+-    @Before
+-    fun setUp() {
+-        temp = openTemp()
+-        store = AccountFixtures.newStore(temp)
+-    }
+-
+-    private fun register(name: String, seed: Int): RegisterResult =
+-        runBlocking {
+-            store.register(name, AccountFixtures.salt(seed), AccountFixtures.validKdf, 1, AccountFixtures.verifier(seed))
+-        }
+-
+-    // The verifier of seed 99 is never the one an account is registered with in these tests.
+-    private fun wrongTries(name: String, count: Int) {
+-        repeat(count) { runBlocking { store.verify(name, AccountFixtures.verifier(99)) } }
+-    }
+-
+-    private fun attemptOf(folded: String): SigninAttemptStore.AttemptInfo? =
+-        runBlocking { store.attempts.attemptOf(folded) }
+-
+-    private fun verify(name: String, seed: Int): VerifyResult =
+-        runBlocking { store.verify(name, AccountFixtures.verifier(seed)) }
+-
+-    @Test
+-    fun `a name locked before it existed is clean after registration and signs in at once`() {
+-        wrongTries("carol", 5)
+-        val before = attemptOf("carol")
+-        assertNotNull("five wrong tries leave a row", before)
+-        assertEquals("the lock is set", AccountFixtures.FIXED_MILLIS + 900_000L, before!!.lockedUntilMs)
+-        assertTrue("the name is locked", verify("carol", 1) is VerifyResult.Locked)
+-
+-        AccountFixtures.registered(register("carol", 1))
+-
+-        assertNull("the row is gone", attemptOf("carol"))
+-        assertTrue("the right password signs in", verify("carol", 1) is VerifyResult.Verified)
+-    }
+-
+-    @Test
+-    fun `a partial count left for a name is dropped by its registration`() {
+-        wrongTries("carol", 3)
+-        assertEquals("three wrong tries are counted", 3L, attemptOf("carol")!!.wrongCount)
+-
+-        AccountFixtures.registered(register("carol", 1))
+-
+-        assertNull("the partial count is gone", attemptOf("carol"))
+-    }
+-
+-    @Test
+-    fun `registering with capital letters drops the row of the folded name`() {
+-        wrongTries("carol", 2)
+-
+-        AccountFixtures.registered(register("Carol", 1))
+-
+-        assertNull("the row of the lower case name is gone", attemptOf("carol"))
+-    }
+-
+-    @Test
+-    fun `a taken name keeps the row of the live account`() {
+-        AccountFixtures.registered(register("alice", 1))
+-        wrongTries("alice", 3)
+-        val before = attemptOf("alice")
+-        assertEquals("three wrong tries are counted", 3L, before!!.wrongCount)
+-
+-        assertEquals("the second registration is refused", RegisterResult.UsernameTaken, register("alice", 2))
+-
+-        assertEquals("the row is untouched", before, attemptOf("alice"))
+-    }
+-
+-    @Test
+-    fun `a refused registration drops no row`() {
+-        wrongTries("dave", 2)
+-        val before = attemptOf("dave")
+-
+-        val shortSalt = runBlocking {
+-            store.register("dave", ByteArray(15), AccountFixtures.validKdf, 1, AccountFixtures.verifier(1))
+-        }
+-        assertEquals("a short salt is refused", RegisterResult.InvalidField("salt"), shortSalt)
+-        val badVersion = runBlocking {
+-            store.register("dave", AccountFixtures.salt(1), AccountFixtures.validKdf, 2, AccountFixtures.verifier(1))
+-        }
+-        assertEquals("another kdf version is refused", RegisterResult.InvalidField("kdf_version"), badVersion)
+-        val badKdf = runBlocking {
+-            store.register("dave", AccountFixtures.salt(1), KdfParams(1, 1, 1), 1, AccountFixtures.verifier(1))
+-        }
+-        assertEquals("a cost below the bounds is refused", RegisterResult.KdfOutOfBounds, badKdf)
+-
+-        assertEquals("the row is untouched by every refusal", before, attemptOf("dave"))
+-        assertEquals("no account was created", 0L, AccountFixtures.accountCount(temp))
+-    }
+-
+-    @Test
+-    fun `registering one name leaves the rows of other names alone`() {
+-        wrongTries("erin", 2)
+-        wrongTries("frank", 4)
+-        val frankBefore = attemptOf("frank")
+-
+-        AccountFixtures.registered(register("erin", 1))
+-
+-        assertNull("erin's row is gone", attemptOf("erin"))
+-        assertEquals("frank's row is untouched", frankBefore, attemptOf("frank"))
+-    }
+-}
+diff --git a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptStoreSweepTest.kt b/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptStoreSweepTest.kt
+deleted file mode 100644
+index 03aa0268..00000000
+--- a/server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptStoreSweepTest.kt
++++ /dev/null
+@@ -1,124 +0,0 @@
+-package dev.breaker.server.syncapi.accounts
+-
+-import dev.breaker.server.syncapi.db.TempDatabase
+-import dev.breaker.server.syncapi.db.TempDatabaseTest
+-import dev.breaker.server.syncapi.tokens.MutableClock
+-import java.time.Instant
+-import kotlinx.coroutines.runBlocking
+-import org.junit.Assert.assertEquals
+-import org.junit.Assert.assertNotNull
+-import org.junit.Assert.assertNull
+-import org.junit.Before
+-import org.junit.Test
+-
+-/**
+- * deleteStale deletes the rows the attempt-time rule already treats as no row: an expired lock, and
+- * a partial count with no wrong try for more than 15 minutes. The edges are pinned with literals.
+- */
+-internal class SigninAttemptStoreSweepTest : TempDatabaseTest() {
+-
+-    private val nowMs = AccountFixtures.FIXED_MILLIS
+-    private lateinit var temp: TempDatabase
+-    private lateinit var store: SigninAttemptStore
+-
+-    @Before
+-    fun setUp() {
+-        temp = openTemp()
+-        store = SigninAttemptStore(temp.db, MutableClock(Instant.ofEpochMilli(nowMs)))
+-    }
+-
+-    private fun insertRow(folded: String, wrongCount: Long, lockedUntilMs: Long, lastAttemptMs: Long) {
+-        runBlocking {
+-            temp.db.transaction { connection ->
+-                connection.prepareStatement(
+-                    "INSERT INTO signin_attempts (username_lower, wrong_count, locked_until_ms, last_attempt_ms) VALUES (?, ?, ?, ?)",
+-                ).use { statement ->
+-                    statement.setString(1, folded)
+-                    statement.setLong(2, wrongCount)
+-                    statement.setLong(3, lockedUntilMs)
+-                    statement.setLong(4, lastAttemptMs)
+-                    statement.executeUpdate()
+-                }
+-            }
+-        }
+-    }
+-
+-    private fun deleteStale(): Int = runBlocking { store.deleteStale() }
+-
+-    private fun attemptOf(folded: String): SigninAttemptStore.AttemptInfo? =
+-        runBlocking { store.attemptOf(folded) }
+-
+-    @Test
+-    fun `a partial count exactly 15 minutes old is kept`() {
+-        insertRow("alice", 4L, 0L, nowMs - 900_000L)
+-
+-        assertEquals("nothing deleted", 0, deleteStale())
+-        assertNotNull("the row stays", attemptOf("alice"))
+-    }
+-
+-    @Test
+-    fun `a partial count 15 minutes and one millisecond old is deleted`() {
+-        insertRow("alice", 4L, 0L, nowMs - 900_001L)
+-
+-        assertEquals("one row deleted", 1, deleteStale())
+-        assertNull("the row is gone", attemptOf("alice"))
+-    }
+-
+-    @Test
+-    fun `a young partial count is kept`() {
+-        insertRow("alice", 2L, 0L, nowMs - 60_000L)
+-
+-        assertEquals("nothing deleted", 0, deleteStale())
+-        assertNotNull("the row stays", attemptOf("alice"))
+-    }
+-
+-    @Test
+-    fun `a lock that ends exactly now is deleted`() {
+-        insertRow("alice", 5L, nowMs, nowMs - 900_000L)
+-
+-        assertEquals("one row deleted", 1, deleteStale())
+-        assertNull("the row is gone", attemptOf("alice"))
+-    }
+-
+-    @Test
+-    fun `a lock that ends one millisecond from now is kept`() {
+-        insertRow("alice", 5L, nowMs + 1L, nowMs - 899_999L)
+-
+-        assertEquals("nothing deleted", 0, deleteStale())
+-        assertNotNull("the row stays", attemptOf("alice"))
+-    }
+-
+-    @Test
+-    fun `an expired lock is deleted even when its last attempt is recent`() {
+-        insertRow("alice", 5L, nowMs - 1_000L, nowMs - 2_000L)
+-
+-        assertEquals("one row deleted", 1, deleteStale())
+-        assertNull("the row is gone", attemptOf("alice"))
+-    }
+-
+-    @Test
+-    fun `a live lock whose last attempt is older than 15 minutes is kept`() {
+-        // Not reachable through the counting code, but the lock decides, never the age.
+-        insertRow("alice", 5L, nowMs + 600_000L, nowMs - 1_000_000L)
+-
+-        assertEquals("nothing deleted", 0, deleteStale())
+-        assertNotNull("the row stays", attemptOf("alice"))
+-    }
+-
+-    @Test
+-    fun `an empty table deletes nothing`() {
+-        assertEquals("nothing deleted", 0, deleteStale())
+-    }
+-
+-    @Test
+-    fun `rows are judged one by one and the count is returned`() {
+-        insertRow("old1", 3L, 0L, nowMs - 2_000_000L)
+-        insertRow("old2", 5L, nowMs - 5_000L, nowMs - 905_000L)
+-        insertRow("live", 5L, nowMs + 300_000L, nowMs - 600_000L)
+-
+-        assertEquals("two rows deleted", 2, deleteStale())
+-        assertNull("old1 is gone", attemptOf("old1"))
+-        assertNull("old2 is gone", attemptOf("old2"))
+-        assertNotNull("live stays", attemptOf("live"))
+-    }
+-}

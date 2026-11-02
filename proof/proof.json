@@ -1,0 +1,481 @@
+{
+ "name": "proof-wrongpw-slice-4",
+ "tip": {
+  "tree": "6270e47a5315ae652a57cab7092247f9f9ce8768"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "sync-api: the drop of the wrong-password row at registration, the clear hook and the sweep",
+   "base_tree": "17d01c91a6fd8e9fee679071c3cf6716c8f89eec",
+   "item_tip_tree": "6270e47a5315ae652a57cab7092247f9f9ce8768",
+   "new_production_classes": [
+    "SigninAttemptSweep"
+   ],
+   "test_fixtures_overlaid": [],
+   "red_tree_stubs": {
+    "files": [
+     "AccountStore.kt",
+     "SigninAttemptStore.kt"
+    ],
+    "note": "adds clearAttempts that does nothing, deleteStale that answers 0 and a sweep loop that only pauses: the base behaviour (no clear, no sweep), so the new tests compile on the base and fail on an assertion"
+   }
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "red-a-01",
+   "kind": "red",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/accounts/AccountStoreClearAttemptsTest.kt",
+   "files": [
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/accounts/AccountStoreClearAttemptsTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.syncapi.accounts.AccountStoreClearAttemptsTest"
+   ],
+   "patch": "proof/red/red-a-01.patch",
+   "tree": "9e71d33b37cc3b1e40308ba3bfa04b15dd9ce13d",
+   "predict": ""
+  },
+  {
+   "id": "red-a-02",
+   "kind": "red",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/accounts/AccountStoreRegisterDropTest.kt",
+   "files": [
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/accounts/AccountStoreRegisterDropTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.syncapi.accounts.AccountStoreRegisterDropTest"
+   ],
+   "patch": "proof/red/red-a-02.patch",
+   "tree": "e0f3ba52090677b4c29d44b119d0a4cff3b15240",
+   "predict": ""
+  },
+  {
+   "id": "red-a-03",
+   "kind": "red",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptStoreSweepTest.kt",
+   "files": [
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptStoreSweepTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.syncapi.accounts.SigninAttemptStoreSweepTest"
+   ],
+   "patch": "proof/red/red-a-03.patch",
+   "tree": "dabb85cc5264ce4d1092fe1ebfec4cae887c12f4",
+   "predict": ""
+  },
+  {
+   "id": "red-a-04",
+   "kind": "red",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "file": "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptSweepTest.kt",
+   "files": [
+    "server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptSweepTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.server.syncapi.accounts.SigninAttemptSweepTest"
+   ],
+   "patch": "proof/red/red-a-04.patch",
+   "tree": "4a0a8a9a61d645066f0deede9c6cb578637a071c",
+   "predict": ""
+  },
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "        connection.prepareStatement(DROP_ATTEMPTS_SQL).use { statement ->\n            statement.setString(1, folded)\n            statement.executeUpdate()\n        }\n",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a name locked before it existed is clean after registration and signs in at once",
+    "a partial count left for a name is dropped by its registration",
+    "registering with capital letters drops the row of the folded name",
+    "registering one name leaves the rows of other names alone"
+   ],
+   "rule": "registration never drops the row",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "        connection.prepareStatement(DROP_ATTEMPTS_SQL).use { statement ->\n            statement.setString(1, folded)\n            statement.executeUpdate()\n        }\n",
+     "replacement": ""
+    },
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "        val taken = connection.prepareStatement(",
+     "replacement": "        connection.prepareStatement(DROP_ATTEMPTS_SQL).use { statement ->\n            statement.setString(1, folded)\n            statement.executeUpdate()\n        }\n        val taken = connection.prepareStatement("
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a taken name keeps the row of the live account"
+   ],
+   "rule": "the row is dropped before the taken-name check, so a refused registration drops it",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "connection.prepareStatement(DROP_ATTEMPTS_SQL).use { statement ->\n            statement.setString(1, folded)",
+     "replacement": "connection.prepareStatement(DROP_ATTEMPTS_SQL).use { statement ->\n            statement.setString(1, username)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "registering with capital letters drops the row of the folded name"
+   ],
+   "rule": "the drop uses the name as typed, not the folded name",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "const val DROP_ATTEMPTS_SQL = \"DELETE FROM signin_attempts WHERE username_lower = ?\"",
+     "replacement": "const val DROP_ATTEMPTS_SQL = \"DELETE FROM signin_attempts WHERE username_lower = ? OR 1 = 1\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "registering one name leaves the rows of other names alone"
+   ],
+   "rule": "the drop deletes every row",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "        if (!UsernameRules.isValid(username)) return\n        attempts.clear(",
+     "replacement": "        attempts.clear("
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a malformed name touches nothing"
+   ],
+   "rule": "clearAttempts acts on a malformed name",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "attempts.clear(UsernameRules.fold(username))",
+     "replacement": "attempts.clear(username)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "clearAttempts folds the name"
+   ],
+   "rule": "clearAttempts does not fold the name",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "        if (!UsernameRules.isValid(username)) return\n        attempts.clear(UsernameRules.fold(username))\n",
+     "replacement": "        if (!UsernameRules.isValid(username)) return\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a locked account signs in at once after its attempts are cleared",
+    "clearAttempts folds the name"
+   ],
+   "rule": "clearAttempts deletes nothing",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptStore.kt",
+     "anchor": "\"DELETE FROM signin_attempts WHERE (locked_until_ms > 0 AND locked_until_ms <= ?) \" +\n",
+     "replacement": "\"DELETE FROM signin_attempts WHERE (locked_until_ms > 0 AND locked_until_ms <= ? AND 0 = 1) \" +\n"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a lock that ends exactly now is deleted",
+    "an expired lock is deleted even when its last attempt is recent",
+    "rows are judged one by one and the count is returned"
+   ],
+   "rule": "an expired lock is never deleted",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptStore.kt",
+     "anchor": "\"OR (locked_until_ms = 0 AND last_attempt_ms < ?)\",",
+     "replacement": "\"OR (locked_until_ms = 0 AND 0 = 1 AND last_attempt_ms < ?)\","
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a partial count 15 minutes and one millisecond old is deleted",
+    "rows are judged one by one and the count is returned",
+    "the first pass runs before the first pause and the pause gets the interval",
+    "a pass runs after every pause"
+   ],
+   "rule": "a stale partial count is never deleted",
+   "note": ""
+  },
+  {
+   "id": "mut-10",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptStore.kt",
+     "anchor": "locked_until_ms > 0 AND locked_until_ms <= ?)",
+     "replacement": "locked_until_ms > 0 AND locked_until_ms < ?)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a lock that ends exactly now is deleted"
+   ],
+   "rule": "a lock ending exactly now counts as live",
+   "note": ""
+  },
+  {
+   "id": "mut-11",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptStore.kt",
+     "anchor": "locked_until_ms = 0 AND last_attempt_ms < ?)",
+     "replacement": "locked_until_ms = 0 AND last_attempt_ms <= ?)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a partial count exactly 15 minutes old is kept"
+   ],
+   "rule": "a partial count exactly 15 minutes old is deleted",
+   "note": ""
+  },
+  {
+   "id": "mut-12",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptStore.kt",
+     "anchor": "(locked_until_ms > 0 AND locked_until_ms <= ?)",
+     "replacement": "(locked_until_ms > 0 AND (locked_until_ms <= ? OR 1 = 1))"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a lock that ends one millisecond from now is kept",
+    "a live lock whose last attempt is older than 15 minutes is kept",
+    "rows are judged one by one and the count is returned",
+    "a live row is not deleted by a pass"
+   ],
+   "rule": "a live lock is deleted too",
+   "note": ""
+  },
+  {
+   "id": "mut-13",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptSweep.kt",
+     "anchor": "    while (true) {\n        try {\n            store.deleteStale()",
+     "replacement": "    while (true) {\n        pause(interval)\n        try {\n            store.deleteStale()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the first pass runs before the first pause and the pause gets the interval"
+   ],
+   "rule": "the first pass runs after the first pause",
+   "note": ""
+  },
+  {
+   "id": "mut-14",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptSweep.kt",
+     "anchor": "        } catch (cancellation: CancellationException) {\n            throw cancellation\n        } catch (_: Exception) {",
+     "replacement": "        } catch (_: Exception) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a cancellation raised by a pass ends the loop"
+   ],
+   "rule": "a cancellation is swallowed",
+   "note": ""
+  },
+  {
+   "id": "mut-15",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptSweep.kt",
+     "anchor": "        } catch (_: Exception) {",
+     "replacement": "        } catch (_: java.io.IOException) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a failing pass over a closed database is swallowed and the loop goes on"
+   ],
+   "rule": "a failed pass ends the loop",
+   "note": ""
+  },
+  {
+   "id": "mut-16",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptSweep.kt",
+     "anchor": "Duration.ofMinutes(5)",
+     "replacement": "Duration.ofMinutes(1)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the interval is five minutes",
+    "the first pass runs before the first pause and the pause gets the interval"
+   ],
+   "rule": "the interval is one minute",
+   "note": ""
+  },
+  {
+   "id": "mut-17",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiMain.kt",
+     "anchor": "        launch { runSigninAttemptSweep(accountStore.attempts) }\n",
+     "replacement": ""
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "the attempt sweep is not started: SyncApiMain has no unit test (it needs a socket); read at the gate instead",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill-wp5",
+   "module": "server/modules/sync-api",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "        connection.prepareStatement(DROP_ATTEMPTS_SQL).use { statement ->\n            statement.setString(1, folded)\n            statement.executeUpdate()\n        }\n",
+     "replacement": ""
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive-wp5",
+   "module": "server/modules/sync-api",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "so a new account never starts locked.",
+     "replacement": "so a new account never begins locked."
+    }
+   ]
+  }
+ ]
+}
