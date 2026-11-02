@@ -9,7 +9,7 @@ Five screens are built, and a first-run flow runs first on a phone with no speec
 
 **Home.** The launcher opens on this screen, after the first-run flow on a phone with no speech model: an on/off card with the switch, the speech model row (Ready, or "Not downloaded"), the server row ("Not available") and the last dictation; a big mic that says "Tap to talk"; the last transcript with a Copy button, which is drawn only while there is a transcript; and a menu with History, Settings, How it works and About. History and Settings open their screens through the app. How it works and About open their own screens through the app. The big mic is the overlay module's ScreenMic, which the app builds and this screen places in a slot 100 to 150 dp tall (`HomeGeometry.slotHeightDp`), centred; its labels (Tap to talk, Cancel, Done) come from `HomeControl` only. A tap on the big mic starts a take (or answers why it cannot); while it records, X is meant to cancel and the check or a second tap on the mic to finish (on the phone the X and the check do not answer yet, see Open defects); the take's line shows below the last transcript. Each redraw takes the mic out of its old parent before adding it again.
 
-**Signed out (planned, ADR-033, not built).** Home will carry a quiet notice with a way to sign in when there is no live session, fed by the app; this module opens no sign-in screen by itself and nothing here blocks dictation, history or settings.
+**Signed out (planned, ADR-033, not built).** Home will carry a quiet notice with a way to sign in when there is no live session, fed by the app; this module opens no sign-in screen by itself and nothing here blocks dictation, history or settings. The auth screen's view and model are built (`screen/auth/` and its entry `AuthEntry.kt`), with no wiring and no text input yet: the screen draws the two fields, the register/login face, the busy, refused and weak-warning line and the submit control, and the submit control refuses until a typing slice lands.
 
 **Settings.** The appearance choice (System, Light or Dark), the routing mode, the three switches, the model row with its download button (shown while the model is not on the phone), and the server line, which is read only. While no server is set, the server line shows "(not set)" in the muted colour; the art does not draw a muted field, so that look is the smallest one from the theme's own tokens. Every change is written through the settings store the app passes in.
 
@@ -25,7 +25,7 @@ Five screens are built, and a first-run flow runs first on a phone with no speec
 
 ## Public declarations
 
-The module offers exactly ten, all in six files:
+The module offers exactly twelve, all in seven files:
 
 - `createHomeView(context, switch, modelReady, lastDictationAt, lastTranscript, transcriptTime, onCopy, onHistory, onHowItWorks, onAbout, onSettings, onTap, settings, micView, usableHeightDp, onShownMode)` builds the home view. It reads the stored theme through `settings` when the view is built. It hands the mode it resolved back through `onShownMode` as the view is built, so the app paints the mic it placed here with the same mode the page drew with instead of reading the phone's own mode again. The app passes the switch, the answers for the model, the last dictation and the last transcript, the phone's time for the transcript, the copy request, the four screen requests (history, how it works, about and settings), the request for a take from the big mic and the hand-back of the mode the page drew with; every fact is read again on each drawing.
 - `createSettingsView(context, settings, modelReady, downloadLine, onDownloadModel)` builds the settings view. It draws live through the theme controller, not the stored-theme reader.
@@ -38,6 +38,8 @@ The module offers exactly ten, all in six files:
 - `ModelStepControl` extends `DownloadControl`; the interface the first-run view answers for its switch notice. Adds `showSwitchRefused(sentence)`: draws a switch-on that the app refused as the notice. The app casts the first-run view to it.
 
 - `HomeControl` is the interface the home view answers: `showLine(line)` shows the line below the last-transcript box (nothing for null), and `showRecording(recording)` shows the recording look on the big mic. `refresh()` re-reads the app's facts and draws the screen again. The app casts the view from `createHomeView` to it.
+- `createAuthView(context, settings, onSubmit)` builds the auth view: the app passes the shared store and the submit callback `(username, password: CharArray, register: Boolean) -> Unit`. The screen has no text input in this phase, so the submit control refuses until a typing slice lands. The typed password is a CharArray the app can zero, and the zero-fill runs whether the callback returns or throws.
+- `AuthControl` is the interface the auth view answers: `refresh()` re-reads the screen's current state and draws it again, and `submitted(register)` returns to idle on the same face after the app's submit attempt finished.
 
 Everything else is internal or private.
 

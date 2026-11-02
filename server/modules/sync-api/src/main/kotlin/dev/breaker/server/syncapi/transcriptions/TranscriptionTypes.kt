@@ -28,6 +28,3 @@ internal data class TranscriptionRow(
     val encrypted: String,
     val storedAtMs: Long,
 )
-
-/** The row read before deciding: [keyVersion] and [deleted] (0 = live, 1 = deleted). */
-internal data class StoredRow(val keyVersion: Int, val deleted: Int)

@@ -89,10 +89,10 @@ internal class SchemaV4MigrationTest : TempDatabaseTest() {
     private fun packageOf(size: Int): ByteArray = ByteArray(size) { 7 }
 
     @Test
-    fun `a fresh database ends at the latest version with the hand-off table, its index, the device name column and both triggers`() {
+    fun `a fresh database ends at version 4 with the hand-off table, its index, the device name column and both triggers`() {
         val temp = openTemp()
         inTransaction(temp) { connection ->
-            assertEquals("sync-api: fresh database user_version", 5, TestDatabases.userVersion(connection))
+            assertEquals("sync-api: fresh database user_version", 4, TestDatabases.userVersion(connection))
             assertEquals(
                 "sync-api: the signin_handoff table is missing after the migrations",
                 listOf("signin_handoff"),
@@ -142,7 +142,7 @@ internal class SchemaV4MigrationTest : TempDatabaseTest() {
     }
 
     @Test
-    fun `a version 3 database with an account, a session, an agent token and a transcription upgrades to the latest version and keeps every row`() {
+    fun `a version 3 database with an account, a session, an agent token and a transcription upgrades to version 4 and keeps every row`() {
         val first = openTemp(listOf(SchemaV1.MIGRATION, SchemaV2.MIGRATION, SchemaV3.MIGRATION))
         val createdAt = AccountFixtures.FIXED_MILLIS + 789L
         val sessionExpiry = AccountFixtures.FIXED_MILLIS + 5_000L
@@ -193,7 +193,7 @@ internal class SchemaV4MigrationTest : TempDatabaseTest() {
         val second = reopen(first)
 
         inTransaction(second) { connection ->
-            assertEquals("sync-api: user_version after the upgrade", 5, TestDatabases.userVersion(connection))
+            assertEquals("sync-api: user_version after the upgrade", 4, TestDatabases.userVersion(connection))
             assertEquals(
                 "sync-api: the account was lost or duplicated by the upgrade",
                 listOf(1L),

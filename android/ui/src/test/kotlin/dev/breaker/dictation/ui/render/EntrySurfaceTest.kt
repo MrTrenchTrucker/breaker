@@ -28,6 +28,19 @@ class EntrySurfaceTest {
             "history: dev.breaker.dictation.core.port.HistoryStore, " +
             "settings: dev.breaker.dictation.core.port.SettingsStore): android.view.View"
 
+    /** The public declaration of the auth view builder, written on one line. */
+    private val AUTH_VIEW_SIGNATURE =
+        "fun createAuthView(context: android.content.Context, " +
+            "settings: dev.breaker.dictation.core.port.SettingsStore, " +
+            "onSubmit: (username: String, password: CharArray, register: Boolean) -> Unit): android.view.View"
+
+    /** The auth control interface the view answers to, pinned on its own members. */
+    private val AUTH_CONTROL_MEMBERS = setOf(
+        "interface AuthControl",
+        "fun refresh()",
+        "fun submitted(register: Boolean)",
+    )
+
     private val ANY_WHITESPACE = Regex("\\s+")
 
     /** A comma just before a closing bracket: Kotlin's trailing comma, which says nothing about a signature. */
@@ -150,5 +163,17 @@ class EntrySurfaceTest {
             "the scan must not accept a history parameter that has been weakened",
             CONTROL_WEAK_HISTORY.contains(HISTORY_SIGNATURE),
         )
+    }
+
+    @Test
+    fun `the auth view takes the shared store and an on-submit callback, and answers AuthControl`() {
+        val flattened = flattenedOf(sourceOf("AuthEntry.kt"))
+        assertTrue(
+            "the auth view signature must be there with a settings store and the submit callback",
+            flattened.contains(AUTH_VIEW_SIGNATURE),
+        )
+        for (member in AUTH_CONTROL_MEMBERS) {
+            assertTrue("the control interface must declare $member", flattened.contains(member))
+        }
     }
 }
