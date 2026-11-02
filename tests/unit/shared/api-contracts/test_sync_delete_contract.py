@@ -182,9 +182,10 @@ class SyncResaveMarkTest(unittest.TestCase):
     def test_sync_description_resave_mark_full_text(self):
         self.assertIn("(first push of an id the phone itself deleted, never a retry)", self.desc)
 
-    def test_sync_schema_resave_description_says_server_not_built(self):
+    def test_sync_schema_resave_description_says_server_reads_it(self):
         desc = self.spec["components"]["schemas"]["SyncPush"]["properties"]["resave"]["description"]
-        self.assertIn("that change is not built", desc)
+        self.assertIn("The server parser reads this field.", desc)
+        self.assertNotIn("that change is not built", desc)
 
     def test_sync_description_absent_or_false_means_no_mark(self):
         self.assertIn("absent or false means no mark", " ".join(self.desc.split()))

@@ -31,3 +31,9 @@ internal data class TranscriptionRow(
 
 /** The row read before deciding: [keyVersion] and [deleted] (0 = live, 1 = deleted). */
 internal data class StoredRow(val keyVersion: Int, val deleted: Int)
+
+/** What a delete did. Deleted and NoOp are answered 204. */
+internal sealed class DeleteResult {
+    object Deleted : DeleteResult()
+    object NoOp : DeleteResult()
+}

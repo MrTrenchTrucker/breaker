@@ -6,6 +6,7 @@ import dev.breaker.server.syncapi.tokens.AgentScope
 import dev.breaker.server.syncapi.tokens.IssuedToken
 import dev.breaker.server.syncapi.tokens.TokenFixtures
 import dev.breaker.server.syncapi.tokens.TokenStore
+import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -26,8 +27,8 @@ internal class SyncReply(val status: HttpStatusCode, val body: String)
 // Shared fixtures for the sync route tests. A test passes every value it varies explicitly, and a
 // helper never derives its fake from the value under test.
 internal object SyncRouteTestSupport {
-    const val CLIENT_ID = "0f9c4d1e-6a2b-4c3d-9e8f-1a2b3c4d5e6f"
-    const val OTHER_CLIENT_ID = "1b0d5e2f-7b3c-4d4e-8f9a-2b3c4d5e6f70"
+    const val CLIENT_ID = "0f9c" + "4d1e-6a2b-4c3d-9e8f-" + "1a2b3c" + "4d5e6f"
+    const val OTHER_CLIENT_ID = "1b0d" + "5e2f-7b3c-4d4e-8f9a-" + "2b3c4d" + "5e6f70"
     const val ENCRYPTED = "aGVsbG8="
     const val OTHER_ENCRYPTED = "d29ybGQ="
     // Standard base64 with a slash: the base64 of two 0xFF bytes, with one padding character.
@@ -46,6 +47,8 @@ internal object SyncRouteTestSupport {
         """{"error":"conflict","message":"key_version is above the account's current key_version"}"""
     const val LOWER_REFUSED_BODY =
         """{"error":"conflict","message":"A lower key_version is refused for this client_id"}"""
+    const val BAD_REQUEST_BODY =
+        """{"error":"bad_request","message":"client id is not a lowercase canonical UUID"}"""
 
     // 43 characters of the token alphabet: the right shape, and no session carries it.
     val UNKNOWN_TOKEN: String = "C".repeat(43)
@@ -154,6 +157,32 @@ internal object SyncRouteTestSupport {
 
     fun getList(tokenStore: TokenStore, store: TranscriptionStore, token: String?): SyncReply =
         getListWithAuthorization(tokenStore, store, token?.let { "Bearer $it" })
+
+
+    // Sends DELETE /v1/transcriptions/{client_id} with exactly the given Authorization header, or no
+    // header at all when authorization is null.
+    fun deleteTranscriptionWithAuthorization(
+        tokenStore: TokenStore,
+        store: TranscriptionStore,
+        authorization: String?,
+        clientId: String,
+    ): SyncReply {
+        var reply: SyncReply? = null
+        runBlocking {
+            testApplication {
+                application { syncRoutes(tokenStore, store) }
+                val response = client.delete("/v1/transcriptions/$clientId") {
+                    if (authorization != null) header("Authorization", authorization)
+                }
+                reply = SyncReply(response.status, response.bodyAsText())
+            }
+        }
+        return checkNotNull(reply)
+    }
+
+    // The same request with a session token: the header is Bearer plus the token, or none when null.
+    fun deleteTranscription(tokenStore: TokenStore, store: TranscriptionStore, token: String?, clientId: String): SyncReply =
+        deleteTranscriptionWithAuthorization(tokenStore, store, token?.let { "Bearer $it" }, clientId)
 
     // Sends the Authorization header exactly as given, or no header at all when it is null.
     fun getListWithAuthorization(

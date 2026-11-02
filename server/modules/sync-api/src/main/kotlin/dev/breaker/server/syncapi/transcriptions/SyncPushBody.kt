@@ -1,6 +1,7 @@
 package dev.breaker.server.syncapi.transcriptions
 
-// The checked body of POST /v1/sync. Exactly the keys client_id, key_version and encrypted;
+// The checked body of POST /v1/sync. Exactly the keys client_id, key_version and encrypted; an
+// optional fourth member resave (a JSON literal true or false) marks a re-save of a deleted row;
 // client_id a lowercase canonical UUID; key_version a JSON integer from 0 to Int.MAX_VALUE with no
 // sign, fraction, exponent or leading zero; encrypted a non-empty standard base64 text with correct
 // padding and no whitespace. The server never decodes encrypted and does not check its trailing bits.
@@ -11,7 +12,7 @@ internal const val MESSAGE_CLIENT_ID: String = "client_id must be a lowercase ca
 internal val MESSAGE_KEY_VERSION: String = "key_version must be an integer from 0 to ${Int.MAX_VALUE}"
 internal const val MESSAGE_ENCRYPTED: String = "encrypted must be non-empty standard base64 with correct padding"
 
-internal class SyncPushBody(val clientId: String, val keyVersion: Int, val encrypted: String)
+internal class SyncPushBody(val clientId: String, val keyVersion: Int, val encrypted: String, val resave: Boolean = false)
 
 internal sealed class SyncPushParse {
     internal class Accepted(val body: SyncPushBody) : SyncPushParse()
@@ -25,7 +26,22 @@ internal fun parseSyncPush(text: String): SyncPushParse {
         members.containsKey("client_id") &&
         members.containsKey("key_version") &&
         members.containsKey("encrypted")
-    if (!exactKeys) return SyncPushParse.Refused(MESSAGE_BODY_SHAPE)
+    if (!exactKeys) {
+        // A fourth key resave is accepted: its value must be a literal whose text is true or false.
+        if (members.size == 4 &&
+            members.containsKey("client_id") &&
+            members.containsKey("key_version") &&
+            members.containsKey("encrypted") &&
+            members.containsKey("resave")) {
+            val resaveValue = members.getValue("resave")
+            if (resaveValue !is SyncJsonLiteral ||
+                (resaveValue.text != "true" && resaveValue.text != "false")) {
+                return SyncPushParse.Refused(MESSAGE_BODY_SHAPE)
+            }
+        } else {
+            return SyncPushParse.Refused(MESSAGE_BODY_SHAPE)
+        }
+    }
 
     val clientId = (members.getValue("client_id") as? SyncJsonText)?.value
     if (clientId == null || !isCanonicalUuid(clientId)) return SyncPushParse.Refused(MESSAGE_CLIENT_ID)
@@ -36,7 +52,13 @@ internal fun parseSyncPush(text: String): SyncPushParse {
     val encrypted = (members.getValue("encrypted") as? SyncJsonText)?.value
     if (encrypted == null || !isStandardBase64(encrypted)) return SyncPushParse.Refused(MESSAGE_ENCRYPTED)
 
-    return SyncPushParse.Accepted(SyncPushBody(clientId, keyVersion, encrypted))
+    val resave = if (members.size == 4) {
+        (members.getValue("resave") as? SyncJsonLiteral)?.text == "true"
+    } else {
+        false
+    }
+
+    return SyncPushParse.Accepted(SyncPushBody(clientId, keyVersion, encrypted, resave))
 }
 
 private val MAX_KEY_VERSION: Long = Int.MAX_VALUE.toLong()
@@ -54,7 +76,7 @@ private fun keyVersionOf(value: SyncJsonValue): Int? {
 }
 
 // 8-4-4-4-12 lowercase hexadecimal digits with hyphens, 36 characters in all.
-private fun isCanonicalUuid(text: String): Boolean {
+internal fun isCanonicalUuid(text: String): Boolean {
     if (text.length != 36) return false
     for (index in text.indices) {
         val character = text[index]

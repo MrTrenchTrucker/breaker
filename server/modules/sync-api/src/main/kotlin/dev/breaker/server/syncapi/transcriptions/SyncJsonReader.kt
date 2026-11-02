@@ -11,7 +11,7 @@ internal class SyncJsonText(val value: String) : SyncJsonValue()
 // The raw characters of a number. The reader does not judge them; the body check does.
 internal class SyncJsonNumeral(val raw: String) : SyncJsonValue()
 
-internal object SyncJsonLiteral : SyncJsonValue()
+internal class SyncJsonLiteral(val text: String) : SyncJsonValue()
 
 // The members of the object, or null when the text is not exactly one such object.
 internal fun readSyncJsonObject(text: String): Map<String, SyncJsonValue>? = SyncJsonReader(text).readWhole()
@@ -65,9 +65,9 @@ private class SyncJsonReader(private val text: String) {
         return when {
             c == '"' -> SyncJsonText(readString())
             c == '-' || c in '0'..'9' -> SyncJsonNumeral(readNumeral())
-            literal("true") -> SyncJsonLiteral
-            literal("false") -> SyncJsonLiteral
-            literal("null") -> SyncJsonLiteral
+            literal("true") -> SyncJsonLiteral("true")
+            literal("false") -> SyncJsonLiteral("false")
+            literal("null") -> SyncJsonLiteral("null")
             else -> throw SyncJsonMalformed()
         }
     }

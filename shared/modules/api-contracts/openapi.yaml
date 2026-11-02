@@ -1673,7 +1673,7 @@ components:
             which is not built.
         resave:
           type: boolean
-          description: "The re-save mark: absent or false means no mark; true means the mark (first push of an id the phone itself deleted, never a retry). The server parser does not read this field yet: that change is not built."
+          description: "The re-save mark: absent or false means no mark; true means the mark (first push of an id the phone itself deleted, never a retry). The server parser reads this field."
     TranscriptionPage:
       type: object
       required:
