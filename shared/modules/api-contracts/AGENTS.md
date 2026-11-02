@@ -102,7 +102,9 @@ There is no synchronous 200-with-body variant — every transcription is a job.
   never match, because each uses a fresh nonce; the same pair is a no-op, a
   higher `key_version` at the same client id atomically replaces the stored
   record, and a lower one, at an existing or a brand-new client id, is
-  refused), `GET /v1/transcriptions` (pull, each record's `key_version`
+  refused), `GET /v1/transcriptions` (pull as a page `{items, next, more}` of
+  at most 100 records or 4 MiB, repeated with `since` = `next`; each record
+  carries `change` and `deleted`, each live record its `key_version`
   included; also used by the first-login bootstrap to find and replace any
   pre-encryption plaintext rows, ADR-006), `GET /v1/sync/pending-sealed`
   (ADR-018: the authenticated owner's pending agent-token results, still

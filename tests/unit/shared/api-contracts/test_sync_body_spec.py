@@ -104,11 +104,11 @@ class SyncBodySpecTest(unittest.TestCase):
 
     def test_transcription_example_is_a_key_version_0_r1_body(self):
         resp = self.spec["paths"]["/v1/transcriptions"]["get"]["responses"]["200"]
-        item = resp["content"]["application/json"]["example"][0]
-        self.assertEqual(item["key_version"], "0")
-        self._check_r1_body(item["encrypted"])
-        self.assertIn("stored_at", item)
-        self.assertNotIn("created_at", item)
+        row = resp["content"]["application/json"]["example"]["items"][0]
+        self.assertEqual(row["key_version"], "0")
+        self._check_r1_body(row["encrypted"])
+        self.assertIn("stored_at", row)
+        self.assertNotIn("created_at", row)
 
     def test_transcription_record_has_stored_at_and_no_created_at(self):
         rec = self.schemas["TranscriptionRecord"]

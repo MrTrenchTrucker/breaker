@@ -1070,24 +1070,57 @@ paths:
       description: >-
         Pull the authenticated account's transcriptions, each with its own
         key_version so a client can tell which of its own rows still need
-        replacing after an interrupted migration or re-key.
+        replacing after an interrupted migration or re-key. One page per
+        answer: at most 100 items and at most 4 MiB of text, and one record
+        always fits. There is NO limit parameter. The client repeats with
+        since = next while more is true. No since = live rows only (first
+        page, next = head cursor). since = <account>-0 means nothing seen
+        yet. A cursor above the head answers 200 with empty items and next
+        = head. A malformed cursor or a cursor of another account = 400
+        (checked before anything is read). A cursor below the purged floor
+        = 410. A delete record has client_id, change, deleted true and
+        stored_at only.
       operationId: listTranscriptions
       security:
         - bearerAuth: []
+      parameters:
+        - name: since
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: "^[0-9]{1,19}-[0-9]{1,19}$"
+          description: >
+            Cursor `<account_id>-<change>` returned in a previous `next`.
+            Missing = full live list; `<account>-0` = nothing seen yet.
       responses:
         "200":
-          description: The account's transcription records
+          description: >
+            The account's transcription records as one page.
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/TranscriptionRecord"
+                $ref: "#/components/schemas/TranscriptionPage"
               example:
-                - client_id: "0f9c4d1e-6a2b-4c3d-9e8f-1a2b3c4d5e6f"
-                  key_version: 0
-                  encrypted: "eyJ2IjoxLCJ0ZXh0IjoiaGVsbG8gZnJvbSB0aGUgcGhvbmUiLCJzb3VyY2UiOiJsb2NhbCIsIm1vZGVsIjoiYmFzZS5lbiIsImR1cmF0aW9uX21zIjoxNTAwLCJjcmVhdGVkX2F0IjoiMjAyNi0xMC0xMVQxMjowMDowMC4wMDBaIn0="
-                  stored_at: "2026-10-11T12:00:05Z"
+                items:
+                  - client_id: "0f9c4d1e-6a2b-4c3d-9e8f-1a2b3c4d5e6f"
+                    change: 7
+                    deleted: false
+                    key_version: 0
+                    encrypted: "eyJ2IjoxLCJ0ZXh0IjoiaGVsbG8gZnJvbSB0aGUgcGhvbmUiLCJzb3VyY2UiOiJsb2NhbCIsIm1vZGVsIjoiYmFzZS5lbiIsImR1cmF0aW9uX21zIjoxNTAwLCJjcmVhdGVkX2F0IjoiMjAyNi0xMC0xMVQxMjowMDowMC4wMDBaIn0="
+                    stored_at: "2026-10-11T12:00:05Z"
+                next: "7-42"
+                more: true
+        "400":
+          description: >
+            Bad `since` cursor: not matching the pattern, or a cursor of another account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "bad_request"
+                message: "The cursor is invalid: check its account tag and pattern"
         "401":
           description: Missing or invalid user session token
           content:
@@ -1106,6 +1139,16 @@ paths:
               example:
                 error: "forbidden"
                 message: "User session token required; an agent token is refused"
+        "410":
+          description: >
+            The cursor is below the account's purged floor.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "gone"
+                message: "The cursor is too old: list again without since"
         "503":
           description: A storage failure, a stored time that cannot be formatted, or a failed session check gets this answer. The body is fixed and no part of the failure is echoed.
           content:
@@ -1558,21 +1601,48 @@ components:
             no cryptography is applied: a key_version 0 body is development-only
             until Phase 19. At key_version 1 or higher it is the Phase 19 form,
             which is not built.
+    TranscriptionPage:
+      type: object
+      required:
+        - items
+        - next
+        - more
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/TranscriptionRecord"
+        next:
+          type: string
+          pattern: "^[0-9]{1,19}-[0-9]{1,19}$"
+          description: Cursor string for the next page of results; always matches the cursor pattern and is never empty; when more is true it points at the head or the change of the last row scanned
+        more:
+          type: boolean
+          description: True when more records are available beyond this page; the client repeats with since=next
     TranscriptionRecord:
       type: object
       required:
         - client_id
-        - key_version
-        - encrypted
+        - change
+        - deleted
         - stored_at
       properties:
         client_id:
           type: string
           pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
           description: The transcription's client id, a lowercase canonical UUID (8-4-4-4-12 lowercase hex digits with hyphens)
+        change:
+          type: integer
+          format: int64
+          minimum: 1
+          description: "The change number this row carries; every record carries its change"
+        deleted:
+          type: boolean
+          description: "true when this record is a delete record; false for a live row"
         key_version:
           type: integer
-          description: The key_version this row was stored under
+          minimum: 0
+          description: The key_version this row was stored under; present on live rows, absent on delete records
         encrypted:
           type: string
           description: >-
@@ -1580,10 +1650,11 @@ components:
             line wrap) of the R1 body described in the /v1/sync operation, and
             no cryptography is applied: a key_version 0 body is development-only
             until Phase 19. At key_version 1 or higher it is the Phase 19 form,
-            which is not built.
+            which is not built. Absent on delete records.
         stored_at:
           type: string
-          description: When the server stored the row (RFC 3339)
+          description: When the server stored the row (RFC 3339); for a delete record, the time of the delete write
+      description: "A live record has client_id, change, deleted false, key_version, encrypted and stored_at. A delete record has client_id, change, deleted true and stored_at, and no key_version and no encrypted; key_version and encrypted are required when deleted is false and absent when deleted is true."
     PendingSealed:
       type: object
       required:
