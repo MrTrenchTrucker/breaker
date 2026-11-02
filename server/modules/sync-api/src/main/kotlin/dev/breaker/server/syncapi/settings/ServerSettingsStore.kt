@@ -11,12 +11,13 @@ internal class ServerSettingsStore(private val db: SqliteDatabase) {
     suspend fun wrongPwLimitEnabled(): Boolean {
         return db.transaction<Boolean> { connection ->
             connection.prepareStatement(
-                "SELECT int_value FROM server_settings WHERE setting_key = ?",
+                "SELECT int_value, typeof(int_value) FROM server_settings WHERE setting_key = ?",
             ).use { statement ->
                 statement.setString(1, WRONG_PW_LIMIT_KEY)
                 statement.executeQuery().use { rows ->
                     if (rows.next()) {
-                        rows.getLong(1) != 0L
+                        // Only an integer 0 reads off; any other stored value (a real, text, a blob) reads on.
+                        !(rows.getString(2) == "integer" && rows.getLong(1) == 0L)
                     } else {
                         true
                     }
