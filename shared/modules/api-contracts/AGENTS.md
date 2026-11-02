@@ -95,6 +95,8 @@ There is no synchronous 200-with-body variant — every transcription is a job.
   account (the same body for both); `DELETE /v1/admin/agent-tokens/{id}` → **204** (also when
   already revoked) | **404** unknown id | **401** no or invalid token | **403** a valid
   non-admin token. The wire unit is KiB everywhere (memory_kib 65536-262144).
+  Contract only, not yet built on the server: login also answers **423** (locked after five wrong
+  passwords, with Retry-After in whole seconds), and `GET` and `PUT /v1/admin/wrong-pw-limit` read and set the switch.
 - **sync** — **user session token only on every endpoint in this group, an
   agent token is refused.** `POST /v1/sync` (idempotent push, dedupe on the
   **(client id, `key_version`)** pair — not on client id alone, and not a
@@ -193,6 +195,10 @@ OpenAPI spec (openapi.yaml); Kotlin request and response types
 - Sign-in hand-off: the stdlib test `tests/unit/shared/api-contracts/test_signin_handoff_contract.py`
   pins the two hand-off paths, their statuses, the field sets and patterns of the four hand-off schemas,
   the one refusal of the exchange, and the matching Kotlin types.
+- Wrong-password limit (contract only, not yet built on the server): the stdlib test `tests/unit/shared/api-contracts/test_wrongpw_contract.py`
+  pins the 423 locked answer of login with its Retry-After header (whole seconds, minimum 1), the
+  `GET` and `PUT /v1/admin/wrong-pw-limit` path with its statuses and operation ids, and the
+  `WrongPwLimit` schema with its matching Kotlin type.
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
 ## Test Requirement
