@@ -1,0 +1,429 @@
+{
+ "name": "proof-signin-routes",
+ "tip": {
+  "tree": "d1976b6dca7e3cb02f8754f64470718dc54d1214"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "sync-api: the sign-in start and exchange routes with their route tests",
+   "base_tree": "823c34059dc2a71732ce2415e8d607b9a11c26d5",
+   "item_tip_tree": "d1976b6dca7e3cb02f8754f64470718dc54d1214",
+   "new_production_classes": [
+    "AuthHandoffRoutes"
+   ],
+   "test_fixtures_overlaid": [
+    "HandoffReply.kt",
+    "HandoffRouteTestBase.kt"
+   ],
+   "red_not_run": "the routes and their tests land together: on the base the route tests do not compile (the routes and the module parameter are absent), so there is no assertion-red leg; the mutants carry the proof"
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthHandoffRoutes.kt",
+     "anchor": "            if (resolved.kind != TokenKind.SESSION) {",
+     "replacement": "            if (resolved.kind == TokenKind.SESSION) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "start returns 201 with a 43-char code for a live session",
+    "start returns exactly the 403 body for an agent token"
+   ],
+   "rule": "the session check inverted: a session is refused and an agent token goes through",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthHandoffRoutes.kt",
+     "anchor": "        \"\"\"{\"error\":\"forbidden\",\"message\":\"User session token required; an agent token is refused\"}\"\"\",",
+     "replacement": "        \"\"\"{\"error\":\"forbidden\",\"message\":\"Forbidden\"}\"\"\","
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "start returns exactly the 403 body for an agent token"
+   ],
+   "rule": "the 403 body text differs from the contract",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthHandoffRoutes.kt",
+     "anchor": "        \"\"\"{\"error\":\"unauthorized\",\"message\":\"Invalid sign-in code or secret\"}\"\"\",",
+     "replacement": "        \"\"\"{\"error\":\"unauthorized\",\"message\":\"Invalid code\"}\"\"\","
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "exchange unknown code is the one 401"
+   ],
+   "rule": "the one 401 body text differs from the contract",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthHandoffRoutes.kt",
+     "anchor": "                    if (!CODE_PATTERN.matches(code) || !SECRET_PATTERN.matches(secret)) {",
+     "replacement": "                    if (!SECRET_PATTERN.matches(secret)) {"
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "equivalent at the route: a malformed code reaches the store, which refuses it with the same one refusal",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthHandoffRoutes.kt",
+     "anchor": "private val SECRET_PATTERN = \"^[A-Za-z0-9_-]{43}$\".toRegex()",
+     "replacement": "private val SECRET_PATTERN = \"^[A-Za-z0-9_-]{42}$\".toRegex()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "exchange returns exactly 200 with token role key_version sealed_package username account_id"
+   ],
+   "rule": "the secret pattern one character short: a valid secret is refused",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthHandoffRoutes.kt",
+     "anchor": "private const val MAX_DEVICE_NAME_CODE_POINTS = 64",
+     "replacement": "private const val MAX_DEVICE_NAME_CODE_POINTS = 65"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "exchange rejects 65-char device_name and code stays live"
+   ],
+   "rule": "the device name limit 65",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthHandoffRoutes.kt",
+     "anchor": "    return \"\"\"{\"token\":\"${result.sessionToken}\",\"role\":\"${result.role.dbValue}\",\"key_version\":${result.keyVersion},\"sealed_package\":\"${Base64.getEncoder().encodeToString(result.sealedPackage)}\",\"username\":\"${result.username}\",\"account_id\":${result.accountId}}\"\"\"",
+     "replacement": "    return \"\"\"{\"token\":\"${result.sessionToken}\",\"role\":\"${result.role.dbValue}\",\"key_version\":0,\"sealed_package\":\"${Base64.getEncoder().encodeToString(result.sealedPackage)}\",\"username\":\"${result.username}\",\"account_id\":${result.accountId}}\"\"\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "exchange returns exactly 200 with token role key_version sealed_package username account_id"
+   ],
+   "rule": "key_version is a constant zero instead of the account's",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthHandoffRoutes.kt",
+     "anchor": "                                HttpStatusCode.Created,",
+     "replacement": "                                HttpStatusCode.OK,"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "start returns 201 with a 43-char code for a live session"
+   ],
+   "rule": "start answers 200 instead of 201",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthHandoffRoutes.kt",
+     "anchor": "private val SEALED_PACKAGE_PATTERN = \"^[A-Za-z0-9+/]{151}=$\".toRegex()",
+     "replacement": "private val SEALED_PACKAGE_PATTERN = \"^[A-Za-z0-9+/]{150}=$\".toRegex()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "start returns 201 with a 43-char code for a live session"
+   ],
+   "rule": "the package pattern one character short: a valid package is refused",
+   "note": ""
+  },
+  {
+   "id": "mut-10",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthHandoffRoutes.kt",
+     "anchor": "                        is StartResult.NoSuchAccount -> {",
+     "replacement": "                        is StartResult.NoSuchAccount -> {\n                            call.respondAgentRefused()\n                            return@post"
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "no test can make the account vanish while its session token is live (the token row cascades with the account)",
+   "note": ""
+  },
+  {
+   "id": "mut-11",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthHandoffRoutes.kt",
+     "anchor": "            if (!expectComma) return null",
+     "replacement": "            if (pos < 0) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "start rejects leading comma with exactly 400"
+   ],
+   "rule": "a leading comma is accepted",
+   "note": ""
+  },
+  {
+   "id": "mut-12",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthHandoffRoutes.kt",
+     "anchor": "        if (expectComma) return null  // no comma between members",
+     "replacement": "        if (pos < 0) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "start rejects comma-only members with exactly 400"
+   ],
+   "rule": "members without a comma between them are accepted",
+   "note": ""
+  },
+  {
+   "id": "mut-13",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthHandoffRoutes.kt",
+     "anchor": "            if (pos >= inner.length) return null  // trailing comma",
+     "replacement": "            if (pos < 0) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "start rejects trailing comma with exactly 400"
+   ],
+   "rule": "a trailing comma is accepted",
+   "note": ""
+  },
+  {
+   "id": "mut-14",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthHandoffRoutes.kt",
+     "anchor": "        if (pos >= inner.length) return null  // no value after colon",
+     "replacement": "        if (pos < 0) return null"
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "equivalent: the next read fails inside the total wrapper, which answers the same 400",
+   "note": ""
+  },
+  {
+   "id": "mut-15",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthHandoffRoutes.kt",
+     "anchor": "                        if (!HEX4.matches(hex)) return null  // exactly 4 hex digits, no sign",
+     "replacement": "                        if (hex.length < 4) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "exchange rejects a signed unicode escape in device_name with 400"
+   ],
+   "rule": "a signed escape is read as a number",
+   "note": ""
+  },
+  {
+   "id": "mut-16",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthHandoffRoutes.kt",
+     "anchor": "        if (key in result) return null",
+     "replacement": "        if (pos < 0) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "start rejects duplicate field with exactly 400"
+   ],
+   "rule": "a duplicate member is accepted",
+   "note": ""
+  },
+  {
+   "id": "mut-17",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthHandoffRoutes.kt",
+     "anchor": "        if (key !in required && key !in optional) return null",
+     "replacement": "        if (pos < 0) return null"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "start rejects extra unknown field with exactly 400"
+   ],
+   "rule": "an unknown member is accepted",
+   "note": ""
+  },
+  {
+   "id": "mut-18",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthHandoffRoutes.kt",
+     "anchor": "            else -> return null  // wrong type: number, boolean, object, array",
+     "replacement": "            else -> { value = null; pos += 1 }"
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "a number becomes a null member, which the required-field check or the pattern then refuses with the same 400 (no test sends a number as device_name)",
+   "note": ""
+  },
+  {
+   "id": "mut-19",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthHandoffRoutes.kt",
+     "anchor": "                    if (deviceName != null && !isValidDeviceName(deviceName)) {",
+     "replacement": "                    if (deviceName != null && deviceName.length < 0) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "exchange rejects 65-char device_name and code stays live"
+   ],
+   "rule": "the device name is not checked at the route: the store throws and the answer is a 500",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill-routes",
+   "module": "server/modules/sync-api",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthHandoffRoutes.kt",
+     "anchor": "            if (resolved.kind != TokenKind.SESSION) {",
+     "replacement": "            if (resolved.kind == TokenKind.SESSION) {"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive-routes",
+   "module": "server/modules/sync-api",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/auth/AuthHandoffRoutes.kt",
+     "anchor": "/** Installs POST /v1/auth/handoff/start and POST /v1/auth/handoff/exchange on this application. */",
+     "replacement": "/** Installs POST /v1/auth/handoff/start and POST /v1/auth/handoff/exchange on this application, no more. */"
+    }
+   ]
+  }
+ ]
+}
