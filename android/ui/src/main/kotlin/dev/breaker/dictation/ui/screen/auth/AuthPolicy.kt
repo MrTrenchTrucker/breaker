@@ -60,10 +60,11 @@ internal object AuthPolicy {
      * Decides the password's rating from its typed characters alone.
      *
      * The length is checked first: anything shorter than [MIN_LENGTH] is refused without any
-     * other check, so a too-short password never trips a weak rule.
+     * other check, so a too-short password never trips a weak rule. Length is counted in Unicode
+     * code points, so a supplementary character is one code point though it uses two UTF-16 units.
      */
     fun rate(password: CharArray): Rating = when {
-        password.size < MIN_LENGTH -> Rating.TooShort
+        Character.codePointCount(password, 0, password.size) < MIN_LENGTH -> Rating.TooShort
         matchesCommon(password) -> Rating.Weak
         isOneRepeatedChar(password) -> Rating.Weak
         isDigitsOnly(password) -> Rating.Weak

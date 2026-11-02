@@ -8,7 +8,8 @@ package dev.breaker.dictation.ui.screen.auth
  * submit. The submit is the only action the host acts on with input: its zero-fill happens in a
  * finally so both a returned and a thrown callback leave the char array all zero; every other tap
  * just redraws from the state held. Call it from one thread at a time: it holds no lock, but its
- * own state changes as fast as the taps come in.
+ * own state changes as fast as the taps come in. While a submit is in flight (Busy or Warning)
+ * another submit changes nothing and fires no callback.
  */
 
 internal class AuthIntentHandler(
@@ -46,9 +47,14 @@ internal class AuthIntentHandler(
      * Runs [AuthPolicy.rate] on [password], updates the state machine, and calls [onSubmit]
      * exactly once. A too-short password stays Refused with no callback; a weak or ok password
      * moves to Warning or Busy; either way the passed in char array is zero-filled afterwards.
+     * While a submit is in flight (Busy or Warning) a second submit changes nothing and fires
+     * no callback; the zero-fill still runs.
      */
     fun submit(password: CharArray) {
         try {
+            if (state is AuthState.Busy || state is AuthState.Warning) {
+                return
+            }
             when (AuthPolicy.rate(password)) {
                 AuthPolicy.Rating.TooShort -> {
                     state = AuthState.Refused(register, AuthTexts.REFUSED)
