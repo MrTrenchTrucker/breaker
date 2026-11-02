@@ -11,6 +11,7 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
+import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
@@ -32,7 +33,7 @@ internal fun Application.syncRoutes(tokenStore: TokenStore, transcriptionStore: 
                 is SyncPushParse.Accepted -> parsed.body
             }
             val outcome = try {
-                transcriptionStore.push(accountId, body.clientId, body.keyVersion, body.encrypted)
+                transcriptionStore.push(accountId, body.clientId, body.keyVersion, body.encrypted, body.resave)
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (_: Exception) {
@@ -62,6 +63,27 @@ internal fun Application.syncRoutes(tokenStore: TokenStore, transcriptionStore: 
                 return@get
             }
             call.respondText(json, ContentType.Application.Json, HttpStatusCode.OK)
+        }
+
+        delete("/v1/transcriptions/{client_id}") {
+            val accountId = call.sessionAccountOrRefuse(tokenStore) ?: return@delete
+            val clientId = call.parameters["client_id"] ?: ""
+            if (!isCanonicalUuid(clientId)) {
+                call.respondClientIdRefused()
+                return@delete
+            }
+            val outcome = try {
+                transcriptionStore.delete(accountId, clientId)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                call.respondUnavailable()
+                return@delete
+            }
+            when (outcome) {
+                is DeleteResult.Deleted, is DeleteResult.NoOp ->
+                    call.respond(HttpStatusCode.NoContent)
+            }
         }
     }
 }

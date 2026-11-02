@@ -16,7 +16,7 @@ internal class TranscriptionStore(
      * An account id with no row is not a version conflict: the store throws, and the caller decides
      * what the client sees.
      */
-    suspend fun push(accountId: Long, clientId: String, keyVersion: Int, encrypted: String): PushResult {
+    suspend fun push(accountId: Long, clientId: String, keyVersion: Int, encrypted: String, resave: Boolean = false): PushResult {
         val nowMs = clock.millis()
         return db.transaction<PushResult> { connection ->
             val accountKeyVersion: Int = readAccountKeyVersion(connection, accountId)
@@ -37,10 +37,19 @@ internal class TranscriptionStore(
                         PushResult.Stored
                     }
                 } else if (stored.deleted == 1) {
-                    // A deleted stored row answers NoOp before any number is taken. The deleted
-                    // check sits after the above-account refusal and before any number is taken
-                    // so a deleted row never consumes a change number.
-                    PushResult.NoOp
+                    // A deleted stored row: without the mark it is a NoOp and takes no number.
+                    // With the mark: key-version order applies like an insert - above is refused
+                    // first (already handled above the row lookup), then below is refused lower
+                    // and writes nothing, then at-or-above reanimates with a fresh number.
+                    if (!resave) {
+                        PushResult.NoOp
+                    } else if (keyVersion < accountKeyVersion) {
+                        PushResult.RefusedLower
+                    } else {
+                        val changeNo = bumpChangeSeq(connection, accountId)
+                        reanimateRow(connection, accountId, clientId, keyVersion, encrypted, nowMs, changeNo)
+                        PushResult.Stored
+                    }
                 } else if (stored.keyVersion == keyVersion) {
                     PushResult.NoOp
                 } else if (stored.keyVersion > keyVersion) {
@@ -51,6 +60,45 @@ internal class TranscriptionStore(
                     PushResult.Replaced
                 }
             }
+        }
+    }
+
+    /**
+     * Deletes one transcription of [accountId]. An applied delete takes a new change number,
+     * clears the body and sets deleted. A repeat or unknown delete writes nothing and takes no
+     * change number. Runs in one transaction.
+     */
+    suspend fun delete(accountId: Long, clientId: String): DeleteResult {
+        return db.transaction<DeleteResult> { connection ->
+            readAccountKeyVersion(connection, accountId)
+                ?: throw IllegalStateException("sync-api: a transcription delete names an account with no row")
+            val stored = readStoredRow(connection, accountId, clientId)
+            if (stored == null) {
+                DeleteResult.NoOp
+            } else if (stored.deleted == 1) {
+                DeleteResult.NoOp
+            } else {
+                val nowMs = clock.millis()
+                val changeNo = bumpChangeSeq(connection, accountId)
+                markDeleted(connection, accountId, clientId, nowMs, changeNo)
+                DeleteResult.Deleted
+            }
+        }
+    }
+
+    private fun markDeleted(
+        connection: Connection,
+        accountId: Long,
+        clientId: String,
+        storedAtMs: Long,
+        changeNo: Long,
+    ) {
+        connection.prepareStatement(DELETE_SQL).use { statement ->
+            statement.setLong(1, storedAtMs)
+            statement.setLong(2, changeNo)
+            statement.setLong(3, accountId)
+            statement.setString(4, clientId)
+            statement.executeUpdate()
         }
     }
 
@@ -133,6 +181,28 @@ internal class TranscriptionStore(
         }
     }
 
+    // Bring a deleted row back to life: same id and place, new key version, body, stored time,
+    // deleted = 0, new change number.
+    private fun reanimateRow(
+        connection: Connection,
+        accountId: Long,
+        clientId: String,
+        keyVersion: Int,
+        encrypted: String,
+        storedAtMs: Long,
+        changeNo: Long,
+    ) {
+        connection.prepareStatement(REANIMATE_SQL).use { statement ->
+            statement.setInt(1, keyVersion)
+            statement.setString(2, encrypted)
+            statement.setLong(3, storedAtMs)
+            statement.setLong(4, changeNo)
+            statement.setLong(5, accountId)
+            statement.setString(6, clientId)
+            statement.executeUpdate()
+        }
+    }
+
     private fun readRows(connection: Connection, accountId: Long): List<TranscriptionRow> =
         connection.prepareStatement(SELECT_ROWS_SQL).use { statement ->
             statement.setLong(1, accountId)
@@ -155,6 +225,15 @@ internal class TranscriptionStore(
 
         const val SELECT_CHANGE_SEQ_SQL = "SELECT change_seq FROM accounts WHERE id = ?"
 
+        // All rows of one account, oldest first. A replaced row keeps its place.
+        const val SELECT_ROWS_SQL =
+            "SELECT client_id, key_version, encrypted, stored_at_ms FROM transcriptions " +
+                "WHERE account_id = ? AND deleted = 0 ORDER BY id"
+
+        const val DELETE_SQL =
+            "UPDATE transcriptions SET encrypted = '-', stored_at_ms = ?, change_no = ?, deleted = 1 " +
+                "WHERE account_id = ? AND client_id = ?"
+
         const val INSERT_SQL =
             "INSERT INTO transcriptions (account_id, client_id, key_version, encrypted, stored_at_ms, change_no) " +
                 "VALUES (?, ?, ?, ?, ?, ?)"
@@ -163,8 +242,8 @@ internal class TranscriptionStore(
             "UPDATE transcriptions SET key_version = ?, encrypted = ?, stored_at_ms = ?, change_no = ? " +
                 "WHERE account_id = ? AND client_id = ?"
 
-        const val SELECT_ROWS_SQL =
-            "SELECT client_id, key_version, encrypted, stored_at_ms FROM transcriptions " +
-                "WHERE account_id = ? ORDER BY id"
+        const val REANIMATE_SQL =
+            "UPDATE transcriptions SET key_version = ?, encrypted = ?, stored_at_ms = ?, change_no = ?, deleted = 0 " +
+                "WHERE account_id = ? AND client_id = ?"
     }
 }

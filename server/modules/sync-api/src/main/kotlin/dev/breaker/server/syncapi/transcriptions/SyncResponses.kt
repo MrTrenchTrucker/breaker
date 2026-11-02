@@ -15,6 +15,7 @@ internal const val MESSAGE_BODY_TOO_LARGE: String = "Request body exceeds maximu
 internal const val MESSAGE_ABOVE_ACCOUNT: String = "key_version is above the account's current key_version"
 // The text of the example of the 409 response in the openapi.yaml of the shared API (lines 437-445).
 internal const val MESSAGE_LOWER_REFUSED: String = "A lower key_version is refused for this client_id"
+internal const val MESSAGE_CLIENT_ID_REFUSED: String = "client id is not a lowercase canonical UUID"
 
 internal suspend fun ApplicationCall.respondSyncError(status: HttpStatusCode, error: String, message: String) {
     respondText("""{"error":"$error","message":"$message"}""", ContentType.Application.Json, status)
@@ -46,4 +47,8 @@ internal suspend fun ApplicationCall.respondAboveAccount() {
 
 internal suspend fun ApplicationCall.respondLowerRefused() {
     respondSyncError(HttpStatusCode.Conflict, "conflict", MESSAGE_LOWER_REFUSED)
+}
+
+internal suspend fun ApplicationCall.respondClientIdRefused() {
+    respondSyncError(HttpStatusCode.BadRequest, "bad_request", MESSAGE_CLIENT_ID_REFUSED)
 }
