@@ -1,0 +1,252 @@
+diff --git a/ARCHITECTURE.md b/ARCHITECTURE.md
+index 3599592a..9a925a3a 100644
+--- a/ARCHITECTURE.md
++++ b/ARCHITECTURE.md
+@@ -75,8 +75,6 @@ admins.
+       moving vehicle cannot start a recording. A tap on the tile starts recording.
+       A shake works from any app and with the keyboard open, and keeps working
+       whether or not the tile is on screen, for as long as dictation is switched on.
+-      A shake obeys the Wake Gesture setting: with it off, a shake brings nothing up.
+-      The three-way choice (Keyboard only, Always, Off) is decided and not built.
+ - F5. **"And I'm Gone"** (voice phrase) OR tap tile → stop + send → commit text to
+       focused field.
+ - F6. If no text field is focused, or the accessibility insert is refused →
+diff --git a/android/app/AGENTS.md b/android/app/AGENTS.md
+index 6df67bb6..7ce05be7 100644
+--- a/android/app/AGENTS.md
++++ b/android/app/AGENTS.md
+@@ -167,7 +167,7 @@ The switch for the ui module: `wiring/BreakerSwitchAdapter.kt` implements the sw
+ - Wiring tests (JVM, no Android): `android/app/src/test/kotlin/dev/breaker/dictation/wiring/` - `IconLaunchRefusedTest` (a refused icon switch-on reaches the screen's sink once, the rule stays open, a throwing sink does not escape), `DictationRunnerTest`, `DictationRunnerEndTest`, `DictationRunnerDisarmTest` (the capture and session are dropped before the service is halted), `DictationRunnerFinishTest` (a finish that fails still stops the audio exactly once and drops the dictation), `DictationComponentTest`, `DictationComponentServiceTest`, `DictationFlowTest`, `LazyHistoryStoreTest`, `LazyHistoryRootTest`, `PurgeScopeTest`, `UnavailableSlotsTest`. `DictationRunnerTakenTest` (an open refused as taken answers taken; a broken device answers failed; a reset after a taken take adds no stop and no close), `DictationRunnerSelfEndTest` (a self-end lands idle with the service armed, and the owed stop is paid once), `DictationComponentTakenHookTest` (a taken microphone reaches the taken hook while the session still records; a device failure keeps the old end; a user stop does not call the hook), `TakeChainTest` (a full taken settle pays one audio stop and leaves the session idle), `TakenSentencesTest` (the pinned lines word for word and their lengths), `TakeYieldGuardTest` (a cancel is refused while the taken branch runs; a switch-off during a taken transcription lets a later begin and cancel through), `TakeYieldReentryTest` (a second cut that reaches the taken controller starts no second finish; a settle left from before a switch-off and re-arm changes nothing), `TakeYieldRefusedQueueTest` (a background that refuses the work abandons the cut at once, posts the not-converted line and lets a later cut, tap or send work), `TakeYieldClearPointsTest` (a take end alone, and a switch-off, clear the busy face; a switch-off posts the plain line), `TakeYieldSendTapTest` (a send tap during a taken transcription is refused and the take is finished once), `TakeYieldFailedBeginTest` (a begin that fails on the device after a begin refused as taken shows the failed face, not the busy face), `TakeYieldSaveFailedTest` (a failed history save still settles the take, copies the text, posts the copied-not-saved line and lets a later begin and cancel through). `DeviceFailureSentencesTest` (the five device failure sentences word for word and their lengths), `TakeSettleTest` (the shared settle: save, copy and the outcome line), `DeviceFailureYieldTest` (the device failure yield on the background: the saved, copied and not-converted outcomes, no send, the refused start, and a stale run after a switch off that frees nothing for a later run), `TileCoordinatorDeviceFailureTest` (the tile's device failure entry, its guards, and a switch off that clears a cut in flight so the next arm takes the next cut), `DeviceFailureChainTest` (the real runner end to end: one audio stop, the saved line, the owed stop after a refused start) and `DictationComponentDeviceFailureTest` (the component's handler: the session still records when it runs, the fallback is the old end). `DisplayWatchTest` and `DisplayWatchEdgesTest` (the display watch; their shared fakes are in `DisplayWatchFakes.kt`). Their shared fakes are in `WiringFakes.kt` and `WiringMicFakes.kt`; the sentence of the stand-in local engine that the runner tests use is in `LocalSlotFixture.kt`.
+ - Host tests (JVM, no Android): `android/app/src/test/kotlin/dev/breaker/dictation/host/` - `ServiceRefusalNoticeTest` (the refusal is held, posted only when notifications are permitted, taken once, and a failing step is skipped).
+ - Gate tests over the app's own files: `android/app/src/test/kotlin/dev/breaker/dictation/gates/` - `ProbeReleaseGateTest` (the release build holds no probe element, source or service config; no main source of the app or of any module calls setEnabled on the keyboard probe holder), `ProbeDebugManifestGateTest` (the debug manifest is exact: the mic probe receiver is its one exported element and both probe providers are not exported), `ProbeShowHideGateTest` (the tile show and hide paths name no probe symbol), `ManifestGateTest`, `NetworkConfigGateTest`, `NotificationTextGateTest`, `RootSlotsGateTest`, `AppLayoutGateTest`, `AppWiringGateTest` (the wiring in the application class, the launcher activity and the composition root), `BuildFileGateTest` (the build file's application id, platform levels and dependency list), `BuildFileSherpaGateTest` (the run-time dependency on the speech engine release file, its pin check and the one by-name hook), `RecognizerSwapGateTest` (the swap point holds the real recognizer factory and names no placeholder), `AppCommitGateTest` (the text committer: its swap point, its one place in the root and the app, the build edges, the manifest entry and the service name), `AppPrivacyScanTest` (support files `AppSourceFiles` and `AppXml.kt`), `IconLaunchOnceGateTest` (the saved icon-launch flag in the launcher activity: read in `onCreate`, saved in `onSaveInstanceState`, one key for both), `GestureWiringGateTest` (the gesture wiring: sensor types and listener calls only in `AndroidSwaps.kt`; the app gesture built from the module's `ShakeHandle` over `SensorManagerShakeSource`; the handle started only in `ShakeGesture.start` and stopped in `stop`; a refused start clears the trigger; `TileHost` takes `appGesture(context)` and starts it in one place). `ShakeTriggerGateTest` (the shake trigger in `TileHost` calls `TileCoordinator.onShake`, and the tap callback is the only `onBegin` call), `NotificationTakenGateTest` (the taken seam's text rules: the clipboard maker in `AndroidSwaps.kt`; one `withText` signature, one `setContentText` call and the `build` signature in `DictationNotification.kt`), `DeviceFailureWiringGateTest` (the device failure wiring that no JVM test can run: `TileHost` offers the cut to the coordinator through the root hook and runs the fallback only when it is not taken; `DictationComponent` hands the handler the fallback, and the one owed-stop call sits in the fallback lambda), `LauncherIconGateTest` (pins the launcher and notification icon resources: the five foreground PNGs against the rendered set, the SVG source pin, the background fill, the silhouette, the white notification icon, the manifest icon names, and the absence of framework icons and legacy launcher PNGs). Each gate runs against the real files and fires on samples: most samples are the real text with one edit, some are small sources written by hand, and an edit whose target text is missing fails by name.
+-- Wiring tests for the tile, the switch and the model download (JVM, no Android): `android/app/src/test/kotlin/dev/breaker/dictation/wiring/` - `WakeGestureGateTest` (the Wake Gesture setting is read fresh on every call and never cached), `TileStateMapTest` (every session state has a tile state; the busy face wins over a pushed send, a failed take and a commit, and an off switch shows idle), `TileCoordinatorShownTest` (a begin needs the tile on screen: a failed or refused show means no begin), `TileCoordinatorShownPermissionTest` (a show without the overlay permission means no begin), `TileCoordinatorTest` (the switch, taps, cancel, stale answers, ports that throw), `TileCoordinatorTakeTest` (begin, send, the empty take, failures), `TileCoordinatorOutcomeTest` (SENT after a send, its clearing by begin, cancel and switch-off, a tap from SENT, and the text never reaching the tile), `TileCoordinatorMoreTest` (a failed tile after switching off and on, a take of only blanks), `TileCoordinatorNothingHeardTest` (a blank or empty text drops the take and shows the nothing heard notice once after the armed state, a text with words is sent, a take with no audio stays silent, a switch-off drops the late notice, and a quiet take over the real runner keeps no History row), `TileEmptyTakeRealRunnerTest` (the real runner with a take that holds no audio), `TakePortAdapterTest`, `LaunchRuleTest` (the table of icon launches and other starts), `IconLaunchOnceTest` (the once-per-instance rule: the first icon launch, a repeat start, a recreate with the saved flag, a refused answer, a start that is not the icon, and the stored switch-off), `NoopPortsTest`, `ArmedSwitchTest`, `ArmedSwitchReasonTest` (a switch-off while on tells the controller observer the user's word first), `OffStoreTest` (the off file, its temporary file and the rename), `OffStoreThrowingFileTest` (a file that cannot be inspected counts as not off), `ModelSupportTest`, `ModelNoSpaceSentenceTest` (the no-space sentence word for word, and the mapping of the installer's refusals), `ModelNoSpaceTest` (the no-space refusal reaches the notification and the launcher line, and no other refusal does), `ModelDownloadEntryTest` (the one entry point, one download at a time), `ModelDownloaderDefaultLookupTest` (a downloader built without a lookup uses the registry entry of the selected id), `SwapsTest` (what each swap point answers today, and that the real recognizer factory refuses an unknown model and an empty model folder by name), `ShakeGestureTest` (over a fake sensor port: building registers nothing, a start registers once, a stop unregisters, a refused start is retried by the next start, a shake calls the trigger once and not after a stop), `ShakeShowsTileTest` (a shake with the tile closed shows it and never begins a take; a shake with the tile on screen, during a begin or a take, or with the switch off does nothing; a refused show says the tile is unavailable and the next shake tries again; a tap still begins after a shake showed the tile), and `ShakeBeginPathTest` (a shake wired the way `TileHost` wires it ends in `TileCoordinator.onShake`: it shows a closed or hidden tile and begins nothing, while a tap is what begins; a shake does nothing during a take, when not armed, or after switch-off; `TileHost` itself is pinned by `HostGateTest` text rules, because it cannot run on a JVM). Their shared fakes are in `TileFakes.kt` and `ModelFakes.kt`. `NoticeClearingTilePortTest` (the four-second notice clear: the boundary at 4000 ms, a replaced notice, each cancel, the tap report and the guarded throws; its fake is `FakeDelayedPost`, with no real time). `TileCoordinatorTakenTest` (the taken take: the busy face and its lines in order; the save and the copy; a blank or empty take saves and copies nothing; a thrown or failed conversion posts the fixed line and never the detail; a tap on the busy face reaches the begin and not the launcher; a cancel and a send are refused while the taken branch runs; a second cut is dropped; a take end after a taken take restores the plain line). `TileCoordinatorYieldSendRaceTest` (a microphone take that arrives while a begin is pending is held until the begin settles; a refused begin cannot let a send start while the yield runs; a taken, failed, cancelled or disarmed begin drops the held take, also for the next begin).
++- Wiring tests for the tile, the switch and the model download (JVM, no Android): `android/app/src/test/kotlin/dev/breaker/dictation/wiring/` - `TileStateMapTest` (every session state has a tile state; the busy face wins over a pushed send, a failed take and a commit, and an off switch shows idle), `TileCoordinatorShownTest` (a begin needs the tile on screen: a failed or refused show means no begin), `TileCoordinatorShownPermissionTest` (a show without the overlay permission means no begin), `TileCoordinatorTest` (the switch, taps, cancel, stale answers, ports that throw), `TileCoordinatorTakeTest` (begin, send, the empty take, failures), `TileCoordinatorOutcomeTest` (SENT after a send, its clearing by begin, cancel and switch-off, a tap from SENT, and the text never reaching the tile), `TileCoordinatorMoreTest` (a failed tile after switching off and on, a take of only blanks), `TileCoordinatorNothingHeardTest` (a blank or empty text drops the take and shows the nothing heard notice once after the armed state, a text with words is sent, a take with no audio stays silent, a switch-off drops the late notice, and a quiet take over the real runner keeps no History row), `TileEmptyTakeRealRunnerTest` (the real runner with a take that holds no audio), `TakePortAdapterTest`, `LaunchRuleTest` (the table of icon launches and other starts), `IconLaunchOnceTest` (the once-per-instance rule: the first icon launch, a repeat start, a recreate with the saved flag, a refused answer, a start that is not the icon, and the stored switch-off), `NoopPortsTest`, `ArmedSwitchTest`, `ArmedSwitchReasonTest` (a switch-off while on tells the controller observer the user's word first), `OffStoreTest` (the off file, its temporary file and the rename), `OffStoreThrowingFileTest` (a file that cannot be inspected counts as not off), `ModelSupportTest`, `ModelNoSpaceSentenceTest` (the no-space sentence word for word, and the mapping of the installer's refusals), `ModelNoSpaceTest` (the no-space refusal reaches the notification and the launcher line, and no other refusal does), `ModelDownloadEntryTest` (the one entry point, one download at a time), `ModelDownloaderDefaultLookupTest` (a downloader built without a lookup uses the registry entry of the selected id), `SwapsTest` (what each swap point answers today, and that the real recognizer factory refuses an unknown model and an empty model folder by name), `ShakeGestureTest` (over a fake sensor port: building registers nothing, a start registers once, a stop unregisters, a refused start is retried by the next start, a shake calls the trigger once and not after a stop), `ShakeShowsTileTest` (a shake with the tile closed shows it and never begins a take; a shake with the tile on screen, during a begin or a take, or with the switch off does nothing; a refused show says the tile is unavailable and the next shake tries again; a tap still begins after a shake showed the tile), and `ShakeBeginPathTest` (a shake wired the way `TileHost` wires it ends in `TileCoordinator.onShake`: it shows a closed or hidden tile and begins nothing, while a tap is what begins; a shake does nothing during a take, when not armed, or after switch-off; `TileHost` itself is pinned by `HostGateTest` text rules, because it cannot run on a JVM). Their shared fakes are in `TileFakes.kt` and `ModelFakes.kt`. `NoticeClearingTilePortTest` (the four-second notice clear: the boundary at 4000 ms, a replaced notice, each cancel, the tap report and the guarded throws; its fake is `FakeDelayedPost`, with no real time). `TileCoordinatorTakenTest` (the taken take: the busy face and its lines in order; the save and the copy; a blank or empty take saves and copies nothing; a thrown or failed conversion posts the fixed line and never the detail; a tap on the busy face reaches the begin and not the launcher; a cancel and a send are refused while the taken branch runs; a second cut is dropped; a take end after a taken take restores the plain line). `TileCoordinatorYieldSendRaceTest` (a microphone take that arrives while a begin is pending is held until the begin settles; a refused begin cannot let a send start while the yield runs; a taken, failed, cancelled or disarmed begin drops the held take, also for the next begin).
+ - Level bar (JVM, no Android): `android/app/src/test/kotlin/dev/breaker/dictation/wiring/` - `LevelMeterTest`, `LevelMapTest`, `LevelTapTest`, `LevelFeedTest`, `DictationComponentLevelTest` and `NoiseFloorTest` (the floor's seed, its fall and rise limits, its clamp, the zero-point span, digital silence, a non-finite frame, and a floor with no value before the first level; `LevelMeterTest` covers a fresh floor for each meter).
+ - State observer of the controller (JVM, no Android): `android/app/src/test/kotlin/dev/breaker/dictation/service/` - `ServiceControllerObserverTest`.
+ - Host gates: `android/app/src/test/kotlin/dev/breaker/dictation/gates/` - `HostGateTest` (the threads, the gesture, the tile host and its taken hook, the overlay port), `HostGateNotifyTest` (the model notifications and the settings column, which holds only the settings view), `HostGateNoticeTest` (the permission check, channels, ids, request codes, flags and sentences of the model notices, and the tile's theme) and `HistoryRouteGateTest` (the Home menu's History item, the one function that opens the history screen from the app's store, the route check on a fresh create, no `onNewIntent`, and Back on both paths); each rule holds on the real files and fires on edited samples, like the other gates. `NoticeTimerGateTest` (the notice clear's wiring: the one main-looper queue that runs it, the notice port over the tile, the tap report, and the cancel-first order of the port). `AppPrivacyScanTest` has one named exception, for `host/AppThreads.kt`, which may name the thread types; `AppWiringGateTest` pins the switch, the tile host and the one observer in `BreakerApp.kt` and the launcher. `DisplayWiringGateTest` pins the display-change listener: its one main-looper registration and unregistration, the default-display snapshot, the tile host's watch and the port's forward.
+@@ -274,8 +274,8 @@ code.
+ - A late destroy of an old service instance can mark the next one off and drop its capture (the service has no instance token).
+ - `TileHost` builds its coordinator, and with it `compositionRoot.dictation` and the ended listener, the first time the service goes on; a launcher start with the switch off builds nothing.
+ - **NOT VERIFIED on a device** (the SENT state): how the green ring looks on the tile; whether the clipboard confirmation is seen; a tap on a tile that shows SENT.
+-- A shake of the phone goes to `TileCoordinator.onShake`, which never begins a take. With the switch off, or a take running, it does nothing. With the Wake Gesture setting off it does nothing either (the setting is read again at every shake). With the tile on screen and not closed by the user it does nothing. Otherwise it calls `TileShowGuard.onShake`, which shows the tile and clears the user's close only when the show succeeds; a refused show says the tile is unavailable and the next shake tries again (see rule 18). `ShakeShowsTileTest` pins this. A removal of the tile by the window system is not seen by the app (see the device check list below). **NOT VERIFIED on a device**: the no-overlay case and the first-ever no-permission case (see the device check list below).
+-- The sensor is started as soon as the service is armed, whether or not the tile can be shown, so a shake with no tile on screen reaches `TileCoordinator.onShake`, which brings the tile back if it can be shown and begins nothing. `WakeGestureGate` reads the Wake Gesture setting fresh at every shake, so a toggle works at once in both directions. KNOWN LIMIT: while the setting is off the sensor still runs and its shakes are ignored (a small battery cost, the same as before); a later slice may add a change notification so the sensor stops while it is off. The three-way choice (Keyboard only, Always, Off) is decided and not built.
++- A shake of the phone goes to `TileCoordinator.onShake`, which never begins a take. With the switch off, or a take running, it does nothing. With the tile on screen and not closed by the user it does nothing. Otherwise it calls `TileShowGuard.onShake`, which shows the tile and clears the user's close only when the show succeeds; a refused show says the tile is unavailable and the next shake tries again (see rule 18). `ShakeShowsTileTest` pins this. A removal of the tile by the window system is not seen by the app (see the device check list below). **NOT VERIFIED on a device**: the no-overlay case and the first-ever no-permission case (see the device check list below).
++- The sensor is started as soon as the service is armed, whether or not the tile can be shown, so a shake with no tile on screen reaches `TileCoordinator.onShake`, which brings the tile back if it can be shown and begins nothing.
+ - A start the sensor refuses (for example, a phone with no accelerometer) leaves nothing listening. It is tried again at the next switch-on.
+ - The sensor is registered only while the service is on: it is registered when the service goes on and released when it goes off or the service ends.
+ - If the process dies, Android drops its sensor listeners; the app has no code for that case. **NOT VERIFIED on a device.**
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/host/TileHost.kt b/android/app/src/main/kotlin/dev/breaker/dictation/host/TileHost.kt
+index 7117b9ea..cbf070cd 100644
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/host/TileHost.kt
++++ b/android/app/src/main/kotlin/dev/breaker/dictation/host/TileHost.kt
+@@ -27,7 +27,6 @@ import dev.breaker.dictation.wiring.TakeOwner
+ import dev.breaker.dictation.wiring.TakeOwnerKind
+ import dev.breaker.dictation.wiring.TakePortAdapter
+ import dev.breaker.dictation.wiring.TileCoordinator
+-import dev.breaker.dictation.wiring.WakeGestureGate
+ import dev.breaker.dictation.wiring.appGesture
+ import dev.breaker.dictation.wiring.appTakenClipboard
+ import dev.breaker.dictation.wiring.modelInstallPortFor
+@@ -47,9 +46,6 @@ import dev.breaker.dictation.wiring.modelInstallPortFor
+  * The shake gesture is started when the service goes on and stopped when it goes off,
+  * both on the main looper and in the order the changes happened; its trigger reaches the coordinator
+  * through the same post as a tap on the tile. A shake only shows the tile.
+- * A shake reaches the coordinator only while the Wake Gesture switch is on; the switch is read on every
+- * shake (WakeGestureGate), so a toggle works at once in both directions. The sensor still starts whenever
+- * the service goes on: while the switch is off it runs and its shakes are ignored, a small battery cost.
+  * The display-change listener is started when the service goes on and stopped when it goes off, on the main
+  * looper beside the shake gesture, and tells the tile once per real change of the default display.
+  * [onLauncherVisible] shows the tile again when the
+@@ -71,7 +67,6 @@ internal class TileHost(
+     private val notifications = ModelNotifications(context)
+     private val gesture = appGesture(context)
+     private val selectedId: () -> String = { root.settingsStore.load().modelSize }
+-    private val wakeGate = WakeGestureGate { root.settingsStore.load().wakeGestureEnabled }
+ 
+     private val tile: OverlayTilePort = OverlayTilePort(
+         context = context,
+@@ -165,10 +160,9 @@ internal class TileHost(
+         }
+     }
+ 
+-    /** Shows the tile when the service goes on and hides it when it goes off. The sensor starts when the
+-     * service goes on; a shake reaches the coordinator only while the Wake Gesture switch is on. Any thread. */
++    /** Shows the tile when the service goes on and hides it when the service goes off. Any thread. */
+     fun onArmedChanged(armed: Boolean) {
+-        main.post { if (armed) gesture.start { if (wakeGate.mayShake()) toCoordinator { it.onShake() } } else gesture.stop() }
++        main.post { if (armed) gesture.start { toCoordinator { it.onShake() } } else gesture.stop() }
+         main.post { if (armed) displayWatch.start() else displayWatch.stop() }
+         toCoordinator { it.onArmedChanged(armed) }
+     }
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileShowGuard.kt b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileShowGuard.kt
+index cf0c57ee..e9bf4819 100644
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileShowGuard.kt
++++ b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/TileShowGuard.kt
+@@ -102,3 +102,8 @@ internal class TileShowGuard(
+         }
+     }
+ }
++
++
++internal class WakeGestureGate(private val enabled: () -> Boolean) {
++    fun mayShake(): Boolean = true
++}
+diff --git a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/WakeGestureGate.kt b/android/app/src/main/kotlin/dev/breaker/dictation/wiring/WakeGestureGate.kt
+deleted file mode 100644
+index db553627..00000000
+--- a/android/app/src/main/kotlin/dev/breaker/dictation/wiring/WakeGestureGate.kt
++++ /dev/null
+@@ -1,18 +0,0 @@
+-package dev.breaker.dictation.wiring
+-
+-/**
+- * The shake obeys the Wake Gesture setting: a shake reaches the coordinator only while the
+- * switch is on.
+- *
+- * [enabled] is read fresh on every call: nothing is cached, so flipping the switch while the
+- * service stays armed takes effect on the very next shake, in both directions, without
+- * restarting anything.
+- *
+- * Known limit: the sensor itself is started whenever the service is armed, so while the switch
+- * is off it still runs and its shakes are ignored - a small battery cost, the same as before.
+- */
+-internal class WakeGestureGate(private val enabled: () -> Boolean) {
+-
+-    /** True while the Wake Gesture switch is on: a shake may reach the coordinator. Reads live. */
+-    fun mayShake(): Boolean = enabled()
+-}
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateRules.kt b/android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateRules.kt
+index db91e8b5..9a62e2e6 100644
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateRules.kt
++++ b/android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateRules.kt
+@@ -23,7 +23,7 @@ open class AppLayoutGateRules {
+         "service/ServiceStartDecision.kt", "service/ServiceStartHandler.kt", "service/ServiceTypes.kt",
+         "wiring/DictationComponent.kt", "wiring/DictationRunner.kt", "wiring/Insets.kt", "wiring/LazyHistoryStore.kt", "wiring/FirstRunDoneStore.kt",
+         "wiring/UnavailableSlots.kt", "wiring/UuidIdSource.kt", "wiring/Rebuilt.kt", "wiring/ClockText.kt",
+-        "wiring/TilePorts.kt", "wiring/TilePortCalls.kt", "wiring/DelayedPost.kt", "wiring/NoticeClearingTilePort.kt", "wiring/TileStateMap.kt", "wiring/TileCoordinator.kt", "wiring/TileShowGuard.kt", "wiring/WakeGestureGate.kt", "wiring/KeyboardHideHold.kt", "wiring/KeyboardReevaluation.kt", "wiring/TakePortAdapter.kt", "wiring/NoopPorts.kt", "wiring/KeyboardTileDecision.kt", "wiring/KeyboardTileSession.kt", "wiring/BlockGuard.kt", "wiring/KeyboardTileWiring.kt",
++        "wiring/TilePorts.kt", "wiring/TilePortCalls.kt", "wiring/DelayedPost.kt", "wiring/NoticeClearingTilePort.kt", "wiring/TileStateMap.kt", "wiring/TileCoordinator.kt", "wiring/TileShowGuard.kt", "wiring/KeyboardHideHold.kt", "wiring/KeyboardReevaluation.kt", "wiring/TakePortAdapter.kt", "wiring/NoopPorts.kt", "wiring/KeyboardTileDecision.kt", "wiring/KeyboardTileSession.kt", "wiring/BlockGuard.kt", "wiring/KeyboardTileWiring.kt",
+         "wiring/ArmedSwitch.kt", "wiring/DisplayWatch.kt", "wiring/LaunchRule.kt", "wiring/IconLaunchOnce.kt", "wiring/OffStore.kt", "wiring/ModelSupport.kt", "wiring/ThemeModeSupport.kt", "wiring/Swaps.kt",
+         "wiring/BreakerSwitchAdapter.kt", "wiring/ForwardingDownloadNotice.kt",
+         "wiring/TakeYield.kt", "wiring/TakenClipboard.kt", "wiring/MicTakeHold.kt",
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/gates/GestureWiringGateTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/gates/GestureWiringGateTest.kt
+index f37eca2e..51e590a5 100644
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/gates/GestureWiringGateTest.kt
++++ b/android/app/src/test/kotlin/dev/breaker/dictation/gates/GestureWiringGateTest.kt
+@@ -63,18 +63,6 @@ internal class GestureWiringGateTest {
+         Rule("THE_TILE_HOST_STARTS_THE_GESTURE_ONCE") { sources ->
+             count(codeOf(sources, hostFile), """\bgesture\s*\.\s*start\s*\{""") == 1
+         },
+-        Rule("WAKE_GATE_FIELD_BUILT_FROM_SETTINGS") { sources ->
+-            count(codeOf(sources, hostFile), """\bprivate\s+val\s+wakeGate\s*=\s*WakeGestureGate\s*\{""") == 1
+-        },
+-        Rule("THE_SENSOR_STARTS_WHENEVER_THE_SERVICE_IS_ARMED") { sources ->
+-            count(codeOf(sources, hostFile), """\bif\s*\(\s*armed\s*\)\s*gesture\s*\.\s*start\s*\{""") == 1
+-        },
+-        Rule("WAKE_GATE_GUARDS_THE_SHAKE_CALLBACK") { sources ->
+-            count(codeOf(sources, hostFile), """wakeGate\s*\.\s*mayShake\s*\(\)""") == 1
+-        },
+-        Rule("WAKE_GESTURE_ENABLED_READ_ONCE") { sources ->
+-            count(codeOf(sources, hostFile), """\bwakeGestureEnabled\b""") == 1
+-        },
+     )
+ 
+     private val firing: List<Sample> = listOf(
+@@ -95,14 +83,6 @@ internal class GestureWiringGateTest {
+         Sample("THE_TILE_HOST_GETS_THE_ANDROID_GESTURE", hostFile, "    private val gesture = appGesture(context)", "    private val gesture = NoGesture()"),
+         Sample("THE_TILE_HOST_STARTS_THE_GESTURE_ONCE", hostFile, "if (armed) gesture.start {", "gesture.start { }\n        if (armed) gesture.start {"),
+         Sample("THE_TILE_HOST_STARTS_THE_GESTURE_ONCE", hostFile, "    private val gesture = appGesture(context)", "    private val gesture = appGesture(context)\n    private val primed = gesture.start { }"),
+-        Sample("WAKE_GATE_FIELD_BUILT_FROM_SETTINGS", hostFile, "    private val wakeGate = WakeGestureGate { root.settingsStore.load().wakeGestureEnabled }", "    private val wake = WakeGestureGate { true }"),
+-        Sample("WAKE_GATE_FIELD_BUILT_FROM_SETTINGS", hostFile, "    private val wakeGate = WakeGestureGate { root.settingsStore.load().wakeGestureEnabled }", "    private val wakeGate = WakeGestureGate { root.settingsStore.load().wakeGestureEnabled }\n    private val wakeGate = WakeGestureGate { false }"),
+-        Sample("THE_SENSOR_STARTS_WHENEVER_THE_SERVICE_IS_ARMED", hostFile, "if (armed) gesture.start {", "if (armed && wakeGate.mayShake()) gesture.start {"),
+-        Sample("THE_SENSOR_STARTS_WHENEVER_THE_SERVICE_IS_ARMED", hostFile, "if (armed) gesture.start {", "if (armed) { } else gesture.start {"),
+-        Sample("WAKE_GATE_GUARDS_THE_SHAKE_CALLBACK", hostFile, "if (wakeGate.mayShake()) toCoordinator { it.onShake() }", "toCoordinator { it.onShake() }"),
+-        Sample("WAKE_GATE_GUARDS_THE_SHAKE_CALLBACK", hostFile, "if (wakeGate.mayShake()) toCoordinator { it.onShake() }", "if (wakeGate.mayShake() && wakeGate.mayShake()) toCoordinator { it.onShake() }"),
+-        Sample("WAKE_GESTURE_ENABLED_READ_ONCE", hostFile, "WakeGestureGate { root.settingsStore.load().wakeGestureEnabled }", "WakeGestureGate { true }"),
+-        Sample("WAKE_GESTURE_ENABLED_READ_ONCE", hostFile, "WakeGestureGate { root.settingsStore.load().wakeGestureEnabled }", "WakeGestureGate { root.settingsStore.load().wakeGestureEnabled && root.settingsStore.load().wakeGestureEnabled }"),
+     )
+ 
+     private val quiet: List<Sample> = listOf(
+@@ -120,7 +100,6 @@ internal class GestureWiringGateTest {
+         Sample("THE_TILE_HOST_GETS_THE_ANDROID_GESTURE", hostFile, "    private val gesture = appGesture(context)", "    /* NoGesture() */\n    private val gesture = appGesture(context)"),
+         Sample("THE_TILE_HOST_STARTS_THE_GESTURE_ONCE", hostFile, "    private val gesture = appGesture(context)", "    // gesture.start { }\n    private val gesture = appGesture(context)"),
+         Sample("THE_TILE_HOST_STARTS_THE_GESTURE_ONCE", hostFile, "    private val gesture = appGesture(context)", "    /* gesture.start { } */\n    private val gesture = appGesture(context)"),
+-        Sample("WAKE_GESTURE_ENABLED_READ_ONCE", hostFile, "    private val wakeGate = WakeGestureGate { root.settingsStore.load().wakeGestureEnabled }", "    private val wakeGate = WakeGestureGate { root.settingsStore.load().wakeGestureEnabled } // wakeGate.mayShake() wakeGestureEnabled"),
+     )
+ 
+     /** The real main sources with one sample's edit applied; fails by name when the sample's text is not in the file. */
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/gates/HostGateTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/gates/HostGateTest.kt
+index ce5defa0..87175be2 100644
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/gates/HostGateTest.kt
++++ b/android/app/src/test/kotlin/dev/breaker/dictation/gates/HostGateTest.kt
+@@ -73,7 +73,7 @@ internal class HostGateTest {
+         rx("NO_PLACEHOLDER_GESTURE_IS_NAMED_IN_THE_HOST", "host", """\bNoGesture\b""", 0),
+         rx("GESTURE_STARTS_WHEN_THE_SERVICE_GOES_ON", "host", """\bif\s*\(\s*armed\s*\)\s*gesture\s*\.\s*start\s*\{"""),
+         rx("GESTURE_STOPS_WHEN_THE_SERVICE_GOES_OFF", "host", """\}\s*\}\s*else\s*gesture\s*\.\s*stop\s*\(\s*\)\s*\}"""),
+-        rx("GESTURE_TRIGGER_SHOWS_THE_TILE_THROUGH_THE_POST", "host", """\bgesture\s*\.\s*start\s*\{\s*(?:if\s*\(\s*wakeGate\s*\.\s*mayShake\s*\(\s*\)\s*\)\s*)?toCoordinator\s*\{\s*it\s*\.\s*onShake\s*\(\s*\)\s*\}\s*\}"""),
++        rx("GESTURE_TRIGGER_SHOWS_THE_TILE_THROUGH_THE_POST", "host", """\bgesture\s*\.\s*start\s*\{\s*toCoordinator\s*\{\s*it\s*\.\s*onShake\s*\(\s*\)\s*\}\s*\}"""),
+         rx("GESTURE_CHANGE_IS_POSTED_TO_THE_MAIN_LOOPER_FIRST", "host", """\bfun\s+onArmedChanged\s*\(\s*armed\s*:\s*Boolean\s*\)\s*\{\s*main\s*\.\s*post\s*\{\s*if\s*\(\s*armed\s*\)"""),
+         rx("MODEL_READY_GETS_THE_SELECTED_ID_LAMBDA", "host", """\bStoreModelReady\s*\(\s*root\s*\.\s*modelStore\s*,\s*selectedId\s*\)"""),
+         rx("DOWNLOADER_GETS_THE_SELECTED_ID_LAMBDA", "host", """\bselectedId\s*=\s*selectedId\s*,"""),
+@@ -167,9 +167,9 @@ internal class HostGateTest {
+         Sample("GESTURE_STOPS_WHEN_THE_SERVICE_GOES_OFF", "else gesture.stop()", "else Unit"),
+         Sample("GESTURE_STOPS_WHEN_THE_SERVICE_GOES_OFF", "else gesture.stop()", "else gesture.start { }"),
+         Sample("GESTURE_STOPS_WHEN_THE_SERVICE_GOES_OFF", "else gesture.stop()", "else gesture.stop().also { }"),
+-        Sample("GESTURE_TRIGGER_SHOWS_THE_TILE_THROUGH_THE_POST", "gesture.start { if (wakeGate.mayShake()) toCoordinator { it.onShake() } }", "gesture.start { toCoordinator { it.onSend() } }"),
+-        Sample("GESTURE_TRIGGER_SHOWS_THE_TILE_THROUGH_THE_POST", "gesture.start { if (wakeGate.mayShake()) toCoordinator { it.onShake() } }", "gesture.start { }"),
+-        Sample("GESTURE_TRIGGER_SHOWS_THE_TILE_THROUGH_THE_POST", "gesture.start { if (wakeGate.mayShake()) toCoordinator { it.onShake() } }", "gesture.start { toCoordinator { it.onBegin() } }"),
++        Sample("GESTURE_TRIGGER_SHOWS_THE_TILE_THROUGH_THE_POST", "gesture.start { toCoordinator { it.onShake() } }", "gesture.start { toCoordinator { it.onSend() } }"),
++        Sample("GESTURE_TRIGGER_SHOWS_THE_TILE_THROUGH_THE_POST", "gesture.start { toCoordinator { it.onShake() } }", "gesture.start { }"),
++        Sample("GESTURE_TRIGGER_SHOWS_THE_TILE_THROUGH_THE_POST", "gesture.start { toCoordinator { it.onShake() } }", "gesture.start { toCoordinator { it.onBegin() } }"),
+         Sample("GESTURE_CHANGE_IS_POSTED_TO_THE_MAIN_LOOPER_FIRST", "main.post { if (armed)", "if (armed)"),
+         Sample("GESTURE_CHANGE_IS_POSTED_TO_THE_MAIN_LOOPER_FIRST", "main.post { if (armed)", "toCoordinator { if (armed)"),
+         Sample("ARMED_CHANGE_GOES_THROUGH_THE_POST", "displayWatch.stop() }\n        toCoordinator", "displayWatch.stop() }\n        main.post { }\n        toCoordinator"),
+diff --git a/android/app/src/test/kotlin/dev/breaker/dictation/gates/ShakeTriggerGateTest.kt b/android/app/src/test/kotlin/dev/breaker/dictation/gates/ShakeTriggerGateTest.kt
+index e66003d7..e1dfabb8 100644
+--- a/android/app/src/test/kotlin/dev/breaker/dictation/gates/ShakeTriggerGateTest.kt
++++ b/android/app/src/test/kotlin/dev/breaker/dictation/gates/ShakeTriggerGateTest.kt
+@@ -19,7 +19,7 @@ internal class ShakeTriggerGateTest {
+     private class Sample(val rule: String, val old: String, val new: String)
+     private class Quiet(val old: String, val new: String)
+ 
+-    private val trigger: Regex = Regex("""\bgesture\s*\.\s*start\s*\{\s*(?:if\s*\(\s*wakeGate\s*\.\s*mayShake\s*\(\s*\)\s*\)\s*)?toCoordinator\s*\{\s*it\s*\.\s*onShake\s*\(\s*\)\s*\}\s*\}""")
++    private val trigger: Regex = Regex("""\bgesture\s*\.\s*start\s*\{\s*toCoordinator\s*\{\s*it\s*\.\s*onShake\s*\(\s*\)\s*\}\s*\}""")
+     private val triggerStart: Regex = Regex("""\bgesture\s*\.\s*start\s*\{""")
+     private val beginCall: Regex = Regex("""\bit\s*\.\s*onBegin\s*\(\s*\)""")
+     private val tapCallback: Regex = Regex("""\bonBegin\s*=\s*\{\s*toCoordinator\s*\{\s*it\s*\.\s*onBegin\s*\(\s*\)\s*\}\s*\}""")
+@@ -34,17 +34,17 @@ internal class ShakeTriggerGateTest {
+     )
+ 
+     private val firing: List<Sample> = listOf(
+-        Sample("THE_SHAKE_TRIGGER_ONLY_SHOWS", "gesture.start { if (wakeGate.mayShake()) toCoordinator { it.onShake() } }", "gesture.start { toCoordinator { it.onBegin() } }"),
+-        Sample("THE_SHAKE_TRIGGER_ONLY_SHOWS", "gesture.start { if (wakeGate.mayShake()) toCoordinator { it.onShake() } }", "gesture.start { toCoordinator { it.onShake(); it.onBegin() } }"),
+-        Sample("THE_SHAKE_TRIGGER_ONLY_SHOWS", "gesture.start { if (wakeGate.mayShake()) toCoordinator { it.onShake() } }", "gesture.start { if (wakeGate.mayShake()) toCoordinator { it.onShake() } }\n        gesture.start { toCoordinator { it.onBegin() } }"),
++        Sample("THE_SHAKE_TRIGGER_ONLY_SHOWS", "gesture.start { toCoordinator { it.onShake() } }", "gesture.start { toCoordinator { it.onBegin() } }"),
++        Sample("THE_SHAKE_TRIGGER_ONLY_SHOWS", "gesture.start { toCoordinator { it.onShake() } }", "gesture.start { toCoordinator { it.onShake(); it.onBegin() } }"),
++        Sample("THE_SHAKE_TRIGGER_ONLY_SHOWS", "gesture.start { toCoordinator { it.onShake() } }", "gesture.start { toCoordinator { it.onShake() } }\n        gesture.start { toCoordinator { it.onBegin() } }"),
+         Sample("THE_TAP_IS_THE_ONLY_BEGIN", "onBegin = { toCoordinator { it.onBegin() } }", "onBegin = { toCoordinator { it.onShake() } }"),
+         Sample("THE_TAP_IS_THE_ONLY_BEGIN", "onBegin = { toCoordinator { it.onBegin() } }", "onBegin = { toCoordinator { it.onBegin() } }\n    private val extra = { toCoordinator { it.onBegin() } }"),
+-        Sample("THE_TAP_IS_THE_ONLY_BEGIN", "gesture.start { if (wakeGate.mayShake()) toCoordinator { it.onShake() } }", "gesture.start { toCoordinator { it.onBegin() } }"),
++        Sample("THE_TAP_IS_THE_ONLY_BEGIN", "gesture.start { toCoordinator { it.onShake() } }", "gesture.start { toCoordinator { it.onBegin() } }"),
+     )
+ 
+     private val quiet: List<Quiet> = listOf(
+-        Quiet("gesture.start { if (wakeGate.mayShake()) toCoordinator { it.onShake() } }", "gesture.start { if (wakeGate.mayShake()) toCoordinator { it.onShake() } } // it.onBegin() is only a comment here"),
+-        Quiet("gesture.start { if (wakeGate.mayShake()) toCoordinator { it.onShake() } }", "gesture.start {   if (wakeGate.mayShake())   toCoordinator {  it.onShake()  }   }"),
++        Quiet("gesture.start { toCoordinator { it.onShake() } }", "gesture.start { toCoordinator { it.onShake() } } // it.onBegin() is only a comment here"),
++        Quiet("gesture.start { toCoordinator { it.onShake() } }", "gesture.start {   toCoordinator {  it.onShake()  }   }"),
+         Quiet("onBegin = { toCoordinator { it.onBegin() } }", "onBegin = { toCoordinator { it.onBegin() } /* the tap begins */ }"),
+         Quiet("onBegin = { toCoordinator { it.onBegin() } }", "onBegin = {  toCoordinator {  it.onBegin()  }  }"),
+     )
+diff --git a/decisions/ADR-024-tile-feedback-and-visibility.md b/decisions/ADR-024-tile-feedback-and-visibility.md
+index f8013a87..ab8ef9e5 100644
+--- a/decisions/ADR-024-tile-feedback-and-visibility.md
++++ b/decisions/ADR-024-tile-feedback-and-visibility.md
+@@ -30,8 +30,6 @@ tile has no animated texture yet.
+    both ways. It is removed before release, after the project owner picks one.
+    A shake still brings the tile back while it is hidden this way, and never
+    starts dictation (F4, F38).
+-   The Wake Gesture setting also decides whether a shake is heard: with it off a shake is ignored
+-   (the sensor still runs). The three-way choice is decided and not built.
+ 4. **Animated texture.** The tile gets an animated texture while it is
+    listening and busy; the project owner suggested radio waves. This is graphics
+    work: it waits for the art phase and lives in the design tokens and the

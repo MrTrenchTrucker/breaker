@@ -1,0 +1,288 @@
+{
+ "name": "proof-wake-gesture-s1",
+ "tip": {
+  "tree": "28748bcaa07bbd5fce594d970f7cf9a7ca23785a"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "android app: the shake obeys the Wake Gesture setting",
+   "base_tree": "14350610e4ea65642c675dbd4e5c369ff2232402",
+   "item_tip_tree": "28748bcaa07bbd5fce594d970f7cf9a7ca23785a",
+   "new_production_classes": [
+    "WakeGestureGate"
+   ],
+   "test_fixtures_overlaid": [],
+   "red_tree_stubs": {
+    "files": [
+     "TileShowGuard.kt"
+    ],
+    "note": "adds the class WakeGestureGate with the function that always answers true: the base behaviour (the shake ignored the setting), so the gate tests compile on the base and fail on an assertion"
+   }
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 1,
+ "entries": [
+  {
+   "id": "red-a-01",
+   "kind": "red",
+   "item": "a",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateRules.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/gates/AppLayoutGateRules.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.gates.AppLayoutGateTest"
+   ],
+   "patch": "proof/red/red-a-01.patch",
+   "tree": "a20c96955a31b55c1fc05c8442aae1ce40b11f70",
+   "predict": ""
+  },
+  {
+   "id": "red-a-02",
+   "kind": "red",
+   "item": "a",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/gates/GestureWiringGateTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/gates/GestureWiringGateTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.gates.GestureWiringGateTest"
+   ],
+   "patch": "proof/red/red-a-02.patch",
+   "tree": "ed81a4e71670c04439ec54706bf02167d25429cc",
+   "predict": ""
+  },
+  {
+   "id": "red-a-03",
+   "kind": "red",
+   "item": "a",
+   "module": "android/app",
+   "file": "android/app/src/test/kotlin/dev/breaker/dictation/wiring/WakeGestureGateTest.kt",
+   "files": [
+    "android/app/src/test/kotlin/dev/breaker/dictation/wiring/WakeGestureGateTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.wiring.WakeGestureGateTest"
+   ],
+   "patch": "proof/red/red-a-03.patch",
+   "tree": "ed0632e072148c269ce07b23274ff9edc4391012",
+   "predict": ""
+  },
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/WakeGestureGate.kt",
+     "anchor": "fun mayShake(): Boolean = enabled()",
+     "replacement": "fun mayShake(): Boolean = true"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a shake is ignored while the switch is off",
+    "the switch is read fresh on every shake",
+    "a false reading is never cached so false then true reads true"
+   ],
+   "rule": "a shake is always heard",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/WakeGestureGate.kt",
+     "anchor": "fun mayShake(): Boolean = enabled()",
+     "replacement": "fun mayShake(): Boolean = !enabled()"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a shake may reach the coordinator while the switch is on",
+    "a shake is ignored while the switch is off",
+    "the switch is read fresh on every shake",
+    "a false reading is never cached so false then true reads true"
+   ],
+   "rule": "the answer is inverted",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/WakeGestureGate.kt",
+     "anchor": "internal class WakeGestureGate(private val enabled: () -> Boolean) {\n",
+     "replacement": "internal class WakeGestureGate(private val enabled: () -> Boolean) {\n\n    private val first: Boolean = enabled()\n"
+    },
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/WakeGestureGate.kt",
+     "anchor": "fun mayShake(): Boolean = enabled()",
+     "replacement": "fun mayShake(): Boolean = first"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the switch is read fresh on every shake",
+    "a false reading is never cached so false then true reads true"
+   ],
+   "rule": "the setting is read once and cached",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/host/TileHost.kt",
+     "anchor": "if (armed) gesture.start {",
+     "replacement": "if (armed && wakeGate.mayShake()) gesture.start {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every rule holds on the real main sources"
+   ],
+   "rule": "the sensor starts only while the setting is on (a toggle on would do nothing)",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/host/TileHost.kt",
+     "anchor": "if (wakeGate.mayShake()) toCoordinator { it.onShake() }",
+     "replacement": "toCoordinator { it.onShake() }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every rule holds on the real main sources"
+   ],
+   "rule": "a shake reaches the coordinator whatever the setting says",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/host/TileHost.kt",
+     "anchor": "WakeGestureGate { root.settingsStore.load().wakeGestureEnabled }",
+     "replacement": "WakeGestureGate { true }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every rule holds on the real main sources"
+   ],
+   "rule": "the gate does not read the saved setting",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/host/TileHost.kt",
+     "anchor": "if (wakeGate.mayShake()) toCoordinator { it.onShake() }",
+     "replacement": "if (wakeGate.mayShake()) toCoordinator { it.onBegin() }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every rule holds on the real tile host"
+   ],
+   "rule": "a shake begins a take",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/app",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/host/TileHost.kt",
+     "anchor": "if (armed) gesture.start {",
+     "replacement": "if (armed || wakeGate.mayShake()) gesture.start {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "every rule holds on the real main sources"
+   ],
+   "rule": "the sensor start gains a second condition",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill-wk1",
+   "module": "android/app",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/WakeGestureGate.kt",
+     "anchor": "fun mayShake(): Boolean = enabled()",
+     "replacement": "fun mayShake(): Boolean = !enabled()"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive-wk1",
+   "module": "android/app",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "android/app/src/main/kotlin/dev/breaker/dictation/wiring/WakeGestureGate.kt",
+     "anchor": "/** True while the Wake Gesture switch is on: a shake may reach the coordinator. Reads live. */",
+     "replacement": "/** True while the Wake Gesture switch is on: a shake may reach the coordinator. It reads live. */"
+    }
+   ]
+  }
+ ]
+}
