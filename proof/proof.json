@@ -1,0 +1,667 @@
+{
+ "name": "proof-signin-store-layer",
+ "tip": {
+  "tree": "823c34059dc2a71732ce2415e8d607b9a11c26d5"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "sync-api: the sign-in store layer (migration 4, hand-off store, sweep, revoke rule) with its tests",
+   "base_tree": "9e05ce050d8616631061341522260629920ad791",
+   "item_tip_tree": "823c34059dc2a71732ce2415e8d607b9a11c26d5",
+   "new_production_classes": [
+    "SchemaV4",
+    "HandoffStore",
+    "HandoffSweep",
+    "HandoffTypes"
+   ],
+   "test_fixtures_overlaid": [
+    "HandoffFixtures.kt"
+   ],
+   "red_not_run": "the production code and its tests land together: on the base the tests do not compile (the types are absent), so there is no assertion-red leg; the mutants carry the proof"
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/handoff/HandoffStore.kt",
+     "anchor": "        const val MAX_LIVE_CODES = 5",
+     "replacement": "        const val MAX_LIVE_CODES = 6"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "five live codes then a sixth displaces the oldest and no other"
+   ],
+   "rule": "the cap raised to six: the sixth start displaces nothing",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/handoff/HandoffStore.kt",
+     "anchor": "        if (live >= MAX_LIVE_CODES) {",
+     "replacement": "        if (live > MAX_LIVE_CODES) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "five live codes then a sixth displaces the oldest and no other"
+   ],
+   "rule": "the cap check off by one: at five live codes nothing is displaced",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/handoff/HandoffStore.kt",
+     "anchor": "                \"ORDER BY created_at_ms ASC, rowid ASC LIMIT ?)\"",
+     "replacement": "                \"ORDER BY created_at_ms DESC, rowid DESC LIMIT ?)\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "five live codes then a sixth displaces the oldest and no other"
+   ],
+   "rule": "the newest code is displaced instead of the oldest",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/handoff/HandoffStore.kt",
+     "anchor": "                \"ORDER BY created_at_ms ASC, rowid ASC LIMIT ?)\"",
+     "replacement": "                \"ORDER BY created_at_ms ASC, rowid DESC LIMIT ?)\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "with equal times the row written first is the oldest and is the one displaced"
+   ],
+   "rule": "the tie of equal times displaces the later row",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/handoff/HandoffStore.kt",
+     "anchor": "        val CODE_LIFETIME: Duration = Duration.ofMinutes(5)",
+     "replacement": "        val CODE_LIFETIME: Duration = Duration.ofMinutes(6)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a row gets the created time now and an expiry exactly five minutes later"
+   ],
+   "rule": "the code lifetime six minutes",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/handoff/HandoffStore.kt",
+     "anchor": "            \"SELECT account_id, challenge, package FROM signin_handoff WHERE code_hash = ? AND expires_at_ms > ?\"",
+     "replacement": "            \"SELECT account_id, challenge, package FROM signin_handoff WHERE code_hash = ? AND expires_at_ms >= ?\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a code is dead at the instant of its expiry"
+   ],
+   "rule": "a code still redeems at its expiry instant",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/handoff/HandoffStore.kt",
+     "anchor": "        private const val DELETE_EXPIRED_SQL = \"DELETE FROM signin_handoff WHERE expires_at_ms <= ?\"",
+     "replacement": "        private const val DELETE_EXPIRED_SQL = \"DELETE FROM signin_handoff WHERE expires_at_ms < ?\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "deleteExpired removes a row dead at its expiry and keeps one a millisecond younger"
+   ],
+   "rule": "the sweep keeps a row dead at its expiry instant",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/handoff/HandoffStore.kt",
+     "anchor": "            if (row == null || !matches || parsedCode == null || parsedSecret == null) {",
+     "replacement": "            if (row == null || parsedCode == null || parsedSecret == null) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a wrong secret is Refused and the same code then redeems with the right secret"
+   ],
+   "rule": "the secret compare skipped: a wrong secret redeems",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/handoff/HandoffStore.kt",
+     "anchor": "            val matches = MessageDigest.isEqual(",
+     "replacement": "            val matches = java.util.Arrays.equals("
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "equivalent: same result for the same bytes; constant-time behaviour cannot be observed by a test",
+   "note": ""
+  },
+  {
+   "id": "mut-10",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/handoff/HandoffStore.kt",
+     "anchor": "        private const val DELETE_ROW_SQL = \"DELETE FROM signin_handoff WHERE code_hash = ?\"",
+     "replacement": "        private const val DELETE_ROW_SQL = \"DELETE FROM signin_handoff WHERE code_hash = ? AND 0\""
+    },
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/handoff/HandoffStore.kt",
+     "anchor": "        if (deleted != 1) return RedeemResult.Refused",
+     "replacement": "        if (deleted > 1) return RedeemResult.Refused"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a second redeem of the same code is Refused"
+   ],
+   "rule": "the row is not deleted at the exchange and the exchange does not notice: a code redeems twice",
+   "note": ""
+  },
+  {
+   "id": "mut-11",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/handoff/HandoffStore.kt",
+     "anchor": "        val issued = tokenStore.issueSessionOn(connection, row.accountId, deviceName, nowMs)",
+     "replacement": "        val issued = tokenStore.issueSessionOn(connection, row.accountId, null, nowMs)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a redeem returns the session, role, key version, package, username and account and uses the code up"
+   ],
+   "rule": "the device name is dropped",
+   "note": ""
+  },
+  {
+   "id": "mut-12",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/handoff/HandoffStore.kt",
+     "anchor": "            row.packageBytes,",
+     "replacement": "            ByteArray(0),"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a redeem returns the session, role, key version, package, username and account and uses the code up"
+   ],
+   "rule": "the sealed package is not handed back",
+   "note": ""
+  },
+  {
+   "id": "mut-13",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/handoff/HandoffStore.kt",
+     "anchor": "        if (length < 1 || length > MAX_DEVICE_NAME_CODE_POINTS) return false",
+     "replacement": "        if (length < 1 || length > MAX_DEVICE_NAME_CODE_POINTS + 1) return false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "redeem refuses a 65-character device name and still redeems with no name"
+   ],
+   "rule": "the device name upper bound off by one",
+   "note": ""
+  },
+  {
+   "id": "mut-14",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/handoff/HandoffStore.kt",
+     "anchor": "        if (length < 1 || length > MAX_DEVICE_NAME_CODE_POINTS) return false",
+     "replacement": "        if (length < 0 || length > MAX_DEVICE_NAME_CODE_POINTS) return false"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "redeem refuses a zero-character device name and still redeems with no name"
+   ],
+   "rule": "the device name lower bound off by one",
+   "note": ""
+  },
+  {
+   "id": "mut-15",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/handoff/HandoffStore.kt",
+     "anchor": "        private val FILLER_PRESENTED: String = \"P\".repeat(TokenSecret.TEXT_LENGTH)",
+     "replacement": "        private val FILLER_PRESENTED: String = \"Q\".repeat(TokenSecret.TEXT_LENGTH)"
+    }
+   ],
+   "expect": "survive",
+   "expected_red": [],
+   "rule": "equivalent: a filler compare that matches still ends in the one refusal because there is no row; the timing is not observable by a test",
+   "note": ""
+  },
+  {
+   "id": "mut-16",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/handoff/HandoffStore.kt",
+     "anchor": "            deleteExpiredOn(connection, nowMs)",
+     "replacement": "            // no expiry cleanup at start"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "expired rows are gone after the next start and a live row stays"
+   ],
+   "rule": "start no longer deletes expired rows",
+   "note": ""
+  },
+  {
+   "id": "mut-17",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/handoff/HandoffStore.kt",
+     "anchor": "            if (!accountExists(connection, accountId)) {",
+     "replacement": "            if (accountId < 0L) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an unknown account id gets NoSuchAccount and nothing is stored"
+   ],
+   "rule": "the account check skipped: the insert fails the foreign key instead of answering NoSuchAccount",
+   "note": ""
+  },
+  {
+   "id": "mut-18",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/tokens/TokenStore.kt",
+     "anchor": "            val revoked = revoke(connection, REVOKE_ALL_SQL, nowMs, accountId, null)",
+     "replacement": "            val revoked = revoke(connection, REVOKE_ALL_SQL, nowMs, accountId, null)\n            return@transaction revoked"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "revokeAllForAccount deletes every signin_handoff row of that account and leaves another account's"
+   ],
+   "rule": "revoke of all sessions no longer deletes the account's codes",
+   "note": ""
+  },
+  {
+   "id": "mut-19",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/tokens/TokenStore.kt",
+     "anchor": "            val revoked = revoke(connection, REVOKE_OTHER_SESSIONS_SQL, nowMs, accountId, keepTokenId)",
+     "replacement": "            val revoked = revoke(connection, REVOKE_OTHER_SESSIONS_SQL, nowMs, accountId, keepTokenId)\n            return@transaction revoked"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "revokeOtherSessions deletes every signin_handoff row of that account and leaves another account's"
+   ],
+   "rule": "revoke of other sessions no longer deletes the account's codes",
+   "note": ""
+  },
+  {
+   "id": "mut-20",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/tokens/TokenStore.kt",
+     "anchor": "        const val DELETE_ACCOUNT_HANDOFF_SQL = \"DELETE FROM signin_handoff WHERE account_id = ?\"",
+     "replacement": "        const val DELETE_ACCOUNT_HANDOFF_SQL = \"DELETE FROM signin_handoff WHERE account_id = ? OR 1\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "revokeAllForAccount deletes every signin_handoff row of that account and leaves another account's"
+   ],
+   "rule": "the revoke deletes every account's codes",
+   "note": ""
+  },
+  {
+   "id": "mut-21",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/tokens/TokenStore.kt",
+     "anchor": "                \"AND revoked_at_ms IS NULL AND id <> ?\"",
+     "replacement": "                \"AND revoked_at_ms IS NULL AND id = ?\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "revokeOtherSessions keeps one session revokes the other and deletes all handoff rows"
+   ],
+   "rule": "the kept session is the only one revoked",
+   "note": ""
+  },
+  {
+   "id": "mut-22",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/handoff/HandoffSweep.kt",
+     "anchor": "internal val HANDOFF_SWEEP_INTERVAL: Duration = Duration.ofSeconds(60)",
+     "replacement": "internal val HANDOFF_SWEEP_INTERVAL: Duration = Duration.ofSeconds(30)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the sweep interval constant is 60 seconds"
+   ],
+   "rule": "the sweep interval 30 seconds",
+   "note": ""
+  },
+  {
+   "id": "mut-23",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/handoff/HandoffSweep.kt",
+     "anchor": "            store.deleteExpired()",
+     "replacement": "            pause(Duration.ZERO)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "runHandoffSweep first sweep runs before the first pause and passes the 60 second interval"
+   ],
+   "rule": "no boot sweep: the loop waits before its first sweep",
+   "note": ""
+  },
+  {
+   "id": "mut-24",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/handoff/HandoffSweep.kt",
+     "anchor": "        } catch (_: Exception) {",
+     "replacement": "        } catch (e: Exception) {\n            throw e"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "runHandoffSweep a failing sweep over a closed database is swallowed and pause is still called"
+   ],
+   "rule": "a failing sweep ends the loop",
+   "note": ""
+  },
+  {
+   "id": "mut-25",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/ShutdownOrder.kt",
+     "anchor": "        stopSweep()",
+     "replacement": "        // sweep not stopped"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "stop sweep runs between stop internal and close database"
+   ],
+   "rule": "shutdown no longer stops the sweep",
+   "note": ""
+  },
+  {
+   "id": "mut-26",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV4.kt",
+     "anchor": "          package        BLOB    NOT NULL CHECK (length(package) = 113),",
+     "replacement": "          package        BLOB    NOT NULL CHECK (length(package) = 114),"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a hand-off package of 112 bytes is refused and 113 are accepted"
+   ],
+   "rule": "the package length check 114",
+   "note": ""
+  },
+  {
+   "id": "mut-27",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV4.kt",
+     "anchor": "          challenge      TEXT    NOT NULL CHECK (length(challenge) = 43),",
+     "replacement": "          challenge      TEXT    NOT NULL CHECK (length(challenge) = 44),"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a hand-off challenge of 42 characters is refused and 43 are accepted"
+   ],
+   "rule": "the challenge length check 44",
+   "note": ""
+  },
+  {
+   "id": "mut-28",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV4.kt",
+     "anchor": "            \"CHECK (device_name IS NULL OR length(device_name) BETWEEN 1 AND 64)\"",
+     "replacement": "            \"CHECK (device_name IS NULL OR length(device_name) BETWEEN 1 AND 65)\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a device name of 65 characters is refused and a name of 64 characters is accepted"
+   ],
+   "rule": "the device name column allows 65",
+   "note": ""
+  },
+  {
+   "id": "mut-29",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV4.kt",
+     "anchor": "            deviceNameInsertTrigger,",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the insert trigger refuses a device name on an agent row"
+   ],
+   "rule": "the insert trigger is not created",
+   "note": ""
+  },
+  {
+   "id": "mut-30",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV4.kt",
+     "anchor": "            deviceNameUpdateTrigger,",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the update trigger refuses a device name set on an agent row"
+   ],
+   "rule": "the update trigger is not created",
+   "note": ""
+  },
+  {
+   "id": "mut-31",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV4.kt",
+     "anchor": "          account_id     INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,",
+     "replacement": "          account_id     INTEGER NOT NULL REFERENCES accounts(id),"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "deleting an account deletes its hand-off rows and leaves the rows of other accounts"
+   ],
+   "rule": "deleting an account no longer deletes its codes",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill-sweep",
+   "module": "server/modules/sync-api",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/handoff/HandoffSweep.kt",
+     "anchor": "            store.deleteExpired()",
+     "replacement": "            pause(Duration.ZERO)"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive-sweep",
+   "module": "server/modules/sync-api",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/handoff/HandoffStore.kt",
+     "anchor": "// The sign-in hand-off: a one-time code, made while a person is signed in on the website and",
+     "replacement": "// The sign-in hand-off: a one-time code, made while a person is signed in on the website, and"
+    }
+   ]
+  }
+ ]
+}
