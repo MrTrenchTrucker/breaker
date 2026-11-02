@@ -1,6 +1,6 @@
 # ADR-036: Sign-in from the website hands the login to the app
 
-**Status:** accepted; decided, built on the server, not built on the phone and the website; the points still open are under To be designed
+**Status:** accepted, amended 2026-11-02 (how the wrong-password limit works); decided, built on the server, not built on the phone and the website; the wrong-password limit is not built; the points still open are under To be designed
 **Date:** 2026-11-01
 **Approved by:** the project owner, 2026-11-01
 
@@ -64,11 +64,45 @@ Rules out: a verified app link and its host file; redeeming the code without the
 
 Of the hand-off, `CryptoService.openSignInPackage` (with its parser and the sealed-box open) is built on the phone. The start route `POST /v1/auth/handoff/start`, the exchange route `POST /v1/auth/handoff/exchange`, migration 4 (the sign-in code table, its index, the device name column and the triggers), the code store and sweep, and the revoke rule are built on the server. Not built: the website page, the app side of the hand-off (making the key pair, calling the routes, the wiring), the wrong-password limit, and the device list with sign-out. Encoding decisions stay under To be designed.
 
+## Amendment 2026-11-02: how the wrong-password limit works
+
+**Decided 2026-11-02.** The Wrong-password limit paragraph above records the limit: after 5 wrong passwords for an account, sign-in for that account waits 15 minutes. It applies on the website and on the device. It is on by default, and the admin can turn it off. ADR-036 left open how the limit counts failures and where the 15-minute wait is kept. This amendment records that detail as decided. Nothing of the limit is built yet; the build comes in slices.
+
+**Where the failures are kept.** Wrong passwords are counted in a table named signin_attempts, keyed by the lowercased username text. A name that has no account counts like one that has. The reason is that the answer must not tell a known name from an unknown one. Migration 6 is to create the table.
+
+**What counts.** A wrong password for any name, known or not, counts. A malformed username does not count. The hand-off exchange does not count; it carries no password.
+
+**How the count works.** The count is five wrong tries in a row. A partial count of one to four with no wrong try for 15 minutes counts as zero. A right password deletes the row. An expired lock is treated as no row.
+
+**The locked answer.** The fifth wrong try answers the plain 401 and starts the wait. The locked answer is 423 with Retry-After and starts at the sixth try inside the wait. Retry-After is a whole number of seconds, up to the next whole second, minimum 1, while the body text speaks of minutes. A right password inside the wait is refused with the same locked answer and changes nothing.
+
+**Clearing.** A password change clears the row. An admin reset of the account clears the row.
+
+**Registration.** A name that registers later starts clean; its row is dropped at registration.
+
+**The row cap.** The table holds at most 10000 rows. At the cap the oldest row that is not locked is evicted to make room. A locked row is never evicted. If every row is locked, a new name is answered 401 and not counted.
+
+**The clock.** The server's injected clock is the only clock. A clock set back can only extend a lock.
+
+**The admin switch.** A settings table and a new admin route PUT/GET /v1/admin/wrong-pw-limit read the switch live on every attempt. The switch defaults to on. The route and its contract text are a slice of their own, contract first.
+
+### Known limits
+
+**Timing.** A person who times the answer can tell a known name from an unknown one. An unknown name returns before the hash. This exists today. A dummy hash was decided against; the timing difference stays out of scope.
+
+**Locking a name.** Anyone who knows a name can lock that name for 15 minutes by five wrong tries. The admin reset clears it. A signed-in session is not affected. The limit counts per name, not per address.
+
+**The count window.** The count is five in a row with a 15-minute expiry, not five in all.
+
+### What is built
+
+Nothing of the limit is built. The build is cut in slices: the table and the counting first, then the locked answer, then the admin switch and its contract, then the resets and the sweep.
+
 ## To be designed (not decided here)
 
 - The route names and the wire forms of the challenge, the code and the exchange are no longer open: the API contract (`shared/modules/api-contracts/openapi.yaml`) now holds them.
 - The encoding of the keys inside the sealed package (ADR-035). Its construction and key type are decided there, and not built.
 - How the app limits plain http to the configured server, and the matching change to its HTTP client (ADR-034).
-- How the wrong-password limit counts failures and where the 15-minute wait is kept.
+- How the wrong-password limit counts failures and where the 15-minute wait is kept: decided in the amendment 2026-11-02, not built.
 - The exact words on the website and in the app, and where the sign-in notice sits on Home (ADR-033).
 - The exact words of the one hint line on the device list. The hint says, decided and not built, that a lost phone keeps what it already stored, and that a password change re-keys. The device list itself is decided, not built: one row per session, showing the device name the app gives at sign-in (the person may rename it) and a last-seen date derived from the session's expiry.
