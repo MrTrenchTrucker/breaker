@@ -1,0 +1,326 @@
+{
+ "name": "proof-login-view",
+ "tip": {
+  "tree": "dbd313bd37a5dc76c79fe2e1de5487314db2988e"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "android ui: the login and register screen, view and model, no wiring",
+   "base_tree": "d1976b6dca7e3cb02f8754f64470718dc54d1214",
+   "item_tip_tree": "dbd313bd37a5dc76c79fe2e1de5487314db2988e",
+   "new_production_classes": [
+    "AuthEntry",
+    "AuthHostView",
+    "AuthIntentHandler",
+    "AuthNodeIds",
+    "AuthPolicy",
+    "AuthState",
+    "AuthTexts"
+   ],
+   "test_fixtures_overlaid": [],
+   "red_not_run": "the screen, its model and its tests land together: on the base the new tests do not compile (the types are absent), so there is no assertion-red leg; the mutants carry the proof"
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 1,
+ "entries": [
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthPolicy.kt",
+     "anchor": "    const val MIN_LENGTH: Int = 12",
+     "replacement": "    const val MIN_LENGTH: Int = 13"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a twelve-character password with no weak rule is ok"
+   ],
+   "rule": "the minimum length 13: a 12-character password is refused",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthPolicy.kt",
+     "anchor": "    const val MIN_LENGTH: Int = 12",
+     "replacement": "    const val MIN_LENGTH: Int = 11"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an eleven-character password is refused as too short"
+   ],
+   "rule": "the minimum length 11: an 11-character password passes the length rule",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthPolicy.kt",
+     "anchor": "        lowerString(\"password1234\").toCharArray(),",
+     "replacement": "        lowerString(\"password1235\").toCharArray(),"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "twelve characters matching a common entry case-insensitively are weak"
+   ],
+   "rule": "a common entry is changed: the known weak password is no longer found",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthPolicy.kt",
+     "anchor": "    private fun lowerCharOf(char: Char): Char = if (char in 'A'..'Z') char + 32 else char",
+     "replacement": "    private fun lowerCharOf(char: Char): Char = char"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "twelve characters matching a common entry case-insensitively are weak"
+   ],
+   "rule": "the common-entry compare is case-sensitive",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthPolicy.kt",
+     "anchor": "        isOneRepeatedChar(password) -> Rating.Weak",
+     "replacement": "        password.size < 0 -> Rating.Weak"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "twelve copies of a single character are weak"
+   ],
+   "rule": "the single repeated character rule is gone",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthPolicy.kt",
+     "anchor": "        isDigitsOnly(password) -> Rating.Weak",
+     "replacement": "        password.size < 0 -> Rating.Weak"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "twelve digits are weak as digits only and a mixed string is ok"
+   ],
+   "rule": "the digits-only rule is gone",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthIntentHandler.kt",
+     "anchor": "                password[index] = '\\u0000'",
+     "replacement": "                // the array is left as typed"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the password array is zero-filled after submit"
+   ],
+   "rule": "the password array is not zero-filled",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthIntentHandler.kt",
+     "anchor": "                    state = AuthState.Refused(register, AuthTexts.REFUSED)",
+     "replacement": "                    state = AuthState.Refused(register, AuthTexts.REFUSED)\n                    onSubmitOnce(username, password, register)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a too short password stays refused with no callback"
+   ],
+   "rule": "a too short password fires the callback",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthIntentHandler.kt",
+     "anchor": "                    state = AuthState.Refused(register, AuthTexts.REFUSED)",
+     "replacement": "                    state = AuthState.Refused(false, AuthTexts.REFUSED)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a refused, weak or ok submit keeps the face it was sent from"
+   ],
+   "rule": "a refused submit forgets the register face",
+   "note": ""
+  },
+  {
+   "id": "mut-10",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthIntentHandler.kt",
+     "anchor": "        onSubmit(username, password, register)",
+     "replacement": "        onSubmit(username, password, register)\n        onSubmit(username, password, register)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a weak password warns and fires the callback exactly once",
+    "an ok password goes busy and fires the callback once"
+   ],
+   "rule": "the callback fires twice per submit",
+   "note": ""
+  },
+  {
+   "id": "mut-11",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthIntentHandler.kt",
+     "anchor": "                    state = AuthState.Busy(register)",
+     "replacement": "                    state = AuthState.Idle(register)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "an ok password goes busy and fires the callback once"
+   ],
+   "rule": "an ok submit does not go busy",
+   "note": ""
+  },
+  {
+   "id": "mut-12",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthState.kt",
+     "anchor": "        is Refused -> \"Refused\"",
+     "replacement": "        is Refused -> \"Refused($text)\""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "refused and warning labels print no password"
+   ],
+   "rule": "the refused label prints the text it holds",
+   "note": ""
+  },
+  {
+   "id": "mut-13",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthState.kt",
+     "anchor": "        is Refused -> 600L",
+     "replacement": "        is Refused -> 601L"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "refused and warning shake the masked surface for a fixed duration"
+   ],
+   "rule": "the refused shake lasts 601 ms",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill-view",
+   "module": "android/ui",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthPolicy.kt",
+     "anchor": "    const val MIN_LENGTH: Int = 12",
+     "replacement": "    const val MIN_LENGTH: Int = 13"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive-view",
+   "module": "android/ui",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthPolicy.kt",
+     "anchor": "    /** The minimum length, below which the password is always refused without any other check. */",
+     "replacement": "    /** The minimum length, below which a password is always refused without any other check. */"
+    }
+   ]
+  }
+ ]
+}
