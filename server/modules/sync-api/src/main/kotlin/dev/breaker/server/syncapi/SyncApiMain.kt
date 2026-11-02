@@ -1,6 +1,7 @@
 package dev.breaker.server.syncapi
 
 import dev.breaker.server.syncapi.accounts.AccountStore
+import dev.breaker.server.syncapi.accounts.runSigninAttemptSweep
 import dev.breaker.server.syncapi.db.SqliteDatabase
 import dev.breaker.server.syncapi.handoff.HandoffStore
 import dev.breaker.server.syncapi.handoff.runHandoffSweep
@@ -41,9 +42,14 @@ fun main() {
         System.err.println(e.message)
         exitProcess(2)
     }
-    // The sign-in sweep deletes expired hand-off codes once at boot and then every minute. It starts
-    // once the stores exist and stops in shutdownInOrder, before the database closes.
-    val sweepJob = CoroutineScope(SupervisorJob() + Dispatchers.Default).launch { runHandoffSweep(handoffStore) }
+    // One job runs two sweeps: the hand-off sweep deletes expired sign-in codes (at boot, then every
+    // minute) and the attempt sweep deletes dead wrong-password rows (at boot, then every five
+    // minutes). Cancelling the job stops both. It starts once the stores exist and stops in
+    // shutdownInOrder, before the database closes.
+    val sweepJob = CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+        launch { runHandoffSweep(handoffStore) }
+        launch { runSigninAttemptSweep(accountStore.attempts) }
+    }
     // The internal listener starts first and carries only the token-check routes.
     val internalServer = embeddedServer(CIO, host = config.internalHost, port = config.internalPort) {
         internalModule(tokenStore, serviceKey)

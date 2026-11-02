@@ -156,12 +156,28 @@ internal class AccountStore(
             statement.setLong(12, createdAtMs)
             statement.executeUpdate()
         }
+        // A row left over for this name (wrong tries made before the account existed) is dropped
+        // in the same transaction, so a new account never starts locked.
+        connection.prepareStatement(DROP_ATTEMPTS_SQL).use { statement ->
+            statement.setString(1, folded)
+            statement.executeUpdate()
+        }
         return connection.createStatement().use { statement ->
             statement.executeQuery("SELECT id, role FROM accounts WHERE id = last_insert_rowid()").use { rows ->
                 check(rows.next()) { "sync-api: the new account row could not be read back" }
                 RegisterResult.Registered(rows.getLong(1), Role.fromDb(rows.getString(2)))
             }
         }
+    }
+
+    /**
+     * Deletes the wrong-password row of [username]. The admin reset and the password change call
+     * it when they are built. A malformed name touches nothing. A database error is not swallowed,
+     * so a reset never pretends it worked. It touches no token: a signed-in session is not affected.
+     */
+    suspend fun clearAttempts(username: String) {
+        if (!UsernameRules.isValid(username)) return
+        attempts.clear(UsernameRules.fold(username))
     }
 
     private fun readAccountRow(connection: Connection, folded: String): AccountRow? =
@@ -184,6 +200,8 @@ internal class AccountStore(
         const val SELECT_PARAMS_SQL =
             "SELECT salt, kdf_memory_kib, kdf_iterations, kdf_parallelism, kdf_version " +
                 "FROM accounts WHERE username_lower = ?"
+
+        const val DROP_ATTEMPTS_SQL = "DELETE FROM signin_attempts WHERE username_lower = ?"
 
         const val SELECT_VERIFIER_SQL =
             "SELECT id, role, verifier_algo, verifier_iters, verifier_salt, verifier_hash " +
