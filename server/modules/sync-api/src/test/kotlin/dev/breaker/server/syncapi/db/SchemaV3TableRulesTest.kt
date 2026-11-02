@@ -98,8 +98,8 @@ internal class SchemaV3TableRulesTest : TempDatabaseTest() {
         }
         assertEquals("sync-api: foreign keys must be on for the connection", 1L, foreignKeys)
         assertAccepted("two rows of alice") { connection ->
-            insertTranscription(connection, alice, CLIENT_ID, 0, ENCRYPTED)
-            insertTranscription(connection, alice, CLIENT_OTHER, 0, ENCRYPTED)
+            insertTranscription(connection, alice, CLIENT_ID, 0, ENCRYPTED, changeNo = 1)
+            insertTranscription(connection, alice, CLIENT_OTHER, 0, ENCRYPTED, changeNo = 2)
         }
         assertAccepted("one row of bob") { connection ->
             insertTranscription(connection, bob, CLIENT_ID, 0, ENCRYPTED)
@@ -164,16 +164,18 @@ internal class SchemaV3TableRulesTest : TempDatabaseTest() {
         clientId: String,
         keyVersion: Int,
         encrypted: String,
+        changeNo: Int = 0,
     ) {
         connection.prepareStatement(
-            "INSERT INTO transcriptions (account_id, client_id, key_version, encrypted, stored_at_ms) " +
-                "VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO transcriptions (account_id, client_id, key_version, encrypted, stored_at_ms, change_no) " +
+                "VALUES (?, ?, ?, ?, ?, ?)",
         ).use { statement ->
             statement.setLong(1, accountId)
             statement.setString(2, clientId)
             statement.setInt(3, keyVersion)
             statement.setString(4, encrypted)
             statement.setLong(5, STORED_AT_MS)
+            statement.setInt(6, changeNo)
             statement.executeUpdate()
         }
     }

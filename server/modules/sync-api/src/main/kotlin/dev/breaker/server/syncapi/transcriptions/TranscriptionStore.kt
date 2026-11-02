@@ -27,20 +27,27 @@ internal class TranscriptionStore(
             if (keyVersion > accountKeyVersion) {
                 PushResult.RefusedAboveAccount
             } else {
-                val storedKeyVersion: Int? = readStoredKeyVersion(connection, accountId, clientId)
-                if (storedKeyVersion == null) {
+                val stored = readStoredRow(connection, accountId, clientId)
+                if (stored == null) {
                     if (keyVersion < accountKeyVersion) {
                         PushResult.RefusedLower
                     } else {
-                        insertRow(connection, accountId, clientId, keyVersion, encrypted, nowMs)
+                        val changeNo = bumpChangeSeq(connection, accountId)
+                        insertRow(connection, accountId, clientId, keyVersion, encrypted, nowMs, changeNo)
                         PushResult.Stored
                     }
-                } else if (storedKeyVersion == keyVersion) {
+                } else if (stored.deleted == 1) {
+                    // A deleted stored row answers NoOp before any number is taken. The deleted
+                    // check sits after the above-account refusal and before any number is taken
+                    // so a deleted row never consumes a change number.
                     PushResult.NoOp
-                } else if (storedKeyVersion > keyVersion) {
+                } else if (stored.keyVersion == keyVersion) {
+                    PushResult.NoOp
+                } else if (stored.keyVersion > keyVersion) {
                     PushResult.RefusedLower
                 } else {
-                    replaceRow(connection, accountId, clientId, keyVersion, encrypted, nowMs)
+                    val changeNo = bumpChangeSeq(connection, accountId)
+                    replaceRow(connection, accountId, clientId, keyVersion, encrypted, nowMs, changeNo)
                     PushResult.Replaced
                 }
             }
@@ -59,14 +66,31 @@ internal class TranscriptionStore(
             }
         }
 
-    private fun readStoredKeyVersion(connection: Connection, accountId: Long, clientId: String): Int? =
-        connection.prepareStatement(SELECT_STORED_KEY_VERSION_SQL).use { statement ->
+    private fun readStoredRow(connection: Connection, accountId: Long, clientId: String): StoredRow? =
+        connection.prepareStatement(SELECT_STORED_ROW_SQL).use { statement ->
             statement.setLong(1, accountId)
             statement.setString(2, clientId)
             statement.executeQuery().use { rows ->
-                if (rows.next()) rows.getInt(1) else null
+                if (!rows.next()) null else StoredRow(rows.getInt(1), rows.getInt(2))
             }
         }
+
+    private fun bumpChangeSeq(connection: Connection, accountId: Long): Long {
+        val updated = connection.prepareStatement(BUMP_CHANGE_SEQ_SQL).use { statement ->
+            statement.setLong(1, accountId)
+            statement.executeUpdate()
+        }
+        if (updated != 1) {
+            throw IllegalStateException("sync-api: change_seq bump for account $accountId touched $updated rows, expected 1")
+        }
+        return connection.prepareStatement(SELECT_CHANGE_SEQ_SQL).use { statement ->
+            statement.setLong(1, accountId)
+            statement.executeQuery().use { rows ->
+                if (!rows.next()) throw IllegalStateException("sync-api: account $accountId vanished after change_seq bump")
+                rows.getLong(1)
+            }
+        }
+    }
 
     private fun insertRow(
         connection: Connection,
@@ -75,6 +99,7 @@ internal class TranscriptionStore(
         keyVersion: Int,
         encrypted: String,
         storedAtMs: Long,
+        changeNo: Long,
     ) {
         connection.prepareStatement(INSERT_SQL).use { statement ->
             statement.setLong(1, accountId)
@@ -82,6 +107,7 @@ internal class TranscriptionStore(
             statement.setInt(3, keyVersion)
             statement.setString(4, encrypted)
             statement.setLong(5, storedAtMs)
+            statement.setLong(6, changeNo)
             statement.executeUpdate()
         }
     }
@@ -94,13 +120,15 @@ internal class TranscriptionStore(
         keyVersion: Int,
         encrypted: String,
         storedAtMs: Long,
+        changeNo: Long,
     ) {
         connection.prepareStatement(REPLACE_SQL).use { statement ->
             statement.setInt(1, keyVersion)
             statement.setString(2, encrypted)
             statement.setLong(3, storedAtMs)
-            statement.setLong(4, accountId)
-            statement.setString(5, clientId)
+            statement.setLong(4, changeNo)
+            statement.setLong(5, accountId)
+            statement.setString(6, clientId)
             statement.executeUpdate()
         }
     }
@@ -120,15 +148,19 @@ internal class TranscriptionStore(
     private companion object {
         const val SELECT_ACCOUNT_KEY_VERSION_SQL = "SELECT key_version FROM accounts WHERE id = ?"
 
-        const val SELECT_STORED_KEY_VERSION_SQL =
-            "SELECT key_version FROM transcriptions WHERE account_id = ? AND client_id = ?"
+        const val SELECT_STORED_ROW_SQL =
+            "SELECT key_version, deleted FROM transcriptions WHERE account_id = ? AND client_id = ?"
+
+        const val BUMP_CHANGE_SEQ_SQL = "UPDATE accounts SET change_seq = change_seq + 1 WHERE id = ?"
+
+        const val SELECT_CHANGE_SEQ_SQL = "SELECT change_seq FROM accounts WHERE id = ?"
 
         const val INSERT_SQL =
-            "INSERT INTO transcriptions (account_id, client_id, key_version, encrypted, stored_at_ms) " +
-                "VALUES (?, ?, ?, ?, ?)"
+            "INSERT INTO transcriptions (account_id, client_id, key_version, encrypted, stored_at_ms, change_no) " +
+                "VALUES (?, ?, ?, ?, ?, ?)"
 
         const val REPLACE_SQL =
-            "UPDATE transcriptions SET key_version = ?, encrypted = ?, stored_at_ms = ? " +
+            "UPDATE transcriptions SET key_version = ?, encrypted = ?, stored_at_ms = ?, change_no = ? " +
                 "WHERE account_id = ? AND client_id = ?"
 
         const val SELECT_ROWS_SQL =
