@@ -31,6 +31,9 @@ private const val ENTRY_FILE = "SettingsEntry.kt"
 /** The second file whose job is to hand a view to the app, and may name the framework. */
 private const val HOME_ENTRY_FILE = "HomeEntry.kt"
 
+/** The auth entry file, which also may name the framework. */
+private const val AUTH_ENTRY_FILE = "AuthEntry.kt"
+
 /** The F44 host views, which are render-layer classes and may name the framework. */
 private val HOST_VIEW_FILES = setOf("screen/howitworks/HowItWorksHostView.kt", "screen/about/AboutHostView.kt")
 
@@ -42,6 +45,9 @@ private const val ENTRY_CLASS = "SettingsEntryKt.class"
 
 /** The compiled form of [HOME_ENTRY_FILE]. */
 private const val HOME_ENTRY_CLASS = "HomeEntryKt.class"
+
+/** The compiled form of [AUTH_ENTRY_FILE], which also may name the framework. */
+private const val AUTH_ENTRY_CLASS = "AuthEntryKt.class"
 
 /** The renderer class, which names the framework and so proves its carve-out is real. */
 private const val RENDERER_CLASS = "render/ScreenRenderer.class"
@@ -65,7 +71,7 @@ private val FRAMEWORK_PACKAGE = Regex("""\bandroidx?\.""")
  * contains the directory is not in it either.
  */
 private fun mayNameFramework(relative: String): Boolean =
-    mayName(relative, RENDER_DIRECTORY, ENTRY_FILE, FIRST_RUN_ENTRY_FILE, HOME_ENTRY_FILE) || relative in HOST_VIEW_FILES
+    mayName(relative, RENDER_DIRECTORY, ENTRY_FILE, FIRST_RUN_ENTRY_FILE, HOME_ENTRY_FILE, AUTH_ENTRY_FILE) || relative in HOST_VIEW_FILES
 
 /**
  * Whether [relative] is one of the files [entryFiles], or a file inside [directory].
@@ -101,7 +107,7 @@ internal fun frameworkPackagesIn(bytes: String): List<String> =
 
 /** The framework packages in a class that may not name them, or nothing. */
 private fun forbiddenPackagesIn(relative: String, bytes: String): List<String> =
-    if (mayName(relative, RENDER_DIRECTORY, ENTRY_CLASS, FIRST_RUN_ENTRY_CLASS, HOME_ENTRY_CLASS) ||
+    if (mayName(relative, RENDER_DIRECTORY, ENTRY_CLASS, FIRST_RUN_ENTRY_CLASS, HOME_ENTRY_CLASS, AUTH_ENTRY_CLASS) ||
         relative in HOST_VIEW_CLASSES) {
         emptyList()
     } else {
