@@ -534,7 +534,7 @@ client id atomically replaces the stored record rather than being treated as
 a duplicate push (ADR-006). No data loss on offline dictation. Auth via user
 token (section 12).
 
-**Several devices (ADR-035, planned, not built):** the server is the source of
+**Several devices (ADR-035): server side built, phone pull not built:** the server is the source of
 truth for an account's transcriptions. Each device pushes its queue, then pulls
 the rows the other devices recorded. A delete on any device reaches every
 device, and a device applies a pulled delete through the history module. The
