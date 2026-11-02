@@ -174,6 +174,27 @@ internal class SigninAttemptStore(
         }
     }
 
+    // Housekeeping: deletes the rows recordWrong and lockedUntil already treat as no row, and
+    // returns how many it deleted. Two kinds, with the same strict edges as recordWrong:
+    //   1. An expired lock: locked_until_ms > 0 and not after now (a lock that ends at exactly
+    //      now is expired).
+    //   2. A partial count with no wrong try for MORE than one wait period: locked_until_ms = 0
+    //      and last_attempt_ms before now minus the wait (exactly one wait period is kept).
+    // A row locked now is never deleted. The attempt-time rule decides; this only tidies up.
+    suspend fun deleteStale(): Int {
+        val nowMs = clock.millis()
+        return db.transaction<Int> { connection ->
+            connection.prepareStatement(
+                "DELETE FROM signin_attempts WHERE (locked_until_ms > 0 AND locked_until_ms <= ?) " +
+                    "OR (locked_until_ms = 0 AND last_attempt_ms < ?)",
+            ).use { statement ->
+                statement.setLong(1, nowMs)
+                statement.setLong(2, nowMs - LOCK_WAIT_MS)
+                statement.executeUpdate()
+            }
+        }
+    }
+
     /** A read-only snapshot of one attempts row. */
     data class AttemptInfo(
         val wrongCount: Long,

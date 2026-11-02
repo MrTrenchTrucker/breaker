@@ -1,6 +1,6 @@
 # ADR-036: Sign-in from the website hands the login to the app
 
-**Status:** accepted, amended 2026-11-02 (how the wrong-password limit works); decided, built on the server, not built on the phone and the website; the wrong-password limit is not built; the points still open are under To be designed
+**Status:** accepted, amended 2026-11-02 (how the wrong-password limit works); decided, built on the server, not built on the phone and the website; the wrong-password limit is built on the server (counting, the locked answer, the admin switch and its route, the drop at registration, the clear hook and the sweep), while the admin reset and the password change that call the hook and the phone and website sides are not built; the points still open are under To be designed
 **Date:** 2026-11-01
 **Approved by:** the project owner, 2026-11-01
 
@@ -96,13 +96,13 @@ Of the hand-off, `CryptoService.openSignInPackage` (with its parser and the seal
 
 ### What is built
 
-Nothing of the limit is built. The build is cut in slices: the table and the counting first, then the locked answer, then the admin switch and its contract, then the resets and the sweep.
+Built on the server: the table and the counting, the locked answer, the admin switch and its route, the drop of the row at registration, the clear hook that the resets call, and the sweep (at boot and every five minutes). Not built: the admin reset and the password change themselves, which call the hook when they are built, and the phone and website sides.
 
 ## To be designed (not decided here)
 
 - The route names and the wire forms of the challenge, the code and the exchange are no longer open: the API contract (`shared/modules/api-contracts/openapi.yaml`) now holds them.
 - The encoding of the keys inside the sealed package (ADR-035). Its construction and key type are decided there, and not built.
 - How the app limits plain http to the configured server, and the matching change to its HTTP client (ADR-034).
-- How the wrong-password limit counts failures and where the 15-minute wait is kept: decided in the amendment 2026-11-02, not built.
+- How the wrong-password limit counts failures and where the 15-minute wait is kept: decided in the amendment 2026-11-02 and built on the server.
 - The exact words on the website and in the app, and where the sign-in notice sits on Home (ADR-033).
 - The exact words of the one hint line on the device list. The hint says, decided and not built, that a lost phone keeps what it already stored, and that a password change re-keys. The device list itself is decided, not built: one row per session, showing the device name the app gives at sign-in (the person may rename it) and a last-seen date derived from the session's expiry.
