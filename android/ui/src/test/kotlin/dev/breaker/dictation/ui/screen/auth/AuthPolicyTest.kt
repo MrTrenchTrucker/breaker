@@ -56,4 +56,22 @@ class AuthPolicyTest {
         assertEquals("Ok", ratingName(AuthPolicy.rate(typed("73".repeat(5) + "3a"))))
     }
 
+    @Test
+    fun `eleven code points with one supplementary char is too short`() {
+        val pw = typed("\ud83d\ude00abcdefghij")
+        assertEquals("TooShort", ratingName(AuthPolicy.rate(pw)))
+    }
+
+    @Test
+    fun `twelve code points with one supplementary char is ok`() {
+        val pw = typed("\ud83d\ude00abcdefghijk")
+        assertEquals("Ok", ratingName(AuthPolicy.rate(pw)))
+    }
+
+    @Test
+    fun `a lone high code unit counts as one code point`() {
+        val pw = typed("abcdefghijk\ud800")
+        assertEquals("Ok", ratingName(AuthPolicy.rate(pw)))
+    }
+
 }

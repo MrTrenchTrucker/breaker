@@ -69,6 +69,7 @@ class AuthIntentHandlerTest {
         assertEquals(true, handler.current().register)
         handler.submit(typed("qwertyuiop12"))
         assertEquals(true, handler.current().register)
+        handler.submitted()
         handler.submit(typed("q1w2e3r4t5y6"))
         assertEquals(true, handler.current().register)
         handler.tap("face.login")
@@ -137,6 +138,76 @@ class AuthIntentHandlerTest {
         for (index in password.indices) {
             assertEquals('\u0000', password[index])
         }
+    }
+
+    @Test
+    fun `second submit while busy fires no callback`() {
+        var calls = 0
+        val handler = AuthIntentHandler { _, _, _ -> calls++ }
+        val ok = typed("q1w2e3r4t5y6")
+        handler.submit(ok)
+        assertTrue(handler.current() is AuthState.Busy)
+        assertEquals(1, calls)
+        val fresh = typed("bearwolf1234")
+        handler.submit(fresh)
+        assertEquals(1, calls)
+        assertTrue(handler.current() is AuthState.Busy)
+        for (index in fresh.indices) {
+            assertEquals('\u0000', fresh[index])
+        }
+    }
+
+    @Test
+    fun `same array twice while busy fires callback once`() {
+        var calls = 0
+        val handler = AuthIntentHandler { _, _, _ -> calls++ }
+        val ok = typed("q1w2e3r4t5y6")
+        handler.submit(ok)
+        assertTrue(handler.current() is AuthState.Busy)
+        assertEquals(1, calls)
+        handler.submit(ok)
+        assertEquals(1, calls)
+        assertTrue(handler.current() is AuthState.Busy)
+    }
+
+    @Test
+    fun `second submit while warning fires no callback`() {
+        var calls = 0
+        val handler = AuthIntentHandler { _, _, _ -> calls++ }
+        val weak = CharArray(12) { 'a' }
+        handler.submit(weak)
+        assertTrue(handler.current() is AuthState.Warning)
+        assertEquals(1, calls)
+        val fresh = typed("q1w2e3r4t5y6")
+        handler.submit(fresh)
+        assertEquals(1, calls)
+        assertTrue(handler.current() is AuthState.Warning)
+    }
+
+    @Test
+    fun `after submitted a new ok array fires callback again`() {
+        var calls = 0
+        val handler = AuthIntentHandler { _, _, _ -> calls++ }
+        val ok = typed("q1w2e3r4t5y6")
+        handler.submit(ok)
+        assertTrue(handler.current() is AuthState.Busy)
+        handler.submitted()
+        assertEquals(AuthState.Idle(register = false), handler.current())
+        handler.submit(typed("m7n8p2q3r4s5"))
+        assertEquals(2, calls)
+        assertTrue(handler.current() is AuthState.Busy)
+    }
+
+    @Test
+    fun `submit after refused is rated normally`() {
+        var calls = 0
+        val handler = AuthIntentHandler { _, _, _ -> calls++ }
+        handler.submit(typed("short"))
+        assertTrue(handler.current() is AuthState.Refused)
+        assertEquals(0, calls)
+        handler.submit(typed("q1w2e3r4t5y6"))
+        assertEquals(1, calls)
+        assertTrue(handler.current() is AuthState.Busy)
     }
 
 }
