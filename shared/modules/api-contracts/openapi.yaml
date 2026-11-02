@@ -562,6 +562,15 @@ paths:
         The codec sets no size limit. The server route sets a limit of 1 MiB
         (1,048,576 bytes) on the body of this operation: the exact limit is accepted, and one
         byte more is refused with 413 before the body is parsed.
+        A body with any member other than client_id, key_version, encrypted
+        and resave is refused with 400. The optional boolean member resave
+        carries the re-save mark: absent or false means no mark; true means
+        the mark (first push of an id the phone itself deleted, never a
+        retry). A resave that is not a boolean (string, number, null) is a
+        400. A push of a client id that is deleted on the server answers 204
+        and writes nothing, unless it carries the mark: with the mark it is a
+        fresh save (the new body, deleted becomes false, a new change number
+        is taken, 204). The mark on an id that is not deleted changes nothing.
       operationId: syncPush
       security:
         - bearerAuth: []
@@ -1158,6 +1167,67 @@ paths:
               example:
                 error: "unavailable"
                 message: "The service is unavailable, try again later"
+  /v1/transcriptions/{client_id}:
+    delete:
+      summary: Delete a transcription
+      description: >-
+        Delete a transcription by client id. An applied delete takes a new
+        change number, clears the body and sets deleted (the row keeps its id
+        and client id). A repeat or unknown delete writes nothing and takes no
+        change number. The delete carries no key_version. A delete record
+        shows up to other devices only as a delete record in GET.
+      operationId: deleteTranscription
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: client_id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          description: The transcription's client id, a lowercase canonical UUID (8-4-4-4-12 lowercase hex digits with hyphens)
+      responses:
+        "204":
+          description: Deleted (applied, repeat, or unknown delete all answer 204; no content body)
+        "400":
+          description: >-
+            Bad request. The client id is not a lowercase canonical UUID. The
+            message names the rule and never echoes the input.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "bad_request"
+                message: "client id is not a lowercase canonical UUID"
+        "401":
+          description: Missing or invalid user session token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing user session token"
+        "403":
+          description: Forbidden - a valid token of the wrong kind
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "forbidden"
+                message: "User session token required; an agent token is refused"
+        "503":
+          description: A storage failure or a failed session check gets this answer. The body is fixed and no part of the failure is echoed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
   /v1/sync/pending-sealed:
     get:
       summary: List the owner's still-sealed results
@@ -1601,6 +1671,9 @@ components:
             no cryptography is applied: a key_version 0 body is development-only
             until Phase 19. At key_version 1 or higher it is the Phase 19 form,
             which is not built.
+        resave:
+          type: boolean
+          description: "The re-save mark: absent or false means no mark; true means the mark (first push of an id the phone itself deleted, never a retry). The server parser does not read this field yet: that change is not built."
     TranscriptionPage:
       type: object
       required:

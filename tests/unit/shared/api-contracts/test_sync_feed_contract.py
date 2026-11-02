@@ -174,9 +174,9 @@ class TranscriptionsPathsTest(unittest.TestCase):
                          f"transcriptions operationId")
 
     def test_no_other_transcriptions_path(self):
-        """Catches a third route under /v1/transcriptions/ (a route the contract does not define)."""
+        """Catches a third route under /v1/transcriptions/ beyond the DELETE route the contract defines."""
         found = {p for p in _paths() if p.startswith("/v1/transcriptions/")}
-        self.assertEqual(found, set(), f"paths under /v1/transcriptions/ must be empty, found {sorted(found)}")
+        self.assertEqual(found, {"/v1/transcriptions/{client_id}"}, f"paths under /v1/transcriptions/ must be only the DELETE route, found {sorted(found)}")
 
     def test_transcriptions_sits_right_after_logout(self):
         """Catches the transcriptions path being put before /v1/auth/logout."""
