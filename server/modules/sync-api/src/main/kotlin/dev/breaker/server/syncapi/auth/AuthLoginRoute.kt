@@ -6,6 +6,7 @@ import dev.breaker.server.syncapi.accounts.VerifyResult
 import dev.breaker.server.syncapi.tokens.IssueResult
 import dev.breaker.server.syncapi.tokens.TokenStore
 import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.call
@@ -78,6 +79,15 @@ internal fun Application.authLoginRoute(accountStore: AccountStore, tokenStore: 
                         """{"error":"unauthorized","message":"Invalid username or verifier"}""",
                         ContentType.Application.Json,
                         HttpStatusCode.Unauthorized,
+                    )
+                }
+                is VerifyResult.Locked -> {
+                    call.response.headers.append(HttpHeaders.RetryAfter, result.secondsRemaining.toString())
+                    val minutes = ((result.secondsRemaining + 59) / 60).coerceAtLeast(1)
+                    call.respondText(
+                        """{"error":"locked","message":"Too many wrong tries. Try again in $minutes minutes."}""",
+                        ContentType.Application.Json,
+                        HttpStatusCode.Locked,
                     )
                 }
             }
