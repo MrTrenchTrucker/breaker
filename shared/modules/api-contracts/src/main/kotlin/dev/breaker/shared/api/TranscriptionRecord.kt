@@ -10,7 +10,9 @@ package dev.breaker.shared.api
  */
 data class TranscriptionRecord(
     val clientId: String,
-    val keyVersion: Int,
-    val encrypted: String,
+    val change: Long,
+    val deleted: Boolean,
+    val keyVersion: Int?,
+    val encrypted: String?,
     val storedAt: String,
 )
