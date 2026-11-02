@@ -1,0 +1,258 @@
+{
+ "name": "proof-login-submit-guard",
+ "tip": {
+  "tree": "aca351f3116fe3cc2371ef64ddd83a8501d69c95"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "android ui: the login screen ignores a submit in flight and counts the minimum in code points",
+   "base_tree": "857c2b88b0390e0e0d5e82c805954fbfc63405f2",
+   "item_tip_tree": "aca351f3116fe3cc2371ef64ddd83a8501d69c95",
+   "new_production_classes": [],
+   "test_fixtures_overlaid": []
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 1,
+ "entries": [
+  {
+   "id": "red-a-01",
+   "kind": "red",
+   "item": "a",
+   "module": "android/ui",
+   "file": "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/auth/AuthIntentHandlerTest.kt",
+   "files": [
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/auth/AuthIntentHandlerTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.ui.screen.auth.AuthIntentHandlerTest"
+   ],
+   "patch": "proof/red/red-a-01.patch",
+   "tree": "e0cbb742727b35fe97bd202d03bb19241d8e7da0",
+   "predict": ""
+  },
+  {
+   "id": "red-a-02",
+   "kind": "red",
+   "item": "a",
+   "module": "android/ui",
+   "file": "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/auth/AuthPolicyTest.kt",
+   "files": [
+    "android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/auth/AuthPolicyTest.kt"
+   ],
+   "tests": [
+    "dev.breaker.dictation.ui.screen.auth.AuthPolicyTest"
+   ],
+   "patch": "proof/red/red-a-02.patch",
+   "tree": "141f652dff9addb3ff8c6ff3247c3cdfdc997fed",
+   "predict": ""
+  },
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthIntentHandler.kt",
+     "anchor": "            if (state is AuthState.Busy || state is AuthState.Warning) {",
+     "replacement": "            if (false) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "second submit while busy fires no callback",
+    "same array twice while busy fires callback once",
+    "second submit while warning fires no callback"
+   ],
+   "rule": "the in-flight guard is removed",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthIntentHandler.kt",
+     "anchor": "            if (state is AuthState.Busy || state is AuthState.Warning) {",
+     "replacement": "            if (state is AuthState.Busy) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "second submit while warning fires no callback"
+   ],
+   "rule": "the guard covers Busy only",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthIntentHandler.kt",
+     "anchor": "            if (state is AuthState.Busy || state is AuthState.Warning) {",
+     "replacement": "            if (state is AuthState.Warning) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "second submit while busy fires no callback",
+    "same array twice while busy fires callback once"
+   ],
+   "rule": "the guard covers Warning only",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthIntentHandler.kt",
+     "anchor": "            if (state is AuthState.Busy || state is AuthState.Warning) {",
+     "replacement": "            if (state !is AuthState.Idle) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "submit after refused is rated normally"
+   ],
+   "rule": "the guard also blocks a submit after a refusal",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthIntentHandler.kt",
+     "anchor": "        state = AuthState.Idle(register)\n        return state",
+     "replacement": "        return state"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "after submitted a new ok array fires callback again",
+    "an ok submit stays busy until submitted returns to idle"
+   ],
+   "rule": "submitted does not return the state to idle",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthPolicy.kt",
+     "anchor": "Character.codePointCount(password, 0, password.size) < MIN_LENGTH",
+     "replacement": "password.size < MIN_LENGTH"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "eleven code points with one supplementary char is too short"
+   ],
+   "rule": "the length is counted in UTF-16 units",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthPolicy.kt",
+     "anchor": "Character.codePointCount(password, 0, password.size) < MIN_LENGTH",
+     "replacement": "Character.codePointCount(password, 0, password.size) <= MIN_LENGTH"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "twelve code points with one supplementary char is ok",
+    "a lone high code unit counts as one code point"
+   ],
+   "rule": "a password of exactly the minimum length is refused",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "android/ui",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthPolicy.kt",
+     "anchor": "Character.codePointCount(password, 0, password.size) < MIN_LENGTH",
+     "replacement": "Character.codePointCount(password, 0, password.size) < MIN_LENGTH - 1"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "eleven code points with one supplementary char is too short"
+   ],
+   "rule": "the minimum is one code point lower",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill-lg1",
+   "module": "android/ui",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthPolicy.kt",
+     "anchor": "Character.codePointCount(password, 0, password.size) < MIN_LENGTH",
+     "replacement": "Character.codePointCount(password, 0, password.size) < MIN_LENGTH + 1"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive-lg1",
+   "module": "android/ui",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthPolicy.kt",
+     "anchor": "Decides the password's rating from its typed characters alone.",
+     "replacement": "Decides the rating of the password from its typed characters alone."
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,149 @@
+diff --git a/android/ui/AGENTS.md b/android/ui/AGENTS.md
+index 4707a263..6509b3a3 100644
+--- a/android/ui/AGENTS.md
++++ b/android/ui/AGENTS.md
+@@ -60,7 +60,7 @@ screens render with ui-tokens; light/dark toggle persists (F25).
+ - Rows past the 90-day retention may still show until the app calls the history module's purge (ADR-010: a row expires when it is more than 90 days old at the purge). This screen does not call the purge. Tested by: none in the tree yet.
+ - The first-run view is drawn again when the window gets focus back, so a permission granted on a system page shows on return. Pinned by a text scan only. Tested by: `SetupAdapterGateTest`.
+ - The theme choice on the settings screen is three cells, System, Light and Dark. Each cell sends SetThemeMode with the stored mode's enum name ("SYSTEM", "LIGHT" or "DARK"), and the selected cell is the stored mode, so System is selected while the app follows the phone. An unknown name is refused and writes nothing; the setup handler refuses it too. Tested by: `SettingsAppearanceTest` (the three cells and their names) and `SetupIntentHandlerThemeModeTest` (the setup handler refuses each mode name).
+-- The auth screen keeps no typed password: the typed characters live in a CharArray the app can zero, the zero-fill runs in a finally so it happens whether the submit callback returns or throws, and the screen refuses a submit it has no text for (the submit control hands an empty array until a typing slice lands). No state, no label and no toString carries password text. A submit while one is in flight (the state is Busy or Warning, until the app calls submitted()) does nothing: no rating, no callback, no state change, and its array is zero-filled. The 12-character minimum counts Unicode code points, so an emoji counts as one. Tested by: `AuthIntentHandlerTest` (the zero-fill and the throw path, the in-flight guard in both states, the re-arm after submitted()) and `AuthStateTest` (the pinned labels) and `AuthPolicyTest` (the length counted in code points).
++- The auth screen keeps no typed password: the typed characters live in a CharArray the app can zero, the zero-fill runs in a finally so it happens whether the submit callback returns or throws, and the screen refuses a submit it has no text for (the submit control hands an empty array until a typing slice lands). No state, no label and no toString carries password text. Tested by: `AuthIntentHandlerTest` (the zero-fill and the throw path) and `AuthStateTest` (the pinned labels).
+ - The first-run download bar's percent is the whole part of done over total, at most 99, so 100 is never shown before the check starts, and it is absent when the total is not known (the bar is then whole and striped). Tested by: `DownloadBarMathTest`.
+ - Every screen entry (a top level `create...View` function) builds its theme with the shared reader `storedTheme(settings, ...)` in theme/StoredTheme.kt, except createSettingsView, which draws live through the theme controller. `StoredThemeSourceRuleTest` scans all entry files and pins that each one except the settings view has the line `val theme = storedTheme(`; the arguments of that line are pinned only for the first-run, home and history entries (`FirstRunThemeGateTest`, `HomeThemeGateTest`, `HistoryRenderCheckTest`). Tested by: `StoredThemeSourceRuleTest`.
+ 
+diff --git a/android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthIntentHandler.kt b/android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthIntentHandler.kt
+index fe42d4f6..56434cbc 100644
+--- a/android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthIntentHandler.kt
++++ b/android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthIntentHandler.kt
+@@ -8,8 +8,7 @@ package dev.breaker.dictation.ui.screen.auth
+  * submit. The submit is the only action the host acts on with input: its zero-fill happens in a
+  * finally so both a returned and a thrown callback leave the char array all zero; every other tap
+  * just redraws from the state held. Call it from one thread at a time: it holds no lock, but its
+- * own state changes as fast as the taps come in. While a submit is in flight (Busy or Warning)
+- * another submit changes nothing and fires no callback.
++ * own state changes as fast as the taps come in.
+  */
+ 
+ internal class AuthIntentHandler(
+@@ -47,14 +46,9 @@ internal class AuthIntentHandler(
+      * Runs [AuthPolicy.rate] on [password], updates the state machine, and calls [onSubmit]
+      * exactly once. A too-short password stays Refused with no callback; a weak or ok password
+      * moves to Warning or Busy; either way the passed in char array is zero-filled afterwards.
+-     * While a submit is in flight (Busy or Warning) a second submit changes nothing and fires
+-     * no callback; the zero-fill still runs.
+      */
+     fun submit(password: CharArray) {
+         try {
+-            if (state is AuthState.Busy || state is AuthState.Warning) {
+-                return
+-            }
+             when (AuthPolicy.rate(password)) {
+                 AuthPolicy.Rating.TooShort -> {
+                     state = AuthState.Refused(register, AuthTexts.REFUSED)
+diff --git a/android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthPolicy.kt b/android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthPolicy.kt
+index 665286f2..d7ec09a8 100644
+--- a/android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthPolicy.kt
++++ b/android/ui/src/main/kotlin/dev/breaker/dictation/ui/screen/auth/AuthPolicy.kt
+@@ -60,11 +60,10 @@ internal object AuthPolicy {
+      * Decides the password's rating from its typed characters alone.
+      *
+      * The length is checked first: anything shorter than [MIN_LENGTH] is refused without any
+-     * other check, so a too-short password never trips a weak rule. Length is counted in Unicode
+-     * code points, so a supplementary character is one code point though it uses two UTF-16 units.
++     * other check, so a too-short password never trips a weak rule.
+      */
+     fun rate(password: CharArray): Rating = when {
+-        Character.codePointCount(password, 0, password.size) < MIN_LENGTH -> Rating.TooShort
++        password.size < MIN_LENGTH -> Rating.TooShort
+         matchesCommon(password) -> Rating.Weak
+         isOneRepeatedChar(password) -> Rating.Weak
+         isDigitsOnly(password) -> Rating.Weak
+diff --git a/android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/auth/AuthIntentHandlerTest.kt b/android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/auth/AuthIntentHandlerTest.kt
+index dcbb1336..137884ce 100644
+--- a/android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/auth/AuthIntentHandlerTest.kt
++++ b/android/ui/src/test/kotlin/dev/breaker/dictation/ui/screen/auth/AuthIntentHandlerTest.kt
+@@ -69,7 +69,6 @@ class AuthIntentHandlerTest {
+         assertEquals(true, handler.current().register)
+         handler.submit(typed("qwertyuiop12"))
+         assertEquals(true, handler.current().register)
+-        handler.submitted()
+         handler.submit(typed("q1w2e3r4t5y6"))
+         assertEquals(true, handler.current().register)
+         handler.tap("face.login")
+@@ -140,76 +139,6 @@ class AuthIntentHandlerTest {
+         }
+     }
+ 
+-    @Test
+-    fun `second submit while busy fires no callback`() {
+-        var calls = 0
+-        val handler = AuthIntentHandler { _, _, _ -> calls++ }
+-        val ok = typed("q1w2e3r4t5y6")
+-        handler.submit(ok)
+-        assertTrue(handler.current() is AuthState.Busy)
+-        assertEquals(1, calls)
+-        val fresh = typed("bearwolf1234")
+-        handler.submit(fresh)
+-        assertEquals(1, calls)
+-        assertTrue(handler.current() is AuthState.Busy)
+-        for (index in fresh.indices) {
+-            assertEquals('\u0000', fresh[index])
+-        }
+-    }
+-
+-    @Test
+-    fun `same array twice while busy fires callback once`() {
+-        var calls = 0
+-        val handler = AuthIntentHandler { _, _, _ -> calls++ }
+-        val ok = typed("q1w2e3r4t5y6")
+-        handler.submit(ok)
+-        assertTrue(handler.current() is AuthState.Busy)
+-        assertEquals(1, calls)
+-        handler.submit(ok)
+-        assertEquals(1, calls)
+-        assertTrue(handler.current() is AuthState.Busy)
+-    }
+-
+-    @Test
+-    fun `second submit while warning fires no callback`() {
+-        var calls = 0
+-        val handler = AuthIntentHandler { _, _, _ -> calls++ }
+-        val weak = CharArray(12) { 'a' }
+-        handler.submit(weak)
+-        assertTrue(handler.current() is AuthState.Warning)
+-        assertEquals(1, calls)
+-        val fresh = typed("q1w2e3r4t5y6")
+-        handler.submit(fresh)
+-        assertEquals(1, calls)
+-        assertTrue(handler.current() is AuthState.Warning)
+-    }
+-
+-    @Test
+-    fun `after submitted a new ok array fires callback again`() {
+-        var calls = 0
+-        val handler = AuthIntentHandler { _, _, _ -> calls++ }
+-        val ok = typed("q1w2e3r4t5y6")
+-        handler.submit(ok)
+-        assertTrue(handler.current() is AuthState.Busy)
+-        handler.submitted()
+-        assertEquals(AuthState.Idle(register = false), handler.current())
+-        handler.submit(typed("m7n8p2q3r4s5"))
+-        assertEquals(2, calls)
+-        assertTrue(handler.current() is AuthState.Busy)
+-    }
+-
+-    @Test
+-    fun `submit after refused is rated normally`() {
+-        var calls = 0
+-        val handler = AuthIntentHandler { _, _, _ -> calls++ }
+-        handler.submit(typed("short"))
+-        assertTrue(handler.current() is AuthState.Refused)
+-        assertEquals(0, calls)
+-        handler.submit(typed("q1w2e3r4t5y6"))
+-        assertEquals(1, calls)
+-        assertTrue(handler.current() is AuthState.Busy)
+-    }
+-
+ }
+ 
+ private fun assertSameState(actual: AuthState, expected: AuthState) =
