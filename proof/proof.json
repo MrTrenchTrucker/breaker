@@ -1,0 +1,490 @@
+{
+ "name": "proof-wrongpw-slice-1",
+ "tip": {
+  "tree": "857c2b88b0390e0e0d5e82c805954fbfc63405f2"
+ },
+ "items": [
+  {
+   "item": "a",
+   "title": "sync-api: migration 6 and the wrong-password failure counting",
+   "base_tree": "00b0bcfbac8f0557ec7fd947351ee8a7ec03d9d0",
+   "item_tip_tree": "857c2b88b0390e0e0d5e82c805954fbfc63405f2",
+   "new_production_classes": [
+    "SigninAttemptStore",
+    "SchemaV6"
+   ],
+   "test_fixtures_overlaid": [
+    "AccountFixtures.kt"
+   ],
+   "red_not_run": "the store, the table and their tests land together: on the base the new tests do not compile (the store and the table are absent), so there is no assertion-red leg; the mutants carry the proof"
+  }
+ ],
+ "modules": {
+  "android/app": ":android:app:testDebugUnitTest",
+  "android/modules/commit/accessibility": ":android:modules:commit:accessibility:testDebugUnitTest",
+  "android/modules/commit": ":android:modules:commit:testDebugUnitTest",
+  "android/modules/stt-ondevice": ":android:modules:stt-ondevice:testDebugUnitTest",
+  "android/modules/crypto": ":android:modules:crypto:testDebugUnitTest",
+  "android/modules/phrases": ":android:modules:phrases:testDebugUnitTest",
+  "android/modules/overlay": ":android:modules:overlay:testDebugUnitTest",
+  "android/ui": ":android:ui:testDebugUnitTest",
+  "android/modules/core": ":android:modules:core:test",
+  "android/modules/audio": ":android:modules:audio:testDebugUnitTest",
+  "android/modules/gesture": ":android:modules:gesture:testDebugUnitTest",
+  "android/modules/format": ":android:modules:format:testDebugUnitTest",
+  "android/modules/history": ":android:modules:history:testDebugUnitTest",
+  "android/modules/settings": ":android:modules:settings:testDebugUnitTest",
+  "android/modules/transport": ":android:modules:transport:testDebugUnitTest",
+  "android/modules/stt-server": ":android:modules:stt-server:testDebugUnitTest",
+  "android/modules/updater": ":android:modules:updater:testDebugUnitTest",
+  "android/modules/auth-client": ":android:modules:auth-client:testDebugUnitTest",
+  "android/modules/http": ":android:modules:http:testDebugUnitTest",
+  "server/modules/whisper-server": ":server:modules:whisper-server:test",
+  "server/modules/sync-api": ":server:modules:sync-api:test",
+  "shared/modules/api-contracts": ":shared:modules:api-contracts:test"
+ },
+ "shards": 2,
+ "entries": [
+  {
+   "id": "mut-01",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptStore.kt",
+     "anchor": "                        l > nowMs -> {",
+     "replacement": "                        false -> {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a try inside a lock changes nothing"
+   ],
+   "rule": "a row locked now is counted again",
+   "note": ""
+  },
+  {
+   "id": "mut-02",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptStore.kt",
+     "anchor": "                        l > nowMs -> {",
+     "replacement": "                        l >= nowMs -> {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a wrong try at exactly the lock expiry instant restarts at count 1"
+   ],
+   "rule": "a lock that expires this very millisecond is still held",
+   "note": ""
+  },
+  {
+   "id": "mut-03",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptStore.kt",
+     "anchor": "la + LOCK_WAIT_MS < nowMs",
+     "replacement": "la + LOCK_WAIT_MS <= nowMs"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a partial count at exactly 15 minutes gives count 4"
+   ],
+   "rule": "a partial count resets at exactly 15 minutes",
+   "note": ""
+  },
+  {
+   "id": "mut-04",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptStore.kt",
+     "anchor": "                        l > 0 || la + LOCK_WAIT_MS < nowMs -> {",
+     "replacement": "                        la + LOCK_WAIT_MS < nowMs -> {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a wrong try at exactly the lock expiry instant restarts at count 1"
+   ],
+   "rule": "the expired-lock rule is dropped",
+   "note": ""
+  },
+  {
+   "id": "mut-05",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptStore.kt",
+     "anchor": "if (next == 5L)",
+     "replacement": "if (next == 6L)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "fifth wrong try reaches count 5 and locks until now + 15 minutes",
+    "a try inside a lock changes nothing",
+    "five wrong tries lock and a right password afterwards still returns Verified and clears the row",
+    "five wrong tries lock and right password returns Verified and clears"
+   ],
+   "rule": "the lock starts at the sixth wrong try",
+   "note": ""
+  },
+  {
+   "id": "mut-06",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptStore.kt",
+     "anchor": "const val LOCK_WAIT_MS: Long = 15 * 60 * 1000",
+     "replacement": "const val LOCK_WAIT_MS: Long = 30 * 60 * 1000"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "fifth wrong try reaches count 5 and locks until now + 15 minutes",
+    "a partial count older than 15 minutes then a wrong try gives count 1",
+    "an expired lock then a wrong try gives count 1",
+    "the default row cap is 10000 and the wait is 15 minutes"
+   ],
+   "rule": "the wait is 30 minutes",
+   "note": ""
+  },
+  {
+   "id": "mut-07",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptStore.kt",
+     "anchor": "                    if (rowCount >= maxRows) {",
+     "replacement": "                    if (false) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the row cap evicts the only unlocked row and never a locked one",
+    "the row cap evicts the oldest unlocked row and keeps the newer ones",
+    "the row cap never evicts a locked row even when it is the oldest",
+    "when every row is locked the new name is not inserted and nothing throws"
+   ],
+   "rule": "the row cap is never enforced",
+   "note": ""
+  },
+  {
+   "id": "mut-08",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptStore.kt",
+     "anchor": "ORDER BY last_attempt_ms ASC LIMIT 1)",
+     "replacement": "ORDER BY last_attempt_ms DESC LIMIT 1)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the row cap evicts the oldest unlocked row and keeps the newer ones"
+   ],
+   "rule": "the cap evicts the newest unlocked row",
+   "note": ""
+  },
+  {
+   "id": "mut-09",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptStore.kt",
+     "anchor": "\"WHERE locked_until_ms <= ? ORDER BY",
+     "replacement": "\"WHERE locked_until_ms <= ? OR 1 = 1 ORDER BY"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the row cap never evicts a locked row even when it is the oldest"
+   ],
+   "rule": "the cap may evict a locked row",
+   "note": ""
+  },
+  {
+   "id": "mut-10",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptStore.kt",
+     "anchor": "                        if (lockedCount >= rowCount) {",
+     "replacement": "                        if (false) {"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "when every row is locked the new name is not inserted and nothing throws"
+   ],
+   "rule": "when every row is locked the new name is inserted anyway",
+   "note": ""
+  },
+  {
+   "id": "mut-11",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptStore.kt",
+     "anchor": "                        l > nowMs -> {\n                            // Locked now: change nothing. Do not even write.\n                            return@transaction\n                        }",
+     "replacement": "                        l > nowMs -> {\n                            Triple(c, l, nowMs)\n                        }"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a try inside a lock changes nothing"
+   ],
+   "rule": "a try inside a lock refreshes the last attempt time",
+   "note": ""
+  },
+  {
+   "id": "mut-12",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptStore.kt",
+     "anchor": "const val DEFAULT_MAX_ROWS: Int = 10_000",
+     "replacement": "const val DEFAULT_MAX_ROWS: Int = 10"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "the default row cap is 10000 and the wait is 15 minutes"
+   ],
+   "rule": "the default row cap is 10",
+   "note": ""
+  },
+  {
+   "id": "mut-13",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "        attempts.clear(folded)\n        return VerifyResult.Verified(row.id, row.role)",
+     "replacement": "        return VerifyResult.Verified(row.id, row.role)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "five wrong tries lock and a right password afterwards still returns Verified and clears the row",
+    "five wrong tries lock and right password returns Verified and clears"
+   ],
+   "rule": "a right password does not clear the row",
+   "note": ""
+  },
+  {
+   "id": "mut-14",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "        if (!matches) {\n            attempts.recordWrong(folded)\n            return VerifyResult.Rejected",
+     "replacement": "        if (!matches) {\n            return VerifyResult.Rejected"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "verify counts a wrong verifier for an existing account",
+    "wrong verifier counts through verify",
+    "five wrong tries lock and a right password afterwards still returns Verified and clears the row",
+    "five wrong tries lock and right password returns Verified and clears"
+   ],
+   "rule": "a wrong verifier is not counted",
+   "note": ""
+  },
+  {
+   "id": "mut-15",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "            attempts.recordWrong(folded)\n            return VerifyResult.Rejected\n        }\n        // The transaction has ended",
+     "replacement": "            return VerifyResult.Rejected\n        }\n        // The transaction has ended"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "verify counts an unknown name toward the limit",
+    "unknown name counts through verify"
+   ],
+   "rule": "an unknown name is not counted",
+   "note": ""
+  },
+  {
+   "id": "mut-16",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt",
+     "anchor": "suspend fun verify(username: String, verifier: AuthVerifier): VerifyResult {\n        if (!UsernameRules.isValid(username)) return VerifyResult.Rejected",
+     "replacement": "suspend fun verify(username: String, verifier: AuthVerifier): VerifyResult {\n        if (false) return VerifyResult.Rejected"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "a malformed username touches no row",
+    "malformed username touches no row"
+   ],
+   "rule": "a malformed username is counted",
+   "note": ""
+  },
+  {
+   "id": "mut-17",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV6.kt",
+     "anchor": " AND username_lower = lower(username_lower)",
+     "replacement": ""
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "signin_attempts refuses an upper-case name, an empty name and a 65-character name"
+   ],
+   "rule": "the folded-name check is dropped from the table",
+   "note": ""
+  },
+  {
+   "id": "mut-18",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV6.kt",
+     "anchor": "CHECK (wrong_count >= 0)",
+     "replacement": "CHECK (wrong_count >= -1)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "signin_attempts checks refuse a negative count, a negative lock and a negative last attempt"
+   ],
+   "rule": "a negative count is accepted",
+   "note": ""
+  },
+  {
+   "id": "mut-19",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV6.kt",
+     "anchor": "CHECK (last_attempt_ms >= 0)",
+     "replacement": "CHECK (last_attempt_ms >= -1)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "signin_attempts checks refuse a negative count, a negative lock and a negative last attempt"
+   ],
+   "rule": "a negative last attempt time is accepted",
+   "note": ""
+  },
+  {
+   "id": "mut-20",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV6.kt",
+     "anchor": "BETWEEN 1 AND ${UsernameRules.MAX_LENGTH}",
+     "replacement": "BETWEEN 1 AND ${UsernameRules.MAX_LENGTH + 1}"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "signin_attempts refuses an upper-case name, an empty name and a 65-character name"
+   ],
+   "rule": "a 65 character name is accepted",
+   "note": ""
+  },
+  {
+   "id": "mut-21",
+   "kind": "mut",
+   "item": "a",
+   "module": "server/modules/sync-api",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/Migrations.kt",
+     "anchor": ", SchemaV5.MIGRATION, SchemaV6.MIGRATION)",
+     "replacement": ", SchemaV5.MIGRATION)"
+    }
+   ],
+   "expect": "kill",
+   "expected_red": [
+    "migration 6 applies to a fresh database and ends at user_version 6 with signin_attempts",
+    "an upgrade from version 5 keeps every row and adds an empty signin_attempts table"
+   ],
+   "rule": "migration 6 is not registered",
+   "note": ""
+  }
+ ],
+ "controls": [
+  {
+   "id": "ctl-kill-wp1",
+   "module": "server/modules/sync-api",
+   "expect": "kill",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptStore.kt",
+     "anchor": "if (next == 5L)",
+     "replacement": "if (next == 4L)"
+    }
+   ]
+  },
+  {
+   "id": "ctl-survive-wp1",
+   "module": "server/modules/sync-api",
+   "expect": "survive",
+   "edits": [
+    {
+     "file": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/SigninAttemptStore.kt",
+     "anchor": "/** Holds one row per folded username: wrong count, lock expiry, last attempt time. */",
+     "replacement": "/** Holds one row per folded username: the wrong count, the lock expiry and the last attempt time. */"
+    }
+   ]
+  }
+ ]
+}
