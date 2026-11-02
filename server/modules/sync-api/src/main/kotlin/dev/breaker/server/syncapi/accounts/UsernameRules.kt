@@ -3,7 +3,7 @@ package dev.breaker.server.syncapi.accounts
 import java.util.Locale
 
 internal object UsernameRules {
-    private const val MAX_LENGTH = 64
+    const val MAX_LENGTH = 64
 
     // Explicit comparisons instead of a regex: no end-of-line anchor can let a
     // trailing newline through, and no Unicode-aware class can let a non-ASCII
