@@ -51,9 +51,14 @@ internal class TranscriptionRoutesTest {
     }
 
     private suspend fun HttpClient.postAudio(body: MultiPartFormDataContent): HttpResponse =
-        post("/v1/audio/transcriptions") { setBody(body) }
+        post("/v1/audio/transcriptions") {
+            header("Authorization", "Bearer test-token")
+            setBody(body)
+        }
 
-    private suspend fun HttpClient.poll(jobId: Long): HttpResponse = get("/v1/jobs/$jobId")
+    private suspend fun HttpClient.poll(jobId: Long): HttpResponse = get("/v1/jobs/$jobId") {
+        header("Authorization", "Bearer test-token")
+    }
 
     @Test
     fun `a file and model part are accepted with 202 and a queued job`() {
@@ -132,7 +137,10 @@ internal class TranscriptionRoutesTest {
                 })
                 append("model", "m")
             }
-            val response = client.post("/v1/audio/transcriptions") { setBody(MultiPartFormDataContent(body)) }
+            val response = client.post("/v1/audio/transcriptions") {
+                header("Authorization", "Bearer test-token")
+                setBody(MultiPartFormDataContent(body))
+            }
             assertEquals(400, response.status.value)
             assertEquals("{\"error\":\"the file part is required\"}", response.bodyAsText())
         }
@@ -287,7 +295,7 @@ internal class TranscriptionRoutesTest {
     fun `a non numeric job id is not found`() {
         val store = openStore()
         withTranscriptionApi(store) { client ->
-            val response = client.get("/v1/jobs/abc")
+            val response = client.get("/v1/jobs/abc") { header("Authorization", "Bearer test-token") }
             assertEquals(404, response.status.value)
             assertEquals("{\"error\":\"unknown or expired\"}", response.bodyAsText())
         }

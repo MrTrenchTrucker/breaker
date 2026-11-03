@@ -34,6 +34,8 @@ internal class BuildJobStoreTest : TempDatabaseTest() {
                 "BREAKER_WHISPER_PORT" to "8080",
                 "BREAKER_WHISPER_DB" to "/tmp/test.db",
                 "BREAKER_WHISPER_FORWARDER_URL" to "http://localhost:9000",
+                "BREAKER_WHISPER_SYNC_API_URL" to "http://sync-api:8081",
+                "BREAKER_WHISPER_SYNC_API_SERVICE_KEY" to "svc-key",
                 "BREAKER_WHISPER_RESULT_TTL_S" to ttlSeconds.toString(),
             ),
         )

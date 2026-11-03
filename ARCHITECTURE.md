@@ -594,7 +594,7 @@ in the Android Keystore, decided and not built (never plaintext). The web FE use
 server APIs (sync, training, STT) require a valid user token. **Isolation is
 enforced server-side** (N13) — never trust client-side scoping. The job
 API (whisper-server) is ruled to ask sync-api whether a token is live and to fail closed
-(R31, ADR-015). The sync-api token-check routes and the service key are built, and whisper-server's client is built, not yet used by the job route.
+(R31, ADR-015). The sync-api token-check routes and the service key are built, and whisper-server's client is built and used by both job routes.
 
 **Several devices and sign-in from the website (ADR-035, ADR-036; sign-in hand-off routes built on server; website page and device list not built):**
 an account may use several devices. Signing in on the Breaker website hands the
@@ -1082,14 +1082,14 @@ See `docs/04-build-order.md`. Summary:
       + type-to-confirm + clear warning (F33).
 - R30. **Last-admin lockout** — prevented by rule: last admin cannot delete or
       be demoted (F33).
-- R31. **How whisper-server learns that a token is live — RULED. The client and the sync-api routes are built, not yet used by the job route.**
+- R31. **How whisper-server learns that a token is live — RULED and BUILT. The client and the sync-api routes are built and used by both job routes.**
       Jobs are to be owned by the token's account, and a missing, unknown,
       revoked or expired token refused with nothing enqueued, under the same
       expiry rule as sync-api (ADR-031). The maintainers ruled that
       whisper-server asks sync-api over HTTP (ADR-015, amended): the enqueue is
       the use that moves a session token's expiry; polls and the result fetch
       use a read-only check with the same live rule; if sync-api cannot be
-      reached the job is refused (503, nothing enqueued) and the phone falls back
+      reached the request is refused with the same plain 401 as a not-live token (nothing enqueued; amended 2026-11-03, was 503) and the phone falls back
       to on-device; the sync-api route is internal only, never on the
       VPN-facing interface, protected by a service key the server stack makes
       for itself at first start; a revoke never lags. Rejected: a shared

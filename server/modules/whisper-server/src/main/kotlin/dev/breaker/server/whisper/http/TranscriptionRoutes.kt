@@ -17,7 +17,12 @@ import io.ktor.server.routing.post
 import io.ktor.utils.io.readBuffer
 import kotlinx.io.readByteArray
 
-/** The one owner every job is enqueued under until auth lands with sync-api. */
+/**
+ * The account the fake test token resolves to by default (the test harness lives in the test
+ * compilation, which sees this module's internal symbols). Kept in main so the harness can name
+ * a concrete owner account; the routes themselves never use a constant - the owner is whatever
+ * the presented token resolves to.
+ */
 internal const val OWNER_ACCOUNT_ID: Long = 1L
 
 /** The single 404 reason for a GET the caller cannot satisfy: an unknown id, a non-numeric id, or a
@@ -34,8 +39,16 @@ internal fun Route.transcriptionRoutes(
     readMultipart: suspend ApplicationCall.() -> MultiPartData = { receiveMultipart(formFieldLimit = MAX_AUDIO_BYTES + 1) },
     forwardingTo: String = "",
     uptime: () -> String = { "0h0m0s" },
+    tokenCheck: TokenCheck = FailClosedTokenCheck,
 ) {
     post("/v1/audio/transcriptions") {
+        // Auth first, before the upload is read: a refused token costs nothing but the header.
+        // The enqueue moves a live session token's expiry (use); a refused token is one plain 401.
+        val accountId = resolveAccount(call, tokenCheck::use)
+        if (accountId == null) {
+            respondError(call, HttpStatusCode.Unauthorized, "unauthorized")
+            return@post
+        }
         var readAudio: ByteArray? = null
         var tooLarge = false
 
@@ -75,7 +88,7 @@ internal fun Route.transcriptionRoutes(
                 respondError(call, HttpStatusCode.BadRequest, "the file part is required")
             }
             else -> {
-                val jobId = store.enqueue(OWNER_ACCOUNT_ID, audio)
+                val jobId = store.enqueue(accountId, audio)
                 wakeWorker()
                 call.respondText("{\"job_id\":\"$jobId\",\"status\":\"queued\"}", ContentType.Application.Json, HttpStatusCode.Accepted)
             }
@@ -83,12 +96,19 @@ internal fun Route.transcriptionRoutes(
     }
 
     get("/v1/jobs/{job_id}") {
+        // Auth first: the poll uses the read-only check (peek); a refused token is one plain 401,
+        // the same body as a not-live token, so the caller cannot tell which one happened.
+        val accountId = resolveAccount(call, tokenCheck::peek)
+        if (accountId == null) {
+            respondError(call, HttpStatusCode.Unauthorized, "unauthorized")
+            return@get
+        }
         val jobId = call.parameters["job_id"]?.toLongOrNull()
         if (jobId == null) {
             respondError(call, HttpStatusCode.NotFound, UNKNOWN_OR_EXPIRED)
             return@get
         }
-        when (val poll = store.fetch(jobId, OWNER_ACCOUNT_ID)) {
+        when (val poll = store.fetch(jobId, accountId)) {
             is JobPoll.NotFound -> {
                 respondError(call, HttpStatusCode.NotFound, UNKNOWN_OR_EXPIRED)
             }
@@ -116,6 +136,32 @@ internal fun Route.transcriptionRoutes(
             ContentType.Application.Json,
             HttpStatusCode.OK,
         )
+    }
+}
+
+/**
+ * The account the presented token resolves to, or null when the request must be refused.
+ * The token comes from the Authorization header as `Bearer <token>`; a missing header, a
+ * missing or empty token, a not-live token, and an unavailable check all answer null, so the
+ * caller sees one plain 401 and cannot tell which of the four happened.
+ */
+private suspend fun resolveAccount(
+    call: ApplicationCall,
+    op: suspend (String) -> TokenAnswer,
+): Long? {
+    val header = call.request.headers["Authorization"] ?: return null
+    // The scheme is "Bearer" (case-insensitive per RFC 9110); the token is everything after
+    // it, trimmed. Any other scheme, a missing scheme, or an empty token is refused, so the
+    // caller sees one plain 401 and cannot tell which of the four happened.
+    val schemeEnd = header.indexOf(' ')
+    if (schemeEnd <= 0) return null
+    if (!header.substring(0, schemeEnd).equals("Bearer", ignoreCase = true)) return null
+    val presented = header.substring(schemeEnd + 1).trim()
+    if (presented.isEmpty()) return null
+    return when (val answer = op(presented)) {
+        is TokenAnswer.Live -> answer.accountId
+        is TokenAnswer.NotLive -> null
+        is TokenAnswer.Unavailable -> null
     }
 }
 

@@ -2,6 +2,8 @@ package dev.breaker.server.whisper
 
 import dev.breaker.server.whisper.db.TempDatabase
 import dev.breaker.server.whisper.db.TestDatabases
+import dev.breaker.server.whisper.http.FakeTokenCheck
+import dev.breaker.server.whisper.http.TokenAnswer
 import dev.breaker.server.whisper.http.TranscriptionApi
 import dev.breaker.server.whisper.jobs.JobFixtures
 import dev.breaker.server.whisper.jobs.JobStatus
@@ -74,7 +76,7 @@ internal class WhisperServerTest {
     fun `start stop on ephemeral port serves one real request`(): Unit = runBlocking {
         val store = openStore().store
         val worker = QueueWorker(store, TranscriptionForwarder { ForwardOutcome.Success("{\"text\":\"hello\"}") })
-        val api = TranscriptionApi(store, worker::wake)
+        val api = TranscriptionApi(store, worker::wake, tokenCheck = FakeTokenCheck { TokenAnswer.Live(1L) })
 
         val port = findFreePort()
         val server = embeddedServer(CIO, port = port, host = "127.0.0.1") {
@@ -94,6 +96,7 @@ internal class WhisperServerTest {
         val request = HttpRequest.newBuilder()
             .uri(URI.create("http://127.0.0.1:$port/v1/audio/transcriptions"))
             .header("Content-Type", "multipart/form-data; boundary=$boundary")
+            .header("Authorization", "Bearer test-token")
             .timeout(Duration.ofSeconds(10))
             .POST(HttpRequest.BodyPublishers.ofByteArray(body))
             .build()

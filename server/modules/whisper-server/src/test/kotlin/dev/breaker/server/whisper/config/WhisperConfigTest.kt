@@ -15,6 +15,8 @@ internal class WhisperConfigTest {
         "BREAKER_WHISPER_PORT" to "8080",
         "BREAKER_WHISPER_DB" to "/tmp/test.db",
         "BREAKER_WHISPER_FORWARDER_URL" to "http://localhost:9000",
+        "BREAKER_WHISPER_SYNC_API_URL" to "http://sync-api:8081",
+        "BREAKER_WHISPER_SYNC_API_SERVICE_KEY" to "svc-key",
     )
 
     @Test
@@ -224,7 +226,9 @@ internal class WhisperConfigTest {
             "BREAKER_WHISPER_HOST" to "127.0.0.1",
             "WHISPER_PORT" to "8080",
             "BREAKER_WHISPER_DB" to "/tmp/test.db",
-            "BREAKER_WHISPER_FORWARDER_URL" to "http://localhost:9000"
+            "BREAKER_WHISPER_FORWARDER_URL" to "http://localhost:9000",
+            "BREAKER_WHISPER_SYNC_API_URL" to "http://sync-api:8081",
+            "BREAKER_WHISPER_SYNC_API_SERVICE_KEY" to "svc-key"
         )
         val error = kotlin.runCatching { WhisperConfig.fromEnv(env) }.exceptionOrNull() as? IllegalStateException
         assertNotNull("WHISPER_PORT must not be read", error)
@@ -237,7 +241,9 @@ internal class WhisperConfigTest {
             "BREAKER_WHISPER_HOST" to "127.0.0.1",
             "BREAKER_WHISPER_PORT" to "8080",
             "WHISPER_DATABASE_PATH" to "/tmp/test.db",
-            "BREAKER_WHISPER_FORWARDER_URL" to "http://localhost:9000"
+            "BREAKER_WHISPER_FORWARDER_URL" to "http://localhost:9000",
+            "BREAKER_WHISPER_SYNC_API_URL" to "http://sync-api:8081",
+            "BREAKER_WHISPER_SYNC_API_SERVICE_KEY" to "svc-key"
         )
         val error = kotlin.runCatching { WhisperConfig.fromEnv(env) }.exceptionOrNull() as? IllegalStateException
         assertNotNull("WHISPER_DATABASE_PATH must not be read", error)
@@ -250,7 +256,9 @@ internal class WhisperConfigTest {
             "BREAKER_WHISPER_HOST" to "127.0.0.1",
             "BREAKER_WHISPER_PORT" to "8080",
             "BREAKER_WHISPER_DB" to "/tmp/test.db",
-            "WHISPER_FORWARDER_URL" to "http://localhost:9000"
+            "WHISPER_FORWARDER_URL" to "http://localhost:9000",
+            "BREAKER_WHISPER_SYNC_API_URL" to "http://sync-api:8081",
+            "BREAKER_WHISPER_SYNC_API_SERVICE_KEY" to "svc-key"
         )
         val error = kotlin.runCatching { WhisperConfig.fromEnv(env) }.exceptionOrNull() as? IllegalStateException
         assertNotNull("WHISPER_FORWARDER_URL must not be read", error)
@@ -263,7 +271,9 @@ internal class WhisperConfigTest {
             "WHISPER_BIND_ADDRESS" to "0.0.0.0",
             "BREAKER_WHISPER_PORT" to "8080",
             "BREAKER_WHISPER_DB" to "/tmp/test.db",
-            "BREAKER_WHISPER_FORWARDER_URL" to "http://localhost:9000"
+            "BREAKER_WHISPER_FORWARDER_URL" to "http://localhost:9000",
+            "BREAKER_WHISPER_SYNC_API_URL" to "http://sync-api:8081",
+            "BREAKER_WHISPER_SYNC_API_SERVICE_KEY" to "svc-key"
         )
         val config = WhisperConfig.fromEnv(env)
         // WHISPER_BIND_ADDRESS is ignored; default 127.0.0.1 is used

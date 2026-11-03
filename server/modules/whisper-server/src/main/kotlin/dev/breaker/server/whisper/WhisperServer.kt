@@ -2,6 +2,7 @@ package dev.breaker.server.whisper
 
 import dev.breaker.server.whisper.config.WhisperConfig
 import dev.breaker.server.whisper.db.SqliteDatabase
+import dev.breaker.server.whisper.http.HttpTokenCheck
 import dev.breaker.server.whisper.http.TranscriptionApi
 import dev.breaker.server.whisper.http.WhisperEngine
 import dev.breaker.server.whisper.jobs.JobStore
@@ -138,7 +139,16 @@ internal fun buildTranscriptionApi(
     monotonicNanos: () -> Long,
 ): TranscriptionApi {
     val (forwardingTo, uptime) = startupHealth(config, monotonicNanos)
-    return TranscriptionApi(store, wakeWorker, forwardingTo = forwardingTo, uptime = uptime)
+    // The token check is the one place this module talks to the token service: the enqueue
+    // moves a live session token's expiry (use), the poll uses the read-only check (peek).
+    val tokenCheck = HttpTokenCheck(config.syncApiBaseUrl, config.syncApiServiceKey)
+    return TranscriptionApi(
+        store,
+        wakeWorker,
+        forwardingTo = forwardingTo,
+        uptime = uptime,
+        tokenCheck = tokenCheck,
+    )
 }
 
 /**
