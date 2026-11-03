@@ -1,6 +1,6 @@
 # whisper-server — README
 
-**Status:** in progress by the maintainers' team (issue #9). The module is on main; its card lists what is not built yet.
+**Status:** on main. Session-token auth is wired into the transcription routes (enqueue uses `use`, poll uses `peek`, a refused token is one plain 401); the card lists the module's surface.
 
 Breaker's own transcription service on the server. The phone sends audio to it, it queues each job in order, and it forwards the audio to whichever speech-to-text service the admin has set up (by default an existing Whisper X service). It never runs a speech model itself. Callers get a job id and poll for the result.
 
@@ -16,8 +16,8 @@ idempotently re-fetchable for a short TTL after completion (default 10 minutes,
 the window a store purge erases the result and a GET returns `404` reason `unknown or expired` — an
 unknown id gives the same `404`. Audio is erased on completion (ADR-010), unchanged.
 
-The `model` part is optional and ignored - the configured downstream model serves every job today; per-request model selection is a later schema change. There is no auth on these routes yet; every job is enqueued under one owner until the auth module lands.
+The `model` part is optional and ignored - the configured downstream model serves every job today; per-request model selection is a later schema change. These routes require a caller session token in the `Authorization: Bearer` header; a missing, not-live, unavailable, or foreign-scheme token is refused with one plain 401, and each job is owned by the account the token resolves to.
 
-**Token check (ruled, not built).** Jobs are to be owned by the account of the caller's session token, and a missing, unknown, revoked or expired token refused with nothing enqueued; today the service checks no token. It will ask sync-api over HTTP whether a token is live (`ARCHITECTURE.md` R31, ADR-015): the enqueue moves the token's expiry, polls and the result fetch use a read-only check, and when sync-api cannot be reached the job is refused (503) and nothing is enqueued.
+**Token check (built).** Jobs are owned by the account of the caller's session token, and a missing, unknown, revoked or expired token is refused with one plain 401 and nothing enqueued. The module asks sync-api over HTTP whether the presented token is live (`ARCHITECTURE.md` R31, ADR-015): the enqueue moves the token's expiry via `use`, polls and the result fetch use the read-only `peek` check, and when sync-api cannot be reached the request is refused (fail closed) and nothing is enqueued.
 
 Breaker serves plain HTTP; TLS is the admin's choice through a reverse proxy in front of it (ADR-034).

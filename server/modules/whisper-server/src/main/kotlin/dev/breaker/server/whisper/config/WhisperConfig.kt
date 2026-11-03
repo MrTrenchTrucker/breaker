@@ -10,6 +10,8 @@ package dev.breaker.server.whisper.config
  * - BREAKER_WHISPER_FORWARDER_URL: required, must be non-blank, http/https + host
  * - BREAKER_WHISPER_RESULT_TTL_S: optional, default 600 (seconds), accepted range 1..86400; a
  *   present but blank/negative/unparseable value refuses
+ * - BREAKER_WHISPER_SYNC_API_URL: required, must be non-blank, http/https + host
+ * - BREAKER_WHISPER_SYNC_API_SERVICE_KEY: required, must be non-blank
  *
  * Parsing rules:
  * - Missing/bad BREAKER_WHISPER_PORT refuses with a message naming BREAKER_WHISPER_PORT
@@ -19,6 +21,8 @@ package dev.breaker.server.whisper.config
  * - Missing BREAKER_WHISPER_RESULT_TTL_S defaults to 600; a present but blank/negative/unparseable
  *   value, or one outside 1..86400, refuses with a message naming BREAKER_WHISPER_RESULT_TTL_S
  * - Port out of range refuses with a message naming BREAKER_WHISPER_PORT
+ * - Missing/blank BREAKER_WHISPER_SYNC_API_URL refuses with a message naming BREAKER_WHISPER_SYNC_API_URL
+ * - Missing/blank BREAKER_WHISPER_SYNC_API_SERVICE_KEY refuses with a message naming BREAKER_WHISPER_SYNC_API_SERVICE_KEY
  */
 data class WhisperConfig(
     val bindAddress: String,
@@ -26,6 +30,8 @@ data class WhisperConfig(
     val databasePath: String,
     val forwarderBaseUrl: String,
     val resultTtlSeconds: Int = DEFAULT_RESULT_TTL_SECONDS,
+    val syncApiBaseUrl: String = "",
+    val syncApiServiceKey: String = "",
 ) {
     companion object {
         const val ENV_HOST = "BREAKER_WHISPER_HOST"
@@ -33,6 +39,8 @@ data class WhisperConfig(
         const val ENV_DB = "BREAKER_WHISPER_DB"
         const val ENV_FORWARDER_URL = "BREAKER_WHISPER_FORWARDER_URL"
         const val ENV_RESULT_TTL = "BREAKER_WHISPER_RESULT_TTL_S"
+        const val ENV_SYNC_API_URL = "BREAKER_WHISPER_SYNC_API_URL"
+        const val ENV_SYNC_API_SERVICE_KEY = "BREAKER_WHISPER_SYNC_API_SERVICE_KEY"
         const val DEFAULT_HOST = "127.0.0.1"
         const val DEFAULT_RESULT_TTL_SECONDS = 600
         private const val MIN_RESULT_TTL_SECONDS = 1
@@ -87,7 +95,31 @@ data class WhisperConfig(
                 parsed
             }
 
-            return WhisperConfig(bindAddress, port, databasePath, forwarderUrl, resultTtlSeconds)
+            val syncApiUrl = env[ENV_SYNC_API_URL]
+                ?.takeIf { it.isNotBlank() }
+                ?: throw IllegalStateException("$ENV_SYNC_API_URL is not set")
+            val syncApiUri = try {
+                java.net.URI(syncApiUrl)
+            } catch (e: java.net.URISyntaxException) {
+                throw IllegalStateException("$ENV_SYNC_API_URL is not a valid URL")
+            }
+            if (syncApiUri.scheme !in setOf("http", "https") || syncApiUri.host.isNullOrBlank()) {
+                throw IllegalStateException("$ENV_SYNC_API_URL must have an http or https scheme and a host, got scheme: ${syncApiUri.scheme}")
+            }
+
+            val syncApiServiceKey = env[ENV_SYNC_API_SERVICE_KEY]
+                ?.takeIf { it.isNotBlank() }
+                ?: throw IllegalStateException("$ENV_SYNC_API_SERVICE_KEY is not set")
+
+            return WhisperConfig(
+                bindAddress,
+                port,
+                databasePath,
+                forwarderUrl,
+                resultTtlSeconds,
+                syncApiBaseUrl = syncApiUrl,
+                syncApiServiceKey = syncApiServiceKey,
+            )
         }
     }
 }

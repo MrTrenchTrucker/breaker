@@ -92,6 +92,8 @@ internal class HealthRouteTest {
             port = 8080,
             databasePath = "/tmp/whisper-build-health.db",
             forwarderBaseUrl = "http://user:SECRET@whisper-x:9000/v1/tok?api_key=KEY123",
+            syncApiBaseUrl = "http://sync-api:8081",
+            syncApiServiceKey = "svc-key",
         )
         val api = buildTranscriptionApi(store, {}, config, { manual() })
         testApplication {
@@ -139,6 +141,8 @@ internal class HealthRouteTest {
             port = 8080,
             databasePath = "/tmp/whisper-health-test.db",
             forwarderBaseUrl = "http://user:SECRET@whisper-x:9000/v1/tok?api_key=KEY123",
+            syncApiBaseUrl = "http://sync-api:8081",
+            syncApiServiceKey = "svc-key",
         )
         val (forwardingTo, uptime) = startupHealth(config, { manual() })
         withHealthApi(store, forwardingTo = forwardingTo, uptime = uptime) { client ->

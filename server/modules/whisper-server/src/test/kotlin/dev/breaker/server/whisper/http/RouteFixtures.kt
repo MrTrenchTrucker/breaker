@@ -12,15 +12,33 @@ import io.ktor.server.request.receiveMultipart
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 
+/** A TokenCheck for route tests: records which op (use/peek) was called and answers with a
+ *  fixed answer. The default answer is a live token of the module's owner account, so the
+ *  pre-auth tests keep their owner assertions. */
+internal class FakeTokenCheck(
+    private val answer: () -> TokenAnswer = { TokenAnswer.Live(OWNER_ACCOUNT_ID) },
+) : TokenCheck {
+    val ops = java.util.concurrent.CopyOnWriteArrayList<String>()
+    override suspend fun use(token: String): TokenAnswer {
+        ops.add("use")
+        return answer()
+    }
+    override suspend fun peek(token: String): TokenAnswer {
+        ops.add("peek")
+        return answer()
+    }
+}
+
 /** Runs [block] against a test server that has the transcription routes installed. */
 internal fun withTranscriptionApi(
     store: JobStore,
     wake: () -> Unit = {},
     readMultipart: suspend ApplicationCall.() -> MultiPartData = { receiveMultipart(formFieldLimit = MAX_AUDIO_BYTES + 1) },
+    tokenCheck: TokenCheck = FakeTokenCheck(),
     block: suspend ApplicationTestBuilder.(HttpClient) -> Unit,
 ) {
     testApplication {
-        application { TranscriptionApi(store, wake, readMultipart).install(this) }
+        application { TranscriptionApi(store, wake, readMultipart, tokenCheck = tokenCheck).install(this) }
         block(client)
     }
 }
