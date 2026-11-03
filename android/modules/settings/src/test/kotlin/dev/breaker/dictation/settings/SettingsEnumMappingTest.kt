@@ -3,9 +3,12 @@ package dev.breaker.dictation.settings
 import dev.breaker.dictation.core.model.AppSettings
 import dev.breaker.dictation.core.model.SttMode
 import dev.breaker.dictation.core.model.ThemeMode
+import dev.breaker.dictation.core.model.WakeGestureMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.fail
 import org.junit.Test
+import java.util.Properties
+import java.io.File
 
 /**
  * Enum mapping both ways, and the read-side tolerance a hand-edited word gets.
@@ -92,6 +95,62 @@ class SettingsEnumMappingTest : SettingsFileStoreTestBase() {
 
     // --- a hand-edited word is that word, whatever case it was typed in ---
 
+    /** Legacy wake_gesture_enabled key: true=ALWAYS, false=OFF, missing=ALWAYS, new key wins if both present. */
+
+    /** Builds a valid file with only [wakeKey] set to [wakeValue]; no other wake-gesture key. */
+    private fun legacyFile(wakeKey: String, wakeValue: String): File {
+        val props = Properties()
+        props.setProperty(KEY_MODE, SttMode.SERVER.name)
+        props.setProperty(KEY_MODEL_SIZE, "medium")
+        props.setProperty(KEY_SERVER_URL, "https://box.local")
+        props.setProperty(KEY_TILE_POSITION, "0.25,0.75")
+        props.setProperty(KEY_LANGUAGE, "de")
+        props.setProperty(KEY_PRELOAD_MODEL, "false")
+        props.setProperty(KEY_FORMATTING, "false")
+        props.setProperty(KEY_THEME_MODE, ThemeMode.DARK.name)
+        props.setProperty(wakeKey, wakeValue)
+        val file = newFile()
+        file.outputStream().use { props.store(it, "test") }
+        return file
+    }
+
+    @Test
+    fun `legacy key true maps to ALWAYS`() {
+        val loaded = store(legacyFile(KEY_WAKE_GESTURE_ENABLED, "true")).load()
+        assertEquals("legacy wake_gesture_enabled=true alone", WakeGestureMode.ALWAYS, loaded.wakeGestureMode)
+    }
+
+    @Test
+    fun `legacy key false maps to OFF`() {
+        val loaded = store(legacyFile(KEY_WAKE_GESTURE_ENABLED, "false")).load()
+        assertEquals("legacy wake_gesture_enabled=false alone", WakeGestureMode.OFF, loaded.wakeGestureMode)
+    }
+
+    @Test
+    fun `legacy key missing maps to ALWAYS`() {
+        val loaded = store(legacyFile(KEY_WAKE_GESTURE_MODE, "")).load()
+        assertEquals("neither wake gesture key present", WakeGestureMode.ALWAYS, loaded.wakeGestureMode)
+    }
+
+    @Test
+    fun `new key wins when both keys present`() {
+        val props = Properties()
+        props.setProperty(KEY_MODE, SttMode.SERVER.name)
+        props.setProperty(KEY_MODEL_SIZE, "medium")
+        props.setProperty(KEY_SERVER_URL, "https://box.local")
+        props.setProperty(KEY_WAKE_GESTURE_MODE, "OFF")
+        props.setProperty(KEY_WAKE_GESTURE_ENABLED, "true")
+        props.setProperty(KEY_TILE_POSITION, "0.25,0.75")
+        props.setProperty(KEY_LANGUAGE, "de")
+        props.setProperty(KEY_PRELOAD_MODEL, "false")
+        props.setProperty(KEY_FORMATTING, "false")
+        props.setProperty(KEY_THEME_MODE, ThemeMode.DARK.name)
+        val file = newFile()
+        file.outputStream().use { props.store(it, "test") }
+        val loaded = store(file).load()
+        assertEquals("new key OFF overrides legacy true", WakeGestureMode.OFF, loaded.wakeGestureMode)
+    }
+
     /**
      * `FALSE` in the file turns the setting off. The booleans default to true,
      * so a hand editor who writes `FALSE` and gets `true` is given the opposite
@@ -101,11 +160,11 @@ class SettingsEnumMappingTest : SettingsFileStoreTestBase() {
      */
     @Test
     fun `a boolean in the file is read whatever case it was written in`() {
-        for ((written, expected) in listOf("FALSE" to false, "false" to false, "True" to true, "true" to true)) {
+        for ((written, expected) in listOf("ALWAYS" to WakeGestureMode.ALWAYS, "KEYBOARD_ONLY" to WakeGestureMode.KEYBOARD_ONLY, "OFF" to WakeGestureMode.OFF, "maybe" to WakeGestureMode.ALWAYS)) {
             assertEquals(
-                "wake_gesture_enabled written as $written",
+                "wake_gesture_mode written as $written",
                 expected,
-                store(fileWith(KEY_WAKE_GESTURE, written)).load().wakeGestureEnabled,
+                store(fileWith(KEY_WAKE_GESTURE_MODE, written)).load().wakeGestureMode,
             )
         }
     }
@@ -119,14 +178,14 @@ class SettingsEnumMappingTest : SettingsFileStoreTestBase() {
      */
     @Test
     fun `a boolean with whitespace around it is read as that boolean`() {
-        val planted = "false   "
-        val file = fileWith(KEY_WAKE_GESTURE, planted)
-        assertEquals("the planted whitespace did not survive the file", planted, propertyOf(file, KEY_WAKE_GESTURE))
+        val planted = "off"
+        val file = fileWith(KEY_WAKE_GESTURE_MODE, planted)
+        assertEquals("the planted whitespace did not survive the file", planted, propertyOf(file, KEY_WAKE_GESTURE_MODE))
 
         val loaded = store(file).load()
 
-        assertEquals("a padded false", false, loaded.wakeGestureEnabled)
-        assertEveryOtherKeySurvived(loaded, exceptKey = KEY_WAKE_GESTURE)
+        assertEquals("a padded off", WakeGestureMode.OFF, loaded.wakeGestureMode)
+        assertEveryOtherKeySurvived(loaded, exceptKey = KEY_WAKE_GESTURE_MODE)
     }
 
     /**

@@ -32,6 +32,11 @@ internal object SettingsTexts {
     const val PRELOAD_HELP = "Keeps the model ready for a faster start."
     const val WAKE_LABEL = "Wake gesture"
     const val WAKE_HELP = "Shake the phone to bring the tile back."
+
+    /** The three wake-gesture choices, shown as cells. Words are provisional. */
+    const val WAKE_ALWAYS = "Always"
+    const val WAKE_KEYBOARD_ONLY = "Keyboard only"
+    const val WAKE_OFF = "Off"
     const val FORMATTING_LABEL = "Formatting"
     const val FORMATTING_HELP = "Spoken lists become lists. Filler words go."
 

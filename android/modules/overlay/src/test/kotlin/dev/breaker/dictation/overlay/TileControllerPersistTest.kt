@@ -7,6 +7,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import dev.breaker.dictation.core.model.ThemeMode as CoreThemeMode
+import dev.breaker.dictation.core.model.WakeGestureMode
 
 /**
  * Saving the tile position when a drag ends, and restoring it on the next show.
@@ -145,7 +146,7 @@ class TileControllerPersistTest {
         assertEquals("android_overlay: modelSize should stay medium", "medium", saved.modelSize)
         assertEquals("android_overlay: serverUrl should stay as seeded", "http://example.invalid:8080", saved.serverUrl)
         assertEquals("android_overlay: apiKeyRef should stay ref-1", "ref-1", saved.apiKeyRef)
-        assertEquals("android_overlay: wakeGestureEnabled should stay false", false, saved.wakeGestureEnabled)
+        assertEquals("android_overlay: wakeGestureMode should stay OFF", WakeGestureMode.OFF, saved.wakeGestureMode)
         assertEquals("android_overlay: language should stay de", "de", saved.language)
         assertEquals("android_overlay: preloadModel should stay false", false, saved.preloadModel)
         assertEquals("android_overlay: formattingEnabled should stay false", false, saved.formattingEnabled)

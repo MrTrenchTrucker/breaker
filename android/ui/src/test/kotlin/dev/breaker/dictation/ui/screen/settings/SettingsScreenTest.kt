@@ -16,6 +16,7 @@ import dev.breaker.dictation.ui.testing.NONDEFAULT
 import dev.breaker.dictation.ui.theme.PaletteSlot
 import dev.breaker.dictation.ui.theme.ThemeState
 import dev.breaker.dictation.core.model.ThemeMode as StoredThemeMode
+import dev.breaker.dictation.core.model.WakeGestureMode
 import dev.breaker.shared.tokens.ThemeMode as ShownThemeMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -107,13 +108,12 @@ class SettingsScreenTest {
     fun `each switch asks for its own key at the opposite of its current value`() {
         val cases = listOf(
             "settings.preloadModel" to "preloadModel",
-            "settings.wakeGestureEnabled" to "wakeGestureEnabled",
             "settings.formattingEnabled" to "formattingEnabled",
         )
         for (current in listOf(false, true)) {
             val held = NONDEFAULT.copy(
                 preloadModel = current,
-                wakeGestureEnabled = current,
+                wakeGestureMode = WakeGestureMode.OFF,
                 formattingEnabled = current,
             )
             val s = screen.render(held, themeOf(), null)
@@ -182,7 +182,7 @@ class SettingsScreenTest {
             "settings.server.field",
             "settings.apiKey.value",
             "settings.preloadModel",
-            "settings.wakeGestureEnabled",
+            "settings.wakeGesture.cells",
             "settings.formattingEnabled",
         )) {
             assertTrue("$absent is drawn from settings that were never read", absent !in ids)

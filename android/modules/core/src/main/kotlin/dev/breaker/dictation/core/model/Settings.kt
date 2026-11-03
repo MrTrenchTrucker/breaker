@@ -17,6 +17,14 @@ enum class SttMode { AUTO, LOCAL, SERVER }
  */
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
+/** The shake-to-wake choice, as the domain sees it.
+ *
+ * `ALWAYS` brings the tile back on every shake (today's on behaviour).
+ * `KEYBOARD_ONLY` brings it back only while the keyboard is up.
+ * `OFF` ignores shakes entirely (today's off behaviour).
+ */
+enum class WakeGestureMode { ALWAYS, KEYBOARD_ONLY, OFF }
+
 /**
  * Where the floating tile sits, as fractions of the screen (0f..1f on each
  * axis). Fractions rather than pixels so a saved position survives a change of
@@ -55,7 +63,7 @@ data class AppSettings(
     val modelSize: String = "small",
     val serverUrl: String = "",
     val apiKeyRef: String? = null,
-    val wakeGestureEnabled: Boolean = true,
+    val wakeGestureMode: WakeGestureMode = WakeGestureMode.ALWAYS,
     val tilePosition: TilePosition = TilePosition(0.5f, 0.5f),
     val language: String = "en",
     val preloadModel: Boolean = true,

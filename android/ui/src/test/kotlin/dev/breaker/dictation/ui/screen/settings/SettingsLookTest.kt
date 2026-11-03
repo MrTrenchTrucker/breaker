@@ -16,6 +16,7 @@ import dev.breaker.dictation.ui.testing.NONDEFAULT
 import dev.breaker.dictation.ui.theme.PaletteSlot
 import dev.breaker.dictation.ui.theme.ThemeState
 import dev.breaker.dictation.core.model.ThemeMode as StoredThemeMode
+import dev.breaker.dictation.core.model.WakeGestureMode
 import dev.breaker.shared.tokens.ThemeMode as ShownThemeMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -82,7 +83,7 @@ class SettingsLookTest {
         assertEquals(
             listOf(
                 "settings.switches.heading", "settings.preloadModel", "settings.hairline.preload",
-                "settings.wakeGestureEnabled", "settings.hairline.wake", "settings.formattingEnabled",
+                "settings.wakeGesture", "settings.hairline.wake", "settings.formattingEnabled",
             ),
             childIds(s, "settings.switches"),
         )
@@ -151,13 +152,12 @@ class SettingsLookTest {
     fun `each switch row carries its label help state and the opposite intent`() {
         val cases = listOf(
             Triple("settings.preloadModel", "Preload model", "preloadModel"),
-            Triple("settings.wakeGestureEnabled", "Wake gesture", "wakeGestureEnabled"),
             Triple("settings.formattingEnabled", "Formatting", "formattingEnabled"),
         )
         for (current in listOf(false, true)) {
             val held = NONDEFAULT.copy(
                 preloadModel = current,
-                wakeGestureEnabled = current,
+                wakeGestureMode = WakeGestureMode.OFF,
                 formattingEnabled = current,
             )
             val s = screen.render(held, themeOf(), null)
@@ -172,7 +172,7 @@ class SettingsLookTest {
                 )
             }
             assertEquals("Keeps the model ready for a faster start.", switchOf(s, "settings.preloadModel").help)
-            assertEquals("Shake the phone to bring the tile back.", switchOf(s, "settings.wakeGestureEnabled").help)
+            assertEquals("Shake the phone to bring the tile back.", labelOf(s, "settings.wakeGesture.help").text)
             assertEquals("Spoken lists become lists. Filler words go.", switchOf(s, "settings.formattingEnabled").help)
         }
     }

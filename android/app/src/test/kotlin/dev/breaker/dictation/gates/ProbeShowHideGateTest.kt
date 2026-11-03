@@ -79,11 +79,21 @@ internal class ProbeShowHideGateTest {
     }
 
     @Test
-    fun `the tile host names no probe symbol`() {
+    fun `the tile host names no probe symbol in show hide paths`() {
         val host: String = code(raw(hostPath))
-        assertEquals("app: TileHost names a probe symbol", emptyList<String>(), symbolsIn(host, probeSymbols))
-        val reader: String = code(edited(raw(hostPath), "    override fun openLauncher(route: String?) {", "    private fun reader() = KeyboardProbeReadings.isEnabled()\n\n    override fun openLauncher(route: String?) {"))
-        assertTrue("app: TileHost that reads the probe directly was accepted", symbolsIn(reader, probeSymbols).isNotEmpty())
+        val armed: String = bodyOf(host, armedHeader)
+        val launcher: String = bodyOf(host, launcherHeader)
+        assertTrue("app: the armed path of TileHost was not found", armed.isNotEmpty())
+        assertTrue("app: the launcher path of TileHost was not found", launcher.isNotEmpty())
+        assertEquals(
+            "app: the show/hide paths name a probe symbol",
+            emptyList<String>(),
+            symbolsIn(code(armed), probeSymbols) + symbolsIn(code(launcher), probeSymbols),
+        )
+        val plantArmed: String = bodyOf(edited(host, armedHeader, "$armedHeader\n        tile.setImeProbe(null)"), armedHeader)
+        val plantLauncher: String = bodyOf(edited(host, launcherHeader, "$launcherHeader\n        KeyboardProbeReadings.setEnabled(true)"), launcherHeader)
+        assertTrue("app: an armed path that names the probe was accepted", symbolsIn(code(plantArmed), probeSymbols).isNotEmpty())
+        assertTrue("app: a launcher path that names the probe was accepted", symbolsIn(code(plantLauncher), probeSymbols).isNotEmpty())
     }
 
     @Test

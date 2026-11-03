@@ -13,6 +13,7 @@ import dev.breaker.dictation.ui.screen.TypeRole
 import dev.breaker.dictation.ui.screen.titleBar
 import dev.breaker.dictation.ui.theme.PaletteSlot
 import dev.breaker.dictation.ui.theme.ThemeState
+import dev.breaker.dictation.core.model.WakeGestureMode
 
 /*
  * The settings screen, described as nodes and nothing else.
@@ -89,7 +90,7 @@ internal class SettingsScreen {
      */
     fun editFor(intent: ScreenIntent): ((AppSettings) -> AppSettings)? = when (intent) {
         is ScreenIntent.SetRoutingMode -> routingEdit(intent.mode)
-        is ScreenIntent.SetSetting -> booleanEdit(intent.key, intent.value)
+        is ScreenIntent.SetSetting -> wakeModeEdit(intent.key, intent.value) ?: booleanEdit(intent.key, intent.value)
         ScreenIntent.ToggleTheme,
         ScreenIntent.UseSystemTheme,
         is ScreenIntent.SetThemeMode,
@@ -116,11 +117,16 @@ internal class SettingsScreen {
         val asked = value.toBooleanStrictOrNull() ?: return null
         return when (key) {
             SettingsIds.KEY_PRELOAD -> { settings -> settings.copy(preloadModel = asked) }
-            SettingsIds.KEY_WAKE_GESTURE -> { settings -> settings.copy(wakeGestureEnabled = asked) }
             SettingsIds.KEY_FORMATTING -> { settings -> settings.copy(formattingEnabled = asked) }
             else -> null
         }
     }
+
+    /** The wake-gesture mode [mode] names, as a change of that one field, or null when it names no mode. Matched by exact enum name only - "always" and "off" are refused rather than guessed at. */
+    private fun wakeModeEdit(key: String, value: String): ((AppSettings) -> AppSettings)? =
+        WakeGestureMode.entries.firstOrNull { it.name == value }
+            ?.let { target -> { settings: AppSettings -> settings.copy(wakeGestureMode = target) } }
+            .takeIf { key == SettingsIds.KEY_WAKE_GESTURE_MODE }
 
     /** The message for a change that did not take effect, or nothing when there is none. */
     private fun noticeNode(notice: Notice?): Label? = notice?.let {

@@ -22,7 +22,7 @@ class SettingsMicrophoneAskedTest : SettingsFileStoreTestBase() {
         "mode=SERVER",
         "model_size=medium",
         "server_url=https://box.local",
-        "wake_gesture_enabled=false",
+        "wake_gesture_mode=off",
         "tile_position=0.25,0.75",
         "language=de",
         "preload_model=false",
