@@ -1,6 +1,7 @@
 package dev.breaker.dictation.ui.screen.settings
 
 import dev.breaker.dictation.core.model.AppSettings
+import dev.breaker.dictation.core.model.WakeGestureMode
 import dev.breaker.dictation.core.model.SttMode
 import dev.breaker.dictation.ui.screen.ScreenIntent
 import dev.breaker.dictation.ui.testing.NONDEFAULT
@@ -28,8 +29,6 @@ class SettingsScreenEditTest {
         val cases = listOf(
             Triple("preloadModel", true, NONDEFAULT.copy(preloadModel = true)),
             Triple("preloadModel", false, NONDEFAULT.copy(preloadModel = false)),
-            Triple("wakeGestureEnabled", true, NONDEFAULT.copy(wakeGestureEnabled = true)),
-            Triple("wakeGestureEnabled", false, NONDEFAULT.copy(wakeGestureEnabled = false)),
             Triple("formattingEnabled", true, NONDEFAULT.copy(formattingEnabled = true)),
             Triple("formattingEnabled", false, NONDEFAULT.copy(formattingEnabled = false)),
         )
@@ -38,6 +37,22 @@ class SettingsScreenEditTest {
                 "key $key set to $value",
                 expected,
                 applied(ScreenIntent.SetSetting(key, value.toString())),
+            )
+        }
+    }
+
+    @Test
+    fun `each wake-gesture mode changes exactly the mode field and keeps every other field`() {
+        val cases = listOf(
+            Pair(WakeGestureMode.ALWAYS, NONDEFAULT.copy(wakeGestureMode = WakeGestureMode.ALWAYS)),
+            Pair(WakeGestureMode.KEYBOARD_ONLY, NONDEFAULT.copy(wakeGestureMode = WakeGestureMode.KEYBOARD_ONLY)),
+            Pair(WakeGestureMode.OFF, NONDEFAULT.copy(wakeGestureMode = WakeGestureMode.OFF)),
+        )
+        for ((mode, expected) in cases) {
+            assertEquals(
+                "mode $mode",
+                expected,
+                applied(ScreenIntent.SetSetting("wake_gesture_mode", mode.name)),
             )
         }
     }
@@ -65,7 +80,7 @@ class SettingsScreenEditTest {
 
     @Test
     fun `a value that is not exactly what a switch sends is refused`() {
-        for (key in listOf("preloadModel", "wakeGestureEnabled", "formattingEnabled")) {
+        for (key in listOf("preloadModel", "wake_gesture_mode", "formattingEnabled")) {
             for (value in listOf("True", "yes", "", "  ", "1", "0", "on", "off")) {
                 assertNull("key $key value '$value'", applied(ScreenIntent.SetSetting(key, value)))
             }

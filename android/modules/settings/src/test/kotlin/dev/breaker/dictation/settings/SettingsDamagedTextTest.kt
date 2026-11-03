@@ -23,7 +23,7 @@ class SettingsDamagedTextTest : SettingsFileStoreTestBase() {
      */
     private val nonDefaultLines = listOf(
         "mode=SERVER", "model_size=medium", "server_url=https://box.local",
-        "wake_gesture_enabled=false", "tile_position=0.25,0.75", "language=de",
+        "wake_gesture_mode=off", "tile_position=0.25,0.75", "language=de",
         "preload_model=false", "formatting_enabled=false", "theme_mode=DARK",
     )
 

@@ -4,6 +4,7 @@ import dev.breaker.dictation.core.model.AppSettings
 import dev.breaker.dictation.core.model.SttMode
 import dev.breaker.dictation.core.model.ThemeMode
 import dev.breaker.dictation.core.model.TilePosition
+import dev.breaker.dictation.core.model.WakeGestureMode
 import java.util.Properties
 
 /**
@@ -36,6 +37,7 @@ internal object SettingsPropertiesCodec {
     private const val KEY_MODE = "mode"
     private const val KEY_MODEL_SIZE = "model_size"
     private const val KEY_SERVER_URL = "server_url"
+    private const val KEY_WAKE_GESTURE_MODE = "wake_gesture_mode"
     private const val KEY_WAKE_GESTURE_ENABLED = "wake_gesture_enabled"
     private const val KEY_TILE_POSITION = "tile_position"
     private const val KEY_LANGUAGE = "language"
@@ -49,7 +51,7 @@ internal object SettingsPropertiesCodec {
         KEY_MODE,
         KEY_MODEL_SIZE,
         KEY_SERVER_URL,
-        KEY_WAKE_GESTURE_ENABLED,
+        KEY_WAKE_GESTURE_MODE,
         KEY_TILE_POSITION,
         KEY_LANGUAGE,
         KEY_PRELOAD_MODEL,
@@ -72,7 +74,7 @@ internal object SettingsPropertiesCodec {
         properties[KEY_MODE] = settings.mode.name
         properties[KEY_MODEL_SIZE] = settings.modelSize
         properties[KEY_SERVER_URL] = settings.serverUrl
-        properties[KEY_WAKE_GESTURE_ENABLED] = settings.wakeGestureEnabled.toString()
+        properties[KEY_WAKE_GESTURE_MODE] = settings.wakeGestureMode.name
         properties[KEY_TILE_POSITION] = encodeTilePosition(settings.tilePosition)
         properties[KEY_LANGUAGE] = settings.language
         properties[KEY_PRELOAD_MODEL] = settings.preloadModel.toString()
@@ -106,8 +108,10 @@ internal object SettingsPropertiesCodec {
                 properties.getProperty(KEY_SERVER_URL), defaults.serverUrl,
             ),
             apiKeyRef = apiKeyRef,
-            wakeGestureEnabled = SettingsValidation.booleanOrFallback(
-                properties.getProperty(KEY_WAKE_GESTURE_ENABLED), defaults.wakeGestureEnabled,
+            wakeGestureMode = SettingsValidation.wakeGestureModeOrFallback(
+                properties.getProperty(KEY_WAKE_GESTURE_MODE),
+                properties.getProperty(KEY_WAKE_GESTURE_ENABLED),
+                defaults.wakeGestureMode,
             ),
             tilePosition = decodeTilePosition(properties, defaults.tilePosition),
             language = SettingsValidation.stringOrFallback(

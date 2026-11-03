@@ -64,16 +64,13 @@ internal class GestureWiringGateTest {
             count(codeOf(sources, hostFile), """\bgesture\s*\.\s*start\s*\{""") == 1
         },
         Rule("WAKE_GATE_FIELD_BUILT_FROM_SETTINGS") { sources ->
-            count(codeOf(sources, hostFile), """\bprivate\s+val\s+wakeGate\s*=\s*WakeGestureGate\s*\{""") == 1
-        },
-        Rule("THE_SENSOR_STARTS_WHENEVER_THE_SERVICE_IS_ARMED") { sources ->
-            count(codeOf(sources, hostFile), """\bif\s*\(\s*armed\s*\)\s*gesture\s*\.\s*start\s*\{""") == 1
+            count(codeOf(sources, hostFile), """\bprivate\s+val\s+wakeGate\s*=\s*WakeGestureGate\s*\(""") == 1
         },
         Rule("WAKE_GATE_GUARDS_THE_SHAKE_CALLBACK") { sources ->
             count(codeOf(sources, hostFile), """wakeGate\s*\.\s*mayShake\s*\(\)""") == 1
         },
-        Rule("WAKE_GESTURE_ENABLED_READ_ONCE") { sources ->
-            count(codeOf(sources, hostFile), """\bwakeGestureEnabled\b""") == 1
+        Rule("WAKE_GATE_READS_MODE_ONCE") { sources ->
+            count(codeOf(sources, hostFile), """\bwakeGestureMode\b""") == 1
         },
     )
 
@@ -95,14 +92,12 @@ internal class GestureWiringGateTest {
         Sample("THE_TILE_HOST_GETS_THE_ANDROID_GESTURE", hostFile, "    private val gesture = appGesture(context)", "    private val gesture = NoGesture()"),
         Sample("THE_TILE_HOST_STARTS_THE_GESTURE_ONCE", hostFile, "if (armed) gesture.start {", "gesture.start { }\n        if (armed) gesture.start {"),
         Sample("THE_TILE_HOST_STARTS_THE_GESTURE_ONCE", hostFile, "    private val gesture = appGesture(context)", "    private val gesture = appGesture(context)\n    private val primed = gesture.start { }"),
-        Sample("WAKE_GATE_FIELD_BUILT_FROM_SETTINGS", hostFile, "    private val wakeGate = WakeGestureGate { root.settingsStore.load().wakeGestureEnabled }", "    private val wake = WakeGestureGate { true }"),
-        Sample("WAKE_GATE_FIELD_BUILT_FROM_SETTINGS", hostFile, "    private val wakeGate = WakeGestureGate { root.settingsStore.load().wakeGestureEnabled }", "    private val wakeGate = WakeGestureGate { root.settingsStore.load().wakeGestureEnabled }\n    private val wakeGate = WakeGestureGate { false }"),
-        Sample("THE_SENSOR_STARTS_WHENEVER_THE_SERVICE_IS_ARMED", hostFile, "if (armed) gesture.start {", "if (armed && wakeGate.mayShake()) gesture.start {"),
-        Sample("THE_SENSOR_STARTS_WHENEVER_THE_SERVICE_IS_ARMED", hostFile, "if (armed) gesture.start {", "if (armed) { } else gesture.start {"),
+        Sample("WAKE_GATE_FIELD_BUILT_FROM_SETTINGS", hostFile, "    private val wakeGate = WakeGestureGate(\n        mode = { root.settingsStore.load().wakeGestureMode },", "    private val theWakeGate = WakeGestureGate(\n        mode = { root.settingsStore.load().wakeGestureMode },"),
+        Sample("WAKE_GATE_FIELD_BUILT_FROM_SETTINGS", hostFile, "    private val wakeGate = WakeGestureGate(\n        mode = { root.settingsStore.load().wakeGestureMode },", "    private val wakeGate = WakeGestureGate { true }"),
         Sample("WAKE_GATE_GUARDS_THE_SHAKE_CALLBACK", hostFile, "if (wakeGate.mayShake()) toCoordinator { it.onShake() }", "toCoordinator { it.onShake() }"),
         Sample("WAKE_GATE_GUARDS_THE_SHAKE_CALLBACK", hostFile, "if (wakeGate.mayShake()) toCoordinator { it.onShake() }", "if (wakeGate.mayShake() && wakeGate.mayShake()) toCoordinator { it.onShake() }"),
-        Sample("WAKE_GESTURE_ENABLED_READ_ONCE", hostFile, "WakeGestureGate { root.settingsStore.load().wakeGestureEnabled }", "WakeGestureGate { true }"),
-        Sample("WAKE_GESTURE_ENABLED_READ_ONCE", hostFile, "WakeGestureGate { root.settingsStore.load().wakeGestureEnabled }", "WakeGestureGate { root.settingsStore.load().wakeGestureEnabled && root.settingsStore.load().wakeGestureEnabled }"),
+        Sample("WAKE_GATE_READS_MODE_ONCE", hostFile, "        mode = { root.settingsStore.load().wakeGestureMode },", "        mode = { WakeGestureMode.ALWAYS },"),
+        Sample("WAKE_GATE_READS_MODE_ONCE", hostFile, "        mode = { root.settingsStore.load().wakeGestureMode },", "        mode = { root.settingsStore.load().wakeGestureMode },\n        mode = { root.settingsStore.load().wakeGestureMode },"),
     )
 
     private val quiet: List<Sample> = listOf(
@@ -120,7 +115,7 @@ internal class GestureWiringGateTest {
         Sample("THE_TILE_HOST_GETS_THE_ANDROID_GESTURE", hostFile, "    private val gesture = appGesture(context)", "    /* NoGesture() */\n    private val gesture = appGesture(context)"),
         Sample("THE_TILE_HOST_STARTS_THE_GESTURE_ONCE", hostFile, "    private val gesture = appGesture(context)", "    // gesture.start { }\n    private val gesture = appGesture(context)"),
         Sample("THE_TILE_HOST_STARTS_THE_GESTURE_ONCE", hostFile, "    private val gesture = appGesture(context)", "    /* gesture.start { } */\n    private val gesture = appGesture(context)"),
-        Sample("WAKE_GESTURE_ENABLED_READ_ONCE", hostFile, "    private val wakeGate = WakeGestureGate { root.settingsStore.load().wakeGestureEnabled }", "    private val wakeGate = WakeGestureGate { root.settingsStore.load().wakeGestureEnabled } // wakeGate.mayShake() wakeGestureEnabled"),
+        Sample("WAKE_GATE_READS_MODE_ONCE", hostFile, "        mode = { root.settingsStore.load().wakeGestureMode },", "        mode = { root.settingsStore.load().wakeGestureMode }, // wakeGate.mayShake() wakeGestureMode"),
     )
 
     /** The real main sources with one sample's edit applied; fails by name when the sample's text is not in the file. */

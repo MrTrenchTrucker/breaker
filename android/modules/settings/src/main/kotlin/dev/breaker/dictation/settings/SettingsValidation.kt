@@ -1,6 +1,7 @@
 package dev.breaker.dictation.settings
 
 import dev.breaker.dictation.core.model.TilePosition
+import dev.breaker.dictation.core.model.WakeGestureMode
 import dev.breaker.shared.models.ModelRegistry
 import java.util.Locale
 
@@ -100,6 +101,19 @@ internal object SettingsValidation {
         val trimmed = raw?.trim()
         if (trimmed.isNullOrEmpty()) return fallback
         return values.firstOrNull { it.name.equals(trimmed, ignoreCase = true) } ?: fallback
+    }
+
+    /** Legacy wake-gesture key migration. [raw] is the new key [wake_gesture_mode], [legacy] is the old key [wake_gesture_enabled].
+     * Ruling: legacy true=ALWAYS, legacy false=OFF, both missing=ALWAYS, new key wins if both present. */
+    fun wakeGestureModeOrFallback(raw: String?, legacy: String?, fallback: WakeGestureMode): WakeGestureMode {
+        val newVal = raw?.trim()
+        if (newVal?.isNotEmpty() == true) return enumOrFallback(newVal, WakeGestureMode.entries.toTypedArray(), fallback)
+        val legacyVal = legacy?.trim()?.lowercase(Locale.ROOT)
+        return when (legacyVal) {
+            "true" -> WakeGestureMode.ALWAYS
+            "false" -> WakeGestureMode.OFF
+            else -> fallback
+        }
     }
 
     /**

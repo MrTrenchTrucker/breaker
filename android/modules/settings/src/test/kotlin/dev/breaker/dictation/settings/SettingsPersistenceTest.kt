@@ -1,7 +1,9 @@
 package dev.breaker.dictation.settings
 
+import dev.breaker.dictation.core.model.AppSettings
 import dev.breaker.dictation.core.model.SttMode
 import dev.breaker.dictation.core.model.ThemeMode
+import dev.breaker.dictation.core.model.WakeGestureMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -30,7 +32,7 @@ class SettingsPersistenceTest : SettingsFileStoreTestBase() {
         assertEquals("mode", SttMode.SERVER, reloaded.mode)
         assertEquals("model_size", "medium", reloaded.modelSize)
         assertEquals("server_url", "https://box.local", reloaded.serverUrl)
-        assertEquals("wake_gesture_enabled", false, reloaded.wakeGestureEnabled)
+        assertEquals("wake_gesture_mode", WakeGestureMode.OFF, reloaded.wakeGestureMode)
         assertEquals("language", "de", reloaded.language)
         assertEquals("preload_model", false, reloaded.preloadModel)
         assertEquals("formatting_enabled", false, reloaded.formattingEnabled)
@@ -105,7 +107,7 @@ class SettingsPersistenceTest : SettingsFileStoreTestBase() {
                     KEY_MODE -> SttMode.SERVER.name
                     KEY_THEME_MODE -> ThemeMode.DARK.name
                     KEY_TILE_POSITION -> "0.25,0.75"
-                    KEY_WAKE_GESTURE, KEY_PRELOAD_MODEL, KEY_FORMATTING, KEY_MICROPHONE_ASKED -> "false"
+                    KEY_WAKE_GESTURE_MODE, KEY_PRELOAD_MODEL, KEY_FORMATTING, KEY_MICROPHONE_ASKED -> "off"
                     KEY_MODEL_SIZE -> "medium"
                     KEY_SERVER_URL -> "https://box.local"
                     else -> "de"

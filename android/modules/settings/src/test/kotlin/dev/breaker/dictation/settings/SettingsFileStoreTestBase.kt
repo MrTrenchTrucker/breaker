@@ -4,6 +4,7 @@ import dev.breaker.dictation.core.model.AppSettings
 import dev.breaker.dictation.core.model.SttMode
 import dev.breaker.dictation.core.model.ThemeMode
 import dev.breaker.dictation.core.model.TilePosition
+import dev.breaker.dictation.core.model.WakeGestureMode
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
@@ -21,7 +22,8 @@ import java.util.Properties
 internal const val KEY_MODE = "mode"
 internal const val KEY_MODEL_SIZE = "model_size"
 internal const val KEY_SERVER_URL = "server_url"
-internal const val KEY_WAKE_GESTURE = "wake_gesture_enabled"
+internal const val KEY_WAKE_GESTURE_MODE = "wake_gesture_mode"
+internal const val KEY_WAKE_GESTURE_ENABLED = "wake_gesture_enabled"
 internal const val KEY_TILE_POSITION = "tile_position"
 internal const val KEY_LANGUAGE = "language"
 internal const val KEY_PRELOAD_MODEL = "preload_model"
@@ -37,7 +39,7 @@ internal val THE_TEN_KEYS: Set<String> = setOf(
     KEY_MODE,
     KEY_MODEL_SIZE,
     KEY_SERVER_URL,
-    KEY_WAKE_GESTURE,
+    KEY_WAKE_GESTURE_MODE,
     KEY_TILE_POSITION,
     KEY_LANGUAGE,
     KEY_PRELOAD_MODEL,
@@ -92,7 +94,7 @@ abstract class SettingsFileStoreTestBase {
         modelSize = "medium",
         serverUrl = "https://box.local",
         apiKeyRef = null,
-        wakeGestureEnabled = false,
+        wakeGestureMode = WakeGestureMode.OFF,
         // Off-centre on purpose: the default is 0.5/0.5, so a value the store
         // never actually wrote could not satisfy this.
         tilePosition = tile,
@@ -118,7 +120,7 @@ abstract class SettingsFileStoreTestBase {
         props.setProperty(KEY_MODE, SttMode.SERVER.name)
         props.setProperty(KEY_MODEL_SIZE, "medium")
         props.setProperty(KEY_SERVER_URL, "https://box.local")
-        props.setProperty(KEY_WAKE_GESTURE, "false")
+        props.setProperty(KEY_WAKE_GESTURE_MODE, "OFF")
         props.setProperty(KEY_TILE_POSITION, "0.25,0.75")
         props.setProperty(KEY_LANGUAGE, "de")
         props.setProperty(KEY_PRELOAD_MODEL, "false")
@@ -162,9 +164,9 @@ abstract class SettingsFileStoreTestBase {
             assertEquals("server address", written.serverUrl, loaded.serverUrl)
             checked += KEY_SERVER_URL
         }
-        if (exceptKey != KEY_WAKE_GESTURE) {
-            assertEquals("wake gesture", written.wakeGestureEnabled, loaded.wakeGestureEnabled)
-            checked += KEY_WAKE_GESTURE
+        if (exceptKey != KEY_WAKE_GESTURE_MODE) {
+            assertEquals("wake gesture", written.wakeGestureMode, loaded.wakeGestureMode)
+            checked += KEY_WAKE_GESTURE_MODE
         }
         if (exceptKey != KEY_TILE_POSITION) {
             assertEquals("tile x", written.tilePosition.x, loaded.tilePosition.x, 0f)

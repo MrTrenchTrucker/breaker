@@ -24,7 +24,7 @@ class SettingsDefaultsTest : SettingsFileStoreTestBase() {
         assertEquals("mode", AppSettings().mode, loaded.mode)
         assertEquals("model_size", AppSettings().modelSize, loaded.modelSize)
         assertEquals("server_url", AppSettings().serverUrl, loaded.serverUrl)
-        assertEquals("wake_gesture_enabled", AppSettings().wakeGestureEnabled, loaded.wakeGestureEnabled)
+        assertEquals("wake_gesture_mode", AppSettings().wakeGestureMode, loaded.wakeGestureMode)
         assertEquals("tile_position", AppSettings().tilePosition, loaded.tilePosition)
         assertEquals("language", AppSettings().language, loaded.language)
         assertEquals("preload_model", AppSettings().preloadModel, loaded.preloadModel)

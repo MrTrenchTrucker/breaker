@@ -15,6 +15,7 @@ import dev.breaker.dictation.ui.screen.SegmentCell
 import dev.breaker.dictation.ui.screen.SegmentedRow
 import dev.breaker.dictation.ui.screen.Space
 import dev.breaker.dictation.ui.screen.SwitchRow
+import dev.breaker.dictation.core.model.WakeGestureMode
 import dev.breaker.dictation.ui.screen.TextAlign
 import dev.breaker.dictation.ui.screen.TrimStripe
 import dev.breaker.dictation.ui.screen.TypeRole
@@ -61,12 +62,17 @@ internal object SettingsIds {
     const val SWITCHES_BLOCK = "settings.switches"
     const val SWITCHES_HEADING = "settings.switches.heading"
     const val SWITCH_PRELOAD = "settings.preloadModel"
-    const val SWITCH_WAKE = "settings.wakeGestureEnabled"
     const val SWITCH_FORMATTING = "settings.formattingEnabled"
     const val HAIRLINE_PRELOAD = "settings.hairline.preload"
     const val HAIRLINE_WAKE = "settings.hairline.wake"
 
+    const val WAKE_BLOCK = "settings.wakeGesture"
+    const val WAKE_CELLS = "settings.wakeGesture.cells"
+    const val WAKE_CELL_PREFIX = "settings.wakeGesture."
+    const val WAKE_HELP_ID = "settings.wakeGesture.help"
+
     const val VALUES_BLOCK = "settings.values"
+
     const val VALUES_HEADING = "settings.values.heading"
     const val MODEL_ROW = "settings.model"
     const val MODEL_HEAD = "settings.model.head"
@@ -84,9 +90,9 @@ internal object SettingsIds {
     const val API_KEY_LABEL = "settings.apiKey.label"
     const val API_KEY_VALUE = "settings.apiKey.value"
 
-    /** The stored keys the three switches write; the screen reads them back when it edits. */
+    /** The stored keys the two switches write; the screen reads them back when it edits. */
     const val KEY_PRELOAD = "preloadModel"
-    const val KEY_WAKE_GESTURE = "wakeGestureEnabled"
+    const val KEY_WAKE_GESTURE_MODE = "wake_gesture_mode"
     const val KEY_FORMATTING = "formattingEnabled"
 }
 
@@ -142,13 +148,7 @@ internal fun switchesBlock(held: AppSettings): Box = Box(
             held.preloadModel,
         ),
         TrimStripe(SettingsIds.HAIRLINE_PRELOAD),
-        switchRow(
-            SettingsIds.SWITCH_WAKE,
-            SettingsTexts.WAKE_LABEL,
-            SettingsTexts.WAKE_HELP,
-            SettingsIds.KEY_WAKE_GESTURE,
-            held.wakeGestureEnabled,
-        ),
+        wakeGestureBlock(held),
         TrimStripe(SettingsIds.HAIRLINE_WAKE),
         switchRow(
             SettingsIds.SWITCH_FORMATTING,
@@ -157,6 +157,25 @@ internal fun switchesBlock(held: AppSettings): Box = Box(
             SettingsIds.KEY_FORMATTING,
             held.formattingEnabled,
         ),
+    ),
+)
+
+/** The wake-gesture block: a heading, the three choices as cells with the stored one selected, and one help line. Words are provisional. */
+internal fun wakeGestureBlock(held: AppSettings): Box = Box(
+    id = SettingsIds.WAKE_BLOCK,
+    background = PaletteSlot.BACKGROUND,
+    gap = Space.S,
+    children = listOf(
+        sectionLabel(SettingsIds.WAKE_BLOCK + ".heading", SettingsTexts.WAKE_LABEL),
+        SegmentedRow(
+            id = SettingsIds.WAKE_CELLS,
+            cells = listOf(
+                wakeCell(SettingsIds.WAKE_CELL_PREFIX + WakeGestureMode.ALWAYS.name, SettingsTexts.WAKE_ALWAYS, WakeGestureMode.ALWAYS, held.wakeGestureMode),
+                wakeCell(SettingsIds.WAKE_CELL_PREFIX + WakeGestureMode.KEYBOARD_ONLY.name, SettingsTexts.WAKE_KEYBOARD_ONLY, WakeGestureMode.KEYBOARD_ONLY, held.wakeGestureMode),
+                wakeCell(SettingsIds.WAKE_CELL_PREFIX + WakeGestureMode.OFF.name, SettingsTexts.WAKE_OFF, WakeGestureMode.OFF, held.wakeGestureMode),
+            ),
+        ),
+        bodyLabel(SettingsIds.WAKE_HELP_ID, SettingsTexts.WAKE_HELP, PaletteSlot.TEXT_MUTED),
     ),
 )
 
@@ -313,3 +332,12 @@ private fun bodyLabel(id: String, text: String, color: PaletteSlot): Label =
 
 private fun monoLabel(id: String, text: String, color: PaletteSlot, align: TextAlign = TextAlign.START): Label =
     Label(id = id, text = text, role = TypeRole.MONO, color = color, align = align)
+
+/** One wake-gesture cell: its words, the mode it asks for by name, and whether it is the stored choice. Words are provisional. */
+private fun wakeCell(id: String, text: String, mode: WakeGestureMode, held: WakeGestureMode): SegmentCell =
+    SegmentCell(
+        id = id,
+        text = text,
+        selected = held == mode,
+        intent = ScreenIntent.SetSetting(SettingsIds.KEY_WAKE_GESTURE_MODE, mode.name),
+    )

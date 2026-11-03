@@ -4,6 +4,7 @@ import dev.breaker.dictation.core.model.AppSettings
 import dev.breaker.dictation.core.model.SttMode
 import dev.breaker.dictation.core.model.ThemeMode
 import dev.breaker.dictation.core.model.TilePosition
+import dev.breaker.dictation.core.model.WakeGestureMode
 import dev.breaker.dictation.core.port.SettingsStore
 
 /** A text that only a failing [FakeSettingsStore] puts in its exception message. */
@@ -22,7 +23,7 @@ internal val NONDEFAULT: AppSettings = AppSettings(
     modelSize = "medium",
     serverUrl = "https://srv.example.invalid:8443",
     apiKeyRef = "REF-9f3k",
-    wakeGestureEnabled = false,
+    wakeGestureMode = WakeGestureMode.OFF,
     tilePosition = TilePosition(0.2f, 0.8f),
     language = "de",
     preloadModel = false,

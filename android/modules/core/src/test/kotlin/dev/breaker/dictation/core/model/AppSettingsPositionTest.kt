@@ -15,13 +15,13 @@ class AppSettingsPositionTest {
 
     @Test
     fun `positional arguments bind to the fields in their declared order`() {
-        val settings = AppSettings(SttMode.SERVER, "base", "https://box.local", "key-ref", true, tile, "de", false, false)
+        val settings = AppSettings(SttMode.SERVER, "base", "https://box.local", "key-ref", WakeGestureMode.ALWAYS, tile, "de", false, false)
 
         assertEquals(SttMode.SERVER, settings.mode)
         assertEquals("base", settings.modelSize)
         assertEquals("https://box.local", settings.serverUrl)
         assertEquals("key-ref", settings.apiKeyRef)
-        assertTrue(settings.wakeGestureEnabled)
+        assertEquals(WakeGestureMode.ALWAYS, settings.wakeGestureMode)
         assertEquals(tile, settings.tilePosition)
         assertEquals("de", settings.language)
         assertFalse(settings.preloadModel)
@@ -31,16 +31,16 @@ class AppSettingsPositionTest {
     @Test
     fun `the three switches are told apart by position and formatting comes last`() {
         // Exactly one of the three is on in each, so no two of them can trade places unseen.
-        val wakeOnly = AppSettings(SttMode.AUTO, "small", "", null, true, tile, "en", false, false)
-        assertEquals(Triple(true, false, false), Triple(wakeOnly.wakeGestureEnabled, wakeOnly.preloadModel, wakeOnly.formattingEnabled))
+        val wakeOnly = AppSettings(SttMode.AUTO, "small", "", null, WakeGestureMode.ALWAYS, tile, "en", false, false)
+        assertEquals(Triple(WakeGestureMode.ALWAYS, false, false), Triple(wakeOnly.wakeGestureMode, wakeOnly.preloadModel, wakeOnly.formattingEnabled))
 
-        val preloadOnly = AppSettings(SttMode.AUTO, "small", "", null, false, tile, "en", true, false)
-        assertEquals(Triple(false, true, false), Triple(preloadOnly.wakeGestureEnabled, preloadOnly.preloadModel, preloadOnly.formattingEnabled))
+        val preloadOnly = AppSettings(SttMode.AUTO, "small", "", null, WakeGestureMode.OFF, tile, "en", true, false)
+        assertEquals(Triple(WakeGestureMode.OFF, true, false), Triple(preloadOnly.wakeGestureMode, preloadOnly.preloadModel, preloadOnly.formattingEnabled))
 
-        val formattingOnly = AppSettings(SttMode.AUTO, "small", "", null, false, tile, "en", false, true)
+        val formattingOnly = AppSettings(SttMode.AUTO, "small", "", null, WakeGestureMode.OFF, tile, "en", false, true)
         assertEquals(
-            Triple(false, false, true),
-            Triple(formattingOnly.wakeGestureEnabled, formattingOnly.preloadModel, formattingOnly.formattingEnabled),
+            Triple(WakeGestureMode.OFF, false, true),
+            Triple(formattingOnly.wakeGestureMode, formattingOnly.preloadModel, formattingOnly.formattingEnabled),
         )
     }
 }

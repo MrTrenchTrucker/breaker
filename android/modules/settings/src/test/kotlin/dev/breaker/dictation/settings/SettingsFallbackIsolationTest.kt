@@ -16,10 +16,10 @@ class SettingsFallbackIsolationTest : SettingsFileStoreTestBase() {
 
     @Test
     fun `an unparseable boolean falls back alone`() {
-        val loaded = store(fileWith(KEY_WAKE_GESTURE, "maybe")).load()
+        val loaded = store(fileWith(KEY_WAKE_GESTURE_MODE, "maybe")).load()
 
-        assertEquals("wake_gesture_enabled", AppSettings().wakeGestureEnabled, loaded.wakeGestureEnabled)
-        assertEveryOtherKeySurvived(loaded, exceptKey = KEY_WAKE_GESTURE)
+        assertEquals("wake_gesture_mode", AppSettings().wakeGestureMode, loaded.wakeGestureMode)
+        assertEveryOtherKeySurvived(loaded, exceptKey = KEY_WAKE_GESTURE_MODE)
     }
 
     @Test

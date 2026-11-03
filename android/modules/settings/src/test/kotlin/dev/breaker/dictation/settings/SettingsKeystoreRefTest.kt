@@ -4,6 +4,7 @@ import dev.breaker.dictation.core.model.AppSettings
 import dev.breaker.dictation.core.model.SttMode
 import dev.breaker.dictation.core.model.ThemeMode
 import dev.breaker.dictation.core.model.TilePosition
+import dev.breaker.dictation.core.model.WakeGestureMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -55,7 +56,7 @@ class SettingsKeystoreRefTest {
         modelSize = "medium",
         serverUrl = "https://box.local",
         apiKeyRef = ref,
-        wakeGestureEnabled = false,
+        wakeGestureMode = WakeGestureMode.OFF,
         tilePosition = TilePosition(0.25f, 0.75f),
         language = "de",
         preloadModel = false,

@@ -1,49 +1,78 @@
 package dev.breaker.dictation.wiring
 
+import dev.breaker.dictation.core.model.WakeGestureMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** The wake switch reader reads the Wake Gesture switch live on every call and never caches. */
+/** The 3-way wake-gesture gate: mode read fresh, keyboard consulted only for KEYBOARD_ONLY. */
 internal class WakeGestureGateTest {
 
     @Test
-    fun `a shake may reach the coordinator while the switch is on`() {
-        val enabled = true
-        val wake = WakeGestureGate { enabled }
-        assertTrue("app: mayShake must be true while enabled", wake.mayShake())
+    fun `ALWAYS may shake without keyboard up`() {
+        var keyboardUp = false
+        var keyboardReads = 0
+        val wake = WakeGestureGate(
+            mode = { WakeGestureMode.ALWAYS },
+            keyboardUp = { keyboardReads += 1; keyboardUp },
+        )
+        assertTrue("ALWAYS may shake without keyboard up", wake.mayShake())
+        assertEquals("keyboard not consulted for ALWAYS", 0, keyboardReads)
     }
 
     @Test
-    fun `a shake is ignored while the switch is off`() {
-        val enabled = false
-        val wake = WakeGestureGate { enabled }
-        assertFalse("app: mayShake must be false while disabled", wake.mayShake())
+    fun `OFF never shakes even with keyboard up`() {
+        var keyboardUp = true
+        val wake = WakeGestureGate(
+            mode = { WakeGestureMode.OFF },
+            keyboardUp = { keyboardUp },
+        )
+        assertFalse("OFF never shakes", wake.mayShake())
     }
 
     @Test
-    fun `the switch is read fresh on every shake`() {
-        var enabled = true
-        var reads = 0
-        val wake = WakeGestureGate { reads += 1; enabled }
-
-        assertTrue("app: first shake with the switch on", wake.mayShake())
-        enabled = false
-        assertFalse("app: second shake after the switch was turned off", wake.mayShake())
-        enabled = true
-        assertTrue("app: third shake after the switch was turned on again", wake.mayShake())
-
-        // The lambda runs once per call: three calls, three reads.
-        assertEquals("app: the enabled lambda is invoked once per call", 3, reads)
+    fun `KEYBOARD_ONLY shakes only while keyboard up`() {
+        var keyboardUp = false
+        val wake = WakeGestureGate(
+            mode = { WakeGestureMode.KEYBOARD_ONLY },
+            keyboardUp = { keyboardUp },
+        )
+        assertFalse("KEYBOARD_ONLY false when keyboard down", wake.mayShake())
+        keyboardUp = true
+        assertTrue("KEYBOARD_ONLY true when keyboard up", wake.mayShake())
     }
 
     @Test
-    fun `a false reading is never cached so false then true reads true`() {
-        var enabled = false
-        val wake = WakeGestureGate { enabled }
-        assertFalse("app: the first read is false", wake.mayShake())
-        enabled = true
-        assertTrue("app: the second read is true, not the cached false", wake.mayShake())
+    fun `mode read fresh on every shake, no caching`() {
+        var mode = WakeGestureMode.KEYBOARD_ONLY
+        var keyboardUp = false
+        var modeReads = 0
+        val wake = WakeGestureGate(
+            mode = { modeReads += 1; mode },
+            keyboardUp = { keyboardUp },
+        )
+        assertFalse("first shake: KEYBOARD_ONLY, keyboard down", wake.mayShake())
+        mode = WakeGestureMode.ALWAYS
+        assertTrue("second shake: flipped to ALWAYS", wake.mayShake())
+        mode = WakeGestureMode.OFF
+        assertFalse("third shake: flipped to OFF", wake.mayShake())
+        assertEquals("mode lambda invoked once per call", 3, modeReads)
+    }
+
+    @Test
+    fun `KEYBOARD_ONLY reads keyboard fresh every call`() {
+        var keyboardUp = false
+        var keyboardReads = 0
+        val wake = WakeGestureGate(
+            mode = { WakeGestureMode.KEYBOARD_ONLY },
+            keyboardUp = { keyboardReads += 1; keyboardUp },
+        )
+        assertFalse("keyboard down", wake.mayShake())
+        keyboardUp = true
+        assertTrue("keyboard up", wake.mayShake())
+        keyboardUp = false
+        assertFalse("keyboard down again", wake.mayShake())
+        assertEquals("keyboard lambda invoked once per call", 3, keyboardReads)
     }
 }

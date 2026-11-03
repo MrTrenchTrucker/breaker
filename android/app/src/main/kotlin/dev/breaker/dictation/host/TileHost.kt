@@ -28,9 +28,11 @@ import dev.breaker.dictation.wiring.TakeOwnerKind
 import dev.breaker.dictation.wiring.TakePortAdapter
 import dev.breaker.dictation.wiring.TileCoordinator
 import dev.breaker.dictation.wiring.WakeGestureGate
+import dev.breaker.dictation.core.model.WakeGestureMode
 import dev.breaker.dictation.wiring.appGesture
 import dev.breaker.dictation.wiring.appTakenClipboard
 import dev.breaker.dictation.wiring.modelInstallPortFor
+import dev.breaker.dictation.commit.KeyboardProbeReadings
 
 /**
  * Where the floating tile and the speech model download are put together for the running app.
@@ -71,7 +73,10 @@ internal class TileHost(
     private val notifications = ModelNotifications(context)
     private val gesture = appGesture(context)
     private val selectedId: () -> String = { root.settingsStore.load().modelSize }
-    private val wakeGate = WakeGestureGate { root.settingsStore.load().wakeGestureEnabled }
+    private val wakeGate = WakeGestureGate(
+        mode = { root.settingsStore.load().wakeGestureMode },
+        keyboardUp = { KeyboardProbeReadings.current()?.imeWindow ?: false },
+    )
 
     private val tile: OverlayTilePort = OverlayTilePort(
         context = context,

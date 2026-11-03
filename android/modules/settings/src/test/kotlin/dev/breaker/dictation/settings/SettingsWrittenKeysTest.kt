@@ -43,7 +43,7 @@ class SettingsWrittenKeysTest : SettingsFileStoreTestBase() {
         "mode",
         "model_size",
         "server_url",
-        "wake_gesture_enabled",
+        "wake_gesture_mode",
         "tile_position",
         "language",
         "preload_model",
@@ -163,7 +163,7 @@ class SettingsWrittenKeysTest : SettingsFileStoreTestBase() {
         assertEquals("microphone_asked", "true", raw.getProperty("microphone_asked"))
         assertEquals("mode", "SERVER", raw.getProperty("mode"))
         assertEquals("model_size", "medium", raw.getProperty("model_size"))
-        assertEquals("wake_gesture_enabled", "false", raw.getProperty("wake_gesture_enabled"))
+        assertEquals("wake_gesture_mode", "OFF", raw.getProperty("wake_gesture_mode"))
         assertEquals("tile_position", "0.25,0.75", raw.getProperty("tile_position"))
         assertEquals("language", "de", raw.getProperty("language"))
         assertEquals("preload_model", "false", raw.getProperty("preload_model"))
