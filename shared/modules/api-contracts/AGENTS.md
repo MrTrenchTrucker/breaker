@@ -67,6 +67,39 @@ There is no synchronous 200-with-body variant — every transcription is a job.
   the same as the key-bearing endpoints above** — leaves the account keyless
   again, so `POST /v1/auth/keys` follows it exactly as it would a new
   account.
+- **auth - key upload, password change and reset completion: planned, not built (ADR-006, ADR-018)** -
+  `openapi.yaml` holds the paths of `POST /v1/auth/keys`, `POST /v1/auth/change-password` and
+  `POST /v1/auth/complete-reset`; none of the three is built on the server yet. Planned:
+  `POST /v1/auth/keys` takes a user session token only (an agent token is refused, 403, the same
+  body as `/v1/sync`, decided before the body is read) and reads a body of at most 4096 bytes. The
+  body is exactly `{wrapped_dek, wrapped_box_privkey, box_pubkey}`, each a string of standard
+  base64 (RFC 4648, padded, no whitespace, no line wrap) that decodes to exactly 60, 60 and 32
+  bytes (80, 80 and 44 characters). The 60 bytes are the 12-byte nonce, the 32 encrypted key bytes
+  and the 16-byte tag (AES-256-GCM); the 32 bytes are the plain public key. The server checks only
+  the lengths, stores the decoded bytes and re-encodes them, so a value whose last character
+  carries spare bits is accepted, and login writes the values back as canonical padded base64.
+  Planned statuses of keys: **200** `{"key_version": N}` (N is the new key_version; the success body
+  is a choice of this contract, and change-password answers with the same shape) | **400**
+  `bad_request` `Invalid request body` | **401** `unauthorized` `Invalid or missing user session
+  token` | **403** `forbidden` `User session token required; an agent token is refused` | **409**
+  `conflict` `The account already has keys`, and also **409** `conflict` `The account is waiting
+  for a reset to be completed` | **413** `payload_too_large` | **503** `unavailable`. Planned:
+  `POST /v1/auth/change-password` has the same token rule and the same 400, 401, 403, 413 and 503
+  answers; it answers **200** `{"key_version": N}`, **401** `Invalid old verifier` for a wrong old
+  verifier (which counts as a wrong try; one that is not base64 or not 32 bytes does not), **409**
+  `conflict` for a `new_key_version` that is not the current one plus one, for an unfinished
+  re-key (`prev_wrapped_dek` held), for an account without keys (`The account has no keys`) and for
+  an account waiting for a reset to be completed (`The account is waiting for a reset to be
+  completed`), and **423** `locked` with Retry-After. A session token that is revoked before the
+  transaction commits (for example by an admin reset running at the same time) gets the same 401,
+  `unauthorized` `Invalid or missing user session token`. Its lengths, all checked before any
+  write: old verifier 32, new salt 16, new verifier 32, new wrapped DEK 60, new wrapped box private
+  key 60, new box public key 32 and `prev_wrapped_dek` 60 bytes. Planned:
+  `POST /v1/auth/complete-reset` takes no token (an agent token in the header is refused with 403
+  before the body is read; any other header is ignored), answers **200** with the login body
+  (keyless, `reset_at` set), **400**, **403**, **413**, **503**, and one fixed **401**
+  `unauthorized` `Invalid username or reset code` for an unknown name or an unknown, wrong, used or
+  expired code. Planned: the reset code and the request body are never logged.
 - **auth — logout (ADR-018)** — `POST /v1/auth/logout`, bearer token only, no request body: revokes
   ONLY the presented token. → **204 No Content** | **401** `ApiError` for a missing, unknown or
   already-revoked token (nothing beyond "not a valid session" is disclosed). There is no standalone

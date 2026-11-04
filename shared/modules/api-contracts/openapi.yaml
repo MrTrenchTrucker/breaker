@@ -241,6 +241,18 @@ paths:
         wait, on by default; an admin can turn it off with the wrong-pw-limit route.
         A plain 401 answers the fifth wrong try; from the sixth try inside the wait
         the answer is locked, 423 with Retry-After in seconds.
+
+        Today the server answers the three key fields null, key_version 0, and
+        prev_wrapped_dek, reset_at and rekeyed_at null. Planned, not built: the
+        key fields, key_version, prev_wrapped_dek, reset_at and rekeyed_at will
+        come from the stored columns. Planned: the three key fields will be the
+        canonical padded base64 of the stored bytes and null together;
+        key_version will be the stored counter (0 for a keyless account, 1
+        after the first key upload); prev_wrapped_dek will stay null until the
+        password change sets it (planned); reset_at and rekeyed_at will be
+        ISO-8601 UTC strings (for example 2026-11-04T08:47:41.353Z) made from
+        stored epoch milliseconds, or null. Planned: the wire shape does not
+        change.
       operationId: login
       security: []
       requestBody:
@@ -306,6 +318,513 @@ paths:
               example:
                 error: "payload_too_large"
                 message: "Request body exceeds maximum allowed size"
+  /v1/auth/keys:
+    post:
+      summary: Upload the account's keys for the first time
+      description: >-
+        Planned, not built. The first key upload: the client sends the
+        account's wrapped DEK, its wrapped box private key and its box public
+        key once, while the account has no keys yet. It needs a user session
+        token. An agent token is refused (403, the same answer as /v1/sync);
+        that check runs right after the token is resolved and before the body
+        is read.
+
+        Planned: the body is read with a cap of 4096 bytes (413, before it is
+        parsed). It is one JSON object with exactly the three members
+        wrapped_dek, wrapped_box_privkey and box_pubkey, each a string of
+        standard base64 (RFC 4648, padded, no whitespace, no line wrap) that
+        decodes to an exact length: 60 bytes (80 characters), 60 bytes (80
+        characters) and 32 bytes (44 characters). The 60 bytes are the 12-byte
+        nonce, the 32 encrypted key bytes and the 16-byte tag (AES-256-GCM, the
+        same form as wrapped_dek). box_pubkey is the plain 32-byte public key.
+        The server checks only the lengths and never opens the values. It
+        stores the decoded bytes, and the login answer writes them back as
+        canonical padded base64.
+
+        Planned: the server stores the decoded bytes and re-encodes them, so a
+        value whose last character carries spare bits is accepted and written
+        back as the canonical text of the stored bytes.
+
+        Planned: the order of the checks is: the token (401), the token kind
+        (403), the size (413), the body (400 for malformed JSON, a body that is
+        not an object, a missing, extra or non-string member, bad base64 or a
+        wrong decoded length; nothing is written). Then, in one transaction,
+        the call is accepted only while the account has no keys (a keyed
+        account gets 409). The call is also 409 while the account waits for a
+        reset to be completed (a later change checks a reset-pending mark
+        inside the keys transaction). It stores the three values and sets
+        key_version to its previous value plus 1 (0 becomes 1 for the first
+        upload). key_version never goes down. A failure inside the transaction
+        leaves every column and key_version as they were.
+
+        Planned: the answer carries the new key_version, the same shape the
+        password change will use. That is a choice of this contract (status
+        200 with a body, not 204), so the client need not guess the counter.
+        No part of the request is ever echoed.
+      operationId: setKeys
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - wrapped_dek
+                - wrapped_box_privkey
+                - box_pubkey
+              additionalProperties: false
+              properties:
+                wrapped_dek:
+                  type: string
+                  pattern: "^[A-Za-z0-9+/]{80}$"
+                  minLength: 80
+                  maxLength: 80
+                  description: "Planned: the wrapped DEK, standard base64 padded, 80 characters that decode to exactly 60 bytes"
+                wrapped_box_privkey:
+                  type: string
+                  pattern: "^[A-Za-z0-9+/]{80}$"
+                  minLength: 80
+                  maxLength: 80
+                  description: "Planned: the wrapped box private key, standard base64 padded, 80 characters that decode to exactly 60 bytes"
+                box_pubkey:
+                  type: string
+                  pattern: "^[A-Za-z0-9+/]{43}=$"
+                  minLength: 44
+                  maxLength: 44
+                  description: "Planned: the box public key, plain, standard base64 padded, 44 characters that decode to exactly 32 bytes"
+            example:
+              wrapped_dek: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+              wrapped_box_privkey: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+              box_pubkey: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+      responses:
+        "200":
+          description: "Planned: keys stored. The body carries the new key_version."
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - key_version
+                properties:
+                  key_version:
+                    type: integer
+                    minimum: 1
+                    description: "Planned: the account's new key_version (its previous value plus 1)"
+              example:
+                key_version: 1
+        "400":
+          description: >-
+            Planned: bad request. The body is not one JSON object with exactly
+            the three members, a member is not a string, a value is not
+            standard padded base64, or a decoded length is wrong. Nothing is
+            written.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "bad_request"
+                message: "Invalid request body"
+        "401":
+          description: "Planned: missing or invalid user session token"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing user session token"
+        "403":
+          description: "Planned: forbidden - a valid token of the wrong kind"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "forbidden"
+                message: "User session token required; an agent token is refused"
+        "409":
+          description: >-
+            Planned: conflict. The account already has keys (message "The
+            account already has keys"), or it waits for a reset to be completed
+            (message "The account is waiting for a reset to be completed").
+            Nothing is written.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "conflict"
+                message: "The account already has keys"
+        "413":
+          description: "Planned: request entity too large. The body is over 4096 bytes and is refused before it is parsed."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "payload_too_large"
+                message: "Request body exceeds maximum allowed size"
+        "503":
+          description: "Planned: a storage failure or a failed session check gets this answer. The body is fixed and no part of the failure is echoed."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
+  /v1/auth/change-password:
+    post:
+      summary: Change the password and re-key the account
+      description: >-
+        Planned, not built. The signed-in person changes the password. Every
+        call re-keys: it replaces the wrapped DEK, the wrapped box private key
+        and the box public key, and moves key_version up by exactly one. It
+        needs a user session token; an agent token is refused (403, the same
+        answer as /v1/sync) before the body is read.
+
+        Planned: the order of the checks is: the token (401), the token kind
+        (403), the size (413, cap 4096 bytes, before the body is parsed), the
+        body (400 for malformed JSON, a missing, extra or non-string member, or
+        a value that is not standard padded base64), and the decoded lengths
+        (400, before any write): old_auth_verifier 32 bytes, new_salt 16 bytes,
+        new_auth_verifier 32 bytes, new_wrapped_dek 60 bytes,
+        new_wrapped_box_privkey 60 bytes, new_box_pubkey 32 bytes and
+        prev_wrapped_dek 60 bytes. new_kdf_params must be inside the bounds of
+        KdfParams and new_kdf_version must be 1.
+
+        Planned: old_auth_verifier re-proves the current password through the
+        same path as login. A wrong one counts as a wrong try; one that is not
+        base64 or not 32 bytes does not count. A locked name gets the locked
+        answer (423 with Retry-After in whole seconds). A signed-in session
+        keeps working (sync, sign-out) while the name is locked; changing the
+        password needs the name unlocked.
+
+        Planned: prev_wrapped_dek is required: it is the OLD DEK wrapped with
+        the NEW DEK, exactly 60 bytes, and the server stores it as sent.
+
+        Planned: then one transaction makes all the effects or none. It
+        answers 409 when new_key_version is not exactly the account's current
+        key_version plus one, while the account still holds a prev_wrapped_dek
+        from an unfinished re-key, when the account has no keys, or when the
+        account waits for a reset to be completed. On success it stores the new
+        values, revokes every other user session token of the account (the
+        presented token and all agent tokens are kept), clears the
+        wrong-password row, and answers 200 with the new key_version. A session
+        token that is revoked before the transaction commits (for example by an
+        admin reset running at the same time) gets the 401 of an invalid
+        token.
+      operationId: changePassword
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - old_auth_verifier
+                - new_salt
+                - new_kdf_params
+                - new_kdf_version
+                - new_wrapped_dek
+                - new_wrapped_box_privkey
+                - new_box_pubkey
+                - new_auth_verifier
+                - new_key_version
+                - prev_wrapped_dek
+              additionalProperties: false
+              properties:
+                old_auth_verifier:
+                  type: string
+                  pattern: "^[A-Za-z0-9+/]{43}=$"
+                  description: "Planned: the current auth verifier, base64 padded, 32 bytes after decode"
+                new_salt:
+                  type: string
+                  pattern: "^[A-Za-z0-9+/]{22}==$"
+                  description: "Planned: the new salt, base64 padded, 16 bytes after decode"
+                new_kdf_params:
+                  $ref: "#/components/schemas/KdfParams"
+                new_kdf_version:
+                  type: integer
+                  enum: [1]
+                  description: "Planned: must equal 1"
+                new_wrapped_dek:
+                  type: string
+                  pattern: "^[A-Za-z0-9+/]{80}$"
+                  description: "Planned: the new wrapped DEK, standard base64 padded, 60 bytes after decode"
+                new_wrapped_box_privkey:
+                  type: string
+                  pattern: "^[A-Za-z0-9+/]{80}$"
+                  description: "Planned: the new wrapped box private key, standard base64 padded, 60 bytes after decode"
+                new_box_pubkey:
+                  type: string
+                  pattern: "^[A-Za-z0-9+/]{43}=$"
+                  description: "Planned: the new box public key, plain, standard base64 padded, 32 bytes after decode"
+                new_auth_verifier:
+                  type: string
+                  pattern: "^[A-Za-z0-9+/]{43}=$"
+                  description: "Planned: the new auth verifier, base64 padded, 32 bytes after decode"
+                new_key_version:
+                  type: integer
+                  minimum: 1
+                  description: "Planned: the account's current key_version plus one"
+                prev_wrapped_dek:
+                  type: string
+                  pattern: "^[A-Za-z0-9+/]{80}$"
+                  description: "Planned: the OLD DEK wrapped with the NEW DEK, standard base64 padded, 60 bytes after decode. Required."
+            example:
+              old_auth_verifier: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+              new_salt: "AAAAAAAAAAAAAAAAAAAAAA=="
+              new_kdf_params:
+                memory_kib: 65536
+                iterations: 3
+                parallelism: 1
+              new_kdf_version: 1
+              new_wrapped_dek: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+              new_wrapped_box_privkey: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+              new_box_pubkey: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+              new_auth_verifier: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+              new_key_version: 2
+              prev_wrapped_dek: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      responses:
+        "200":
+          description: "Planned: password changed. The body carries the new key_version."
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - key_version
+                properties:
+                  key_version:
+                    type: integer
+                    minimum: 1
+                    description: "Planned: the account's new key_version (its previous value plus 1)"
+              example:
+                key_version: 2
+        "400":
+          description: "Planned: bad request. The body or a decoded length is wrong. Nothing is written."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "bad_request"
+                message: "Invalid request body"
+        "401":
+          description: >-
+            Planned: refused. A missing, unknown or revoked token gets the
+            message in the example. A session token that is revoked before the
+            transaction commits (for example by an admin reset running at the
+            same time) gets the same 401, error "unauthorized", message "Invalid
+            or missing user session token". A wrong old verifier gets error
+            "unauthorized" with the message "Invalid old verifier".
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing user session token"
+        "403":
+          description: "Planned: forbidden - a valid token of the wrong kind"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "forbidden"
+                message: "User session token required; an agent token is refused"
+        "409":
+          description: >-
+            Planned: conflict. The message is "key_version is not the account's
+            current key_version plus one", or "A previous re-key is unfinished"
+            while the account holds a prev_wrapped_dek, or "The account has no
+            keys" for an account without keys, or "The account is waiting for a
+            reset to be completed" for an account that waits for a reset.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "conflict"
+                message: "key_version is not the account's current key_version plus one"
+        "413":
+          description: "Planned: request entity too large. The body is over 4096 bytes and is refused before it is parsed."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "payload_too_large"
+                message: "Request body exceeds maximum allowed size"
+        "423":
+          description: >-
+            Planned: sign-in is locked after five wrong passwords, for 15
+            minutes. The same answer as login. Retry-After says how long to
+            wait.
+          headers:
+            Retry-After:
+              description: "Planned: whole seconds left in the wait, rounded up, minimum 1"
+              schema:
+                type: integer
+                minimum: 1
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "locked"
+                message: "Too many wrong tries. Try again in N minutes."
+        "503":
+          description: "Planned: a storage failure or a failed session check gets this answer. The body is fixed and no part of the failure is echoed."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
+  /v1/auth/complete-reset:
+    post:
+      summary: Finish an admin reset with the one-time reset code
+      description: >-
+        Planned, not built. After an admin reset (POST /v1/admin/reset-account)
+        the person chooses a new password with the one-time reset code. No
+        token is needed: the reset already revoked every token of the account.
+        The Authorization header is read only to refuse an agent token: a
+        header that resolves to an agent token gets 403 (the same answer as
+        /v1/sync) before the body is read, and any other header is ignored.
+
+        Planned: the order of the checks is: the token kind (403), the size
+        (413, cap 4096 bytes, before the body is parsed), the body (400 for a
+        malformed body), then the lookups: the username folds and exists, a
+        live unexpired code exists, and the constant-time compare of the stored
+        hash of the code matches. Every one of these failures is the same fixed
+        401 with the message "Invalid username or reset code". After that the
+        KDF floor, ceiling and version (400) and the 32-byte verifier (400) are
+        checked.
+
+        Planned: on success, one transaction stores the new salt, verifier and
+        KDF fields, deletes the code, clears the wrong-password row and mints a
+        session token. The answer is 200 with the LoginResponse body: the key
+        fields are null (the account is keyless), key_version is unchanged and
+        reset_at is set. A POST /v1/auth/keys follows.
+
+        Planned: there is no attempt counter on this route: the code is 256
+        random bits. A wrong code does not touch the wrong-password row. Known
+        limit: whoever presents the code first chooses the password (ADR-018).
+
+        Planned: the reset code and the request body are never logged.
+      operationId: completeReset
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - reset_code
+                - salt
+                - kdf_params
+                - kdf_version
+                - auth_verifier
+              additionalProperties: false
+              properties:
+                username:
+                  type: string
+                  pattern: "^[A-Za-z0-9._-]{1,64}$"
+                  description: "Planned: the account username"
+                reset_code:
+                  type: string
+                  pattern: "^[A-Za-z0-9_-]{43}$"
+                  description: "Planned: the one-time reset code, 43 URL-safe characters (256 random bits)"
+                salt:
+                  type: string
+                  pattern: "^[A-Za-z0-9+/]{22}==$"
+                  description: "Planned: the new salt, base64 padded, 16 bytes after decode"
+                kdf_params:
+                  $ref: "#/components/schemas/KdfParams"
+                kdf_version:
+                  type: integer
+                  enum: [1]
+                  description: "Planned: must equal 1"
+                auth_verifier:
+                  type: string
+                  pattern: "^[A-Za-z0-9+/]{43}=$"
+                  description: "Planned: the new auth verifier, base64 padded, 32 bytes after decode"
+            example:
+              username: "alice"
+              reset_code: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+              salt: "AAAAAAAAAAAAAAAAAAAAAA=="
+              kdf_params:
+                memory_kib: 65536
+                iterations: 3
+                parallelism: 1
+              kdf_version: 1
+              auth_verifier: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+      responses:
+        "200":
+          description: "Planned: reset completed. The body is the login answer, keyless, with reset_at set. The token member is the new session token."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          description: "Planned: bad request. The body is malformed, the KDF values are outside the bounds, or the verifier is not 32 bytes."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "bad_request"
+                message: "Invalid request body"
+        "401":
+          description: >-
+            Planned: refused. One fixed answer for an unknown username, an
+            unknown, wrong, used or expired code: the same status and the same
+            body.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid username or reset code"
+        "403":
+          description: "Planned: forbidden - the presented token is an agent token"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "forbidden"
+                message: "User session token required; an agent token is refused"
+        "413":
+          description: "Planned: request entity too large. The body is over 4096 bytes and is refused before it is parsed."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "payload_too_large"
+                message: "Request body exceeds maximum allowed size"
+        "503":
+          description: "Planned: a storage failure gets this answer. The body is fixed and no part of the failure is echoed."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
   /v1/auth/logout:
     post:
       summary: Log out
@@ -1019,7 +1538,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ResetAccountResponse"
               example:
-                reset_code: "rc_abc123"
+                reset_code: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
         "401":
           description: Unauthorized
           content:

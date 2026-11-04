@@ -35,9 +35,9 @@ here (N13).
   each on its own, ADR-006/ADR-018). Token required on all APIs. The raw `auth_verifier` this
   endpoint receives is a login credential in its own right — never logged
   (F32) — not merely guessing-bait; see the honest limit below.
-- The three routes that need no login (`register`, `salt` and `login`) read a request body of at most 4096 bytes: a longer body is refused with `413` and `payload_too_large` before it is parsed, whether its length is declared or not, and nothing is stored.
+- The three routes that need no login (`register`, `salt` and `login`) read a request body of at most 4096 bytes: a longer body is refused with `413` and `payload_too_large` before it is parsed, whether its length is declared or not, and nothing is stored. Planned, not built: the keys route (below) reads at most 4096 bytes too, with the same refusal.
 - Internal token-check routes (mounted on the internal listener only; written and tested): `POST /internal/v1/token/use` and `POST /internal/v1/token/peek`, called only by whisper-server. Both take no body; the headers are `X-Service-Key` (checked first, in constant time; the key cannot be blank) and `X-Presented-Token`. A wrong or missing key is a 403 `bad_service_key`; with a good key every not-live cause (missing, malformed, oversized, unknown, revoked, expired) is the same 401 `not_live`, and a live token is a 200 with `account_id`, `kind` and `role`. `use` is `TokenStore.resolve` (a live session token's expiry moves to now + 30 days); `peek` is the read-only `TokenStore.peek` (the same live rule, nothing written). They are mounted on the internal listener and on no other listener (see the section Internal listener and service key).
-- `POST /v1/auth/keys` — `{wrapped_dek, wrapped_box_privkey, box_pubkey}`,
+- `POST /v1/auth/keys` - Planned, not built. `{wrapped_dek, wrapped_box_privkey, box_pubkey}`,
   accepted only while the account has no keys yet; accepting it sets the
   account's `key_version` to its previous value + 1 (`0` → `1` on a first
   bootstrap, previous + 1 after a reset) (first-login bootstrap,
@@ -56,7 +56,32 @@ here (N13).
   pre-existing plaintext transcription rows the account holds (ADR-006) —
   that migration lands through the ordinary `POST /v1/sync` path below (as a
   `key_version` replace), not a special endpoint.
-- `POST /v1/auth/complete-reset` — `{username, reset_code, salt, kdf_params,
+  Planned, not built: the rules of this route, in order. (1) The token is resolved first: a
+  missing, malformed or unknown token is 401. (2) A token that is not a user session token (an
+  agent token) is 403, the same body as `POST /v1/sync`, decided right after the token resolves
+  and before the body is read. (3) The body is read with a cap of 4096 bytes: a longer body is 413
+  before it is parsed. (4) The body is one JSON object with exactly the three members, each a
+  string of standard base64 (RFC 4648, padded, no whitespace, no line wrap) that decodes to exactly
+  60 bytes (`wrapped_dek`), 60 bytes (`wrapped_box_privkey`) and 32 bytes (`box_pubkey`); the 60
+  bytes are the 12-byte nonce, the 32 encrypted key bytes and the 16-byte tag (AES-256-GCM). A
+  malformed body, a missing, extra or non-string member, bad base64 or a wrong decoded length is
+  400 and nothing is written. The module checks only the lengths and never opens the values. (5)
+  In one transaction the call is accepted only while the account has no keys (a keyed account is
+  409); it is also 409 while the account waits for a reset to be completed (a later change checks a
+  reset-pending mark inside the keys transaction). It stores the decoded bytes and re-encodes them
+  on the way out, so a value whose last character carries spare bits is accepted and login writes
+  it back as the canonical padded base64 of the stored bytes. It sets `key_version` to its
+  previous value + 1. A failure inside the transaction leaves every column and `key_version` as
+  they were. Answers: 200
+  `{"key_version": N}` (N is the new counter; the success body is a choice of the contract, the
+  same shape `change-password` will use), 400 `bad_request` "Invalid request body", 401
+  `unauthorized` "Invalid or missing user session token", 403 `forbidden` "User session token
+  required; an agent token is refused", 409 `conflict` "The account already has keys" or, for an
+  account that waits for a reset to be completed, 409 `conflict` "The account is waiting for a
+  reset to be completed", 413
+  `payload_too_large` "Request body exceeds maximum allowed size", 503 `unavailable` "The service
+  is unavailable, try again later". No part of the request is echoed.
+- `POST /v1/auth/complete-reset` - Planned, not built. `{username, reset_code, salt, kdf_params,
   kdf_version, auth_verifier}`, authenticated by the admin-issued one-time
   reset code (≥128 random bits, single use, 24-hour expiry) instead of a
   password or a session token — the reset already revoked every token this
@@ -65,8 +90,18 @@ here (N13).
   `kdf_params` outside the bounds above and a `kdf_version` other than 1, same
   as registration. Leaves the account
   keyless again, so `POST /v1/auth/keys` follows it exactly as it would a
-  brand-new account.
-- `POST /v1/auth/change-password` — Bearer token identifies the account;
+  brand-new account. Planned, not built, in order: an agent token in the Authorization header is
+  403 (the same body as `POST /v1/sync`) before the body is read, and any other header is ignored;
+  a body over 4096 bytes is 413; a malformed body is 400; then every failure of the lookups (the
+  name folds and exists, a live unexpired code exists, the constant-time compare of the stored
+  hash) is one fixed 401 `unauthorized` "Invalid username or reset code"; then the KDF bounds, the
+  version and the 32-byte verifier are 400. Success, in one transaction, stores the new salt,
+  verifier and KDF fields, deletes the code, clears the wrong-password row and mints a session
+  token; the answer is 200 with the login body (keyless, `key_version` unchanged, `reset_at` set).
+  There is no attempt counter, because the code is 256 random bits. Known limit: whoever presents
+  the code first chooses the password (ADR-018). The reset code and the request body are never
+  logged.
+- `POST /v1/auth/change-password` - Planned, not built. Bearer token identifies the account;
   body `{old_auth_verifier, new_salt, new_kdf_params, new_kdf_version,
   new_wrapped_dek, new_wrapped_box_privkey, new_box_pubkey, new_auth_verifier,
   new_key_version, prev_wrapped_dek}` — refused (409) while the account still
@@ -88,7 +123,24 @@ here (N13).
   `key_version` by one, and records `rekeyed_at`; this module does not need
   to tell "an ordinary change" and "the change after a reset" apart, it just
   accepts the new wrapped/plain values for the fields it owns and deletes any
-  pending-sealed row still sealed to the `box_pubkey` it just replaced.
+  pending-sealed row still sealed to the `box_pubkey` it just replaced. Planned, not built, in
+  order: an agent token is 403 (the same body as `POST /v1/sync`) before the body is read; a body
+  over 4096 bytes is 413; a malformed body is 400; a wrong decoded length is 400 before any write
+  (old verifier 32, new salt 16, new verifier 32, new wrapped DEK 60, new wrapped box private key
+  60, new box public key 32 and `prev_wrapped_dek` 60 bytes, required). The old verifier is
+  re-proved through the same path as login: a wrong one counts as a wrong try and is 401
+  `unauthorized` "Invalid old verifier"; one that is not base64 or not 32 bytes does not count; a
+  locked name gets the locked 423 with Retry-After in whole seconds. A signed-in session keeps
+  working (sync, sign-out) while the name is locked; changing the password needs the name unlocked.
+  Then one transaction makes all the effects or none. It is 409 `conflict` when `new_key_version`
+  is not the current one + 1 ("key_version is not the account's current key_version plus one"),
+  while `prev_wrapped_dek` is held ("A previous re-key is unfinished"), when the account has no
+  keys ("The account has no keys"), or when the account waits for a reset to be completed ("The
+  account is waiting for a reset to be completed"). A session token that is revoked before the
+  transaction commits (for example by an admin reset running at the same time) gets the same 401,
+  `unauthorized` "Invalid or missing user session token". Success revokes every
+  other user session token (agent tokens are kept), clears the wrong-password row and answers
+  200 `{"key_version": N}`.
 - `POST /v1/sync`: push one transcription. BUILT. Idempotent on the **pair** (`client_id`,
   `key_version`), not on `client_id` alone. The body is one JSON object with exactly the
   keys `client_id` (a lowercase canonical UUID), `key_version` (a whole number from 0 up to
@@ -189,6 +241,7 @@ here (N13).
   The change number and the delete flag are BUILT in the store (migration 5: every insert and replace takes the next number of the account inside the write, and a push of a deleted row is a no-op); the DELETE route, the store delete and the resave mark are BUILT; the `since` parameter, the page object, the 400 and the 410 are BUILT; the purge and the write of the pulled number stay decided, not built.
 - Sign-in from the website: a start route, where the website creates a one-time code after the person signs in (single use, 5 minutes, a new kind in the token store), and an exchange route, where the app trades the code and its one-time secret for a session token and the sealed key package. The website page makes the sealed package, sealed to the app's public key; the server keeps it until the exchange, which hands it to the app and deletes it, never past the code's 5-minute expiry, and never opens it. The store layer under both routes is BUILT: migration 4 (the device name column and the sign-in code table), the code store, the 60-second sweep that deletes dead codes, and the rule that ending a person's sessions also deletes that person's codes. The two routes (`POST /v1/auth/handoff/start`, user session token only, and `POST /v1/auth/handoff/exchange`, no token) are BUILT; the website page and the app wiring are not.
 - Wrong-password limit, on the sign-in path (website and device): after 5 wrong passwords for an account, sign-in for that account waits 15 minutes. It is on by default and the admin can turn it off. The failure counting is BUILT (migration 6, the table signin_attempts, `accounts/SigninAttemptStore.kt`, called by `AccountStore.verify`) and the locked answer is BUILT: `verify` reads the lock first, for a known and an unknown name alike, before the account row and the hash, and the login route answers 423 with Retry-After in whole seconds (rounded up, at least 1) and the body `Too many wrong tries. Try again in N minutes.`; a right password inside the wait is refused the same way and touches nothing; a counting write that fails (the lock read, the count, the clear) never changes the answer. The 5th wrong try itself still answers the plain 401. The admin switch is BUILT on the server (migration 7, the table server_settings, `settings/ServerSettingsStore.kt`, read by `AccountStore.verify` on every attempt, default on; off = no counting, no refusing, no lock read, and the stored attempts are kept; a failed read of the switch counts as on; only a stored integer 0 reads off, any other stored value, even a real number or text, reads on). The admin route that flips it is BUILT: `admin/AdminWrongPwLimitRoute.kt`, GET and PUT /v1/admin/wrong-pw-limit, admin only; a missing or unknown token answers 401, a caller that is not an admin answers 403, and both come before the body is read; the PUT body is exactly one member, enabled, the literal true or false, and anything else answers 400 bad_request with the contract text; the answer is 200 with the stored state read back; a database failure is not caught (the contract has no 503 on the admin routes). The drop at registration is BUILT: `AccountStore.register` deletes the row left for the folded name inside the same transaction as the insert, after a successful insert only (a refused registration drops nothing). The clear hook is BUILT: `AccountStore.clearAttempts` deletes the row of a name for the admin reset and the password change to call (a malformed name touches nothing, a database error is not swallowed, no token is touched, so a signed-in session is not affected). The sweep is BUILT: `SigninAttemptStore.deleteStale` deletes expired locks and partial counts with no wrong try for more than 15 minutes, and `accounts/SigninAttemptSweep.kt` runs it at boot and then every 5 minutes inside the one sweep job that `SyncApiMain` starts with the application and stops before the database closes; a failed sweep is swallowed and never touches a sign-in, and the attempt-time rule still decides. Not built, decided: the admin reset and the password change themselves (they call the hook when they are built). This changes the statement above that the repo ships no rate limiting on the auth endpoints, once it is built.
+- Key upload and the stored key columns, planned, not built: migration 8 adds six nullable columns to `accounts` by ADD COLUMN, with no rebuild of the table: `wrapped_dek`, `wrapped_box_privkey`, `box_pubkey`, `prev_wrapped_dek`, `rekeyed_at` and `reset_at`. Planned: NULL means keyless. Planned: CHECK constraints pin the lengths (`wrapped_dek` 60, `wrapped_box_privkey` 60, `box_pubkey` 32 and `prev_wrapped_dek` 60 bytes), and one more CHECK requires the three key columns to be all set or all NULL. Planned: `rekeyed_at` and `reset_at` are stored as epoch milliseconds. Planned: with it come the route `POST /v1/auth/keys` (above) and a change to login: login will answer the stored values (the key fields as the canonical padded base64 of the stored bytes, `key_version` as the stored counter, `reset_at` and `rekeyed_at` as ISO-8601 UTC strings made from the stored epoch milliseconds); today it answers the key fields null and `key_version` 0. The password change, the admin reset, the reset codes, migration 9 and the reset-pending mark of an account are also planned, not built.
 - An admin route to end a session at once, built over the existing token-store functions (ADR-036).
 - A device list for an account, decided and not built: one row per session, with a nullable device name that the app gives at sign-in and the person may rename, and a last-seen date derived from the session's sliding expiry. There is no devices table. Sign-out for each device, and "sign out all my devices" from the website.
 
