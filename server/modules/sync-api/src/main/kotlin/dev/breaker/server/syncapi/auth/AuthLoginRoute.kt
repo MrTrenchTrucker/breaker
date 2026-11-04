@@ -2,6 +2,7 @@ package dev.breaker.server.syncapi.auth
 
 import dev.breaker.server.syncapi.accounts.AccountStore
 import dev.breaker.server.syncapi.accounts.AuthVerifier
+import dev.breaker.server.syncapi.accounts.StoredKeys
 import dev.breaker.server.syncapi.accounts.VerifyResult
 import dev.breaker.server.syncapi.tokens.IssueResult
 import dev.breaker.server.syncapi.tokens.TokenStore
@@ -13,6 +14,7 @@ import io.ktor.server.application.call
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
+import java.time.Instant
 import java.util.Base64
 
 /**
@@ -57,10 +59,19 @@ internal fun Application.authLoginRoute(accountStore: AccountStore, tokenStore: 
 
             when (val result = accountStore.verify(request.username, verifier)) {
                 is VerifyResult.Verified -> {
+                    val keys = accountStore.keysFor(result.accountId)
+                    if (keys == null) {
+                        call.respondText(
+                            """{"error":"unauthorized","message":"Invalid username or verifier"}""",
+                            ContentType.Application.Json,
+                            HttpStatusCode.Unauthorized,
+                        )
+                        return@post
+                    }
                     when (val issued = tokenStore.issueSession(result.accountId)) {
                         is IssueResult.Issued -> {
                             call.respondText(
-                                buildLoginResponse(result.role.dbValue, issued.token.secret.reveal()),
+                                buildLoginResponse(result.role.dbValue, issued.token.secret.reveal(), keys),
                                 ContentType.Application.Json,
                                 HttpStatusCode.OK,
                             )
@@ -202,10 +213,22 @@ private fun parseJsonString(text: String, start: Int): Pair<String, Int>? {
 }
 
 /**
- * Builds the 200 login response JSON. Key material fields are null and
- * key_version is 0 because the account store does not expose key material
- * reading in this slice — keyless accounts have null keys and version 0.
+ * Builds the 200 login response JSON from the stored key columns. A byte member is null or a
+ * JSON string of its standard padded base64 text; key_version is the stored integer; reset_at
+ * and rekeyed_at are null or a JSON string of the UTC instant. A keyless account answers null
+ * for every key member and 0 for key_version.
  */
-private fun buildLoginResponse(role: String, token: String): String {
-    return """{"token":"$token","role":"$role","wrapped_dek":null,"wrapped_box_privkey":null,"box_pubkey":null,"key_version":0,"prev_wrapped_dek":null,"reset_at":null,"rekeyed_at":null}"""
+private fun buildLoginResponse(role: String, token: String, keys: StoredKeys): String {
+    return """{"token":"$token","role":"$role","wrapped_dek":${bytesMember(keys.wrappedDek)},"wrapped_box_privkey":${bytesMember(keys.wrappedBoxPrivkey)},"box_pubkey":${bytesMember(keys.boxPubkey)},"key_version":${keys.keyVersion},"prev_wrapped_dek":${bytesMember(keys.prevWrappedDek)},"reset_at":${instantMember(keys.resetAtMs)},"rekeyed_at":${instantMember(keys.rekeyedAtMs)}}"""
+}
+
+// The base64 alphabet needs no JSON escaping.
+private fun bytesMember(bytes: ByteArray?): String {
+    if (bytes == null) return "null"
+    return "\"" + Base64.getEncoder().encodeToString(bytes) + "\""
+}
+
+private fun instantMember(epochMillis: Long?): String {
+    if (epochMillis == null) return "null"
+    return "\"" + Instant.ofEpochMilli(epochMillis).toString() + "\""
 }

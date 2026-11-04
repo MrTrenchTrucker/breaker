@@ -242,17 +242,14 @@ paths:
         A plain 401 answers the fifth wrong try; from the sixth try inside the wait
         the answer is locked, 423 with Retry-After in seconds.
 
-        Today the server answers the three key fields null, key_version 0, and
-        prev_wrapped_dek, reset_at and rekeyed_at null. Planned, not built: the
-        key fields, key_version, prev_wrapped_dek, reset_at and rekeyed_at will
-        come from the stored columns. Planned: the three key fields will be the
-        canonical padded base64 of the stored bytes and null together;
-        key_version will be the stored counter (0 for a keyless account, 1
-        after the first key upload); prev_wrapped_dek will stay null until the
-        password change sets it (planned); reset_at and rekeyed_at will be
-        ISO-8601 UTC strings (for example 2026-11-04T08:47:41.353Z) made from
-        stored epoch milliseconds, or null. Planned: the wire shape does not
-        change.
+        The key fields, key_version, prev_wrapped_dek, reset_at and rekeyed_at
+        come from the stored columns. The three key fields are the canonical
+        padded base64 of the stored bytes and null together; key_version is the
+        stored counter (0 for a keyless account, 1 after the first key upload);
+        prev_wrapped_dek stays null until the password change sets it
+        (planned); reset_at and rekeyed_at are ISO-8601 UTC strings (for
+        example 2026-11-04T08:47:41.353Z) made from stored epoch milliseconds,
+        or null. The wire shape does not change.
       operationId: login
       security: []
       requestBody:
@@ -322,14 +319,14 @@ paths:
     post:
       summary: Upload the account's keys for the first time
       description: >-
-        Planned, not built. The first key upload: the client sends the
+        The first key upload: the client sends the
         account's wrapped DEK, its wrapped box private key and its box public
         key once, while the account has no keys yet. It needs a user session
         token. An agent token is refused (403, the same answer as /v1/sync);
         that check runs right after the token is resolved and before the body
         is read.
 
-        Planned: the body is read with a cap of 4096 bytes (413, before it is
+        The body is read with a cap of 4096 bytes (413, before it is
         parsed). It is one JSON object with exactly the three members
         wrapped_dek, wrapped_box_privkey and box_pubkey, each a string of
         standard base64 (RFC 4648, padded, no whitespace, no line wrap) that
@@ -341,23 +338,25 @@ paths:
         stores the decoded bytes, and the login answer writes them back as
         canonical padded base64.
 
-        Planned: the server stores the decoded bytes and re-encodes them, so a
+        The server stores the decoded bytes and re-encodes them, so a
         value whose last character carries spare bits is accepted and written
         back as the canonical text of the stored bytes.
 
-        Planned: the order of the checks is: the token (401), the token kind
+        The order of the checks is: the token (401), the token kind
         (403), the size (413), the body (400 for malformed JSON, a body that is
         not an object, a missing, extra or non-string member, bad base64 or a
         wrong decoded length; nothing is written). Then, in one transaction,
         the call is accepted only while the account has no keys (a keyed
-        account gets 409). The call is also 409 while the account waits for a
-        reset to be completed (a later change checks a reset-pending mark
-        inside the keys transaction). It stores the three values and sets
+        account gets 409). It stores the three values and sets
         key_version to its previous value plus 1 (0 becomes 1 for the first
         upload). key_version never goes down. A failure inside the transaction
         leaves every column and key_version as they were.
 
-        Planned: the answer carries the new key_version, the same shape the
+        Planned, not built: the call is also 409 while the account waits for a
+        reset to be completed (a later change checks a reset-pending mark
+        inside the keys transaction).
+
+        The answer carries the new key_version, the same shape the
         password change will use. That is a choice of this contract (status
         200 with a body, not 204), so the client need not guess the counter.
         No part of the request is ever echoed.
@@ -381,26 +380,26 @@ paths:
                   pattern: "^[A-Za-z0-9+/]{80}$"
                   minLength: 80
                   maxLength: 80
-                  description: "Planned: the wrapped DEK, standard base64 padded, 80 characters that decode to exactly 60 bytes"
+                  description: "The wrapped DEK, standard base64 padded, 80 characters that decode to exactly 60 bytes"
                 wrapped_box_privkey:
                   type: string
                   pattern: "^[A-Za-z0-9+/]{80}$"
                   minLength: 80
                   maxLength: 80
-                  description: "Planned: the wrapped box private key, standard base64 padded, 80 characters that decode to exactly 60 bytes"
+                  description: "The wrapped box private key, standard base64 padded, 80 characters that decode to exactly 60 bytes"
                 box_pubkey:
                   type: string
                   pattern: "^[A-Za-z0-9+/]{43}=$"
                   minLength: 44
                   maxLength: 44
-                  description: "Planned: the box public key, plain, standard base64 padded, 44 characters that decode to exactly 32 bytes"
+                  description: "The box public key, plain, standard base64 padded, 44 characters that decode to exactly 32 bytes"
             example:
               wrapped_dek: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
               wrapped_box_privkey: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
               box_pubkey: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
       responses:
         "200":
-          description: "Planned: keys stored. The body carries the new key_version."
+          description: "Keys stored. The body carries the new key_version."
           content:
             application/json:
               schema:
@@ -411,12 +410,12 @@ paths:
                   key_version:
                     type: integer
                     minimum: 1
-                    description: "Planned: the account's new key_version (its previous value plus 1)"
+                    description: "The account's new key_version (its previous value plus 1)"
               example:
                 key_version: 1
         "400":
           description: >-
-            Planned: bad request. The body is not one JSON object with exactly
+            Bad request. The body is not one JSON object with exactly
             the three members, a member is not a string, a value is not
             standard padded base64, or a decoded length is wrong. Nothing is
             written.
@@ -428,7 +427,7 @@ paths:
                 error: "bad_request"
                 message: "Invalid request body"
         "401":
-          description: "Planned: missing or invalid user session token"
+          description: "Missing or invalid user session token"
           content:
             application/json:
               schema:
@@ -437,7 +436,7 @@ paths:
                 error: "unauthorized"
                 message: "Invalid or missing user session token"
         "403":
-          description: "Planned: forbidden - a valid token of the wrong kind"
+          description: "Forbidden - a valid token of the wrong kind"
           content:
             application/json:
               schema:
@@ -447,10 +446,11 @@ paths:
                 message: "User session token required; an agent token is refused"
         "409":
           description: >-
-            Planned: conflict. The account already has keys (message "The
-            account already has keys"), or it waits for a reset to be completed
-            (message "The account is waiting for a reset to be completed").
-            Nothing is written.
+            Conflict. The account already has keys (message "The account
+            already has keys"). Nothing is written. Planned, not built: the
+            call is also refused while the account waits for a reset to be
+            completed (message "The account is waiting for a reset to be
+            completed").
           content:
             application/json:
               schema:
@@ -459,7 +459,7 @@ paths:
                 error: "conflict"
                 message: "The account already has keys"
         "413":
-          description: "Planned: request entity too large. The body is over 4096 bytes and is refused before it is parsed."
+          description: "Request entity too large. The body is over 4096 bytes and is refused before it is parsed."
           content:
             application/json:
               schema:
@@ -468,7 +468,7 @@ paths:
                 error: "payload_too_large"
                 message: "Request body exceeds maximum allowed size"
         "503":
-          description: "Planned: a storage failure or a failed session check gets this answer. The body is fixed and no part of the failure is echoed."
+          description: "A storage failure or a failed session check gets this answer. The body is fixed and no part of the failure is echoed."
           content:
             application/json:
               schema:

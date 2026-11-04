@@ -273,9 +273,9 @@ internal class SchemaV2Test : TempDatabaseTest() {
     }
 
     @Test
-    fun `a fresh file database is at version 7 and has the account and kind index`() {
+    fun `a fresh file database is at the latest version and has the account and kind index`() {
         inTransaction(temp) { connection ->
-            assertEquals("sync-api: fresh database user_version", 7, TestDatabases.userVersion(connection))
+            assertEquals("sync-api: fresh database user_version", 8, TestDatabases.userVersion(connection))
             assertEquals(
                 "sync-api: index tokens_account_kind missing",
                 listOf("tokens_account_kind"),

@@ -67,9 +67,9 @@ There is no synchronous 200-with-body variant — every transcription is a job.
   the same as the key-bearing endpoints above** — leaves the account keyless
   again, so `POST /v1/auth/keys` follows it exactly as it would a new
   account.
-- **auth - key upload, password change and reset completion: planned, not built (ADR-006, ADR-018)** -
+- **auth - key upload (built), password change and reset completion (planned, not built) (ADR-006, ADR-018)** -
   `openapi.yaml` holds the paths of `POST /v1/auth/keys`, `POST /v1/auth/change-password` and
-  `POST /v1/auth/complete-reset`; none of the three is built on the server yet. Planned:
+  `POST /v1/auth/complete-reset`; `POST /v1/auth/keys` is built on the server; the other two are not built yet.
   `POST /v1/auth/keys` takes a user session token only (an agent token is refused, 403, the same
   body as `/v1/sync`, decided before the body is read) and reads a body of at most 4096 bytes. The
   body is exactly `{wrapped_dek, wrapped_box_privkey, box_pubkey}`, each a string of standard
@@ -78,12 +78,13 @@ There is no synchronous 200-with-body variant — every transcription is a job.
   and the 16-byte tag (AES-256-GCM); the 32 bytes are the plain public key. The server checks only
   the lengths, stores the decoded bytes and re-encodes them, so a value whose last character
   carries spare bits is accepted, and login writes the values back as canonical padded base64.
-  Planned statuses of keys: **200** `{"key_version": N}` (N is the new key_version; the success body
+  Statuses of keys: **200** `{"key_version": N}` (N is the new key_version; the success body
   is a choice of this contract, and change-password answers with the same shape) | **400**
   `bad_request` `Invalid request body` | **401** `unauthorized` `Invalid or missing user session
   token` | **403** `forbidden` `User session token required; an agent token is refused` | **409**
-  `conflict` `The account already has keys`, and also **409** `conflict` `The account is waiting
-  for a reset to be completed` | **413** `payload_too_large` | **503** `unavailable`. Planned:
+  `conflict` `The account already has keys` (planned, not built: also **409** `conflict` `The
+  account is waiting for a reset to be completed`) | **413** `payload_too_large` | **503**
+  `unavailable`. Planned:
   `POST /v1/auth/change-password` has the same token rule and the same 400, 401, 403, 413 and 503
   answers; it answers **200** `{"key_version": N}`, **401** `Invalid old verifier` for a wrong old
   verifier (which counts as a wrong try; one that is not base64 or not 32 bytes does not), **409**

@@ -112,7 +112,7 @@ internal fun Application.syncRoutes(tokenStore: TokenStore, transcriptionStore: 
 }
 
 // Returns the account of a live user session. Otherwise it writes the refusal and returns null.
-private suspend fun ApplicationCall.sessionAccountOrRefuse(tokenStore: TokenStore): Long? {
+internal suspend fun ApplicationCall.sessionAccountOrRefuse(tokenStore: TokenStore): Long? {
     val presented = presentedBearerToken(request.headers[HttpHeaders.Authorization])
     if (presented == null) {
         respondSessionRequired()
