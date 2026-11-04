@@ -72,6 +72,9 @@ internal fun Application.authKeysRoute(accountStore: AccountStore, tokenStore: T
                 is StoreKeysResult.NoSuchAccount -> {
                     call.respondSessionRequired()
                 }
+                is StoreKeysResult.ResetPending -> {
+                    call.respondResetPending()
+                }
             }
         }
     }

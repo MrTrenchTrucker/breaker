@@ -24,6 +24,9 @@ internal sealed class IssueResult {
     object InvalidExpiry : IssueResult()
 
     object ScopeNotAllowed : IssueResult()
+
+    // The account is waiting for a reset to be completed: no token row is made.
+    object ResetPending : IssueResult()
 }
 
 internal data class ResolvedToken(

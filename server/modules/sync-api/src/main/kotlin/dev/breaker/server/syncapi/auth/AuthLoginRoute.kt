@@ -2,11 +2,9 @@ package dev.breaker.server.syncapi.auth
 
 import dev.breaker.server.syncapi.accounts.AccountStore
 import dev.breaker.server.syncapi.accounts.AuthVerifier
-import dev.breaker.server.syncapi.accounts.StoredKeys
 import dev.breaker.server.syncapi.accounts.VerifyResult
 import dev.breaker.server.syncapi.tokens.IssueResult
 import dev.breaker.server.syncapi.tokens.TokenStore
-import dev.breaker.server.syncapi.transcriptions.formatInstantMs
 import dev.breaker.server.syncapi.transcriptions.respondUnavailable
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -95,6 +93,8 @@ internal fun Application.authLoginRoute(accountStore: AccountStore, tokenStore: 
                         call.respondUnavailable()
                         return@post
                     }
+                    // Any result but Issued, ResetPending included (a reset landed between the verify and the
+                    // insert), gets the fixed 401 of a wrong verifier. No wrong try is counted for it.
                     when (issued) {
                         is IssueResult.Issued -> {
                             call.respondText(
@@ -245,25 +245,4 @@ private fun parseJsonString(text: String, start: Int): Pair<String, Int>? {
         }
     }
     return null
-}
-
-/**
- * Builds the 200 login response JSON from the stored key columns. A byte member is null or a
- * JSON string of its standard padded base64 text; key_version is the stored integer; reset_at
- * and rekeyed_at are null or a JSON string of the UTC instant. A keyless account answers null
- * for every key member and 0 for key_version.
- */
-private fun buildLoginResponse(role: String, token: String, keys: StoredKeys): String {
-    return """{"token":"$token","role":"$role","wrapped_dek":${bytesMember(keys.wrappedDek)},"wrapped_box_privkey":${bytesMember(keys.wrappedBoxPrivkey)},"box_pubkey":${bytesMember(keys.boxPubkey)},"key_version":${keys.keyVersion},"prev_wrapped_dek":${bytesMember(keys.prevWrappedDek)},"reset_at":${instantMember(keys.resetAtMs)},"rekeyed_at":${instantMember(keys.rekeyedAtMs)}}"""
-}
-
-// The base64 alphabet needs no JSON escaping.
-private fun bytesMember(bytes: ByteArray?): String {
-    if (bytes == null) return "null"
-    return "\"" + Base64.getEncoder().encodeToString(bytes) + "\""
-}
-
-private fun instantMember(epochMillis: Long?): String {
-    if (epochMillis == null) return "null"
-    return "\"" + formatInstantMs(epochMillis) + "\""
 }

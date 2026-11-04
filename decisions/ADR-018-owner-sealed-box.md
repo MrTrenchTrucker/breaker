@@ -111,7 +111,7 @@ requires no secret on the sealer's side.
 admin-scoped agent token (F31), can trigger a reset on an account
 (`POST /v1/admin/reset-account`). The server:
 1. deletes that account's wrapped DEK, wrapped box private key, box public
-   key, and verifier hash (all four go together — an orphaned public key
+   key; the verifier hash is replaced with random bytes and the account marked reset-pending (all four go together - an orphaned public key
    with no recoverable private half is worse than no key at all);
 2. deletes the account's transcriptions, because they can no longer be
    decrypted by anyone (R20) — keeping undecryptable ciphertext around serves

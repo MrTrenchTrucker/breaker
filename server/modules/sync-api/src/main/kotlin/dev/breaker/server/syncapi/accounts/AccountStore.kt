@@ -16,7 +16,7 @@ internal class AccountStore(
 ) {
     internal val attempts = SigninAttemptStore(db, clock)
 
-    private class AccountRow(val id: Long, val role: Role, val stored: StoredVerifier)
+    private class AccountRow(val id: Long, val role: Role, val stored: StoredVerifier, val pending: Boolean)
 
     suspend fun register(
         username: String,
@@ -62,13 +62,15 @@ internal class AccountStore(
     }
 
     // Stores the first key set of an account. The UPDATE matches only a keyless row, so a second call
-    // changes nothing, and key_version is only ever raised by one. A SQL error is not caught here: the
-    // transaction rolls back and the exception goes to the caller.
+    // changes nothing, and key_version is only ever raised by one. An account that is waiting for a reset
+    // is refused before the UPDATE. A SQL error is not caught here: the transaction rolls back and the
+    // exception goes to the caller.
     suspend fun storeKeys(accountId: Long, keys: KeyBundle): StoreKeysResult {
         val dek = keys.wrappedDek
         val privkey = keys.wrappedBoxPrivkey
         val pubkey = keys.boxPubkey
         return db.transaction<StoreKeysResult> { connection ->
+            if (pendingOn(connection, accountId) == true) return@transaction StoreKeysResult.ResetPending
             val changed = connection.prepareStatement(STORE_KEYS_SQL).use { statement ->
                 statement.setBytes(1, dek)
                 statement.setBytes(2, privkey)
@@ -96,29 +98,43 @@ internal class AccountStore(
 
     // The stored key columns of one account, or null when no account has this id.
     suspend fun keysFor(accountId: Long): StoredKeys? =
-        db.transaction<StoredKeys?> { connection ->
-            connection.prepareStatement(SELECT_KEYS_SQL).use { statement ->
-                statement.setLong(1, accountId)
-                statement.executeQuery().use { rows ->
-                    if (rows.next()) {
-                        val keyVersion = rows.getInt(4)
-                        val rekeyedAt = rows.getLong(6)
-                        val rekeyedAtMs: Long? = if (rows.wasNull()) null else rekeyedAt
-                        val resetAt = rows.getLong(7)
-                        val resetAtMs: Long? = if (rows.wasNull()) null else resetAt
-                        StoredKeys(
-                            rows.getBytes(1),
-                            rows.getBytes(2),
-                            rows.getBytes(3),
-                            keyVersion,
-                            rows.getBytes(5),
-                            rekeyedAtMs,
-                            resetAtMs,
-                        )
-                    } else {
-                        null
-                    }
+        db.transaction<StoredKeys?> { connection -> keysOn(connection, accountId) }
+
+    // The same read on the caller's connection, so a caller can run it inside its own transaction.
+    internal fun keysOn(connection: Connection, accountId: Long): StoredKeys? =
+        connection.prepareStatement(SELECT_KEYS_SQL).use { statement ->
+            statement.setLong(1, accountId)
+            statement.executeQuery().use { rows ->
+                if (rows.next()) {
+                    val keyVersion = rows.getInt(4)
+                    val rekeyedAt = rows.getLong(6)
+                    val rekeyedAtMs: Long? = if (rows.wasNull()) null else rekeyedAt
+                    val resetAt = rows.getLong(7)
+                    val resetAtMs: Long? = if (rows.wasNull()) null else resetAt
+                    StoredKeys(
+                        rows.getBytes(1),
+                        rows.getBytes(2),
+                        rows.getBytes(3),
+                        keyVersion,
+                        rows.getBytes(5),
+                        rekeyedAtMs,
+                        resetAtMs,
+                    )
+                } else {
+                    null
                 }
+            }
+        }
+
+    // Whether the account is waiting for a reset to be completed, or null when no account has this id.
+    suspend fun resetPendingOf(accountId: Long): Boolean? =
+        db.transaction<Boolean?> { connection -> pendingOn(connection, accountId) }
+
+    private fun pendingOn(connection: Connection, accountId: Long): Boolean? =
+        connection.prepareStatement(SELECT_PENDING_SQL).use { statement ->
+            statement.setLong(1, accountId)
+            statement.executeQuery().use { rows ->
+                if (rows.next()) rows.getInt(1) == 1 else null
             }
         }
 
@@ -168,6 +184,7 @@ internal class AccountStore(
             // return Rejected or Verified exactly as an account with no limit.
             val row = db.transaction<AccountRow?> { connection -> readAccountRow(connection, folded) }
             if (row == null) return VerifyResult.Rejected
+            if (row.pending) return VerifyResult.Rejected
             val matches = withContext(Dispatchers.Default) { hasher.matches(verifier, row.stored) }
             if (!matches) return VerifyResult.Rejected
             return VerifyResult.Verified(row.id, row.role)
@@ -190,6 +207,8 @@ internal class AccountStore(
             guardCounting { attempts.recordWrong(folded) }
             return VerifyResult.Rejected
         }
+        // A pending account never counts a wrong try and never runs the hash.
+        if (row.pending) return VerifyResult.Rejected
         // The transaction has ended: the slow hash must not hold the database lane.
         val matches = withContext(Dispatchers.Default) { hasher.matches(verifier, row.stored) }
         if (!matches) {
@@ -264,7 +283,7 @@ internal class AccountStore(
             statement.executeQuery().use { rows ->
                 if (rows.next()) {
                     val stored = StoredVerifier(rows.getString(3), rows.getInt(4), rows.getBytes(5), rows.getBytes(6))
-                    AccountRow(rows.getLong(1), Role.fromDb(rows.getString(2)), stored)
+                    AccountRow(rows.getLong(1), Role.fromDb(rows.getString(2)), stored, rows.getInt(7) == 1)
                 } else {
                     null
                 }
@@ -287,12 +306,14 @@ internal class AccountStore(
             "SELECT wrapped_dek, wrapped_box_privkey, box_pubkey, key_version, prev_wrapped_dek, " +
                 "rekeyed_at, reset_at FROM accounts WHERE id = ?"
 
+        const val SELECT_PENDING_SQL = "SELECT reset_pending FROM accounts WHERE id = ?"
+
         const val SELECT_FOLDED_NAME_SQL = "SELECT username_lower FROM accounts WHERE id = ?"
 
         const val DROP_ATTEMPTS_SQL = "DELETE FROM signin_attempts WHERE username_lower = ?"
 
         const val SELECT_VERIFIER_SQL =
-            "SELECT id, role, verifier_algo, verifier_iters, verifier_salt, verifier_hash " +
+            "SELECT id, role, verifier_algo, verifier_iters, verifier_salt, verifier_hash, reset_pending " +
                 "FROM accounts WHERE username_lower = ?"
 
         // The role is decided inside this one statement: the first account ever

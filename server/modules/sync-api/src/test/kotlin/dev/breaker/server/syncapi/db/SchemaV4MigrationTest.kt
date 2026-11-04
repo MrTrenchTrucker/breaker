@@ -92,7 +92,7 @@ internal class SchemaV4MigrationTest : TempDatabaseTest() {
     fun `a fresh database ends at the latest version with the hand-off table, its index, the device name column and both triggers`() {
         val temp = openTemp()
         inTransaction(temp) { connection ->
-            assertEquals("sync-api: fresh database user_version", 8, TestDatabases.userVersion(connection))
+            assertEquals("sync-api: fresh database user_version", 9, TestDatabases.userVersion(connection))
             assertEquals(
                 "sync-api: the signin_handoff table is missing after the migrations",
                 listOf("signin_handoff"),
@@ -193,7 +193,7 @@ internal class SchemaV4MigrationTest : TempDatabaseTest() {
         val second = reopen(first)
 
         inTransaction(second) { connection ->
-            assertEquals("sync-api: user_version after the upgrade", 8, TestDatabases.userVersion(connection))
+            assertEquals("sync-api: user_version after the upgrade", 9, TestDatabases.userVersion(connection))
             assertEquals(
                 "sync-api: the account was lost or duplicated by the upgrade",
                 listOf(1L),

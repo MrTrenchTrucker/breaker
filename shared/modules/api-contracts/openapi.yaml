@@ -252,8 +252,15 @@ paths:
         strings made from stored epoch milliseconds, always with exactly three
         fractional digits (2026-11-04T08:47:41.353Z, and a whole second prints
         2026-11-04T08:47:41.000Z), or null. rekeyed_at is set by the password
-        change; reset_at is not written yet (the admin reset is planned, not
-        built). The wire shape does not change.
+        change; reset_at is set by the admin reset (POST
+        /v1/admin/reset-account) and is never cleared. The wire shape does not
+        change.
+
+        An account that waits for a reset to be completed (the admin reset
+        marked it reset-pending) cannot log in: the answer is the same 401 as a
+        wrong verifier, with the same body, no hash is run for it, and the try
+        is not counted. Until the reset is completed (POST
+        /v1/auth/complete-reset) no password opens it.
 
         A storage failure in the check of the credentials, in the read of the
         keys or in the issue of the session token gets the fixed 503, never a
@@ -369,9 +376,12 @@ paths:
         upload). key_version never goes down. A failure inside the transaction
         leaves every column and key_version as they were.
 
-        Planned, not built: the call is also 409 while the account waits for a
-        reset to be completed (a later change checks a reset-pending mark
-        inside the keys transaction).
+        The call is also 409 while the account waits for a reset to be
+        completed (the admin reset marked it reset-pending); the transaction
+        reads that mark before it writes anything, and this refusal comes
+        before the account-has-keys refusal because a reset account has no
+        keys either and this is the message that says what to do. The body is
+        still read first, so a bad body on a pending account is 400.
 
         The answer carries the new key_version, the same shape the
         password change uses. That is a choice of this contract (status
@@ -464,10 +474,10 @@ paths:
         "409":
           description: >-
             Conflict. The account already has keys (message "The account
-            already has keys"). Nothing is written. Planned, not built: the
-            call is also refused while the account waits for a reset to be
-            completed (message "The account is waiting for a reset to be
-            completed").
+            already has keys"). Nothing is written. The call is also refused
+            while the account waits for a reset to be completed (message "The
+            account is waiting for a reset to be completed"), and that message
+            comes first.
           content:
             application/json:
               schema:
@@ -505,7 +515,9 @@ paths:
 
         The order of the checks is: the token (401 for a missing, unknown,
         revoked or expired token; 503 when the token check itself fails), the
-        token kind (403), the size (413, cap 4096 bytes, before the body is
+        token kind (403), the reset-pending mark (409, read before the body, so
+        a bad body on a pending account is 409 and no wrong try is counted),
+        the size (413, cap 4096 bytes, before the body is
         parsed), the body (400 for malformed JSON, a missing, extra, duplicate
         or wrongly typed member, or a value that is not standard padded
         base64), and the decoded lengths (400, before any write):
@@ -529,12 +541,13 @@ paths:
 
         Then one transaction makes all the effects or none. Inside it the
         session token is read again and must still be live. It answers 409
-        when the account has no keys, when new_key_version is not exactly the
-        account's current key_version plus one, or while the account still
-        holds a prev_wrapped_dek from an unfinished re-key; when more than one
-        applies, that is the order of the messages. Planned, not built: it is
-        also 409 while the account waits for a reset to be completed (a later
-        change checks a reset-pending mark inside the transaction). On success
+        while the account waits for a reset to be completed (the mark is read
+        again inside the transaction), when the account has no keys, when
+        new_key_version is not exactly the account's current key_version plus
+        one, or while the account still holds a prev_wrapped_dek from an
+        unfinished re-key; when more than one applies, that is the order of
+        the messages (the pending message is first, because a reset account has
+        no keys either and this is the one that says what to do). On success
         it stores the new salt, KDF values, verifier and keys, sets key_version
         and sets rekeyed_at to the time of the change; it revokes every other
         user session token of the account and ends the account's unredeemed
@@ -676,13 +689,13 @@ paths:
                 message: "User session token required; an agent token is refused"
         "409":
           description: >-
-            Conflict. The message is "The account has no keys" for an account
-            without keys, or "key_version is not the account's current
-            key_version plus one", or "A previous re-key is unfinished" while
-            the account holds a prev_wrapped_dek; when more than one applies,
-            the first of these in this order is the one given. Nothing is
-            written. Planned, not built: "The account is waiting for a reset to
-            be completed" for an account that waits for a reset.
+            Conflict. The message is "The account is waiting for a reset to be
+            completed" for an account that waits for a reset, or "The account
+            has no keys" for an account without keys, or "key_version is not
+            the account's current key_version plus one", or "A previous re-key
+            is unfinished" while the account holds a prev_wrapped_dek; when
+            more than one applies, the first of these in this order is the one
+            given. Nothing is written.
           content:
             application/json:
               schema:
@@ -730,33 +743,44 @@ paths:
     post:
       summary: Finish an admin reset with the one-time reset code
       description: >-
-        Planned, not built. After an admin reset (POST /v1/admin/reset-account)
-        the person chooses a new password with the one-time reset code. No
-        token is needed: the reset already revoked every token of the account.
-        The Authorization header is read only to refuse an agent token: a
-        header that resolves to an agent token gets 403 (the same answer as
-        /v1/sync) before the body is read, and any other header is ignored.
+        After an admin reset (POST /v1/admin/reset-account) the person chooses
+        a new password with the one-time reset code. No token is needed: the
+        reset already revoked every token of the account. The Authorization
+        header is read only to refuse an agent token: a header that resolves to
+        an agent token gets 403 (the same answer as /v1/sync) before the body
+        is read, and any other header is ignored (a session token sent here is
+        not used and its expiry does not move).
 
-        Planned: the order of the checks is: the token kind (403), the size
-        (413, cap 4096 bytes, before the body is parsed), the body (400 for a
-        malformed body), then the lookups: the username folds and exists, a
-        live unexpired code exists, and the constant-time compare of the stored
-        hash of the code matches. Every one of these failures is the same fixed
-        401 with the message "Invalid username or reset code". After that the
-        KDF floor, ceiling and version (400) and the 32-byte verifier (400) are
-        checked.
+        The order of the checks is: the token kind (403), the size (413, cap
+        4096 bytes, before the body is parsed), the body (400 for a malformed
+        body: exactly the six members, each once, kdf_params with exactly its
+        three whole-number members, every text member a JSON string; only the
+        shape and the types are checked here), then the lookups: the username
+        is valid and folds to lower case, the account waits for a reset, a live
+        unexpired code exists, and the constant-time compare of the stored hash
+        of the code matches. Every one of these failures is the same fixed 401
+        with the message "Invalid username or reset code": an unknown or
+        malformed name, an unknown, malformed, wrong, used or expired code, and
+        an account that is not waiting for a reset. After that, and only after
+        a right name and code, the salt (24 characters of standard padded
+        base64, 16 bytes), the KDF floor, ceiling and version (1), and the
+        verifier (44 characters, 32 bytes) are checked (400, nothing written).
 
-        Planned: on success, one transaction stores the new salt, verifier and
-        KDF fields, deletes the code, clears the wrong-password row and mints a
-        session token. The answer is 200 with the LoginResponse body: the key
-        fields are null (the account is keyless), key_version is unchanged and
-        reset_at is set. A POST /v1/auth/keys follows.
+        On success, one transaction deletes the code (a code is single use:
+        of two completions with one code only one succeeds), stores the new
+        salt, verifier and KDF fields, clears the reset-pending mark, clears the
+        wrong-password row and mints a session token. The answer is 200 with
+        the LoginResponse body: the key fields are null (the account is
+        keyless), key_version is unchanged and reset_at is set. A POST
+        /v1/auth/keys follows. A locked name does not block a right code.
 
-        Planned: there is no attempt counter on this route: the code is 256
-        random bits. A wrong code does not touch the wrong-password row. Known
-        limit: whoever presents the code first chooses the password (ADR-018).
+        There is no attempt counter on this route: the code is 256 random
+        bits. A wrong code does not touch the wrong-password row. Known limit:
+        whoever presents the code first chooses the password (ADR-018).
 
-        Planned: the reset code and the request body are never logged.
+        The reset code and the request body are never logged. A storage
+        failure, also in the check of an Authorization header, gets the fixed
+        503.
       operationId: completeReset
       security: []
       requestBody:
@@ -777,25 +801,25 @@ paths:
                 username:
                   type: string
                   pattern: "^[A-Za-z0-9._-]{1,64}$"
-                  description: "Planned: the account username"
+                  description: "The account username"
                 reset_code:
                   type: string
                   pattern: "^[A-Za-z0-9_-]{43}$"
-                  description: "Planned: the one-time reset code, 43 URL-safe characters (256 random bits)"
+                  description: "The one-time reset code, 43 URL-safe characters (256 random bits)"
                 salt:
                   type: string
                   pattern: "^[A-Za-z0-9+/]{22}==$"
-                  description: "Planned: the new salt, base64 padded, 16 bytes after decode"
+                  description: "The new salt, base64 padded, 16 bytes after decode"
                 kdf_params:
                   $ref: "#/components/schemas/KdfParams"
                 kdf_version:
                   type: integer
                   enum: [1]
-                  description: "Planned: must equal 1"
+                  description: "Must equal 1"
                 auth_verifier:
                   type: string
                   pattern: "^[A-Za-z0-9+/]{43}=$"
-                  description: "Planned: the new auth verifier, base64 padded, 32 bytes after decode"
+                  description: "The new auth verifier, base64 padded, 32 bytes after decode"
             example:
               username: "alice"
               reset_code: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
@@ -808,13 +832,13 @@ paths:
               auth_verifier: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
       responses:
         "200":
-          description: "Planned: reset completed. The body is the login answer, keyless, with reset_at set. The token member is the new session token."
+          description: "Reset completed. The body is the login answer, keyless, with reset_at set. The token member is the new session token."
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/LoginResponse"
         "400":
-          description: "Planned: bad request. The body is malformed, the KDF values are outside the bounds, or the verifier is not 32 bytes."
+          description: "Bad request. The body is malformed, the KDF values are outside the bounds, the salt is not 16 bytes, or the verifier is not 32 bytes. The salt, KDF and verifier checks come only after a right name and code."
           content:
             application/json:
               schema:
@@ -824,9 +848,9 @@ paths:
                 message: "Invalid request body"
         "401":
           description: >-
-            Planned: refused. One fixed answer for an unknown username, an
-            unknown, wrong, used or expired code: the same status and the same
-            body.
+            Refused. One fixed answer for an unknown username, an account that
+            is not waiting for a reset, and an unknown, malformed, wrong, used
+            or expired code: the same status and the same body.
           content:
             application/json:
               schema:
@@ -835,7 +859,7 @@ paths:
                 error: "unauthorized"
                 message: "Invalid username or reset code"
         "403":
-          description: "Planned: forbidden - the presented token is an agent token"
+          description: "Forbidden - the presented token is an agent token"
           content:
             application/json:
               schema:
@@ -844,7 +868,7 @@ paths:
                 error: "forbidden"
                 message: "User session token required; an agent token is refused"
         "413":
-          description: "Planned: request entity too large. The body is over 4096 bytes and is refused before it is parsed."
+          description: "Request entity too large. The body is over 4096 bytes and is refused before it is parsed."
           content:
             application/json:
               schema:
@@ -853,7 +877,7 @@ paths:
                 error: "payload_too_large"
                 message: "Request body exceeds maximum allowed size"
         "503":
-          description: "Planned: a storage failure gets this answer. The body is fixed and no part of the failure is echoed."
+          description: "A storage failure gets this answer. The body is fixed and no part of the failure is echoed."
           content:
             application/json:
               schema:
@@ -1548,13 +1572,37 @@ paths:
     post:
       summary: Reset an account's keys and data with a one-time code
       description: >-
-        Admin-only: resets an account by deleting that account's keys,
-        deletes its transcriptions outright, deletes any still-unfetched
-        pending-sealed rows for it, revokes its tokens, and issues a one-time
-        reset code (at least 128 random bits, single use, 24-hour expiry) for
-        the admin to pass to the user out of band. Callable with an admin session
-        token OR an admin-scoped agent token — the single bearerAuth scheme
-        cannot distinguish these two callers, so both are accepted.
+        Admin-only: resets one account, by user name (any letter case), in
+        one transaction. It replaces the verifier hash with 32 fresh random
+        bytes (so no password can match) and marks the account reset-pending,
+        deletes the account's keys (wrapped DEK, wrapped box private key, box
+        public key and prev_wrapped_dek), revokes every token of the account
+        (sessions and agent tokens) and its unredeemed sign-in codes, deletes
+        its transcriptions outright, clears its wrong-password row, sets
+        reset_at to now and issues a one-time reset code. key_version is kept
+        (it never goes backwards). Pending-sealed rows are planned, not built:
+        that table does not exist yet, so nothing is deleted from it.
+
+        The reset also moves the change feed: change_seq goes up by one and the
+        purged floor is set to the new change_seq, so after a reset every
+        earlier cursor, also one at the old head, gets 410 from
+        GET /v1/transcriptions and the client does a full resync.
+
+        The reset code is 32 random bytes written as 43 URL-safe characters
+        (256 random bits, so at least 128), single use, with a 24-hour expiry.
+        Only its SHA-256 is stored. An account has one live code: a new reset
+        replaces the old code, and the old one then fails. The code appears in
+        this answer only and is never logged. The admin passes it to the user
+        out of band; the user finishes with POST /v1/auth/complete-reset.
+
+        Callable with an admin session token OR an admin-scoped agent token -
+        the single bearerAuth scheme cannot distinguish these two callers, so
+        both are accepted. The order of the checks is: the token (401), the
+        admin role (403), the size (413, cap 4096 bytes), the body (400: exactly
+        one member, username, a string; a null or a number is 400), then the
+        name (404 for a name that is not valid and for an unknown account).
+        An admin may reset their own account; that revokes the token they
+        called with. A storage failure gets the fixed 503 and changes nothing.
       operationId: adminResetAccount
       security:
         - bearerAuth: []
@@ -1565,10 +1613,10 @@ paths:
             schema:
               $ref: "#/components/schemas/ResetAccountRequest"
             example:
-              username: "alice@example.com"
+              username: "alice"
       responses:
         "200":
-          description: Reset code issued
+          description: Reset code issued. It is shown once and is 43 URL-safe characters.
           content:
             application/json:
               schema:
@@ -1593,8 +1641,17 @@ paths:
               example:
                 error: "forbidden"
                 message: "Admin role required"
+        "400":
+          description: Bad request. The body is not exactly one string member, username.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "bad_request"
+                message: "Invalid request body"
         "404":
-          description: Account not found
+          description: Account not found (also for a user name that is not valid)
           content:
             application/json:
               schema:
@@ -1602,6 +1659,24 @@ paths:
               example:
                 error: "not_found"
                 message: "Account not found"
+        "413":
+          description: Request entity too large. The body is over 4096 bytes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "payload_too_large"
+                message: "Request body exceeds maximum allowed size"
+        "503":
+          description: A storage failure gets this answer. The body is fixed and the reset is not applied.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
   /v1/admin/clear-store:
     post:
       summary: Clear the transcription store for one or all users
@@ -1820,7 +1895,12 @@ paths:
                 message: "User session token required; an agent token is refused"
         "410":
           description: >
-            The cursor is below the account's purged floor.
+            The cursor is below the account's purged floor. An admin reset
+            (POST /v1/admin/reset-account) sets the floor to the account's new
+            change number, so after a reset every earlier cursor gets 410, also
+            a cursor at the old head and the cursor 0; the client lists again
+            without since. The page that answers that list carries a next
+            cursor that is not below the floor, so it is accepted.
           content:
             application/json:
               schema:
@@ -2568,6 +2648,7 @@ components:
       properties:
         reset_code:
           type: string
+          description: The one-time reset code, 43 URL-safe characters (256 random bits)
     ClearStoreRequest:
       type: object
       required:

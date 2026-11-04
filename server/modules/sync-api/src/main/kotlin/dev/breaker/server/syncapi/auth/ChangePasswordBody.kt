@@ -15,9 +15,6 @@ private const val VERIFIER_TEXT_LENGTH = 44
 private const val PUBKEY_TEXT_LENGTH = 44
 private const val WRAPPED_TEXT_LENGTH = 80
 
-// An integer member has at most ten digits, which always fit a Long before the Int bound check.
-private const val MAX_INTEGER_DIGITS = 10
-
 /**
  * The ten values of a change-password request, all checked. Byte values are copied in and copied out,
  * so a caller cannot change what the body holds. The printed text is fixed, so no key or verifier
@@ -94,14 +91,7 @@ internal fun parseChangePasswordBody(text: String): ChangePasswordBody? {
     }
 }
 
-// Thrown inside the reader for every refusal. It carries no text from the request.
-private class ChangeBodyRefused : Exception("change-password body refused")
-
-private fun refuse(): Nothing = throw ChangeBodyRefused()
-
-private class ChangeBodyReader(private val text: String) {
-    private var position = 0
-
+private class ChangeBodyReader(text: String) : StrictJsonCursor(text) {
     fun readBody(): ChangePasswordBody {
         skipSpace()
         expect('{')
@@ -165,12 +155,6 @@ private class ChangeBodyReader(private val text: String) {
         )
     }
 
-    // A member that is already set is given twice: refuse.
-    private fun <T : Any> once(current: T?, value: T): T {
-        if (current != null) refuse()
-        return value
-    }
-
     // The nested object: exactly memory_kib, iterations and parallelism, each once, each an integer.
     private fun readKdfParams(): KdfParams {
         expect('{')
@@ -215,87 +199,4 @@ private class ChangeBodyReader(private val text: String) {
         if (bytes.size != byteCount) refuse()
         return bytes
     }
-
-    // Plain ASCII digits only, at most ten of them, no extra zero in front, never above Int.MAX_VALUE.
-    // A sign, a fraction or an exponent is not read here, so the next step finds it and refuses.
-    private fun readInteger(): Int {
-        val start = position
-        var value = 0L
-        while (position < text.length && text[position] in '0'..'9') {
-            value = value * 10L + (text[position] - '0')
-            position++
-            if (position - start > MAX_INTEGER_DIGITS) refuse()
-        }
-        val digits = position - start
-        if (digits == 0) refuse()
-        if (digits > 1 && text[start] == '0') refuse()
-        if (value > Int.MAX_VALUE) refuse()
-        return value.toInt()
-    }
-
-    private fun readString(): String {
-        expect('"')
-        val builder = StringBuilder()
-        while (position < text.length) {
-            val c = text[position]
-            position++
-            when {
-                c == '"' -> return builder.toString()
-                c == '\\' -> builder.append(readEscape())
-                c.code < 0x20 -> refuse()
-                else -> builder.append(c)
-            }
-        }
-        refuse()
-    }
-
-    private fun readEscape(): Char {
-        return when (readChar()) {
-            '"' -> '"'
-            '\\' -> '\\'
-            '/' -> '/'
-            'b' -> '\b'
-            'f' -> '\u000C'
-            'n' -> '\n'
-            'r' -> '\r'
-            't' -> '\t'
-            'u' -> readUnicodeEscape()
-            else -> refuse()
-        }
-    }
-
-    // Exactly four hex digits, no sign, no short form.
-    private fun readUnicodeEscape(): Char {
-        var code = 0
-        repeat(4) {
-            code = code * 16 + hexValue(readChar())
-        }
-        return code.toChar()
-    }
-
-    private fun hexValue(c: Char): Int {
-        return when (c) {
-            in '0'..'9' -> c - '0'
-            in 'a'..'f' -> c - 'a' + 10
-            in 'A'..'F' -> c - 'A' + 10
-            else -> refuse()
-        }
-    }
-
-    private fun readChar(): Char {
-        if (position >= text.length) refuse()
-        val c = text[position]
-        position++
-        return c
-    }
-
-    private fun expect(c: Char) {
-        if (readChar() != c) refuse()
-    }
-
-    private fun skipSpace() {
-        while (position < text.length && isJsonSpace(text[position])) position++
-    }
-
-    private fun isJsonSpace(c: Char): Boolean = c == ' ' || c == '\t' || c == '\n' || c == '\r'
 }
