@@ -31,7 +31,7 @@ both the Android client (`stt-server`) and the server (`whisper-server`) impleme
   - `POST /v1/admin/test-service` — probe the configured transcription service's connectivity (admin only)
   - `POST /v1/admin/reset-account` — reset an account: the server deletes its keys, transcriptions, unfetched pending-sealed rows and revokes its tokens, and issues a one-time reset code
   - `POST /v1/admin/clear-store` — clear the transcription store for one user or all users (confirm required)
-  - `GET /v1/admin/wrong-pw-limit` - read whether sign-in is locked after five wrong passwords (admin only; contract only, not yet built on the server)
-  - `PUT /v1/admin/wrong-pw-limit` - turn the wrong-password limit on or off (admin only; contract only, not yet built on the server)
+  - `GET /v1/admin/wrong-pw-limit` - read whether sign-in is locked after five wrong passwords (admin only; built on the server)
+  - `PUT /v1/admin/wrong-pw-limit` - turn the wrong-password limit on or off (admin only; built on the server)
 
 Full module card: `AGENTS.md` in this folder.
