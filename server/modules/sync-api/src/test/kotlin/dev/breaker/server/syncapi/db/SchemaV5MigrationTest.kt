@@ -98,7 +98,7 @@ internal class SchemaV5MigrationTest : TempDatabaseTest() {
     fun `a fresh database ends at the latest version with the change columns, the delete flag, the pulled change column and the unique index`() {
         val temp = openTemp()
         inTransaction(temp) { connection ->
-            assertEquals("sync-api: fresh database user_version", 7, TestDatabases.userVersion(connection))
+            assertEquals("sync-api: fresh database user_version", 8, TestDatabases.userVersion(connection))
             val accountColumns = names(connection, "SELECT name FROM pragma_table_info('accounts')")
             assertTrue("sync-api: accounts.change_seq is missing: $accountColumns", "change_seq" in accountColumns)
             assertTrue("sync-api: accounts.purged_through is missing: $accountColumns", "purged_through" in accountColumns)
@@ -181,7 +181,7 @@ internal class SchemaV5MigrationTest : TempDatabaseTest() {
         val second = reopen(first)
 
         inTransaction(second) { connection ->
-            assertEquals("sync-api: user_version after the upgrade", 7, TestDatabases.userVersion(connection))
+            assertEquals("sync-api: user_version after the upgrade", 8, TestDatabases.userVersion(connection))
             assertEquals(
                 "sync-api: a transcription row was lost or duplicated by the upgrade",
                 listOf(5L),

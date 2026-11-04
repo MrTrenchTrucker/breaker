@@ -61,6 +61,67 @@ internal class AccountStore(
         }
     }
 
+    // Stores the first key set of an account. The UPDATE matches only a keyless row, so a second call
+    // changes nothing, and key_version is only ever raised by one. A SQL error is not caught here: the
+    // transaction rolls back and the exception goes to the caller.
+    suspend fun storeKeys(accountId: Long, keys: KeyBundle): StoreKeysResult {
+        val dek = keys.wrappedDek
+        val privkey = keys.wrappedBoxPrivkey
+        val pubkey = keys.boxPubkey
+        return db.transaction<StoreKeysResult> { connection ->
+            val changed = connection.prepareStatement(STORE_KEYS_SQL).use { statement ->
+                statement.setBytes(1, dek)
+                statement.setBytes(2, privkey)
+                statement.setBytes(3, pubkey)
+                statement.setLong(4, accountId)
+                statement.executeUpdate()
+            }
+            if (changed == 1) {
+                connection.prepareStatement("SELECT key_version FROM accounts WHERE id = ?").use { statement ->
+                    statement.setLong(1, accountId)
+                    statement.executeQuery().use { rows ->
+                        check(rows.next()) { "sync-api: the key version could not be read back" }
+                        StoreKeysResult.Stored(rows.getInt(1))
+                    }
+                }
+            } else {
+                val exists = connection.prepareStatement("SELECT 1 FROM accounts WHERE id = ?").use { statement ->
+                    statement.setLong(1, accountId)
+                    statement.executeQuery().use { rows -> rows.next() }
+                }
+                if (exists) StoreKeysResult.AlreadyKeyed else StoreKeysResult.NoSuchAccount
+            }
+        }
+    }
+
+    // The stored key columns of one account, or null when no account has this id.
+    suspend fun keysFor(accountId: Long): StoredKeys? =
+        db.transaction<StoredKeys?> { connection ->
+            connection.prepareStatement(SELECT_KEYS_SQL).use { statement ->
+                statement.setLong(1, accountId)
+                statement.executeQuery().use { rows ->
+                    if (rows.next()) {
+                        val keyVersion = rows.getInt(4)
+                        val rekeyedAt = rows.getLong(6)
+                        val rekeyedAtMs: Long? = if (rows.wasNull()) null else rekeyedAt
+                        val resetAt = rows.getLong(7)
+                        val resetAtMs: Long? = if (rows.wasNull()) null else resetAt
+                        StoredKeys(
+                            rows.getBytes(1),
+                            rows.getBytes(2),
+                            rows.getBytes(3),
+                            keyVersion,
+                            rows.getBytes(5),
+                            rekeyedAtMs,
+                            resetAtMs,
+                        )
+                    } else {
+                        null
+                    }
+                }
+            }
+        }
+
     // Runs a counting write inside try/catch: CancellationException is rethrown, any other exception
     // is swallowed so a failed counting write never changes a login answer (fail open).
     private suspend fun guardCounting(block: suspend () -> Unit) {
@@ -200,6 +261,14 @@ internal class AccountStore(
         const val SELECT_PARAMS_SQL =
             "SELECT salt, kdf_memory_kib, kdf_iterations, kdf_parallelism, kdf_version " +
                 "FROM accounts WHERE username_lower = ?"
+
+        const val STORE_KEYS_SQL =
+            "UPDATE accounts SET wrapped_dek = ?, wrapped_box_privkey = ?, box_pubkey = ?, " +
+                "key_version = key_version + 1 WHERE id = ? AND wrapped_dek IS NULL"
+
+        const val SELECT_KEYS_SQL =
+            "SELECT wrapped_dek, wrapped_box_privkey, box_pubkey, key_version, prev_wrapped_dek, " +
+                "rekeyed_at, reset_at FROM accounts WHERE id = ?"
 
         const val DROP_ATTEMPTS_SQL = "DELETE FROM signin_attempts WHERE username_lower = ?"
 

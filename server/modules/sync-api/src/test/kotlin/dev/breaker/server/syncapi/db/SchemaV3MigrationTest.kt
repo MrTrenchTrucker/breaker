@@ -12,7 +12,7 @@ internal class SchemaV3MigrationTest : TempDatabaseTest() {
     fun `a fresh database ends at the latest version with the transcriptions table and key version 0 for a new account`() {
         val temp = openTemp()
         inTransaction(temp) { connection ->
-            assertEquals("sync-api: fresh database user_version", 7, TestDatabases.userVersion(connection))
+            assertEquals("sync-api: fresh database user_version", 8, TestDatabases.userVersion(connection))
             assertEquals(
                 "sync-api: the transcriptions table is missing after the migrations",
                 listOf("transcriptions"),
@@ -54,7 +54,7 @@ internal class SchemaV3MigrationTest : TempDatabaseTest() {
         val second = reopen(first)
 
         inTransaction(second) { connection ->
-            assertEquals("sync-api: user_version after the upgrade", 7, TestDatabases.userVersion(connection))
+            assertEquals("sync-api: user_version after the upgrade", 8, TestDatabases.userVersion(connection))
             assertEquals(
                 "sync-api: the account was lost or duplicated by the upgrade",
                 listOf(1L),

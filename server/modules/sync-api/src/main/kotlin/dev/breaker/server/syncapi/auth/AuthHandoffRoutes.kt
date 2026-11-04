@@ -137,7 +137,7 @@ private sealed class ParseResult {
     data class Ok(val fields: Map<String, String?>) : ParseResult()
 }
 
-private suspend fun ApplicationCall.respondBadRequest() {
+internal suspend fun ApplicationCall.respondBadRequest() {
     respondText(
         """{"error":"bad_request","message":"Invalid request body"}""",
         ContentType.Application.Json,
@@ -200,7 +200,7 @@ private fun parseExchangeRequest(body: String): ParseResult {
  * Returns null on malformed JSON, missing required fields, wrong types, duplicate fields, or unknown fields.
  * Total: no input may throw.
  */
-private fun parseObjectFields(
+internal fun parseObjectFields(
     body: String,
     required: List<String>,
     optional: List<String> = emptyList(),
