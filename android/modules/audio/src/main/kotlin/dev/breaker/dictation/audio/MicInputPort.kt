@@ -44,6 +44,13 @@ internal interface MicInputPort {
      */
     fun silenced(): Boolean
 
+    /**
+     * The audio session id of this port's own recording, so the caller can tell its
+     * own entry in the platform's list of active recordings apart from the others.
+     * Zero when no recording of its own is open (id 0 is not a real session id).
+     */
+    fun ownSessionId(): Int = NO_OWN_SESSION
+
     /** Release the device. Safe when not open and safe to call twice. */
     fun close()
 }

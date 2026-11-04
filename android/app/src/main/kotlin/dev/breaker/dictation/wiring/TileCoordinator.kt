@@ -52,7 +52,8 @@ class TileCoordinator(
     internal val yield = TakeYieldController(
         background, main, take, TakeSettle(history, clipboard), takenNotice,
         { push(it) }, { sendPushed = false }, { generation }  // the one place push happens
-    )
+    ).also { it.onWatcherCleared = { onWatcherCleared() } }
+    fun onWatcherCleared() { if (armed) push() }
 
     /** The device failure entry: the cut is transcribed, saved and copied, with one sentence and no busy face. */
     internal val deviceFailure: DeviceFailureYield = DeviceFailureYield(

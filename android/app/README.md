@@ -51,9 +51,9 @@ screen, the settings screen and the history screen, the manifest, and the Gradle
   landed or only reached the clipboard, and FAILED with its sentence when the
   commit failed. It keeps that until the next action.
   The busy face (the microphone with a red circle and slash) shows while another
-  app or a call holds the microphone. Today it clears only on a tap or the next
-  take. ADR-037 decides that the app clears it by itself once the microphone is
-  free; that is decided, not built.
+  app or a call holds the microphone. It clears on a tap, on the next
+  take, when the switch goes off, and by itself once the microphone is free
+  (ADR-037, built; the platform reading is not yet tried on a phone).
 - **The keyboard tile.** While dictation is switched on, the tile comes up when a keyboard is on
   screen and a text field is in focus. It goes away when the keyboard goes away, but only if a
   keyboard show brought it up. A keyboard show follows the same check as a shake: nothing is shown

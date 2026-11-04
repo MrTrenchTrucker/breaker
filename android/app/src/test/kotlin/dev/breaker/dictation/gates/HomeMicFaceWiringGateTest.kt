@@ -4,16 +4,19 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Pins the three Home-mic-face wiring facts no call-level test can, because a test can build the
+ * Pins the Home-mic-face wiring facts no call-level test can, because a test can build the
  * wiring but never observe the values its helpers carry across a call: the re-push of the mic state
  * passes the switch, the shared busy flag and the state to homeMicFace in that order (never a hard
  * constant for the switch or the flag — a hard `true`/`false` for either breaks rule a, so B4 and B5
  * both die); the screen mic is set before the derived face is pushed once at paint, so a rebuilt mic
  * never shows a stale one (deleting that first paint breaks rule b); and the tile host's mic busy port
  * is the real forwarder over the coordinator's controller, not a no-op (swapping in a no-op breaks
- * rule c). Each rule is read against source with comments removed but literals kept, holds on the real
- * source, fires on a single targeted edit that breaks it, and stays quiet on a harmless spacing change.
- * String-literal content must survive stripping, so this gate strips comments only — see [stripComments].
+ * rule c); and the tile host wires the one real microphone release watcher into the coordinator
+ * in exactly one place (deleting that wiring line leaves the feature dead with every test green,
+ * so rule e). Each rule is read against source with comments removed but literals kept, holds on
+ * the real source, fires on a single targeted edit that breaks it, and stays quiet on a harmless
+ * spacing change. String-literal content must survive stripping, so only comments are
+ * stripped, and the literals keep their text (see [stripComments]).
  */
 internal class HomeMicFaceWiringGateTest {
 
@@ -46,6 +49,13 @@ internal class HomeMicFaceWiringGateTest {
         Rule("ONSTATE_SETS_THE_SENDING_FLAG", homeTake) { code ->
             Regex("""onState\s*=\s*\{\s*state\s*->[\s\S]*?sending\s*=\s*state\s*==\s*DictationState\.SENDING""").containsMatchIn(code)
         },
+        // (e) the tile host wires the one real release watcher into the coordinator in exactly
+        // one place, and builds the one real watcher in exactly one place.
+        Rule("RELEASE_WATCHER_IS_WIRED_INTO_THE_COORDINATOR", tileHost) { code ->
+            val wired = Regex("""c\.yield\.releaseWatch\s*=\s*\{\s*releaseWatcher\s*\}""").findAll(code).count()
+            val built = Regex("""appReleaseWatcher\s*\(\s*context\s*\)""").findAll(code).count()
+            wired == 1 && built == 1
+        },
     )
 
     private val firing: List<Sample> = listOf(
@@ -61,6 +71,14 @@ internal class HomeMicFaceWiringGateTest {
         // onState no longer sets the sending flag (rule d's flag assignment is gone).
         Sample("ONSTATE_SETS_THE_SENDING_FLAG",
             "sending = state == DictationState.SENDING", "sending = false"),
+        // The wiring line is deleted: the watcher is never wired and the feature is dead,
+        // yet every call-level test stays green (rule e).
+        Sample("RELEASE_WATCHER_IS_WIRED_INTO_THE_COORDINATOR",
+            "        c.yield.releaseWatch = { releaseWatcher }\n", ""),
+        // The build is replaced by a no-op expression: nothing builds the real watcher
+        // any more, so rule e's second clause counts zero.
+        Sample("RELEASE_WATCHER_IS_WIRED_INTO_THE_COORDINATOR",
+            "appReleaseWatcher(context)", "{}"),
     )
 
     private val quiet: List<Quiet> = listOf(
@@ -75,6 +93,14 @@ internal class HomeMicFaceWiringGateTest {
         Quiet("ONSTATE_SETS_THE_SENDING_FLAG", homeTake,
             "sending = state == DictationState.SENDING",
             "sending   =   state   ==   DictationState.SENDING"),
+        // A spacing change of the wiring line is harmless (rule e stays true).
+        Quiet("RELEASE_WATCHER_IS_WIRED_INTO_THE_COORDINATOR", tileHost,
+            "c.yield.releaseWatch = { releaseWatcher }",
+            "c.yield.releaseWatch = { releaseWatcher   }"),
+        // A spacing change of the build call is harmless (rule e's second clause stays true).
+        Quiet("RELEASE_WATCHER_IS_WIRED_INTO_THE_COORDINATOR", tileHost,
+            "appReleaseWatcher(context)",
+            "appReleaseWatcher( context )"),
     )
 
     private fun edit(text: String, old: String, new: String): String {

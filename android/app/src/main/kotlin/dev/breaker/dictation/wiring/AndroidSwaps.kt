@@ -4,6 +4,7 @@ import android.content.Context
 import android.hardware.SensorManager
 import android.media.AudioManager
 import dev.breaker.dictation.audio.AndroidMicSource
+import dev.breaker.dictation.audio.MicReleaseWatcher
 import dev.breaker.dictation.audio.MicSource
 import dev.breaker.dictation.host.TakenClipboardAndroid
 import dev.breaker.dictation.commit.adapter.CommitServices
@@ -21,6 +22,10 @@ fun appTextCommitter(context: Context): TextCommitter = CommitServices.create(co
 
 /** The microphone the capture reads: the real one over the phone's recording inputs. */
 fun appMicSource(audioManager: AudioManager): MicSource = AndroidMicSource.create(audioManager)
+
+/** The microphone release watcher: the real one over the phone's recording-state callback. */
+fun appReleaseWatcher(context: Context): MicReleaseWatcher =
+    AndroidMicSource.createReleaseWatcher(context.getSystemService(Context.AUDIO_SERVICE) as AudioManager)
 
 /**
  * The gesture that brings the tile back: a shake of the phone, read from the accelerometer through

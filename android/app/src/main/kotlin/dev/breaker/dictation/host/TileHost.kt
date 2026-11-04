@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import dev.breaker.dictation.BreakerCompositionRoot
 import dev.breaker.dictation.SettingsLauncherActivity
+import dev.breaker.dictation.audio.MicReleaseWatcher
 import dev.breaker.dictation.core.model.DictationState
 import dev.breaker.dictation.service.ModelNotifications
 import dev.breaker.dictation.service.DictationNotification
@@ -30,6 +31,7 @@ import dev.breaker.dictation.wiring.TileCoordinator
 import dev.breaker.dictation.wiring.WakeGestureGate
 import dev.breaker.dictation.core.model.WakeGestureMode
 import dev.breaker.dictation.wiring.appGesture
+import dev.breaker.dictation.wiring.appReleaseWatcher
 import dev.breaker.dictation.wiring.appTakenClipboard
 import dev.breaker.dictation.wiring.modelInstallPortFor
 import dev.breaker.dictation.commit.KeyboardProbeReadings
@@ -102,6 +104,9 @@ internal class TileHost(
     /** The composite level sink: the tile's feed is already there; the Home mic adds its own. */
     private val compositeLevelSink = CompositeLevelSink()
 
+    /** The one microphone release watcher for the app, built on first use from the application context. */
+    private val releaseWatcher: MicReleaseWatcher by lazy { appReleaseWatcher(context) }
+
     private val coordinator: TileCoordinator by lazy {
         val c = TileCoordinator(
             noticePort,
@@ -116,6 +121,7 @@ internal class TileHost(
             root.historyStore,
             main,
         )
+        c.yield.releaseWatch = { releaseWatcher }
         val wiring = KeyboardTileWiring({ ime, focus, timeMs -> c.onKeyboardReading(ime, focus, timeMs) }, main)
         wiring.start()
         c

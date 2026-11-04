@@ -1,5 +1,7 @@
 package dev.breaker.dictation.wiring
 
+import dev.breaker.dictation.audio.MicReleaseWatcher
+
 /**
  * The one narrow port over the tile's shared MIC_BUSY flag. Home reads the flag, registers the one
  * change listener, and forwards the three begin answers to the tile's take-yield controller; nothing
@@ -42,4 +44,19 @@ internal object NoopMicBusyPort : MicBusyPort {
     override fun beginAccepted() {}
     override fun beginRefusedAsTaken() {}
     override fun beginFailed() {}
+}
+
+/**
+ * A [MicReleaseWatcher] that never reports the microphone free: the default the take-yield controller
+ * is given when no tile host wires the real one, so a test that builds the controller without a real
+ * watcher keeps running and proves no leak (a start and a stop of it are both no-ops).
+ */
+internal object NoopMicReleaseWatcher : MicReleaseWatcher {
+    override fun start(onFree: () -> Unit) {
+        // There is no platform to read.
+    }
+
+    override fun stop() {
+        // Nothing was started.
+    }
 }
