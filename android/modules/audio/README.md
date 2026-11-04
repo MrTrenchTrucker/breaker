@@ -33,9 +33,10 @@ mono audio, in the form the downstream consumers need.
   itself still has the microphone open and the indicator lit until the app calls
   `stop`, and the callback runs on the thread `stop` waits for, so the app must
   hand the `stop` call to another thread. Leaving the callback out changes nothing.
-  Nothing here tells the app when the microphone becomes free again. ADR-037
-  (decided, not built) adds a watcher port for that: it reports when no other app
-  holds the microphone and the phone is not in a call.
+  The module also tells the app when the microphone becomes free again. ADR-037
+  (built) adds a watcher port for that, `MicReleaseWatcher`: it reports when no other app
+  holds the microphone and the phone is not in a call. Our own recording is left out of
+  the list by its session id. If the list cannot be read, the watcher reports nothing.
 - **Resampling.** `AudioResampler` converts the device's sample rate to the
   16 kHz mono the rest of the pipeline is specified in.
 - **Voice activity detection.** `EnergyVad` trims leading and trailing silence

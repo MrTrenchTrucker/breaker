@@ -1,6 +1,6 @@
 # ADR-037: The busy face follows the microphone and clears when it is free
 
-**Status:** proposed; decided, not built (it becomes accepted when this change is merged)
+**Status:** accepted; built and proven on the JVM against fakes; the platform reading is not yet tried on a phone
 **Date:** 2026-11-02
 
 Related: ARCHITECTURE F37 (the microphone yields to every other app), ADR-022 (text insert, wake listening), ADR-024 (the tile's faces), ADR-026 (the Home mic is the tile's mic).
@@ -9,7 +9,7 @@ Related: ARCHITECTURE F37 (the microphone yields to every other app), ADR-022 (t
 
 When another app or a phone call holds the microphone, Breaker lets it go and ends its take. The tile then shows the busy face: the microphone with a red circle and a slash through it (ARCHITECTURE F37, ADR-024). That part works as designed.
 
-The gap is how the busy face ends. Today the app keeps a flag that says the microphone was taken. The flag clears only when the person does something: a new take begins, the switch goes off, or the next take ends. Nothing looks at the microphone while the tile sits idle. So the other app lets go, the microphone is free, and the tile still says it is taken until the person taps.
+The gap is how the busy face ends. Before this record the app kept a flag that said the microphone was taken. The flag cleared only when the person did something: a new take began, the switch went off, or the next take ended. Nothing looked at the microphone while the tile sat idle. So the other app let go, the microphone was free, and the tile still said it was taken until the person tapped.
 
 The project owner met this with the Home mic and with the floating tile. The request was an update to the architecture, a decision record, and the cards of the modules involved.
 
@@ -23,7 +23,7 @@ Two words first. A callback is a function the phone calls when something changes
 2. **How the app watches.** It uses the phone's recording-state callback (`AudioManager.registerAudioRecordingCallback`). The phone pushes the list of active recordings each time the list changes. There is no timer and no polling. The app registers the callback only while the busy face shows, and when a begin is refused because the microphone is taken. It unregisters when the face clears and when the switch goes off. No new permission and no new dependency are needed.
 3. **One read at the start.** The phone is not promised to send an answer the moment the callback is registered. So the app also reads the current list once, at registration (`AudioManager.getActiveRecordingConfigurations`), and applies the same free test to it. The callback then handles every later change.
 4. **The free test.** The microphone is free when both of these hold: no other app is recording in the list, and `AudioManager.getMode()` is not `MODE_IN_CALL`. Our own recording is left out of the list by its session (the id the phone gives each recording). During a cellular call the mode is `MODE_IN_CALL`, so the face stays busy. `MODE_IN_COMMUNICATION` is not used. An app that forgets to restore that mode would leave the face stuck, which brings the bug back. Internet calls normally record through the recorder, so they are expected to show in the list (this is not verified, see the limits below). Reading the mode needs no permission.
-5. **If the list cannot be read,** the face stays, and today's tap clear is the fallback.
+5. **If the list cannot be read,** the face stays, and the tap clear is the fallback.
 6. **Where it lives.** The callback is a new port of the audio module, because the audio module owns the recorder. The port lets the app start and stop watching. It hands the app its answers; which thread they arrive on is chosen when the code is written. The app owns the face flag, which lives in its take-yield controller, and it wires the port to that flag. The overlay does not change: it already draws `MIC_BUSY` when the app asks. No port of `core` changes.
 7. **The flag clears on release too.** Rule 19 of the app card gets a fourth clear point. The clear points become: a begin starts, the switch goes off, a take ends, or the phone reports that the microphone is free.
 8. **Acceptance tests,** for the code change that follows. Each one must be seen failing before it passes:
@@ -43,7 +43,7 @@ Two words first. A callback is a function the phone calls when something changes
 - Watching only while the face shows keeps the cost to the short time the face is up.
 - No new permission and no new dependency means nothing new for the user to allow.
 - The one read at registration covers the case where the phone sends no first answer.
-- Keeping the tap clear means a failure to read the list leaves the person no worse off than today.
+- Keeping the tap clear means a failure to read the list leaves the person no worse off than before this record.
 - The mode test keeps the face during a cellular call, and leaving out `MODE_IN_COMMUNICATION` means a forgotten mode cannot hold the face for ever.
 
 ## Consequences
@@ -77,4 +77,6 @@ These come from an outside check of the platform's reference pages (`AudioManage
 
 ## What is built
 
-Nothing of this is built. This record and the cards that follow it are the whole change. The watcher, the app wiring and the tests come in a later change.
+The watcher, the app wiring and the tests are built. The audio module holds the `MicReleaseWatcher` port, the one free reading (`micIsFree` and `freeReading`) and the platform adapter `AndroidMicReleaseWatcher`, which `AndroidMicSource.createReleaseWatcher` builds. The app starts the watcher when the busy flag flips to taken and stops it on every flip to clear. A free reading clears the flag and the notice line, and repaints the tile when the tile is armed. The tests drive all of it on the JVM against fakes, and a source-reading test pins the one place the tile host wires the real watcher.
+
+Not yet tried on a phone: the platform adapter itself (the callback registration, the one read at the start, and the exclusion of our own recording by its session id). A device check is still owed for another recording app, an incoming call and an outgoing call. The tap clear is unchanged.

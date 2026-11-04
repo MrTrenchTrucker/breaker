@@ -31,6 +31,7 @@ order and spelling:
 - `AdaptiveGateSuppressor`
 - `RecordingIndicator`
 - `AndroidMicSource`
+- `MicReleaseWatcher`
 
 **Components** — public first, then implementation-only (`internal`: not part of
 the registry line, and not reachable from outside the module):
@@ -51,7 +52,13 @@ the registry line, and not reachable from outside the module):
 - `Pcm16WavEncoder` — public; PCM → WAV (for server upload)
 - `AndroidMicSource` - public; the one factory for a `MicSource` over the phone's recording
   inputs: it prefers a Bluetooth microphone, then a wired or USB one, then the phone's own,
-  and falls back silently, also in the middle of a take
+  and falls back silently, also in the middle of a take. `createReleaseWatcher(audioManager)` on it builds the
+  `MicReleaseWatcher`
+- `MicReleaseWatcher` - public; the port that tells the app when no other app holds the microphone and the
+  phone is not in a call. `start(onFree)` registers it and `stop()` unregisters it; both are safe to repeat
+- `AndroidMicReleaseWatcher` - internal; the adapter over the platform's recording-state callback, in
+  `AudioRecordMicPort.kt`
+- `micIsFree`, `freeReading`, `MicReleaseRecording` - internal; the one free reading, in `MicReleaseWatcher.kt`
 - `PcmRingBuffer` — internal; bounded buffer between capture and consumer
 - `AudioResampler` — internal; resamples to the 16 kHz mono contract at the boundary
 - `ChannelDownmixer` — internal; folds input channels to mono
@@ -205,9 +212,14 @@ default null (nobody is told, and behaviour is exactly as before). It adds no pu
   it and releases the device at once, reporting `MICROPHONE_TAKEN`; proven on the JVM against a fake. Still owed: a device
   check for an incoming call, an outgoing call, another recording app, and an incoming
   call with the app's accessibility service on).
-  ADR-037 (decided, not built) adds a watcher here: a port that reports when no other app holds
-  the microphone and the phone is not in a call, so the app can clear the busy face. Today
-  nothing in this module reports a release.
+  ADR-037 (built) adds a watcher here: the `MicReleaseWatcher` port reports when no other app holds
+  the microphone and the phone is not in a call, so the app can clear the busy face. The free
+  reading is one function: the phone is not in a call (mode 2 is a call) and every recording in the
+  platform's list has our own session id (id 0 means no recording of our own). A silenced recording
+  of another app still counts as busy. A reading that cannot be made (the list, the mode or the own
+  session id throws) reports nothing, and the face stays. The adapter registers one callback per
+  start, reads the list once at the start, answers only while its own callback is the registered one,
+  and tells the app once per change to free.
 - No `android.*` class is named anywhere in the module except `AudioRecordMicPort.kt`; this is
   checked by `AudioConfinementGateTest` on the source text, on the test sources, and on the
   compiled classes.
@@ -230,7 +242,8 @@ default null (nobody is told, and behaviour is exactly as before). It adds no pu
   `MicCaptureTakeEndReplacedTest` (helpers: `MicCaptureTakeEndSupport`), `MicCaptureNoCallbackThreadTest`,
   `MicCaptureStopDuringReadTest`, `MicCaptureStopDuringReadErrorTest` (fake: `ThrowingAfterCloseMicSource`),
   `RoutedMicSourceIdentityTest`, `CaptureLoopInterruptTest`, `RoutedMicSourceTakenTest`,
-  `MicCaptureTakenReleaseTest`.
+  `MicCaptureTakenReleaseTest`, `MicReleaseFreeTest` (the free reading: own recording only, another recording, a
+  silenced recording, a call, an unreadable list, mode and session in the right slots).
   `RoutedMicSourceIdentityTest` checks that the source follows the device it really opened, and that a replaced device with a new id counts as gone.
   `CaptureLoopInterruptTest` checks that an interrupt raised inside a read is handed back to the capture thread, also when a stop is closing the read.
 - Contract: `tests/contract/test_audio_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_audio_contract.py`
@@ -389,6 +402,9 @@ adapter (`AudioRecordMicPort.kt`) cannot run there, so these are by reading only
 - The 16 kHz request on real hardware, and what a refusal looks like.
 - The wording of a permission failure: a missing `RECORD_AUDIO` shows up as the platform refusing the
   format, so the message may mislead.
+- The release watcher adapter (`AndroidMicReleaseWatcher`): the callback registration, the one read at the
+  start, the exclusion of our own recording by its session id, whether the platform lists a phone call at
+  all (the mode covers it), and the callback arriving on the main looper.
 - An incoming call while the app's accessibility service is running: whether the call
   silences this capture (the general path) or the accessibility service is exempt, and
   that the release fires either way.

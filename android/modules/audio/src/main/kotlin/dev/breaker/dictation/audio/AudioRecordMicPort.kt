@@ -5,6 +5,8 @@ import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioFormat
 import android.media.AudioManager
+import android.media.AudioManager.AudioRecordingCallback
+import android.media.AudioRecordingConfiguration
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.os.Build
@@ -25,12 +27,27 @@ import android.os.Build
  */
 object AndroidMicSource {
 
+    /** The session id the module's own recorder reports, read on every ask, 0 for none. */
+    private var ownSessionProvider: () -> Int = { NO_OWN_SESSION }
+
     /** A source over [audioManager]'s inputs, recording 16 kHz mono 16-bit PCM. */
-    fun create(audioManager: AudioManager): MicSource =
-        RoutedMicSource(
+    fun create(audioManager: AudioManager): MicSource {
+        val port = AudioRecordMicPort(audioManager)
+        ownSessionProvider = { port.ownSessionId() }
+        return RoutedMicSource(
             MicDeviceSupplier { listInputs(audioManager) },
-            AudioRecordMicPort(audioManager),
+            port,
         )
+    }
+
+    /**
+     * The watcher that tells the app when no other app holds the microphone: the platform's
+     * recording-state callback over [audioManager], with the module's own recording excluded by
+     * its session id. Built for one app; the app starts it while the busy face shows and
+     * stops it when the face clears, so every start has its stop.
+     */
+    fun createReleaseWatcher(audioManager: AudioManager): MicReleaseWatcher =
+        AndroidMicReleaseWatcher(audioManager, { ownSessionProvider() })
 }
 
 /** The recording inputs the platform lists now, mapped to the kinds the policy knows. */
@@ -78,6 +95,8 @@ internal class AudioRecordMicPort(private val audioManager: AudioManager) : MicI
 
     override val sampleRateHz: Int get() = RATE_HZ
 
+    /** Written on the take thread and read on the main thread through [ownSessionId]. */
+    @Volatile
     private var record: AudioRecord? = null
     private var callback: AudioDeviceCallback? = null
     private var scoStarted = false
@@ -155,6 +174,13 @@ internal class AudioRecordMicPort(private val audioManager: AudioManager) : MicI
      */
     override fun silenced(): Boolean =
         record?.activeRecordingConfiguration?.isClientSilenced == true
+
+    /**
+     * The session id of this port's own recording, so the caller can tell its
+     * own entry in the platform's list of active recordings apart from the
+     * others. Zero when no recording of its own is open.
+     */
+    override fun ownSessionId(): Int = record?.audioSessionId ?: NO_OWN_SESSION
 
     override fun close() {
         val active = record
@@ -255,5 +281,94 @@ internal class AudioRecordMicPort(private val audioManager: AudioManager) : MicI
         const val CHANNELS = AudioFormat.CHANNEL_IN_MONO
         const val ENCODING = AudioFormat.ENCODING_PCM_16BIT
         const val NO_DEVICE = -1
+    }
+}
+
+/**
+ * [MicReleaseWatcher] over the platform's recording-state callback. [start] and [stop]
+ * are called on the main thread only: [start] when the app brings the busy face up,
+ * [stop] when the face clears. The callback is registered with no handler of its own,
+ * so it arrives on the main looper. Each start builds its own callback object, and the
+ * callback answers only while that object is still the registered one, so a callback
+ * queued by an earlier registration cannot fire after a stop and a start. The list is
+ * read once at start, so a face that is already free clears at once, and the callback
+ * handles the changes that come after. A list that cannot be read leaves the face in
+ * place (the tap clear is the fallback) and the callback keeps watching for the next change.
+ */
+internal class AndroidMicReleaseWatcher(
+    private val audioManager: AudioManager,
+    private val ownSession: () -> Int,
+) : MicReleaseWatcher {
+
+    /** The registered callback, held so [stop] can unregister it and so a queued callback can tell it is old. */
+    @Volatile
+    private var callback: AudioRecordingCallback? = null
+
+    /** The app's callback for the moment the microphone is free, held for one start. */
+    @Volatile
+    private var release: (() -> Unit)? = null
+
+    /** True while the last reading was free, so an unchanged free reading tells nothing; reset in [start]. */
+    @Volatile
+    private var lastFree = false
+
+    override fun start(onFree: () -> Unit) {
+        if (callback != null) return
+        lastFree = false
+        release = onFree
+        val watcher = object : AudioRecordingCallback() {
+            override fun onRecordingConfigChanged(configurations: List<AudioRecordingConfiguration>) {
+                if (this !== callback) return
+                onChanged(configurations)
+            }
+        }
+        callback = watcher
+        try {
+            audioManager.registerAudioRecordingCallback(watcher, null)
+        } catch (e: RuntimeException) {
+            callback = null
+            return
+        }
+        readOnce()
+    }
+
+    override fun stop() {
+        val active = callback
+        if (active == null) return
+        callback = null
+        release = null
+        audioManager.unregisterAudioRecordingCallback(active)
+    }
+
+    /**
+     * The one list read at start: an already free list clears the face at once; a list
+     * that cannot be read leaves the face in place.
+     */
+    private fun readOnce() {
+        applyReading(freeReading(
+            { audioManager.activeRecordingConfigurations.map { MicReleaseRecording(it.clientAudioSessionId, it.isClientSilenced) } },
+            { audioManager.mode },
+            ownSession,
+        ))
+    }
+
+    /** The callback's reading of a changed list, applied the same way. */
+    private fun onChanged(list: List<AudioRecordingConfiguration>) {
+        applyReading(freeReading(
+            { list.map { MicReleaseRecording(it.clientAudioSessionId, it.isClientSilenced) } },
+            { audioManager.mode },
+            ownSession,
+        ))
+    }
+
+    /** Applies one reading: a null reading keeps the face, a change to free tells the app. */
+    private fun applyReading(free: Boolean?) {
+        if (free == null) return
+        if (free && !lastFree) {
+            lastFree = true
+            release?.invoke()
+        } else if (!free) {
+            lastFree = false
+        }
     }
 }

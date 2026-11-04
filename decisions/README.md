@@ -87,6 +87,6 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-034](ADR-034-plain-http-and-the-admins-choice-of-tls.md) | Breaker serves plain HTTP; TLS is the admin's choice | accepted |
 | [ADR-035](ADR-035-several-devices-server-is-source-of-truth.md) | Several devices per account; the server is the source of truth | accepted; the points under To be designed are open |
 | [ADR-036](ADR-036-sign-in-from-the-website.md) | Sign-in from the website hands the login to the app | accepted; the points under To be designed are open |
-| [ADR-037](ADR-037-busy-face-follows-the-microphone.md) | The busy face follows the microphone and clears when it is free | proposed; decided, not built |
+| [ADR-037](ADR-037-busy-face-follows-the-microphone.md) | The busy face follows the microphone and clears when it is free | accepted; built, not yet tried on a phone |
 
 Next free number: **ADR-038**.

@@ -19,7 +19,7 @@ private const val ADAPTER_FILE = "AudioRecordMicPort.kt"
 private val ALLOWED_MAIN_FILES = setOf(ADAPTER_FILE)
 
 /** Compiled class names that may hold framework references: the adapter file's classes. */
-private val ADAPTER_CLASS_PREFIXES = listOf("AudioRecordMicPort", "AndroidMicSource")
+private val ADAPTER_CLASS_PREFIXES = listOf("AudioRecordMicPort", "AndroidMicSource", "AndroidMicReleaseWatcher")
 
 /** The new main files whose code must stay free of threads, locks and waits. */
 private val NEW_MAIN_FILES = listOf(
@@ -28,6 +28,7 @@ private val NEW_MAIN_FILES = listOf(
     "MicRoutePolicy.kt",
     "MicInputPort.kt",
     "RoutedMicSource.kt",
+    "MicReleaseWatcher.kt",
 )
 
 private const val PACKAGE_PATH = "dev/breaker/dictation/audio"

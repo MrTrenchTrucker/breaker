@@ -1,5 +1,6 @@
 package dev.breaker.dictation.wiring
 
+import dev.breaker.dictation.audio.MicReleaseWatcher
 import dev.breaker.dictation.core.model.DictationState
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -29,12 +30,39 @@ internal class TakeYieldController(
     /** The one listener fired with the new value exactly when the busy flag flips (never on an unchanged set). */
     var onBusyChanged: ((Boolean) -> Unit)? = null
 
+    /** The repaint hook for a free reading from the watcher, so the tile face clears with the flag. */
+    internal var onWatcherCleared: (() -> Unit)? = null
+
+    /**
+     * The microphone release watcher, read on every flip of the busy flag. The tile host sets
+     * the real one; until it does, the no-op keeps a controller built without a host running,
+     * and a start and a stop of it are both no-ops.
+     */
+    internal var releaseWatch: () -> MicReleaseWatcher = { NoopMicReleaseWatcher }
+
     private val yieldRunning = AtomicBoolean(false)   // one yield at a time
 
-    /** Sets the busy flag, firing [onBusyChanged] with the new value only when it flips. */
+    /**
+     * Sets the busy flag, firing [onBusyChanged] with the new value only when it flips, and
+     * keeps the microphone release watcher in step: a flip to busy starts the watcher (its
+     * free answer clears the flag through this same path), and every flip to false stops it,
+     * so every start has its stop on every path. The listener is fired only while the flag
+     * still holds the new value, because the watcher's first reading may already clear it.
+     */
     private fun setBusy(v: Boolean) {
         val flipped = micBusy.compareAndSet(!v, v)
-        if (flipped) onBusyChanged?.invoke(v)
+        if (flipped) {
+            if (v) releaseWatch().start { watcherFree() } else releaseWatch().stop()
+            if (micBusy.get() == v) onBusyChanged?.invoke(v)
+        }
+    }
+
+    /** The watcher's free answer, in one place: clear the flag, clear the notice line, repaint the tile. */
+    private fun watcherFree() {
+        if (!micBusy.get()) return
+        setBusy(false)
+        takenNotice(null)
+        onWatcherCleared?.invoke()
     }
 
     /** True while the taken branch is running (a begin attempt in
@@ -47,9 +75,15 @@ internal class TakeYieldController(
         // A second yield while the first transcribes is dropped: the
         // device is gone, there is nothing left to cut.
         setBusy(true)
-        takenNotice(TakenSentences.LEAD)   // the lead line, shown at the
-        // cut; the settle replaces it with the outcome's line
-        pushState(DictationState.SENDING)
+        // The watcher's first reading may already have cleared the face: the other
+        // app let go in the same instant. Then there is nothing still taken, so
+        // the first line and the SENDING state stay away (the settle still shows
+        // the outcome's line, and the face is already clear).
+        if (micBusy.get()) {
+            takenNotice(TakenSentences.LEAD)   // the first line, shown at the
+            // cut; the settle replaces it with the outcome's line
+            pushState(DictationState.SENDING)
+        }
         // The explicit state: the face maps to MIC_BUSY through the
         // micBusy clause (it comes before the sendPushed clause), and it
         // stays MIC_BUSY after the settle (the flag lasts until the next state change).
@@ -110,8 +144,13 @@ internal class TakeYieldController(
     /** A tap (or shake) whose open was refused as taken. */
     fun beginRefusedAsTaken() {
         setBusy(true)     // the face is the busy face, not FAILED
+        // The watcher's first reading may already have cleared the face: the
+        // microphone is not still taken, so the refused-open line stays away.
+        // The state still pushes, because nothing is recording either way.
         pushState(DictationState.IDLE)   // nothing is recording
-        takenNotice(TakenSentences.STILL_TAKEN)   // the refused-open line
+        if (micBusy.get()) {
+            takenNotice(TakenSentences.STILL_TAKEN)   // the refused-open line
+        }
     }
 
     /** A begin from the busy face that started (the next state
