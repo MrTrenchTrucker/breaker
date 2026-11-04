@@ -90,7 +90,7 @@ Of the hand-off, `CryptoService.openSignInPackage` (with its parser and the seal
 
 **Timing.** A person who times the answer can tell a known name from an unknown one. An unknown name returns before the hash. This exists today. A dummy hash was decided against; the timing difference stays out of scope.
 
-**Locking a name.** Anyone who knows a name can lock that name for 15 minutes by five wrong tries. The admin reset clears it. A signed-in session is not affected. The limit counts per name, not per address.
+**Locking a name.** Anyone who knows a name can lock that name for 15 minutes by five wrong tries. The admin reset clears it. A signed-in session keeps working (sync, sign-out) while the name is locked; changing the password needs the name unlocked. The limit counts per name, not per address.
 
 **The count window.** The count is five in a row with a 15-minute expiry, not five in all.
 

@@ -157,14 +157,26 @@ internal class TokenStore(
     // id that is not one of them (an agent token, another account's session, an
     // already revoked or unknown id) spares nothing: every live session is revoked.
     // The account's unredeemed sign-in codes are deleted in the same transaction.
-    suspend fun revokeOtherSessions(accountId: Long, keepTokenId: Long): Int {
-        val nowMs = clock.millis()
-        return db.transaction<Int> { connection ->
-            val revoked = revoke(connection, REVOKE_OTHER_SESSIONS_SQL, nowMs, accountId, keepTokenId)
-            deleteAccountHandoff(connection, accountId)
-            revoked
-        }
+    suspend fun revokeOtherSessions(accountId: Long, keepTokenId: Long): Int =
+        db.transaction<Int> { connection -> revokeOtherSessionsOn(connection, accountId, keepTokenId) }
+
+    // The same work on the caller's connection, so a caller can run it inside its own transaction.
+    // Returns the number of revoked token rows.
+    internal fun revokeOtherSessionsOn(connection: Connection, accountId: Long, keepTokenId: Long): Int {
+        val revoked = revoke(connection, REVOKE_OTHER_SESSIONS_SQL, clock.millis(), accountId, keepTokenId)
+        deleteAccountHandoff(connection, accountId)
+        return revoked
     }
+
+    // True when the session [tokenId] of [accountId] is live now: not revoked and not expired, by the
+    // same rule as readLiveToken. Read only: the expiry is not moved. Runs on the caller's connection.
+    internal fun isSessionLiveOn(connection: Connection, tokenId: Long, accountId: Long): Boolean =
+        connection.prepareStatement(SESSION_LIVE_SQL).use { statement ->
+            statement.setLong(1, tokenId)
+            statement.setLong(2, accountId)
+            statement.setLong(3, clock.millis())
+            statement.executeQuery().use { rows -> rows.next() }
+        }
 
     private fun deleteAccountHandoff(connection: Connection, accountId: Long) {
         connection.prepareStatement(DELETE_ACCOUNT_HANDOFF_SQL).use { statement ->
@@ -275,6 +287,10 @@ internal class TokenStore(
                 "JOIN accounts a ON a.id = t.account_id " +
                 "WHERE t.token_hash = ? AND t.revoked_at_ms IS NULL " +
                 "AND (t.expires_at_ms IS NULL OR t.expires_at_ms > ?)"
+
+        const val SESSION_LIVE_SQL =
+            "SELECT 1 FROM tokens WHERE id = ? AND account_id = ? AND kind = 'session' " +
+                "AND revoked_at_ms IS NULL AND (expires_at_ms IS NULL OR expires_at_ms > ?)"
 
         // Slides a session token's expiry to now + 30 days on each authenticated use.
         // Agent tokens are never touched by this (kind = 'session').

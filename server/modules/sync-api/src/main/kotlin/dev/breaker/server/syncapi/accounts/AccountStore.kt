@@ -9,9 +9,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 internal class AccountStore(
-    private val db: SqliteDatabase,
+    internal val db: SqliteDatabase,
     private val hasher: VerifierHasher = VerifierHasher(),
-    private val clock: Clock = Clock.systemUTC(),
+    internal val clock: Clock = Clock.systemUTC(),
     internal val settings: ServerSettingsStore = ServerSettingsStore(db),
 ) {
     internal val attempts = SigninAttemptStore(db, clock)
@@ -121,6 +121,23 @@ internal class AccountStore(
                 }
             }
         }
+
+    // The folded name of one account, or null when no account has this id. The password change uses it
+    // to find the wrong-password row it clears.
+    suspend fun foldedNameOf(accountId: Long): String? =
+        db.transaction<String?> { connection ->
+            connection.prepareStatement(SELECT_FOLDED_NAME_SQL).use { statement ->
+                statement.setLong(1, accountId)
+                statement.executeQuery().use { rows ->
+                    if (rows.next()) rows.getString(1) else null
+                }
+            }
+        }
+
+    // The same hashing as register, off the database lane, so a caller can hash before it opens its
+    // own transaction.
+    suspend fun hashVerifier(verifier: AuthVerifier): StoredVerifier =
+        withContext(Dispatchers.Default) { hasher.hashNew(verifier) }
 
     // Runs a counting write inside try/catch: CancellationException is rethrown, any other exception
     // is swallowed so a failed counting write never changes a login answer (fail open).
@@ -269,6 +286,8 @@ internal class AccountStore(
         const val SELECT_KEYS_SQL =
             "SELECT wrapped_dek, wrapped_box_privkey, box_pubkey, key_version, prev_wrapped_dek, " +
                 "rekeyed_at, reset_at FROM accounts WHERE id = ?"
+
+        const val SELECT_FOLDED_NAME_SQL = "SELECT username_lower FROM accounts WHERE id = ?"
 
         const val DROP_ATTEMPTS_SQL = "DELETE FROM signin_attempts WHERE username_lower = ?"
 

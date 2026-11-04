@@ -246,10 +246,18 @@ paths:
         come from the stored columns. The three key fields are the canonical
         padded base64 of the stored bytes and null together; key_version is the
         stored counter (0 for a keyless account, 1 after the first key upload);
-        prev_wrapped_dek stays null until the password change sets it
-        (planned); reset_at and rekeyed_at are ISO-8601 UTC strings (for
-        example 2026-11-04T08:47:41.353Z) made from stored epoch milliseconds,
-        or null. The wire shape does not change.
+        prev_wrapped_dek is null until the password change sets it, and null
+        again once the previous-key rule clears it (see
+        /v1/auth/change-password); reset_at and rekeyed_at are ISO-8601 UTC
+        strings made from stored epoch milliseconds, always with exactly three
+        fractional digits (2026-11-04T08:47:41.353Z, and a whole second prints
+        2026-11-04T08:47:41.000Z), or null. rekeyed_at is set by the password
+        change; reset_at is not written yet (the admin reset is planned, not
+        built). The wire shape does not change.
+
+        A storage failure in the check of the credentials, in the read of the
+        keys or in the issue of the session token gets the fixed 503, never a
+        500.
       operationId: login
       security: []
       requestBody:
@@ -315,6 +323,15 @@ paths:
               example:
                 error: "payload_too_large"
                 message: "Request body exceeds maximum allowed size"
+        "503":
+          description: "A storage failure in the check of the credentials, the read of the keys or the issue of the session token gets this answer. The body is fixed and no part of the failure is echoed."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
   /v1/auth/keys:
     post:
       summary: Upload the account's keys for the first time
@@ -357,7 +374,7 @@ paths:
         inside the keys transaction).
 
         The answer carries the new key_version, the same shape the
-        password change will use. That is a choice of this contract (status
+        password change uses. That is a choice of this contract (status
         200 with a body, not 204), so the client need not guess the counter.
         No part of the request is ever echoed.
       operationId: setKeys
@@ -427,7 +444,7 @@ paths:
                 error: "bad_request"
                 message: "Invalid request body"
         "401":
-          description: "Missing or invalid user session token"
+          description: "Missing, unknown, revoked or expired user session token"
           content:
             application/json:
               schema:
@@ -480,43 +497,60 @@ paths:
     post:
       summary: Change the password and re-key the account
       description: >-
-        Planned, not built. The signed-in person changes the password. Every
+        The signed-in person changes the password. Every
         call re-keys: it replaces the wrapped DEK, the wrapped box private key
         and the box public key, and moves key_version up by exactly one. It
         needs a user session token; an agent token is refused (403, the same
         answer as /v1/sync) before the body is read.
 
-        Planned: the order of the checks is: the token (401), the token kind
-        (403), the size (413, cap 4096 bytes, before the body is parsed), the
-        body (400 for malformed JSON, a missing, extra or non-string member, or
-        a value that is not standard padded base64), and the decoded lengths
-        (400, before any write): old_auth_verifier 32 bytes, new_salt 16 bytes,
-        new_auth_verifier 32 bytes, new_wrapped_dek 60 bytes,
-        new_wrapped_box_privkey 60 bytes, new_box_pubkey 32 bytes and
-        prev_wrapped_dek 60 bytes. new_kdf_params must be inside the bounds of
-        KdfParams and new_kdf_version must be 1.
+        The order of the checks is: the token (401 for a missing, unknown,
+        revoked or expired token; 503 when the token check itself fails), the
+        token kind (403), the size (413, cap 4096 bytes, before the body is
+        parsed), the body (400 for malformed JSON, a missing, extra, duplicate
+        or wrongly typed member, or a value that is not standard padded
+        base64), and the decoded lengths (400, before any write):
+        old_auth_verifier 32 bytes, new_salt 16 bytes, new_auth_verifier 32
+        bytes, new_wrapped_dek 60 bytes, new_wrapped_box_privkey 60 bytes,
+        new_box_pubkey 32 bytes and prev_wrapped_dek 60 bytes.
+        new_kdf_params must be inside the bounds of KdfParams, new_kdf_version
+        must be 1 and new_key_version must be at least 1.
 
-        Planned: old_auth_verifier re-proves the current password through the
-        same path as login. A wrong one counts as a wrong try; one that is not
-        base64 or not 32 bytes does not count. A locked name gets the locked
-        answer (423 with Retry-After in whole seconds). A signed-in session
-        keeps working (sync, sign-out) while the name is locked; changing the
-        password needs the name unlocked.
+        old_auth_verifier re-proves the current password through the same path
+        as login. A wrong one counts as a wrong try and gets 401 with the
+        message "Invalid old verifier"; one that is not base64 or not 32 bytes
+        is a 400 and does not count. A locked name gets the locked answer (423
+        with Retry-After in whole seconds). A signed-in session keeps working
+        (sync, sign-out) while the name is locked; changing the password needs
+        the name unlocked.
 
-        Planned: prev_wrapped_dek is required: it is the OLD DEK wrapped with
-        the NEW DEK, exactly 60 bytes, and the server stores it as sent.
+        prev_wrapped_dek is required: it is the OLD DEK wrapped with the NEW
+        DEK, exactly 60 bytes, and the server stores it as sent. The server
+        never moves the old wrapped DEK itself.
 
-        Planned: then one transaction makes all the effects or none. It
-        answers 409 when new_key_version is not exactly the account's current
-        key_version plus one, while the account still holds a prev_wrapped_dek
-        from an unfinished re-key, when the account has no keys, or when the
-        account waits for a reset to be completed. On success it stores the new
-        values, revokes every other user session token of the account (the
-        presented token and all agent tokens are kept), clears the
-        wrong-password row, and answers 200 with the new key_version. A session
-        token that is revoked before the transaction commits (for example by an
-        admin reset running at the same time) gets the 401 of an invalid
-        token.
+        Then one transaction makes all the effects or none. Inside it the
+        session token is read again and must still be live. It answers 409
+        when the account has no keys, when new_key_version is not exactly the
+        account's current key_version plus one, or while the account still
+        holds a prev_wrapped_dek from an unfinished re-key; when more than one
+        applies, that is the order of the messages. Planned, not built: it is
+        also 409 while the account waits for a reset to be completed (a later
+        change checks a reset-pending mark inside the transaction). On success
+        it stores the new salt, KDF values, verifier and keys, sets key_version
+        and sets rekeyed_at to the time of the change; it revokes every other
+        user session token of the account and ends the account's unredeemed
+        sign-in codes (the presented token and all agent tokens are kept);
+        it clears the wrong-password row; and it answers 200 with the new
+        key_version. A session token that is revoked or expired before the
+        transaction commits (for example by an admin reset running at the same
+        time) gets the 401 of an invalid token.
+
+        The previous-key rule runs in the same transaction, right after the
+        write: prev_wrapped_dek is set to null again when no stored
+        transcription of the account that is not deleted has a key_version
+        below the account's key_version, so an account with no old rows is
+        cleared at once. The same rule runs, in the same transaction, after a
+        POST /v1/sync that replaces a row and after a DELETE of a
+        transcription. The purge of delete records is not built.
       operationId: changePassword
       security:
         - bearerAuth: []
@@ -542,41 +576,41 @@ paths:
                 old_auth_verifier:
                   type: string
                   pattern: "^[A-Za-z0-9+/]{43}=$"
-                  description: "Planned: the current auth verifier, base64 padded, 32 bytes after decode"
+                  description: "The current auth verifier, base64 padded, 32 bytes after decode"
                 new_salt:
                   type: string
                   pattern: "^[A-Za-z0-9+/]{22}==$"
-                  description: "Planned: the new salt, base64 padded, 16 bytes after decode"
+                  description: "The new salt, base64 padded, 16 bytes after decode"
                 new_kdf_params:
                   $ref: "#/components/schemas/KdfParams"
                 new_kdf_version:
                   type: integer
                   enum: [1]
-                  description: "Planned: must equal 1"
+                  description: "Must equal 1"
                 new_wrapped_dek:
                   type: string
                   pattern: "^[A-Za-z0-9+/]{80}$"
-                  description: "Planned: the new wrapped DEK, standard base64 padded, 60 bytes after decode"
+                  description: "The new wrapped DEK, standard base64 padded, 60 bytes after decode"
                 new_wrapped_box_privkey:
                   type: string
                   pattern: "^[A-Za-z0-9+/]{80}$"
-                  description: "Planned: the new wrapped box private key, standard base64 padded, 60 bytes after decode"
+                  description: "The new wrapped box private key, standard base64 padded, 60 bytes after decode"
                 new_box_pubkey:
                   type: string
                   pattern: "^[A-Za-z0-9+/]{43}=$"
-                  description: "Planned: the new box public key, plain, standard base64 padded, 32 bytes after decode"
+                  description: "The new box public key, plain, standard base64 padded, 32 bytes after decode"
                 new_auth_verifier:
                   type: string
                   pattern: "^[A-Za-z0-9+/]{43}=$"
-                  description: "Planned: the new auth verifier, base64 padded, 32 bytes after decode"
+                  description: "The new auth verifier, base64 padded, 32 bytes after decode"
                 new_key_version:
                   type: integer
                   minimum: 1
-                  description: "Planned: the account's current key_version plus one"
+                  description: "The account's current key_version plus one"
                 prev_wrapped_dek:
                   type: string
                   pattern: "^[A-Za-z0-9+/]{80}$"
-                  description: "Planned: the OLD DEK wrapped with the NEW DEK, standard base64 padded, 60 bytes after decode. Required."
+                  description: "The OLD DEK wrapped with the NEW DEK, standard base64 padded, 60 bytes after decode. Required."
             example:
               old_auth_verifier: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
               new_salt: "AAAAAAAAAAAAAAAAAAAAAA=="
@@ -593,7 +627,7 @@ paths:
               prev_wrapped_dek: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
       responses:
         "200":
-          description: "Planned: password changed. The body carries the new key_version."
+          description: "Password changed. The body carries the new key_version."
           content:
             application/json:
               schema:
@@ -604,11 +638,11 @@ paths:
                   key_version:
                     type: integer
                     minimum: 1
-                    description: "Planned: the account's new key_version (its previous value plus 1)"
+                    description: "The account's new key_version (its previous value plus 1)"
               example:
                 key_version: 2
         "400":
-          description: "Planned: bad request. The body or a decoded length is wrong. Nothing is written."
+          description: "Bad request. The body or a decoded length is wrong, including an old verifier that is not base64 or not 32 bytes (not counted as a wrong try). Nothing is written."
           content:
             application/json:
               schema:
@@ -618,7 +652,7 @@ paths:
                 message: "Invalid request body"
         "401":
           description: >-
-            Planned: refused. A missing, unknown or revoked token gets the
+            Refused. A missing, unknown, revoked or expired token gets the
             message in the example. A session token that is revoked before the
             transaction commits (for example by an admin reset running at the
             same time) gets the same 401, error "unauthorized", message "Invalid
@@ -632,7 +666,7 @@ paths:
                 error: "unauthorized"
                 message: "Invalid or missing user session token"
         "403":
-          description: "Planned: forbidden - a valid token of the wrong kind"
+          description: "Forbidden - a valid token of the wrong kind"
           content:
             application/json:
               schema:
@@ -642,11 +676,13 @@ paths:
                 message: "User session token required; an agent token is refused"
         "409":
           description: >-
-            Planned: conflict. The message is "key_version is not the account's
-            current key_version plus one", or "A previous re-key is unfinished"
-            while the account holds a prev_wrapped_dek, or "The account has no
-            keys" for an account without keys, or "The account is waiting for a
-            reset to be completed" for an account that waits for a reset.
+            Conflict. The message is "The account has no keys" for an account
+            without keys, or "key_version is not the account's current
+            key_version plus one", or "A previous re-key is unfinished" while
+            the account holds a prev_wrapped_dek; when more than one applies,
+            the first of these in this order is the one given. Nothing is
+            written. Planned, not built: "The account is waiting for a reset to
+            be completed" for an account that waits for a reset.
           content:
             application/json:
               schema:
@@ -655,7 +691,7 @@ paths:
                 error: "conflict"
                 message: "key_version is not the account's current key_version plus one"
         "413":
-          description: "Planned: request entity too large. The body is over 4096 bytes and is refused before it is parsed."
+          description: "Request entity too large. The body is over 4096 bytes and is refused before it is parsed."
           content:
             application/json:
               schema:
@@ -665,12 +701,12 @@ paths:
                 message: "Request body exceeds maximum allowed size"
         "423":
           description: >-
-            Planned: sign-in is locked after five wrong passwords, for 15
+            Sign-in is locked after five wrong passwords, for 15
             minutes. The same answer as login. Retry-After says how long to
             wait.
           headers:
             Retry-After:
-              description: "Planned: whole seconds left in the wait, rounded up, minimum 1"
+              description: "Seconds left in the wait, a whole number counted up to the next second, minimum 1"
               schema:
                 type: integer
                 minimum: 1
@@ -682,7 +718,7 @@ paths:
                 error: "locked"
                 message: "Too many wrong tries. Try again in N minutes."
         "503":
-          description: "Planned: a storage failure or a failed session check gets this answer. The body is fixed and no part of the failure is echoed."
+          description: "A storage failure or a failed session check gets this answer, also a failure while the old verifier is checked or hashed. The body is fixed and no part of the failure is echoed. The account's keys and password are not changed."
           content:
             application/json:
               schema:

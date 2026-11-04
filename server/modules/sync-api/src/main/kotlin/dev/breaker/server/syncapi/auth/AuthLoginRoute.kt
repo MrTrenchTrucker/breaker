@@ -6,15 +6,18 @@ import dev.breaker.server.syncapi.accounts.StoredKeys
 import dev.breaker.server.syncapi.accounts.VerifyResult
 import dev.breaker.server.syncapi.tokens.IssueResult
 import dev.breaker.server.syncapi.tokens.TokenStore
+import dev.breaker.server.syncapi.transcriptions.formatInstantMs
+import dev.breaker.server.syncapi.transcriptions.respondUnavailable
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
+import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.call
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
-import java.time.Instant
+import kotlinx.coroutines.CancellationException
 import java.util.Base64
 
 /**
@@ -57,9 +60,25 @@ internal fun Application.authLoginRoute(accountStore: AccountStore, tokenStore: 
                 return@post
             }
 
-            when (val result = accountStore.verify(request.username, verifier)) {
+            // A store failure in verify, keysFor or issueSession answers the fixed 503, never a 500.
+            val result = try {
+                accountStore.verify(request.username, verifier)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                call.respondUnavailable()
+                return@post
+            }
+            when (result) {
                 is VerifyResult.Verified -> {
-                    val keys = accountStore.keysFor(result.accountId)
+                    val keys = try {
+                        accountStore.keysFor(result.accountId)
+                    } catch (cancellation: CancellationException) {
+                        throw cancellation
+                    } catch (_: Exception) {
+                        call.respondUnavailable()
+                        return@post
+                    }
                     if (keys == null) {
                         call.respondText(
                             """{"error":"unauthorized","message":"Invalid username or verifier"}""",
@@ -68,7 +87,15 @@ internal fun Application.authLoginRoute(accountStore: AccountStore, tokenStore: 
                         )
                         return@post
                     }
-                    when (val issued = tokenStore.issueSession(result.accountId)) {
+                    val issued = try {
+                        tokenStore.issueSession(result.accountId)
+                    } catch (cancellation: CancellationException) {
+                        throw cancellation
+                    } catch (_: Exception) {
+                        call.respondUnavailable()
+                        return@post
+                    }
+                    when (issued) {
                         is IssueResult.Issued -> {
                             call.respondText(
                                 buildLoginResponse(result.role.dbValue, issued.token.secret.reveal(), keys),
@@ -93,17 +120,25 @@ internal fun Application.authLoginRoute(accountStore: AccountStore, tokenStore: 
                     )
                 }
                 is VerifyResult.Locked -> {
-                    call.response.headers.append(HttpHeaders.RetryAfter, result.secondsRemaining.toString())
-                    val minutes = ((result.secondsRemaining + 59) / 60).coerceAtLeast(1)
-                    call.respondText(
-                        """{"error":"locked","message":"Too many wrong tries. Try again in $minutes minutes."}""",
-                        ContentType.Application.Json,
-                        HttpStatusCode.Locked,
-                    )
+                    call.respondLocked(result.secondsRemaining)
                 }
             }
         }
     }
+}
+
+/**
+ * Answers 423 for a locked name: the Retry-After header in whole seconds and a body that says the
+ * wait in whole minutes, at least one. Login and change-password both answer a locked name with it.
+ */
+internal suspend fun ApplicationCall.respondLocked(secondsRemaining: Long) {
+    response.headers.append(HttpHeaders.RetryAfter, secondsRemaining.toString())
+    val minutes = ((secondsRemaining + 59) / 60).coerceAtLeast(1)
+    respondText(
+        """{"error":"locked","message":"Too many wrong tries. Try again in $minutes minutes."}""",
+        ContentType.Application.Json,
+        HttpStatusCode.Locked,
+    )
 }
 
 private data class LoginRequest(val username: String, val authVerifier: String)
@@ -230,5 +265,5 @@ private fun bytesMember(bytes: ByteArray?): String {
 
 private fun instantMember(epochMillis: Long?): String {
     if (epochMillis == null) return "null"
-    return "\"" + Instant.ofEpochMilli(epochMillis).toString() + "\""
+    return "\"" + formatInstantMs(epochMillis) + "\""
 }

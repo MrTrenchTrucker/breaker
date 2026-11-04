@@ -113,6 +113,11 @@ internal fun Application.syncRoutes(tokenStore: TokenStore, transcriptionStore: 
 
 // Returns the account of a live user session. Otherwise it writes the refusal and returns null.
 internal suspend fun ApplicationCall.sessionAccountOrRefuse(tokenStore: TokenStore): Long? {
+    return sessionOrRefuse(tokenStore)?.accountId
+}
+
+// Returns the resolved token of a live user session. Otherwise it writes the refusal and returns null.
+internal suspend fun ApplicationCall.sessionOrRefuse(tokenStore: TokenStore): ResolvedToken? {
     val presented = presentedBearerToken(request.headers[HttpHeaders.Authorization])
     if (presented == null) {
         respondSessionRequired()
@@ -134,7 +139,7 @@ internal suspend fun ApplicationCall.sessionAccountOrRefuse(tokenStore: TokenSto
         respondAgentRefused()
         return null
     }
-    return resolved.accountId
+    return resolved
 }
 
 // Reads `Bearer <token>` the way the logout route does: the scheme is case-insensitive, the token

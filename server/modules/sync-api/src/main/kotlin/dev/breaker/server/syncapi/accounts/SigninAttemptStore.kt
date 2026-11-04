@@ -1,6 +1,7 @@
 package dev.breaker.server.syncapi.accounts
 
 import dev.breaker.server.syncapi.db.SqliteDatabase
+import java.sql.Connection
 import java.time.Clock
 
 /** Holds one row per folded username: wrong count, lock expiry, last attempt time. */
@@ -127,11 +128,14 @@ internal class SigninAttemptStore(
 
     // Deletes the attempts row for [foldedName]: used on success, password change, admin reset.
     suspend fun clear(foldedName: String) {
-        db.transaction<Unit> { connection ->
-            connection.prepareStatement("DELETE FROM signin_attempts WHERE username_lower = ?").use { statement ->
-                statement.setString(1, foldedName)
-                statement.executeUpdate()
-            }
+        db.transaction<Unit> { connection -> clearOn(connection, foldedName) }
+    }
+
+    // The same delete on the caller's connection, so it can run inside the caller's own transaction.
+    fun clearOn(connection: Connection, foldedName: String) {
+        connection.prepareStatement("DELETE FROM signin_attempts WHERE username_lower = ?").use { statement ->
+            statement.setString(1, foldedName)
+            statement.executeUpdate()
         }
     }
 
