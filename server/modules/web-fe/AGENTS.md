@@ -40,6 +40,14 @@ Also hosts the APK for download (F15, F17). No certificate handling in Breaker; 
 
 **Planned (ADR-036, not built): sign-in hand-off page.** When the app opens the Auth page with a one-time challenge and the app's public key, the page signs the person in. It then derives the KEK in the browser, unwraps the account's keys and seals them to the app's public key, and sends the browser back to the app through the `breaker://` link with a one-time code. The honest limit below applies to that sealing step too: this container serves the page's JavaScript.
 
+**Built now: the AES-GCM layer** (`src/main/resources/web/js/aesgcm.js`). It wraps and unwraps the
+account's data key (60 bytes: nonce 12, ciphertext 32, tag 16, AES-256-GCM under the 32-byte key,
+empty associated data) and seals and opens records (nonce 12, tag 16, associated data given by the
+caller as bytes). It uses the vendored copies of @noble/ciphers 2.4.0 in
+`src/main/resources/web/js/vendor/noble-ciphers/` (four files, never edited, pinned by hash). No page
+uses it yet; key derivation, the wire encoding and the pages are still planned. The `random` option of
+`createCipher` is a test hook: page code must never pass it.
+
 **Planned (ADR-035, ADR-036, not built): device list.** Settings lists each device of the account, with a sign-out for each one, and a "sign out all my devices" button.
 
 **Hosting:**
@@ -182,6 +190,13 @@ automatically; it looks like the Android app.
 - Landing shows the login path + download badges without scrolling (F35).
 - Login → dashboard shows only that user's transcriptions (N13).
 - Admin panel visible only to admins; role changes take effect immediately.
+- AES-GCM layer, guard one: every nonce comes from the CSPRNG (there is no nonce parameter on seal and no
+  fallback entropy). Each cipher object remembers its nonces; a nonce already used is never used again
+  (draw again, at most 3 draws, then refuse).
+- AES-GCM layer, guard two: the running total of plaintext bytes sealed by one cipher object stays strictly
+  below 64 GiB (2 to the power 36). A message that would make the total reach or pass it is refused and
+  nothing is encrypted.
+- Every failure of the layer is one refusal with one fixed message; no partial plaintext comes out.
 - APK downloads work over plain HTTP on Local Server; no certificate warnings because no certificate authority is involved. No certificate handling in Breaker; TLS is the admin's choice through any reverse proxy (ADR-034).
 
 ## Owns
@@ -203,6 +218,9 @@ WebApp
 ## Test Locations
 - Unit (Kotlin/Ktor, ADR-017): `server/modules/web-fe/src/test/kotlin/`, created with the module's first code. Run: `./gradlew :server:modules:web-fe:test` once this module's build file applies the Kotlin plugin (today it applies `base` only, so there is no test task yet).
 - Contract: `tests/contract/test_web_fe_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_web_fe_contract.py`
+- JavaScript (AES-GCM layer): `server/modules/web-fe/src/test/js/aesgcm.test.mjs`. Run: `node --test server/modules/web-fe/src/test/js/*.test.mjs` (name the files, never the folder: newer node versions run nothing for a folder; needs node 20.19.0 or newer).
+- Runner: `tests/unit/web_fe/test_aesgcm_js.py` runs those tests, fails (never skips) when node is missing or older than 20.19.0, and pins the number of passing tests. Run: `python3 -m unittest discover -s tests/unit/web_fe`
+- Pins: `tests/contract/web_fe_aesgcm_pins.py` (collected by `test_web_fe_contract.py`) pins the hashes of the four vendored files, the folder contents, the imports of `aesgcm.js` and the NOTICE entry.
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
 ## Test Requirement
@@ -232,6 +250,10 @@ agents, not required: an outside contributor may write the code themselves
 
 ## Known Gotchas
 - Search is client-side (ciphertext at rest) — never build server-side search.
+- The AES-GCM guards live inside one page load. The limit across page loads (2 to the power 32 random
+  nonces per data key, ADR-006) is decided there and is NOT built here.
+- Never edit the files in `vendor/noble-ciphers/`; replace them only by a new exact copy of a newer
+  release, with the hashes in the pins updated in the same change.
 - Two devices racing to convert the same pending sealed record is harmless:
   sync dedupes on the (client id, `key_version`) pair, so the second upload
   is a no-op, not a duplicate (ADR-018).
