@@ -114,6 +114,20 @@ export function createSignin(deps) {
     if (cur.gen !== gen) stop('network');
   }
 
+  // One logout per run, and only once a session token exists. Best effort: a throw or a rejection is ignored,
+  // and the token leaves the run record as it is sent.
+  async function logoutOnce(cur) {
+    if (cur.token === null || cur.loggedOut) return;
+    const token = cur.token;
+    cur.token = null;
+    cur.loggedOut = true;
+    try {
+      await deps.logout(token);
+    } catch {
+      // Ignored: a failed logout never changes the result.
+    }
+  }
+
   function readLink(hash) {
     const parsed = parseFragment(hash);
     deps.history.replaceState(null, '', deps.cleanUrl);
@@ -159,6 +173,7 @@ export function createSignin(deps) {
     if (status === 423) stop('locked', lockedMessage(field(answer, 'retryAfter')));
     const body = field(answer, 'body') || {};
     if (status !== 200 || typeof body.token !== 'string' || body.token === '') stop('network');
+    cur.token = body.token;
     if (missing(body.wrapped_dek) || missing(body.wrapped_box_privkey)) stop('keyless');
     return {
       token: body.token,
@@ -205,13 +220,15 @@ export function createSignin(deps) {
     await checkBoxKey(cur, boxKey, session.boxPubText);
     const sealed = await sealPackage(cur, dek, boxKey);
     const code = await startHandoff(cur, session.token, sealed);
+    await logoutOnce(cur);
+    checkOpen(cur);
     deps.location.replace('breaker://handoff?code=' + code);
     return { ok: true };
   }
 
   async function run(input) {
     if (challenge === null) return failure('bad_link');
-    const cur = { gen, challenge, appCopy: null, secrets: [] };
+    const cur = { gen, challenge, appCopy: null, secrets: [], token: null, loggedOut: false };
     active.add(cur);
     try {
       cur.appCopy = keep(cur, new Uint8Array(appKey));
@@ -220,6 +237,7 @@ export function createSignin(deps) {
       return outcome(error);
     } finally {
       for (const bytes of cur.secrets) wipeBytes(bytes);
+      logoutOnce(cur);
       active.delete(cur);
     }
   }

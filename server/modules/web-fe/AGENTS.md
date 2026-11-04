@@ -50,10 +50,10 @@ caller as bytes). It uses the vendored copies of @noble/ciphers 2.4.0 in
 The sign-in page logic is two ES modules with no page around them: `signin-link.js` (pure helpers for the
 link fragment, the base64 forms and the password bytes) and `signin.js` (the flow from the sign-in link to
 the return link). In `signin.js` every crypto step is an injected function (`getSalt`, `derive`, `login`,
-`boxPublicKey`, `seal`, `startHandoff`); only the two key unwraps use the real `aesgcm.js`. No page, html,
-css or library exists for it yet. Still planned: the page shell, the real Argon2id, HKDF and sealed-box
-functions, and the end-to-end test. The `random` option of `createCipher` is a test hook: page code must
-never pass it.
+`boxPublicKey`, `seal`, `startHandoff`); only the two key unwraps use the real `aesgcm.js`. The page shell is built now too:
+`signin.html`, `css/signin.css`, `js/signin-page.js` (the DOM glue, the only file that touches the document and the window), `js/signin-net.js` (the four calls to the server's own routes, the logout one fire and forget) and the stub `js/signin-crypto.js` (`available` is false and every crypto function throws, so the form stays disabled).
+The page links `css/tokens.css`, which is not in this folder: whoever serves the page copies it from `shared/modules/ui-tokens/src/main/resources/tokens.css`. How these files reach a browser is an open owner question. Still planned: the real derive, box public key and seal functions (they replace the stub), serving, and the end-to-end test.
+The `random` option of `createCipher` is a test hook: page code must never pass it.
 
 **Planned (ADR-035, ADR-036, not built): device list.** Settings lists each device of the account, with a sign-out for each one, and a "sign out all my devices" button.
 
@@ -172,6 +172,7 @@ automatically; it looks like the Android app.
   In · Register · Get the App**.
 - **Auth** — login + registration card (first account = admin) + complete-reset
   form (shown given a reset code instead of ordinary login).
+- **Sign-in (hand-off)** - the page at `<server>/signin.html#challenge=<43>&app_key=<43>` (placeholders only), opened by the app with a one-time challenge and the app key in the fragment. Elements: a username field, a password field (type password), a submit button that stays disabled until the crypto functions exist, and one status line (role status, aria-live polite) that shows one message at a time: the not-available text, the bad link text, or the result of the run.
 - **Dashboard** — transcriptions: list, search (client-side), copy, **delete
   single**, **delete all (own)** with confirmation (F34); reset notice banner
   (above) on the first login after a reset.
@@ -226,9 +227,9 @@ WebApp
 - Unit (Kotlin/Ktor, ADR-017): `server/modules/web-fe/src/test/kotlin/`, created with the module's first code. Run: `./gradlew :server:modules:web-fe:test` once this module's build file applies the Kotlin plugin (today it applies `base` only, so there is no test task yet).
 - Contract: `tests/contract/test_web_fe_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_web_fe_contract.py`
 - JavaScript (AES-GCM layer): `server/modules/web-fe/src/test/js/aesgcm.test.mjs`. Run: `node --test server/modules/web-fe/src/test/js/*.test.mjs` (name the files, never the folder: newer node versions run nothing for a folder; needs node 20.19.0 or newer).
-- JavaScript (sign-in page logic): `signin-link.test.mjs`, `signin.test.mjs`, `signin-flow.test.mjs` and `signin-edge.test.mjs` in the same test folder as `aesgcm.test.mjs`, run by the same command as the line above. The fixtures for them are in `signin-fixtures.mjs`, a helper and not a test file. With the AES-GCM tests the runner counts 168 passing tests.
+- JavaScript (sign-in page logic): `signin-link.test.mjs`, `signin.test.mjs`, `signin-flow.test.mjs`, `signin-edge.test.mjs`, `signin-net.test.mjs`, `signin-logout.test.mjs`, `signin-page.test.mjs` and `signin-wire.test.mjs` in the same test folder as `aesgcm.test.mjs`, run by the same command as the line above. The fixtures for them are in `signin-fixtures.mjs` and `signin-page-fixtures.mjs`, helpers and not test files. With the AES-GCM tests the runner counts 258 passing tests.
 - Runner: `tests/unit/web_fe/test_aesgcm_js.py` runs those tests, fails (never skips) when node is missing or older than 20.19.0, and pins the number of passing tests. Run: `python3 -m unittest discover -s tests/unit/web_fe`
-- Pins: `tests/contract/web_fe_aesgcm_pins.py` (collected by `test_web_fe_contract.py`) pins the hashes of the four vendored files, the folder contents, the imports of `aesgcm.js` and the NOTICE entry. `tests/contract/web_fe_signin_pins.py` (collected by `test_web_fe_contract.py`) pins the sign-in source files: the imports of `signin.js` and of `signin-link.js`, the forbidden tokens, banned words, short code tags, digit and hex runs, ASCII only, long base64-looking literals, the line cap, the test file names and the sha256 of `aesgcm.js`.
+- Pins: `tests/contract/web_fe_aesgcm_pins.py` (collected by `test_web_fe_contract.py`) pins the hashes of the four vendored files, the folder contents, the imports of `aesgcm.js` and the NOTICE entry. `tests/contract/web_fe_signin_pins.py` (collected by `test_web_fe_contract.py`) pins the sign-in source files: the imports of `signin.js` and of `signin-link.js`, the forbidden tokens, banned words, short code tags, digit and hex runs, ASCII only, long base64-looking literals, the line cap, the test file names and the sha256 of `aesgcm.js`. `tests/contract/web_fe_signin_page_pins.py` (collected by `test_web_fe_contract.py`) pins the sign-in page files with `check_signin_page_sources`: the html rules, the css rules, the forbidden tokens of the page and network files, the crypto stub, and the repo text scan of the new files; every rule has a firing control.
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
 ## Test Requirement
@@ -261,6 +262,7 @@ agents, not required: an outside contributor may write the code themselves
 - The AES-GCM guards live inside one page load. The limit across page loads (2 to the power 32 random
   nonces per data key, ADR-006) is decided there and is NOT built here.
 - Wipe limit (sign-in page): the password bytes, the derived KEK and verifier, the DEK, the box private key, the package and the app key copy are Uint8Arrays that are zero-filled after use and on pagehide (`wipeAll`). This is a limit, not a guarantee: the JavaScript garbage collector and copies made inside libraries cannot be wiped by the page, so a secret may outlive the zero-fill in memory. Nothing is stored in localStorage, sessionStorage, IndexedDB, a cookie or the URL; the one-time code and the sealed package are not secrets and are not wiped.
+- Page limits (sign-in page): the typed password is a JavaScript string, so it cannot be zero-filled; the page clears the password field after each run and on pagehide. The session token is a string too, so the run drops it and does not wipe it. The form stays disabled until `signin-crypto.js` is replaced by the real functions. The logout runs once per run, after a session token exists: on success just before the redirect, and on every later failure. Its request is fire and forget: it is not awaited and its answer is never read, so a slow or failed logout never holds up the redirect.
 - Never edit the files in `vendor/noble-ciphers/`; replace them only by a new exact copy of a newer
   release, with the hashes in the pins updated in the same change.
 - Two devices racing to convert the same pending sealed record is harmless:

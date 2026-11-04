@@ -1,0 +1,96 @@
+[hidden] { display: none; }
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: var(--space-m);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+}
+
+.signin {
+  max-width: 28rem;
+  margin: 0 auto;
+  padding: var(--space-l) 0;
+  border-top: 6px solid var(--color-trim);
+  border-bottom: 2px solid var(--color-accent);
+}
+
+.signin-title {
+  margin: var(--space-l) 0 var(--space-xl);
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  text-transform: uppercase;
+  color: var(--color-text);
+}
+
+.field {
+  margin-bottom: var(--space-l);
+}
+
+.field label {
+  display: block;
+  margin-bottom: var(--space-xs);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+input {
+  width: 100%;
+  min-height: var(--touch-target-min);
+  padding: var(--space-s) var(--space-m);
+  border: 1px solid var(--color-trim);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: inherit;
+}
+
+button {
+  width: 100%;
+  min-height: var(--touch-target-min);
+  padding: var(--space-s) var(--space-m);
+  border: 2px solid var(--color-primary);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  color: var(--color-primary);
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+button:disabled {
+  border-color: var(--color-text-muted);
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  cursor: not-allowed;
+}
+
+.signin-status {
+  margin: var(--space-l) 0 0;
+  color: var(--color-text-muted);
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+@media (min-width: 640px) {
+  body {
+    padding: var(--space-xl);
+  }
+
+  .signin-title {
+    font-size: 2.25rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .signin {
+    max-width: 32rem;
+  }
+}
