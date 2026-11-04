@@ -91,6 +91,15 @@ private const val SETTLED_AUTH_VIEW =
 /** The auth control interface, as written in its file. */
 private const val SETTLED_AUTH_CONTROL = "interface AuthControl"
 
+/** The sign-in start view builder, as written in its file. */
+private const val SETTLED_SIGN_IN_VIEW =
+    "fun createSignInStartView(context: android.content.Context, " +
+        "settings: dev.breaker.dictation.core.port.SettingsStore, " +
+        "serverUrl: () -> String, onStart: () -> Unit): android.view.View"
+
+/** The sign-in start control interface, as written in its file. */
+private const val SETTLED_SIGN_IN_CONTROL = "interface SignInStartControl"
+
 /** Each offered file with the one shape it offers: nothing more, nothing less, nothing elsewhere. */
 private val SETTLED_SURFACE = setOf(
     ENTRY_FILE to SETTLED_ENTRY, ENTRY_FILE to SETTLED_HISTORY,
@@ -98,6 +107,7 @@ private val SETTLED_SURFACE = setOf(
     HOME_ENTRY_FILE to SETTLED_HOME, HOME_ENTRY_FILE to SETTLED_HOME_CONTROL,
     SWITCH_FILE to SETTLED_SWITCH, MODEL_CONTROL_FILE to SETTLED_MODEL_CONTROL, DOWNLOAD_CONTROL_FILE to SETTLED_DOWNLOAD_CONTROL, FIRST_RUN_FILE to SETTLED_FIRST_RUN,
     AUTH_ENTRY_FILE to SETTLED_AUTH_VIEW, AUTH_ENTRY_FILE to SETTLED_AUTH_CONTROL,
+    AUTH_ENTRY_FILE to SETTLED_SIGN_IN_VIEW, AUTH_ENTRY_FILE to SETTLED_SIGN_IN_CONTROL,
 )
 
 private fun isSettled(offered: List<Pair<String, String>>): Boolean =
@@ -120,7 +130,7 @@ class PublicSurfaceGateTest {
             setOf(ENTRY_FILE, FIRST_RUN_FILE, HOME_ENTRY_FILE, SWITCH_FILE, MODEL_CONTROL_FILE, DOWNLOAD_CONTROL_FILE, AUTH_ENTRY_FILE),
             OFFERED.map { it.first }.toSet(),
         )
-        assertEquals("declarations offered: $OFFERED", 12, OFFERED.size)
+        assertEquals("declarations offered: $OFFERED", 14, OFFERED.size)
     }
 
     @Test

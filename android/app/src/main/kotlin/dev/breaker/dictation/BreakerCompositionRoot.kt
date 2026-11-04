@@ -6,6 +6,8 @@ import dev.breaker.dictation.core.port.HistoryStore
 import dev.breaker.dictation.core.port.SettingsStore
 import dev.breaker.dictation.core.port.SttEngine
 import dev.breaker.dictation.core.port.TextCommitter
+import dev.breaker.dictation.core.usecase.SignInHolder
+import dev.breaker.dictation.crypto.SignInStarterImpl
 import dev.breaker.dictation.format.RuleBasedFormatter
 import dev.breaker.dictation.service.DictationServiceController
 import dev.breaker.dictation.service.LaunchResult
@@ -18,9 +20,12 @@ import dev.breaker.dictation.stt.ondevice.OnDeviceSttEngine
 import dev.breaker.dictation.stt.server.SttServerEngine
 import dev.breaker.dictation.transport.TcpConnectivityProbe
 import dev.breaker.dictation.wiring.DictationComponent
+import dev.breaker.dictation.wiring.HandoffReturnFlow
 import dev.breaker.dictation.wiring.LazyHistoryStore
 import dev.breaker.dictation.wiring.LevelSink
 import dev.breaker.dictation.wiring.RECOGNIZER_FACTORY
+import dev.breaker.dictation.wiring.SignInReturnStore
+import dev.breaker.dictation.wiring.SignInStartWiring
 import dev.breaker.dictation.wiring.UuidIdSource
 import dev.breaker.dictation.wiring.appMicSource
 import java.io.File
@@ -97,6 +102,15 @@ class BreakerCompositionRoot(
 
     /** Where the speech models are kept: the on-device engine reads it and the download writes it. */
     val modelStore: LocalModelStore = LocalModelStore(File(filesDir, "models"))
+
+    /** The one sign-in attempt that waits for the website's return. It is held in memory only. */
+    val signInHolder: SignInHolder = SignInHolder(SignInStarterImpl())
+
+    /** The latest return state, taken by the launcher when it comes back to the front. */
+    val signInReturnStore: SignInReturnStore = SignInReturnStore()
+
+    /** The flow the return activity hands its link to: it reads the link and records the state. */
+    val handoffReturnFlow: HandoffReturnFlow = HandoffReturnFlow(SignInStartWiring(signInHolder), signInReturnStore)
 
     /** The stored server address, read on every call. The connectivity probe reads the same provider. */
     private val serverUrl: () -> String = { settingsStore.load().serverUrl }

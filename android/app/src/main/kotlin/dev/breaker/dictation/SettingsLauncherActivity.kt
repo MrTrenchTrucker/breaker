@@ -53,6 +53,7 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
     private lateinit var settingsRebuilt: dev.breaker.dictation.wiring.Rebuilt<android.view.View>
     private lateinit var infoScreens: InfoScreensWiring
     private lateinit var settingsView: android.view.View
+    private lateinit var signInStart: dev.breaker.dictation.host.SignInStart
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         iconLaunch = IconLaunchOnce(savedInstanceState?.getBoolean(ICON_LAUNCH_DONE_KEY, false) ?: false)
@@ -117,6 +118,9 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         val column = LinearLayout(this)
         column.orientation = LinearLayout.VERTICAL
         column.addView(settingsView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        signInStart = dev.breaker.dictation.host.mountSignInStart(this, app)
+        val signInView = signInStart.view
+        column.addView(signInView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         val scroll = ScrollView(this)
         scroll.addView(column, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         settingsColumn = column
@@ -158,7 +162,6 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         )
         app.tileHost.onLauncherVisible()
     }
-
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean(ICON_LAUNCH_DONE_KEY, iconLaunch.isDone)
@@ -178,6 +181,7 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
             pendingRefusal = null
             (homeView as? dev.breaker.dictation.ui.HomeControl)?.showLine(refusal)
         }
+        if (this::signInStart.isInitialized) signInStart.screen.onResume(app.compositionRoot.signInReturnStore.take())
     }
 
     override fun onPause() {
@@ -192,7 +196,6 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         switchListener?.let { takeWiring.unwatchSwitch(it) }
         super.onDestroy()
     }
-    // Older Back path; Android 13 and newer Back goes through the callback registered while an overlay shows.
     @SuppressLint("GestureBackNavigation")
     override fun onBackPressed() {
         when {
@@ -213,7 +216,6 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         registerBack()
     }
 
-    /** One back callback serves both overlays. History returns to where it was opened from. */
     private fun closeHistory() {
         if (!historyShown) return
         historyShown = false
@@ -234,7 +236,6 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         applyInsets(settingsScroll)
         registerBack()
     }
-
     private fun closeSettings() {
         if (!settingsShown) return
         settingsShown = false
@@ -279,7 +280,6 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         downloadSentence = null
         downloadControlOf(firstRunShown, firstRunView, settingsView)?.downloadStopped()
     }
-
     override fun failed(sentence: String) {
         downloadSentence = sentence
         downloadControlOf(firstRunShown, firstRunView, settingsView)?.downloadStopped()

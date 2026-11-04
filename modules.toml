@@ -14,7 +14,7 @@ card = "android/AGENTS.md"
 path = "android/app"
 owns = "Android entry point, dependency injection wiring, Gradle build."
 does_not_own = "Screen implementations (ui); domain logic (core)."
-depends_on = ["android", "android_core", "android_ui", "android_settings", "android_history", "android_audio", "android_format", "android_transport", "android_overlay", "android_stt_ondevice", "android_stt_server", "shared_ui_tokens", "shared_model_registry", "android_commit", "android_commit_accessibility", "android_gesture"]
+depends_on = ["android", "android_core", "android_ui", "android_settings", "android_history", "android_audio", "android_format", "android_transport", "android_overlay", "android_stt_ondevice", "android_stt_server", "shared_ui_tokens", "shared_model_registry", "android_commit", "android_commit_accessibility", "android_gesture", "android_crypto"]
 public = "App entry, DI container"
 card = "android/app/AGENTS.md"
 
@@ -23,7 +23,7 @@ path = "android/ui"
 owns = "Screens: history, settings, auth, training, and the first-run flow for the permissions (accessibility service, overlay). Consumes ui-tokens."
 does_not_own = "Business logic (core); platform adapters (modules/*)."
 depends_on = ["android", "android_core", "shared_ui_tokens"]
-public = "createSettingsView, createFirstRunView, createHistoryView, BreakerSwitch, createHomeView, HomeControl, createHowItWorksView, createAboutView, DownloadControl, ModelStepControl"
+public = "createSettingsView, createFirstRunView, createHistoryView, BreakerSwitch, createHomeView, HomeControl, createHowItWorksView, createAboutView, DownloadControl, ModelStepControl, createSignInStartView, SignInStartControl"
 card = "android/ui/AGENTS.md"
 
 [module.android_core]

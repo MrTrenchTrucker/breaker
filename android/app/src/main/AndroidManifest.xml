@@ -3,10 +3,10 @@
   Card: android/app/AGENTS.md   Registry: modules.toml [module.android_app]
 
   The app identity (namespace, applicationId, minSdk, targetSdk) is set in
-  build.gradle.kts. This file names the application class, the single
-  launcher activity and the microphone service, and nothing else: no receivers
+  build.gradle.kts. This file names the application class, the launcher
+  activity, the return activity of the sign-in and the microphone service, and nothing else: no receivers
   or providers are declared; the application names its launcher icon and round icon;
-  the one activity carries the framework no-title-bar theme
+  the launcher activity carries the framework no-title-bar theme
   (@android:style/Theme.Material.Light.NoActionBar), so the app's window draws no
   system title bar above the host's top bar.
 
@@ -30,6 +30,13 @@
   hosts the settings screen the ui module builds; the app owns the window, the
   ui module owns no window. Launching it, and running the service, have not
   been verified on a device.
+
+  The return activity (HandoffReturnActivity) is the second activity. It is exported only so
+  that the website's return link can reach it: the one link breaker://handoff, with the view
+  action, the default and browsable categories and no other attribute. It shows nothing (the
+  no-display theme), keeps no task and no recents entry, passes the link to the app's own
+  parser and finishes at once. A link of any other shape changes nothing. Opening it and the
+  sign-in return have not been verified on a device.
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
@@ -57,6 +64,19 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".host.HandoffReturnActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.NoDisplay"
+            android:excludeFromRecents="true"
+            android:noHistory="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="breaker" android:host="handoff" />
             </intent-filter>
         </activity>
         <service

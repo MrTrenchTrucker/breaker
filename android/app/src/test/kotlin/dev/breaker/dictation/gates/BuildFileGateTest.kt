@@ -41,6 +41,7 @@ internal class BuildFileGateTest {
         "implementation :android:modules:stt-server",
         "implementation :android:modules:commit",
         "implementation :android:modules:gesture",
+        "implementation :android:modules:crypto",
         "runtimeOnly :android:modules:commit:accessibility",
         "implementation :shared:modules:ui-tokens",
         "implementation :shared:modules:model-registry",
@@ -191,6 +192,7 @@ internal class BuildFileGateTest {
         XmlSample("unit test library moved", "testImplementation(libs.junit)", "implementation(libs.junit)", "dependency missing: testImplementation libs.junit", "dependency not expected: implementation libs.junit"),
         XmlSample("commit module removed", "implementation(project(\":android:modules:commit\"))", "", "dependency missing: implementation :android:modules:commit"),
         XmlSample("gesture module removed", "implementation(project(\":android:modules:gesture\"))", "", "dependency missing: implementation :android:modules:gesture"),
+        XmlSample("crypto module removed", "    implementation(project(\":android:modules:crypto\"))\n", "", "dependency missing: implementation :android:modules:crypto"),
         XmlSample("server engine module removed", "    implementation(project(\":android:modules:stt-server\"))\n", "", "dependency missing: implementation :android:modules:stt-server"),
         XmlSample("accessibility adapter moved to the compile path", "runtimeOnly(project(\":android:modules:commit:accessibility\"))", "implementation(project(\":android:modules:commit:accessibility\"))", "dependency missing: runtimeOnly :android:modules:commit:accessibility", "dependency not expected: implementation :android:modules:commit:accessibility"),
         XmlSample("speech engine file removed", "    runtimeOnly(sherpaCoordinate)\n", "", "dependency missing: runtimeOnly sherpaCoordinate"),
@@ -256,7 +258,7 @@ internal class BuildFileGateTest {
             "isIncludeAndroidResources", "abiFilters is", "abiFilters:", "dependency missing", "dependency not expected", "api( is used",
             "is not a project or catalog dependency", "dependencies: 2 blocks", "repositories:", "versionCode is not", "versionName is not",
         )
-        assertEquals("app: the number of firing samples changed", 33, firing.size)
+        assertEquals("app: the number of firing samples changed", 34, firing.size)
         for (rule in rules) {
             assertTrue("app: no firing sample names the rule \"$rule\"", firing.any { sample -> sample.fragments.any { it.contains(rule) } })
         }
