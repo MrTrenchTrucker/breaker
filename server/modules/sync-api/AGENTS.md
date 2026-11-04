@@ -5,6 +5,7 @@
 Auth (users, roles, agent tokens), sync, updates, retention, store clear, log policy. The server API surface for Breaker: auth (users, tokens, **roles**),
 transcription sync, and the **update endpoint**. Multi-user isolation is enforced
 here (N13).
+A route or job marked Planned, not built below is not installed on main yet.
 
 **Endpoints (see shared/api-contracts):**
 - `POST /v1/auth/register` — `{username, salt, kdf_params, kdf_version,
@@ -250,16 +251,23 @@ here (N13).
   whisper-server actually produced from one a database writer inserted
   directly — both are equally well-formed `crypto_box_seal` output, and the
   owner's client converts either kind the same way.
+  Planned, not built: the pending-sealed table and this route do not exist yet (the route is defined in openapi.yaml only).
 - `GET /v1/updates/latest.json` — latest tagged release from the local GIT
   server: `{ version, apk_url, sha256, signature, notes }` (F20/F21).
+  Planned, not built: no updates route is installed.
 - `POST /v1/admin/roles` — **admin-only**: assign/revoke admin on another account.
+  Planned, not built: no roles route is installed.
 - `GET /v1/admin/health` — admin-only: server health + latest GIT tag.
+  Planned, not built: only the unauthenticated `GET /health`, which answers `{"status":"ok"}`, is installed.
 - `GET/PUT /v1/admin/transcription-service` — **admin-only**: read/update the
   configured transcription endpoint (name, base URL, optional API key, enabled) (F26).
+  Planned, not built: no such route is installed.
 - `POST /v1/admin/test-service` — **admin-only**: probe the configured endpoint,
   return reachable/unreachable. URL validation (T20).
+  Planned, not built: no such route is installed.
 - `POST /v1/admin/agent-tokens` — **admin-only**: create scoped token (name,
   optional expiry, owner account). `DELETE /v1/admin/agent-tokens/{id}` — revoke (F27).
+  Planned, not built: the create route; only the revoke (`DELETE`) is installed.
 - Agent auth: `Authorization: Bearer <agent-token>` on `POST
   /v1/audio/transcriptions` + `GET /v1/jobs/{id}` — same FIFO queue, results to
   the owner's namespace. Rate-limited (T19).
@@ -302,7 +310,9 @@ here (N13).
   change) are ADR-018's to state, not this module's to paper over.
 - `POST /v1/admin/clear-store` — **admin-only**: clear transcriptions per-user
   or for all users, with confirmation (F29, T23). Deleted rows reach phones through the change feed, as a flag on the row (decided, not built).
+  Planned, not built: no route is installed; the library function `TranscriptionPurge.deleteAllOn`, which the reset already uses, exists.
 - Retention: transcriptions TTL = **3 months** (ADR-010 precise rule); purge job enforces it (F28).
+  Planned, not built: no scheduled purge enforces the TTL yet.
 - **Log policy (F32):** events only, per-user — auth, admin actions, queue
   health. **Never plaintext transcriptions** (T22).
 - **Multi-admin config:** concurrent edits to the transcription service config
@@ -388,9 +398,11 @@ completes it by rotating the DEK at the account's next password change
 ## Invariants
 - First registered account is admin; second is user (F22).
 - Admin can promote/demote; users cannot self-promote (T16).
+  Planned, not built: the roles route does not exist yet.
 - User A cannot read user B's transcriptions (N13 test).
 - Sync retries don't duplicate (N12 test).
 - `/v1/updates/latest.json` reflects the latest GIT tag.
+  Planned, not built: the route does not exist yet.
 - `POST /v1/auth/keys` rejects a second call once an account has keys — a
   keyless account can only get keys once per reset (ADR-006, ADR-018).
 - A reset leaves an account fully keyless and token-less until
