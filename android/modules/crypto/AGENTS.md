@@ -8,6 +8,7 @@ password, generates and wraps the per-user DEK, encrypts/decrypts
 transcriptions with AES-256-GCM, generates the owner's X25519 box keypair,
 and unseals agent-token results sealed to it — all locally. Nothing here ever
 sends the password, the KEK, or a plaintext DEK off the device.
+Generating the data key and the box keypair, and wrapping them, is decided, not built (Phase 19): see the Build phase line below.
 
 **Build phase:** Phase 11 builds key derivation (`deriveKeys`). BUILT for the sign-in work: unwrapping the data key with a key-encryption key, AES-256-GCM encrypt and decrypt with associated data, nonces from a secure random source, and opening a sign-in package (a sealed box) with the one-time private key, and making the one-time sign-in secret and key pair in memory (SignInStarterImpl). Decided, not built (Phase 19): generating the data key and the box keypair, wrapping a new data key, wrapping the box private key, unwrapping the box private key from its own wrapped form, unsealing results sealed to the account (`unsealAndReencrypt`), and the Android Keystore store. Needs first: `core` (on main).
 
