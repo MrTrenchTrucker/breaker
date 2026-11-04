@@ -22,7 +22,7 @@ The questions were: 1, the automatic hand-off; 2, a 5-minute single-use code; 3,
 
 **The hand-off, in order:**
 
-1. The app starts the sign-in. It keeps a one-time secret and makes a fresh key pair for this one sign-in. It opens the Breaker website in the phone's browser with a one-time challenge made from the secret (the challenge is the SHA-256 of the secret text, written as 43 URL-safe characters; the secret itself is not sent) and the app's public key.
+1. The app starts the sign-in. It keeps a one-time secret and makes a fresh key pair for this one sign-in. It opens the Breaker website in the phone's browser with a one-time challenge made from the secret (the challenge is the SHA-256 of the secret text, written as 43 URL-safe characters; the secret itself is not sent) and the app's public key. In the link the challenge and the app's public key sit in the URL fragment, not the query, and the page returns to the app with the `breaker://` link of step 3.
 2. The person types the username and password on the website. Login itself does not change. The website page derives the KEK in the browser (ADR-006's web path) and seals the account's keys to the app's public key (ADR-035, point 6).
 3. After sign-in the website creates a one-time code, valid for 5 minutes and usable once. It sends the browser back to the app through a `breaker://` link that carries the code. The return is automatic: nothing is typed or copied.
 4. The app trades the code and its secret for its own session token and the sealed key package. It opens the package with its private key and wraps the keys for its own storage.

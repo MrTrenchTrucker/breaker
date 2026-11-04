@@ -40,13 +40,20 @@ Also hosts the APK for download (F15, F17). No certificate handling in Breaker; 
 
 **Planned (ADR-036, not built): sign-in hand-off page.** When the app opens the Auth page with a one-time challenge and the app's public key, the page signs the person in. It then derives the KEK in the browser, unwraps the account's keys and seals them to the app's public key, and sends the browser back to the app through the `breaker://` link with a one-time code. The honest limit below applies to that sealing step too: this container serves the page's JavaScript.
 
-**Built now: the AES-GCM layer** (`src/main/resources/web/js/aesgcm.js`). It wraps and unwraps the
+The planned address of the sign-in page is `<server>/signin.html#challenge=<43>&app_key=<43>`. The challenge and the app's public key sit in the URL fragment, never the query, so they are not sent to the server and stay out of access logs and the Referer header. `challenge` is 43 URL-safe characters (the base64url SHA-256 of the one-time secret). `app_key` is the app's X25519 public key as 32 bytes of base64url without padding, which is 43 characters. Both are shape-checked before the password field is enabled, and any other fragment gives one error and no form. The page clears the fragment with `history.replaceState` right after reading it. When sign-in is done the page opens `breaker://handoff?code=<43>` (the one-time code from the start route) with `location.replace`, so the return link is never left in the history.
+
+**Built now: the AES-GCM layer and the sign-in page logic.** The AES-GCM layer (`src/main/resources/web/js/aesgcm.js`) wraps and unwraps the
 account's data key (60 bytes: nonce 12, ciphertext 32, tag 16, AES-256-GCM under the 32-byte key,
 empty associated data) and seals and opens records (nonce 12, tag 16, associated data given by the
 caller as bytes). It uses the vendored copies of @noble/ciphers 2.4.0 in
-`src/main/resources/web/js/vendor/noble-ciphers/` (four files, never edited, pinned by hash). No page
-uses it yet; key derivation, the wire encoding and the pages are still planned. The `random` option of
-`createCipher` is a test hook: page code must never pass it.
+`src/main/resources/web/js/vendor/noble-ciphers/` (four files, never edited, pinned by hash).
+The sign-in page logic is two ES modules with no page around them: `signin-link.js` (pure helpers for the
+link fragment, the base64 forms and the password bytes) and `signin.js` (the flow from the sign-in link to
+the return link). In `signin.js` every crypto step is an injected function (`getSalt`, `derive`, `login`,
+`boxPublicKey`, `seal`, `startHandoff`); only the two key unwraps use the real `aesgcm.js`. No page, html,
+css or library exists for it yet. Still planned: the page shell, the real Argon2id, HKDF and sealed-box
+functions, and the end-to-end test. The `random` option of `createCipher` is a test hook: page code must
+never pass it.
 
 **Planned (ADR-035, ADR-036, not built): device list.** Settings lists each device of the account, with a sign-out for each one, and a "sign out all my devices" button.
 
@@ -219,8 +226,9 @@ WebApp
 - Unit (Kotlin/Ktor, ADR-017): `server/modules/web-fe/src/test/kotlin/`, created with the module's first code. Run: `./gradlew :server:modules:web-fe:test` once this module's build file applies the Kotlin plugin (today it applies `base` only, so there is no test task yet).
 - Contract: `tests/contract/test_web_fe_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_web_fe_contract.py`
 - JavaScript (AES-GCM layer): `server/modules/web-fe/src/test/js/aesgcm.test.mjs`. Run: `node --test server/modules/web-fe/src/test/js/*.test.mjs` (name the files, never the folder: newer node versions run nothing for a folder; needs node 20.19.0 or newer).
+- JavaScript (sign-in page logic): `signin-link.test.mjs`, `signin.test.mjs`, `signin-flow.test.mjs` and `signin-edge.test.mjs` in the same test folder as `aesgcm.test.mjs`, run by the same command as the line above. The fixtures for them are in `signin-fixtures.mjs`, a helper and not a test file. With the AES-GCM tests the runner counts 168 passing tests.
 - Runner: `tests/unit/web_fe/test_aesgcm_js.py` runs those tests, fails (never skips) when node is missing or older than 20.19.0, and pins the number of passing tests. Run: `python3 -m unittest discover -s tests/unit/web_fe`
-- Pins: `tests/contract/web_fe_aesgcm_pins.py` (collected by `test_web_fe_contract.py`) pins the hashes of the four vendored files, the folder contents, the imports of `aesgcm.js` and the NOTICE entry.
+- Pins: `tests/contract/web_fe_aesgcm_pins.py` (collected by `test_web_fe_contract.py`) pins the hashes of the four vendored files, the folder contents, the imports of `aesgcm.js` and the NOTICE entry. `tests/contract/web_fe_signin_pins.py` (collected by `test_web_fe_contract.py`) pins the sign-in source files: the imports of `signin.js` and of `signin-link.js`, the forbidden tokens, banned words, short code tags, digit and hex runs, ASCII only, long base64-looking literals, the line cap, the test file names and the sha256 of `aesgcm.js`.
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
 ## Test Requirement
@@ -252,6 +260,7 @@ agents, not required: an outside contributor may write the code themselves
 - Search is client-side (ciphertext at rest) — never build server-side search.
 - The AES-GCM guards live inside one page load. The limit across page loads (2 to the power 32 random
   nonces per data key, ADR-006) is decided there and is NOT built here.
+- Wipe limit (sign-in page): the password bytes, the derived KEK and verifier, the DEK, the box private key, the package and the app key copy are Uint8Arrays that are zero-filled after use and on pagehide (`wipeAll`). This is a limit, not a guarantee: the JavaScript garbage collector and copies made inside libraries cannot be wiped by the page, so a secret may outlive the zero-fill in memory. Nothing is stored in localStorage, sessionStorage, IndexedDB, a cookie or the URL; the one-time code and the sealed package are not secrets and are not wiped.
 - Never edit the files in `vendor/noble-ciphers/`; replace them only by a new exact copy of a newer
   release, with the hashes in the pins updated in the same change.
 - Two devices racing to convert the same pending sealed record is harmless:
