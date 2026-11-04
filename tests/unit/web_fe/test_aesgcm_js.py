@@ -22,7 +22,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.a
 NODE_VERSION_RE = re.compile(r"^v(\d+)\.(\d+)")
 NODE_MIN_MAJOR = 20
 NODE_MIN_MINOR = 19
-PASSED_COUNT = 36
+PASSED_COUNT = 168
 
 
 def _run(args, env=None):
