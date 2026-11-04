@@ -65,17 +65,29 @@ internal object AuthDecoder {
         val wrappedBoxPrivkey = obj.strOrNull("wrapped_box_privkey")
         val boxPubkey = obj.strOrNull("box_pubkey")
         requireMixedNull(wrappedDek, wrappedBoxPrivkey, boxPubkey)
-        return LoginResponse(
-            token = obj.str("token"),
-            role = obj.str("role"),
-            wrappedDek = wrappedDek,
-            wrappedBoxPrivkey = wrappedBoxPrivkey,
-            boxPubkey = boxPubkey,
-            keyVersion = parseKeyVersion(obj.long("key_version")),
-            prevWrappedDek = obj.strOrNull("prev_wrapped_dek"),
-            resetAt = obj.strOrNull("reset_at"),
-            rekeyedAt = obj.strOrNull("rekeyed_at"),
-        )
+        val token = obj.str("token")
+        val role = obj.str("role")
+        val keyVersion = parseKeyVersion(obj.long("key_version"))
+        val prevWrappedDek = obj.strOrNull("prev_wrapped_dek")
+        val resetAt = obj.strOrNull("reset_at")
+        val rekeyedAt = obj.strOrNull("rekeyed_at")
+        // The shared class refuses a value outside the contract (a negative key_version) with an
+        // IllegalArgumentException; it leaves as the decoder's own CONSTRUCT family, as in parseSalt.
+        return try {
+            LoginResponse(
+                token = token,
+                role = role,
+                wrappedDek = wrappedDek,
+                wrappedBoxPrivkey = wrappedBoxPrivkey,
+                boxPubkey = boxPubkey,
+                keyVersion = keyVersion,
+                prevWrappedDek = prevWrappedDek,
+                resetAt = resetAt,
+                rekeyedAt = rekeyedAt,
+            )
+        } catch (e: IllegalArgumentException) {
+            throw AuthDecodeException("CONSTRUCT", "could not build shared response")
+        }
     }
 
     private fun requireMixedNull(a: String?, b: String?, c: String?) {

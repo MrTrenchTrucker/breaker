@@ -1,5 +1,6 @@
 package dev.breaker.server.whisper.worker
 
+import dev.breaker.server.whisper.jobs.ClaimedJob
 import dev.breaker.server.whisper.jobs.JobPolicy
 import dev.breaker.server.whisper.jobs.JobStoreOps
 import kotlinx.coroutines.CancellationException
@@ -28,8 +29,23 @@ class QueueWorker internal constructor(
 
     /** Takes the oldest queued job and carries it to done or failed; false when none was queued. */
     suspend fun runOnce(): Boolean {
-        val claimed = retryingStoreCall("claimNext", null) { store.claimNext() } ?: return false
-        val jobId: Long = claimed.job.id
+        val claimed = try {
+            retryingStoreCall("claimNext", null) { store.claimNext() }
+        } catch (exhausted: StoreExhausted) {
+            // The store gave up on the claim; there is no job to carry and the slot is free.
+            return true
+        } ?: return false
+        return try {
+            carryJob(claimed, claimed.job.id)
+        } catch (exhausted: StoreExhausted) {
+            // A store seam gave up mid-job: the job is already failed by failJobOnExhaustion and
+            // the slot is free.
+            true
+        }
+    }
+
+    /** Carries a claimed job to done or failed; a [StoreExhausted] escapes to [runOnce]. */
+    private suspend fun carryJob(claimed: ClaimedJob, jobId: Long): Boolean {
         var attempt = claimed.job.attempts
         var isFirst = true
         while (true) {
@@ -86,12 +102,15 @@ class QueueWorker internal constructor(
 
     /**
      * Calls one store seam until it returns or the coroutine is cancelled. A throw is logged
-     * (job id and exception class only) and retried after [JobPolicy.RETRY_DELAY], with
-     * unbounded attempts so a stuck call never strands the job. A [CancellationException] is a
-     * shutdown and is always rethrown, so the loop ends and the job stays processing. The pause
-     * is outside the try, so a cancel during the back-off breaks out too.
+     * (job id and exception class only) and retried after [JobPolicy.RETRY_DELAY]. The attempts
+     * are bounded to [MAX_STORE_ATTEMPTS]: after that many, the call is given up. A wrapped
+     * call that carries a job fails that job with a plain reason first, then throws
+     * [StoreExhausted] so the caller frees the single slot instead of looping forever. A
+     * [CancellationException] is a shutdown and is always rethrown first, so it is never
+     * swallowed. The pause is outside the try, so a cancel during the back-off breaks out too.
      */
     private suspend fun <T> retryingStoreCall(op: String, jobId: Long?, call: suspend () -> T): T {
+        var attempt = 0
         while (true) {
             try {
                 return call()
@@ -99,9 +118,29 @@ class QueueWorker internal constructor(
                 currentCoroutineContext().ensureActive()
                 throw cancellation
             } catch (failure: Exception) {
+                attempt += 1
                 logStoreFailure(op, jobId, failure)
+                if (attempt >= MAX_STORE_ATTEMPTS) {
+                    if (jobId != null) failJobOnExhaustion(jobId)
+                    throw StoreExhausted(op, jobId)
+                }
                 pause.pause(JobPolicy.RETRY_DELAY)
             }
+        }
+    }
+
+    /**
+     * Fails [jobId] after its store call exhausted its retry budget. The store is failing, so
+     * the fail call is itself guarded (it cannot loop) and a cancel still breaks out. The reason
+     * is plain: a store exception message can carry a path or a key, so it is never copied in.
+     */
+    private suspend fun failJobOnExhaustion(jobId: Long) {
+        try {
+            store.fail(jobId, "store call failed after $MAX_STORE_ATTEMPTS attempts".take(JobPolicy.ERROR_TEXT_LIMIT))
+        } catch (c: CancellationException) {
+            throw c
+        } catch (_: Exception) {
+            // The store is down; the job stays processing and the next recovery requeues it.
         }
     }
 
@@ -112,8 +151,20 @@ class QueueWorker internal constructor(
         logger.warning("$where ($name)")
     }
 
+    /**
+     * A wrapped store call used up all of its [MAX_STORE_ATTEMPTS] without returning. The job,
+     * if any, is already failed by the caller of [retryingStoreCall]; the slot is free. A
+     * [CancellationException] is never this.
+     */
+    private class StoreExhausted(val op: String, val jobId: Long?) : RuntimeException()
+
     private suspend fun recoverInterrupted() {
-        retryingStoreCall("recoverInterrupted", null) { store.recoverInterrupted() }
+        try {
+            retryingStoreCall("recoverInterrupted", null) { store.recoverInterrupted() }
+        } catch (exhausted: StoreExhausted) {
+            // The store gave up on recovery at start: skip it and start working. A later
+            // recovery (or the next start) retries it; the interrupted jobs stay processing.
+        }
     }
 
     private suspend fun forwardOnce(request: ForwardRequest): ForwardOutcome {
@@ -144,5 +195,13 @@ class QueueWorker internal constructor(
 
     private companion object {
         const val BLANK_REASON_TEXT: String = "the transcription service reported a failure"
+
+        /**
+         * How many times one wrapped store call is attempted before it is given up. Bounded, not
+         * a policy: it is the ceiling on the retry loop, so a store that never recovers frees the
+         * single slot instead of holding it forever. The forwarder's own retry budget
+         * ([JobPolicy.MAX_ATTEMPTS]) is separate and untouched.
+         */
+        const val MAX_STORE_ATTEMPTS: Int = 10
     }
 }

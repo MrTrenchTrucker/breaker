@@ -10,4 +10,16 @@ data class HandoffExchangeRequest(
     val code: String,
     val secret: String,
     val deviceName: String?,
-)
+) {
+    init {
+        require(code.matches(Regex("^[A-Za-z0-9_-]{43}$"))) {
+            "code must be 43 chars of [A-Za-z0-9_-]"
+        }
+        require(secret.matches(Regex("^[A-Za-z0-9_-]{43}$"))) {
+            "secret must be 43 chars of [A-Za-z0-9_-]"
+        }
+        require(deviceName == null || deviceName.length in 1..64) {
+            "deviceName must be null or 1..64 code points"
+        }
+    }
+}

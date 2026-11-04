@@ -2,6 +2,7 @@ package dev.breaker.server.syncapi.admin
 
 import dev.breaker.server.syncapi.auth.receiveAuthBody
 import dev.breaker.server.syncapi.settings.ServerSettingsStore
+import dev.breaker.server.syncapi.tokens.ResolvedToken
 import dev.breaker.server.syncapi.tokens.TokenStore
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
@@ -12,6 +13,7 @@ import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.put
 import io.ktor.server.routing.routing
+import kotlinx.coroutines.CancellationException
 
 /** The exact 400 error body from openapi.yaml for /v1/admin/wrong-pw-limit PUT. */
 internal const val WRONG_PW_LIMIT_BAD_REQUEST =
@@ -25,8 +27,9 @@ internal const val WRONG_PW_LIMIT_BAD_REQUEST =
  * PUT accepts exactly one JSON member `enabled` whose value is the literal `true` or
  * `false`, flips the switch, and answers with the read-back stored state.
  *
- * Both methods answer 401 before 403 before any body work. A database failure is not
- * caught (no 503 on the admin routes).
+ * Both methods answer 401 before 403 before any body work. A database failure (the
+ * closed-database IllegalStateException, a SQL error) answers 503 Service Unavailable,
+ * matching the handoff routes; a cancellation is rethrown.
  *
  * Hand-written JSON - no serialization library, no api-contracts import. Reuses
  * `bearerToken` and `isAdmin` from AdminRevokeAgentTokenRoute in the same package.
@@ -35,7 +38,14 @@ internal fun Application.adminWrongPwLimitRoute(tokenStore: TokenStore, settings
     routing {
         get("/v1/admin/wrong-pw-limit") {
             val token = bearerToken(call.request.header("Authorization"))
-            val resolved = tokenStore.resolve(token)
+            val resolved: ResolvedToken? = try {
+                tokenStore.resolve(token)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                call.respondText(SERVICE_UNAVAILABLE_BODY, ContentType.Application.Json, HttpStatusCode.ServiceUnavailable)
+                return@get
+            }
             if (resolved == null) {
                 call.respondText(UNAUTHORIZED_BODY, ContentType.Application.Json, HttpStatusCode.Unauthorized)
                 return@get
@@ -44,13 +54,27 @@ internal fun Application.adminWrongPwLimitRoute(tokenStore: TokenStore, settings
                 call.respondText(FORBIDDEN_BODY, ContentType.Application.Json, HttpStatusCode.Forbidden)
                 return@get
             }
-            val enabled = settings.wrongPwLimitEnabled()
+            val enabled: Boolean = try {
+                settings.wrongPwLimitEnabled()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                call.respondText(SERVICE_UNAVAILABLE_BODY, ContentType.Application.Json, HttpStatusCode.ServiceUnavailable)
+                return@get
+            }
             call.respondText("""{"enabled":$enabled}""", ContentType.Application.Json, HttpStatusCode.OK)
         }
 
         put("/v1/admin/wrong-pw-limit") {
             val token = bearerToken(call.request.header("Authorization"))
-            val resolved = tokenStore.resolve(token)
+            val resolved: ResolvedToken? = try {
+                tokenStore.resolve(token)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                call.respondText(SERVICE_UNAVAILABLE_BODY, ContentType.Application.Json, HttpStatusCode.ServiceUnavailable)
+                return@put
+            }
             if (resolved == null) {
                 call.respondText(UNAUTHORIZED_BODY, ContentType.Application.Json, HttpStatusCode.Unauthorized)
                 return@put
@@ -65,8 +89,22 @@ internal fun Application.adminWrongPwLimitRoute(tokenStore: TokenStore, settings
                 call.respondText(WRONG_PW_LIMIT_BAD_REQUEST, ContentType.Application.Json, HttpStatusCode.BadRequest)
                 return@put
             }
-            settings.setWrongPwLimitEnabled(enabled)
-            val stored = settings.wrongPwLimitEnabled()
+            try {
+                settings.setWrongPwLimitEnabled(enabled)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                call.respondText(SERVICE_UNAVAILABLE_BODY, ContentType.Application.Json, HttpStatusCode.ServiceUnavailable)
+                return@put
+            }
+            val stored: Boolean = try {
+                settings.wrongPwLimitEnabled()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                call.respondText(SERVICE_UNAVAILABLE_BODY, ContentType.Application.Json, HttpStatusCode.ServiceUnavailable)
+                return@put
+            }
             call.respondText("""{"enabled":$stored}""", ContentType.Application.Json, HttpStatusCode.OK)
         }
     }

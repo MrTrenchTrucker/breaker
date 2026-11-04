@@ -1,6 +1,6 @@
 # ADR-031: A session token expires 30 days after its last use
 
-**Status:** accepted
+**Status:** accepted, amended 2026-11-04 (no session outlives 180 days from its creation)
 **Date:** 2026-11-01
 **Approved by:** the project owner, in his own words below
 
@@ -14,7 +14,7 @@ And, describing what he wants a user to live with: "One time login for the end u
 
 ## Decision
 
-1. A session token expires 30 days after its last use. Logging in stores an expiry of now + 30 days. Every authenticated use of a live session token moves its expiry to now + 30 days (a sliding expiry). One constant holds the 30 days.
+1. A session token expires 30 days after its last use, and no session outlives 180 days from its creation. Logging in stores an expiry of now + 30 days. Every authenticated use of a live session token moves its expiry to the lesser of now + 30 days and creation + 180 days (a sliding expiry clamped at a 180-day cap). Two constants hold the rule: the 30-day idle lifetime and the 180-day cap. Agent tokens are not affected (point 4).
 2. A token past its expiry is refused like an unknown token (the normal 401) and stays refused, also after a later try. The user signs in again.
 3. An admin can still end a session at once (ADR-009, revoke). A password change or a reset still ends sessions as before.
 4. Agent tokens are not affected. They keep their own optional expiry and are never moved by a use (ADR-009, F27).
@@ -23,7 +23,7 @@ And, describing what he wants a user to live with: "One time login for the end u
 
 ## Consequences
 
-Rules in: the session lifetime above; sync-api's token store is the place that enforces it (the sync-api card and its tests say how).
+Rules in: the session lifetime above, including the 180-day cap; sync-api's token store is the place that enforces it (the sync-api card and its tests say how). A session kept alive past the cap is refused at the cap; the slide is clamped so a live session can never be pushed past creation + 180 days; agent tokens past the cap stay live (the guard is session-scoped).
 
 Rules out: a session that lives for ever; "session expiry" as deferred auth hardening (the lines that said so in `docs/01-requirements.md`, `docs/05-decisions-and-risks.md` and `ARCHITECTURE.md` are amended). Brute-force protection stays out of scope for now.
 

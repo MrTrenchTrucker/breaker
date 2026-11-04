@@ -13,6 +13,7 @@ import io.ktor.server.request.header
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.delete
 import io.ktor.server.routing.routing
+import kotlinx.coroutines.CancellationException
 
 /**
  * Installs `DELETE /v1/admin/agent-tokens/{id}` on this application.
@@ -33,7 +34,14 @@ internal fun Application.adminRevokeAgentTokenRoute(tokenStore: TokenStore) {
     routing {
         delete("/v1/admin/agent-tokens/{id}") {
             val token = bearerToken(call.request.header("Authorization"))
-            val resolved = tokenStore.resolve(token)
+            val resolved: ResolvedToken? = try {
+                tokenStore.resolve(token)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                call.respondText(SERVICE_UNAVAILABLE_BODY, ContentType.Application.Json, HttpStatusCode.ServiceUnavailable)
+                return@delete
+            }
             if (resolved == null) {
                 call.respondText(UNAUTHORIZED_BODY, ContentType.Application.Json, HttpStatusCode.Unauthorized)
                 return@delete
@@ -45,11 +53,30 @@ internal fun Application.adminRevokeAgentTokenRoute(tokenStore: TokenStore) {
             // Idempotent revoke: an already-revoked agent token still answers 204.
             // Only an id with no agent-token row at all is a 404.
             val tokenId = call.parameters["id"]?.toLongOrNull()
-            if (tokenId == null || !tokenStore.agentTokenExists(tokenId)) {
+            if (tokenId == null) {
                 call.respondText(NOT_FOUND_BODY, ContentType.Application.Json, HttpStatusCode.NotFound)
                 return@delete
             }
-            tokenStore.revokeAgentToken(tokenId)
+            val exists: Boolean = try {
+                tokenStore.agentTokenExists(tokenId)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                call.respondText(SERVICE_UNAVAILABLE_BODY, ContentType.Application.Json, HttpStatusCode.ServiceUnavailable)
+                return@delete
+            }
+            if (!exists) {
+                call.respondText(NOT_FOUND_BODY, ContentType.Application.Json, HttpStatusCode.NotFound)
+                return@delete
+            }
+            try {
+                tokenStore.revokeAgentToken(tokenId)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                call.respondText(SERVICE_UNAVAILABLE_BODY, ContentType.Application.Json, HttpStatusCode.ServiceUnavailable)
+                return@delete
+            }
             call.respondText("", ContentType.Application.Json, HttpStatusCode.NoContent)
         }
     }
@@ -93,3 +120,8 @@ internal const val FORBIDDEN_BODY =
     """{"error":"forbidden","message":"Admin role required"}"""
 internal const val NOT_FOUND_BODY =
     """{"error":"not_found","message":"Agent token not found"}"""
+// The 503 body: a store failure (the closed-database IllegalStateException, a SQL error)
+// answers 503 Service Unavailable, matching the handoff routes. The exception text never
+// reaches a body, a log or a message.
+internal const val SERVICE_UNAVAILABLE_BODY =
+    """{"error":"service_unavailable","message":"Store unavailable"}"""
