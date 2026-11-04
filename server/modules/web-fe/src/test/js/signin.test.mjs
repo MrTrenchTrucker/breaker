@@ -53,7 +53,7 @@ test('happy path calls every step in order', async () => {
   const input = makeInput();
   const result = await signin.run(input);
   assert.deepEqual(result, { ok: true });
-  assert.deepEqual(rec.log, ['salt', 'derive', 'login', 'box', 'seal', 'start', 'replace']);
+  assert.deepEqual(rec.log, ['salt', 'derive', 'login', 'box', 'seal', 'start', 'logout', 'replace']);
   assert.equal(input.reads, 1);
 });
 

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
+<title>Sign in</title>
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/signin.css">
+<script type="module" src="js/signin-page.js"></script>
+</head>
+<body>
+<main class="signin">
+<h1 class="signin-title">Sign in</h1>
+<form id="signin-form">
+<div class="field">
+<label for="signin-username">Username</label>
+<input id="signin-username" name="username" type="text" autocomplete="username" autocapitalize="off" spellcheck="false" required>
+</div>
+<div class="field">
+<label for="signin-password">Password</label>
+<input id="signin-password" name="password" type="password" autocomplete="current-password" required>
+</div>
+<button id="signin-submit" type="submit" disabled>Sign in</button>
+</form>
+<p id="signin-status" class="signin-status" role="status" aria-live="polite">Signing in through the website is not available yet, so this page cannot hand your sign-in to the app.</p>
+</main>
+</body>
+</html>

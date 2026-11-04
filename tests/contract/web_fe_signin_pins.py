@@ -35,6 +35,10 @@ RUNNER_FILES = sorted([
     "signin.test.mjs",
     "signin-flow.test.mjs",
     "signin-edge.test.mjs",
+    "signin-page.test.mjs",
+    "signin-wire.test.mjs",
+    "signin-net.test.mjs",
+    "signin-logout.test.mjs",
 ])
 LINE_CAP = 300
 ALLOWED_IMPORTS = {SIGNIN: ("./aesgcm.js", "./signin-link.js"), LINK: ()}
@@ -49,7 +53,7 @@ FORBIDDEN = [
     "indexedDB", "document.cookie", "window.", "document.",
 ]
 BANNED = [
-    "it" "em", "ro" "und", "ga" "te", "verd" "ict", "rul" "ed", "sli" "ce",
+    "it" "em", "ro" "und", "ga" "te", "verd" "ict", "rul" "ed", "rul" "ing", "sli" "ce",
     "sub" "-agent", "plan" " file", "read" "back", "review" "er", "le" "ad",
 ]
 BANNED_RE = re.compile(

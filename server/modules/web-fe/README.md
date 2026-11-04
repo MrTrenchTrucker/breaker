@@ -5,6 +5,6 @@ The Breaker website, served from its own container on the VPN. Users register an
 Planned, not built (ADR-035, ADR-036): a sign-in from the website hands the login to the app, and the sign-in page seals the account's keys to the app's key. Settings will also list the account's devices, with a sign-out for each.
 
 Built now: an AES-GCM layer for the page (wrap and unwrap the data key, seal and open records) on vendored
-@noble/ciphers 2.4.0; no page uses it yet.
+@noble/ciphers 2.4.0. The sign-in page imports it through `signin.js`, but it never calls it while the crypto functions are missing, so the form stays disabled.
 
 Full module card, including how to run its tests: `AGENTS.md` in this folder.

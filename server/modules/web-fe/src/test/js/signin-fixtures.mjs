@@ -63,10 +63,17 @@ export function loginAnswer(body = {}) {
 
 // Fake dependencies. Each fake records what it was given (copies at call time, and references where the
 // test checks zero-fill) and appends its name to the call-order log.
+// Count and zero state of every secret array the fakes were handed, read at the moment of the call.
+function secretRefsState(rec) {
+  const refs = [...rec.kekRefs, ...rec.verifierRefs, ...rec.boxRefs, ...rec.boxResultRefs, ...rec.sealRefs, ...rec.passwordRefs, ...rec.appRefs];
+  return { count: refs.length, allZero: refs.every((bytes) => isZero(bytes)) };
+}
+
 export function makeDeps(overrides = {}) {
   const rec = {
     log: [], salt: [], derive: [], login: [], box: [], seal: [], start: [], replaced: [], historyCalls: [],
     kekRefs: [], verifierRefs: [], boxRefs: [], boxResultRefs: [], sealRefs: [], passwordRefs: [], appRefs: [],
+    logout: [], logoutZero: [], logoutMode: 'ok', logoutHold: deferred(),
   };
   const deps = {
     cleanUrl: '/signin.html',
@@ -107,6 +114,15 @@ export function makeDeps(overrides = {}) {
       rec.start.push({ challenge, sealed: sealedBase64, token });
       rec.log.push('start');
       return { status: 201, body: { code: CODE_TEXT } };
+    },
+    logout: (token) => {
+      rec.logout.push(token);
+      rec.log.push('logout');
+      rec.logoutZero.push(secretRefsState(rec));
+      if (rec.logoutMode === 'throw') throw new Error('logout threw');
+      if (rec.logoutMode === 'reject') return Promise.reject(new Error('logout rejected'));
+      if (rec.logoutMode === 'hold') return rec.logoutHold.promise;
+      return undefined;
     },
     ...overrides,
   };
