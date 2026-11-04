@@ -28,4 +28,12 @@ internal fun formatStoredAt(epochMillis: Long): String {
         "T" + pad(hour, 2) + ":" + pad(minute, 2) + ":" + pad(second, 2) + "Z"
 }
 
+// Like formatStoredAt, but always with three fractional digits: YYYY-MM-DDTHH:MM:SS.mmmZ. A whole
+// second prints .000, so a reader never sees the fraction come and go. A negative value throws the
+// same IllegalArgumentException as formatStoredAt.
+internal fun formatInstantMs(epochMillis: Long): String {
+    val wholeSeconds = formatStoredAt(epochMillis)
+    return wholeSeconds.dropLast(1) + "." + pad(epochMillis % 1000L, 3) + "Z"
+}
+
 private fun pad(value: Long, width: Int): String = value.toString().padStart(width, '0')

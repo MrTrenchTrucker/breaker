@@ -1,5 +1,6 @@
 package dev.breaker.server.syncapi.transcriptions
 
+import dev.breaker.server.syncapi.accounts.PrevKeyRule
 import dev.breaker.server.syncapi.db.SqliteDatabase
 import java.sql.Connection
 import java.time.Clock
@@ -57,6 +58,7 @@ internal class TranscriptionStore(
                 } else {
                     val changeNo = bumpChangeSeq(connection, accountId)
                     replaceRow(connection, accountId, clientId, keyVersion, encrypted, nowMs, changeNo)
+                    PrevKeyRule.clearIfNoOldRows(connection, accountId)
                     PushResult.Replaced
                 }
             }
@@ -81,6 +83,7 @@ internal class TranscriptionStore(
                 val nowMs = clock.millis()
                 val changeNo = bumpChangeSeq(connection, accountId)
                 markDeleted(connection, accountId, clientId, nowMs, changeNo)
+                PrevKeyRule.clearIfNoOldRows(connection, accountId)
                 DeleteResult.Deleted
             }
         }

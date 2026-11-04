@@ -113,7 +113,7 @@ internal class AuthLoginRouteKeysTest : AuthKeysRouteTestBase() {
         val id = register("alice", 1)
         runSql(temp, "UPDATE accounts SET rekeyed_at = ${KeyPatterns.REKEYED_AT_MS}, reset_at = ${KeyPatterns.RESET_AT_MS} WHERE id = $id")
         val body = okBody("alice", 1)
-        assertEquals("sync-api: rekeyed_at", quoted("2023-11-14T22:13:20Z"), memberOf(body, "rekeyed_at"))
+        assertEquals("sync-api: rekeyed_at", quoted("2023-11-14T22:13:20.000Z"), memberOf(body, "rekeyed_at"))
         assertEquals("sync-api: reset_at", quoted("2023-11-14T22:13:20.123Z"), memberOf(body, "reset_at"))
     }
 

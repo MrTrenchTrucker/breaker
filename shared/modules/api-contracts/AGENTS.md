@@ -36,7 +36,8 @@ There is no synchronous 200-with-body variant — every transcription is a job.
   plain rather than wrapped) are `null` together for a keyless account;
   `key_version` is `0` before the first bootstrap and never goes backwards;
   `reset_at`/`rekeyed_at` are the account's last-reset and last-rekey
-  timestamps, or `null`, each shown when new to the device: "this account was
+  timestamps, or `null`, written as UTC with exactly three fractional digits
+  (`2026-11-04T08:47:41.000Z` for a whole second), each shown when new to the device: "this account was
   reset on \<date\>" and "keys last changed on \<date\>", ADR-006/ADR-018) — the client refuses to
   proceed if the returned `kdf_params` are below the floor, whatever
   `kdf_version` claims (a server cannot talk a client down, ADR-006); `POST
@@ -67,9 +68,9 @@ There is no synchronous 200-with-body variant — every transcription is a job.
   the same as the key-bearing endpoints above** — leaves the account keyless
   again, so `POST /v1/auth/keys` follows it exactly as it would a new
   account.
-- **auth - key upload (built), password change and reset completion (planned, not built) (ADR-006, ADR-018)** -
+- **auth - key upload and password change (built), reset completion (planned, not built) (ADR-006, ADR-018)** -
   `openapi.yaml` holds the paths of `POST /v1/auth/keys`, `POST /v1/auth/change-password` and
-  `POST /v1/auth/complete-reset`; `POST /v1/auth/keys` is built on the server; the other two are not built yet.
+  `POST /v1/auth/complete-reset`; `POST /v1/auth/keys` and `POST /v1/auth/change-password` are built on the server; `POST /v1/auth/complete-reset` is not built yet.
   `POST /v1/auth/keys` takes a user session token only (an agent token is refused, 403, the same
   body as `/v1/sync`, decided before the body is read) and reads a body of at most 4096 bytes. The
   body is exactly `{wrapped_dek, wrapped_box_privkey, box_pubkey}`, each a string of standard
@@ -84,18 +85,24 @@ There is no synchronous 200-with-body variant — every transcription is a job.
   token` | **403** `forbidden` `User session token required; an agent token is refused` | **409**
   `conflict` `The account already has keys` (planned, not built: also **409** `conflict` `The
   account is waiting for a reset to be completed`) | **413** `payload_too_large` | **503**
-  `unavailable`. Planned:
-  `POST /v1/auth/change-password` has the same token rule and the same 400, 401, 403, 413 and 503
+  `unavailable`. A revoked or an expired session token gets the same 401 as an unknown one.
+  `POST /v1/auth/change-password` (built) has the same token rule and the same 400, 401, 403, 413 and 503
   answers; it answers **200** `{"key_version": N}`, **401** `Invalid old verifier` for a wrong old
-  verifier (which counts as a wrong try; one that is not base64 or not 32 bytes does not), **409**
-  `conflict` for a `new_key_version` that is not the current one plus one, for an unfinished
-  re-key (`prev_wrapped_dek` held), for an account without keys (`The account has no keys`) and for
-  an account waiting for a reset to be completed (`The account is waiting for a reset to be
-  completed`), and **423** `locked` with Retry-After. A session token that is revoked before the
+  verifier (which counts as a wrong try; one that is not base64 or not 32 bytes is a 400 and does not
+  count), **409** `conflict` for an account without keys (`The account has no keys`), for a
+  `new_key_version` that is not the current one plus one and for an unfinished re-key
+  (`prev_wrapped_dek` held) (that is the order when more than one applies; planned, not built: also
+  for an account waiting for a reset to be completed, `The account is waiting for a reset to be
+  completed`), and **423** `locked` with Retry-After. A session token that is revoked or expired before the
   transaction commits (for example by an admin reset running at the same time) gets the same 401,
   `unauthorized` `Invalid or missing user session token`. Its lengths, all checked before any
   write: old verifier 32, new salt 16, new verifier 32, new wrapped DEK 60, new wrapped box private
-  key 60, new box public key 32 and `prev_wrapped_dek` 60 bytes. Planned:
+  key 60, new box public key 32 and `prev_wrapped_dek` 60 bytes. A success stores the new values,
+  sets `rekeyed_at`, revokes every other user session token and the account's unredeemed sign-in
+  codes, and clears the wrong-password row. The rule for `prev_wrapped_dek`: it is set to `null` again
+  as soon as no stored transcription of the account that is not deleted has a `key_version` below the
+  account's, checked in the same transaction after the change-password write, after a sync push that
+  replaces a row and after a sync delete; the purge of delete records is not built. Planned:
   `POST /v1/auth/complete-reset` takes no token (an agent token in the header is refused with 403
   before the body is read; any other header is ignored), answers **200** with the login body
   (keyless, `reset_at` set), **400**, **403**, **413**, **503**, and one fixed **401**
@@ -129,6 +136,8 @@ There is no synchronous 200-with-body variant — every transcription is a job.
   account (the same body for both); `DELETE /v1/admin/agent-tokens/{id}` → **204** (also when
   already revoked) | **404** unknown id | **401** no or invalid token | **403** a valid
   non-admin token. The wire unit is KiB everywhere (memory_kib 65536-262144).
+  Login also answers **503** `unavailable` (the fixed body, never a 500) for a storage failure in
+  the credential check, the key read or the session issue.
   Contract only, not yet built on the server: login also answers **423** (locked after five wrong
   passwords, with Retry-After in whole seconds), and `GET` and `PUT /v1/admin/wrong-pw-limit` read and set the switch.
 - **sync** — **user session token only on every endpoint in this group, an
