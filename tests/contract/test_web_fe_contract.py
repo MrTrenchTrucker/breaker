@@ -14,5 +14,8 @@ class ServerModulesWebFeContractTest(contract_support.ModuleContractTest):
     MODULE = "server_web_fe"
 
 
+from web_fe_aesgcm_pins import WebFeAesGcmPinsTest  # noqa: F401  (AES-GCM layer pins, collected here)
+
+
 if __name__ == "__main__":
     unittest.main()
