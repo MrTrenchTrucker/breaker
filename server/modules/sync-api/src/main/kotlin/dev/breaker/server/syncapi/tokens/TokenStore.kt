@@ -10,18 +10,22 @@ import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 
-internal class TokenStore(
+internal open class TokenStore(
     private val db: SqliteDatabase,
     private val clock: Clock = Clock.systemUTC(),
     private val random: SecureRandom = SecureRandom(),
 ) {
-    suspend fun issueSession(accountId: Long): IssueResult {
+    // Open so that a test can override it to place a reset in the gap between the verify and the insert.
+    // A pending account gets no session: the flag is read on this connection, in the same transaction.
+    open suspend fun issueSession(accountId: Long): IssueResult {
         val secret = TokenSecret.generate(random)
         val hash = secret.hash()
         val nowMs = clock.millis()
         return db.transaction<IssueResult> { connection ->
             if (readOwnerRole(connection, accountId) == null) {
                 IssueResult.NoSuchAccount
+            } else if (readOwnerPending(connection, accountId)) {
+                IssueResult.ResetPending
             } else {
                 val id = insertToken(
                     connection,
@@ -41,7 +45,9 @@ internal class TokenStore(
 
     // Issues a session inside the caller's open transaction, on the caller's connection, so the
     // sign-in exchange can use the code and make the session in one commit. The caller has already
-    // checked the account. The name is kept as given; a null name means no name.
+    // checked the account. The name is kept as given; a null name means no name. The reset completion
+    // uses it after its own UPDATE has cleared reset_pending in the same transaction, and the sign-in
+    // exchange checks reset_pending itself before it calls this, so this function does not read the flag.
     internal fun issueSessionOn(connection: Connection, accountId: Long, deviceName: String?, nowMs: Long): IssuedToken {
         val secret = TokenSecret.generate(random)
         val id = insertToken(
@@ -58,6 +64,8 @@ internal class TokenStore(
         return IssuedToken(id, secret, TokenKind.SESSION, null, null)
     }
 
+    // No production route calls this yet. A pending owner gets no token, the same as for a session; the
+    // check comes before the scope check, so a pending owner is refused whatever scope is asked for.
     suspend fun issueAgent(
         ownerAccountId: Long,
         scope: AgentScope,
@@ -76,6 +84,8 @@ internal class TokenStore(
             val ownerRole = readOwnerRole(connection, ownerAccountId)
             if (ownerRole == null) {
                 IssueResult.NoSuchAccount
+            } else if (readOwnerPending(connection, ownerAccountId)) {
+                IssueResult.ResetPending
             } else if (scope == AgentScope.ADMIN && ownerRole != Role.ADMIN) {
                 IssueResult.ScopeNotAllowed
             } else {
@@ -144,13 +154,15 @@ internal class TokenStore(
 
     // The account's unredeemed sign-in codes are deleted in the same transaction. The count
     // returned is the revoked token rows only.
-    suspend fun revokeAllForAccount(accountId: Long): Int {
-        val nowMs = clock.millis()
-        return db.transaction<Int> { connection ->
-            val revoked = revoke(connection, REVOKE_ALL_SQL, nowMs, accountId, null)
-            deleteAccountHandoff(connection, accountId)
-            revoked
-        }
+    suspend fun revokeAllForAccount(accountId: Long): Int =
+        db.transaction<Int> { connection -> revokeAllForAccountOn(connection, accountId) }
+
+    // The same work on the caller's connection, so a caller can run it inside its own transaction.
+    // Returns the number of revoked token rows.
+    internal fun revokeAllForAccountOn(connection: Connection, accountId: Long): Int {
+        val revoked = revoke(connection, REVOKE_ALL_SQL, clock.millis(), accountId, null)
+        deleteAccountHandoff(connection, accountId)
+        return revoked
     }
 
     // keepTokenId is only excluded from the set of live sessions of this account. An
@@ -199,6 +211,15 @@ internal class TokenStore(
             statement.setLong(1, accountId)
             statement.executeQuery().use { rows ->
                 if (rows.next()) Role.fromDb(rows.getString(1)) else null
+            }
+        }
+
+    // A missing row reads as not pending: the caller has already checked that the account exists.
+    private fun readOwnerPending(connection: Connection, accountId: Long): Boolean =
+        connection.prepareStatement(SELECT_PENDING_SQL).use { statement ->
+            statement.setLong(1, accountId)
+            statement.executeQuery().use { rows ->
+                rows.next() && rows.getInt(1) == 1
             }
         }
 
@@ -275,6 +296,8 @@ internal class TokenStore(
         val SURROGATES: IntRange = Character.MIN_SURROGATE.code..Character.MAX_SURROGATE.code
 
         const val SELECT_ROLE_SQL = "SELECT role FROM accounts WHERE id = ?"
+
+        const val SELECT_PENDING_SQL = "SELECT reset_pending FROM accounts WHERE id = ?"
 
         const val INSERT_SQL =
             "INSERT INTO tokens (account_id, kind, scope, label, token_hash, created_at_ms, expires_at_ms, device_name) " +

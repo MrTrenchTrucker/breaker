@@ -72,6 +72,9 @@ internal sealed class PasswordChangeResult {
     /** The presented session is revoked, expired or gone, or the account is gone. Nothing was written. */
     object TokenNotLive : PasswordChangeResult()
 
+    /** The account is waiting for a reset to be completed. Nothing was written. */
+    object ResetPending : PasswordChangeResult()
+
     object NoKeys : PasswordChangeResult()
 
     object KeyVersionMismatch : PasswordChangeResult()
@@ -83,8 +86,8 @@ internal sealed class PasswordChangeResult {
 // none does. The verifier hash is made before the transaction (AccountStore.hashVerifier), because
 // it takes hundreds of milliseconds and would hold the lane for every other request meanwhile. The
 // old password was proved before this store is called. Inside, the order is fixed: first the checks,
-// which only read (a live session, then no keys, then a wrong key version, then an unfinished
-// re-key), and only then the writes: the account row, the previous-key rule, the other sessions with
+// which only read (a live session, then the account row, then a pending reset, then no keys, then a
+// wrong key version, then an unfinished re-key), and only then the writes: the account row, the previous-key rule, the other sessions with
 // the hand-off codes, the wrong-password row. An exception anywhere rolls everything back and goes
 // to the caller. Nothing here logs a value, and no message holds one.
 internal class PasswordChangeStore(private val accounts: AccountStore, private val tokens: TokenStore) {
@@ -93,6 +96,7 @@ internal class PasswordChangeStore(private val accounts: AccountStore, private v
         val keyVersion: Int,
         val keyed: Boolean,
         val prevHeld: Boolean,
+        val pending: Boolean,
     )
 
     suspend fun change(accountId: Long, tokenId: Long, request: PasswordChangeRequest): PasswordChangeResult =
@@ -110,7 +114,9 @@ internal class PasswordChangeStore(private val accounts: AccountStore, private v
         if (!tokens.isSessionLiveOn(connection, tokenId, accountId)) return PasswordChangeResult.TokenNotLive
         // Step 2: read the account state. No row means the account is gone.
         val state = readState(connection, accountId) ?: return PasswordChangeResult.TokenNotLive
-        // Step 3: the three refusals, in this order. They only read.
+        // Step 3: the four refusals, in this order. They only read. A pending account is refused first,
+        // because a reset account is keyless too and the pending refusal tells the person what to do.
+        if (state.pending) return PasswordChangeResult.ResetPending
         if (!state.keyed) return PasswordChangeResult.NoKeys
         if (request.newKeyVersion != state.keyVersion + 1) return PasswordChangeResult.KeyVersionMismatch
         if (state.prevHeld) return PasswordChangeResult.PreviousUnfinished
@@ -131,7 +137,7 @@ internal class PasswordChangeStore(private val accounts: AccountStore, private v
             statement.setLong(1, accountId)
             statement.executeQuery().use { rows ->
                 if (rows.next()) {
-                    AccountState(rows.getString(1), rows.getInt(2), rows.getInt(3) == 1, rows.getInt(4) == 1)
+                    AccountState(rows.getString(1), rows.getInt(2), rows.getInt(3) == 1, rows.getInt(4) == 1, rows.getInt(5) == 1)
                 } else {
                     null
                 }
@@ -165,8 +171,8 @@ internal class PasswordChangeStore(private val accounts: AccountStore, private v
 
     private companion object {
         const val SELECT_STATE_SQL =
-            "SELECT username_lower, key_version, wrapped_dek IS NOT NULL, prev_wrapped_dek IS NOT NULL " +
-                "FROM accounts WHERE id = ?"
+            "SELECT username_lower, key_version, wrapped_dek IS NOT NULL, prev_wrapped_dek IS NOT NULL, " +
+                "reset_pending FROM accounts WHERE id = ?"
 
         const val UPDATE_ACCOUNT_SQL =
             "UPDATE accounts SET salt = ?, kdf_memory_kib = ?, kdf_iterations = ?, kdf_parallelism = ?, " +

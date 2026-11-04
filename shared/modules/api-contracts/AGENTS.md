@@ -68,9 +68,9 @@ There is no synchronous 200-with-body variant — every transcription is a job.
   the same as the key-bearing endpoints above** — leaves the account keyless
   again, so `POST /v1/auth/keys` follows it exactly as it would a new
   account.
-- **auth - key upload and password change (built), reset completion (planned, not built) (ADR-006, ADR-018)** -
-  `openapi.yaml` holds the paths of `POST /v1/auth/keys`, `POST /v1/auth/change-password` and
-  `POST /v1/auth/complete-reset`; `POST /v1/auth/keys` and `POST /v1/auth/change-password` are built on the server; `POST /v1/auth/complete-reset` is not built yet.
+- **auth - key upload, password change, admin reset and reset completion (built) (ADR-006, ADR-018)** -
+  `openapi.yaml` holds the paths of `POST /v1/auth/keys`, `POST /v1/auth/change-password`,
+  `POST /v1/auth/complete-reset` and `POST /v1/admin/reset-account`; all four are built on the server.
   `POST /v1/auth/keys` takes a user session token only (an agent token is refused, 403, the same
   body as `/v1/sync`, decided before the body is read) and reads a body of at most 4096 bytes. The
   body is exactly `{wrapped_dek, wrapped_box_privkey, box_pubkey}`, each a string of standard
@@ -83,17 +83,19 @@ There is no synchronous 200-with-body variant — every transcription is a job.
   is a choice of this contract, and change-password answers with the same shape) | **400**
   `bad_request` `Invalid request body` | **401** `unauthorized` `Invalid or missing user session
   token` | **403** `forbidden` `User session token required; an agent token is refused` | **409**
-  `conflict` `The account already has keys` (planned, not built: also **409** `conflict` `The
-  account is waiting for a reset to be completed`) | **413** `payload_too_large` | **503**
+  `conflict` `The account already has keys`, or, first and for an account that waits for a reset,
+  `The account is waiting for a reset to be completed` | **413** `payload_too_large` | **503**
   `unavailable`. A revoked or an expired session token gets the same 401 as an unknown one.
   `POST /v1/auth/change-password` (built) has the same token rule and the same 400, 401, 403, 413 and 503
   answers; it answers **200** `{"key_version": N}`, **401** `Invalid old verifier` for a wrong old
   verifier (which counts as a wrong try; one that is not base64 or not 32 bytes is a 400 and does not
   count), **409** `conflict` for an account without keys (`The account has no keys`), for a
   `new_key_version` that is not the current one plus one and for an unfinished re-key
-  (`prev_wrapped_dek` held) (that is the order when more than one applies; planned, not built: also
-  for an account waiting for a reset to be completed, `The account is waiting for a reset to be
-  completed`), and **423** `locked` with Retry-After. A session token that is revoked or expired before the
+  (`prev_wrapped_dek` held) (that is the order when more than one applies, except that an account
+  waiting for a reset to be completed gets `The account is waiting for a reset to be completed`
+  first; the mark is read right after the session check and before the body, so a bad body on a
+  pending account is 409 and no wrong try is counted, and it is read again inside the transaction),
+  and **423** `locked` with Retry-After. A session token that is revoked or expired before the
   transaction commits (for example by an admin reset running at the same time) gets the same 401,
   `unauthorized` `Invalid or missing user session token`. Its lengths, all checked before any
   write: old verifier 32, new salt 16, new verifier 32, new wrapped DEK 60, new wrapped box private
@@ -102,12 +104,31 @@ There is no synchronous 200-with-body variant — every transcription is a job.
   codes, and clears the wrong-password row. The rule for `prev_wrapped_dek`: it is set to `null` again
   as soon as no stored transcription of the account that is not deleted has a `key_version` below the
   account's, checked in the same transaction after the change-password write, after a sync push that
-  replaces a row and after a sync delete; the purge of delete records is not built. Planned:
+  replaces a row and after a sync delete; the purge of delete records is not built.
   `POST /v1/auth/complete-reset` takes no token (an agent token in the header is refused with 403
-  before the body is read; any other header is ignored), answers **200** with the login body
-  (keyless, `reset_at` set), **400**, **403**, **413**, **503**, and one fixed **401**
-  `unauthorized` `Invalid username or reset code` for an unknown name or an unknown, wrong, used or
-  expired code. Planned: the reset code and the request body are never logged.
+  before the body is read; any other header is ignored and its expiry does not move), answers
+  **200** with the login body (keyless, `reset_at` set), **400**, **403**, **413**, **503**, and one
+  fixed **401** `unauthorized` `Invalid username or reset code` for an unknown or invalid name, an
+  account that is not waiting for a reset, or an unknown, malformed, wrong, used or expired code.
+  The body is checked for its shape and types first (400); the 400 for the salt (16 bytes), the KDF
+  bounds, `kdf_version` 1 and the verifier (32 bytes) comes only after a right name and code. There
+  is no attempt counter: a wrong code leaves the wrong-password row alone and a locked name does
+  not block a right code. The reset code and the request body are never logged.
+  `POST /v1/admin/reset-account` `{username}` (admin session token or admin-scoped agent token; a
+  user session is **403**, no token **401**, an unknown or invalid name **404** `not_found`
+  `Account not found`, a body that is not exactly one string member **400**, a body over 4096
+  bytes **413**, a storage failure **503**) answers **200** `{"reset_code": "..."}`. The code is 32
+  random bytes as 43 URL-safe characters (256 random bits), single use, valid for 24 hours, stored
+  only as a SHA-256 hash, one live code per account (a new reset replaces it), and shown only in
+  this answer. The reset replaces the verifier with random bytes and marks the account
+  reset-pending, clears the keys, revokes every token and unredeemed sign-in code, deletes the
+  transcriptions, clears the wrong-password row, sets `reset_at` and keeps `key_version`. It also
+  sets the purged floor of the change feed to the new change number, so every earlier cursor, also
+  one at the old head, gets **410** from `GET /v1/transcriptions` and the client does a full
+  resync. A pending account cannot log in (the 401 of a wrong verifier, not counted); `salt`
+  answers as for any account; `keys` and `change-password` answer **409** (above). An admin who
+  resets their own account revokes their own token. The pending-sealed rows of ADR-018 are planned,
+  not built: that table does not exist yet.
 - **auth — logout (ADR-018)** — `POST /v1/auth/logout`, bearer token only, no request body: revokes
   ONLY the presented token. → **204 No Content** | **401** `ApiError` for a missing, unknown or
   already-revoked token (nothing beyond "not a valid session" is disclosed). There is no standalone

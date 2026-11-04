@@ -29,7 +29,7 @@ private const val MESSAGE_PREVIOUS_UNFINISHED = "A previous re-key is unfinished
  *
  * A signed-in user replaces the account's password material and key wrapping in one request. The
  * route checks, in this order: the user session (an agent token is refused before the body is
- * read), the body size cap, the strict body shape, then the old verifier through the same path as
+ * read), whether the account waits for a reset (409, before the body is read), the body size cap, the strict body shape, then the old verifier through the same path as
  * login (a wrong one is a counted wrong try, a locked name answers 423). Only then does the store
  * make the change, in one transaction that re-reads the session and the account state first. No
  * request value is ever echoed into a response, an exception text or a log.
@@ -39,6 +39,24 @@ internal fun Application.authChangePasswordRoute(accountStore: AccountStore, tok
     routing {
         post("/v1/auth/change-password") {
             val resolved = call.sessionOrRefuse(tokenStore) ?: return@post
+            // A reset account is refused here, before the body is read and before the old verifier
+            // is checked, so the refusal never counts a wrong try.
+            val pending = try {
+                accountStore.resetPendingOf(resolved.accountId)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                call.respondUnavailable()
+                return@post
+            }
+            if (pending == null) {
+                call.respondSessionRequired()
+                return@post
+            }
+            if (pending) {
+                call.respondResetPending()
+                return@post
+            }
             val body = call.receiveAuthBody() ?: return@post
             val parsed = parseChangePasswordBody(body)
             if (parsed == null) {
@@ -123,6 +141,9 @@ internal fun Application.authChangePasswordRoute(accountStore: AccountStore, tok
                 }
                 PasswordChangeResult.TokenNotLive -> {
                     call.respondSessionRequired()
+                }
+                PasswordChangeResult.ResetPending -> {
+                    call.respondResetPending()
                 }
                 PasswordChangeResult.NoKeys -> {
                     call.respondSyncError(HttpStatusCode.Conflict, "conflict", MESSAGE_NO_KEYS)

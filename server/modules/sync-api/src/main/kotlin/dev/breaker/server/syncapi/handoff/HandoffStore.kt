@@ -23,7 +23,7 @@ internal class HandoffStore(
 ) {
     private class HandoffRow(val accountId: Long, val challenge: String, val packageBytes: ByteArray)
 
-    private class AccountData(val username: String, val roleText: String, val keyVersion: Int)
+    private class AccountData(val username: String, val roleText: String, val keyVersion: Int, val pending: Boolean)
 
     /**
      * Makes a code for [accountId] and returns its text, which is kept nowhere: only its hash is
@@ -36,7 +36,8 @@ internal class HandoffStore(
         val hash = secret.hash()
         return db.transaction<StartResult> { connection ->
             deleteExpiredOn(connection, nowMs)
-            if (!accountExists(connection, accountId)) {
+            // A missing account and an account that waits for a reset get the same answer and no row.
+            if (readPending(connection, accountId) != false) {
                 StartResult.NoSuchAccount
             } else {
                 makeRoom(connection, accountId)
@@ -101,10 +102,13 @@ internal class HandoffStore(
             statement.executeUpdate()
         }
 
-    private fun accountExists(connection: Connection, accountId: Long): Boolean =
-        connection.prepareStatement(SELECT_ACCOUNT_EXISTS_SQL).use { statement ->
+    // Null when no account has this id, else whether the account waits for a reset to be completed.
+    private fun readPending(connection: Connection, accountId: Long): Boolean? =
+        connection.prepareStatement(SELECT_PENDING_SQL).use { statement ->
             statement.setLong(1, accountId)
-            statement.executeQuery().use { rows -> rows.next() }
+            statement.executeQuery().use { rows ->
+                if (rows.next()) rows.getInt(1) == 1 else null
+            }
         }
 
     // Keeps room for the row about to be inserted: when the account already holds the most live
@@ -155,7 +159,9 @@ internal class HandoffStore(
         }
 
     // Deleting the row and inserting the session run in the caller's one transaction: an exception
-    // rolls both back, so the code stays live and the exception carries no value.
+    // rolls both back, so the code stays live and the exception carries no value. The row is deleted
+    // first, so a code on an account that waits for a reset is spent and refused, and it can never
+    // become redeemable after the reset is completed.
     private fun finishRedeem(
         connection: Connection,
         codeHash: ByteArray,
@@ -169,6 +175,7 @@ internal class HandoffStore(
         }
         if (deleted != 1) return RedeemResult.Refused
         val account = readAccount(connection, row.accountId)
+        if (account.pending) return RedeemResult.Refused
         val issued = tokenStore.issueSessionOn(connection, row.accountId, deviceName, nowMs)
         return RedeemResult.Redeemed(
             issued.secret.reveal(),
@@ -185,7 +192,7 @@ internal class HandoffStore(
             statement.setLong(1, accountId)
             statement.executeQuery().use { rows ->
                 check(rows.next()) { "sync-api: the account of a sign-in code could not be read" }
-                AccountData(rows.getString(1), rows.getString(2), rows.getInt(3))
+                AccountData(rows.getString(1), rows.getString(2), rows.getInt(3), rows.getInt(4) == 1)
             }
         }
 
@@ -205,7 +212,7 @@ internal class HandoffStore(
 
         private const val DELETE_EXPIRED_SQL = "DELETE FROM signin_handoff WHERE expires_at_ms <= ?"
 
-        private const val SELECT_ACCOUNT_EXISTS_SQL = "SELECT 1 FROM accounts WHERE id = ?"
+        private const val SELECT_PENDING_SQL = "SELECT reset_pending FROM accounts WHERE id = ?"
 
         private const val COUNT_ACCOUNT_SQL = "SELECT count(*) FROM signin_handoff WHERE account_id = ?"
 
@@ -224,6 +231,7 @@ internal class HandoffStore(
 
         private const val DELETE_ROW_SQL = "DELETE FROM signin_handoff WHERE code_hash = ?"
 
-        private const val SELECT_ACCOUNT_SQL = "SELECT username, role, key_version FROM accounts WHERE id = ?"
+        private const val SELECT_ACCOUNT_SQL =
+            "SELECT username, role, key_version, reset_pending FROM accounts WHERE id = ?"
     }
 }

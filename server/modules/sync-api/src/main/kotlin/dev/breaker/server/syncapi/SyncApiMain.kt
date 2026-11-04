@@ -5,6 +5,7 @@ import dev.breaker.server.syncapi.accounts.runSigninAttemptSweep
 import dev.breaker.server.syncapi.db.SqliteDatabase
 import dev.breaker.server.syncapi.handoff.HandoffStore
 import dev.breaker.server.syncapi.handoff.runHandoffSweep
+import dev.breaker.server.syncapi.reset.ResetStore
 import dev.breaker.server.syncapi.servicecheck.ServiceKeyFile
 import dev.breaker.server.syncapi.tokens.TokenStore
 import dev.breaker.server.syncapi.transcriptions.TranscriptionStore
@@ -34,6 +35,7 @@ fun main() {
     val tokenStore = TokenStore(db)
     val transcriptionStore = TranscriptionStore(db)
     val handoffStore = HandoffStore(db, tokenStore)
+    val resetStore = ResetStore(accountStore, tokenStore)
     // The key file sits next to the database, so it is read only after the database has opened.
     val serviceKey: String = try {
         ServiceKeyFile.loadOrCreate(Paths.get(config.serviceKeyFile), SecureRandom())
@@ -42,12 +44,12 @@ fun main() {
         System.err.println(e.message)
         exitProcess(2)
     }
-    // One job runs two sweeps: the hand-off sweep deletes expired sign-in codes (at boot, then every
-    // minute) and the attempt sweep deletes dead wrong-password rows (at boot, then every five
+    // One job runs two sweeps: the hand-off sweep deletes expired sign-in codes and expired reset codes
+    // (at boot, then every minute) and the attempt sweep deletes dead wrong-password rows (at boot, then every five
     // minutes). Cancelling the job stops both. It starts once the stores exist and stops in
     // shutdownInOrder, before the database closes.
     val sweepJob = CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
-        launch { runHandoffSweep(handoffStore) }
+        launch { runHandoffSweep(handoffStore, resetStore) }
         launch { runSigninAttemptSweep(accountStore.attempts) }
     }
     // The internal listener starts first and carries only the token-check routes.

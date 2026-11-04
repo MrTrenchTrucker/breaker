@@ -75,4 +75,7 @@ internal sealed class StoreKeysResult {
     object AlreadyKeyed : StoreKeysResult()
 
     object NoSuchAccount : StoreKeysResult()
+
+    /** The account is waiting for a reset to be completed, so no key is stored. */
+    object ResetPending : StoreKeysResult()
 }

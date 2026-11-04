@@ -106,7 +106,7 @@ internal class SchemaV8MigrationTest : TempDatabaseTest() {
     fun `migration 8 applies to a fresh database and ends at user_version 8 with the six key columns`() {
         val temp = openTemp()
         inTransaction(temp) { connection ->
-            assertEquals("sync-api: fresh database user_version", 8, TestDatabases.userVersion(connection))
+            assertEquals("sync-api: fresh database user_version", 9, TestDatabases.userVersion(connection))
             val columns = TestDatabases.strings(connection, "SELECT name FROM pragma_table_info('accounts')")
             for (name in keyColumns) {
                 assertTrue("sync-api: accounts column $name is missing: $columns", name in columns)
@@ -154,7 +154,7 @@ internal class SchemaV8MigrationTest : TempDatabaseTest() {
         val second = reopen(first)
 
         inTransaction(second) { connection ->
-            assertEquals("sync-api: user_version after the upgrade", 8, TestDatabases.userVersion(connection))
+            assertEquals("sync-api: user_version after the upgrade", 9, TestDatabases.userVersion(connection))
             assertEquals(
                 "sync-api: the account row is kept with its id",
                 listOf(aliceId),

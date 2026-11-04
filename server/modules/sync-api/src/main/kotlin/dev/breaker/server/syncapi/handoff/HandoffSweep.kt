@@ -1,5 +1,6 @@
 package dev.breaker.server.syncapi.handoff
 
+import dev.breaker.server.syncapi.reset.ResetStore
 import java.time.Duration
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -14,6 +15,7 @@ internal val HANDOFF_SWEEP_INTERVAL: Duration = Duration.ofSeconds(60)
  */
 internal suspend fun runHandoffSweep(
     store: HandoffStore,
+    resetStore: ResetStore? = null,
     interval: Duration = HANDOFF_SWEEP_INTERVAL,
     pause: suspend (Duration) -> Unit = { delay(it.toMillis()) },
 ) {
@@ -24,6 +26,15 @@ internal suspend fun runHandoffSweep(
             throw cancellation
         } catch (_: Exception) {
             // Nothing is logged: the table holds only hashes and sealed bytes, and the next tick retries.
+        }
+        // The expired reset codes go in the same loop, in their own try, so a failure of the first
+        // delete never stops this one.
+        try {
+            resetStore?.deleteExpired()
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            // Nothing is logged: the table holds only hashes, and the next tick retries.
         }
         pause(interval)
     }

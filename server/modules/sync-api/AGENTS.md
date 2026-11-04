@@ -41,12 +41,20 @@ here (N13).
   check (`AccountStore.verify`), in the key read (`AccountStore.keysFor`) or in the session issue
   (`TokenStore.issueSession`) answers 503 `unavailable` "The service is unavailable, try again
   later" (the same fixed body as the other routes), never a 500, and no token row is made.
+  An account that waits for a reset to be completed (`reset_pending` = 1, set by the admin reset)
+  cannot log in: `AccountStore.verify` reads the account row and, right after it, returns the plain
+  rejection before any hash and before any count or clear, in the limit-on and the limit-off
+  branch alike. The login route answers the same 401 body as a wrong verifier, no hash is run for
+  it, and the try is not counted. The lock check still sits before the row read, but a reset clears
+  the wrong-password row and a pending account never counts a try, so a pending account is not
+  locked in practice. `POST /v1/auth/salt` answers a pending account as it answers any account.
+  A pending account never gets a session, an agent token or a hand-off code: `TokenStore.issueSession` and `TokenStore.issueAgent` read `reset_pending` in the same transaction as the insert and make no row, and a login that meets it in that gap answers the same 401 and counts nothing.
 - The three routes that need no login (`register`, `salt` and `login`) read a request body of at most 4096 bytes: a longer body is refused with `413` and `payload_too_large` before it is parsed, whether its length is declared or not, and nothing is stored. The keys route (below) reads at most 4096 bytes too, with the same refusal.
 - Internal token-check routes (mounted on the internal listener only; written and tested): `POST /internal/v1/token/use` and `POST /internal/v1/token/peek`, called only by whisper-server. Both take no body; the headers are `X-Service-Key` (checked first, in constant time; the key cannot be blank) and `X-Presented-Token`. A wrong or missing key is a 403 `bad_service_key`; with a good key every not-live cause (missing, malformed, oversized, unknown, revoked, expired) is the same 401 `not_live`, and a live token is a 200 with `account_id`, `kind` and `role`. `use` is `TokenStore.resolve` (a live session token's expiry moves to now + 30 days); `peek` is the read-only `TokenStore.peek` (the same live rule, nothing written). They are mounted on the internal listener and on no other listener (see the section Internal listener and service key).
 - `POST /v1/auth/keys` - BUILT. `{wrapped_dek, wrapped_box_privkey, box_pubkey}`,
   accepted only while the account has no keys yet; accepting it sets the
   account's `key_version` to its previous value + 1 (`0` → `1` on a first
-  bootstrap, previous + 1 after a reset, which is planned, not built) (first-login bootstrap,
+  bootstrap, previous + 1 after a reset) (first-login bootstrap,
   ADR-006/ADR-018; covers both a pre-Phase-19 account's first post-Phase-19
   login and a freshly reset one). **Requires a user session token from
   `/v1/auth/login` or `/v1/auth/complete-reset` — an agent token is refused**,
@@ -73,8 +81,10 @@ here (N13).
   malformed body, a missing, extra or non-string member, bad base64 or a wrong decoded length is
   400 and nothing is written. The module checks only the lengths and never opens the values. (5)
   In one transaction the call is accepted only while the account has no keys (a keyed account is
-  409). Planned, not built: it is also 409 while the account waits for a reset to be completed (a
-  later change checks a reset-pending mark inside the keys transaction). It stores the decoded bytes
+  409). Before that, in the same transaction, the `reset_pending` mark is read: a pending account is
+  409 `conflict` "The account is waiting for a reset to be completed" and nothing is written; this
+  refusal comes before the has-keys refusal, because a reset account is keyless too. The body is read
+  first, so a bad body on a pending account is 400. It stores the decoded bytes
   and re-encodes them on the way out, so a value whose last character carries spare bits is accepted and login writes
   it back as the canonical padded base64 of the stored bytes. It sets `key_version` to its
   previous value + 1. A failure inside the transaction leaves every column and `key_version` as
@@ -82,31 +92,48 @@ here (N13).
   `{"key_version": N}` (N is the new counter; the success body is a choice of the contract, the
   same shape `change-password` uses), 400 `bad_request` "Invalid request body", 401
   `unauthorized` "Invalid or missing user session token", 403 `forbidden` "User session token
-  required; an agent token is refused", 409 `conflict` "The account already has keys" (planned,
-  not built: for an account that waits for a reset to be completed, 409 `conflict` "The account is
-  waiting for a reset to be completed"), 413
+  required; an agent token is refused", 409 `conflict` "The account already has keys" (for an
+  account that waits for a reset to be completed, 409 `conflict` "The account is waiting for a reset
+  to be completed", first), 413
   `payload_too_large` "Request body exceeds maximum allowed size", 503 `unavailable` "The service
   is unavailable, try again later". No part of the request is echoed.
-- `POST /v1/auth/complete-reset` - Planned, not built. `{username, reset_code, salt, kdf_params,
+- `POST /v1/auth/complete-reset` - BUILT. `{username, reset_code, salt, kdf_params,
   kdf_version, auth_verifier}`, authenticated by the admin-issued one-time
-  reset code (≥128 random bits, single use, 24-hour expiry) instead of a
-  password or a session token — the reset already revoked every token this
+  reset code (32 random bytes, 256 bits, 43 URL-safe characters, single use, 24-hour expiry)
+  instead of a password or a session token - the reset already revoked every token this
   account had, so there is none to present, and this endpoint refuses an
   agent token the same as the key-bearing endpoints above. Rejects
   `kdf_params` outside the bounds above and a `kdf_version` other than 1, same
   as registration. Leaves the account
   keyless again, so `POST /v1/auth/keys` follows it exactly as it would a
-  brand-new account. Planned, not built, in order: an agent token in the Authorization header is
-  403 (the same body as `POST /v1/sync`) before the body is read, and any other header is ignored;
-  a body over 4096 bytes is 413; a malformed body is 400; then every failure of the lookups (the
-  name folds and exists, a live unexpired code exists, the constant-time compare of the stored
-  hash) is one fixed 401 `unauthorized` "Invalid username or reset code"; then the KDF bounds, the
-  version and the 32-byte verifier are 400. Success, in one transaction, stores the new salt,
-  verifier and KDF fields, deletes the code, clears the wrong-password row and mints a session
-  token; the answer is 200 with the login body (keyless, `key_version` unchanged, `reset_at` set).
-  There is no attempt counter, because the code is 256 random bits. Known limit: whoever presents
-  the code first chooses the password (ADR-018). The reset code and the request body are never
-  logged.
+  brand-new account. The rules of this route, in order (`auth/AuthCompleteResetRoute.kt`,
+  `auth/CompleteResetBody.kt`, `reset/ResetStore.kt`). (1) The `Authorization` header is read only
+  to refuse an agent token: a non-empty bearer text is looked up with `TokenStore.peek` (which
+  writes nothing and moves no expiry); a token of kind agent is 403 (the same body as `POST
+  /v1/sync`) before the body is read, a failed check is 503, and any other header, a session token
+  included, is ignored. (2) A body over 4096 bytes is 413. (3) The body is read by a strict reader:
+  exactly the six members, each once, `kdf_params` with exactly its three whole-number members,
+  every text member a JSON string, nothing after the object; any shape fault is 400. Only the shape
+  and the types are checked here. (4) A user name that is not valid, an unknown name, an account that
+  is not waiting for a reset, no live code (a code is dead AT its expiry instant), a malformed code
+  and a code whose SHA-256 does not match are all the one fixed 401 `unauthorized` "Invalid
+  username or reset code", with the same status and the same bytes. The lookup and the compare are
+  one function in `reset/ResetStore.kt`, and `MessageDigest.isEqual` runs on every path (filler
+  values stand in for a malformed code and for a missing row), so none of these cases is faster than
+  another. (5) Only after a right name and code: the salt must be 24 characters of standard padded
+  base64 that decode to 16 bytes, the KDF values inside the bounds, `kdf_version` 1, and the
+  verifier 44 characters of standard padded base64 that decode to 32 bytes; a fault is 400 and
+  nothing is written. (6) The new verifier is hashed before the transaction opens. (7) One
+  transaction: the lookup and compare again, the code row deleted by its account and hash (a count
+  other than 1 is the same 401, so of two completions with one code only one succeeds), the new
+  salt, KDF fields and verifier written with `reset_pending` set to 0 (only for an account that is
+  pending), the wrong-password row cleared, and a session made with the call the sign-in exchange
+  uses. A failure inside rolls the spend of the code back and answers 503. The answer is 200 with
+  the login body (keyless, `key_version` unchanged, `reset_at` set). There is no attempt counter,
+  because the code is 256 random bits: a wrong code leaves the wrong-password row alone, and a
+  locked name does not block a right code (the lock is cleared on success). Known limit: whoever
+  presents the code first chooses the password (ADR-018). The reset code and the request body are
+  never logged.
 - `POST /v1/auth/change-password` - BUILT. Bearer token identifies the account;
   body `{old_auth_verifier, new_salt, new_kdf_params, new_kdf_version,
   new_wrapped_dek, new_wrapped_box_privkey, new_box_pubkey, new_auth_verifier,
@@ -154,8 +181,11 @@ here (N13).
   `conflict`, in this order when more than one applies, when the account has no keys ("The account
   has no keys"), when `new_key_version` is not the current one + 1 ("key_version is not the
   account's current key_version plus one"), or while `prev_wrapped_dek` is held ("A previous re-key
-  is unfinished"). Planned, not built: it is also 409 when the account waits for a reset to be
-  completed ("The account is waiting for a reset to be completed"). A session token that is revoked
+  is unfinished"). It is 409 first, before all of these, when the account waits for a reset to be
+  completed ("The account is waiting for a reset to be completed"): the mark is read once more
+  inside this transaction, and also right after the session check and before the body is read
+  (`AccountStore.resetPendingOf`), so a bad or oversized body on a pending account is 409 and no
+  wrong try is counted. A session token that is revoked
   or expired before the transaction commits (for example by an admin reset running at the same
   time) gets the same 401, `unauthorized` "Invalid or missing user session token". Success writes
   every changed column in one statement as sent (the salt, the KDF values and version, the
@@ -233,24 +263,43 @@ here (N13).
 - Agent auth: `Authorization: Bearer <agent-token>` on `POST
   /v1/audio/transcriptions` + `GET /v1/jobs/{id}` — same FIFO queue, results to
   the owner's namespace. Rate-limited (T19).
-- `POST /v1/admin/reset-account` — **admin-only** (incl. admin-scoped agent
-  tokens, F31): deletes the account's wrapped DEK, box keypair, and verifier
-  hash; deletes its transcriptions outright (R20 — undecryptable once the
-  keys are gone) and any still-unfetched pending-sealed rows for it (they are
-  sealed to a box key that no longer exists); revokes all its tokens;
-  deletes any `prev_wrapped_dek`; keeps the account's `key_version` counter
-  (it never goes backwards, so the next bootstrap sets previous + 1 and a
-  stale pre-reset device's pushes are refused); records `reset_at = now()` on
-  the account; and returns a one-time reset
-  code (**≥128 random bits, single use, expires 24 hours after issue — no
-  attempt-limit claim, this repo ships no brute-force protection on any auth
-  endpoint**) for the admin to pass to the user out of band (ADR-018).
-  Whoever calls `POST /v1/auth/complete-reset` first with that code chooses
-  the new password on their own device — in the normal flow that is the
-  user, but this endpoint cannot itself tell that apart from the admin
-  completing it before handing the code over; that risk and its mitigation
-  (DEK/keypair rotation at the account's next password change) are ADR-018's
-  to state, not this module's to paper over. Logged as an event (F32).
+- `POST /v1/admin/reset-account` - BUILT. `{username}`, **admin-only**: an admin session token or
+  an admin-scoped agent token, the one exception to the rule that key-bearing routes refuse
+  agent tokens. The rules of this route, in order (`admin/AdminResetAccountRoute.kt`,
+  `reset/ResetStore.kt`). (1) The caller: no, malformed, unknown, revoked or expired token is 401, a
+  failed token check is 503. (2) Not an admin (a user session, or an agent token whose effective
+  scope is not admin) is 403 "Admin role required". (3) A body over 4096 bytes is 413. (4) The body
+  is exactly one member, `username`, a string (a null, a number, an extra or a repeated member is
+  400). (5) A name that is not valid, or that no account has (the lookup uses the lower-case form),
+  is 404 `not_found` "Account not found". (6) Then ONE transaction: the verifier hash is replaced
+  with 32 fresh `SecureRandom` bytes (so no password can match even if a branch is missed) and
+  `reset_pending` is set to 1; `wrapped_dek`, `wrapped_box_privkey`, `box_pubkey` and
+  `prev_wrapped_dek` are cleared; `reset_at` is set from the injected clock; `key_version` is kept
+  (it never goes backwards, so the next bootstrap sets previous + 1 and a stale pre-reset device's
+  pushes are refused); `change_seq` goes up by one and `purged_through` is set to that new value in
+  the same statement, so after a reset every earlier cursor of `GET /v1/transcriptions`, also one at
+  the old head, is 410 and the client does a full resync, while a first page after the reset and its
+  `next` are not; every token of the account (sessions and agent tokens) is revoked and its
+  unredeemed sign-in codes are deleted; its transcriptions are deleted outright (undecryptable once the
+  keys are gone), tombstones too; the wrong-password row is cleared; and any
+  older reset code is replaced by the new one. A failure anywhere rolls all of it back and answers
+  the fixed 503. The answer is 200 `{"reset_code": "..."}`. An admin may reset their own account;
+  that revokes the token they called with, so their next call needs a new sign-in. Pending-sealed
+  rows are planned, not built: that table does not exist yet, so the reset deletes nothing from it
+  (when it is built, the reset must delete the unfetched rows sealed to the box key that was
+  cleared).
+  The reset code: 32 random bytes from `SecureRandom`, shown as 43 URL-safe characters (base64url,
+  no padding, 256 bits), single use, 24 hours from the injected clock (dead AT the instant), kept
+  only as a SHA-256 hash in `reset_codes`. There is ONE live code per account (the table has one row
+  per account, and a new reset replaces the old row, so the old code stops working). The row is
+  deleted when the code is used, when it expires (`ResetStore.deleteExpired`, called by
+  `runHandoffSweep` in the same loop as the hand-off codes, every 60 seconds and at boot), and with
+  the account. There is no session cap in this module, so a reset does not touch one. The code
+  appears in the 200 answer only and in no log. Whoever calls `POST /v1/auth/complete-reset` first
+  with that code chooses the new password on their own device - in the normal flow that is the
+  user, but this endpoint cannot itself tell that apart from the admin completing it before handing
+  the code over; that risk and its mitigation (DEK/keypair rotation at the account's next password
+  change) are ADR-018's to state, not this module's to paper over.
 - `POST /v1/admin/clear-store` — **admin-only**: clear transcriptions per-user
   or for all users, with confirmation (F29, T23). Deleted rows reach phones through the change feed, as a flag on the row (decided, not built).
 - Retention: transcriptions TTL = **3 months** (ADR-010 precise rule); purge job enforces it (F28).
@@ -271,9 +320,9 @@ here (N13).
   session has expired signs in again and does a full resync, so it needs no old delete
   records. The routes and the transcriptions table are BUILT (the two route bullets above).
   The change number and the delete flag are BUILT in the store (migration 5: every insert and replace takes the next number of the account inside the write, and a push of a deleted row is a no-op); the DELETE route, the store delete and the resave mark are BUILT; the `since` parameter, the page object, the 400 and the 410 are BUILT; the purge and the write of the pulled number stay decided, not built.
-- Sign-in from the website: a start route, where the website creates a one-time code after the person signs in (single use, 5 minutes, a new kind in the token store), and an exchange route, where the app trades the code and its one-time secret for a session token and the sealed key package. The website page makes the sealed package, sealed to the app's public key; the server keeps it until the exchange, which hands it to the app and deletes it, never past the code's 5-minute expiry, and never opens it. The store layer under both routes is BUILT: migration 4 (the device name column and the sign-in code table), the code store, the 60-second sweep that deletes dead codes, and the rule that ending a person's sessions also deletes that person's codes. The two routes (`POST /v1/auth/handoff/start`, user session token only, and `POST /v1/auth/handoff/exchange`, no token) are BUILT; the website page and the app wiring are not.
-- Wrong-password limit, on the sign-in path (website and device): after 5 wrong passwords for an account, sign-in for that account waits 15 minutes. It is on by default and the admin can turn it off. The failure counting is BUILT (migration 6, the table signin_attempts, `accounts/SigninAttemptStore.kt`, called by `AccountStore.verify`) and the locked answer is BUILT: `verify` reads the lock first, for a known and an unknown name alike, before the account row and the hash, and the login route answers 423 with Retry-After in whole seconds (counted up to the next second, at least 1) and the body `Too many wrong tries. Try again in N minutes.`; a right password inside the wait is refused the same way and touches nothing; a counting write that fails (the lock read, the count, the clear) never changes the answer. The 5th wrong try itself still answers the plain 401. The admin switch is BUILT on the server (migration 7, the table server_settings, `settings/ServerSettingsStore.kt`, read by `AccountStore.verify` on every attempt, default on; off = no counting, no refusing, no lock read, and the stored attempts are kept; a failed read of the switch counts as on; only a stored integer 0 reads off, any other stored value, even a real number or text, reads on). The admin route that flips it is BUILT: `admin/AdminWrongPwLimitRoute.kt`, GET and PUT /v1/admin/wrong-pw-limit, admin only; a missing or unknown token answers 401, a caller that is not an admin answers 403, and both come before the body is read; the PUT body is exactly one member, enabled, the literal true or false, and anything else answers 400 bad_request with the contract text; the answer is 200 with the stored state read back; a database failure is not caught (the contract has no 503 on the admin routes). The drop at registration is BUILT: `AccountStore.register` deletes the row left for the folded name inside the same transaction as the insert, after a successful insert only (a refused registration drops nothing). The clear hook is BUILT: `AccountStore.clearAttempts` deletes the row of a name for the admin reset to call (a malformed name touches nothing, a database error is not swallowed, no token is touched, so a signed-in session is not affected). The password change clears the row inside its own transaction through `SigninAttemptStore.clearOn`, which runs the same delete on the caller's connection. The sweep is BUILT: `SigninAttemptStore.deleteStale` deletes expired locks and partial counts with no wrong try for more than 15 minutes, and `accounts/SigninAttemptSweep.kt` runs it at boot and then every 5 minutes inside the one sweep job that `SyncApiMain` starts with the application and stops before the database closes; a failed sweep is swallowed and never touches a sign-in, and the attempt-time rule still decides. The password change is BUILT (the route above). Not built, decided: the admin reset itself (it calls the hook when it is built). This changes the statement above that the repo ships no rate limiting on the auth endpoints, once it is built.
-- Key upload and the stored key columns are BUILT: migration 8 (`db/SchemaV8.kt`) adds six nullable columns to `accounts` by ADD COLUMN, with no rebuild of the table: `wrapped_dek`, `wrapped_box_privkey`, `box_pubkey`, `prev_wrapped_dek`, `rekeyed_at` and `reset_at`. NULL means keyless. CHECK constraints pin the lengths (`wrapped_dek` 60, `wrapped_box_privkey` 60, `box_pubkey` 32 and `prev_wrapped_dek` 60 bytes), and one more CHECK requires the three key columns to be all set or all NULL. `rekeyed_at` and `reset_at` are stored as epoch milliseconds. With it come the route `POST /v1/auth/keys` (above; `AccountStore.storeKeys` writes the three values and raises `key_version` by one in one transaction) and a change to login: login answers the stored values read by `AccountStore.keysFor` (the key fields as the canonical padded base64 of the stored bytes, `key_version` as the stored counter, `reset_at` and `rekeyed_at` as ISO-8601 UTC strings made from the stored epoch milliseconds, always with exactly three fractional digits by `formatInstantMs` in `transcriptions/SyncTimeFormat.kt`, so a whole second prints `.000`); a keyless account still gets the key fields null and `key_version` 0. The password change (`POST /v1/auth/change-password`, above) writes `prev_wrapped_dek` (as sent) and `rekeyed_at`, and the previous-key rule clears `prev_wrapped_dek` again; nothing writes `reset_at` yet. The admin reset, the reset codes, migration 9 and the reset-pending mark of an account are planned, not built.
+- Sign-in from the website: a start route, where the website creates a one-time code after the person signs in (single use, 5 minutes, a new kind in the token store), and an exchange route, where the app trades the code and its one-time secret for a session token and the sealed key package. The website page makes the sealed package, sealed to the app's public key; the server keeps it until the exchange, which hands it to the app and deletes it, never past the code's 5-minute expiry, and never opens it. The store layer under both routes is BUILT: migration 4 (the device name column and the sign-in code table), the code store, the 60-second sweep that deletes dead codes, and the rule that ending a person's sessions also deletes that person's codes. The two routes (`POST /v1/auth/handoff/start`, user session token only, and `POST /v1/auth/handoff/exchange`, no token) are BUILT; the website page and the app wiring are not. A hand-off code is never made for a pending account (the start answers as for a missing account), and a code found on a pending account at the exchange is spent and refused with the one answer.
+- Wrong-password limit, on the sign-in path (website and device): after 5 wrong passwords for an account, sign-in for that account waits 15 minutes. It is on by default and the admin can turn it off. The failure counting is BUILT (migration 6, the table signin_attempts, `accounts/SigninAttemptStore.kt`, called by `AccountStore.verify`) and the locked answer is BUILT: `verify` reads the lock first, for a known and an unknown name alike, before the account row and the hash, and the login route answers 423 with Retry-After in whole seconds (counted up to the next second, at least 1) and the body `Too many wrong tries. Try again in N minutes.`; a right password inside the wait is refused the same way and touches nothing; a counting write that fails (the lock read, the count, the clear) never changes the answer. The 5th wrong try itself still answers the plain 401. The admin switch is BUILT on the server (migration 7, the table server_settings, `settings/ServerSettingsStore.kt`, read by `AccountStore.verify` on every attempt, default on; off = no counting, no refusing, no lock read, and the stored attempts are kept; a failed read of the switch counts as on; only a stored integer 0 reads off, any other stored value, even a real number or text, reads on). The admin route that flips it is BUILT: `admin/AdminWrongPwLimitRoute.kt`, GET and PUT /v1/admin/wrong-pw-limit, admin only; a missing or unknown token answers 401, a caller that is not an admin answers 403, and both come before the body is read; the PUT body is exactly one member, enabled, the literal true or false, and anything else answers 400 bad_request with the contract text; the answer is 200 with the stored state read back; a database failure is not caught (the contract has no 503 on the admin routes). The drop at registration is BUILT: `AccountStore.register` deletes the row left for the folded name inside the same transaction as the insert, after a successful insert only (a refused registration drops nothing). The clear hook is BUILT: `AccountStore.clearAttempts` deletes the row of a name for the admin reset to call (a malformed name touches nothing, a database error is not swallowed, no token is touched, so a signed-in session is not affected). The password change clears the row inside its own transaction through `SigninAttemptStore.clearOn`, which runs the same delete on the caller's connection. The sweep is BUILT: `SigninAttemptStore.deleteStale` deletes expired locks and partial counts with no wrong try for more than 15 minutes, and `accounts/SigninAttemptSweep.kt` runs it at boot and then every 5 minutes inside the one sweep job that `SyncApiMain` starts with the application and stops before the database closes; a failed sweep is swallowed and never touches a sign-in, and the attempt-time rule still decides. The password change is BUILT (the route above). The admin reset is BUILT: it clears the row of the reset name inside its own transaction through `SigninAttemptStore.clearOn`, as the completion of a reset does. This changes the statement above that the repo ships no rate limiting on the auth endpoints, once it is built.
+- Key upload and the stored key columns are BUILT: migration 8 (`db/SchemaV8.kt`) adds six nullable columns to `accounts` by ADD COLUMN, with no rebuild of the table: `wrapped_dek`, `wrapped_box_privkey`, `box_pubkey`, `prev_wrapped_dek`, `rekeyed_at` and `reset_at`. NULL means keyless. CHECK constraints pin the lengths (`wrapped_dek` 60, `wrapped_box_privkey` 60, `box_pubkey` 32 and `prev_wrapped_dek` 60 bytes), and one more CHECK requires the three key columns to be all set or all NULL. `rekeyed_at` and `reset_at` are stored as epoch milliseconds. With it come the route `POST /v1/auth/keys` (above; `AccountStore.storeKeys` writes the three values and raises `key_version` by one in one transaction) and a change to login: login answers the stored values read by `AccountStore.keysFor` (the key fields as the canonical padded base64 of the stored bytes, `key_version` as the stored counter, `reset_at` and `rekeyed_at` as ISO-8601 UTC strings made from the stored epoch milliseconds, always with exactly three fractional digits by `formatInstantMs` in `transcriptions/SyncTimeFormat.kt`, so a whole second prints `.000`); a keyless account still gets the key fields null and `key_version` 0. The password change (`POST /v1/auth/change-password`, above) writes `prev_wrapped_dek` (as sent) and `rekeyed_at`, and the previous-key rule clears `prev_wrapped_dek` again; `reset_at` is written by the admin reset. Migration 9 (`db/SchemaV9.kt`) is BUILT: it adds `accounts.reset_pending` (INTEGER NOT NULL DEFAULT 0, CHECK in 0 or 1) by ADD COLUMN, with no rebuild of the table (other tables hold foreign keys to accounts that would cascade), and the table `reset_codes` (one row per account: `account_id` primary key referencing accounts with ON DELETE CASCADE, `code_hash` a blob of exactly 32 bytes, `issued_at_ms`, `expires_at_ms` above it) with an index on `expires_at_ms`. The database `user_version` is 9. The admin reset, the reset codes and the reset-pending mark of an account are BUILT (the two routes above).
 - An admin route to end a session at once, built over the existing token-store functions (ADR-036).
 - A device list for an account, decided and not built: one row per session, with a nullable device name that the app gives at sign-in and the person may rename, and a last-seen date derived from the session's sliding expiry. There is no devices table. Sign-out for each device, and "sign out all my devices" from the website.
 
@@ -329,7 +378,7 @@ not an offline-guessing case at all: it logs the holder in immediately and
 lets them call `change-password`, though `change-password` now also requires
 `old_auth_verifier` in the body, so a token alone (without the raw verifier)
 is not enough to rotate keys. An admin/agent-scoped reset destroys the
-account's old transcriptions and pending-sealed rows outright rather than
+account's old transcriptions outright (and, once that store exists, its pending-sealed rows) rather than
 pretending to recover them, and bounds — rather than eliminates — whoever
 completes it by rotating the DEK at the account's next password change
 (R20, ADR-018).
@@ -345,12 +394,16 @@ completes it by rotating the DEK at the account's next password change
 - `POST /v1/auth/keys` rejects a second call once an account has keys — a
   keyless account can only get keys once per reset (ADR-006, ADR-018).
 - A reset leaves an account fully keyless and token-less until
-  `/v1/auth/complete-reset` runs; login fails cleanly in between, never
-  partially.
-- A reset also clears the account's pending-sealed rows, so
-  `GET /v1/sync/pending-sealed` never returns a row sealed to a box key the
-  reset just deleted; an ordinary re-key (`change-password`) clears the same
-  way for whatever `box_pubkey` it just replaced.
+  `/v1/auth/complete-reset` runs; login fails cleanly in between (the 401 of a wrong
+  verifier, not counted), never partially, and `keys` and `change-password` answer 409.
+- After a reset every earlier feed cursor, also one at the old head, is 410; the next push of the
+  account takes a change number above `purged_through`.
+- Planned, not built (the pending-sealed table does not exist yet): a reset also clears the
+  account's pending-sealed rows, so `GET /v1/sync/pending-sealed` never returns a row sealed to a
+  box key the reset just deleted; an ordinary re-key (`change-password`) clears the same way for
+  whatever `box_pubkey` it just replaced.
+- An account has at most one live reset code; the code is stored only as a SHA-256 hash, is single
+  use, and is dead at its expiry instant (24 hours after it was made).
 - `register`, `change-password` and `complete-reset` never accept
   `kdf_params` below the ADR-006 floor or above its ceiling, or a
   `kdf_version` other than 1 (test: submit a weaker set, a heavier one and
@@ -488,6 +541,7 @@ AuthApi, SyncApi, AdminApi
 - Wrong-password counting and the locked answer (BUILT): under `db/`, `SchemaV6MigrationTest.kt` (a fresh database ends at the latest version with the signin_attempts table and refuses a negative count, a negative lock, a negative last attempt and a name that is upper case, empty or 65 characters long; an upgrade from version 5 keeps every row and adds an empty table). Under `accounts/`, `SigninAttemptStoreTest.kt` (the count, the lock at the fifth wrong try, a try inside a lock, an expired lock, the 15-minute expiry of a partial count and its exact edge, the row cap with its eviction order, and the counting through verify) `SigninAttemptStoreLockTest.kt` (the lock read, and the seconds left rounded up, at least 1), `AccountStoreLockedTest.kt` (the 6th try is Locked, a right password inside the wait is Locked and touches nothing, a locked unknown name gets the same answer, the count and the clear fail open when the table is gone), `AuthLoginRouteLockedTest.kt` (423 with the header and the body, equal for a known and an unknown name, 200 after the wait, 899 seconds say 15 minutes) and `AccountStoreCountingTest.kt` (an unknown name and a wrong verifier count, a right password clears the row, a malformed name touches no row). The switch (BUILT): `db/SchemaV7MigrationTest.kt` (a fresh database ends at the latest version with an empty server_settings table and refuses an empty key and a 65-character key; an upgrade from version 6 keeps every row), `settings/ServerSettingsStoreTest.kt` (an absent row reads on, only a stored integer 0 reads off, a wide value, a real number, text and empty text read on, the read is live) and `accounts/AccountStoreSwitchTest.kt` (off: no counting, no lock read, a locked name is let in at once and its row is kept; back on: locked again; a failed read of the switch counts as on). The switch route (BUILT): under `admin/`, `AdminWrongPwLimitRouteTest.kt` (401 without a token, with a bad header or with an unknown token, 403 for a plain user and for a non-admin agent token, GET answers the stored state, PUT false and true are read back, the content type is JSON), `AdminWrongPwLimitBodyTest.kt` (every bad body answers 400 with the exact Error body and leaves the switch alone, whitespace is accepted, a repeated member and trailing text are refused) and `AdminWrongPwLimitFlowTest.kt` (through the whole application: the route is wired, five wrong tries lock, turning the limit off lets the name in and keeps its row, turning it on locks it again, with the limit off no row is written). The drop, the hook and the sweep (BUILT): under `accounts/`, `AccountStoreRegisterDropTest.kt` (a locked or partly counted name is clean after its registration and signs in at once, capital letters fold, a taken name and every refused registration keep the row, other names are untouched), `AccountStoreClearAttemptsTest.kt` (a locked account signs in at once after the clear, the name is folded, a malformed name and a name without a row touch nothing, a session issued before the clear still resolves), `SigninAttemptStoreSweepTest.kt` (deleteStale at the edges: exactly 15 minutes kept and one millisecond more deleted, a lock ending exactly now deleted and one millisecond later kept, a live lock kept, the count returned) and `SigninAttemptSweepTest.kt` (a pass at once, a pass after every pause, a failed pass swallowed, a cancellation ends the loop, the interval is five minutes).
 - Key upload and stored keys (BUILT): under `db/`, `SchemaV8MigrationTest.kt` (a fresh database ends at version 8 with the six key columns, all NULL and key_version 0 on a new account; an upgrade from version 7 keeps the account and a token row and gives NULL key columns; each length check refuses one byte less, one byte more and an empty blob and accepts the exact size; a text value of the right length is refused; the three key columns refuse each partial combination and accept all set and all NULL; rekeyed_at and reset_at refuse minus 1). Under `accounts/`, `AccountStoreKeysTest.kt` (storeKeys returns the new key_version and writes the bytes, a second call is AlreadyKeyed and changes nothing, an unknown id is NoSuchAccount, a preset key_version is raised by one, a second account is untouched, a forced failure with a test-only trigger leaves everything as it was and the call works after the trigger is dropped; keysFor for a keyless, a keyed and an unknown account, with copies of the bytes; KeyBundle refuses a wrong size and prints no value). Under `auth/`, `AuthKeysRouteTestBase.kt` (test-only helper: the byte patterns, the request and the column reader), `AuthKeysRouteTest.kt` (200 with the exact body and the stored bytes; a second call 409 with the exact body; an agent token 403 with the body of POST /v1/sync, also for a malformed or an oversized body; 401 for no token, an unknown, a revoked or a malformed header; a preset key_version raised by one; a second account untouched; JSON content type), `AuthKeysRouteBodyTest.kt` (400 for a wrong decoded length of each member, text that is not base64, url-safe characters, whitespace, a wrong padding, malformed JSON, a missing, extra, duplicate or non-string member; 413 over 4096 bytes and 200 at exactly 4096, declared and chunked; 400 or 413 before 409 for a keyed account), `AuthKeysRouteSafetyTest.kt` (503 with the fixed body on a forced store failure and 200 after the trigger is dropped; no output or answer holds a key; a source scan of the route and the key types, proven on a dirty text) and `AuthLoginRouteKeysTest.kt` (login answers the stored values as standard padded base64, key_version and the instants; a keyless account answers the nulls and 0; two accounts get their own keys; a wrong verifier gets 401 without key text; the nine member names in the documented order). The tests that pin the latest schema version now expect 8: `MigrationsTest.kt`, `SchemaV2MigrationTest.kt`, `SchemaV2Test.kt` and `SchemaV3MigrationTest.kt` to `SchemaV7MigrationTest.kt` (the digit 7 became 8 on 14 lines in 8 files, and two test names were reworded: the test about a fresh file database in `SchemaV2Test.kt` and the first test in `SchemaV7MigrationTest.kt`).
 - Password change and the previous-key rule (BUILT): under `accounts/`, `PrevKeyRuleTest.kt` (the rule clears `prev_wrapped_dek` when the account has no stored rows; keeps it while a not-deleted row below the `key_version` remains; clears it after a push that replaces the last old row and after a delete of it; keeps it when one of two old rows is replaced; a deleted old row does not hold it; a keyless account and a second account are untouched). Under `passwordchange/`, `PasswordChangeStoreTestBase.kt` (test-only helper), `PasswordChangeStoreTest.kt` (a change writes every column as sent with `rekeyed_at`; other sessions are revoked while this one and the agent token stay; the account's hand-off codes are deleted and a second account keeps its code; the wrong-password row is cleared; the old verifier stops verifying and the new one verifies), `PasswordChangeStoreRefusalTest.kt` (a revoked, expired, foreign or agent session, or a missing account, is not live; no keys; a wrong `key_version`; a held `prev_wrapped_dek`; the order when two causes apply; nothing is written), `PasswordChangeStoreAtomicTest.kt` (a forced error after the account update and one at the last write leave every table as it was; two changes with one `key_version` leave one request in the columns) and `PasswordChangeRequestTest.kt` (each wrong size is refused with a message that names the field and holds no value; the copies; the fixed printed text). Under `tokens/`, `TokenStoreSessionLiveTest.kt` (the live-session check is true for a live session and false for a revoked, expired, agent or foreign one, and does not move the expiry). Under `transcriptions/`, `SyncTimeFormatInstantTest.kt` (a whole second prints `.000`, milliseconds print three digits, a small remainder is padded, a negative value is refused, `formatStoredAt` is unchanged). Under `auth/`, `AuthChangePasswordRouteTestBase.kt` (test-only helper), `AuthChangePasswordRouteTest.kt` (200 with the exact body and every column; the old verifier no longer logs in and the new one does; sessions, agent token and hand-off codes; the wrong-password row; the body cap, declared and chunked), `AuthChangePasswordRouteBodyTest.kt` (400 for each byte member wrong by one byte with a valid text length, url-safe or unpadded text, KDF values outside the bounds, and each fault of the strict reader), `AuthChangePasswordRouteAuthTest.kt` (403 for an agent token before the body is read; 401 for no, unknown, revoked or expired tokens; 401 "Invalid old verifier" counted; the sixth request locked with 423 even with the right verifier; the 409 causes and their order), `AuthChangePasswordRouteSafetyTest.kt` (503 with the fixed body when the transaction fails, with the old keys, verifier and tokens kept; no output or answer holds a key or a verifier; a source scan of the new files, proven on a dirty text), `AuthKeysRouteExpiryTest.kt` (an expired session gets 401 on `POST /v1/auth/keys`) and `AuthLoginRouteFailureTest.kt` (a forced failure in verify, in keysFor and in issueSession each gets the exact 503 body and no token row, and login works again after the fault is removed; whole-second and millisecond instants print three digits). One existing line changed in `AuthLoginRouteKeysTest.kt` (line 116): the expected `rekeyed_at` text is now `2023-11-14T22:13:20.000Z`, so a whole second prints `.000`.
+- Admin reset and reset completion (BUILT): under `db/`, `SchemaV9MigrationTest.kt` (a fresh database ends at user_version 9 with `reset_pending`, `reset_codes` and its index; an upgrade from version 8 keeps the account and gives `reset_pending` 0; the CHECK constraints on the mark, the hash length and type, and the times; one code row per account; the row goes with the account). Under `reset/`, `ResetStoreTestBase.kt` (test-only helper), `ResetStoreResetTest.kt` (every effect of a reset, `key_version` kept, `change_seq` plus one with `purged_through` equal to it, the hand-off codes deleted, a second reset replaces the code, the admin's own tokens die, two accounts, capital letters in the name), `ResetStoreAtomicTest.kt` (a forced error on the code insert or on the clear of the wrong-password row leaves every table as it was), `ResetStoreCompleteTest.kt` (the effects of a completion, pending only, a used code, the exact expiry instant, a locked name, the filler path, two coroutines on one code give one winner), `ResetSweepTest.kt` (`deleteExpired` at its edges and `runHandoffSweep` with a reset store) and `ResetFeedRuleTest.kt` (after a reset the cursor at the old head and the cursor 0 are 410, a first page and its `next` are not, the next push is above the floor). Under `tokens/`, `TokenStoreRevokeAllOnTest.kt`; under `transcriptions/`, `TranscriptionPurgeTest.kt`; under `accounts/`, `AccountStorePendingTest.kt` (verify on a pending account is Rejected, counts nothing and runs no hash, in both limit settings; `resetPendingOf`; `storeKeys` answers `ResetPending`); under `passwordchange/`, `PasswordChangeStorePendingTest.kt` (the pending refusal comes before the no-keys one). Under `admin/`, `AdminResetAccountRouteTest.kt` and `AdminResetAccountRouteBodyTest.kt` (401, 403 for a user session and a transcribe agent, 200 for an admin session and an admin agent token, 404, 413, 400 shapes, self-reset). Under `auth/`, `ResetRouteTestBase.kt` (test-only helper), `AuthCompleteResetRouteTest.kt`, `AuthCompleteResetRouteBodyTest.kt`, `AuthCompleteResetRouteIdentityTest.kt` (every failed lookup gives the same status and bytes; an agent token is 403 before the body; a session header is ignored and its expiry does not move), `AuthCompleteResetRouteSafetyTest.kt` (two completions at once, 503 on a closed database, no log line holds the code), `AuthLoginPendingTest.kt`, `AuthKeysPendingTest.kt` and `AuthChangePasswordPendingTest.kt` (409 before the body and before the old verifier is checked).
 - Contract: `tests/contract/test_sync_api_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_sync_api_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
