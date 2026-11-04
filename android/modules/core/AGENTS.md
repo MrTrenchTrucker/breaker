@@ -50,6 +50,10 @@ modules implement, and the use cases that run a dictation.
   `DerivedKeys`; the crypto module implements it and holds the parameter limits
   (core carries the values and judges nothing). `CryptoService` takes the key-encryption
   key from this call and never sees the password.
+- `SignInStarter` - `begin(): SignInAttempt` makes the one-time secret text and key pair in memory; the crypto module implements it, as SignInStarterImpl.
+- `HandoffReceiver` - `onHandoff(code, attempt): HandoffReceipt` gets the return code and the attempt exactly once; the receiver owns the wipe of the attempt from that call on, and the holder wipes it only when the receiver throws.
+- HandoffReceipt - the enum with the two receipts, TAKEN and NOT_FINISHED.
+- DefaultHandoffReceiver - the object to use until a real receiver exists: it wipes the attempt, returns NOT_FINISHED and touches nothing else.
 - `SyncService` — `pushPending()`, `enqueue(Transcription)`
 - `UpdateChecker` — `check(force)`, `install(release)`, `rollback()`
 - `Clock` — `nowEpochMillis()`, and `IdSource` — `newId()`, so the domain never reads
@@ -101,6 +105,10 @@ modules implement, and the use cases that run a dictation.
   list it is built from and is built through its companion `invoke`; an empty list
   is a valid hypothesis. Both are data classes; their `toString` prints counts,
   `final` and times, never the text.
+- `SignInAttempt` - the one-time sign-in pair, held in memory only: the secret text as bytes (copied out only), the challenge, the public key (copied out only) and the X25519 private key. `wipe()` zeroes what it holds, and `toString` prints no value. A Kotlin String cannot be wiped, so the secret never leaves this type as a String; nothing persists it (no Keystore, no file, no settings, no log). The exchange request, built later, is to make its String at the moment of the call and nowhere else.
+- `SignInLinkResult` - the outcome of building the sign-in link: a link or a refusal. Both are plain classes, not data classes, and their `toString` prints no challenge and no key.
+- `SignInLinkRefusal` - the reasons a server address is refused. Brackets are refused on purpose, so an IPv6 literal address is refused.
+- `HandoffReturn` - the parsed return link: a code (a plain class whose `toString` prints no code) or Ignored. Only the exact handoff shape with a 43-character code is a code; anything else is ignored.
 - `AuthSession`, `UserRole`, `TokenScope`
 - `SyncState`, `SyncReport`
 - `ReleaseInfo`, `UpdateCheckResult`
@@ -131,6 +139,8 @@ modules implement, and the use cases that run a dictation.
   contained the same way: send() never throws after the commit; the outcome is the
   committer's, the detail says the dictation was not saved to history, and the
   session follows the commit.
+- `SignInHolder` - keeps one sign-in attempt in memory at a time: `begin()` wipes and drops any older attempt, then starts a new one; `abandon()` wipes the attempt; `hasAttempt()` says whether one is held; `receive(link, receiver)` reads a return link and returns a `HandoffOutcome`. The holder never stores, logs or persists the attempt, and keeps no reference after a hand-over.
+- `HandoffOutcome` - the result of a return link: Ignored (nothing is touched), NoAttempt (the receiver is not called) or Handed, with the receipt.
 - `LocalModeEgress` — the pure rule that keeps a phone transcript away from cloud
   formatting, used by `DictateUseCase`.
 
