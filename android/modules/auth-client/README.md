@@ -4,4 +4,5 @@ Handles registering and logging in, and is to keep the user's token safe in the 
 
 Planned, not built (ADR-035, ADR-036): signing in on the Breaker website hands the login to the app. The app makes a one-time secret and a key pair for that sign-in, opens the sealed key package it receives, and signs out this device only.
 
+logout has no body to map and no code is written for it.
 Full module card, including how to run its tests: `AGENTS.md` in this folder.
