@@ -159,7 +159,7 @@ There is no synchronous 200-with-body variant — every transcription is a job.
   non-admin token. The wire unit is KiB everywhere (memory_kib 65536-262144).
   Login also answers **503** `unavailable` (the fixed body, never a 500) for a storage failure in
   the credential check, the key read or the session issue.
-  Contract only, not yet built on the server: login also answers **423** (locked after five wrong
+  Built on the server: login also answers **423** (locked after five wrong
   passwords, with Retry-After in whole seconds), and `GET` and `PUT /v1/admin/wrong-pw-limit` read and set the switch.
 - **sync** — **user session token only on every endpoint in this group, an
   agent token is refused.** `POST /v1/sync` (idempotent push, dedupe on the
@@ -203,11 +203,13 @@ There is no synchronous 200-with-body variant — every transcription is a job.
   until then it sits in `whisper-server`'s SQLite store in plaintext, the
   same store the still-queued audio uses (ADR-010).
 - **updates** — `GET /v1/updates/latest.json`
+  Planned, not built: no updates path is in `openapi.yaml` yet and the server does not serve it.
 - **admin** — roles, health, transcription-service, test-service,
   agent-tokens, **reset-account** (F31, ADR-018 — replaces the earlier
   "reset-password" naming, which implied the admin sets a password; it
   cannot), **clear-store** (F29)
 - **training** — `POST /v1/training/samples`, `GET /v1/training/model` (+ checksum)
+  Planned, not built: no training path is in `openapi.yaml` yet and no module serves it.
 
 **Auth:** `Authorization: Bearer <apiKey | userToken | agentToken>`.
 
@@ -259,7 +261,7 @@ OpenAPI spec (openapi.yaml); Kotlin request and response types
 - Sign-in hand-off: the stdlib test `tests/unit/shared/api-contracts/test_signin_handoff_contract.py`
   pins the two hand-off paths, their statuses, the field sets and patterns of the four hand-off schemas,
   the one refusal of the exchange, and the matching Kotlin types.
-- Wrong-password limit (contract only, not yet built on the server): the stdlib test `tests/unit/shared/api-contracts/test_wrongpw_contract.py`
+- Wrong-password limit (built on the server): the stdlib test `tests/unit/shared/api-contracts/test_wrongpw_contract.py`
   pins the 423 locked answer of login with its Retry-After header (whole seconds, minimum 1), the
   `GET` and `PUT /v1/admin/wrong-pw-limit` path with its statuses and operation ids, and the
   `WrongPwLimit` schema with its matching Kotlin type.
