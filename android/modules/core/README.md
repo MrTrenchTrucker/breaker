@@ -21,6 +21,14 @@ Two rules shape the module. It has no Android imports and no I/O, so it runs und
 plain JUnit. And a dictation that runs on the phone never falls through to a server
 or a cloud formatter.
 
+The sign-in start is the core half of signing in from the website. It keeps one sign-in
+attempt in memory at a time: a secret text, its challenge and an X25519 key pair. It builds
+the sign-in link, reads the return link, and passes a valid return code to a receiver with
+the attempt. The attempt lives in memory only (no Keystore, no file, no settings, no log), and
+core stores, logs and sends none of it. A Kotlin String cannot be wiped, so the secret is kept
+as bytes and read only through a copy; the exchange request, built later, is to make its String
+at the moment of the call and nowhere else.
+
 Run the tests with `./gradlew :android:modules:core:test`.
 
 Full module card: `AGENTS.md` in this folder.

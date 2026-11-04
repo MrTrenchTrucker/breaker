@@ -9,7 +9,7 @@ transcriptions with AES-256-GCM, generates the owner's X25519 box keypair,
 and unseals agent-token results sealed to it — all locally. Nothing here ever
 sends the password, the KEK, or a plaintext DEK off the device.
 
-**Build phase:** Phase 11 builds key derivation (`deriveKeys`). BUILT in the sign-in slice: unwrapping the data key with a key-encryption key, AES-256-GCM encrypt and decrypt with associated data, nonces from a secure random source, and opening a sign-in package (a sealed box) with the one-time private key. Decided, not built (Phase 19): generating the data key and the box keypair, wrapping a new data key, wrapping the box private key, unwrapping the box private key from its own wrapped form, unsealing results sealed to the account (`unsealAndReencrypt`), and the Android Keystore store. Needs first: `core` (on main).
+**Build phase:** Phase 11 builds key derivation (`deriveKeys`). BUILT for the sign-in work: unwrapping the data key with a key-encryption key, AES-256-GCM encrypt and decrypt with associated data, nonces from a secure random source, and opening a sign-in package (a sealed box) with the one-time private key, and making the one-time sign-in secret and key pair in memory (SignInStarterImpl). Decided, not built (Phase 19): generating the data key and the box keypair, wrapping a new data key, wrapping the box private key, unwrapping the box private key from its own wrapped form, unsealing results sealed to the account (`unsealAndReencrypt`), and the Android Keystore store. Needs first: `core` (on main).
 
 ## Owns
 Client-side key derivation (Argon2id + HKDF), DEK generation/wrap/unwrap,
@@ -114,6 +114,7 @@ unsealing.
   A sealed box uses a random ephemeral key, so the website page cannot reproduce those
   bytes; its own test is to OPEN that box with the secret key and get the 65 bytes, and
   to do its own seal-then-open round trip.
+- `SignInStarterImpl` - the `SignInStarter` port of core. `begin()` takes 32 random bytes for the secret text and 32 more for the X25519 private key, in that order, from one secure random source (the source is a constructor parameter, so tests can feed known bytes). The secret text is the base64url of the first 32 bytes without padding: 43 characters, canonical. The challenge is the base64url of the SHA-256 of the text's ASCII bytes, not of the decoded bytes. The public key is the X25519 public key of the private key. A Kotlin String cannot be wiped: the secret text exists as a String only while it is built, and the exchange request is to make its String at the moment of the call and nowhere else. The attempt lives in memory only: no Keystore, no file, no settings, no log.
 - `generateBoxKeypair() -> {boxPubkey, boxPrivkey}` /
   `wrapBoxPrivkey(boxPrivkey, dek) -> WrappedBoxPrivkey` /
   `unwrapBoxPrivkey(wrapped, dek) -> boxPrivkey` (decided, not built: this module does
