@@ -8,7 +8,7 @@ import org.junit.Test
 
 /**
  * The app manifest declares six permissions, the two icons, the launcher activity with its
- * no-title-bar theme and the one microphone service, and nothing else.
+ * no-title-bar theme, the one return activity of the sign-in and the one microphone service, and nothing else.
  *
  * Adding a permission, a receiver, a provider, a second service, an export, an
  * intent filter on the service, a clear-text setting that differs from the allow-list
@@ -57,6 +57,19 @@ internal class ManifestGateTest {
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".host.HandoffReturnActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.NoDisplay"
+            android:excludeFromRecents="true"
+            android:noHistory="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="breaker" android:host="handoff" />
+            </intent-filter>
+        </activity>
         <service
             android:name=".service.DictationForegroundService"
             android:exported="false"
@@ -102,6 +115,17 @@ internal class ManifestGateTest {
                     ),
                 ),
                 XmlExpect(
+                    name = "activity",
+                    attributes = mapOf("android:name" to ".host.HandoffReturnActivity", "android:exported" to "true",
+                        "android:theme" to "@android:style/Theme.NoDisplay", "android:excludeFromRecents" to "true", "android:noHistory" to "true"),
+                    children = listOf(XmlExpect("intent-filter", emptyMap(), listOf(
+                        XmlExpect("action", mapOf("android:name" to "android.intent.action.VIEW"), key = "android:name"),
+                        XmlExpect("category", mapOf("android:name" to "android.intent.category.DEFAULT"), key = "android:name"),
+                        XmlExpect("category", mapOf("android:name" to "android.intent.category.BROWSABLE"), key = "android:name"),
+                        XmlExpect("data", mapOf("android:scheme" to "breaker", "android:host" to "handoff")),
+                    ))),
+                ),
+                XmlExpect(
                     name = "service",
                     attributes = mapOf(
                         "android:name" to ".service.DictationForegroundService",
@@ -131,7 +155,6 @@ internal class ManifestGateTest {
             )
         }
     }
-
     private val more: List<XmlSample> = listOf(
         XmlSample("a second system alert window permission", "<application", "<uses-permission android:name=\"android.permission.SYSTEM_ALERT_WINDOW\" />\n    <application", "holds the element <uses-permission>"),
         XmlSample("a camera permission", "<application", "<uses-permission android:name=\"android.permission.CAMERA\" />\n    <application", "holds the element <uses-permission>", "android.permission.CAMERA"),
@@ -144,7 +167,7 @@ internal class ManifestGateTest {
         XmlSample("a receiver", "</application>", "<receiver android:name=\".R\" android:exported=\"true\" />\n    </application>", "holds the element <receiver>"),
         XmlSample("a provider", "</application>", "<provider android:name=\".P\" android:authorities=\"x\" />\n    </application>", "holds the element <provider>"),
         XmlSample("a second service", "</application>", "<service android:name=\".Other\" />\n    </application>", "holds the element <service>"),
-        XmlSample("a second activity", "</application>", "<activity android:name=\".Other\" />\n    </application>", "holds the element <activity>"),
+        XmlSample("a second copy of the return activity", "</application>", "<activity android:name=\".host.HandoffReturnActivity\" />\n    </application>", "holds the element <activity>"),
         XmlSample("an activity alias", "</application>", "<activity-alias android:name=\".A\" android:targetActivity=\".B\" />\n    </application>", "holds the element <activity-alias>"),
         XmlSample("a meta-data element in the application", "</application>", "<meta-data android:name=\"a\" android:value=\"b\" />\n    </application>", "holds the element <meta-data>"),
         XmlSample("a meta-data element in the service", "android:foregroundServiceType=\"microphone\" />", "android:foregroundServiceType=\"microphone\"><meta-data android:name=\"a\" android:value=\"b\" /></service>", "holds the element <meta-data>"),
@@ -157,8 +180,8 @@ internal class ManifestGateTest {
         XmlSample("an icon attribute pointing at the wrong mipmap", "android:icon=\"@mipmap/ic_launcher\"", "android:icon=\"@mipmap/x\"", "attribute android:icon is"),
         XmlSample("a package attribute on the manifest", "<manifest ", "<manifest package=\"x.y\" ", "has the attribute package"),
         XmlSample("a second namespace declaration", "<manifest ", "<manifest xmlns:tools=\"http://schemas.android.com/tools\" ", "has the attribute xmlns:tools"),
-        XmlSample("an attribute on the launcher activity", "android:exported=\"true\"", "android:exported=\"true\" android:permission=\"x\"", "has the attribute android:permission"),
-        XmlSample("a second filter on the launcher activity", "</activity>", "<intent-filter><action android:name=\"android.intent.action.VIEW\" /></intent-filter>\n        </activity>", "holds the element <intent-filter>"),
+        XmlSample("an attribute on the launcher activity", "android:exported=\"true\"\n            android:theme=\"@android:style/Theme.Material.Light.NoActionBar\"", "android:exported=\"true\" android:permission=\"x\"\n            android:theme=\"@android:style/Theme.Material.Light.NoActionBar\"", "has the attribute android:permission"),
+        XmlSample("a second filter on the launcher activity", "            </intent-filter>\n        </activity>\n        <activity", "            </intent-filter>\n            <intent-filter><action android:name=\"android.intent.action.VIEW\" /></intent-filter>\n        </activity>\n        <activity", "holds the element <intent-filter>"),
         XmlSample("a second category in the launcher filter", "<category android:name=\"android.intent.category.LAUNCHER\" />", "<category android:name=\"android.intent.category.LAUNCHER\" />\n                <category android:name=\"android.intent.category.DEFAULT\" />", "holds the element <category>"),
         XmlSample("character data in the application", "android:roundIcon=\"@mipmap/ic_launcher_round\">", "android:roundIcon=\"@mipmap/ic_launcher_round\">text", "holds character data"),
         XmlSample("an unknown attribute on the application", "android:name=\".BreakerApp\"", "android:name=\".BreakerApp\"\n        android:vendorExtra=\"1\"", "has the attribute android:vendorExtra"),
@@ -179,7 +202,7 @@ internal class ManifestGateTest {
         XmlSample("no network config", "\n        android:networkSecurityConfig=\"@xml/network_security_config\"", "", "lacks the attribute android:networkSecurityConfig"),
         XmlSample("another network config", "@xml/network_security_config", "@xml/other_config", "attribute android:networkSecurityConfig is \"@xml/other_config\""),
         XmlSample("another application class", "android:name=\".BreakerApp\"", "android:name=\".Other\"", "attribute android:name is \".Other\""),
-        XmlSample("the launcher activity not exported", "android:exported=\"true\"", "android:exported=\"false\"", "attribute android:exported is \"false\""),
+        XmlSample("the launcher activity not exported", "android:exported=\"true\"\n            android:theme=\"@android:style/Theme.Material.Light.NoActionBar\"", "android:exported=\"false\"\n            android:theme=\"@android:style/Theme.Material.Light.NoActionBar\"", "attribute android:exported is \"false\""),
         XmlSample("another launcher activity", ".SettingsLauncherActivity", ".Other", "attribute android:name is \".Other\""),
         XmlSample("no launcher category", "\n                <category android:name=\"android.intent.category.LAUNCHER\" />", "", "lacks the element <category>"),
         XmlSample("no record audio permission", "    <uses-permission android:name=\"android.permission.RECORD_AUDIO\" />\n", "", "lacks the element <uses-permission>", "android.permission.RECORD_AUDIO"),
@@ -209,7 +232,7 @@ internal class ManifestGateTest {
     )
 
     @Test
-    fun `the real manifest declares exactly the six permissions, the launcher activity and the one service`() {
+    fun `the real manifest declares exactly the six permissions and the launcher activity and the return activity and the one service`() {
         val text: String = AppSourceFiles.mainFile("AndroidManifest.xml")
         assertTrue("app: src/main/AndroidManifest.xml is empty", text.isNotBlank())
         val declared: List<String> = XmlTree.parse(text).children
@@ -246,7 +269,6 @@ internal class ManifestGateTest {
         assertRejected("no application", "<manifest $ns></manifest>", listOf("lacks the element <application>"))
         assertRejected("another root element", "<resources />", listOf("is <resources>, expected <manifest>"))
     }
-
     @Test
     fun `text that is not safe or not well formed XML is refused, not passed`() {
         val broken: List<String> = listOf(

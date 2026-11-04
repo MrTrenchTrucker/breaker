@@ -6,7 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The settings column holds one child, the settings view, and the activity builds no
+ * The settings column holds two children, the settings view and the sign-in start view, and the activity builds no
  * stock text view or button.
  *
  * The column is the one container the settings page is put in. Each rule is a count
@@ -27,8 +27,9 @@ internal class SettingsColumnSingleChildTest {
     private class Sample(val rule: String, val old: String, val new: String)
 
     private val rules: List<Rule> = listOf(
-        Rule("COLUMN_ADDS_ONE_CHILD", """(?:\bcolumn|settingsColumn)\s*\.\s*addView\s*\(""", 1),
+        Rule("COLUMN_ADDS_ONE_CHILD", """(?:\bcolumn|settingsColumn)\s*\.\s*addView\s*\(""", 2),
         Rule("THE_ONE_CHILD_IS_THE_SETTINGS_VIEW", """(?:\bcolumn|settingsColumn)\s*\.\s*addView\s*\(\s*settingsView\s*,""", 1),
+        Rule("THE_SECOND_CHILD_IS_THE_SIGN_IN_START_VIEW", """(?:\bcolumn|settingsColumn)\s*\.\s*addView\s*\(\s*signInView\s*,""", 1),
         Rule("NO_STOCK_TEXT_OR_BUTTON_IN_THE_ACTIVITY", """\b(?:TextView|Button)\s*\(""", 0),
     )
 
@@ -37,6 +38,8 @@ internal class SettingsColumnSingleChildTest {
         Sample("COLUMN_ADDS_ONE_CHILD", "settingsColumn = column", "settingsColumn = column\n        settingsColumn.addView(spare)"),
         Sample("THE_ONE_CHILD_IS_THE_SETTINGS_VIEW", "column.addView(settingsView, ", "column.addView(spare, "),
         Sample("THE_ONE_CHILD_IS_THE_SETTINGS_VIEW", "column.orientation = LinearLayout.VERTICAL", "column.orientation = LinearLayout.VERTICAL\n        column.addView(settingsView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))"),
+        Sample("THE_SECOND_CHILD_IS_THE_SIGN_IN_START_VIEW", "column.addView(signInView, ", "column.addView(spare, "),
+        Sample("THE_SECOND_CHILD_IS_THE_SIGN_IN_START_VIEW", "column.addView(signInView, ", "column.addView(settingsView, "),
         Sample("NO_STOCK_TEXT_OR_BUTTON_IN_THE_ACTIVITY", "settingsScroll = scroll", "settingsScroll = scroll\n        val note = TextView(this)"),
         Sample("NO_STOCK_TEXT_OR_BUTTON_IN_THE_ACTIVITY", "column.orientation = LinearLayout.VERTICAL", "column.orientation = LinearLayout.VERTICAL\n        val tap = Button(this)"),
     )
@@ -68,10 +71,10 @@ internal class SettingsColumnSingleChildTest {
     }
 
     @Test
-    fun `the column adds exactly one child on the real activity`() {
+    fun `the column adds exactly two children on the real activity`() {
         val rule = rules.single { it.name == "COLUMN_ADDS_ONE_CHILD" }
         val found = Regex(rule.pattern).findAll(codeOf()).count()
-        assertEquals("app: the column adds $found children, and it must add exactly one", 1, found)
+        assertEquals("app: the column adds $found children, and it must add exactly two", 2, found)
     }
 
     @Test

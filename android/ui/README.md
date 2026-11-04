@@ -25,7 +25,7 @@ Five screens are built, and a first-run flow runs first on a phone with no speec
 
 ## Public declarations
 
-The module offers exactly twelve, all in seven files:
+The module offers exactly fourteen, all in seven files:
 
 - `createHomeView(context, switch, modelReady, lastDictationAt, lastTranscript, transcriptTime, onCopy, onHistory, onHowItWorks, onAbout, onSettings, onTap, settings, micView, usableHeightDp, onShownMode)` builds the home view. It reads the stored theme through `settings` when the view is built. It hands the mode it resolved back through `onShownMode` as the view is built, so the app paints the mic it placed here with the same mode the page drew with instead of reading the phone's own mode again. The app passes the switch, the answers for the model, the last dictation and the last transcript, the phone's time for the transcript, the copy request, the four screen requests (history, how it works, about and settings), the request for a take from the big mic and the hand-back of the mode the page drew with; every fact is read again on each drawing.
 - `createSettingsView(context, settings, modelReady, downloadLine, onDownloadModel)` builds the settings view. It draws live through the theme controller, not the stored-theme reader.
@@ -40,6 +40,8 @@ The module offers exactly twelve, all in seven files:
 - `HomeControl` is the interface the home view answers: `showLine(line)` shows the line below the last-transcript box (nothing for null), and `showRecording(recording)` shows the recording look on the big mic. `refresh()` re-reads the app's facts and draws the screen again. The app casts the view from `createHomeView` to it.
 - `createAuthView(context, settings, onSubmit)` builds the auth view: the app passes the shared store and the submit callback `(username, password: CharArray, register: Boolean) -> Unit`. The screen has no text input in this phase, so the submit control refuses until a typing slice lands. The typed password is a CharArray the app can zero, and the zero-fill runs whether the callback returns or throws.
 - `AuthControl` is the interface the auth view answers: `refresh()` re-reads the screen's current state and draws it again, and `submitted(register)` returns to idle on the same face after the app's submit attempt finished.
+- `createSignInStartView(context, settings, serverUrl, onStart)` builds the sign-in start view: a server line, the one control that opens the website, its hint and a state line. The app passes the shared store, a reader of the server address (read again at each drawing) and the start callback, which runs once per tap that starts a sign-in. The view answers `SignInStartControl`.
+- `SignInStartControl` is the interface the sign-in start view answers: `idle()`, `opening()`, `waiting()`, `refused(noServer)` and `returned(finished)`, each of which draws its state again.
 
 Everything else is internal or private.
 

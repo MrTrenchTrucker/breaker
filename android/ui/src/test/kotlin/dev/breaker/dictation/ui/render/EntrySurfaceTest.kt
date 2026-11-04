@@ -41,6 +41,22 @@ class EntrySurfaceTest {
         "fun submitted(register: Boolean)",
     )
 
+    /** The public declaration of the sign-in start view builder, written on one line. */
+    private val SIGN_IN_VIEW_SIGNATURE =
+        "fun createSignInStartView(context: android.content.Context, " +
+            "settings: dev.breaker.dictation.core.port.SettingsStore, " +
+            "serverUrl: () -> String, onStart: () -> Unit): android.view.View"
+
+    /** The sign-in start control interface, pinned on its own members. */
+    private val SIGN_IN_CONTROL_MEMBERS = setOf(
+        "interface SignInStartControl",
+        "fun idle()",
+        "fun opening()",
+        "fun waiting()",
+        "fun refused(noServer: Boolean)",
+        "fun returned(finished: Boolean)",
+    )
+
     private val ANY_WHITESPACE = Regex("\\s+")
 
     /** A comma just before a closing bracket: Kotlin's trailing comma, which says nothing about a signature. */
@@ -174,6 +190,18 @@ class EntrySurfaceTest {
         )
         for (member in AUTH_CONTROL_MEMBERS) {
             assertTrue("the control interface must declare $member", flattened.contains(member))
+        }
+    }
+
+    @Test
+    fun `the sign-in start view signature and its control members are pinned beside the auth ones`() {
+        val flattened = flattenedOf(sourceOf("AuthEntry.kt"))
+        assertTrue(
+            "the sign-in start view signature must be there with the store, the server reader and the start callback",
+            flattened.contains(SIGN_IN_VIEW_SIGNATURE),
+        )
+        for (member in SIGN_IN_CONTROL_MEMBERS) {
+            assertTrue("the sign-in control must declare $member", flattened.contains(member))
         }
     }
 }

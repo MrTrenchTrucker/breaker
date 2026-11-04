@@ -26,6 +26,7 @@ open class AppLayoutGateRules {
         "wiring/TilePorts.kt", "wiring/TilePortCalls.kt", "wiring/DelayedPost.kt", "wiring/NoticeClearingTilePort.kt", "wiring/TileStateMap.kt", "wiring/TileCoordinator.kt", "wiring/TileShowGuard.kt", "wiring/WakeGestureGate.kt", "wiring/KeyboardHideHold.kt", "wiring/KeyboardReevaluation.kt", "wiring/TakePortAdapter.kt", "wiring/NoopPorts.kt", "wiring/KeyboardTileDecision.kt", "wiring/KeyboardTileSession.kt", "wiring/BlockGuard.kt", "wiring/KeyboardTileWiring.kt",
         "wiring/ArmedSwitch.kt", "wiring/DisplayWatch.kt", "wiring/LaunchRule.kt", "wiring/IconLaunchOnce.kt", "wiring/OffStore.kt", "wiring/ModelSupport.kt", "wiring/ThemeModeSupport.kt", "wiring/Swaps.kt",
         "wiring/BreakerSwitchAdapter.kt", "wiring/ForwardingDownloadNotice.kt",
+        "wiring/HandoffIntentRule.kt", "wiring/SignInReturnStore.kt", "wiring/SignInStartWiring.kt", "wiring/HandoffReturnFlow.kt", "wiring/SignInStartScreen.kt",
         "wiring/TakeYield.kt", "wiring/TakenClipboard.kt", "wiring/MicTakeHold.kt",
         "wiring/TakenSentences.kt", "wiring/TakeSettle.kt", "wiring/DeviceFailureSentences.kt", "wiring/DeviceFailureYield.kt", "wiring/TakeFinisher.kt",
         "wiring/HomeTakeAdapter.kt", "wiring/EndingTexts.kt", "wiring/HomeSentences.kt", "wiring/TakeOwner.kt", "wiring/MicBusyPort.kt",
@@ -42,6 +43,7 @@ open class AppLayoutGateRules {
         "wiring/InfoScreensWiring.kt",
         "wiring/HomeTakeWiring.kt", "wiring/HomeScreenMic.kt",
         "host/TakenClipboardAndroid.kt", "host/ActivityHelpers.kt",
+        "host/SignInBrowser.kt", "host/HandoffReturnActivity.kt",
     )
 
     private val softCap: Int = 300
