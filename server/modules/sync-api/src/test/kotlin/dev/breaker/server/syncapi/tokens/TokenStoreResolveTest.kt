@@ -186,12 +186,19 @@ internal class TokenStoreResolveTest : TempDatabaseTest() {
     }
 
     @Test
-    fun `a session token that is used every day keeps resolving ten years later`() {
+    fun `a session token used every day still resolves at day 179 but is refused past the 180-day cap`() {
         val text = session(userId).secret.reveal()
-        repeat(3650) {
+        // Use the session every day: the slide keeps it alive while it is under the cap.
+        for (day in 1..179) {
             clock.advance(Duration.ofDays(1))
-            assertNotNull("sync-api: session token still resolves after ${it + 1} days", resolve(text))
+            assertNotNull("sync-api: session token still resolves at day $day (sliding, under the cap)", resolve(text))
         }
+        // Cross the cap. At day 180 the slide clamps to created + 180d = day 180, and the
+        // 180-day absolute cap refuses it (the expiry is not after now). Day 181 is unambiguous.
+        clock.advance(Duration.ofDays(1))
+        assertNull("sync-api: the 180-day absolute cap refuses the session at day 180", resolve(text))
+        clock.advance(Duration.ofDays(1))
+        assertNull("sync-api: the 180-day absolute cap still refuses the session at day 181", resolve(text))
     }
 
     @Test

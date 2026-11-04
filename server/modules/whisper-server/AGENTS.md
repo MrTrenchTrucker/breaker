@@ -140,7 +140,11 @@ agents, not required: an outside contributor may write the code themselves
 - On main: a runnable entry point, `main`, configured by `BREAKER_WHISPER_HOST`,
   `BREAKER_WHISPER_PORT`, `BREAKER_WHISPER_DB` and `BREAKER_WHISPER_FORWARDER_URL`; it binds 127.0.0.1 by default,
   refuses a bad configuration, and shuts down cleanly with the active job put back in the queue. An `IOException`
-  while reading an upload is a failure of its own, never a 413.
+  while reading an upload is a failure of its own, never a 413. The forwarder URL must be
+  http/https with a host and must not carry a userinfo component (`user:pass@`): a userinfo is
+  refused at config time with a message naming `BREAKER_WHISPER_FORWARDER_URL`, because it can
+  smuggle credentials into the downstream URL and hide a misconfigured proxy. The scheme and
+  host checks are unchanged.
 - The link from whisper-server to sync-api is an HTTP contract, not an import. whisper-server asks sync-api over HTTP whether a token is live, through the two internal token-check routes and a service key. No code imports sync-api, so no sync-api entry is listed under Depends On, and modules.toml lists none.
   The sealing hand-off to sync-api (ADR-018) is unshipped (Phase 19/20). ADR-018's amendment of 2026-10-20 chooses no transport; a new ADR decides the transport when that phase is ordered.
 - FIFO: never start the next job until the active one returns; retry 3× at 10 s.
@@ -156,14 +160,22 @@ agents, not required: an outside contributor may write the code themselves
   owner's next login, with no review (T26, ADR-018).
 - An owner account with no box public key yet gets no sealed copy, not a
   dropped job and not a plaintext one — see the Owner sealed-box step above.
-- A job-store failure never ends the worker: each store call goes through one retry helper that
-  pauses and tries again, a failed complete or fail is held and re-sent, and a cancelled worker still
-  stops at once. The one place this module logs is a single `java.util.logging` line in
-  `worker/QueueWorker.kt` for such a failure, carrying only the operation, the job id and the
-  exception class name — never the exception message, the audio or the result. `SourceScanTest`
-  allows `Logger` in that one file only (it is still reported in every other main file) and
-  `QueueWorkerLoggingTest` pins what the line may contain. Reason: a store failure that stalls the
-  queue without a trace is worse than one minimal line.
+- A job-store failure never ends the worker, and never holds its slot forever: each store call
+  goes through one retry helper that pauses and tries again, a failed complete or fail is held
+  and re-sent, and a cancelled worker still stops at once. The helper is bounded to 10 attempts
+  (`MAX_STORE_ATTEMPTS`): after the tenth failure it gives up, fails the job (if the call carries
+  one) with the plain reason `store call failed after 10 attempts` - the store exception message
+  is never copied in, it can carry a path or a key - and frees the single slot instead of
+  looping. A `CancellationException` is always rethrown first (it is a shutdown, not a store
+  error), so it is never swallowed. The one place this module logs is a single
+  `java.util.logging` line in `worker/QueueWorker.kt` for such a failure, carrying only the
+  operation, the job id and the exception class name - never the exception message, the audio
+  or the result. `SourceScanTest` allows `Logger` in that one file only (it is still reported
+  in every other main file) and `QueueWorkerLoggingTest` pins what the line may contain.
+  `QueueWorkerStoreExhaustionTest` pins the bound: a claim that never recovers is attempted
+  exactly ten times and the slot is freed; a complete that never recovers fails the job with the
+  plain reason. Reason: a store failure that stalls the queue without a trace is worse than one
+  minimal line, and one that holds the slot forever is worse than a failed job.
 
 ## Forwarder contract
 - A forwarder must bound its own call: it must not make an unbounded HTTP request.

@@ -16,6 +16,13 @@ internal class AccountStore(
 ) {
     internal val attempts = SigninAttemptStore(db, clock)
 
+    // The not-found timing decoy: one fixed verifier, built once at startup with the hasher's
+    // own iteration count. The not-found path runs one [hasher.matches] against it before it
+    // answers, so a missing account costs the same as a wrong verifier. It is never a real
+    // account: the row read comes first, and only a null row reaches the decoy.
+    private val timingDecoy: StoredVerifier =
+        StoredVerifier(VerifierHasher.ALGO, hasher.iterations, ByteArray(VerifierHasher.SALT_BYTES), ByteArray(VerifierHasher.HASH_BYTES))
+
     private class AccountRow(val id: Long, val role: Role, val stored: StoredVerifier, val pending: Boolean)
 
     suspend fun register(
@@ -183,7 +190,12 @@ internal class AccountStore(
             // Switch OFF: no lock read, no count, no clear. Read the row, hash,
             // return Rejected or Verified exactly as an account with no limit.
             val row = db.transaction<AccountRow?> { connection -> readAccountRow(connection, folded) }
-            if (row == null) return VerifyResult.Rejected
+            if (row == null) {
+                // Not-found costs one full hash, the same as a wrong verifier: the decoy runs
+                // outside the (now ended) transaction, on the default lane.
+                withContext(Dispatchers.Default) { hasher.matches(verifier, timingDecoy) }
+                return VerifyResult.Rejected
+            }
             if (row.pending) return VerifyResult.Rejected
             val matches = withContext(Dispatchers.Default) { hasher.matches(verifier, row.stored) }
             if (!matches) return VerifyResult.Rejected
@@ -204,6 +216,8 @@ internal class AccountStore(
 
         val row = db.transaction<AccountRow?> { connection -> readAccountRow(connection, folded) }
         if (row == null) {
+            // Same decoy as the switch-off path: not-found costs one full hash.
+            withContext(Dispatchers.Default) { hasher.matches(verifier, timingDecoy) }
             guardCounting { attempts.recordWrong(folded) }
             return VerifyResult.Rejected
         }

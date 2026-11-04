@@ -9,4 +9,13 @@ package dev.breaker.shared.api
  */
 data class ResetAccountResponse(
     val resetCode: String,
-)
+) {
+    init {
+        require(resetCode.isNotBlank() && resetCode.none { it.isWhitespace() }) {
+            "resetCode must be non-blank with no whitespace"
+        }
+        require(resetCode.length <= 64) {
+            "resetCode must be at most 64 chars"
+        }
+    }
+}

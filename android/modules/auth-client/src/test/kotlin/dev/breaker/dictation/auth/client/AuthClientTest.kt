@@ -40,8 +40,9 @@ class AuthClientTest {
     }
 
     @Test fun loginRequestSerialisesExactly() {
-        val body = RequestEncoder.encodeLogin(LoginRequest("ada", "verifier-value"))
-        assertEquals("{\"username\":\"ada\",\"auth_verifier\":\"verifier-value\"}", String(body))
+        val verifier = "A".repeat(43) + "="
+        val body = RequestEncoder.encodeLogin(LoginRequest("ada", verifier))
+        assertEquals("{\"username\":\"ada\",\"auth_verifier\":\"$verifier\"}", String(body))
     }
 
     // ---- response parsing ----
@@ -238,12 +239,10 @@ class AuthClientTest {
         assertEquals(KdfRefusal.UNSUPPORTED_VERSION, ex.reason)
     }
 
-    @Test fun keyVersionNegFiveParses() {
-        val r = AuthDecoder.parseLogin(
-            """{"token":"abc","role":"user","wrapped_dek":null,"wrapped_box_privkey":null,"box_pubkey":null,"key_version":-5}"""
-        )
-        assertEquals("abc", r.token)
-        assertEquals(-5, r.keyVersion)
+    @Test fun keyVersionNegFiveRefusedAsConstruct() {
+        val body = """{"token":"abc","role":"user","wrapped_dek":null,"wrapped_box_privkey":null,"box_pubkey":null,"key_version":-5}"""
+        val ex = assertThrows(AuthDecodeException::class.java) { AuthDecoder.parseLogin(body) }
+        assertEquals("CONSTRUCT", ex.family)
     }
 
     // ---- control characters ----

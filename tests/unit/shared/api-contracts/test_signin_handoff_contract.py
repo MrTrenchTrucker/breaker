@@ -22,6 +22,7 @@ import hashlib
 import os
 import re
 import sys
+import tempfile
 import unittest
 
 # Add tools directory to path for yaml_subset
@@ -321,9 +322,19 @@ def _camel(snake_name):
     return re.sub(r"_([a-z])", lambda m: m.group(1).upper(), snake_name)
 
 
-def _read_kotlin(class_name):
-    """Read one Kotlin data class file. Returns (text, [(field, type, nullable)])."""
-    path = os.path.join(KOTLIN_DIR, class_name + ".kt")
+def _read_kotlin(class_name, path=None):
+    """Read one Kotlin data class file. Returns (text, [(field, type, nullable)]).
+
+    The constructor parameter region must be plain 'val name: Type' lines (no
+    default, one per line). The class body, if present (a ') {' closer), must be
+    a closed-grammar init block: 'init {' then only require(...) units of the
+    three-line closed form (the condition line ending in '{', the message
+    string line, the closing brace) then the init's '}' and the class's '}'.
+    Any other body (a val default, a comment line, an if/try, a check, a
+    one-line or two-line require) is a refusal.
+    """
+    if path is None:
+        path = os.path.join(KOTLIN_DIR, class_name + ".kt")
     if not os.path.isfile(path):
         raise AssertionError(f"Kotlin file {class_name}.kt not found at {path}")
     with open(path, encoding="utf-8") as fh:
@@ -334,16 +345,70 @@ def _read_kotlin(class_name):
         raise AssertionError(f"{class_name}.kt must hold exactly one line 'data class {class_name}(', found {len(heads)}")
     fields = []
     closed = False
-    for number, line in enumerate(lines[heads[0] + 1:], heads[0] + 2):
-        if line == ")":
+    in_body = False
+    in_init = False
+    i = heads[0] + 1
+    n = len(lines)
+    while i < n:
+        line = lines[i]
+        number = i + 1
+        if not in_body:
+            # the constructor parameter region
+            if line == ")":
+                closed = True
+                break
+            if line == ") {":
+                in_body = True
+                i += 1
+                continue
+            m = re.match(r"^    val (\w+): ([A-Za-z]+)(\?)?,?$", line)
+            if not m:
+                raise AssertionError(
+                    f"{class_name}.kt:{number}: not a plain 'val name: Type' parameter line "
+                    f"(no default value, one per line): {line!r}")
+            fields.append((m.group(1), m.group(2), bool(m.group(3))))
+            i += 1
+            continue
+        # in the class body
+        if not in_init:
+            if line == "    init {":
+                in_init = True
+                i += 1
+                continue
+            raise AssertionError(
+                f"{class_name}.kt:{number}: class body must start with an 'init {{' block "
+                f"(closed grammar): {line!r}")
+        # inside the init block
+        if line == "    }":
+            # the init block closed; the next line must be the class's '}'
+            i += 1
+            if i >= n or lines[i] != "}":
+                raise AssertionError(
+                    f"{class_name}.kt:{i + 1 if i < n else number}: after the init block "
+                    f"the class must close with a line holding only a close brace")
             closed = True
             break
-        m = re.match(r"^    val (\w+): ([A-Za-z]+)(\?)?,?$", line)
-        if not m:
-            raise AssertionError(
-                f"{class_name}.kt:{number}: not a plain 'val name: Type' parameter line "
-                f"(no default value, one per line): {line!r}")
-        fields.append((m.group(1), m.group(2), bool(m.group(3))))
+        # a closed-grammar require unit: the condition line ends in '{'
+        if re.match(r"^        require\(.*\) \{$", line):
+            if i + 2 >= n:
+                raise AssertionError(
+                    f"{class_name}.kt:{number + 1}: require unit is truncated "
+                    f"(need the message line and the closing brace)")
+            msg = lines[i + 1]
+            close = lines[i + 2]
+            if not re.match(r'^            ".*"$', msg):
+                raise AssertionError(
+                    f"{class_name}.kt:{number + 1}: require unit message line must be a "
+                    f"double-quoted string: {msg!r}")
+            if close != "        }":
+                raise AssertionError(
+                    f"{class_name}.kt:{number + 2}: require unit must close with a "
+                    f"brace line: {close!r}")
+            i += 3
+            continue
+        raise AssertionError(
+            f"{class_name}.kt:{number}: only closed-grammar require(...) units are "
+            f"allowed inside the init block: {line!r}")
     if not closed:
         raise AssertionError(f"{class_name}.kt: the constructor never closes with a line holding only a close paren")
     return text, fields
@@ -1120,6 +1185,30 @@ class HandoffKotlinTest(unittest.TestCase):
         by_name = {f[0]: f for f in fields}
         self.assertIn("deviceName", by_name, "HandoffExchangeRequest.kt must carry deviceName")
         self.assertTrue(by_name["deviceName"][2], "HandoffExchangeRequest.deviceName must be nullable")
+
+    def test_read_kotlin_refuses_non_closed_grammar_body(self):
+        """A class body that is NOT a closed-grammar init block (a val default in
+        the body) must still be refused by the relaxed _read_kotlin. Guards that
+        the relaxation is not too loose: only closed-grammar init blocks are
+        accepted, every other body is a refusal."""
+        fixture = (
+            "package dev.breaker.shared.api\n"
+            "data class Probe(\n"
+            "    val a: String,\n"
+            ") {\n"
+            "    val x: Int = 1\n"
+            "}\n"
+        )
+        d = tempfile.mkdtemp()
+        p = os.path.join(d, "Probe.kt")
+        with open(p, "w") as fh:
+            fh.write(fixture)
+        try:
+            with self.assertRaises(AssertionError):
+                _read_kotlin("Probe", path=p)
+        finally:
+            os.unlink(p)
+            os.rmdir(d)
 
 
 if __name__ == "__main__":

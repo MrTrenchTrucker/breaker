@@ -16,4 +16,10 @@ data class LoginResponse(
     val prevWrappedDek: String?,
     val resetAt: String?,
     val rekeyedAt: String?,
-)
+) {
+    init {
+        require(keyVersion >= 0) {
+            "keyVersion must be non-negative"
+        }
+    }
+}

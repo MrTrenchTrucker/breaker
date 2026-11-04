@@ -293,6 +293,14 @@ internal open class TokenStore(
         // expiry to now + 30 days. A session row without an expiry gets one at its next use.
         val SESSION_IDLE_LIFETIME: Duration = Duration.ofDays(30)
 
+        // A session token is also capped at an absolute 180 days from creation: the slide never
+        // pushes its expiry past created_at_ms + 180d, so a session that keeps being used still
+        // dies at the cap. Agent tokens are not capped (their expiry is set at issue and is not
+        // slid), so the live-check guard is scoped to sessions and NULL-safe. The value is a
+        // compile-time millisecond constant so it can sit in the SQL as a literal (SQLite has no
+        // Duration type). 180 * 24 * 60 * 60 * 1000.
+        const val MAX_SESSION_LIFETIME_MS: Long = 180L * 24 * 60 * 60 * 1000
+
         val SURROGATES: IntRange = Character.MIN_SURROGATE.code..Character.MAX_SURROGATE.code
 
         const val SELECT_ROLE_SQL = "SELECT role FROM accounts WHERE id = ?"
@@ -309,16 +317,23 @@ internal open class TokenStore(
             "SELECT t.id, t.account_id, a.role, t.kind, t.scope FROM tokens t " +
                 "JOIN accounts a ON a.id = t.account_id " +
                 "WHERE t.token_hash = ? AND t.revoked_at_ms IS NULL " +
-                "AND (t.expires_at_ms IS NULL OR t.expires_at_ms > ?)"
+                "AND (t.expires_at_ms IS NULL OR t.expires_at_ms > ?) " +
+                "AND (t.kind <> 'session' OR t.expires_at_ms IS NULL " +
+                "OR t.expires_at_ms <= t.created_at_ms + " + MAX_SESSION_LIFETIME_MS + ")"
 
+        // The same live rule as SELECT_LIVE_SQL for a session: not revoked, not expired, and not past the
+        // 180-day cap from its creation.
         const val SESSION_LIVE_SQL =
             "SELECT 1 FROM tokens WHERE id = ? AND account_id = ? AND kind = 'session' " +
-                "AND revoked_at_ms IS NULL AND (expires_at_ms IS NULL OR expires_at_ms > ?)"
+                "AND revoked_at_ms IS NULL AND (expires_at_ms IS NULL OR expires_at_ms > ?) " +
+                "AND (expires_at_ms IS NULL OR expires_at_ms <= created_at_ms + " + MAX_SESSION_LIFETIME_MS + ")"
 
-        // Slides a session token's expiry to now + 30 days on each authenticated use.
-        // Agent tokens are never touched by this (kind = 'session').
+        // Slides a session token's expiry to now + 30 days on each authenticated use, but never
+        // past created_at_ms + 180d: MIN(now+30d, created+180d) is computed in SQL so the cap is
+        // enforced atomically with the slide. Agent tokens are never touched by this.
         const val SLIDE_SESSION_SQL =
-            "UPDATE tokens SET expires_at_ms = ? WHERE id = ? AND kind = 'session'"
+            "UPDATE tokens SET expires_at_ms = MIN(?, created_at_ms + " + MAX_SESSION_LIFETIME_MS + ") " +
+                "WHERE id = ? AND kind = 'session'"
 
         const val SELECT_AGENT_EXISTS_SQL = "SELECT 1 FROM tokens WHERE id = ? AND kind = 'agent'"
 

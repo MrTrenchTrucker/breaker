@@ -79,6 +79,12 @@ data class WhisperConfig(
             if (uri.scheme !in setOf("http", "https") || uri.host.isNullOrBlank()) {
                 throw IllegalStateException("$ENV_FORWARDER_URL must have an http or https scheme and a host, got scheme: ${uri.scheme}")
             }
+            // A userinfo component (user:pass@) is refused at config time: it can carry
+            // credentials into the downstream URL and hide a misconfigured proxy. The scheme
+            // and host checks above are unchanged.
+            if (uri.userInfo != null) {
+                throw IllegalStateException("$ENV_FORWARDER_URL must not carry userinfo (user:pass@)")
+            }
 
             val resultTtlRaw = env[ENV_RESULT_TTL]
             val resultTtlSeconds = if (resultTtlRaw == null) {

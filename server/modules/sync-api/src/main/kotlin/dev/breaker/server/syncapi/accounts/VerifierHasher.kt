@@ -6,8 +6,8 @@ import java.security.SecureRandom
 /** What the database keeps in place of the verifier: algorithm, cost, salt and the derived hash. */
 internal class StoredVerifier(val algo: String, val iterations: Int, val salt: ByteArray, val hash: ByteArray)
 
-internal class VerifierHasher(
-    private val iterations: Int = DEFAULT_ITERATIONS,
+internal open class VerifierHasher(
+    internal val iterations: Int = DEFAULT_ITERATIONS,
     private val random: SecureRandom = SecureRandom(),
 ) {
     init {
@@ -22,7 +22,8 @@ internal class VerifierHasher(
 
     // The stored cost and salt decide the derivation, not this hasher's own count, so
     // accounts hashed under an older cost keep working after the default is raised.
-    fun matches(verifier: AuthVerifier, stored: StoredVerifier): Boolean {
+    // Open: a test may count the calls, and the not-found timing decoy runs one.
+    open fun matches(verifier: AuthVerifier, stored: StoredVerifier): Boolean {
         if (stored.algo != ALGO) {
             return false
         }
