@@ -15,7 +15,9 @@ itself; it queues, shapes the contract, and proxies.
 - `GET /v1/jobs/{job_id}` → `{ status: queued|processing|done|failed, result:
   { text, segments[], language } | null }`
 - Optional SSE streaming of partial segments (v1.1).
+  Planned, not built: no streaming route exists.
 - Output formats (once done): JSON / SRT / VTT; word-level timestamps.
+  Planned, not built: only the JSON result is served; there is no SRT or VTT output and no word-level timestamp.
 
 **Implementation notes:**
 - This module does not load a Whisper model. It forwards the WAV to whatever
@@ -39,6 +41,7 @@ itself; it queues, shapes the contract, and proxies.
 ## Invariants
 - Correct JSON for a known test WAV (golden transcript match).
 - Word timestamps present; SRT/VTT output valid.
+  Planned, not built: this invariant waits for the SRT, VTT and word timestamp output.
 - Two concurrent requests don't corrupt state (queue works).
 - Existing `/v1/chat/completions` behavior unchanged (regression).
 - A missing, not-live, unavailable or foreign-scheme token is refused with one plain 401 and nothing is enqueued; a foreign account's job id answers the same 404 as a missing id.
@@ -60,6 +63,7 @@ concurrent requests would contend. A queue serializes jobs:
 - `GET /v1/jobs/{job_id}` → `{ status: queued|processing|done|failed, result }`.
 - Jobs persist in SQLite → restart-safe (no queued audio lost).
 - No priority in v1; per-user rate limits + job size caps (T18).
+  Built: the upload size cap (413 above the audio limit). Planned, not built: per-user rate limits.
 - **Result retention (ADR-018):** a completed job's `result` stays fetchable for `RESULT_WINDOW_MS` after the job finished (default 10 minutes, set by `BREAKER_WHISPER_RESULT_TTL_S`, at most 24 hours); every `GET /v1/jobs/{job_id}` inside that window returns the same result, and after the window the result is erased and the answer is `404` (unknown or expired). Until then the result sits here in **plaintext**, same as the queued audio does before the job finishes.
 
 **Retry + audio lifecycle (F28):** failed jobs auto-retry **3× at 10 s
@@ -104,7 +108,7 @@ TranscriptionApi, QueueWorker
 - TLS and certificates: Breaker serves plain HTTP; an admin who wants https puts a reverse proxy in front (ADR-034)
 
 ## Test Locations
-- Unit (Kotlin/Ktor, ADR-017): `server/modules/whisper-server/src/test/kotlin/`, created with the module's first code. Run: `./gradlew :server:modules:whisper-server:test` once this module's build file applies the Kotlin plugin (today it applies `base` only, so there is no test task yet).
+- Unit (Kotlin/Ktor, ADR-017): `server/modules/whisper-server/src/test/kotlin/`, created with the module's first code. Run: `./gradlew :server:modules:whisper-server:test`.
 - Token check client: `server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/http/HttpTokenCheckTest.kt` runs `HttpTokenCheck` against a local fake server on 127.0.0.1: live, not live, unavailable (403, 500, no account number, refused connection, timeout), both paths and both headers, an empty or non-ASCII token never sent, a blank address or key refused, and nothing printed.
 - Token check client, bounded answer: `server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/http/HttpTokenCheckBoundTest.kt` runs `HttpTokenCheck` against fake servers that send too many bytes, exactly 4096 bytes, headers and then a body held back past the total timeout, a partial answer then a held body, a normal answer and a 401, and a closed port. `server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/http/HttpTokenCheckSocketCloseTest.kt` runs `HttpTokenCheck` against a dribbling fake server and asserts that when the total deadline fires the body subscriber cancels itself and closes the socket so the exchange is not left open (BUILT). `server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/http/HttpTokenCheckEarlyStopTest.kt` runs `HttpTokenCheck` against a fake server that answers 200 with Content-Length 100 MB then writes 1024-byte chunks with a 1 ms pause, and asserts that when the client cancels at the 4096-byte cap the server's write fails with IOException, the answer is Unavailable, and the chunk count at the failed write is below 1500 (a cap raised a thousand times would need about 4000).
 - Contract: `tests/contract/test_whisper_server_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_whisper_server_contract.py`
@@ -215,8 +219,7 @@ agents, not required: an outside contributor may write the code themselves
   a `failed` job also carries the stored `error`. Results stay fetchable for the result window
   (see Result retention above).
 - **Honest limits of this slice:** the `model` part is optional and ignored (the forwarder sends the
-  configured downstream model for every job); the `language` part is not stored; there is no
-  auth yet, so every job is enqueued under one owner constant (`OWNER_ACCOUNT_ID`) until `sync-api`
-  lands; no audio-format check is done (the downstream service decides).
+  configured downstream model for every job); the `language` part is not stored; the account of a job is the one the
+  token check names (the owner constant `OWNER_ACCOUNT_ID` in `http/TranscriptionRoutes.kt` is declared but not used by the route logic); no audio-format check is done (the downstream service decides).
 - `json/Json.kt` holds the one shared `escapeJsonString`, used by both the forwarder and the HTTP
   layer so the two cannot disagree about escaping.
