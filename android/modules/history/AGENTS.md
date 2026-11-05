@@ -5,7 +5,8 @@
 Saves the transcriptions it is given in a private SQLite database on the phone,
 so the user can find and re-copy them later. Old transcriptions expire by the
 ADR-010 precise rule when `purgeExpired()` is called; the app runs that call
-once at start (`BreakerApp`). Every delete of a stored row leaves a tombstone for sync to carry to
+once at start (`BreakerApp`) through `PurgeGuard` (in the app), which skips it for at most 7 days when automatic time is off
+and over 30 days have passed since the last purge, a suspected forward clock jump. Every delete of a stored row leaves a tombstone for sync to carry to
 the server (see Tombstones below for what is in place).
 
 **Build phase:** Phase 2. Needs first: `core` (on `main`). The retention rules are finished in Phase 21 (data lifecycle).
@@ -110,7 +111,7 @@ code.
 - TTL + tombstones must stay consistent with server retention (F28); by design both follow the ADR-010 precise rule.
   The repository has no server retention code yet.
 - The app builds the store once per process (`BreakerApp`, lazy `SqliteHistoryStore.create`) and runs `purgeExpired()` once
-  at start, off the main thread; a purge failure is logged, not thrown. The window is the fixed 90 days of ADR-010.
+  at start, off the main thread and through `PurgeGuard` (see Purpose); a purge failure is logged, not thrown. The window is the fixed 90 days of ADR-010.
 - NOT REPRODUCED (a defect report): a phone test of APK 8 found the history gone after an update. An in-place 6 to 8
   update keeps it (emulator test); APKs 1-5 had different signing keys, so 5 to 6 needed an uninstall. The database is app-private, so an update keeps it and an uninstall removes it; the name and schema version
   above have not changed. Required: an update keeps the history. The project owner ruled that an uninstall removes

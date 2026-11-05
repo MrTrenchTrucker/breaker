@@ -3,7 +3,7 @@
 Persistent transcription history for easy re-copying. The module saves the
 transcriptions it is given in a small SQLite database on the phone and removes
 old ones when `purgeExpired()` is called. The app builds the store once
-(`BreakerApp`) and runs `purgeExpired()` once at start, off the main thread.
+(`BreakerApp`) and runs `purgeExpired()` once at start, off the main thread, through `PurgeGuard`, which can skip it for a suspected forward clock jump.
 
 ## How it works
 
@@ -53,7 +53,8 @@ Planned (ADR-035, not built): the sync module will call `applyRemoteDelete` for 
 Everything else is internal, including the store's other methods
 (`applyRemoteDelete`, `count`, `close`, the tombstone sweep and the
 pending-tombstone list). The app calls `purgeExpired()` once at start
-(`BreakerApp`).
+(`BreakerApp`), through `PurgeGuard`: it skips the purge for at most 7 days when automatic time is off and over 30 days have
+passed since the last purge.
 
 The app creates the store once per process and shares it through its wiring. Each `create()` opens its own database handle on the
 same file, so two stores on one file would contend for the write lock (expected
