@@ -38,11 +38,11 @@ class KeyDerivationPortTest {
     @Test
     fun `an adapter can be written against the key derivation port`() {
         val adapter: KeyDerivation = object : KeyDerivation {
-            override fun deriveKeys(password: String, salt: ByteArray, kdfParams: KdfParams): DerivedKeys =
+            override fun deriveKeys(password: CharArray, salt: ByteArray, kdfParams: KdfParams): DerivedKeys =
                 DerivedKeys(KeyEncryptionKey(ByteArray(32) { 1 }), AuthVerifier(ByteArray(32) { 2 }))
         }
 
-        val keys = adapter.deriveKeys("password", ByteArray(16), params)
+        val keys = adapter.deriveKeys("password".toCharArray(), ByteArray(16), params)
 
         assertArrayEquals("kek bytes are not the adapter's", ByteArray(32) { 1 }, keys.kek.copyBytes())
         assertArrayEquals("auth verifier bytes are not the adapter's", ByteArray(32) { 2 }, keys.authVerifier.copyBytes())
@@ -51,12 +51,12 @@ class KeyDerivationPortTest {
     @Test
     fun `a refusing adapter is caught as a typed refusal through the port`() {
         val adapter: KeyDerivation = object : KeyDerivation {
-            override fun deriveKeys(password: String, salt: ByteArray, kdfParams: KdfParams): DerivedKeys =
+            override fun deriveKeys(password: CharArray, salt: ByteArray, kdfParams: KdfParams): DerivedKeys =
                 throw KdfRefused(KdfRefusal.MEMORY_ABOVE_CEILING)
         }
 
         try {
-            adapter.deriveKeys("password", ByteArray(16), params)
+            adapter.deriveKeys("password".toCharArray(), ByteArray(16), params)
         } catch (refused: KdfRefused) {
             assertEquals(KdfRefusal.MEMORY_ABOVE_CEILING, refused.reason)
             return
@@ -76,7 +76,7 @@ class KeyDerivationPortTest {
         assertEquals("deriveKeys must return both keys together", DerivedKeys::class.java, method.returnType)
         assertEquals(
             "deriveKeys must take the password, the salt and the parameters",
-            listOf<Class<*>>(String::class.java, ByteArray::class.java, KdfParams::class.java),
+            listOf<Class<*>>(CharArray::class.java, ByteArray::class.java, KdfParams::class.java),
             method.parameterTypes.toList(),
         )
     }

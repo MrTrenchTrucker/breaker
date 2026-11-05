@@ -25,9 +25,8 @@ interface KeyDerivation {
      * Throws [dev.breaker.dictation.core.model.KdfRefused] when the parameters or the
      * salt are not acceptable, before doing any derivation work.
      *
-     * About the password type: a Kotlin [String] cannot be wiped. It stays in memory
-     * until it is garbage-collected. The returned [DerivedKeys] can be wiped by the
-     * caller with [DerivedKeys.wipe].
+     * The implementation reads the array and never keeps or changes it; the caller owns
+     * the array and wipes it.
      */
-    fun deriveKeys(password: String, salt: ByteArray, kdfParams: KdfParams): DerivedKeys
+    fun deriveKeys(password: CharArray, salt: ByteArray, kdfParams: KdfParams): DerivedKeys
 }
