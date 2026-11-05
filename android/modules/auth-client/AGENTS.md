@@ -84,7 +84,7 @@ server-side (T16).
 ## Invariants
 - Register → first account admin; second account user (F22).
 - Login → token in the Android Keystore (decided and not built); logout wipes it.
-- Force-check button visible only to admins (F21).
+- Planned, not built (F21): the force-check button is visible only to admins. No force-check button exists on main.
 - Change-password revokes every other outstanding token; it requires both
   the live token AND `old_auth_verifier` — a token alone is refused.
 - A completed reset leaves the account able to log in with whatever password
@@ -140,7 +140,7 @@ agents, not required: an outside contributor may write the code themselves
 
 ## Known Gotchas
 - Tokens go in the Android Keystore, never plaintext (decided and not built); roles server-enforced.
-- Key derivation reaches it as `core.KeyDerivation` (`deriveKeys`), wired by `android/app` (ADR-001); it never imports `crypto`.
+- Key derivation reaches it as `core.KeyDerivation` (`deriveKeys`), to be wired by `android/app` (ADR-001), which does not wire it today; it never imports `crypto`.
 - `core.KeyDerivation` (`deriveKeys`, implemented by the crypto module) is built: `KdfImpl` in the crypto module derives the keys. The five `core.CryptoService` operations
   are built (see the core card); the DEK/box-keypair calls stay on `core.CryptoService` and come when Phase 19 builds them (ADR-006, ADR-018) —
   this card's flow for those calls is still the target.
