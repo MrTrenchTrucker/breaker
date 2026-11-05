@@ -1,6 +1,6 @@
 # Ui — README
 
-Screens: home, history, settings, how it works, about, auth, training, and the first-run
+Screens: home, history, settings, how it works, about, auth, sign-in start, and the first-run
 flow for the permissions Breaker needs.
 
 ## What it does now

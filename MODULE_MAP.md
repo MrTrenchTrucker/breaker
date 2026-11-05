@@ -7,7 +7,7 @@
 | Module | Path | Job |
 |--------|------|-----|
 | `app` | `android/app/` | Android entry, DI wiring, Gradle build |
-| `ui` | `android/ui/` | Screens: history, settings, auth, training; permission onboarding |
+| `ui` | `android/ui/` | Screens: home, history, settings, how it works, about, auth, sign-in start; permission onboarding |
 | `core` | `android/modules/core/` | Domain models, ports, use cases (no Android deps) |
 | `audio` | `android/modules/audio/` | Mic capture, VAD, noise suppression, WAV encode |
 | `stt-ondevice` | `android/modules/stt-ondevice/` | sherpa-onnx local transcription (fallback) |
