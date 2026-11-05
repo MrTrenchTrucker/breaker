@@ -8,6 +8,8 @@ at OUR server, signing key secured (never git) [1].
 
 **Build phase:** Phase 16. Needs first: `core` (on main) and the Phase 15 git-pull deploy pipeline (`server/modules/deploy`), because the update endpoint reads its tagged releases.
 
+**Status on main:** nothing in this module is built. The folder holds this card, the README and a build file: there is no `src/` folder and no test. Everything below is the target design, planned, not built. The `core.UpdateChecker` port is on main in core; the server route `GET /v1/updates/latest.json` is planned, not built (see the sync-api card).
+
 ## Owns
 Daily update check + admin force-check, signed APK verify, rollback.
 
@@ -22,8 +24,9 @@ Daily update check + admin force-check, signed APK verify, rollback.
 **Update flow:**
 1. Fetch `latest.json` → `{ version, apk_url, sha256, signature, notes }`.
 2. If version > installed → notify ("Breaker X.Y.Z available — update?").
-3. On confirm → download APK over HTTPS (CA-trusted) → verify **SHA-256** and
-   **signature** (public key pinned in-app) → refuse on mismatch (T11).
+3. On confirm, download the APK from the configured server (a plain http
+   address is allowed, ADR-034), then verify **SHA-256** and **signature**
+   (public key pinned in-app) and refuse on mismatch (T11).
 4. Launch Android installer → same package ID + signature → install-over
    **preserves data/settings**.
 5. Record last-check + last-update timestamps in settings.
