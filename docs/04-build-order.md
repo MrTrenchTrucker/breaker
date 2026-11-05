@@ -39,9 +39,9 @@ evidence.
 
 | Gate | What it requires | What it blocks | Status |
 |------|------------------|----------------|--------|
-| Phase 0 | The forked base app on `main` with Security Review's 4 fixes; NOTICE accurate; the base app built and smoke-tested | Any release (published APK or server image) | **Not passed.** NOTICE is in place; the forked base app is not on `main` yet. |
+| Phase 0 | The forked base app on `main` with Security Review's 4 fixes; NOTICE accurate; the base app built and smoke-tested | Any release (published APK or server image) | **Not passed.** NOTICE is in place and the forked base app is on `main` as `android/app`. |
 | Phase 9 | Every `docs/03-security-threat-model.md` checklist item tagged Phase 0–8 signed off; E2E, bench and security review done | Any release | **Not started.** |
-| Phase 19 | Encryption by default (the Phase 19 row's exit criteria) | Releasing sync | **Not started.** |
+| Phase 19 | Encryption by default (the Phase 19 row's exit criteria) | Releasing sync | **Not passed.** The crypto module and the server's key handling are on `main`, but sync still pushes plaintext (`key_version` 0). |
 
 **Sync is development-only until Phase 19.** Phases 11–18 build sync, but no
 release build turns it on and no real user's data is synced before encryption
@@ -68,7 +68,9 @@ ever meets development data.
   `kdf_params`, `kdf_version`, `auth_verifier`) from day one — there is no
   Phase 11–18 window where a client sends the password, or a hash of it, in
   place of a real verifier, and so no *auth* migration and no auth lockout to
-  design for. There IS a **data** migration, and it is real: Phase 11 also
+  design for (login carries only the `auth_verifier`, derived from the salt and
+  parameters that `GET /v1/auth/salt` returns; register carries all four fields).
+  There IS a **data** migration, and it is real: Phase 11 also
   ships sync (F13), four phases before the DEK exists (Phase 19), so every
   transcription a Phase 11–18 account pushes sits on the server as
   **plaintext** the whole time it waits for that account's first Phase-19
