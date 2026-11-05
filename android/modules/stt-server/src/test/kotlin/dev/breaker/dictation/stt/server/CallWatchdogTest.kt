@@ -108,11 +108,12 @@ class CallWatchdogTest {
         val lateDone = CompletableDeferred<Unit>()
         val abort = AbortHandle()
         abort.onAbort { release.complete(Unit) }
-        fire.complete(Unit)
         try {
             val outcome = runBlocking {
                 withTimeout(SAFETY_MS) {
                     CallWatchdog(CallWatchdogTestGatedTimer(fire)).run(1_000L, abort) {
+                        // Fire after the work starts, so the work cannot be cancelled before its body begins.
+                        fire.complete(Unit)
                         runBlocking { release.await() }
                         lateDone.complete(Unit)
                         42
