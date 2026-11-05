@@ -46,6 +46,7 @@ PARAM_RE = re.compile(
 FUN_RE = re.compile(r'^\s*fun\s+(\w+)\s*\(')
 INIT_RE = re.compile(r'^\s*init\s*\{\s*$')
 RULE_RE = re.compile(r'^\s*(require|check)\s*\(')
+TOSTRING_HEAD_RE = re.compile(r'^override\s+fun\s+toString\s*\(\s*\)\s*:\s*String\s*=\s*$')
 
 
 def _strip_line_comment(line):
@@ -257,7 +258,30 @@ def parse_kotlin_file(filepath):
             if INIT_RE.match(s):
                 state = "INIT_BODY"
                 continue
+            if TOSTRING_HEAD_RE.match(s):
+                state = "TOSTRING_BODY"
+                continue
             refuse(idx, "unrecognised construct in class body (only 'init {') is recognised)")
+
+        elif state == "TOSTRING_BODY":
+            # continuation of a single-expression toString; head line ended with '='
+            if not s:
+                continue
+            if s == "}":
+                close_class()
+                state = "TOP"
+                continue
+            if s.rstrip().endswith("+") or s.rstrip().endswith(","):
+                continue
+            # end of toString: only a bare string-literal line is accepted
+            # (starts with '"'; continuation + or , already handled above).
+            # Anything else is a closed-grammar violation.
+            m = re.compile(r'^\s*"').match(s)
+            if not m:
+                refuse(idx, "unrecognised line in toString body "
+                       "(only a double-quoted string line is allowed)")
+            state = "DATA_BODY"
+            continue
 
         elif state == "INIT_BODY":
             if not s:

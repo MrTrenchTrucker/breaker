@@ -347,6 +347,7 @@ def _read_kotlin(class_name, path=None):
     closed = False
     in_body = False
     in_init = False
+    in_toString = False
     i = heads[0] + 1
     n = len(lines)
     while i < n:
@@ -370,45 +371,91 @@ def _read_kotlin(class_name, path=None):
             i += 1
             continue
         # in the class body
-        if not in_init:
+        if not in_init and not in_toString:
+            if not line:
+                i += 1
+                continue
             if line == "    init {":
                 in_init = True
                 i += 1
                 continue
+            if line == "    override fun toString(): String =":
+                in_toString = True
+                i += 1
+                continue
             raise AssertionError(
                 f"{class_name}.kt:{number}: class body must start with an 'init {{' block "
-                f"(closed grammar): {line!r}")
+                f"or a single-expression toString (closed grammar): {line!r}")
         # inside the init block
-        if line == "    }":
-            # the init block closed; the next line must be the class's '}'
+        if in_init:
+            if line == "    }":
+                # the init block closed; the next line must be the class's '}'
+                # or a toString (skipping blank lines)
+                i += 1
+                while i < n and not lines[i]:
+                    i += 1
+                if i >= n:
+                    raise AssertionError(
+                        f"{class_name}.kt:{number}: after the init block the class never closes")
+                if lines[i] == "}":
+                    closed = True
+                    break
+                if lines[i] == "    override fun toString(): String =":
+                    in_init = False
+                    in_toString = True
+                    i += 1
+                    continue
+                raise AssertionError(
+                    f"{class_name}.kt:{i + 1}: after the init block the class must close "
+                    f"with '}}' or a toString: {lines[i]!r}")
+            # a closed-grammar require unit: the condition line ends in '{'
+            if re.match(r"^        require\(.*\) \{$", line):
+                if i + 2 >= n:
+                    raise AssertionError(
+                        f"{class_name}.kt:{number + 1}: require unit is truncated "
+                        f"(need the message line and the closing brace)")
+                msg = lines[i + 1]
+                close = lines[i + 2]
+                if not re.match(r'^            ".*"$', msg):
+                    raise AssertionError(
+                        f"{class_name}.kt:{number + 1}: require unit message line must be a "
+                        f"double-quoted string: {msg!r}")
+                if close != "        }":
+                    raise AssertionError(
+                        f"{class_name}.kt:{number + 2}: require unit must close with a "
+                        f"brace line: {close!r}")
+                i += 3
+                continue
+            raise AssertionError(
+                f"{class_name}.kt:{number}: only closed-grammar require(...) units are "
+                f"allowed inside the init block: {line!r}")
+        # inside toString body
+        if in_toString:
+            if not line:
+                i += 1
+                continue
+            if line == "}":
+                closed = True
+                break
+            if line.rstrip().endswith("+") or line.rstrip().endswith(","):
+                i += 1
+                continue
+            # last line of the toString expression: must be a string-literal line
+            # (starts with '"'; continuation + or , already handled above), then
+            # the class must close with '}'
+            m = re.match(r'^\s*".*', line)
+            if not m:
+                raise AssertionError(
+                    f"{class_name}.kt:{number}: toString body line must be a double-quoted "
+                    f"string line (or end in + or ,): {line!r}")
             i += 1
+            while i < n and not lines[i]:
+                i += 1
             if i >= n or lines[i] != "}":
                 raise AssertionError(
-                    f"{class_name}.kt:{i + 1 if i < n else number}: after the init block "
-                    f"the class must close with a line holding only a close brace")
+                    f"{class_name}.kt:{number}: after toString the class must close with '}}'")
             closed = True
             break
-        # a closed-grammar require unit: the condition line ends in '{'
-        if re.match(r"^        require\(.*\) \{$", line):
-            if i + 2 >= n:
-                raise AssertionError(
-                    f"{class_name}.kt:{number + 1}: require unit is truncated "
-                    f"(need the message line and the closing brace)")
-            msg = lines[i + 1]
-            close = lines[i + 2]
-            if not re.match(r'^            ".*"$', msg):
-                raise AssertionError(
-                    f"{class_name}.kt:{number + 1}: require unit message line must be a "
-                    f"double-quoted string: {msg!r}")
-            if close != "        }":
-                raise AssertionError(
-                    f"{class_name}.kt:{number + 2}: require unit must close with a "
-                    f"brace line: {close!r}")
-            i += 3
-            continue
-        raise AssertionError(
-            f"{class_name}.kt:{number}: only closed-grammar require(...) units are "
-            f"allowed inside the init block: {line!r}")
     if not closed:
         raise AssertionError(f"{class_name}.kt: the constructor never closes with a line holding only a close paren")
     return text, fields

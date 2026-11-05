@@ -22,4 +22,10 @@ data class LoginResponse(
             "keyVersion must be non-negative"
         }
     }
+
+    override fun toString(): String =
+        "LoginResponse(role=$role, keyVersion=$keyVersion, resetAt=$resetAt, rekeyedAt=$rekeyedAt, " +
+        "boxPubkey=$boxPubkey, wrappedDek=${wrappedDek?.let { "${it.length} chars" } ?: "null"}, " +
+        "wrappedBoxPrivkey=${wrappedBoxPrivkey?.let { "${it.length} chars" } ?: "null"}, " +
+        "prevWrappedDek=${prevWrappedDek?.let { "${it.length} chars" } ?: "null"}, token=<redacted>)"
 }

@@ -11,4 +11,9 @@ data class TranscriptionServiceUpdate(
     val baseUrl: String,
     val enabled: Boolean,
     val apiKey: String?,
-)
+) {
+
+    override fun toString(): String =
+        "TranscriptionServiceUpdate(name=$name, baseUrl=$baseUrl, enabled=$enabled, " +
+        "apiKey=${if (apiKey == null) "null" else "<redacted>"})"
+}

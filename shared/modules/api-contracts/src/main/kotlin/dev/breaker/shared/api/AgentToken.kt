@@ -11,4 +11,9 @@ data class AgentToken(
     val ownerUsername: String,
     val scope: AgentTokenScope,
     val expiresAt: String?,
-)
+) {
+
+    override fun toString(): String =
+        "AgentToken(name=$name, ownerUsername=$ownerUsername, scope=$scope, " +
+        "expiresAt=$expiresAt, token=<redacted>)"
+}

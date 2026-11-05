@@ -13,4 +13,10 @@ data class HandoffExchangeResponse(
     val sealedPackage: String,
     val username: String,
     val accountId: Long,
-)
+) {
+
+    override fun toString(): String =
+        "HandoffExchangeResponse(role=$role, keyVersion=$keyVersion, " +
+        "username=$username, accountId=$accountId, " +
+        "sealedPackage=${sealedPackage.length} chars, token=<redacted>)"
+}

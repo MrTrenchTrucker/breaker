@@ -30,6 +30,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "tools"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from api_contracts_support import parse_kotlin_file, KOTLIN_DIR
+from test_signin_handoff_contract import _read_kotlin
 
 JOB_KT = KOTLIN_DIR / "Job.kt"
 
@@ -223,6 +224,142 @@ class ReaderClosedGrammarTest(unittest.TestCase):
         names = {f[0] for f in parsed["data_classes"][0][1]}
         self.assertEqual(names, {"a", "b"},
                          "whole-line comment skipped; both parameters read")
+
+
+
+
+    def test_reader_accepts_one_line_toString(self):
+        """A single-expression toString in a data class body is accepted
+        (head line ending in =, string line blanked by firewall).
+        Goes RED if the toString reader change is reverted."""
+        text = (
+            "package test\n"
+            "\n"
+            "data class Foo(\n"
+            "    val a: Int\n"
+            ") {\n"
+            "    override fun toString(): String =\n"
+            "    \"redacted\"\n"
+            "}\n"
+        )
+        parsed = _parse_and_clean(text)
+        by_name = {f[0]: f for f in parsed["data_classes"][0][1]}
+        self.assertIn("a", by_name,
+                      "the class field must still be read when a toString is present")
+
+    def test_reader_accepts_two_line_toString_with_plus(self):
+        """A two-line toString with + continuation is accepted.
+        Goes RED if the toString reader change is reverted."""
+        text = (
+            "package test\n"
+            "\n"
+            "data class Foo(\n"
+            "    val a: Int\n"
+            ") {\n"
+            "    override fun toString(): String =\n"
+            "    \"part one\" +\n"
+            "    \"part two\"\n"
+            "}\n"
+        )
+        parsed = _parse_and_clean(text)
+        by_name = {f[0]: f for f in parsed["data_classes"][0][1]}
+        self.assertIn("a", by_name,
+                      "the class field must still be read when a two-line toString is present")
+
+    def test_reader_refuses_block_body_toString(self):
+        """A toString with a block body { is refused at the HEAD line.
+        Goes RED if the refusal does not name line 6 (the toString head)."""
+        text = (
+            "package test\n"
+            "\n"
+            "data class Foo(\n"
+            "    val a: Int\n"
+            ") {\n"
+            "    override fun toString(): String {\n"
+            "        return \"redacted\"\n"
+            "    }\n"
+            "}\n"
+        )
+        name = _write_kt(text)
+        try:
+            with self.assertRaises(ValueError) as ctx:
+                parse_kotlin_file(name)
+            msg = str(ctx.exception)
+            self.assertIn(".kt", msg, "refusal must name the file")
+            # line 1 package test, line 2 blank, line 3 data class Foo(,
+            # line 4 val a: Int, line 5 ) {, line 6 override fun toString...
+            self.assertRegex(msg, r":6:", "refusal must name the toString head line (6)")
+        finally:
+            os.unlink(name)
+
+    def test_reader_refuses_other_override_fun(self):
+        """Any other override fun in a data class body is refused at its head line.
+        Goes RED if the toString reader change wrongly accepts all override funs."""
+        text = (
+            "package test\n"
+            "\n"
+            "data class Foo(\n"
+            "    val a: Int\n"
+            ") {\n"
+            "    override fun describe(): String =\n"
+            "    \"redacted\"\n"
+            "}\n"
+        )
+        name = _write_kt(text)
+        try:
+            with self.assertRaises(ValueError) as ctx:
+                parse_kotlin_file(name)
+            msg = str(ctx.exception)
+            self.assertIn(".kt", msg, "refusal must name the file")
+            self.assertRegex(msg, r":6:", "refusal must name the override head line")
+        finally:
+            os.unlink(name)
+
+
+    def test_reader_refuses_fun_leak_after_toString_head(self):
+        """head + 'fun leak() = a' + '}' must be REFUSED (reader hole).
+        Goes RED if the string-line check in the reader is removed."""
+        text = (
+            "package test\n"
+            "\n"
+            "data class Foo(\n"
+            "    val a: Int\n"
+            ") {\n"
+            "    override fun toString(): String =\n"
+            "    fun leak() = a\n"
+            "}\n"
+        )
+        name = _write_kt(text)
+        try:
+            with self.assertRaises(ValueError) as ctx:
+                parse_kotlin_file(name)
+            msg = str(ctx.exception)
+            self.assertIn(".kt", msg, "refusal must name the file")
+            self.assertRegex(msg, r":\d+:", "refusal must name the line")
+        finally:
+            os.unlink(name)
+
+    def test_read_kotlin_refuses_fun_leak_after_toString_head(self):
+        """_read_kotlin must refuse head + 'fun leak() = a' + '}'.
+        Goes RED if the string-line check in _read_kotlin is removed."""
+        content = (
+            "package test\n"
+            "\n"
+            "data class Foo(\n"
+            "    val a: Int\n"
+            ") {\n"
+            "    override fun toString(): String =\n"
+            "    fun leak() = a\n"
+            "}\n"
+        )
+        name = _write_kt(content)
+        try:
+            with self.assertRaises(AssertionError) as ctx:
+                _read_kotlin("Foo", name)
+            msg = str(ctx.exception)
+            self.assertIn("toString body line must be", msg)
+        finally:
+            os.unlink(name)
 
     def test_real_files_parse_clean_and_counted(self):
         """The vacuity guard: every real contract file parses, and the parse

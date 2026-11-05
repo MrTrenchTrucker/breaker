@@ -18,4 +18,8 @@ data class RegisterRequest(
             "salt must be 16 bytes after decode"
         }
     }
+
+    override fun toString(): String =
+        "RegisterRequest(username=$username, salt=$salt, kdfParams=$kdfParams, " +
+        "kdfVersion=$kdfVersion, authVerifier=<redacted>)"
 }
