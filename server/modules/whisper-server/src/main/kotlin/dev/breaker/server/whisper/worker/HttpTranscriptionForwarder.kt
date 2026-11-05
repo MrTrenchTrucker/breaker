@@ -23,7 +23,12 @@ data class DownstreamConfig(
     val model: String = "whisper-1",
     val connectTimeout: Duration = Duration.ofSeconds(10),
     val requestTimeout: Duration = Duration.ofSeconds(60),
-)
+) {
+    override fun toString(): String =
+        "DownstreamConfig(baseUrl=$baseUrl, apiKey=" +
+        "${if (apiKey == null) "null" else "<redacted>"}" +
+        ", model=$model, connectTimeout=$connectTimeout, requestTimeout=$requestTimeout)"
+}
 
 internal const val MAX_FORWARDER_RESPONSE_BYTES: Int = 1024 * 1024
 
