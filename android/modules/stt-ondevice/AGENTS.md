@@ -17,6 +17,8 @@ sherpa-onnx local transcription (fallback engine), model lifecycle, checksum ver
 
 ## Public Interface `core.SttEngine` (local path).
 
+**Public classes (the registry list):** `OnDeviceSttEngine` (it implements core's `SttEngine`), `ModelLoader`, `ModelInstaller`, `LocalModelStore`, `ModelFetcher`, `HttpModelFetcher`, `SherpaRecognizerFactory` and `SherpaOnnxRecognizerFactory` are the classes the app uses; the word stream is `SherpaOnnxWordStreamFactory`, which creates a `FedWordStream` (ADR-029). The module declares more public top-level types than these: the others are not part of the interface and are to be made internal (planned, not built).
+
 **In:** 16 kHz mono PCM float32.
 **Out:** `SttResult(text, segments, language)` or a failure result: `SttError.LOCAL_MODEL_MISSING` for model problems, `SttError.OTHER` for audio, engine and store problems. The engine class is `OnDeviceSttEngine`; user sentences come from `ErrorMapping`. A decode that does not finish before its deadline is an `OTHER` failure too (see Engine notes).
 The public classes for the native engine are `SherpaOnnxRecognizerFactory`, a `SherpaRecognizerFactory`, and `SherpaOnnxWordStreamFactory`, which creates a `FedWordStream`. `FedWordStream` is a public interface: a core `WordStream` that also takes audio through `feed(samples: FloatArray)`.
