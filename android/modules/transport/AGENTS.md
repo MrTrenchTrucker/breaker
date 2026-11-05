@@ -35,9 +35,10 @@ order and spelling:
 
 **How core uses the answer (`AppSettings.mode`, a `core.SttMode`):**
 - `AUTO` (server-primary, the default): `DictateUseCase` asks this probe once,
-  before the attempt. Reachable → the server engine, then the LLM formatter;
-  not reachable → the on-device engine, then the rule-based formatter. A
-  server failure after that is surfaced, not retried on the phone.
+  before the attempt. A reachable answer goes to the server engine, then the
+  server formatter (the app wires `RuleBasedFormatter` for it today). A
+  not-reachable answer goes to the on-device engine, then the rule-based
+  formatter. A server failure after that is surfaced, not retried on the phone.
 - `LOCAL`: always on-device, no probe. **No model installed → clear error
   (`LOCAL_MODEL_MISSING`), no server attempt, no misleading "Set API key."**
 - `SERVER`: always the server, no probe; fails loudly if unreachable.
@@ -158,8 +159,10 @@ the contract the code keeps and points here for the reasoning, per topic:
   threads.
 - **The honest limit: post-answer work is not bounded.** A body that hangs
   after answering holds its thread, and at `POOL_MAX_THREADS` further probes
-  are refused as not measured until it ends. Today's post-answer work is
-  socket close plus unmark: microseconds, reasoned, not measured.
+  are refused as not measured until it ends. The socket close runs
+  before the answer, and `answering` releases the mark and the slot before the
+  answer is published, so the work left after the answer is the wrapper's
+  `finally` that gives the thread back: microseconds, reasoned, not measured.
 
 ## Invariants
 - Reachable only when the configured Local Server accepts a TCP connect within
@@ -234,8 +237,10 @@ agents, not required: an outside contributor may write the code themselves
   address is refused and answered "not reachable" with no dial, while nothing at
   all is wedged. **Post-answer work is not bounded:** a body that hangs AFTER
   answering still holds its thread, and at pool max further probes are refused as
-  not measured until it ends. Today's post-answer work is socket close plus
-  unmark - microseconds, but REASONED, not measured. Two limits also remain, both
+  not measured until it ends. The socket close runs before the answer and
+  `answering` releases the mark and the slot before it is published, so the work
+  left after the answer is the wrapper's `finally` that gives the thread back -
+  microseconds, but REASONED, not measured. Two limits also remain, both
   deliberate: **two DIFFERENT hung hosts still fill the cap** and every later
   probe is then refused; and a re-probe of a parked host answers "not reachable"
   at once, so a host that is merely slow is indistinguishable from a permanently
