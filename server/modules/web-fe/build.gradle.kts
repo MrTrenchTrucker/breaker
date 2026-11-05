@@ -1,4 +1,4 @@
-// server/modules/web-fe — WebApp.
+// server/modules/web-fe -- the website.
 //
 // Card: server/modules/web-fe/AGENTS.md   Registry: modules.toml [module.server_web_fe]
 // Owns: Debian container website (client-side decrypt, Trucking UI), APK/model hosting,...
