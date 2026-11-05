@@ -36,7 +36,7 @@ order and spelling:
 **Components** — public first, then implementation-only (`internal`: not part of
 the registry line, and not reachable from outside the module):
 
-- `MicCapture` — public; AudioRecorder/MediaRecorder session; drives a
+- `MicCapture` - public; a capture session (the platform recorder is `AudioRecord`, opened only in `AudioRecordMicPort.kt`); drives a
   default-priority capture thread
 - `MicSource` — public; the capture source seam the capture session is driven through
 - `MicSourceException` — public; raised when a source fails or stops producing audio.
@@ -74,7 +74,7 @@ the registry line, and not reachable from outside the module):
   open can see the stop that raced it), the teardown latch that makes two
   racing stops both mean "the microphone is shut" by the time both return, the
   capture and dispatch thread references, and `openAndPublish`, `stop`,
-  `joinWithin` and `closeQuietly`. `MicCapture` keeps what a take IS.
+  `joinWithin` and `closeDeviceOnce`. `MicCapture` keeps what a take IS.
 - `IndicatorLiveOpen` - internal (the class and its one operation are both `internal`); the first step of bringing a take up (mark the indicator
   live, then open the device, as one guarded step that undoes itself on a failure). It was
   moved out of `CaptureSessionLifecycle` unchanged in logic so that file stays under its size cap.
@@ -316,7 +316,7 @@ code.
   take, which would read a clean failure as its own history.
   When a start fails, its own `markRecordingStopped()` is guarded separately; a
   throw there is attached as suppressed to the original cause. From the way DOWN,
-  `stop()` rethrows it to its caller, but only AFTER `closeQuietly()`, the joins
+  `stop()` rethrows it to its caller, but only AFTER `closeDeviceOnce()`, the joins
   and the stuck-thread record have completed: the throw is held rather than
   raised where it was caught, because a listener throwing at that point used to
   skip the record entirely, making the one failure that says the microphone may
