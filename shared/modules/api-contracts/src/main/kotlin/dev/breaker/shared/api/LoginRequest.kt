@@ -18,4 +18,7 @@ data class LoginRequest(
             "authVerifier must be base64 that decodes to 32 bytes"
         }
     }
+
+    override fun toString(): String =
+        "LoginRequest(username=$username, authVerifier=<redacted>)"
 }
