@@ -202,13 +202,14 @@ private fun splitKeys(argonOutput: ByteArray): DerivedKeys {
  *
  * The password is normalised to Unicode NFC, then encoded as UTF-8. The intermediate
  * arrays this class owns (the password bytes and the Argon2id output) are zeroed on
- * every path, including when the hash throws. The returned [DerivedKeys] can be wiped
- * by the caller.
+ * every path, including when the hash throws. The normalisation makes one transient
+ * String that cannot be wiped; the encoded bytes are wiped. The returned [DerivedKeys]
+ * can be wiped by the caller.
  */
 class KdfImpl : KeyDerivation {
-    override fun deriveKeys(password: String, salt: ByteArray, kdfParams: KdfParams): DerivedKeys {
+    override fun deriveKeys(password: CharArray, salt: ByteArray, kdfParams: KdfParams): DerivedKeys {
         checkKdfParams(salt, kdfParams)
-        val passwordNfc = passwordBytes(password)
+        val passwordNfc = passwordBytes(String(password))
         try {
             val tag = argon2id(
                 passwordNfc, salt,

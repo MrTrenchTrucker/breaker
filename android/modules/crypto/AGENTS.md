@@ -86,10 +86,12 @@ unsealing.
    access to anything written after this point.
 
 **Interfaces:**
-- `deriveKeys(password, salt, kdfParams) -> {kek, authVerifier}` — one
-  Argon2id run, then two HKDF expansions with distinct labels; there is no
-  function that returns the KEK alone, so nothing that computes the auth
-  verifier without the password can also produce the KEK.
+- `deriveKeys(password: CharArray, salt, kdfParams) -> {kek, authVerifier}` - one
+  Argon2id run, then two HKDF expansions with distinct labels; the
+  normalisation builds one transient String (the only String copy of the
+  password; its encoded bytes are wiped) and the caller's CharArray is never
+  changed; there is no function that returns the KEK alone, so nothing that
+  computes the auth verifier without the password can also produce the KEK.
 - `generateDek() -> Dek` / `wrapDek(dek, kek) -> WrappedDek` (decided, not built:
   generating a data key and wrapping a new one are later work)
 - `unwrapDek(wrappedDek, kek) -> DataEncryptionKey` (built). The wrapped data key has ONE byte form,

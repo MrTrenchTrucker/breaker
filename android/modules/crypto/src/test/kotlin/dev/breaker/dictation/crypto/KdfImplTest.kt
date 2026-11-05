@@ -13,6 +13,7 @@ import dev.breaker.dictation.core.model.KdfRefusal.PARALLELISM_ABOVE_CEILING
 import dev.breaker.dictation.core.model.KdfRefusal.PARALLELISM_BELOW_FLOOR
 import dev.breaker.dictation.core.model.KdfRefusal.UNSUPPORTED_VERSION
 import dev.breaker.dictation.core.model.KdfRefused
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertThrows
@@ -97,7 +98,7 @@ class KdfImplTest {
         )
         assertEquals("V1 argon2id", v.argon2id, tag.toHex())
 
-        val keys = KdfImpl().deriveKeys(v.password, salt(v.saltHex), v.params)
+        val keys = KdfImpl().deriveKeys(v.password.toCharArray(), salt(v.saltHex), v.params)
         assertEquals("V1 key-encryption key", v.kek, keys.kekHex())
         assertEquals("V1 verifier", v.verifier, keys.verifierHex())
         assertNotEquals("V1 key and verifier differ", v.kek, v.verifier)
@@ -123,8 +124,8 @@ class KdfImplTest {
         assertEquals("argon2id for the decomposed spelling", v2Argon2id, fromDecomposed)
         assertEquals("the two spellings derive the same tag", fromComposed, fromDecomposed)
 
-        val keysComposed = KdfImpl().deriveKeys(v2Composed, saltBytes, params)
-        val keysDecomposed = KdfImpl().deriveKeys(v2Decomposed, saltBytes, params)
+        val keysComposed = KdfImpl().deriveKeys(v2Composed.toCharArray(), saltBytes, params)
+        val keysDecomposed = KdfImpl().deriveKeys(v2Decomposed.toCharArray(), saltBytes, params)
         assertEquals("key for the composed spelling", v2Kek, keysComposed.kekHex())
         assertEquals("key for the decomposed spelling", v2Kek, keysDecomposed.kekHex())
         assertEquals("verifier for the composed spelling", v2Verifier, keysComposed.verifierHex())
@@ -143,7 +144,7 @@ class KdfImplTest {
         )
         assertEquals("V3 argon2id", v.argon2id, tag.toHex())
 
-        val keys = KdfImpl().deriveKeys(v.password, salt(v.saltHex), v.params)
+        val keys = KdfImpl().deriveKeys(v.password.toCharArray(), salt(v.saltHex), v.params)
         assertEquals("V3 key-encryption key", v.kek, keys.kekHex())
         assertEquals("V3 verifier", v.verifier, keys.verifierHex())
     }
@@ -163,7 +164,7 @@ class KdfImplTest {
         val tag = argon2id(passwordBytes(password), saltBytes, 65536, 3, 2, 32)
         assertEquals("parallelism-two argon2id", p2Argon2id, tag.toHex())
 
-        val keys = KdfImpl().deriveKeys(password, saltBytes, params)
+        val keys = KdfImpl().deriveKeys(password.toCharArray(), saltBytes, params)
         assertEquals("parallelism-two key-encryption key", p2Kek, keys.kekHex())
         assertEquals("parallelism-two verifier", p2Verifier, keys.verifierHex())
         assertNotEquals("parallelism-two key and verifier differ", p2Kek, p2Verifier)
@@ -245,9 +246,20 @@ class KdfImplTest {
 
     private fun assertRefused(reason: KdfRefusal, salt: ByteArray, params: KdfParams) {
         val e = assertThrows("refusal for $reason", KdfRefused::class.java) {
-            KdfImpl().deriveKeys("correct horse battery staple", salt, params)
+            KdfImpl().deriveKeys("correct horse battery staple".toCharArray(), salt, params)
         }
         assertEquals("refusal reason for $reason", reason, e.reason)
+    }
+
+    /** The derivation must not change the caller's array. */
+    @Test
+    fun `deriveKeys does not change the array it is given`() {
+        val typed = "correct horse battery staple".toCharArray()
+        val snapshot = typed.copyOf()
+        val salt = ByteArray(16) { it.toByte() }
+        val params = KdfParams(65536, 3, 1, 32, 1)
+        KdfImpl().deriveKeys(typed, salt, params)
+        assertArrayEquals("caller's array was changed", snapshot, typed)
     }
 
     // --- hex, local so this file is self-contained ------------------------------------------------

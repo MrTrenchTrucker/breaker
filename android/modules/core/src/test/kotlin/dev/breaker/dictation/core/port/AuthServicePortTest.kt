@@ -14,13 +14,13 @@ class AuthServicePortTest {
     fun `an auth adapter can be written against the port`() {
         var stored: AuthSession? = null
         val service = object : AuthService {
-            override fun register(username: String, password: String): AuthSession {
+            override fun register(username: String, password: CharArray): AuthSession {
                 // The first account registered is an admin; the server decides.
                 stored = AuthSession("u-1", username, "tok", UserRole.ADMIN, setOf(TokenScope.ADMIN))
                 return stored!!
             }
 
-            override fun login(username: String, password: String): AuthSession {
+            override fun login(username: String, password: CharArray): AuthSession {
                 stored = AuthSession("u-2", username, "tok-2", UserRole.USER, setOf(TokenScope.TRANSCRIBE))
                 return stored!!
             }
@@ -32,11 +32,11 @@ class AuthServicePortTest {
             override fun currentSession(): AuthSession? = stored
         }
 
-        val first = service.register("first", "password")
+        val first = service.register("first", "password".toCharArray())
         assertTrue(first.isAdmin)
         assertEquals(first, service.currentSession())
 
-        val second = service.login("second", "password")
+        val second = service.login("second", "password".toCharArray())
         assertEquals(UserRole.USER, second.role)
         assertTrue(!second.isAdmin)
 

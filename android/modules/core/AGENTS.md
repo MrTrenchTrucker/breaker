@@ -45,9 +45,10 @@ modules implement, and the use cases that run a dictation.
   the additional authenticated data as a byte array, which binds a text to its record.
   `toEncryptedText` is unchanged. A refused operation throws `CryptoRefused` and returns
   no partial result.
-- `KeyDerivation` — `deriveKeys(password, salt, kdfParams)`: derives the
+- `KeyDerivation` - `deriveKeys(password: CharArray, salt, kdfParams)`: derives the
   key-encryption key and the auth verifier in one call and returns both as
-  `DerivedKeys`; the crypto module implements it and holds the parameter limits
+  `DerivedKeys`; the password travels as a CharArray that the caller wipes (the
+  implementation never keeps or changes it); the crypto module implements it and holds the parameter limits
   (core carries the values and judges nothing). `CryptoService` takes the key-encryption
   key from this call and never sees the password.
 - `SignInStarter` - `begin(): SignInAttempt` makes the one-time secret text and key pair in memory; the crypto module implements it, as SignInStarterImpl.
