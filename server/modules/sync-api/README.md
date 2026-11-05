@@ -1,6 +1,6 @@
 # sync-api — README
 
-The server's main API: accounts and logins (users, tokens, roles), syncing transcriptions, and the app's update check. It keeps every user's data separate from everyone else's (N13). It stores each transcription as an opaque string with its key_version and never opens it; before any key exists the stored text is the development-only form (ADR-006).
+The server's main API: accounts and logins (users, tokens, roles), and syncing transcriptions. The route that changes a role and the app's update check are planned, not built. It keeps every user's data separate from everyone else's (N13). It stores each transcription as an opaque string with its key_version and never opens it; before any key exists the stored text is the development-only form (ADR-006).
 
 ## What is in the module today
 
