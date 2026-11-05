@@ -275,9 +275,9 @@ class RuleBasedFormatter : Formatter {
     private data class OrdinalMatch(val start: Int, val word: String)
 
     companion object {
-        val CARDINALS = listOf("one", "two", "three", "four", "five",
+        private val CARDINALS = listOf("one", "two", "three", "four", "five",
             "six", "seven", "eight", "nine", "ten")
-        val ORDINALS = listOf("first", "second", "third", "fourth", "fifth",
+        private val ORDINALS = listOf("first", "second", "third", "fourth", "fifth",
             "sixth", "seventh", "eighth", "ninth", "tenth")
         val TO_DIGIT: Map<String, String> = CARDINALS.mapIndexed { i, w -> w to (i + 1).toString() }.toMap() +
           ORDINALS.mapIndexed { i, w -> w to (i + 1).toString() }.toMap()
@@ -290,7 +290,7 @@ class RuleBasedFormatter : Formatter {
         // the tab (horizontal whitespace, not a line break). An item is
         // one line of text; a line break inside it means the "list" would
         // span lines with a markerless line in the middle.
-        val KILL_CHARS = setOf(
+        private val KILL_CHARS = setOf(
             ',', '.', '!', '?',
             '\n', '\r', '\t',
             '\u2028', '\u2029', '\u0085', '\u000B', '\u000C'
@@ -308,14 +308,14 @@ class RuleBasedFormatter : Formatter {
             "\\b($CARD_CI) [Ii][Ss]\\b|" +
                 "\\b($ORDL_CI)\\b(?!\\s+[Ii][Ss]\\b)"
         )
-        val NUMBERED_ITEM = Regex("^($CARD_CI) [Ii][Ss]")
+        private val NUMBERED_ITEM = Regex("^($CARD_CI) [Ii][Ss]")
         val BULLET_ITEM = Regex("^($ORDL_CI)\\b(?!\\s+[Ii][Ss]\\b)")
-        val TOKEN = Regex("\\S+")
-        val SENTENCE_END = Regex("(?<=[^\\d])[.!?] ([a-z])")
+        private val TOKEN = Regex("\\S+")
+        private val SENTENCE_END = Regex("(?<=[^\\d])[.!?] ([a-z])")
 
-        fun rootLower(word: String): String = word.lowercase(Locale.ROOT)
+        private fun rootLower(word: String): String = word.lowercase(Locale.ROOT)
 
-        fun ordinalValue(word: String): Int? {
+        private fun ordinalValue(word: String): Int? {
             val lc = rootLower(word)
             val c = CARDINALS.indexOf(lc)
             if (c >= 0) return c + 1
@@ -323,6 +323,6 @@ class RuleBasedFormatter : Formatter {
             return if (o >= 0) o + 1 else null
         }
 
-        fun toDigit(word: String): String? = TO_DIGIT[rootLower(word)]
+        private fun toDigit(word: String): String? = TO_DIGIT[rootLower(word)]
     }
 }
