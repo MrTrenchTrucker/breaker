@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Model sizes, immutable release-asset URLs, upstream checksum.txt, licenses, hosted flag. The canonical list of ASR models for both on-device and server use:
+Model sizes, immutable release-asset URLs, upstream checksum.txt, licenses, hosted flag. The canonical list of ASR models for on-device and, as planned (ADR-016), server use; no server code reads it today:
 sizes, download URLs, **SHA-256 pins** (integrity gate, T1), and **per-model
 license terms** (Security Review: runtime ASR models carry their own upstream terms,
 outside the audit).
@@ -55,7 +55,7 @@ the license check result (R26).
 **Build phase:** Before Phase 2: `settings` (Phase 2) and `stt-ondevice` (Phase 3) both depend on it. Needs first: nothing beyond `shared`.
 
 ## Invariants
-- Every entry has a sha256; download + verify path tested (tamper test).
+- Every entry has a sha256. The download and verify path is stt-ondevice's: its loader tests load an archive that does not match its pin and see the load refused. `tamper_verified` stays false for an entry until the tamper test has been run against it, and all four entries are false today.
 - Every entry has a license field (R8).
 - URLs pinned to specific releases (no floating "latest").
 - Registry versioned; app refuses unknown model ids.
@@ -129,11 +129,10 @@ agents, not required: an outside contributor may write the code themselves
   generated from it. Its catalog is one JSON file per model; ours is the single
   `models.yaml`. Do not copy its download path: it records no per-file checksum,
   and its download URLs follow a moving branch.
-- The Gradle boundary check does not require a consumer to name the
-  `project(":shared:modules:model-registry")` edge while this module
-  publishes no artifact; the moment it gains code (applies an artifact
-  plugin) the edge becomes required, and the bijection check will then
-  demand it.
+- The Gradle boundary check requires a consumer to name the
+  `project(":shared:modules:model-registry")` edge, because this module now has
+  code and applies an artifact plugin (`java-library`); `settings` and
+  `stt-ondevice` name it.
 - `base` and `medium` are non-streaming Whisper assets: optional, higher
   accuracy, slower. The app cannot run a non-streaming model yet; that support
   is stt-ondevice's (Phase 3, not built). A registry entry is metadata — it
