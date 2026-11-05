@@ -2,11 +2,11 @@
 
 ## Purpose
 
-The OpenAPI 3 spec for every endpoint group (jobs, auth, sync, updates, admin, training), with its Kotlin
+The OpenAPI 3 spec for the endpoint groups that exist today (jobs, auth, sync, admin; updates and training are planned, not built), with its Kotlin
 request/response types (ADR-017): the single contract both the Android client (`stt-server`) and the server
 (`whisper-server`) implement.
 
-**Build phase:** in parts, each before the phase that needs it. First the transcription-job contract (`POST /v1/audio/transcriptions`, `GET /v1/jobs/{job_id}`, `GET /health`), needed by `whisper-server` (Phase 4) and `stt-server` (Phase 5); auth and sync before Phase 11 (`auth-client`, `sync`, `sync-api`); updates, admin and training with their phases; the encryption fields with Phase 19, and the key_version 0 sync body codec with its test vectors now (ADR-006, amended 2026-10-21). **Shipped so far:** the job group (part 1) and the auth group (part 2: register, salt, login, logout, admin agent-token revoke); the remaining groups (sync, updates, the rest of admin, training, keys and change-password) are later parts. Needs first: `shared`.
+**Build phase:** in parts, each before the phase that needs it. First the transcription-job contract (`POST /v1/audio/transcriptions`, `GET /v1/jobs/{job_id}`, `GET /health`), needed by `whisper-server` (Phase 4) and `stt-server` (Phase 5); auth and sync before Phase 11 (`auth-client`, `sync`, `sync-api`); updates and training with their phases; the encryption fields with Phase 19, and the key_version 0 sync body codec with its test vectors now (ADR-006, amended 2026-10-21). **Shipped so far:** the job group (part 1), the auth group (part 2: register, salt, login, logout, keys, change-password, complete-reset and the sign-in hand-off), the sync group and the admin group; the remaining groups (updates and training) are later parts. Needs first: `shared`.
 
 **Endpoints:**
 - `POST /v1/audio/transcriptions` — multipart form: `file`, `model`, `language`
@@ -192,15 +192,16 @@ There is no synchronous 200-with-body variant — every transcription is a job.
   millisecond). The Kotlin codec for that body is `SyncBodyCodec` in package
   `dev.breaker.shared.api.sync`; the full rules are in the /v1/sync operation
   description of `openapi.yaml`. A key_version 0 body carries no cryptography.
-- **jobs** — `POST /v1/audio/transcriptions` (enqueue), `GET /v1/jobs/{id}`
+- **jobs** - `POST /v1/audio/transcriptions` (enqueue), `GET /v1/jobs/{job_id}`
   (status/result — unchanged by ADR-018: the caller that submitted the job
   always gets its own plaintext result back here, exactly as ADR-015 already
   specifies; sealing to the owner, when the caller was an agent token, is a
   separate, server-internal step between `whisper-server` and `sync-api`,
   not a second public endpoint). **Result retention (ADR-018):** a
-  completed `result` is deleted from the job store once its requester has
-  fetched it, or 24 hours after the job finished if nobody ever does —
-  until then it sits in `whisper-server`'s SQLite store in plaintext, the
+  completed `result` stays fetchable for a window after the job finished
+  (default 10 minutes, set by `BREAKER_WHISPER_RESULT_TTL_S`, at most 24 hours);
+  every `GET` inside the window returns the same result and after it the
+  result is erased - until then it sits in `whisper-server`'s SQLite store in plaintext, the
   same store the still-queued audio uses (ADR-010).
 - **updates** — `GET /v1/updates/latest.json`
   Planned, not built: no updates path is in `openapi.yaml` yet and the server does not serve it.
@@ -222,7 +223,7 @@ scope here.
 ## Invariants
 - Spec is machine-validatable (openapi-generator parses clean). **NOT VERIFIED** — the tool is not in the toolchain; a stdlib structural validator covers the slice's subset.
 - Example request/response for each endpoint (golden WAV included).
-- Client and server generated/stubbed from THIS spec — no drift.
+- Client and server use the Kotlin types of this module, written by hand from the spec; `tests/unit/shared/api-contracts/test_conformance.py` compares every schema with its Kotlin type field for field, so drift fails a test.
 - A key_version 0 body carries no cryptography and is development-only until Phase 19.
 
 ## Owns
@@ -247,7 +248,7 @@ OpenAPI spec (openapi.yaml); Kotlin request and response types
 
 ## Test Locations
 - Unit (Python, the spec and its conformance checks): `tests/unit/shared/api-contracts/`, created with the module's first slice. Run: `python3 -m unittest discover -s tests/unit/shared/api-contracts`
-- Kotlin types (ADR-017): their tests run with `./gradlew :shared:modules:api-contracts:test` once the module applies the Kotlin plugin with its first types.
+- Kotlin types (ADR-017): their tests run with `./gradlew :shared:modules:api-contracts:test` (the module applies the Kotlin plugin).
 - Sync body vectors: `examples/sync_body_vectors.json`. The Kotlin codec test under
   `src/test/kotlin/dev/breaker/shared/api/sync/` checks them, and the stdlib oracle
   `tests/unit/shared/api-contracts/test_sync_body_vectors.py` re-derives them. The
@@ -264,7 +265,7 @@ OpenAPI spec (openapi.yaml); Kotlin request and response types
 - Wrong-password limit (built on the server): the stdlib test `tests/unit/shared/api-contracts/test_wrongpw_contract.py`
   pins the 423 locked answer of login with its Retry-After header (whole seconds, minimum 1), the
   `GET` and `PUT /v1/admin/wrong-pw-limit` path with its statuses and operation ids, and the
-  `WrongPwLimit` schema with its matching Kotlin type.
+  `WrongPwLimit` schema (its field-for-field match with the Kotlin type is checked by `test_conformance.py`).
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
 ## Test Requirement
@@ -289,7 +290,7 @@ The owner's own work is orchestration, checking and correction, not writing
 code.
 
 ## Known Gotchas
-- Client and server generate from THIS spec — no drift.
+- Client and server use hand-written Kotlin types, not generated ones; `test_conformance.py` keeps them in line with this spec.
 - The Gradle boundary edge is LIVE: this module applies the Kotlin/JVM
   plugin and the artifact exists, and stt-server already names the edge —
   `implementation(project(":shared:modules:api-contracts"))` in
