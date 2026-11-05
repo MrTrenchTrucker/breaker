@@ -113,23 +113,23 @@ running cannot be stopped; the guard only prevents the next one. If the wait is
 interrupted after the block started, the call still fails as not responding and
 the block finishes on its own.
 
-## What the app must add later
-The module is a library. It has no manifest entry, so until the app and its
-text-insert mechanism add these, nothing publishes a focused field for this
+## What the app adds
+The module is a library. It has no manifest entry; the app and its text-insert mechanism add these, and
+until the user enables the accessibility service nothing publishes a focused field for this
 module to find, and every commit goes to the clipboard:
 - The accessibility service, its manifest `<service>` entry, and its service
-  config — built in `commit/accessibility` (ADR-022), not here.
+  config: built in `commit/accessibility` (ADR-022), not here.
 - The onboarding screen that explains the permission and walks the Android 13+
-  restricted-setting step (owned by `ui`).
+  restricted-setting step: built in `ui` (`SetupScreen`).
 - One call to `CommitServices.create(context)` per process, handed to the use
-  case that needs a `TextCommitter`.
+  case that needs a `TextCommitter`: the app makes it in `wiring/AndroidSwaps.kt` (`appTextCommitter`).
 
 ## Invariants
 - Send with focused field → text appears inline (F4).
 - Send with no focused field: the text goes to the clipboard, with a toast on SDK
   level 32 or lower only (F5).
 - Commit only fires on explicit send tap (T8).
-- Preview toggle shows text before commit (optional, settings).
+- Planned, not built: a preview toggle shows the text before commit (optional, a setting). No preview toggle exists on main.
 
 ## Depends On
 - android (registered in modules.toml)
@@ -185,7 +185,7 @@ agents, not required: an outside contributor may write the code themselves
   guard. The deadline only frees a caller whose block has not started.
 - Two process-wide holders exist. `adapter/FocusedFieldHolder` is shared by
   whatever text-insert mechanism publishes a focused field (today,
-  `commit/accessibility`, ADR-022, once built) and the commit service that
+  `commit/accessibility`, ADR-022) and the commit service that
   reads it. No test touches it; every test builds its own registry.
   `KeyboardProbeReadings` is the holder of the keyboard readings, not probe only; its test
   classes reset it before and after each test.

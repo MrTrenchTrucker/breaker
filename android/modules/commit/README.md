@@ -48,18 +48,16 @@ Android adapters (five files, the only ones that name Android classes), in
 - `HandlerMainThread.kt` - a thin wrapper over `PostedMainThread` for the main
   looper, with a 5 second safety deadline.
 - `FocusedFieldHolder.kt` - the one process-wide holder, which a text-insert
-  mechanism publishes into (the `commit/accessibility` sub-module, once built
-  — ADR-022) and the commit service reads.
+  mechanism publishes into (the `commit/accessibility` sub-module, ADR-022) and the commit service reads.
 
 A sub-module built as its own Gradle module hands over its focused field by
 calling the public `adapter.FocusedFieldHolder.publish(field): AutoCloseable`
 and holding onto the returned handle, closing it when the field loses focus.
 
-## Not in the app yet
+## What the app adds
 
-The library has no manifest entry, so until a text-insert mechanism and the app
-wire it in, every commit goes to the clipboard. The card lists what the app
-must add.
+The library has no manifest entry; the app wires it in (`wiring/AndroidSwaps.kt`), and until the user enables the
+accessibility service every commit goes to the clipboard. The card lists what the app adds.
 
 ## Tests
 

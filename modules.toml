@@ -168,7 +168,7 @@ path = "android/modules/training-client"
 owns = "Record phrase samples, upload, download trained model + checksum verify."
 does_not_own = "Training itself (server/training); phrase detection (phrases)."
 depends_on = ["android", "android_core"]
-public = "PhraseTraining"
+public = "None yet: no code. PhraseTraining is core's port that this module is to implement."
 card = "android/modules/training-client/AGENTS.md"
 
 [module.android_updater]
