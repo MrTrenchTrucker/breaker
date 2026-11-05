@@ -400,7 +400,7 @@ class MicCapture(
         const val DEFAULT_BUFFER_SAMPLES: Int = 32_000
 
         /** How long [stop] waits for the session threads. */
-        const val DEFAULT_JOIN_TIMEOUT_MS: Long = 2_000L
+        private const val DEFAULT_JOIN_TIMEOUT_MS: Long = 2_000L
 
         /** Name of the thread that reads the device. */
         const val CAPTURE_THREAD_NAME: String = "breaker-mic-capture"

@@ -327,7 +327,7 @@ internal class AudioResampler(
         const val DEFAULT_TAPS: Int = 32
 
         /** Below this the kernel is not worth interpolating with. */
-        const val MIN_TAPS: Int = 8
+        private const val MIN_TAPS: Int = 8
 
         private val EMPTY = FloatArray(0)
     }

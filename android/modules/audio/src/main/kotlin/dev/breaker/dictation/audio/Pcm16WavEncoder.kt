@@ -97,7 +97,7 @@ class Pcm16WavEncoder(
         const val HEADER_BYTES: Int = 44
 
         /** Bytes per sample in the 16-bit container. */
-        const val BYTES_PER_SAMPLE: Int = 2
+        private const val BYTES_PER_SAMPLE: Int = 2
 
         private const val FORMAT_CHUNK_BYTES = 16
         private const val FORMAT_PCM = 1

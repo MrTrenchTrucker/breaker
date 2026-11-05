@@ -249,7 +249,7 @@ internal class EnergyVad(
         const val DEFAULT_FRAME_SAMPLES: Int = 320
 
         /** Speech must clear the floor by this many decibels. */
-        const val DEFAULT_SPEECH_MARGIN_DB: Float = 8f
+        private const val DEFAULT_SPEECH_MARGIN_DB: Float = 8f
 
         /**
          * How fast the floor is allowed to rise, in decibels per second.
@@ -258,16 +258,16 @@ internal class EnergyVad(
          * whatever the window is: 25 dB/s is 0.5 dB on a 20 ms frame, 1.0 dB on a
          * 40 ms one and 0.167 dB on a 6.67 ms one.
          */
-        const val DEFAULT_FLOOR_RISE_DB_PER_SECOND: Float = 25f
+        private const val DEFAULT_FLOOR_RISE_DB_PER_SECOND: Float = 25f
 
         /** 200 ms of hangover bridges the gap between words. */
         const val DEFAULT_HANGOVER_MS: Long = 200L
 
         /** Padding on each side of the retained span. */
-        const val DEFAULT_PAD_MS: Long = 120L
+        private const val DEFAULT_PAD_MS: Long = 120L
 
         /** Below 150 ms is not a dictation. */
-        const val DEFAULT_MIN_SPEECH_MS: Long = 150L
+        private const val DEFAULT_MIN_SPEECH_MS: Long = 150L
 
         /** Consecutive speech frames needed before the detector commits. */
         const val MIN_RUN_FRAMES: Int = 3

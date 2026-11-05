@@ -171,25 +171,25 @@ class AdaptiveGateSuppressor(
 
     companion object {
         /** 80 Hz: below the fundamental of the lowest voice worth transcribing. */
-        const val DEFAULT_HIGH_PASS_HZ: Float = 80f
+        private const val DEFAULT_HIGH_PASS_HZ: Float = 80f
 
         /** How fast the floor follows a quieter frame. */
-        const val DEFAULT_FLOOR_ATTACK: Float = 0.4f
+        private const val DEFAULT_FLOOR_ATTACK: Float = 0.4f
 
         /** How fast the floor follows a louder frame. */
-        const val DEFAULT_FLOOR_RELEASE: Float = 0.02f
+        private const val DEFAULT_FLOOR_RELEASE: Float = 0.02f
 
         /** How far above the floor a frame counts as speech. */
-        const val DEFAULT_GATE_MARGIN_DB: Float = 10f
+        private const val DEFAULT_GATE_MARGIN_DB: Float = 10f
 
         /** What a gated frame is attenuated by. */
-        const val DEFAULT_CLOSED_GAIN_DB: Float = -18f
+        private const val DEFAULT_CLOSED_GAIN_DB: Float = -18f
 
         /** Gate opening time. */
-        const val DEFAULT_OPEN_MS: Float = 5f
+        private const val DEFAULT_OPEN_MS: Float = 5f
 
         /** Gate closing time. */
-        const val DEFAULT_CLOSE_MS: Float = 60f
+        private const val DEFAULT_CLOSE_MS: Float = 60f
 
         /**
          * The feedback term of a one-pole high-pass whose corner sits at [hz]
@@ -201,7 +201,7 @@ class AdaptiveGateSuppressor(
          * one the caller asked for. Inverting that relation is what puts the
          * corner where [hz] says it is.
          */
-        fun highPassPole(sampleRateHz: Int, hz: Float): Double =
+        private fun highPassPole(sampleRateHz: Int, hz: Float): Double =
             exp(-TWO_PI * hz / sampleRateHz)
 
         private const val TWO_PI = 2.0 * Math.PI
@@ -235,7 +235,7 @@ class AdaptiveGateSuppressor(
             ((1.0 + highPassPole(sampleRateHz, hz)) / 2.0).toFloat()
 
         /** The one-pole smoothing coefficient for a [timeMs] time constant. */
-        fun smoothingCoefficient(sampleRateHz: Int, timeMs: Float): Float {
+        private fun smoothingCoefficient(sampleRateHz: Int, timeMs: Float): Float {
             val tau = timeMs / 1000.0
             val te = 1.0 / sampleRateHz
             return min(1.0, 1.0 / (1.0 + tau / te)).toFloat()
