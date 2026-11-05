@@ -1,6 +1,6 @@
 # ADR-036: Sign-in from the website hands the login to the app
 
-**Status:** accepted, amended 2026-11-02 (how the wrong-password limit works); decided, built on the server, not built on the phone and the website; the wrong-password limit is built on the server (counting, the locked answer, the admin switch and its route, the drop at registration, the clear hook and the sweep), while the admin reset and the password change that call the hook and the phone and website sides are not built; the points still open are under To be designed
+**Status:** accepted, amended 2026-11-02 (how the wrong-password limit works); decided, built on the server, not built on the phone and the website; the wrong-password limit is built on the server (counting, the locked answer, the admin switch and its route, the drop at registration, the clear hook and the sweep), and the admin reset, the completion of a reset and the password change that call the hook are built on the server too, while the phone and website sides are not built; the points still open are under To be designed
 **Date:** 2026-11-01
 **Approved by:** the project owner, 2026-11-01
 
@@ -96,7 +96,7 @@ Of the hand-off, `CryptoService.openSignInPackage` (with its parser and the seal
 
 ### What is built
 
-Built on the server: the table and the counting, the locked answer, the admin switch and its route, the drop of the row at registration, the clear hook that the resets call, and the sweep (at boot and every five minutes). Not built: the admin reset and the password change themselves, which call the hook when they are built, and the phone and website sides.
+Built on the server: the table and the counting, the locked answer, the admin switch and its route, the drop of the row at registration, the clear hook that the resets call, and the sweep (at boot and every five minutes). The admin reset, the completion of a reset and the password change are built on the server and call the hook. Not built: the phone and website sides.
 
 ## To be designed (not decided here)
 
