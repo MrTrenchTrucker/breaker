@@ -8,6 +8,7 @@ package dev.breaker.dictation.ui.screen.auth
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -131,9 +132,7 @@ class AuthIntentHandlerTest {
         var fired = 0
         val password = typed("password123456")
         val throwing = AuthIntentHandler { _, _, _ -> fired++; check(false) }
-        try {
-            throwing.submit(password)
-        } catch (expected: Throwable) {}
+        assertThrows(IllegalStateException::class.java) { throwing.submit(password) }
         assertEquals(1, fired)
         for (index in password.indices) {
             assertEquals('\u0000', password[index])

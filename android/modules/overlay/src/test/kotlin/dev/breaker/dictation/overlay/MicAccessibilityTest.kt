@@ -111,7 +111,13 @@ internal class MicAccessibilityTest {
 
     /** A failure here means null callbacks throw instead of being a no-op. */
     @Test
-    fun `run with null callbacks does nothing`() {
+    fun `a null callback is skipped and the other callback still runs`() {
+        var cancels = 0
+        var sends = 0
+        MicAccessibility.run(MicA11yAction.CANCEL, { cancels++ }, null)
+        MicAccessibility.run(MicA11yAction.SEND, null, { sends++ })
+        assertEquals("android_overlay: cancel runs once when only the cancel callback is set", 1, cancels)
+        assertEquals("android_overlay: send runs once when only the send callback is set", 1, sends)
         MicAccessibility.run(MicA11yAction.CANCEL, null, null)
         MicAccessibility.run(MicA11yAction.SEND, null, null)
     }
