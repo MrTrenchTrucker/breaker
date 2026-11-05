@@ -23,6 +23,8 @@ priority) for GPU job management.
 
 **Build phase:** Phase 13, together with `training-client`. Needs first: auth (Phase 11), because every training call carries the user's token.
 
+**Status on main:** nothing in this module is built. The folder holds this card, the README and a build file that applies only the base plugin: no Kotlin, no route, no container and no test, and `tests/unit/server/training/` does not exist. Everything below is the target design, planned, not built. The registry names `TrainingApi` as the public type, but no class of that name exists, and `openapi.yaml` has no training path (the api-contracts card lists it as planned).
+
 ## Invariants
 - Training completes; model + checksum downloadable (F16).
 - Cross-user access refused (N13); samples deletable (T15).
