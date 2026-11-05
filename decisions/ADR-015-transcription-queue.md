@@ -1,6 +1,6 @@
 # ADR-015: Async transcription job queue, hosted in Breaker's own whisper-server (not the Whisper X container)
 
-**Status:** accepted, amended 2026-11-01 (the job owner will come from the token, checked by asking sync-api)
+**Status:** accepted, amended 2026-11-01 (the job owner comes from the token, checked by asking sync-api)
 **Date:** 2026-09-30
 
 ## Context
@@ -38,4 +38,4 @@ Amended 2026-11-01: jobs are to be owned by the account of the session token (AD
 5. The sync-api side is an internal route: never on the VPN-facing interface, reachable only by whisper-server inside the server stack, and protected by a service key that the stack makes for itself at first start (no admin set-up; the same principle as ADR-032). Where it listens and where the key is kept are part of the deploy design and are not decided here.
 6. A revoke never lags. No migration of jobs stored under the old fixed owner is required.
 
-Rejected: whisper-server opening sync-api's database file (a second writer and schema coupling); the token code as a shared library (it shares code, not data); a self-contained signed token (it cannot be revoked at once and cannot slide without a lookup). Nothing of this is built yet.
+Rejected: whisper-server opening sync-api's database file (a second writer and schema coupling); the token code as a shared library (it shares code, not data); a self-contained signed token (it cannot be revoked at once and cannot slide without a lookup). All of this is built: whisper-server asks sync-api over HTTP (HttpTokenCheck, with the service key), a job is owned by the account of the token, and a refused or unreachable token is one plain 401.
