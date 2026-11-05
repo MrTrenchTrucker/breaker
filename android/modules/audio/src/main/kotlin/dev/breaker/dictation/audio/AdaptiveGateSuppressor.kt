@@ -206,9 +206,6 @@ class AdaptiveGateSuppressor(
         private const val TWO_PI = 2.0 * Math.PI
         private const val INITIAL_FLOOR = 0.01f
 
-        /** Where the floor starts before it has heard a frame. */
-        const val SILENT_GAIN: Float = 1f
-
         fun dbToGain(db: Float): Float = exp(db * LN10_OVER_20).toFloat()
 
         /**

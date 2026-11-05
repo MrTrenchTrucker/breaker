@@ -1,8 +1,5 @@
 package dev.breaker.dictation.core.model
 
-/** Where a transcription stands with the server. */
-enum class SyncState { PENDING, SYNCED, FAILED }
-
 /**
  * The result of one push of the pending queue.
  *
@@ -15,6 +12,4 @@ data class SyncReport(val pushed: Int, val failed: Int) {
         require(pushed >= 0) { "pushed cannot be negative: $pushed" }
         require(failed >= 0) { "failed cannot be negative: $failed" }
     }
-
-    val isClean: Boolean get() = failed == 0
 }

@@ -92,21 +92,6 @@ internal const val MODEL_STEP_ID = "setup.step.model"
 /** The id of the model step's download button, drawn while the speech model is not ready. */
 internal const val MODEL_STEP_BUTTON_ID = "setup.step.model.button"
 
-/**
- * The id of the model step's download button in [screen], or null when the model is
- * ready and the step has no button.
- *
- * This is the whole decision the model step's focus makes about where to put focus,
- * kept as a plain function of the drawn screen so a JVM test can check it without a
- * device. The view that holds the screen finds the button view by this id.
- */
-internal fun modelDownloadButtonId(screen: Screen): String? =
-    screen.nodes.filterIsInstance<Box>()
-        .firstOrNull { it.id == MODEL_STEP_ID }
-        ?.children
-        ?.firstOrNull { it is Action }
-        ?.id
-
 /** The set-up screen. */
 internal class SetupScreen {
     /**

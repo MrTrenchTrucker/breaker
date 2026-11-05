@@ -20,11 +20,6 @@ internal interface WelcomeContent {
     fun pictureName(dark: Boolean): String
 }
 
-/** The welcome content for now: the logo of the theme. */
-internal object LogoWelcome : WelcomeContent {
-    override fun pictureName(dark: Boolean): String = FirstRunPictures.logoName(dark)
-}
-
 /**
  * The welcome timer: one wait of [WELCOME_MS], a tap that ends it at once, and one hand-over.
  *
