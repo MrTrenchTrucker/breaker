@@ -388,7 +388,7 @@ internal class CaptureSessionLifecycle(
      * the close is guarded once and the indicator mark is idempotent, so a later
      * stop() and a caller's own close are both no-ops.
      */
-    fun releaseForTaken(current: Long) {
+    private fun releaseForTaken(current: Long) {
         if (session.get() != current) return
         closeDeviceOnce()
         indicator.markRecordingStopped()
