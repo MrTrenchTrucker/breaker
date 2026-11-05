@@ -271,15 +271,14 @@ def parse_kotlin_file(filepath):
                 close_class()
                 state = "TOP"
                 continue
-            if s.rstrip().endswith("+") or s.rstrip().endswith(","):
-                continue
-            # end of toString: only a bare string-literal line is accepted
-            # (starts with '"'; continuation + or , already handled above).
-            # Anything else is a closed-grammar violation.
+            # string-literal line FIRST: a toString expression line starts with '"';
+            # refuse anything else before accepting a continuation marker.
             m = re.compile(r'^\s*"').match(s)
             if not m:
                 refuse(idx, "unrecognised line in toString body "
-                       "(only a double-quoted string line is allowed)")
+                           "(only a double-quoted string line is allowed)")
+            if s.rstrip().endswith("+") or s.rstrip().endswith(","):
+                continue
             state = "DATA_BODY"
             continue
 

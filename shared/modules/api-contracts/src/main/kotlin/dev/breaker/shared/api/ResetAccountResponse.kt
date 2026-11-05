@@ -18,4 +18,7 @@ data class ResetAccountResponse(
             "resetCode must be at most 64 chars"
         }
     }
+
+    override fun toString(): String =
+        "ResetAccountResponse(resetCode=<redacted>)"
 }

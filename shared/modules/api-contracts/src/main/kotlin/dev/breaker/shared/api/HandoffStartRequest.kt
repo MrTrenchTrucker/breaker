@@ -9,4 +9,8 @@ package dev.breaker.shared.api
 data class HandoffStartRequest(
     val challenge: String,
     val sealedPackage: String,
-)
+) {
+
+    override fun toString(): String =
+        "HandoffStartRequest(challenge=$challenge, sealedPackage=${sealedPackage.length} chars)"
+}

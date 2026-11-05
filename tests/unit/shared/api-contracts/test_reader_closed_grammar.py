@@ -326,7 +326,7 @@ class ReaderClosedGrammarTest(unittest.TestCase):
             "    val a: Int\n"
             ") {\n"
             "    override fun toString(): String =\n"
-            "    fun leak() = a\n"
+            "    fun leak() = a+\n"
             "}\n"
         )
         name = _write_kt(text)
@@ -349,7 +349,7 @@ class ReaderClosedGrammarTest(unittest.TestCase):
             "    val a: Int\n"
             ") {\n"
             "    override fun toString(): String =\n"
-            "    fun leak() = a\n"
+            "    fun leak() = a+\n"
             "}\n"
         )
         name = _write_kt(content)
@@ -358,6 +358,74 @@ class ReaderClosedGrammarTest(unittest.TestCase):
                 _read_kotlin("Foo", name)
             msg = str(ctx.exception)
             self.assertIn("toString body line must be", msg)
+        finally:
+            os.unlink(name)
+
+    def test_reader_refuses_leak_line_ending_plus_before_a_string_line(self):
+        """head + 'fun leak() = a +' + a string line must be REFUSED at the leak line.
+        Goes RED if the continuation skip runs before the string-line check."""
+        text = (
+            "package test\n"
+            "\n"
+            "data class Foo(\n"
+            "    val a: Int\n"
+            ") {\n"
+            "    override fun toString(): String =\n"
+            "    fun leak() = a +\n"
+            "    \"x\"\n"
+            "}\n"
+        )
+        name = _write_kt(text)
+        try:
+            with self.assertRaises(ValueError) as ctx:
+                parse_kotlin_file(name)
+            self.assertRegex(str(ctx.exception), r":7:", "refusal must name the leak line")
+        finally:
+            os.unlink(name)
+
+    def test_reader_refuses_leak_line_ending_comma_before_a_string_line(self):
+        """head + 'val leak = 1,' + a string line must be REFUSED at the leak line.
+        Goes RED if the comma continuation skip runs before the string-line check."""
+        text = (
+            "package test\n"
+            "\n"
+            "data class Foo(\n"
+            "    val a: Int\n"
+            ") {\n"
+            "    override fun toString(): String =\n"
+            "    val leak = 1,\n"
+            "    \"x\"\n"
+            "}\n"
+        )
+        name = _write_kt(text)
+        try:
+            with self.assertRaises(ValueError) as ctx:
+                parse_kotlin_file(name)
+            self.assertRegex(str(ctx.exception), r":7:", "refusal must name the leak line")
+        finally:
+            os.unlink(name)
+
+    def test_read_kotlin_refuses_leak_line_ending_comma_before_a_string_line(self):
+        """_read_kotlin must refuse head + 'val leak = 1,' + a string line.
+        Goes RED if the comma continuation skip runs before the string-line check."""
+        content = (
+            "package test\n"
+            "\n"
+            "data class Foo(\n"
+            "    val a: Int\n"
+            ") {\n"
+            "    override fun toString(): String =\n"
+            "    val leak = 1,\n"
+            "    \"x\"\n"
+            "}\n"
+        )
+        name = _write_kt(content)
+        try:
+            with self.assertRaises(AssertionError) as ctx:
+                _read_kotlin("Foo", name)
+            msg = str(ctx.exception)
+            self.assertIn("toString body line must be", msg)
+            self.assertRegex(msg, r"\.kt:7:", "refusal must name the leak line")
         finally:
             os.unlink(name)
 

@@ -437,17 +437,16 @@ def _read_kotlin(class_name, path=None):
             if line == "}":
                 closed = True
                 break
-            if line.rstrip().endswith("+") or line.rstrip().endswith(","):
-                i += 1
-                continue
-            # last line of the toString expression: must be a string-literal line
-            # (starts with '"'; continuation + or , already handled above), then
-            # the class must close with '}'
+            # string-literal line FIRST: a toString expression line starts with '"';
+            # refuse anything else before accepting a continuation marker.
             m = re.match(r'^\s*".*', line)
             if not m:
                 raise AssertionError(
                     f"{class_name}.kt:{number}: toString body line must be a double-quoted "
                     f"string line (or end in + or ,): {line!r}")
+            if line.rstrip().endswith("+") or line.rstrip().endswith(","):
+                i += 1
+                continue
             i += 1
             while i < n and not lines[i]:
                 i += 1
