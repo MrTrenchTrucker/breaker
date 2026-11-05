@@ -104,8 +104,13 @@ internal data class Switch(
     val description: String? = null,
 ) : Node()
 
-/** A text shown in a field that the user cannot edit. */
-internal data class ValueField(override val id: String, val text: String, val muted: Boolean) : Node()
+/** A text in a field: display only when [entryKey] is null, else a real input that reports the typed text. */
+internal data class ValueField(
+    override val id: String,
+    val text: String,
+    val muted: Boolean,
+    val entryKey: String? = null,
+) : Node()
 
 /** A thin full-width line in one palette slot. */
 internal data class Rule(override val id: String, val color: PaletteSlot) : Node()

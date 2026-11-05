@@ -200,6 +200,7 @@ internal fun valuesBlock(held: AppSettings, model: ModelRow): Box = Box(
                     id = SettingsIds.SERVER_FIELD,
                     text = serverText(held),
                     muted = !held.hasServerUrl,
+                    entryKey = ServerAddressEntry.KEY,
                 ),
             ),
         ),
