@@ -22,4 +22,7 @@ data class HandoffExchangeRequest(
             "deviceName must be null or 1..64 code points"
         }
     }
+
+    override fun toString(): String =
+        "HandoffExchangeRequest(code=<redacted>, secret=<redacted>, deviceName=$deviceName)"
 }
