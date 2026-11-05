@@ -211,7 +211,7 @@ automatically; it looks like the Android app.
 Debian container website (client-side decrypt, Trucking UI), APK/model hosting, admin panel.
 
 ## Public Interface
-WebApp
+The sign-in page `signin.html`, with its entry script `js/signin-page.js`. The page uses the browser modules `js/signin.js`, `js/signin-crypto.js`, `js/signin-net.js`, `js/signin-link.js` and `js/aesgcm.js`, all under `src/main/resources/web`.
 
 ## Depends On
 - server (registered in modules.toml)

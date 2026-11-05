@@ -510,7 +510,7 @@ Still open. How the key reaches whisper-server is the deploy step's job. whisper
 Auth (users, roles, agent tokens), sync, updates, retention, store clear, log policy.
 
 ## Public Interface
-AuthApi, SyncApi, AdminApi
+The HTTP surface. `syncApiModule` installs the public routes: `/v1/auth/*`, `/v1/sync`, `/v1/transcriptions` and `/v1/admin/*`. `internalModule` installs the service-key routes `/internal/v1/token/*` on the internal listener.
 
 ## Depends On
 - server (registered in modules.toml)
