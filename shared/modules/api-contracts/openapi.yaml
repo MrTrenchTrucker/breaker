@@ -139,13 +139,13 @@ paths:
               $ref: "#/components/schemas/RegisterRequest"
             example:
               username: "alice"
-              salt: "c2FsdA=="
+              salt: "AAAAAAAAAAAAAAAAAAAAAA=="
               kdf_params:
                 memory_kib: 65536
                 iterations: 3
                 parallelism: 1
               kdf_version: 1
-              auth_verifier: "dmVyaWZpZXI="
+              auth_verifier: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
       responses:
         "201":
           description: Account created
@@ -207,7 +207,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/SaltResponse"
               example:
-                salt: "c2FsdA=="
+                salt: "AAAAAAAAAAAAAAAAAAAAAA=="
                 kdf_params:
                   memory_kib: 65536
                   iterations: 3
@@ -275,7 +275,7 @@ paths:
               $ref: "#/components/schemas/LoginRequest"
             example:
               username: "alice"
-              auth_verifier: "dmVyaWZpZXI="
+              auth_verifier: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
       responses:
         "200":
           description: Login successful
