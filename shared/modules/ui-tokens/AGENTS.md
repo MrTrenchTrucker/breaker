@@ -73,7 +73,7 @@ language (F25). Consumed by the web FE (CSS variables) and the Android app
 ## Responsive (F35)
 - Breakpoints: **mobile** (< 640 px, portrait) · **tablet** (640–1024 px) ·
   **desktop** (> 1024 px, landscape).
-- Mobile: bottom tab bar (Home / History / Settings); desktop: sidebar.
+- Planned, not built: on mobile a bottom tab bar (Home / History / Settings), on desktop a sidebar. The web front end holds only the sign-in page today, and the Android app reaches its other screens from a menu drawer on its Home screen.
 - The Android app renders the same components at phone scale.
 
 ## Acceptance
