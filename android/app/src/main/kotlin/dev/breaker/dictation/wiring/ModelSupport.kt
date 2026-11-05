@@ -16,7 +16,7 @@ object ModelSentences {
     const val NO_MODEL: String = "Download the speech model in Breaker first."
 
     /** Shown while the speech model is being downloaded. */
-    const val DOWNLOADING_TEMPLATE: String = "Downloading the speech model from GitHub ({size} MB)..."
+    private const val DOWNLOADING_TEMPLATE: String = "Downloading the speech model from GitHub ({size} MB)..."
 
     /** The downloading sentence for a model of [sizeMb] mebibytes, with the size Android shows. */
     fun downloadingFor(sizeMb: Int): String = DOWNLOADING_TEMPLATE.replace("{size}", mibToMb(sizeMb).toString())
@@ -34,10 +34,10 @@ object ModelSentences {
     const val CHECKING: String = "Checking the speech model."
 
     /** Progress while the speech model downloads and its total is known; the placeholders are megabytes. */
-    const val PROGRESS_TEMPLATE: String = "Downloading the speech model: {done} of {total} MB."
+    private const val PROGRESS_TEMPLATE: String = "Downloading the speech model: {done} of {total} MB."
 
     /** Progress while the speech model downloads and its total is not known; the placeholder is megabytes so far. */
-    const val PROGRESS_UNKNOWN_TEMPLATE: String = "Downloading the speech model: {done} MB so far."
+    private const val PROGRESS_UNKNOWN_TEMPLATE: String = "Downloading the speech model: {done} MB so far."
 
     /** The progress sentence for [doneMb] of [totalMb] megabytes. */
     fun progressFor(doneMb: Int, totalMb: Int): String =

@@ -28,10 +28,10 @@ import dev.breaker.dictation.history.PurgeReport
 object PurgeGuard {
 
     /** Days an old [lastPurgeAt] may sit before a forward jump is suspected, when automatic time is off. */
-    const val GRACE_DAYS: Long = 30
+    private const val GRACE_DAYS: Long = 30
 
     /** Days a suspected jump is deferred for, at most, before the purge runs regardless. */
-    const val CAP_DAYS: Long = 7
+    private const val CAP_DAYS: Long = 7
 
     private const val MS_PER_DAY: Long = 24L * 60L * 60L * 1000L
 

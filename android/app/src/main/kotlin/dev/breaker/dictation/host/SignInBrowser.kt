@@ -9,7 +9,7 @@ import android.net.Uri
  * Opens [url] in the phone's browser. Returns false when no app takes the link or the system
  * refuses it. The url is never logged.
  */
-internal fun openInBrowser(context: Context, url: String): Boolean {
+private fun openInBrowser(context: Context, url: String): Boolean {
     return try {
         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
         true

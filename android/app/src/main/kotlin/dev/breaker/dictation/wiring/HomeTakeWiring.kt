@@ -163,7 +163,7 @@ internal class HomeTakeWiring(
 }
 
 /** A [TakePort] that asks for the real port on its first use and keeps it after that. */
-internal class LazyTakePort(supplier: () -> TakePort) : TakePort {
+private class LazyTakePort(supplier: () -> TakePort) : TakePort {
     private val port: TakePort by lazy { supplier() }
 
     override val sessionState: DictationState
