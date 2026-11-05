@@ -58,11 +58,11 @@ does not buffer or cut the dictation audio itself (see Audio handling).
   module's.
 
 **Listening:** `isListening` is true from `start` until `stop`. The dictation states that the
-phrases drive (core `DictationState`: IDLE, ARMED, RECORDING, SENDING) are kept by core and the app,
+phrases drive (core `DictationState`: IDLE, ARMED, RECORDING and SENDING, among its six states, the others being TRANSCRIBING and ERROR) are kept by core and the app,
 not by this module.
 
 **Permissions (F11):** the app asks for them at first start, one screen per permission (microphone, display over other apps, notifications and the accessibility service); this module requests none.
-**High-power mode (F12):** the app checks power-saving; this module does nothing with it.
+**High-power mode (F12):** planned, not built: the app is to check power-saving; nothing in the Android code checks it today, and this module does nothing with it.
 
 ## Invariants
 - "Breaker Breaker" is reported as `PhraseEvent.Wake` when the two words are heard next to each other; how reliably that holds on a device is not measured yet (see Known Gotchas).
