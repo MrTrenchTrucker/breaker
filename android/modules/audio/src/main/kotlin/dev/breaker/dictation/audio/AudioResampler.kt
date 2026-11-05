@@ -85,9 +85,6 @@ internal class AudioResampler(
         require(taps % 2 == 0) { "taps must be even so the kernel is centred: $taps" }
     }
 
-    /** Output rate this resampler produces. */
-    val outputSampleRateHz: Int get() = toSampleRateHz
-
     /** Input samples consumed per output sample. */
     private val step: Double = fromSampleRateHz.toDouble() / toSampleRateHz
 

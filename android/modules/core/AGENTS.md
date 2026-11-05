@@ -110,7 +110,7 @@ modules implement, and the use cases that run a dictation.
 - `SignInLinkRefusal` - the reasons a server address is refused. Brackets are refused on purpose, so an IPv6 literal address is refused.
 - `HandoffReturn` - the parsed return link: a code (a plain class whose `toString` prints no code) or Ignored. Only the exact handoff shape with a 43-character code is a code; anything else is ignored.
 - `AuthSession`, `UserRole`, `TokenScope`
-- `SyncState`, `SyncReport`
+- `SyncReport`
 - `ReleaseInfo`, `UpdateCheckResult`
 
 **Use cases** (`usecase/`):

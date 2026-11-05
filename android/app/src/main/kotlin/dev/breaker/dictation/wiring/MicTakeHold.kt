@@ -14,6 +14,4 @@ internal class MicTakeHold(private val onReplay: () -> Unit) {
     }
 
     fun clear() { held = false }
-
-    fun isHeld(): Boolean = held
 }

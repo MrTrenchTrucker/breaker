@@ -51,9 +51,6 @@ class Pcm16WavEncoder(
         }
     }
 
-    /** Bytes of RIFF header before the first sample. */
-    val headerSizeBytes: Int = HEADER_BYTES
-
     override fun encode(pcm: FloatArray): ByteArray {
         val dataSizeBytes = pcm.size * BYTES_PER_SAMPLE
         val bytes = ByteArray(HEADER_BYTES + dataSizeBytes)
