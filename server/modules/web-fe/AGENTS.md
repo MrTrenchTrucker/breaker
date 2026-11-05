@@ -6,6 +6,8 @@ Debian container website (client-side decrypt, Trucking UI), APK/model hosting, 
 view/search/copy of the user's transcriptions from any device on the VPN.
 Also hosts the APK for download (F15, F17). No certificate handling in Breaker; TLS is the admin's choice through any reverse proxy (ADR-034).
 
+**What is built today.** Only the sign-in page (`signin.html`, `css/signin.css` and the scripts under `js/`) and the AES-GCM layer; see Built now below. In `js/signin-crypto.js` the key derivation, the box public key and the sealing are stubs that throw `not available`, so the page disables its form and says that signing in through the website is not available yet. Every other page, route and feature described in this card (Pages, Hosting, Security, Client-side derivation and decryption, the first-login key bootstrap, Search, Responsive, Screens) is planned, not built, unless Built now says otherwise.
+
 **Pages:**
 - **Landing** — Breaker intro + download links: APK, docs.
 - **Auth** — login form; **registration card on first login** (F22): if no
@@ -38,7 +40,7 @@ Also hosts the APK for download (F15, F17). No certificate handling in Breaker; 
 - **Downloads → Models** (F30): on-device model + checksums served for phone
   download (licensing permitting; fallback to upstream with pinned checksums [2]).
 
-**Planned (ADR-036, not built): sign-in hand-off page.** When the app opens the Auth page with a one-time challenge and the app's public key, the page signs the person in. It then derives the KEK in the browser, unwraps the account's keys and seals them to the app's public key, and sends the browser back to the app through the `breaker://` link with a one-time code. The honest limit below applies to that sealing step too: this container serves the page's JavaScript.
+**Planned (ADR-036), partly built: sign-in hand-off page** (the page shell and the flow logic are built, see Built now below; the derivation, box key and sealing steps are stubs). When the app opens the Auth page with a one-time challenge and the app's public key, the page signs the person in. It then derives the KEK in the browser, unwraps the account's keys and seals them to the app's public key, and sends the browser back to the app through the `breaker://` link with a one-time code. The honest limit below applies to that sealing step too: this container serves the page's JavaScript.
 
 The planned address of the sign-in page is `<server>/signin.html#challenge=<43>&app_key=<43>`. The challenge and the app's public key sit in the URL fragment, never the query, so they are not sent to the server and stay out of access logs and the Referer header. `challenge` is 43 URL-safe characters (the base64url SHA-256 of the one-time secret). `app_key` is the app's X25519 public key as 32 bytes of base64url without padding, which is 43 characters. Both are shape-checked before the password field is enabled, and any other fragment gives one error and no form. The page clears the fragment with `history.replaceState` right after reading it. When sign-in is done the page opens `breaker://handoff?code=<43>` (the one-time code from the start route) with `location.replace`, so the return link is never left in the history.
 
