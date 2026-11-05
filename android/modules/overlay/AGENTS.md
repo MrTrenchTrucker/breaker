@@ -114,7 +114,7 @@ get darker and are flat, and white in the dark theme. They sit on the dark body.
 **Look & feel (F36):**
 - **Built:** the eight states, the level meter in the grille and the expanded tile, as described below, the CB mic drawn
   from path data with its glowing outline, and the armed ring pulse (one platform animator, see Invariants; the app drives
-  nothing). **Not built yet:** the app's pushing of the sent and fallback states. Each line below says which it is.
+  nothing). **Not built yet:** the app's pushing of the fallback state (`SENT_LOCAL`); the app pushes `SENT` after a commit and after a clipboard-only commit. Each line below says which it is.
 - The tile IS the **CB mic** (the approved art, drawn from path data) - built. The favicon art from `shared/ui-tokens`
   is not used.
 - **Level meter** (the six grille slots of the mic) fills with audio level while the mic is recording - built: six
@@ -129,12 +129,12 @@ get darker and are flat, and white in the dark theme. They sit on the dark body.
   the warning outline and pulses slowly (the busy pulse, same as MIC_BUSY); the app's description is the only cue.
 
 **Not built yet:**
-- The app's pushing of SENT and SENT_LOCAL, and the state the app pushes after a clipboard-only commit (OPEN: the app's
-  decision, not decided here).
+- The app's pushing of `SENT_LOCAL`: nothing in the app or ui main code pushes it. The app pushes `SENT` after a commit and
+  after a clipboard-only commit (`CommitOutcome.COMMITTED` and `COPIED`, `TileStateMap.kt`).
 - Words on the tile of its own, sound or haptics, the window-ownership check (T4), the
   audio capture and the audio-level feed (the app's), the foreground service (the app's), asking the user for the
   overlay permission (the app's), and any gesture or phrase code.
-- OPEN (Home mic, from the phone test): (a) BLOCKER: while recording, the X and the check on the Home mic are drawn but do not answer a tap and the take gets stuck; cause not found (leads: the tile's overlay window over the mic, the zone mapping in the centred slot, a parent taking the touch, a Home redraw re-parenting the mic mid-gesture). Required: X cancels, check finishes, a second tap on the mic finishes. (b) The app pushes only `IDLE`, `ARMED` and `RECORDING` to the Home mic; required: it shows `MIC_BUSY` from the same signal as the tile and `SENDING` from the end of recording until the result, then idle (ScreenMic already draws the busy sign for `MIC_BUSY`; it has no busy pulse). (c) `ScreenMic.setTheme` has no caller: the Home mic follows the phone's light/dark setting, not the stored theme.
+- OPEN (Home mic, from the phone test): (a) BLOCKER: while recording, the X and the check on the Home mic are drawn but do not answer a tap and the take gets stuck; cause not found (leads: the tile's overlay window over the mic, the zone mapping in the centred slot, a parent taking the touch, a Home redraw re-parenting the mic mid-gesture). Required: X cancels, check finishes, a second tap on the mic finishes. (b) Built in code, not confirmed on a phone: the app pushes `IDLE`, `ARMED`, `RECORDING`, `MIC_BUSY` (the same signal as the tile) and `SENDING` (from the end of recording until the result) to the Home mic (`homeMicFace` in `HomeTakeWiring.kt`); `ScreenMic` draws the busy sign for `MIC_BUSY` and has no busy pulse. (c) Built in code, not confirmed on a phone: the Home mic is handed the stored theme (`HomeScreenMic.setTheme`, called from `ActivityHelpers.kt`).
 - Keyboard tile: this module keeps owning the tile window; the show/hide decision is the app's (`TileCoordinator` acts on `decision` in `KeyboardTileDecision.kt`), which reads the keyboard window and the focused text field. `setImeProbe` has no app caller.
 
 **Build phase:** Phase 6, together with `gesture`. Needs first: `core` and `ui-tokens` (both on main).

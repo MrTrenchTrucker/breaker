@@ -542,7 +542,7 @@ agents, not required: an outside contributor may write the code themselves
   measurement. It has not been tried on a device.
 - Five source files under `src/main` are over the soft line cap of 300 lines and under the hard cap of 500:
   `OnDeviceWordStream.kt` at 450 lines, `ModelInstaller.kt` at 388 lines, `ModelLoader.kt` at 356 lines,
-  `LocalModelStore.kt` at 337 lines and `OnDeviceSttEngine.kt` at 302 lines. None is split further for now.
+  `LocalModelStore.kt` at 354 lines and `OnDeviceSttEngine.kt` at 302 lines. None is split further for now.
 - The test `test_build_file_adds_exactly_one_external_dependency` (in the unpack pins) is false by
   its own name, because the build file now adds two coordinates. It is to be renamed in a later
   change.

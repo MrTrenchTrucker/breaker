@@ -112,10 +112,10 @@ the app's, not this module's.
 
 ## Not built yet
 
-- The app pushing `SENT` and `SENT_LOCAL`, and the state it pushes after a
-  commit that only reached the clipboard (open: the app's decision).
+- The app pushing `SENT_LOCAL` (nothing pushes it). The app pushes `SENT` after a commit and after a
+  commit that only reached the clipboard.
 - Sound or haptics, a time limit on the notice, and the window-ownership check.
-- OPEN on the Home mic (phone test): the X and the check do not answer a tap while recording (cause not found); the app does not yet push `MIC_BUSY` and `SENDING` to it, so it does not show the tile's busy and sending faces; it follows the phone's light/dark setting, not the stored theme.
+- OPEN on the Home mic (phone test): the X and the check do not answer a tap while recording (cause not found); the app pushes `MIC_BUSY` and `SENDING` to it and hands it the stored theme (built in code, not confirmed on a phone).
 - Nothing here decides the keyboard tile. This module keeps the tile window; the app decides when it shows and hides, from the keyboard readings.
 
 Nothing has been run on a device yet; the module card lists what the tests check
