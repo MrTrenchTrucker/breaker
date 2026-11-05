@@ -143,8 +143,8 @@ The operations marked "decided, not built" above are still not built.
   parameters back to the phone, so a buggy or hostile value must not make
   every login try to allocate it. A `kdf_version` other than 1 is refused
   after those range checks.
-- No plaintext keys on disk; memory-only DEK and box private key; wipe on
-  lock/logout.
+- No plaintext keys on disk; memory-only DEK and box private key. `AccountKeys.wipe()` zeroes both keys; nothing calls it on lock or logout yet,
+  because no code holds the keys after sign-in (decided, not built: Phase 19).
 - The client enforces a 12-character minimum password and warns further on
   common/weak passwords (ADR-006) — a nudge, not a guarantee: see the
   honest limit below.
@@ -158,7 +158,7 @@ The operations marked "decided, not built" above are still not built.
   and, for the sealed box, with the server's libsodium binding).
 - Ciphertext at rest; server cannot decrypt without the password (F24, T17) —
   this is not a claim that the password cannot be guessed offline (T25).
-- Logout wipes the DEK and box private key; re-login unwraps again.
+- Decided, not built (Phase 19): logout wipes the DEK and box private key, and re-login unwraps again. Today `AccountKeys.wipe()` exists and nothing calls it on logout.
 - A keyless account (no `wrapped_dek` yet) will generate and upload its DEK +
   box keypair exactly once, on its first login after both exist client-side (decided, not built: Phase 19).
 
