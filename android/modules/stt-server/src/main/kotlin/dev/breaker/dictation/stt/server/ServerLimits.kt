@@ -1,7 +1,8 @@
 package dev.breaker.dictation.stt.server
 
 /**
- * Time and size limits for one transcription call to the server.
+ * Time and count limits for one transcription call to the server.
+ * Size caps live elsewhere (ServerHttp.kt, ServerEndpoint.kt, FailureSentences.kt).
  *
  * Every time value is in milliseconds and is checked against [MAX_MS] when the object is built,
  * as are the counts. A value outside its range is refused with an exception whose message names
