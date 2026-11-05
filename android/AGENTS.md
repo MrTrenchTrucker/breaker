@@ -38,6 +38,8 @@ upgrade path (ARCHITECTURE section 8). Shake + tap remain the manual fallbacks.
 - `settings` — settings persistence
 - `sync` — offline-first sync queue (idempotent push)
 - `auth-client` — login/register, token storage (Android Keystore, decided and not built), roles/scopes
+- `http` - the one HTTP client for server and update-host calls: GET and POST, no redirects, no cache,
+  https for any host, plain http only for the configured server
 - `training-client` — record phrase samples, upload, download trained model
 - `updater` — daily check + admin force-check, signed APK, rollback
 - `crypto` — client-side key derivation (Argon2id + HKDF), DEK generation/wrap/unwrap,

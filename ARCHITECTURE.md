@@ -291,7 +291,7 @@ breaker/
 │   ├── ui/                     # screens: dictation, history, settings, auth, training
 │   └── modules/  (core, audio, stt-ondevice, stt-server, transport,
 │                  format, phrases, gesture, overlay, commit, history,
-│                  settings, sync, auth-client, training-client, updater,
+│                  settings, sync, auth-client, http, training-client, updater,
 │                  crypto)
 ├── server/
 │   ├── AGENTS.md

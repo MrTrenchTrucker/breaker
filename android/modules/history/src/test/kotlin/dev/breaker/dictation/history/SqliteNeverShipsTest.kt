@@ -194,12 +194,24 @@ class SqliteNeverShipsTest {
 
     // ── the pin ──────────────────────────────────────────────────────────
 
+    /** The exact pin line of sqlite-jdbc, with an optional trailing `# ...` comment after the version. */
+    private val pinLine = Regex("""(?m)^sqlite-jdbc\s*=\s*"3\.53\.4\.0"\s*(#.*)?$""")
+
+    @Test
+    fun `the pin line accepts a trailing comment and still refuses anything but the exact version`() {
+        assertEquals(1, pinLine.findAll("sqlite-jdbc = \"3.53.4.0\"\n").count())
+        assertEquals(1, pinLine.findAll("sqlite-jdbc = \"3.53.4.0\"  # read 2026-11-05 from a url\n").count())
+        assertEquals(0, pinLine.findAll("sqlite-jdbc = \"[3.53.4.0,4.0)\"   # a range\n").count())
+        assertEquals(0, pinLine.findAll("sqlite-jdbc = \"3.53.4.1\"   # another version\n").count())
+        assertEquals(0, pinLine.findAll("sqlite-jdbc = \"3.53.4.0\" extra\n").count())
+    }
+
     @Test
     fun `sqlite-jdbc is pinned to one exact version in the catalog and used from there`() {
         assertEquals(
             "the catalog must pin sqlite-jdbc to exactly 3.53.4.0, not a range",
             1,
-            Regex("""(?m)^sqlite-jdbc\s*=\s*"3\.53\.4\.0"\s*$""").findAll(catalog).count(),
+            pinLine.findAll(catalog).count(),
         )
         assertEquals(
             1,
