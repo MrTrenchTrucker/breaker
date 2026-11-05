@@ -232,7 +232,7 @@ path = "server/modules/deploy"
 owns = "Git-pull deploy, docker-compose, APK signing, VPN bind, volumes, NOTICE. No certificate handling in Breaker; TLS is the admin's choice through any reverse proxy (ADR-034)."
 does_not_own = "Application logic of other server modules; TLS and certificates (the admin's reverse proxy, ADR-034)."
 depends_on = ["server"]
-public = "DeployScripts"
+public = "None yet: no code. DeployScripts is the planned name of its scripts."
 card = "server/modules/deploy/AGENTS.md"
 
 [module.shared]

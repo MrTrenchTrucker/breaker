@@ -5,6 +5,8 @@
 Git-pull deploy, docker-compose, certs, APK signing, VPN bind, volumes, NOTICE. Wire Breaker's own containers (whisper-server, sync-api, web-fe, training) to Local Server, securely —
 and ship updates.
 
+**Status on main:** nothing in this module is built. The folder holds this card, the README and a build file (`DeployScripts` is only a name in the build file's first comment and in the registry). No `vpn-bind.sh`, `git-pull.sh`, `apk-signing/` or docker-compose file exists anywhere in the tree, there is no `scripts/` or `auth/` folder in this module, and the licensing notice is the repository root `NOTICE`, not a file of this module. Everything below (the Components, Persistence, Signing key custody, the Update pipeline, the sherpa-onnx placement and the Invariants) is the target design, planned, not built. The decisions already made are that Breaker has no certificate handling and serves plain HTTP on the Local Server (ADR-034).
+
 **Components:**
 - `vpn-bind.sh` — verify/bind endpoints to the VPN interface only.
 - `tls/` — no longer planned: no certificate handling in Breaker; TLS is the admin's choice through any reverse proxy (ADR-034).
@@ -46,7 +48,7 @@ network-isolated (VPN-only bind).
 Git-pull deploy, docker-compose, certs, APK signing, VPN bind, volumes, NOTICE.
 
 ## Public Interface
-DeployScripts
+None yet: this module has no code. `DeployScripts` is the planned name of its scripts.
 
 ## Depends On
 - server (registered in modules.toml)
