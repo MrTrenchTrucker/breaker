@@ -9,9 +9,9 @@ agp = "9.4.1"   # read 2026-10-04 from https://dl.google.com/android/maven2/com/
 kotlin = "2.4.20"   # read 2026-10-04 from https://kotlinlang.org/docs/whatsnew24.html
 compileSdk = "36"   # read 2026-10-04 from https://dl.google.com/android/repository/repository2-3.xml (platforms;android-36 = platform-36_r02.zip)
 targetSdk = "36"   # read 2026-10-04 from https://dl.google.com/android/repository/repository2-3.xml (build-tools;36.0.0 = build-tools_r36_linux.zip)
-minSdk = "30"
-junit = "4.13.2"
-sqlite-jdbc = "3.53.4.0"
+minSdk = "30"   # decided: ARCHITECTURE.md N5
+junit = "4.13.2"   # read 2026-11-05 from https://repo1.maven.org/maven2/junit/junit/maven-metadata.xml (newest 4.13.2; pin matches)
+sqlite-jdbc = "3.53.4.0"   # read 2026-11-05 from https://repo1.maven.org/maven2/org/xerial/sqlite-jdbc/maven-metadata.xml (newest release 3.54.1.0; pin 3.53.4.0 unchanged)
 kotlinx-coroutines = "1.11.0"   # read 2026-10-05 from https://repo1.maven.org/maven2/org/jetbrains/kotlinx/kotlinx-coroutines-core/maven-metadata.xml (newest stable; core artifact only)
 ktor = "3.6.0"   # read 2026-10-08 from https://repo1.maven.org/maven2/io/ktor/ktor-server-core/maven-metadata.xml (newest stable)
 commons-compress = "1.28.0"   # read 2026-10-07 from https://repo1.maven.org/maven2/org/apache/commons/commons-compress/maven-metadata.xml

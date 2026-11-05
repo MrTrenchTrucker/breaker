@@ -22,6 +22,7 @@
 | `settings` | `android/modules/settings/` | Settings persistence + model registry access |
 | `sync` | `android/modules/sync/` | Offline-first sync queue (idempotent push) |
 | `auth-client` | `android/modules/auth-client/` | Login/register, token storage, roles/scopes |
+| `http` | `android/modules/http/` | The one HTTP client for server and update-host calls: GET and POST, no redirects, no cache, https for any host, plain http only for the configured server |
 | `training-client` | `android/modules/training-client/` | Record phrase samples, upload, download trained model |
 | `updater` | `android/modules/updater/` | Daily check + admin force-check, signed APK, rollback |
 | `crypto` | `android/modules/crypto/` | Client-side key derivation (Argon2id + HKDF), DEK generation/wrap/unwrap, AES-256-GCM, X25519 box keypair, sealed-box unsealing |

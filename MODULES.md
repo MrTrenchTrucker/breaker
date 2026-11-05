@@ -72,6 +72,7 @@ commands ("copy #27") deferred to v1.2.
 | `settings` | Settings persistence + model registry access | `android/modules/settings/` | Coding |
 | `sync` | Offline-first sync queue → push transcriptions to server | `android/modules/sync/` | Coding |
 | `auth-client` | Login/register, token storage (Android Keystore) | `android/modules/auth-client/` | Coding |
+| `http` | The one HTTP client for calls to the Local Server and the update host: GET and POST, no redirects, no cache, https for any host and plain http only for the configured server | `android/modules/http/` | Coding |
 | `training-client` | Record phrase samples, upload, download trained model | `android/modules/training-client/` | Coding |
 | `updater` | Daily update check + admin force-check; verify + install signed APK | `android/modules/updater/` | Coding |
 | `crypto` | Client-side key derivation (Argon2id + HKDF), DEK generation/wrap/unwrap, AES-256-GCM, X25519 box keypair, sealed-box unsealing (ADR-006, ADR-018) | `android/modules/crypto/` | Coding |
