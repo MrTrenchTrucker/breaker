@@ -5,7 +5,7 @@
 Whisper Flow-style formatting: server LLM + rule-based local formatter. Whisper Flow-style formatting — raw dictation → clean structured text
 (F8). Non-destructive (N9): same meaning, only reformat; never invent content.
 
-**Build phase:** Phase 8. The rule-based local formatter can start now; the server LLM path needs `whisper-server` (Phase 4). Needs first: `core` and `format-prompts` (both on main).
+**Build phase:** Phase 8. Both formatters are built; the server LLM path needs `whisper-server` (Phase 4). Needs first: `core` and `format-prompts` (both on main).
 
 ## Owns
 Whisper Flow-style formatting: server LLM + rule-based local formatter.
@@ -23,9 +23,11 @@ Whisper Flow-style formatting: server LLM + rule-based local formatter.
    casing.
 
 **Selection:** core's `DictateUseCase` picks the adapter, not `transport`: a
-transcript from the server engine goes to the LLM formatter, an on-device
-transcript to the rule-based one (never to the server), and nothing is
-formatted when `formatting_enabled` is off.
+transcript from the server engine goes to the server formatter, an on-device
+transcript to the local formatter (never to the server), and nothing is
+formatted when `formatting_enabled` is off. Today the app wires both slots to
+`RuleBasedFormatter` (`BreakerCompositionRoot.kt`), so `ServerLlmFormatter` is
+built and tested but no app slot uses it yet.
 
 **Example (must pass as a golden test):**
 - In:  "I have 3 things I want you to go over one is file a, two is file b, three is file c"
