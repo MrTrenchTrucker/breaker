@@ -35,13 +35,13 @@ class CipherText(val ciphertext: ByteArray, val nonce: ByteArray, val tag: ByteA
         "CipherText(${ciphertext.size} bytes, nonce=${nonce.size}, tag=${tag.size})"
 }
 
-/** A data-encryption key. Held in memory only, and wiped on logout. */
+/** Data-encryption key. Held in memory only. wipe() zeroes bytes. */
 class DataEncryptionKey(val bytes: ByteArray) {
     init {
         require(bytes.isNotEmpty()) { "A data-encryption key cannot be empty" }
     }
 
-    /** Overwrite the key material. Called when the session ends. */
+    /** wipe() zeros key bytes. Called by AccountKeys.wipe(); nothing calls it on session end. */
     fun wipe() = bytes.fill(0)
 
     /** Never prints the key. */

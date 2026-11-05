@@ -44,7 +44,7 @@ class KeyEncryptionKey(bytes: ByteArray) {
     /** A new copy of the key bytes. The caller owns it and should zero it when done. */
     fun copyBytes(): ByteArray = key.copyOf()
 
-    /** Overwrite the key material with zeros. Called when the session ends. */
+    /** wipe() zeros key bytes. Reached through DerivedKeys.wipe(); nothing calls it on session end. */
     fun wipe() = key.fill(0)
 
     /** Never prints the key. */
