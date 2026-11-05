@@ -26,6 +26,12 @@ class FrameworkFreeTest {
         val sources = File("src/main")
         assertTrue("expected core sources at ${sources.absolutePath}", sources.isDirectory)
 
+        val kotlinFiles = ForbiddenFrameworks.kotlinFilesUnder(sources)
+        assertTrue(
+            "found no Kotlin sources under ${sources.absolutePath}; a scan of nothing must not pass",
+            kotlinFiles.isNotEmpty(),
+        )
+
         val offenders = ForbiddenFrameworks.importOffenders(sources)
 
         assertTrue(

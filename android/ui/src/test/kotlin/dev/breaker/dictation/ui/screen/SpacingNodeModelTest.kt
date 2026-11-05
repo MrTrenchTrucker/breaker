@@ -58,8 +58,7 @@ class SpacingNodeModelTest {
     }
 
     @Test
-    fun `back is a data object that equals itself and differs from the other intents`() {
-        assertEquals(ScreenIntent.Back, ScreenIntent.Back)
+    fun `back differs from the other intents`() {
         assertNotEquals("back", ScreenIntent.Back, ScreenIntent.ToggleTheme)
         assertNotEquals("back", ScreenIntent.Back, ScreenIntent.Home("CLOSE"))
     }

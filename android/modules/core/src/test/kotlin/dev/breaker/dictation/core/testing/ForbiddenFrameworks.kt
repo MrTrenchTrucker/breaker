@@ -52,10 +52,15 @@ object ForbiddenFrameworks {
     fun isForbiddenInternalName(internalName: String): Boolean =
         internalPrefixes.any { internalName.startsWith(it) }
 
-    /** Every forbidden import in the Kotlin sources under [root], as `path: import line`. */
-    fun importOffenders(root: File): List<String> =
+    /** Every Kotlin file under [root], as a list. */
+    fun kotlinFilesUnder(root: File): List<File> =
         root.walkTopDown()
             .filter { it.isFile && it.extension == "kt" }
+            .toList()
+
+    /** Every forbidden import in the Kotlin sources under [root], as `path: import line`. */
+    fun importOffenders(root: File): List<String> =
+        kotlinFilesUnder(root)
             .flatMap { file ->
                 file.readLines().filter { isForbiddenImport(it) }.map { "${file.path}: ${it.trim()}" }
             }
