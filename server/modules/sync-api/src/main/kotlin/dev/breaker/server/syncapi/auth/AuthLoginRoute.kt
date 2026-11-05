@@ -141,7 +141,13 @@ internal suspend fun ApplicationCall.respondLocked(secondsRemaining: Long) {
     )
 }
 
-private data class LoginRequest(val username: String, val authVerifier: String)
+internal data class LoginRequest(
+    val username: String,
+    val authVerifier: String,
+) {
+    override fun toString(): String =
+        "LoginRequest(username=$username, authVerifier=<redacted>)"
+}
 
 /**
  * Parses a login request body.
