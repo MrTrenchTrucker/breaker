@@ -3,7 +3,6 @@ package dev.breaker.dictation.audio
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotSame
-import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -121,12 +120,5 @@ class PassThroughNoiseSuppressorTest {
             suppressor.process(frameOf(0.5f, -0.5f)),
             "reset must leave the pass-through suppressor usable",
         )
-    }
-
-    @Test
-    fun `it is the singleton the registry describes`() {
-        // It is an `object`, so the same instance comes back every time. That is
-        // part of what makes it safe as the default: there is exactly one.
-        assertSame(PassThroughNoiseSuppressor, PassThroughNoiseSuppressor)
     }
 }
