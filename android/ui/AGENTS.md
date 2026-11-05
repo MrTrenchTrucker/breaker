@@ -34,7 +34,7 @@ Fourteen declarations; everything else in the module is internal or private.
 - shared_ui_tokens (registered in modules.toml)
 
 ## Invariants
-screens render with ui-tokens; light/dark toggle persists (F25).
+screens render with ui-tokens; light/dark toggle persists.
 - This module stores nothing itself. Settings go through the store the app passes in; for the first-run flow, what is granted and whether Breaker is on are read afresh every time the screen is drawn. The first-run flow keeps whether the microphone prompt was asked in the settings store the app passes in (AppSettings.microphoneAsked), written after the prompt came back and read by the setup handler; the notification prompt flag, and the in-memory copy of the microphone flag, live only in the running view. Tested by: `PersistenceGateTest`, `SetupIntentHandlerTest`, `SetupAdapterGateTest`, plus the microphone-step tests in SetupMicStepActionTest and SetupMicStepFlagTest.
 - Only the microphone gates the switch. Overlay or accessibility missing shows a warning near the switch; notifications are optional and the switch works without them. The handler does not refuse "switch on" itself: the check is the disabled button on the first-run screen and the app's own `Refused`. The switch on the home screen has no disabled state, and its card does not show the app's `Refused` answer, so the home screen does not check it. Tested by: `SetupModelTest`, `SetupScreenTest`, `SetupIntentHandlerTest`.
 - The accessibility service is identified by a name the caller passes in as a String. The name is compared against the phone's list as a whole entry, case-sensitive, in either spelling of a class that starts with the package, and never as a part of a longer name. This module names no class of another module. Tested by: `AccessibilityListTest`, `SetupAdapterGateTest`.
@@ -72,11 +72,24 @@ screens render with ui-tokens; light/dark toggle persists (F25).
 - No screen code (`screen/`) names a stock Android widget. The stock views are named only in the render layer (`render/`) and in the HostView files. The two stock containers allowed by name are `android.widget.LinearLayout` (the column a rendered screen is put in) and `android.widget.ScrollView` (the page scroller a host wraps a screen in), both only in `render/` and the HostView files. A `FrameLayout` is used only in a HostView file (the Home host's overlay, the first-run host's root and the sign-in start host's root). `NoStockWidgetGateTest` pins the rule.
 - Title bar: Settings and History begin with the title bar of `screen/TitleBar.kt`: a back arrow, the title in italic capitals, and a full-width accent rule under them. Home has no title bar: its top row is the menu icon and the logo word, under a thin accent rule drawn across the top of the screen.
 - The Home host (`render/HomeHostView.kt`) is a FrameLayout over the page scroller. The drawer overlay (the dim, at `HomeGeometry.DRAWER_DIM`, and the panel) is added over the page only while the menu is open. While the menu is open, a tap that is not a drawer item only closes the menu, and a tap on the dim closes it. Back closes it as well (see Known Gotchas). Tested by: `HomeScreenTest` (the drawer rows and their intents) and `MenuItemsMapToIntentsTest`. `HomeHostView` also writes two diagnostic log lines under the tag `BreakerMicProbe` (in `show` and `attachMicSlot`), only while the big mic records; they belong to the debug mic probe and are removed with it before release.
-- Home mic slot (F45, ADR-026): the mic is the overlay module's ScreenMic, built by the app and passed in as `micView`; `HomeHostView.attachMicSlot` puts it in the slot tagged `HomeNodeIds.MIC`, `HomeGeometry.slotHeightDp(usable)` tall (the usable height less the non-mic parts, held to `MIC_SLOT_MIN_DP` 100 and `MIC_SLOT_MAX_DP` 150), full width with `CENTER_HORIZONTAL`, so the mic is centred. The Home mic's three labels have one source: `HomeControl.TAP_TO_TALK`, `CANCEL` and `DONE`, read from `HomeTexts`; the app passes them to the overlay. Tested by: `HomeFitTest` (the clamp), `HomeHostViewTest`, `HomeHostMicCentringGateTest`.
+- Home mic slot (ADR-026): the mic is the overlay module's ScreenMic, built by the app and passed in as `micView`; `HomeHostView.attachMicSlot` puts it in the slot tagged `HomeNodeIds.MIC`, `HomeGeometry.slotHeightDp(usable)` tall (the usable height less the non-mic parts, held to `MIC_SLOT_MIN_DP` 100 and `MIC_SLOT_MAX_DP` 150), full width with `CENTER_HORIZONTAL`, so the mic is centred. The Home mic's three labels have one source: `HomeControl.TAP_TO_TALK`, `CANCEL` and `DONE`, read from `HomeTexts`; the app passes them to the overlay. Tested by: `HomeFitTest` (the clamp), `HomeHostViewTest`, `HomeHostMicCentringGateTest`.
 - A redraw re-parents the mic: `show()` runs on every redraw (`showLine`, `showRecording` and `refresh` each draw the screen again) and builds a new tree, so `attachMicSlot` removes the mic from its old parent before it adds it (without that the first resume threw IllegalStateException). Tested by: `HomeHostMicParentGateTest` (source text). Whether a redraw during `RECORDING` cancels a touch on the mic is OPEN (one lead for the stuck X and check, see Known Gotchas).
 - Rule R2, the render layer: every custom or plain View measures itself (`onMeasure` from its own size, `resolveSize`), never the default; a View built outside a draw and re-added on a redraw is detached from its old parent first; a value that may be unset on some path (lateinit, lazy) is never passed eagerly; no redraw re-parents a view in the middle of a touch gesture on it. `TouchGapView` (`render/NodeViews.kt`) measures `resolveSize(side, spec)` on both axes: with the default measure it took the whole AT_MOST height in the ScrollView's fill pass (`openForBleed`), the top bar became window-tall and Home was blank on a 1440x3120 phone. Tested by: `TouchGapMeasureGateTest`, `TouchGapRulesTest`. OPEN: the rest of the render layer is not yet audited against R2 (see the History defect in Known Gotchas). Layout and lifecycle changes are proven on an Android 16 emulator before an APK ships; JVM tests and source-text gates cannot see layout.
 - Rule R3, one gutter in one place: bars and cutout are margins on the screen root, the 16 dp gutter is padding, applied once, and every screen uses the same content edge. OPEN: Settings is drawn in a narrower band than Home (see Known Gotchas).
-- The Settings view draws live through the theme controller. `SettingsHostView` redraws the whole screen when the theme changes, and its model download bar takes the same theme, so no part keeps a fixed theme. The view has no setup block and no History button; its sections are the theme, the routing, the three switches, the server and API key values, and the speech model row.
+- The settings server address box (`render/TextEntryView.kt`, built by `fieldView` for a value node with a
+  key) is a real one-line text input. The Done key, or leaving the box, sends the typed text once as
+  `ScreenIntent.SetSetting` under the node's key, through `EntryCommitRule` (plain Kotlin: sent at most once,
+  and only when the text differs from the start text, with no trim in the compare). A focus loss is checked
+  after the next layout, so a box that a redraw removed sends nothing. The fill and the outline are painted
+  with the same kit calls as the kit's text field: a deliberate copy, because the kit field takes no typing. A
+  node with no key stays the display-only field. Tested by: `EntryCommitRuleTest`, and
+  `TextEntryViewRulesTest` (source rules, each with a control that makes it fire).
+- The address rule in `ServerAddressEntry` is a deliberate copy: ui reaches only core, so it cannot call the
+  http module's `ServerAddressRule`, the same wording style the stt-server card uses for its own duplicate.
+- The Settings view draws live through the theme controller. `SettingsHostView` redraws the whole screen when
+  the theme changes, and its model download bar takes the same theme, so no part keeps a fixed theme. The view
+  has no setup block and no History button; its sections are the theme, the routing, the three switches, the
+  server address box, the API key value, and the speech model row.
 
 - Planned (ADR-033), not built: Home carries a quiet notice with a way to sign in, drawn from a state the app passes in. This module opens no sign-in screen by itself and nothing here blocks dictation, history or settings when the user is signed out.
 
@@ -97,6 +110,10 @@ screens render with ui-tokens; light/dark toggle persists (F25).
 - Unit (Kotlin): `android/ui/src/test/kotlin/dev/breaker/dictation/ui/`. Run: `./gradlew :android:ui:test`. Test classes by folder:
   - gate/: `AndroidConfinementGateTest`, `DeclarationReadingGateTest`, `FirstRunViewsGateTest`, `FrameworkReferenceReadingGateTest`, `GateSelfTest`, `NoColourGateTest`, `NoPrivateSpacingGateTest`, `PersistenceGateTest`, `PublicSurfaceGateTest`
   - render/: `ObserverBindingTest`, `RenderMathTest`, `SetupAdapterGateTest`, `EntrySurfaceTest`, `FirstRunWiringTest`, `HomeThemeGateTest`, `FirstRunThemeGateTest`, `StoredThemeSourceRuleTest`, `CompactButtonRulesTest`, `HistoryRenderCheckTest` (source-text checks of the history host, the delayed work, the clipboard adapter, the scheduling words, the dispatcher's one-wide limit, the host's store mentions and the entry function; no view is run).
+    - `EntryCommitRuleTest`: the save decision of a text box (sent once, only when changed, no trim, marked
+      before the send).
+    - `TextEntryViewRulesTest`: source rules for the settings server address box and its renderer branch, each
+      with a control.
     - `CollapseRenderRulesTest`: source-text checks of the collapsible text view (one collapse decision, the break settings of its line count, the end ellipsis, the sibling toggle and the kit looks); no view is run.
   - controls/: `ControlsViewGateTest`, `ControlsCompactWidthTest`, `DownloadBarMathTest`, `DownloadBarViewGateTest`
   - screen/: `NodeModelTest`
@@ -137,7 +154,7 @@ one module at a time. The owner does not write the module's code. The owner:
   tests;
 - coordinates and orchestrates those sub-agents, checks every piece of their
   work, and sends back anything that is wrong until it is right;
-- convenes a small council of sub-agents to advise on design, risks and tests
+- convenes a small group of sub-agents to advise on design, risks and tests
   before and during the build;
 - hands the finished, checked module directly to the reviewer as a single pull
   request.
@@ -185,7 +202,9 @@ code.
   - the controls kit: the step marks light the current step.
   - the controls kit: the three History entry buttons, with their real labels, fit a 360 dp phone at the compact floor (the tests check the floors and the gaps, not the label widths).
   - the controls kit: a disabled neutral or outlined button reads flat, with the muted outline and the muted label, in the light and the dark theme;
-  - the controls kit: the muted words of the Settings server line read muted but legible in the light and the dark theme;
+  - the settings server box: the muted hint "(not set)" reads muted but legible in the light and the dark
+    theme; typing, the Done key and the focus loss work on a phone, and the URI keyboard fits; a redraw while
+    the person types discards the unsent text (known limit);
   - the controls kit: a settings switch row has its track centred on the row's label and help text; by hand the track sits about 10.7 dp above the row centre, so check it by eye.
   - the history screen: a long one-paragraph dictation shows 6 lines with an ellipsis and a Show all button;
   - the history screen: Hide folds it back;

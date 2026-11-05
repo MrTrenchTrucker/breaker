@@ -21,4 +21,7 @@ internal enum class Notice(val text: String) {
 
     /** The request names something this screen does not offer, or a value it will not store. */
     NOT_ACCEPTED("That change was not accepted. Nothing was changed."),
+
+    /** The server address typed is refused by the address rule; the text never holds what was typed. */
+    ADDRESS_NOT_USABLE("That server address cannot be used. Nothing was changed."),
 }

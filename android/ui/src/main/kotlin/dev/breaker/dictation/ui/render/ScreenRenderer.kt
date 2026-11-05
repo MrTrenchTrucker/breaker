@@ -89,7 +89,7 @@ internal class ScreenRenderer(private val context: Context) {
             is CollapsibleText -> collapsibleOf(node, theme)
             is SegmentedRow -> SegmentedRowView(context, node, theme, onIntent).apply { layoutParams = rowParams() }
             is SwitchRow -> SwitchRowView(context, node, theme, onIntent).apply { layoutParams = rowParams() }
-            is ValueField -> valueFieldView(context, node, theme).apply { layoutParams = rowParams() }
+            is ValueField -> fieldView(context, node, theme, onIntent).apply { layoutParams = rowParams() }
             is MenuIcon -> menuIconOf(node, theme, onIntent)
             is Switch -> switchOf(node, theme, onIntent)
             is Rule -> ruleOf(node, theme)

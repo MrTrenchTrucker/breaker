@@ -11,13 +11,36 @@ Five screens are built, and a first-run flow runs first on a phone with no speec
 
 **Signed out (planned, ADR-033, not built).** Home will carry a quiet notice with a way to sign in when there is no live session, fed by the app; this module opens no sign-in screen by itself and nothing here blocks dictation, history or settings. The auth screen's view and model are built (`screen/auth/` and its entry `AuthEntry.kt`), with no wiring and no text input yet: the screen draws the two fields, the register/login face, the busy, refused and weak-warning line and the submit control, and the submit control refuses until a typing slice lands.
 
-**Settings.** The appearance choice (System, Light or Dark), the routing mode, the three switches, the model row with its download button (shown while the model is not on the phone), and the server line, which is read only. While no server is set, the server line shows "(not set)" in the muted colour; the art does not draw a muted field, so that look is the smallest one from the theme's own tokens. Every change is written through the settings store the app passes in.
+**Settings.** The appearance choice (System, Light or Dark), the routing mode, the three switches, the model
+row with its download button (shown while the model is not on the phone), and the server address, a real text
+box pre-filled with the stored address. The box is checked and saved when the person presses Done or leaves
+the box, by a small rule: https or http, a host, an optional port, an optional path, and no user name, query,
+fragment or IPv6 literal, at most 2000 characters. An empty box clears the address. A refused address changes
+nothing and shows one fixed message. While no server is set, the box is empty and shows "(not set)" in the
+muted colour. A redraw while the person types discards the text not yet saved. Every change is written through
+the settings store the app passes in.
 
 **History.** The transcriptions, newest first, from the history store the app passes in. Each row shows a mono timestamp in the phone's own short date and time, a source tag (phone or server) in a small outlined pill, the text, and Copy, Show all or Hide, and Delete buttons, which take the compact width (a 93.33 dp floor, so the three fit a 360 dp phone inside the card). A text that takes more than 6 lines at the card width is cut to 6 lines with an ellipsis; Show all opens the whole text and Hide folds it back. Copy puts the text on the clipboard, marked as sensitive, and always copies the whole text, even when the row is folded. Delete does not delete at once: the row is replaced by a "Deleted." line with an Undo button for 5 seconds. Only when that time ends is the transcription removed from the store. Undo brings the row back and the store is not touched. The list opens with 50 rows; Load more adds 50, up to 300. The list is read off the main thread, and a screen that closes still carries out the deletes waiting. If the app closes the screen, or the screen is rotated, a delete still waiting is carried out once, right after, on the serial dispatcher. If the store refuses that delete, nothing is said and the row stays in the store. If the app is killed during the 5 seconds, nothing is deleted. A screen result that arrives after the view has closed is dropped, and a failed read's sentence is not lost: it is shown with the next result. Delete All, search, long-press delete are not built; the route into this screen is built in the app.
 
 **First run.** On a phone with no speech model the app shows this flow first: a welcome page, the five permission pages (microphone, overlay, notifications, accessibility and the keyboard tile), then the model download page with a bar, the percent and the megabytes. The flow ends when the model is on the phone. Each permission page has its step mark, numbered 1 to 5. The missing list on the keyboard tile page, the last permission page, says what is still to be given. The pictures are fixed PNG files.
 
-**Controls kit.** The shared look for the screens, internal to this module: the main button (a raised face with a lit top line and a darker lip; pushed down with no lip while pressed; flat and muted while disabled), the neutral Cancel button and the outlined button (both go flat and muted while disabled, the same as the main button), the red Delete button and the full-width button (both are main buttons, so they go flat the same way while disabled), the switch (its track is 48 by 80/3 dp, the art's 72 by 40 px at 1.5 px per dp), the Ready, Phone only and Failed badges, the text field (a drawn look only: it takes no typing; its words can be drawn muted, with the fill and the outline unchanged, and the art is silent about a muted field, so the muted colour is the smallest look from the theme's own tokens) and the slanted step marks. Every colour comes from the theme. The buttons on the History entry rows take a compact width: its floor is 93.33 dp (the 140 px of the History mock-up), the kit default stays 113.33 dp, a long label still grows its button, and no colour is added. The kit is drawn by the history screen (its Load more, Copy, Show all or Hide, Delete and Undo buttons), by the settings screen (the selected cell of its theme and routing rows, its switch rows, its server value field and its model download button) and by the first-run flow (its full-width permission and download buttons, its Next button, its step marks and its download bar); and the Ready, Phone only and Failed badges are drawn by no screen (the Settings model row draws its READY badge as a plain node). The geometry and the colours are plain Kotlin with JVM tests (`ui/controls/`); the views in `ui/render/controls/` only draw what that code returns.
+**Controls kit.** The shared look for the screens, internal to this module: the main button (a raised face
+with a lit top line and a darker lip; pushed down with no lip while pressed; flat and muted while disabled),
+the neutral Cancel button and the outlined button (both go flat and muted while disabled, the same as the main
+button), the red Delete button and the full-width button (both are main buttons, so they go flat the same way
+while disabled), the switch (its track is 48 by 80/3 dp, the art's 72 by 40 px at 1.5 px per dp), the Ready,
+Phone only and Failed badges, the text field (a drawn look only: it takes no typing; its words can be drawn
+muted, with the fill and the outline unchanged, and the art is silent about a muted field, so the muted colour
+is the smallest look from the theme's own tokens) and the slanted step marks. Every colour comes from the
+theme. The buttons on the History entry rows take a compact width: its floor is 93.33 dp (the 140 px of the
+History mock-up), the kit default stays 113.33 dp, a long label still grows its button, and no colour is
+added. The kit is drawn by the history screen (its Load more, Copy, Show all or Hide, Delete and Undo
+buttons), by the settings screen (the selected cell of its theme and routing rows, its switch rows, its server
+address box, a real text input that paints the kit's own field look, and its model download button) and by the
+first-run flow (its full-width permission and download buttons, its Next button, its step marks and its
+download bar); and the Ready, Phone only and Failed badges are drawn by no screen (the Settings model row
+draws its READY badge as a plain node). The geometry and the colours are plain Kotlin with JVM tests
+(`ui/controls/`); the views in `ui/render/controls/` only draw what that code returns.
 
 **Layout.** A screen is a tree of nodes (`screen/Screen.kt`) that the renderer draws. Every distance is a spacing name, XS 4, S 8, M 12, L 16 and XL 32 dp from the ui-tokens scale, and the renderer reads each name by its own name. The title bar (`screen/TitleBar.kt`) opens Settings and History; Home has the menu icon and the logo word instead. Rules and stripes run the full width through the one padding place, the host's padding: the app pads the screen root by the system bars, the display cutout and the 16 dp gutter, and no screen adds its own outer padding. The Settings view follows a theme change as a whole. Stock Android widgets are named only in the render layer and in the host files, and the settings column and the page scroller are the two containers the rule allows by name. Back closes an open Home menu, through the same close as the dim.
 
@@ -54,7 +77,15 @@ Everything else is internal or private.
 
 ## What it stores
 
-The first-run view writes one thing: whether the microphone prompt was asked, into the settings store the app passes in, after the system prompt has come back. The settings view writes the theme mode through the same store. Which permissions are granted and whether Breaker is on are read afresh every time the screen is drawn. The notification prompt that was already shown is remembered only in the running view, and so is the in-memory copy of the microphone flag, so that the next tap on the same button opens a settings page instead of asking again. The in-memory copies are gone when the view is; the stored microphone flag stays. The history screen keeps the rows it has shown so far and any delete still waiting for its 5-second Undo, also only in the running view. A delete still waiting when the view goes is carried out once, right after, on the serial dispatcher; the history screen does not otherwise keep anything.
+The first-run view writes one thing: whether the microphone prompt was asked, into the settings store the app
+passes in, after the system prompt has come back. The settings view writes the theme mode and the server
+address through the same store. Which permissions are granted and whether Breaker is on are read afresh every
+time the screen is drawn. The notification prompt that was already shown is remembered only in the running
+view, and so is the in-memory copy of the microphone flag, so that the next tap on the same button opens a
+settings page instead of asking again. The in-memory copies are gone when the view is; the stored microphone
+flag stays. The history screen keeps the rows it has shown so far and any delete still waiting for its
+5-second Undo, also only in the running view. A delete still waiting when the view goes is carried out once,
+right after, on the serial dispatcher; the history screen does not otherwise keep anything.
 
 ## What is not unit-tested
 

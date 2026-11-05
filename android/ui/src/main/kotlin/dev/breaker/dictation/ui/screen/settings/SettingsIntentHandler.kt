@@ -139,7 +139,7 @@ internal class SettingsIntentHandler(
     private fun writeSetting(intent: ScreenIntent) {
         val edit = screen.editFor(intent)
         if (edit == null) {
-            notice = Notice.NOT_ACCEPTED
+            notice = refusalNotice(intent)
             return
         }
         when (val result = writeThrough(settings, edit)) {
@@ -158,6 +158,16 @@ internal class SettingsIntentHandler(
             WriteResult.Refused -> notice = Notice.NOT_ACCEPTED
         }
     }
+
+    /**
+     * The message for a change the screen refused: the address message for the server address key,
+     * and the general message for anything else.
+     */
+    private fun refusalNotice(intent: ScreenIntent): Notice =
+        if (intent is ScreenIntent.SetSetting && intent.key == ServerAddressEntry.KEY)
+            Notice.ADDRESS_NOT_USABLE
+        else
+            Notice.NOT_ACCEPTED
 
     /** The settings as they are stored, or null when they could not be read. */
     private fun readSettings(): AppSettings? = try {

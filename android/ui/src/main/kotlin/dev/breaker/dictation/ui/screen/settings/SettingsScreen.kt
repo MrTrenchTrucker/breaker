@@ -77,12 +77,14 @@ internal class SettingsScreen {
      * The one-field change [intent] asks for, or null when this screen does not
      * offer it.
      *
-     * Only the three boolean switches and the routing mode are accepted, because
-     * those are the only settings this screen offers a control for. A routing
-     * mode is matched by its exact enum name and a boolean by the two literals
-     * [Boolean.toString] produces, so a name in another case and a word that is
-     * not a boolean are both refused rather than guessed at. The appearance is
-     * not a setting of this screen: its intents belong to the theme controller.
+     * Only the three boolean switches, the routing mode, the wake-gesture mode and the
+     * server address are accepted, because those are the only settings this screen
+     * offers a control for. A routing mode is matched by its exact enum name and a
+     * boolean by the two literals [Boolean.toString] produces, so a name in another
+     * case and a word that is not a boolean are both refused rather than guessed at.
+     * A server address is checked by [ServerAddressEntry], and an address it refuses
+     * gives null. The appearance is not a setting of this screen: its intents belong
+     * to the theme controller.
      *
      * The returned function is a copy of its argument with one field changed and
      * every other field left as found. It reads nothing, writes nothing and does
@@ -90,7 +92,9 @@ internal class SettingsScreen {
      */
     fun editFor(intent: ScreenIntent): ((AppSettings) -> AppSettings)? = when (intent) {
         is ScreenIntent.SetRoutingMode -> routingEdit(intent.mode)
-        is ScreenIntent.SetSetting -> wakeModeEdit(intent.key, intent.value) ?: booleanEdit(intent.key, intent.value)
+        is ScreenIntent.SetSetting -> wakeModeEdit(intent.key, intent.value)
+            ?: booleanEdit(intent.key, intent.value)
+            ?: serverAddressEdit(intent.key, intent.value)
         ScreenIntent.ToggleTheme,
         ScreenIntent.UseSystemTheme,
         is ScreenIntent.SetThemeMode,
@@ -127,6 +131,16 @@ internal class SettingsScreen {
         WakeGestureMode.entries.firstOrNull { it.name == value }
             ?.let { target -> { settings: AppSettings -> settings.copy(wakeGestureMode = target) } }
             .takeIf { key == SettingsIds.KEY_WAKE_GESTURE_MODE }
+
+    /**
+     * The server address [value] names, as a change of that one field, or null when the key is not the
+     * address key or the address is refused. The stored text is the one [ServerAddressEntry] returns.
+     */
+    private fun serverAddressEdit(key: String, value: String): ((AppSettings) -> AppSettings)? {
+        if (key != ServerAddressEntry.KEY) return null
+        val stored = ServerAddressEntry.accepted(value) ?: return null
+        return { settings -> settings.copy(serverUrl = stored) }
+    }
 
     /** The message for a change that did not take effect, or nothing when there is none. */
     private fun noticeNode(notice: Notice?): Label? = notice?.let {
