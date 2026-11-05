@@ -14,7 +14,7 @@ import kotlinx.coroutines.launch
  * coordinator on the main thread, so the tile's show/hide follows the keyboard.
  *
  * One instance owns one collection of [KeyboardProbeReadings.readings] for the lifetime it is given:
- * it starts when constructed (the host builds it together with the coordinator) and stops only when a
+ * it starts when [start] is called (the host calls it right after building it) and stops only when a
  * caller calls [stop]. Null readings — produced by a clear or disable of the probe — feed nothing; every
  * non-null reading is posted once to [post], so the main thread sees each distinct state change exactly
  * once. This file names the holder, but no other file in the app does: it reaches the production seam

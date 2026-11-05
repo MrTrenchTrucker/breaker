@@ -32,7 +32,8 @@ class SherpaTranscriptionException(message: String, cause: Throwable? = null) : 
 /**
  * The seam between this module and the native sherpa-onnx engine.
  *
- * The concrete adapter is wired later - this interface is the contract the
+ * The concrete adapter is SherpaOnnxRecognizer, made by SherpaOnnxRecognizerFactory,
+ * which the app wires in Swaps.kt - this interface is the contract the
  * rest of the module programs against. Implementations must be safe for
  * concurrent decode calls, or document their concurrency model.
  */

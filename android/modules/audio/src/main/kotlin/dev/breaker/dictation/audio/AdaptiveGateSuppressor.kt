@@ -10,7 +10,8 @@ import kotlin.math.min
  * A noise suppressor that needs no native library: a DC blocker, a rumble
  * high-pass, and a downward gate.
  *
- * It is the fallback for a build with no neural suppressor wired in. It is not
+ * It is an option for a build with no neural suppressor. MicCapture defaults to
+ * PassThroughNoiseSuppressor and nothing builds this one today. It is not
  * as good as one — it cannot learn a fan's spectrum — but it removes the two
  * things that wreck a dictation on the road: a DC offset from the mic's
  * analogue front end, and a steady broadband hiss that sits just under the
