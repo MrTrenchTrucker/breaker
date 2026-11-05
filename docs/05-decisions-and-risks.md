@@ -12,7 +12,7 @@ Security Review gave a clean bill of health; Apache-2.0 permits the fork. Packag
 changes in Phase 0 (fix #3).
 
 **D3 — On-device engine = sherpa-onnx (already in the base).**
-Vendored from XIAOMI CORPORATION, upstream verified Apache-2.0, swept clean.
+Upstream k2-fsa/sherpa-onnx, Copyright XIAOMI Corporation, verified Apache-2.0, swept clean; no source is copied into this repository, the app uses a prebuilt pinned package (NOTICE).
 Zero new supply-chain surface vs adding whisper.cpp. whisper.cpp AAR remains a
 fallback if sherpa-onnx lacks a needed feature.
 
@@ -21,8 +21,7 @@ fallback if sherpa-onnx lacks a needed feature.
 The existing Whisper X pipeline (CPU Whisper, diarization) is reused as-is and
 is NOT modified. The app never points at Whisper X directly — it talks to
 Breaker's new `whisper-server` container, which async-queues jobs and forwards
-them to the admin-configured downstream service (default: Whisper X). **The
-only gap:** build that queue/forward container (Phase 4).
+them to the admin-configured downstream service (default: Whisper X). The queue/forward container is `whisper-server` (Phase 4), built on `main`.
 
 **D5 — Accessibility-service text insert with clipboard fallback (supersedes
 IME-first, ADR-022).**
@@ -80,6 +79,7 @@ The app polls `/v1/updates/latest.json` once a day (and on admin force-check),
 verifies APK signature + SHA-256, and installs over the existing app (data
 preserved). This is a proper rebuild of the deleted in-app updater [1] — pointed
 at OUR server, signing key secured (never git) [1].
+Status: planned (Phase 16), not built; see the updater card.
 
 **D17 — Roles = first-account-is-admin.**
 The first account to register on the web FE is admin by default and can assign
@@ -117,7 +117,7 @@ compromised server can serve a version that captures the password or the DEK
 directly — no guessing needed (ADR-006). Protection (where it applies) is
 the password's strength times Argon2id cost, not an absolute guarantee, and
 this repo ships no rate limiting or account-enumeration defense (auth
-hardening is explicitly out of scope, above; ADR-036 plans one exception, a wrong-password limit on sign-in, not built). Password change re-keys every
+hardening is explicitly out of scope, above; ADR-036 adds one exception, a wrong-password limit on sign-in: after 5 wrong passwords an account waits 15 minutes, built on the server). Password change re-keys every
 time — a new DEK, a new box keypair, and a new `key_version` that the client
 re-encrypts and replaces the account's own records up to — so it bounds, but
 does not erase, exposure from an old database/backup copy that still holds a
@@ -214,8 +214,8 @@ failed → local fallback, **red** = complete failure (F36).
 | R3 | On-device model accuracy vs speed | Low | S25 Ultra 16 GB → small/medium fine; size is a setting |
 | R4 | VPN flakiness on mobile networks | Med | Probe TTL + auto-fallback to local; never block on server |
 | R5 | Accessibility-service permission UX friction, including the Android 13+ "restricted setting" step for sideloaded apps | Low | Onboarding screen walks the user to the accessibility settings and through the restricted-setting step |
-| R6 | **Missing server endpoint** — server path blocked until `/v1/audio/transcriptions` is added | High | Phase 4 first priority after Phase 0 |
-| R7 | **Base code never built/run** — compilation + runtime unverified | High | Phase 0 build + smoke-test gate |
+| R6 | **Missing server endpoint** - resolved: `POST /v1/audio/transcriptions` is on `main` in whisper-server | High | Phase 4 first priority after Phase 0 |
+| R7 | **Base code never built/run** - resolved in part: the modules build and their tests pass in CI; the Phase 0 row in docs/04 is still open | High | Phase 0 build + smoke test |
 | R8 | ASR model upstream terms (outside Security Review audit) | Med | Per-model license recorded in model-registry |
 | R9 | Local Server cert infra state UNKNOWN | High | Amended by ADR-034: Breaker serves plain HTTP; TLS is the admin's choice via any reverse proxy. The open part of ADR-032 (pairing, renewal) is dropped with it; the state of any existing certificate set-up is still unverified. |
 | R10 | **LLM formatting could hallucinate** | Med | Temperature 0, plain-text output (structured/JSON mode off), non-destructive prompt, diff-check tests (N9) |
@@ -243,8 +243,8 @@ failed → local fallback, **red** = complete failure (F36).
 ## Deferred / out of scope (user decisions)
 - **Auth hardening** (brute-force protection, refresh) — the VPN perimeter is the
   auth layer for now; an auth server may come later. Session expiry is no
-  longer deferred: 30 days after the last use (ADR-031). ADR-036 plans one
-  exception, a wrong-password limit on sign-in, not built.
+  longer deferred: 30 days after the last use (ADR-031). ADR-036 adds one
+  exception, a wrong-password limit on sign-in, built on the server.
 - **Certificate lifecycle** - superseded by ADR-034: Breaker serves plain HTTP; TLS is the admin's choice via any reverse proxy.
   No module makes, keeps, pins or renews a certificate (not built).
 - **Formal backups** — multi-drive redundancy + device copies of transcriptions;
