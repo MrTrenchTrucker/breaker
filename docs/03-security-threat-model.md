@@ -1,5 +1,9 @@
 # 03 — Security & Threat Model
 
+Status: the mitigations in the threat table are the design, and every box in the
+verification checklist is unchecked until its phase ships. The status paragraph
+in `docs/00-executive-summary.md` names what is not built yet.
+
 ## Security Review (Bug Hunt) verdict — 2026-09
 
 The base repo (OpenWhispr Android fork, `com.edib.openwhispr`) was swept and
@@ -28,7 +32,7 @@ are **unverified**. Phase 0 includes a build + smoke-test gate.
 
 - **Private use: zero obligations.**
 - **Public release (the repo is public):** (a) the root **NOTICE file** credits
-  **XIAOMI CORPORATION** for the vendored sherpa-onnx code (that package has no
+  **XIAOMI CORPORATION** for sherpa-onnx (a prebuilt package, no source is copied into this repository; that package has no
   license file of its own; upstream verified Apache-2.0) and the upstream
   OpenWhispr authors; (b) it states that the files were modified; (c) keep the
   Apache-2.0 license — **you CANNOT relicense an Apache-2.0 derivative closed.**
