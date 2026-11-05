@@ -6,11 +6,11 @@ Login/register, token storage (Android Keystore, decided and not built), roles/s
 authenticates sync, training, and transcription API calls.
 
 **Build phase:** Phase 11 (key bootstrap and re-key in Phase 19, reset in Phase 20). Needs first: `core` (on main) and the server's `sync-api`.
-**Status on main:** built so far in this module: the strict JSON reader (`JsonTree`), the request encoder for register, salt and login (`RequestEncoder`), the response decoder for those three answers (`ResponseDecoder`) and the KDF guard (`KdfGuard`). Planned, not built: the endpoint client that sends the calls, any implementation of the `core.AuthService` port, token and key storage, the encoders and decoders for the later calls, and every flow below; the flow text below is the target design, not what the module does today.
+**Status on main:** built so far in this module: the strict JSON reader (`JsonTree`), the request encoder for register, salt and login (`RequestEncoder`), the response decoder for those three answers (`ResponseDecoder`) and the KDF guard (`KdfGuard`). Also built, as groundwork for the calls and not as a flow: the HTTP port (`AuthHttp`, `AuthHttpRequest`, `AuthHttpReply`), the fixed-text failures (`AuthFailure`, `AuthFailureReason`), the account rules (`AccountRules`), the session vault port (`SessionVault`), the session record (`SessionRecord`) and the address match (`ServerAddressMatch`); see the list headed "Built so far" below. Planned, not built: the endpoint client that sends the calls, any implementation of the `core.AuthService` port or of the HTTP port, the Keystore-backed vault, token and key storage, the encoders and decoders for the later calls, and every flow below; the flow text below is the target design, not what the module does today.
 
 
 ## Owns
-Login/register, token storage (Android Keystore, decided and not built), roles/scopes.
+Login/register, token storage (Android Keystore, decided and not built), roles/scopes. The HTTP port, the fixed-text failures, the account rules, the session vault port, the session record and the address match.
 
 ## Public Interface `core.AuthService` port.
 
@@ -81,6 +81,14 @@ tokens can call admin endpoints (e.g., `POST /v1/admin/reset-account`, F31,
 ADR-018). The client shows the scope it holds but never trusts its own claim
 server-side (T16).
 
+**Built so far (the groundwork under the flows above):**
+- **HTTP port** (`AuthHttp`): one request gives one reply. `AuthHttpRequest` holds the method, url, headers and body; `AuthHttpReply` holds the status and the whole body. Neither prints more than the method or the status. The app supplies the implementation; this module has no HTTP client of its own. A non-2xx status is a reply; the implementation throws `java.io.IOException` when the server cannot be reached or the reply cannot be read.
+- **Fixed-text failures** (`AuthFailure`, `AuthFailureReason`): nine reasons, one fixed sentence each, no input in any sentence and no cause attached.
+- **Account rules** (`AccountRules`, all pure): the three call paths and the logout path, the key-derivation numbers, and the salt size. The password length (at least 12) is counted in Unicode code points on a CharArray, at registration only. The username rule is 1 to 64 characters from letters, digits, dot, underscore and hyphen, by plain comparison. Its one table is `shared/modules/api-contracts/examples/username_vectors.json`; the client copy is checked against it by test. The server address may be http or https (ADR-034), with no backslash, no user info, query or hash, and no whitespace after the scheme; one trailing slash is dropped, and a base that still ends in a slash is refused.
+- **Session vault port** (`SessionVault`): saves, loads and clears one opaque string. This module gives no protection at rest; until the app backs the port with the Android Keystore, the stored text has no protection at rest. The tests use a fake vault (`FakeSessionVault`).
+- **Session record** (`SessionRecord`, internal): the text form of a session with its six members, the last being the server address the session was made with. The reader is strict: any other text returns null, and a record with a missing, empty or non-text server address is refused. The address is kept exactly as given.
+- **Address match** (`ServerAddressMatch`, internal): one pure function that says whether two server addresses are the same server. The scheme and the host are compared without case, one trailing slash is ignored, and the port and the path are compared exactly. An empty address, an empty host, a backslash, whitespace or a control character never matches. Nothing calls it yet; it is meant to decide whether a stored session may be used at the current address.
+
 ## Invariants
 - Register → first account admin; second account user (F22).
 - Login → token in the Android Keystore (decided and not built); logout wipes it.
@@ -110,6 +118,7 @@ server-side (T16).
 
 ## Test Locations
 - Unit (Kotlin): `android/modules/auth-client/src/test/kotlin/`, created with the module's first code. Run: `./gradlew :android:modules:auth-client:test`
+- Username table: `UsernameVectorData.kt` is the client copy of `shared/modules/api-contracts/examples/username_vectors.json`; `UsernameVectorsTest.kt` runs every row through `AccountRules.isValidUsername`, and `tests/unit/shared/api-contracts/test_username_vectors.py` checks that the copy equals the json.
 - Contract: `tests/contract/test_auth_client_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_auth_client_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 

@@ -24,6 +24,10 @@ KOTLIN_PATH = os.path.join(
     ROOT, "server", "modules", "sync-api", "src", "test", "kotlin", "dev", "breaker",
     "server", "syncapi", "accounts", "UsernameVectorData.kt",
 )
+CLIENT_KOTLIN_PATH = os.path.join(
+    ROOT, "android", "modules", "auth-client", "src", "test", "kotlin",
+    "dev", "breaker", "dictation", "auth", "client", "UsernameVectorData.kt",
+)
 OPENAPI_PATH = os.path.join(
     ROOT, "shared", "modules", "api-contracts", "openapi.yaml",
 )
@@ -48,8 +52,8 @@ def decode_kotlin_literal(lit):
     return json.loads('"' + inner + '"')
 
 
-def load_kotlin_rows():
-    with open(KOTLIN_PATH, "r", encoding="utf-8") as f:
+def load_kotlin_rows(path: str = KOTLIN_PATH):
+    with open(path, "r", encoding="utf-8") as f:
         text = f.read()
     rows = re.findall(
         r'UsernameVector\("([a-z0-9-]+)", ("(?:[^"\\]|\\.)*"), (true|false)\)',
@@ -114,6 +118,16 @@ class UsernameVectorTableTest(unittest.TestCase):
                          "latin-e-acute", "dot-inside", "hyphen-inside",
                          "underscore-inside"):
             self.assertIn(required, by_name, required)
+
+
+
+    def test_client_copy_equals_json_rows(self):
+        _, vectors = load_json_rows()
+        kotlin_rows = load_kotlin_rows(CLIENT_KOTLIN_PATH)
+        self.assertEqual(24, len(kotlin_rows), "the client Kotlin table must have exactly 24 rows")
+        json_triples = [(v["name"], v["input"], v["valid"]) for v in vectors]
+        kotlin_triples = [(name, inp, valid) for name, inp, valid in kotlin_rows]
+        self.assertEqual(json_triples, kotlin_triples)
 
 
 def doc_keys():
