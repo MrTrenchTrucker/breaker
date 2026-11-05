@@ -10,7 +10,7 @@ Do NOT build a new transcription engine — this module never runs Whisper
 itself; it queues, shapes the contract, and proxies.
 
 **API (contract in `shared/api-contracts`):**
-- `POST /v1/audio/transcriptions` — multipart `file` (WAV/MP3/OGG), optional `model` (ignored),
+- `POST /v1/audio/transcriptions` — multipart `file` (audio bytes; this module checks no format, the downstream service decides), optional `model` (ignored),
   `language` → `202 { job_id, status: "queued" }`
 - `GET /v1/jobs/{job_id}` → `{ status: queued|processing|done|failed, result:
   { text, segments[], language } | null }`
@@ -34,7 +34,7 @@ itself; it queues, shapes the contract, and proxies.
   concurrent callers (multiple users, plus any agent tokens per F27) from
   hammering the downstream engine at once — that is the reason this module
   exists as its own container instead of as a patch to Whisper X (F23).
-- Health: `GET /health` → `{ status: "ok", forwarding_to: "...", uptime }`, unauthenticated. `uptime` is the running time rendered as `HhMmSs` (for example `1h2m3s`), measured from a monotonic clock (`System.nanoTime`), so a wall-clock step cannot change it. `forwarding_to` is the configured downstream reduced to scheme + host + port only (no path, userinfo, query or fragment, any of which can carry a token); it is the literal `unparseable` when the URL is not http or https, has no host, or has a port that is not 1-65535. Both values are computed once at startup by `buildTranscriptionApi`.
+- Health: `GET /health` → `{ status: "ok", forwarding_to: "...", uptime }`, unauthenticated. `uptime` is the running time rendered as `HhMmSs` (for example `1h2m3s`), measured from a monotonic clock (`System.nanoTime`), so a wall-clock step cannot change it. `forwarding_to` is the configured downstream reduced to scheme + host + port only (no path, userinfo, query or fragment, any of which can carry a token); it is the literal `unparseable` when the URL is not http or https, has no host, or has a port that is not 1-65535. `forwarding_to` is computed once at startup by `buildTranscriptionApi`; `uptime` is rendered on each request from the start mark taken at startup.
 
 **Build phase:** Phase 4; it can start right after Phase 0. The token check client (`HttpTokenCheck`, `http/HttpTokenCheck.kt`) is built and wired into both transcription routes; the two internal token-check routes it calls are built in `sync-api`. The enqueue route (`POST /v1/audio/transcriptions`) resolves the caller's account with `HttpTokenCheck.use` (which moves a live session token's expiry) before reading the upload; the poll route (`GET /v1/jobs/{job_id}`) uses the read-only `peek` check. A missing, not-live, unavailable, or foreign-scheme token is refused with one plain 401, and a job is owned by the account the token resolves to, so a foreign account's job id answers the same 404 as a missing id. This module asks sync-api over HTTP whether a token is live and fails closed when it cannot (ARCHITECTURE R31, ADR-015). Requires the two config vars `BREAKER_WHISPER_SYNC_API_URL` and `BREAKER_WHISPER_SYNC_API_SERVICE_KEY`. Needs first: `api-contracts`.
 
@@ -57,12 +57,12 @@ itself; it queues, shapes the contract, and proxies.
 concurrent requests would contend. A queue serializes jobs:
 - `POST /v1/audio/transcriptions` → enqueue → `{ job_id, status: "queued" }` (`job_id` is a JSON string).
 - A single worker processes one job at a time (strict FIFO, fair across users),
-  forwarding audio (WAV 16 kHz mono PCM) to the **admin-configured
+  forwarding the uploaded audio bytes unchanged (this module does not check or convert the format or the sample rate) to the **admin-configured
   transcription service** (F26) — Docker network, IP, or external URL. The
   worker never starts the next job until the active one returns.
 - `GET /v1/jobs/{job_id}` → `{ status: queued|processing|done|failed, result }`.
 - Jobs persist in SQLite → restart-safe (no queued audio lost).
-- No priority in v1; per-user rate limits + job size caps (T18).
+- No priority in v1; the job size cap is built, per-user rate limits are planned (T18).
   Built: the upload size cap (413 above the audio limit). Planned, not built: per-user rate limits.
 - **Result retention (ADR-018):** a completed job's `result` stays fetchable for `RESULT_WINDOW_MS` after the job finished (default 10 minutes, set by `BREAKER_WHISPER_RESULT_TTL_S`, at most 24 hours); every `GET /v1/jobs/{job_id}` inside that window returns the same result, and after the window the result is erased and the answer is `404` (unknown or expired). Until then the result sits here in **plaintext**, same as the queued audio does before the job finishes.
 
@@ -72,8 +72,8 @@ intervals** before failing. The audio file is deleted once the job finishes
 job is queued or processing, its audio sits in this module's SQLite store
 (ADR-010), which is the honest at-rest statement, not "server memory only"
 (ADR-018). The completed **result** (above) persists longer than the audio
-does — fetched-or-24h, not delete-on-finish — because the requester has to
-have a chance to actually poll for it.
+does: it stays fetchable for the result window (default 10 minutes, at most 24 hours),
+not deleted on finish, because the requester has to have a chance to actually poll for it.
 
 **Owner sealed-box step (ADR-018, ships with Phase 19/20):** the requester —
 owner device or agent token — always gets its own plaintext result back from
