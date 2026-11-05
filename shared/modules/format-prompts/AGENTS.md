@@ -18,7 +18,7 @@ Strict non-destructive formatting prompts for the server LLM. The strict formatt
 **Build phase:** Built (on main).
 
 ## Invariants
-- Prompt is versioned and referenced by the app (no drift).
+- Prompt is versioned and read from here by the format module's `ServerLlmFormatter` (`PromptCatalog.CURRENT`), so there is one copy of the wording (no drift); no app slot uses that adapter yet (see the format card).
 - Golden example from F8 passes through the LLM path.
 - The N9 diff-check lives in android/format's tests; this module supplies the prompt wording and refuses a prompt that drops a non-destructive clause.
 
