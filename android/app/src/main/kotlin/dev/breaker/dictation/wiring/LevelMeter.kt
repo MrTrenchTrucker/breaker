@@ -70,6 +70,6 @@ internal class LevelMeter {
         const val SAMPLES_PER_UPDATE: Int = 1067
 
         /** The most the shown value may fall at one update: one of twelve equal steps of the bar. */
-        const val FALL_PER_UPDATE: Float = 1f / 12f
+        private const val FALL_PER_UPDATE: Float = 1f / 12f
     }
 }
