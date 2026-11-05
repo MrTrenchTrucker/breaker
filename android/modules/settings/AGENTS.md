@@ -28,7 +28,8 @@ implementation:
 
 **Keys:** mode, model_size, server_url, api_key (Android Keystore, encrypted at
 rest — T2) *(the device Keystore is not built yet — see Known Gotchas)*,
-wake_gesture_enabled, tile_position, language, preload_model,
+wake_gesture_mode (the older wake_gesture_enabled key is still read, never written),
+tile_position, language, preload_model,
 formatting_enabled, theme_mode, microphone_asked.
 
 **Model registry:** `ModelCatalog` reads `shared/model-registry` (model list,
