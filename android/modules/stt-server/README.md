@@ -39,7 +39,7 @@ body and no dictated text.
 
 ## Limits
 
-`ServerLimits` holds the time and size limits. The budget is 60 s plus 3 times
+`ServerLimits` holds the time limits and call counts; the size caps are separate constants. The budget is 60 s plus 3 times
 the clip length, at most 300 s, measured from the start of the call. Each call
 has a connect timeout of 1.5 s. These defaults are starting values; they were
 not measured on a device or against a real server.

@@ -20,8 +20,10 @@ implements `core.SttEngine`. The public constructor takes two providers, read
 once per call: the base address and the API key. The app supplies both; this
 module reads no settings and no storage.
 
-`ServerLimits` is a public data class holding every time and size limit. Its
-defaults are listed under Known Gotchas.
+`ServerLimits` is a public data class holding every time limit and call count of
+one transcription call. The size caps are separate constants: the reply size
+(4 MiB), the job id length (128 characters) and the server text shown to the
+user (160 units). Its defaults are listed under Known Gotchas.
 
 **In:** `SttRequest` (WAV bytes, duration, `model`, `language`).
 **Out:** `SttResult.Success(text, segments, language)` or
@@ -83,7 +85,7 @@ than in a hang.
 
 ## Invariants
 - End-to-end transcription from a phone over a VPN (F2) is not verified
-  yet; it waits for the server module (Phase 4).
+  yet; the server module (Phase 4) is on main, so it waits for a run on a phone.
 - Correct JSON parse for both the enqueue response and the poll response,
   incl. segments + timestamps on `done`.
 - Timeout/error at either step surfaced as `SttResult.failure`, never a
