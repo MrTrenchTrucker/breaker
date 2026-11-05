@@ -2,6 +2,10 @@
 
 ## Server-primary with automatic local fallback + sync + web + training
 
+Status: this is the target design, not a list of what is built. The status
+paragraph in `docs/00-executive-summary.md` names what is not built yet, and
+`docs/04-build-order.md` and the module cards give the status of each box below.
+
 ```
 ┌─────────────────────────────── PHONE (Android) ───────────────────────────────┐
 │  phrases ──"Breaker Breaker"──▶ tile + auto-record                            │
@@ -65,7 +69,8 @@ shows only the logged-in user's transcriptions.
 - Formatting is non-destructive (N9). The send phrase never appears in the text (F9).
 - Sync is idempotent (N12). Isolation is server-enforced (N13).
 - **Encryption:** transcriptions are ciphertext at rest; the server cannot decrypt
-  without the user's password (F24). Search is client-side.
+  without the user's password (F24). Search is client-side. Today (Phase 19 not
+  built) sync still pushes at `key_version` 0.
 - **Retention:** transcriptions auto-delete after 3 months; audio deletes on job
   completion (F28).
 - **Queue:** transcription jobs are strict FIFO — one at a time, restart-safe (F23).
