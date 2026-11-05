@@ -2,7 +2,7 @@
 
 Handles registering and logging in, and is to keep the user's token safe in the Android Keystore (decided and not built). That token authenticates sync, training and transcription calls. The password never leaves the phone: the module sends only a value derived from it (see ADR-006). It also runs password changes and completing an admin reset. A session the server issues expires 30 days after its last use (ADR-031); the client keeps no clock for it and learns that a session is over when the server refuses the key. When the phone has no live session, Home shows a quiet notice with a way to sign in (ADR-033, planned, not built).
 
-Built today: the wire codec only (the strict JSON reader, the request encoder for register, salt and login, the response decoder for those three answers, the KDF guard). The calls themselves, the password change, the reset completion and the token storage above are planned, not built.
+Built today: the wire codec (the strict JSON reader, the request encoder for register, salt and login, the response decoder for those three answers, the KDF guard) and the groundwork for the calls: the HTTP port, the fixed-text failures, the account rules with the username check, the session vault port, the session record (it keeps the server address the session was made with) and a function that says whether two server addresses are the same server. The calls themselves, the password change, the reset completion and the token storage above are planned, not built.
 
 Planned, not built (ADR-035, ADR-036): signing in on the Breaker website hands the login to the app. The app makes a one-time secret and a key pair for that sign-in, opens the sealed key package it receives, and signs out this device only.
 
