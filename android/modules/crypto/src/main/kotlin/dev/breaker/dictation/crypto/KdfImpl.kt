@@ -15,31 +15,31 @@ import org.bouncycastle.crypto.params.Argon2Parameters
 import org.bouncycastle.crypto.params.HKDFParameters
 
 /** The ADR-006 floor and the canonical parameters the R21 vectors are built at. */
-internal const val ARGON2_MEMORY_KIB = 65536 // 64 MiB
+private const val ARGON2_MEMORY_KIB = 65536 // 64 MiB
 
 /** The lowest number of passes accepted (the ADR-006 floor). */
-internal const val ARGON2_ITERATIONS = 3
+private const val ARGON2_ITERATIONS = 3
 
 /** The lowest number of lanes accepted (the ADR-006 floor). */
-internal const val ARGON2_PARALLELISM = 1
+private const val ARGON2_PARALLELISM = 1
 
 /** The tag length required, in bytes (an AES-256 key, and the verifier). */
-internal const val ARGON2_OUTPUT_LENGTH = 32
+private const val ARGON2_OUTPUT_LENGTH = 32
 
 /** The salt length required, in bytes (a random per-account salt). */
-internal const val ARGON2_SALT_LENGTH_BYTES = 16
+private const val ARGON2_SALT_LENGTH_BYTES = 16
 
 /** The length each derived subkey is expanded to, in bytes. */
-internal const val KEY_LENGTH_BYTES = 32
+private const val KEY_LENGTH_BYTES = 32
 
 /** The only KDF version number supported. */
-internal const val KDF_VERSION = 1
+private const val KDF_VERSION = 1
 
 /** The HKDF expand label for the key-encryption key. Its ASCII bytes are the info. */
-internal const val KEK_LABEL = "breaker-kek-v1"
+private const val KEK_LABEL = "breaker-kek-v1"
 
 /** The HKDF expand label for the login verifier. Its ASCII bytes are the info. */
-internal const val AUTH_VERIFIER_LABEL = "breaker-auth-verifier-v1"
+private const val AUTH_VERIFIER_LABEL = "breaker-auth-verifier-v1"
 
 /** The highest memory cost accepted, in KiB (256 MiB). Above it the value is refused. */
 private const val MEMORY_MAX_KIB = 262144
@@ -129,7 +129,7 @@ internal fun argon2id(
  * context label. An empty [salt] is the same as 32 zero bytes, the hash length, as
  * RFC 5869 section 2.2 specifies.
  */
-internal fun hkdfSha256(ikm: ByteArray, salt: ByteArray, info: ByteArray, length: Int): ByteArray {
+private fun hkdfSha256(ikm: ByteArray, salt: ByteArray, info: ByteArray, length: Int): ByteArray {
     val generator = HKDFBytesGenerator(SHA256Digest())
     generator.init(HKDFParameters(ikm, salt, info))
     val output = ByteArray(length)
@@ -160,7 +160,7 @@ private val EMPTY_SALT: ByteArray = ByteArray(0)
  * [argonOutput] is not modified. This function zeroes the two arrays it owns after the
  * key objects have copied them.
  */
-internal fun splitKeys(argonOutput: ByteArray): DerivedKeys {
+private fun splitKeys(argonOutput: ByteArray): DerivedKeys {
     var kekBytes: ByteArray? = null
     var verifierBytes: ByteArray? = null
     try {
