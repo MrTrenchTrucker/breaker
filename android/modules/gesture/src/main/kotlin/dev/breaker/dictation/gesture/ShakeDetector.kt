@@ -226,31 +226,31 @@ internal class ShakeDetector private constructor(
 
         /** The filtered (high-pass) magnitude threshold, in g's, that counts as a
          * positive-going crossing. */
-        const val THRESHOLD_G = 0.65
+        private const val THRESHOLD_G = 0.65
 
         /**
          * Cap, in g, on a single finite sample magnitude: `2 * (THRESHOLD_G + the 1.0 g
          * crossing point)`. One extreme-but-finite reading is held to this so it cannot
          * drive the low-pass term far enough to blind the detector for a magnitude-scaled
          * window. Non-finite magnitudes are dropped before this cap is applied. */
-        const val MAX_SAMPLE_G = 3.3
+        private const val MAX_SAMPLE_G = 3.3
 
         /** Number of positive-high crossings required inside the window to declare a shake. */
-        const val CROSSING_COUNT = 3
+        private const val CROSSING_COUNT = 3
 
         /**
          * Window, in ms: crossing timestamps must fall within this span (a span of exactly
          * 500 ms still counts).
          */
-        const val WINDOW_MS = 500L
+        private const val WINDOW_MS = 500L
 
         /** Cooldown, in ms, after firing during which further samples do not re-fire. */
-        const val COOLDOWN_MS = 2000L
+        private const val COOLDOWN_MS = 2000L
 
         /** Cutoff frequency, in Hz, of the one-pole high-pass on the magnitude. */
-        const val CUTOFF_HZ = 2.0
+        private const val CUTOFF_HZ = 2.0
 
         /** Gap, in ms, beyond which the detector resets every detection field. */
-        const val LARGE_GAP_MS = 1000L
+        private const val LARGE_GAP_MS = 1000L
     }
 }
