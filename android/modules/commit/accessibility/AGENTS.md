@@ -121,6 +121,7 @@ Production code in every build, not a probe. On every window-relevant event the 
   - Focused-field resolver: `NodeFocusedFieldInsertTest`, `NodeFocusedFieldRefusalTest`,
     `NodeFocusedFieldSetTextRefusalTest`, `NodeFocusedFieldReleaseTest`,
     `NodeFocusedFieldPrivacyTest`, `NodeFocusedFieldErrorTest`.
+  - Service config and hint text: `ConfigRequiredSetTest`, `ConfigUnionTest`, `HintTextNotReadTest`.
   - Gates that read the module's own files: `PureFilesScanTest`, `PrivacyScanTest`,
     `TestRulesScanTest`, `ManifestGateTest`, `ConfigGateTest`, `AdapterGateTest`,
     `AdapterMappingGateTest`, `FieldStateFlagsGateTest`, `ProbeReadGateTest`, `ProbeClockGateTest`, `ModuleFilesGateTest` (with the helpers `SourceFiles.kt`,

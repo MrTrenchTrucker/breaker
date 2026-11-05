@@ -6,6 +6,8 @@ Record phrase samples, upload, download trained model + checksum verify. In-app 
 ("Breaker Breaker") and end phrase ("And I'm Gone") in the user's environment;
 the server trains a per-user model; the phone downloads and installs it.
 
+**Status on main:** nothing in this module is built. The folder holds this card, the README and a build file, and no Kotlin file; `PhraseTraining` is a port declared in `core` (`core/port/PhraseTraining.kt`), not a type of this module. Everything below (the Flow, the Privacy rule, the Invariants and the Known Gotchas) is the target design, planned, not built.
+
 **Build phase:** Phase 13, together with the server's `training`. Needs first: `core` (on main) and auth (Phase 11), because every training call carries the user's token.
 
 ## Owns
