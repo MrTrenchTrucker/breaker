@@ -8,7 +8,11 @@ at OUR server, signing key secured (never git) [1].
 
 **Build phase:** Phase 16. Needs first: `core` (on main) and the Phase 15 git-pull deploy pipeline (`server/modules/deploy`), because the update endpoint reads its tagged releases.
 
-**Status on main:** nothing in this module is built. The folder holds this card, the README and a build file: there is no `src/` folder and no test. Everything below is the target design, planned, not built. The `core.UpdateChecker` port is on main in core; the server route `GET /v1/updates/latest.json` is planned, not built (see the sync-api card).
+**Status on main:** one piece is built: the due decision `UpdateSchedule.isDue(lastCheckAtMs, nowMs)` in
+`src/main/kotlin` (internal, pure Kotlin), with its tests in `src/test/kotlin`. Nothing else in this module is
+built: no checker, no download, no verify, no install, no rollback. Everything below except that decision
+is the target design, planned, not built. The `core.UpdateChecker` port is on main in core; the server route
+`GET /v1/updates/latest.json` is planned, not built (see the sync-api card).
 
 ## Owns
 Daily update check + admin force-check, signed APK verify, rollback.
@@ -20,6 +24,9 @@ Daily update check + admin force-check, signed APK verify, rollback.
   background timer). Checks `GET /v1/updates/latest.json`.
 - Force check (F21): admin-only button (Home menu → About → Check for updates)
   triggers an immediate check.
+- Due decision (built): `UpdateSchedule.isDue(lastCheckAtMs: Long?, nowMs: Long)` is true when the last
+  check is null (never checked), when `nowMs` is before it (the clock moved back), or when more than 24 h
+  (strictly, 86_400_000 ms) have passed. The caller passes `nowMs`; the function reads no clock, no state.
 
 **Update flow:**
 1. Fetch `latest.json` → `{ version, apk_url, sha256, signature, notes }`.
@@ -54,7 +61,7 @@ Daily update check + admin force-check, signed APK verify, rollback.
 - APK signing (server/deploy)
 
 ## Test Locations
-- Unit (Kotlin): `android/modules/updater/src/test/kotlin/`, created with the module's first code. Run: `./gradlew :android:modules:updater:test`
+- Unit (Kotlin): `android/modules/updater/src/test/kotlin/` (`UpdateScheduleTest`). Run: `./gradlew :android:modules:updater:test`
 - Contract: `tests/contract/test_updater_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_updater_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
