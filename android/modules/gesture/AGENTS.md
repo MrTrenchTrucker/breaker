@@ -13,7 +13,7 @@ hands each detection to the tile's shake path, which shows a closed or hidden ti
 - `SensorManager` accelerometer (`TYPE_ACCELEROMETER`), no permission needed at the used rate (see rate note).
 - Shake detector: high-pass filter on acceleration magnitude; count threshold
   crossings in a 500 ms window -> fire.
-- Listener armed by app intent - the app arms the detector while the service is on; a detection while a take runs does nothing (a battery reason keeps the detector quiet).
+- Listener armed by app intent - the app arms the detector while the service is on; a detection while a take runs does nothing: the detector keeps running and the app ignores the detection.
 - No accelerometer, or a registration the system refuses: `start()` returns false, the handle stays unstarted, and a later `start()` retries. Nothing else happens.
 
 - Rate: SENSOR_DELAY_GAME = 20,000 microseconds per sample = 50 per second. No permission needed at that rate (HIGH_SAMPLING_RATE_SENSORS is only for rates above 200 Hz on API 31+).
