@@ -16,7 +16,7 @@ package dev.breaker.dictation.stt.ondevice
 object UpstreamChecksums {
 
     /** The conventional name of the checksum file shipped alongside a model. */
-    const val CHECKSUM_FILE_NAME: String = "checksum.txt"
+    private const val CHECKSUM_FILE_NAME: String = "checksum.txt"
 
     /**
      * Thrown when the checksum file cannot be parsed at all.
