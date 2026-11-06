@@ -1,23 +1,23 @@
 package dev.breaker.shared.api.sync
 
 /** The largest epoch millisecond a created_at may hold: 9999-12-31T23:59:59.999Z. */
-internal const val MAX_CREATED_AT_MS: Long = 253402300799999L
+private const val MAX_CREATED_AT_MS: Long = 253402300799999L
 
 internal const val MS_PER_DAY: Long = 86400000L
 
 /** The only accepted form of created_at: fixed width, UTC, always three millisecond digits. */
-internal val CREATED_AT_RE = Regex("([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2}):([0-9]{2})\\.([0-9]{3})Z")
+private val CREATED_AT_RE = Regex("([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2}):([0-9]{2})\\.([0-9]{3})Z")
 
-internal fun isLeapYear(year: Int): Boolean = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
+private fun isLeapYear(year: Int): Boolean = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
 
-internal fun daysInMonth(year: Int, month: Int): Int = when (month) {
+private fun daysInMonth(year: Int, month: Int): Int = when (month) {
     2 -> if (isLeapYear(year)) 29 else 28
     4, 6, 9, 11 -> 30
     else -> 31
 }
 
 /** Days from 1970-01-01 to the given civil date (proleptic Gregorian, integer arithmetic only). */
-internal fun daysFromCivil(year: Int, month: Int, day: Int): Long {
+private fun daysFromCivil(year: Int, month: Int, day: Int): Long {
     val y = (if (month <= 2) year - 1 else year).toLong()
     val era = y / 400
     val yoe = y - era * 400
@@ -28,7 +28,7 @@ internal fun daysFromCivil(year: Int, month: Int, day: Int): Long {
 }
 
 /** The civil date (year, month, day) of a day count from 1970-01-01; days must not be negative. */
-internal fun civilFromDays(days: Long): Triple<Int, Int, Int> {
+private fun civilFromDays(days: Long): Triple<Int, Int, Int> {
     val z = days + 719468
     val era = z / 146097
     val doe = z - era * 146097
@@ -41,7 +41,7 @@ internal fun civilFromDays(days: Long): Triple<Int, Int, Int> {
     return Triple(y.toInt(), m.toInt(), d.toInt())
 }
 
-internal fun padDigits(value: Long, width: Int): String = value.toString().padStart(width, '0')
+private fun padDigits(value: Long, width: Int): String = value.toString().padStart(width, '0')
 
 /** Formats epoch milliseconds as created_at. Refuses a value outside 0 .. MAX_CREATED_AT_MS. */
 internal fun formatCreatedAtMs(epochMs: Long): String {
