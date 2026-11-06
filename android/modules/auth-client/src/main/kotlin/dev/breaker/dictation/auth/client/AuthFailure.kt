@@ -29,5 +29,5 @@ private fun sentenceFor(reason: AuthFailureReason): String = when (reason) {
     AuthFailureReason.SERVER_UNREACHABLE -> "The server could not be reached."
     AuthFailureReason.SERVER_ERROR -> "The server could not complete the request."
     AuthFailureReason.UNREADABLE_REPLY -> "The server's reply could not be read."
-    AuthFailureReason.BAD_SERVER_ADDRESS -> "The server address must start with https://."
+    AuthFailureReason.BAD_SERVER_ADDRESS -> "The server address must start with http:// or https://."
 }
