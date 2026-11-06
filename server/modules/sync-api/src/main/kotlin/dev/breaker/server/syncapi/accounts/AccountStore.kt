@@ -17,9 +17,10 @@ internal class AccountStore(
     internal val attempts = SigninAttemptStore(db, clock)
 
     // The not-found timing decoy: one fixed verifier, built once at startup with the hasher's
-    // own iteration count. The not-found path runs one [hasher.matches] against it before it
-    // answers, so a missing account costs the same as a wrong verifier. It is never a real
-    // account: the row read comes first, and only a null row reaches the decoy.
+    // own iteration count. A missing account and a pending account both run one [hasher.matches]
+    // against it before they answer, so each costs the same as a wrong verifier. It is never a
+    // real account: no real verifier is derived from it, and a pending account's stored verifier
+    // is never compared.
     private val timingDecoy: StoredVerifier =
         StoredVerifier(VerifierHasher.ALGO, hasher.iterations, ByteArray(VerifierHasher.SALT_BYTES), ByteArray(VerifierHasher.HASH_BYTES))
 
@@ -187,16 +188,15 @@ internal class AccountStore(
             true
         }
         if (!limitOn) {
-            // Switch OFF: no lock read, no count, no clear. Read the row, hash,
-            // return Rejected or Verified exactly as an account with no limit.
+            // Switch OFF: no lock read, no count, no clear. Read the row. A missing or pending
+            // name runs the decoy hash and is Rejected; an active name is hashed and answered.
             val row = db.transaction<AccountRow?> { connection -> readAccountRow(connection, folded) }
-            if (row == null) {
-                // Not-found costs one full hash, the same as a wrong verifier: the decoy runs
-                // outside the (now ended) transaction, on the default lane.
+            if (row == null || row.pending) {
+                // Not-found and pending cost one full hash, the same as a wrong verifier: the decoy
+                // runs outside the (now ended) transaction, on the default lane.
                 withContext(Dispatchers.Default) { hasher.matches(verifier, timingDecoy) }
                 return VerifyResult.Rejected
             }
-            if (row.pending) return VerifyResult.Rejected
             val matches = withContext(Dispatchers.Default) { hasher.matches(verifier, row.stored) }
             if (!matches) return VerifyResult.Rejected
             return VerifyResult.Verified(row.id, row.role)
@@ -215,14 +215,13 @@ internal class AccountStore(
         }
 
         val row = db.transaction<AccountRow?> { connection -> readAccountRow(connection, folded) }
-        if (row == null) {
-            // Same decoy as the switch-off path: not-found costs one full hash.
+        // A pending name takes the same path as an unknown name: one decoy hash, then a counted try.
+        if (row == null || row.pending) {
+            // Same decoy as the switch-off path: a missing or pending name costs one full hash.
             withContext(Dispatchers.Default) { hasher.matches(verifier, timingDecoy) }
             guardCounting { attempts.recordWrong(folded) }
             return VerifyResult.Rejected
         }
-        // A pending account never counts a wrong try and never runs the hash.
-        if (row.pending) return VerifyResult.Rejected
         // The transaction has ended: the slow hash must not hold the database lane.
         val matches = withContext(Dispatchers.Default) { hasher.matches(verifier, row.stored) }
         if (!matches) {
