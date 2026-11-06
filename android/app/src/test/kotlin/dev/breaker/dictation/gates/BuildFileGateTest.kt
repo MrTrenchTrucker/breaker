@@ -42,6 +42,8 @@ internal class BuildFileGateTest {
         "implementation :android:modules:commit",
         "implementation :android:modules:gesture",
         "implementation :android:modules:crypto",
+        "implementation :android:modules:auth-client",
+        "implementation :android:modules:http",
         "runtimeOnly :android:modules:commit:accessibility",
         "implementation :shared:modules:ui-tokens",
         "implementation :shared:modules:model-registry",

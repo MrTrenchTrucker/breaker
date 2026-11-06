@@ -5,8 +5,8 @@ package dev.breaker.dictation.auth.client
  * record here after a successful sign-in and reads it back at start-up.
  *
  * This module gives no protection at rest by itself. It hands the string to the implementation as it
- * is and reads it back unchanged. Until the app backs this port with the Android Keystore, the
- * stored text has no protection at rest.
+ * is and reads it back unchanged. The app backs this port with a file sealed under an Android
+ * Keystore key, so the stored string is sealed at rest there.
  *
  * [save] may throw when the implementation cannot store the string. [load] returns null when
  * nothing is stored. [clear] removes whatever is stored.
