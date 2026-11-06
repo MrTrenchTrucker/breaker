@@ -14,7 +14,7 @@ import java.sql.Connection
 internal object PrevKeyRule {
     // One statement, one bind (the account id). When the column is already NULL, or an old row
     // remains, it changes nothing.
-    const val CLEAR_SQL =
+    private const val CLEAR_SQL =
         "UPDATE accounts SET prev_wrapped_dek = NULL WHERE id = ? AND prev_wrapped_dek IS NOT NULL " +
             "AND NOT EXISTS (SELECT 1 FROM transcriptions t WHERE t.account_id = accounts.id " +
             "AND t.deleted = 0 AND t.key_version < accounts.key_version)"

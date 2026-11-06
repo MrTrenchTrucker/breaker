@@ -197,9 +197,9 @@ internal class HandoffStore(
         }
 
     companion object {
-        const val MAX_LIVE_CODES = 5
+        private const val MAX_LIVE_CODES = 5
         const val MAX_DEVICE_NAME_CODE_POINTS = 64
-        val DEVICE_NAME_SURROGATES: IntRange = Character.MIN_SURROGATE.code..Character.MAX_SURROGATE.code
+        private val DEVICE_NAME_SURROGATES: IntRange = Character.MIN_SURROGATE.code..Character.MAX_SURROGATE.code
         val CODE_LIFETIME: Duration = Duration.ofMinutes(5)
 
         private const val HASH_BYTES = 32

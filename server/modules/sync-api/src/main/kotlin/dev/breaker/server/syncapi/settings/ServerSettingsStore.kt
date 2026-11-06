@@ -5,7 +5,7 @@ import dev.breaker.server.syncapi.db.SqliteDatabase
 /** Reads and writes the wrong-password limit switch from the server_settings table. */
 internal class ServerSettingsStore(private val db: SqliteDatabase) {
     companion object {
-        const val WRONG_PW_LIMIT_KEY = "wrong_pw_limit"
+        private const val WRONG_PW_LIMIT_KEY = "wrong_pw_limit"
     }
 
     suspend fun wrongPwLimitEnabled(): Boolean {
