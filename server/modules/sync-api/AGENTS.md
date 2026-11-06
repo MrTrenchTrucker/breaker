@@ -322,7 +322,7 @@ A route or job marked Planned, not built below is not installed on main yet.
   the code over; that risk and its mitigation (DEK/keypair rotation at the account's next password
   change) are ADR-018's to state, not this module's to paper over.
 - `POST /v1/admin/clear-store` — **admin-only**: clear transcriptions per-user
-  or for all users, with confirmation (F29, T23). Deleted rows reach phones through the change feed, as a flag on the row (decided, not built).
+  or for all users, with confirmation (F29, T23). Deleted rows reach phones through the change feed, as a flag on the row (built: a deleted row is served with `deleted` true).
   Planned, not built: no route is installed; the library function `TranscriptionPurge.deleteAllOn`, which the reset already uses, exists.
 - Retention: transcriptions TTL = **3 months** (ADR-010 precise rule); purge job enforces it (F28).
   Planned, not built: no scheduled purge enforces the TTL yet.

@@ -51,7 +51,7 @@ narrower band than Home; every screen must use the one gutter, applied once, and
   the settings file never carrying the key, are built and tested; what is not
   built is any device Keystore behind the port.
   *(the device Keystore is not built yet — see Known Gotchas)*
-- Model registry parsed; invalid SHA-256 blocks model load. *(Not built yet.)*
+- Model registry parsed; invalid SHA-256 blocks model load. *(Built in `stt-ondevice`: `ModelIntegrity` computes the SHA-256 of the archive, and `ModelLoader` refuses and deletes a model that fails it.)*
 
 ## Depends On
 - android (registered in modules.toml)
