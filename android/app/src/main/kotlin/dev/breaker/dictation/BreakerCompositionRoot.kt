@@ -4,8 +4,13 @@ import dev.breaker.dictation.audio.MicSource
 import dev.breaker.dictation.audio.Pcm16WavEncoder
 import dev.breaker.dictation.auth.client.AddressedSession
 import dev.breaker.dictation.auth.client.AuthHttp
+import dev.breaker.dictation.auth.client.HandoffFinish
 import dev.breaker.dictation.auth.client.ServerAuthService
+import dev.breaker.dictation.auth.client.SessionVault
 import dev.breaker.dictation.core.port.AuthService
+import dev.breaker.dictation.core.port.CredentialVault
+import dev.breaker.dictation.core.port.CryptoService
+import dev.breaker.dictation.core.port.HandoffReceiver
 import dev.breaker.dictation.core.port.HistoryStore
 import dev.breaker.dictation.core.port.KeyDerivation
 import dev.breaker.dictation.core.port.SettingsStore
@@ -25,8 +30,15 @@ import dev.breaker.dictation.stt.ondevice.OnDeviceSttEngine
 import dev.breaker.dictation.stt.server.ServerTarget
 import dev.breaker.dictation.stt.server.SttServerEngine
 import dev.breaker.dictation.transport.TcpConnectivityProbe
+import dev.breaker.dictation.wiring.AesSessionSeal
+import dev.breaker.dictation.wiring.Background
+import dev.breaker.dictation.wiring.CREDENTIAL_VAULT_PURPOSE
+import dev.breaker.dictation.wiring.CredentialFileVault
 import dev.breaker.dictation.wiring.DictationComponent
+import dev.breaker.dictation.wiring.FileSessionVault
 import dev.breaker.dictation.wiring.HandoffReturnFlow
+import dev.breaker.dictation.wiring.InlineBackground
+import dev.breaker.dictation.wiring.KeysClearingSessionVault
 import dev.breaker.dictation.wiring.LazyHistoryStore
 import dev.breaker.dictation.wiring.LevelSink
 import dev.breaker.dictation.wiring.RECOGNIZER_FACTORY
@@ -36,8 +48,12 @@ import dev.breaker.dictation.wiring.UuidIdSource
 import dev.breaker.dictation.wiring.appMicSource
 import dev.breaker.dictation.wiring.authSessionFile
 import dev.breaker.dictation.wiring.buildAuthService
+import dev.breaker.dictation.wiring.credentialsFile
 import dev.breaker.dictation.wiring.defaultAuthHttp
+import dev.breaker.dictation.wiring.defaultCryptoService
+import dev.breaker.dictation.wiring.defaultExchangeHttp
 import dev.breaker.dictation.wiring.defaultKeyDerivation
+import dev.breaker.dictation.wiring.defaultLogoutHttp
 import dev.breaker.dictation.wiring.defaultSessionKey
 import dev.breaker.dictation.wiring.serverTargetOf
 import java.io.File
@@ -73,6 +89,11 @@ import javax.crypto.SecretKey
  * derivation, session key) are called only then, and the service reads the stored server address on
  * every call. The transport factory takes the stored address provider. [authService] and
  * [addressedSession] reach the same one service.
+ *
+ * The session vault is one decorated instance: the auth service and the hand-off finish both use it,
+ * and clearing the session also wipes the stored account keys. The hand-off finish is built on the
+ * first return, never at construction, over its own exchange and logout transports. The return flow
+ * runs the finish on the [background] it is given; the default runs it at once.
  */
 class BreakerCompositionRoot(
     filesDir: File,
@@ -84,6 +105,10 @@ class BreakerCompositionRoot(
     private val authHttp: (() -> String) -> AuthHttp = ::defaultAuthHttp,
     private val keyDerivation: () -> KeyDerivation = ::defaultKeyDerivation,
     private val keySupplier: () -> SecretKey = ::defaultSessionKey,
+    private val exchangeHttp: (() -> String) -> AuthHttp = ::defaultExchangeHttp,
+    private val logoutHttp: (() -> String) -> AuthHttp = ::defaultLogoutHttp,
+    private val cryptoService: () -> CryptoService = ::defaultCryptoService,
+    private val background: Background = InlineBackground,
 ) {
     /** Takes an already built history store; the microphone service is never switched on. */
     constructor(
@@ -108,10 +133,12 @@ class BreakerCompositionRoot(
         committer: TextCommitter,
         micSource: MicSource = appMicSource(),
         serverEngineFactory: (target: () -> ServerTarget) -> SttEngine = REAL_SERVER_ENGINE,
+        background: Background = InlineBackground,
     ) :
         this(
             filesDir,
-            LazyHistoryStore(history), serviceController, committer, micSource, serverEngineFactory)
+            LazyHistoryStore(history), serviceController, committer, micSource, serverEngineFactory,
+            background = background)
 
     val keystore: dev.breaker.dictation.settings.Keystore =
         FileCredentialRefHolder(File(filesDir, "credential-ref"))
@@ -129,19 +156,50 @@ class BreakerCompositionRoot(
     val signInReturnStore: SignInReturnStore = SignInReturnStore()
 
     /** The flow the return activity hands its link to: it reads the link and records the state. */
-    val handoffReturnFlow: HandoffReturnFlow = HandoffReturnFlow(SignInStartWiring(signInHolder), signInReturnStore)
+    val handoffReturnFlow: HandoffReturnFlow = HandoffReturnFlow(
+        SignInStartWiring(
+            signInHolder,
+            HandoffReceiver { code, attempt -> handoffFinish.onHandoff(code, attempt) },
+        ),
+        signInReturnStore,
+        background,
+    )
 
     /** The stored server address, read on every call. The connectivity probe reads the same provider. */
     private val serverUrl: () -> String = { settingsStore.load().serverUrl }
+
+    /** The sealed account keys file, built on first use. */
+    private val credentialVault: CredentialVault by lazy {
+        CredentialFileVault(credentialsFile(filesDir), AesSessionSeal(CREDENTIAL_VAULT_PURPOSE, keySupplier))
+    }
+
+    /** The one session vault: the sealed session file, and a clear that also wipes the account keys. */
+    private val sessionVault: SessionVault by lazy {
+        KeysClearingSessionVault(
+            FileSessionVault(authSessionFile(filesDir), AesSessionSeal(keySupplier)),
+            credentialVault,
+        )
+    }
 
     /** The one auth service, built on first use over the stored address provider and the three factories. */
     private val serverAuth: ServerAuthService by lazy {
         buildAuthService(
             serverUrl,
-            authSessionFile(filesDir),
-            keySupplier,
+            sessionVault,
             authHttp(serverUrl),
             keyDerivation(),
+        )
+    }
+
+    /** The hand-off finish, built on the first return over its own exchange and logout transports. */
+    private val handoffFinish: HandoffFinish by lazy {
+        HandoffFinish(
+            serverUrl,
+            exchangeHttp(serverUrl),
+            logoutHttp(serverUrl),
+            cryptoService(),
+            credentialVault,
+            sessionVault,
         )
     }
 

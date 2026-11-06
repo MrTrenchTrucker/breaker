@@ -63,3 +63,24 @@ internal class SerialBackground(threadName: String) : Background {
         }
     }
 }
+
+/**
+ * [OneShotBackground] starts one new daemon thread called [threadName] for every submitted block and
+ * returns at once; it never runs the block on the caller. A block that throws is dropped. A thread
+ * that cannot be started is not hidden: [submit] throws, so the caller can undo what it set up.
+ */
+internal class OneShotBackground(private val threadName: String = "breaker-signin-exchange") : Background {
+
+    override fun submit(block: () -> Unit) {
+        val work = Runnable {
+            try {
+                block()
+            } catch (e: Exception) {
+                // The caller's own guard reports a failure; nothing else waits on this thread.
+            }
+        }
+        val worker = Thread(work, threadName)
+        worker.isDaemon = true
+        worker.start()
+    }
+}

@@ -5,6 +5,12 @@ import javax.crypto.Cipher
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
+/** The purpose text of the session file: it is bound into every blob the session vault seals. */
+internal const val SESSION_VAULT_PURPOSE: String = "dev.breaker.dictation.SessionVault"
+
+/** The purpose text of the credentials file: it differs from the session text, so the files do not swap. */
+internal const val CREDENTIAL_VAULT_PURPOSE: String = "dev.breaker.dictation.CredentialVault"
+
 /**
  * A [SessionSeal] over AES-GCM. The cipher picks a fresh 12-byte IV on each seal
  * (Android refuses a caller-supplied IV under randomized encryption), and the AAD
@@ -12,14 +18,17 @@ import javax.crypto.spec.GCMParameterSpec
  * purpose reads cannot open. The key arrives as a lazy supplier, so a Keystore
  * failure on load becomes null and on save becomes an exception.
  */
-internal class AesSessionSeal(private val key: () -> SecretKey) : SessionSeal {
+internal class AesSessionSeal(private val purpose: String, private val key: () -> SecretKey) : SessionSeal {
+
+    /** The seal of the session file: the purpose text is [SESSION_VAULT_PURPOSE]. */
+    constructor(key: () -> SecretKey) : this(SESSION_VAULT_PURPOSE, key)
 
     /** AAD = the vault purpose name as UTF-8, then the version byte, the same on seal and on unseal. */
     private val aad: ByteArray = run {
-        val purpose: ByteArray = PURPOSE.toByteArray(StandardCharsets.UTF_8)
-        val next: ByteArray = ByteArray(purpose.size + 1)
-        System.arraycopy(purpose, 0, next, 0, purpose.size)
-        next[purpose.size] = VERSION.toByte()
+        val purposeBytes: ByteArray = purpose.toByteArray(StandardCharsets.UTF_8)
+        val next: ByteArray = ByteArray(purposeBytes.size + 1)
+        System.arraycopy(purposeBytes, 0, next, 0, purposeBytes.size)
+        next[purposeBytes.size] = VERSION.toByte()
         next
     }
 
@@ -49,8 +58,6 @@ internal class AesSessionSeal(private val key: () -> SecretKey) : SessionSeal {
     }
 
     companion object {
-        /** Purpose-separating domain string bound into the AAD. */
-        private const val PURPOSE: String = "dev.breaker.dictation.SessionVault"
         /** version byte 0x01, in the blob and appended to the AAD. */
         private const val VERSION: Int = 0x01
         /** the GCM IV length in bytes (exactly 12). */

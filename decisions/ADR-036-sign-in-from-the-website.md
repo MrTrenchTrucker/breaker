@@ -1,6 +1,6 @@
 # ADR-036: Sign-in from the website hands the login to the app
 
-**Status:** accepted, amended 2026-11-02 (how the wrong-password limit works); decided, built on the server, not built on the phone and the website; the wrong-password limit is built on the server (counting, the locked answer, the admin switch and its route, the drop at registration, the clear hook and the sweep), and the admin reset, the completion of a reset and the password change that call the hook are built on the server too, while the phone and website sides are not built; the points still open are under To be designed
+**Status:** accepted, amended 2026-11-02 (how the wrong-password limit works); decided, built on the server and on the phone (the exchange, the key package and the stored keys and session), not built on the website; the wrong-password limit is built on the server (counting, the locked answer, the admin switch and its route, the drop at registration, the clear hook and the sweep), and the admin reset, the completion of a reset and the password change that call the hook are built on the server too, while the phone and website sides are not built; the points still open are under To be designed
 **Date:** 2026-11-01
 **Approved by:** the project owner, 2026-11-01
 
@@ -30,7 +30,7 @@ The questions were: 1, the automatic hand-off; 2, a 5-minute single-use code; 3,
 
 **Server side.** Two new routes: a start route (`POST /v1/auth/handoff/start`), where the website creates the code after sign-in, and an exchange route (`POST /v1/auth/handoff/exchange`), where the app trades the code and its secret for a session token. Login is unchanged. The code is kept in its own table, `signin_handoff`, and not as a kind in the token store: a code held as a token kind would resolve as a Bearer token, and the new kind would force a rebuild of the tokens table. The tokens table gains only a device name, for session rows. The sign-in page itself is served by web-fe; sync-api only serves the routes.
 
-**Phone storage.** The session token is wrapped with an Android Keystore key from the start. It lives in the app's private storage and is not included in backups. There is no plain store behind a flag.
+**Phone storage.** The session token is wrapped with an Android Keystore key from the start. It lives in the app's private storage and is not included in backups. There is no plain store behind a flag. This is built: the session record (with the server address) and the account keys are two separate sealed files, each under its own label. The app writes the keys first and the session second, and on any failure clears both. A logout clears both too; a password sign-in only saves its session. If the process dies mid-exchange, the one-time code is already spent on the server and the person signs in again.
 
 **Several devices and sign-out.** An account may use several devices. The website lists them, with a sign-out for each one. Signing out in the app ends that device only. On the website, "sign out all my devices" ends every device of the account.
 
@@ -65,8 +65,10 @@ Rules out: a verified app link and its host file; redeeming the code without the
 Of the hand-off, `CryptoService.openSignInPackage` (with its parser and the sealed-box open) is built on the
 phone. The start route `POST /v1/auth/handoff/start`, the exchange route `POST /v1/auth/handoff/exchange`,
 migration 4 (the sign-in code table, its index, the device name column and the triggers), the code store and
-sweep, and the revoke rule are built on the server. Not built: the website page, the app side of the hand-off
-(calling the routes, the wiring of the received package), and the device list with sign-out. The
+sweep, and the revoke rule are built on the server. Built on the phone too: making the key pair, calling
+the exchange route, opening the package, storing the keys and the session, and one best-effort logout when
+the store fails after the server issued a session. Not built: the website page, the app's device name, and
+the device list with sign-out. The
 wrong-password limit is built on the server (see the amendment below, What is built). Encoding decisions stay
 under To be designed.
 

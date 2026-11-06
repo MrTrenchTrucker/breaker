@@ -86,6 +86,26 @@ internal object RequestEncoder {
         return body.encodeToByteArray()
     }
 
+    /**
+     * The body of the hand-off exchange: the members code and secret, then device_name only when
+     * [deviceName] is not null. Every string goes through the same escaping as the other bodies.
+     */
+    fun encodeHandoffExchange(code: String, secret: String, deviceName: String?): ByteArray {
+        val body = buildString {
+            append("{")
+            append("\"code\":")
+            append(jsonStr(code))
+            append(",\"secret\":")
+            append(jsonStr(secret))
+            if (deviceName != null) {
+                append(",\"device_name\":")
+                append(jsonStr(deviceName))
+            }
+            append("}")
+        }
+        return body.encodeToByteArray()
+    }
+
     // Register carries kdf_version; a value other than 1 is refused before any wire byte.
     private fun refuseInvalidVersion(v: Int): String =
         if (v == KdfGuard.ALLOWED_VERSION) v.toString() else throw KdfRefused(KdfRefusal.UNSUPPORTED_VERSION)
