@@ -48,13 +48,13 @@ class SignInAttempt(secretBytes: ByteArray, val privateKey: SignInPrivateKey, pu
 
     companion object {
         /** The length of the secret text in characters, which are also its bytes. */
-        const val SECRET_LENGTH = 43
+        private const val SECRET_LENGTH = 43
 
         /** The length of the X25519 public key in bytes. */
-        const val PUBLIC_KEY_BYTES = 32
+        private const val PUBLIC_KEY_BYTES = 32
 
         /** The length of the challenge text in characters. */
-        const val CHALLENGE_LENGTH = 43
+        private const val CHALLENGE_LENGTH = 43
 
         private const val TEXT_REFUSED = "The sign-in secret text must be 43 URL-safe characters with a canonical last character"
         private const val PUBLIC_KEY_REFUSED = "The sign-in public key must be 32 bytes"
