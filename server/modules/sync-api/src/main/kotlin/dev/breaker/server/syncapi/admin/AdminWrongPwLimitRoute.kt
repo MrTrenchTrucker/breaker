@@ -16,7 +16,7 @@ import io.ktor.server.routing.routing
 import kotlinx.coroutines.CancellationException
 
 /** The exact 400 error body from openapi.yaml for /v1/admin/wrong-pw-limit PUT. */
-internal const val WRONG_PW_LIMIT_BAD_REQUEST =
+private const val WRONG_PW_LIMIT_BAD_REQUEST =
     """{"error":"bad_request","message":"enabled must be true or false"}"""
 
 /**

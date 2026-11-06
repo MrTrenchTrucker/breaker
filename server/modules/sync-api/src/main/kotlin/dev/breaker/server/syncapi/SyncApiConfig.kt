@@ -20,10 +20,10 @@ internal class SyncApiConfig(
         const val ENV_INTERNAL_PORT = "BREAKER_SYNC_API_INTERNAL_PORT"
         const val ENV_SERVICE_KEY_FILE = "BREAKER_SYNC_API_SERVICE_KEY_FILE"
         const val DEFAULT_HOST = "127.0.0.1"
-        const val DEFAULT_PORT = 8080
-        const val DEFAULT_INTERNAL_HOST = "127.0.0.1"
-        const val DEFAULT_INTERNAL_PORT = 8081
-        const val SERVICE_KEY_FILE_NAME = "service-key"
+        private const val DEFAULT_PORT = 8080
+        private const val DEFAULT_INTERNAL_HOST = "127.0.0.1"
+        private const val DEFAULT_INTERNAL_PORT = 8081
+        private const val SERVICE_KEY_FILE_NAME = "service-key"
 
         private const val MIN_PORT = 1
         private const val MAX_PORT = 65535

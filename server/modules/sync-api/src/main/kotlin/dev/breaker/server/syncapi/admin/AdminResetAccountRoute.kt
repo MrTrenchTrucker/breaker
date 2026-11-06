@@ -20,7 +20,7 @@ import io.ktor.server.routing.routing
 import kotlinx.coroutines.CancellationException
 
 // The exact 404 body from openapi.yaml for an account that does not exist.
-internal const val ACCOUNT_NOT_FOUND_BODY =
+private const val ACCOUNT_NOT_FOUND_BODY =
     """{"error":"not_found","message":"Account not found"}"""
 
 /**
