@@ -104,7 +104,7 @@ There is no synchronous 200-with-body variant — every transcription is a job.
   codes, and clears the wrong-password row. The rule for `prev_wrapped_dek`: it is set to `null` again
   as soon as no stored transcription of the account that is not deleted has a `key_version` below the
   account's, checked in the same transaction after the change-password write, after a sync push that
-  replaces a row and after a sync delete; the purge of delete records is not built.
+  replaces a row and after a sync delete.
   `POST /v1/auth/complete-reset` takes no token (an agent token in the header is refused with 403
   before the body is read; any other header is ignored and its expiry does not move), answers
   **200** with the login body (keyless, `reset_at` set), **400**, **403**, **413**, **503**, and one

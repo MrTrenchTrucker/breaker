@@ -563,7 +563,7 @@ paths:
         below the account's key_version, so an account with no old rows is
         cleared at once. The same rule runs, in the same transaction, after a
         POST /v1/sync that replaces a row and after a DELETE of a
-        transcription. The purge of delete records is not built.
+        transcription.
       operationId: changePassword
       security:
         - bearerAuth: []

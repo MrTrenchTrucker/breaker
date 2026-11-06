@@ -190,6 +190,53 @@ internal open class TokenStore(
             statement.executeQuery().use { rows -> rows.next() }
         }
 
+    // Stores the number a pulled session has seen: the smaller of the page's since and the account's
+    // head (change_seq), so a session never claims a point the server has not reached. Only a session
+    // of this account is changed. Liveness is not tested here. Returns the stored number, or null when
+    // no row matched.
+    internal fun setPulledChangeOn(
+        connection: Connection,
+        tokenId: Long,
+        accountId: Long,
+        since: Long,
+    ): Long? {
+        val changed = connection.prepareStatement(SET_PULLED_CHANGE_SQL).use { statement ->
+            statement.setLong(1, since)
+            statement.setLong(2, accountId)
+            statement.setLong(3, tokenId)
+            statement.setLong(4, accountId)
+            statement.executeUpdate()
+        }
+        if (changed == 0) return null
+        return connection.prepareStatement(SELECT_PULLED_CHANGE_SQL).use { statement ->
+            statement.setLong(1, tokenId)
+            statement.executeQuery().use { rows ->
+                check(rows.next()) { "sync-api: the session row could not be read back" }
+                rows.getLong(1)
+            }
+        }
+    }
+
+    // The floor for a purge: the lowest stored number among the account's live user sessions. A purge
+    // needs a device that has confirmed the point, so with no live session at all there is no witness
+    // and nothing is deleted: the result is null. The same goes when one live session has no number yet,
+    // because that device has confirmed nothing. Agent tokens never count. Liveness is the login rule.
+    internal fun pullFloorOn(connection: Connection, accountId: Long): Long? {
+        val nowMs = clock.millis()
+        return connection.prepareStatement(PULL_FLOOR_SQL).use { statement ->
+            statement.setLong(1, accountId)
+            statement.setLong(2, nowMs)
+            statement.executeQuery().use { rows ->
+                check(rows.next()) { "sync-api: the floor query returned no row" }
+                val live = rows.getLong(1)
+                val withNumber = rows.getLong(2)
+                val lowest = rows.getLong(3)
+                val lowestMissing = rows.wasNull()
+                if (live == 0L || withNumber < live || lowestMissing) null else lowest
+            }
+        }
+    }
+
     private fun deleteAccountHandoff(connection: Connection, accountId: Long) {
         connection.prepareStatement(DELETE_ACCOUNT_HANDOFF_SQL).use { statement ->
             statement.setLong(1, accountId)
@@ -350,5 +397,21 @@ internal open class TokenStore(
                 "AND revoked_at_ms IS NULL AND id <> ?"
 
         const val DELETE_ACCOUNT_HANDOFF_SQL = "DELETE FROM signin_handoff WHERE account_id = ?"
+
+        // The stored number is the smaller of since and the head. SQL MIN with two arguments is scalar.
+        const val SET_PULLED_CHANGE_SQL =
+            "UPDATE tokens SET last_pulled_change = MIN(?, (SELECT change_seq FROM accounts WHERE id = ?)) " +
+                "WHERE id = ? AND account_id = ? AND kind = 'session'"
+
+        const val SELECT_PULLED_CHANGE_SQL = "SELECT last_pulled_change FROM tokens WHERE id = ?"
+
+        // Counts the live user sessions of the account, how many of them hold a number, and the lowest
+        // number. The three live conditions are the ones of SESSION_LIVE_SQL, written out again here.
+        // COUNT skips NULL, so the second count shows a session without a number. MIN alone would skip it.
+        const val PULL_FLOOR_SQL =
+            "SELECT COUNT(*), COUNT(last_pulled_change), MIN(last_pulled_change) FROM tokens " +
+                "WHERE account_id = ? AND kind = 'session' AND revoked_at_ms IS NULL " +
+                "AND (expires_at_ms IS NULL OR expires_at_ms > ?) " +
+                "AND (expires_at_ms IS NULL OR expires_at_ms <= created_at_ms + " + MAX_SESSION_LIFETIME_MS + ")"
     }
 }

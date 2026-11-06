@@ -1,6 +1,8 @@
 # ADR-035: Several devices per account; the server is the source of truth
 
-**Status:** accepted; the sync routes and the change feed are built on the server; the purge, the clear-store write and the phone side are decided, not built; the points still open are under To be designed
+**Status:** accepted; the sync routes and the change feed are built on the server; the clear-store write and
+the phone side are decided, not built; the purge is built on the server; the points still open are under To be
+designed
 **Date:** 2026-11-01
 **Confirmed by:** the project owner, 2026-11-01, in his own words below
 
@@ -26,7 +28,11 @@ On 2026-11-01 the project owner confirmed the design and ordered this update: "B
 1. **The server is the source of truth for an account's transcriptions.** Every device pushes what it records (`POST /v1/sync` in the API contract; the phone's push queue exists and the server route is built) and pulls what other devices recorded. A device's local history is a copy of the server's, plus whatever is still queued to push.
 2. **Offline stays first.** A device with no server keeps recording and reading its local copy. It pushes its queue and then pulls when the server is back. Nothing recorded offline is lost.
 3. **The phone's sync module pulls.** `android_sync` gains a pull: after each drain of its push queue it asks the server for the rows changed since its last pull, and hands them to history. Rows are matched by their client id, so a row this device pushed is not stored twice. History stays the only module that writes the local store.
-4. **Deletes go everywhere.** A delete on any device leaves a tombstone that is pushed. The server marks the row deleted: it keeps the row's id, client id and change number, loses its body, and carries the delete in the same change feed as the rows (decided, not built). Decided, not built: a delete record is purged once every live session of the account has pulled past it. A device that pulls a delete applies it through `applyRemoteDelete`. A row deleted anywhere does not come back from another device.
+4. **Deletes go everywhere.** A delete on any device leaves a tombstone that is pushed. Built on the server:
+   the row is marked deleted, keeps its id, client id and change number, loses its body, and is carried in
+   the same change feed as the rows. A delete record is purged once every live user session of the account
+   has pulled past it. On the phone (decided, not built): a device that pulls a delete applies it through
+   `applyRemoteDelete`; a row deleted anywhere does not come back from another device.
 5. **Encryption is unchanged (ADR-006).** Each device encrypts before it pushes. The server stores and returns sealed rows only and never holds the DEK, the KEK or the password.
 6. **A new device gets its keys from the website sign-in, sealed for that device (decided, not built).** When the app starts the sign-in hand-off, it makes a fresh X25519 key pair in memory for that one sign-in and sends the public half with its sign-in challenge. The pair and the app's one-time secret are dropped at the code exchange, or when the sign-in is abandoned. The person types the password once, on the website. The website page derives the KEK in the browser (ADR-006's web path), unwraps the account's keys and seals them to the app's public key as an anonymous sealed box, the construction ADR-018 already fixes. The server keeps that sealed package until the exchange deletes it, and never past the code's 5-minute expiry. The server passes the sealed package to the app with the session token at the code exchange. The app opens it with its private key. It then wraps the account's DEK and the session token at rest with an Android Keystore AES key, which is decided and not built. The server only ever carries a package it cannot open. The hand-off itself is decided in ADR-036. The device's own password sign-in stays as the fallback (ADR-036), and it still derives the KEK on the device.
 
@@ -43,13 +49,48 @@ On 2026-11-01 the project owner confirmed the design and ordered this update: "B
 - **Modules whose cards and READMEs change:** `android_sync` (pull, cursor, merge hand-off), `android_history` (receiving pulled rows; `applyRemoteDelete` wired), `server_sync_api` (changes-since pull, delete records kept until pulled, sealed key package at the code exchange, the wrong-password limit), `server_web_fe` (sealing the keys in the page), `android_auth_client` (key pair, opening the package). `ARCHITECTURE.md` section 12 and the sync section are updated to match. Each card marks these items as planned, not built.
 - **Sync stays development-only.** As ADR-006 (amended 2026-10-01) says, sync is development-only until Phase 19. Nothing in this decision changes that: no release build turns multi-device sync on before encryption by default ships.
 - **ADR-006 is amended** by point 6: a device may receive its keys sealed from the website instead of deriving the KEK itself (see the amendment at the end of ADR-006).
-- **Built so far, and what is not.** Of the sign-in hand-off, `CryptoService.openSignInPackage` (with its parser and the sealed-box open) is built on the phone side, and on the server the start route `POST /v1/auth/handoff/start`, the exchange route `POST /v1/auth/handoff/exchange`, migration 4 (the sign-in code table, its index, the device name column and the triggers), the code store and sweep, and the revoke rule are built. Not built: the website page, the app side of the hand-off (making the key pair, calling the routes, the wiring), and the device list with sign-out. The wrong-password limit is built on the server (ADR-036). Of the sync work on the server, the push route `POST /v1/sync`, the plain pull route `GET /v1/transcriptions` and the transcriptions table are built, and so is the store layer of the changes-since feed: migration 5 (the change counter on the account row, the change number on every transcription row, the delete flag, the purged-floor column, the pulled-change column on the session row and the unique index), a change number on every insert and replace, and a push of a deleted row that is a no-op. The contract text of the feed and the Kotlin types for it are built too. The DELETE route `DELETE /v1/transcriptions/{client_id}`, the store delete, the `resave` mark on a push, and the plain list that leaves deleted rows out are built too. The `since` parameter, the page object, the 400 answer and the 410 answer of `GET /v1/transcriptions` are built (slice 2a). Not built: the purge, writing the pulled number, the clear-store write and the whole phone side. The device name column on the session row is built (migration 4); the app does not send a name yet and the device list is not built. Today the app has no pull, and the sign-in is unchanged.
-- **Decided, not built:** the changes-since cursor is a server-assigned change number, unique to the account and strictly increasing on every row write (insert, replace and delete). It is sent as an opaque string and is exclusive: the client asks for the changes after N. It is not the stored time, and stored_at stays a field of the row. The client stores the cursor and sends it back as a `since` query parameter on `GET /v1/transcriptions`, and the reply carries the next cursor. Client-id dedupe stays as a second guard. A delete is a flag on the row: the row keeps its id, client id and change number, loses its body and is marked deleted, and rows and deletes come in one feed in change order. A remote delete is applied even if this device saved the same id again. A local delete followed by a local save of the same id clears the local tombstone, so the row is live again. Each session row carries a nullable device name, given by the app at sign-in and renamable by the person. There is no devices table: the device list has one row per session, with a last-seen date derived from the session's expiry. A delete record is purged once every live session of the account has pulled past it, and a device whose session expired signs in again and does a full resync, so it never needs old delete records. The sync routes and the transcriptions table come first, as their own slice, before the cursor.
+- **Built so far, and what is not.** Of the sign-in hand-off, `CryptoService.openSignInPackage` (with its
+  parser and the sealed-box open) is built on the phone side, and on the server the start route `POST
+  /v1/auth/handoff/start`, the exchange route `POST /v1/auth/handoff/exchange`, migration 4 (the sign-in code
+  table, its index, the device name column and the triggers), the code store and sweep, and the revoke rule
+  are built. Not built: the website page, the app side of the hand-off (making the key pair, calling the
+  routes, the wiring), and the device list with sign-out. The wrong-password limit is built on the server
+  (ADR-036). Of the sync work on the server, the push route `POST /v1/sync`, the plain pull route `GET
+  /v1/transcriptions` and the transcriptions table are built, and so is the store layer of the changes-since
+  feed: migration 5 (the change counter on the account row, the change number on every transcription row, the
+  delete flag, the purged-floor column, the pulled-change column on the session row and the unique index), a
+  change number on every insert and replace, and a push of a deleted row that is a no-op. The contract text of
+  the feed and the Kotlin types for it are built too. The DELETE route `DELETE
+  /v1/transcriptions/{client_id}`, the store delete, the `resave` mark on a push, and the plain list that
+  leaves deleted rows out are built too. The `since` parameter, the page object, the 400 answer and the 410
+  answer of `GET /v1/transcriptions` are built. The write of the pulled number and the purge of delete records
+  are built on the server. Not built: the clear-store write and the whole phone side. The device name column
+  on the session row is built (migration 4); the app does not send a name yet and the device list is not
+  built. Today the app has no pull, and the sign-in is unchanged.
+- **Decided, not built:** the changes-since cursor is a server-assigned change number, unique to the account
+  and strictly increasing on every row write (insert, replace and delete). It is sent as an opaque string and
+  is exclusive: the client asks for the changes after N. It is not the stored time, and stored_at stays a
+  field of the row. The client stores the cursor and sends it back as a `since` query parameter on `GET
+  /v1/transcriptions`, and the reply carries the next cursor. Client-id dedupe stays as a second guard. A
+  delete is a flag on the row: the row keeps its id, client id and change number, loses its body and is marked
+  deleted, and rows and deletes come in one feed in change order. A remote delete is applied even if this
+  device saved the same id again. A local delete followed by a local save of the same id clears the local
+  tombstone, so the row is live again. Each session row carries a nullable device name, given by the app at
+  sign-in and renamable by the person. There is no devices table: the device list has one row per session,
+  with a last-seen date derived from the session's expiry.
+  A delete record is purged once every live session of the account has pulled past it (built on the server),
+  and a device whose session expired signs in again and does a full resync, so it never needs old delete
+  records. The sync routes and the transcriptions table come first, as their own piece of work,
+  before the cursor.
 - **Still to be designed** (before any of it is built): the merge when a pulled row and a local unsent edit share a client id; the encoding of the keys inside the sealed package.
 
 ## Decided details of the changes-since feed (sync 1B)
 
-The Decision above says what the feed is for. This section records the details that were decided afterwards, each with its reason. They are decided, not built, except where it says built. Built on the server (slice 2a): the change number, the cursor, the answer, the delete record, and the push of a deleted id with its resave mark. Not built: the purge, the write of the pulled number, clear-store, the phone side. The word "feed" means the answer of `GET /v1/transcriptions` when the client sends `since`.
+The Decision above says what the feed is for. This section records the details that were decided afterwards,
+each with its reason. They are decided, not built, except where it says built. Built on the server: the change
+number, the cursor, the answer, the delete record, and the push of a deleted id with its resave mark. Not
+built: clear-store, the phone side. The write of the pulled number and the purge of delete records are built
+on the server. The word "feed" means the answer of `GET /v1/transcriptions` when the client sends `since`.
 
 - **The change number.** Each account has one counter, kept on the account row. Every write of a transcription row (insert, replace, delete) takes the next number of that account. Reason: one counter that only goes up means a purge can never lower it, so a number is never handed out twice. The migration numbers the rows that already exist 1 to N in id order, per account. This part is built (migration 5).
 - **The cursor.** The cursor text is `<account_id>-<change>`. The client treats it as opaque: it stores it and sends it back, and never builds one. Reason: the account tag lets the server refuse a cursor from another account. A cursor of another account, or one that does not match the pattern, is a 400 before any number is read. A cursor above the head (the highest number of the account) is a 200 with no records and `next` set to the head. A cursor below the purged floor is a 410. Built on server.

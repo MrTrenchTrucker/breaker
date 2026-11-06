@@ -34,7 +34,16 @@ that replaces a row and in a sync delete), migration 8 (six nullable key columns
 login that answers the stored key columns, with `reset_at` and `rekeyed_at` always printed with three
 fractional digits and a fixed 503 for a store failure.
 
-Planned, not built (ADR-035, ADR-036): the purge of delete records, an admin route to end a session, and the device list. The wrong-password limit is built (its failure counting, the locked answer, 423 with Retry-After, the on/off switch (migration 7, `server_settings`, `ServerSettingsStore`, read live on every attempt, default on, only a stored integer 0 is off, off = no counting, no refusing, stored attempts kept), the admin route that flips it, the drop of the row at registration, the hook `AccountStore.clearAttempts` and the sweep every five minutes). The sign-in hand-off (migration 4, the code store, the sweep, the revoke rule and the start and exchange routes) is built; the website page and the app wiring are not. The change number and the delete flag are built in the store (migration 5); the DELETE route is built; the read side of the feed (the since parameter, the page object, the 400 and the 410) is built; the purge is not. The table of pending-sealed results, which the reset will also have to clear, does not exist yet.
+Planned, not built (ADR-035, ADR-036): an admin route to end a session, and the device list. The
+wrong-password limit is built (its failure counting, the locked answer, 423 with Retry-After, the on/off
+switch (migration 7, `server_settings`, `ServerSettingsStore`, read live on every attempt, default on, only a
+stored integer 0 is off, off = no counting, no refusing, stored attempts kept), the admin route that flips it,
+the drop of the row at registration, the hook `AccountStore.clearAttempts` and the sweep every five minutes).
+The sign-in hand-off (migration 4, the code store, the sweep, the revoke rule and the start and exchange
+routes) is built; the website page and the app wiring are not. The change number and the delete flag are built
+in the store (migration 5); the DELETE route is built; the read side of the feed (the since parameter, the
+page object, the 400 and the 410) is built; the pulled number and the purge of delete records are built. The
+table of pending-sealed results, which the reset will also have to clear, does not exist yet.
 
 ## Run it
 
