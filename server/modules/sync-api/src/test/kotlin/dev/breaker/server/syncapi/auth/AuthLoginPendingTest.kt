@@ -10,7 +10,7 @@ internal class AuthLoginPendingTest : ResetRouteTestBase() {
 
     /**
      * A pending Alice (the old verifier is seed 2) answers every login as an ordinary account answers a wrong
-     * verifier, byte for byte, six times in a row, with no wrong try counted and no lock.
+     * verifier, byte for byte, six times in a row with the limit off, with no wrong try counted and no lock.
      */
     private fun assertPendingAnswersAsWrong() {
         val adminText = startAdmin()
@@ -35,9 +35,34 @@ internal class AuthLoginPendingTest : ResetRouteTestBase() {
         assertEquals("sync-api: a pending login counted a wrong try", before, attemptsOf("alice"))
     }
 
+    /**
+     * A pending Alice (the old verifier is seed 2) with the limit on: the first five logins answer the
+     * wrong verifier's 401 byte for byte and each counts one wrong try; the sixth answers 423 and the body.
+     */
+    private fun assertPendingLocksAfterFiveWrongTries() {
+        val adminText = startAdmin()
+        pendingAccount(adminText, "Alice", 2)
+        register("Bob", 3)
+        val reference = loginAs("Bob", wrongVerifierBytes)
+        assertAnswer("wrong verifier", reference, HttpStatusCode.Unauthorized, loginRefusedBody)
+        assertEquals("sync-api: the pending name has no wrong-password row yet", "none", attemptsOf("alice"))
+        val tries = listOf(
+            "right verifier of the old password" to AccountFixtures.verifierBytes(2),
+            "wrong verifier" to wrongVerifierBytes,
+            "verifier of the later password" to newVerifierBytes,
+            "verifier of another account" to AccountFixtures.verifierBytes(3),
+            "right verifier of the old password again" to AccountFixtures.verifierBytes(2),
+        )
+        for ((label, bytes) in tries) {
+            assertAnswer(label, loginAs("Alice", bytes), reference.status, reference.body)
+        }
+        assertTrue("sync-api: five wrong tries did not leave a 5/ row", attemptsOf("alice").startsWith("5/"))
+        assertAnswer("sixth try", loginAs("Alice", wrongVerifierBytes), HttpStatusCode.Locked, lockedBody)
+    }
+
     @Test
-    fun `a pending login gives the wrong verifier 401 byte for byte and counts nothing with the limit on`() {
-        assertPendingAnswersAsWrong()
+    fun `a pending login counts five wrong tries and locks on the sixth with the limit on`() {
+        assertPendingLocksAfterFiveWrongTries()
     }
 
     @Test

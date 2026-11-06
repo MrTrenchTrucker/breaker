@@ -13,7 +13,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
-/** An account waiting for a reset: verify refuses it without a count, and no key can be stored. */
+/** An account waiting for a reset: verify refuses every try and counts it, and no key can be stored. */
 internal class AccountStorePendingTest : TempDatabaseTest() {
 
     private lateinit var temp: TempDatabase
@@ -48,18 +48,18 @@ internal class AccountStorePendingTest : TempDatabaseTest() {
     private fun bundle(): KeyBundle = KeyBundle(KeyPatterns.wrappedDek(), KeyPatterns.wrappedBoxPrivkey(), KeyPatterns.boxPubkey())
 
     @Test
-    fun `verify with the right verifier on a pending account is Rejected and leaves the wrong try row`() {
+    fun `verify with the right verifier on a pending account is Rejected and counts a wrong try`() {
         repeat(2) { runBlocking { store.attempts.recordWrong("alice") } }
         markPending(alice)
         assertEquals("sync-api: right verifier on a pending account", VerifyResult.Rejected, verify("Alice", 1))
-        assertEquals("sync-api: the wrong try row", 2L, checkNotNull(attemptOf("alice")).wrongCount)
+        assertEquals("sync-api: the wrong try row", 3L, checkNotNull(attemptOf("alice")).wrongCount)
     }
 
     @Test
-    fun `verify with a wrong verifier on a pending account is Rejected and counts nothing`() {
+    fun `verify with a wrong verifier on a pending account is Rejected and counts one wrong try`() {
         markPending(alice)
         assertEquals("sync-api: wrong verifier", VerifyResult.Rejected, verify("Alice", 5))
-        assertNull("sync-api: a wrong try was counted", attemptOf("alice"))
+        assertEquals("sync-api: the wrong try row", 1L, checkNotNull(attemptOf("alice")).wrongCount)
     }
 
     @Test
