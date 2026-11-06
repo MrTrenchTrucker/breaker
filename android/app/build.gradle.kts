@@ -79,6 +79,8 @@ dependencies {
     implementation(project(":android:modules:commit"))
     implementation(project(":android:modules:gesture"))
     implementation(project(":android:modules:crypto"))
+    implementation(project(":android:modules:auth-client"))
+    implementation(project(":android:modules:http"))
     runtimeOnly(project(":android:modules:commit:accessibility"))
     implementation(libs.kotlinx.coroutines.core)
     runtimeOnly(sherpaCoordinate)

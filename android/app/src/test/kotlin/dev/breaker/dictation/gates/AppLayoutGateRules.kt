@@ -31,6 +31,10 @@ open class AppLayoutGateRules {
         "wiring/TakenSentences.kt", "wiring/TakeSettle.kt", "wiring/DeviceFailureSentences.kt", "wiring/DeviceFailureYield.kt", "wiring/TakeFinisher.kt",
         "wiring/HomeTakeAdapter.kt", "wiring/EndingTexts.kt", "wiring/HomeSentences.kt", "wiring/TakeOwner.kt", "wiring/MicBusyPort.kt",
         "wiring/CompositeLevelSink.kt", "wiring/HomeLevelFeed.kt", "wiring/LevelMap.kt", "wiring/LevelMeter.kt", "wiring/LevelFeed.kt", "wiring/LevelTap.kt", "wiring/NoiseFloor.kt",
+        "wiring/AuthHttpAdapter.kt",
+        "wiring/SessionSeal.kt",
+        "wiring/AesSessionSeal.kt",
+        "wiring/FileSessionVault.kt",
         "host/ServiceRefusalNotice.kt",
     )
 
@@ -44,6 +48,7 @@ open class AppLayoutGateRules {
         "wiring/HomeTakeWiring.kt", "wiring/HomeScreenMic.kt",
         "host/TakenClipboardAndroid.kt", "host/ActivityHelpers.kt",
         "host/SignInBrowser.kt", "host/HandoffReturnActivity.kt",
+        "wiring/KeystoreSessionKey.kt",
     )
 
     private val softCap: Int = 300
