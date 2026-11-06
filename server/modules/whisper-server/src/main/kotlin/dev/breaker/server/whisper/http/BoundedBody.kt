@@ -16,7 +16,7 @@ import java.util.concurrent.TimeoutException
 // exceed `limit` and completes with null, so the caller reads a bounded answer or none.
 // When a deadlineNanos is given, the subscriber cancels itself at the deadline so the
 // exchange is closed instead of left open.
-internal class BoundedBodySubscriber(
+private class BoundedBodySubscriber(
     private val limit: Int,
     private val deadlineNanos: Long?,
 ) : HttpResponse.BodySubscriber<ByteArray?> {

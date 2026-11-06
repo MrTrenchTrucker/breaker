@@ -9,7 +9,7 @@ internal object JobPolicy {
     val RETRY_DELAY: Duration = Duration.ofSeconds(10)
 
     /** How long a finished result stays fetchable: 24 hours. */
-    const val RESULT_TTL_MS: Long = 86_400_000L
+    private const val RESULT_TTL_MS: Long = 86_400_000L
 
     /** How long a finished result stays idempotently fetchable after completion: 10 minutes by
      *  default (BREAKER_WHISPER_RESULT_TTL_S). Every GET inside this window returns the same

@@ -27,7 +27,7 @@ internal const val OWNER_ACCOUNT_ID: Long = 1L
 
 /** The single 404 reason for a GET the caller cannot satisfy: an unknown id, a non-numeric id, or a
  *  done job whose result has passed its TTL. One string, so the caller always sees the same reason. */
-internal const val UNKNOWN_OR_EXPIRED = "unknown or expired"
+private const val UNKNOWN_OR_EXPIRED = "unknown or expired"
 
 
 /** The upload cap, in bytes. Source: the OpenAI audio-transcriptions API limit - this front is deliberately OpenAI-shaped (module card). */
