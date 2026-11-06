@@ -34,7 +34,27 @@ On 2026-11-01 the project owner confirmed the design and ordered this update: "B
    has pulled past it. On the phone (decided, not built): a device that pulls a delete applies it through
    `applyRemoteDelete`; a row deleted anywhere does not come back from another device.
 5. **Encryption is unchanged (ADR-006).** Each device encrypts before it pushes. The server stores and returns sealed rows only and never holds the DEK, the KEK or the password.
-6. **A new device gets its keys from the website sign-in, sealed for that device (decided, not built).** When the app starts the sign-in hand-off, it makes a fresh X25519 key pair in memory for that one sign-in and sends the public half with its sign-in challenge. The pair and the app's one-time secret are dropped at the code exchange, or when the sign-in is abandoned. The person types the password once, on the website. The website page derives the KEK in the browser (ADR-006's web path), unwraps the account's keys and seals them to the app's public key as an anonymous sealed box, the construction ADR-018 already fixes. The server keeps that sealed package until the exchange deletes it, and never past the code's 5-minute expiry. The server passes the sealed package to the app with the session token at the code exchange. The app opens it with its private key. It then wraps the account's DEK and the session token at rest with an Android Keystore AES key, which is decided and not built. The server only ever carries a package it cannot open. The hand-off itself is decided in ADR-036. The device's own password sign-in stays as the fallback (ADR-036), and it still derives the KEK on the device.
+6. **A new device gets its keys from the website sign-in, sealed for that device.** Built on the phone: the
+   key pair, made in memory for one sign-in by `SignInStarterImpl.begin` (`crypto/SignInStarterImpl.kt`, lines
+   40-60) and held by `SignInHolder.begin` (`core/usecase/SignInHolder.kt`, line 41, wired at
+   `BreakerCompositionRoot.kt`, line 126); the return flow (`HandoffReturnFlow.handle`,
+   `wiring/HandoffReturnFlow.kt`, line 11, called from `host/HandoffReturnActivity.kt`, line 21); and
+   `CryptoService.openSignInPackage` (`crypto/CryptoServiceImpl.kt`, lines 86-98). Built on the server: the
+   start and exchange routes (`auth/AuthHandoffRoutes.kt`, lines 31 and 96), the code store and the sweep.
+   Decided, not built: the app calls to the start and exchange routes (no caller; `DefaultHandoffReceiver`
+   only wipes the attempt and returns NOT_FINISHED, `core/port/HandoffReceiver.kt`, lines 26-31), the website
+   page (its crypto is a stub, `web-fe` `js/signin-crypto.js`), the Keystore wrapping and the wiring of the
+   received package. When the app starts the sign-in hand-off, it makes a fresh X25519 key pair in memory for
+   that one sign-in and sends the public half with its sign-in challenge. The pair and the app's one-time
+   secret are dropped at the code exchange, or when the sign-in is abandoned. The person types the password
+   once, on the website. The website page derives the KEK in the browser (ADR-006's web path), unwraps the
+   account's keys and seals them to the app's public key as an anonymous sealed box, the construction ADR-018
+   already fixes. The server keeps that sealed package until the exchange deletes it, and never past the
+   code's 5-minute expiry. The server passes the sealed package to the app with the session token at the code
+   exchange. The app opens it with its private key. It then wraps the account's DEK and the session token at
+   rest with an Android Keystore AES key, which is decided and not built. The server only ever carries a
+   package it cannot open. The hand-off itself is decided in ADR-036. The device's own password sign-in stays
+   as the fallback (ADR-036), and it still derives the KEK on the device.
 
 ## Reasons
 
@@ -53,8 +73,8 @@ On 2026-11-01 the project owner confirmed the design and ordered this update: "B
   parser and the sealed-box open) is built on the phone side, and on the server the start route `POST
   /v1/auth/handoff/start`, the exchange route `POST /v1/auth/handoff/exchange`, migration 4 (the sign-in code
   table, its index, the device name column and the triggers), the code store and sweep, and the revoke rule
-  are built. Not built: the website page, the app side of the hand-off (making the key pair, calling the
-  routes, the wiring), and the device list with sign-out. The wrong-password limit is built on the server
+  are built. Not built: the website page, the app side of the hand-off (calling the routes, the wiring of
+  the received package), and the device list with sign-out. The wrong-password limit is built on the server
   (ADR-036). Of the sync work on the server, the push route `POST /v1/sync`, the plain pull route `GET
   /v1/transcriptions` and the transcriptions table are built, and so is the store layer of the changes-since
   feed: migration 5 (the change counter on the account row, the change number on every transcription row, the
@@ -67,21 +87,26 @@ On 2026-11-01 the project owner confirmed the design and ordered this update: "B
   are built on the server. Not built: the clear-store write and the whole phone side. The device name column
   on the session row is built (migration 4); the app does not send a name yet and the device list is not
   built. Today the app has no pull, and the sign-in is unchanged.
-- **Decided, not built:** the changes-since cursor is a server-assigned change number, unique to the account
-  and strictly increasing on every row write (insert, replace and delete). It is sent as an opaque string and
-  is exclusive: the client asks for the changes after N. It is not the stored time, and stored_at stays a
-  field of the row. The client stores the cursor and sends it back as a `since` query parameter on `GET
-  /v1/transcriptions`, and the reply carries the next cursor. Client-id dedupe stays as a second guard. A
-  delete is a flag on the row: the row keeps its id, client id and change number, loses its body and is marked
-  deleted, and rows and deletes come in one feed in change order. A remote delete is applied even if this
-  device saved the same id again. A local delete followed by a local save of the same id clears the local
-  tombstone, so the row is live again. Each session row carries a nullable device name, given by the app at
-  sign-in and renamable by the person. There is no devices table: the device list has one row per session,
-  with a last-seen date derived from the session's expiry.
-  A delete record is purged once every live session of the account has pulled past it (built on the server),
-  and a device whose session expired signs in again and does a full resync, so it never needs old delete
-  records. The sync routes and the transcriptions table come first, as their own piece of work,
-  before the cursor.
+- **Changes-since feed.** Built on the server: the cursor is a server-assigned change number, unique to the
+  account and strictly increasing on every row write (insert, replace and delete). It is sent as an opaque
+  string and is exclusive: the client asks for the changes after N. It is not the stored time, and stored_at
+  stays a field of the row. The reply carries the next cursor. A delete is a flag on the row: the row keeps
+  its id, client id and change number, loses its body and is marked deleted, and rows and deletes come in
+  one feed in change order. A delete record is purged once every live session of the account has pulled past
+  it (built on the server).
+  **Decided, not built (phone):** the client stores the cursor and sends it back as a `since` query parameter
+  on `GET /v1/transcriptions`. Client-id dedupe stays as a second guard; it is not built on the phone, which
+  pulls nothing yet, and the local history keeps one row per id with `INSERT OR REPLACE`.
+  **Decided, not built (phone):** A remote delete is applied even if this device saved the same id again.
+  **Decided, not built (phone, in flight in android/modules/history, not landed):** A local delete followed
+  by a local save of the same id clears the local tombstone, so the row is live again.
+  **Device name:** the session row has a nullable device name, and that column is built (migration 4). The
+  app sending a name at sign-in, the person renaming it and the device list are decided, not built. There is
+  no devices table: the device list has one row per session, with a last-seen date derived from the session's
+  expiry.
+  A device whose session expired signs in again and does a full resync, so it never needs old delete records;
+  the full resync is decided, not built (phone). The sync routes and the transcriptions table were built
+  first, as their own piece of work, before the cursor.
 - **Still to be designed** (before any of it is built): the merge when a pulled row and a local unsent edit share a client id; the encoding of the keys inside the sealed package.
 
 ## Decided details of the changes-since feed (sync 1B)

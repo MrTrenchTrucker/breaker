@@ -62,7 +62,13 @@ Rules out: a verified app link and its host file; redeeming the code without the
 
 **Trust boundary, named.** The hand-off rests on the website page doing what it should. As ADR-006 says for the web path, anyone who can change the page can change what it does with the password. On plain http the code can be read in transit, but nobody else can redeem it without the app's secret. The token exchange is as readable as any plain-http call, which ADR-034 already accepts as a risk. The admin closes that risk with https.
 
-Of the hand-off, `CryptoService.openSignInPackage` (with its parser and the sealed-box open) is built on the phone. The start route `POST /v1/auth/handoff/start`, the exchange route `POST /v1/auth/handoff/exchange`, migration 4 (the sign-in code table, its index, the device name column and the triggers), the code store and sweep, and the revoke rule are built on the server. Not built: the website page, the app side of the hand-off (making the key pair, calling the routes, the wiring), and the device list with sign-out. The wrong-password limit is built on the server (see the amendment below, What is built). Encoding decisions stay under To be designed.
+Of the hand-off, `CryptoService.openSignInPackage` (with its parser and the sealed-box open) is built on the
+phone. The start route `POST /v1/auth/handoff/start`, the exchange route `POST /v1/auth/handoff/exchange`,
+migration 4 (the sign-in code table, its index, the device name column and the triggers), the code store and
+sweep, and the revoke rule are built on the server. Not built: the website page, the app side of the hand-off
+(calling the routes, the wiring of the received package), and the device list with sign-out. The
+wrong-password limit is built on the server (see the amendment below, What is built). Encoding decisions stay
+under To be designed.
 
 ## Amendment 2026-11-02: how the wrong-password limit works
 
