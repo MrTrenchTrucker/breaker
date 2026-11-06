@@ -41,8 +41,8 @@ object PromptParameters {
      * multiple of the input plus [HEADROOM_TOKENS], and never below
      * [MIN_TOKENS].
      */
-    const val TOKENS_PER_INPUT_TOKEN: Double = 1.5
-    const val HEADROOM_TOKENS: Int = 64
+    private const val TOKENS_PER_INPUT_TOKEN: Double = 1.5
+    private const val HEADROOM_TOKENS: Int = 64
     const val MIN_TOKENS: Int = 256
 
     /**
@@ -185,7 +185,7 @@ object PromptCatalog {
     }
 
     /** The ids this module ships, newest last. */
-    val SHIPPED: List<String> = listOf(CURRENT)
+    private val SHIPPED: List<String> = listOf(CURRENT)
 
     /**
      * The system prompt, as the fenced block the prompt file carries it in.
