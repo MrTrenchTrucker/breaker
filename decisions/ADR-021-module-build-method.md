@@ -1,6 +1,6 @@
 # ADR-021: The maintainers' team builds each module through sub-agents that write the code
 
-**Status:** accepted
+**Status:** accepted, amended 2026-10-07, 2026-10-08 and 2026-10-15
 **Date:** 2026-10-07
 **Approved by:** project owner
 

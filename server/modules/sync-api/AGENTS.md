@@ -599,8 +599,9 @@ never the message, which can carry a path or a key; a cancellation is never swal
   same status and bytes; an agent token is 403 before the body; a session header is ignored and its expiry
   does not move), `AuthCompleteResetRouteSafetyTest.kt` (two completions at once, 503 on a closed database, no
   log line holds the code), `AuthLoginPendingTest.kt` (the limit on and off), `AuthLoginPendingLockTest.kt`
-  (the lock of pending names at route level), `AuthKeysPendingTest.kt` and `AuthChangePasswordPendingTest.kt`
-  (409 before the body and before the old verifier is checked).
+  (the lock of pending names at route level), `AuthKeysPendingTest.kt` (a pending account with a valid body gets
+  409 and is not keyed; with a bad body it gets 400, not 409) and `AuthChangePasswordPendingTest.kt` (409 before
+  the body and before the old verifier is checked).
 - Contract: `tests/contract/test_sync_api_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_sync_api_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
@@ -666,7 +667,7 @@ agents, not required: an outside contributor may write the code themselves
 - The token store knows no caller: a route must check the token's `kind` and
   its effective scope itself. Which endpoint takes which token:
   - `POST /v1/auth/keys`, `POST /v1/auth/change-password`, `POST /v1/sync`,
-    `GET /v1/transcriptions`, `GET /v1/sync/pending-sealed` need a session token; an agent token is
+    `GET /v1/transcriptions`, `GET /v1/sync/pending-sealed` (planned, not built: no such route is installed) need a session token; an agent token is
     refused.
   - `POST /v1/audio/transcriptions` and `GET /v1/jobs/{id}` accept an agent
     token or a session token.

@@ -31,6 +31,8 @@
 > on the FE) matches what you downloaded.
 
 ## Step 3 — Download & install the APK
+
+> Planned, not built: the Downloads page, the published APK and its SHA-256 (ADR-011). The web FE on main is the sign-in page only.
 1. On the FE, go to **Downloads**.
 2. Download `Breaker.apk` (latest tagged release, built from the local GIT server).
 3. Tap the downloaded file → **Install** → confirm the unknown-app prompt.
@@ -50,6 +52,8 @@
    ("Breaker Breaker") and end phrase ("And I'm Gone") 10–20 times each in your
    environment (car, home, etc.). The server trains your personal model; the phone
    downloads it.
+
+> Planned, not built: high-power mode (nothing in the app checks power-saving) and phrase training (neither the server-side training nor the phone-side download exists).
 5. **Enable Breaker's accessibility service** (one time): Settings →
    Accessibility → Installed apps → **Breaker** → turn it on. This is what
    lets Breaker put your dictated text into whatever app you're typing in; it
@@ -77,7 +81,11 @@
 - Transcriptions appear in the focused field (or clipboard) AND in the app history.
 - Everything syncs to the server; view/search/copy from the web FE on any device.
 
+> Planned, not built: the phone side of sync (the sync module is not wired into the app) and viewing, searching and copying on the web FE. The server-side sync routes are built.
+
 ## For admins: transcription service + agent tokens
+
+> Planned, not built: the admin panels (the web FE is the sign-in page only). On the server, an agent token can be revoked; no route creates one and no transcription-service route is installed.
 
 - **Transcription service** (Admin panel → Transcription Services): point
   Breaker at your transcription service of choice — a container on the same
@@ -90,6 +98,8 @@
   account and showing up on this site. Tokens are revocable at any time.
 
 ## Updates
+
+> Planned, not built: this whole section (ADR-011). Main holds only the rule that decides when a check is due; there is no daily check, notification, force-check button or APK verification yet.
 
 - Breaker checks for updates **once a day** automatically. When a new tagged
   release is available you'll get a notification: **"Breaker X.Y.Z is available —
@@ -107,4 +117,4 @@
 | APK won't install | Enable "Install unknown apps" for your browser (Step 2) |
 | Wake phrase not responding | Train your phrases (Step 4.4); check mic permission |
 | Text goes to the clipboard instead of the field | The accessibility service is off or restricted (Step 4.5), or the field is a password field (never filled, by design) |
-| Sync stuck | Confirm VPN connectivity; sync retries automatically |
+| Sync stuck | Confirm VPN connectivity; sync retries automatically once the sync module is wired into the app (it is not wired yet) |
