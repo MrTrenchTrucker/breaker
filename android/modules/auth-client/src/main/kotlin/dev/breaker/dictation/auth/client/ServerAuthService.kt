@@ -23,7 +23,9 @@ import kotlin.concurrent.withLock
  * never leaves the phone; only the derived auth verifier is sent. The derived keys are wiped
  * before a call returns. A new sign-in first revokes, best effort, the session the vault already
  * holds, at that session's own server. An unreadable vault gives no session. The JSON body of a
- * request is zeroed after it is sent.
+ * request is zeroed after it is sent. [currentAddressedSession] returns the address read now and
+ * the session together; a caller that needs both uses it instead of pairing [currentSession] with
+ * an address read at another moment.
  */
 class ServerAuthService(
     private val baseUrl: () -> String,
@@ -58,15 +60,28 @@ class ServerAuthService(
         lock.withLock { doLogout() }
     }
 
-    override fun currentSession(): AuthSession? =
+    override fun currentSession(): AuthSession? = currentAddressedSession()?.session
+
+    /**
+     * The stored session together with the address read now, or null when there is no readable
+     * record or the address read now is not the same server as the stored one. The address is read
+     * once, inside the lock, only when a record was loaded and decoded, and is the one returned, so
+     * the pair is always consistent. With no record the provider is not called. Nothing is
+     * written and no request is sent. A throw from the address provider propagates, exactly as it
+     * does from [currentSession].
+     */
+    fun currentAddressedSession(): AddressedSession? =
         lock.withLock {
             val stored = loadOrNull()?.let { SessionRecord.decode(it) }
             if (stored == null) {
                 null
-            } else if (ServerAddressMatch.same(stored.server, baseUrl())) {
-                stored.session
             } else {
-                null
+                val base = baseUrl()
+                if (ServerAddressMatch.same(stored.server, base)) {
+                    AddressedSession(base, stored.session)
+                } else {
+                    null
+                }
             }
         }
 
