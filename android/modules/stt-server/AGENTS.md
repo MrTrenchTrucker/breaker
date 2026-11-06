@@ -15,10 +15,15 @@ single `SttResult` once the job completes.
 
 ## Public Interface `core.SttEngine` (server path).
 
-`class SttServerEngine(serverUrl: () -> String, apiKey: () -> String?, limits: ServerLimits = ServerLimits())`
-implements `core.SttEngine`. The public constructor takes two providers, read
-once per call: the base address and the API key. The app supplies both; this
+`class SttServerEngine(target: () -> ServerTarget, limits: ServerLimits = ServerLimits())`
+implements `core.SttEngine`. `ServerTarget(base, key)` is a plain public class
+whose `toString` is fixed text. The provider is called once per call, so the
+address and the key of a call come from one read. The app supplies it; this
 module reads no settings and no storage.
+
+The two-provider constructor `SttServerEngine(serverUrl, apiKey, limits)` stays
+as an adapter over it. It builds the target with the address read first; the key
+provider is called only when the address is usable, as before.
 
 `ServerLimits` is a public data class holding every time limit and call count of
 one transcription call. The size caps are separate constants: the reply size
@@ -138,7 +143,7 @@ agents, not required: an outside contributor may write the code themselves
 ## Known Gotchas
 - OpenAI-compatible contract lives in shared/api-contracts - no drift.
 - The address check is a deliberate duplicate. The engine's own check (`ServerEndpoint.addressProblem`) and the http module's rule (`ServerAddressRule`) are two copies on purpose until stt-server moves onto the http module, which is its own later slice. The engine's copy is looser: it reads only the start of the address and the text up to the first slash, because the engine sends to the one address it was given and there is no other host to protect. A table test in this module pins the addresses on which the two agree and, in named groups, the ones on which they differ.
-- Open point, planned and not built: once the app supplies a signed-in token, the engine reads the token and the stored server address in two separate calls. If the address changes between the two reads, one request can carry a token made for the old address. It is a one-call gap and a known residual. The later fix is that the engine takes one snapshot of the address and the token together for each request.
+- The address and the key of a call are read once, together, from the target provider, so a key cannot be paired with an address read at another moment.
 - The build wires both code edges: `project(":android:modules:core")` and
   `project(":shared:modules:api-contracts")`. The contract helper requires the
   api-contracts edge, because that module applies `kotlin.jvm` and

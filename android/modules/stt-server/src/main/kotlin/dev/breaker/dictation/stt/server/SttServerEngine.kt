@@ -18,19 +18,34 @@ import java.io.IOException
  * deadline. The POST is never repeated. Every path ends in one fixed sentence from
  * [FailureSentences]. The default limits are starting values; they were not measured on a device
  * or against a real server.
+ *
+ * The address and the key of a call are read once, together, from the target provider.
  */
 class SttServerEngine internal constructor(
-    private val serverUrl: () -> String,
-    private val apiKey: () -> String?,
+    private val target: () -> ServerTarget,
     private val limits: ServerLimits,
     private val http: ServerHttp,
     private val timing: Timing,
     private val boundary: BoundarySource,
 ) : SttEngine {
 
+    /** The two-provider form with every part given. The key is read only for a usable address. */
+    internal constructor(
+        serverUrl: () -> String,
+        apiKey: () -> String?,
+        limits: ServerLimits,
+        http: ServerHttp,
+        timing: Timing,
+        boundary: BoundarySource,
+    ) : this(guardedTarget(serverUrl, apiKey), limits, http, timing, boundary)
+
     /** The engine for a real server: the platform transport, the system clock and random boundaries. */
+    constructor(target: () -> ServerTarget, limits: ServerLimits = ServerLimits()) :
+        this(target, limits, JdkServerHttp(), Timing.SYSTEM, BoundarySource.RANDOM)
+
+    /** The engine for a real server from an address provider and a key provider. */
     constructor(serverUrl: () -> String, apiKey: () -> String?, limits: ServerLimits = ServerLimits()) :
-        this(serverUrl, apiKey, limits, JdkServerHttp(), Timing.SYSTEM, BoundarySource.RANDOM)
+        this(guardedTarget(serverUrl, apiKey), limits)
 
     private val watchdog = CallWatchdog(timing.deadline)
 
@@ -51,9 +66,10 @@ class SttServerEngine internal constructor(
         val budgetMs = limits.budgetFor(request.durationMs)
         fun remainingMs(): Long = budgetMs - (timing.clock.nowNanos() - startNanos) / NANOS_PER_MS
 
-        val base = serverUrl()
+        val read = target()
+        val base = read.base
         ServerEndpoint.addressProblem(base)?.let { return SttResult.failure(SttError.OTHER, it) }
-        val key = apiKey()
+        val key = read.key
         ServerEndpoint.keyProblem(key)?.let { return SttResult.failure(SttError.OTHER, it) }
         val secret = key ?: return SttResult.failure(SttError.OTHER, FailureSentences.NO_KEY)
         ServerEndpoint.fieldProblem(request.model, request.language)?.let { return SttResult.failure(SttError.OTHER, it) }

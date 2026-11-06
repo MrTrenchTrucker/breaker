@@ -7,6 +7,7 @@ import dev.breaker.dictation.core.model.SttRequest
 import dev.breaker.dictation.core.model.SttResult
 import dev.breaker.dictation.core.port.SttEngine
 import dev.breaker.dictation.service.DictationServiceController
+import dev.breaker.dictation.stt.server.ServerTarget
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.nio.channels.ServerSocketChannel
@@ -47,12 +48,12 @@ internal class ServerLinkEngine(
     }
 }
 
-/** A fake engine that reads its key through the provider on every call and keeps each value it was given. */
-internal class ServerLinkKeyEngine(private val key: () -> String?) : SttEngine {
+/** A fake engine that reads its target through the provider on every call and keeps the key of each. */
+internal class ServerLinkKeyEngine(private val target: () -> ServerTarget) : SttEngine {
     val seen: MutableList<String?> = ArrayList()
 
     override fun transcribe(request: SttRequest): SttResult {
-        seen.add(key())
+        seen.add(target().key)
         return SttResult.Success("seen")
     }
 }

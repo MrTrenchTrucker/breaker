@@ -22,6 +22,7 @@ import dev.breaker.dictation.settings.SettingsFileStore
 import dev.breaker.dictation.stt.ondevice.LocalModelStore
 import dev.breaker.dictation.stt.ondevice.ModelLoader
 import dev.breaker.dictation.stt.ondevice.OnDeviceSttEngine
+import dev.breaker.dictation.stt.server.ServerTarget
 import dev.breaker.dictation.stt.server.SttServerEngine
 import dev.breaker.dictation.transport.TcpConnectivityProbe
 import dev.breaker.dictation.wiring.DictationComponent
@@ -38,6 +39,7 @@ import dev.breaker.dictation.wiring.buildAuthService
 import dev.breaker.dictation.wiring.defaultAuthHttp
 import dev.breaker.dictation.wiring.defaultKeyDerivation
 import dev.breaker.dictation.wiring.defaultSessionKey
+import dev.breaker.dictation.wiring.serverTargetOf
 import java.io.File
 import javax.crypto.SecretKey
 
@@ -63,9 +65,9 @@ import javax.crypto.SecretKey
  * AndroidSwaps.kt. The microphone defaults to the unavailable placeholder from the swap point in `Swaps.kt`,
  * whose open fails with a plain sentence. The app hands in the real microphone, made by appMicSource(audioManager)
  * in AndroidSwaps.kt, and a microphone can be handed in through [micSource]. The server engine is the real
- * [SttServerEngine] over the stored server address and the session-token seam: its key is the signed-in
- * user's token, read on every call. Until a session is plugged in, the seam answers null and the engine
- * answers that the key is not set. Both formatter slots take the rule-based formatter.
+ * [SttServerEngine] over one provider: the engine's address and key come from one read of the addressed
+ * session for each request. A session at the saved address gives its token as the key; otherwise the
+ * engine answers that the key is not set. Both formatter slots take the rule-based formatter.
  *
  * The auth service is built on first use, never at construction: the three factories (transport, key
  * derivation, session key) are called only then, and the service reads the stored server address on
@@ -78,8 +80,7 @@ class BreakerCompositionRoot(
     private val serviceController: DictationServiceController,
     private val committer: TextCommitter,
     private val micSource: MicSource = appMicSource(),
-    private val serverEngineFactory: (serverUrl: () -> String, apiKey: () -> String?) -> SttEngine = REAL_SERVER_ENGINE,
-    private val sessionToken: () -> String? = NO_SESSION,
+    private val serverEngineFactory: (target: () -> ServerTarget) -> SttEngine = REAL_SERVER_ENGINE,
     private val authHttp: (() -> String) -> AuthHttp = ::defaultAuthHttp,
     private val keyDerivation: () -> KeyDerivation = ::defaultKeyDerivation,
     private val keySupplier: () -> SecretKey = ::defaultSessionKey,
@@ -89,8 +90,7 @@ class BreakerCompositionRoot(
         filesDir: File,
         historyStore: HistoryStore,
         committer: TextCommitter,
-        serverEngineFactory: (serverUrl: () -> String, apiKey: () -> String?) -> SttEngine = REAL_SERVER_ENGINE,
-        sessionToken: () -> String? = NO_SESSION,
+        serverEngineFactory: (target: () -> ServerTarget) -> SttEngine = REAL_SERVER_ENGINE,
     ) :
         this(
             filesDir,
@@ -98,7 +98,6 @@ class BreakerCompositionRoot(
             neverArmedController(),
             committer,
             serverEngineFactory = serverEngineFactory,
-            sessionToken = sessionToken,
         )
 
     /** Takes a supplier; it is called by the first use of the history store, once. */
@@ -108,10 +107,11 @@ class BreakerCompositionRoot(
         serviceController: DictationServiceController,
         committer: TextCommitter,
         micSource: MicSource = appMicSource(),
-        serverEngineFactory: (serverUrl: () -> String, apiKey: () -> String?) -> SttEngine = REAL_SERVER_ENGINE,
-        sessionToken: () -> String? = NO_SESSION,
+        serverEngineFactory: (target: () -> ServerTarget) -> SttEngine = REAL_SERVER_ENGINE,
     ) :
-        this(filesDir, LazyHistoryStore(history), serviceController, committer, micSource, serverEngineFactory, sessionToken)
+        this(
+            filesDir,
+            LazyHistoryStore(history), serviceController, committer, micSource, serverEngineFactory)
 
     val keystore: dev.breaker.dictation.settings.Keystore =
         FileCredentialRefHolder(File(filesDir, "credential-ref"))
@@ -134,13 +134,6 @@ class BreakerCompositionRoot(
     /** The stored server address, read on every call. The connectivity probe reads the same provider. */
     private val serverUrl: () -> String = { settingsStore.load().serverUrl }
 
-    /**
-     * The engine's key is the signed-in user's token. Until a session is plugged in, the seam answers null
-     * and the engine answers that the key is not set. The seam is called on every request and its value is
-     * never kept.
-     */
-    private val serverApiKey: () -> String? = { sessionToken() }
-
     /** The one auth service, built on first use over the stored address provider and the three factories. */
     private val serverAuth: ServerAuthService by lazy {
         buildAuthService(
@@ -157,6 +150,13 @@ class BreakerCompositionRoot(
 
     /** The stored session with the address read now, or null; the address is read on every call. */
     val addressedSession: () -> AddressedSession? = { serverAuth.currentAddressedSession() }
+
+    /**
+     * The engine's address and key of one request, read together from the one addressed session. The
+     * provider is called once for each request and nothing is kept. It is a lambda: nothing is built at
+     * construction.
+     */
+    private val serverTarget: () -> ServerTarget = { serverTargetOf(addressedSession, serverUrl) }
 
     /** Called when a take ends by itself (the microphone stopped). Set by the tile host. */
     var onTakeEnded: (() -> Unit)? = null
@@ -182,7 +182,7 @@ class BreakerCompositionRoot(
                 clock = SystemClockAdapter,
             ),
             localEngine = OnDeviceSttEngine(ModelLoader(store = modelStore, factory = RECOGNIZER_FACTORY)),
-            serverEngine = serverEngineFactory(serverUrl, serverApiKey),
+            serverEngine = serverEngineFactory(serverTarget),
             localFormatter = RuleBasedFormatter(),
             serverFormatter = RuleBasedFormatter(),
             wavEncoder = Pcm16WavEncoder(),
@@ -210,9 +210,6 @@ private fun neverArmedController(): DictationServiceController =
         },
     )
 
-/** The real server engine: the address and the key come through the two providers, read on every call. */
-private val REAL_SERVER_ENGINE: (serverUrl: () -> String, apiKey: () -> String?) -> SttEngine =
-    { serverUrl, apiKey -> SttServerEngine(serverUrl, apiKey) }
-
-/** No session is plugged in yet: the session seam answers null. */
-private val NO_SESSION: () -> String? = { null }
+/** The real server engine: the address and the key of a call come through the one provider. */
+private val REAL_SERVER_ENGINE: (target: () -> ServerTarget) -> SttEngine =
+    { target -> SttServerEngine(target) }

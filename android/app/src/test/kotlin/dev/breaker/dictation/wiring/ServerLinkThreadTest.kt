@@ -26,7 +26,7 @@ class ServerLinkThreadTest {
             serviceController = serverLinkArmed(),
             committer = FakeCommitter(),
             micSource = ScriptedMic(),
-            serverEngineFactory = { _, _ -> engine },
+            serverEngineFactory = { _ -> engine },
         )
         assertEquals("app: a new root should be idle", DictationState.IDLE, root.dictation.runner.sessionState)
         assertEquals("app: building the dictation must not call the server engine", 0, engine.calls)
@@ -43,7 +43,7 @@ class ServerLinkThreadTest {
             serviceController = controller,
             committer = FakeCommitter(),
             micSource = mic,
-            serverEngineFactory = { _, _ -> engine },
+            serverEngineFactory = { _ -> engine },
         )
         root.settingsStore.save(AppSettings().copy(mode = SttMode.SERVER, serverUrl = "https://session.example.test"))
         val begun = CompletableDeferred<Unit>()
