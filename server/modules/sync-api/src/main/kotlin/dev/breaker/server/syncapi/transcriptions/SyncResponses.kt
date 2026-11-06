@@ -8,14 +8,14 @@ import io.ktor.server.response.respondText
 // The fixed error bodies of the sync routes. Each body is the shared error object with exactly the
 // wire names "error" and "message". No part of the request is ever echoed into a body.
 
-internal const val MESSAGE_SESSION_REQUIRED: String = "Invalid or missing user session token"
-internal const val MESSAGE_AGENT_REFUSED: String = "User session token required; an agent token is refused"
-internal const val MESSAGE_UNAVAILABLE: String = "The service is unavailable, try again later"
-internal const val MESSAGE_BODY_TOO_LARGE: String = "Request body exceeds maximum allowed size"
-internal const val MESSAGE_ABOVE_ACCOUNT: String = "key_version is above the account's current key_version"
+private const val MESSAGE_SESSION_REQUIRED: String = "Invalid or missing user session token"
+private const val MESSAGE_AGENT_REFUSED: String = "User session token required; an agent token is refused"
+private const val MESSAGE_UNAVAILABLE: String = "The service is unavailable, try again later"
+private const val MESSAGE_BODY_TOO_LARGE: String = "Request body exceeds maximum allowed size"
+private const val MESSAGE_ABOVE_ACCOUNT: String = "key_version is above the account's current key_version"
 // The text of the example of the 409 response in the openapi.yaml of the shared API (lines 437-445).
-internal const val MESSAGE_LOWER_REFUSED: String = "A lower key_version is refused for this client_id"
-internal const val MESSAGE_CLIENT_ID_REFUSED: String = "client id is not a lowercase canonical UUID"
+private const val MESSAGE_LOWER_REFUSED: String = "A lower key_version is refused for this client_id"
+private const val MESSAGE_CLIENT_ID_REFUSED: String = "client id is not a lowercase canonical UUID"
 
 internal suspend fun ApplicationCall.respondSyncError(status: HttpStatusCode, error: String, message: String) {
     respondText("""{"error":"$error","message":"$message"}""", ContentType.Application.Json, status)
@@ -53,8 +53,8 @@ internal suspend fun ApplicationCall.respondClientIdRefused() {
     respondSyncError(HttpStatusCode.BadRequest, "bad_request", MESSAGE_CLIENT_ID_REFUSED)
 }
 
-internal const val MESSAGE_CURSOR_INVALID: String = "The cursor is invalid: check its account tag and pattern"
-internal const val MESSAGE_GONE: String = "The cursor is too old: list again without since"
+private const val MESSAGE_CURSOR_INVALID: String = "The cursor is invalid: check its account tag and pattern"
+private const val MESSAGE_GONE: String = "The cursor is too old: list again without since"
 
 internal suspend fun ApplicationCall.respondGone() {
     respondSyncError(HttpStatusCode.Gone, "gone", MESSAGE_GONE)

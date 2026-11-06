@@ -92,16 +92,16 @@ internal object TranscriptionPageReader {
     }
 
     // The page queries fetch one row more than a page holds, so the reader can tell whether more follows.
-    const val PAGE_MAX_RECORDS = 100
-    const val PAGE_SIZE_CAP = 4194304L
+    private const val PAGE_MAX_RECORDS = 100
+    private const val PAGE_SIZE_CAP = 4194304L
 
-    const val SELECT_HEAD_AND_PURGED_SQL = "SELECT change_seq, purged_through FROM accounts WHERE id = ?"
+    private const val SELECT_HEAD_AND_PURGED_SQL = "SELECT change_seq, purged_through FROM accounts WHERE id = ?"
 
-    const val SELECT_LIVE_PAGE_SQL =
+    private const val SELECT_LIVE_PAGE_SQL =
         "SELECT client_id, key_version, encrypted, stored_at_ms, change_no, deleted FROM transcriptions " +
             "WHERE account_id = ? AND deleted = 0 ORDER BY change_no LIMIT 101"
 
-    const val SELECT_PAGE_SQL =
+    private const val SELECT_PAGE_SQL =
         "SELECT client_id, key_version, encrypted, stored_at_ms, change_no, deleted FROM transcriptions " +
             "WHERE account_id = ? AND change_no > ? ORDER BY change_no LIMIT 101"
 }
