@@ -140,6 +140,13 @@ A route or job marked Planned, not built below is not installed on main yet.
   locked name does not block a right code (the lock is cleared on success). Known limit: whoever
   presents the code first chooses the password (ADR-018). The reset code and the request body are
   never logged.
+  Unlimited tries are safe here: the reset code is 256 random bits and works only once, so a cap per
+  name would protect nothing against guessing and would only let anyone who knows a username lock the
+  owner out during the 24 hour window in which the code is valid. Limiting the request rate is left to
+  the reverse proxy of the deployment (backlog).
+  A 400 for the salt, the KDF values or the verifier comes only after a correct code, so only the
+  holder of a valid code sees it and it reveals nothing new; one fixed answer there would cost that
+  person a useful error.
 - `POST /v1/auth/change-password` - BUILT. Bearer token identifies the account;
   body `{old_auth_verifier, new_salt, new_kdf_params, new_kdf_version,
   new_wrapped_dek, new_wrapped_box_privkey, new_box_pubkey, new_auth_verifier,
