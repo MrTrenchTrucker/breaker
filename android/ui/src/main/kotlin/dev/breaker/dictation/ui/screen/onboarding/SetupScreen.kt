@@ -26,11 +26,11 @@ import dev.breaker.dictation.ui.theme.PaletteSlot
 
 /** The strings a button on the set-up screen reports, and how they map to what the phone is asked to do. */
 internal object SetupActions {
-    const val OPEN_OVERLAY = "open.overlay"
+    private const val OPEN_OVERLAY = "open.overlay"
     const val OPEN_MICROPHONE = "open.microphone"
-    const val OPEN_NOTIFICATIONS = "open.notifications"
-    const val OPEN_ACCESSIBILITY = "open.accessibility"
-    const val OPEN_APP_INFO = "open.appinfo"
+    private const val OPEN_NOTIFICATIONS = "open.notifications"
+    private const val OPEN_ACCESSIBILITY = "open.accessibility"
+    private const val OPEN_APP_INFO = "open.appinfo"
     const val SWITCH_ON = "switch.on"
     const val SWITCH_OFF = "switch.off"
     const val RECHECK = "recheck"
@@ -87,10 +87,10 @@ internal object SetupActions {
 internal const val SETUP_NOTICE_ID = "setup.notice"
 
 /** The id of the model step block, the first step of the walk-through. */
-internal const val MODEL_STEP_ID = "setup.step.model"
+private const val MODEL_STEP_ID = "setup.step.model"
 
 /** The id of the model step's download button, drawn while the speech model is not ready. */
-internal const val MODEL_STEP_BUTTON_ID = "setup.step.model.button"
+private const val MODEL_STEP_BUTTON_ID = "setup.step.model.button"
 
 /** The set-up screen. */
 internal class SetupScreen {

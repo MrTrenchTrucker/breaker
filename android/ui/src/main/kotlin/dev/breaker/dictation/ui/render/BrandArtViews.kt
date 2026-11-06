@@ -44,7 +44,7 @@ internal fun topBarLogo(context: Context, theme: Theme): ImageView {
 }
 
 /** The drawer's logo header: the brand logo at the header height, its width from its own shape. */
-internal fun drawerLogo(context: Context, theme: Theme): ImageView {
+private fun drawerLogo(context: Context, theme: Theme): ImageView {
     val dark = theme.mode == ThemeMode.DARK
     val name = if (dark) "breaker_logo_dark" else "breaker_logo_light"
     val id = context.resources.getIdentifier(name, "drawable", context.packageName)
@@ -108,7 +108,7 @@ internal class MicArtDrawable(
     }
 }
 
-internal class StripesView(context: Context, private val theme: Theme) : View(context) {
+private class StripesView(context: Context, private val theme: Theme) : View(context) {
     private val density: Float = context.resources.displayMetrics.density
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
@@ -142,7 +142,7 @@ internal class StripesView(context: Context, private val theme: Theme) : View(co
 }
 
 /** The card's lip: the accent bar down the left edge. */
-internal class CardLipView(context: Context, private val theme: Theme) : View(context) {
+private class CardLipView(context: Context, private val theme: Theme) : View(context) {
     private val density: Float = context.resources.displayMetrics.density
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
