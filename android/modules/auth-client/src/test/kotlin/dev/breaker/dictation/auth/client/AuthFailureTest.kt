@@ -15,7 +15,7 @@ class AuthFailureTest {
         AuthFailureReason.SERVER_UNREACHABLE to "The server could not be reached.",
         AuthFailureReason.SERVER_ERROR to "The server could not complete the request.",
         AuthFailureReason.UNREADABLE_REPLY to "The server's reply could not be read.",
-        AuthFailureReason.BAD_SERVER_ADDRESS to "The server address must start with https://.",
+        AuthFailureReason.BAD_SERVER_ADDRESS to "The server address must start with http:// or https://.",
     )
 
     @Test
