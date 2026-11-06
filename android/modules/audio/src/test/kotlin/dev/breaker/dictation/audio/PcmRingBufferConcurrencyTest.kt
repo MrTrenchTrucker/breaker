@@ -9,6 +9,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /**
  * The buffer between the capture thread and the consumer: under contention.
@@ -143,11 +145,14 @@ class PcmRingBufferConcurrencyTest {
         val delivered = AtomicInteger(0)
         val corruption = AtomicReference<String?>(null)
 
+        val started = CountDownLatch(1)
         val consumer = Thread {
             val scratch = FloatArray(chunkSize)
+            started.countDown()
             var previous = -1L
-            while (!stop.get()) {
-                val read = buffer.read(scratch)
+            val drainLimit = 1000
+            fun checkAndCount(read: Int) {
+                delivered.addAndGet(read)
                 for (i in 0 until read) {
                     val value = scratch[i].toLong()
                     if (value <= previous || value >= totalSamples) {
@@ -158,10 +163,24 @@ class PcmRingBufferConcurrencyTest {
                     }
                     previous = value
                 }
-                delivered.addAndGet(read)
+            }
+            while (!stop.get()) {
+                val read = buffer.read(scratch)
+                checkAndCount(read)
+            }
+            var drained = buffer.read(scratch)
+            var drainCount = 0
+            while (drained > 0 && drainCount < drainLimit) {
+                checkAndCount(drained)
+                drained = buffer.read(scratch)
+                drainCount += 1
+            }
+            if (drainCount >= drainLimit) {
+                corruption.compareAndSet(null, "the drain did not end")
             }
         }
         consumer.start()
+        assertTrue("the consumer thread never started", started.await(5_000, TimeUnit.MILLISECONDS))
 
         val pushed = totalSamples.toLong()
         repeat(totalChunks) { chunk ->
