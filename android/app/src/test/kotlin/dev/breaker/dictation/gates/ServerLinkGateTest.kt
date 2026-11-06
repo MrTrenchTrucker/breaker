@@ -7,10 +7,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Pins the server link in the composition root: where the stored address and the session seam come from,
- * that the probe and the engine share the one address provider, that the default factory is the real
- * engine, that the seam defaults are the empty session, that the root names no placeholder for the server
- * slot, and that no other main file names the engine. The rules read the real root with comments and
+ * Pins the server link in the composition root: where the stored address comes from, that the probe and
+ * the engine share the one address provider, that the engine gets one target provider read from the
+ * addressed session, that the default factory is the real engine, that the factory takes that provider,
+ * that the root names no placeholder for the server
+ * slot, and that no other main file names the engine (the target wiring file may import the target
+ * type). The rules read the real root with comments and
  * literal text removed by the shared scanner. Each rule holds on the real file, is broken by at least two
  * edited samples, and stays quiet on harmless edits; an edit whose target text is missing fails by name.
  */
@@ -24,30 +26,29 @@ internal class ServerLinkGateTest {
 
     private fun count(code: String, pattern: String): Int = Regex(pattern).findAll(code).count()
 
+    /** The one target provider the root declares, as the rule reads it. */
+    private val targetDeclaration: String =
+        """\bprivate\s+val\s+serverTarget\s*:\s*\(\)\s*->\s*ServerTarget\s*=\s*""" +
+            """\{\s*serverTargetOf\s*\(\s*addressedSession\s*,\s*serverUrl\s*\)\s*\}"""
+
     private val rules: List<Rule> = listOf(
         Rule("SETTINGS_ADDRESS_READ_ONCE") {
             count(it.code, """\bsettingsStore\s*\.\s*load\s*\(\s*\)\s*\.\s*serverUrl\b""") == 1
         },
         Rule("PROBE_TAKES_THE_SHARED_ADDRESS") { has(it.code, """\bserverUrlProvider\s*=\s*serverUrl\s*,""") },
         Rule("ENGINE_TAKES_THE_SHARED_ADDRESS_AND_THE_KEY") {
-            has(it.code, """\bserverEngineFactory\s*\(\s*serverUrl\s*,\s*serverApiKey\s*\)""")
+            has(it.code, """\bserverEngineFactory\s*\(\s*serverTarget\s*\)""")
         },
-        Rule("ONE_KEY_PROVIDER_FROM_THE_SEAM") {
-            has(it.code, """\bprivate\s+val\s+serverApiKey\s*:\s*\(\)\s*->\s*String\?\s*=\s*\{\s*sessionToken\(\)\s*\}""") &&
-                count(it.code, """\bserverApiKey\s*:""") == 1
-        },
-        Rule("SEAM_READ_INSIDE_A_LAMBDA") {
-            count(it.code, """\bsessionToken\(\)""") == 1 && count(it.code, """\{\s*sessionToken\(\)\s*\}""") == 1
-        },
-        Rule("SEAM_DEFAULTS") {
-            count(it.code, """=\s*NO_SESSION\b""") == 3 &&
-                has(it.code, """\bprivate\s+val\s+NO_SESSION\s*:\s*\(\)\s*->\s*String\?\s*=\s*\{\s*null\s*\}""")
+        Rule("ONE_TARGET_PROVIDER_AND_NO_SESSION_SEAM") {
+            has(it.code, targetDeclaration) &&
+                count(it.code, """\bserverTarget\s*:""") == 1 &&
+                !has(it.code, """\bsessionToken\b|\bNO_SESSION\b|\bcurrentSession\s*\(""")
         },
         Rule("ENGINE_DEFAULTS") {
             count(it.code, """=\s*REAL_SERVER_ENGINE\b""") == 3 &&
                 has(it.code, """\bprivate\s+val\s+REAL_SERVER_ENGINE\b""") &&
                 count(it.code, """\bSttServerEngine\s*\(""") == 1 &&
-                has(it.code, """\{\s*serverUrl\s*,\s*apiKey\s*->\s*SttServerEngine\s*\(\s*serverUrl\s*,\s*apiKey\s*\)\s*\}""")
+                has(it.code, """\{\s*target\s*->\s*SttServerEngine\s*\(\s*target\s*\)\s*\}""")
         },
         Rule("NO_PLACEHOLDER_SERVER_SLOT") {
             count(it.code, """\bUnavailableSttEngine\b""") == 0 && count(it.code, """\bSERVER_UNAVAILABLE_DETAIL\b""") == 0
@@ -59,6 +60,15 @@ internal class ServerLinkGateTest {
             it.literals == listOf("credential-ref", "settings.properties", "models")
         },
     )
+
+    /** The root's one target provider line, as the samples edit it. */
+    private val DECL: String =
+        "private val serverTarget: () -> ServerTarget = { serverTargetOf(addressedSession, serverUrl) }"
+
+    /** The root's engine line, and the factory declaration the defaults rule reads. */
+    private val engineLine: String = "serverEngine = serverEngineFactory(serverTarget)"
+    private val factoryLine: String =
+        "private val serverEngineFactory: (target: () -> ServerTarget) -> SttEngine = REAL_SERVER_ENGINE,"
 
     /** Per rule: edits (old to new) that must break it. */
     private val firing: Map<String, List<Pair<String, String>>> = mapOf(
@@ -72,39 +82,29 @@ internal class ServerLinkGateTest {
             "serverUrlProvider = serverUrl," to "",
         ),
         "ENGINE_TAKES_THE_SHARED_ADDRESS_AND_THE_KEY" to listOf(
-            "serverEngine = serverEngineFactory(serverUrl, serverApiKey)" to "serverEngine = serverEngineFactory(serverApiKey, serverUrl)",
-            "serverEngine = serverEngineFactory(serverUrl, serverApiKey)" to "serverEngine = serverEngineFactory(serverUrl, { null })",
+            engineLine to "serverEngine = serverEngineFactory(serverUrl)",
+            engineLine to "serverEngine = serverEngineFactory(serverTarget { null })",
         ),
-        "ONE_KEY_PROVIDER_FROM_THE_SEAM" to listOf(
-            "private val serverApiKey: () -> String? = { sessionToken() }" to
-                "private val serverApiKey: () -> String? = { \"stand-in-token\" }",
-            "private val serverApiKey: () -> String? = { sessionToken() }" to
-                "private val serverApiKey: () -> String? = { sessionToken() }\n    private val serverApiKey: () -> String? = { sessionToken() }",
-        ),
-        "SEAM_READ_INSIDE_A_LAMBDA" to listOf(
-            "private val serverApiKey: () -> String? = { sessionToken() }" to
-                "private val serverApiKey: () -> String? = sessionToken().let { key -> { key } }",
-            "private val serverApiKey: () -> String? = { sessionToken() }" to
-                "private val serverApiKey: () -> String? = { sessionToken() }\n    private val seenSession = sessionToken()",
-        ),
-        "SEAM_DEFAULTS" to listOf(
-            "private val NO_SESSION: () -> String? = { null }" to "private val NO_SESSION: () -> String? = { \"stand-in-token\" }",
-            "private val sessionToken: () -> String? = NO_SESSION," to "private val sessionToken: () -> String? = { null },",
+        "ONE_TARGET_PROVIDER_AND_NO_SESSION_SEAM" to listOf(
+            DECL to DECL + "\n    " + DECL,
+            DECL to "private val serverTarget: () -> ServerTarget = { ServerTarget(\"stand-in\", null) }",
+            DECL to "private val serverTarget: () -> ServerTarget =\n" +
+                "        serverTargetOf(addressedSession, serverUrl).let { t -> { t } }",
+            DECL to DECL + "\n    private val seenSession = sessionToken",
+            DECL to DECL + "\n    private val seenDefault = NO_SESSION",
+            DECL to DECL + "\n    private val seenCurrent = currentSession()",
         ),
         "ENGINE_DEFAULTS" to listOf(
-            "{ serverUrl, apiKey -> SttServerEngine(serverUrl, apiKey) }" to
-                "{ serverUrl, apiKey -> SttServerEngine(serverUrl, apiKey, ServerLimits()) }",
-            "private val serverEngineFactory: (serverUrl: () -> String, apiKey: () -> String?) -> SttEngine = REAL_SERVER_ENGINE," to
-                "private val serverEngineFactory: (serverUrl: () -> String, apiKey: () -> String?) -> SttEngine = REAL_SERVER_ENGINE_OTHER,",
+            "{ target -> SttServerEngine(target) }" to "{ target -> SttServerEngine(target, ServerLimits()) }",
+            factoryLine to factoryLine.replace("REAL_SERVER_ENGINE,", "REAL_SERVER_ENGINE_OTHER,"),
         ),
         "NO_PLACEHOLDER_SERVER_SLOT" to listOf(
-            "serverEngine = serverEngineFactory(serverUrl, serverApiKey)" to "serverEngine = UnavailableSttEngine(SttError.OTHER, \"x\")",
+            engineLine to "serverEngine = UnavailableSttEngine(SttError.OTHER, \"x\")",
             "private val serverUrl: () -> String = { settingsStore.load().serverUrl }" to
                 "private val SERVER_UNAVAILABLE_DETAIL = \"x\"\n    private val serverUrl: () -> String = { settingsStore.load().serverUrl }",
         ),
         "NO_SCHEME_IN_THE_ROOT" to listOf(
-            "private val NO_SESSION: () -> String? = { null }" to
-                "private val NO_SESSION: () -> String? = { null }\n    private val scheme = \"https://\"",
+            DECL to DECL + "\n    private val scheme = \"https://\"",
             "private val serverUrl: () -> String = { settingsStore.load().serverUrl }" to
                 "private val serverUrl: () -> String = { settingsStore.load().serverUrl.replace(\"http://\", \"https://\") }",
         ),
@@ -119,10 +119,9 @@ internal class ServerLinkGateTest {
         "serverUrlProvider = serverUrl," to "serverUrlProvider =\n                    serverUrl,",
         "private val serverUrl: () -> String = { settingsStore.load().serverUrl }" to
             "private val serverUrl: () -> String =\n        { settingsStore.load().serverUrl }",
-        "private val NO_SESSION: () -> String? = { null }" to
-            "private val NO_SESSION: () -> String? = { null } // SttServerEngine( UnavailableSttEngine \"https://",
-        "private val serverApiKey: () -> String? = { sessionToken() }" to
-            "private val serverApiKey: () -> String? = { sessionToken() /* sessionToken() */ }",
+        DECL to DECL + " // SttServerEngine( UnavailableSttEngine \"https://",
+        DECL to DECL.replace(" }", " /* sessionToken NO_SESSION */ }"),
+        DECL to DECL + " // sessionToken NO_SESSION currentSession(",
     )
 
     private fun rootText(): String = AppSourceFiles.mainFile(rootPath)
@@ -139,6 +138,18 @@ internal class ServerLinkGateTest {
     /** True when the engine or its factory is named by the code of [text]. */
     private fun namesEngine(text: String): Boolean =
         has(AppSourceFiles.strip(text).code, """\bSttServerEngine\b|\bserverEngineFactory\b|\bdev\.breaker\.dictation\.stt\.server\b""")
+
+    /** The one main file besides the root that may import the target type, by path below the package. */
+    private val targetWiringPath: String = "wiring/ServerTargetWiring.kt"
+
+    private val targetTypeImport: String = "import dev.breaker.dictation.stt.server.ServerTarget"
+
+    /** [namesEngine] for the file at [path]; the target wiring file first loses its one allowed import line. */
+    private fun namesEngineBeyondAllowance(path: String, text: String): Boolean {
+        val kept: String =
+            if (path == targetWiringPath) text.lines().filterNot { it.trim() == targetTypeImport }.joinToString("\n") else text
+        return namesEngine(kept)
+    }
 
     @Test
     fun `every rule holds on the real composition root`() {
@@ -182,7 +193,7 @@ internal class ServerLinkGateTest {
     fun `no main file other than the composition root names the server engine or its factory`() {
         for ((path, text) in AppSourceFiles.mainKotlinSources()) {
             if (path == "BreakerCompositionRoot.kt") continue
-            assertFalse("app: $path names the server engine or its factory", namesEngine(text))
+            assertFalse("app: $path names the server engine or its factory", namesEngineBeyondAllowance(path, text))
         }
     }
 
@@ -192,6 +203,25 @@ internal class ServerLinkGateTest {
         assertTrue("app: an import of the engine package must be caught", namesEngine("import dev.breaker.dictation.stt.server.ServerLimits"))
         assertFalse("app: the engine named in a comment must not be caught", namesEngine("class Host { /* SttServerEngine */ }"))
         assertFalse("app: the engine named in literal text must not be caught", namesEngine("val text = \"SttServerEngine\""))
+    }
+
+    @Test
+    fun `the one allowance is the target type import in the target wiring file`() {
+        val body = "\nclass A"
+        assertFalse("app: the target wiring file may import the target type", namesEngineBeyondAllowance(targetWiringPath, targetTypeImport + body))
+        assertTrue("app: another file importing the target type must be caught", namesEngineBeyondAllowance("wiring/Other.kt", targetTypeImport + body))
+        assertTrue(
+            "app: the target wiring file importing another type of the package must be caught",
+            namesEngineBeyondAllowance(targetWiringPath, targetTypeImport + "\nimport dev.breaker.dictation.stt.server.ServerLimits" + body),
+        )
+        assertTrue(
+            "app: the target wiring file naming the engine must be caught",
+            namesEngineBeyondAllowance(targetWiringPath, targetTypeImport + "\nclass A { val e = SttServerEngine(u, k) }"),
+        )
+        assertTrue(
+            "app: a longer import that starts with the allowed one must be caught",
+            namesEngineBeyondAllowance(targetWiringPath, targetTypeImport + "Extra" + body),
+        )
     }
 
     @Test

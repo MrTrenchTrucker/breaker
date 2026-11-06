@@ -24,8 +24,8 @@ class ServerLinkAddressTest {
             serviceController = serverLinkArmed(),
             committer = FakeCommitter(),
             micSource = ScriptedMic(),
-            serverEngineFactory = { url, _ ->
-                address = url
+            serverEngineFactory = { target ->
+                address = { target().base }
                 ServerLinkEngine()
             },
         )
@@ -50,8 +50,8 @@ class ServerLinkAddressTest {
                 serviceController = serverLinkArmed(),
                 committer = FakeCommitter(),
                 micSource = mic,
-                serverEngineFactory = { url, _ ->
-                    engineAddress = url
+                serverEngineFactory = { target ->
+                    engineAddress = { target().base }
                     engine
                 },
             )

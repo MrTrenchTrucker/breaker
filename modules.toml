@@ -55,7 +55,7 @@ path = "android/modules/stt-server"
 owns = "Client for Breaker's own whisper-server job queue (primary path)."
 does_not_own = "Local transcription (stt-ondevice); queue (server/whisper-server)."
 depends_on = ["android", "android_core", "shared_api_contracts"]
-public = "SttEngine (server path)"
+public = "SttEngine (server path), ServerTarget"
 card = "android/modules/stt-server/AGENTS.md"
 
 [module.android_transport]

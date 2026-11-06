@@ -1,12 +1,24 @@
 package dev.breaker.dictation.wiring
 
 import dev.breaker.dictation.BreakerCompositionRoot
+import dev.breaker.dictation.auth.client.AuthHttp
+import dev.breaker.dictation.auth.client.AuthHttpReply
+import dev.breaker.dictation.auth.client.AuthHttpRequest
 import dev.breaker.dictation.core.model.AppSettings
+import dev.breaker.dictation.core.model.AuthVerifier
+import dev.breaker.dictation.core.model.DerivedKeys
 import dev.breaker.dictation.core.model.DictationState
+import dev.breaker.dictation.core.model.KdfParams
+import dev.breaker.dictation.core.model.KeyEncryptionKey
 import dev.breaker.dictation.core.model.SttMode
+import dev.breaker.dictation.core.port.KeyDerivation
 import dev.breaker.dictation.stt.server.ServerLimits
+import dev.breaker.dictation.stt.server.ServerTarget
 import dev.breaker.dictation.stt.server.SttServerEngine
+import java.util.Base64
+import javax.crypto.spec.SecretKeySpec
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -44,7 +56,9 @@ class ServerLinkEngineTest {
                 serviceController = serverLinkArmed(),
                 committer = FakeCommitter(),
                 micSource = mic,
-                serverEngineFactory = { url, _ -> SttServerEngine(url, { "test-key" }, ServerLimits(postReplyTimeoutMs = 200L)) },
+                serverEngineFactory = { target ->
+                    SttServerEngine({ ServerTarget(target().base, "test-key") }, ServerLimits(postReplyTimeoutMs = 200L))
+                },
             )
             root.settingsStore.save(AppSettings().copy(mode = SttMode.SERVER, serverUrl = "http://" + serverLinkLoopbackAddress.hostAddress + ":" + listener.port))
             val result = serverLinkOneTake(root) { awaitBounded("the capture to read twice", mic.secondReadEntered) }
@@ -71,7 +85,7 @@ class ServerLinkEngineTest {
                 serviceController = serverLinkArmed(),
                 committer = FakeCommitter(),
                 micSource = mic,
-                serverEngineFactory = { url, _ -> SttServerEngine(url, { "test-key" }) },
+                serverEngineFactory = { target -> SttServerEngine({ ServerTarget(target().base, "test-key") }) },
             )
             root.settingsStore.save(AppSettings().copy(mode = SttMode.SERVER, serverUrl = "ftp://" + serverLinkLoopbackAddress.hostAddress + ":" + listener.port))
             val result = serverLinkOneTake(root) { awaitBounded("the capture to read twice", mic.secondReadEntered) }
@@ -113,26 +127,31 @@ class ServerLinkEngineTest {
 
     @Test
     fun `the key is read on every call so a new session reaches the next take`() {
-        var token: String? = "first-session"
         var keyEngine: ServerLinkKeyEngine? = null
         val mic = ServerLinkRepeatMic(takes = 2)
+        val fakeHttp = SessionAuthHttp()
         val root = BreakerCompositionRoot(
             filesDir = tmp.root,
             historyStore = RecordingHistoryStore(),
             serviceController = serverLinkArmed(),
             committer = FakeCommitter(),
             micSource = mic,
-            serverEngineFactory = { _, key ->
-                val engine = ServerLinkKeyEngine(key)
+            serverEngineFactory = { target ->
+                val engine = ServerLinkKeyEngine(target)
                 keyEngine = engine
                 engine
             },
-            sessionToken = { token },
+            authHttp = { _ -> fakeHttp },
+            keyDerivation = { SessionKeyDerivation() },
+            keySupplier = { SecretKeySpec(ByteArray(32) { 3 }, "AES") },
         )
         root.settingsStore.save(AppSettings().copy(mode = SttMode.SERVER, serverUrl = "https://session.example.test"))
+        fakeHttp.issued = "first-session"
+        root.authService.login("user", "a-very-long-password".toCharArray())
         serverLinkOneTake(root) { awaitBounded("the first capture to read twice", mic.enteredTake(0)) }
         root.dictation.runner.send()
-        token = "second-session"
+        fakeHttp.issued = "second-session"
+        root.authService.login("user", "a-very-long-password".toCharArray())
         serverLinkOneTake(root) { awaitBounded("the second capture to read twice", mic.enteredTake(1)) }
         root.dictation.runner.send()
         assertEquals(
@@ -144,57 +163,64 @@ class ServerLinkEngineTest {
 
     @Test
     fun `the three-argument and the supplier constructors give the factory the stored address and the session seam`() {
-        var threeAddress: (() -> String)? = null
-        var threeKey: (() -> String?)? = null
+        var threeTarget: (() -> ServerTarget)? = null
         val three = BreakerCompositionRoot(
             filesDir = tmp.root,
             historyStore = RecordingHistoryStore(),
             committer = FakeCommitter(),
-            serverEngineFactory = { url, key ->
-                threeAddress = url
-                threeKey = key
+            serverEngineFactory = { target ->
+                threeTarget = target
                 ServerLinkEngine()
             },
-            sessionToken = { "forwarded-session" },
         )
         three.settingsStore.save(AppSettings().copy(mode = SttMode.SERVER, serverUrl = "https://forwarded.example.test"))
         assertEquals("app: a new root should be idle", DictationState.IDLE, three.dictation.runner.sessionState)
         assertEquals(
             "app: the three-argument constructor should hand over the stored address",
             "https://forwarded.example.test",
-            checkNotNull(threeAddress)(),
+            checkNotNull(threeTarget)().base,
         )
-        assertEquals(
-            "app: the three-argument constructor should hand over the session seam",
-            "forwarded-session",
-            checkNotNull(threeKey)(),
-        )
+        assertNull("app: no session is plugged in to the three-argument constructor", checkNotNull(threeTarget)().key)
 
-        var supplierAddress: (() -> String)? = null
-        var supplierKey: (() -> String?)? = null
+        var supplierTarget: (() -> ServerTarget)? = null
         val supplier = BreakerCompositionRoot(
             filesDir = tmp.newFolder("supplier"),
             history = { RecordingHistoryStore() },
             serviceController = serverLinkArmed(),
             committer = FakeCommitter(),
-            serverEngineFactory = { url, key ->
-                supplierAddress = url
-                supplierKey = key
+            serverEngineFactory = { target ->
+                supplierTarget = target
                 ServerLinkEngine()
             },
-            sessionToken = { "forwarded-session" },
         )
         supplier.settingsStore.save(AppSettings().copy(mode = SttMode.SERVER, serverUrl = "https://forwarded.example.test"))
         assertEquals("app: a new root should be idle", DictationState.IDLE, supplier.dictation.runner.sessionState)
         assertEquals(
             "app: the supplier constructor should hand over the stored address",
             "https://forwarded.example.test",
-            checkNotNull(supplierAddress)(),
+            checkNotNull(supplierTarget)().base,
         )
-        assertEquals(
-            "app: the supplier constructor should hand over the session seam",
-            "forwarded-session",
-            checkNotNull(supplierKey)(),
-        )
+        assertNull("app: no session is plugged in to the supplier constructor", checkNotNull(supplierTarget)().key)
     }
+}
+
+/** A login transport that answers the salt call and then issues whatever session text [issued] holds. */
+private class SessionAuthHttp : AuthHttp {
+    @Volatile
+    var issued: String = "first-session"
+
+    override fun send(request: AuthHttpRequest): AuthHttpReply {
+        val salt = Base64.getEncoder().encodeToString(ByteArray(16))
+        val saltBody = """{"salt":"$salt","kdf_params":""" +
+            """{"memory_kib":65536,"iterations":3,"parallelism":1},"kdf_version":1}"""
+        val loginBody = """{"token":"$issued","role":"admin","key_version":0}"""
+        return if (request.url.contains("/v1/auth/salt")) AuthHttpReply(200, saltBody.toByteArray())
+        else AuthHttpReply(200, loginBody.toByteArray())
+    }
+}
+
+/** A key derivation that returns fixed keys, so a sign-in needs no real derivation. */
+private class SessionKeyDerivation : KeyDerivation {
+    override fun deriveKeys(password: CharArray, salt: ByteArray, kdfParams: KdfParams): DerivedKeys =
+        DerivedKeys(KeyEncryptionKey(ByteArray(32) { 1 }), AuthVerifier(ByteArray(32) { 2 }))
 }
