@@ -38,7 +38,7 @@ internal class AppWiringGateTest {
     internal class Quiet(val file: String, val old: String, val new: String)
 
     internal val rules: List<Rule> = listOf(
-        Rule("HISTORY_HANDED_AS_SUPPLIER", app, """\bBreakerCompositionRoot\s*\(\s*filesDir\s*=\s*filesDir\s*,\s*history\s*=\s*\{\s*history\s*\}\s*,\s*serviceController\s*=\s*dictationServiceController\s*,\s*committer\s*=\s*textCommitter\s*,\s*micSource\s*=\s*realMicSource\s*,?\s*\)"""),
+        Rule("HISTORY_HANDED_AS_SUPPLIER", app, """\bBreakerCompositionRoot\s*\(\s*filesDir\s*=\s*filesDir\s*,\s*history\s*=\s*\{\s*history\s*\}\s*,\s*serviceController\s*=\s*dictationServiceController\s*,\s*committer\s*=\s*textCommitter\s*,\s*micSource\s*=\s*realMicSource\s*,\s*background\s*=\s*OneShotBackground\s*\(\s*\)\s*,?\s*\)"""),
         Rule("CONTROLLER_BUILT_FROM_ANDROID_ADAPTERS", app, """\bDictationServiceController\s*\(\s*AndroidMicPermission\s*\(\s*applicationContext\s*\)\s*,\s*AndroidServiceLauncher\s*\(\s*applicationContext\s*\)\s*,?\s*\)"""),
         Rule("CONTROLLER_IS_BUILT_LAZILY", app, """\bval\s+dictationServiceController\s*:\s*DictationServiceController\s+by\s+lazy\s*\{"""),
         Rule("PURGE_SCOPE_FROM_FACTORY", app, """\bval\s+purgeScope\s*=\s*createPurgeScope\s*\(\s*\)(?!\s*[.(])"""),
@@ -63,7 +63,7 @@ internal class AppWiringGateTest {
         Rule("NEVER_ARMED_PERMISSION_IS_OFF", root, """\bpermission\s*=\s*MicPermission\s*\{\s*false\s*\}"""),
         Rule("NEVER_ARMED_LAUNCH_REFUSES", root, """\boverride\s+fun\s+launch\s*\(\s*\)\s*:\s*LaunchResult\s*=\s*LaunchResult\s*\.\s*Refused\b"""),
         Rule("THREE_ARGUMENT_CONSTRUCTOR_NEVER_ARMED", root, """\bthis\s*\(\s*filesDir\s*,\s*historyStore\s*,\s*neverArmedController\s*\(\s*\)\s*,\s*committer\s*,\s*serverEngineFactory\s*=\s*serverEngineFactory\s*,?\s*\)"""),
-        Rule("SUPPLIER_CONSTRUCTOR_WRAPS_LAZY", root, """\bthis\s*\(\s*filesDir\s*,\s*LazyHistoryStore\s*\(\s*history\s*\)\s*,\s*serviceController\s*,\s*committer\s*,\s*micSource\s*,\s*serverEngineFactory\s*\)"""),
+        Rule("SUPPLIER_CONSTRUCTOR_WRAPS_LAZY", root, """\bthis\s*\(\s*filesDir\s*,\s*LazyHistoryStore\s*\(\s*history\s*\)\s*,\s*serviceController\s*,\s*committer\s*,\s*micSource\s*,\s*serverEngineFactory\s*,\s*background\s*=\s*background\s*\)"""),
         Rule("SERVER_ADDRESS_IS_THE_SAVED_ONE", root, """\bprivate\s+val\s+serverUrl\s*:\s*\(\)\s*->\s*String\s*=\s*\{\s*settingsStore\s*\.\s*load\s*\(\s*\)\s*\.\s*serverUrl\s*\}[\s\S]*?\bserverUrlProvider\s*=\s*serverUrl\s*,"""),
         Rule("COMPONENT_GETS_ROOT_HISTORY", root, """\bhistory\s*=\s*historyStore(?=\s*,)"""),
         Rule("COMPONENT_GETS_SERVICE_CONTROLLER", root, """\bcontroller\s*=\s*serviceController(?=\s*[,)])"""),
@@ -82,7 +82,7 @@ internal class AppWiringGateTest {
         Sample("HISTORY_HANDED_AS_SUPPLIER", app, "{ history }", "{ other }"),
         Sample("HISTORY_HANDED_AS_SUPPLIER", app, "serviceController = dictationServiceController,", "serviceController = dictationServiceController"),
         Sample("HISTORY_HANDED_AS_SUPPLIER", app, "filesDir = filesDir,", "filesDir = cacheDir,"),
-        Sample("HISTORY_HANDED_AS_SUPPLIER", app, "micSource = realMicSource,", "micSource = otherMic,"),
+        Sample("HISTORY_HANDED_AS_SUPPLIER", app, "micSource = realMicSource,", "micSource = otherMic,"), Sample("HISTORY_HANDED_AS_SUPPLIER", app, "            background = OneShotBackground(),\n", ""), Sample("HISTORY_HANDED_AS_SUPPLIER", app, "OneShotBackground()", "InlineBackground"),
         Sample("CONTROLLER_BUILT_FROM_ANDROID_ADAPTERS", app, "AndroidMicPermission(applicationContext)", "MicPermission { true }"),
         Sample("CONTROLLER_BUILT_FROM_ANDROID_ADAPTERS", app, "AndroidServiceLauncher(applicationContext)", "NoLauncher()"),
         Sample("CONTROLLER_BUILT_FROM_ANDROID_ADAPTERS", app, "AndroidMicPermission(applicationContext)", "AndroidMicPermission(applicationContext).also { }"),
@@ -168,8 +168,8 @@ internal class AppWiringGateTest {
         Sample("THREE_ARGUMENT_CONSTRUCTOR_NEVER_ARMED", root, "neverArmedController(),\n            committer,", "serviceFromElsewhere,\n            committer,"),
         Sample("SUPPLIER_CONSTRUCTOR_WRAPS_LAZY", root, "LazyHistoryStore(history)", "history()"),
         Sample("SUPPLIER_CONSTRUCTOR_WRAPS_LAZY", root, "LazyHistoryStore(history)", "LazyHistoryStore(history())"),
-        Sample("SUPPLIER_CONSTRUCTOR_WRAPS_LAZY", root, "LazyHistoryStore(history), serviceController, committer, micSource, serverEngineFactory)", "LazyHistoryStore(history), neverArmedController(), committer, micSource, serverEngineFactory)"),
-        Sample("SUPPLIER_CONSTRUCTOR_WRAPS_LAZY", root, "LazyHistoryStore(history), serviceController, committer, micSource, serverEngineFactory)", "LazyHistoryStore(history), serviceController, committer, serverEngineFactory)"),
+        Sample("SUPPLIER_CONSTRUCTOR_WRAPS_LAZY", root, "LazyHistoryStore(history), serviceController, committer, micSource, serverEngineFactory,", "LazyHistoryStore(history), neverArmedController(), committer, micSource, serverEngineFactory,"),
+        Sample("SUPPLIER_CONSTRUCTOR_WRAPS_LAZY", root, "LazyHistoryStore(history), serviceController, committer, micSource, serverEngineFactory,", "LazyHistoryStore(history), serviceController, committer, serverEngineFactory,"), Sample("SUPPLIER_CONSTRUCTOR_WRAPS_LAZY", root, "serverEngineFactory,\n            background = background)", "serverEngineFactory)"), Sample("SUPPLIER_CONSTRUCTOR_WRAPS_LAZY", root, "background = background)", "background = InlineBackground)"),
         Sample("SERVER_ADDRESS_IS_THE_SAVED_ONE", root, "{ settingsStore.load().serverUrl }", "{ \"https://example.invalid\" }"),
         Sample("SERVER_ADDRESS_IS_THE_SAVED_ONE", root, "{ settingsStore.load().serverUrl }", "{ settingsStore.load().modelSize }"),
         Sample("SERVER_ADDRESS_IS_THE_SAVED_ONE", root, "serverUrlProvider = serverUrl,", "serverUrlProvider = fixedUrl,"),

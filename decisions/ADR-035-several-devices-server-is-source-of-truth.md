@@ -1,7 +1,7 @@
 # ADR-035: Several devices per account; the server is the source of truth
 
 **Status:** accepted; the sync routes and the change feed are built on the server; the clear-store write and
-the phone side are decided, not built; the purge is built on the server; the points still open are under To be
+the phone's pull and merge are decided, not built, while the phone's side of the sign-in hand-off is built; the purge is built on the server; the points still open are under To be
 designed
 **Date:** 2026-11-01
 **Confirmed by:** the project owner, 2026-11-01, in his own words below
@@ -35,24 +35,23 @@ On 2026-11-01 the project owner confirmed the design and ordered this update: "B
    `applyRemoteDelete`; a row deleted anywhere does not come back from another device.
 5. **Encryption is unchanged (ADR-006).** Each device encrypts before it pushes. The server stores and returns sealed rows only and never holds the DEK, the KEK or the password.
 6. **A new device gets its keys from the website sign-in, sealed for that device.** Built on the phone: the
-   key pair, made in memory for one sign-in by `SignInStarterImpl.begin` (`crypto/SignInStarterImpl.kt`, lines
-   40-60) and held by `SignInHolder.begin` (`core/usecase/SignInHolder.kt`, line 41, wired at
-   `BreakerCompositionRoot.kt`, line 126); the return flow (`HandoffReturnFlow.handle`,
-   `wiring/HandoffReturnFlow.kt`, line 11, called from `host/HandoffReturnActivity.kt`, line 21); and
-   `CryptoService.openSignInPackage` (`crypto/CryptoServiceImpl.kt`, lines 86-98). Built on the server: the
-   start and exchange routes (`auth/AuthHandoffRoutes.kt`, lines 31 and 96), the code store and the sweep.
-   Decided, not built: the app calls to the start and exchange routes (no caller; `DefaultHandoffReceiver`
-   only wipes the attempt and returns NOT_FINISHED, `core/port/HandoffReceiver.kt`, lines 26-31), the website
-   page (its crypto is a stub, `web-fe` `js/signin-crypto.js`), the Keystore wrapping and the wiring of the
-   received package. When the app starts the sign-in hand-off, it makes a fresh X25519 key pair in memory for
+   key pair, made in memory for one sign-in by `SignInStarterImpl.begin` and held by `SignInHolder`; the
+   return flow (`HandoffReturnFlow.handle`, called from `HandoffReturnActivity`), which runs the finish
+   through a background so the exchange never blocks the main thread; the exchange call, which carries no
+   bearer (`HandoffFinish`); `CryptoService.openSignInPackage`; the account keys kept in a sealed file of
+   their own (`CredentialFileVault`, under an Android Keystore key); and the session, saved after the keys.
+   A failure or a logout clears both. Built on the server: the start and exchange routes
+   (`AuthHandoffRoutes.kt`), the code store and the sweep. Not built: the website page (its crypto is a
+   stub, `web-fe` `js/signin-crypto.js`), the app's device name and the phone's pull. When the app starts the sign-in hand-off, it makes a fresh X25519 key pair in memory for
    that one sign-in and sends the public half with its sign-in challenge. The pair and the app's one-time
    secret are dropped at the code exchange, or when the sign-in is abandoned. The person types the password
    once, on the website. The website page derives the KEK in the browser (ADR-006's web path), unwraps the
    account's keys and seals them to the app's public key as an anonymous sealed box, the construction ADR-018
    already fixes. The server keeps that sealed package until the exchange deletes it, and never past the
    code's 5-minute expiry. The server passes the sealed package to the app with the session token at the code
-   exchange. The app opens it with its private key. It then wraps the account's DEK and the session token at
-   rest with an Android Keystore AES key, which is decided and not built. The server only ever carries a
+   exchange. The app opens it with its private key. It then keeps the account's DEK and box private key at
+   rest only as blobs sealed with an Android Keystore AES key, never the server-wrapped forms, and the
+   session in its own sealed file with the server address. This is built. The server only ever carries a
    package it cannot open. The hand-off itself is decided in ADR-036. The device's own password sign-in stays
    as the fallback (ADR-036), and it still derives the KEK on the device.
 
@@ -73,8 +72,9 @@ On 2026-11-01 the project owner confirmed the design and ordered this update: "B
   parser and the sealed-box open) is built on the phone side, and on the server the start route `POST
   /v1/auth/handoff/start`, the exchange route `POST /v1/auth/handoff/exchange`, migration 4 (the sign-in code
   table, its index, the device name column and the triggers), the code store and sweep, and the revoke rule
-  are built. Not built: the website page, the app side of the hand-off (calling the routes, the wiring of
-  the received package), and the device list with sign-out. The wrong-password limit is built on the server
+  are built. Built on the phone: making the key pair, calling the exchange route, opening the package, and
+  storing the keys and then the session (both cleared together on a failure or a logout). Not built: the
+  website page, the app's device name, and the device list with sign-out. The wrong-password limit is built on the server
   (ADR-036). Of the sync work on the server, the push route `POST /v1/sync`, the plain pull route `GET
   /v1/transcriptions` and the transcriptions table are built, and so is the store layer of the changes-since
   feed: migration 5 (the change counter on the account row, the change number on every transcription row, the
@@ -84,9 +84,9 @@ On 2026-11-01 the project owner confirmed the design and ordered this update: "B
   /v1/transcriptions/{client_id}`, the store delete, the `resave` mark on a push, and the plain list that
   leaves deleted rows out are built too. The `since` parameter, the page object, the 400 answer and the 410
   answer of `GET /v1/transcriptions` are built. The write of the pulled number and the purge of delete records
-  are built on the server. Not built: the clear-store write and the whole phone side. The device name column
+  are built on the server. Not built: the clear-store write and the phone's pull and merge. The device name column
   on the session row is built (migration 4); the app does not send a name yet and the device list is not
-  built. Today the app has no pull, and the sign-in is unchanged.
+  built. Today the app has no pull, and the password sign-in is unchanged.
 - **Changes-since feed.** Built on the server: the cursor is a server-assigned change number, unique to the
   account and strictly increasing on every row write (insert, replace and delete). It is sent as an opaque
   string and is exclusive: the client asks for the changes after N. It is not the stored time, and stored_at

@@ -5,7 +5,7 @@ import dev.breaker.dictation.core.model.StoredAccountKeys
 
 /**
  * Where the account keys are kept on the phone between sign-ins. It holds the keys only; the
- * session is kept elsewhere, by the auth client's session vault. The app supplies the implementation.
+ * session is kept elsewhere, by the auth client's session vault. The app implements it with a sealed file.
  *
  * No member ever logs or prints a key or a version.
  */

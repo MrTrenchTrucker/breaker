@@ -152,7 +152,7 @@ path = "android/modules/auth-client"
 owns = "Login/register, token storage (Android Keystore), roles/scopes."
 does_not_own = "Key derivation/crypto (crypto); server auth logic (server/sync-api)."
 depends_on = ["android", "android_core", "shared_api_contracts"]
-public = "AuthService"
+public = "AuthService, HandoffFinish"
 card = "android/modules/auth-client/AGENTS.md"
 
 [module.android_http]

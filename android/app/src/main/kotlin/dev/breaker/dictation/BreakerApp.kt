@@ -6,6 +6,7 @@ import dev.breaker.dictation.core.port.HistoryStore
 import dev.breaker.dictation.core.port.SettingsStore
 import dev.breaker.dictation.core.port.TextCommitter
 import dev.breaker.dictation.history.SqliteHistoryStore
+import dev.breaker.dictation.host.OneShotBackground
 import dev.breaker.dictation.host.RefusalHold
 import dev.breaker.dictation.host.ServiceRefusalNotice
 import dev.breaker.dictation.host.TileHost
@@ -84,6 +85,7 @@ class BreakerApp : android.app.Application() {
             serviceController = dictationServiceController,
             committer = textCommitter,
             micSource = realMicSource,
+            background = OneShotBackground(),
         )
     }
 

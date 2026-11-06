@@ -55,7 +55,7 @@ modules implement, and the use cases that run a dictation.
 - `HandoffReceiver` - `onHandoff(code, attempt): HandoffReceipt` gets the return code and the attempt exactly once; the receiver owns the wipe of the attempt from that call on, and the holder wipes it only when the receiver throws.
 - HandoffReceipt - the enum with the two receipts, TAKEN and NOT_FINISHED.
 - DefaultHandoffReceiver - the object to use until a real receiver exists: it wipes the attempt, returns NOT_FINISHED and touches nothing else.
-- `CredentialVault` - `saveKeys(keys, keyVersion)`, `readKeys()`, `wipeAll()`: where the account keys are kept on the phone; keys only, the session is kept by the auth client's session vault. `saveKeys` copies what it is given and replaces any earlier keys; `readKeys` returns a new `StoredAccountKeys` on every call, or null when nothing is stored or it cannot be read; `wipeAll` is safe when empty. The app is to implement it; no class implements it on main yet.
+- `CredentialVault` - `saveKeys(keys, keyVersion)`, `readKeys()`, `wipeAll()`: where the account keys are kept on the phone; keys only, the session is kept by the auth client's session vault. `saveKeys` copies what it is given and replaces any earlier keys; `readKeys` returns a new `StoredAccountKeys` on every call, or null when nothing is stored or it cannot be read; `wipeAll` is safe when empty. The app implements it, as CredentialFileVault, with a sealed file.
 - `SyncService` — `pushPending()`, `enqueue(Transcription)`
 - `UpdateChecker` — `check(force)`, `install(release)`, `rollback()`
 - `Clock` — `nowEpochMillis()`, and `IdSource` — `newId()`, so the domain never reads

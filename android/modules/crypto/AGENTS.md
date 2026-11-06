@@ -10,7 +10,7 @@ and unseals agent-token results sealed to it — all locally. Nothing here ever
 sends the password, the KEK, or a plaintext DEK off the device.
 Generating the data key and the box keypair, and wrapping them, is decided, not built (Phase 19): see the Build phase line below.
 
-**Build phase:** Phase 11 builds key derivation (`deriveKeys`). BUILT for the sign-in work: unwrapping the data key with a key-encryption key, AES-256-GCM encrypt and decrypt with associated data, nonces from a secure random source, and opening a sign-in package (a sealed box) with the one-time private key, and making the one-time sign-in secret and key pair in memory (SignInStarterImpl). Decided, not built (Phase 19): generating the data key and the box keypair, wrapping a new data key, wrapping the box private key, unwrapping the box private key from its own wrapped form, unsealing results sealed to the account (`unsealAndReencrypt`), and the Android Keystore store. Needs first: `core` (on main).
+**Build phase:** Phase 11 builds key derivation (`deriveKeys`). BUILT for the sign-in work: unwrapping the data key with a key-encryption key, AES-256-GCM encrypt and decrypt with associated data, nonces from a secure random source, and opening a sign-in package (a sealed box) with the one-time private key, and making the one-time sign-in secret and key pair in memory (SignInStarterImpl). Decided, not built (Phase 19): generating the data key and the box keypair, wrapping a new data key, wrapping the box private key, unwrapping the box private key from its own wrapped form, and unsealing results sealed to the account (`unsealAndReencrypt`). Not this module's work, and built in the app: the phone's stored keys. After a website sign-in the app keeps the plain data key and box private key in memory only while in use and, at rest, only as a blob sealed under an Android Keystore key (a file of its own, behind the core `CredentialVault` port); it never stores the server-wrapped forms. This module holds no Keystore code. Needs first: `core` (on main).
 
 ## Owns
 Client-side key derivation (Argon2id + HKDF), DEK generation/wrap/unwrap,
@@ -46,7 +46,8 @@ unsealing.
 3. **Ordinary login:** re-derive KEK + auth verifier from the password and
    the stored salt/params; send only the auth verifier; unwrap the DEK with
    the KEK and the box private key with the DEK; cache both in memory only
-   (the Android Keystore is to hold the wrapped DEK, never the unwrapped keys; decided and not built).
+   (the password path does not store them; the phone stores keys at rest only from a website
+   sign-in, as Keystore-sealed blobs and never as the server-wrapped forms, see the Build phase line).
    Also recompute the box public key from the just-unwrapped private key
    (`crypto_scalarmult_base`) and compare it to the `box_pubkey` the login
    response carried — a mismatch means the stored key was swapped since this
@@ -117,7 +118,7 @@ unsealing.
   A sealed box uses a random ephemeral key, so the website page cannot reproduce those
   bytes; its own test is to OPEN that box with the secret key and get the 65 bytes, and
   to do its own seal-then-open round trip.
-- `SignInStarterImpl` - the `SignInStarter` port of core. `begin()` takes 32 random bytes for the secret text and 32 more for the X25519 private key, in that order, from one secure random source (the source is a constructor parameter, so tests can feed known bytes). The secret text is the base64url of the first 32 bytes without padding: 43 characters, canonical. The challenge is the base64url of the SHA-256 of the text's ASCII bytes, not of the decoded bytes. The public key is the X25519 public key of the private key. A Kotlin String cannot be wiped: the secret text exists as a String only while it is built, and the exchange request is to make its String at the moment of the call and nowhere else. The attempt lives in memory only: no Keystore, no file, no settings, no log.
+- `SignInStarterImpl` - the `SignInStarter` port of core. `begin()` takes 32 random bytes for the secret text and 32 more for the X25519 private key, in that order, from one secure random source (the source is a constructor parameter, so tests can feed known bytes). The secret text is the base64url of the first 32 bytes without padding: 43 characters, canonical. The challenge is the base64url of the SHA-256 of the text's ASCII bytes, not of the decoded bytes. The public key is the X25519 public key of the private key. A Kotlin String cannot be wiped: the secret text exists as a String only while it is built, and the exchange request makes its String at the moment of the call and nowhere else. The attempt lives in memory only: no Keystore, no file, no settings, no log.
 - `generateBoxKeypair() -> {boxPubkey, boxPrivkey}` /
   `wrapBoxPrivkey(boxPrivkey, dek) -> WrappedBoxPrivkey` /
   `unwrapBoxPrivkey(wrapped, dek) -> boxPrivkey` (decided, not built: this module does
@@ -145,8 +146,7 @@ The operations marked "decided, not built" above are still not built.
   parameters back to the phone, so a buggy or hostile value must not make
   every login try to allocate it. A `kdf_version` other than 1 is refused
   after those range checks.
-- No plaintext keys on disk; memory-only DEK and box private key. `AccountKeys.wipe()` zeroes both keys; nothing calls it on lock or logout yet,
-  because no code holds the keys after sign-in (decided, not built: Phase 19).
+- No plaintext keys on disk; the plain DEK and box private key live in memory while in use and, at rest, only as Keystore-sealed stored blobs in the app (never the server-wrapped forms). `AccountKeys.wipe()` zeroes both keys; the hand-off finish calls it as soon as the keys are stored or the sign-in fails, and the app's logout removes the stored blobs (see Invariants).
 - The client enforces a 12-character minimum password and warns further on
   common/weak passwords (ADR-006) — a nudge, not a guarantee: see the
   honest limit below.
@@ -160,7 +160,7 @@ The operations marked "decided, not built" above are still not built.
   and, for the sealed box, with the server's libsodium binding).
 - Ciphertext at rest; server cannot decrypt without the password (F24, T17) —
   this is not a claim that the password cannot be guessed offline (T25).
-- Decided, not built (Phase 19): logout wipes the DEK and box private key, and re-login unwraps again. Today `AccountKeys.wipe()` exists and nothing calls it on logout.
+- Built in the app: a logout, or a failed store, wipes the stored DEK and box private key through the app's session vault that also clears the keys, so a signed-out phone keeps no account keys at rest. A password login only saves its session and does not remove keys a website sign-in stored; only a clear does. Decided, not built (Phase 19): a re-login by password unwrapping the keys again and storing them.
 - A keyless account (no `wrapped_dek` yet) will generate and upload its DEK +
   box keypair exactly once, on its first login after both exist client-side (decided, not built: Phase 19).
 

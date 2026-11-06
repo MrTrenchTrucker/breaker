@@ -37,6 +37,8 @@ open class AppLayoutGateRules {
         "wiring/SessionSeal.kt",
         "wiring/AesSessionSeal.kt",
         "wiring/FileSessionVault.kt",
+        "wiring/CredentialFileVault.kt",
+        "wiring/KeysClearingSessionVault.kt",
         "host/ServiceRefusalNotice.kt",
     )
 

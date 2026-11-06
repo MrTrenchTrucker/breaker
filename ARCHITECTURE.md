@@ -591,7 +591,7 @@ VPN can use Breaker. Each user gets an isolated namespace:
 - Settings / API tokens
 
 **Auth:** server issues a token (session/JWT) on login; the Android app stores it
-in the Android Keystore, decided and not built (never plaintext). The web FE uses the same auth. All
+in a file sealed under an Android Keystore key, built (never plaintext). The web FE uses the same auth. All
 server APIs (sync, training, STT) require a valid user token. **Isolation is
 enforced server-side** (N13) — never trust client-side scoping. The job
 API (whisper-server) is ruled to ask sync-api whether a token is live and to fail closed
@@ -1005,7 +1005,7 @@ See `docs/04-build-order.md`. Summary:
       pushes, then pulls; a delete reaches every device; a new device gets its
       keys sealed from the website sign-in (ADR-035; hand-off routes built on server, website sealing not built).
 - **Sign-in from the website hands the login to the app** (hand-off routes built on server; website page
-      not built; the app calls to the routes and the wiring of the received package not built) - a one-time
+      not built; the phone side is built except the device name; the device list not built) - a one-time
       code over a `breaker://` link plus a secret the app keeps; several
       devices listed; wrong-password limit (ADR-036; not built).
 - D21. **Configurable transcription service** — admin-configured endpoint
