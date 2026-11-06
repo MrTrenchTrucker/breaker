@@ -187,7 +187,7 @@ agents, not required: an outside contributor may write the code themselves
 - The stored error text is bounded at 500 characters (JobPolicy.ERROR_TEXT_LIMIT).
   The worker applies .take(ERROR_TEXT_LIMIT) to the full formatted failure string.
 - The forwarder is `HttpTranscriptionForwarder`. It makes ONE attempt per call and never retries
-  itself; the queue worker owns the retry schedule (3 attempts, 10 s apart).
+  itself; the queue worker owns the retry schedule (three retries after the first call, four attempts in all, 10 s apart).
 - It asks the downstream for `verbose_json` (`response_format=verbose_json`).
 - `TranscriptionResponse` reads a plain-text body as the text, with no segments and an empty language.
 - The request timeout defaults to 60 s and is admin-set (`DownstreamConfig.requestTimeout`); it

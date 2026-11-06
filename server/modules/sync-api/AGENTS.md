@@ -283,7 +283,7 @@ A route or job marked Planned, not built below is not installed on main yet.
   Planned, not built: the create route; only the revoke (`DELETE`) is installed.
 - Agent auth: `Authorization: Bearer <agent-token>` on `POST
   /v1/audio/transcriptions` + `GET /v1/jobs/{id}` — same FIFO queue, results to
-  the owner's namespace. Rate-limited (T19).
+  the owner's namespace. Rate limiting (T19) is planned, not built: no rate limit exists in the server code yet (the whisper-server card says the same for per-user limits).
 - `POST /v1/admin/reset-account` - BUILT. `{username}`, **admin-only**: an admin session token or
   an admin-scoped agent token, the one exception to the rule that key-bearing routes refuse
   agent tokens. The rules of this route, in order (`admin/AdminResetAccountRoute.kt`,
@@ -331,7 +331,7 @@ A route or job marked Planned, not built below is not installed on main yet.
 - **Multi-admin config:** concurrent edits to the transcription service config
   are **last-write-wins** (documented default; no locking in v1).
 
-**Planned (ADR-035, ADR-036), not built:**
+**Planned (ADR-035, ADR-036), partly built:** where an item below says BUILT, that part is in main; every other part is planned, not built.
 - The changes-since pull of `GET /v1/transcriptions` is decided; its read side is BUILT, the purge is not, with a
   cursor. The cursor is a server-assigned change number, unique to the account and strictly
   increasing on every row write (insert, replace and delete). It is sent as an opaque
