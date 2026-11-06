@@ -71,7 +71,7 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-018](ADR-018-owner-sealed-box.md) | Owner sealed box for agent-token job results; account reset | accepted, amended 2026-10-20 |
 | [ADR-019](ADR-019-agent-skills-module.md) | Agent skills ship in the repo as their own module | accepted |
 | [ADR-020](ADR-020-ci-concurrency-and-caching.md) | CI runs are deduplicated per commit and cache Gradle dependencies | accepted |
-| [ADR-021](ADR-021-module-build-method.md) | The maintainers' team builds each module through sub-agents that write the code | accepted, amended 2026-10-07 and 2026-10-08 |
+| [ADR-021](ADR-021-module-build-method.md) | The maintainers' team builds each module through sub-agents that write the code | accepted, amended 2026-10-07, 2026-10-08 and 2026-10-15 |
 | [ADR-022](ADR-022-accessibility-text-insert.md) | Text goes into the app through an accessibility service (supersedes ADR-005) | accepted |
 | [ADR-023](ADR-023-transcript-case-at-the-source.md) | A speech engine that prints capitals is fixed in the speech module, not in the formatter | accepted |
 | [ADR-024](ADR-024-tile-feedback-and-visibility.md) | The tile shows busy and loudness, and hides itself when no keyboard is in use | accepted, amended 2026-10-12, 2026-10-14, 2026-10-15, 2026-10-17, 2026-10-20, 2026-10-29, 2026-11-02 |
@@ -81,12 +81,12 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-028](ADR-028-keep-history-settings-and-model-across-updates.md) | An app update keeps the history, the settings and the speech model | accepted |
 | [ADR-029](ADR-029-spoken-send-wiring.md) | The spoken send ("And I'm Gone") is wired through one app class, PhraseSendHandler | accepted |
 | [ADR-030](ADR-030-one-http-client-for-server-calls.md) | One HTTP client for server calls, with no hidden defaults | accepted, amended 2026-11-01 |
-| [ADR-031](ADR-031-session-expires-after-30-days-idle.md) | A session token expires 30 days after its last use | accepted |
+| [ADR-031](ADR-031-session-expires-after-30-days-idle.md) | A session token expires 30 days after its last use | accepted, amended 2026-11-04 |
 | [ADR-032](ADR-032-server-certificate-and-pairing.md) | The server makes its own certificate, and the one-time sign-in pairs the phone with it | accepted in principle, details to be designed; superseded by ADR-034 |
 | [ADR-033](ADR-033-signed-out-is-a-quiet-notice-on-home.md) | Signed out is a quiet notice on Home, and nothing is forced | accepted |
 | [ADR-034](ADR-034-plain-http-and-the-admins-choice-of-tls.md) | Breaker serves plain HTTP; TLS is the admin's choice | accepted |
 | [ADR-035](ADR-035-several-devices-server-is-source-of-truth.md) | Several devices per account; the server is the source of truth | accepted; the points under To be designed are open |
-| [ADR-036](ADR-036-sign-in-from-the-website.md) | Sign-in from the website hands the login to the app | accepted; the points under To be designed are open |
+| [ADR-036](ADR-036-sign-in-from-the-website.md) | Sign-in from the website hands the login to the app | accepted, amended 2026-11-02; the points under To be designed are open |
 | [ADR-037](ADR-037-busy-face-follows-the-microphone.md) | The busy face follows the microphone and clears when it is free | accepted; built, not yet tried on a phone |
 
 Next free number: **ADR-038**.

@@ -71,6 +71,8 @@ The mic glyph + **level meter** show transmission state:
 
 ## 6. Docker FE screens
 
+> Planned, not built: the web FE on main is the sign-in page only; the screens below are the target design.
+
 ### Landing — the fleet gate (NOT logged in)
 - **Header:** black band, CB mic badge, **BREAKER** wordmark (white condensed
   caps), green underline stripe. **Log In button top-right** (black outline,
@@ -136,6 +138,8 @@ The mic glyph + **level meter** show transmission state:
   account (blocked for the last admin).
 
 ## 8. Navigation
+
+> Today the Android Home screen opens a menu drawer; the sidebar, hamburger and bottom tab bar below are the target layout, and the web FE (sign-in page only) has no navigation yet.
 
 - **Desktop (> 1024 px):** persistent sidebar — the cab is always visible.
 - **Tablet (640–1024 px):** sidebar collapses to a **hamburger**.
