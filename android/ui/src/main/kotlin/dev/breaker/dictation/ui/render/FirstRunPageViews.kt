@@ -53,7 +53,7 @@ internal class PageBuilder(val context: Context, val theme: Theme) {
         }
 
     /** A heading, in the display face and the text colour. */
-    fun headingText(value: String): TextView =
+    private fun headingText(value: String): TextView =
         styled(value, APPEARANCE_LARGE, theme.type.displayFamily, theme.color(PaletteSlot.TEXT).argb)
 
     /** A body line, in the body face and the text colour. */

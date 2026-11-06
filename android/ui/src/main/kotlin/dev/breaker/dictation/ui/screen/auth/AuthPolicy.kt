@@ -21,7 +21,7 @@ internal object AuthPolicy {
     }
 
     /** The minimum length, below which the password is always refused without any other check. */
-    const val MIN_LENGTH: Int = 12
+    private const val MIN_LENGTH: Int = 12
 
     /**
      * The fixed common-password entries, each carried as its own char array rather than a string
