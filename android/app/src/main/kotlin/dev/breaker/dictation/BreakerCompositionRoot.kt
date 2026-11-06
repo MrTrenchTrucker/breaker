@@ -2,7 +2,12 @@ package dev.breaker.dictation
 
 import dev.breaker.dictation.audio.MicSource
 import dev.breaker.dictation.audio.Pcm16WavEncoder
+import dev.breaker.dictation.auth.client.AddressedSession
+import dev.breaker.dictation.auth.client.AuthHttp
+import dev.breaker.dictation.auth.client.ServerAuthService
+import dev.breaker.dictation.core.port.AuthService
 import dev.breaker.dictation.core.port.HistoryStore
+import dev.breaker.dictation.core.port.KeyDerivation
 import dev.breaker.dictation.core.port.SettingsStore
 import dev.breaker.dictation.core.port.SttEngine
 import dev.breaker.dictation.core.port.TextCommitter
@@ -28,7 +33,13 @@ import dev.breaker.dictation.wiring.SignInReturnStore
 import dev.breaker.dictation.wiring.SignInStartWiring
 import dev.breaker.dictation.wiring.UuidIdSource
 import dev.breaker.dictation.wiring.appMicSource
+import dev.breaker.dictation.wiring.authSessionFile
+import dev.breaker.dictation.wiring.buildAuthService
+import dev.breaker.dictation.wiring.defaultAuthHttp
+import dev.breaker.dictation.wiring.defaultKeyDerivation
+import dev.breaker.dictation.wiring.defaultSessionKey
 import java.io.File
+import javax.crypto.SecretKey
 
 /**
  * The single place modules are composed into each other.
@@ -55,6 +66,11 @@ import java.io.File
  * [SttServerEngine] over the stored server address and the session-token seam: its key is the signed-in
  * user's token, read on every call. Until a session is plugged in, the seam answers null and the engine
  * answers that the key is not set. Both formatter slots take the rule-based formatter.
+ *
+ * The auth service is built on first use, never at construction: the three factories (transport, key
+ * derivation, session key) are called only then, and the service reads the stored server address on
+ * every call. The transport factory takes the stored address provider. [authService] and
+ * [addressedSession] reach the same one service.
  */
 class BreakerCompositionRoot(
     filesDir: File,
@@ -64,6 +80,9 @@ class BreakerCompositionRoot(
     private val micSource: MicSource = appMicSource(),
     private val serverEngineFactory: (serverUrl: () -> String, apiKey: () -> String?) -> SttEngine = REAL_SERVER_ENGINE,
     private val sessionToken: () -> String? = NO_SESSION,
+    private val authHttp: (() -> String) -> AuthHttp = ::defaultAuthHttp,
+    private val keyDerivation: () -> KeyDerivation = ::defaultKeyDerivation,
+    private val keySupplier: () -> SecretKey = ::defaultSessionKey,
 ) {
     /** Takes an already built history store; the microphone service is never switched on. */
     constructor(
@@ -121,6 +140,23 @@ class BreakerCompositionRoot(
      * never kept.
      */
     private val serverApiKey: () -> String? = { sessionToken() }
+
+    /** The one auth service, built on first use over the stored address provider and the three factories. */
+    private val serverAuth: ServerAuthService by lazy {
+        buildAuthService(
+            serverUrl,
+            authSessionFile(filesDir),
+            keySupplier,
+            authHttp(serverUrl),
+            keyDerivation(),
+        )
+    }
+
+    /** The account calls: register, login, logout and the stored session. */
+    val authService: AuthService get() = serverAuth
+
+    /** The stored session with the address read now, or null; the address is read on every call. */
+    val addressedSession: () -> AddressedSession? = { serverAuth.currentAddressedSession() }
 
     /** Called when a take ends by itself (the microphone stopped). Set by the tile host. */
     var onTakeEnded: (() -> Unit)? = null
