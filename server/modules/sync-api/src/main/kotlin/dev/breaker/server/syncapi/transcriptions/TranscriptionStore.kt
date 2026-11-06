@@ -2,6 +2,7 @@ package dev.breaker.server.syncapi.transcriptions
 
 import dev.breaker.server.syncapi.accounts.PrevKeyRule
 import dev.breaker.server.syncapi.db.SqliteDatabase
+import dev.breaker.server.syncapi.tokens.TokenStore
 import java.sql.Connection
 import java.time.Clock
 
@@ -112,6 +113,27 @@ internal class TranscriptionStore(
     /** One page of the account's feed, ordered by change number ascending (see TranscriptionPageReader). */
     suspend fun page(accountId: Long, since: Long?): PageResult =
         db.transaction<PageResult> { connection -> TranscriptionPageReader.read(connection, accountId, since) }
+
+    /**
+     * One pull of the feed for a user session, in one transaction, in this order: the page is read;
+     * a Gone page returns at once and writes nothing; with a since, the session's number is set (the
+     * store clamps it to the head); the purge then runs at the floor of the live sessions, when there
+     * is one. The page read first is what the caller gets. One transaction matters: when the purge
+     * fails, the number set just before it is rolled back as well, so no session claims a point whose
+     * purge did not happen.
+     */
+    suspend fun pull(tokens: TokenStore, accountId: Long, tokenId: Long, since: Long?): PageResult =
+        db.transaction<PageResult> { connection ->
+            val result = TranscriptionPageReader.read(connection, accountId, since)
+            if (result is PageResult.Gone) {
+                result
+            } else {
+                if (since != null) tokens.setPulledChangeOn(connection, tokenId, accountId, since)
+                val floor = tokens.pullFloorOn(connection, accountId)
+                if (floor != null) TranscriptionPurge.purgeDeleteRecordsOn(connection, accountId, floor)
+                result
+            }
+        }
 
     private fun readAccountKeyVersion(connection: Connection, accountId: Long): Int? =
         connection.prepareStatement(SELECT_ACCOUNT_KEY_VERSION_SQL).use { statement ->

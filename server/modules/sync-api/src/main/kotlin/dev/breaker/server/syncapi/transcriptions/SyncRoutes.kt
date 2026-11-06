@@ -19,6 +19,7 @@ import kotlinx.coroutines.CancellationException
 
 // POST /v1/sync (push one transcription) and GET /v1/transcriptions (the account's feed, oldest
 // first, paged by since). Both take a user session token only: no or unknown token is 401, an agent token is 403.
+// A pull with since sets the session's number; each pull purges the delete records all live sessions passed.
 // A store failure other than cancellation answers 503 with a fixed body; cancellation is rethrown.
 internal fun Application.syncRoutes(tokenStore: TokenStore, transcriptionStore: TranscriptionStore) {
     routing {
@@ -51,7 +52,8 @@ internal fun Application.syncRoutes(tokenStore: TokenStore, transcriptionStore: 
         }
 
         get("/v1/transcriptions") {
-            val accountId = call.sessionAccountOrRefuse(tokenStore) ?: return@get
+            val resolved = call.sessionOrRefuse(tokenStore) ?: return@get
+            val accountId = resolved.accountId
             val sinceValue = call.request.queryParameters["since"]
             val parsed = sinceValue?.let { parseSince(it) }
             if (sinceValue != null && parsed == null) {
@@ -64,7 +66,7 @@ internal fun Application.syncRoutes(tokenStore: TokenStore, transcriptionStore: 
                 return@get
             }
             val page = try {
-                transcriptionStore.page(accountId, since)
+                transcriptionStore.pull(tokenStore, accountId, resolved.tokenId, since)
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (_: Exception) {
