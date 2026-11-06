@@ -579,7 +579,8 @@ values) live in `shared/ui-tokens`:
 
 **Retention (F28):** transcriptions auto-delete after **3 months** (server and
 phone). The admin panel can clear the store per-user or for **all users** (F29).
-Deletes propagate via tombstones so the phone and web FE stay consistent.
+Deletes are meant to propagate via tombstones so the phone and web FE stay consistent
+(decided, not built on the phone).
 
 ## 12. Multi-User & Auth
 
@@ -736,7 +737,7 @@ wrapped DEK — confirmed + type-to-confirm). The **last remaining admin cannot
 delete their account or be demoted**; with multiple admins, an admin can be
 demoted by another admin first, then delete their own account. Each user can
 delete their own transcriptions one-by-one or with a delete-all button (F34);
-deletes propagate via tombstones.
+deletes are meant to propagate via tombstones (decided, not built on the phone).
 
 ## 13. Voice Phrase Training
 
@@ -1003,7 +1004,8 @@ See `docs/04-build-order.md`. Summary:
 - D39. **Several devices; the server is the source of truth** - each device
       pushes, then pulls; a delete reaches every device; a new device gets its
       keys sealed from the website sign-in (ADR-035; hand-off routes built on server, website sealing not built).
-- D40. **Sign-in from the website hands the login to the app** (hand-off routes built on server; website page and app wiring not built) - a one-time
+- **Sign-in from the website hands the login to the app** (hand-off routes built on server; website page
+      not built; the app calls to the routes and the wiring of the received package not built) - a one-time
       code over a `breaker://` link plus a secret the app keeps; several
       devices listed; wrong-password limit (ADR-036; not built).
 - D21. **Configurable transcription service** — admin-configured endpoint
