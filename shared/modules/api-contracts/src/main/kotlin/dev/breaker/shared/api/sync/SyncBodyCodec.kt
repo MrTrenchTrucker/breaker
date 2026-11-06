@@ -12,7 +12,7 @@ import java.util.Base64
  * breaks. No cryptography is involved at key_version 0.
  */
 object SyncBodyCodec {
-    const val BODY_VERSION: Int = 1
+    private const val BODY_VERSION: Int = 1
 
     private const val MAX_DURATION_MS: Long = 9007199254740991L
     private val KNOWN_KEYS = setOf("v", "text", "source", "model", "duration_ms", "created_at")
