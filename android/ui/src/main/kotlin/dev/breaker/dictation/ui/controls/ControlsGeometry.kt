@@ -47,23 +47,23 @@ internal data class StepMark(val x: Float, val y: Float, val width: Float, val h
 internal object ControlsGeometry {
 
     /** The lit line's inset from the face's left and right edges: 2 px. */
-    const val LIT_INSET_DP: Float = 4f / 3f
+    private const val LIT_INSET_DP: Float = 4f / 3f
     /** The lit line's offset from the face's top edge: 1 px. */
-    const val LIT_OFFSET_DP: Float = 2f / 3f
+    private const val LIT_OFFSET_DP: Float = 2f / 3f
     /** The label text size the art passes as its "cap" parameter: 20 px. Used as the text size, not a measured cap height. */
     const val LABEL_CAP_DP: Float = 40f / 3f
     /** The pressed label sits this far below the raised one: 1 px. */
-    const val LABEL_LIFT_DP: Float = 2f / 3f
+    private const val LABEL_LIFT_DP: Float = 2f / 3f
     /** The outline's thickness: 2 px. */
     const val OUTLINE_DP: Float = 4f / 3f
     /** The thumb's left edge while the switch is on: 36 px. */
-    const val THUMB_ON_OFFSET_DP: Float = 24f
+    private const val THUMB_ON_OFFSET_DP: Float = 24f
     /** The thumb's width and height while on: 32 px. */
-    const val THUMB_ON_SIZE_DP: Float = 64f / 3f
+    private const val THUMB_ON_SIZE_DP: Float = 64f / 3f
     /** The thumb's left edge while off: 5 px. */
-    const val THUMB_OFF_OFFSET_DP: Float = 10f / 3f
+    private const val THUMB_OFF_OFFSET_DP: Float = 10f / 3f
     /** The thumb's width and height while off: 30 px. */
-    const val THUMB_OFF_SIZE_DP: Float = 20f
+    private const val THUMB_OFF_SIZE_DP: Float = 20f
     /** The badge's height: 40 px. */
     const val BADGE_H_DP: Float = 80f / 3f
     /** The switch track's width: the art's own 72 by 40 px track at 1.5 px per dp, 48 dp. */
@@ -71,15 +71,15 @@ internal object ControlsGeometry {
     /** The switch track's height: the art's own 72 by 40 px track at 1.5 px per dp, 40 px, 80 / 3 dp. */
     const val TRACK_H_DP: Float = 80f / 3f
     /** The badge's width before its text: 40 px. */
-    const val BADGE_PAD_DP: Float = 80f / 3f
+    private const val BADGE_PAD_DP: Float = 80f / 3f
     /** The badge's width per character of its text: 13 px. */
-    const val BADGE_CHAR_DP: Float = 26f / 3f
+    private const val BADGE_CHAR_DP: Float = 26f / 3f
     /** The badge label text size the art passes as its "cap" parameter: 15 px. Used as the text size, not a measured cap height. */
     const val BADGE_CAP_DP: Float = 10f
     /** The first step mark's left edge: 30 px. */
-    const val STEP_INSET_DP: Float = 20f
+    private const val STEP_INSET_DP: Float = 20f
     /** The gap between two step marks: 12 px. */
-    const val STEP_GAP_DP: Float = 8f
+    private const val STEP_GAP_DP: Float = 8f
     /** The side padding of a button, 16 dp each side: the art has no padding rule (its buttons are a fixed 170 px wide); 16 dp each side is the kit's own choice. */
     const val BUTTON_SIDE_DP: Float = 16f
     /** The width the art draws every button that is not full width: 170 px. */
