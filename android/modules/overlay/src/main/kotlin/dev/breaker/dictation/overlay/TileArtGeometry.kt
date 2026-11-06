@@ -79,10 +79,10 @@ internal object ArtGeometry {
     }
 
     /** The art scale, in dp per art unit, of a cell whose side is [cellSideDp] dp. */
-    fun scaleDp(cellSideDp: Float): Float = frame(TileRect(0, 0, cellSideDp.toInt(), cellSideDp.toInt())).scale
+    private fun scaleDp(cellSideDp: Float): Float = frame(TileRect(0, 0, cellSideDp.toInt(), cellSideDp.toInt())).scale
 
     /** One half-cell width in art units, for a cell of side [cellSideDp] dp: half the cell side over the art scale. */
-    fun halfCellUnits(cellSideDp: Float): Float = cellSideDp / 2f / scaleDp(cellSideDp)
+    private fun halfCellUnits(cellSideDp: Float): Float = cellSideDp / 2f / scaleDp(cellSideDp)
 
     /**
      * The distance from the mic centre up to the card's bottom edge, in dp, for a cell of side [cellSideDp] dp:
