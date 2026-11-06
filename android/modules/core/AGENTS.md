@@ -55,6 +55,7 @@ modules implement, and the use cases that run a dictation.
 - `HandoffReceiver` - `onHandoff(code, attempt): HandoffReceipt` gets the return code and the attempt exactly once; the receiver owns the wipe of the attempt from that call on, and the holder wipes it only when the receiver throws.
 - HandoffReceipt - the enum with the two receipts, TAKEN and NOT_FINISHED.
 - DefaultHandoffReceiver - the object to use until a real receiver exists: it wipes the attempt, returns NOT_FINISHED and touches nothing else.
+- `CredentialVault` - `saveKeys(keys, keyVersion)`, `readKeys()`, `wipeAll()`: where the account keys are kept on the phone; keys only, the session is kept by the auth client's session vault. `saveKeys` copies what it is given and replaces any earlier keys; `readKeys` returns a new `StoredAccountKeys` on every call, or null when nothing is stored or it cannot be read; `wipeAll` is safe when empty. The app is to implement it; no class implements it on main yet.
 - `SyncService` — `pushPending()`, `enqueue(Transcription)`
 - `UpdateChecker` — `check(force)`, `install(release)`, `rollback()`
 - `Clock` — `nowEpochMillis()`, and `IdSource` — `newId()`, so the domain never reads
@@ -88,6 +89,7 @@ modules implement, and the use cases that run a dictation.
   sealed for one sign-in: any non-empty byte array, handled the same way, with no fixed
   length. `AccountKeys(dek, boxPrivateKey)` is the pair a package opens to, and its
   `wipe()` wipes both
+- `StoredAccountKeys(keys, keyVersion)` - the account keys as the key store holds them, with their version (zero or more, checked before anything is copied). A plain class: it builds its own copy of both keys, `wipe()` zeroes that copy and never the caller's arrays, and `toString` prints a fixed text with no key and no version.
 - `CryptoRefused` - the one plain refusal of a cryptographic operation: an
   IllegalArgumentException with a fixed message, no reason and no byte. It lives in core
   so that callers that see only core can catch it
