@@ -12,6 +12,9 @@ package dev.breaker.server.whisper.config
  *   present but blank/negative/unparseable value refuses
  * - BREAKER_WHISPER_SYNC_API_URL: required, must be non-blank, http/https + host
  * - BREAKER_WHISPER_SYNC_API_SERVICE_KEY: required, must be non-blank
+ * - BREAKER_WHISPER_AGENT_RATE_LIMIT_PER_MIN: optional, off when absent; a present value must
+ *   parse to a whole number in 1..10000 (requests per minute per agent token); blank, zero,
+ *   negative, non-number or above 10000 refuses at start naming the variable
  *
  * Parsing rules:
  * - Missing/bad BREAKER_WHISPER_PORT refuses with a message naming BREAKER_WHISPER_PORT
@@ -22,7 +25,11 @@ package dev.breaker.server.whisper.config
  *   value, or one outside 1..86400, refuses with a message naming BREAKER_WHISPER_RESULT_TTL_S
  * - Port out of range refuses with a message naming BREAKER_WHISPER_PORT
  * - Missing/blank BREAKER_WHISPER_SYNC_API_URL refuses with a message naming BREAKER_WHISPER_SYNC_API_URL
- * - Missing/blank BREAKER_WHISPER_SYNC_API_SERVICE_KEY refuses with a message naming BREAKER_WHISPER_SYNC_API_SERVICE_KEY
+ * - Missing/blank BREAKER_WHISPER_SYNC_API_SERVICE_KEY refuses with a message naming
+ *   BREAKER_WHISPER_SYNC_API_SERVICE_KEY
+ * - Missing BREAKER_WHISPER_AGENT_RATE_LIMIT_PER_MIN means the rate limit is off; a present but
+ *   blank/non-number/zero/negative/above-10000 value refuses with a message naming
+ *   BREAKER_WHISPER_AGENT_RATE_LIMIT_PER_MIN
  */
 data class WhisperConfig(
     val bindAddress: String,
@@ -30,6 +37,7 @@ data class WhisperConfig(
     val databasePath: String,
     val forwarderBaseUrl: String,
     val resultTtlSeconds: Int = DEFAULT_RESULT_TTL_SECONDS,
+    val agentRateLimitPerMin: Int? = null,
     val syncApiBaseUrl: String = "",
     val syncApiServiceKey: String = "",
 ) {
@@ -41,10 +49,13 @@ data class WhisperConfig(
         const val ENV_RESULT_TTL = "BREAKER_WHISPER_RESULT_TTL_S"
         const val ENV_SYNC_API_URL = "BREAKER_WHISPER_SYNC_API_URL"
         const val ENV_SYNC_API_SERVICE_KEY = "BREAKER_WHISPER_SYNC_API_SERVICE_KEY"
+        const val ENV_AGENT_RATE_LIMIT = "BREAKER_WHISPER_AGENT_RATE_LIMIT_PER_MIN"
         const val DEFAULT_HOST = "127.0.0.1"
         const val DEFAULT_RESULT_TTL_SECONDS = 600
         private const val MIN_RESULT_TTL_SECONDS = 1
         private const val MAX_RESULT_TTL_SECONDS = 86_400
+        private const val MIN_AGENT_RATE_LIMIT = 1
+        private const val MAX_AGENT_RATE_LIMIT = 10_000
 
         private const val MIN_PORT = 1
         private const val MAX_PORT = 65535
@@ -101,6 +112,27 @@ data class WhisperConfig(
                 parsed
             }
 
+            val agentRateLimitRaw = env[ENV_AGENT_RATE_LIMIT]
+            val agentRateLimitPerMin = if (agentRateLimitRaw == null) {
+                null
+            } else {
+                val parsed = agentRateLimitRaw.toIntOrNull()
+                    ?: throw IllegalStateException(
+                "$ENV_AGENT_RATE_LIMIT is not a number: $agentRateLimitRaw"
+            )
+                if (parsed < MIN_AGENT_RATE_LIMIT) {
+                    throw IllegalStateException(
+                        "$ENV_AGENT_RATE_LIMIT must be at least $MIN_AGENT_RATE_LIMIT: $agentRateLimitRaw"
+                    )
+                }
+                if (parsed > MAX_AGENT_RATE_LIMIT) {
+                    throw IllegalStateException(
+                        "$ENV_AGENT_RATE_LIMIT must be at most $MAX_AGENT_RATE_LIMIT: $agentRateLimitRaw"
+                    )
+                }
+                parsed
+            }
+
             val syncApiUrl = env[ENV_SYNC_API_URL]
                 ?.takeIf { it.isNotBlank() }
                 ?: throw IllegalStateException("$ENV_SYNC_API_URL is not set")
@@ -123,6 +155,7 @@ data class WhisperConfig(
                 databasePath,
                 forwarderUrl,
                 resultTtlSeconds,
+                agentRateLimitPerMin = agentRateLimitPerMin,
                 syncApiBaseUrl = syncApiUrl,
                 syncApiServiceKey = syncApiServiceKey,
             )

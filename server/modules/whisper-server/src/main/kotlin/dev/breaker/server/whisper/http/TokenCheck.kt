@@ -3,7 +3,7 @@ package dev.breaker.server.whisper.http
 /** The result of checking whether a presented token is live. */
 internal sealed class TokenAnswer {
     /** The token is live and belongs to `accountId`. */
-    data class Live(val accountId: Long) : TokenAnswer()
+    data class Live(val accountId: Long, val kind: String = "session") : TokenAnswer()
     /** The token is not live (401 from the token service). */
     object NotLive : TokenAnswer()
     /** The token check itself could not be performed (unavailable). */

@@ -23,8 +23,19 @@ class TranscriptionApi internal constructor(
     private val forwardingTo: String = "",
     private val uptime: () -> String = { "0h0m0s" },
     private val tokenCheck: TokenCheck = FailClosedTokenCheck,
+    private val limit: AgentRateLimit? = null,
 ) {
     fun install(app: Application) {
-        app.routing { transcriptionRoutes(store, wakeWorker, readMultipart, forwardingTo, uptime, tokenCheck) }
+        app.routing {
+            transcriptionRoutes(
+                store,
+                wakeWorker,
+                readMultipart,
+                forwardingTo,
+                uptime,
+                tokenCheck,
+                limit,
+            )
+        }
     }
 }
