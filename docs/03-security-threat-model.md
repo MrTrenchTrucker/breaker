@@ -68,7 +68,7 @@ are **unverified**. Phase 0 includes a build + smoke-test gate.
 | T16 | **Admin escalation / role abuse** | First-account-is-admin bootstrap; role changes audited; no self-promotion |
 | T17 | **Key management / DEK compromise** — a stolen DB leaks only wrapped keys, never plaintext or a usable key derived server-side | DEK generated + wrapped **client-side** (decided, not built: Phase 19); wrapped by a client-derived KEK (Argon2id + HKDF split, ADR-006); server never generates the DEK or derives the KEK; ciphertext only at rest (F24) from Phase 19; until then sync stores development plaintext. Does **not** defend against offline password guessing against the leaked wrapped keys (Android — see T25) or against a compromised server serving password-capturing JS to a web-FE login (see T27) |
 | T18 | **Queue abuse / DoS** — flooding the transcription queue | FIFO worker + per-user rate limits + job size caps. The unauthenticated auth endpoints (salt lookup, register, login) carry a 4096-byte request body cap (413); their other limits: see T25 |
-| T19 | **Agent token leakage** — a leaked token transcribes as the owner | Scoped + revocable tokens, rate-limited, optional expiry (F27) |
+| T19 | **Agent token leakage** — a leaked token transcribes as the owner | Scoped + revocable tokens, optional expiry (F27). An optional per-token request limit, off by default, is planned, not built |
 | T20 | **SSRF via transcription service config** — admin-configured URL probed by the server | Admin-only config; URL validation; no arbitrary localhost probing (F26) |
 | T21 | **Tampered model / transducer OOB write** — issue #3983, reachable via a malicious .onnx | Models pinned to immutable release-asset ids + upstream checksum.txt verified; adopt upstream decoder fix when it lands; sherpa-onnx off the server network path [2] |
 | T22 | **Plaintext leakage via logs** — a log line containing a transcription defeats encryption-at-rest | Log policy: events only, per-user, never plaintext transcriptions (F32) |
@@ -104,7 +104,7 @@ Items tagged **[Phase 0–8]** are what the Phase 9 gate blocks on — they must
 - [ ] Encryption verified: ciphertext at rest; server cannot decrypt without user password (F24) **[Phase 19]**
 - [ ] Queue verified: concurrent requests serialize FIFO; restart-safe (F23) **[Phase 4]**
 - [ ] Service config verified: connectivity test works; misconfigured URL fails clearly (F26) **[Phase 20]**
-- [ ] Agent tokens verified: scoped, revocable, rate-limited; results to owner (F27, T19) **[Phase 20]** (whisper-server: both job routes now require a live session token; tests in `TranscriptionAuthTest`)
+- [ ] Agent tokens verified: scoped, revocable; results to owner (F27, T19) **[Phase 20]** (whisper-server: both job routes now require a live session token; tests in `TranscriptionAuthTest`). The optional per-token request limit is planned, not built
 - [ ] Model tamper test: corrupt/pinned-mismatch model refused (T21); checksum.txt verified [2] **[Phase 3]**
 - [ ] Retention verified: 3-month TTL; audio deleted on job completion; 3× retry @10 s (F28) **[Phase 21]**
 - [ ] Log audit: no plaintext transcription content in any log (F32, T22) **[Phase 21]**
