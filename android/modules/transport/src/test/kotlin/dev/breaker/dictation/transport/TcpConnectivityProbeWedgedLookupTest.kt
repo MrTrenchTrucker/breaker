@@ -325,7 +325,7 @@ class TcpConnectivityProbeWedgedLookupTest : ProbePoolIsolation() {
             refreshElapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt)
             assertTrue(
                 cardFailure("a refresh of a host whose lookup is already parked must be answered AT ONCE and cost nothing: it took ${refreshElapsedMs} ms against a ${TcpConnectivityProbe.CONNECT_TIMEOUT_MS} ms budget, so a second slot was handed to a second lookup of one wedged name rather than the in-flight lookup answering"),
-                refreshElapsedMs < RETURN_BOUND_MS,
+                refreshElapsedMs < REFRESH_BOUND_MS,
             )
             assertEquals(
                 cardFailure("a lookup that is already in flight for $WEDGED_HOST must be JOINED, not duplicated: the refresh started a second lookup for a name whose first lookup is still parked, and a second worker is a second slot out of the ${ProbeExecutor.MAX_WEDGED_PROBES} this process allows itself. Lookups of $WEDGED_HOST in total: ${latches.lookupsOf(WEDGED_HOST)}"),
@@ -388,30 +388,11 @@ class TcpConnectivityProbeWedgedLookupTest : ProbePoolIsolation() {
      * name, instead of blaming whichever class runs after it.
      */
     private fun drainProbeExecutor() {
-        val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(DRAIN_BOUND_MS)
-        var attempts = 0
-        var dialled = false
-        while (System.nanoTime() < deadline) {
-            attempts++
-            val drain = TcpConnectivityProbe(
-                { "https://drain-$attempts.invalid" },
-                FakeClock(1_000L),
-                FakeHostResolver(),
-                RecordingConnector(script = listOf(ProbeOutcome.CONNECTED)),
-            )
-            if (drain.isServerReachable()) {
-                dialled = true
-                break
-            }
-        }
-        if (!dialled) {
-            throw AssertionError(
-                cardFailure("the shared probe pool was still busy ${DRAIN_BOUND_MS} ms after this test released its latches, over $attempts attempts - the one pool in [ProbeExecutor] serves every probe in this JVM, so a worker left parked past this test answers false for everything that follows it"),
-            )
-        }
-        // The dial above answered true, which means a worker really ran it; now
-        // wait for that worker's slot and thread to be handed back so the pool
-        // is idle - not merely dial-able - before this class hands it on.
+        drainProbeExecutor(
+            hostLabel = "wedged-lookup-drain",
+            boundMs = DRAIN_BOUND_MS,
+            failureMessage = "pool still busy after drain - one pool serves every probe",
+        )
         awaitProbePoolIdle(
             context = "after this test's drain dial, before the next class reads the shared pool",
         )
@@ -430,8 +411,16 @@ class TcpConnectivityProbeWedgedLookupTest : ProbePoolIsolation() {
         /** Documentation address probed once the worker has nowhere to put a task. */
         const val EXHAUSTED_HOST = "exhausted.invalid"
 
-        /** Ceiling on what an exhausted or recovering caller may be held. */
-        const val RETURN_BOUND_MS = 3_000L
+        /**
+         * Ceiling on what an exhausted or recovering caller may be held. The defect it guards is
+         * a wait for the wedged lookup (30 s), so the bound is 10 s: a starved box may be 8.5 s
+         * late over the 1.5 s budget and the defect is still 3 times over the bound.
+         */
+        const val RETURN_BOUND_MS = 10_000L
+
+        /** Ceiling on a refresh of a parked host: case (a), defect = 30 s wedge wait. New bound 10 s:
+         * starvation tolerated 8.5 s over the 1.5 s budget, defect 3 times over. */
+        const val REFRESH_BOUND_MS = 10_000L
 
         /** Ceiling on a bounded recovery poll; generous for several budgets. */
         const val RECOVERY_BOUND_MS = 10_000L

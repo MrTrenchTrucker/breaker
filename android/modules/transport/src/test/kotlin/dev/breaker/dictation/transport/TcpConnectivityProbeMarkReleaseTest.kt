@@ -410,20 +410,10 @@ class TcpConnectivityProbeMarkReleaseTest : ProbePoolIsolation() {
      * when a worker never comes back.
      */
     private fun drainProbeExecutor() {
-        val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(DRAIN_BOUND_MS)
-        var attempts = 0
-        while (System.nanoTime() < deadline) {
-            attempts++
-            val drain = TcpConnectivityProbe(
-                { "https://drain-$attempts.invalid" },
-                FakeClock(1_000L),
-                FakeHostResolver(),
-                RecordingConnector(script = listOf(ProbeOutcome.CONNECTED)),
-            )
-            if (drain.isServerReachable()) return
-        }
-        throw AssertionError(
-            cardFailure("the shared probe worker was still busy ${DRAIN_BOUND_MS} ms after this test released its latch, over $attempts attempts - the one pool in [ProbeExecutor] serves every probe in this JVM, so a worker left parked past this test answers false for everything that follows it"),
+        drainProbeExecutor(
+            hostLabel = "mark-release-drain",
+            boundMs = DRAIN_BOUND_MS,
+            failureMessage = "pool still busy after drain - one pool serves every probe",
         )
     }
 

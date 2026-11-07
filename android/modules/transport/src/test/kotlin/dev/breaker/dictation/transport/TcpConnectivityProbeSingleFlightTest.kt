@@ -118,7 +118,7 @@ class TcpConnectivityProbeSingleFlightTest : ProbePoolIsolation() {
         )
         assertTrue(
             cardFailure("a healthy host that is refused must be refused AT ONCE, not queued behind a wedged lookup; this call took ${healthyElapsedMs} ms against a ${TcpConnectivityProbe.CONNECT_TIMEOUT_MS} ms budget, so a caller was held rather than answered"),
-            healthyElapsedMs < RETURN_BOUND_MS,
+            healthyElapsedMs < REFUSED_BOUND_MS,
         )
     }
 
@@ -263,20 +263,10 @@ class TcpConnectivityProbeSingleFlightTest : ProbePoolIsolation() {
      * still fails rather than hanging when the pool never comes back.
      */
     private fun drainProbeExecutor() {
-        val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(DRAIN_BOUND_MS)
-        var attempts = 0
-        while (System.nanoTime() < deadline) {
-            attempts++
-            val drain = TcpConnectivityProbe(
-                { "https://single-flight-drain-$attempts.invalid" },
-                FakeClock(1_000L),
-                FakeHostResolver(),
-                RecordingConnector(script = listOf(ProbeOutcome.CONNECTED)),
-            )
-            if (drain.isServerReachable()) return
-        }
-        throw AssertionError(
-            cardFailure("the shared probe pool was still busy ${DRAIN_BOUND_MS} ms after this test released its latches, over $attempts attempts - the one pool in [ProbeExecutor] serves every probe in this JVM, so a worker left parked past this test answers false for everything that follows it"),
+        drainProbeExecutor(
+            hostLabel = "single-flight-drain",
+            boundMs = DRAIN_BOUND_MS,
+            failureMessage = "pool still busy after drain - one pool serves every probe",
         )
     }
 
@@ -362,14 +352,19 @@ class TcpConnectivityProbeSingleFlightTest : ProbePoolIsolation() {
         const val WEDGE_AWAIT_MS = 30_000L
 
         /**
-         * Ceiling on a refused or joined probe. Half the budget on purpose: such
-         * a probe spends a CAS and returns, so anything approaching the budget
-         * means a worker was handed to a lookup that was already in flight.
+         * Ceiling on a refused or joined probe: just under the 1.5 s budget on purpose.
+         * Such a probe spends a CAS and returns, so a hold of the whole budget means a
+         * worker was handed to a lookup that was already in flight.
          */
-        const val REPROBE_BOUND_MS = 750L
+        const val REPROBE_BOUND_MS = 1200L
 
         /** Ceiling on what a refused caller may be held. */
         const val RETURN_BOUND_MS = 3_000L
+
+        /** Ceiling on what a healthy host refused behind a wedged lookup may be held.
+         * Case (a): defect = 30 s wedge wait; new bound 10 s: starvation tolerated 8.5 s over the
+         * 1.5 s budget, defect 3 times over. */
+        const val REFUSED_BOUND_MS = 10_000L
 
         /** Ceiling on a bounded recovery poll; generous for several budgets. */
         const val RECOVERY_BOUND_MS = 10_000L

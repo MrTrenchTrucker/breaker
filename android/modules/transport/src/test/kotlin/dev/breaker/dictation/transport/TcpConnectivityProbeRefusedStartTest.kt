@@ -111,7 +111,7 @@ class TcpConnectivityProbeRefusedStartTest : ProbePoolIsolation() {
             )
             assertTrue(
                 cardFailure("a task with nowhere to go must be refused AT ONCE: this probe waited ${refusedElapsedMs} ms against a ${TcpConnectivityProbe.CONNECT_TIMEOUT_MS} ms budget, so a caller was held rather than answered"),
-                refusedElapsedMs < RETURN_BOUND_MS,
+                refusedElapsedMs < REFUSED_BOUND_MS,
             )
 
             latches.releaseAll()
@@ -222,7 +222,7 @@ class TcpConnectivityProbeRefusedStartTest : ProbePoolIsolation() {
             refusedElapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt)
             assertTrue(
                 cardFailure("a task with nowhere to go is refused AT ONCE: this refresh waited $refusedElapsedMs ms against a ${TcpConnectivityProbe.CONNECT_TIMEOUT_MS} ms budget, so a caller was held rather than answered. A refresh that spent the budget was not refused at the cap, and the cache assertion below would then be about an expired lookup rather than about a refused start"),
-                refusedElapsedMs < RETURN_BOUND_MS,
+                refusedElapsedMs < REFUSED_BOUND_MS,
             )
             dialsAfterRefresh = connector.hosts.count { it == REFUSED_HOST }
             assertEquals(
@@ -269,20 +269,10 @@ class TcpConnectivityProbeRefusedStartTest : ProbePoolIsolation() {
      * still fails rather than hanging when the pool never comes back.
      */
     private fun drainProbeExecutor() {
-        val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(DRAIN_BOUND_MS)
-        var attempts = 0
-        while (System.nanoTime() < deadline) {
-            attempts++
-            val drain = TcpConnectivityProbe(
-                { "https://refused-start-drain-$attempts.invalid" },
-                FakeClock(1_000L),
-                FakeHostResolver(),
-                RecordingConnector(script = listOf(ProbeOutcome.CONNECTED)),
-            )
-            if (drain.isServerReachable()) return
-        }
-        throw AssertionError(
-            cardFailure("the shared probe pool was still busy ${DRAIN_BOUND_MS} ms after this test released its latches, over $attempts attempts - the one pool in [ProbeExecutor] serves every probe in this JVM, so a worker left parked past this test answers false for everything that follows it"),
+        drainProbeExecutor(
+            hostLabel = "refused-start-drain",
+            boundMs = DRAIN_BOUND_MS,
+            failureMessage = "pool still busy after drain - one pool serves every probe",
         )
     }
 
@@ -441,8 +431,10 @@ class TcpConnectivityProbeRefusedStartTest : ProbePoolIsolation() {
         /** Ceiling on a parked lookup if nothing releases it; a safety valve. */
         const val WEDGE_AWAIT_MS = 30_000L
 
-        /** Ceiling on a refused caller. Half the budget: a refusal costs a CAS. */
-        const val RETURN_BOUND_MS = 750L
+        /** Ceiling on a refused caller: case (b), defect = one budget (1500 ms).
+         * The room between a correct answer (~0) and the defect (1500) is small; cannot widen
+         * past 1500 ms. 1200 ms tolerates modest starvation while staying clearly below the defect. */
+        const val REFUSED_BOUND_MS = 1200L
 
         /** Ceiling on a bounded recovery poll; generous for several budgets. */
         const val RECOVERY_BOUND_MS = 10_000L

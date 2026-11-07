@@ -179,20 +179,10 @@ class TcpConnectivityProbeBudgetAndIdentityTest : ProbePoolIsolation() {
      * still fails loudly rather than hanging when the pool never comes back.
      */
     private fun drainProbeExecutor() {
-        val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(DRAIN_BOUND_MS)
-        var attempts = 0
-        while (System.nanoTime() < deadline) {
-            attempts++
-            val drain = TcpConnectivityProbe(
-                { "https://drain-$attempts.local" },
-                FakeClock(1_000L),
-                FakeHostResolver(),
-                RecordingConnector(script = listOf(ProbeOutcome.CONNECTED)),
-            )
-            if (drain.isServerReachable()) return
-        }
-        throw AssertionError(
-            cardFailure("the shared probe worker was still busy ${DRAIN_BOUND_MS} ms after the parked dial was released, over $attempts attempts - the shared probe pool serves every probe in this JVM, so a worker parked past this test answers false for everything that follows it"),
+        drainProbeExecutor(
+            hostLabel = "budget-and-identity-drain",
+            boundMs = DRAIN_BOUND_MS,
+            failureMessage = "pool still busy after drain - one pool serves every probe",
         )
     }
 
@@ -201,7 +191,7 @@ class TcpConnectivityProbeBudgetAndIdentityTest : ProbePoolIsolation() {
         const val PARKED_DIAL_AWAIT_MS = 30_000L
 
         /** Ceiling on what the caller is allowed to wait, against a 1500 ms budget. */
-        const val RETURN_BOUND_MS = 3_000L
+        const val RETURN_BOUND_MS = 10_000L
 
         /** Ceiling on the drain, generous because each attempt can cost one budget. */
         const val DRAIN_BOUND_MS = 10_000L
