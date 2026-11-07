@@ -67,6 +67,28 @@ paths:
               example:
                 error: "payload_too_large"
                 message: "File exceeds maximum allowed size"
+        "429":
+          description: >-
+            Too many requests. Only agent tokens are limited, and only when the admin sets
+            BREAKER_WHISPER_AGENT_RATE_LIMIT_PER_MIN: more requests than that number from one
+            token inside a fixed 60 second window. Both routes share one counter per token. A
+            token that fails the check is 401 first and is never counted. Retry-After says how
+            long to wait.
+          headers:
+            Retry-After:
+              description: Whole seconds left in the window, rounded up, minimum 1
+              schema:
+                type: integer
+                minimum: 1
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              # NOTE (same pre-existing shape mismatch as the 404 of /v1/jobs/{job_id}): the real 429 body
+              # is the single-field object {"error":"rate limit exceeded"} with no `message`.
+              example:
+                error: "rate limit exceeded"
+                message: "The agent token is over its request limit for this minute"
   /v1/jobs/{job_id}:
     get:
       summary: Get job status and result
@@ -123,6 +145,28 @@ paths:
               example:
                 error: "unknown or expired"
                 message: "The job id is unknown, or its result has passed its retention window"
+        "429":
+          description: >-
+            Too many requests. Only agent tokens are limited, and only when the admin sets
+            BREAKER_WHISPER_AGENT_RATE_LIMIT_PER_MIN: more requests than that number from one
+            token inside a fixed 60 second window. Both routes share one counter per token. A
+            token that fails the check is 401 first and is never counted. Retry-After says how
+            long to wait.
+          headers:
+            Retry-After:
+              description: Whole seconds left in the window, rounded up, minimum 1
+              schema:
+                type: integer
+                minimum: 1
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              # NOTE (same pre-existing shape mismatch as the 404 of /v1/jobs/{job_id}): the real 429 body
+              # is the single-field object {"error":"rate limit exceeded"} with no `message`.
+              example:
+                error: "rate limit exceeded"
+                message: "The agent token is over its request limit for this minute"
   /v1/auth/register:
     post:
       summary: Register a new account

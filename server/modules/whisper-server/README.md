@@ -20,4 +20,9 @@ The `model` part is optional and ignored - the configured downstream model serve
 
 **Token check (built).** Jobs are owned by the account of the caller's session token, and a missing, unknown, revoked or expired token is refused with one plain 401 and nothing enqueued. The module asks sync-api over HTTP whether the presented token is live (`ARCHITECTURE.md` R31, ADR-015): the enqueue moves the token's expiry via `use`, polls and the result fetch use the read-only `peek` check, and when sync-api cannot be reached the request is refused (fail closed) and nothing is enqueued.
 
+**Agent-token request limit (built, optional).** Off unless
+`BREAKER_WHISPER_AGENT_RATE_LIMIT_PER_MIN` is set to a whole number from 1 to 10000. An agent token
+that sends more requests than that inside a fixed 60 second window gets 429 with a `Retry-After`
+header; both routes share one counter per token, kept in memory. A session token is never limited.
+
 Breaker serves plain HTTP; TLS is the admin's choice through a reverse proxy in front of it (ADR-034).
