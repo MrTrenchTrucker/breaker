@@ -38,7 +38,8 @@ their own:
   path and pins every model to an immutable release-asset id verified
   against upstream's checksum (`decisions/ADR-003-sherpa-onnx.md`).
 - Brute-force protection for the login endpoints is out of scope for the
-  first version (`docs/01-requirements.md`).
+  first version, except the sign-in limit of ADR-036: 5 wrong passwords,
+  then a 15-minute wait, built on the server (`docs/01-requirements.md`).
 
 A report that shows one of these is worse than the docs say is welcome.
 
