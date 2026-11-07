@@ -35,4 +35,17 @@ interface PullSink {
      * @return true when the row was stored, false when refused by a tombstone
      */
     fun applyRemoteRow(row: Transcription): Boolean
+
+    /**
+     * After a finished full list (no since), keep exactly these client ids and remove every
+     * other local row. The server dropped the rest; no tombstone is written for a removed
+     * row, because a tombstone would push a delete for an id the server does not hold.
+     * Tombstones already held are left as they are. The answer is how many rows were
+     * removed, and the whole removal is one transaction that removes nothing on failure.
+     *
+     * @param keep the client ids to keep (every page of the finished full list plus the ids
+     * still waiting in the push queue)
+     * @return how many rows were removed
+     */
+    fun retainOnly(keep: Set<String>): Int
 }

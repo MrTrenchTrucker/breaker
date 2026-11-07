@@ -94,6 +94,9 @@ internal class JdbcHistoryDatabase(private val sqlite: DesktopSqlite) : HistoryD
     override fun countTranscriptions(): Int =
         (sqlite.firstColumn(HistorySql.COUNT_TRANSCRIPTIONS).single() as Long).toInt()
 
+    override fun allIds(): List<String> =
+        sqlite.firstColumn(HistorySql.SELECT_ALL_IDS).map { it as String }
+
     override fun hasTombstone(id: String): Boolean =
         sqlite.firstColumn(HistorySql.SELECT_TOMBSTONE_BY_ID, id).isNotEmpty()
 

@@ -52,6 +52,9 @@ internal object HistorySql {
     /** The same convention for tombstones, which expire on their own clock. */
     const val DELETED_AT_STRICTLY_BEFORE_WHERE: String = RetentionBoundary.DELETED_AT_PREDICATE
 
+    /** Every id stored, with no WHERE clause; retainOnly reads this one table. */
+    const val SELECT_ALL_IDS: String = "SELECT id FROM $TABLE_TRANSCRIPTIONS"
+
     /**
      * The match for the clear a save makes: the id and the reason, together.
      *

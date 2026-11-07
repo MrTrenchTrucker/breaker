@@ -86,4 +86,37 @@ class PullSinkPortTest {
         assertEquals(1, sink.rows.size)
         assertEquals("t-9", sink.rows[0].id)
     }
+
+    @Test
+    fun `retainOnly records each keep set in order`() {
+        val sink = FakePullSink(removedCount = 3)
+        sink.retainOnly(keep = setOf("t-1", "t-2"))
+        sink.retainOnly(keep = setOf("t-3"))
+        assertEquals(2, sink.retained.size)
+        assertEquals(setOf("t-1", "t-2"), sink.retained[0])
+        assertEquals(setOf("t-3"), sink.retained[1])
+    }
+
+    @Test
+    fun `retainOnly answer follows removedCount 0 then 7`() {
+        val sink = FakePullSink(removedCount = 0)
+        assertEquals(0, sink.retainOnly(keep = setOf("t-1")))
+        sink.removedCount = 7
+        assertEquals(7, sink.retainOnly(keep = emptySet()))
+    }
+
+    @Test
+    fun `retainOnly through a variable typed PullSink reaches the fake`() {
+        val sink: PullSink = FakePullSink(removedCount = 5)
+        assertEquals(5, sink.retainOnly(keep = setOf("t-1")))
+        assertEquals(1, (sink as FakePullSink).retained.size)
+    }
+
+    @Test
+    fun `retainOnly parameter name is keep`() {
+        val sink = FakePullSink(removedCount = 2)
+        sink.retainOnly(keep = setOf("t-9"))
+        assertEquals(1, sink.retained.size)
+        assertEquals(setOf("t-9"), sink.retained[0])
+    }
 }
