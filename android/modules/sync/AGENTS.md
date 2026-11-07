@@ -81,8 +81,10 @@ agents, not required: an outside contributor may write the code themselves
 ## Known Gotchas
 - The queue file holds the text in clear on the device. The manifest sets `android:allowBackup="false"` and the backup rules exclude every domain, so a backup does not restore the queue (ADR-028).
 - At `key_version` 0 the body is not encrypted, so the server can read the text. This is the development form. It is replaced when the `key_version` 1 form is built.
-- A row the drain skips repeats in `SyncReport.failed` on every drain that reaches it. It stays queued until a later permanent-refusal path exists.
-- A row the server refuses for good returns `FAILED` on every push and blocks the rows behind it until a later permanent-refusal path exists.
+- A row the drain skips repeats in `SyncReport.failed` on every drain that reaches it.
+- A row the server refuses for good is decided in ADR-038 (accepted).
+- Today it still returns `FAILED` on every push and blocks the rows behind it.
+- A 409 is not covered by ADR-038 and still blocks the queue.
 - The client id must be a lowercase canonical UUID. The app's id source (`UuidIdSource`) mints one. A transcription with any other id is skipped on every drain.
 - The Android SQLite adapter, `SqliteSyncQueueDatabase`, cannot run on a JVM. Its tests read its source text and check it against `SyncQueueSql`.
 - The module imports no auth or crypto module. Modules talk through core ports or the app's wiring (ADR-001). The app supplies the uploader, which carries the user token.
