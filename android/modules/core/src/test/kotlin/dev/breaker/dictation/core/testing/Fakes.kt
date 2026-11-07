@@ -130,7 +130,7 @@ class InMemoryHistoryStore : HistoryStore {
 }
 
 /** A PullSink fake that records each call and returns the answer it was set to. */
-class FakePullSink(var answer: Boolean = true) : PullSink {
+class FakePullSink(var answer: Boolean = true, var removedCount: Int = 0) : PullSink {
     /** Every delete applied through it, id and deletedAt, in call order. */
     val deletes: MutableList<Pair<String, Long>> = mutableListOf()
 
@@ -147,6 +147,14 @@ class FakePullSink(var answer: Boolean = true) : PullSink {
     override fun applyRemoteRow(row: Transcription): Boolean {
         rows += row
         return rowAnswer
+    }
+
+    /** Every keep set handed to retainOnly, in call order. */
+    val retained: MutableList<Set<String>> = mutableListOf()
+
+    override fun retainOnly(keep: Set<String>): Int {
+        retained += keep
+        return removedCount
     }
 }
 

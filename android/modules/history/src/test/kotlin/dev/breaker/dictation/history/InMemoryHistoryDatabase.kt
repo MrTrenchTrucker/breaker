@@ -98,6 +98,8 @@ internal class InMemoryHistoryDatabase : HistoryDatabase {
 
     override fun countTranscriptions(): Int = rows.size
 
+    override fun allIds(): List<String> = rows.keys.toList()
+
     override fun hasTombstone(id: String): Boolean = tombstones.containsKey(id)
 
     override fun <T> transaction(block: () -> T): T {

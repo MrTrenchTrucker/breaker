@@ -237,6 +237,19 @@ class SqliteHistoryStore internal constructor(
         }
     }
 
+    /**
+     * After a finished full list (no since), keep exactly [keep] and remove every other
+     * local row. No tombstone is written for a removed row; tombstones already held stay.
+     * One transaction: a failure removes nothing. Returns how many rows were removed.
+     */
+    override fun retainOnly(keep: Set<String>): Int = database.transaction {
+        var removed = 0
+        for (id in database.allIds()) {
+            if (id !in keep && database.deleteById(id)) removed++
+        }
+        removed
+    }
+
     /** How many transcriptions are on file, tombstones excluded. */
     internal fun count(): Int = database.countTranscriptions()
 

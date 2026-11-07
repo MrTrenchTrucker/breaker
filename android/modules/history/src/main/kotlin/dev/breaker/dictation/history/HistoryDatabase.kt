@@ -35,6 +35,14 @@ internal interface HistoryDatabase {
     /** Remove every row created strictly before [cutoff]. Returns how many went. */
     fun deleteCreatedBefore(cutoff: Long): Int
 
+    /**
+     * The ids of every stored transcription, no tombstones.
+     *
+     * What retainOnly iterates over when it decides which local rows fall outside
+     * the keep set after a finished full list.
+     */
+    fun allIds(): List<String>
+
     /** Record [tombstone], replacing any tombstone already held for the same id. */
     fun putTombstone(tombstone: Tombstone)
 

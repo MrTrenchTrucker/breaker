@@ -57,7 +57,10 @@ clears the local tombstone, so the row is live again. The rest is decided and no
 remote delete is applied even if this device saved the same id again, and a remote tombstone
 is held across a local re-save, because the server wins for a delete made on another device.
 History stays the only module that writes the local store; no shipped code calls the PullSink
-methods yet.
+methods yet. `retainOnly`, the PullSink call for the prune after a full list, removes every
+local row whose id is not in the set it is given, in one transaction, writes no tombstone and
+answers how many rows it removed; a row removed that way returns with the next incremental
+pull; the sync module will call it only after a finished full list.
 
 ## Public surface
 
