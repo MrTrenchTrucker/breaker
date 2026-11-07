@@ -84,11 +84,9 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-              # NOTE (same pre-existing shape mismatch as the 404 of /v1/jobs/{job_id}): the real 429 body
-              # is the single-field object {"error":"rate limit exceeded"} with no `message`.
+              # The example is the real 429 body (error only); Error schema message is not sent, as for 404.
               example:
                 error: "rate limit exceeded"
-                message: "The agent token is over its request limit for this minute"
   /v1/jobs/{job_id}:
     get:
       summary: Get job status and result
@@ -162,11 +160,9 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-              # NOTE (same pre-existing shape mismatch as the 404 of /v1/jobs/{job_id}): the real 429 body
-              # is the single-field object {"error":"rate limit exceeded"} with no `message`.
+              # The example is the real 429 body (error only); Error schema message is not sent, as for 404.
               example:
                 error: "rate limit exceeded"
-                message: "The agent token is over its request limit for this minute"
   /v1/auth/register:
     post:
       summary: Register a new account
