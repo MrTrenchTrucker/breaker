@@ -13,7 +13,7 @@ import android.database.sqlite.SQLiteOpenHelper
  * app's own data directory and no other app can read it.
  *
  * **The statements come from [SyncQueueSql] and nowhere else.** There is no SQL
- * text in this file.
+ * text in this file; the migration statement is [SyncQueueSql.MIGRATE_V1_TO_V2].
  *
  * **A row is read as it is stored.** The source is returned as text, so a read
  * never throws because of the source. The queue decides what to do with a row it
@@ -66,6 +66,40 @@ internal class SqliteSyncQueueDatabase(context: Context) : SyncQueueDatabase {
             if (cursor.moveToFirst()) cursor.getInt(0) else 0
         }
 
+    override fun parkedCount(): Int =
+        helper.readableDatabase.rawQuery(SyncQueueSql.COUNT_PARKED, emptyArray()).use { cursor ->
+            if (cursor.moveToFirst()) cursor.getInt(0) else 0
+        }
+
+    override fun parkedReason(clientId: String): String? =
+        helper.readableDatabase.rawQuery(SyncQueueSql.PARKED_REASON, arrayOf(clientId)).use { cursor ->
+            if (cursor.moveToFirst()) cursor.getString(0) else null
+        }
+
+    override fun parkRow(clientId: String, reason: String): Boolean =
+        helper.writableDatabase.compileStatement(SyncQueueSql.PARK_ROW).use { statement ->
+            statement.bindString(1, reason)
+            statement.bindString(2, clientId)
+            statement.executeUpdateDelete() > 0
+        }
+
+    override fun resaveRow(
+        clientId: String,
+        text: String,
+        source: String,
+        model: String,
+        durationMs: Long,
+        createdAtMs: Long,
+    ): Boolean = helper.writableDatabase.compileStatement(SyncQueueSql.RESAVE_ROW).use { statement ->
+            statement.bindString(1, text)
+            statement.bindString(2, source)
+            statement.bindString(3, model)
+            statement.bindLong(4, durationMs)
+            statement.bindLong(5, createdAtMs)
+            statement.bindString(6, clientId)
+            statement.executeUpdateDelete() > 0
+        }
+
     override fun <T> transaction(block: () -> T): T {
         val database = helper.writableDatabase
         database.beginTransaction()
@@ -106,9 +140,13 @@ internal class SqliteSyncQueueDatabase(context: Context) : SyncQueueDatabase {
         }
 
         override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-            // Version 1 is the first version, so there is no earlier shape to
-            // migrate from. The queue table is never dropped here: it holds
-            // transcriptions that have not been sent yet.
+            when {
+                oldVersion == 1 && newVersion == 2 -> db.execSQL(SyncQueueSql.MIGRATE_V1_TO_V2)
+                else -> {
+                    // No other upgrade paths exist yet. The queue table is never dropped here: it holds
+                    // transcriptions that have not been sent yet.
+                }
+            }
         }
     }
 }

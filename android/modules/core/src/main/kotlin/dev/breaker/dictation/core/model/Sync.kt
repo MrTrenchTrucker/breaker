@@ -7,9 +7,10 @@ package dev.breaker.dictation.core.model
  * it drains, and a retry must never produce a second copy on the server, so the
  * count of what left the phone is what the user is told.
  */
-data class SyncReport(val pushed: Int, val failed: Int) {
+data class SyncReport(val pushed: Int, val failed: Int, val parked: Int = 0) {
     init {
         require(pushed >= 0) { "pushed cannot be negative: $pushed" }
         require(failed >= 0) { "failed cannot be negative: $failed" }
+        require(parked >= 0) { "parked cannot be negative: $parked" }
     }
 }

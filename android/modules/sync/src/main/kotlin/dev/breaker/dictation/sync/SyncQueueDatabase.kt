@@ -39,8 +39,37 @@ internal interface SyncQueueDatabase {
     /** Remove the row queued under [clientId]. True when a row was removed. */
     fun remove(clientId: String): Boolean
 
-    /** How many rows are queued. */
+    /** How many rows are queued and not parked, waiting to be sent. Parked rows are excluded. */
     fun count(): Int
+
+    /** How many rows are parked (marked as permanently refused). */
+    fun parkedCount(): Int
+
+    /**
+     * Marks the row queued under [clientId] as parked, storing [reason]. The row stays in the
+     * store, is never retried, and is skipped by head and nextAfter. True when a row was parked.
+     */
+    fun parkRow(clientId: String, reason: String): Boolean
+
+    /**
+     * Resaves a parked row queued under [clientId]: clears its parked reason and refreshes its
+     * values, keeping its seq so it goes through the normal drain again. True when a parked row
+     * was found and resaved. A live (not parked) row is left unchanged and returns false.
+     */
+    fun resaveRow(
+        clientId: String,
+        text: String,
+        source: String,
+        model: String,
+        durationMs: Long,
+        createdAtMs: Long,
+    ): Boolean
+
+    /**
+     * Reads the parked reason text of the row queued under [clientId], or null when it is not parked
+     * or there is no such row.
+     */
+    fun parkedReason(clientId: String): String?
 
     /**
      * Run [block] as one all-or-nothing unit.

@@ -12,8 +12,8 @@ The offline-first sync queue on the phone, and the idempotent push (F13, N12) of
 
 ## Public Interface
 
-- `QueuedSyncService` implements `core.SyncService` (`enqueue`, `pushPending`). Build it with `QueuedSyncService.create(context, uploader, probe)`. `pendingCount()` and `close()` are public too.
-- `SyncUploader`: `fun upload(push: SyncPush): UploadOutcome`. `UploadOutcome` has `CONFIRMED`, `UNREACHABLE` and `FAILED`, in that order.
+- `QueuedSyncService` implements `core.SyncService` (`enqueue`, `pushPending`). Build it with `QueuedSyncService.create(context, uploader, probe)`. `pendingCount()`, `parkedCount()`, `parkedReason(clientId)` and `close()` are public too. `pendingCount()` leaves parked rows out.
+- `SyncUploader`: `fun upload(push: SyncPush): UploadOutcome`. `UploadOutcome` has `CONFIRMED`, `UNREACHABLE` and `FAILED`, in that order. An uploader reports a refusal about the row itself by throwing `PermanentRefusalException(status, reason)`; only status 400 and 413 park the row (ADR-038).
 - The push and the body types come from api-contracts: `dev.breaker.shared.api.SyncPush` and `dev.breaker.shared.api.sync` (`SyncBody`, `SyncBodyCodec`, `SyncBodyException`, `SyncSource`). The module calls `SyncBodyCodec` and never writes the wire form by hand (ADR-017).
 
 **Queue:**
@@ -21,7 +21,7 @@ The offline-first sync queue on the phone, and the idempotent push (F13, N12) of
 - `pushPending` asks the `ConnectivityProbe` first. When the server is reachable it sends the rows that were queued when the drain started, oldest first, by `seq`, and returns a `SyncReport`. A row queued during the drain waits for the next drain. Only one drain runs at a time.
 - Every push is `SyncBodyCodec.plainPush(clientId, body)` at `key_version` 0.
 
-**Uploader:** the app supplies it. A class that implements `SyncUploader` also needs api-contracts on its own classpath (the app declares it when it wires). It sends the `SyncPush` to `POST /v1/sync` with the user's token and answers `CONFIRMED`, `UNREACHABLE` or `FAILED`. This module has no HTTP client.
+**Uploader:** the app supplies it. A class that implements `SyncUploader` also needs api-contracts on its own classpath (the app declares it when it wires). It sends the `SyncPush` to `POST /v1/sync` with the user's token and answers `CONFIRMED`, `UNREACHABLE` or `FAILED`, or throws `PermanentRefusalException` for a 400 or 413. This module has no HTTP client.
 
 ## Invariants
 - Offline dictation, queued by `enqueue`, then pushed by `pushPending` on reconnect, then counted in that call's `SyncReport`; nothing is dropped.
@@ -30,7 +30,8 @@ The offline-first sync queue on the phone, and the idempotent push (F13, N12) of
 - A row is removed only after the uploader answers `CONFIRMED`.
 - A drain walks only the rows queued when it started. The highest seq is read once, after the probe answers. A row queued during the drain, including one queued by the uploader, waits for the next drain, so one drain always ends.
 - A row the drain cannot push is skipped: its stored source is not `local` or `server`, its client id is not a lowercase canonical UUID, or the codec refuses its body. A skipped row stays queued, the drain goes on to the next row, and each drain that reaches the row counts it in `SyncReport.failed`. A skipped row is never removed.
-- `FAILED`, and an uploader that throws, stop the drain at that row and count one failure. `UNREACHABLE` stops the drain and counts no failure. A server that is not reachable gives `SyncReport(0, 0)` and no walk over the rows.
+- A `PermanentRefusalException` with status 400 or 413 parks the row: it stays in the store, marked with its reason (at most 200 characters, never row text), is never retried and never removed, the drain goes on to the next row, and `SyncReport.parked` counts it in that drain (the total is `parkedCount()`). `head`, `nextAfter` and `pendingCount` leave parked rows out. Saving a parked id again unparks and replaces the row in one transaction and keeps its seq; saving a live id again keeps the first copy.
+- `FAILED`, and an uploader that throws any other exception (or a `PermanentRefusalException` with another status), stop the drain at that row and count one failure. `UNREACHABLE` stops the drain and counts no failure. A server that is not reachable gives `SyncReport(0, 0)` and no walk over the rows.
 - One drain runs at a time (`Mutex.tryLock`). A call made meanwhile returns `SyncReport(0, 0)` at once.
 - A retry sends the same client id at the same key version, so the server dedupes the pair (N12, ADR-006).
 - No sync traffic except to Local Server (N2).
@@ -82,9 +83,8 @@ agents, not required: an outside contributor may write the code themselves
 - The queue file holds the text in clear on the device. The manifest sets `android:allowBackup="false"` and the backup rules exclude every domain, so a backup does not restore the queue (ADR-028).
 - At `key_version` 0 the body is not encrypted, so the server can read the text. This is the development form. It is replaced when the `key_version` 1 form is built.
 - A row the drain skips repeats in `SyncReport.failed` on every drain that reaches it.
-- A row the server refuses for good is decided in ADR-038 (accepted).
-- Today it still returns `FAILED` on every push and blocks the rows behind it.
-- A 409 is not covered by ADR-038 and still blocks the queue.
+- A 409 is not covered by ADR-038: it is `FAILED` on every push and blocks the rows behind it until its own ADR (the resave flag) is built.
+- A parked row is not retried and does not go away by itself. A delete removes it (`remove` is not filtered); a retry action is a later feature.
 - The client id must be a lowercase canonical UUID. The app's id source (`UuidIdSource`) mints one. A transcription with any other id is skipped on every drain.
 - The Android SQLite adapter, `SqliteSyncQueueDatabase`, cannot run on a JVM. Its tests read its source text and check it against `SyncQueueSql`.
 - The module imports no auth or crypto module. Modules talk through core ports or the app's wiring (ADR-001). The app supplies the uploader, which carries the user token.
@@ -92,7 +92,6 @@ agents, not required: an outside contributor may write the code themselves
 ## Not Built Yet
 - The HTTP uploader for `POST /v1/sync`: the token, and the 204, 401, 403 and 409 answers.
 - The background worker that calls `pushPending`.
-- Telling a permanent server refusal from a transient failure.
 - Tombstones for deleted records (a separate sync path, not in the body).
 - Everything at `key_version` 1 or higher: the authenticated encryption form, the `key_version` replace, the re-key, and fetching pending sealed agent-token results (ADR-018, Phases 19 and 20).
 - Wiring the module into `android/app`.

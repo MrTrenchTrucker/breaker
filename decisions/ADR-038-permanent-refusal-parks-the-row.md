@@ -77,11 +77,14 @@ later feature.
 6. No screen in this ADR: user view is only the count in SyncReport, the reason
 readable from the store.
 
+## Decided in the code step
+
+1. **Resave:** the resave of the same id is one atomic step (one transaction or one statement) on both doubles and on the adapter. The check "is parked?" and the replace "clear parked reason and refresh values keeping seq" run inside one database transaction. The replaced row is a fresh pending row that goes through the normal drain and keeps its seq. A resave of a LIVE id is unchanged: first copy kept, as today (ADR-035 owns that), and there is a test proving it. (Resolves open point 1.)
+2. **Classification:** only 400 and 413 are permanent. A refusal carrying any other status is treated as FAILED: nothing parked, the row stays queued, and the drain stops at that row as today. A thrown non-refusal exception keeps today's behaviour (FAILED, nothing parked).
+
 ## Open
 
-1. The resave of the same id: to be decided and tested in the code step (a fresh row
-enqueued, or refused by the (client_id, key_version) key).
-2. The 409 ADR: its own ADR comes with the resave flag.
+1. The 409 ADR: its own ADR comes with the resave flag.
 
 ## Consequences
 

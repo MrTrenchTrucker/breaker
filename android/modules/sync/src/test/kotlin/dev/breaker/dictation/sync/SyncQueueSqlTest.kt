@@ -237,16 +237,17 @@ class SyncQueueSqlTest {
         val columns = sqlite.query("PRAGMA table_info(${SyncQueueSql.TABLE_QUEUE})")
         assertEquals(
             "android_sync: column names in order",
-            listOf("seq", "client_id", "text", "source", "model", "duration_ms", "created_at"),
+            listOf("seq", "client_id", "text", "source", "model", "duration_ms", "created_at", "parked_reason"),
             columns.map { it[1] },
         )
         assertEquals(
             "android_sync: column types in order",
-            listOf("INTEGER", "TEXT", "TEXT", "TEXT", "TEXT", "INTEGER", "INTEGER"),
+            listOf("INTEGER", "TEXT", "TEXT", "TEXT", "TEXT", "INTEGER", "INTEGER", "TEXT"),
             columns.map { it[2] },
         )
-        assertEquals("android_sync: only seq is the primary key", listOf(1L, 0L, 0L, 0L, 0L, 0L, 0L), columns.map { it[5] })
-        assertEquals("android_sync: every column after seq is NOT NULL", List(6) { 1L }, columns.drop(1).map { it[3] })
+        assertEquals("android_sync: only seq is the primary key", listOf(1L, 0L, 0L, 0L, 0L, 0L, 0L, 0L), columns.map { it[5] })
+        assertEquals("android_sync: every column after seq except the parked reason is NOT NULL", List(5) { 1L }, columns.drop(1).take(5).map { it[3] })
+        assertEquals("android_sync: the parked reason is the one nullable column", 0L, columns.last()[3])
         val indexes = sqlite.query("PRAGMA index_list(${SyncQueueSql.TABLE_QUEUE})")
         assertEquals("android_sync: the table must have exactly one index, the unique one", 1, indexes.size)
         assertEquals("android_sync: that index must be unique", 1L, indexes[0][2])

@@ -107,7 +107,8 @@ class SyncQueueNextAfterTest {
     fun `the next entry statement text is pinned`() {
         assertEquals(
             "android_sync: the next entry statement must compare the bound as an integer through CAST",
-            "SELECT seq, client_id, text, source, model, duration_ms, created_at FROM sync_queue WHERE seq > CAST(? AS INTEGER) ORDER BY seq ASC LIMIT 1",
+            "SELECT seq, client_id, text, source, model, duration_ms, created_at FROM sync_queue " +
+                "WHERE seq > CAST(? AS INTEGER) AND parked_reason IS NULL ORDER BY seq ASC LIMIT 1",
             SyncQueueSql.SELECT_NEXT_AFTER,
         )
     }
