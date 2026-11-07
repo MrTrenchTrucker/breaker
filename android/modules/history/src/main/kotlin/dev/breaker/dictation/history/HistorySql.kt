@@ -20,7 +20,7 @@ package dev.breaker.dictation.history
  * tombstone is built from the first, and the adapter passes that same constant
  * to the delete that removes them, so the two cannot disagree: there is only
  * one boundary, and it is a strict `<`. The adapter cannot run on a JVM, so the
- * tests read its three delete calls as text (`AdapterStatements`, in the test
+ * tests read its four delete calls as text (`AdapterStatements`, in the test
  * folder), check which table and predicate each one passes, and run them on
  * real SQLite.
  */
@@ -51,6 +51,17 @@ internal object HistorySql {
 
     /** The same convention for tombstones, which expire on their own clock. */
     const val DELETED_AT_STRICTLY_BEFORE_WHERE: String = RetentionBoundary.DELETED_AT_PREDICATE
+
+    /**
+     * The match for the clear a save makes: the id and the reason, together.
+     *
+     * The id alone would not do: a tombstone's reason is what the delete that
+     * made it depends on, and a clear that matched on the id alone would undo
+     * a remote delete or a retention sweep the user never asked to undo. The
+     * reason alone would not do either: the clear of one id would then take
+     * every tombstone that carries that reason, not the one for the id.
+     */
+    const val TOMBSTONE_ID_AND_REASON_WHERE: String = "id = ? AND reason = ?"
 
     val CREATE_TRANSCRIPTIONS: String = """
         CREATE TABLE IF NOT EXISTS $TABLE_TRANSCRIPTIONS (

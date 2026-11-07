@@ -58,6 +58,22 @@ internal interface HistoryDatabase {
      */
     fun deleteTombstonesRecordedBefore(cutoff: Long): Int
 
+    /**
+     * Drop the tombstone held for [id], but only when its stored reason is
+     * [reason]. Returns how many went: 0 or 1, since the id is the tombstone
+     * table's primary key.
+     *
+     * The match is on both the id and the reason, on purpose. The id alone is
+     * not enough: a tombstone for the same id whose reason is not [reason]
+     * belongs to another kind of delete and must survive. The reason alone is
+     * not enough either: it would reach into other ids' tombstones that happen
+     * to carry the same reason. The caller that uses this is the store's save
+     * of a transcription, which clears the local delete's tombstone when the
+     * user saves the same id again; a remote or a retention tombstone is left
+     * in place.
+     */
+    fun deleteTombstoneByIdAndReason(id: String, reason: Tombstone.Reason): Int
+
     /** How many transcriptions are on file. Tombstones are not counted. */
     fun countTranscriptions(): Int
 

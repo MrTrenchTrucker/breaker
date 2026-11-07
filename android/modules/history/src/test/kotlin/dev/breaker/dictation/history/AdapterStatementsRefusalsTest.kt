@@ -20,18 +20,18 @@ internal class AdapterStatementsRefusalsTest {
 
     @Test
     fun `a source with no delete call at all is refused`() {
-        val message = refused(source(byId = "0", created = "0", tombstones = "0"))
+        val message = refused(source(byId = "0", created = "0", tombstones = "0", clearTombstone = "0"))
 
         assertTrue(message, message.contains("found 0 delete( calls"))
-        assertTrue(message, message.contains("expected exactly 3"))
+        assertTrue(message, message.contains("expected exactly 4"))
     }
 
     @Test
-    fun `a source with a fourth delete call is refused`() {
+    fun `a source with a fifth delete call is refused`() {
         val message = refused(source(inSave = delete(quoted("scratch"), quoted("id = ?"))))
 
-        assertTrue(message, message.contains("found 4 delete( calls"))
-        assertTrue(message, message.contains("expected exactly 3"))
+        assertTrue(message, message.contains("found 5 delete( calls"))
+        assertTrue(message, message.contains("expected exactly 4"))
     }
 
     @Test
@@ -53,7 +53,7 @@ internal class AdapterStatementsRefusalsTest {
     }
 
     @Test
-    fun `a source without one of the three methods is refused`() {
+    fun `a source without one of the four methods is refused`() {
         val message = refused(source().replace("override fun deleteById(", "override fun removeById("))
 
         assertTrue(message, message.contains("declares no method named deleteById"))
@@ -166,9 +166,9 @@ internal class AdapterStatementsRefusalsTest {
 
         val message = refused(source(members = hole))
 
-        assertTrue(message, message.contains("found 4 delete( calls"))
-        assertTrue(message, message.contains("deleteTombstonesRecordedBefore, hide)"))
-        assertTrue(message, message.contains("expected exactly 3"))
+        assertTrue(message, message.contains("found 5 delete( calls"))
+        assertTrue(message, message.contains("deleteTombstoneByIdAndReason, hide)"))
+        assertTrue(message, message.contains("expected exactly 4"))
     }
 
     @Test
@@ -191,8 +191,8 @@ internal class AdapterStatementsRefusalsTest {
         for ((shape, member) in hidden) {
             val message = refused(source(members = member))
 
-            assertTrue("$shape: $message", message.contains("found 4 delete( calls"))
-            assertTrue("$shape: $message", message.contains("deleteTombstonesRecordedBefore, hide)"))
+            assertTrue("$shape: $message", message.contains("found 5 delete( calls"))
+            assertTrue("$shape: $message", message.contains("deleteTombstoneByIdAndReason, hide)"))
         }
     }
 
@@ -227,7 +227,7 @@ internal class AdapterStatementsRefusalsTest {
         )
 
         for (member in quiet) {
-            assertEquals(member, 3, AdapterStatements.deletesIn(source(members = member)).size)
+            assertEquals(member, 4, AdapterStatements.deletesIn(source(members = member)).size)
             assertEquals(member, emptyList<String>(), AdapterStatements.deleteUsesNotCalled(source(members = member)))
             assertEquals(
                 member,
@@ -281,7 +281,7 @@ internal class AdapterStatementsRefusalsTest {
 
         assertEquals(mapOf("(outside any method)" to 1), AdapterStatements.execSqlUses("val stray = db::execSQL"))
         assertEquals(accepted, AdapterStatements.execSqlUses(source(members = quiet)))
-        assertEquals(3, AdapterStatements.deletesIn(source(members = quiet)).size)
+        assertEquals(4, AdapterStatements.deletesIn(source(members = quiet)).size)
     }
 
     @Test
@@ -328,7 +328,7 @@ internal class AdapterStatementsRefusalsTest {
             """.trimIndent(),
         )
 
-        assertEquals(3, AdapterStatements.deletesIn(quiet).size)
+        assertEquals(4, AdapterStatements.deletesIn(quiet).size)
     }
 
     // ── each refusal, tripped on its own ─────────────────────────────────
@@ -339,7 +339,7 @@ internal class AdapterStatementsRefusalsTest {
 
         assertEquals(
             "the adapter deletes another way than SQLiteDatabase.delete: an execSQL call that mentions delete; " +
-                "expected only the three delete( calls, since nothing else is read here",
+                "expected only the four delete( calls, since nothing else is read here",
             message,
         )
     }
@@ -350,7 +350,7 @@ internal class AdapterStatementsRefusalsTest {
 
         assertEquals(
             "the adapter deletes another way than SQLiteDatabase.delete: a call to executeUpdateDelete; " +
-                "expected only the three delete( calls, since nothing else is read here",
+                "expected only the four delete( calls, since nothing else is read here",
             message,
         )
     }
@@ -361,7 +361,7 @@ internal class AdapterStatementsRefusalsTest {
 
         assertEquals(
             "the adapter deletes another way than SQLiteDatabase.delete: a call to compileStatement; " +
-                "expected only the three delete( calls, since nothing else is read here",
+                "expected only the four delete( calls, since nothing else is read here",
             message,
         )
     }
@@ -374,7 +374,7 @@ internal class AdapterStatementsRefusalsTest {
         // The helper indents each line of the planted text, so the space after the newline is not counted on.
         val expected = Regex(
             "the adapter deletes another way than SQLiteDatabase\\.delete: the text 'DELETE\n\\s*FROM'; " +
-                "expected only the three delete\\( calls, since nothing else is read here",
+                "expected only the four delete\\( calls, since nothing else is read here",
         )
         assertTrue(message, expected.matches(message))
     }
@@ -394,14 +394,14 @@ internal class AdapterStatementsRefusalsTest {
         val deletes = AdapterStatements.deletesIn(source(byId = local))
 
         assertEquals("id = ?", deletes.getValue("deleteById").where)
-        assertEquals(3, deletes.size)
+        assertEquals(4, deletes.size)
     }
 
     @Test
-    fun `a method named delete is counted as a fourth delete call and refused`() {
+    fun `a method named delete is counted as a fifth delete call and refused`() {
         val message = refused(source(members = "private fun delete(id: String): Int = 0"))
 
-        assertTrue(message, message.contains("found 4 delete( calls"))
-        assertTrue(message, message.contains("deleteTombstonesRecordedBefore, delete)"))
+        assertTrue(message, message.contains("found 5 delete( calls"))
+        assertTrue(message, message.contains("deleteTombstoneByIdAndReason, delete)"))
     }
 }

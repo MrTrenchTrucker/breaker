@@ -6,10 +6,11 @@ package dev.breaker.dictation.history
  * It exists so the store's rules can be run down to real SQL, which the in-memory double cannot do. It is
  * not the adapter, and it does not run the adapter's code.
  *
- * **Run from the adapter's source text.** The three delete statements, that is the table and the `WHERE` of
- * the delete by id, of the delete of rows created before a cutoff and of the delete of tombstones recorded
- * before one, are read out of the adapter's own source by [AdapterStatements], checked for shape, and run
- * here as the adapter wrote them. A change to one of them in the adapter changes what this class runs.
+ * **Run from the adapter's source text.** The four delete statements, that is the table and the `WHERE` of
+ * the delete by id, of the delete of rows created before a cutoff, of the delete of tombstones recorded
+ * before one, and of the clear of a tombstone by id and reason, are read out of the adapter's own source by
+ * [AdapterStatements], checked for shape, and run here as the adapter wrote them. A change to one of them in
+ * the adapter changes what this class runs.
  *
  * **Taken from [HistorySql], as the adapter takes them.** The other statements are [HistorySql] constants the
  * adapter names too. The adapter's own use of the constants for the queries is checked as text, in
@@ -22,8 +23,9 @@ package dev.breaker.dictation.history
  * **Modelled, and not checked against Android.** How `SQLiteDatabase.delete` assembles
  * `DELETE FROM table WHERE where` (in [DesktopSqlite.delete]); the transaction, which switches autocommit off
  * and on where the adapter uses `beginTransaction` and `endTransaction`; and the row mapping, which reads the
- * driver's values and not an Android `Cursor`. The binding of the delete arguments (the id, and the cutoff as
- * text) is written here, and only the text of the adapter's argument array is pinned.
+ * driver's values and not an Android `Cursor`. The binding of the delete arguments (the id and the reason
+ * for the clear of a tombstone, and the cutoff) is written here, all as text, and only the text of the
+ * adapter's argument array is pinned.
  */
 internal class JdbcHistoryDatabase(private val sqlite: DesktopSqlite) : HistoryDatabase {
 
@@ -79,6 +81,14 @@ internal class JdbcHistoryDatabase(private val sqlite: DesktopSqlite) : HistoryD
     override fun deleteTombstonesRecordedBefore(cutoff: Long): Int {
         val statement = AdapterStatements.deleteTombstonesRecordedBefore
         return sqlite.delete(statement.table, statement.where, cutoff.toString())
+    }
+
+    // The table and the WHERE come from the adapter's own source, through
+    // AdapterStatements, so a change to the adapter's clear changes what this
+    // twin runs. Both arguments bind as text, the way the platform binds them.
+    override fun deleteTombstoneByIdAndReason(id: String, reason: Tombstone.Reason): Int {
+        val statement = AdapterStatements.deleteTombstoneByIdAndReason
+        return sqlite.delete(statement.table, statement.where, id, reason.stored)
     }
 
     override fun countTranscriptions(): Int =

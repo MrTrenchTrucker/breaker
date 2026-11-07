@@ -26,13 +26,17 @@ import dev.breaker.dictation.core.port.HistoryStore
  *    separate calls, so the cleanup can never take a tombstone that a delete
  *    still depends on.
  *
- * 3. **A delete leaves a tombstone.** [delete] removes the row and records why,
- *    in one transaction. A row that vanishes without a tombstone is a row the
- *    server still has, and the next sync hands it back.
+ * 3. **A delete leaves a tombstone, and a re-save can undo it.** [delete]
+ *    removes the row and records why, in one transaction. A row that vanishes
+ *    without a tombstone is a row the server still has, and the next sync hands
+ *    it back. A [save] of an id that holds a tombstone whose reason is
+ *    `Tombstone.Reason.USER` removes that tombstone in the same transaction as
+ *    the row: the user's new dictation is the undo of the user's own delete.
  *
- * Tombstones are written and kept. No shipped code in this module or in the app
- * reads or sweeps them yet: the sweep and the list of tombstones waiting to travel
- * are internal.
+ * Tombstones are written and kept. A save removes the tombstone its own id holds
+ * when its reason is the local delete; no other shipped code in
+ * this module or in the app reads or sweeps them yet: the sweep and the list of
+ * tombstones waiting to travel are internal.
  *
  * The store is the rules; `HistoryDatabase` is the storage; time arrives
  * through [Clock] so the boundary is reproducible in a test instead of being
@@ -57,10 +61,21 @@ class SqliteHistoryStore internal constructor(
      * Blank text is stored. Recording silence transcribes to nothing, and
      * whether that is worth keeping is not this module's call — dropping it
      * here would mean the user cannot see that a dictation happened at all.
+     *
+     * Saving an id that holds a tombstone whose reason is
+     * `Tombstone.Reason.USER` removes that tombstone in the same transaction
+     * as the row: the user's new dictation is the undo of the user's own
+     * delete, and the undo and the row must stand or fall together. A tombstone
+     * whose reason is another kind of delete is left in place.
      */
     override fun save(transcription: Transcription) {
         val row = TranscriptionRow.of(transcription)
-        database.transaction { database.save(row) }
+        database.transaction {
+            database.save(row)
+            // The clear is part of this same transaction: a failure in either
+            // the row or the clear takes both back.
+            database.deleteTombstoneByIdAndReason(row.id, Tombstone.Reason.USER)
+        }
     }
 
     /**

@@ -24,11 +24,11 @@ internal class AdapterStatementsTest {
     // ── the real adapter ─────────────────────────────────────────────────
 
     @Test
-    fun `the three deletes the adapter runs are read with their table, where and arguments`() {
+    fun `the four deletes the adapter runs are read with their table, where and arguments`() {
         val deletes = AdapterStatements.deletesIn(adapter)
 
         assertEquals(
-            listOf("deleteById", "deleteCreatedBefore", "deleteTombstonesRecordedBefore"),
+            listOf("deleteById", "deleteCreatedBefore", "deleteTombstonesRecordedBefore", "deleteTombstoneByIdAndReason"),
             deletes.keys.toList(),
         )
         val byId = deletes.getValue("deleteById")
@@ -51,6 +51,13 @@ internal class AdapterStatementsTest {
         assertEquals(HistorySql.DELETED_AT_STRICTLY_BEFORE_WHERE, tombstones.where)
         assertEquals("HistorySql.DELETED_AT_STRICTLY_BEFORE_WHERE", tombstones.whereSource)
         assertEquals("arrayOf<String?>(cutoff.toString())", tombstones.args)
+
+        val clear = deletes.getValue("deleteTombstoneByIdAndReason")
+        assertEquals(HistorySql.TABLE_TOMBSTONES, clear.table)
+        assertEquals("HistorySql.TABLE_TOMBSTONES", clear.tableSource)
+        assertEquals(HistorySql.TOMBSTONE_ID_AND_REASON_WHERE, clear.where)
+        assertEquals("HistorySql.TOMBSTONE_ID_AND_REASON_WHERE", clear.whereSource)
+        assertEquals("arrayOf<String?>(id, reason.stored)", clear.args)
     }
 
     @Test
@@ -97,7 +104,7 @@ internal class AdapterStatementsTest {
     }
 
     @Test
-    fun `the adapter uses the name delete only in its three calls`() {
+    fun `the adapter uses the name delete only in its four calls`() {
         assertEquals(emptyList<String>(), AdapterStatements.deleteUsesNotCalled(adapter))
     }
 
@@ -107,7 +114,7 @@ internal class AdapterStatementsTest {
             mapOf("save" to 1, "putTombstone" to 1, "onCreate" to 1),
             AdapterStatements.execSqlUses(adapter),
         )
-        assertEquals(3, AdapterStatements.deletesIn(adapter).size)
+        assertEquals(4, AdapterStatements.deletesIn(adapter).size)
     }
 
     // ── the SQL the adapter could run by name ────────────────────────────
@@ -181,6 +188,11 @@ internal class AdapterStatementsTest {
                     HistorySql.DELETED_AT_STRICTLY_BEFORE_WHERE,
                     "arrayOf<String?>(cutoff.toString())",
                 ),
+                listOf(
+                    HistorySql.TABLE_TOMBSTONES,
+                    HistorySql.TOMBSTONE_ID_AND_REASON_WHERE,
+                    "arrayOf<String?>(id, reason.stored)",
+                ),
             ),
             deletes.values.map { listOf(it.table, it.where, it.args) },
         )
@@ -207,7 +219,7 @@ internal class AdapterStatementsTest {
     fun `a quote character literal does not open a string`() {
         val deletes = AdapterStatements.deletesIn(source(inSave = "val quote = '\"'"))
 
-        assertEquals(3, deletes.size)
+        assertEquals(4, deletes.size)
     }
 
     @Test
@@ -220,10 +232,10 @@ internal class AdapterStatementsTest {
 
     @Test
     fun `the methods may come in any order`() {
-        val reversed = source(order = listOf("tombstones", "created", "byId", "save"))
+        val reversed = source(order = listOf("tombstones", "created", "byId", "save", "clear"))
 
         assertEquals(
-            listOf("deleteById", "deleteCreatedBefore", "deleteTombstonesRecordedBefore"),
+            listOf("deleteById", "deleteCreatedBefore", "deleteTombstonesRecordedBefore", "deleteTombstoneByIdAndReason"),
             AdapterStatements.deletesIn(reversed).keys.toList(),
         )
         assertEquals(
@@ -242,7 +254,7 @@ internal class AdapterStatementsTest {
             """.trimIndent(),
         )
 
-        assertEquals(3, AdapterStatements.deletesIn(commented).size)
+        assertEquals(4, AdapterStatements.deletesIn(commented).size)
     }
 
     @Test
@@ -269,7 +281,7 @@ internal class AdapterStatementsTest {
         )
 
         assertEquals(emptyList<String>(), AdapterStatements.deleteUsesNotCalled(quiet))
-        assertEquals(3, AdapterStatements.deletesIn(quiet).size)
+        assertEquals(4, AdapterStatements.deletesIn(quiet).size)
     }
 
     @Test

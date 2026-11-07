@@ -87,7 +87,7 @@ internal fun refused(source: String): String =
  * A small adapter in the shape the reader accepts: one method per delete, the second written with an
  * expression body and a comment with commas between two arguments, as the real one is. [inSave] is
  * placed in `save` and [members] after the last method, where no delete belongs. [order] names the
- * methods in the order they are written: `save`, `byId`, `created`, `tombstones`. The `execSQL` uses the
+ * methods in the order they are written: `save`, `byId`, `created`, `tombstones`, `clear`. The `execSQL` uses the
  * reader accepts are written too: [saveStatement] is what `save` runs, [putTombstone] is the body of
  * `putTombstone`, and [onCreate] is the body of the `onCreate` of a helper class, followed by
  * [afterOnCreate] inside that class.
@@ -110,9 +110,16 @@ internal fun source(
             arrayOf<String?>(cutoff.toString()),
         )
     """.trimIndent(),
+    clearTombstone: String = """
+        helper.writableDatabase.delete(
+            HistorySql.TABLE_TOMBSTONES,
+            HistorySql.TOMBSTONE_ID_AND_REASON_WHERE,
+            arrayOf<String?>(id, reason.stored),
+        )
+    """.trimIndent(),
     inSave: String = "",
     members: String = "",
-    order: List<String> = listOf("save", "byId", "created", "tombstones"),
+    order: List<String> = listOf("save", "byId", "created", "tombstones", "clear"),
     saveStatement: String = "HistorySql.INSERT_OR_REPLACE",
     putTombstone: String =
         "helper.writableDatabase.execSQL(HistorySql.INSERT_OR_REPLACE_TOMBSTONE, arrayOf<Any?>(tombstone.id))",
@@ -129,6 +136,8 @@ internal fun source(
             created.prependIndent("        "),
         "tombstones" to "    override fun deleteTombstonesRecordedBefore(cutoff: Long): Int =\n" +
             tombstones.prependIndent("        "),
+        "clear" to "    override fun deleteTombstoneByIdAndReason(id: String, reason: Tombstone.Reason): Int =\n" +
+            clearTombstone.prependIndent("        "),
     )
     val put = "    override fun putTombstone(tombstone: Tombstone) {\n" +
         "${putTombstone.prependIndent("        ")}\n    }"

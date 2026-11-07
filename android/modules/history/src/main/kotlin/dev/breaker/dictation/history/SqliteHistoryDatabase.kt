@@ -124,6 +124,14 @@ internal class SqliteHistoryDatabase(
             arrayOf<String?>(cutoff.toString()),
         )
 
+    // The reason binds as the word on the disk, the way putTombstone stores it.
+    override fun deleteTombstoneByIdAndReason(id: String, reason: Tombstone.Reason): Int =
+        helper.writableDatabase.delete(
+            HistorySql.TABLE_TOMBSTONES,
+            HistorySql.TOMBSTONE_ID_AND_REASON_WHERE,
+            arrayOf<String?>(id, reason.stored),
+        )
+
     override fun countTranscriptions(): Int =
         helper.readableDatabase.rawQuery(HistorySql.COUNT_TRANSCRIPTIONS, emptyArray()).use { cursor ->
             if (cursor.moveToNext()) cursor.getInt(0) else 0
