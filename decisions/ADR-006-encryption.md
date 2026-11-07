@@ -229,7 +229,7 @@ the DEK and box keypair the same way every other password change does.
   nothing in a request body or log can ever yield a key — all of those were
   false the moment a real password is guessable, and this repo does not ship
   rate limiting or account-enumeration defenses to make guessing costly
-  (auth hardening is explicitly out of scope; docs/01, docs/05). Domain
+  (auth hardening is explicitly out of scope, except the sign-in limit of ADR-036; docs/01, docs/05). Domain
   separation (the two HKDF labels) is still real and still worth having: it
   is what stops the *auth verifier itself*, sent on every login, from being
   usable to derive the KEK directly — but it does not defend against an

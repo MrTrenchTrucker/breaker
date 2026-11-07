@@ -146,8 +146,9 @@ with no Argon2id cost and no guessing (T27). That is a materially different
 guarantee than Android's, and this card does not paper over the difference:
 "the server never receives the password or the KEK" is true of the wire
 protocol, not of the code this container hands the browser. This app ships
-no rate limiting on login either (auth hardening is explicitly out of scope,
-docs/01/05 — see T25). A raw, unhashed leaked `auth_verifier` is a separate,
+no rate limiting itself. The sign-in limit (5 wrong passwords, then a 15-minute wait) is built on
+the server (ADR-036); this page only shows its locked answer (auth hardening is otherwise out of
+scope, docs/01/05 — see T25). A raw, unhashed leaked `auth_verifier` is a separate,
 worse case than offline guessing: it is a login credential outright.
 
 **Search is client-side (consequence of F24):** because the server stores

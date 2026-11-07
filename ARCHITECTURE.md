@@ -602,7 +602,7 @@ an account may use several devices. Signing in on the Breaker website hands the
 login to the app automatically, and a new device gets its keys sealed from that
 sign-in, so the password is typed once, on the website. The website lists the
 devices with a sign-out for each one. A wrong-password limit (5 tries, then a
-15-minute wait, which the admin can turn off) is planned with it.
+15-minute wait, which the admin can turn off) is built on the server (ADR-036).
 
 **Session lifetime (ADR-031):** a session token expires 30 days after its last
 use, and every authenticated use moves the expiry to 30 days from that moment.
