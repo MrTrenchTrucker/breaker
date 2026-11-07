@@ -100,7 +100,7 @@ On 2026-11-01 the project owner confirmed the design and ordered this update: "B
   on `GET /v1/transcriptions`. Client-id dedupe stays as a second guard; it is not built on the phone, which
   pulls nothing yet, and the local history keeps one row per id with `INSERT OR REPLACE`.
   **Decided, not built (phone):** A remote delete is applied even if this device saved the same id again.
-  **Decided, not built (phone, in flight in android/modules/history, not landed):** A local delete followed
+  **Built on the phone:** A local delete followed
   by a local save of the same id clears the local tombstone, so the row is live again.
   **Device name:** the session row has a nullable device name, and that column is built (migration 4). The
   app sending a name at sign-in, the person renaming it and the device list are decided, not built. There is
@@ -126,6 +126,43 @@ on the server. The word "feed" means the answer of `GET /v1/transcriptions` when
 - **The purge.** The purge runs inside the pull and nowhere else. A delete record leaves only by the floor rule: the floor is the lowest pulled number over the account's live session rows, and a record at or below the floor goes, because every live device has seen it. A session that never sent `since` has no pulled number and holds the purge until it ends (30 days idle, sign-out or revoke). The website page must send `since` set to `next` on every call after its first list, so it stops holding the purge. A pull stores the smaller of `since` and the head as the session's number, never a number above the head. Reason: a bad cursor can then never let the purge pass records a device did not receive.
 - **Who makes delete records.** Only a clear-store write makes delete records. A reset of the account drops the rows outright and revokes every session, so no cursor survives it and no delete record is needed. After a full list (no `since`), the phone removes the local rows that are not in the answer and are not waiting in its own push queue. Reason: a phone that was revoked and signed in again would otherwise keep rows the server dropped.
 - **A push of a deleted id.** A push of a client id that is already deleted is answered 204 with no write and no change number. The one exception is the optional boolean `resave` on the push body. The phone sets it only on the first push of an id that the phone itself deleted and then saved again, and never on a retry. Reason: the real stale case is a lost 204 that is retried after another device deleted the row, and bringing the row back would break point 4, which says a row deleted anywhere does not come back from another device. The mark keeps the other rule, that a local save after a local delete makes the row live again. Built on server.
+
+## Decided details of the phone pull (sync 1C)
+
+The Decision above says what the phone's pull does. This section records the details decided afterwards,
+all of them Decided, not built (phone). Nothing here is built yet.
+
+- **The port.** A new core port in core/port, one interface that history implements and sync calls,
+  wired by the app; history stays the ONLY writer of the local store; sync never gets the whole history
+  store. Three calls: apply a pulled live row, apply a remote delete (client id, deleted at), and later
+  retain only the ids for the prune after a full list (sync passes the ids still waiting in its push
+  queue). The names are decided by the manager: the interface PullSink; the calls applyRemoteRow,
+  applyRemoteDelete (it exists in history and keeps its name) and retainOnly.
+
+- **Where the cursor lives.** In the sync module's own SQLite file next to the push queue; one opaque
+  string, never parsed or built; advanced only when a whole pull ended (more is false), per the sync card
+  line "last complete pull"; an interrupted pull starts again from the stored cursor (one row per id, so
+  repeats are harmless); cleared with the queue on sign-out or account change; dropped on a 400 or a 410.
+
+- **When the pull runs.** After each drain of the push queue. The first pull sends no since; the phone
+  never writes the "account-0" form (that is only what the server accepts). Later pulls send the stored
+  next unchanged, page after page while more is true. A 410 or a 400 drops the stored cursor and lists
+  again without since, ONCE per pull; a second refusal stops the pull and counts one failure, no loop.
+  After a full list the prune runs.
+
+- **The merge of a pulled live row with the same client id.** (a) a local tombstone of any reason: the
+  row is NOT stored and the tombstone stays (ADR-035 point 4); the case of reviving a row from another
+  device is left open and logged, nothing is lost because the server keeps the row. (b) the id is waiting
+  unsent in the push queue: the local edit wins, the pulled row is skipped, the push goes out and the next
+  feed carries the server's answer. (c) otherwise: store it, one row per id. Decided by the manager inside
+  this architecture; the project owner has not seen it and may overrule it.
+
+- **A pulled delete record.** Always goes to the remote delete call, even if this device saved the id
+  again; the REMOTE tombstone is held across a local re-save. This is not the local rule: a local delete
+  then a local save clears the LOCAL tombstone.
+
+- **Not decided here.** New-device keys (question 3) and the key_version 1 pulled row (question 4) stay
+  later work.
 
 What is built and what is not is listed in Built so far, and what is not, above.
 
