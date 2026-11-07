@@ -13,7 +13,7 @@ private const val MESSAGE_AGENT_REFUSED: String = "User session token required; 
 private const val MESSAGE_UNAVAILABLE: String = "The service is unavailable, try again later"
 private const val MESSAGE_BODY_TOO_LARGE: String = "Request body exceeds maximum allowed size"
 private const val MESSAGE_ABOVE_ACCOUNT: String = "key_version is above the account's current key_version"
-// The text of the example of the 409 response in the openapi.yaml of the shared API (lines 437-445).
+// The text of the example of the 409 response of POST /v1/sync in the openapi.yaml of the shared API.
 private const val MESSAGE_LOWER_REFUSED: String = "A lower key_version is refused for this client_id"
 private const val MESSAGE_CLIENT_ID_REFUSED: String = "client id is not a lowercase canonical UUID"
 
