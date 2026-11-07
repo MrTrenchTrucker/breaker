@@ -23,6 +23,8 @@ The offline-first sync queue on the phone, and the idempotent push (F13, N12) of
 
 **Uploader:** the app supplies it. A class that implements `SyncUploader` also needs api-contracts on its own classpath (the app declares it when it wires). It sends the `SyncPush` to `POST /v1/sync` with the user's token and answers `CONFIRMED`, `UNREACHABLE` or `FAILED`, or throws `PermanentRefusalException` for a 400 or 413. This module has no HTTP client.
 
+**Pull page decoder (internal):** `PullPageDecoder.decode` turns the text of one pull page into the shared `TranscriptionPage` or refuses it with `PullPageException`; it uses its own small strict JSON reader (`PullPageJson`, nesting deeper than 8 refused). A live record needs `client_id` (a lowercase canonical UUID), `change` (an integer, at least 1), `deleted`, `stored_at`, `key_version` and `encrypted`; a delete record needs the first four and must carry neither `key_version` nor `encrypted`. It does not parse or check the cursor `next` (a non-empty text, returned unchanged), and a refusal message never contains text from the body. Nothing calls it yet.
+
 ## Invariants
 - Offline dictation, queued by `enqueue`, then pushed by `pushPending` on reconnect, then counted in that call's `SyncReport`; nothing is dropped.
 - `enqueue` returns once the row is committed. A second enqueue of the same transcription id keeps the first copy.
