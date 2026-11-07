@@ -76,6 +76,20 @@ internal class SqliteSyncQueueDatabase(context: Context) : SyncQueueDatabase {
             if (cursor.moveToFirst()) cursor.getString(0) else null
         }
 
+    override fun isQueued(clientId: String): Boolean =
+        helper.readableDatabase.rawQuery(SyncQueueSql.IS_QUEUED, arrayOf(clientId)).use { cursor ->
+            cursor.moveToFirst()
+        }
+
+    override fun queuedIds(): List<String> =
+        helper.readableDatabase.rawQuery(SyncQueueSql.SELECT_QUEUED_IDS, emptyArray()).use { cursor ->
+            buildList {
+                while (cursor.moveToNext()) {
+                    add(cursor.getString(0))
+                }
+            }
+        }
+
     override fun parkRow(clientId: String, reason: String): Boolean =
         helper.writableDatabase.compileStatement(SyncQueueSql.PARK_ROW).use { statement ->
             statement.bindString(1, reason)

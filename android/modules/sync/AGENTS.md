@@ -35,6 +35,8 @@ The offline-first sync queue on the phone, and the idempotent push (F13, N12) of
 
 **Pull cursor (internal):** the storage keeps one opaque text, the cursor of the last complete pull, in its own table next to the queue: `pullCursor()` reads it, `savePullCursor(cursor)` stores it and a second save replaces it, and `clearPullCursor()` removes it. All three are on `SyncQueueDatabase`; the storage never judges or parses the text, and nothing calls it yet.
 
+**Queue reads (internal):** `isQueued(clientId)` and `queuedIds()` are reads on `SyncQueueDatabase`: whether a client id is waiting in the queue and the ids of every queue row, parked rows included, oldest first. The pull merge will use them (a queued id keeps the local edit; the prune keeps the queued ids); nothing calls them yet.
+
 ## Invariants
 - Offline dictation, queued by `enqueue`, then pushed by `pushPending` on reconnect, then counted in that call's `SyncReport`; nothing is dropped.
 - `enqueue` returns once the row is committed. A second enqueue of the same transcription id keeps the first copy.

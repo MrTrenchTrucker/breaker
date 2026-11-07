@@ -135,6 +135,14 @@ internal object SyncQueueSql {
     /** Reads the parked reason text of the row queued under [client_id], or null when it is not parked. */
     const val PARKED_REASON: String = "SELECT parked_reason FROM $TABLE_QUEUE WHERE client_id = ?"
 
+    /** True when a row with [client_id] is in the queue table; parked rows count
+     * (no WHERE filter). One bind at index 1. */
+    const val IS_QUEUED: String = "SELECT 1 FROM $TABLE_QUEUE WHERE client_id = ?"
+
+    /** The client ids of every queue row, parked or not, oldest first (by seq).
+     * No text read, nothing changed. */
+    const val SELECT_QUEUED_IDS: String = "SELECT client_id FROM $TABLE_QUEUE ORDER BY seq"
+
     /**
      * Reads the stored cursor text of the one cursor row, or no row when there is none.
      * The text is returned as stored: it is opaque and never parsed here.
