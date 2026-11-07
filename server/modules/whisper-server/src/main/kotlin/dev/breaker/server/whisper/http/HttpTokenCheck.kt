@@ -32,6 +32,7 @@ internal class HttpTokenCheck(
         .build()
 
     private val accountIdRegex = Regex("\"account_id\"\\s*:\\s*(\\d{1,18})\\s*[,}]")
+    private val kindRegex = Regex("\"kind\"\\s*:\\s*\"([^\"]+)\"")
 
     override suspend fun use(token: String): TokenAnswer =
         check("/internal/v1/token/use", token)
@@ -60,9 +61,15 @@ internal class HttpTokenCheck(
                 when (response.statusCode()) {
                     200 -> {
                         val bodyBytes = response.body() ?: return@withContext TokenAnswer.Unavailable
-                        val body = if (bodyBytes.size > MAX_TOKEN_ANSWER_BYTES) null else String(bodyBytes, Charsets.UTF_8)
-                        val match = body?.let { accountIdRegex.find(it) } ?: return@withContext TokenAnswer.Unavailable
-                        TokenAnswer.Live(match.groupValues[1].toLong())
+                        val body = if (bodyBytes.size > MAX_TOKEN_ANSWER_BYTES) {
+                            null
+                        } else {
+                            String(bodyBytes, Charsets.UTF_8)
+                        }
+                        val match = body?.let { accountIdRegex.find(it) }
+                            ?: return@withContext TokenAnswer.Unavailable
+                        val kind = body?.let { kindRegex.find(it) }?.groupValues?.get(1) ?: "session"
+                        TokenAnswer.Live(match.groupValues[1].toLong(), kind)
                     }
                     401 -> TokenAnswer.NotLive
                     else -> TokenAnswer.Unavailable

@@ -40,14 +40,27 @@ internal fun Route.transcriptionRoutes(
     forwardingTo: String = "",
     uptime: () -> String = { "0h0m0s" },
     tokenCheck: TokenCheck = FailClosedTokenCheck,
+    limit: AgentRateLimit? = null,
 ) {
     post("/v1/audio/transcriptions") {
         // Auth first, before the upload is read: a refused token costs nothing but the header.
         // The enqueue moves a live session token's expiry (use); a refused token is one plain 401.
-        val accountId = resolveAccount(call, tokenCheck::use)
-        if (accountId == null) {
+        val account = resolveAccount(call, tokenCheck::use)
+        if (account == null) {
             respondError(call, HttpStatusCode.Unauthorized, "unauthorized")
             return@post
+        }
+        // Rate limit after the token check and before the upload is read: a limited request
+        // costs nothing but the header. Session tokens are never limited and create no counter.
+        if (account.kind == "agent") {
+            limit?.let { lim ->
+                val result = lim.allow(account.token)
+                if (result is LimitResult.Refused) {
+                    call.response.headers.append("Retry-After", result.retryAfterSeconds.toString())
+                    respondError(call, HttpStatusCode.TooManyRequests, "rate limit exceeded")
+                    return@post
+                }
+            }
         }
         var readAudio: ByteArray? = null
         var tooLarge = false
@@ -88,9 +101,13 @@ internal fun Route.transcriptionRoutes(
                 respondError(call, HttpStatusCode.BadRequest, "the file part is required")
             }
             else -> {
-                val jobId = store.enqueue(accountId, audio)
+                val jobId = store.enqueue(account.accountId, audio)
                 wakeWorker()
-                call.respondText("{\"job_id\":\"$jobId\",\"status\":\"queued\"}", ContentType.Application.Json, HttpStatusCode.Accepted)
+                call.respondText(
+                    "{\"job_id\":\"$jobId\",\"status\":\"queued\"}",
+                    ContentType.Application.Json,
+                    HttpStatusCode.Accepted,
+                )
             }
         }
     }
@@ -98,17 +115,29 @@ internal fun Route.transcriptionRoutes(
     get("/v1/jobs/{job_id}") {
         // Auth first: the poll uses the read-only check (peek); a refused token is one plain 401,
         // the same body as a not-live token, so the caller cannot tell which one happened.
-        val accountId = resolveAccount(call, tokenCheck::peek)
-        if (accountId == null) {
+        val account = resolveAccount(call, tokenCheck::peek)
+        if (account == null) {
             respondError(call, HttpStatusCode.Unauthorized, "unauthorized")
             return@get
+        }
+        // Rate limit after the token check and before the job lookup: a limited GET must answer
+        // 429 for an unknown job id too. Session tokens are never limited and create no counter.
+        if (account.kind == "agent") {
+            limit?.let { lim ->
+                val result = lim.allow(account.token)
+                if (result is LimitResult.Refused) {
+                    call.response.headers.append("Retry-After", result.retryAfterSeconds.toString())
+                    respondError(call, HttpStatusCode.TooManyRequests, "rate limit exceeded")
+                    return@get
+                }
+            }
         }
         val jobId = call.parameters["job_id"]?.toLongOrNull()
         if (jobId == null) {
             respondError(call, HttpStatusCode.NotFound, UNKNOWN_OR_EXPIRED)
             return@get
         }
-        when (val poll = store.fetch(jobId, accountId)) {
+        when (val poll = store.fetch(jobId, account.accountId)) {
             is JobPoll.NotFound -> {
                 respondError(call, HttpStatusCode.NotFound, UNKNOWN_OR_EXPIRED)
             }
@@ -139,6 +168,8 @@ internal fun Route.transcriptionRoutes(
     }
 }
 
+private data class Account(val accountId: Long, val token: String, val kind: String)
+
 /**
  * The account the presented token resolves to, or null when the request must be refused.
  * The token comes from the Authorization header as `Bearer <token>`; a missing header, a
@@ -148,7 +179,7 @@ internal fun Route.transcriptionRoutes(
 private suspend fun resolveAccount(
     call: ApplicationCall,
     op: suspend (String) -> TokenAnswer,
-): Long? {
+): Account? {
     val header = call.request.headers["Authorization"] ?: return null
     // The scheme is "Bearer" (case-insensitive per RFC 9110); the token is everything after
     // it, trimmed. Any other scheme, a missing scheme, or an empty token is refused, so the
@@ -159,7 +190,7 @@ private suspend fun resolveAccount(
     val presented = header.substring(schemeEnd + 1).trim()
     if (presented.isEmpty()) return null
     return when (val answer = op(presented)) {
-        is TokenAnswer.Live -> answer.accountId
+        is TokenAnswer.Live -> Account(answer.accountId, presented, answer.kind)
         is TokenAnswer.NotLive -> null
         is TokenAnswer.Unavailable -> null
     }
