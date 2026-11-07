@@ -132,7 +132,7 @@
 - Auth hardening (brute-force protection) — the VPN perimeter is the auth layer
   for now; an auth server may come later. Session expiry is in scope: 30 days
   after the last use (ADR-031). ADR-036 plans one exception, a wrong-password
-  limit on sign-in, not built.
+  limit on sign-in; it is built on the server.
 - Certificate lifecycle - superseded by ADR-034: Breaker serves plain HTTP; TLS is the admin's choice via any reverse proxy.
   No module makes, keeps, pins or renews a certificate (not built).
 - Formal backups — multi-drive redundancy + device copies of transcriptions.

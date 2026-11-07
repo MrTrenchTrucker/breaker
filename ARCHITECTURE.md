@@ -867,8 +867,8 @@ smoke-test gate [1].
       neither list names it; session expiry is not out of scope any more,
       ADR-031) and T18's per-user rate
       limits do not apply to unauthenticated auth endpoints. ADR-036 plans a
-      wrong-password limit on sign-in (5 tries, then a 15-minute wait), not
-      built yet. Mitigations: an
+      wrong-password limit on sign-in (5 tries, then a 15-minute wait); it is
+      built on the server. Mitigations: an
       enforced Argon2id floor (server- and client-side, ADR-006) and a
       12-character minimum password. A raw (unhashed) leaked verifier is a
       stronger threat than guessing — see T27.
@@ -1009,7 +1009,7 @@ See `docs/04-build-order.md`. Summary:
 - **Sign-in from the website hands the login to the app** (hand-off routes built on server; website page
       not built; the phone side is built except the device name; the device list not built) - a one-time
       code over a `breaker://` link plus a secret the app keeps; several
-      devices listed; wrong-password limit (ADR-036; not built).
+      devices listed; wrong-password limit (ADR-036; built on the server).
 - D21. **Configurable transcription service** — admin-configured endpoint
       (Docker/IP/external), server-side proxy, connectivity test (F26).
 - D22. **Agent tokens** — admin-generated scoped API tokens; agents use the same
@@ -1108,7 +1108,7 @@ See `docs/04-build-order.md`. Summary:
   auth layer for now; an auth server may come later. Session expiry is no
   longer deferred: a session expires 30 days after its last use (ADR-031).
   A wrong-password limit on sign-in is no longer deferred either: ADR-036
-  plans it (planned, not built).
+  decides it, and it is built on the server.
 - **Certificate lifecycle** - superseded by ADR-034: Breaker serves plain HTTP; TLS is the admin's choice via any reverse proxy.
   No module makes, keeps, pins or renews a certificate (not built).
 - **Formal backups** — multi-drive redundancy + device copies of transcriptions;
