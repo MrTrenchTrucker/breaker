@@ -10,7 +10,9 @@ internal sealed class PullOutcome {
     data class Ok(val records: List<TranscriptionRecord>, val next: String) : PullOutcome()
     /** The first answer said 400: the cursor is bad. */
     object BadCursor : PullOutcome()
-    /** Any answer that was not 200 or 400 (including 410 and 500). */
+    /** The server answered 410: the cursor is below the purged floor. */
+    object Gone : PullOutcome()
+    /** Any answer that was not 200, 400 or 410 (401, 403 and 500). */
     class Other(val status: Int) : PullOutcome()
     /** The server could not be reached. Records so far are dropped. */
     object Unreachable : PullOutcome()
@@ -69,6 +71,7 @@ internal object PullLoop {
                             cursor = page.next
                         }
                         PullStatus.BAD_CURSOR -> return PullOutcome.BadCursor
+                        PullStatus.GONE -> return PullOutcome.Gone
                         PullStatus.OTHER -> return PullOutcome.Other(answer.status)
                     }
                 }
