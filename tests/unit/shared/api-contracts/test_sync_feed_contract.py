@@ -37,7 +37,7 @@ KOTLIN_DIR = os.path.join(
 LOGOUT_PATH = "/v1/auth/logout"
 TRANS_PATH = "/v1/transcriptions"
 
-PATTERN_CURSOR = "^[0-9]{1,19}-[0-9]{1,19}$"
+PATTERN_CURSOR = "^[0-9]{1,19}-[0-9]{1,19}(-[0-9]{1,19})?$"
 
 STATUS_CODES = {"200", "400", "401", "403", "410", "503"}
 
@@ -417,7 +417,7 @@ class TranscriptionsPatternLiteralTest(unittest.TestCase):
 
     def test_cursor_pattern_behaviour_refuses(self):
         """Catches a cursor pattern that accepts invalid cursors."""
-        bad_values = ["42", "7-", "-4", "a-1", "7-42-1", "", "9" * 21]
+        bad_values = ["42", "7-", "-4", "a-1", "", "9" * 21]
         for value in bad_values:
             self.assertFalse(
                 _accepts(PATTERN_CURSOR, value, "TranscriptionsPatternLiteralTest"),
@@ -445,6 +445,78 @@ class TranscriptionsPatternLiteralTest(unittest.TestCase):
         self.assertTrue(_accepts(PATTERN_CURSOR, "9" * 19 + "-1", "spec pattern"))
         self.assertFalse(_accepts(PATTERN_CURSOR, "9" * 20 + "-1", "spec pattern"))
         self.assertFalse(_accepts(PATTERN_CURSOR, "1-" + "9" * 20, "spec pattern"))
+
+    def test_union_pattern_accepts_incremental_and_list(self):
+        """Catches a union pattern that rejects either cursor kind."""
+        good_incremental = ["7-42", "7-0", "0-0"]
+        good_list = ["1-100-103", "1-0-103", "7-120-300"]
+        for value in good_incremental + good_list:
+            self.assertTrue(
+                _accepts(PATTERN_CURSOR, value, "TranscriptionsPatternLiteralTest"),
+                f"union pattern {PATTERN_CURSOR} should accept valid cursor {value!r}",
+            )
+
+    def test_union_pattern_refuses_bad_forms(self):
+        """Catches a union pattern that accepts malformed cursors."""
+        bad_values = [
+            "42",          # one part
+            "7-",          # trailing dash
+            "-7",          # leading dash
+            "a-1",         # letters
+            "7-42-1-x",    # four parts
+            "7--300",      # empty middle part
+            "7-120-",      # trailing dash after three parts
+            "",            # empty
+            "9" * 20 + "-1",  # 20 digits first part
+            "1-" + "9" * 20,  # 20 digits second part
+        ]
+        for value in bad_values:
+            self.assertFalse(
+                _accepts(PATTERN_CURSOR, value, "TranscriptionsPatternLiteralTest"),
+                f"union pattern {PATTERN_CURSOR} should refuse invalid cursor {value!r}",
+            )
+
+    def test_position_zero_or_not_below_head_is_400(self):
+        """Q1 and Q6: a list cursor whose position is 0 or not below its head is 400 (pinned sentence)."""
+        desc = _get(TRANS_PATH).get("description", "")
+        self.assertIn(
+            "position is 0 or not below its head",
+            desc,
+            f"operation description lacks the position 400 rule: {desc!r}",
+        )
+        resp = _response(TRANS_PATH, "400")
+        text = resp.get("description", "")
+        self.assertIn(
+            "position is 0 or not below its head",
+            text,
+            f"400 description lacks the position rule: {text!r}",
+        )
+
+    def test_operation_description_names_list_cursor(self):
+        """Catches the operation description dropping the list-cursor rules."""
+        desc = _get(TRANS_PATH).get("description", "")
+        for phrase in (
+            "list cursor",
+            "list cursor is never refused with 410",
+            "first-page head",
+        ):
+            self.assertIn(phrase, desc, f"operation description lacks {phrase!r}: {desc!r}")
+
+    def test_operation_description_says_list_is_a_snapshot(self):
+        """Catches the operation description dropping the snapshot bound of a list."""
+        desc = _get(TRANS_PATH).get("description", "")
+        for phrase in ("snapshot at the first-page head", "only live rows up to that head"):
+            self.assertIn(phrase, desc, f"operation description lacks {phrase!r}: {desc!r}")
+
+    def test_410_text_says_list_cursor_never_refused(self):
+        """Catches the 410 text dropping the list-cursor exemption."""
+        resp = _response(TRANS_PATH, "410")
+        text = resp.get("description", "")
+        self.assertIn(
+            "list cursor is never refused with 410",
+            text,
+            f"410 description lacks the list-cursor exemption: {text!r}",
+        )
 
 
 # ---------------------------------------------------------------------------

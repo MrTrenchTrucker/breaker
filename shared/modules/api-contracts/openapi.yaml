@@ -1869,11 +1869,18 @@ paths:
         always fits. There is NO limit parameter. The client repeats with
         since = next while more is true. No since = live rows only (first
         page, next = head cursor). since = <account>-0 means nothing seen
-        yet. A cursor above the head answers 200 with empty items and next
-        = head. A malformed cursor or a cursor of another account = 400
-        (checked before anything is read). A cursor below the purged floor
-        = 410. A delete record has client_id, change, deleted true and
-        stored_at only.
+        yet. A list longer than one page returns a list cursor as `next`;
+        the final page returns an incremental cursor. A cursor above the head
+        answers 200 with empty items and next = head. A malformed cursor or
+        a cursor of another account = 400 (checked before anything is read).
+        A list cursor whose position is 0 or not below its head is 400. A cursor below
+        the purged floor = 410; a list cursor is never refused with 410. A
+        delete record has client_id, change, deleted true and stored_at only.
+        On a list cursor the final page returns an incremental cursor at the
+        first-page head, not the head now, so a delete made between two pages
+        is still reported. A list is a snapshot at the first-page head: it reads only
+        live rows up to that head, and rows written after it reach the client through
+        the next incremental pull.
       operationId: listTranscriptions
       security:
         - bearerAuth: []
@@ -1883,10 +1890,12 @@ paths:
           required: false
           schema:
             type: string
-            pattern: "^[0-9]{1,19}-[0-9]{1,19}$"
+            pattern: "^[0-9]{1,19}-[0-9]{1,19}(-[0-9]{1,19})?$"
           description: >
             Cursor `<account_id>-<change>` returned in a previous `next`.
-            Missing = full live list; `<account>-0` = nothing seen yet.
+            Missing = full live list; `<account>-0` = nothing seen yet. A page of a list
+            longer than one page returns a list cursor `<account_id>-<position>-<head>`:
+            send it back unchanged.
       responses:
         "200":
           description: >
@@ -1906,8 +1915,9 @@ paths:
                 next: "7-42"
                 more: true
         "400":
-          description: >
+          description: >-
             Bad `since` cursor: not matching the pattern, or a cursor of another account.
+            A list cursor whose position is 0 or not below its head is 400.
           content:
             application/json:
               schema:
@@ -1934,13 +1944,15 @@ paths:
                 error: "forbidden"
                 message: "User session token required; an agent token is refused"
         "410":
-          description: >
+          description: >-
             The cursor is below the account's purged floor. An admin reset
             (POST /v1/admin/reset-account) sets the floor to the account's new
             change number, so after a reset every earlier cursor gets 410, also
             a cursor at the old head and the cursor 0; the client lists again
             without since. The page that answers that list carries a next
-            cursor that is not below the floor, so it is accepted.
+            cursor that is not below the floor, so it is accepted. A list
+            cursor is never refused with 410; a list reads live rows only, so
+            purged_through is irrelevant to it.
           content:
             application/json:
               schema:
@@ -2477,7 +2489,7 @@ components:
             $ref: "#/components/schemas/TranscriptionRecord"
         next:
           type: string
-          pattern: "^[0-9]{1,19}-[0-9]{1,19}$"
+          pattern: "^[0-9]{1,19}-[0-9]{1,19}(-[0-9]{1,19})?$"
           description: Cursor string for the next page of results; always matches the cursor pattern and is never empty; when more is true it points at the head or the change of the last row scanned
         more:
           type: boolean
