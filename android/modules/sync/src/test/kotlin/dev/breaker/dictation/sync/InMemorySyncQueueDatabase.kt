@@ -90,7 +90,7 @@ internal class InMemorySyncQueueDatabase(private val log: CallLog = CallLog()) :
     fun queued(): List<QueueEntry> = entries.toList()
 
     /** The client ids of the queued entries in drain order. */
-    fun queuedIds(): List<String> = entries.map { it.clientId }
+    override fun queuedIds(): List<String> = entries.map { it.clientId }
 
     override fun insertIfAbsent(
         clientId: String,
@@ -169,6 +169,9 @@ internal class InMemorySyncQueueDatabase(private val log: CallLog = CallLog()) :
     }
 
     override fun parkedReason(clientId: String): String? = parkedReasons[clientId]
+
+    /** True when a row with [clientId] is in the queue table. Parked rows count. */
+    override fun isQueued(clientId: String): Boolean = entries.any { it.clientId == clientId }
 
     override fun pullCursor(): String? = cursor
 

@@ -61,6 +61,14 @@ internal class JdbcSyncQueueDatabase(private val sqlite: DesktopSqlite) : SyncQu
     override fun parkedReason(clientId: String): String? =
         sqlite.query(SyncQueueSql.PARKED_REASON, clientId).firstOrNull()?.get(0) as? String
 
+    /** True when a row with [clientId] is in the queue table. Parked rows count. */
+    override fun isQueued(clientId: String): Boolean =
+        sqlite.query(SyncQueueSql.IS_QUEUED, clientId).firstOrNull() != null
+
+    /** The client ids of every queue row, parked or not, oldest first (by seq). */
+    override fun queuedIds(): List<String> =
+        sqlite.query(SyncQueueSql.SELECT_QUEUED_IDS).map { it[0] as String }
+
     /** The stored cursor text, or null when there is none; it is returned as stored. */
     override fun pullCursor(): String? =
         sqlite.query(SyncQueueSql.SELECT_PULL_CURSOR).firstOrNull()?.get(0) as? String

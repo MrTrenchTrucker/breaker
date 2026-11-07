@@ -71,6 +71,14 @@ internal interface SyncQueueDatabase {
      */
     fun parkedReason(clientId: String): String?
 
+    /** True when a row with [clientId] is in the queue table.
+     * Parked rows count: a parked row is still queued. */
+    fun isQueued(clientId: String): Boolean
+
+    /** The client ids of every queue row, parked or not, oldest first (by seq).
+     * No text is read, nothing is changed. */
+    fun queuedIds(): List<String>
+
     /**
      * Reads the stored cursor text of the last complete pull, or null when there is none.
      * The text is returned as stored: it is opaque and is never judged or parsed here.
