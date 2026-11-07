@@ -24,9 +24,9 @@ SQLite transcription history, 3-month TTL cleanup, tombstones.
 `HistorySql`, `RetentionBoundary`, `AppPrivateStorage`, `HistoryDatabase`,
 `SqliteHistoryDatabase` (the Android adapter), `TranscriptionRow`,
 `MappingFailure`. The tombstone stays internal; a core tombstone port is
-deferred to a later phase. The store's other methods (`applyRemoteDelete`,
-`count`, `close`, the tombstone sweep and the pending-tombstone list) are
-internal too.
+deferred to a later phase. The store's other methods (`count`, `close`, the
+tombstone sweep and the pending-tombstone list) are internal too;
+`applyRemoteDelete` is public, as the PullSink call this store implements.
 
 **Storage:** SQLite via the Android platform API (android.database.sqlite), no Room dependency. Table `transcriptions`:
 `id, text, source (local|server), model, duration_ms, created_at, audio_path (nullable, off by default)`.
@@ -54,8 +54,9 @@ hours, per ADR-010.
 carry to the server: the purge tombstones each row it removes, and `delete`
 tombstones the row it removes. `delete` of an id this device does not hold
 leaves none. A delete made elsewhere (the web FE, another device) has an
-internal entry point, `applyRemoteDelete`, which records a tombstone even when
-this device held no such row; no shipped code calls it yet. Tombstones are
+entry point, `applyRemoteDelete`, the PullSink call this store implements,
+which records a tombstone even when this device held no such row; no shipped
+code calls it yet. Tombstones are
 written and kept; no shipped code reads or sweeps them yet, because the port
 that lets sync reach them is deferred. The 90-day tombstone window, measured
 from the delete, is a module design choice; the spec sets no tombstone lifetime.

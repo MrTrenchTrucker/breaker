@@ -5,6 +5,7 @@ import android.util.Log
 import dev.breaker.dictation.core.model.Transcription
 import dev.breaker.dictation.core.port.Clock
 import dev.breaker.dictation.core.port.HistoryStore
+import dev.breaker.dictation.core.port.PullSink
 
 /**
  * Transcription history on the phone's own database.
@@ -51,7 +52,7 @@ class SqliteHistoryStore internal constructor(
     private val database: HistoryDatabase,
     private val clock: Clock,
     private val report: (String) -> Unit = { message -> Log.w(TAG, message) },
-) : HistoryStore {
+) : HistoryStore, PullSink {
 
     private val retention = RetentionPolicy()
 
@@ -205,7 +206,7 @@ class SqliteHistoryStore internal constructor(
      *
      * Nothing outside the tests calls this yet.
      */
-    internal fun applyRemoteDelete(id: String, deletedAt: Long): Boolean = database.transaction {
+    override fun applyRemoteDelete(id: String, deletedAt: Long): Boolean = database.transaction {
         val removed = database.deleteById(id)
         database.putTombstone(
             Tombstone(id = id, deletedAt = deletedAt, reason = Tombstone.Reason.REMOTE),

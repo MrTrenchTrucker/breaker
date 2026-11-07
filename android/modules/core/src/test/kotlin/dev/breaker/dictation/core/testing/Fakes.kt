@@ -13,6 +13,7 @@ import dev.breaker.dictation.core.port.ConnectivityProbe
 import dev.breaker.dictation.core.port.Formatter
 import dev.breaker.dictation.core.port.HistoryStore
 import dev.breaker.dictation.core.port.IdSource
+import dev.breaker.dictation.core.port.PullSink
 import dev.breaker.dictation.core.port.SettingsStore
 import dev.breaker.dictation.core.model.SttError
 import dev.breaker.dictation.core.model.SttRequest
@@ -125,6 +126,17 @@ class InMemoryHistoryStore : HistoryStore {
     override fun delete(id: String): Boolean {
         deleted += id
         return saved.removeAll { it.id == id }
+    }
+}
+
+/** A PullSink fake that records each call and returns the answer it was set to. */
+class FakePullSink(var answer: Boolean = true) : PullSink {
+    /** Every delete applied through it, id and deletedAt, in call order. */
+    val deletes: MutableList<Pair<String, Long>> = mutableListOf()
+
+    override fun applyRemoteDelete(id: String, deletedAt: Long): Boolean {
+        deletes += Pair(id, deletedAt)
+        return answer
     }
 }
 
