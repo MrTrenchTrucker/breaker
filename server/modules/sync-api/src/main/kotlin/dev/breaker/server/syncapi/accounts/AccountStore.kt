@@ -158,6 +158,33 @@ internal class AccountStore(
             }
         }
 
+    /**
+     * The ids of all accounts, in id order (insertion order). Used by the clear-store route to
+     * apply the clear to every account, one transaction per account.
+     */
+    suspend fun accountIds(): List<Long> =
+        db.transaction<List<Long>> { connection ->
+            connection.prepareStatement(SELECT_ALL_ACCOUNT_IDS_SQL).use { statement ->
+                statement.executeQuery().use { rows ->
+                    val result = ArrayList<Long>()
+                    while (rows.next()) result.add(rows.getLong(1))
+                    result
+                }
+            }
+        }
+
+    /**
+     * The id of the account with this folded name, or null when no account has this name.
+     * Used by the clear-store route to look up a named account.
+     */
+    suspend fun accountIdOfFolded(folded: String): Long? =
+        db.transaction<Long?> { connection ->
+            connection.prepareStatement(SELECT_ACCOUNT_ID_OF_FOLDED_SQL).use { statement ->
+                statement.setString(1, folded)
+                statement.executeQuery().use { rows -> if (rows.next()) rows.getLong(1) else null }
+            }
+        }
+
     // The same hashing as register, off the database lane, so a caller can hash before it opens its
     // own transaction.
     suspend fun hashVerifier(verifier: AuthVerifier): StoredVerifier =
@@ -328,6 +355,10 @@ internal class AccountStore(
         const val SELECT_VERIFIER_SQL =
             "SELECT id, role, verifier_algo, verifier_iters, verifier_salt, verifier_hash, reset_pending " +
                 "FROM accounts WHERE username_lower = ?"
+
+        const val SELECT_ALL_ACCOUNT_IDS_SQL = "SELECT id FROM accounts ORDER BY id"
+
+        const val SELECT_ACCOUNT_ID_OF_FOLDED_SQL = "SELECT id FROM accounts WHERE username_lower = ?"
 
         // The role is decided inside this one statement: the first account ever
         // stored becomes the admin. A count read in a separate step could be stale

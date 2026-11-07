@@ -257,21 +257,24 @@ class AdminErrorWordingTest(unittest.TestCase):
         self.assertIn("confirm", example["message"].lower())
 
 
-class AdminClearStoreEmptyBodyTest(unittest.TestCase):
-    """The clear-store 200 response carries no content (empty body)."""
+class AdminClearStoreBodyTest(unittest.TestCase):
+    """The clear-store 200 response carries an inline schema with a cleared count."""
 
     def setUp(self):
         self.spec = _load_spec()
         self.paths = self.spec.get("paths", {})
 
-    def test_clear_store_200_has_no_content(self):
+    def test_clear_store_200_has_a_cleared_count(self):
         responses = self.paths["/v1/admin/clear-store"]["post"]["responses"]
         ok = responses["200"]
-        # either no content key, or a 200 with no application/json example.
-        if "content" in ok:
-            self.assertNotIn("application/json", ok["content"],
-                             "clear-store 200 must have an empty body")
         self.assertIn("Store cleared", ok.get("description"))
+        content = ok.get("content", {})
+        self.assertIn("application/json", content)
+        schema = content["application/json"].get("schema", {})
+        self.assertEqual(schema.get("type"), "object")
+        self.assertEqual(set(schema.get("required", [])), {"cleared"})
+        props = schema.get("properties", {})
+        self.assertEqual(props.get("cleared", {}).get("type"), "integer")
 
 
 if __name__ == "__main__":
