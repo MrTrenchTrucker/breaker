@@ -133,14 +133,14 @@ class PullLoopTest {
         assertEquals("android_sync: Other holds the status", 401, (outcome as PullOutcome.Other).status)
     }
 
+    /** A failure here means 410 is read as Gone. */
     @Test
-    fun `Other for 410`() {
+    fun `Gone for 410`() {
         val transport = ScriptedPullTransport(listOf(
             PullTransportResult.Answered(410, "")
         ))
         val outcome = PullLoop.run(transport)
-        if (outcome !is PullOutcome.Other) throw AssertionError("android_sync: 410 is Other")
-        assertEquals("android_sync: Other holds the status", 410, (outcome as PullOutcome.Other).status)
+        assertEquals("android_sync: 410 on first page is Gone", PullOutcome.Gone, outcome)
     }
 
     @Test
