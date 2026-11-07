@@ -67,6 +67,9 @@ internal sealed class PageResult {
         val records: List<TranscriptionPageRecord>,
         val next: Long,
         val more: Boolean,
+        /** When non-null this page was read on a list cursor: [next] is the position of a LIST
+         * cursor whose head is [listHead]. When null, [next] is an incremental change, as today. */
+        val listHead: Long? = null,
     ) : PageResult()
 
     /** The cursor is below the account's purged floor: the client must resync without since. */

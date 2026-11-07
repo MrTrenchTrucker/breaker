@@ -55,18 +55,31 @@ internal fun Application.syncRoutes(tokenStore: TokenStore, transcriptionStore: 
             val resolved = call.sessionOrRefuse(tokenStore) ?: return@get
             val accountId = resolved.accountId
             val sinceValue = call.request.queryParameters["since"]
-            val parsed = sinceValue?.let { parseSince(it) }
-            if (sinceValue != null && parsed == null) {
+            val cursor = sinceValue?.let { FeedCursor.parse(it) }
+            if (sinceValue != null && cursor == null) {
                 call.respondCursorInvalid()
                 return@get
             }
-            val since = parsed?.second
-            if (since != null && parsed!!.first != accountId) {
+            // A cursor whose account is not the caller's is refused before the store is asked.
+            if (cursor != null && cursor is FeedCursor.Incremental && cursor.accountId != accountId) {
                 call.respondCursorInvalid()
                 return@get
+            }
+            if (cursor is FeedCursor.Listing && cursor.accountId != accountId) {
+                call.respondCursorInvalid()
+                return@get
+            }
+            val since = when (cursor) {
+                is FeedCursor.Incremental -> cursor.change
+                is FeedCursor.Listing -> cursor.position
+                null -> null
+            }
+            val listHead = when (cursor) {
+                is FeedCursor.Listing -> cursor.head
+                else -> null
             }
             val page = try {
-                transcriptionStore.pull(tokenStore, accountId, resolved.tokenId, since)
+                transcriptionStore.pull(tokenStore, accountId, resolved.tokenId, since, listHead)
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (_: Exception) {
@@ -80,7 +93,7 @@ internal fun Application.syncRoutes(tokenStore: TokenStore, transcriptionStore: 
                 }
                 is PageResult.Page -> {
                     val json = try {
-                        renderTranscriptionsPage(accountId, page.records, page.next, page.more)
+                        renderTranscriptionsPage(accountId, page.records, page.next, page.more, page.listHead)
                     } catch (_: Exception) {
                         call.respondUnavailable()
                         return@get
@@ -166,6 +179,7 @@ private fun renderTranscriptionsPage(
     records: List<TranscriptionPageRecord>,
     next: Long,
     more: Boolean,
+    listHead: Long? = null,
 ): String {
     val items = records.map { row ->
         if (row.deleted) {
@@ -174,19 +188,7 @@ private fun renderTranscriptionsPage(
             "{\"client_id\":\"${row.clientId}\",\"change\":${row.change},\"deleted\":false,\"key_version\":${row.keyVersion},\"encrypted\":\"${row.encrypted}\",\"stored_at\":\"${formatStoredAt(row.storedAtMs)}\"}"
         }
     }
-    return "{\"items\":[${items.joinToString(",")}],\"next\":\"$accountId-$next\",\"more\":$more}"
+    val nextText = if (listHead != null) "$accountId-$next-$listHead" else "$accountId-$next"
+    return "{\"items\":[${items.joinToString(",")}],\"next\":\"$nextText\",\"more\":$more}"
 }
 
-private val CURSOR_PATTERN = Regex("^[0-9]{1,19}-[0-9]{1,19}$")
-
-// Parses the since query parameter: <account>-<change>. Returns the pair when the value matches
-// the pattern and both parts fit Longs; null otherwise (absent or malformed).
-private fun parseSince(value: String): Pair<Long, Long>? {
-    if (!CURSOR_PATTERN.matches(value)) return null
-    val hyphen = value.indexOf('-')
-    val accountPart = value.substring(0, hyphen)
-    // The account part is the decimal of the account id: no leading zero, so one account has one text.
-    if (accountPart.length > 1 && accountPart.startsWith("0")) return null
-    val changePart = value.substring(hyphen + 1)
-    return accountPart.toLongOrNull()?.let { account -> changePart.toLongOrNull()?.let { change -> account to change } }
-}

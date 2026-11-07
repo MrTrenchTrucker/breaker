@@ -116,9 +116,9 @@ internal class SyncRoutesFeedTest : TempDatabaseTest() {
         assertEquals("page 1 status", HttpStatusCode.OK, first.status)
         assertEquals("page 1 holds 100 records", 100, Regex("\"client_id\"").findAll(first.body).count())
         assertTrue("page 1 more is true", first.body.contains("\"more\":true"))
-        assertTrue("page 1 next is account-100", first.body.contains("\"next\":\"$accountId-100\""))
+        assertTrue("page 1 next is account-100-101", first.body.contains("\"next\":\"$accountId-100-101\""))
 
-        val second = SyncRouteTestSupport.getPage(tokenStore, store, token, "$accountId-100")
+        val second = SyncRouteTestSupport.getPage(tokenStore, store, token, "$accountId-100-101")
         assertEquals("page 2 status", HttpStatusCode.OK, second.status)
         assertEquals("page 2 holds one record", 1, Regex("\"client_id\"").findAll(second.body).count())
         assertTrue("page 2 more is false", second.body.contains("\"more\":false"))
