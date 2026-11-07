@@ -1,5 +1,7 @@
 package dev.breaker.dictation.sync
 
+import java.util.ArrayList
+
 /**
  * [SyncQueueDatabase] on [DesktopSqlite]: a JVM twin of `SqliteSyncQueueDatabase`, the Android adapter.
  *
@@ -47,6 +49,17 @@ internal class JdbcSyncQueueDatabase(private val sqlite: DesktopSqlite) : SyncQu
     override fun remove(clientId: String): Boolean = sqlite.exec(SyncQueueSql.DELETE_BY_CLIENT_ID, clientId) > 0
 
     override fun count(): Int = (sqlite.query(SyncQueueSql.COUNT_QUEUE).single()[0] as Long).toInt()
+
+    override fun parkedCount(): Int = (sqlite.query(SyncQueueSql.COUNT_PARKED).single()[0] as Long).toInt()
+
+    override fun parkRow(clientId: String, reason: String): Boolean =
+        sqlite.exec(SyncQueueSql.PARK_ROW, reason, clientId) > 0
+
+    override fun resaveRow(clientId: String, text: String, source: String, model: String, durationMs: Long, createdAtMs: Long): Boolean =
+        sqlite.exec(SyncQueueSql.RESAVE_ROW, text, source, model, durationMs, createdAtMs, clientId) > 0
+
+    override fun parkedReason(clientId: String): String? =
+        sqlite.query(SyncQueueSql.PARKED_REASON, clientId).firstOrNull()?.get(0) as? String
 
     override fun <T> transaction(block: () -> T): T {
         val connection = sqlite.connection

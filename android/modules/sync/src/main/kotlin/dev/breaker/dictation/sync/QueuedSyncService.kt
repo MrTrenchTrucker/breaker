@@ -70,14 +70,29 @@ class QueuedSyncService internal constructor(
             TranscriptionSource.SERVER -> SyncSource.SERVER.wire
         }
         database.transaction {
-            database.insertIfAbsent(
-                clientId = transcription.id,
-                text = transcription.text,
-                source = source,
-                model = transcription.model,
-                durationMs = transcription.durationMs,
-                createdAtMs = transcription.createdAt,
-            )
+            // Resave rule: if an existing row with this id is parked, unpark and replace it
+            // in one atomic step, keeping its seq so it re-enters the normal drain. A live
+            // (not parked) row keeps its first copy unchanged (INSERT OR IGNORE below).
+            val parked = database.parkedReason(transcription.id)
+            if (parked != null) {
+                database.resaveRow(
+                    clientId = transcription.id,
+                    text = transcription.text,
+                    source = source,
+                    model = transcription.model,
+                    durationMs = transcription.durationMs,
+                    createdAtMs = transcription.createdAt,
+                )
+            } else {
+                database.insertIfAbsent(
+                    clientId = transcription.id,
+                    text = transcription.text,
+                    source = source,
+                    model = transcription.model,
+                    durationMs = transcription.durationMs,
+                    createdAtMs = transcription.createdAt,
+                )
+            }
         }
     }
 
@@ -94,11 +109,17 @@ class QueuedSyncService internal constructor(
      * A row that cannot be pushed is skipped. Its stored source is not local or
      * server, its client id is not a lowercase canonical UUID, or the codec refuses
      * its body. A skipped row is never removed and never ends the drain. Each drain
-     * that reaches it counts it again, until a permanent-refusal path exists.
+     * that reaches it counts it again.
+     *
+     * A permanent refusal about the row itself (400 or 413) parks the row: it stays
+     * in the store, is never retried, and the drain moves on to the next row. The
+     * row's reason is stored, capped at [PermanentRefusalException.REASON_MAX_LENGTH]
+     * characters, and never contains row text. [SyncReport.parked] counts the rows
+     * parked IN THIS DRAIN; the total parked is [parkedCount].
      *
      * Known gap: [UploadOutcome.FAILED] stops the drain and keeps the row at the head
-     * of the queue. A row the server refuses for good therefore blocks every row
-     * behind it until a permanent-refusal path exists.
+     * of the queue. 409 keeps today's behaviour: it blocks every row behind it until
+     * a later ADR with the resave flag.
      *
      * The drain walks only the rows queued when it started. The highest seq is read
      * once, after the probe answers and before the first row. A row queued during
@@ -114,6 +135,7 @@ class QueuedSyncService internal constructor(
             val bound = database.tailSeq()
             var pushed = 0
             var skipped = 0
+            var parked = 0
             var next: QueueEntry? = database.head()
             while (next != null) {
                 val entry: QueueEntry = next
@@ -124,6 +146,23 @@ class QueuedSyncService internal constructor(
                 } else {
                     val outcome = try {
                         uploader.upload(push)
+                    } catch (e: PermanentRefusalException) {
+                        if (!PermanentRefusalException.isPermanentRefusal(e.status)) {
+                            // A refusal about this row that is not permanent (401, 403, 409,
+                            // 429, 503, ...): today's behaviour, nothing parked, drain stops.
+                            UploadOutcome.FAILED
+                        } else {
+                            // A permanent refusal about this row: park it, keep its reason,
+                            // count it in this drain's parked count, and move on to the next row.
+                            database.transaction {
+                                database.parkRow(
+                                    entry.clientId, PermanentRefusalException.capReason(e.reason)
+                                )
+                            }
+                            parked++
+                            next = database.nextAfter(entry.seq)
+                            continue
+                        }
                     } catch (e: Exception) {
                         UploadOutcome.FAILED
                     }
@@ -132,17 +171,26 @@ class QueuedSyncService internal constructor(
                             database.transaction { database.remove(entry.clientId) }
                             pushed++
                         }
-                        UploadOutcome.UNREACHABLE -> return SyncReport(pushed, skipped)
-                        UploadOutcome.FAILED -> return SyncReport(pushed, skipped + 1)
+                        UploadOutcome.UNREACHABLE -> return SyncReport(pushed, skipped, parked)
+                        UploadOutcome.FAILED -> return SyncReport(pushed, skipped + 1, parked)
                     }
                 }
                 next = database.nextAfter(entry.seq)
             }
-            return SyncReport(pushed, skipped)
+            return SyncReport(pushed, skipped, parked)
         } finally {
             drain.unlock()
         }
     }
+
+    /** How many rows are parked (marked as permanently refused) in this store. */
+    fun parkedCount(): Int = database.parkedCount()
+
+    /**
+     * Reads the parked reason text of the row queued under [clientId], or null when it is not parked
+     * or there is no such row.
+     */
+    fun parkedReason(clientId: String): String? = database.parkedReason(clientId)
 
     /**
      * The push for [entry], or null when the entry must be skipped. A skipped

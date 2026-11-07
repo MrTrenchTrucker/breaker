@@ -1,5 +1,7 @@
 package dev.breaker.dictation.sync
 
+import java.util.ArrayList
+
 /**
  * A list-backed [SyncQueueDatabase] for testing the queue's rules on a plain JVM.
  *
@@ -58,6 +60,9 @@ internal class InMemorySyncQueueDatabase(private val log: CallLog = CallLog()) :
     var closed: Boolean = false
         private set
 
+    /** The parked reasons stored by client id. */
+    val parkedReasons = mutableMapOf<String, String>()
+
     /** Makes the next insert fail with [cause]; with [afterWriting] the row is stored first. */
     fun failNextInsert(cause: RuntimeException, afterWriting: Boolean = true) {
         plannedInsert = PlannedWrite(cause, afterWriting)
@@ -110,13 +115,13 @@ internal class InMemorySyncQueueDatabase(private val log: CallLog = CallLog()) :
         val cause = plannedHead
         plannedHead = null
         if (cause != null) throw cause
-        return entries.firstOrNull()
+        return entries.firstOrNull { it.clientId !in parkedReasons }
     }
 
     override fun nextAfter(seq: Long): QueueEntry? {
         log.add("next")
         countRead()
-        return entries.firstOrNull { it.seq > seq }
+        return entries.firstOrNull { it.seq > seq && it.clientId !in parkedReasons }
     }
 
     override fun tailSeq(): Long = entries.maxOfOrNull { it.seq } ?: 0L
@@ -131,6 +136,7 @@ internal class InMemorySyncQueueDatabase(private val log: CallLog = CallLog()) :
         val before = entries.size
         entries.removeAll { it.clientId == clientId }
         val removed = entries.size < before
+        if (removed) parkedReasons.remove(clientId)
         if (planned != null) throw planned.cause
         return removed
     }
@@ -139,12 +145,32 @@ internal class InMemorySyncQueueDatabase(private val log: CallLog = CallLog()) :
         val cause = plannedCount
         plannedCount = null
         if (cause != null) throw cause
-        return entries.size
+        return entries.count { it.clientId !in parkedReasons }
     }
+
+    override fun parkedCount(): Int = parkedReasons.size
+
+    override fun parkRow(clientId: String, reason: String): Boolean {
+        log.add("park")
+        if (entries.none { it.clientId == clientId }) return false
+        parkedReasons[clientId] = reason
+        return true
+    }
+
+    override fun resaveRow(clientId: String, text: String, source: String, model: String, durationMs: Long, createdAtMs: Long): Boolean {
+        val idx = entries.indexOfFirst { it.clientId == clientId }
+        if (idx < 0 || clientId !in parkedReasons) return false
+        parkedReasons.remove(clientId)
+        entries[idx] = QueueEntry(entries[idx].seq, clientId, text, source, model, durationMs, createdAtMs)
+        return true
+    }
+
+    override fun parkedReason(clientId: String): String? = parkedReasons[clientId]
 
     override fun <T> transaction(block: () -> T): T {
         if (insideTransaction) return block() // nesting joins the outer transaction
         val before = ArrayList<QueueEntry>(entries)
+        val parkedBefore = HashMap(parkedReasons)
         insideTransaction = true
         try {
             val result = block()
@@ -154,6 +180,8 @@ internal class InMemorySyncQueueDatabase(private val log: CallLog = CallLog()) :
         } catch (failure: Throwable) {
             entries.clear()
             entries.addAll(before)
+            parkedReasons.clear()
+            parkedReasons.putAll(parkedBefore)
             insideTransaction = false
             rollbacks++
             throw failure
