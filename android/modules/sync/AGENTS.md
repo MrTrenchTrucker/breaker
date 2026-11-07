@@ -39,6 +39,8 @@ The offline-first sync queue on the phone, and the idempotent push (F13, N12) of
 
 **Pull applier (internal):** `PullApplier.apply(result)` turns the result of one pull into calls on the core `PullSink`: a delete record goes to `applyRemoteDelete` always, a live row whose id waits in the queue (`QueueProbe`) is skipped, any other live row is read and handed to `applyRemoteRow`, and after a finished full list `retainOnly` keeps the list ids and the queued ids. It reads nothing from the network, stores nothing, writes no cursor and starts no pull; nothing calls it yet.
 
+**Pull cycle (internal):** `PullCycle.run` runs one pull in order: the stored cursor is read, `PullRun.run` pulls, `PullApplier.apply` applies, and only then the cursor is saved; after a finished full list one more pull runs from the list's cursor; a second refusal of the stored cursor and of the list clears the stored cursor; at most two pull runs; nothing calls it yet.
+
 ## Invariants
 - Offline dictation, queued by `enqueue`, then pushed by `pushPending` on reconnect, then counted in that call's `SyncReport`; nothing is dropped.
 - `enqueue` returns once the row is committed. A second enqueue of the same transcription id keeps the first copy.
