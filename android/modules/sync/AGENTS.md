@@ -37,6 +37,8 @@ The offline-first sync queue on the phone, and the idempotent push (F13, N12) of
 
 **Queue reads (internal):** `isQueued(clientId)` and `queuedIds()` are reads on `SyncQueueDatabase`: whether a client id is waiting in the queue and the ids of every queue row, parked rows included, oldest first. The pull merge will use them (a queued id keeps the local edit; the prune keeps the queued ids); nothing calls them yet.
 
+**Pull applier (internal):** `PullApplier.apply(result)` turns the result of one pull into calls on the core `PullSink`: a delete record goes to `applyRemoteDelete` always, a live row whose id waits in the queue (`QueueProbe`) is skipped, any other live row is read and handed to `applyRemoteRow`, and after a finished full list `retainOnly` keeps the list ids and the queued ids. It reads nothing from the network, stores nothing, writes no cursor and starts no pull; nothing calls it yet.
+
 ## Invariants
 - Offline dictation, queued by `enqueue`, then pushed by `pushPending` on reconnect, then counted in that call's `SyncReport`; nothing is dropped.
 - `enqueue` returns once the row is committed. A second enqueue of the same transcription id keeps the first copy.
