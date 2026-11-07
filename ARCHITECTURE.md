@@ -663,8 +663,9 @@ in plaintext.
   guessing required. Protection scales with the password's strength times
   Argon2id cost only against a passive reader of the server; it says nothing
   against a server that can change what it serves. This repo ships no rate
-  limiting or account-enumeration defense to make guessing expensive either
-  way (auth hardening is explicitly out of scope; docs/01, docs/05).
+  limiting or account-enumeration defense to make guessing expensive either way (auth hardening is explicitly
+  out of scope, except the sign-in limit of ADR-036: 5 wrong passwords, then a 15-minute wait, built on the
+  server; docs/01, docs/05).
 - **Tradeoff:** a password change re-keys every time — new DEK, new box
   keypair, new `key_version` — and the client re-encrypts and replaces every
   record still below that version (ADR-006). That bounds, but does not
