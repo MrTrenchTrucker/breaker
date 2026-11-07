@@ -42,7 +42,22 @@ then the tombstone table only grows, and they stay internal to this module. The
 module defines a 90-day tombstone window, measured from the delete. That is a
 module design choice; the spec sets no tombstone lifetime.
 
-Planned (ADR-035, not built): the sync module will call `applyRemoteDelete` for a delete made on another device, and will hand the rows it pulls to this module. Of the merge, one part is built: a local delete followed by a local save of the same id clears the local tombstone, so the row is live again. The rest is decided and not built: a remote delete is applied even if this device saved the same id again, and a remote tombstone is held across a local re-save, because the server wins for a delete made on another device.
+Pulled rows (ADR-035): `applyRemoteRow`, the PullSink call, stores one pulled live row, one
+row per id, replacing a held row. It refuses the row, stores nothing and answers false when
+this device holds a tombstone for that id, of any reason; the tombstone stays (a row deleted
+anywhere does not come back; the case of reviving a row from another device is left open,
+nothing is lost because the server keeps the row). The check and the write are one
+transaction, and the store reads a tombstone only for that refusal.
+
+Planned (ADR-035, not built): the sync module will call `applyRemoteRow` and
+`applyRemoteDelete` after each pull; an id waiting unsent in the sync push queue is skipped
+by sync before it calls, because the queue is sync's and history cannot see it. Of the
+delete merge, one part is built: a local delete followed by a local save of the same id
+clears the local tombstone, so the row is live again. The rest is decided and not built: a
+remote delete is applied even if this device saved the same id again, and a remote tombstone
+is held across a local re-save, because the server wins for a delete made on another device.
+History stays the only module that writes the local store; no shipped code calls the PullSink
+methods yet.
 
 ## Public surface
 

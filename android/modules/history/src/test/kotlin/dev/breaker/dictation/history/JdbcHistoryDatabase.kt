@@ -94,6 +94,9 @@ internal class JdbcHistoryDatabase(private val sqlite: DesktopSqlite) : HistoryD
     override fun countTranscriptions(): Int =
         (sqlite.firstColumn(HistorySql.COUNT_TRANSCRIPTIONS).single() as Long).toInt()
 
+    override fun hasTombstone(id: String): Boolean =
+        sqlite.firstColumn(HistorySql.SELECT_TOMBSTONE_BY_ID, id).isNotEmpty()
+
     override fun <T> transaction(block: () -> T): T {
         val connection = sqlite.connection
         if (!connection.autoCommit) return block() // nesting joins the outer transaction

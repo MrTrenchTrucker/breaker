@@ -1,6 +1,7 @@
 package dev.breaker.dictation.core.port
 
 import dev.breaker.dictation.core.testing.FakePullSink
+import dev.breaker.dictation.core.testing.aTranscription
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -51,5 +52,38 @@ class PullSinkPortTest {
         assertEquals(1, sink.deletes.size)
         assertEquals("t-9", sink.deletes[0].first)
         assertEquals(300L, sink.deletes[0].second)
+    }
+
+    @Test
+    fun `the fake records each pulled row in order`() {
+        val sink = FakePullSink()
+        sink.applyRemoteRow(aTranscription(id = "t-1"))
+        sink.applyRemoteRow(aTranscription(id = "t-2"))
+        assertEquals(2, sink.rows.size)
+        assertEquals("t-1", sink.rows[0].id)
+        assertEquals("t-2", sink.rows[1].id)
+    }
+
+    @Test
+    fun `rowAnswer follows its setting true then false`() {
+        val sink = FakePullSink()
+        assertTrue(sink.applyRemoteRow(aTranscription(id = "t-1")))
+        sink.rowAnswer = false
+        assertFalse(sink.applyRemoteRow(aTranscription(id = "t-2")))
+    }
+
+    @Test
+    fun `a row call through a variable typed PullSink reaches the fake`() {
+        val sink: PullSink = FakePullSink()
+        sink.applyRemoteRow(aTranscription(id = "t-1"))
+        assertEquals(1, (sink as FakePullSink).rows.size)
+    }
+
+    @Test
+    fun `the parameter name is row`() {
+        val sink = FakePullSink()
+        sink.applyRemoteRow(row = aTranscription(id = "t-9"))
+        assertEquals(1, sink.rows.size)
+        assertEquals("t-9", sink.rows[0].id)
     }
 }

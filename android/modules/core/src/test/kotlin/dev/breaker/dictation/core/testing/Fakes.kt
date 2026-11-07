@@ -138,6 +138,16 @@ class FakePullSink(var answer: Boolean = true) : PullSink {
         deletes += Pair(id, deletedAt)
         return answer
     }
+
+    /** Every pulled row handed to it, in call order. */
+    val rows: MutableList<Transcription> = mutableListOf()
+    /** The answer applyRemoteRow returns, set by the test. */
+    var rowAnswer: Boolean = true
+
+    override fun applyRemoteRow(row: Transcription): Boolean {
+        rows += row
+        return rowAnswer
+    }
 }
 
 /** A committer that returns a fixed outcome and records the text it was given. */

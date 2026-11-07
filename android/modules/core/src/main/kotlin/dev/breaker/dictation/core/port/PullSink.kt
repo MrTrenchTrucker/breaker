@@ -1,15 +1,20 @@
 package dev.breaker.dictation.core.port
 
+import dev.breaker.dictation.core.model.Transcription
+
 /**
  * The delete made on another device (on the web front end or on another phone) handed to the
- * module that owns the local store.
+ * module that owns the local store, and the pulled live row that same device is handed after a pull.
  *
  * `id` is the client id of the transcription. `deletedAt` is the time of the delete in epoch
  * milliseconds. The answer is true when the device held a row to remove; the tombstone is kept
  * either way, so the delete still reaches every other device through sync.
+ * `row` is one pulled live row (its id is the client id); true when the row was stored, false when
+ * the store refused it because the device holds a tombstone for that id, of any reason; nothing is
+ * stored then and the tombstone stays.
  *
- * Nothing calls this yet and nothing wires it; the app does that later. History implements it and
- * stays the only writer of the local store.
+ * Nothing calls these yet and nothing wires them; the app does that later. History implements them
+ * and stays the only writer of the local store.
  */
 interface PullSink {
     /**
@@ -20,4 +25,14 @@ interface PullSink {
      * @return true when the device held a row to remove, false otherwise; a tombstone is kept either way
      */
     fun applyRemoteDelete(id: String, deletedAt: Long): Boolean
+
+    /**
+     * Apply a pulled live row. Returns true when the row was stored, false when the store refused
+     * it because the device holds a tombstone for that id, of any reason; nothing is stored then
+     * and the tombstone stays.
+     *
+     * @param row the pulled live row (its id is the client id)
+     * @return true when the row was stored, false when refused by a tombstone
+     */
+    fun applyRemoteRow(row: Transcription): Boolean
 }

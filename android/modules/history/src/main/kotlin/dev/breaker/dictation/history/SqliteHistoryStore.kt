@@ -214,6 +214,29 @@ class SqliteHistoryStore internal constructor(
         removed
     }
 
+    /**
+     * Apply a pulled live row.
+     *
+     * (a) a local tombstone of any reason: the row is NOT stored and the tombstone stays; the case
+     * of reviving a row from another device is left open, nothing is lost because the server keeps
+     * the row.
+     * (c) otherwise: store it, one row per id, replacing a held row.
+     *
+     * Returns true when the row was stored, false when the store refused it because this device
+     * holds a tombstone for that id; nothing is stored then and the tombstone stays.
+     *
+     * The check and the write are one transaction. This store reads a tombstone only for that
+     * refusal. Nothing outside the tests calls this yet; rule (b) (an id waiting unsent in the
+     * sync push queue) is sync's, not history's.
+     */
+    override fun applyRemoteRow(row: Transcription): Boolean = database.transaction {
+        if (database.hasTombstone(row.id)) false
+        else {
+            database.save(TranscriptionRow.of(row))
+            true
+        }
+    }
+
     /** How many transcriptions are on file, tombstones excluded. */
     internal fun count(): Int = database.countTranscriptions()
 
