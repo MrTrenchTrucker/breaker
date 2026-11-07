@@ -846,7 +846,8 @@ smoke-test gate [1].
       A stolen DB/backup still lets an attacker guess the password offline at
       Argon2id cost — that is the honest limit of ADR-006, not a gap unique to this
       threat (F24).
-- T18. **Queue abuse / DoS** — FIFO worker + per-user rate limits + job size caps.
+- T18. **Queue abuse / DoS** — FIFO worker and job size caps are built;
+      per-user rate limits are planned, not built.
 - T19. **Agent token leakage** — scoped, revocable tokens (F27). An optional per-token
       request limit, off by default, is planned, not built.
 - T20. **SSRF via transcription service config** — admin-only config; URL
@@ -1051,7 +1052,7 @@ See `docs/04-build-order.md`. Summary:
 - R18. **Admin escalation / role abuse** — first-account-is-admin is a bootstrap
       rule; role changes audited server-side; users cannot self-promote.
 - R19. **Queue backpressure / long waits under load** — job status UX
-      ("queued…"), timeouts, per-user rate limits (T18).
+      ("queued…"), timeouts; per-user rate limits (T18) are planned, not built.
 - R20. **Admin/agent-scoped reset destroys old data by design** — the reset
       deletes the account's keys and transcriptions outright (ADR-018); the
       admin who completes it can take over the account until a password
