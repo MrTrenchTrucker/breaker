@@ -224,7 +224,7 @@ class SqliteSyncQueueDatabaseSourceTest {
         assertFires("File(", storageProblems(good + "val f = File(dir, n)\n"), "File")
         assertFires("an absolute path", storageProblems(good + "val p = \"/sdcard/q.db\"\n"), "absolute path literal")
         assertEquals("android_sync: the database name is the identity of the queue file, so renaming it strands queued entries on the phone", "breaker_sync.db", SyncQueueSql.DATABASE_NAME)
-        assertEquals("android_sync: a schema version change needs a migration in onUpgrade, and this pin must change with it", 2, SyncQueueSql.SCHEMA_VERSION)
+        assertEquals("android_sync: a schema version change needs a migration in onUpgrade, and this pin must change with it", 3, SyncQueueSql.SCHEMA_VERSION)
         assertEquals("android_sync: the adapter must open the private fixed name", emptyList<String>(), storageProblems(AdapterSource.load()))
         val adapter = AdapterSource.load()
         assertTrue("android_sync: onUpgrade must handle old version 1", adapter.contains("oldVersion == 1 && newVersion == 2"))
