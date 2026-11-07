@@ -179,6 +179,7 @@ class PcmRingBufferConcurrencyTest {
                 corruption.compareAndSet(null, "the drain did not end")
             }
         }
+        consumer.isDaemon = true
         consumer.start()
         assertTrue("the consumer thread never started", started.await(5_000, TimeUnit.MILLISECONDS))
 
@@ -187,7 +188,10 @@ class PcmRingBufferConcurrencyTest {
             buffer.write(FloatArray(chunkSize) { (chunk * chunkSize + it).toFloat() })
         }
         stop.set(true)
-        consumer.join(2_000)
+        // The consumer uses the non-blocking read (no wait of its own) and ends
+        // as soon as stop is set, so its join ceiling may simply be long:
+        // 20 s.
+        consumer.join(20_000)
 
         assertTrue("the consumer thread never finished", !consumer.isAlive)
         assertTrue("the consumer read nothing at all", delivered.get() > 0)

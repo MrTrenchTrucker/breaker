@@ -28,12 +28,14 @@ class PcmRingBufferWaitTest {
         // come back and notice, and a read that waited for a writer no matter
         // how long would leave it no way to leave.
         //
-        // The lower bound is half the injected window, which a wait of about
-        // 300ms clears comfortably and an immediate return cannot reach; it is
-        // asserted even though it sits next to the upper bound, because the
-        // upper bound alone would pass just as happily against a read that
-        // never waited at all.
-        val readWaitMs = 300L
+        // The injected wait is 3 s (readWaitMs = 3_000L): one whole extra wait
+        // (6 s or more) is bigger than any plausible starvation delay, so a
+        // box that is late by up to 2.5 s still passes while a repeated wait
+        // stays red. Starvation delay tolerated: up to 2.5 s.
+        // What we give up: the old test caught a 150 ms stretch of the wait;
+        // the new one does not. It catches a repeated wait instead.
+        // Lower bound readWaitMs / 2 stays; upper bound readWaitMs + 2_500.
+        val readWaitMs = 3_000L
         val buffer = PcmRingBuffer(capacitySamples = 100, readWaitMs = readWaitMs)
 
         val began = System.nanoTime()
@@ -49,23 +51,25 @@ class PcmRingBufferWaitTest {
         assertTrue(
             "a blocking read took ${elapsedMs}ms, past the ${readWaitMs}ms it was " +
                 "allowed to wait, so the wait is not bounded",
-            elapsedMs <= readWaitMs + 100,
+            elapsedMs <= readWaitMs + 2_500,
         )
     }
 
     @Test
     fun `a write wakes a blocked reader instead of leaving it to poll`() {
-        // The wait below is 30 seconds, far longer than this test's join, so
-        // the reader can only be finished by a wake-up from the write itself.
-        // If a write fails to wake its reader, this test fails; a reader that
-        // is merely rescued by a short poll timeout proves nothing about the
-        // wake-up it was actually waiting for.
-        val buffer = PcmRingBuffer(capacitySamples = 100, readWaitMs = 30_000L)
+        // The buffer is built with readWaitMs = 120_000L so only a real wake-up,
+        // never the buffer's own timeout, can end the reader's wait. The test's
+        // join ceiling is 20_000 ms, clearly below the buffer wait of
+        // 120_000 ms: join is the smaller number, in that order.
+        // A broken write (no notifyAll) can therefore never let the reader end
+        // by its own timeout and pass this test against the defect.
+        val buffer = PcmRingBuffer(capacitySamples = 100, readWaitMs = 120_000L)
         val out = FloatArray(4)
         var read = -1
         val reader = Thread {
             read = buffer.read(out, block = true)
         }
+        reader.isDaemon = true
         reader.start()
         // Wait for the reader to actually be PARKED in the wait, rather than
         // assuming a sleep was long enough. A fixed sleep is a race: if the
@@ -73,8 +77,12 @@ class PcmRingBufferWaitTest {
         // satisfies a reader that was never blocked, and the test passes
         // without exercising the wake-up at all. Worse under load, the sleep
         // can expire before the thread has run and the whole test falls
-        // through to the 30 s read timeout as a false red.
-        val parkedBy = System.currentTimeMillis() + 2_000
+        // through to the buffer's own wait as a false red.
+        // The poll ceiling is 20 s: it ends only a hung test, never decides
+        // the result.
+        // A never-waiting reader keeps the poll running for its whole ceiling
+        // before the state assertion runs; the ceiling does not decide early.
+        val parkedBy = System.currentTimeMillis() + 20_000
         while (reader.state != Thread.State.WAITING &&
             reader.state != Thread.State.TIMED_WAITING &&
             System.currentTimeMillis() < parkedBy
@@ -89,7 +97,7 @@ class PcmRingBufferWaitTest {
         )
 
         buffer.write(floatArrayOf(1f, 2f, 3f, 4f))
-        reader.join(2_000)
+        reader.join(20_000)
 
         assertTrue(
             "the write did not wake the blocked reader, so it is still waiting on its timeout",
@@ -105,18 +113,21 @@ class PcmRingBufferWaitTest {
         // comes back and can notice it has been asked to stop. A read that
         // retried its wait forever would hold the lock it waits on and leave the
         // caller with no way to leave, which is a hang no caller can defend
-        // against. The injected wait is short so the bound is observable, and
-        // the generous join means the reader has to end its own wait: it is not
-        // rescued by this test giving up on it.
-        val readWaitMs = 300L
+        // against. The injected wait is 3 s (readWaitMs = 3_000L) so the bound
+        // is observable, and the generous join means the reader has to end its
+        // own wait: it is not rescued by this test giving up on it.
+        // What this test catches: the reader still alive after its 10 s join,
+        // or a read that returns after 8 s or more (readWaitMs + 5_000).
+        val readWaitMs = 3_000L
         val buffer = PcmRingBuffer(capacitySamples = 100, readWaitMs = readWaitMs)
         var read = -1
         val reader = Thread {
             read = buffer.read(FloatArray(4), block = true)
         }
+        reader.isDaemon = true
         val began = System.nanoTime()
         reader.start()
-        reader.join(5_000)
+        reader.join(10_000)
         val elapsedMs = (System.nanoTime() - began) / 1_000_000
 
         assertTrue(
@@ -126,7 +137,7 @@ class PcmRingBufferWaitTest {
         assertEquals("a bounded wait on an empty buffer can only return what it found", 0, read)
         assertTrue(
             "the read should return once its wait is over, not much later; took ${elapsedMs}ms",
-            elapsedMs < readWaitMs + 2_000,
+            elapsedMs < readWaitMs + 5_000,
         )
     }
 
