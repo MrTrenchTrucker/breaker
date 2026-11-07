@@ -90,6 +90,28 @@ internal class TranscriptionStore(
         }
     }
 
+    /**
+     * Clears every live transcription of [accountId]. Each live row (deleted = 0) gets one delete
+     * record: a new change number per row, body cleared, deleted set, stored_at_ms = now, then
+     * PrevKeyRule.clearIfNoOldRows once. Rows already deleted are untouched and take no change
+     * number. Returns how many rows were marked. Runs in one transaction.
+     */
+    suspend fun clearAll(accountId: Long): Int =
+        db.transaction<Int> { connection ->
+            readAccountKeyVersion(connection, accountId)
+                ?: throw IllegalStateException("sync-api: a clear-store names an account with no row")
+            val rows = readRows(connection, accountId)
+            var marked = 0
+            for (row in rows) {
+                val nowMs = clock.millis()
+                val changeNo = bumpChangeSeq(connection, accountId)
+                markDeleted(connection, accountId, row.clientId, nowMs, changeNo)
+                marked++
+            }
+            PrevKeyRule.clearIfNoOldRows(connection, accountId)
+            marked
+        }
+
     private fun markDeleted(
         connection: Connection,
         accountId: Long,

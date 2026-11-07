@@ -208,7 +208,9 @@ There is no synchronous 200-with-body variant — every transcription is a job.
 - **admin** — roles, health, transcription-service, test-service,
   agent-tokens, **reset-account** (F31, ADR-018 — replaces the earlier
   "reset-password" naming, which implied the admin sets a password; it
-  cannot), **clear-store** (F29)
+  cannot), **clear-store** (F29) — BUILT: `POST /v1/admin/clear-store` clears
+  transcriptions per-user or for all users with confirmation; every live row gets a delete
+  record so other devices remove the rows through the feed.
 - **training** — `POST /v1/training/samples`, `GET /v1/training/model` (+ checksum)
   Planned, not built: no training path is in `openapi.yaml` yet and no module serves it.
 

@@ -1724,6 +1724,9 @@ paths:
         Admin-only: clears stored transcriptions either per-user or, when
         username is null or omitted, for all users. confirm must be true — a
         false/absent value is refused with 400 to prevent accidental mass-clears.
+        Every live row of each target account gets a delete record (a new change
+        number each, body cleared), so other devices remove the rows through the
+        normal feed; rows already deleted are untouched.
       operationId: adminClearStore
       security:
         - bearerAuth: []
@@ -1739,6 +1742,18 @@ paths:
       responses:
         "200":
           description: Store cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - cleared
+                properties:
+                  cleared:
+                    type: integer
+                    example: 3
+              example:
+                cleared: 3
         "401":
           description: Unauthorized
           content:
@@ -1766,6 +1781,15 @@ paths:
               example:
                 error: "bad_request"
                 message: "confirm must be true"
+        "404":
+          description: Account not found (also for a user name that is not valid)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "not_found"
+                message: "Account not found"
   /v1/admin/wrong-pw-limit:
     get:
       summary: Read whether the wrong-password limit is on
