@@ -95,9 +95,9 @@ internal class SyncRoutesFeedRouteTest : TempDatabaseTest() {
 
     @Test
     fun cursorThreePartsAnswers400() {
-        val reply = SyncRouteTestSupport.getPage(tokenStore, store, token, "1-2-3")
-        assertEquals("1-2-3 cursor status", HttpStatusCode.BadRequest, reply.status)
-        assertEquals("1-2-3 cursor body", SyncRouteTestSupport.CURSOR_INVALID_BODY, reply.body)
+        val reply = SyncRouteTestSupport.getPage(tokenStore, store, token, "1-3-3")
+        assertEquals("1-3-3 cursor status", HttpStatusCode.BadRequest, reply.status)
+        assertEquals("1-3-3 cursor body", SyncRouteTestSupport.CURSOR_INVALID_BODY, reply.body)
     }
 
     @Test

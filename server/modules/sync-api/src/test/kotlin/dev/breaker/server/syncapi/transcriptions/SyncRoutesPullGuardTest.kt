@@ -167,7 +167,7 @@ internal class SyncRoutesPullGuardTest : TempDatabaseTest() {
         val malformed = SyncRouteTestSupport.getPage(tokenStore, store, aliceToken, "abc")
         expectStatus("malformed cursor", HttpStatusCode.BadRequest, malformed)
         expectBody("malformed cursor", CURSOR_INVALID_BODY, malformed)
-        val threeParts = SyncRouteTestSupport.getPage(tokenStore, store, aliceToken, "$aliceId-2-3")
+        val threeParts = SyncRouteTestSupport.getPage(tokenStore, store, aliceToken, "$aliceId-3-3")
         expectStatus("three-part cursor", HttpStatusCode.BadRequest, threeParts)
         expectBody("three-part cursor", CURSOR_INVALID_BODY, threeParts)
         val foreign = pullSince(aliceToken, bobId, 2)

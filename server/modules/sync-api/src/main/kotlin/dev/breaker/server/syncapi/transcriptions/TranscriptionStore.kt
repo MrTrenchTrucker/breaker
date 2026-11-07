@@ -111,8 +111,10 @@ internal class TranscriptionStore(
         db.transaction<List<TranscriptionRow>> { connection -> readRows(connection, accountId) }
 
     /** One page of the account's feed, ordered by change number ascending (see TranscriptionPageReader). */
-    suspend fun page(accountId: Long, since: Long?): PageResult =
-        db.transaction<PageResult> { connection -> TranscriptionPageReader.read(connection, accountId, since) }
+    suspend fun page(accountId: Long, since: Long?, listHead: Long? = null): PageResult =
+        db.transaction<PageResult> { connection ->
+            TranscriptionPageReader.read(connection, accountId, since, listHead)
+        }
 
     /**
      * One pull of the feed for a user session, in one transaction, in this order: the page is read;
@@ -122,13 +124,20 @@ internal class TranscriptionStore(
      * fails, the number set just before it is rolled back as well, so no session claims a point whose
      * purge did not happen.
      */
-    suspend fun pull(tokens: TokenStore, accountId: Long, tokenId: Long, since: Long?): PageResult =
+    suspend fun pull(
+        tokens: TokenStore, accountId: Long, tokenId: Long, since: Long?, listHead: Long? = null,
+    ): PageResult =
         db.transaction<PageResult> { connection ->
-            val result = TranscriptionPageReader.read(connection, accountId, since)
+            val result = TranscriptionPageReader.read(connection, accountId, since, listHead)
             if (result is PageResult.Gone) {
                 result
             } else {
-                if (since != null) tokens.setPulledChangeOn(connection, tokenId, accountId, since)
+                if (listHead != null) {
+                    // A list stores the first-page head: min(listHead, head now), never above it.
+                    tokens.setPulledChangeOn(connection, tokenId, accountId, listHead)
+                } else if (since != null) {
+                    tokens.setPulledChangeOn(connection, tokenId, accountId, since)
+                }
                 val floor = tokens.pullFloorOn(connection, accountId)
                 if (floor != null) TranscriptionPurge.purgeDeleteRecordsOn(connection, accountId, floor)
                 result
