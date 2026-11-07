@@ -26,7 +26,7 @@ SQLite transcription history, 3-month TTL cleanup, tombstones.
 `MappingFailure`. The tombstone stays internal; a core tombstone port is
 deferred to a later phase. The store's other methods (`count`, `close`, the
 tombstone sweep and the pending-tombstone list) are internal too;
-`applyRemoteDelete` is public, as the PullSink call this store implements.
+`applyRemoteRow` and `applyRemoteDelete` are public, as the PullSink calls this store implements.
 
 **Storage:** SQLite via the Android platform API (android.database.sqlite), no Room dependency. Table `transcriptions`:
 `id, text, source (local|server), model, duration_ms, created_at, audio_path (nullable, off by default)`.
@@ -61,7 +61,7 @@ written and kept; no shipped code reads or sweeps them yet, because the port
 that lets sync reach them is deferred. The 90-day tombstone window, measured
 from the delete, is a module design choice; the spec sets no tombstone lifetime.
 
-**Planned (ADR-035), not built:** the sync module will hand the rows it pulls from the server to this module, and will call `applyRemoteDelete` for a delete made on another device. Of the merge, one part is built: a local delete followed by a local save of the same id clears the local tombstone, so the row is live again. The rest is decided and not built: a remote delete is applied even if this device saved the same id again, and a remote tombstone is held across a local re-save, because the server wins for a delete made on another device. A pulled live row with the same client id: a local tombstone of any reason keeps the row from being stored and the tombstone stays; an id waiting unsent in the sync push queue keeps the local edit and the pulled row is skipped; otherwise the row is stored, one row per id (decided by the manager, not yet seen by the project owner). History stays the only module that writes the local store. The port that sync uses to reach history is decided: a new core port that history implements and sync calls, with three calls (apply a pulled live row, apply a remote delete, and later retain only the ids after a full list); the names are in ADR-035; no shipped code calls the methods yet.
+**Pulled rows (ADR-035):** `applyRemoteRow`, the PullSink call, stores one pulled live row, one row per id, replacing a held row; it refuses the row, stores nothing and answers false when this device holds a tombstone for that id, of any reason, and the tombstone stays (a row deleted anywhere does not come back; the case of reviving a row from another device is left open, nothing is lost because the server keeps the row). The check and the write are one transaction. This store reads a tombstone only for that refusal. **Planned (ADR-035), not built:** the sync module will call `applyRemoteRow` and `applyRemoteDelete` after each pull; an id waiting unsent in the sync push queue is skipped by sync before it calls, because the queue is sync's and history cannot see it. Of the delete merge, one part is built: a local delete followed by a local save of the same id clears the local tombstone, so the row is live again. The rest is decided and not built: a remote delete is applied even if this device saved the same id again, and a remote tombstone is held across a local re-save, because the server wins for a delete made on another device. History stays the only module that writes the local store; no shipped code calls the PullSink methods yet.
 
 
 ## Invariants

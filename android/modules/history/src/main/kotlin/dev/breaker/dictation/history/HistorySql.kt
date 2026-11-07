@@ -140,5 +140,8 @@ internal object HistorySql {
         LIMIT ?
     """.trimIndent()
 
+    /** Does a tombstone of any reason exist for [id]? Read by id only. */
+    val SELECT_TOMBSTONE_BY_ID: String = "SELECT 1 FROM $TABLE_TOMBSTONES WHERE id = ?"
+
     val COUNT_TRANSCRIPTIONS: String = "SELECT COUNT(*) FROM $TABLE_TRANSCRIPTIONS"
 }

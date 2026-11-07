@@ -132,6 +132,11 @@ internal class SqliteHistoryDatabase(
             arrayOf<String?>(id, reason.stored),
         )
 
+    override fun hasTombstone(id: String): Boolean = helper.readableDatabase
+        .rawQuery(HistorySql.SELECT_TOMBSTONE_BY_ID, arrayOf(id)).use { cursor ->
+            cursor.moveToNext()
+        }
+
     override fun countTranscriptions(): Int =
         helper.readableDatabase.rawQuery(HistorySql.COUNT_TRANSCRIPTIONS, emptyArray()).use { cursor ->
             if (cursor.moveToNext()) cursor.getInt(0) else 0

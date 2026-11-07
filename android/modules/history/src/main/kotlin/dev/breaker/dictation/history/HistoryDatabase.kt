@@ -74,6 +74,9 @@ internal interface HistoryDatabase {
      */
     fun deleteTombstoneByIdAndReason(id: String, reason: Tombstone.Reason): Int
 
+    /** True when a tombstone of ANY reason is stored for [id]. */
+    fun hasTombstone(id: String): Boolean
+
     /** How many transcriptions are on file. Tombstones are not counted. */
     fun countTranscriptions(): Int
 
