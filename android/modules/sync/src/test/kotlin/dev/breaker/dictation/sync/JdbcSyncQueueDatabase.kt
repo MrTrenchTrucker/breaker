@@ -61,6 +61,20 @@ internal class JdbcSyncQueueDatabase(private val sqlite: DesktopSqlite) : SyncQu
     override fun parkedReason(clientId: String): String? =
         sqlite.query(SyncQueueSql.PARKED_REASON, clientId).firstOrNull()?.get(0) as? String
 
+    /** The stored cursor text, or null when there is none; it is returned as stored. */
+    override fun pullCursor(): String? =
+        sqlite.query(SyncQueueSql.SELECT_PULL_CURSOR).firstOrNull()?.get(0) as? String
+
+    /** Stores the cursor text on the one row, replacing the one that is there. */
+    override fun savePullCursor(cursor: String) {
+        sqlite.exec(SyncQueueSql.SAVE_PULL_CURSOR, cursor)
+    }
+
+    /** Removes the cursor row, or none when there is none; the queue is never touched. */
+    override fun clearPullCursor() {
+        sqlite.exec(SyncQueueSql.CLEAR_PULL_CURSOR)
+    }
+
     override fun <T> transaction(block: () -> T): T {
         val connection = sqlite.connection
         if (!connection.autoCommit) return block() // nesting joins the outer transaction

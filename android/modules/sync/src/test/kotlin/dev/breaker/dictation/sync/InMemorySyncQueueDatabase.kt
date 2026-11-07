@@ -24,6 +24,9 @@ internal class InMemorySyncQueueDatabase(private val log: CallLog = CallLog()) :
 
     private val entries = ArrayList<QueueEntry>()
     private var nextSeq = 1L
+
+    /** The stored cursor text, or null when there is none. The text is opaque: it is never judged. */
+    private var cursor: String? = null
     private var reads = 0
     private var plannedInsert: PlannedWrite? = null
     private var plannedRemove: PlannedWrite? = null
@@ -167,10 +170,25 @@ internal class InMemorySyncQueueDatabase(private val log: CallLog = CallLog()) :
 
     override fun parkedReason(clientId: String): String? = parkedReasons[clientId]
 
+    override fun pullCursor(): String? = cursor
+
+    /** Stores the cursor text, replacing the one that is there. The text is kept exactly as given. */
+    override fun savePullCursor(cursor: String) {
+        log.add("saveCursor")
+        this.cursor = cursor
+    }
+
+    /** Removes the stored cursor text, or none when there is none. */
+    override fun clearPullCursor() {
+        log.add("clearCursor")
+        cursor = null
+    }
+
     override fun <T> transaction(block: () -> T): T {
         if (insideTransaction) return block() // nesting joins the outer transaction
         val before = ArrayList<QueueEntry>(entries)
         val parkedBefore = HashMap(parkedReasons)
+        val cursorBefore = cursor
         insideTransaction = true
         try {
             val result = block()
@@ -182,6 +200,7 @@ internal class InMemorySyncQueueDatabase(private val log: CallLog = CallLog()) :
             entries.addAll(before)
             parkedReasons.clear()
             parkedReasons.putAll(parkedBefore)
+            cursor = cursorBefore
             insideTransaction = false
             rollbacks++
             throw failure

@@ -33,6 +33,8 @@ The offline-first sync queue on the phone, and the idempotent push (F13, N12) of
 
 **Pulled row body (internal):** `PulledRowBody.read(record)` returns the shared `SyncBody` of one live pulled record at key_version 0 (the codec's `decodePlain` on its `encrypted` text, unchanged). It refuses a delete record, a missing key_version, a key_version other than 0 (the message holds the number; nothing is decrypted) and a missing `encrypted` text with `PulledRowException`; a body the codec refuses becomes a `PulledRowException` whose message is the fixed words plus the codec's family-only message, with the codec's exception as the cause. No message holds text from the record or its body. Nothing calls it yet.
 
+**Pull cursor (internal):** the storage keeps one opaque text, the cursor of the last complete pull, in its own table next to the queue: `pullCursor()` reads it, `savePullCursor(cursor)` stores it and a second save replaces it, and `clearPullCursor()` removes it. All three are on `SyncQueueDatabase`; the storage never judges or parses the text, and nothing calls it yet.
+
 ## Invariants
 - Offline dictation, queued by `enqueue`, then pushed by `pushPending` on reconnect, then counted in that call's `SyncReport`; nothing is dropped.
 - `enqueue` returns once the row is committed. A second enqueue of the same transcription id keeps the first copy.

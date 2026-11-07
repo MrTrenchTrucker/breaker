@@ -72,6 +72,24 @@ internal interface SyncQueueDatabase {
     fun parkedReason(clientId: String): String?
 
     /**
+     * Reads the stored cursor text of the last complete pull, or null when there is none.
+     * The text is returned as stored: it is opaque and is never judged or parsed here.
+     */
+    fun pullCursor(): String?
+
+    /**
+     * Stores the cursor text, replacing the one that is there, so the store always holds
+     * at most one. The text is stored as it is given, byte for byte.
+     */
+    fun savePullCursor(cursor: String)
+
+    /**
+     * Removes the stored cursor text, or none when there is none. It touches only the
+     * cursor table, never the queue.
+     */
+    fun clearPullCursor()
+
+    /**
      * Run [block] as one all-or-nothing unit.
      *
      * When [block] returns, its changes are kept and its result is returned.

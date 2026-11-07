@@ -100,6 +100,22 @@ internal class SqliteSyncQueueDatabase(context: Context) : SyncQueueDatabase {
             statement.executeUpdateDelete() > 0
         }
 
+    override fun pullCursor(): String? =
+        helper.readableDatabase.rawQuery(SyncQueueSql.SELECT_PULL_CURSOR, emptyArray()).use { cursor ->
+            if (cursor.moveToFirst()) cursor.getString(0) else null
+        }
+
+    override fun savePullCursor(cursor: String) {
+        helper.writableDatabase.compileStatement(SyncQueueSql.SAVE_PULL_CURSOR).use { statement ->
+            statement.bindString(1, cursor)
+            statement.executeInsert()
+        }
+    }
+
+    override fun clearPullCursor() {
+        helper.writableDatabase.execSQL(SyncQueueSql.CLEAR_PULL_CURSOR)
+    }
+
     override fun <T> transaction(block: () -> T): T {
         val database = helper.writableDatabase
         database.beginTransaction()
@@ -142,6 +158,11 @@ internal class SqliteSyncQueueDatabase(context: Context) : SyncQueueDatabase {
         override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
             when {
                 oldVersion == 1 && newVersion == 2 -> db.execSQL(SyncQueueSql.MIGRATE_V1_TO_V2)
+                oldVersion == 2 && newVersion == 3 -> db.execSQL(SyncQueueSql.MIGRATE_V2_TO_V3)
+                oldVersion == 1 && newVersion == 3 -> {
+                    db.execSQL(SyncQueueSql.MIGRATE_V1_TO_V2)
+                    db.execSQL(SyncQueueSql.MIGRATE_V2_TO_V3)
+                }
                 else -> {
                     // No other upgrade paths exist yet. The queue table is never dropped here: it holds
                     // transcriptions that have not been sent yet.

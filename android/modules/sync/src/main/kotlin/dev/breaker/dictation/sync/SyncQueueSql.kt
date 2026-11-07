@@ -11,8 +11,11 @@ internal object SyncQueueSql {
 
     const val TABLE_QUEUE: String = "sync_queue"
 
-    /** Bumped only when a statement below changes in a way that needs a migration. */
-    const val SCHEMA_VERSION: Int = 2
+    /** The cursor table, in the same file as the queue. */
+    const val TABLE_PULL_CURSOR: String = "sync_pull_cursor"
+
+    /** Bumped only when a statement below changes in a way that needs a migration. Version 3 adds the cursor table. */
+    const val SCHEMA_VERSION: Int = 3
 
     /** The name the database is opened under, inside the app-private directory. */
     const val DATABASE_NAME: String = "breaker_sync.db"
@@ -38,8 +41,18 @@ internal object SyncQueueSql {
             "created_at INTEGER NOT NULL, " +
             "parked_reason TEXT)"
 
+    /**
+     * The cursor table: one row at most, enforced by the CHECK on id, and no
+     * AUTOINCREMENT, so the cursor row never takes a seq. The row holds the
+     * cursor of the last complete pull, stored as the text it was given.
+     */
+    const val CREATE_PULL_CURSOR: String =
+        "CREATE TABLE IF NOT EXISTS $TABLE_PULL_CURSOR (" +
+            "id INTEGER PRIMARY KEY CHECK (id = 1), " +
+            "next_cursor TEXT NOT NULL)"
+
     /** Every statement that creates the schema, in the order it runs. */
-    val CREATE_ALL: List<String> = listOf(CREATE_QUEUE)
+    val CREATE_ALL: List<String> = listOf(CREATE_QUEUE, CREATE_PULL_CURSOR)
 
     /** The columns of a queue row, in the order the SELECT statements return them. */
     const val QUEUE_COLUMNS: String = "seq, client_id, text, source, model, duration_ms, created_at"
@@ -109,9 +122,35 @@ internal object SyncQueueSql {
     /** Migration from schema version 1 to 2: adds the parked_reason column to the queue table. */
     const val MIGRATE_V1_TO_V2: String = "ALTER TABLE $TABLE_QUEUE ADD COLUMN parked_reason TEXT"
 
+    /**
+     * Migration from schema version 2 to 3: adds the cursor table. It is the
+     * same CREATE TABLE IF NOT EXISTS text, so it cannot touch a queue row and
+     * running it twice is harmless.
+     */
+    const val MIGRATE_V2_TO_V3: String = CREATE_PULL_CURSOR
+
     /** Marks the row queued under [client_id] as parked, storing [reason]. */
     const val PARK_ROW: String = "UPDATE $TABLE_QUEUE SET parked_reason = ? WHERE client_id = ?"
 
     /** Reads the parked reason text of the row queued under [client_id], or null when it is not parked. */
     const val PARKED_REASON: String = "SELECT parked_reason FROM $TABLE_QUEUE WHERE client_id = ?"
+
+    /**
+     * Reads the stored cursor text of the one cursor row, or no row when there is none.
+     * The text is returned as stored: it is opaque and never parsed here.
+     */
+    const val SELECT_PULL_CURSOR: String = "SELECT next_cursor FROM $TABLE_PULL_CURSOR WHERE id = 1"
+
+    /**
+     * Stores the cursor text, replacing the row that is there. One bind: the text.
+     * The id is fixed at 1, so a second save never adds a second row.
+     */
+    const val SAVE_PULL_CURSOR: String =
+        "INSERT OR REPLACE INTO $TABLE_PULL_CURSOR (id, next_cursor) VALUES (1, ?)"
+
+    /**
+     * Removes the cursor row, or none when there is none. It touches the cursor table
+     * only, never the queue table.
+     */
+    const val CLEAR_PULL_CURSOR: String = "DELETE FROM $TABLE_PULL_CURSOR"
 }
