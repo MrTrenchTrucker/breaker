@@ -15,8 +15,9 @@ internal class AdapterShapeError(message: String) : AssertionError(message)
  * `SQLiteDatabase.delete(table, where, args)` from expressions written in the adapter itself, so a test
  * that typed its own copy of those expressions would go on passing when the adapter's were changed. This
  * reads them instead: the table, the `WHERE` and the argument list of the one `delete(` call in each of
- * `deleteById`, `deleteCreatedBefore` and `deleteTombstonesRecordedBefore`. The JVM twin runs the table and
- * the `WHERE` it finds here, so the statements the real-SQLite tests execute are the adapter's own.
+ * `deleteById`, `deleteCreatedBefore`, `deleteTombstonesRecordedBefore` and
+ * `deleteTombstoneByIdAndReason`. The JVM twin runs the table and the `WHERE` it finds here, so the
+ * statements the real-SQLite tests execute are the adapter's own.
  *
  * **How it reads.** Comments are removed first ([withoutComments]), and a `//` inside a string literal is not
  * a comment. The calls and names are found on the code with the text of every string literal masked out, so
@@ -29,8 +30,8 @@ internal class AdapterShapeError(message: String) : AssertionError(message)
  *
  * **What it refuses.** Anything it cannot vouch for throws an [AdapterShapeError] that says what it found and
  * what it expected: a block comment, a string, a raw string or a character literal that never ends (named,
- * with the line it starts on), a number of `delete(` calls other than three (a method that is itself named
- * `delete` is counted as a call, so it is refused too), a call outside the three methods, a method with none
+ * with the line it starts on), a number of `delete(` calls other than four (a method that is itself named
+ * `delete` is counted as a call, so it is refused too), a call outside the four methods, a method with none
  * or with two, a call that does not take three arguments, a table or `WHERE` that is null, blank, built by a
  * template, a concatenation or a call, or named by a constant this object does not know, the name `delete`
  * anywhere in the code that is not followed by an opening parenthesis (a method reference such as
@@ -80,7 +81,8 @@ internal object AdapterStatements {
 
     private const val ADAPTER_FILE = "SqliteHistoryDatabase.kt"
 
-    private val METHODS = listOf("deleteById", "deleteCreatedBefore", "deleteTombstonesRecordedBefore")
+    private val METHODS =
+        listOf("deleteById", "deleteCreatedBefore", "deleteTombstonesRecordedBefore", "deleteTombstoneByIdAndReason")
 
     /** The [HistorySql] constants a delete may name, with their values taken from [HistorySql], not retyped. */
     private val RESOLVABLE: Map<String, String> = mapOf(
@@ -88,6 +90,7 @@ internal object AdapterStatements {
         "TABLE_TOMBSTONES" to HistorySql.TABLE_TOMBSTONES,
         "CREATED_AT_STRICTLY_BEFORE_WHERE" to HistorySql.CREATED_AT_STRICTLY_BEFORE_WHERE,
         "DELETED_AT_STRICTLY_BEFORE_WHERE" to HistorySql.DELETED_AT_STRICTLY_BEFORE_WHERE,
+        "TOMBSTONE_ID_AND_REASON_WHERE" to HistorySql.TOMBSTONE_ID_AND_REASON_WHERE,
     )
 
     private val CONSTANT = Regex("""HistorySql\s*\.\s*(\w+)""")
@@ -111,7 +114,7 @@ internal object AdapterStatements {
     /** How many characters of code either side of a finding a message quotes. */
     private const val CONTEXT = 30
 
-    /** The three deletes of the real adapter, read once. */
+    /** The four deletes of the real adapter, read once. */
     val shipped: Map<String, ShippedDelete> by lazy { deletesIn(adapterSource()) }
 
     val deleteById: ShippedDelete get() = shipped.getValue("deleteById")
@@ -119,6 +122,8 @@ internal object AdapterStatements {
     val deleteCreatedBefore: ShippedDelete get() = shipped.getValue("deleteCreatedBefore")
 
     val deleteTombstonesRecordedBefore: ShippedDelete get() = shipped.getValue("deleteTombstonesRecordedBefore")
+
+    val deleteTombstoneByIdAndReason: ShippedDelete get() = shipped.getValue("deleteTombstoneByIdAndReason")
 
     /** The adapter's source text, as it is on disk. */
     fun adapterSource(): String {
@@ -130,7 +135,7 @@ internal object AdapterStatements {
     }
 
     /**
-     * The three deletes the adapter in [source] runs, keyed by method name.
+     * The four deletes the adapter in [source] runs, keyed by method name.
      *
      * Throws [AdapterShapeError] for anything this object cannot vouch for; see the class comment.
      */
@@ -351,7 +356,7 @@ internal object AdapterStatements {
         if (found.isNotEmpty()) {
             refuse(
                 "the adapter deletes another way than SQLiteDatabase.delete: ${found.joinToString()}; " +
-                    "expected only the three delete( calls, since nothing else is read here",
+                    "expected only the four delete( calls, since nothing else is read here",
             )
         }
     }
@@ -394,7 +399,7 @@ internal object AdapterStatements {
             refuse(
                 "found the name delete used other than in a call: ${found.joinToString { "`$it`" }}; " +
                     "a method reference or a bare use can run a delete this reader does not read, " +
-                    "expected the name only in the three delete( calls",
+                    "expected the name only in the four delete( calls",
             )
         }
     }

@@ -66,6 +66,17 @@ class HistorySqlOnSqliteTest {
     private fun runAdapterDelete(statement: AdapterStatements.ShippedDelete, arg: String): Int =
         sqlite.delete(statement.table, statement.where, arg)
 
+    /**
+     * The same, for the delete that binds two: its table and `WHERE` read from the adapter's own
+     * source, and [arg1] and [arg2] bound as text, in that order, the order the adapter writes.
+     */
+    private fun runAdapterDelete(
+        statement: AdapterStatements.ShippedDelete,
+        arg1: String,
+        arg2: String,
+    ): Int =
+        sqlite.delete(statement.table, statement.where, arg1, arg2)
+
     // ── the engine is real, and the literal is right ─────────────────────
 
     @Test
@@ -159,6 +170,31 @@ class HistorySqlOnSqliteTest {
             tombstoneIds(),
         )
         assertEquals("the sweep of tombstones leaves the transcriptions alone", listOf<Any?>("before"), ids())
+    }
+
+    @Test
+    fun `the adapter's clear of a tombstone by id and reason removes only the tombstone it names and its two binds are in that order`() {
+        val database = JdbcHistoryDatabase(sqlite)
+        database.putTombstone(Tombstone("u", cutoff, Tombstone.Reason.USER))
+        database.putTombstone(Tombstone("r", cutoff + 1, Tombstone.Reason.REMOTE))
+
+        // The binds in the order the adapter's own text writes them: read its argument array,
+        // and the element that names the id takes the id, the one that names the reason
+        // takes the reason. A WHERE that takes the two in the other order matches no row.
+        val statement = AdapterStatements.deleteTombstoneByIdAndReason
+        val binds = statement.args
+            .removePrefix("arrayOf<String?>(")
+            .removeSuffix(")")
+            .split(",")
+            .map { part -> if (Regex("\\bid\\b").containsMatchIn(part)) "u" else Tombstone.Reason.USER.stored }
+        val removed = runAdapterDelete(statement, binds[0], binds[1])
+
+        assertEquals("only the named tombstone goes", 1, removed)
+        assertEquals("the other reason's tombstone stays", listOf<Any?>("r"), tombstoneIds())
+
+        val swapped = runAdapterDelete(statement, binds[1], binds[0])
+        assertEquals("swapped the binds match nothing", 0, swapped)
+        assertEquals("the untouched tombstone is still listed", listOf<Any?>("r"), tombstoneIds())
     }
 
     @Test

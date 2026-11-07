@@ -60,7 +60,8 @@ written and kept; no shipped code reads or sweeps them yet, because the port
 that lets sync reach them is deferred. The 90-day tombstone window, measured
 from the delete, is a module design choice; the spec sets no tombstone lifetime.
 
-**Planned (ADR-035), not built:** the sync module will hand the rows it pulls from the server to this module, and will call `applyRemoteDelete` for a delete made on another device. The merge is decided and not built: a remote delete is applied even if this device saved the same id again, and a local delete followed by a local save of the same id clears the local tombstone, so the row is live again. History stays the only module that writes the local store. The port that sync uses to reach history is to be designed; no shipped code calls the methods yet.
+**Planned (ADR-035), not built:** the sync module will hand the rows it pulls from the server to this module, and will call `applyRemoteDelete` for a delete made on another device. Of the merge, one part is built: a local delete followed by a local save of the same id clears the local tombstone, so the row is live again. The rest is decided and not built: a remote delete is applied even if this device saved the same id again, and a remote tombstone is held across a local re-save, because the server wins for a delete made on another device. History stays the only module that writes the local store. The port that sync uses to reach history is to be designed; no shipped code calls the methods yet.
+
 
 ## Invariants
 - Every transcription saved regardless of source (F7).
@@ -126,9 +127,12 @@ code.
   StoreReportHookGateTest (NEW), and the re-pointed-and-renamed StoreFailureTest and StoreOnSqliteTest.
 - Tombstones are written and kept; no shipped code reads or sweeps them yet. The port that lets sync reach them is
   deferred, so the tombstone table only grows until it lands.
-- A tombstone can outlive a re-save of its id. `save` replaces a row by id and never touches the tombstones table, so
-  `delete` of X followed by `save` of X leaves a live row and a pending tombstone for one id, and only the age sweep
-  removes it. Decided and not built: a tombstone recorded by a REMOTE delete (`applyRemoteDelete`) is held across a local re-save, because the server wins for a delete made on another device. A tombstone recorded by a LOCAL `delete` is cleared when the same id is saved again, so the row is live again. Until that is built, the code keeps the tombstone in both cases, as the first part of this entry says.
+- A tombstone recorded by a LOCAL `delete` does not outlive a re-save of its id: `save` of the same id clears that
+  tombstone in the same transaction as the row, so the row is live again and nothing is pending for it. A tombstone
+  recorded by a REMOTE delete (`applyRemoteDelete`) is held across a local re-save, because the server wins for a
+  delete made on another device: decided and not built, with the sync merge that consumes it in ADR-035. A tombstone
+  recorded by the age sweep is held across a local re-save too; the held cases are pinned by the store's tests.
+
 - Keep the store at one per process, shared through the app's wiring. Each `create()`
   opens its own database handle on the same file, so two stores on one file would contend for the write lock
   (expected from how SQLite locks a file; no test here shows it). Close the store on

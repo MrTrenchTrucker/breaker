@@ -54,6 +54,12 @@ class HistorySqlTest {
     }
 
     @Test
+    fun `the clear of a tombstone matches on the id and the reason, and nothing else`() {
+        assertEquals("id = ? AND reason = ?", HistorySql.TOMBSTONE_ID_AND_REASON_WHERE)
+        assertEquals(2, HistorySql.TOMBSTONE_ID_AND_REASON_WHERE.count { it == '?' })
+    }
+
+    @Test
     fun `saving is a replace, not a plain insert`() {
         // A re-sent dictation under the same id must update one row, not add a
         // second copy of the same sentence.

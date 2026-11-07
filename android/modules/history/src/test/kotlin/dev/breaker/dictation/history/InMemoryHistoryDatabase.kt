@@ -84,6 +84,18 @@ internal class InMemoryHistoryDatabase : HistoryDatabase {
         return doomed.size
     }
 
+    // The match is on both the id and the stored word, the same word putTombstone
+    // writes: only the tombstone for this id with this reason goes; a tombstone
+    // for the same id with another reason, or one for another id, stays.
+    override fun deleteTombstoneByIdAndReason(id: String, reason: Tombstone.Reason): Int {
+        val held = tombstones[id]
+        if (held != null && held.reason == reason.stored) {
+            tombstones.remove(id)
+            return 1
+        }
+        return 0
+    }
+
     override fun countTranscriptions(): Int = rows.size
 
     override fun <T> transaction(block: () -> T): T {
