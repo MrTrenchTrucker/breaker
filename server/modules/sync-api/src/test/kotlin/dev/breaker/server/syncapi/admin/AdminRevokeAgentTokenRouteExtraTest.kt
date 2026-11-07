@@ -29,8 +29,8 @@ import org.junit.Test
  * no-token/verifier-leakage requirements, wiring, and the current role rule (ADR-009).
  *
  * The error body is the shared `Error` object with the snake_case wire names `error`
- * and `message`, exactly as openapi.yaml lines 292-320 give them; a second field
- * is not added casually.
+ * and `message`, exactly as the responses of DELETE /v1/admin/agent-tokens/{id} in
+ * openapi.yaml give them; a second field is not added casually.
  */
 internal class AdminRevokeAgentTokenRouteExtraTest : TempDatabaseTest() {
 

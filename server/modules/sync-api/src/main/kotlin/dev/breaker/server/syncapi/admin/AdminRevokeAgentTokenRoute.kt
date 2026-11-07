@@ -28,7 +28,8 @@ import kotlinx.coroutines.CancellationException
  *
  * Hand-written JSON — no serialization library, no api-contracts import.
  * The error body is the shared `Error` object with the snake_case wire names
- * `error` and `message`, exactly as openapi.yaml lines 292-320 give them.
+ * `error` and `message`, exactly as the responses of DELETE /v1/admin/agent-tokens/{id} in
+ * openapi.yaml give them.
  */
 internal fun Application.adminRevokeAgentTokenRoute(tokenStore: TokenStore) {
     routing {
