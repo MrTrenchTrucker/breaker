@@ -32,9 +32,9 @@ it; the repository has no server retention code yet.
 Every delete of a stored row leaves a tombstone for sync to carry to the server.
 A purge records one for each expired row it removes, and `delete` records one
 when it removed a row; `delete` of an id this device does not hold leaves none.
-A delete made elsewhere (the web FE, another device) has an internal entry
-point, `applyRemoteDelete`, which records a tombstone even when this device held
-no such row; no shipped code calls it yet.
+A delete made elsewhere (the web FE, another device) has an entry point,
+`applyRemoteDelete`, the PullSink call this store implements, which records a
+tombstone even when this device held no such row; no shipped code calls it yet.
 
 Tombstones are written and kept. No shipped code reads or sweeps them yet,
 because the port that lets sync reach them is deferred to a later phase; until
@@ -47,11 +47,11 @@ Planned (ADR-035, not built): the sync module will call `applyRemoteDelete` for 
 ## Public surface
 
 - `SqliteHistoryStore`, built only through `SqliteHistoryStore.create(context, clock)`.
-  It implements `core.HistoryStore` and exposes `purgeExpired(): PurgeReport`.
+  It implements `core.HistoryStore` and `core.PullSink` and exposes `purgeExpired(): PurgeReport`.
 - `PurgeReport`, what `purgeExpired()` returns.
 
 Everything else is internal, including the store's other methods
-(`applyRemoteDelete`, `count`, `close`, the tombstone sweep and the
+(`count`, `close`, the tombstone sweep and the
 pending-tombstone list). The app calls `purgeExpired()` once at start
 (`BreakerApp`), through `PurgeGuard`: it skips the purge for at most 7 days when automatic time is off and over 30 days have
 passed since the last purge.

@@ -145,7 +145,7 @@ class CardMatchesCodeTest {
         val publicMethods = store.declaredMethods
             .filter { Modifier.isPublic(it.modifiers) && !it.isSynthetic && '$' !in it.name }
         assertEquals(
-            sortedSetOf("delete", "list", "purgeExpired", "save"),
+            sortedSetOf("applyRemoteDelete", "delete", "list", "purgeExpired", "save"),
             publicMethods.map { it.name }.toSortedSet(),
         )
         val purges = publicMethods.filter { it.name == "purgeExpired" }
