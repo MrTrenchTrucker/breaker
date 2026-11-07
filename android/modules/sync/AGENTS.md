@@ -25,6 +25,8 @@ The offline-first sync queue on the phone, and the idempotent push (F13, N12) of
 
 **Pull page decoder (internal):** `PullPageDecoder.decode` turns the text of one pull page into the shared `TranscriptionPage` or refuses it with `PullPageException`; it uses its own small strict JSON reader (`PullPageJson`, nesting deeper than 8 refused). A live record needs `client_id` (a lowercase canonical UUID), `change` (an integer, at least 1), `deleted`, `stored_at`, `key_version` and `encrypted`; a delete record needs the first four and must carry neither `key_version` nor `encrypted`. It does not parse or check the cursor `next` (a non-empty text, returned unchanged), and a refusal message never contains text from the body. Nothing calls it yet.
 
+**Pull request (internal):** `PullRequest` describes one pull call: the fixed path `/v1/transcriptions` and the optional `since`. `PullRequest.first()` has none; `PullRequest.after(cursor)` keeps the stored cursor text exactly (no trim, no case change, no check of its form) and `query()` writes it percent-encoded (UTF-8 bytes; only A-Z a-z 0-9 - . _ ~ are left alone, a space is `%20`); an empty cursor is refused with `IllegalArgumentException`. `PullStatus.of(status)` reads 200 as `OK`, 400 as `BAD_CURSOR` and every other status as `OTHER`. Nothing calls them yet.
+
 ## Invariants
 - Offline dictation, queued by `enqueue`, then pushed by `pushPending` on reconnect, then counted in that call's `SyncReport`; nothing is dropped.
 - `enqueue` returns once the row is committed. A second enqueue of the same transcription id keeps the first copy.
