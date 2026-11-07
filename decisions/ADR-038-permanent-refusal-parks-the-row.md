@@ -52,17 +52,16 @@ Status table (status, row-level or not, permanent or transient):
 | 400 | yes | permanent |
 | 401 | no | transient |
 | 403 | no | transient |
-| 409 | not decided here: keeps today's behaviour (blocks the queue) | not decided here |
+| 409 | not decided here: see ADR-039 (cannot occur today) | not decided here |
 | 413 | yes | permanent |
 | 422 | not answered | not answered |
 | 503 | no | transient |
 
 ## Known remaining gap
 
-409 keeps today's behaviour: a row pushed at a lower key version than the server holds
-fails on every retry until it is re-saved (the ADR-035 resave), so treating it as
-transient keeps the queue blocked - the very bug this ADR fixes. 409 gets its own ADR
-with the resave flag.
+409 keeps today's behaviour: `FAILED`, and the drain stops at the row. A 409 cannot occur today:
+it needs an account above key_version 0, and no client calls the keys route that raises it. See
+ADR-039.
 
 ## Decided
 
@@ -84,7 +83,7 @@ readable from the store.
 
 ## Open
 
-1. The 409 ADR: its own ADR comes with the resave flag.
+1. The 409 question is ADR-039 (accepted: no code now; revisit when a client calls the keys route).
 
 ## Consequences
 

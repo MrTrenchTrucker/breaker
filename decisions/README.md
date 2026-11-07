@@ -88,6 +88,7 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-035](ADR-035-several-devices-server-is-source-of-truth.md) | Several devices per account; the server is the source of truth | accepted; the points under To be designed are open |
 | [ADR-036](ADR-036-sign-in-from-the-website.md) | Sign-in from the website hands the login to the app | accepted, amended 2026-11-02; the points under To be designed are open |
 | [ADR-037](ADR-037-busy-face-follows-the-microphone.md) | The busy face follows the microphone and clears when it is free | accepted; built, not yet tried on a phone |
-| [ADR-038](ADR-038-permanent-refusal-parks-the-row.md) | Permanent refusal parks the row | accepted by the manager; built; 409 is open |
+| [ADR-038](ADR-038-permanent-refusal-parks-the-row.md) | Permanent refusal parks the row | accepted by the manager; built; 409 is decided in ADR-039 |
+| [ADR-039](ADR-039-a-409-on-the-sync-push.md) | What a 409 on the sync push should do | accepted by the manager; no code now |
 
-Next free number: **ADR-039**.
+Next free number: **ADR-040**.
