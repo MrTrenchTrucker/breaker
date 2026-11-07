@@ -849,7 +849,7 @@ smoke-test gate [1].
 - T18. **Queue abuse / DoS** — FIFO worker and job size caps are built;
       per-user rate limits are planned, not built.
 - T19. **Agent token leakage** — scoped, revocable tokens (F27). An optional per-token
-      request limit, off by default, is planned, not built.
+      request limit is built in whisper-server: off unless the admin sets it.
 - T20. **SSRF via transcription service config** — admin-only config; URL
       validation on the connectivity test (F26).
 - T21. **Tampered model / transducer OOB write (#3983)** — models pinned to
@@ -1071,7 +1071,7 @@ See `docs/04-build-order.md`. Summary:
 - R22. **Misconfigured transcription endpoint** — connectivity test + clear
       errors; queue fails jobs with a visible status (F26).
 - R23. **Agent token leakage** — scoped + revocable tokens (T19). An optional per-token
-      request limit, off by default, is planned, not built.
+      request limit is built in whisper-server: off unless the admin sets it.
 - R24. **sherpa-onnx transducer OOB write (issue #3983)** — pinned models +
       upstream checksum.txt close the delivery vector for a private deployment;
       adopt the upstream fix; revisit the transducer path if it doesn't land [2].

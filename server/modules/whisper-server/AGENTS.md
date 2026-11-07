@@ -64,6 +64,17 @@ concurrent requests would contend. A queue serializes jobs:
 - Jobs persist in SQLite → restart-safe (no queued audio lost).
 - No priority in v1; the job size cap is built, per-user rate limits are planned (T18).
   Built: the upload size cap (413 above the audio limit). Planned, not built: per-user rate limits.
+- **Agent-token request limit (T19), built and optional.** Off unless
+  `BREAKER_WHISPER_AGENT_RATE_LIMIT_PER_MIN` is set to a whole number from 1 to 10000; a blank,
+  zero, negative, text or larger value refuses the start and names the variable. Only a live
+  token of kind agent is counted: a session token is never limited. Each token has a fixed
+  60 second window that opens at its first counted request. Over the cap,
+  `POST /v1/audio/transcriptions` and `GET /v1/jobs/{job_id}` answer 429 with a `Retry-After`
+  header in whole seconds (rounded up, at least 1), before the upload is read and before the job
+  lookup. One counter per token serves both routes; it lives in memory under a SHA-256 of the
+  presented token (never the token), so a restart resets it. A token that fails the check is 401
+  first and is never counted. The code is `http/AgentRateLimit.kt`, the check is in
+  `TranscriptionRoutes.kt` and the setting is in `WhisperConfig.kt`.
 - **Result retention (ADR-018):** a completed job's `result` stays fetchable for `RESULT_WINDOW_MS` after the job finished (default 10 minutes, set by `BREAKER_WHISPER_RESULT_TTL_S`, at most 24 hours); every `GET /v1/jobs/{job_id}` inside that window returns the same result, and after the window the result is erased and the answer is `404` (unknown or expired). Until then the result sits here in **plaintext**, same as the queued audio does before the job finishes.
 
 **Retry + audio lifecycle (F28):** failed jobs auto-retry **3× at 10 s
