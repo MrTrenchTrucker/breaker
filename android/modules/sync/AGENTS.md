@@ -83,7 +83,7 @@ agents, not required: an outside contributor may write the code themselves
 - The queue file holds the text in clear on the device. The manifest sets `android:allowBackup="false"` and the backup rules exclude every domain, so a backup does not restore the queue (ADR-028).
 - At `key_version` 0 the body is not encrypted, so the server can read the text. This is the development form. It is replaced when the `key_version` 1 form is built.
 - A row the drain skips repeats in `SyncReport.failed` on every drain that reaches it.
-- A 409 is not covered by ADR-038: it is `FAILED` on every push and blocks the rows behind it until its own ADR (the resave flag) is built.
+- A 409 is not covered by ADR-038: it is `FAILED` and stops the drain at its row. It cannot occur today (no client calls the keys route, so no account is above key_version 0); ADR-039 holds the options for the day it can.
 - A parked row is not retried and does not go away by itself. A delete removes it (`remove` is not filtered); a retry action is a later feature.
 - The client id must be a lowercase canonical UUID. The app's id source (`UuidIdSource`) mints one. A transcription with any other id is skipped on every drain.
 - The Android SQLite adapter, `SqliteSyncQueueDatabase`, cannot run on a JVM. Its tests read its source text and check it against `SyncQueueSql`.
