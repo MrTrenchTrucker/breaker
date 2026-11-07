@@ -164,6 +164,89 @@ all of them Decided, not built (phone). Nothing here is built yet.
 - **Not decided here.** New-device keys (question 3) and the key_version 1 pulled row (question 4) stay
   later work.
 
+## Decided details of the list cursor (sync 1D)
+
+The manager decided on 2026-11-07 that the changes-since feed has TWO cursor
+kinds. Both are server-assigned and opaque; the client stores one and sends it
+back as `since`, never builds one. Decided, not built (server).
+Decided by the manager inside the opaque-cursor rule; the project owner has not seen it and may overrule it.
+
+- **The defect.** A first list (no `since`) returns the oldest 100 live rows
+  and `next = the change number of the last live row emitted`. The next call
+  sends `since = next`, and line 22 of TranscriptionPageReader.kt answers 410
+  when `since < purged_through`. World, recounted from repro.py: push 101 rows
+  (changes 1 to 101), push a 102nd and delete it (the delete record is change
+  103); a first device pulls to the head and its `since=103` call purges it, so
+  `purged_through = 103`. A NEW device lists from scratch: page 1 = 100 rows,
+  `next = 100`, `more = true`; its next call `since=100` is below 103 = 410;
+  "list again without since" returns the same page and the same `next`, and the
+  410 repeats for ever. A second phone or a reinstall can never finish its
+  first list. Server only: the phone treats the cursor as opaque and is
+  unaffected. Account id in repro: 1.
+
+- **Two cursor kinds.** (1) Incremental `<account_id>-<change>` - unchanged,
+  pattern `^[0-9]{1,19}-[0-9]{1,19}$`. (2) LIST cursor, issued only as `next`
+  of a NON-final page of a no-since list: `<account_id>-<position>-<head>`
+  where `position` is the change of the last live row emitted on that page and
+  `head` is the head read on the FIRST page of the list, pattern
+  `^[0-9]{1,19}-[0-9]{1,19}-[0-9]{1,19}$`. The widened pattern that accepts
+  both is `^[0-9]{1,19}-[0-9]{1,19}(-[0-9]{1,19})?$`; any other text is a 400
+  before any number is read. The account part keeps its no-leading-zero rule: a
+  leading zero other than a single 0 is refused.
+
+- **What the server does on a list cursor.** It skips the 410 check (a list
+  reads live rows only, no delete record is needed, so `purged_through` is
+  irrelevant). It reads live rows with `position < change_no <= head` (the head
+  carried in the cursor), ordered by `change_no`, one more than a page
+  (`LIMIT 101`): a list is a SNAPSHOT at the first-page head. Rows written after
+  that head (new rows, re-saves, deletes) are not emitted by the list; they reach
+  the phone through the incremental pull `since=head` that the final `next`
+  returns. This keeps every earlier reason (no 410 on a list, a delete between
+  pages is reported, the purge is held at the first-page head) and the position
+  never exceeds its head. It stores as the session's pulled number
+  `min(head, head_now)`, never above the first-page head, so the purge cannot
+  pass records the phone has not yet seen.
+
+- **What `next` is.** While `more`, `next = <account_id>-<position>-<head>` (the
+  LIST cursor, same first-page head). On the FINAL page, `next =
+  <account_id>-<head>` (the incremental cursor at the first-page head, NOT the
+  head now) - so deletes and changes after that head reach the phone by its next
+  normal pull. Single-page lists (100 live rows or fewer) are unchanged: `next
+  = head`.
+
+- **Why not the other two options.** Clamping `next` up to `purged_through`
+  skips live rows. Putting the head only at the end loses a delete made between
+  two pages: the final next would jump past its delete record.
+
+- **The phone is unchanged.** The prune after a full list uses the union of ALL
+  pages of that list and only runs when the list finished (noted for the prune
+  piece).
+
+- **When a list cursor is valid (Q1, Q6).** Only when `1 <= position < head`: the
+  server never issues position 0 or a position equal to the head (a non-final page
+  means a live row exists above the position and at or below the head). Anything
+  else is a 400, answered before any number is read. The refusal is in the openapi
+  400 text and a contract test pins that sentence.
+
+- **A reset while a list is in flight (Q2).** Nothing special. A reset revokes every
+  session, so a list in flight is refused by authentication before its cursor is
+  read. A stale list cursor used with a NEW session just continues on the new feed,
+  and its final incremental cursor at the old head meets the existing 410 and
+  list-again-once if `purged_through` has passed it.
+
+- **A session revoked or expired between two pages (Q3).** Authentication runs first,
+  as on any route: 401 or 403. The list cursor carries no session state.
+
+- **A list cursor of another account (Q4).** 400 before any number is read, as for
+  an incremental cursor of another account.
+
+- **Two lists of one session in flight (Q5).** Independent: the cursor is
+  self-contained (account, position, head). The session's stored pulled number is
+  the smaller of the two lists' values; it may move DOWN, which is safe, because it
+  only holds the purge longer.
+
+- **No question is left open.** Q1 to Q6 are decided above.
+
 What is built and what is not is listed in Built so far, and what is not, above.
 
 Rules in: the server as the source of truth for an account's transcriptions; devices push, then pull; deletes propagate through the server; the sealed key hand-off to a new device as ADR-036 describes.

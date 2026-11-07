@@ -18,7 +18,7 @@ read and flip the wrong-password limit, the two internal token-check routes and 
 the card lists is not built yet. Built: `POST /v1/admin/reset-account` (an admin, with a session or an
 admin-scoped agent token, resets one account in one transaction: the verifier is replaced with random bytes
 and the account is marked reset-pending, the keys, tokens, sign-in codes and transcriptions are deleted,
-`reset_at` is set, `key_version` is kept, every earlier feed cursor gets 410, and one one-time reset code is
+`reset_at` is set, `key_version` is kept, every earlier incremental feed cursor gets 410 (a list cursor is never 410), and one one-time reset code is
 returned; the code is 43 characters, valid for 24 hours, stored only as a hash, and a new reset replaces it),
 `POST /v1/auth/complete-reset` (the person sets a new password with the code, no session needed; every failed
 lookup is one fixed 401, and the answer is the keyless login body), the reset-pending account (login answers
