@@ -19,8 +19,10 @@ private const val OK_STATUS = 200
  * the attempt, stores the keys and then the session, and wipes the attempt on every path.
  *
  * The keys are stored first and the session second. If anything fails after the server issued a
- * session, both stores are cleared, each on its own, and the one session is revoked once, best
- * effort, through [logoutHttp]. A session the phone already holds is not revoked by the finish.
+ * session, one best-effort logout of that session is sent through [logoutHttp] and nothing is
+ * retried. A session the phone already holds is not revoked by the finish. Only a failed store
+ * clears both stores, each in its own try, so one failure spares the other; an unreadable answer
+ * or a package that will not open leaves the stores as they were and at most logs out.
  * The exchange goes through [exchangeHttp], which carries no Authorization header.
  *
  * It blocks on the network, so the caller runs it off the main thread. A Kotlin String cannot be

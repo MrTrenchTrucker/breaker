@@ -40,7 +40,9 @@ On 2026-11-01 the project owner confirmed the design and ordered this update: "B
    through a background so the exchange never blocks the main thread; the exchange call, which carries no
    bearer (`HandoffFinish`); `CryptoService.openSignInPackage`; the account keys kept in a sealed file of
    their own (`CredentialFileVault`, under an Android Keystore key); and the session, saved after the keys.
-   A failure or a logout clears both. Built on the server: the start and exchange routes
+   A failed store or a logout clears both, each in its own try; an unreadable answer or a package
+   that does not open leaves the stores as they were and at most logs out. Built on the server:
+   the start and exchange routes
    (`AuthHandoffRoutes.kt`), the code store and the sweep. Not built: the website page (its crypto is a
    stub, `web-fe` `js/signin-crypto.js`), the app's device name and the phone's pull. When the app starts the sign-in hand-off, it makes a fresh X25519 key pair in memory for
    that one sign-in and sends the public half with its sign-in challenge. The pair and the app's one-time

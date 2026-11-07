@@ -118,8 +118,8 @@ class QueuedSyncService internal constructor(
      * parked IN THIS DRAIN; the total parked is [parkedCount].
      *
      * Known gap: [UploadOutcome.FAILED] stops the drain and keeps the row at the head
-     * of the queue. 409 keeps today's behaviour: it blocks every row behind it until
-     * a later ADR with the resave flag.
+     * of the queue. A 409 cannot occur today (no client uploads keys, ADR-039): it keeps
+     * today's behaviour, FAILED.
      *
      * The drain walks only the rows queued when it started. The highest seq is read
      * once, after the probe answers and before the first row. A row queued during
