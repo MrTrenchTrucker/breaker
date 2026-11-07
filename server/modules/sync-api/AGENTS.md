@@ -286,7 +286,10 @@ A route or job marked Planned, not built below is not installed on main yet.
   Planned, not built: the create route; only the revoke (`DELETE`) is installed.
 - Agent auth: `Authorization: Bearer <agent-token>` on `POST
   /v1/audio/transcriptions` + `GET /v1/jobs/{id}` — same FIFO queue, results to
-  the owner's namespace. Rate limiting (T19) is planned, not built: no rate limit exists in the server code yet (the whisper-server card says the same for per-user limits).
+  the owner's namespace. Rate limiting (T19) is planned, not built: no rate limit exists in the
+  server code yet. It will be optional and off by default. Set by the admin, it will cap requests
+  per agent token per minute and answer over the cap with 429 and a Retry-After header. User
+  sessions will not be limited, and a revoked or expired token is refused with 401 first.
 - `POST /v1/admin/reset-account` - BUILT. `{username}`, **admin-only**: an admin session token or
   an admin-scoped agent token, the one exception to the rule that key-bearing routes refuse
   agent tokens. The rules of this route, in order (`admin/AdminResetAccountRoute.kt`,
