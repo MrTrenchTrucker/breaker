@@ -375,23 +375,11 @@ class TcpConnectivityProbeSlotReleaseOnceTest : ProbePoolIsolation() {
      * have come from a real dial.
      */
     private fun drainProbeExecutor() {
-        val startedAt = System.nanoTime()
-        val deadline = startedAt + TimeUnit.MILLISECONDS.toNanos(DRAIN_BOUND_MS)
-        var attempts = 0
-        while (System.nanoTime() < deadline) {
-            attempts++
-            val drain = TcpConnectivityProbe(
-                { "https://slot-release-once-drain-$attempts.invalid" },
-                FakeClock(1_000L),
-                FakeHostResolver(),
-                RecordingConnector(script = listOf(ProbeOutcome.CONNECTED)),
-            )
-            if (attempts > 1) LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(DRAIN_RETRY_PARK_MS))
-            if (drain.isServerReachable()) return
-        }
-        val waitedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt)
-        throw AssertionError(
-            cardFailure("the shared probe worker was still busy after the drain MEASURED $waitedMs ms of real waiting, over $attempts attempts really made, against a $DRAIN_BOUND_MS ms bound - the one pool in [ProbeExecutor] serves every probe in this JVM, so a worker left parked past this test answers false for everything that follows it. The measured figures are reported, not the bound's, so a mis-converted unit can never make this message agree with the code it is describing"),
+        drainProbeExecutor(
+            hostLabel = "slot-release-once-drain",
+            boundMs = DRAIN_BOUND_MS,
+            retryParkMs = DRAIN_RETRY_PARK_MS,
+            failureMessage = "pool still busy after drain - one pool serves every probe",
         )
     }
 

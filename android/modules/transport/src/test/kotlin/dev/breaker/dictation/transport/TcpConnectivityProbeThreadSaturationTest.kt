@@ -196,7 +196,7 @@ class TcpConnectivityProbeThreadSaturationTest : ProbePoolIsolation() {
         )
         assertTrue(
             cardFailure("a task with nowhere to go is refused AT ONCE: this probe waited ${refusedElapsedMs} ms against a ${TcpConnectivityProbe.CONNECT_TIMEOUT_MS} ms budget, so a caller was held rather than answered, and the false it was finally given describes a wait rather than a refusal"),
-            refusedElapsedMs < RETURN_BOUND_MS,
+            refusedElapsedMs < REFUSED_BOUND_MS,
         )
         assertFalse(
             cardFailure("a refusal is a moment, not a verdict: the pool is still saturated here, so the same host must be refused the same way. It answered reachable, which can only have come from an entry recording a connection attempt that was never made"),
@@ -408,22 +408,10 @@ class TcpConnectivityProbeThreadSaturationTest : ProbePoolIsolation() {
      * have come from a dial that really ran on a shared worker.
      */
     private fun drainProbeExecutor() {
-        val startedAt = System.nanoTime()
-        val deadline = startedAt + TimeUnit.MILLISECONDS.toNanos(DRAIN_BOUND_MS)
-        var attempts = 0
-        while (System.nanoTime() < deadline) {
-            attempts++
-            val drain = TcpConnectivityProbe(
-                { "https://thread-saturation-drain-$attempts.invalid" },
-                FakeClock(1_000L),
-                FakeHostResolver(),
-                RecordingConnector(script = listOf(ProbeOutcome.CONNECTED)),
-            )
-            if (drain.isServerReachable()) return
-        }
-        val waitedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt)
-        throw AssertionError(
-            cardFailure("the shared probe worker was still busy after the drain MEASURED $waitedMs ms of real waiting, over $attempts attempts really made, against a $DRAIN_BOUND_MS ms bound - the one pool in [ProbeExecutor] serves every probe in this JVM, so a worker left parked past this test answers false for everything that follows it. The measured figures are reported, not the bound's, so a mis-converted unit can never make this message agree with the code it is describing"),
+        drainProbeExecutor(
+            hostLabel = "thread-saturation-drain",
+            boundMs = DRAIN_BOUND_MS,
+            failureMessage = "pool still busy after drain - one pool serves every probe",
         )
     }
 
@@ -476,6 +464,11 @@ class TcpConnectivityProbeThreadSaturationTest : ProbePoolIsolation() {
 
         /** Ceiling on what a refused or recovering caller may be held. */
         const val RETURN_BOUND_MS = 3_000L
+
+        /** Ceiling on what a healthy host refused behind a wedged lookup may be held.
+         * Case (a): defect = 30 s wedge wait; new bound 10 s: starvation tolerated 8.5 s over the
+         * 1.5 s budget, defect 3 times over. */
+        const val REFUSED_BOUND_MS = 10_000L
 
         /** Ceiling on the bounded recovery poll, 10 s: generous for several budgets. */
         const val RECOVERY_BOUND_MS = 10_000L

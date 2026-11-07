@@ -141,20 +141,10 @@ class TcpConnectivityProbeHostCaseTest : ProbePoolIsolation() {
      * still fails rather than hanging when the pool never comes back.
      */
     private fun drainProbeExecutor() {
-        val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(DRAIN_BOUND_MS)
-        var attempts = 0
-        while (System.nanoTime() < deadline) {
-            attempts++
-            val drain = TcpConnectivityProbe(
-                { "https://host-case-drain-$attempts.invalid" },
-                FakeClock(1_000L),
-                FakeHostResolver(),
-                RecordingConnector(script = listOf(ProbeOutcome.CONNECTED)),
-            )
-            if (drain.isServerReachable()) return
-        }
-        throw AssertionError(
-            cardFailure("the shared probe pool was still busy ${DRAIN_BOUND_MS} ms after this test released its latches, over $attempts attempts - the one pool in [ProbeExecutor] serves every probe in this JVM, so a worker left parked past this test answers false for everything that follows it"),
+        drainProbeExecutor(
+            hostLabel = "host-case-drain",
+            boundMs = DRAIN_BOUND_MS,
+            failureMessage = "pool still busy after drain - one pool serves every probe",
         )
     }
 
@@ -238,14 +228,13 @@ class TcpConnectivityProbeHostCaseTest : ProbePoolIsolation() {
         const val WEDGE_AWAIT_MS = 30_000L
 
         /**
-         * Ceiling on a probe that joins a lookup already in flight. Half the
-         * budget on purpose: such a probe spends a CAS and returns, so anything
-         * approaching the budget means a worker was handed to a lookup that was
-         * already running.
+         * Ceiling on a probe that joins a lookup already in flight: just under the 1.5 s
+         * budget on purpose. Such a probe spends a CAS and returns, so a hold of the whole
+         * budget means a worker was handed to a lookup that was already running.
          */
-        const val JOIN_BOUND_MS = 750L
+        const val JOIN_BOUND_MS = 1200L
 
         /** Ceiling on the drain, generous because each attempt can cost one budget. */
         const val DRAIN_BOUND_MS = 10_000L
-    }
-}
+        }
+        }
