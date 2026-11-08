@@ -67,8 +67,8 @@ phone. The start route `POST /v1/auth/handoff/start`, the exchange route `POST /
 migration 4 (the sign-in code table, its index, the device name column and the triggers), the code store and
 sweep, and the revoke rule are built on the server. Built on the phone too: making the key pair, calling
 the exchange route, opening the package, storing the keys and the session, and one best-effort logout when
-the store fails after the server issued a session. Not built: the website page, the app's device name, and
-the device list with sign-out. The
+the store fails after the server issued a session. Built on the server: the device list and the two
+sign-out routes for the person's own devices. Not built: the website page and the app's device name. The
 wrong-password limit is built on the server (see the amendment below, What is built). Encoding decisions stay
 under To be designed.
 

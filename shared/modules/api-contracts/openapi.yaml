@@ -1200,6 +1200,110 @@ paths:
               example:
                 error: "unavailable"
                 message: "The service is unavailable, try again later"
+  /v1/auth/devices/{id}:
+    delete:
+      summary: Sign out one device of the caller's account
+      description: >-
+        A user session signs out one device of its own account, by the id the device list
+        returns; the id is a decimal integer only (no sign, no leading plus, no spaces, no
+        overflow past Long); a bad id, an unknown id, another account's id, an agent token
+        id, an already revoked id, an expired id and an id past the 180 day cap all answer
+        the same 404 and the answer carries no part of the id; signing out the calling
+        device is allowed and the presented token is dead afterwards, so any further call
+        with that token answers 401, not 404; a second DELETE of the same id answers 404;
+        the account's hand-off codes are left alone; an agent token is refused with 403 and
+        agent tokens are never revoked by this route.
+      operationId: signOutDevice
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: The device id the device list returns
+      responses:
+        "204":
+          description: The device is signed out
+        "401":
+          description: Refused with no, bad or dead user session token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing user session token"
+        "403":
+          description: Refused. A valid token of the wrong kind.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "forbidden"
+                message: "User session token required; an agent token is refused"
+        "404":
+          description: No such device
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "not_found"
+                message: "No such device"
+        "503":
+          description: A storage failure gets this fixed answer, with no part of the failure echoed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
+  /v1/auth/devices/sign-out-all:
+    post:
+      summary: Sign out all devices of the caller's account
+      description: >-
+        A user session ends every device of its own account including the calling device
+        (the presented token is dead afterwards); the account's unredeemed sign-in codes
+        are deleted in the same transaction; agent tokens are never revoked by this route;
+        an agent token is refused with 403.
+      operationId: signOutAllDevices
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Every device of the account is signed out
+        "401":
+          description: Refused with no, bad or dead user session token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing user session token"
+        "403":
+          description: Refused. A valid token of the wrong kind.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "forbidden"
+                message: "User session token required; an agent token is refused"
+        "503":
+          description: A storage failure gets this fixed answer, with no part of the failure echoed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
   /v1/admin/agent-tokens/{id}:
     delete:
       summary: Revoke an agent token

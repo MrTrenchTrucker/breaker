@@ -139,6 +139,19 @@ There is no synchronous 200-with-body variant — every transcription is a job.
   `current` (boolean, true only for the presented token). Answers **200** `{devices: [...]}`, **401**
   `ApiError` for a missing or dead token, **403** `ApiError` for an agent token, **503** `ApiError`
   for a store failure.
+- **auth - devices - sign out one** - `DELETE /v1/auth/devices/{id}`, bearer user session token only: signs
+  out one device of the caller's own account, by the id the device list returns. The id is decimal digits
+  only. Answers **204 No Content**, or **404** `ApiError` `{error: "not_found", message: "No such device"}`
+  for a bad id, an unknown id, another account's id, an agent token id, an already revoked id, an expired id
+  and an id past the 180 day cap: one body, carrying no part of the id. A second DELETE of the same id
+  answers 404. Signing out the calling device is allowed. The account's hand-off codes are left alone.
+  **401** `ApiError` for a missing or dead token, **403** `ApiError` for an agent token, **503** `ApiError`
+  for a store failure. Agent tokens are never revoked here.
+- **auth - devices - sign out all** - `POST /v1/auth/devices/sign-out-all`, bearer user session token only:
+  ends every device of the caller's own account, including the calling device, and deletes the account's
+  unredeemed hand-off codes in the same transaction. Answers **204 No Content**, **401** `ApiError` for a
+  missing or dead token, **403** `ApiError` for an agent token, **503** `ApiError` for a store failure.
+  Agent tokens are never revoked here.
 - **auth - sign-in hand-off (ADR-036)** - `POST /v1/auth/handoff/start`, user session token only (an
   agent token is refused, 403, the same body as `/v1/sync`): `{challenge, sealed_package}` -> **201**
   `{code}` | **400** | **401** | **403** | **413**. The code is valid for 5 minutes and usable once, it is
