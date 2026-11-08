@@ -79,8 +79,9 @@ On 2026-11-01 the project owner confirmed the design and ordered this update: "B
   /v1/auth/handoff/start`, the exchange route `POST /v1/auth/handoff/exchange`, migration 4 (the sign-in code
   table, its index, the device name column and the triggers), the code store and sweep, and the revoke rule
   are built. Built on the phone: making the key pair, calling the exchange route, opening the package, and
-  storing the keys and then the session (both cleared together on a failure or a logout). Not built: the
-  website page, the app's device name, and the device list with sign-out. The wrong-password limit is built on the server
+  storing the keys and then the session (both cleared together on a failure or a logout). Built on the server:
+  the device list and the two sign-out routes for the person's own devices. Not built: the website page and the
+  app's device name. The wrong-password limit is built on the server
   (ADR-036). Of the sync work on the server, the push route `POST /v1/sync`, the plain pull route `GET
   /v1/transcriptions` and the transcriptions table are built, and so is the store layer of the changes-since
   feed: migration 5 (the change counter on the account row, the change number on every transcription row, the

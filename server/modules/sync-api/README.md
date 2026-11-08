@@ -34,8 +34,11 @@ that replaces a row and in a sync delete), migration 8 (six nullable key columns
 login that answers the stored key columns, with `reset_at` and `rekeyed_at` always printed with three
 fractional digits and a fixed 503 for a store failure.
 
-Built on the server: the device list, `GET /v1/auth/devices`. Planned, not built (ADR-035, ADR-036): an
-admin route to end a session. The
+Built on the server: the device list, `GET /v1/auth/devices`, and the two sign-out routes for the person's own
+devices, `DELETE /v1/auth/devices/{id}` and `POST /v1/auth/devices/sign-out-all` (204 no body; an agent token
+refused 403; one fixed 404 body for any id that is not the caller's live session; agent tokens never revoked).
+The website page that calls them, and the app's sign-out call, are not built. Planned, not built (ADR-035,
+ADR-036): an admin route to end a session. The
 wrong-password limit is built (its failure counting, the locked answer, 423 with Retry-After, the on/off
 switch (migration 7, `server_settings`, `ServerSettingsStore`, read live on every attempt, default on, only a
 stored integer 0 is off, off = no counting, no refusing, stored attempts kept), the admin route that flips it,

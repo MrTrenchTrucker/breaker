@@ -8,17 +8,24 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.call
+import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
+import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
+import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 
 /**
- * Installs `GET /v1/auth/devices` on this application.
+ * Installs `GET /v1/auth/devices`, `DELETE /v1/auth/devices/{id}` and
+ * `POST /v1/auth/devices/sign-out-all` on this application.
  *
- * The answer lists the caller's live sessions, oldest first, at most 50 rows. Each row holds the
+ * The GET lists the caller's live sessions, oldest first, at most 50 rows. Each row holds the
  * token id, the stored device name or null, the last-seen text and whether the row is the token
- * that was presented. A missing or dead token answers 401, an agent token answers 403 and a store
- * failure answers 503, each with the module's fixed body; nothing else is written.
+ * that was presented. DELETE revokes one device of the caller and answers 204 when it was live
+ * and 404 with the fixed not-found body otherwise. POST revokes every live session of the caller
+ * (keeping a keep id that matches no live session) and answers 204. A missing or dead token
+ * answers 401, an agent token answers 403 and a store failure answers 503, each with the
+ * module's fixed body; nothing else is written and no part of an id is echoed into a body.
  *
  * Hand-written JSON: no serialization library, no api-contracts import. A private escaper writes
  * the name so a quote, a backslash, a newline or an emoji cannot break the body.
@@ -36,7 +43,51 @@ internal fun Application.authDevicesRoute(tokenStore: TokenStore) {
             val body = renderDeviceList(sessions, resolved.tokenId)
             call.respondText(body, ContentType.Application.Json, HttpStatusCode.OK)
         }
+
+        delete("/v1/auth/devices/{id}") {
+            val resolved = call.sessionOrRefuse(tokenStore) ?: return@delete
+            val deviceId = call.parameters["id"]?.let(::parseDeviceId)
+            if (deviceId == null) {
+                call.respondText(NOT_FOUND_BODY, ContentType.Application.Json, HttpStatusCode.NotFound)
+                return@delete
+            }
+            when (val guarded = call.guardedStoreCall {
+                tokenStore.revokeDeviceOf(resolved.accountId, deviceId)
+            }) {
+                is StoreCall.Done -> {
+                    if (guarded.value) {
+                        call.respond(HttpStatusCode.NoContent)
+                    } else {
+                        call.respondText(NOT_FOUND_BODY, ContentType.Application.Json, HttpStatusCode.NotFound)
+                    }
+                }
+                StoreCall.Failed -> return@delete
+            }
+        }
+        post("/v1/auth/devices/sign-out-all") {
+            val resolved = call.sessionOrRefuse(tokenStore) ?: return@post
+            when (call.guardedStoreCall { tokenStore.revokeOtherSessions(resolved.accountId, NO_SESSION_KEPT) }) {
+                is StoreCall.Done -> call.respond(HttpStatusCode.NoContent)
+                StoreCall.Failed -> return@post
+            }
+        }
     }
+}
+
+// A keep id that cannot be a live session. revokeOtherSessionsOn's own comment says an id that is not
+// one of the account's live sessions (an agent token, another account's session, an already revoked or
+// unknown id) spares nothing: every live session is revoked. See TokenStore.kt:168-170.
+private const val NO_SESSION_KEPT = -1L
+
+// The one 404 body: a bad id, an unknown id, another account's id, an agent token id, an already revoked
+// or expired id and an id past the 180-day cap all answer this same text. No part of the id is echoed.
+private const val NOT_FOUND_BODY = "{\"error\":\"not_found\",\"message\":\"No such device\"}"
+
+// A device id is decimal digits only: no sign, no leading plus, no spaces, no overflow past Long.
+private fun parseDeviceId(raw: String): Long? {
+    if (raw.isEmpty()) return null
+    if (raw.any { character -> character < '0' || character > '9' }) return null
+    return raw.toLongOrNull()
 }
 
 private fun renderDeviceList(sessions: List<DeviceSession>, currentTokenId: Long): String {

@@ -190,6 +190,24 @@ internal open class TokenStore(
             statement.executeQuery().use { rows -> rows.next() }
         }
 
+    // Revokes one device's session when the row is the caller's own live session. The account, the
+    // kind and the liveness rule sit in the UPDATE, so a check and a revoke cannot be split: a row
+    // that is another account's session, an agent token, already revoked, expired or past the
+    // 180-day cap changes nothing. The hand-off codes are not touched. Returns true when the row changed.
+    internal suspend fun revokeDeviceOf(accountId: Long, tokenId: Long): Boolean {
+        val nowMs = clock.millis()
+        val changed = db.transaction<Int> { connection ->
+            connection.prepareStatement(REVOKE_DEVICE_SQL).use { statement ->
+                statement.setLong(1, nowMs)
+                statement.setLong(2, tokenId)
+                statement.setLong(3, accountId)
+                statement.setLong(4, nowMs)
+                statement.executeUpdate()
+            }
+        }
+        return changed > 0
+    }
+
     // Stores the number a pulled session has seen: the smaller of the page's since and the account's
     // head (change_seq), so a session never claims a point the server has not reached. Only a session
     // of this account is changed. Liveness is not tested here. Returns the stored number, or null when
@@ -430,6 +448,15 @@ internal open class TokenStore(
         const val REVOKE_OTHER_SESSIONS_SQL =
             "UPDATE tokens SET revoked_at_ms = ? WHERE account_id = ? AND kind = 'session' " +
                 "AND revoked_at_ms IS NULL AND id <> ?"
+
+        // One device's sign-out: the account, the kind and the liveness rule are in the UPDATE, so a
+        // check and a revoke cannot be split. A row that is not the caller's live session changes
+        // nothing. The hand-off codes are not touched: one device is not the account.
+        const val REVOKE_DEVICE_SQL =
+            "UPDATE tokens SET revoked_at_ms = ? WHERE id = ? AND account_id = ? AND kind = 'session' " +
+                "AND revoked_at_ms IS NULL AND (expires_at_ms IS NULL OR expires_at_ms > ?) " +
+                "AND (expires_at_ms IS NULL OR expires_at_ms <= created_at_ms + " +
+                MAX_SESSION_LIFETIME_MS + ")"
 
         const val DELETE_ACCOUNT_HANDOFF_SQL = "DELETE FROM signin_handoff WHERE account_id = ?"
 
