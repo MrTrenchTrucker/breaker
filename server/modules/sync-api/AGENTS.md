@@ -249,7 +249,7 @@ A route or job marked Planned, not built below is not installed on main yet.
   client repeats with `since=next` while `more` is true. A malformed `since`, or one whose
   account part is not the caller's account (written in decimal with no leading zero), is 400
   `bad_request`, answered before the store is asked; a `since` below the purged floor is 410
-  `gone`. Decided, not built (server, ADR-035 section 1D): a list longer than one page returns a LIST
+  `gone`. BUILT (server, ADR-035 section 1D): a list longer than one page returns a LIST
   cursor `<account>-<position>-<head>` as `next` while `more` is true; a list cursor is never 410, one
   whose position is 0 or not below its head is 400, a list reads only live rows up to the first-page head (a
   snapshot), and the final page returns the incremental cursor at the first-page head. A pull with a since sets the session's number to the smaller of the since and the head; every
@@ -353,7 +353,7 @@ A route or job marked Planned, not built below is not installed on main yet.
   keeps its id, client id and change number, loses its body and is marked deleted. A delete
   record is purged once every live session of the account has pulled past it. A device whose
   session has expired signs in again and does a full resync, so it needs no old delete
-  records (the phone's full resync is decided, not built). Decided, not built (server, ADR-035 section 1D): a list
+  records (the phone's full resync is decided, not built). BUILT (server, ADR-035 section 1D): a list
   longer than one page carries a LIST cursor, so a new device can finish its first list even when
   `purged_through` is above the change of the 100th live row. The routes and the transcriptions table are
   BUILT (the two route bullets above).
