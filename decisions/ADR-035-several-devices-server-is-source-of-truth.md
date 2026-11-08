@@ -1,8 +1,12 @@
 # ADR-035: Several devices per account; the server is the source of truth
 
-**Status:** accepted; the sync routes and the change feed are built on the server; the clear-store write and
-the phone's pull and merge are decided, not built, while the phone's side of the sign-in hand-off is built; the purge is built on the server; the points still open are under To be
-designed
+**Status:** accepted; the sync routes and the change feed are built on the server; the phone's pull and
+merge pieces are built and not wired: PullRun (#441), PullSink (#442), applyRemoteRow (#444), retainOnly
+(#445), the pull cursor store (#446), isQueued/queuedIds (#447), PullApplier (#448) and PullCycle (#450);
+the clear-store write is built too (#449). The wiring of the pull is decided, not built: no shipped code
+builds a PullCycle or a PullApplier or implements the pull transport, so the app does not start a pull. The
+phone's side of the sign-in hand-off is built; the purge is built on the server; the points still open are
+under To be designed
 **Date:** 2026-11-01
 **Confirmed by:** the project owner, 2026-11-01, in his own words below
 
@@ -86,9 +90,12 @@ On 2026-11-01 the project owner confirmed the design and ordered this update: "B
   /v1/transcriptions/{client_id}`, the store delete, the `resave` mark on a push, and the plain list that
   leaves deleted rows out are built too. The `since` parameter, the page object, the 400 answer and the 410
   answer of `GET /v1/transcriptions` are built. The write of the pulled number and the purge of delete records
-  are built on the server. Not built: the clear-store write and the phone's pull and merge. The device name column
-  on the session row is built (migration 4); the app does not send a name yet and the device list is not
-  built. Today the app has no pull, and the password sign-in is unchanged.
+  are built on the server. Not built: the wiring of the pull. Built and not wired: PullRun (#441), PullSink
+  (#442), applyRemoteRow (#444), retainOnly (#445), the pull cursor store (#446), isQueued/queuedIds (#447),
+  PullApplier (#448) and PullCycle (#450). The clear-store write (#449) is built and mounted on the server. No shipped code builds a PullCycle
+  or a PullApplier or implements the pull transport, so the app does not start a pull. The device name
+  column on the session row is built (migration 4); the app does not send a name yet and the device list is
+  not built. Today the app has no pull, and the password sign-in is unchanged.
 - **Changes-since feed.** Built on the server: the cursor is a server-assigned change number, unique to the
   account and strictly increasing on every row write (insert, replace and delete). It is sent as an opaque
   string and is exclusive: the client asks for the changes after N. It is not the stored time, and stored_at
@@ -130,7 +137,10 @@ on the server. The word "feed" means the answer of `GET /v1/transcriptions` when
 ## Decided details of the phone pull (sync 1C)
 
 The Decision above says what the phone's pull does. This section records the details decided afterwards,
-all of them Decided, not built (phone). Nothing here is built yet.
+all of them Decided. PullRun (#441), PullSink (#442), applyRemoteRow (#444), retainOnly (#445), the pull
+cursor store (#446), isQueued/queuedIds (#447), PullApplier (#448) and PullCycle (#450) are built. The
+wiring of the pull is decided, not built: no shipped code builds a PullCycle or a PullApplier or implements
+the pull transport, so the app does not start a pull.
 
 - **The port.** A new core port in core/port, one interface that history implements and sync calls,
   wired by the app; history stays the ONLY writer of the local store; sync never gets the whole history

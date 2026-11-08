@@ -23,7 +23,15 @@ The module has no HTTP client. The app supplies the `SyncUploader` and the `Conn
 - The HTTP uploader for `POST /v1/sync`.
 - Sending tombstones for deleted records.
 - The `key_version` 1 form, the `key_version` replace, the re-key, and fetching pending sealed agent-token results (ADR-018).
-- PLANNED (ADR-035, not built): the pull after each drain, with a changes-since cursor (the `next` of the last complete pull, sent back as `since`), the list-again rule for a 410, the removal of local rows the server dropped after a full list, and the hand-off of pulled rows and pulled deletes to history. A local delete goes by the DELETE route, and a save after the phone's own delete carries `resave` on its first push.
+- PLANNED (ADR-035): the wiring of the pull. Built and not wired: PullRun (sync/PullRun.kt, #441) runs one
+  pull (a 410 lists again once); PullSink (core/port/PullSink.kt, #442) is the port history implements, with
+  applyRemoteRow (#444), applyRemoteDelete (#442) and retainOnly (#445) in history/SqliteHistoryStore.kt;
+  the pull cursor store (#446) and isQueued/queuedIds (#447) in sync/SyncQueueDatabase.kt; PullApplier
+  (sync/PullApplier.kt, #448); PullCycle (sync/PullCycle.kt, #450), which reads the stored cursor, pulls,
+  applies, then saves the cursor, and pulls once more after a full list. What is not wired: no shipped code
+  builds a PullCycle or a PullApplier or implements the pull transport, so the app does not start a pull. A
+  local delete goes by the DELETE route, and a save after the phone's own delete carries `resave` on its
+  first push.
 
 ## Build and test
 
