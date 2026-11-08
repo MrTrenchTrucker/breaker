@@ -125,17 +125,17 @@ class WrongPwLimitPathTest(unittest.TestCase):
         self.assertEqual(security, [{"bearerAuth": []}],
                          "PUT /v1/admin/wrong-pw-limit must require bearerAuth")
 
-    def test_wrong_pw_limit_get_statuses_200_401_403(self):
+    def test_wrong_pw_limit_get_statuses_200_401_403_and_503(self):
         responses = self.paths[WRONG_PW_LIMIT_PATH]["get"].get("responses", {})
-        self.assertEqual(set(responses.keys()), {"200", "401", "403"},
-                         "GET must answer exactly 200/401/403 (no 503, no 400)")
+        self.assertEqual(set(responses.keys()), {"200", "401", "403", "503"},
+                         "GET must answer exactly 200/401/403/503 (503 is the fixed store-failure answer, no 400)")
         self.assertIn("401", responses)
         self.assertIn("403", responses)
 
-    def test_wrong_pw_limit_put_statuses_200_400_401_403(self):
+    def test_wrong_pw_limit_put_statuses_200_400_401_403_and_503(self):
         responses = self.paths[WRONG_PW_LIMIT_PATH]["put"].get("responses", {})
-        self.assertEqual(set(responses.keys()), {"200", "400", "401", "403"},
-                         "PUT must answer exactly 200/400/401/403 (no 503)")
+        self.assertEqual(set(responses.keys()), {"200", "400", "401", "403", "503"},
+                         "PUT must answer exactly 200/400/401/403/503 (503 is the fixed store-failure answer)")
         self.assertIn("400", responses)
         self.assertIn("401", responses)
         self.assertIn("403", responses)

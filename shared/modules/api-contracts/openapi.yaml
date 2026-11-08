@@ -1873,6 +1873,15 @@ paths:
               example:
                 error: "forbidden"
                 message: "Admin role required"
+        "503":
+          description: "A storage failure while the caller is checked or the switch is read gets this answer. The body is fixed and no part of the failure is echoed."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
     put:
       summary: Turn the wrong-password limit on or off
       description: >-
@@ -1927,6 +1936,15 @@ paths:
               example:
                 error: "forbidden"
                 message: "Admin role required"
+        "503":
+          description: "A storage failure while the caller is checked or the switch is set or read back gets this answer. The body is fixed and no part of the failure is echoed."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
   /v1/transcriptions:
     get:
       summary: Pull the account's transcriptions
