@@ -36,7 +36,10 @@ internal fun Application.authLogoutRoute(tokenStore: TokenStore) {
                 return@post
             }
 
-            val resolved = tokenStore.resolve(presented)
+            val resolved = when (val guarded = call.guardedStoreCall { tokenStore.resolve(presented) }) {
+                is StoreCall.Done -> guarded.value
+                StoreCall.Failed -> return@post
+            }
             // An unknown, expired or revoked token, and an agent token, are all the
             // same answer: the presented token is not a live session.
             if (resolved == null || resolved.kind != TokenKind.SESSION) {
@@ -44,8 +47,10 @@ internal fun Application.authLogoutRoute(tokenStore: TokenStore) {
                 return@post
             }
 
-            tokenStore.revokeSession(resolved.tokenId)
-            call.respond(HttpStatusCode.NoContent)
+            when (call.guardedStoreCall { tokenStore.revokeSession(resolved.tokenId) }) {
+                is StoreCall.Done -> call.respond(HttpStatusCode.NoContent)
+                StoreCall.Failed -> Unit
+            }
         }
     }
 }

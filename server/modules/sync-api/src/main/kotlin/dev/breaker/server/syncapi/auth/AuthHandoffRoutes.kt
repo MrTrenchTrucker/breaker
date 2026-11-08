@@ -77,7 +77,13 @@ internal fun Application.authHandoffRoutes(handoffStore: HandoffStore, tokenStor
                     // The contract says the server checks only the length of the package: any pattern-valid
                     // text that decodes to 113 bytes is stored as those bytes, and the exchange answers with
                     // the canonical text of the stored bytes.
-                    when (val start = handoffStore.start(resolved.accountId, challenge, sealedBytes)) {
+                    val started = when (val guarded = call.guardedStoreCall {
+                        handoffStore.start(resolved.accountId, challenge, sealedBytes)
+                    }) {
+                        is StoreCall.Done -> guarded.value
+                        StoreCall.Failed -> return@post
+                    }
+                    when (val start = started) {
                         is StartResult.Started -> {
                             call.respondText(
                                 """{"code":"${start.code}"}""",
@@ -113,7 +119,13 @@ internal fun Application.authHandoffRoutes(handoffStore: HandoffStore, tokenStor
                         call.respondBadRequest()
                         return@post
                     }
-                    when (val redeem = handoffStore.redeem(code, secret, deviceName)) {
+                    val redeemed = when (val guarded = call.guardedStoreCall {
+                        handoffStore.redeem(code, secret, deviceName)
+                    }) {
+                        is StoreCall.Done -> guarded.value
+                        StoreCall.Failed -> return@post
+                    }
+                    when (val redeem = redeemed) {
                         is RedeemResult.Redeemed -> {
                             call.respondText(
                                 buildExchangeResponse(redeem),

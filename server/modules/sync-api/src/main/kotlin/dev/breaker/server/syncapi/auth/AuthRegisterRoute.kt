@@ -6,6 +6,7 @@ import dev.breaker.server.syncapi.accounts.KdfParams
 import dev.breaker.server.syncapi.accounts.RegisterResult
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
@@ -14,7 +15,7 @@ import java.util.Base64
 internal fun Route.authRegisterRoute(store: AccountStore) {
     post("/v1/auth/register") {
         val body = call.receiveAuthBody() ?: return@post
-        val response = handleRegisterBody(store, body)
+        val response = handleRegisterBody(call, store, body) ?: return@post
         call.respondText(response.body, ContentType.Application.Json, response.status)
     }
 }
@@ -39,7 +40,11 @@ internal sealed class RegisterResponse {
     }
 }
 
-private suspend fun handleRegisterBody(store: AccountStore, body: String): RegisterResponse {
+private suspend fun handleRegisterBody(
+    call: ApplicationCall,
+    store: AccountStore,
+    body: String,
+): RegisterResponse? {
     val json = try {
         parseJson(body)
     } catch (_: JsonParseException) {
@@ -139,7 +144,12 @@ private suspend fun handleRegisterBody(store: AccountStore, body: String): Regis
 
     val kdf = KdfParams(memoryKib, iterations, parallelism)
 
-    val result = store.register(username, saltBytes, kdf, kdfVersion, verifier)
+    val result = when (val guarded = call.guardedStoreCall {
+        store.register(username, saltBytes, kdf, kdfVersion, verifier)
+    }) {
+        is StoreCall.Done -> guarded.value
+        StoreCall.Failed -> return null
+    }
 
     return when (result) {
         is RegisterResult.Registered -> RegisterResponse.Created(username, result.role.dbValue)
