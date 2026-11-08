@@ -122,7 +122,7 @@ internal const val FORBIDDEN_BODY =
 internal const val NOT_FOUND_BODY =
     """{"error":"not_found","message":"Agent token not found"}"""
 // The 503 body: a store failure (the closed-database IllegalStateException, a SQL error)
-// answers 503 Service Unavailable, matching the handoff routes. The exception text never
-// reaches a body, a log or a message.
+// answers 503 Service Unavailable with the one body the contract documents (error unavailable),
+// the same text as every other route. The exception text never reaches a body, a log or a message.
 internal const val SERVICE_UNAVAILABLE_BODY =
-    """{"error":"service_unavailable","message":"Store unavailable"}"""
+    """{"error":"unavailable","message":"The service is unavailable, try again later"}"""

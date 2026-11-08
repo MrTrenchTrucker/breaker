@@ -1050,7 +1050,7 @@ paths:
                 error: "payload_too_large"
                 message: "Request body exceeds maximum allowed size"
         "503":
-          description: "A storage failure while the hand-off is stored gets this answer. The body is fixed and no part of the failure is echoed."
+          description: "A storage failure while the token is checked or the hand-off is stored gets this answer. The body is fixed and no part of the failure is echoed."
           content:
             application/json:
               schema:
