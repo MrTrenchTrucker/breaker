@@ -206,7 +206,7 @@ private fun parseLoginRequest(body: String): LoginRequest? {
     }
 
     if (fieldCount != 2) return null
-    return LoginRequest(checkNotNull(username), checkNotNull(authVerifier))
+    return LoginRequest(username ?: return null, authVerifier ?: return null)
 }
 
 /**
@@ -237,6 +237,7 @@ private fun parseJsonString(text: String, start: Int): Pair<String, Int>? {
                     'u' -> {
                         if (pos + 4 >= text.length) return null
                         val hex = text.substring(pos + 1, pos + 5)
+                        if (!isFourHexDigits(hex)) return null
                         sb.append(hex.toInt(16).toChar())
                         pos += 4
                     }
