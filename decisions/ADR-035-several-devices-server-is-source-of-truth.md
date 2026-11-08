@@ -95,7 +95,8 @@ On 2026-11-01 the project owner confirmed the design and ordered this update: "B
   PullApplier (#448) and PullCycle (#450). The clear-store write (#449) is built and mounted on the server. No shipped code builds a PullCycle
   or a PullApplier or implements the pull transport, so the app does not start a pull. The device name
   column on the session row is built (migration 4); the app does not send a name yet and the device list is
-  not built. Today the app has no pull, and the password sign-in is unchanged.
+  built on the server (`GET /v1/auth/devices`). Today the app has no pull, and the password sign-in is
+  unchanged.
 - **Changes-since feed.** Built on the server: the cursor is a server-assigned change number, unique to the
   account and strictly increasing on every row write (insert, replace and delete). It is sent as an opaque
   string and is exclusive: the client asks for the changes after N. It is not the stored time, and stored_at

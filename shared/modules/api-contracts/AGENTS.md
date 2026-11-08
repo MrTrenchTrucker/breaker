@@ -133,6 +133,12 @@ There is no synchronous 200-with-body variant — every transcription is a job.
   ONLY the presented token. → **204 No Content** | **401** `ApiError` for a missing, unknown or
   already-revoked token (nothing beyond "not a valid session" is disclosed). There is no standalone
   revoke-others route: other sessions are revoked only inside `change-password` (Phase 19).
+- **auth - devices** - `GET /v1/auth/devices`, bearer user session token only: lists the caller's
+  live sessions, oldest first, at most 50 rows. Each row: `id` (integer), `name` (string of 1 to
+  64 code points, or null), `last_seen` (ISO-8601 UTC with milliseconds and a trailing Z),
+  `current` (boolean, true only for the presented token). Answers **200** `{devices: [...]}`, **401**
+  `ApiError` for a missing or dead token, **403** `ApiError` for an agent token, **503** `ApiError`
+  for a store failure.
 - **auth - sign-in hand-off (ADR-036)** - `POST /v1/auth/handoff/start`, user session token only (an
   agent token is refused, 403, the same body as `/v1/sync`): `{challenge, sealed_package}` -> **201**
   `{code}` | **400** | **401** | **403** | **413**. The code is valid for 5 minutes and usable once, it is
