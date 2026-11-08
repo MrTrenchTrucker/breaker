@@ -34,7 +34,11 @@ internal fun Application.authSaltRoute(store: AccountStore) {
                 return@post
             }
 
-            when (val result = store.saltFor(username)) {
+            val lookup = when (val guarded = call.guardedStoreCall { store.saltFor(username) }) {
+                is StoreCall.Done -> guarded.value
+                StoreCall.Failed -> return@post
+            }
+            when (val result = lookup) {
                 is SaltLookup.Found -> {
                     val saltB64 = Base64.getEncoder().encodeToString(result.salt)
                     val kdf = result.kdf

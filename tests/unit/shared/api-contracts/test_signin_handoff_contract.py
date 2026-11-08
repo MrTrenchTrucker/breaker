@@ -47,8 +47,8 @@ ERROR_REF = "#/components/schemas/Error"
 PATTERN_URL43 = "^[A-Za-z0-9_-]{43}$"
 PATTERN_SEALED = "^[A-Za-z0-9+/]{151}=$"
 
-START_STATUSES = {"201", "400", "401", "403", "413"}
-EXCHANGE_STATUSES = {"200", "400", "401", "413"}
+START_STATUSES = {"201", "400", "401", "403", "413", "503"}
+EXCHANGE_STATUSES = {"200", "400", "401", "413", "503"}
 
 BAD_BODY = ("bad_request", "Invalid request body")
 TOO_BIG = ("payload_too_large", "Request body exceeds maximum allowed size")
@@ -623,16 +623,19 @@ class HandoffOneRefusalTest(unittest.TestCase):
         self.assertEqual([s for s in responses if s == "401"], ["401"], f"{EXCHANGE_PATH} must have one 401 entry")
 
     def test_exchange_has_no_status_that_tells_cases_apart(self):
-        """Catches a 403, 404, 409, 410, 429 or 503 on the exchange route (each would name a case)."""
+        """Catches a 403, 404, 409, 410 or 429 on the exchange route (each would name a case).
+
+        A 503 is the fixed answer to a storage failure, not a case of the code, so it is allowed.
+        """
         responses = _responses(EXCHANGE_PATH)
         self.assertTrue(responses, f"{EXCHANGE_PATH} has no responses")
-        for status in ("403", "404", "409", "410", "429", "503"):
+        for status in ("403", "404", "409", "410", "429"):
             self.assertNotIn(status, responses, f"{EXCHANGE_PATH} must not have a {status} response")
 
-    def test_exchange_error_statuses_are_only_400_401_413(self):
+    def test_exchange_error_statuses_are_only_400_401_413_and_503(self):
         """Catches any other 4xx or 5xx entry on the exchange route."""
         errors = {s for s in _responses(EXCHANGE_PATH) if s[:1] in ("4", "5")}
-        self.assertEqual(errors, {"400", "401", "413"}, f"{EXCHANGE_PATH} error statuses")
+        self.assertEqual(errors, {"400", "401", "413", "503"}, f"{EXCHANGE_PATH} error statuses")
 
     def test_401_has_one_fixed_message(self):
         """Catches a changed 401 message, or a 401 with several examples (more than one message)."""
@@ -1057,10 +1060,12 @@ class HandoffDescriptionPhraseTest(unittest.TestCase):
         for phrase in ("hashes the secret", "password", "plaintext key"):
             self.assertTrue(_has_phrase(self.exchange, phrase), f"{EXCHANGE_PATH} description must say {phrase!r}")
 
-    def test_spec_does_not_document_a_503_for_these_routes(self):
-        """Catches a 503 being documented for the hand-off routes (the agreed status list has none)."""
+    def test_spec_documents_one_fixed_503_for_a_storage_failure(self):
+        """Catches the 503 of a storage failure being dropped, or carrying another body, on the hand-off routes."""
         for path in (START_PATH, EXCHANGE_PATH):
-            self.assertNotIn("503", _responses(path), f"{path} must not document a 503")
+            self.assertIn("503", _responses(path), f"{path} must document a 503")
+            fixed = {"error": "unavailable", "message": "The service is unavailable, try again later"}
+            self.assertEqual(_json_media(path, "503").get("example"), fixed, f"{path} 503 example")
             self.assertFalse(_has_phrase(_flat(_op(path).get("description")), "503"), f"{path} description must not mention 503")
 
 

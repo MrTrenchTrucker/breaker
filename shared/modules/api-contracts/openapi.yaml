@@ -223,6 +223,15 @@ paths:
               example:
                 error: "payload_too_large"
                 message: "Request body exceeds maximum allowed size"
+        "503":
+          description: "A storage failure while the account is registered gets this answer. The body is fixed and no part of the failure is echoed."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
   /v1/auth/salt:
     post:
       summary: Get account salt and KDF parameters
@@ -271,6 +280,15 @@ paths:
               example:
                 error: "payload_too_large"
                 message: "Request body exceeds maximum allowed size"
+        "503":
+          description: "A storage failure while the salt is looked up gets this answer. The body is fixed and no part of the failure is echoed."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
   /v1/auth/login:
     post:
       summary: Log in
@@ -944,6 +962,15 @@ paths:
               example:
                 error: "unauthorized"
                 message: "Invalid or missing token"
+        "503":
+          description: "A storage failure while the session token is checked or revoked gets this answer. The body is fixed and no part of the failure is echoed."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
   /v1/auth/handoff/start:
     post:
       summary: Start a sign-in hand-off
@@ -1022,6 +1049,15 @@ paths:
               example:
                 error: "payload_too_large"
                 message: "Request body exceeds maximum allowed size"
+        "503":
+          description: "A storage failure while the hand-off is stored gets this answer. The body is fixed and no part of the failure is echoed."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
   /v1/auth/handoff/exchange:
     post:
       summary: Trade a sign-in code for a session
@@ -1103,6 +1139,15 @@ paths:
               example:
                 error: "payload_too_large"
                 message: "Request body exceeds maximum allowed size"
+        "503":
+          description: "A storage failure while the code is redeemed gets this answer. The body is fixed and no part of the failure is echoed."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
   /v1/admin/agent-tokens/{id}:
     delete:
       summary: Revoke an agent token
