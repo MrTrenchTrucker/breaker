@@ -120,4 +120,49 @@ internal class AdminResetAccountRouteTest : ResetRouteTestBase() {
         }
         assertEquals("sync-api: the admin was reset", 0L, pendingFlag(adminId))
     }
+
+    @Test
+    fun `a store failure inside the reset answers 503 with the fixed body and rolls everything back`() {
+        val adminText = startAdmin()
+        val alice = keyedAccount("Alice", 2)
+        val aliceText = sessionToken(alice)
+        agentText(alice)
+        SyncRouteTestSupport.insertRawRow(temp, alice, SyncRouteTestSupport.CLIENT_ID, 1, SyncRouteTestSupport.ENCRYPTED, 1L)
+        recordWrongTries("alice", 2)
+        val before = stateOf(alice)
+        val beforeTranscriptions = transcriptionRows(alice)
+        val beforeAttempts = attemptsOf("alice")
+        val triggerSql =
+            "CREATE TRIGGER forced_reset_failure BEFORE INSERT ON reset_codes " +
+            "BEGIN SELECT RAISE(ABORT, 'forced'); END"
+        runSql(temp, triggerSql)
+        try {
+            val refused = postReset(adminText, nameBody("Alice"))
+            assertAnswer("failing reset", refused, HttpStatusCode.ServiceUnavailable, SyncRouteTestSupport.UNAVAILABLE_BODY)
+            assertFalse("sync-api: no trigger text in the body", refused.body.contains("forced"))
+        } finally {
+            runSql(temp, "DROP TRIGGER forced_reset_failure")
+        }
+        assertEquals("sync-api: account unchanged", before, stateOf(alice))
+        assertEquals("sync-api: pending mark cleared", 0L, pendingFlag(alice))
+        assertEquals("sync-api: code rows cleared", 0L, codeRows(alice))
+        assertEquals("sync-api: transcriptions not deleted", beforeTranscriptions, transcriptionRows(alice))
+        assertTrue("sync-api: session still works", sessionWorks(aliceText))
+        assertEquals("sync-api: attempts unchanged", beforeAttempts, attemptsOf("alice"))
+        val code = resetAs(adminText, "ALICE")
+        assertTrue("sync-api: code alphabet", code.matches(Regex("[A-Za-z0-9_-]{43}")))
+        assertEquals("sync-api: pending mark set", 1L, pendingFlag(alice))
+        assertEquals("sync-api: one code row", 1L, codeRows(alice))
+        assertEquals("sync-api: transcriptions cleared after accept", 0L, transcriptionRows(alice))
+    }
+
+    @Test
+    fun `a store failure on the token lookup answers 503 with the fixed body`() {
+        val adminText = startAdmin()
+        register("Alice", 2)
+        temp.closeKeepingFiles()
+        val refused = postReset(adminText, nameBody("Alice"))
+        assertAnswer("failing token lookup", refused, HttpStatusCode.ServiceUnavailable, SyncRouteTestSupport.UNAVAILABLE_BODY)
+        assertFalse("sync-api: no closed text in the body", refused.body.contains("closed"))
+    }
 }
