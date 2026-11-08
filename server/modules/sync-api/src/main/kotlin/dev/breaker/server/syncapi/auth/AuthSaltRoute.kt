@@ -143,6 +143,7 @@ private fun parseJsonString(text: String, start: Int): Pair<String, Int>? {
                     'u' -> {
                         if (pos + 4 >= text.length) return null
                         val hex = text.substring(pos + 1, pos + 5)
+                        if (!isFourHexDigits(hex)) return null
                         sb.append(hex.toInt(16).toChar())
                         pos += 4
                     }

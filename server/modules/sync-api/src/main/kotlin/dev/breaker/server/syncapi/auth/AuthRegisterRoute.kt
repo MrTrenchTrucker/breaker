@@ -56,7 +56,7 @@ private suspend fun handleRegisterBody(store: AccountStore, body: String): Regis
         val extra = actualKeys - expectedKeys
         val missing = expectedKeys - actualKeys
         if (extra.isNotEmpty()) {
-            return RegisterResponse.BadRequest("unknown field: ${extra.first()}")
+            return RegisterResponse.BadRequest("unknown field")
         }
         return RegisterResponse.BadRequest("missing field: ${missing.first()}")
     }
@@ -74,7 +74,7 @@ private suspend fun handleRegisterBody(store: AccountStore, body: String): Regis
     }
 
     val kdfVersion = when (val v = json.entries["kdf_version"]) {
-        is Json.Num -> v.value.toInt()
+        is Json.Num -> intOrNull(v.value) ?: return RegisterResponse.BadRequest("kdf_version is out of range")
         null -> return RegisterResponse.BadRequest("missing field: kdf_version")
         else -> return RegisterResponse.BadRequest("kdf_version must be an integer")
     }
@@ -98,23 +98,26 @@ private suspend fun handleRegisterBody(store: AccountStore, body: String): Regis
         val extra = kdfActualKeys - kdfExpectedKeys
         val missing = kdfExpectedKeys - kdfActualKeys
         if (extra.isNotEmpty()) {
-            return RegisterResponse.BadRequest("unknown field in kdf_params: ${extra.first()}")
+            return RegisterResponse.BadRequest("unknown field in kdf_params")
         }
         return RegisterResponse.BadRequest("missing field in kdf_params: ${missing.first()}")
     }
 
     val memoryKib = when (val v = kdfParamsJson.entries["memory_kib"]) {
-        is Json.Num -> v.value.toInt()
+        is Json.Num -> intOrNull(v.value)
+            ?: return RegisterResponse.BadRequest("kdf_params.memory_kib is out of range")
         null -> return RegisterResponse.BadRequest("missing field in kdf_params: memory_kib")
         else -> return RegisterResponse.BadRequest("kdf_params.memory_kib must be an integer")
     }
     val iterations = when (val v = kdfParamsJson.entries["iterations"]) {
-        is Json.Num -> v.value.toInt()
+        is Json.Num -> intOrNull(v.value)
+            ?: return RegisterResponse.BadRequest("kdf_params.iterations is out of range")
         null -> return RegisterResponse.BadRequest("missing field in kdf_params: iterations")
         else -> return RegisterResponse.BadRequest("kdf_params.iterations must be an integer")
     }
     val parallelism = when (val v = kdfParamsJson.entries["parallelism"]) {
-        is Json.Num -> v.value.toInt()
+        is Json.Num -> intOrNull(v.value)
+            ?: return RegisterResponse.BadRequest("kdf_params.parallelism is out of range")
         null -> return RegisterResponse.BadRequest("missing field in kdf_params: parallelism")
         else -> return RegisterResponse.BadRequest("kdf_params.parallelism must be an integer")
     }
@@ -145,6 +148,10 @@ private suspend fun handleRegisterBody(store: AccountStore, body: String): Regis
         is RegisterResult.InvalidField -> RegisterResponse.BadRequest("invalid field: ${result.field}")
     }
 }
+
+/** The Int of [value], or null when it is outside the Int range (toInt() would wrap it to another number). */
+private fun intOrNull(value: Long): Int? =
+    if (value >= Int.MIN_VALUE.toLong() && value <= Int.MAX_VALUE.toLong()) value.toInt() else null
 
 // ---------------------------------------------------------------------------
 // Hand-written JSON parser — no kotlinx.serialization, no Gson, no Jackson.
@@ -235,6 +242,7 @@ private class JsonParser(private val text: String) {
                         'u' -> {
                             if (pos + 4 > text.length) throw JsonParseException("bad unicode escape")
                             val hex = text.substring(pos, pos + 4)
+                            if (!isFourHexDigits(hex)) throw JsonParseException("bad unicode escape")
                             sb.append(hex.toInt(16).toChar())
                             pos += 4
                         }
