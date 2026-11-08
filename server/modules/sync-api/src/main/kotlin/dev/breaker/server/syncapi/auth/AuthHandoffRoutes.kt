@@ -15,7 +15,6 @@ import io.ktor.server.application.call
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
-import kotlinx.coroutines.CancellationException
 import java.util.Base64
 
 private val CHALLENGE_PATTERN = "^[A-Za-z0-9_-]{43}$".toRegex()
@@ -34,17 +33,9 @@ internal fun Application.authHandoffRoutes(handoffStore: HandoffStore, tokenStor
                 call.respondSessionRequired()
                 return@post
             }
-            val resolved: ResolvedToken? = try {
-                tokenStore.resolve(presented)
-            } catch (cancellation: CancellationException) {
-                throw cancellation
-            } catch (_: Exception) {
-                call.respondText(
-                    """{"error":"service_unavailable","message":"Store unavailable"}""",
-                    ContentType.Application.Json,
-                    HttpStatusCode.ServiceUnavailable,
-                )
-                return@post
+            val resolved: ResolvedToken? = when (val guarded = call.guardedStoreCall { tokenStore.resolve(presented) }) {
+                is StoreCall.Done -> guarded.value
+                StoreCall.Failed -> return@post
             }
             if (resolved == null) {
                 call.respondSessionRequired()
