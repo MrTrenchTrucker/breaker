@@ -237,6 +237,30 @@ internal open class TokenStore(
         }
     }
 
+    // The account's live sessions as device-list rows, newest first (the route reverses them).
+    // last_seen is computed here, where SESSION_IDLE_LIFETIME is reachable: max(expires_at_ms minus
+    // the 30-day idle lifetime, created_at_ms), or created_at_ms when expires_at_ms is NULL.
+    internal suspend fun deviceSessions(accountId: Long): List<DeviceSession> {
+        return db.transaction<List<DeviceSession>> { connection ->
+            val nowMs = clock.millis()
+            val idle = SESSION_IDLE_LIFETIME.toMillis()
+            connection.prepareStatement(DEVICE_LIST_SQL).use { statement ->
+                statement.setLong(1, accountId)
+                statement.setLong(2, nowMs)
+                statement.executeQuery().use { rows ->
+                    val found = mutableListOf<DeviceSession>()
+                    while (rows.next()) {
+                        val created = rows.getLong(3)
+                        val expires = rows.getLong(4)
+                        val seen = if (rows.wasNull()) created else maxOf(expires - idle, created)
+                        found.add(DeviceSession(rows.getLong(1), rows.getString(2), seen))
+                    }
+                    found
+                }
+            }
+        }
+    }
+
     private fun deleteAccountHandoff(connection: Connection, accountId: Long) {
         connection.prepareStatement(DELETE_ACCOUNT_HANDOFF_SQL).use { statement ->
             statement.setLong(1, accountId)
@@ -374,6 +398,17 @@ internal open class TokenStore(
             "SELECT 1 FROM tokens WHERE id = ? AND account_id = ? AND kind = 'session' " +
                 "AND revoked_at_ms IS NULL AND (expires_at_ms IS NULL OR expires_at_ms > ?) " +
                 "AND (expires_at_ms IS NULL OR expires_at_ms <= created_at_ms + " + MAX_SESSION_LIFETIME_MS + ")"
+
+        // The device list query: the account's live sessions, newest first.
+        // The three live conditions are the ones of SESSION_LIVE_SQL, written out again here.
+        const val DEVICE_LIST_LIMIT = 50
+        const val DEVICE_LIST_SQL =
+            "SELECT id, device_name, created_at_ms, expires_at_ms FROM tokens WHERE account_id = ? " +
+                "AND kind = 'session' AND revoked_at_ms IS NULL " +
+                "AND (expires_at_ms IS NULL OR expires_at_ms > ?) " +
+                "AND (expires_at_ms IS NULL OR expires_at_ms <= created_at_ms + " +
+                MAX_SESSION_LIFETIME_MS + ") " +
+                "ORDER BY id DESC LIMIT " + DEVICE_LIST_LIMIT
 
         // Slides a session token's expiry to now + 30 days on each authenticated use, but never
         // past created_at_ms + 180d: MIN(now+30d, created+180d) is computed in SQL so the cap is

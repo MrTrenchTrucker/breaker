@@ -1148,6 +1148,58 @@ paths:
               example:
                 error: "unavailable"
                 message: "The service is unavailable, try again later"
+  /v1/auth/devices:
+    get:
+      summary: List the live sessions of the caller's account
+      description: >-
+        A user session lists the live sessions of its own account: not
+        signed out, not expired, inside the 180 day cap. At most 50 rows,
+        the 50 newest by id, listed oldest first. last_seen is the session
+        expiry minus 30 days and never before the creation time. current
+        marks the calling session. An agent token is refused with 403.
+      operationId: listDevices
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: The live sessions of the caller's account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceList"
+              example:
+                devices:
+                  - id: 4
+                    name: "Pixel 8"
+                    last_seen: "2026-11-07T12:00:05.250Z"
+                    current: true
+        "401":
+          description: Refused with no, bad or dead user session token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing user session token"
+        "403":
+          description: Refused. A valid token of the wrong kind.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "forbidden"
+                message: "User session token required; an agent token is refused"
+        "503":
+          description: A storage failure gets this fixed answer, with no part of the failure echoed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
   /v1/admin/agent-tokens/{id}:
     delete:
       summary: Revoke an agent token
@@ -2445,6 +2497,37 @@ components:
         message:
           type: string
           description: A human-readable error message
+    DeviceList:
+      type: object
+      required:
+        - devices
+      additionalProperties: false
+      properties:
+        devices:
+          type: array
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/DeviceRow"
+    DeviceRow:
+      type: object
+      required:
+        - id
+        - last_seen
+        - current
+      additionalProperties: false
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+          nullable: true
+          minLength: 1
+          maxLength: 64
+        last_seen:
+          type: string
+        current:
+          type: boolean
     HandoffStartRequest:
       type: object
       required:
