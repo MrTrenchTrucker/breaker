@@ -53,4 +53,11 @@ Vendored code and dependencies:
     Copyright (c) 2016 Thomas Pornin <pornin@bolet.org>
   - The four vendor files (aes.js, utils.js, _polyval.js, LICENSE) are unmodified copies from the upstream repository.
 
+
+7. openapi-generator-cli 7.26.0
+   - Upstream: OpenAPI Generator (openapitools/openapi-generator), Apache
+     License 2.0. No openapi-generator-cli source files are copied into this
+     repository or distributed with Breaker; it is a build-time CI tool only,
+     fetched by the openapi-validate job in .github/workflows/checks.yml.
+
 This product is distributed under the Apache License, Version 2.0. See LICENSE.

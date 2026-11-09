@@ -243,7 +243,7 @@ X's existing `/v1/chat/completions` (used separately by `format`) is out of
 scope here.
 
 ## Invariants
-- Spec is machine-validatable (openapi-generator parses clean). **NOT VERIFIED** — the tool is not in the toolchain; a stdlib structural validator covers the slice's subset.
+- Spec is machine-validatable (openapi-generator parses clean). Checked in CI by the pinned validator, job `openapi-validate` in `.github/workflows/checks.yml` (openapi-generator-cli 7.26.0, jar sha256 pinned); a pin test guards the pin. A stdlib structural validator also covers the slice's subset.
 - Example request/response for each endpoint (golden WAV included).
 - Client and server use the Kotlin types of this module, written by hand from the spec; `tests/unit/shared/api-contracts/test_conformance.py` compares every schema with its Kotlin type field for field, so drift fails a test.
 - A key_version 0 body carries no cryptography and is development-only until Phase 19.
@@ -289,6 +289,7 @@ OpenAPI spec (openapi.yaml); Kotlin request and response types
   `GET` and `PUT /v1/admin/wrong-pw-limit` path with its statuses and operation ids, and the
   `WrongPwLimit` schema (its field-for-field match with the Kotlin type is checked by `test_conformance.py`).
 - Updates manifest: the stdlib test `tests/unit/shared/api-contracts/test_updates_contract.py` pins the path, the operation id, the six required names, the field types and `version_code` as int64 with minimum 1, and runs the conformance comparator on `UpdateManifest`; the Kotlin test `UpdateManifestTest` pins the minimum of the version code in the type.
+- Validator pin: `tests/unit/shared/api-contracts/test_openapi_validation_pin.py` reads `.github/workflows/checks.yml` as text and pins the job, the version, the jar sha256, the checksum-before-run order, the spec path and the version-built URL.
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
 ## Test Requirement
@@ -320,6 +321,6 @@ code.
   android/modules/stt-server/build.gradle.kts, with `shared_api_contracts`
   in stt-server's `depends_on` in modules.toml. The bijection check
   demands the named edge; it is provided.
-- The `openapi-generator parses clean` invariant is **NOT VERIFIED** — the
-  tool is not in the toolchain; a stdlib structural validator covers the
-  slice's subset.
+- The `openapi-generator parses clean` invariant is checked in CI by the pinned
+  validator, job `openapi-validate`; `test_openapi_validation_pin.py` guards the pin.
+  A stdlib structural validator also covers the slice's subset.

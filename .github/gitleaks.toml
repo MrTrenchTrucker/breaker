@@ -1,10 +1,11 @@
 # Secret-scan settings for the CI "Secret scan" job (gitleaks).
-# Uses gitleaks' default rules. Two allowlist entries, each matching exact
+# Uses gitleaks' default rules. Three allowlist entries, each matching exact
 # values only, so any other key, in those files or anywhere else, is still
 # reported: the three published NIST CAVP AES-256-GCM known-answer keys in
 # core's CipherTextTest, and the two sync body test vectors that are the
-# base64 of the published api-contracts example body. Public test vectors,
-# not secrets.
+# base64 of the published api-contracts example body, and the published
+# sha256 of the pinned openapi-generator-cli jar in checks.yml. Public test
+# vectors and a public checksum, not secrets.
 
 [extend]
 useDefault = true
@@ -17,3 +18,8 @@ regexes = ['''key = "(b52c505a37d78eda5dd34f20c22540ea1b58963cf8e5bf8ffa85f9f249
 [[allowlists]]
 description = "Sync body test vectors: base64 of the published example body (api-contracts openapi.yaml), not secrets"
 regexes = ['''^(eyJ2IjoxLCJ0ZXh0IjoiaGVsbG8gZnJvbSB0aGUgcGhvbmUiLCJzb3VyY2UiOiJsb2NhbCIsIm1vZGVsIjoiYmFzZS5lbiIsImR1cmF0aW9uX21zIjoxNTAwLCJjcmVhdGVkX2F0IjoiMjAyNi0xMC0xMVQxMjowMDowMC4wMDBaIn0=|eyJ2IjoxLCJ0ZXh0IjoiaGVsbG8gZnJvbSB0aGUgcGhvbmUiLCJzb3VyY2UiOiJsb2NhbCIsIm1vZGVsIjoiYmFz=e\.en)$''']
+
+[[allowlists]]
+description = "Published sha256 of the pinned openapi-generator-cli 7.26.0 jar (Maven Central), not a secret"
+regexTarget = "match"
+regexes = ['''OPENAPI_GENERATOR_SHA256: "1760050094997b9cc790cc1350be095f15da8c08a996b184d3eadc4ccda5e35e"''']
