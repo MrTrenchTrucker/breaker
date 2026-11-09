@@ -86,6 +86,8 @@ internal class HomeHostView(
     private val micView: android.view.View,
     private val usableHeight: Float,
     private val renderer: ScreenRenderer,
+    private val sessionLive: () -> Boolean,
+    private val onSignIn: () -> Unit,
 ) : FrameLayout(context), HomeControl {
     /** The page: the screen's rows and their bleed layers, scrolled as one. Made in init. */
     private var page: ScrollView? = null
@@ -230,6 +232,7 @@ internal class HomeHostView(
         menuOpen = source?.nodes?.flatMap { it.flatten() }?.any { it.id == HomeNodeIds.DRAWER_PANEL } ?: false,
         opened = source?.nodes?.flatMap { it.flatten() }?.filterIsInstance<CollapsibleText>()?.any { it.opened } ?: false,
         notice = handler.notice(),
+        sessionLive = sessionLive(),
     )
 
     /**
@@ -270,6 +273,7 @@ internal class HomeHostView(
             HomeActions.HOW_IT_WORKS -> onHowItWorks()
             HomeActions.ABOUT -> onAbout()
             HomeActions.MIC -> if (state.menuOpen) onIntent(ScreenIntent.Home(HomeActions.CLOSE_MENU)) else onTap()
+            HomeActions.SIGN_IN -> onSignIn()
         }
     }
 

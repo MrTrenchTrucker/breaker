@@ -35,6 +35,7 @@ internal class HomeTakeWiring(
     background: Background,
     private val main: MainPost,
     private val modelReady: () -> Boolean,
+    private val onFinishResult: (FinishResult?) -> Unit = {},
 ) {
     private var home: HomeControl? = null
 
@@ -67,6 +68,7 @@ internal class HomeTakeWiring(
         busy = busy,
         onLine = { line -> main.post { home?.showLine(line) } },
         onState = { state -> main.post { sending = state == DictationState.SENDING; rePushState(state) } },
+        onFinishResult = onFinishResult,
     )
 
     /**

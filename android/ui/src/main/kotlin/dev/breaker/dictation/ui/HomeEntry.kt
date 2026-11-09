@@ -89,6 +89,8 @@ fun createHomeView(
     micView: android.view.View,
     usableHeightDp: Float,
     onShownMode: (dev.breaker.shared.tokens.ThemeMode) -> Unit,
+    sessionLive: () -> Boolean,
+    onSignIn: () -> Unit,
 ): android.view.View {
     val theme = storedTheme(settings, isNightMode(context.resources.configuration.uiMode))
     onShownMode(theme.mode)
@@ -113,6 +115,8 @@ fun createHomeView(
         micView,
         usableHeightDp,
         ScreenRenderer(context),
+        sessionLive,
+        onSignIn,
     )
 }
 
