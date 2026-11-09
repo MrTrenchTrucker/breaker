@@ -597,7 +597,7 @@ enforced server-side** (N13) — never trust client-side scoping. The job
 API (whisper-server) is ruled to ask sync-api whether a token is live and to fail closed
 (R31, ADR-015). The sync-api token-check routes and the service key are built, and whisper-server's client is built and used by both job routes.
 
-**Several devices and sign-in from the website (ADR-035, ADR-036; sign-in hand-off routes built on server; website page and device list not built):**
+**Several devices and sign-in from the website (ADR-035, ADR-036; sign-in hand-off routes built on server; website page and device-list UI not built):**
 an account may use several devices. Signing in on the Breaker website hands the
 login to the app automatically, and a new device gets its keys sealed from that
 sign-in, so the password is typed once, on the website. The website lists the
@@ -1008,7 +1008,7 @@ See `docs/04-build-order.md`. Summary:
       pushes, then pulls; a delete reaches every device; a new device gets its
       keys sealed from the website sign-in (ADR-035; hand-off routes built on server, website sealing not built).
 - **Sign-in from the website hands the login to the app** (hand-off routes built on server; website page
-      not built; the phone side is built; the device list not built) - a one-time
+      not built; the phone side is built; the device-list UI not built) - a one-time
       code over a `breaker://` link plus a secret the app keeps; several
       devices listed; wrong-password limit (ADR-036; built on the server).
 - D21. **Configurable transcription service** — admin-configured endpoint

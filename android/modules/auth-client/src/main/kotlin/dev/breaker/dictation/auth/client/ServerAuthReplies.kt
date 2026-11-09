@@ -32,6 +32,22 @@ internal object ServerAuthReplies {
         return AuthSession(username, username, login.token, role, AccountRules.scopesFor(role))
     }
 
+    /** The device list reply: 200 is decoded, 401 means the token was refused, any other status
+     * is a server error. */
+    fun devices(reply: AuthHttpReply): List<DeviceRow> =
+        when (reply.status) {
+            200 -> decodedDevices(reply)
+            401 -> throw AuthFailure(AuthFailureReason.BAD_CREDENTIALS)
+            else -> throw AuthFailure(AuthFailureReason.SERVER_ERROR)
+        }
+
+    private fun decodedDevices(reply: AuthHttpReply): List<DeviceRow> =
+        try {
+            DeviceListDecoder.decode(text(reply))
+        } catch (malformedList: AuthDecodeException) {
+            throw AuthFailure(AuthFailureReason.UNREADABLE_REPLY)
+        }
+
     private fun parsedSalt(reply: AuthHttpReply): SaltResponse =
         try {
             AuthDecoder.parseSalt(text(reply))

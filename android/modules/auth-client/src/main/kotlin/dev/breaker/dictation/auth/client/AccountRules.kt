@@ -23,6 +23,7 @@ internal object AccountRules {
     const val LOGIN_PATH = "/v1/auth/login"
     const val LOGOUT_PATH = "/v1/auth/logout"
     const val EXCHANGE_PATH = "/v1/auth/handoff/exchange"
+    const val DEVICES_PATH = "/v1/auth/devices"
 
     private const val HTTPS_PREFIX = "https://"
     private const val HTTP_PREFIX = "http://"

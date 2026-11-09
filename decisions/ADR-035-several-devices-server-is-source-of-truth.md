@@ -95,7 +95,7 @@ On 2026-11-01 the project owner confirmed the design and ordered this update: "B
   PullApplier (#448) and PullCycle (#450). The clear-store write (#449) is built and mounted on the server. No shipped code builds a PullCycle
   or a PullApplier or implements the pull transport, so the app does not start a pull. The device name
   column on the session row is built (migration 4); the app now sends the platform's manufacturer and model as the name and the device list is
-  built on the server (`GET /v1/auth/devices`). Today the app has no pull, and the password sign-in is
+  built on the server (`GET /v1/auth/devices`) and in the phone's auth service, with no screen yet. Today the app has no pull, and the password sign-in is
   unchanged.
 - **Changes-since feed.** Built on the server: the cursor is a server-assigned change number, unique to the
   account and strictly increasing on every row write (insert, replace and delete). It is sent as an opaque
@@ -111,8 +111,9 @@ On 2026-11-01 the project owner confirmed the design and ordered this update: "B
   **Built on the phone:** A local delete followed
   by a local save of the same id clears the local tombstone, so the row is live again.
   **Device name:** the session row has a nullable device name, and that column is built (migration 4). The
-  app sending a name at sign-in, the person renaming it and the device list are decided, not built. There is
-  no devices table: the device list has one row per session, with a last-seen date derived from the session's
+  app sending a name at sign-in is built; the person renaming it is decided, not built. The device list is built
+  on the server and, on the phone, as a call of the auth service (`ServerAuthService.devices()`); no screen shows
+  it yet. There is no devices table: the device list has one row per session, with a last-seen date derived from the session's
   expiry.
   A device whose session expired signs in again and does a full resync, so it never needs old delete records;
   the full resync is decided, not built (phone). The sync routes and the transcriptions table were built

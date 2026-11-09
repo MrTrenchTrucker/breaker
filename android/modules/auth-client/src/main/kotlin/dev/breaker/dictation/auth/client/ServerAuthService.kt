@@ -63,6 +63,18 @@ class ServerAuthService(
     override fun currentSession(): AuthSession? = currentAddressedSession()?.session
 
     /**
+     * The device list of the signed-in account, or null when nothing was sent. The stored record
+     * and the address are read once, inside the lock, and the request is sent only when a
+     * readable record exists and the address read now is the same server as the stored one, so a
+     * missing, undecodable or different-address record sends nothing. The bearer of the stored
+     * session is the only header and there is no body. A 200 answer is decoded into rows; a
+     * refusal of the token is [AuthFailureReason.BAD_CREDENTIALS]; any other status is a server
+     * error. The vault is never cleared by this call.
+     */
+    fun devices(): List<DeviceRow>? =
+        lock.withLock { doDevices() }
+
+    /**
      * The stored session together with the address read now, or null when there is no readable
      * record or the address read now is not the same server as the stored one. The address is read
      * once, inside the lock, only when a record was loaded and decoded, and is the one returned, so
@@ -127,6 +139,21 @@ class ServerAuthService(
         if (!ServerAddressMatch.same(record.server, base)) return
         val url = AccountRules.endpoint(base, AccountRules.LOGOUT_PATH) ?: return
         bestEffortLogout(url, record.session.token)
+    }
+
+    /**
+     * The device list read. The record is loaded and the address is read once, inside the lock;
+     * the request is sent only when a readable record exists and the address read now is the same
+     * server as the stored one. Nothing is stored and the vault is never cleared.
+     */
+    private fun doDevices(): List<DeviceRow>? {
+        val stored = loadOrNull() ?: return null
+        val record = SessionRecord.decode(stored) ?: return null
+        val base = baseUrl()
+        if (!ServerAddressMatch.same(record.server, base)) return null
+        val url = AccountRules.endpoint(base, AccountRules.DEVICES_PATH) ?: return null
+        val reply = bearerGet(url, record.session.token)
+        return ServerAuthReplies.devices(reply)
     }
 
     /** The stored record text, or null when the vault is empty or cannot be read. */
@@ -202,6 +229,21 @@ class ServerAuthService(
             201 -> Unit
             409 -> throw AuthFailure(AuthFailureReason.USERNAME_TAKEN)
             else -> throw AuthFailure(AuthFailureReason.SERVER_ERROR)
+        }
+    }
+
+    /**
+     * The device list request: a GET with no body, the bearer the only header. The reply body is
+     * not zeroed here; it is decoded into rows and not kept.
+     */
+    private fun bearerGet(url: String, bearer: String): AuthHttpReply {
+        val headers: List<Pair<String, String>> = listOf("Authorization" to "Bearer $bearer")
+        return try {
+            http.send(AuthHttpRequest("GET", url, headers, null))
+        } catch (unreachable: IOException) {
+            throw AuthFailure(AuthFailureReason.SERVER_UNREACHABLE)
+        } catch (portFailure: RuntimeException) {
+            throw AuthFailure(AuthFailureReason.SERVER_ERROR)
         }
     }
 
