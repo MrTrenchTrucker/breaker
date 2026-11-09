@@ -25,7 +25,8 @@ internal object AppSourceFiles {
     /** The single source of truth for files read by launcher pins: the launcher itself today,
      *  the launcher plus extracted file(s) after step 2. Never a glob. */
     private val LAUNCHER_FILES: List<String> = listOf(
-        "kotlin/dev/breaker/dictation/SettingsLauncherActivity.kt"
+        "kotlin/dev/breaker/dictation/SettingsLauncherActivity.kt",
+        "kotlin/dev/breaker/dictation/host/LauncherEntry.kt",
     )
 
     /** Concatenates the launcher files from [LAUNCHER_FILES] (launcher first). Step 2 grows the

@@ -68,7 +68,7 @@ internal class HostGateNotifyTest {
         /** The route opens Settings, then focuses its download control. */
         rx("MODEL_ROUTE_FOCUSES_THE_SETTINGS_DOWNLOAD", "activity", """\bgetStringExtra\s*\(\s*NotificationRoute\s*\.\s*EXTRA_ROUTE\s*\)\s*==\s*NotificationRoute\s*\.\s*ROUTE_MODEL\s*\)\s*\{\s*openSettings\s*\(\s*\)\s*\(settingsView\s+as\?\s+dev\s*\.\s*breaker\s*\.\s*dictation\s*\.\s*ui\s*\.\s*DownloadControl\s*\)\s*\?\s*\.\s*focusDownload\s*\(\s*\)\s*\}"""),
         rx("COLUMN_HOLDS_ONLY_THE_SETTINGS_VIEW", "activity", """\bcolumn\s*\.\s*orientation\s*=\s*LinearLayout\s*\.\s*VERTICAL\s+column\s*\.\s*addView\s*\(\s*settingsView\s*,\s*LinearLayout\s*\.\s*LayoutParams\s*\(\s*ViewGroup\s*\.\s*LayoutParams\s*\.\s*MATCH_PARENT\s*,\s*ViewGroup\s*\.\s*LayoutParams\s*\.\s*WRAP_CONTENT\s*\)\s*\)"""),
-        rx("CONTENT_IS_SCROLLABLE", "activity", """\bScrollView\s*\(\s*this\s*\)\s+scroll\s*\.\s*addView\s*\(\s*column\s*,\s*ViewGroup\s*\.\s*LayoutParams\s*\(\s*ViewGroup\s*\.\s*LayoutParams\s*\.\s*MATCH_PARENT\s*,\s*ViewGroup\s*\.\s*LayoutParams\s*\.\s*WRAP_CONTENT\s*\)\s*\)\s+settingsColumn\s*=\s*column\s+settingsScroll\s*=\s*scroll\b"""),
+        Rule("CONTENT_IS_SCROLLABLE", "activity") { Regex("""\bScrollView\s*\(\s*activity\s*\)\s+scroll\s*\.\s*addView\s*\(\s*column\s*,\s*ViewGroup\s*\.\s*LayoutParams\s*\(\s*ViewGroup\s*\.\s*LayoutParams\s*\.\s*MATCH_PARENT\s*,\s*ViewGroup\s*\.\s*LayoutParams\s*\.\s*WRAP_CONTENT\s*\)\s*\)\s+return\s+SettingsColumnParts\s*\(\s*column\s*,\s*scroll\s*,""").findAll(it).count() == 1 && Regex("""\bsettingsColumn\s*=\s*parts\s*\.\s*column\s+settingsScroll\s*=\s*parts\s*\.\s*scroll\b""").findAll(it).count() == 1 },
         rx("INSETS_ARE_APPLIED_ON_THE_SETTINGS_ROOT", "activity", """\bapplyInsets\s*\(\s*settingsScroll\s*\)""", 2),
         rx("INSETS_ARE_APPLIED_ON_THE_HISTORY_ROOT", "activity", """\bapplyInsets\s*\(\s*historyView\s*\)"""),
         rx("CLOSE_HISTORY_RESTORES_THE_SAVED_SCROLL", "activity", """\bcloseHistory\s*\(\s*\)\s*\{[^}]*setContentView\s*\(\s*settingsScroll\s*\)\s+applyInsets\s*\(\s*settingsScroll\s*\)"""),
@@ -140,12 +140,13 @@ internal class HostGateNotifyTest {
         Sample("NO_BUTTON_REMAINS", "column.addView(settingsView", "column.addView(Button(this)"),
         Sample("NO_BUTTON_REMAINS", "column.orientation = LinearLayout.VERTICAL", "column.orientation = LinearLayout.VERTICAL\n        val extra = Button(this)"),
         Sample("NO_TEXTVIEW_REMAINS", "column.orientation = LinearLayout.VERTICAL", "column.orientation = LinearLayout.VERTICAL\n        val extra = TextView(this)"),
-        Sample("NO_TEXTVIEW_REMAINS", "settingsScroll = scroll", "settingsScroll = scroll\n        val extra = TextView(this)"),
+        Sample("NO_TEXTVIEW_REMAINS", "settingsScroll = parts.scroll", "settingsScroll = parts.scroll\n        val extra = TextView(this)"),
         Sample("MODEL_ROUTE_FOCUSES_THE_SETTINGS_DOWNLOAD", "(settingsView as? dev.breaker.dictation.ui.DownloadControl)?.focusDownload()", "settingsView.refresh()"),
         Sample("MODEL_ROUTE_FOCUSES_THE_SETTINGS_DOWNLOAD", "NotificationRoute.ROUTE_MODEL) {", "NotificationRoute.ROUTE_HISTORY) {"),
         Sample("COLUMN_HOLDS_ONLY_THE_SETTINGS_VIEW", "column.addView(settingsView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))", "column.addView(onboarding)"),
         Sample("COLUMN_HOLDS_ONLY_THE_SETTINGS_VIEW", "column.addView(settingsView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))", "column.addView(downloadStatus)"),
-        Sample("CONTENT_IS_SCROLLABLE", "ScrollView(this)", "LinearLayout(this)"),
+        Sample("CONTENT_IS_SCROLLABLE", "ScrollView(activity)", "LinearLayout(activity)"),
+        Sample("CONTENT_IS_SCROLLABLE", "settingsScroll = parts.scroll", "settingsScroll = parts.column"),
         Sample("CONTENT_IS_SCROLLABLE", "scroll.addView(column, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))", "scroll.addView(column)"),
         Sample("INSETS_ARE_APPLIED_ON_THE_SETTINGS_ROOT", "applyInsets(settingsScroll)\n        registerBack()", "registerBack()"),
         Sample("INSETS_ARE_APPLIED_ON_THE_SETTINGS_ROOT", "applyInsets(settingsScroll)\n        } else {", "} else {"),
@@ -183,7 +184,7 @@ internal class HostGateNotifyTest {
         Quiet("activity", "applyInsets(settingsScroll)\n        registerBack()", "applyInsets(  settingsScroll  )\n        registerBack()"),
         Quiet("activity", "private var downloadSentence: String? = null", "private var downloadSentence: String? = null // the line"),
         Quiet("activity", "onDownloadModel = { app.tileHost.requestDownload() }", "onDownloadModel = {\n            app.tileHost.requestDownload()\n        }"),
-        Quiet("activity", "ScrollView(this)", "ScrollView(  this  )"),
+        Quiet("activity", "ScrollView(activity)", "ScrollView(  activity  )"),
     )
 
     private fun edit(text: String, old: String, new: String): String {

@@ -35,19 +35,19 @@ internal class SettingsColumnSingleChildTest {
 
     private val firing: List<Sample> = listOf(
         Sample("COLUMN_ADDS_ONE_CHILD", "column.orientation = LinearLayout.VERTICAL", "column.orientation = LinearLayout.VERTICAL\n        column.addView(spare)"),
-        Sample("COLUMN_ADDS_ONE_CHILD", "settingsColumn = column", "settingsColumn = column\n        settingsColumn.addView(spare)"),
+        Sample("COLUMN_ADDS_ONE_CHILD", "settingsColumn = parts.column", "settingsColumn = parts.column\n        settingsColumn.addView(spare)"),
         Sample("THE_ONE_CHILD_IS_THE_SETTINGS_VIEW", "column.addView(settingsView, ", "column.addView(spare, "),
         Sample("THE_ONE_CHILD_IS_THE_SETTINGS_VIEW", "column.orientation = LinearLayout.VERTICAL", "column.orientation = LinearLayout.VERTICAL\n        column.addView(settingsView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))"),
         Sample("THE_SECOND_CHILD_IS_THE_SIGN_IN_START_VIEW", "column.addView(signInView, ", "column.addView(spare, "),
         Sample("THE_SECOND_CHILD_IS_THE_SIGN_IN_START_VIEW", "column.addView(signInView, ", "column.addView(settingsView, "),
-        Sample("NO_STOCK_TEXT_OR_BUTTON_IN_THE_ACTIVITY", "settingsScroll = scroll", "settingsScroll = scroll\n        val note = TextView(this)"),
+        Sample("NO_STOCK_TEXT_OR_BUTTON_IN_THE_ACTIVITY", "settingsScroll = parts.scroll", "settingsScroll = parts.scroll\n        val note = TextView(this)"),
         Sample("NO_STOCK_TEXT_OR_BUTTON_IN_THE_ACTIVITY", "column.orientation = LinearLayout.VERTICAL", "column.orientation = LinearLayout.VERTICAL\n        val tap = Button(this)"),
     )
 
     /** Harmless edits: a comment that names a child, and a literal that names a stock class. */
     private val quiet: List<Sample> = listOf(
         Sample("", "column.orientation = LinearLayout.VERTICAL", "column.orientation = LinearLayout.VERTICAL\n        // column.addView(spare) would be a second child"),
-        Sample("", "settingsScroll = scroll", "settingsScroll = scroll\n        val label = \"TextView(\""),
+        Sample("", "settingsScroll = parts.scroll", "settingsScroll = parts.scroll\n        val label = \"TextView(\""),
     )
 
     /** [text] with [old] replaced by [new]; fails by name when [old] is not exactly once in [text]. */

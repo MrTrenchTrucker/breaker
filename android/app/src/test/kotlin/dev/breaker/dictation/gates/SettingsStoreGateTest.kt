@@ -18,7 +18,7 @@ internal class SettingsStoreGateTest {
     private val activity: String = "kotlin/dev/breaker/dictation/SettingsLauncherActivity.kt"
 
     /** The createSettingsView call, with the app's store as its second argument. */
-    private val rule = Regex("""\bcreateSettingsView\s*\(\s*this\s*,\s*app\s*\.\s*settingsStore\s*,""")
+    private val rule = Regex("""\bcreateSettingsView\s*\(\s*activity\s*,\s*app\s*\.\s*settingsStore\s*,""")
 
     /** [old] replaced by [new] at its first place; fails by name when it is not there. */
     private fun edit(text: String, old: String, new: String): String {
@@ -40,15 +40,15 @@ internal class SettingsStoreGateTest {
 
     @Test
     fun `a settings view call without the app's store, with another value or with an empty object is caught`() {
-        assertFalse("app: the store argument is missing", rule.containsMatchIn(codeOf("this,\n            app.settingsStore,", "this,\n            ,")))
-        assertFalse("app: the store argument is another value", rule.containsMatchIn(codeOf("this,\n            app.settingsStore,", "this,\n            app.armedSwitch,")))
-        assertFalse("app: the store argument is an empty object", rule.containsMatchIn(codeOf("this,\n            app.settingsStore,", "this,\n            EmptySettings(),")))
+        assertFalse("app: the store argument is missing", rule.containsMatchIn(codeOf("activity,\n            app.settingsStore,", "activity,\n            ,")))
+        assertFalse("app: the store argument is another value", rule.containsMatchIn(codeOf("activity,\n            app.settingsStore,", "activity,\n            app.armedSwitch,")))
+        assertFalse("app: the store argument is an empty object", rule.containsMatchIn(codeOf("activity,\n            app.settingsStore,", "activity,\n            EmptySettings(),")))
     }
 
     @Test
     fun `spacing and a trailing comment do not change the store argument`() {
-        assertTrue(rule.containsMatchIn(codeOf("this,\n            app.settingsStore,", "this,\n            app . settingsStore ,")))
-        assertTrue(rule.containsMatchIn(codeOf("this,\n            app.settingsStore,", "this,\n            app.settingsStore, // the store")))
+        assertTrue(rule.containsMatchIn(codeOf("activity,\n            app.settingsStore,", "activity,\n            app . settingsStore ,")))
+        assertTrue(rule.containsMatchIn(codeOf("activity,\n            app.settingsStore,", "activity,\n            app.settingsStore, // the store")))
     }
 
     @Test

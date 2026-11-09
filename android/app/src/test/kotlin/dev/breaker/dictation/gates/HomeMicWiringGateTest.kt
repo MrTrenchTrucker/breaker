@@ -31,7 +31,7 @@ internal class HomeMicWiringGateTest {
 
     private val rules: List<Rule> = listOf(
         Rule("ACTIVITY_READS_USABLE_HEIGHT_FROM_BARLESS_METRICS", activity) { code ->
-            Regex("""\busableHeightDp\s*=\s*windowHeightAfterBarsDp\s*\(\s*this\s*\)""").containsMatchIn(code)
+            Regex("""\busableHeightDp\s*=\s*windowHeightAfterBarsDp\s*\(\s*activity\s*\)""").containsMatchIn(code)
         },
         Rule("HELPERS_SCREEN_MIC_IS_NAMED", helpers) { code ->
             Regex("""\bcreateScreenMic\s*\(\s*context\s*,\s*themeMode\s*,\s*HomeControl\s*\.\s*TAP_TO_TALK\s*,\s*HomeControl\s*\.\s*CANCEL\s*,\s*HomeControl\s*\.\s*DONE\s*\)""").containsMatchIn(code)
@@ -49,7 +49,7 @@ internal class HomeMicWiringGateTest {
 
     private val firing: List<Sample> = listOf(
         Sample("ACTIVITY_READS_USABLE_HEIGHT_FROM_BARLESS_METRICS",
-            "usableHeightDp = windowHeightAfterBarsDp(this),", "usableHeightDp = 0f,"),
+            "usableHeightDp = windowHeightAfterBarsDp(activity),", "usableHeightDp = 0f,"),
         Sample("HELPERS_SCREEN_MIC_IS_NAMED", "HomeControl.TAP_TO_TALK", "\"\""),
         Sample("LEVEL_SINK_KEEP_ITS_RECORDING_PROBE",
             "isRecording = isRecording,", "isRecording = { true },"),
@@ -63,7 +63,7 @@ internal class HomeMicWiringGateTest {
 
     private val quiet: List<Quiet> = listOf(
         Quiet("ACTIVITY_READS_USABLE_HEIGHT_FROM_BARLESS_METRICS", activity,
-            "windowHeightAfterBarsDp(this),", "windowHeightAfterBarsDp(this), // the home content height"),
+            "windowHeightAfterBarsDp(activity),", "windowHeightAfterBarsDp(activity), // the home content height"),
         Quiet("HELPERS_SCREEN_MIC_IS_NAMED", helpers,
             "createScreenMic(context, themeMode, HomeControl.TAP_TO_TALK, HomeControl.CANCEL, HomeControl.DONE)",
             "createScreenMic( context , themeMode , HomeControl.TAP_TO_TALK, HomeControl.CANCEL, HomeControl.DONE )"),

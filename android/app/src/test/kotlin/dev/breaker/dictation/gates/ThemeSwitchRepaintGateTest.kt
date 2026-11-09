@@ -54,16 +54,16 @@ internal class ThemeSwitchRepaintGateTest {
         ).code
         assertTrue(
             "onThemeChanged must delegate to repaintOnThemeChange(this, app.settingsStore)",
-            flat(activityCode).contains("onThemeChanged=dev.breaker.dictation.wiring.repaintOnThemeChange(this,app.settingsStore)"),
+            flat(activityCode).contains("onThemeChanged=dev.breaker.dictation.wiring.repaintOnThemeChange(activity,app.settingsStore)"),
         )
 
         // REPAINT-CALL-DROPPED: drop the settingsStore argument from the call.
         val mutant = flat(activityCode).replace(
-            "onThemeChanged=dev.breaker.dictation.wiring.repaintOnThemeChange(this,app.settingsStore)",
+            "onThemeChanged=dev.breaker.dictation.wiring.repaintOnThemeChange(activity,app.settingsStore)",
             "onThemeChanged=dev.breaker.dictation.wiring.paintWindowBackground",
         )
         assertFalse("mutant drops the repaint call argument, so the wire is gone",
-            mutant.contains("onThemeChanged=dev.breaker.dictation.wiring.repaintOnThemeChange(this,app.settingsStore)"))
+            mutant.contains("onThemeChanged=dev.breaker.dictation.wiring.repaintOnThemeChange(activity,app.settingsStore)"))
     }
 
     // 3. `the activity file stays at its 300-line cap` — the cap pin (net-zero change).
@@ -71,12 +71,12 @@ internal class ThemeSwitchRepaintGateTest {
     //    no phantom line for a trailing newline); Kotlin String.lines() would report
     //    301 for this file and would be off by one.
     @Test
-    fun `the activity file stays at its 300-line cap`() {
+    fun `the launcher stays under its line cap`() {
         val text = AppSourceFiles.mainFile("kotlin/dev/breaker/dictation/SettingsLauncherActivity.kt")
         val lines: Int = if (text.isEmpty()) 0 else text.count { it == '\n' } + (if (text.endsWith("\n")) 0 else 1)
         assertTrue(
-            "SettingsLauncherActivity.kt must stay exactly 300 lines (net-zero)",
-            lines == 300,
+            "SettingsLauncherActivity.kt must stay at or under 285 lines: the extracted pieces live in host/LauncherEntry.kt",
+            lines in 1..285,
         )
     }
 

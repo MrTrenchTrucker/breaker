@@ -55,7 +55,7 @@ internal class FirstRunSeamGateTest {
         Rule("THE_DECISION_IS_IN_ONCREATE_BEFORE_THE_NORMAL_CONTENT") { code ->
             val create: String = bodyOf(code, createHeader)
             val decideAt: Int = create.indexOf("FirstRunGate.decide(")
-            val normalAt: Int = create.indexOf("createSettingsView(")
+            val normalAt: Int = create.indexOf("buildSettingsRebuilt(")
             decideAt >= 0 && normalAt > decideAt
         },
         Rule("THE_THREE_BRANCHES_ARE_ALL_THERE") { code ->
@@ -122,7 +122,7 @@ internal class FirstRunSeamGateTest {
 
     private val firing: List<Sample> = listOf(
         Sample("THE_DECISION_IS_IN_ONCREATE_BEFORE_THE_NORMAL_CONTENT", "FirstRunGate.decide(", "FirstRunGate.judge("),
-        Sample("THE_DECISION_IS_IN_ONCREATE_BEFORE_THE_NORMAL_CONTENT", "dev.breaker.dictation.ui.createSettingsView(", "dev.breaker.dictation.ui.createSettingsScreen("),
+        Sample("THE_DECISION_IS_IN_ONCREATE_BEFORE_THE_NORMAL_CONTENT", "buildSettingsRebuilt(", "buildSettingsScreen("),
         Sample("THE_THREE_BRANCHES_ARE_ALL_THERE", "FirstRunGate.Decision.NORMAL -> Unit", "FirstRunGate.Decision.NORMAL = Unit"),
         Sample("THE_FIRST_RUN_BRANCH_RETURNS", "showFirstRun(app, modelReady, firstRunDone); return }", "showFirstRun(app, modelReady, firstRunDone) }"),
         Sample("THE_MARKED_DONE_BRANCH_WRITES_THE_MARKER", "MARK_DONE_QUIETLY -> firstRunDone.markDone()", "MARK_DONE_QUIETLY -> Unit"),
