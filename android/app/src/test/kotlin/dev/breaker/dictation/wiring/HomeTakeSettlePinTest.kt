@@ -189,18 +189,18 @@ internal class HomeTakeSettlePinTest {
     }
 
     /**
-     * The flattened body of [dev.breaker.dictation.SettingsLauncherActivity]'s `lastTranscript`
+     * The flattened body of [dev.breaker.dictation.host.buildHomeEntry]'s `lastTranscript`
      * supplier — the lambda passed as `lastTranscript = { ... }` to `createHomeView`, with
      * whitespace removed. The supplier body carries no comments or string literals, so a raw flatten
      * is exact: `lastTranscript = { app.historyStore.list(1).firstOrNull()?.text }` flattens to
      * `lastTranscript={app.historyStore.list(1).firstOrNull()?.text}`.
      */
     private fun lastTranscriptSupplierBodyFlattened(): String {
-        val code = settingsLauncherActivitySource()
+        val code = launcherEntrySource()
         val start = code.indexOf("lastTranscript =")
-        check(start >= 0) { "app: home pin(d): lastTranscript supplier not found in SettingsLauncherActivity.kt" }
+        check(start >= 0) { "app: home pin(d): lastTranscript supplier not found in LauncherEntry.kt" }
         val open = code.indexOf('{', start)
-        check(open >= 0) { "app: home pin(d): lastTranscript lambda brace not found in SettingsLauncherActivity.kt" }
+        check(open >= 0) { "app: home pin(d): lastTranscript lambda brace not found in LauncherEntry.kt" }
         var depth = 0
         var end = code.length
         var i = open
@@ -236,16 +236,16 @@ internal class HomeTakeSettlePinTest {
     }
 
     /**
-     * The app module's [dev.breaker.dictation.SettingsLauncherActivity] source, found from the test
+     * The app module's [dev.breaker.dictation.host.buildHomeEntry] source, found from the test
      * working directory. The app test set shares the app module's `main` source set, so the file is
      * read from disk: each ancestor of the working directory is tried for `src/main/kotlin/...` and
      * `android/app/src/main/kotlin/...`, so it resolves whether the test's working directory is
      * `android/app`, `android`, or the repo root.
      */
-    private fun settingsLauncherActivitySource(): String {
+    private fun launcherEntrySource(): String {
         val rels = listOf(
-            "src/main/kotlin/dev/breaker/dictation/SettingsLauncherActivity.kt",
-            "android/app/src/main/kotlin/dev/breaker/dictation/SettingsLauncherActivity.kt",
+            "src/main/kotlin/dev/breaker/dictation/host/LauncherEntry.kt",
+            "android/app/src/main/kotlin/dev/breaker/dictation/host/LauncherEntry.kt",
         )
         var dir: File? = File(System.getProperty("user.dir") ?: ".").absoluteFile
         while (dir != null) {
@@ -255,6 +255,6 @@ internal class HomeTakeSettlePinTest {
             }
             dir = dir.parentFile
         }
-        error("app: home pin(d): SettingsLauncherActivity.kt not found under ${System.getProperty("user.dir")}")
+        error("app: home pin(d): LauncherEntry.kt not found under ${System.getProperty("user.dir")}")
     }
 }

@@ -38,7 +38,7 @@ internal class AppHostingGateTest {
         Rule("ACTIVITY_RETURNS_HOME_FROM_EVERY_OVERLAY", """\bsetContentView\s*\(\s*homeView\s*\)""", times = 3),
         Rule("ACTIVITY_PASSES_HOW_IT_WORKS_TO_THE_HOME_VIEW", """\bonHowItWorks\s*=\s*\{"""),
         Rule("ACTIVITY_PASSES_ABOUT_TO_THE_HOME_VIEW", """\bonAbout\s*=\s*\{"""),
-        Rule("ACTIVITY_WIRES_ON_COPY", """\bonCopy\s*=\s*\{\s*sentence\s*->\s*copyToClip\s*\(\s*this\s*,\s*sentence\s*\)"""),
+        Rule("ACTIVITY_WIRES_ON_COPY", """\bonCopy\s*=\s*\{\s*sentence\s*->\s*copyToClip\s*\(\s*activity\s*,\s*sentence\s*\)"""),
         Rule("ACTIVITY_WRITES_THE_CLIPBOARD", """\bsetPrimaryClip\s*\(\s*android\.content\.ClipData\.newPlainText\s*\([^)]*,\s*text\s*\)""", file = helpers),
         Rule("ACTIVITY_REACHES_THE_CLIPBOARD_MANAGER", """\bgetSystemService\s*\(\s*Context\.CLIPBOARD_SERVICE\s*\)\s+as\s+android\.content\.ClipboardManager""", file = helpers),
         Rule("ACTIVITY_KEEPS_DOWNLOAD_NOTICE", """setDownloadListener\(this\)"""),
@@ -47,11 +47,11 @@ internal class AppHostingGateTest {
 
     /** Harmless edits to the activity: each keeps every rule true. Comments, literal text and spacing only. */
     private val quiet: List<Quiet> = listOf(
-        Quiet("Rebuilt { createHomeView(", "Rebuilt { createHomeView ("),
+        Quiet("createHomeView(", "createHomeView ("),
         Quiet("onSettings = { openSettings() },", "onSettings = {\n                openSettings()\n            },"),
-        Quiet("onCopy = { sentence -> copyToClip(this, sentence) },", "onCopy = {  sentence  ->  copyToClip(this, sentence) },"),
+        Quiet("onCopy = { sentence -> copyToClip(activity, sentence) },", "onCopy = {  sentence  ->  copyToClip(activity, sentence) },"),
         Quiet("app.tileHost.setDownloadListener(this)", "app.tileHost.setDownloadListener(this) // onHowItWorks"),
-        Quiet("settingsRebuilt = dev.breaker.dictation.wiring.Rebuilt { dev.breaker.dictation.ui.createSettingsView(", "settingsRebuilt = dev.breaker.dictation.wiring.Rebuilt { dev.breaker.dictation.ui.createSettingsView( // the settings view"),
+        Quiet("createSettingsView(", "createSettingsView( // the settings view"),
         Quiet("const val ICON_LAUNCH_DONE_KEY: String = \"icon-launch-done\"", "const val ICON_LAUNCH_DONE_KEY: String = \"icon-launch-done\" // the key"),
         Quiet("override fun onStart() {", "// onAbout and onHowItWorks are only words in this comment\n    override fun onStart() {"),
     )
@@ -91,8 +91,8 @@ internal class AppHostingGateTest {
         Sample("ACTIVITY_PASSES_HOW_IT_WORKS_TO_THE_HOME_VIEW", "onHowItWorks = { openHowItWorks() }", "onHowItWorks = openHowItWorks()"),
         Sample("ACTIVITY_PASSES_ABOUT_TO_THE_HOME_VIEW", "onAbout = { openAbout() },", ""),
         Sample("ACTIVITY_PASSES_ABOUT_TO_THE_HOME_VIEW", "onAbout = { openAbout() }", "onAbout = openAbout()"),
-        Sample("ACTIVITY_WIRES_ON_COPY", "onCopy = { sentence -> copyToClip(this, sentence) },", "onCopy = { sentence -> },"),
-        Sample("ACTIVITY_WIRES_ON_COPY", "onCopy = { sentence -> copyToClip(this, sentence) },", "onCopy = { text -> copyToClip(this, text) },"),
+        Sample("ACTIVITY_WIRES_ON_COPY", "onCopy = { sentence -> copyToClip(activity, sentence) },", "onCopy = { sentence -> },"),
+        Sample("ACTIVITY_WIRES_ON_COPY", "onCopy = { sentence -> copyToClip(activity, sentence) },", "onCopy = { text -> copyToClip(activity, text) },"),
         Sample(
             "ACTIVITY_WRITES_THE_CLIPBOARD",
             "clipboard.setPrimaryClip(android.content.ClipData.newPlainText(\"Breaker\", text))",

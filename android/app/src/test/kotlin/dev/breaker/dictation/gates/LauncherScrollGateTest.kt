@@ -33,14 +33,14 @@ internal class LauncherScrollGateTest {
         Rule(name, file) { Regex(first).findAll(it).count() == 1 && Regex(second).findAll(it).count() == 1 }
 
     private val rules: List<Rule> = listOf(
-        rx("SETTINGS_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "activity", """\bcreateSettingsView\s*\(\s*this\s*,\s*app\s*\.\s*settingsStore\s*,\s*modelReady\s*=\s*\{\s*modelReady\s*\.\s*isReady\s*\(\s*\)\s*\}\s*,\s*downloadLine\s*=\s*\{\s*downloadSentence\s*\}\s*,\s*onThemeChanged\s*=\s*dev\s*\.\s*breaker\s*\.\s*dictation\s*\.\s*wiring\s*\.\s*repaintOnThemeChange\s*\(\s*this\s*,\s*app\s*\.\s*settingsStore\s*\)\s*,\s*onDownloadModel\s*=\s*\{\s*app\s*\.\s*tileHost\s*\.\s*requestDownload\s*\(\s*\)\s*\}\s*,?\s*\)"""),
+        rx("SETTINGS_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "activity", """\bcreateSettingsView\s*\(\s*activity\s*,\s*app\s*\.\s*settingsStore\s*,\s*modelReady\s*=\s*\{\s*modelReady\s*\.\s*isReady\s*\(\s*\)\s*\}\s*,\s*downloadLine\s*=\s*downloadLine\s*,\s*onThemeChanged\s*=\s*dev\s*\.\s*breaker\s*\.\s*dictation\s*\.\s*wiring\s*\.\s*repaintOnThemeChange\s*\(\s*activity\s*,\s*app\s*\.\s*settingsStore\s*\)\s*,\s*onDownloadModel\s*=\s*\{\s*app\s*\.\s*tileHost\s*\.\s*requestDownload\s*\(\s*\)\s*\}\s*,?\s*\)"""),
         rx("MODEL_READY_IS_A_LIVE_PROVIDER", "activity", """\bmodelReady\s*=\s*\{\s*modelReady\s*\.\s*isReady\s*\(\s*\)\s*\}""", 3),
         // downloadLine = { downloadSentence } is passed to both createSettingsView and createFirstRunView
         rx("DOWNLOAD_LINE_IS_A_LIVE_PROVIDER", "activity", """\bdownloadLine\s*=\s*\{\s*downloadSentence\s*\}""", 2),
         rx("ON_DOWNLOAD_CALLS_REQUEST_DOWNLOAD", "activity", """\bonDownloadModel\s*=\s*\{\s*app\s*\.\s*tileHost\s*\.\s*requestDownload\s*\(\s*\)\s*\}"""),
         rx("COLUMN_IS_VERTICAL", "activity", """\bcolumn\s*\.\s*orientation\s*=\s*LinearLayout\s*\.\s*VERTICAL"""),
         rx("SETTINGS_VIEW_HAS_WRAP_CONTENT_HEIGHT", "activity", """\bcolumn\s*\.\s*addView\s*\(\s*settingsView\s*,\s*LinearLayout\s*\.\s*LayoutParams\s*\(\s*ViewGroup\s*\.\s*LayoutParams\s*\.\s*MATCH_PARENT\s*,\s*ViewGroup\s*\.\s*LayoutParams\s*\.\s*WRAP_CONTENT\s*\)\s*\)"""),
-        rx("CONTENT_IS_A_SCROLL_VIEW", "activity", """\bScrollView\s*\(\s*this\s*\)\s+scroll\s*\.\s*addView\s*\(\s*column\s*,\s*ViewGroup\s*\.\s*LayoutParams\s*\(\s*ViewGroup\s*\.\s*LayoutParams\s*\.\s*MATCH_PARENT\s*,\s*ViewGroup\s*\.\s*LayoutParams\s*\.\s*WRAP_CONTENT\s*\)\s*\)\s+settingsColumn\s*=\s*column\s+settingsScroll\s*=\s*scroll\b"""),
+        once2("CONTENT_IS_A_SCROLL_VIEW", "activity", """\bScrollView\s*\(\s*activity\s*\)\s+scroll\s*\.\s*addView\s*\(\s*column\s*,\s*ViewGroup\s*\.\s*LayoutParams\s*\(\s*ViewGroup\s*\.\s*LayoutParams\s*\.\s*MATCH_PARENT\s*,\s*ViewGroup\s*\.\s*LayoutParams\s*\.\s*WRAP_CONTENT\s*\)\s*\)\s+return\s+SettingsColumnParts\s*\(\s*column\s*,\s*scroll\s*,""", """\bsettingsColumn\s*=\s*parts\s*\.\s*column\s+settingsScroll\s*=\s*parts\s*\.\s*scroll\b"""),
         rx("INSETS_ARE_APPLIED_ON_THE_SETTINGS_ROOT", "activity", """\bsetContentView\s*\(\s*settingsScroll\s*\)\s+applyInsets\s*\(\s*settingsScroll\s*\)""", 2),
         rx("INSETS_HELPER_IS_USED_FOR_THE_SETTINGS_ROOT", "activity", """\bapplyInsets\s*\(\s*settingsScroll\s*\)""", 2),
         rx("INSETS_ARE_APPLIED_ON_THE_HISTORY_ROOT", "activity", """\bapplyInsets\s*\(\s*historyView\s*\)"""),
@@ -66,8 +66,8 @@ internal class LauncherScrollGateTest {
     )
 
     private val firing: List<Sample> = listOf(
-        Sample("SETTINGS_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "downloadLine = { downloadSentence },", "downloadLine = { null },"),
-        Sample("SETTINGS_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "createSettingsView(\n            this,", "createSettingsView(\n            null,"),
+        Sample("SETTINGS_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "downloadLine = downloadLine,", "downloadLine = { null },"),
+        Sample("SETTINGS_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "createSettingsView(\n            activity,", "createSettingsView(\n            null,"),
         Sample("SETTINGS_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "onDownloadModel = { app.tileHost.requestDownload() }", "onDownloadModel = { }"),
         Sample("SETTINGS_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "app.settingsStore,\n            modelReady = { modelReady.isReady() },", "app.settingsStore,\n            modelReady = { true },"),
         Sample("MODEL_READY_IS_A_LIVE_PROVIDER", "modelReady = { modelReady.isReady() },\n            downloadLine", "modelReady = { true },\n            downloadLine"),
@@ -80,7 +80,8 @@ internal class LauncherScrollGateTest {
         Sample("COLUMN_IS_VERTICAL", "LinearLayout.VERTICAL", "LinearLayout.HORIZONTAL"),
         Sample("SETTINGS_VIEW_HAS_WRAP_CONTENT_HEIGHT", "LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))", "LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))"),
         Sample("SETTINGS_VIEW_HAS_WRAP_CONTENT_HEIGHT", "column.addView(settingsView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))", "column.addView(settingsView)"),
-        Sample("CONTENT_IS_A_SCROLL_VIEW", "ScrollView(this)", "LinearLayout(this)"),
+        Sample("CONTENT_IS_A_SCROLL_VIEW", "ScrollView(activity)", "LinearLayout(activity)"),
+        Sample("CONTENT_IS_A_SCROLL_VIEW", "settingsScroll = parts.scroll", "settingsScroll = parts.column"),
         Sample("CONTENT_IS_A_SCROLL_VIEW", "scroll.addView(column, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))", "scroll.addView(column)"),
         Sample("INSETS_ARE_APPLIED_ON_THE_SETTINGS_ROOT", "applyInsets(settingsScroll)\n        registerBack()", "registerBack()"),
         Sample("INSETS_ARE_APPLIED_ON_THE_SETTINGS_ROOT", "applyInsets(settingsScroll)\n        } else {", "} else {"),
@@ -137,9 +138,9 @@ internal class LauncherScrollGateTest {
         Quiet("activity", "applyInsets(settingsScroll)\n        registerBack()", "applyInsets(  settingsScroll  )\n        registerBack()"),
         Quiet("activity", "private var downloadSentence: String? = null", "private var downloadSentence: String? = null // the line"),
         Quiet("activity", "onDownloadModel = { app.tileHost.requestDownload() }", "onDownloadModel = {\n            app.tileHost.requestDownload()\n        }"),
-        Quiet("activity", "ScrollView(this)", "ScrollView(  this  )"),
+        Quiet("activity", "ScrollView(activity)", "ScrollView(  activity  )"),
         Quiet("activity", "app.settingsStore,\n            modelReady = { modelReady.isReady() },", "app.settingsStore,\n            modelReady = { modelReady.isReady() }, // live"),
-        Quiet("activity", "downloadLine = { downloadSentence }, onThemeChanged = dev.breaker.dictation.wiring.repaintOnThemeChange(this, app.settingsStore),", "downloadLine = { downloadSentence }, onThemeChanged = dev.breaker.dictation.wiring.repaintOnThemeChange(this, app.settingsStore), // live"),
+        Quiet("activity", "downloadLine = downloadLine,\n            onThemeChanged = dev.breaker.dictation.wiring.repaintOnThemeChange(activity, app.settingsStore),", "downloadLine = downloadLine,\n            onThemeChanged = dev.breaker.dictation.wiring.repaintOnThemeChange(activity, app.settingsStore), // live"),
         Quiet("insets", "fun paddingFor(bars: Insets, cutout: Insets): Padding", "fun paddingFor(  bars: Insets, cutout: Insets  ): Padding"),
         Quiet("insets", "left = maxOf(bars.left, cutout.left)", "left = maxOf(bars.left, cutout.left) // max"),
         Quiet("activity", "modelDownloadMb = { selectedModelMb(app) }", "modelDownloadMb = {  selectedModelMb(app) }"),

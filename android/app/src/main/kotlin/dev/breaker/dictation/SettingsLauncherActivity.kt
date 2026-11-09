@@ -1,27 +1,24 @@
 package dev.breaker.dictation
 import android.annotation.SuppressLint
 import android.os.Bundle
-import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import dev.breaker.dictation.core.model.DictationState
 import dev.breaker.dictation.host.MainLooperPost
 import dev.breaker.dictation.host.addHomeLevelSink
-import dev.breaker.dictation.host.copyToClip
+import dev.breaker.dictation.host.buildHomeEntry
+import dev.breaker.dictation.host.buildSettingsColumn
+import dev.breaker.dictation.host.buildSettingsRebuilt
 import dev.breaker.dictation.host.createHomeMic
 import dev.breaker.dictation.host.downloadControlOf
 import dev.breaker.dictation.host.selectedModelMb
-import dev.breaker.dictation.host.windowHeightAfterBarsDp
 import dev.breaker.dictation.service.NotificationRoute
-import dev.breaker.dictation.ui.createHomeView
 import dev.breaker.dictation.wiring.ACCESSIBILITY_SERVICE_COMPONENT
-import dev.breaker.dictation.wiring.BreakerSwitchAdapter
 import dev.breaker.dictation.wiring.FirstRunDoneStore
 import dev.breaker.dictation.wiring.FirstRunGate
 import dev.breaker.dictation.wiring.HomeTakeWiring
 import dev.breaker.dictation.wiring.SignInHost
 import dev.breaker.dictation.wiring.mountSignInHost
-import dev.breaker.dictation.wiring.signOutAction
 import dev.breaker.dictation.wiring.onFinishResultFor
 import dev.breaker.dictation.wiring.IconLaunchOnce
 import dev.breaker.dictation.wiring.InfoScreensWiring
@@ -32,7 +29,6 @@ import dev.breaker.dictation.wiring.TakePortAdapter
 import dev.breaker.dictation.wiring.appTakenClipboard
 import dev.breaker.dictation.wiring.applyInsets
 import dev.breaker.dictation.wiring.paintWindowBackground
-import dev.breaker.dictation.wiring.formatTime
 import dev.breaker.dictation.wiring.isIconLaunch
 import dev.breaker.dictation.wiring.swapInColumn
 import java.io.File
@@ -83,23 +79,15 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
                 onFinishResultFor(app.compositionRoot.sessionLive, result) },
         )
         val mic = createHomeMic(this, takeWiring)
-        homeRebuilt = dev.breaker.dictation.wiring.Rebuilt { createHomeView(
-            this,
-            BreakerSwitchAdapter(app.armedSwitch),
-            modelReady = { modelReady.isReady() },
-            lastDictationAt = { app.historyStore.list(1).firstOrNull()?.createdAt },
-            lastTranscript = { app.historyStore.list(1).firstOrNull()?.text },
-            transcriptTime = { app.historyStore.list(1).firstOrNull()?.createdAt?.let { formatTime(it) } },
-            onCopy = { sentence -> copyToClip(this, sentence) },
+        homeRebuilt = buildHomeEntry(
+            this, app, takeWiring, modelReady, mic,
             onHistory = { openHistory() },
             onSettings = { openSettings() },
             onHowItWorks = { openHowItWorks() },
             onAbout = { openAbout() },
-            onTap = { takeWiring.onTap() },
-            micView = mic.view, onShownMode = { mode -> mic.setTheme(mode) },
-            usableHeightDp = windowHeightAfterBarsDp(this), settings = app.settingsStore,
-            sessionLive = { app.compositionRoot.sessionLive.liveNow() }, onSignIn = { openSignIn() }, onSignOut = signOutAction(app.compositionRoot.authService, app.compositionRoot.sessionLive) { (homeView as? dev.breaker.dictation.ui.HomeControl)?.refresh() ?: Unit },
-        ) }
+            onSignIn = { openSignIn() },
+            homeView = { homeView },
+        )
         val home = homeRebuilt.current
         homeView = home
         signInHost = mountSignInHost(this, app.compositionRoot, ::openSettings, ::closeSettings)
@@ -114,24 +102,12 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         takeWiring.attach(home as dev.breaker.dictation.ui.HomeControl)
         setContentView(home)
         applyInsets(home)
-        settingsRebuilt = dev.breaker.dictation.wiring.Rebuilt { dev.breaker.dictation.ui.createSettingsView(
-            this,
-            app.settingsStore,
-            modelReady = { modelReady.isReady() },
-            downloadLine = { downloadSentence }, onThemeChanged = dev.breaker.dictation.wiring.repaintOnThemeChange(this, app.settingsStore),
-            onDownloadModel = { app.tileHost.requestDownload() },
-        ) }
+        settingsRebuilt = buildSettingsRebuilt(this, app, modelReady, downloadLine = { downloadSentence })
         settingsView = settingsRebuilt.current
-        val column = LinearLayout(this)
-        column.orientation = LinearLayout.VERTICAL
-        column.addView(settingsView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        signInStart = dev.breaker.dictation.host.mountSignInStart(this, app)
-        val signInView = signInStart.view
-        column.addView(signInView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        val scroll = ScrollView(this)
-        scroll.addView(column, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        settingsColumn = column
-        settingsScroll = scroll
+        val parts = buildSettingsColumn(this, app, settingsView)
+        settingsColumn = parts.column
+        settingsScroll = parts.scroll
+        signInStart = parts.signInStart
         if (intent?.getStringExtra(NotificationRoute.EXTRA_ROUTE) == NotificationRoute.ROUTE_MODEL) {
             openSettings()
             (settingsView as? dev.breaker.dictation.ui.DownloadControl)?.focusDownload()

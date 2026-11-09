@@ -50,7 +50,7 @@ open class AppLayoutGateRules {
         "BreakerApp.kt", "SettingsLauncherActivity.kt", "AndroidAutomaticTimeOn.kt", "service/AndroidMicPermission.kt",
         "service/AndroidServiceLauncher.kt", "service/DictationForegroundService.kt", "service/DictationNotification.kt",
         "service/ModelNotifications.kt", "host/AppThreads.kt", "host/OverlayTilePort.kt", "host/TileHost.kt", "host/DisplayChangeAndroid.kt",
-        "wiring/AndroidSwaps.kt", "wiring/AndroidInsets.kt", "wiring/ThemedScreens.kt",
+        "host/LauncherEntry.kt", "wiring/AndroidSwaps.kt", "wiring/AndroidInsets.kt", "wiring/ThemedScreens.kt",
         "wiring/InfoScreensWiring.kt",
         "wiring/HomeTakeWiring.kt", "wiring/HomeScreenMic.kt", "wiring/SignInHostWiring.kt",
         "host/TakenClipboardAndroid.kt", "host/ActivityHelpers.kt",

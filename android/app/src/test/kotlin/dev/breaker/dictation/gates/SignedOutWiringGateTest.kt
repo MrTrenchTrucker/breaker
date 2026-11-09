@@ -38,7 +38,7 @@ internal class SignedOutWiringGateTest {
     internal val rules: List<Rule> = listOf(
         Rule("SESSIONLIVE_SEEDS_FROM_ADDRESSED_SESSION", root, """\bsessionLive\s*:\s*SessionLiveState\s+by\s+lazy\s*\{\s*sessionLiveState\s*\?\:\s*SessionLiveState\s*\(\s*sessionLiveFrom\s*\(\s*addressedSession\s*\)\s*\)\s*\}"""),
         Rule("FINISH_RESULT_REEVALUATES_LIVE", activity, """\bapp\.compositionRoot\.sessionLive\s*,\s*result\s*\)""" ),
-        Rule("HOMEREAD_LIVENESS_ON_EACH_DRAW", activity, """sessionLive\s*=\s*\{\s*app\.compositionRoot\.sessionLive\.liveNow\s*\(\s*\)\s*\}\s*,\s*onSignIn\s*=\s*\{\s*openSignIn\s*\(\s*\)\s*\}\s*,"""),
+        Rule("HOMEREAD_LIVENESS_ON_EACH_DRAW", activity, """sessionLive\s*=\s*\{\s*app\.compositionRoot\.sessionLive\.liveNow\s*\(\s*\)\s*\}\s*,\s*onSignIn\s*=\s*onSignIn\s*,"""),
         Rule("SIGN_IN_TILE_REACHES_THE_SIGN_IN_METHOD", activity, """\bonSignIn\s*=\s*\{\s*openSignIn\s*\(\s*\)\s*,?""" ),
     )
 
@@ -60,8 +60,8 @@ internal class SignedOutWiringGateTest {
     internal val quiet: List<Quiet> = listOf(
         Quiet(root, "sessionLiveState ?: SessionLiveState(sessionLiveFrom(addressedSession))",
             "sessionLiveState?:SessionLiveState(sessionLiveFrom(addressedSession))"),
-        Quiet(activity, "            sessionLive = { app.compositionRoot.sessionLive.liveNow() }, onSignIn = { openSignIn() },",
-            "            sessionLive=\n            { app.compositionRoot.sessionLive.liveNow() },\n            onSignIn = {\n                openSignIn()\n            },"),
+        Quiet(activity, "            sessionLive = { app.compositionRoot.sessionLive.liveNow() },\n            onSignIn = onSignIn,",
+            "            sessionLive=\n            { app.compositionRoot.sessionLive.liveNow() },\n            onSignIn =\n                onSignIn,"),
     )
 
     @Test
