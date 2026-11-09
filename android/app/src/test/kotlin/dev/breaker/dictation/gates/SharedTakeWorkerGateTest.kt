@@ -46,6 +46,12 @@ internal class SharedTakeWorkerGateTest {
     private fun constructions(sources: Map<String, String>): Int =
         sources.values.map { construction.findAll(codeOf(it)).count() }.sum()
 
+    /** The sync worker's one named construction: a `SerialBackground` held in a `syncBackground` property. */
+    private val syncDeclaration: Regex = Regex("""\bsyncBackground\s*:\s*Background\s*=\s*SerialBackground\s*\(\s*[^)]*\)""")
+
+    private fun syncDeclarations(sources: Map<String, String>): Int =
+        sources.values.map { syncDeclaration.findAll(codeOf(it)).count() }.sum()
+
     private fun dictationNames(sources: Map<String, String>): Int =
         sources.values.map { text -> AppSourceFiles.strip(text).literals.count { it == "breaker-dictation" } }.sum()
 
@@ -56,10 +62,11 @@ internal class SharedTakeWorkerGateTest {
     }
 
     @Test
-    fun `the main sources build exactly two serial workers and one of them is the dictation worker`() {
+    fun `the main sources build exactly three serial workers and one of them is the dictation worker`() {
         val sources = AppSourceFiles.mainKotlinSources()
-        assertEquals("app: the main sources must build the dictation worker and the download worker, and no other", 2, constructions(sources))
+        assertEquals("app: the main sources must build the dictation worker, the download worker and the sync worker, and no other", 3, constructions(sources))
         assertEquals("app: the dictation name must appear once in the main sources", 1, dictationNames(sources))
+        assertEquals("app: the sync worker must be built in one named place", 1, syncDeclarations(sources))
     }
 
     @Test
@@ -82,12 +89,12 @@ internal class SharedTakeWorkerGateTest {
         val host = AppSourceFiles.mainFile("kotlin/dev/breaker/dictation/" + hostKey)
         val activity = AppSourceFiles.mainFile("kotlin/dev/breaker/dictation/" + activityKey)
         val extra = mapOf("wiring/Extra.kt" to "class Extra { val worker = SerialBackground(\"breaker-dictation\") }\n")
-        assertEquals("app: a second dictation worker in a wiring file must be counted", 3, constructions(sources + extra))
+        assertEquals("app: a second dictation worker in a wiring file must be counted", 4, constructions(sources + extra))
         val freshCoordinator = edit(host, "            takeWorker,", "            SerialBackground(\"breaker-dictation\"),")
-        assertEquals("app: a fresh worker in the coordinator must be counted", 3, constructions(sources + (hostKey to freshCoordinator)))
+        assertEquals("app: a fresh worker in the coordinator must be counted", 4, constructions(sources + (hostKey to freshCoordinator)))
         assertEquals("app: the coordinator is no longer given the shared worker", 0, coordinatorArgument.findAll(codeOf(freshCoordinator)).count())
         val freshHome = edit(activity, "background = app.tileHost.takeWorker", "background = SerialBackground(\"breaker-dictation\")")
-        assertEquals("app: a fresh worker in the activity must be counted", 3, constructions(sources + (activityKey to freshHome)))
+        assertEquals("app: a fresh worker in the activity must be counted", 4, constructions(sources + (activityKey to freshHome)))
         assertEquals("app: the Home take is no longer given the shared worker", 0, homeArgument.findAll(codeOf(freshHome)).count())
     }
 

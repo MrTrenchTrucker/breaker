@@ -3,19 +3,32 @@ package dev.breaker.dictation
 import android.util.Log
 import dev.breaker.dictation.audio.MicSource
 import dev.breaker.dictation.core.port.HistoryStore
+import dev.breaker.dictation.core.port.ConnectivityProbe
 import dev.breaker.dictation.core.port.SettingsStore
 import dev.breaker.dictation.core.port.TextCommitter
 import dev.breaker.dictation.history.SqliteHistoryStore
 import dev.breaker.dictation.host.OneShotBackground
 import dev.breaker.dictation.host.RefusalHold
+import dev.breaker.dictation.host.SerialBackground
 import dev.breaker.dictation.host.ServiceRefusalNotice
 import dev.breaker.dictation.host.TileHost
+import dev.breaker.dictation.host.syncScheduler
+import dev.breaker.dictation.http.CallLimits
+import dev.breaker.dictation.http.HttpTransport
+import dev.breaker.dictation.http.JdkHttpTransport
 import dev.breaker.dictation.service.AndroidMicPermission
 import dev.breaker.dictation.service.AndroidServiceLauncher
 import dev.breaker.dictation.service.DictationNotification
 import dev.breaker.dictation.service.DictationServiceController
+import dev.breaker.dictation.sync.QueuedSyncService
+import dev.breaker.dictation.sync.SyncUploader
+import dev.breaker.dictation.transport.TcpConnectivityProbe
 import dev.breaker.dictation.wiring.ArmedSwitch
+import dev.breaker.dictation.wiring.Background
 import dev.breaker.dictation.wiring.FileOffStore
+import dev.breaker.dictation.wiring.SyncHttpUploader
+import dev.breaker.dictation.wiring.SyncWorker
+import dev.breaker.dictation.wiring.SyncingHistoryStore
 import dev.breaker.dictation.wiring.appMicSource
 import dev.breaker.dictation.wiring.appTextCommitter
 import java.io.File
@@ -58,6 +71,54 @@ class BreakerApp : android.app.Application() {
         SqliteHistoryStore.create(applicationContext, SystemClockAdapter)
     }
 
+    /** The sync queue, built once per process; every finished take is queued through the decorator. */
+    private val syncService: QueuedSyncService by lazy {
+        QueuedSyncService.create(
+            applicationContext,
+            uploader = syncUploader,
+            probe = syncProbe,
+        )
+    }
+
+    /** The connectivity probe: the real TCP probe over the stored server address, read on every probe. */
+    private val syncProbe: ConnectivityProbe by lazy {
+        TcpConnectivityProbe(
+            serverUrlProvider = { settingsStore.load().serverUrl },
+            clock = SystemClockAdapter,
+        )
+    }
+
+    /** The app's uploader: the real transport over the stored address, one addressed session per call. */
+    private val syncUploader: SyncUploader by lazy {
+        SyncHttpUploader(
+            transport = JdkHttpTransport({ settingsStore.load().serverUrl }),
+            limits = CallLimits(10_000, 30_000, 1_048_576L),
+            addressedSession = compositionRoot.addressedSession,
+        )
+    }
+
+    /** One serial background thread for sync drains; the scheduler arms the delayed re-runs on it. */
+    private val syncBackground: Background = SerialBackground("breaker-sync")
+
+    /** The worker: drains the queue after every save, at app start and on its backoff timer. */
+    private val syncWorker: SyncWorker by lazy {
+        SyncWorker(
+            service = syncService,
+            background = syncBackground,
+            scheduler = syncScheduler(syncBackground),
+            sessionGate = { compositionRoot.addressedSession()?.session },
+            pendingCount = { syncService.pendingCount() - syncService.parkedCount() },
+        )
+    }
+
+    /** The store every save caller reaches: the real store wrapped by the sync decorator. */
+    private val decoratedHistoryStore: SyncingHistoryStore by lazy {
+        SyncingHistoryStore(inner = history, syncService = syncService, worker = syncWorker)
+    }
+
+    /** The app's history: the decorated store, so both save callers enqueue after a save. */
+    val historyStore: HistoryStore get() = decoratedHistoryStore
+
     /**
      * Switches the microphone service on and off. Built on first use, after the
      * application context exists.
@@ -81,7 +142,7 @@ class BreakerApp : android.app.Application() {
     val compositionRoot: dev.breaker.dictation.BreakerCompositionRoot by lazy {
         BreakerCompositionRoot(
             filesDir = filesDir,
-            history = { history },
+            history = { historyStore },
             serviceController = dictationServiceController,
             committer = textCommitter,
             micSource = realMicSource,
@@ -114,9 +175,6 @@ class BreakerApp : android.app.Application() {
     /** The app's settings, proxied through the lazily-built composition root. */
     val settingsStore: SettingsStore get() = compositionRoot.settingsStore
 
-    /** The app's history: the concrete store the composition root exposes. */
-    val historyStore: HistoryStore get() = history
-
     override fun onCreate() {
         super.onCreate()
         scheduleAppStartPurge(
@@ -135,5 +193,13 @@ class BreakerApp : android.app.Application() {
             armedSwitch.onStateChanged(armed, reason)
             tileHost.onArmedChanged(armed)
         }
+        // Start the sync worker at app start: a drain runs after every save, at app start and on the backoff timer.
+        syncWorker.onStart()
+    }
+
+    override fun onTerminate() {
+        super.onTerminate()
+        // Stop the worker cleanly: no further triggers start a drain and a pending delayed run is cancelled.
+        syncWorker.stop()
     }
 }

@@ -38,7 +38,7 @@ internal class AppWiringGateTest {
     internal class Quiet(val file: String, val old: String, val new: String)
 
     internal val rules: List<Rule> = listOf(
-        Rule("HISTORY_HANDED_AS_SUPPLIER", app, """\bBreakerCompositionRoot\s*\(\s*filesDir\s*=\s*filesDir\s*,\s*history\s*=\s*\{\s*history\s*\}\s*,\s*serviceController\s*=\s*dictationServiceController\s*,\s*committer\s*=\s*textCommitter\s*,\s*micSource\s*=\s*realMicSource\s*,\s*background\s*=\s*OneShotBackground\s*\(\s*\)\s*,?\s*\)"""),
+        Rule("HISTORY_HANDED_AS_SUPPLIER", app, """\bBreakerCompositionRoot\s*\(\s*filesDir\s*=\s*filesDir\s*,\s*history\s*=\s*\{\s*historyStore\s*\}\s*,\s*serviceController\s*=\s*dictationServiceController\s*,\s*committer\s*=\s*textCommitter\s*,\s*micSource\s*=\s*realMicSource\s*,\s*background\s*=\s*OneShotBackground\s*\(\s*\)\s*,?\s*\)"""),
         Rule("CONTROLLER_BUILT_FROM_ANDROID_ADAPTERS", app, """\bDictationServiceController\s*\(\s*AndroidMicPermission\s*\(\s*applicationContext\s*\)\s*,\s*AndroidServiceLauncher\s*\(\s*applicationContext\s*\)\s*,?\s*\)"""),
         Rule("CONTROLLER_IS_BUILT_LAZILY", app, """\bval\s+dictationServiceController\s*:\s*DictationServiceController\s+by\s+lazy\s*\{"""),
         Rule("PURGE_SCOPE_FROM_FACTORY", app, """\bval\s+purgeScope\s*=\s*createPurgeScope\s*\(\s*\)(?!\s*[.(])"""),
@@ -77,9 +77,9 @@ internal class AppWiringGateTest {
     private val stopSwitch = "override fun onStop() {\n        (applicationContext as BreakerApp).armedSwitch.switchOff()\n    }\n\n    override fun onStart() {"
 
     private val firing: List<Sample> = listOf(
-        Sample("HISTORY_HANDED_AS_SUPPLIER", app, "{ history }", "history"),
-        Sample("HISTORY_HANDED_AS_SUPPLIER", app, "{ history }", "{ history.also { } }"),
-        Sample("HISTORY_HANDED_AS_SUPPLIER", app, "{ history }", "{ other }"),
+        Sample("HISTORY_HANDED_AS_SUPPLIER", app, "{ historyStore }", "history"),
+        Sample("HISTORY_HANDED_AS_SUPPLIER", app, "{ historyStore }", "{ history.also { } }"),
+        Sample("HISTORY_HANDED_AS_SUPPLIER", app, "{ historyStore }", "{ other }"),
         Sample("HISTORY_HANDED_AS_SUPPLIER", app, "serviceController = dictationServiceController,", "serviceController = dictationServiceController"),
         Sample("HISTORY_HANDED_AS_SUPPLIER", app, "filesDir = filesDir,", "filesDir = cacheDir,"),
         Sample("HISTORY_HANDED_AS_SUPPLIER", app, "micSource = realMicSource,", "micSource = otherMic,"), Sample("HISTORY_HANDED_AS_SUPPLIER", app, "            background = OneShotBackground(),\n", ""), Sample("HISTORY_HANDED_AS_SUPPLIER", app, "OneShotBackground()", "InlineBackground"),
@@ -195,7 +195,7 @@ internal class AppWiringGateTest {
     )
 
     internal val quiet: List<Quiet> = listOf(
-        Quiet(app, "{ history }", "{   history   }"),
+        Quiet(app, "{ historyStore }", "{   historyStore   }"),
         Quiet(app, "createPurgeScope()", "createPurgeScope( ) // Dispatchers CoroutineScope( history }"),
         Quiet(app, "super.onCreate()", "super . onCreate ( )"),
         Quiet(app, "AndroidServiceLauncher(applicationContext),", "AndroidServiceLauncher(applicationContext), /* arm( throw */"),

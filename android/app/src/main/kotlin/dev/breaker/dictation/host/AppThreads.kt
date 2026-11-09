@@ -7,7 +7,10 @@ import dev.breaker.dictation.wiring.Background
 import dev.breaker.dictation.wiring.DelayedPost
 import dev.breaker.dictation.wiring.MainPost
 import dev.breaker.dictation.wiring.PostHandle
+import dev.breaker.dictation.wiring.ScheduledSyncScheduler
+import dev.breaker.dictation.wiring.SyncScheduler
 import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledThreadPoolExecutor
 
 /**
  * The only file in the app that names a handler, a looper, an executor or a thread. Everything
@@ -84,3 +87,13 @@ internal class OneShotBackground(private val threadName: String = "breaker-signi
         worker.start()
     }
 }
+
+/** The scheduled executor for the sync worker's delayed drains: one delayed run at a time. */
+internal val syncSchedulerExecutor: java.util.concurrent.ScheduledExecutorService =
+    java.util.concurrent.ScheduledThreadPoolExecutor(1) { runnable ->
+        Thread(runnable, "breaker-sync-scheduler").apply { isDaemon = true }
+    }
+
+/** The sync scheduler: the scheduled executor over a sync drain thread the caller supplies. */
+internal fun syncScheduler(background: Background): SyncScheduler =
+    ScheduledSyncScheduler(executor = syncSchedulerExecutor, background = background)
