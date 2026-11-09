@@ -296,6 +296,7 @@ it.
 
 ## Test Locations
 - Unit (Kotlin): `android/modules/stt-ondevice/src/test/kotlin/`, created with the module's first code. Run: `./gradlew :android:modules:stt-ondevice:test`
+- Registry pins: `RegistryTamperTest` loops `ModelRegistry.ALL` and checks, per entry, that `ModelIntegrity.verify` refuses a mismatched archive, a pin the upstream list does not hold and an archive name listed with another digest, and accepts a stand-in that hashes to its own pin; no `tamper_verified` flag flips from it.
 - The fetcher tests use a scripted opener and no network. One class, `JdkHttpOpenerLoopbackTest`,
   tests the real opener against a plain server on the loopback address only. Exactly one of its
   tests (the read timeout) waits on a real timer, by design: the timer is the behaviour under test.
