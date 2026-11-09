@@ -17,10 +17,12 @@ Keeps every transcription in step with the server (F13). Dictation made offline 
 
 The module has no HTTP client. The app supplies the `SyncUploader` and the `ConnectivityProbe`. A class that implements `SyncUploader` also needs api-contracts on its own classpath (the app declares it when it wires). The uploader sends the `SyncPush` it is given to `POST /v1/sync` with the user's token; that transport is not built here. The wire types come from api-contracts (ADR-017).
 
+## When the drain runs
+
+The drain runs only while the app process is alive: the scheduler and its backoff timer live in memory, and nothing is in flight when the process dies. The queue is durable in SQLite, so nothing is lost - a saved transcription waits there until the next drain. When the enqueue throws, the text is saved and the row is not queued, and nothing queues it later.
+
 ## Not built yet
 
-- The background worker that calls `pushPending`.
-- The HTTP uploader for `POST /v1/sync`.
 - Sending tombstones for deleted records.
 - The `key_version` 1 form, the `key_version` replace, the re-key, and fetching pending sealed agent-token results (ADR-018).
 - PLANNED (ADR-035): the wiring of the pull. Built and not wired: PullRun (sync/PullRun.kt, #441) runs one

@@ -8,6 +8,7 @@ module's own code.
 import unittest
 
 import contract_support
+from app_sync_wiring_pins import AppSyncWiringPinsTest  # noqa: F401  (sync wiring pins, collected here)
 
 
 class AndroidAppContractTest(contract_support.ModuleContractTest):

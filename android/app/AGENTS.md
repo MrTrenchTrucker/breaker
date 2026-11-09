@@ -108,6 +108,8 @@ app entry, DI container (composition root), Gradle build, and the file-backed cr
 - android_stt_server (registered in modules.toml): the server speech path; the app passes it one provider of the address and the key (`ServerTarget`) of each request.
 - shared_ui_tokens (registered in modules.toml)
 - shared_model_registry (registered in modules.toml)
+- android_sync (registered in modules.toml): the sync push chain; the queue, uploader, scheduler and the decorated-history save-first ordering.
+- shared_api_contracts (registered in modules.toml): the api-contracts module the app passes through; the shared model registry and the sync push body types.
 - android_commit (registered in modules.toml): the text committer is made by its `CommitServices.create`, once per process.
 - android_commit_accessibility (registered in modules.toml): the accessibility service; its manifest entry merges into the app, which names only the component string.
 - android_gesture (registered in modules.toml): the shake detector handle; the app wraps it in ShakeGesture and nothing else of the module.
