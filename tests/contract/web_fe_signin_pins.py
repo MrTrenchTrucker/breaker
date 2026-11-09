@@ -39,6 +39,9 @@ RUNNER_FILES = sorted([
     "signin-wire.test.mjs",
     "signin-net.test.mjs",
     "signin-logout.test.mjs",
+    "devices-net.test.mjs",
+    "devices.test.mjs",
+    "devices-view.test.mjs",
 ])
 LINE_CAP = 300
 ALLOWED_IMPORTS = {SIGNIN: ("./aesgcm.js", "./signin-link.js"), LINK: ()}

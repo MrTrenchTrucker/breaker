@@ -57,7 +57,14 @@ the return link). In `signin.js` every crypto step is an injected function (`get
 The page links `css/tokens.css`, which is not in this folder: whoever serves the page copies it from `shared/modules/ui-tokens/src/main/resources/tokens.css`. How these files reach a browser is an open owner question. Still planned: the real derive, box public key and seal functions (they replace the stub), serving, and the end-to-end test.
 The `random` option of `createCipher` is a test hook: page code must never pass it.
 
-**Planned (ADR-035, ADR-036, not built): device list.** Settings lists each device of the account, with a sign-out for each one, and a "sign out all my devices" button.
+**Built now: the device list module (ADR-035, ADR-036), no page yet.**
+Three ES modules with no page around them: `devices-net.js` (the three calls to the server's own
+device routes: list, sign out one, sign out all), `devices.js` (the flow, every dependency injected,
+the fixed message per status, no DOM access) and `devices-view.js` (`mountDevices(root, deps)`, the
+DOM part, textContent only). The view builds its own list, message element, one sign-out button per
+row and a "Sign out all my devices" control behind an in-view confirm step. A device name from the
+server is untrusted text and is written with textContent. How these files reach a browser is still
+the open owner question above, so nothing calls `mountDevices` yet.
 
 **Hosting:**
 - `/Breaker.apk` — latest signed APK (from the git-pull build).
@@ -66,6 +73,8 @@ The `random` option of `createCipher` is a test hook: page code must never pass 
 **Security:** standard web hardening — plain HTTP on Local Server; CSP, input
 escaping, no secrets in frontend. No certificate handling in Breaker; TLS is the admin's choice through any reverse proxy (ADR-034). All data fetched via `sync-api` with the
 user's token; the FE itself never touches raw audio.
+The device list sends the user's session token only as a bearer header on the three device calls; no
+cookie, no cache, no storage, and no token in the URL. A hostile device name renders as literal text.
 
 **Client-side derivation and decryption (F24, ADR-006):** transcriptions
 arrive as ciphertext (once the account has bootstrapped — see below). The
