@@ -22,7 +22,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.a
 NODE_VERSION_RE = re.compile(r"^v(\d+)\.(\d+)")
 NODE_MIN_MAJOR = 20
 NODE_MIN_MINOR = 19
-PASSED_COUNT = 258
+# The count of the whole src/test/js suite, pinned so a dropped test file is caught.
+# 319 = 258 on the base tree + 6 devices-net + 33 devices flow + 22 devices view.
+PASSED_COUNT = 319
 
 
 def _run(args, env=None):
@@ -46,36 +48,55 @@ def meets_floor(major, minor):
     return (major > NODE_MIN_MAJOR) or (major == NODE_MIN_MAJOR and minor >= NODE_MIN_MINOR)
 
 
-def test_files(test_dir):
+def _test_files(test_dir):
     """Explicit test files: newer node versions run nothing when given a folder."""
     return sorted(glob.glob(os.path.join(test_dir, "*.test.mjs")))
 
 
 def node_test_counts(test_dir):
-    files = test_files(test_dir)
+    files = _test_files(test_dir)
     if not files:
         return None
     result = _run(["node", "--test"] + files)
     output = result.stdout + result.stderr
+    return parse_node_test_counts(output)
+
+
+def parse_node_test_counts(output):
+    """Parse a `node --test` summary block into (passed, failed, cancelled, skipped).
+
+    Accepts both reporter prefixes: the legacy `# ` and the Node v24 `ℹ `
+    (U+2139 INFORMATION SOURCE) followed by a space. Returns None when the
+    tests or fail counts are missing so the runner cannot silently pass.
+    """
     passed = None
     failed = None
     cancelled = None
     skipped = None
-    m = re.search(r"^# tests\s+(\d+)\s*$", output, re.MULTILINE)
-    if m:
-        passed = int(m.group(1))
-    m = re.search(r"^# pass\s+(\d+)\s*$", output, re.MULTILINE)
-    if m:
-        passed = int(m.group(1))
-    m = re.search(r"^# fail\s+(\d+)\s*$", output, re.MULTILINE)
-    if m:
-        failed = int(m.group(1))
-    m = re.search(r"^# cancelled\s+(\d+)\s*$", output, re.MULTILINE)
-    if m:
-        cancelled = int(m.group(1))
-    m = re.search(r"^# skipped\s+(\d+)\s*$", output, re.MULTILINE)
-    if m:
-        skipped = int(m.group(1))
+
+    patterns = {
+        "tests": r"^(?:# |ℹ )tests\s+(\d+)\s*$",
+        "pass": r"^(?:# |ℹ )pass\s+(\d+)\s*$",
+        "fail": r"^(?:# |ℹ )fail\s+(\d+)\s*$",
+        "cancelled": r"^(?:# |ℹ )cancelled\s+(\d+)\s*$",
+        "skipped": r"^(?:# |ℹ )skipped\s+(\d+)\s*$",
+    }
+    for label, pattern in patterns.items():
+        m = re.search(pattern, output, re.MULTILINE)
+        if not m:
+            continue
+        value = int(m.group(1))
+        if label == "tests":
+            passed = value
+        elif label == "pass":
+            passed = value
+        elif label == "fail":
+            failed = value
+        elif label == "cancelled":
+            cancelled = value
+        elif label == "skipped":
+            skipped = value
+
     if passed is None or failed is None:
         return None
     return (passed, failed, cancelled, skipped)
@@ -105,6 +126,43 @@ class TestNodeAesGcmJsRunner(unittest.TestCase):
         self.assertEqual(failed, 0, f"{failed} test(s) failed out of {passed + failed}")
         self.assertEqual(cancelled, 0, f"{cancelled} cancelled")
         self.assertEqual(skipped, 0, f"{skipped} skipped")
+
+    def test_parse_node_test_counts_old_format(self):
+        """Legacy `# ` reporter prefix block parses to the pinned counts."""
+        output = (
+            "TAP version 13\n"
+            "# tests 258\n"
+            "# pass 258\n"
+            "# fail 0\n"
+            "# cancelled 0\n"
+            "# skipped 0\n"
+            "# 1..258\n"
+        )
+        self.assertEqual(parse_node_test_counts(output), (258, 0, 0, 0))
+
+    def test_parse_node_test_counts_new_format(self):
+        """Node v24 `ℹ ` reporter prefix block parses to the pinned counts."""
+        output = (
+            "TAP version 13\n"
+            "ℹ tests 258\n"
+            "ℹ pass 258\n"
+            "ℹ fail 0\n"
+            "ℹ cancelled 0\n"
+            "ℹ skipped 0\n"
+            "# 1..258\n"
+        )
+        self.assertEqual(parse_node_test_counts(output), (258, 0, 0, 0))
+
+    def test_parse_node_test_counts_missing_fail_returns_none(self):
+        """A summary block with no `fail` line returns None, never a silent pass."""
+        output = (
+            "TAP version 13\n"
+            "# tests 258\n"
+            "# pass 258\n"
+            "# cancelled 0\n"
+            "# skipped 0\n"
+        )
+        self.assertIsNone(parse_node_test_counts(output))
 
     def test_stub_proof_v20_18_0_fails(self):
         """Stub node printing v20.18.0 must make meets_floor return False."""
