@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The OpenAPI 3 spec for the endpoint groups that exist today (jobs, auth, sync, admin; updates and training are planned, not built), with its Kotlin
+The OpenAPI 3 spec for the endpoint groups that exist today (jobs, auth, sync, admin and the updates manifest body; training and streaming are planned, not built), with its Kotlin
 request/response types (ADR-017): the single contract both the Android client (`stt-server`) and the server
 (`whisper-server`) implement.
 
@@ -222,8 +222,8 @@ There is no synchronous 200-with-body variant — every transcription is a job.
   every `GET` inside the window returns the same result and after it the
   result is erased - until then it sits in `whisper-server`'s SQLite store in plaintext, the
   same store the still-queued audio uses (ADR-010).
-- **updates** — `GET /v1/updates/latest.json`
-  Planned, not built: no updates path is in `openapi.yaml` yet and the server does not serve it.
+- **updates** - `GET /v1/updates/latest.json`
+  In the spec (body only): the path is in `openapi.yaml` with the six-field `UpdateManifest` body (`version`, `version_code`, `apk_url`, `sha256`, `signature`, `notes`); the server does not serve it yet; auth and statuses are open (ADR-011).
 - **admin** — roles, health, transcription-service, test-service,
   agent-tokens, **end-session** (`DELETE /v1/admin/sessions/{id}`, ADR-036),
   **reset-account** (F31, ADR-018 — replaces the earlier
@@ -288,6 +288,7 @@ OpenAPI spec (openapi.yaml); Kotlin request and response types
   pins the 423 locked answer of login with its Retry-After header (whole seconds, minimum 1), the
   `GET` and `PUT /v1/admin/wrong-pw-limit` path with its statuses and operation ids, and the
   `WrongPwLimit` schema (its field-for-field match with the Kotlin type is checked by `test_conformance.py`).
+- Updates manifest: the stdlib test `tests/unit/shared/api-contracts/test_updates_contract.py` pins the path, the operation id, the six required names, the field types and `version_code` as int64 with minimum 1, and runs the conformance comparator on `UpdateManifest`; the Kotlin test `UpdateManifestTest` pins the minimum of the version code in the type.
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
 ## Test Requirement

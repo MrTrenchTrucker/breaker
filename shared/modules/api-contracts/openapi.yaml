@@ -2388,6 +2388,27 @@ paths:
               example:
                 error: "forbidden"
                 message: "User session token required; an agent token is refused"
+  /v1/updates/latest.json:
+    get:
+      summary: Get the latest update manifest
+      description: >-
+        Returns the latest signed update manifest. Auth is an open item
+        of ADR-011.
+      operationId: getUpdateManifest
+      responses:
+        "200":
+          description: The latest update manifest
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateManifest"
+              example:
+                version: "0.0.0.1"
+                version_code: 2
+                apk_url: "https://example.com/app.apk"
+                sha256: "the sha256 of the APK"
+                signature: "the signature of the APK"
+                notes: "Latest release"
   /health:
     get:
       summary: Health check
@@ -3059,3 +3080,33 @@ components:
         enabled:
           type: boolean
           description: Whether sign-in is locked after five wrong passwords (default on)
+    UpdateManifest:
+      type: object
+      required:
+        - version
+        - version_code
+        - apk_url
+        - sha256
+        - signature
+        - notes
+      properties:
+        version:
+          type: string
+          description: The release version label
+        version_code:
+          type: integer
+          format: int64
+          minimum: 1
+          description: The release version code
+        apk_url:
+          type: string
+          description: The signed APK download URL
+        sha256:
+          type: string
+          description: The SHA-256 of the APK
+        signature:
+          type: string
+          description: The signature of the APK
+        notes:
+          type: string
+          description: The release notes
