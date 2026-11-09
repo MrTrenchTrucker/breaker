@@ -35,7 +35,8 @@ internal class LauncherScrollGateTest {
     private val rules: List<Rule> = listOf(
         rx("SETTINGS_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "activity", """\bcreateSettingsView\s*\(\s*activity\s*,\s*app\s*\.\s*settingsStore\s*,\s*modelReady\s*=\s*\{\s*modelReady\s*\.\s*isReady\s*\(\s*\)\s*\}\s*,\s*downloadLine\s*=\s*downloadLine\s*,\s*onThemeChanged\s*=\s*dev\s*\.\s*breaker\s*\.\s*dictation\s*\.\s*wiring\s*\.\s*repaintOnThemeChange\s*\(\s*activity\s*,\s*app\s*\.\s*settingsStore\s*\)\s*,\s*onDownloadModel\s*=\s*\{\s*app\s*\.\s*tileHost\s*\.\s*requestDownload\s*\(\s*\)\s*\}\s*,?\s*\)"""),
         rx("MODEL_READY_IS_A_LIVE_PROVIDER", "activity", """\bmodelReady\s*=\s*\{\s*modelReady\s*\.\s*isReady\s*\(\s*\)\s*\}""", 3),
-        // downloadLine = { downloadSentence } is passed to both createSettingsView and createFirstRunView
+        // downloadLine = { downloadSentence } appears twice: once for createFirstRunView and once passed
+        // through buildSettingsRebuilt to createSettingsView
         rx("DOWNLOAD_LINE_IS_A_LIVE_PROVIDER", "activity", """\bdownloadLine\s*=\s*\{\s*downloadSentence\s*\}""", 2),
         rx("ON_DOWNLOAD_CALLS_REQUEST_DOWNLOAD", "activity", """\bonDownloadModel\s*=\s*\{\s*app\s*\.\s*tileHost\s*\.\s*requestDownload\s*\(\s*\)\s*\}"""),
         rx("COLUMN_IS_VERTICAL", "activity", """\bcolumn\s*\.\s*orientation\s*=\s*LinearLayout\s*\.\s*VERTICAL"""),

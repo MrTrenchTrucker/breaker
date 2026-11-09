@@ -74,7 +74,8 @@ internal class HostGateNotifyTest {
         rx("CLOSE_HISTORY_RESTORES_THE_SAVED_SCROLL", "activity", """\bcloseHistory\s*\(\s*\)\s*\{[^}]*setContentView\s*\(\s*settingsScroll\s*\)\s+applyInsets\s*\(\s*settingsScroll\s*\)"""),
         rx("DOWNLOAD_STATE_WIRES_TO_THE_SETTINGS_VIEW", "activity", """\boverride\s+fun\s+downloading\s*\(\s*\w+\s*:\s*String\s*\)\s*\{[^}]*downloadControlOf\s*\(\s*firstRunShown\s*,\s*firstRunView\s*,\s*settingsView\s*\)\s*\?\s*\.\s*downloadProgress\s*\(\s*0\s*,\s*0\s*\)\s*\}\s+override\s+fun\s+done\s*\(\s*\)\s*\{[^}]*downloadControlOf\s*\(\s*firstRunShown\s*,\s*firstRunView\s*,\s*settingsView\s*\)\s*\?\s*\.\s*downloadStopped\s*\(\s*\)\s*\}\s+override\s+fun\s+failed\s*\(\s*sentence\s*:\s*String\s*\)\s*\{[^}]*downloadControlOf\s*\(\s*firstRunShown\s*,\s*firstRunView\s*,\s*settingsView\s*\)\s*\?\s*\.\s*downloadStopped\s*\(\s*\)\s*\}"""),
         rx("DOWNLOAD_SENTENCE_IS_KEPT_FOR_THE_VIEW", "activity", """\bprivate\s+var\s+downloadSentence\s*:\s*String\?\s*=\s*null"""),
-        // downloadLine = { downloadSentence } is passed to both createSettingsView and createFirstRunView
+        // downloadLine = { downloadSentence } appears twice: once for createFirstRunView and once passed
+        // through buildSettingsRebuilt to createSettingsView
         rx("DOWNLOAD_SENTENCE_IS_PASSED_AS_THE_DOWNLOAD_LINE", "activity", """\bdownloadLine\s*=\s*\{\s*downloadSentence\s*\}""", 2),
         rx("DOWNLOAD_SENTENCE_IS_CLEARED_ON_DONE", "activity", """\boverride\s+fun\s+done\s*\(\s*\)\s*\{\s*downloadSentence\s*=\s*null"""),
         rx("SETTINGS_VIEW_REFRESHES_ON_RESUME", "activity", """\bsettingsShown\s*->\s*downloadControlOf\s*\(\s*false\s*,\s*firstRunView\s*,\s*settingsView\s*\)\s*\?\s*\.\s*refresh\s*\(\s*\)"""),
