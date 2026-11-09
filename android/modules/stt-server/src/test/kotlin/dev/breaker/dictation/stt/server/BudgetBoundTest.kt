@@ -4,10 +4,17 @@ import dev.breaker.dictation.core.model.SttError
 import dev.breaker.dictation.core.model.SttRequest
 import dev.breaker.dictation.core.model.SttResult
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.SupervisorJob
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
 /** Deadline double: records each requested wait and returns once [gate] is completed. */
@@ -130,28 +137,66 @@ class BudgetBoundTest {
     @Test
     fun `a stalled enqueue call ends at its deadline with the budget sentence and aborts its exchange`() {
         val ft = FakeTiming()
-        ft.deadline.gate.complete(Unit)
-        val probe = BudgetBoundTestProbe(ScriptedHttp(listOf(ScriptedHttp.Step.Stall())), onGet = {})
-        assertEquals(BUDGET_USED, engineFor(probe, ft.timing).transcribe(request()))
-        assertTrue("the stalled exchange was aborted at the deadline", probe.lastAbort?.isAborted == true)
+        val stall = ScriptedHttp.Step.Stall()
+        val scripted = ScriptedHttp(listOf(stall))
+        val probe = BudgetBoundTestProbe(scripted, onGet = {})
+        val engine = engineFor(probe, ft.timing)
+        val recorded = AtomicInteger(-1)
+        val helperScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        val helper = helperScope.launch {
+            stall.entered.await()
+            recorded.set(scripted.requests.size)
+            ft.deadline.gate.complete(Unit)
+        }
+        try {
+            assertEquals(BUDGET_USED, engine.transcribe(request()))
+            runBlocking { helper.join() }
+            assertEquals(
+                "the request count read at open time is 1",
+                1,
+                recorded.get(),
+            )
+            assertEquals(1, scripted.requests.size)
+            assertTrue("the stalled exchange was aborted at the deadline", probe.lastAbort?.isAborted == true)
+        } finally {
+            helperScope.cancel()
+        }
     }
 
     @Test
     fun `a stalled poll ends at the time left in the budget and not at the poll cap`() {
         val ft = FakeTiming()
         val deadline = BudgetBoundTestDeadline()
+        val stall = ScriptedHttp.Step.Stall()
         val scripted = ScriptedHttp(
-            listOf(ScriptedHttp.Step.ReplyAfter(60_000L, 202, accepted()), ScriptedHttp.Step.Stall()),
+            listOf(ScriptedHttp.Step.ReplyAfter(60_000L, 202, accepted()), stall),
             ft.clock,
         )
-        val probe = BudgetBoundTestProbe(scripted, onGet = { deadline.gate.complete(Unit) })
+        val probe = BudgetBoundTestProbe(scripted, onGet = {})
+        val recorded = AtomicInteger(-1)
+        val helperScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        val helper = helperScope.launch {
+            stall.entered.await()
+            recorded.set(scripted.requests.size)
+            deadline.gate.complete(Unit)
+        }
         val engine = engineFor(probe, Timing(ft.clock, ft.sleeper, deadline), ServerLimits(maxTransientPollFailures = 0))
-        assertEquals(BUDGET_USED, engine.transcribe(request()))
-        assertEquals(2, scripted.requests.size)
-        assertEquals(2500, scripted.requests[1].readTimeoutMs)
-        assertTrue("the poll watchdog was given the time left", deadline.askedMs.contains(2500L))
-        assertFalse("the poll watchdog was not given the poll cap", deadline.askedMs.contains(10_000L))
-        assertTrue("the stalled poll was aborted", probe.lastAbort?.isAborted == true)
+        try {
+            assertEquals(BUDGET_USED, engine.transcribe(request()))
+            runBlocking { helper.join() }
+            assertEquals(
+                "the poll request was recorded before the deadline opened",
+                2,
+                recorded.get(),
+            )
+            assertEquals(2, scripted.requests.size)
+            assertEquals(2500, scripted.requests[1].readTimeoutMs)
+            assertTrue("the poll watchdog was given the time left", deadline.askedMs.contains(2500L))
+            assertFalse("the poll watchdog was not given the poll cap", deadline.askedMs.contains(10_000L))
+            assertTrue("the stalled poll was aborted", probe.lastAbort?.isAborted == true)
+        } finally {
+            helperScope.cancel()
+        }
     }
 
     @Test
