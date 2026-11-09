@@ -1,7 +1,9 @@
 package dev.breaker.dictation.ui.screen.settings
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -11,6 +13,31 @@ import org.junit.Test
  * accepted and stored exactly as written. Every boundary is tested at both edges.
  */
 class ServerAddressEntryTest {
+    @Test
+    fun `isPlainHttp is true for an http address whatever the scheme case and the spaces around it`() {
+        assertTrue(ServerAddressEntry.isPlainHttp("http://box.example"))
+        assertTrue(ServerAddressEntry.isPlainHttp("HTTP://box.example"))
+        assertTrue(ServerAddressEntry.isPlainHttp("  Http://box.example  "))
+    }
+
+    @Test
+    fun `isPlainHttp is false for https and for empty blank and refused addresses`() {
+        assertFalse(ServerAddressEntry.isPlainHttp("https://box.example"))
+        assertFalse(ServerAddressEntry.isPlainHttp(""))
+        assertFalse(ServerAddressEntry.isPlainHttp("  "))
+        assertFalse(ServerAddressEntry.isPlainHttp("ftp://box.example"))
+        assertFalse(ServerAddressEntry.isPlainHttp("box.example"))
+        assertFalse(ServerAddressEntry.isPlainHttp("https://u@box.example"))
+    }
+
+    @Test
+    fun `isPlainHttp is false for an http address the entry rule refuses`() {
+        assertFalse(ServerAddressEntry.isPlainHttp("http://u@box.example"))
+        assertFalse(ServerAddressEntry.isPlainHttp("http://box.example/?q=1"))
+        assertFalse(ServerAddressEntry.isPlainHttp("http://box.example/#top"))
+        assertTrue("control: the same host without the extra part is plain http", ServerAddressEntry.isPlainHttp("http://box.example/"))
+    }
+
     private fun refusedWithControl(refused: String, control: String) {
         assertNull("refused: $refused", ServerAddressEntry.accepted(refused))
         assertEquals("control for $refused", control, ServerAddressEntry.accepted(control))

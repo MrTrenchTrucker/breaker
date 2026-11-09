@@ -43,6 +43,7 @@ internal object SettingsTexts {
     /** The model and server block: its heading and the rows that hold the values. */
     const val VALUES_HEADING = "Model and server"
     const val SERVER_ROW_LABEL = "Server address"
+    const val PLAIN_HTTP_HELP = "This connection is not encrypted. Use a VPN or an https address."
     const val API_KEY_LABEL = "API key"
     const val LANGUAGE_ENGLISH = "English"
 
