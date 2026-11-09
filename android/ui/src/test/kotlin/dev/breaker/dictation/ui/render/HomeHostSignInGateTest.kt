@@ -7,7 +7,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /*
- * The way to sign in on the signed-out notice of the Home screen.
+ * The way to sign in and to sign out on the signed-out notice of the Home screen.
  *
  * The host takes the liveness reader and the sign-in answer as its two last
  * parameters, passes them on to the state it builds on every drawing, and the
@@ -38,14 +38,23 @@ private fun signInProblemsIn(text: String): List<String> {
     if (occurrenceCount(flat, "sessionLive:()->Boolean") != 1) {
         problems += "the host does not take the liveness reader exactly once"
     }
-    if (!flat.contains("renderer:ScreenRenderer,privatevalsessionLive:()->Boolean,privatevalonSignIn:()->Unit")) {
-        problems += "the two answers are not the last parameters after the renderer"
+    if (occurrenceCount(flat, "onSignOut:()->Unit") != 1) {
+        problems += "the host does not take the onSignOut answer exactly once"
+    }
+    if (!flat.contains("renderer:ScreenRenderer,privatevalsessionLive:()->Boolean,privatevalonSignIn:()->Unit,privatevalonSignOut:()->Unit")) {
+        problems += "the three answers are not the last parameters after the renderer"
     }
     if (occurrenceCount(flat, "onSignIn()") != 1) {
         problems += "onSignIn is not called exactly once"
     }
+    if (occurrenceCount(flat, "onSignOut()") != 1) {
+        problems += "onSignOut is not called exactly once"
+    }
     if (!flat.contains("HomeActions.SIGN_IN->onSignIn()")) {
         problems += "the SIGN_IN action does not call onSignIn"
+    }
+    if (!flat.contains("HomeActions.SIGN_OUT_CONFIRM->onSignOut()")) {
+        problems += "the SIGN_OUT_CONFIRM action does not call onSignOut"
     }
     if (!flat.contains("sessionLive=sessionLive(),")) {
         problems += "the state built for drawing does not read the liveness reader"
@@ -59,13 +68,13 @@ private fun signInProblemsIn(text: String): List<String> {
     return problems
 }
 
-/** The named problems with the entry in [text]: the two answers must go on to the host, in order, after the renderer. */
+/** The named problems with the entry in [text]: the three answers must go on to the host, in order, after the renderer. */
 private fun entryProblemsIn(text: String): List<String> {
     val flat = withoutCommentsAndStrings(text).replace(Regex("""\s+"""), "")
-    return if (flat.contains("ScreenRenderer(context),sessionLive,onSignIn,)")) {
+    return if (flat.contains("ScreenRenderer(context),sessionLive,onSignIn,onSignOut,)")) {
         emptyList()
     } else {
-        listOf("the entry does not hand the liveness reader and the sign-in answer to the host in order")
+        listOf("the entry does not hand the liveness reader, the sign-in answer and the sign-out answer to the host in order")
     }
 }
 
@@ -118,6 +127,45 @@ class HomeHostSignInGateTest {
     }
 
     @Test
+    fun `the home host acts on the sign-out confirm action by calling onSignOut`() {
+        assertFires(
+            "a no-op branch",
+            signInProblemsIn(replaceOnce(real, "HomeActions.SIGN_OUT_CONFIRM -> onSignOut()", "HomeActions.SIGN_OUT_CONFIRM -> Unit")),
+            "does not call onSignOut",
+        )
+        assertFires(
+            "a dropped branch",
+            signInProblemsIn(replaceOnce(real, "HomeActions.SIGN_OUT_CONFIRM -> onSignOut()", "HomeActions.SIGN_OUT_CONFIRM -> onAbout()")),
+            "does not call onSignOut",
+        )
+        assertFires(
+            "a second call of the answer",
+            signInProblemsIn(replaceOnce(real, "HomeActions.SIGN_OUT_CONFIRM -> onSignOut()", "HomeActions.SIGN_OUT_CONFIRM -> { onSignOut(); onSignOut() }")),
+            "not called exactly once",
+        )
+        assertClean(
+            "the branch split over lines",
+            replaceOnce(real, "HomeActions.SIGN_OUT_CONFIRM -> onSignOut()", "HomeActions.SIGN_OUT_CONFIRM ->\n                onSignOut()"),
+        )
+    }
+
+    @Test
+    fun `onSignOut is the last host answer, after onSignIn`() {
+        // The three answers must be the last parameters after the renderer, in order: sessionLive, onSignIn, onSignOut.
+        assertFires(
+            "onSignOut before onSignIn",
+            signInProblemsIn(replaceOnce(real,
+                "    private val onSignIn: () -> Unit,\n    private val onSignOut: () -> Unit,\n",
+                "    private val onSignOut: () -> Unit,\n    private val onSignIn: () -> Unit,\n")),
+            "not the last parameters",
+        )
+        assertClean(
+            "the answers in order",
+            real,
+        )
+    }
+
+    @Test
     fun `a host that loses its answers is reported`() {
         assertFires(
             "no onSignIn parameter",
@@ -130,26 +178,33 @@ class HomeHostSignInGateTest {
             "does not take the liveness reader exactly once",
         )
         assertFires(
+            "no onSignOut parameter",
+            signInProblemsIn(replaceOnce(real, "    private val onSignOut: () -> Unit,\n", "    private val onSignOut: (String) -> Unit,\n")),
+            "does not take the onSignOut answer exactly once",
+        )
+        assertFires(
             "the answers moved before the renderer",
             signInProblemsIn(replaceOnce(
                 real,
-                "    private val renderer: ScreenRenderer,\n    private val sessionLive: () -> Boolean,\n    private val onSignIn: () -> Unit,\n",
-                "    private val sessionLive: () -> Boolean,\n    private val onSignIn: () -> Unit,\n    private val renderer: ScreenRenderer,\n",
+                "    private val renderer: ScreenRenderer,\n    private val sessionLive: () -> Boolean,\n    private val onSignIn: () -> Unit,\n    private val onSignOut: () -> Unit,\n",
+                "    private val sessionLive: () -> Boolean,\n    private val onSignIn: () -> Unit,\n    private val onSignOut: () -> Unit,\n    private val renderer: ScreenRenderer,\n",
             )),
             "not the last parameters",
         )
     }
 
     @Test
-    fun `the entry hands the liveness reader and the sign in answer on to the host`() {
+    fun `the entry hands the liveness reader and the sign in answer and the sign out answer on to the host`() {
         val entry = mainSourceOf("HomeEntry.kt")
         assertEquals("ui: home sign in: the real entry: ", emptyList<String>(), entryProblemsIn(entry))
-        val reader = replaceOnce(entry, "        sessionLive,\n        onSignIn,\n", "        { true },\n        onSignIn,\n")
+        val reader = replaceOnce(entry, "        sessionLive,\n        onSignIn,\n        onSignOut,\n", "        { true },\n        onSignIn,\n        onSignOut,\n")
         assertFires("the reader replaced", entryProblemsIn(reader), "does not hand")
-        val answer = replaceOnce(entry, "        sessionLive,\n        onSignIn,\n", "        sessionLive,\n        {},\n")
+        val answer = replaceOnce(entry, "        sessionLive,\n        onSignIn,\n        onSignOut,\n", "        sessionLive,\n        {},\n        onSignOut,\n")
         assertFires("the answer replaced", entryProblemsIn(answer), "does not hand")
-        val oneLine = replaceOnce(entry, "        sessionLive,\n        onSignIn,\n", "        sessionLive, onSignIn,\n")
-        assertEquals("ui: home sign in: the two on one line must not be reported", emptyList<String>(), entryProblemsIn(oneLine))
+        val answerOut = replaceOnce(entry, "        sessionLive,\n        onSignIn,\n        onSignOut,\n", "        sessionLive,\n        onSignIn,\n        {},\n")
+        assertFires("the sign out answer replaced", entryProblemsIn(answerOut), "does not hand")
+        val oneLine = replaceOnce(entry, "        sessionLive,\n        onSignIn,\n        onSignOut,\n", "        sessionLive, onSignIn, onSignOut,\n")
+        assertEquals("ui: home sign in: the three on one line must not be reported", emptyList<String>(), entryProblemsIn(oneLine))
     }
 
     @Test

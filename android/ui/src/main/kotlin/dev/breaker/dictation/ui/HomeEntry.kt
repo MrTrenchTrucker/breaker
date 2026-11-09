@@ -91,6 +91,7 @@ fun createHomeView(
     onShownMode: (dev.breaker.shared.tokens.ThemeMode) -> Unit,
     sessionLive: () -> Boolean,
     onSignIn: () -> Unit,
+    onSignOut: () -> Unit,
 ): android.view.View {
     val theme = storedTheme(settings, isNightMode(context.resources.configuration.uiMode))
     onShownMode(theme.mode)
@@ -117,6 +118,7 @@ fun createHomeView(
         ScreenRenderer(context),
         sessionLive,
         onSignIn,
+        onSignOut,
     )
 }
 

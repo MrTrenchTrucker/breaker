@@ -24,6 +24,9 @@ internal object HomeActions {
     const val SHOW_ALL = "SHOW_ALL"
     const val HIDE = "HIDE"
     const val SIGN_IN = "SIGN_IN"
+    const val CANCEL = "CANCEL"
+    const val SIGN_OUT_ASK = "SIGN_OUT_ASK"
+    const val SIGN_OUT_CONFIRM = "SIGN_OUT_CONFIRM"
 }
 
 /**
@@ -50,6 +53,9 @@ internal class HomeIntentHandler(private val screen: HomeScreen) {
         HomeActions.HOW_IT_WORKS,
         HomeActions.ABOUT,
         HomeActions.CLOSE_MENU,
+        HomeActions.SIGN_OUT_ASK,
+        HomeActions.SIGN_OUT_CONFIRM,
+        HomeActions.CANCEL,
     )
 
     /** The screen as the state stands now. */
@@ -87,6 +93,7 @@ internal class HomeIntentHandler(private val screen: HomeScreen) {
         HomeNodeIds.DRAWER_HOW -> ScreenIntent.Home(HomeActions.HOW_IT_WORKS)
         HomeNodeIds.DRAWER_ABOUT -> ScreenIntent.Home(HomeActions.ABOUT)
         HomeNodeIds.SIGN_IN -> ScreenIntent.Home(HomeActions.SIGN_IN)
+        HomeNodeIds.DRAWER_SIGN_OUT -> ScreenIntent.Home(HomeActions.SIGN_OUT_ASK)
         else -> null
     }
 
@@ -122,6 +129,9 @@ internal class HomeIntentHandler(private val screen: HomeScreen) {
             HomeActions.CLOSE_MENU -> state = state.copy(menuOpen = false)
             HomeActions.SHOW_ALL -> state = state.copy(opened = true)
             HomeActions.HIDE -> state = state.copy(opened = false)
+            HomeActions.SIGN_OUT_ASK -> state = state.copy(confirmSignOut = true, menuOpen = false)
+            HomeActions.SIGN_OUT_CONFIRM -> state = state.copy(confirmSignOut = false)
+            HomeActions.CANCEL -> state = state.copy(confirmSignOut = false)
         }
         return screen.render(state)
     }

@@ -61,4 +61,13 @@ internal object HomeTexts {
 
     /** The label of the way to sign in, reused from the auth view's submit label. */
     const val SIGN_IN = "Sign in"
+
+    /** The label of the drawer row that starts signing out. Shown only while the session is live. */
+    const val SIGN_OUT = "Sign out"
+
+    /** The confirm question the row taps shows before signing out. */
+    const val SIGN_OUT_ASK = "Sign out of this phone?"
+
+    /** The note the confirm block shows under the question. */
+    const val SIGN_OUT_NOTE = "Your history stays on this phone."
 }

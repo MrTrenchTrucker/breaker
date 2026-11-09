@@ -21,6 +21,7 @@ import dev.breaker.dictation.wiring.FirstRunGate
 import dev.breaker.dictation.wiring.HomeTakeWiring
 import dev.breaker.dictation.wiring.SignInHost
 import dev.breaker.dictation.wiring.mountSignInHost
+import dev.breaker.dictation.wiring.signOutAction
 import dev.breaker.dictation.wiring.onFinishResultFor
 import dev.breaker.dictation.wiring.IconLaunchOnce
 import dev.breaker.dictation.wiring.InfoScreensWiring
@@ -97,7 +98,7 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
             onTap = { takeWiring.onTap() },
             micView = mic.view, onShownMode = { mode -> mic.setTheme(mode) },
             usableHeightDp = windowHeightAfterBarsDp(this), settings = app.settingsStore,
-            sessionLive = { app.compositionRoot.sessionLive.liveNow() }, onSignIn = { openSignIn() },
+            sessionLive = { app.compositionRoot.sessionLive.liveNow() }, onSignIn = { openSignIn() }, onSignOut = signOutAction(app.compositionRoot.authService, app.compositionRoot.sessionLive) { (homeView as? dev.breaker.dictation.ui.HomeControl)?.refresh() ?: Unit },
         ) }
         val home = homeRebuilt.current
         homeView = home
@@ -264,7 +265,6 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
             )
         }
     }
-
     private fun unregisterBack() {
         if (android.os.Build.VERSION.SDK_INT >= 33) {
             backCallback?.let { onBackInvokedDispatcher.unregisterOnBackInvokedCallback(it) }
