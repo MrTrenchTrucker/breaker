@@ -225,7 +225,8 @@ There is no synchronous 200-with-body variant — every transcription is a job.
 - **updates** — `GET /v1/updates/latest.json`
   Planned, not built: no updates path is in `openapi.yaml` yet and the server does not serve it.
 - **admin** — roles, health, transcription-service, test-service,
-  agent-tokens, **reset-account** (F31, ADR-018 — replaces the earlier
+  agent-tokens, **end-session** (`DELETE /v1/admin/sessions/{id}`, ADR-036),
+  **reset-account** (F31, ADR-018 — replaces the earlier
   "reset-password" naming, which implied the admin sets a password; it
   cannot), **clear-store** (F29) — BUILT: `POST /v1/admin/clear-store` clears
   transcriptions per-user or for all users with confirmation; every live row gets a delete
