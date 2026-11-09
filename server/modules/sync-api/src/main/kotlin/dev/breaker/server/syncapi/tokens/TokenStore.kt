@@ -208,6 +208,31 @@ internal open class TokenStore(
         return changed > 0
     }
 
+    // Ends one session of any account by id: an admin may end another account's session or their own.
+    // A live session row is revoked; anything else — a bad id, an unknown id, an agent token row, an
+    // already revoked, expired or past-the-cap session — answers false and changes nothing. The
+    // account's hand-off codes are not deleted: one session is not the account. One transaction reads
+    // the row's account_id (the id alone, no liveness test), then runs REVOKE_DEVICE_SQL against it,
+    // and that UPDATE carries the whole liveness rule; no row means false, otherwise changed > 0.
+    internal suspend fun revokeSessionById(tokenId: Long): Boolean =
+        db.transaction<Boolean> { connection ->
+            val nowMs = clock.millis()
+            val accountId = connection.prepareStatement(SELECT_SESSION_ACCOUNT_SQL).use { statement ->
+                statement.setLong(1, tokenId)
+                statement.executeQuery().use { rows ->
+                    if (rows.next()) rows.getLong(1) else null
+                }
+            }
+            if (accountId == null) false
+            else connection.prepareStatement(REVOKE_DEVICE_SQL).use { statement ->
+                statement.setLong(1, nowMs)
+                statement.setLong(2, tokenId)
+                statement.setLong(3, accountId)
+                statement.setLong(4, nowMs)
+                statement.executeUpdate() > 0
+            }
+        }
+
     // Stores the number a pulled session has seen: the smaller of the page's since and the account's
     // head (change_seq), so a session never claims a point the server has not reached. Only a session
     // of this account is changed. Liveness is not tested here. Returns the stored number, or null when
@@ -448,6 +473,14 @@ internal open class TokenStore(
         const val REVOKE_OTHER_SESSIONS_SQL =
             "UPDATE tokens SET revoked_at_ms = ? WHERE account_id = ? AND kind = 'session' " +
                 "AND revoked_at_ms IS NULL AND id <> ?"
+
+        // The account of the row an id names: the id is all this SELECT asks for, because the UPDATE
+        // that follows it in the same transaction carries the whole liveness rule (kind session, not
+        // revoked, not expired, not past the 180-day cap). A row of any kind, already revoked, expired
+        // or past the cap still supplies its account_id here and the UPDATE refuses it, so a row that
+        // is not a live session changes nothing and answers the same fixed 404. Duplicating the rule
+        // in both statements would make a mutant of either one survive; the rule lives in one place.
+        const val SELECT_SESSION_ACCOUNT_SQL = "SELECT account_id FROM tokens WHERE id = ?"
 
         // One device's sign-out: the account, the kind and the liveness rule are in the UPDATE, so a
         // check and a revoke cannot be split. A row that is not the caller's live session changes

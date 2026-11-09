@@ -1350,6 +1350,72 @@ paths:
               example:
                 error: "not_found"
                 message: "Agent token not found"
+  /v1/admin/sessions/{id}:
+    delete:
+      summary: End a session
+      description: >-
+        Admin-only: end a session by id. The presented bearer token must be an
+        admin session, or an agent token whose effective scope is admin; a
+        non-admin session or a non-admin-scope agent token answers 403, and a
+        missing or dead token answers 401.
+        An admin may end a session of ANY account, and may end their own
+        current session — the presented token dies afterwards, so any further
+        call with that token answers 401.
+        The id is decimal digits only; a bad id or an id that is not a LIVE
+        SESSION of any account (unknown, an agent token row, already revoked,
+        expired, past the 180-day cap) answers one fixed 404 carrying no part
+        of the id. The account's hand-off codes are left alone. Agent tokens
+        are never revoked by this route.
+      operationId: endSession
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: The session id
+      responses:
+        "204":
+          description: Session ended
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing token"
+        "403":
+          description: Forbidden (non-admin)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "forbidden"
+                message: "Admin role required"
+        "404":
+          description: No such session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "not_found"
+                message: "No such session"
+        "503":
+          description: A storage failure gets this fixed answer, with no part of the failure echoed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
   /v1/sync:
     post:
       summary: Push transcriptions

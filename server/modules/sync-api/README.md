@@ -12,7 +12,7 @@ The server's main API: accounts and logins (users, tokens, roles), and syncing t
   key_version), and a push body is at most 1 MiB.
 - A versioned database schema, migrated to the current version when the server starts.
 
-The account HTTP routes (register, salt, login, logout), the admin routes that revoke an agent token and that
+The account HTTP routes (register, salt, login, logout), the admin routes that revoke an agent token, that end a session and that
 read and flip the wrong-password limit, the two internal token-check routes and the three transcription routes
 (POST /v1/sync, GET /v1/transcriptions, DELETE /v1/transcriptions/{client_id}) are installed. The rest of what
 the card lists is not built yet. Built: `POST /v1/admin/reset-account` (an admin, with a session or an
@@ -37,8 +37,10 @@ fractional digits and a fixed 503 for a store failure.
 Built on the server: the device list, `GET /v1/auth/devices`, and the two sign-out routes for the person's own
 devices, `DELETE /v1/auth/devices/{id}` and `POST /v1/auth/devices/sign-out-all` (204 no body; an agent token
 refused 403; one fixed 404 body for any id that is not the caller's live session; agent tokens never revoked).
-The website page that calls them, and the app's sign-out call, are not built. Planned, not built (ADR-035,
-ADR-036): an admin route to end a session. The
+The website page that calls them, and the app's sign-out call, are not built. Built on the server: the
+admin end-session route, `DELETE /v1/admin/sessions/{id}` (204 no body; admin only, an admin session or an
+admin-scoped agent token; one fixed 404 body for any id that is not a live session of any account; agent
+tokens never revoked; the account's hand-off codes left alone). The
 wrong-password limit is built (its failure counting, the locked answer, 423 with Retry-After, the on/off
 switch (migration 7, `server_settings`, `ServerSettingsStore`, read live on every attempt, default on, only a
 stored integer 0 is off, off = no counting, no refusing, stored attempts kept), the admin route that flips it,

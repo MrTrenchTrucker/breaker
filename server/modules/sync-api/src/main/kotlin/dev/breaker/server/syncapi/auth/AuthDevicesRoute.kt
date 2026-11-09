@@ -84,7 +84,7 @@ private const val NO_SESSION_KEPT = -1L
 private const val NOT_FOUND_BODY = "{\"error\":\"not_found\",\"message\":\"No such device\"}"
 
 // A device id is decimal digits only: no sign, no leading plus, no spaces, no overflow past Long.
-private fun parseDeviceId(raw: String): Long? {
+internal fun parseDeviceId(raw: String): Long? {
     if (raw.isEmpty()) return null
     if (raw.any { character -> character < '0' || character > '9' }) return null
     return raw.toLongOrNull()
