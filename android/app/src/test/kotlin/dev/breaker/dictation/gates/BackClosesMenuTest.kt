@@ -28,13 +28,13 @@ class BackClosesMenuTest {
 
     @Test
     fun `the back press asks the home view to close its menu before the activity's own back`() {
-        val source = AppSourceFiles.mainFile(activityPath)
+        val source = AppSourceFiles.launcherCode()
         assertEquals("app: the else branch must consult closeMenu before super", 1, countOf(codeOf(source)))
     }
 
     @Test
     fun `a bare super call or an inverted answer in the else branch is reported`() {
-        val source = AppSourceFiles.mainFile(activityPath)
+        val source = AppSourceFiles.launcherCode()
         val bare = edit(
             "else branch",
             source,
@@ -48,7 +48,7 @@ class BackClosesMenuTest {
 
     @Test
     fun `a comment about the close answer is not a change to the else branch`() {
-        val source = AppSourceFiles.mainFile(activityPath)
+        val source = AppSourceFiles.launcherCode()
         val quiet = edit("comment", source, "    override fun onBackPressed() {", "    // the home view closes its menu first\n    override fun onBackPressed() {")
         assertEquals("app: a comment is not a change", 1, countOf(codeOf(quiet)))
     }

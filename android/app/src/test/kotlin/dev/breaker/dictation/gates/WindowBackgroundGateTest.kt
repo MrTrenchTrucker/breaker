@@ -17,7 +17,7 @@ internal class WindowBackgroundGateTest {
     private val activity: String = "kotlin/dev/breaker/dictation/SettingsLauncherActivity.kt"
     private val insets: String = "kotlin/dev/breaker/dictation/wiring/AndroidInsets.kt"
 
-    private val activityCode: String = AppSourceFiles.strip(AppSourceFiles.mainFile(activity)).code
+    private val activityCode: String = AppSourceFiles.strip(AppSourceFiles.launcherCode()).code
     private val insetsCode: String = AppSourceFiles.strip(AppSourceFiles.mainFile(insets)).code
 
     private fun flat(text: String): String = text.replace(Regex("""\s+"""), "")

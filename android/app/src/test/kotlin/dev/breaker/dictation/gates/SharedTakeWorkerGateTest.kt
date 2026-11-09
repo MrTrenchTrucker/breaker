@@ -72,7 +72,7 @@ internal class SharedTakeWorkerGateTest {
     fun `the tile coordinator and the Home take both receive the shared worker`() {
         val host = codeOf(AppSourceFiles.mainFile("kotlin/dev/breaker/dictation/" + hostKey))
         assertEquals("app: the tile coordinator must be given the shared worker", 1, coordinatorArgument.findAll(host).count())
-        val activity = codeOf(AppSourceFiles.mainFile("kotlin/dev/breaker/dictation/" + activityKey))
+        val activity = codeOf(AppSourceFiles.launcherCode())
         assertEquals("app: the Home take must be given the shared worker", 1, homeArgument.findAll(activity).count())
     }
 
@@ -102,7 +102,7 @@ internal class SharedTakeWorkerGateTest {
 
     @Test
     fun `the launcher forwards the big mic tap and attaches the home screen once`() {
-        val activity = codeOf(AppSourceFiles.mainFile("kotlin/dev/breaker/dictation/" + activityKey))
+        val activity = codeOf(AppSourceFiles.launcherCode())
         assertEquals("app: the big mic tap must reach the wiring once", 1, Regex("""\bonTap\s*=\s*\{\s*takeWiring\s*\.\s*onTap\s*\(\s*\)\s*\}""").findAll(activity).count())
         assertEquals("app: the home screen must be attached once", 1, Regex("""\btakeWiring\s*\.\s*attach\s*\(\s*home\s+as\s+dev\s*\.\s*breaker\s*\.\s*dictation\s*\.\s*ui\s*\.\s*HomeControl\s*\)""").findAll(activity).count())
         assertEquals("app: the take port must be built on first use", 1, Regex("""take\s*=\s*\{\s*TakePortAdapter\s*\(\s*app\s*\.\s*compositionRoot\s*\.\s*dictation\s*\.\s*runner\s*\)\s*\}""").findAll(activity).count())
@@ -129,7 +129,7 @@ internal class SharedTakeWorkerGateTest {
     fun `the home port is wrapped by the owner and the activity holds no owner`() {
         val wiring = codeOf(AppSourceFiles.mainFile("kotlin/dev/breaker/dictation/wiring/HomeTakeWiring.kt"))
         assertEquals("app: the Home port must be wrapped by the owner as the Home", 1, homeWrap.findAll(wiring).count())
-        val activity = codeOf(AppSourceFiles.mainFile("kotlin/dev/breaker/dictation/" + activityKey))
+        val activity = codeOf(AppSourceFiles.launcherCode())
         assertEquals("app: the activity must declare no take owner", 0, Regex("""\bTakeOwner\s*\(""").findAll(activity).count())
         assertEquals("app: the activity must hold no owner state", 0, Regex("""\b(val|var)\s+\w*[Oo]wner\b""").findAll(activity).count())
         assertEquals("app: the activity must reach the owner only as a reference", 1, activityOwner.findAll(activity).count())

@@ -113,7 +113,8 @@ internal class HomeLevelSinkLifecycleGateTest {
         return null
     }
 
-    private fun code(file: String): String = stripComments(AppSourceFiles.mainFile(file))
+    private fun code(file: String): String =
+        stripComments(if (file == settings) AppSourceFiles.launcherCode() else AppSourceFiles.mainFile(file))
 
     @Test
     fun `every rule holds on the real activity, host and composite source`() {

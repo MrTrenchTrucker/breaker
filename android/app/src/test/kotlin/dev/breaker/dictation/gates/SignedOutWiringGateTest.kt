@@ -32,7 +32,8 @@ internal class SignedOutWiringGateTest {
     internal class Quiet(val file: String, val old: String, val new: String)
 
     private fun read(file: String): String =
-        File(AppSourceFiles.moduleRoot, "src/main/kotlin/" + file.removePrefix("kotlin/")).readText()
+        if (file == activity) AppSourceFiles.launcherCode()
+        else File(AppSourceFiles.moduleRoot, "src/main/kotlin/" + file.removePrefix("kotlin/")).readText()
 
     internal val rules: List<Rule> = listOf(
         Rule("SESSIONLIVE_SEEDS_FROM_ADDRESSED_SESSION", root, """\bsessionLive\s*:\s*SessionLiveState\s+by\s+lazy\s*\{\s*sessionLiveState\s*\?\:\s*SessionLiveState\s*\(\s*sessionLiveFrom\s*\(\s*addressedSession\s*\)\s*\)\s*\}"""),

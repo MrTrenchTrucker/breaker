@@ -120,7 +120,7 @@ internal class AppHostingGateTest {
     }
 
     private fun codeOf(old: String? = null, new: String = ""): String {
-        val text = AppSourceFiles.mainFile(activity)
+        val text = AppSourceFiles.launcherCode()
         return AppSourceFiles.strip(if (old == null) text else edit(text, old, new)).code
     }
 

@@ -99,8 +99,8 @@ internal class HomeMicThemeSourceGateTest {
         return text.substring(0, at) + new + text.substring(at + old.length)
     }
 
-    /** Today's Home-mic path: the two files as the rules read them. */
-    private fun today(): String = codeOf(listOf(helpers, activity))
+    /** Today's Home-mic path: the helper plus the launcher code, joined. */
+    private fun today(): String = codeOf(helpers) + "\n\n" + AppSourceFiles.strip(AppSourceFiles.launcherCode()).code
 
     @Test
     fun `the Home mic's theme is not derived from the phone's own night flag`() {

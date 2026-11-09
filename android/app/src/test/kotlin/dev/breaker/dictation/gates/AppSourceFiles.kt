@@ -22,6 +22,17 @@ internal class Stripped(val code: String, val literals: List<String>)
 internal object AppSourceFiles {
     private const val PACKAGE_PATH: String = "dev/breaker/dictation"
 
+    /** The single source of truth for files read by launcher pins: the launcher itself today,
+     *  the launcher plus extracted file(s) after step 2. Never a glob. */
+    private val LAUNCHER_FILES: List<String> = listOf(
+        "kotlin/dev/breaker/dictation/SettingsLauncherActivity.kt"
+    )
+
+    /** Concatenates the launcher files from [LAUNCHER_FILES] (launcher first). Step 2 grows the
+     *  list; call sites do not change because this helper takes no arguments. */
+    fun launcherCode(): String =
+        LAUNCHER_FILES.joinToString("\n") { mainFile(it) }
+
     /** The nearest folder at or above the working directory with a build script and a manifest. */
     val moduleRoot: File
         get() = findModuleRoot()

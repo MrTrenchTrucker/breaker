@@ -22,7 +22,7 @@ internal class SettingsViewSetBeforeFirstRunTest {
 
     /** The code of the activity with whitespace folded away, [old] changed to [new] when an edit is given. */
     private fun codeOf(old: String? = null, new: String = ""): String {
-        val text = AppSourceFiles.mainFile(activity)
+        val text = AppSourceFiles.launcherCode()
         val edited = if (old == null) text else {
             check(Regex(Regex.escape(old)).findAll(text).count() == 1) { "app: the text to change is not in the activity exactly once: $old" }
             text.replace(old, new)

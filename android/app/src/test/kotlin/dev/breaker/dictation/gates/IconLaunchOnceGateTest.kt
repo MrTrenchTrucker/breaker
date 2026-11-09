@@ -69,7 +69,7 @@ internal class IconLaunchOnceGateTest {
     }
 
     private fun codeOf(old: String? = null, new: String = ""): String {
-        val text: String = AppSourceFiles.mainFile(activity)
+        val text: String = AppSourceFiles.launcherCode()
         return AppSourceFiles.strip(if (old == null) text else edit(text, old, new)).code
     }
 
