@@ -1,0 +1,165 @@
+# MODULE_PLAN.toml - the master module plan (read by the module status tracker of the module-sop project).
+# modules.toml says what EXISTS. This file says what is EXPECTED when each module is finished.
+#   expected_subs = [...]  the sub-module folder names the finished module has ([] = documented: none).
+#                          A sub-module that exists but is not listed is counted and flagged NEW; a listed one that
+#                          does not exist (or is marked dead) shows as NOT_STARTED. Nothing here needs editing when
+#                          a listed sub-module is built: it flips to DONE by itself.
+#   issue = N              the GitHub issue that closes the module out.
+# BASELINE (first version): sub-modules as registered today are the expected set; no other plan is documented.
+# Owner changes the lists when the architecture changes.
+
+[plan.android_app]
+# no documented sub-module plan
+expected_subs = []
+issue = 1
+
+[plan.android_ui]
+# no documented sub-module plan
+expected_subs = []
+issue = 2
+
+[plan.android_core]
+# no documented sub-module plan
+expected_subs = []
+
+[plan.android_audio]
+# no documented sub-module plan
+expected_subs = []
+issue = 3
+
+[plan.android_stt_ondevice]
+# no documented sub-module plan
+expected_subs = []
+issue = 7
+
+[plan.android_stt_server]
+# no documented sub-module plan
+expected_subs = []
+issue = 10
+
+[plan.android_transport]
+# no documented sub-module plan
+expected_subs = []
+issue = 11
+
+[plan.android_format]
+# no documented sub-module plan
+expected_subs = []
+issue = 15
+
+[plan.android_phrases]
+# no documented sub-module plan
+expected_subs = []
+issue = 16
+
+[plan.android_gesture]
+# no documented sub-module plan
+expected_subs = []
+issue = 12
+
+[plan.android_overlay]
+# no documented sub-module plan
+expected_subs = []
+issue = 13
+
+[plan.android_commit]
+# source: android/modules/commit/README.md:7 "**Sub-modules:** accessibility, ime"; also android/modules/commit/AGENTS.md:10 "has two sub-modules"; decisions/ADR-022-accessibility-text-insert.md:67-68 "gains two" + "sub-modules: commit/accessibility"
+expected_subs = ["accessibility"]   # ime is retired dead code (ADR-022), so it is not expected
+issue = 14
+
+[plan.android_history]
+# no documented sub-module plan
+expected_subs = []
+issue = 4
+
+[plan.android_settings]
+# no documented sub-module plan
+expected_subs = []
+issue = 6
+
+[plan.android_sync]
+# no documented sub-module plan
+expected_subs = []
+issue = 19
+
+[plan.android_auth_client]
+# no documented sub-module plan
+expected_subs = []
+issue = 17
+
+[plan.android_http]
+# no documented sub-module plan
+expected_subs = []
+
+[plan.android_training_client]
+# no documented sub-module plan
+expected_subs = []
+issue = 23
+
+[plan.android_updater]
+# no documented sub-module plan
+expected_subs = []
+issue = 25
+
+[plan.android_crypto]
+# no documented sub-module plan
+expected_subs = []
+issue = 18
+
+[plan.server_whisper]
+# no documented sub-module plan
+expected_subs = []
+issue = 9
+
+[plan.server_sync_api]
+# no documented sub-module plan
+expected_subs = []
+issue = 20
+
+[plan.server_web_fe]
+# no documented sub-module plan
+expected_subs = []
+issue = 21
+
+[plan.server_training]
+# no documented sub-module plan
+expected_subs = []
+issue = 22
+
+[plan.server_deploy]
+# no documented sub-module plan
+expected_subs = []
+issue = 24
+
+[plan.shared_api_contracts]
+# no documented sub-module plan
+expected_subs = []
+issue = 8
+
+[plan.shared_model_registry]
+# no documented sub-module plan
+expected_subs = []
+issue = 5
+
+[plan.shared_format_prompts]
+# no documented sub-module plan
+expected_subs = []
+
+[plan.shared_ui_tokens]
+# no documented sub-module plan
+expected_subs = []
+
+[plan.agent_skills]
+expected_subs = []
+# no documented sub-module plan
+
+# ---- VERIFICATION (step 3) ----
+# tracked modules: 30
+# with documented sub-module plan: 1 (android_commit)
+# omitted (no documented sub-module plan): 29
+# android_commit expected_subs check:
+#   accessibility -> folder android/modules/commit/accessibility exists, registered modules.toml:119
+#   ime           -> folder android/modules/commit/ime exists (status = "dead"), registered modules.toml:110
+# excluded as sub-modules (path inside another module): android_commit_ime (android/modules/commit/ime), android_commit_accessibility (android/modules/commit/accessibility)
+# excluded area entries: android, server, shared (not tracked)
+
