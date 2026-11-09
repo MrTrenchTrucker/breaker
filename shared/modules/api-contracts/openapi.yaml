@@ -49,6 +49,15 @@ paths:
               example:
                 job_id: "12345"
                 status: "queued"
+        "400":
+          description: The upload's audio file part is missing, or the part is empty
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              # The example is the real 400 body (error only); Error schema message is not sent, as for 404.
+              example:
+                error: "the file part is required"
         "401":
           description: Unauthorized
           content:
@@ -87,6 +96,15 @@ paths:
               # The example is the real 429 body (error only); Error schema message is not sent, as for 404.
               example:
                 error: "rate limit exceeded"
+        "500":
+          description: The server could not read the multipart upload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              # The example is the real 500 body (error only); Error schema message is not sent, as for 404.
+              example:
+                error: "the upload could not be read"
   /v1/jobs/{job_id}:
     get:
       summary: Get job status and result

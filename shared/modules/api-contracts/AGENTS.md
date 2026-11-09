@@ -10,7 +10,7 @@ request/response types (ADR-017): the single contract both the Android client (`
 
 **Endpoints:**
 - `POST /v1/audio/transcriptions` — multipart form: `file`, `model`, `language`
-  → 202 `{ job_id, status: "queued" }` | 401 unauth | 413 too large
+  → 202 `{ job_id, status: "queued" }` | 400 missing or empty upload | 401 unauth | 413 too large | 429 rate limited | 500 upload unreadable
 - `GET /v1/jobs/{job_id}` → `{ status: queued|processing|done|failed, result:
   { text, segments[], language } | null, error: string | null }` — `error`
   is the failure reason, set exactly when status is `failed` (enforced both
