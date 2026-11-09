@@ -41,7 +41,7 @@ class FormatPromptTest {
         // reason the constructor matches them that way: a clause is a phrase,
         // and a line break between two of its words is not a change to it. The
         // prompt is markdown and markdown is hard-wrapped, so
-        // `FormatPrompt.kt:41` reads `remove\nfiller words` here. Checking the
+        // `FormatPrompt.kt:41` reads `drop\nonly filler words` here. Checking the
         // raw text instead would fail on the wrapping alone and send someone
         // to reword a prompt that says exactly what it must — which is the
         // opposite of what this test is for.
@@ -71,7 +71,7 @@ class FormatPromptTest {
      * the refusal tests assert the message, not the exception type.
      */
     private fun refusalOf(markdown: String): String? =
-        runCatching { PromptCatalog.extractSystemPrompt(markdown, "format-v1") }
+        runCatching { PromptCatalog.extractSystemPrompt(markdown, "format-v2") }
             .exceptionOrNull()?.message
 
     @Test
@@ -214,7 +214,7 @@ class FormatPromptTest {
             "```text\n" +
             "an example input\n" +
             "```\n"
-        val extracted = PromptCatalog.extractSystemPrompt(markdown, "format-v1")
+        val extracted = PromptCatalog.extractSystemPrompt(markdown, "format-v2")
         assertEquals(
             "only the fenced block inside the section is the prompt",
             "the real prompt",
@@ -270,7 +270,7 @@ class FormatPromptTest {
         assertEquals(
             "only the block under the real heading is the prompt",
             "the real prompt",
-            PromptCatalog.extractSystemPrompt(markdown, "format-v1"),
+            PromptCatalog.extractSystemPrompt(markdown, "format-v2"),
         )
     }
 
@@ -293,7 +293,7 @@ class FormatPromptTest {
         assertEquals(
             "the whole block is the prompt, the '## Example' line included",
             "line one\n## Example\nline three",
-            PromptCatalog.extractSystemPrompt(markdown, "format-v1"),
+            PromptCatalog.extractSystemPrompt(markdown, "format-v2"),
         )
     }
 
@@ -378,7 +378,7 @@ class FormatPromptTest {
         assertEquals(
             "trailing spaces on the closing fence are whitespace, not a second fence",
             "the prompt",
-            PromptCatalog.extractSystemPrompt(markdown, "format-v1"),
+            PromptCatalog.extractSystemPrompt(markdown, "format-v2"),
         )
     }
 
@@ -400,7 +400,7 @@ class FormatPromptTest {
         assertEquals(
             "only the ```text block is the prompt",
             "the real prompt",
-            PromptCatalog.extractSystemPrompt(markdown, "format-v1"),
+            PromptCatalog.extractSystemPrompt(markdown, "format-v2"),
         )
     }
 
@@ -419,7 +419,7 @@ class FormatPromptTest {
         assertEquals(
             "trailing spaces on the opening fence are whitespace, not a different fence",
             "the prompt",
-            PromptCatalog.extractSystemPrompt(markdown, "format-v1"),
+            PromptCatalog.extractSystemPrompt(markdown, "format-v2"),
         )
     }
 
@@ -440,7 +440,7 @@ class FormatPromptTest {
         assertEquals(
             "the prompt is the block's content, without its edge blank lines",
             "the prompt",
-            PromptCatalog.extractSystemPrompt(markdown, "format-v1"),
+            PromptCatalog.extractSystemPrompt(markdown, "format-v2"),
         )
     }
 
@@ -459,12 +459,12 @@ class FormatPromptTest {
         assertEquals(
             "trailing spaces on the heading line do not end the section",
             "the prompt",
-            PromptCatalog.extractSystemPrompt(markdown, "format-v1"),
+            PromptCatalog.extractSystemPrompt(markdown, "format-v2"),
         )
     }
 
     private companion object {
-        const val PROMPT_PATH = "shared/modules/format-prompts/prompts/format-v1.md"
+        const val PROMPT_PATH = "shared/modules/format-prompts/prompts/format-v2.md"
 
         /** Every run of whitespace, line breaks included. */
         private val WHITESPACE = Regex("\\s+")

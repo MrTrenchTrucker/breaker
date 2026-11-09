@@ -3,7 +3,7 @@ package dev.breaker.shared.prompts
 /**
  * The formatting prompt contract, in a form a compiler checks.
  *
- * The prompt text is the data of record (`prompts/format-v1.md`); these types
+ * The prompt text is the data of record (`prompts/format-v2.md`); these types
  * are the parameters and rules that text is held to. The formatter that sends
  * it is `android/modules/format`, and the LLM that receives it is the server's
  * — neither lives here.
@@ -145,14 +145,14 @@ data class FormatPrompt(
             "preserve every fact",
             "add punctuation",
             "fix casing",
-            "remove filler words",
+            "drop only filler words",
             "numbered lists",
             "output text only",
         )
 
         /** The clauses that forbid the model adding or dropping content. */
         val NEVER_CLAUSES = listOf(
-            "never add, remove, or change content",
+            "never add, remove, or change content, except filler words",
         )
     }
 }
@@ -161,7 +161,7 @@ data class FormatPrompt(
 object PromptCatalog {
 
     /** The wording shipped today. */
-    const val CURRENT: String = "format-v1"
+    const val CURRENT: String = "format-v2"
 
     /**
      * Loads a prompt by id, refusing an id this module does not ship.

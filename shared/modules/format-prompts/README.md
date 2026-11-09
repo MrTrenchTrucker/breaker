@@ -7,7 +7,7 @@ sends them and the LLM that receives them live elsewhere.
 
 ## What is in this module
 
-- `prompts/format-v1.md` — the shipped prompt: the system prompt the server LLM
+- `prompts/format-v2.md` — the shipped prompt: the system prompt the server LLM
   path sends (in a fenced block), the parameters it is sent with (in the front
   matter), and a worked example of the case it exists for. The rule behind the
   parameters: **formatting is non-destructive** — temperature 0, structured

@@ -107,7 +107,7 @@ class SharedModulesFormatPromptsContractTest(contract_support.ModuleContractTest
     MODULE = "shared_format_prompts"
 
     CARD = "shared/modules/format-prompts/AGENTS.md"
-    PROMPT = "shared/modules/format-prompts/prompts/format-v1.md"
+    PROMPT = "shared/modules/format-prompts/prompts/format-v2.md"
 
     # ── the card agrees with the shipped prompt file ─────────────────────
 

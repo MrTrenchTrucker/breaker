@@ -35,7 +35,7 @@ class FormatPromptNeverClauseTest {
         )
         assertEquals(
             "the refusal must carry the documented message, word for word",
-            "prompt 'format-v9' is missing the clauses that forbid changing content: [never add, remove, or change content]",
+            "prompt 'format-v9' is missing the clauses that forbid changing content: [never add, remove, or change content, except filler words]",
             refused?.message,
         )
     }
@@ -44,8 +44,8 @@ class FormatPromptNeverClauseTest {
     fun the_never_clause_is_matched_the_way_the_required_ones_are() {
         // A clause is a phrase: a line break inside it, or upper-case letters,
         // are the same clause, so a prompt that carries it that way must build.
-        val hardWrapped = shipped.replace(NEVER_SENTENCE, "Never add, remove,\nor change content.")
-        val upperCase = shipped.replace(NEVER_SENTENCE, "NEVER ADD, REMOVE, OR CHANGE CONTENT.")
+        val hardWrapped = shipped.replace(NEVER_SENTENCE, "Never add, remove,\nor change content, except filler words.")
+        val upperCase = shipped.replace(NEVER_SENTENCE, "NEVER ADD, REMOVE, OR CHANGE CONTENT, EXCEPT FILLER WORDS.")
         assertTrue(
             "the hard-wrapped variant must differ from the shipped wording, or the test proves nothing",
             hardWrapped != shipped,
@@ -133,7 +133,7 @@ class FormatPromptNeverClauseTest {
         lowercase().split(Regex("\\s+")).filter { it.isNotEmpty() }.joinToString(" ")
 
     private companion object {
-        const val NEVER_SENTENCE = "Never add, remove, or change content."
+        const val NEVER_SENTENCE = "Never add, remove, or change content, except filler words."
         const val PRESERVE_PHRASE = "Preserve every fact and the exact meaning. "
     }
 }
