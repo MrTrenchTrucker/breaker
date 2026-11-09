@@ -3,6 +3,7 @@ package dev.breaker.dictation.wiring
 import android.content.Context
 import android.hardware.SensorManager
 import android.media.AudioManager
+import android.os.Build
 import dev.breaker.dictation.audio.AndroidMicSource
 import dev.breaker.dictation.audio.MicReleaseWatcher
 import dev.breaker.dictation.audio.MicSource
@@ -60,3 +61,6 @@ class ShakeGesture(port: ShakePort) : GesturePort {
 /** The clipboard a taken take copies to, made once per process from the application context. Main thread only. */
 fun appTakenClipboard(context: Context): TakenClipboard =
     TakenClipboardAndroid(context)
+
+/** The device name the sign-in sends: the platform's manufacturer and model, through the plain rule. */
+fun appDeviceName(): String? = deviceNameOf(Build.MANUFACTURER, Build.MODEL)

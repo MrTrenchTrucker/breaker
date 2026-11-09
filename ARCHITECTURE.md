@@ -1008,7 +1008,7 @@ See `docs/04-build-order.md`. Summary:
       pushes, then pulls; a delete reaches every device; a new device gets its
       keys sealed from the website sign-in (ADR-035; hand-off routes built on server, website sealing not built).
 - **Sign-in from the website hands the login to the app** (hand-off routes built on server; website page
-      not built; the phone side is built except the device name; the device list not built) - a one-time
+      not built; the phone side is built; the device list not built) - a one-time
       code over a `breaker://` link plus a secret the app keeps; several
       devices listed; wrong-password limit (ADR-036; built on the server).
 - D21. **Configurable transcription service** — admin-configured endpoint
