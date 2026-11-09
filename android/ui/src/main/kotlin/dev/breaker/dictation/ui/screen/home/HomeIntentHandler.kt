@@ -23,6 +23,7 @@ internal object HomeActions {
     const val CLOSE_MENU = "CLOSE_MENU"
     const val SHOW_ALL = "SHOW_ALL"
     const val HIDE = "HIDE"
+    const val SIGN_IN = "SIGN_IN"
 }
 
 /**
@@ -85,6 +86,7 @@ internal class HomeIntentHandler(private val screen: HomeScreen) {
         HomeNodeIds.DRAWER_SETTINGS -> ScreenIntent.Home(HomeActions.SETTINGS)
         HomeNodeIds.DRAWER_HOW -> ScreenIntent.Home(HomeActions.HOW_IT_WORKS)
         HomeNodeIds.DRAWER_ABOUT -> ScreenIntent.Home(HomeActions.ABOUT)
+        HomeNodeIds.SIGN_IN -> ScreenIntent.Home(HomeActions.SIGN_IN)
         else -> null
     }
 

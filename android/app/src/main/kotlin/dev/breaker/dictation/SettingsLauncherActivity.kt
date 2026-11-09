@@ -1,5 +1,4 @@
 package dev.breaker.dictation
-
 import android.annotation.SuppressLint
 import android.os.Bundle
 import android.view.ViewGroup
@@ -20,6 +19,9 @@ import dev.breaker.dictation.wiring.BreakerSwitchAdapter
 import dev.breaker.dictation.wiring.FirstRunDoneStore
 import dev.breaker.dictation.wiring.FirstRunGate
 import dev.breaker.dictation.wiring.HomeTakeWiring
+import dev.breaker.dictation.wiring.SignInHost
+import dev.breaker.dictation.wiring.mountSignInHost
+import dev.breaker.dictation.wiring.onFinishResultFor
 import dev.breaker.dictation.wiring.IconLaunchOnce
 import dev.breaker.dictation.wiring.InfoScreensWiring
 import dev.breaker.dictation.wiring.ModelDownloadNotice
@@ -33,7 +35,6 @@ import dev.breaker.dictation.wiring.formatTime
 import dev.breaker.dictation.wiring.isIconLaunch
 import dev.breaker.dictation.wiring.swapInColumn
 import java.io.File
-
 class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
     private lateinit var settingsColumn: LinearLayout
     private lateinit var settingsScroll: ScrollView
@@ -54,6 +55,7 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
     private lateinit var infoScreens: InfoScreensWiring
     private lateinit var settingsView: android.view.View
     private lateinit var signInStart: dev.breaker.dictation.host.SignInStart
+    private lateinit var signInHost: SignInHost
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         iconLaunch = IconLaunchOnce(savedInstanceState?.getBoolean(ICON_LAUNCH_DONE_KEY, false) ?: false)
@@ -76,6 +78,8 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
             background = app.tileHost.takeWorker,
             main = MainLooperPost(),
             modelReady = { modelReady.isReady() },
+            onFinishResult = { result ->
+                onFinishResultFor(app.compositionRoot.sessionLive, result) },
         )
         val mic = createHomeMic(this, takeWiring)
         homeRebuilt = dev.breaker.dictation.wiring.Rebuilt { createHomeView(
@@ -93,9 +97,11 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
             onTap = { takeWiring.onTap() },
             micView = mic.view, onShownMode = { mode -> mic.setTheme(mode) },
             usableHeightDp = windowHeightAfterBarsDp(this), settings = app.settingsStore,
+            sessionLive = { app.compositionRoot.sessionLive.liveNow() }, onSignIn = { openSignIn() },
         ) }
         val home = homeRebuilt.current
         homeView = home
+        signInHost = mountSignInHost(this, app.compositionRoot, ::openSettings, ::closeSettings)
         homeLevelSink = addHomeLevelSink(
             takeWiring,
             app.tileHost,
@@ -149,7 +155,6 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         setContentView(view)
         applyInsets(view)
     }
-
     override fun onStart() {
         super.onStart()
         val app = applicationContext as BreakerApp
@@ -166,7 +171,6 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         super.onSaveInstanceState(outState)
         outState.putBoolean(ICON_LAUNCH_DONE_KEY, iconLaunch.isDone)
     }
-
     override fun onResume() {
         super.onResume()
         val app = applicationContext as BreakerApp
@@ -183,13 +187,11 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         }
         if (this::signInStart.isInitialized) signInStart.screen.onResume(app.compositionRoot.signInReturnStore.take())
     }
-
     override fun onPause() {
         super.onPause()
         val app = applicationContext as BreakerApp
         app.tileHost.setDownloadListener(null)
     }
-
     override fun onDestroy() {
         homeLevelSink?.let { (applicationContext as BreakerApp).tileHost.removeHomeLevelSink(it) }
         homeLevelSink = null
@@ -205,7 +207,6 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
             else -> if ((homeView as? dev.breaker.dictation.ui.HomeControl)?.closeMenu() != true) super.onBackPressed()
         }
     }
-
     private fun openHistory() {
         if (historyShown) return
         historyShown = true
@@ -215,7 +216,6 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         applyInsets(historyView)
         registerBack()
     }
-
     private fun closeHistory() {
         if (!historyShown) return
         historyShown = false
@@ -228,7 +228,6 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
             applyInsets(homeView!!)
         }
     }
-
     private fun openSettings() {
         if (settingsShown) return
         settingsShown = true
@@ -246,6 +245,7 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         setContentView(homeView)
         applyInsets(homeView!!)
     }
+    private fun openSignIn() { signInHost.open() }
     private fun openHowItWorks() = infoScreens.openHowItWorks()
     private fun openAbout() = infoScreens.openAbout()
     private fun registerBack() {

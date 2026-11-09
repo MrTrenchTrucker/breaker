@@ -55,4 +55,10 @@ internal object HomeTexts {
 
     /** The done action on the recording mic. */
     const val DONE = "Done"
+
+    /** The quiet notice shown while there is no live session. */
+    const val SIGNED_OUT = "You are signed out."
+
+    /** The label of the way to sign in, reused from the auth view's submit label. */
+    const val SIGN_IN = "Sign in"
 }

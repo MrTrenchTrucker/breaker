@@ -42,6 +42,7 @@ import dev.breaker.dictation.wiring.KeysClearingSessionVault
 import dev.breaker.dictation.wiring.LazyHistoryStore
 import dev.breaker.dictation.wiring.LevelSink
 import dev.breaker.dictation.wiring.RECOGNIZER_FACTORY
+import dev.breaker.dictation.wiring.SessionLiveState
 import dev.breaker.dictation.wiring.SignInReturnStore
 import dev.breaker.dictation.wiring.SignInStartWiring
 import dev.breaker.dictation.wiring.UuidIdSource
@@ -55,6 +56,7 @@ import dev.breaker.dictation.wiring.defaultExchangeHttp
 import dev.breaker.dictation.wiring.defaultKeyDerivation
 import dev.breaker.dictation.wiring.defaultLogoutHttp
 import dev.breaker.dictation.wiring.defaultSessionKey
+import dev.breaker.dictation.wiring.sessionLiveFrom
 import dev.breaker.dictation.wiring.serverTargetOf
 import java.io.File
 import javax.crypto.SecretKey
@@ -109,7 +111,16 @@ class BreakerCompositionRoot(
     private val logoutHttp: (() -> String) -> AuthHttp = ::defaultLogoutHttp,
     private val cryptoService: () -> CryptoService = ::defaultCryptoService,
     private val background: Background = InlineBackground,
+    sessionLiveState: SessionLiveState? = null,
 ) {
+
+    /**
+     * The session-live flag the app owns and Home reads through a reader. Built here from the seed when not given.
+     * The seed read is lazy: construction builds nothing; the first read of this value seeds the state from the
+     * stored session (a fresh install answers false).
+     */
+    val sessionLive: SessionLiveState by lazy { sessionLiveState ?: SessionLiveState(sessionLiveFrom(addressedSession)) }
+
     /** Takes an already built history store; the microphone service is never switched on. */
     constructor(
         filesDir: File,

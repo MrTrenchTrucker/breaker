@@ -21,6 +21,7 @@ internal class HomeTakeAdapter(
     private val busy: MicBusyPort = NoopMicBusyPort,
     private val onLine: (String?) -> Unit,
     private val onState: (DictationState) -> Unit,
+    private val onFinishResult: (FinishResult?) -> Unit = {},
 ) {
 
     /**
@@ -116,6 +117,7 @@ internal class HomeTakeAdapter(
                     val line: String = settle.line(finished, saveFailed, HomeSentences.lines)
                     onState(DictationState.IDLE)
                     onLine(line)
+                    onFinishResult(finished)
                 }
             }
         } catch (e: Exception) {

@@ -77,7 +77,9 @@ private const val SETTLED_HOME = "fun createHomeView(context: android.content.Co
     "settings: dev.breaker.dictation.core.port.SettingsStore, " +
     "micView: android.view.View, " +
     "usableHeightDp: Float, " +
-    "onShownMode: (dev.breaker.shared.tokens.ThemeMode) -> Unit): android.view.View"
+    "onShownMode: (dev.breaker.shared.tokens.ThemeMode) -> Unit, " +
+    "sessionLive: () -> Boolean, " +
+    "onSignIn: () -> Unit): android.view.View"
 
 /** The home control, as written in its file. */
 private const val SETTLED_HOME_CONTROL = "interface HomeControl"

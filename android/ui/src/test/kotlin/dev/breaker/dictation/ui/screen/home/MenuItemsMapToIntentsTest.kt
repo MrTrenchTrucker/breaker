@@ -120,13 +120,17 @@ class MenuItemsMapToIntentsTest {
 
     /**
      * The host's menu mapping: one menu intent per row, and each callback it names is called once in the
-     * host. [raw] is the host text as written; comments and literal text are removed before the count.
+     * host. The Sign in action is not a menu row: it has its own pin, one mapping and one call. [raw] is the host text as written; comments and literal text are removed before the count.
      */
     private fun hostProblems(raw: String, rowCount: Int): List<String> {
         val code = withoutCommentsAndStrings(raw)
-        val pairs = hostMapping.findAll(code).map { it.groupValues[2] }.toList()
+        val pairs = hostMapping.findAll(code).map { it.groupValues[2] }.filter { it != "onSignIn" }.toList()
         val problems = mutableListOf<String>()
         if (pairs.size != rowCount) problems += "the host maps ${pairs.size} menu intents, expected $rowCount rows"
+        val signInMaps = Regex("""HomeActions\.SIGN_IN -> onSignIn\(\)""").findAll(code).count()
+        if (signInMaps != 1) problems += "the host maps SIGN_IN $signInMaps times, expected 1"
+        val signInCalls = Regex("""\bonSignIn\(\)""").findAll(code).count()
+        if (signInCalls != 1) problems += "onSignIn is called $signInCalls times in the host, expected 1"
         for (callback in pairs) {
             val calls = Regex("""\b${callback}\(\)""").findAll(code).count()
             if (calls != 1) problems += "$callback is called $calls times in the host, expected 1"
@@ -203,6 +207,12 @@ class MenuItemsMapToIntentsTest {
         assertTrue("a fifth menu intent is reported", hostProblems(fifth, rowCount).isNotEmpty())
         val twice = edit("About asked twice", hostText, "HomeActions.ABOUT -> onAbout()", "HomeActions.ABOUT -> onAbout().also { onAbout() }")
         assertTrue("an About request made twice is reported", hostProblems(twice, rowCount).isNotEmpty())
+        val signInTwice = edit("sign in answered twice", hostText, "HomeActions.SIGN_IN -> onSignIn()", "HomeActions.SIGN_IN -> { onSignIn(); onSignIn() }")
+        assertTrue("a sign in answer made twice is reported", hostProblems(signInTwice, rowCount).isNotEmpty())
+        val signInMissing = edit("sign in mapping missing", hostText, "HomeActions.SIGN_IN -> onSignIn()", "HomeActions.SIGN_IN -> Unit")
+        assertTrue("a missing sign in mapping is reported", hostProblems(signInMissing, rowCount).isNotEmpty())
+        val signInAsMenu = edit("sign in mapped as a menu row", hostText, "HomeActions.SIGN_IN -> onSignIn()", "HomeActions.SIGN_IN -> onAbout()")
+        assertTrue("a sign in mapped to a menu callback is reported", hostProblems(signInAsMenu, rowCount).isNotEmpty())
         val quiet = edit("comment", hostText, "private fun act(action: String) {", "// HomeActions.HIDE -> onHide()\n    private fun act(action: String) {")
         assertEquals("a comment naming a menu intent is not one", emptyList<String>(), hostProblems(quiet, rowCount))
     }
