@@ -34,6 +34,7 @@ kotlin {
 
 dependencies {
     implementation(project(":android:modules:core"))
+    implementation(project(":shared:modules:api-contracts"))
 
     testImplementation(libs.junit)
 }
