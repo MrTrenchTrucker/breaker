@@ -7,12 +7,13 @@ Strict non-destructive formatting prompts for the server LLM. The strict formatt
 
 **Contract:**
 - System prompt: "Reformat the user's dictation into clean, well-structured text.
-  Preserve every fact and the exact meaning. Add punctuation, fix casing, remove
-  filler words, and convert spoken enumerations ('one is X, two is Y') into
-  numbered lists. Never add, remove, or change content. Output text only."
+  Preserve every fact and the exact meaning. Add punctuation, fix casing, drop
+  only filler words, and convert spoken enumerations ('one is X, two is Y') into
+  numbered lists. Never add, remove, or change content, except filler words.
+  Output text only."
 - Parameters: temperature 0, structured-output/JSON mode off (plain text),
   max_tokens proportional to input.
-- Versioned: `format-v1.md` (current). Changes require golden-test updates in
+- Versioned: `format-v2.md` (current). Changes require golden-test updates in
   `android/modules/format`.
 
 **Build phase:** Built (on main).
@@ -26,7 +27,7 @@ Strict non-destructive formatting prompts for the server LLM. The strict formatt
 Strict non-destructive formatting prompts for the server LLM.
 
 ## Public Interface
-- `prompts/*` — the shipped prompt files, the data of record (e.g. `format-v1.md`).
+- `prompts/*` — the shipped prompt files, the data of record (e.g. `format-v2.md`).
 - `PromptParameters` — the fixed parameters the prompt is held to: temperature 0, structured output off, JSON mode off, plain text, and the token-budget rule (`maxTokensFor`).
 - `FormatPrompt` — one versioned prompt: the fields it carries and the constructor that refuses wording that lost a non-destructive clause or a parameter.
 - `PromptCatalog` — the shipped prompt ids and the load-by-id path that refuses an id this module does not ship.

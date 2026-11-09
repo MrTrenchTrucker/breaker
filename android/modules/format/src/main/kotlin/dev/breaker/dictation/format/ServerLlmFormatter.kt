@@ -54,7 +54,7 @@ class ServerLlmFormatter(
         )
         val reply = transport.send(request)
         if (reply.status != 200) return null
-        val text = String(reply.body)
+        val text = String(reply.body, Charsets.UTF_8)
         val parsed = JsonReader.parse(text)
         val content = extractContent(parsed) ?: return null
         val trimmed = content.trim()

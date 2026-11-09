@@ -148,6 +148,18 @@ class ServerLlmFormatterTest {
     }
 
     @Test
+    fun `reply body with real UTF-8 bytes is decoded exactly`() {
+        // é = 0xC3 0xA9 (2 bytes), \u20ac euro sign = 0xE2 0x82 0xAC (3 bytes)
+        val transport = FakeTransport()
+        val content = "caf\u00e9\u20ac"
+        transport.reply = BytesReply(200, """{"choices":[{"message":{"content":"$content"}}]}""".toByteArray(Charsets.UTF_8))
+        val fallback = CountingFallback()
+        val f = ServerLlmFormatter({ "https://example.com" }, { "secret" }, { "gpt-4" }, fallback, transport, prompt)
+        assertEquals(content, f.format("say $content"))
+        assertEquals(0, fallback.calls)
+    }
+
+    @Test
     fun `max tokens follows the length of a long text`() {
         val transport = FakeTransport()
         val f = ServerLlmFormatter({ "https://example.com" }, { "secret" }, { "gpt-4" }, CountingFallback(), transport, prompt)

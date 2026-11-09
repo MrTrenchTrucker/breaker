@@ -8,7 +8,7 @@
 //
 // Toolchain versions come from gradle/libs.versions.toml.
 //
-// The prompt text is the data of record (`prompts/format-v1.md`, also shipped
+// The prompt text is the data of record (`prompts/format-v2.md`, also shipped
 // on the classpath so a consumer cannot read a different copy); the types below
 // are the contract the text is held to. The formatter itself is
 // android/format and the LLM is the server's — neither lives here.

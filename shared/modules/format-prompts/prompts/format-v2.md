@@ -1,6 +1,6 @@
 ---
-id: format-v1
-version: format-v1
+id: format-v2
+version: format-v2
 parameters:
   temperature: 0
   structured_output: false
@@ -8,7 +8,7 @@ parameters:
   response_format: text
 ---
 
-# Formatting prompt — `format-v1`
+# Formatting prompt — `format-v2`
 
 The prompt the server LLM path of the `format` module sends. It is held here so
 the phone and any server-side tooling agree on one wording, and so a change is
@@ -38,9 +38,7 @@ Send this verbatim as the system message:
 
 ```text
 Reformat the user's dictation into clean, well-structured text.
-Preserve every fact and the exact meaning. Add punctuation, fix casing, remove
-filler words, and convert spoken enumerations ('one is X, two is Y') into
-numbered lists. Never add, remove, or change content. Output text only.
+Preserve every fact and the exact meaning. Add punctuation, fix casing, drop only filler words, and convert spoken enumerations ('one is X, two is Y') into numbered lists. Never add, remove, or change content, except filler words. Output text only.
 ```
 
 The user message is the raw transcription, unmodified and unlabelled. Do not
