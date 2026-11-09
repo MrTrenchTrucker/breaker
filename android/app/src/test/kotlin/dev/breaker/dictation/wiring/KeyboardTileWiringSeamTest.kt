@@ -3,6 +3,7 @@ package dev.breaker.dictation.wiring
 import dev.breaker.dictation.commit.KeyboardProbeReadings
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -56,7 +57,7 @@ internal class KeyboardTileWiringSeamTest {
             KeyboardProbeReadings.publishLatest(fieldFocus = false, imeWindow = true, lastEvent = "typed", time = 1000L)
             // Without the post the entry is read synchronously on the collector thread,
             // so entries would already grow before any drain. Assert nothing lands until the drain happens.
-            waitPending(main, { main.pending >= 1 })
+            assertTrue("wiring: no reading was queued on the main post within 5 s", waitPending(main, { main.pending >= 1 }))
             val before = entries.size
             main.drain()
             assertEquals("wiring: a published reading must be delivered once after the drain", before + 1, entries.size)
@@ -81,7 +82,7 @@ internal class KeyboardTileWiringSeamTest {
             wiring.start()
             Thread.sleep(300)
             KeyboardProbeReadings.publishLatest(fieldFocus = true, imeWindow = false, lastEvent = "focus", time = 2000L)
-            waitPending(main, { main.pending >= 1 })
+            assertTrue("wiring: no reading was queued on the main post within 5 s", waitPending(main, { main.pending >= 1 }))
             // Settle: give any spurious second block time to land, bounded to 5 s, then stop waiting when stable.
             var unchanged = 0
             val settleDeadline = System.currentTimeMillis() + 5_000L
@@ -115,7 +116,7 @@ internal class KeyboardTileWiringSeamTest {
         wiring.start()
         try {
             KeyboardProbeReadings.publishLatest(fieldFocus = true, imeWindow = false, lastEvent = "focus", time = 3000L)
-            waitPending(main, { main.pending >= 1 })
+            assertTrue("wiring: no reading was queued on the main post within 5 s", waitPending(main, { main.pending >= 1 }))
             val before = entries.size
             main.drain()
             assertEquals(

@@ -82,7 +82,7 @@ class SignInSubmitHandlerTest {
                 block()
                 done.countDown()
             }
-            done.await(5_000, TimeUnit.MILLISECONDS)
+            check(done.await(5_000, TimeUnit.MILLISECONDS)) { "wiring: the submitted block did not finish in 5 s" }
         }
     }
 
