@@ -59,6 +59,10 @@ class EnqueueFailureTest {
         assertEnqueueStatus(418, SttError.OTHER, FailureSentences.UNEXPECTED_STATUS)
 
     @Test
+    fun `a 400 on enqueue is an unexpected status failure`() =
+        assertEnqueueStatus(400, SttError.OTHER, FailureSentences.UNEXPECTED_STATUS)
+
+    @Test
     fun `an enqueue answer that is not JSON is a bad answer`() =
         assertAcceptedBody("not json", SttError.OTHER, FailureSentences.BAD_ANSWER)
 
