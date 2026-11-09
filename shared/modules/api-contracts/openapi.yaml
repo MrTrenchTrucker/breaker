@@ -2698,14 +2698,13 @@ components:
       type: object
       required:
         - error
-        - message
       properties:
         error:
           type: string
           description: The error code
         message:
           type: string
-          description: A human-readable error message
+          description: Optional human-readable detail; absent when the server sends only the error code
     DeviceList:
       type: object
       required:
