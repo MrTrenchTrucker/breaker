@@ -48,7 +48,7 @@ On 2026-11-01 the project owner confirmed the design and ordered this update: "B
    that does not open leaves the stores as they were and at most logs out. Built on the server:
    the start and exchange routes
    (`AuthHandoffRoutes.kt`), the code store and the sweep. Not built: the website page (its crypto is a
-   stub, `web-fe` `js/signin-crypto.js`), the app's device name and the phone's pull. When the app starts the sign-in hand-off, it makes a fresh X25519 key pair in memory for
+   stub, `web-fe` `js/signin-crypto.js`), and the phone's pull. The app's device name is built (the platform's manufacturer and model, cleaned to 1 to 64 code points). When the app starts the sign-in hand-off, it makes a fresh X25519 key pair in memory for
    that one sign-in and sends the public half with its sign-in challenge. The pair and the app's one-time
    secret are dropped at the code exchange, or when the sign-in is abandoned. The person types the password
    once, on the website. The website page derives the KEK in the browser (ADR-006's web path), unwraps the
@@ -80,8 +80,7 @@ On 2026-11-01 the project owner confirmed the design and ordered this update: "B
   table, its index, the device name column and the triggers), the code store and sweep, and the revoke rule
   are built. Built on the phone: making the key pair, calling the exchange route, opening the package, and
   storing the keys and then the session (both cleared together on a failure or a logout). Built on the server:
-  the device list and the two sign-out routes for the person's own devices. Not built: the website page and the
-  app's device name. The wrong-password limit is built on the server
+  the device list and the two sign-out routes for the person's own devices. Built on the phone: the app's device name (the platform's manufacturer and model, cleaned to 1 to 64 code points). Not built: the website page. The wrong-password limit is built on the server
   (ADR-036). Of the sync work on the server, the push route `POST /v1/sync`, the plain pull route `GET
   /v1/transcriptions` and the transcriptions table are built, and so is the store layer of the changes-since
   feed: migration 5 (the change counter on the account row, the change number on every transcription row, the
@@ -95,7 +94,7 @@ On 2026-11-01 the project owner confirmed the design and ordered this update: "B
   (#442), applyRemoteRow (#444), retainOnly (#445), the pull cursor store (#446), isQueued/queuedIds (#447),
   PullApplier (#448) and PullCycle (#450). The clear-store write (#449) is built and mounted on the server. No shipped code builds a PullCycle
   or a PullApplier or implements the pull transport, so the app does not start a pull. The device name
-  column on the session row is built (migration 4); the app does not send a name yet and the device list is
+  column on the session row is built (migration 4); the app now sends the platform's manufacturer and model as the name and the device list is
   built on the server (`GET /v1/auth/devices`). Today the app has no pull, and the password sign-in is
   unchanged.
 - **Changes-since feed.** Built on the server: the cursor is a server-assigned change number, unique to the

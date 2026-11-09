@@ -46,6 +46,7 @@ import dev.breaker.dictation.wiring.SessionLiveState
 import dev.breaker.dictation.wiring.SignInReturnStore
 import dev.breaker.dictation.wiring.SignInStartWiring
 import dev.breaker.dictation.wiring.UuidIdSource
+import dev.breaker.dictation.wiring.appDeviceName
 import dev.breaker.dictation.wiring.appMicSource
 import dev.breaker.dictation.wiring.authSessionFile
 import dev.breaker.dictation.wiring.buildAuthService
@@ -211,6 +212,7 @@ class BreakerCompositionRoot(
             cryptoService(),
             credentialVault,
             sessionVault,
+            deviceName = ::appDeviceName,
         )
     }
 
