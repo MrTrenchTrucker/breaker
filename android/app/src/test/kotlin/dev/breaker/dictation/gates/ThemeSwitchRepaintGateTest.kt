@@ -53,7 +53,7 @@ internal class ThemeSwitchRepaintGateTest {
             AppSourceFiles.launcherCode(),
         ).code
         assertTrue(
-            "onThemeChanged must delegate to repaintOnThemeChange(this, app.settingsStore)",
+            "onThemeChanged must delegate to repaintOnThemeChange(activity, app.settingsStore)",
             flat(activityCode).contains("onThemeChanged=dev.breaker.dictation.wiring.repaintOnThemeChange(activity,app.settingsStore)"),
         )
 
