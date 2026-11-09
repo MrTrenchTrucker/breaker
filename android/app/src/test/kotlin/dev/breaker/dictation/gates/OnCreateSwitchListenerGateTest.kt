@@ -102,7 +102,7 @@ internal class OnCreateSwitchListenerGateTest {
         return null
     }
 
-    private fun activityCode(): String = stripComments(AppSourceFiles.mainFile(activity))
+    private fun activityCode(): String = stripComments(AppSourceFiles.launcherCode())
 
     @Test
     fun `onCreate still records the wiring's switch listener`() {

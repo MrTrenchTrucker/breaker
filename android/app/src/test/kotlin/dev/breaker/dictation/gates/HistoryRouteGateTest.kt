@@ -128,7 +128,7 @@ internal class HistoryRouteGateTest {
         check(at >= 0) { "app: a history gate sample lost its text '$old'" }
         return text.substring(0, at) + new + text.substring(at + old.length)
     }
-    private fun raw(key: String): String = AppSourceFiles.mainFile(files.getValue(key))
+    private fun raw(key: String): String = if (key == "activity") AppSourceFiles.launcherCode() else AppSourceFiles.mainFile(files.getValue(key))
     private fun codeOf(key: String, old: String? = null, new: String = ""): String =
         AppSourceFiles.strip(if (old == null) raw(key) else edit(raw(key), old, new)).code
 
@@ -176,7 +176,7 @@ internal class HistoryRouteGateTest {
     @Test
     fun `the suppression names the one lint check`() {
         val suppression = Regex("""@SuppressLint\(\s*"GestureBackNavigation"\s*\)\s+override\s+fun\s+onBackPressed""")
-        val text: String = raw("activity")
+        val text: String = AppSourceFiles.launcherCode()
         assertEquals("app: the activity must carry exactly one GestureBackNavigation suppression on onBackPressed", 1, suppression.findAll(text).count())
         assertEquals("app: the suppression must stop matching when the lint check is renamed", 0, suppression.findAll(edit(text, "GestureBackNavigation", "OtherCheck")).count())
         assertEquals("app: the suppression must stop matching when its annotation line is removed", 0, suppression.findAll(edit(text, "    @SuppressLint(\"GestureBackNavigation\")\n", "")).count())

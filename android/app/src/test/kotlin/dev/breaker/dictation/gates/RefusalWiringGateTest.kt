@@ -78,7 +78,7 @@ internal class RefusalWiringGateTest {
         return text.substring(0, at) + new + text.substring(at + old.length)
     }
 
-    private fun raw(key: String): String = AppSourceFiles.mainFile(files.getValue(key))
+    private fun raw(key: String): String = if (key == "activity") AppSourceFiles.launcherCode() else AppSourceFiles.mainFile(files.getValue(key))
 
     private fun codeOf(key: String, old: String? = null, new: String = ""): String =
         AppSourceFiles.strip(if (old == null) raw(key) else edit(raw(key), old, new)).code

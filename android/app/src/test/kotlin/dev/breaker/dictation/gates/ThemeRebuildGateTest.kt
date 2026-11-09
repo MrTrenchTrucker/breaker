@@ -60,7 +60,7 @@ internal class ThemeRebuildGateTest {
     }
 
     private fun codeOf(old: String? = null, new: String = ""): String {
-        val text: String = AppSourceFiles.mainFile(activity)
+        val text: String = AppSourceFiles.launcherCode()
         return AppSourceFiles.strip(if (old == null) text else edit(text, old, new)).code
     }
 
@@ -82,14 +82,14 @@ internal class ThemeRebuildGateTest {
 
     @Test
     fun `a closeSettings without the rebuild breaks the rule`() {
-        val lost: String = edit(AppSourceFiles.mainFile(activity), "        homeView = homeRebuilt.again()\n", "")
+        val lost: String = edit(AppSourceFiles.launcherCode(), "        homeView = homeRebuilt.again()\n", "")
         val code: String = AppSourceFiles.strip(lost).code
         assertFalse("app: a closeSettings without the Home rebuild must break the rebuild rule", rule("CLOSE_SETTINGS_REBUILDS_HOME_AND_THE_SETTINGS_VIEW").holds(code))
     }
 
     @Test
     fun `a closeSettings that swaps one holder for the other breaks the rebuild rule`() {
-        val text: String = AppSourceFiles.mainFile(activity)
+        val text: String = AppSourceFiles.launcherCode()
         val homeFromSettings: String = edit(text, "        homeView = homeRebuilt.again()\n", "        homeView = settingsRebuilt.again()\n")
         val settingsFromHome: String =
             edit(text, "swapInColumn(settingsColumn, settingsView, settingsRebuilt.again())", "swapInColumn(settingsColumn, settingsView, homeRebuilt.again())")
@@ -99,7 +99,7 @@ internal class ThemeRebuildGateTest {
 
     @Test
     fun `a take wiring attach behind a false guard breaks the attach rule`() {
-        val text: String = AppSourceFiles.mainFile(activity)
+        val text: String = AppSourceFiles.launcherCode()
         val guarded: String =
             edit(text, "        takeWiring.attach(homeView as dev.breaker.dictation.ui.HomeControl)\n", "        if (false) takeWiring.attach(homeView as dev.breaker.dictation.ui.HomeControl)\n")
         assertFalse("app: an attach behind a false guard must break the attach rule", rule("CLOSE_SETTINGS_ATTACHES_THE_TAKE_WIRING").holds(AppSourceFiles.strip(guarded).code))

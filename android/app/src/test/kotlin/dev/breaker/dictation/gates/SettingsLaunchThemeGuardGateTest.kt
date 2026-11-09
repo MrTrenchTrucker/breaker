@@ -22,9 +22,7 @@ internal class SettingsLaunchThemeGuardGateTest {
     @Test
     fun `onCreate paints the window through themeModeOrDefault, not a raw store load`() {
         val activityCode = flat(
-            AppSourceFiles.strip(
-                AppSourceFiles.mainFile("kotlin/dev/breaker/dictation/SettingsLauncherActivity.kt"),
-            ).code,
+            AppSourceFiles.strip(AppSourceFiles.launcherCode()).code,
         )
 
         assertTrue(

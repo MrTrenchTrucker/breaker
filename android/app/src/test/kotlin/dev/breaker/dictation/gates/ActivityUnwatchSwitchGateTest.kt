@@ -87,7 +87,7 @@ internal class ActivityUnwatchSwitchGateTest {
         return null
     }
 
-    private fun activityCode(): String = stripComments(AppSourceFiles.mainFile(activity))
+    private fun activityCode(): String = stripComments(AppSourceFiles.launcherCode())
 
     @Test
     fun `onDestroy still takes the switch listener off and still calls super`() {

@@ -83,7 +83,7 @@ internal class HomeMicWiringGateTest {
         return text.substring(0, at) + new + text.substring(at + old.length)
     }
 
-    private fun activityCode(): String = stripComments(AppSourceFiles.mainFile(activity))
+    private fun activityCode(): String = stripComments(AppSourceFiles.launcherCode())
 
     private fun helpersCode(): String = stripComments(AppSourceFiles.mainFile(helpers))
 

@@ -50,7 +50,7 @@ internal class ThemeSwitchRepaintGateTest {
     @Test
     fun `the activity wires the helper into the settings view`() {
         val activityCode = AppSourceFiles.strip(
-            AppSourceFiles.mainFile("kotlin/dev/breaker/dictation/SettingsLauncherActivity.kt"),
+            AppSourceFiles.launcherCode(),
         ).code
         assertTrue(
             "onThemeChanged must delegate to repaintOnThemeChange(this, app.settingsStore)",

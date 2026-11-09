@@ -231,7 +231,7 @@ internal class AppWiringGateTest {
     }
 
     internal fun codeOf(file: String, old: String? = null, new: String = ""): String {
-        val text = AppSourceFiles.mainFile(file)
+        val text = if (file == activity) AppSourceFiles.launcherCode() else AppSourceFiles.mainFile(file)
         return AppSourceFiles.strip(if (old == null) text else edit(text, old, new)).code
     }
 

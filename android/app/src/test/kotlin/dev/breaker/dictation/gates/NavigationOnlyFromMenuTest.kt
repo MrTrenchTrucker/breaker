@@ -40,7 +40,7 @@ class NavigationOnlyFromMenuTest {
 
     private fun codeOf(source: String): String = AppSourceFiles.strip(source).code
 
-    private fun activitySource(): String = AppSourceFiles.mainFile(activityPath)
+    private fun activitySource(): String = AppSourceFiles.launcherCode()
 
     /** The calls of [function] in [code]: the name and empty brackets, not its declaration and not a member of another object. */
     private fun callsOf(code: String, function: String): Int =

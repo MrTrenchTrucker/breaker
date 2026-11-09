@@ -59,7 +59,7 @@ internal class SettingsColumnSingleChildTest {
 
     /** The code of the activity, with [old] changed to [new] when an edit is given. */
     private fun codeOf(old: String? = null, new: String = ""): String {
-        val text = AppSourceFiles.mainFile(activity)
+        val text = AppSourceFiles.launcherCode()
         return AppSourceFiles.strip(if (old == null) text else editOnce(text, old, new)).code
     }
 

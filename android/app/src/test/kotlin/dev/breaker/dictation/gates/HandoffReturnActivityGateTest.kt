@@ -164,7 +164,7 @@ internal class HandoffReturnActivityGateTest {
     )
 
     private fun fileCode(path: String, old: String? = null, new: String = ""): String {
-        val text: String = AppSourceFiles.mainFile(path)
+        val text: String = if (path == launcher) AppSourceFiles.launcherCode() else AppSourceFiles.mainFile(path)
         return AppSourceFiles.strip(if (old == null) text else edit(text, old, new)).code
     }
 
