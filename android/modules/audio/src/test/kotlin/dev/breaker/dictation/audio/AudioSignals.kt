@@ -13,7 +13,6 @@ import kotlin.math.sin
  * broken trim can pass by accident when the input happens to be uniform.
  */
 object AudioSignals {
-    const val SILENCE_AMPLITUDE = 0.001f
     const val SPEECH_AMPLITUDE = 0.4f
     const val NOISE_AMPLITUDE = 0.05f
 

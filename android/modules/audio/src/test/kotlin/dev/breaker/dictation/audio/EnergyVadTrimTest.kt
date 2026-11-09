@@ -109,7 +109,6 @@ class EnergyVadTrimTest {
         // came from can.
         val leadingMs = 700L
         val speechMs = 800L
-        val leadingSamples = (leadingMs * AudioFormat.SAMPLE_RATE_HZ / 1000L).toInt()
         val speechSamples = (speechMs * AudioFormat.SAMPLE_RATE_HZ / 1000L).toInt()
         val pcm = AudioSignals.takeWithSurroundingSilence(leadingMs, speechMs, 1_100)
 
