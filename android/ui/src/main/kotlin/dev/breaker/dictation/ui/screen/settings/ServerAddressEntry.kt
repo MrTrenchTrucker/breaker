@@ -49,6 +49,20 @@ internal object ServerAddressEntry {
         return trimmed
     }
 
+    /**
+     * True only for a stored address that the rule accepts and whose scheme is http.
+     * The accepted text is checked, so a refused text is never plain http, and the
+     * scheme cut and compared the same way as in [accepted].
+     */
+    fun isPlainHttp(stored: String): Boolean {
+        val value = accepted(stored) ?: return false
+        if (value.isEmpty()) return false
+        val split = value.indexOf("://")
+        if (split < 0) return false
+        val scheme = value.substring(0, split)
+        return isHttpScheme(scheme) && scheme.lowercase() == "http"
+    }
+
     /** True for the text http or https in any ASCII letter case. */
     private fun isHttpScheme(scheme: String): Boolean {
         val lower = scheme.lowercase()

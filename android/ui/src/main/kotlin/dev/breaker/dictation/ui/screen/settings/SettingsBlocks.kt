@@ -86,6 +86,7 @@ internal object SettingsIds {
     const val SERVER_ROW = "settings.server"
     const val SERVER_LABEL = "settings.server.label"
     const val SERVER_FIELD = "settings.server.field"
+    const val PLAIN_HTTP_LINE = "settings.server.plainHttp"
     const val API_KEY_ROW = "settings.apiKey"
     const val API_KEY_LABEL = "settings.apiKey.label"
     const val API_KEY_VALUE = "settings.apiKey.value"
@@ -194,15 +195,32 @@ internal fun valuesBlock(held: AppSettings, model: ModelRow): Box = Box(
             id = SettingsIds.SERVER_ROW,
             background = PaletteSlot.BACKGROUND,
             gap = Space.S,
-            children = listOf(
-                bodyLabel(SettingsIds.SERVER_LABEL, SettingsTexts.SERVER_ROW_LABEL, PaletteSlot.TEXT_MUTED),
-                ValueField(
-                    id = SettingsIds.SERVER_FIELD,
-                    text = serverText(held),
-                    muted = !held.hasServerUrl,
-                    entryKey = ServerAddressEntry.KEY,
-                ),
-            ),
+            children = buildList<Node> {
+                add(
+                    bodyLabel(
+                        SettingsIds.SERVER_LABEL,
+                        SettingsTexts.SERVER_ROW_LABEL,
+                        PaletteSlot.TEXT_MUTED,
+                    ),
+                )
+                add(
+                    ValueField(
+                        id = SettingsIds.SERVER_FIELD,
+                        text = serverText(held),
+                        muted = !held.hasServerUrl,
+                        entryKey = ServerAddressEntry.KEY,
+                    ),
+                )
+                if (ServerAddressEntry.isPlainHttp(held.serverUrl)) {
+                    add(
+                        bodyLabel(
+                            SettingsIds.PLAIN_HTTP_LINE,
+                            SettingsTexts.PLAIN_HTTP_HELP,
+                            PaletteSlot.TEXT_MUTED,
+                        ),
+                    )
+                }
+            },
         ),
         Box(
             id = SettingsIds.API_KEY_ROW,

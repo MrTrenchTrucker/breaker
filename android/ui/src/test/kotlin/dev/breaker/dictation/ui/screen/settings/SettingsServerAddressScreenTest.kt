@@ -2,6 +2,7 @@ package dev.breaker.dictation.ui.screen.settings
 
 import dev.breaker.dictation.core.model.ThemeMode as StoredThemeMode
 import dev.breaker.dictation.ui.screen.Node
+import dev.breaker.dictation.ui.screen.Label
 import dev.breaker.dictation.ui.screen.Screen
 import dev.breaker.dictation.ui.screen.ScreenIntent
 import dev.breaker.dictation.ui.screen.ValueField
@@ -79,6 +80,30 @@ class SettingsServerAddressScreenTest {
         for (typed in typedTexts) {
             assertNull("no change for $typed", screen.editFor(ScreenIntent.SetSetting("server_url", typed)))
         }
+    }
+
+    @Test
+    fun `the plain http line id exists once and carries the approved words`() {
+        val s = screen.render(NONDEFAULT.copy(serverUrl = "http://box.example"), themeOf(), null)
+        val found = nodesOf(s).filter { it.id == "settings.server.plainHttp" }
+        assertEquals("the line id is the literal settings.server.plainHttp, once", 1, found.size)
+        assertEquals("settings.server.plainHttp", SettingsIds.PLAIN_HTTP_LINE)
+        assertEquals(
+            "This connection is not encrypted. Use a VPN or an https address.",
+            (found[0] as Label).text,
+        )
+    }
+
+    @Test
+    fun `the settings screen draws the plain http line only for a plain http address`() {
+        val plain = screen.render(NONDEFAULT.copy(serverUrl = "http://box.example"), themeOf(), null)
+        assertTrue(nodesOf(plain).any { it.id == SettingsIds.PLAIN_HTTP_LINE })
+        val secure = screen.render(NONDEFAULT.copy(serverUrl = "https://box.example"), themeOf(), null)
+        assertFalse(nodesOf(secure).any { it.id == SettingsIds.PLAIN_HTTP_LINE })
+        val none = screen.render(NONDEFAULT.copy(serverUrl = ""), themeOf(), null)
+        assertFalse(nodesOf(none).any { it.id == SettingsIds.PLAIN_HTTP_LINE })
+        val refused = screen.render(NONDEFAULT.copy(serverUrl = "ftp://box.example"), themeOf(), null)
+        assertFalse(nodesOf(refused).any { it.id == SettingsIds.PLAIN_HTTP_LINE })
     }
 
     @Test

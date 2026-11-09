@@ -86,6 +86,9 @@ screens render with ui-tokens; light/dark toggle persists.
   `TextEntryViewRulesTest` (source rules, each with a control that makes it fire).
 - The address rule in `ServerAddressEntry` is a deliberate copy: ui reaches only core, so it cannot call the
   http module's `ServerAddressRule`, the same wording style the stt-server card uses for its own duplicate.
+  `isPlainHttp` in the same file is the one predicate for "this stored address is plain http" (it goes through
+  `accepted`, so a refused text is never plain http); the settings screen draws one quiet line, the words held in
+  `SettingsTexts.PLAIN_HTTP_HELP` (ADR-034), under the server field only when it is true.
 - The Settings view draws live through the theme controller. `SettingsHostView` redraws the whole screen when
   the theme changes, and its model download bar takes the same theme, so no part keeps a fixed theme. The view
   has no setup block and no History button; its sections are the theme, the routing, the three switches, the

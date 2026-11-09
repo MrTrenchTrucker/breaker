@@ -28,6 +28,14 @@ class SettingsTextsTest {
     }
 
     @Test
+    fun `the plain http line words are exactly the approved words`() {
+        assertEquals(
+            "This connection is not encrypted. Use a VPN or an https address.",
+            SettingsTexts.PLAIN_HTTP_HELP,
+        )
+    }
+
+    @Test
     fun `the language name maps english and returns every other code as stored`() {
         assertEquals("English", languageName("en"))
         assertEquals("de", languageName("de"))
