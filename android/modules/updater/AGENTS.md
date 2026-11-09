@@ -8,11 +8,12 @@ at OUR server, signing key secured (never git) [1].
 
 **Build phase:** Phase 16. Needs first: `core` (on main) and the Phase 15 git-pull deploy pipeline (`server/modules/deploy`), because the update endpoint reads its tagged releases.
 
-**Status on main:** one piece is built: the due decision `UpdateSchedule.isDue(lastCheckAtMs, nowMs)` in
-`src/main/kotlin` (internal, pure Kotlin), with its tests in `src/test/kotlin`. Nothing else in this module is
-built: no checker, no download, no verify, no install, no rollback. Everything below except that decision
-is the target design, planned, not built. The `core.UpdateChecker` port is on main in core; the server route
-`GET /v1/updates/latest.json` is planned, not built (see the sync-api card).
+**Status on main:** three pieces are built, all internal, pure Kotlin, with tests in `src/test/kotlin`: the
+due decision `UpdateSchedule.isDue(lastCheckAtMs, nowMs)`, the version order `UpdateOrder.isNewer` and the
+APK digest check `ApkDigest.matches`. Nothing else in this module is built: no checker, no download, no
+signature check, no install, no rollback; the port wiring is owed. Everything below except those three
+pieces is the target design, planned, not built. The `core.UpdateChecker` port is on main in core; the
+server route `GET /v1/updates/latest.json` is planned, not built (see the sync-api card).
 
 ## Owns
 Daily update check + admin force-check, signed APK verify, rollback.
@@ -61,7 +62,7 @@ Daily update check + admin force-check, signed APK verify, rollback.
 - APK signing (server/deploy)
 
 ## Test Locations
-- Unit (Kotlin): `android/modules/updater/src/test/kotlin/` (`UpdateScheduleTest`). Run: `./gradlew :android:modules:updater:test`
+- Unit (Kotlin): `android/modules/updater/src/test/kotlin/` (`UpdateScheduleTest`, `UpdateOrderTest`, `ApkDigestTest`). Run: `./gradlew :android:modules:updater:test`
 - Contract: `tests/contract/test_updater_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_updater_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
