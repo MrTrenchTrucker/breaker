@@ -14,12 +14,12 @@ import java.util.concurrent.atomic.AtomicInteger
  * Every name here is a constant, a KDoc that explains it, or the gated
  * `MicSource` the open() window tests need. Nothing in this file is a test.
  *
- * [JOIN_TIMEOUT_MS] is the 150ms race-timing budget for the losing-stop
- * window. It is deliberately NOT the same thing as the 2s stuck-thread
- * recovery bound in the indicator tests, and the two are kept in separate
- * support objects on purpose: they are different mechanisms measured by
- * different tests, and reconciling them would be a behaviour change hidden
- * inside a move.
+ * [JOIN_TIMEOUT_MS] is the join bound of the winning stop(): a waiting
+ * stop() cannot return before it has passed. It is deliberately NOT the
+ * same thing as the 2s stuck-thread recovery bound in the indicator
+ * tests, and the two are kept in separate support objects on purpose:
+ * they are different mechanisms measured by different tests, and
+ * reconciling them would be a behaviour change hidden inside a move.
  */
 internal object RaceTestSupport {
 
@@ -61,19 +61,6 @@ internal object RaceTestSupport {
 
     /** Short enough that a parked dispatcher is given up on promptly. */
     const val JOIN_TIMEOUT_MS = 150L
-
-    /**
-     * How long the losing stop() is watched for an early return.
-     *
-     * A ceiling on the wait, not the wait itself. It MUST be shorter than
-     * [JOIN_TIMEOUT_MS], and that is the whole reason it is not a larger
-     * number: the winning stop() gives up on its parked dispatcher after
-     * joinTimeoutMs and returns, so a window longer than that would be
-     * asserting about a teardown that has provably finished — the loser
-     * would come home correctly and be failed for it. The two constants
-     * are a matched pair and moving one without the other breaks the test.
-     */
-    const val LOSER_WINDOW_MS = 100L
 }
 /**
  * A device whose [open] blocks until the test releases it, counting how many
