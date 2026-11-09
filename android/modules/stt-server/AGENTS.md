@@ -66,8 +66,8 @@ The job-queue mechanics (enqueue, poll, backoff) stay behind this port, so
 | POST 202 | go on and poll |
 | POST 401, 403 | `OTHER`, key refused |
 | POST 413 | `OTHER`, too large |
-| POST 404 | `SERVER_UNREACHABLE`, no endpoint (inferred, not seen on a real server) |
-| POST 429, 5xx | `SERVER_UNREACHABLE`, not taking work (inferred, not seen on a real server) |
+| POST 404 | `SERVER_UNREACHABLE`, no endpoint (the in-repo server never sends it) |
+| POST 429, 5xx | `SERVER_UNREACHABLE`, not taking work (429 and 500 are sent by the in-repo server) |
 | POST any other status | `OTHER`, unexpected status |
 | poll 200, `done` | success with text, segments and language |
 | poll 200, `failed` | `OTHER`, the job's failure text, cleaned |
@@ -154,10 +154,10 @@ agents, not required: an outside contributor may write the code themselves
   2 s; budget 60 s plus 3 times the clip, at most 300 s; 600 polls; 3 transient
   poll failures in a row. None of these is measured on a device or against a
   real server.
+- What the in-repo server sends, read from its code and not from a running server: POST 202, 400, 401,
+  413, 429 (with Retry-After) and 500, never a 404; job GET 200, 401, 404 and 429 (with Retry-After).
 - Not verified yet, and waiting for the server module (Phase 4):
-  - the 404 answer to the upload and the 429 and 5xx answers. They are
-    inferred. `openapi.yaml` in shared/api-contracts lists 202, 401 and 413
-    for the upload, and 200, 401 and 404 for a job;
+  - those answers on a real running server (the 404, 429 and 5xx rows above are read from code only);
   - the retry timings and the default time limits, on a real server;
   - the certificate state of the real server. The module trusts the platform
     only, with no pinning and no custom CA, so the real certificate has not
