@@ -199,7 +199,7 @@ class HomeScreenTest {
             setOf(
                 "home.drawer.dim", "home.drawer.panel", "home.drawer.header", "home.drawer.word", "home.drawer.rule",
                 "home.drawer.item.history", "home.drawer.item.settings",
-                "home.drawer.item.how", "home.drawer.item.about",
+                "home.drawer.item.how", "home.drawer.item.about", "home.drawer.item.signout",
                 "home.drawer.stripe",
             ),
             ids(open).filter { it.startsWith("home.drawer") }.toSet(),
@@ -211,6 +211,8 @@ class HomeScreenTest {
         assertEquals("home: the settings item", HomeTexts.MENU_SETTINGS, action(open, "home.drawer.item.settings").text)
         assertEquals("home: the how item", HomeTexts.MENU_HOW_IT_WORKS, action(open, "home.drawer.item.how").text)
         assertEquals("home: the about item", HomeTexts.MENU_ABOUT, action(open, "home.drawer.item.about").text)
+        assertEquals("home: the sign-out item", HomeTexts.SIGN_OUT, action(open, "home.drawer.item.signout").text)
+        assertEquals("home: the sign-out tap", ScreenIntent.Home(HomeActions.SIGN_OUT_ASK), action(open, "home.drawer.item.signout").intent)
         assertEquals("home: the history tap", ScreenIntent.Home(HomeActions.HISTORY), action(open, "home.drawer.item.history").intent)
         assertEquals("home: the settings tap", ScreenIntent.Home(HomeActions.SETTINGS), action(open, "home.drawer.item.settings").intent)
         assertEquals("home: the how tap", ScreenIntent.Home(HomeActions.HOW_IT_WORKS), action(open, "home.drawer.item.how").intent)

@@ -23,4 +23,5 @@ internal data class HomeState(
     val line: String? = null,
     val recording: Boolean = false,
     val sessionLive: Boolean = true,
+    val confirmSignOut: Boolean = false,
 )

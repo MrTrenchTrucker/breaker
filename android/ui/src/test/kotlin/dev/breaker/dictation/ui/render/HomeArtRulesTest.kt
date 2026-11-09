@@ -50,7 +50,7 @@ class HomeArtRulesTest {
     )
     private val oldMicParts = listOf("MicArtDrawable", "breaker_mic_tile")
     private val bleedOpenParts = listOf("scroll.openForBleed() page = scroll")
-    private val stripesLastParts = listOf("add(BottomStripes(HomeNodeIds.STRIPES)) if (state.menuOpen) addAll(drawer())")
+    private val stripesLastParts = listOf("add(BottomStripes(HomeNodeIds.STRIPES)) if (state.menuOpen) addAll(drawer(state))")
     private val ruleParts = listOf("add(topBar()) add(Rule(HomeNodeIds.TOP_BAR_TRIM, PaletteSlot.ACCENT))")
     private val gapParts = listOf("add(Spacer(HomeNodeIds.GAP_MIC, Space.XL))")
 

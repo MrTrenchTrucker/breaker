@@ -34,6 +34,7 @@ open class AppLayoutGateRules {
         "wiring/CompositeLevelSink.kt", "wiring/HomeLevelFeed.kt", "wiring/LevelMap.kt", "wiring/LevelMeter.kt", "wiring/LevelFeed.kt", "wiring/LevelTap.kt", "wiring/NoiseFloor.kt",
         "wiring/AuthHttpAdapter.kt",
         "wiring/AuthServiceWiring.kt",
+        "wiring/SignOutHandler.kt",
         "wiring/ServerTargetWiring.kt",
         "wiring/SessionSeal.kt",
         "wiring/AesSessionSeal.kt",

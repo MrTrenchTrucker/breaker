@@ -65,8 +65,16 @@ internal class HomeScreen(private val format: TimestampFormat = TimestampFormat 
             }
             state.notice?.let { add(Label(HomeNodeIds.NOTICE, it, TypeRole.BODY, PaletteSlot.TEXT)) }
             state.line?.let { add(Label(HomeNodeIds.LINE, it, TypeRole.BODY, PaletteSlot.TEXT)) }
+            if (state.confirmSignOut) {
+                add(Box(HomeNodeIds.CONFIRM_BLOCK, PaletteSlot.SURFACE, pad = Space.L, gap = Space.S, children = buildList {
+                    add(Label(HomeNodeIds.CONFIRM_QUESTION, HomeTexts.SIGN_OUT_ASK, TypeRole.BODY, PaletteSlot.TEXT))
+                    add(Label(HomeNodeIds.CONFIRM_NOTE, HomeTexts.SIGN_OUT_NOTE, TypeRole.BODY, PaletteSlot.TEXT_MUTED))
+                    add(Action(HomeNodeIds.CONFIRM_SIGN_OUT, HomeTexts.SIGN_OUT, intent = ScreenIntent.Home(HomeActions.SIGN_OUT_CONFIRM), kit = KitLook.TEXT))
+                    add(Action(HomeNodeIds.CONFIRM_CANCEL, HomeTexts.CANCEL, intent = ScreenIntent.Home(HomeActions.CANCEL), kit = KitLook.TEXT))
+                }))
+            }
             add(BottomStripes(HomeNodeIds.STRIPES))
-            if (state.menuOpen) addAll(drawer())
+            if (state.menuOpen) addAll(drawer(state))
         },
     )
 
@@ -202,7 +210,7 @@ internal class HomeScreen(private val format: TimestampFormat = TimestampFormat 
      * wordmark, its accent rule, the four items as text rows and the three stripes. The host draws
      * the two as an overlay over the page.
      */
-    private fun drawer(): List<Node> = listOf(
+    private fun drawer(state: HomeState): List<Node> = listOf(
         Box(
             id = HomeNodeIds.DRAWER_DIM,
             background = PaletteSlot.BACKGROUND,
@@ -225,6 +233,9 @@ internal class HomeScreen(private val format: TimestampFormat = TimestampFormat 
                 add(Action(HomeNodeIds.DRAWER_SETTINGS, HomeTexts.MENU_SETTINGS, intent = ScreenIntent.Home(HomeActions.SETTINGS), kit = KitLook.TEXT))
                 add(Action(HomeNodeIds.DRAWER_HOW, HomeTexts.MENU_HOW_IT_WORKS, intent = ScreenIntent.Home(HomeActions.HOW_IT_WORKS), kit = KitLook.TEXT))
                 add(Action(HomeNodeIds.DRAWER_ABOUT, HomeTexts.MENU_ABOUT, intent = ScreenIntent.Home(HomeActions.ABOUT), kit = KitLook.TEXT))
+                if (state.sessionLive) {
+                    add(Action(HomeNodeIds.DRAWER_SIGN_OUT, HomeTexts.SIGN_OUT, intent = ScreenIntent.Home(HomeActions.SIGN_OUT_ASK), kit = KitLook.TEXT))
+                }
                 add(BottomStripes(HomeNodeIds.DRAWER_STRIPES, plain = true))
             },
         ),
@@ -264,7 +275,13 @@ internal object HomeNodeIds {
     const val DRAWER_SETTINGS = "home.drawer.item.settings"
     const val DRAWER_HOW = "home.drawer.item.how"
     const val DRAWER_ABOUT = "home.drawer.item.about"
+    const val DRAWER_SIGN_OUT = "home.drawer.item.signout"
     const val DRAWER_STRIPES = "home.drawer.stripe"
     const val SIGNED_OUT = "home.signedout.notice"
     const val SIGN_IN = "home.signedout.signin"
+    const val CONFIRM_BLOCK = "home.confirm.block"
+    const val CONFIRM_QUESTION = "home.confirm.question"
+    const val CONFIRM_NOTE = "home.confirm.note"
+    const val CONFIRM_SIGN_OUT = "home.confirm.signout"
+    const val CONFIRM_CANCEL = "home.confirm.cancel"
 }

@@ -79,7 +79,8 @@ private const val SETTLED_HOME = "fun createHomeView(context: android.content.Co
     "usableHeightDp: Float, " +
     "onShownMode: (dev.breaker.shared.tokens.ThemeMode) -> Unit, " +
     "sessionLive: () -> Boolean, " +
-    "onSignIn: () -> Unit): android.view.View"
+    "onSignIn: () -> Unit, " +
+    "onSignOut: () -> Unit): android.view.View"
 
 /** The home control, as written in its file. */
 private const val SETTLED_HOME_CONTROL = "interface HomeControl"

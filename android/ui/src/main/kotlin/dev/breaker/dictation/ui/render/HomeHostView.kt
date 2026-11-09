@@ -88,6 +88,7 @@ internal class HomeHostView(
     private val renderer: ScreenRenderer,
     private val sessionLive: () -> Boolean,
     private val onSignIn: () -> Unit,
+    private val onSignOut: () -> Unit,
 ) : FrameLayout(context), HomeControl {
     /** The page: the screen's rows and their bleed layers, scrolled as one. Made in init. */
     private var page: ScrollView? = null
@@ -98,13 +99,14 @@ internal class HomeHostView(
     /** The top inset the host was padded by, kept for the top of the drawer's panel. */
     private var panelTop: Int = 0
 
-    /** The drawer's own actions: the four items and the dim. Any other tap while the menu is open only closes it. */
+    /** The drawer's own actions: the items, the sign-out row and the dim. Any other tap while the menu is open only closes it. */
     private val drawerActions = setOf(
         HomeActions.HISTORY,
         HomeActions.SETTINGS,
         HomeActions.HOW_IT_WORKS,
         HomeActions.ABOUT,
         HomeActions.CLOSE_MENU,
+        HomeActions.SIGN_OUT_ASK,
     )
 
     /** The screen drawn last, so the drawer's state can be carried into the next drawing. */
@@ -274,6 +276,7 @@ internal class HomeHostView(
             HomeActions.ABOUT -> onAbout()
             HomeActions.MIC -> if (state.menuOpen) onIntent(ScreenIntent.Home(HomeActions.CLOSE_MENU)) else onTap()
             HomeActions.SIGN_IN -> onSignIn()
+            HomeActions.SIGN_OUT_CONFIRM -> onSignOut()
         }
     }
 

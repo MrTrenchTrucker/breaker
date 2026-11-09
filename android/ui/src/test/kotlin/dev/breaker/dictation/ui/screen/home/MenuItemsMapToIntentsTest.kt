@@ -30,21 +30,30 @@ import org.junit.Test
  */
 class MenuItemsMapToIntentsTest {
     private val screen = HomeScreen(TimestampFormat { it.toString() })
-    private val open = HomeState(menuOpen = true)
+    private val openLive = HomeState(menuOpen = true, sessionLive = true)
+    private val openSignedOut = HomeState(menuOpen = true, sessionLive = false)
 
-    /** The rows in the order of the picture: the row id, the words of the screen it opens, and its intent. */
-    private val rows: List<Triple<String, String, ScreenIntent>> = listOf(
+    /** The four rows that are always drawn, in the order of the picture: the row id, the words of the screen it opens, and its intent. */
+    private val baseRows: List<Triple<String, String, ScreenIntent>> = listOf(
         Triple(HomeNodeIds.DRAWER_HISTORY, HistoryTexts.TITLE, ScreenIntent.Home(HomeActions.HISTORY)),
         Triple(HomeNodeIds.DRAWER_SETTINGS, SettingsScreen.TITLE, ScreenIntent.Home(HomeActions.SETTINGS)),
         Triple(HomeNodeIds.DRAWER_HOW, HowItWorksTexts.TITLE, ScreenIntent.Home(HomeActions.HOW_IT_WORKS)),
         Triple(HomeNodeIds.DRAWER_ABOUT, AboutTexts.TITLE, ScreenIntent.Home(HomeActions.ABOUT)),
     )
 
+    /** The sign-out row: drawn after the four, and only while the session is live. Its tap asks first; it does not sign out. */
+    private val signOutRow: Triple<String, String, ScreenIntent> =
+        Triple(HomeNodeIds.DRAWER_SIGN_OUT, HomeTexts.SIGN_OUT, ScreenIntent.Home(HomeActions.SIGN_OUT_ASK))
+
+    /** The rows expected in the drawer: the four, and the sign-out row while the session is live. */
+    private fun rows(live: Boolean): List<Triple<String, String, ScreenIntent>> =
+        if (live) baseRows + signOutRow else baseRows
+
     private val hostText: String by lazy { mainSourceOf("render/HomeHostView.kt") }
 
     private val hostMapping = Regex("""HomeActions\.([A-Z_]+) -> (on[A-Za-z]+)\(\)""")
 
-    private fun drawnNodes(): List<Node> = screen.render(open).nodes
+    private fun drawnNodes(state: HomeState): List<Node> = screen.render(state).nodes
 
     /** The text rows of the drawer panel in [nodes], in order. */
     private fun rowsOf(nodes: List<Node>): List<Action> {
@@ -70,16 +79,16 @@ class MenuItemsMapToIntentsTest {
     )
 
     /** The drawer rows are exactly the four of the picture, in order. */
-    private fun orderProblems(nodes: List<Node>): List<String> {
+    private fun orderProblems(nodes: List<Node>, live: Boolean = true): List<String> {
         val ids = rowsOf(nodes).map { it.id }
-        val expected = rows.map { it.first }
+        val expected = rows(live).map { it.first }
         return if (ids == expected) emptyList() else listOf("the drawer rows are $ids, expected $expected")
     }
 
     /** Each row reports the intent of its own screen, and no two rows report the same intent. */
-    private fun intentProblems(nodes: List<Node>): List<String> {
+    private fun intentProblems(nodes: List<Node>, live: Boolean = true): List<String> {
         val byId = rowsOf(nodes).associateBy { it.id }
-        val problems = rows.mapNotNull { (id, _, intent) ->
+        val problems = rows(live).mapNotNull { (id, _, intent) ->
             val row = byId[id]
             when {
                 row == null -> "the row $id is missing"
@@ -92,9 +101,9 @@ class MenuItemsMapToIntentsTest {
     }
 
     /** Each row keeps the words of the screen it opens. */
-    private fun wordProblems(nodes: List<Node>): List<String> {
+    private fun wordProblems(nodes: List<Node>, live: Boolean = true): List<String> {
         val byId = rowsOf(nodes).associateBy { it.id }
-        return rows.mapNotNull { (id, words, _) ->
+        return rows(live).mapNotNull { (id, words, _) ->
             val row = byId[id]
             when {
                 row == null -> "the row $id is missing"
@@ -108,7 +117,7 @@ class MenuItemsMapToIntentsTest {
     private fun tapProblems(expected: List<Triple<String, String, ScreenIntent>>): List<String> =
         expected.mapNotNull { (id, _, intent) ->
             val handler = HomeIntentHandler(screen)
-            handler.show(open)
+            handler.show(openLive)
             val reported = handler.intentFor(id)
             val after = handler.tap(id)
             when {
@@ -146,23 +155,61 @@ class MenuItemsMapToIntentsTest {
 
     @Test
     fun `the menu has exactly the four text rows of the picture, in order`() {
-        val nodes = drawnNodes()
-        assertEquals("the drawer rows", emptyList<String>(), orderProblems(nodes))
-        assertTrue("a fifth row is reported", orderProblems(withPanel(nodes) { it + extraRow() }).isNotEmpty())
+        val liveNodes = drawnNodes(openLive)
+        val signedOutNodes = drawnNodes(openSignedOut)
+        assertEquals("the live drawer rows", emptyList<String>(), orderProblems(liveNodes))
+        assertEquals("the signed-out drawer rows", emptyList<String>(), orderProblems(signedOutNodes, live = false))
+        assertTrue("a fifth row is reported", orderProblems(withPanel(liveNodes) { it + extraRow() }).isNotEmpty())
         assertTrue(
             "a dropped About row is reported",
-            orderProblems(withPanel(nodes) { children -> children.filterNot { it.id == HomeNodeIds.DRAWER_ABOUT } }).isNotEmpty(),
+            orderProblems(withPanel(liveNodes) { children -> children.filterNot { it.id == HomeNodeIds.DRAWER_ABOUT } }).isNotEmpty(),
         )
         assertEquals(
             "a rule added to the panel is not a row",
             emptyList<String>(),
-            orderProblems(withPanel(nodes) { it + Rule("home.drawer.quiet", PaletteSlot.ACCENT) }),
+            orderProblems(withPanel(liveNodes) { it + Rule("home.drawer.quiet", PaletteSlot.ACCENT) }),
         )
     }
 
     @Test
+    fun `the sign-out row is drawn only while live`() {
+        val liveNodes = drawnNodes(openLive)
+        val signedOutNodes = drawnNodes(openSignedOut)
+        val liveRows = rowsOf(liveNodes).map { it.id }
+        val signedOutRows = rowsOf(signedOutNodes).map { it.id }
+        assertTrue("the live drawer has the sign-out row", liveRows.contains(HomeNodeIds.DRAWER_SIGN_OUT))
+        assertTrue("the signed-out drawer does not have the sign-out row", HomeNodeIds.DRAWER_SIGN_OUT !in signedOutRows)
+        assertEquals("the signed-out drawer keeps the four intents", emptyList<String>(), intentProblems(signedOutNodes, live = false))
+        assertEquals("the signed-out drawer keeps the four words", emptyList<String>(), wordProblems(signedOutNodes, live = false))
+    }
+
+    @Test
+    fun `a tap on the sign-out row opens the confirm and closes the menu`() {
+        val handler = HomeIntentHandler(screen)
+        handler.show(openLive)
+        assertEquals("the row reports the ask", ScreenIntent.Home(HomeActions.SIGN_OUT_ASK), handler.intentFor(HomeNodeIds.DRAWER_SIGN_OUT))
+        val after = handler.tap(HomeNodeIds.DRAWER_SIGN_OUT)
+        assertTrue("the confirm block is drawn", after.nodes.any { it.id == HomeNodeIds.CONFIRM_BLOCK })
+        assertTrue("the menu is closed", after.nodes.none { it.id == HomeNodeIds.DRAWER_PANEL })
+    }
+
+    @Test
+    fun `the host lets the intent of every drawer row through while the menu is open`() {
+        val code = withoutCommentsAndStrings(hostText)
+        val listed = Regex("""drawerActions\s*=\s*setOf\(([^)]*)\)""").find(code)?.groupValues?.get(1)
+        assertTrue("the host has a drawerActions set", listed != null)
+        for ((id, _, intent) in rows(true)) {
+            val action = (intent as ScreenIntent.Home).action
+            assertTrue(
+                "the host drops the intent of $id while the menu is open, so the tap only closes the menu",
+                listed!!.contains("HomeActions.$action"),
+            )
+        }
+    }
+
+    @Test
     fun `each menu row reports the intent of its own screen and no two rows share one`() {
-        val nodes = drawnNodes()
+        val nodes = drawnNodes(openLive)
         assertEquals("the intents", emptyList<String>(), intentProblems(nodes))
         val settings = changeRow(nodes, HomeNodeIds.DRAWER_SETTINGS) { it.copy(intent = ScreenIntent.Home(HomeActions.HISTORY)) }
         assertTrue("a Settings row that reports History is reported", intentProblems(settings).isNotEmpty())
@@ -177,7 +224,7 @@ class MenuItemsMapToIntentsTest {
 
     @Test
     fun `each menu row keeps the words of the screen it opens`() {
-        val nodes = drawnNodes()
+        val nodes = drawnNodes(openLive)
         assertEquals("the words", emptyList<String>(), wordProblems(nodes))
         val about = changeRow(nodes, HomeNodeIds.DRAWER_ABOUT) { it.copy(text = HomeTexts.MENU_HOW_IT_WORKS) }
         assertTrue("an About row with the How it works words is reported", wordProblems(about).isNotEmpty())
@@ -192,16 +239,16 @@ class MenuItemsMapToIntentsTest {
 
     @Test
     fun `a tap on each menu row closes the menu and reports the intent of its own screen`() {
-        assertEquals("the taps", emptyList<String>(), tapProblems(rows))
-        val wrongIntent = rows.map { if (it.first == HomeNodeIds.DRAWER_SETTINGS) it.copy(third = ScreenIntent.Home(HomeActions.ABOUT)) else it }
+        assertEquals("the live taps", emptyList<String>(), tapProblems(rows(true)))
+        val wrongIntent = rows(true).map { if (it.first == HomeNodeIds.DRAWER_SETTINGS) it.copy(third = ScreenIntent.Home(HomeActions.ABOUT)) else it }
         assertTrue("a Settings tap that reports About is reported", tapProblems(wrongIntent).isNotEmpty())
-        val unknownRow = rows.map { if (it.first == HomeNodeIds.DRAWER_ABOUT) it.copy(first = "home.drawer.item.none") else it }
+        val unknownRow = rows(true).map { if (it.first == HomeNodeIds.DRAWER_ABOUT) it.copy(first = "home.drawer.item.none") else it }
         assertTrue("a row the handler does not know is reported", tapProblems(unknownRow).isNotEmpty())
     }
 
     @Test
     fun `the home host asks for each menu screen once, and the menu intents match the rows`() {
-        val rowCount = rowsOf(drawnNodes()).size
+        val rowCount = rowsOf(drawnNodes(openLive)).size
         assertEquals("the host", emptyList<String>(), hostProblems(hostText, rowCount))
         val fifth = edit("fifth menu intent", hostText, "HomeActions.ABOUT -> onAbout()", "HomeActions.ABOUT -> onAbout()\n            HomeActions.HIDE -> onHide()")
         assertTrue("a fifth menu intent is reported", hostProblems(fifth, rowCount).isNotEmpty())
