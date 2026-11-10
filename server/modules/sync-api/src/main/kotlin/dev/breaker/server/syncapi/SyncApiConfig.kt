@@ -10,6 +10,7 @@ internal class SyncApiConfig(
     val internalHost: String,
     val internalPort: Int,
     val serviceKeyFile: String,
+    val manifestFile: String,
 ) {
 
     companion object {
@@ -19,6 +20,7 @@ internal class SyncApiConfig(
         const val ENV_INTERNAL_HOST = "BREAKER_SYNC_API_INTERNAL_HOST"
         const val ENV_INTERNAL_PORT = "BREAKER_SYNC_API_INTERNAL_PORT"
         const val ENV_SERVICE_KEY_FILE = "BREAKER_SYNC_API_SERVICE_KEY_FILE"
+        const val ENV_MANIFEST_FILE = "BREAKER_SYNC_API_MANIFEST_FILE"
         const val DEFAULT_HOST = "127.0.0.1"
         private const val DEFAULT_PORT = 8080
         private const val DEFAULT_INTERNAL_HOST = "127.0.0.1"
@@ -39,8 +41,9 @@ internal class SyncApiConfig(
             val internalPort = parseInternalPort(env[ENV_INTERNAL_PORT])
             val dbPath = parseDbPath(env[ENV_DB])
             val serviceKeyFile = parseServiceKeyFile(env[ENV_SERVICE_KEY_FILE], dbPath)
+            val manifestFile = parseManifestFile(env[ENV_MANIFEST_FILE])
             refuseSameListener(host, port, internalHost, internalPort)
-            return SyncApiConfig(host, port, dbPath, internalHost, internalPort, serviceKeyFile)
+            return SyncApiConfig(host, port, dbPath, internalHost, internalPort, serviceKeyFile, manifestFile)
         }
 
         private fun parseHost(raw: String?): String {
@@ -97,6 +100,15 @@ internal class SyncApiConfig(
             if (raw == null) return Paths.get(dbPath).resolveSibling(SERVICE_KEY_FILE_NAME).toString()
             require(raw.isNotBlank()) { "sync-api: $ENV_SERVICE_KEY_FILE is set but blank" }
             refuseInvalidPathText(ENV_SERVICE_KEY_FILE, raw)
+            return raw
+        }
+
+        // The manifest file path: unset (null) means no release yet (empty string),
+        // set-but-blank is refused, an invalid path text is refused like the key file.
+        private fun parseManifestFile(raw: String?): String {
+            if (raw == null) return ""
+            require(raw.isNotBlank()) { "sync-api: $ENV_MANIFEST_FILE is set but blank" }
+            refuseInvalidPathText(ENV_MANIFEST_FILE, raw)
             return raw
         }
 
