@@ -110,6 +110,32 @@ internal class TokenStoreIssueAgentTest : TempDatabaseTest() {
     }
 
     @Test
+    fun `an expiry too far from 1970 for a millisecond count is refused and stores nothing`() {
+        // Instant.parse reads years up to 1,000,000,000; toEpochMilli fails after 17 August of year 292,278,994.
+        val tooFar = Instant.parse("+292278995-01-01T00:00:00Z")
+        assertRefused("the first year past the Long millisecond range (limit is August of year 292278994)", IssueResult.InvalidExpiry) {
+            issue(userId, expiresAt = tooFar)
+        }
+        assertRefused("the last instant of Instant", IssueResult.InvalidExpiry) { issue(userId, expiresAt = Instant.MAX) }
+        assertRefused("the first instant of Instant", IssueResult.InvalidExpiry) { issue(userId, expiresAt = Instant.MIN) }
+    }
+
+    @Test
+    fun `the last expiry that fits a millisecond count is still issued`() {
+        val last = Instant.ofEpochMilli(Long.MAX_VALUE)
+        val issued = issuedOf(issue(userId, expiresAt = last))
+        assertEquals("sync-api: reported expiry", last, issued.expiresAt)
+        assertEquals("sync-api: stored expiry", Long.MAX_VALUE, expiryColumn(issued.tokenId))
+    }
+
+    @Test
+    fun `an expiry too far out of range is refused before the owner is looked up`() {
+        assertRefused("a range fault for an unknown owner", IssueResult.InvalidExpiry) {
+            issue(9999L, expiresAt = Instant.MAX)
+        }
+    }
+
+    @Test
     fun `an expiry must lie strictly after now to the millisecond`() {
         val now = clock.instant()
         assertRefused("an expiry equal to now", IssueResult.InvalidExpiry) { issue(userId, expiresAt = now) }

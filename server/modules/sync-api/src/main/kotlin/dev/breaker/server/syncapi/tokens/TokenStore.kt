@@ -74,7 +74,9 @@ internal open class TokenStore(
     ): IssueResult {
         if (!isValidLabel(label)) return IssueResult.InvalidLabel
         val nowMs = clock.millis()
-        val expiresAtMs: Long? = expiresAt?.toEpochMilli()
+        // An instant too far from 1970 for a millisecond count (Instant.parse reads years far past it) is a
+        // bad expiry, the same as one in the past: a refusal, not a failure of the store.
+        val expiresAtMs: Long? = if (expiresAt == null) null else millisOf(expiresAt) ?: return IssueResult.InvalidExpiry
         // An expiry equal to now is already dead: a token is dead AT its expiry instant.
         if (expiresAtMs != null && expiresAtMs <= nowMs) return IssueResult.InvalidExpiry
 
@@ -458,6 +460,15 @@ internal open class TokenStore(
 
     private companion object {
         const val MAX_LABEL_CODE_POINTS = 64
+
+        // The epoch milliseconds of [instant], or null when they do not fit a Long.
+        fun millisOf(instant: Instant): Long? =
+            try {
+                instant.toEpochMilli()
+            } catch (_: ArithmeticException) {
+                null
+            }
+
         // A session token expires after 30 days with no use; each authenticated use moves the
         // expiry to now + 30 days. A session row without an expiry gets one at its next use.
         val SESSION_IDLE_LIFETIME: Duration = Duration.ofDays(30)

@@ -248,6 +248,31 @@ internal class AdminCreateAgentTokenRouteTest : TempDatabaseTest() {
     }
 
     @Test
+    fun `expires_at too far from 1970 for a millisecond count returns 400 and stores nothing`() = runBlocking<Unit> {
+        val admin = register("alice", 1)
+        val adminSession = session(admin.accountId)
+        val before = TokenFixtures.tokenRowCount(temp)
+
+        testApplication {
+            application { adminCreateAgentTokenRoute(tokenStore) }
+            for (far in listOf("+292278995-01-01T00:00:00Z", "+999999999-12-31T23:59:59Z", "-999999999-01-01T00:00:00Z")) {
+                val response = client.post("/v1/admin/agent-tokens") {
+                    header("Authorization", bearer(adminSession.secret.reveal()))
+                    contentType(ContentType.Application.Json)
+                    setBody("""{"name":"x","owner_username":"alice","expires_at":"$far"}""")
+                }
+                assertEquals("status for $far", HttpStatusCode.BadRequest, response.status)
+                assertEquals(
+                    "body for $far",
+                    """{"error":"bad_request","message":"Invalid request body"}""",
+                    response.bodyAsText(),
+                )
+            }
+        }
+        assertEquals("no token row stored", before, TokenFixtures.tokenRowCount(temp))
+    }
+
+    @Test
     fun `expires_at that is not an instant returns 400`() = runBlocking<Unit> {
         val admin = register("alice", 1)
         val adminSession = session(admin.accountId)
