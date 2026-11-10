@@ -57,6 +57,7 @@ open class AppLayoutGateRules {
         "host/TakenClipboardAndroid.kt", "host/ActivityHelpers.kt",
         "host/SignInBrowser.kt", "host/HandoffReturnActivity.kt",
         "wiring/KeystoreSessionKey.kt",
+        "wiring/SyncAllowed.kt",
     )
 
     private val softCap: Int = 300

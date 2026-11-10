@@ -31,6 +31,7 @@ import dev.breaker.dictation.wiring.SyncWorker
 import dev.breaker.dictation.wiring.SyncingHistoryStore
 import dev.breaker.dictation.wiring.appMicSource
 import dev.breaker.dictation.wiring.appTextCommitter
+import dev.breaker.dictation.wiring.syncAllowed
 import java.io.File
 
 /**
@@ -111,13 +112,16 @@ class BreakerApp : android.app.Application() {
         )
     }
 
+    /** One decision, read once: is sync allowed in this build. Release = false, debug = true. */
+    private val syncOn: Boolean by lazy { syncAllowed(applicationInfo.flags) }
+
     /** The store every save caller reaches: the real store wrapped by the sync decorator. */
     private val decoratedHistoryStore: SyncingHistoryStore by lazy {
         SyncingHistoryStore(inner = history, syncService = syncService, worker = syncWorker)
     }
 
-    /** The app's history: the decorated store, so both save callers enqueue after a save. */
-    val historyStore: HistoryStore get() = decoratedHistoryStore
+    /** The app's history: the plain store in release, the decorated store in debug. */
+    val historyStore: HistoryStore get() = if (syncOn) decoratedHistoryStore else history
 
     /**
      * Switches the microphone service on and off. Built on first use, after the
@@ -194,12 +198,12 @@ class BreakerApp : android.app.Application() {
             tileHost.onArmedChanged(armed)
         }
         // Start the sync worker at app start: a drain runs after every save, at app start and on the backoff timer.
-        syncWorker.onStart()
+        if (syncOn) syncWorker.onStart()
     }
 
     override fun onTerminate() {
         super.onTerminate()
         // Stop the worker cleanly: no further triggers start a drain and a pending delayed run is cancelled.
-        syncWorker.stop()
+        if (syncOn) syncWorker.stop()
     }
 }

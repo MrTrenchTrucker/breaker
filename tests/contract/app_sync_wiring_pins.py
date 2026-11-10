@@ -165,13 +165,14 @@ class AppSyncWiringPinsTest(unittest.TestCase):
             "SyncingHistoryStore(inner = history, syncService = syncService, worker = syncWorker)",
         )
 
-    def test_getter_hands_out_the_decorated_store(self):
-        """The public historyStore getter returns the decorated store, never the raw SqliteHistoryStore."""
+    def test_getter_hands_out_the_decorated_store_only_when_sync_is_on(self):
+        """The public historyStore getter returns the decorated store only under syncOn, else the plain store."""
         code = self._code()
         self.assertIn(
-            "val historyStore: HistoryStore get() = decoratedHistoryStore",
+            "val historyStore: HistoryStore get() = if (syncOn) decoratedHistoryStore else history",
             code,
-            "wiring pin: the historyStore getter must hand out decoratedHistoryStore",
+            "wiring pin: the historyStore getter must be gated: "
+            "if (syncOn) decoratedHistoryStore else history",
         )
 
     def test_worker_is_built_with_the_live_pending_count(self):
