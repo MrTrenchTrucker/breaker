@@ -53,3 +53,5 @@ Honesty: the code accepts plain http for the configured server only (the address
 - How the website hands the login to the app; what protects the hand-off on plain http.
 - Whether and how the app trusts a user-installed certificate authority for the server address only.
 - How Android's cleartext block is lifted for the configured server only, given the server address is typed at run time.
+
+Update 2026-11-10 (ADR-041, proposed): the server reads the client address from the socket peer, and reads `X-Forwarded-For` only for proxies on an admin-set trusted-proxy list (default empty). Behind a proxy the admin has not listed, all clients share one per-address limit. The text above is unchanged: TLS is still the admin's choice through a reverse proxy.
