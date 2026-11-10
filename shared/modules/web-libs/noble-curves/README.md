@@ -19,12 +19,12 @@ Unmodified copies, pinned by hash. Used by web-fe's sealed box (ADR-040).
 | abstract/montgomery.js | 14721 | cdafa8816dad5a24475ec51952c5f71fdd5d1b46880ab982694c4f8ff605fc46 |
 | abstract/oprf.js | 18336 | 2ca36b3e4930092db1f91559410e86975816c036e248067bc65a8055aa1c504c |
 
-Abstract subtotal: 291910 bytes (10 files)
+Abstract subtotal: 238631 bytes (8 files)
 
 ## Source
 
 Tarball curves-2.4.0.tgz, sha256
-d9fb7975354ff5de28107eb17d65a543. ed448.js, bls12-381.js, bn254.js,
+55279c71b0201d6c0e58d0206d15825359e02a3932f326ba7b7909ac2d334aa9. ed448.js, bls12-381.js, bn254.js,
 nist.js, secp256k1.js, misc.js, index.js, webcrypto.js and the
 abstract/{bls,der,poseidon,tower,weierstrass} files are NOT vendored — not
 imported by the ed25519.js closure.

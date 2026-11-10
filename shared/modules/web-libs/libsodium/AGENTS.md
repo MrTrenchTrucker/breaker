@@ -18,14 +18,14 @@ ADR.
    4c94708f7e78eac7a32b29e2ce0ff96f4bd599d78c129f27bf8a061e20776c8c.
 
 2. libsodium-wrappers.mjs — the friendly API built on top of the sumo core.
-   Line 1: `import e from "libsodium-sumo";` — imports the sumo core by BARE
+   Line 1: `import e from"libsodium-sumo";` — imports the sumo core by BARE
    specifier. NOT self-contained: it cannot run without a module resolver that
    maps "libsodium-sumo" to the sumo file. Since it is never served, that is
    accepted; serving needs a new decision. Size 122029 bytes, sha256
    40de1ef7cb8f2caae02c2a8f04809151904fa28cb9364cadedc57af89a6c9284.
 
-The d.ts (libsodium-wrappers.d.ts) confirms: crypto_pwhash (lines 217-236),
-crypto_box_seal (line 955), crypto_box_seal_open (line 964).
+The upstream d.ts (libsodium-wrappers.d.ts, not vendored here) lists crypto_pwhash,
+crypto_box_seal and crypto_box_seal_open.
 
 ## Files
 
