@@ -8,18 +8,17 @@ at OUR server, signing key secured (never git) [1].
 
 **Build phase:** Phase 16. Needs first: `core` (on main) and the Phase 15 git-pull deploy pipeline (`server/modules/deploy`), because the update endpoint reads its tagged releases.
 
-**Status on main:** seven pieces are built, all internal, pure Kotlin, with tests in `src/test/kotlin`: the
+**Status on main:** eight pieces are built, all internal, pure Kotlin, with tests in `src/test/kotlin`: the
 due decision `UpdateSchedule.isDue(lastCheckAtMs, nowMs)`, the version order `UpdateOrder.isNewer`, the
-APK digest check `ApkDigest.matches`, the update decision `UpdateDecision.of` plus its manifest mapper
-`ReleaseMapper.toRelease`, and the check itself: `ManifestFetch` (asks the server for
-`GET /v1/updates/latest.json` through the app's one HTTP client, `android/modules/http`), `ManifestJson`
-(reads the six fields) and `UpdateCheck` (compares the version code and returns a `core.UpdateCheckResult`).
-A manifest that offers a newer code but has a blank field is reported as unusable, not hidden. Nothing else
-in this module is built: no download, no signature check, no install, no rollback, no schedule, and no
-class implements the `core.UpdateChecker` port yet (its install and rollback are not built); the wiring in
-`android/app` is owed. Everything below except those pieces is the target design, planned, not built. The
-server route `GET /v1/updates/latest.json` is built on the server and reads a manifest file (see the
-sync-api card).
+APK digest check `ApkDigest.matches` (and `matchesDigest`, over a digest that was computed while the
+bytes streamed), the update decision `UpdateDecision.of` plus its manifest mapper `ReleaseMapper.toRelease`,
+the check itself (`ManifestFetch`, `ManifestJson`, `UpdateCheck`, through the app's one HTTP client,
+`android/modules/http`), and the download of the APK (`ApkDownload`, below). A manifest that offers a newer
+code but has a blank field is reported as unusable, not hidden. Nothing else in this module is built: no
+signature check, no install, no rollback, no schedule, and no class implements the `core.UpdateChecker` port
+yet (its install and rollback are not built); the wiring in `android/app` is owed. Everything below except
+those pieces is the target design, planned, not built. The server route `GET /v1/updates/latest.json` is
+built on the server and reads a manifest file (see the sync-api card).
 
 **The check (built):** `UpdateCheck.check()` blocks, so the caller runs it off the UI thread, and it never
 throws. `ManifestFetch` sends one GET to the configured server address plus `/v1/updates/latest.json`
@@ -35,10 +34,20 @@ key, no text after it, `version_code` a plain whole number of 1 to 18 digits, at
 members it does not know, so a field the server adds later does not break an older phone. The installed
 version code and name are read from the app on every check.
 
-**Requirement for the download step (not built):** `apk_url` is untrusted text from the manifest and this
-module does not check it. The download may only fetch from the configured server address (same scheme,
-host and port as the server address) through the http module's address rule, never from another host, and
-never follow a redirect.
+**The download (built):** `ApkDownload(transport, serverUrl, destination).download(apkUrl, sha256)` blocks,
+so the caller runs it off the UI thread, and it never throws: the answer is `ApkDownloadResult.Downloaded(file)`
+or `ApkDownloadResult.Refused(reason)`, a fixed sentence of `ApkDownloadReasons` that holds no address, host,
+file name, digest or exception text. `apk_url` is untrusted text from the manifest, so it is checked before any
+connection: the scheme, the host and the effective port (80 for http, 443 for https when none is written) must
+be those of the configured server address, with no user info, and the transport's own address rule is a second
+gate; any other host or a relative or blank address is refused. The call is a GET with `Accept` only, 10 s
+connect, 30 s read and a reply cap of 268 435 456 bytes (ADR-030); a status other than 200 (a redirect is
+never followed), a known length over the cap, a digest that is not 64 hex digits and a destination whose folder
+is missing are refused before a byte is stored. The body streams into a `.part` file beside the destination,
+the SHA-256 is computed on the way (the APK is never held in memory), and only when it equals the manifest
+digest is the `.part` file moved over the destination in one atomic move. On every other path (a mismatch, a
+short or dropped body, the cap, any error) the `.part` file is deleted and an old destination is left as it
+was. No signature check and no install: a downloaded file is only as trusted as its digest.
 
 ## Owns
 Daily update check + admin force-check, signed APK verify, rollback.
@@ -89,7 +98,7 @@ Daily update check + admin force-check, signed APK verify, rollback.
 - APK signing (server/deploy)
 
 ## Test Locations
-- Unit (Kotlin): `android/modules/updater/src/test/kotlin/` (`UpdateScheduleTest`, `UpdateOrderTest`, `ApkDigestTest`, `UpdateDecisionTest`, `ReleaseMapperTest`, `ManifestJsonTest`, `ManifestFetchTest`, `UpdateCheckTest`). Run: `./gradlew :android:modules:updater:test`
+- Unit (Kotlin): `android/modules/updater/src/test/kotlin/` (`UpdateScheduleTest`, `UpdateOrderTest`, `ApkDigestTest`, `UpdateDecisionTest`, `ReleaseMapperTest`, `ManifestJsonTest`, `ManifestFetchTest`, `UpdateCheckTest`, `ApkDownloadTest`). Run: `./gradlew :android:modules:updater:test`
 - Contract: `tests/contract/test_updater_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_updater_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
