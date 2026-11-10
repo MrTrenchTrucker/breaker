@@ -5,6 +5,8 @@ info:
     The transcription-job contract: enqueue an audio transcription job, poll its
     status and result, and check service health. This is the single contract both
     the Android client (stt-server) and the server (whisper-server) implement.
+    An operation marked `x-status: planned` is part of the contract but is not
+    built yet: no server installs it.
   version: "1.0.0"
 paths:
   /v1/audio/transcriptions:
@@ -164,9 +166,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-              # NOTE (pre-existing shape mismatch, out of scope for this slice and NOT fixed here): the
-              # server's real 404 body is the single-field object {"error":"unknown or expired"} with no
-              # `message`, so it does not match the two-field Error schema above. Flagged, not restructured.
+              # The real 404 body is the single-field object {"error":"unknown or expired"}; it is valid
+              # because the Error schema requires only `error` (`message` is optional).
               example:
                 error: "unknown or expired"
                 message: "The job id is unknown, or its result has passed its retention window"
@@ -1760,6 +1761,7 @@ paths:
         assigns the admin role to a fresh account so it can bootstrap; revoke
         it to demote a former admin back to user.
       operationId: adminSetRole
+      x-status: planned
       security:
         - bearerAuth: []
       requestBody:
@@ -1806,6 +1808,7 @@ paths:
         Admin-only, unauthenticated-health-safe. Reports the in-process status
         (ready, starting up, degraded) and the released GIT tag that built it.
       operationId: adminHealth
+      x-status: planned
       security:
         - bearerAuth: []
       responses:
@@ -1844,6 +1847,7 @@ paths:
         api_key_set — a boolean reporting whether an API key is stored. The key
         value itself is never returned here.
       operationId: adminGetTranscriptionService
+      x-status: planned
       security:
         - bearerAuth: []
       responses:
@@ -1883,6 +1887,7 @@ paths:
         optional and write-only — omit it or send null to leave the stored key
         unchanged. The returned resource never echoes the key.
       operationId: adminPutTranscriptionService
+      x-status: planned
       security:
         - bearerAuth: []
       requestBody:
@@ -1936,6 +1941,7 @@ paths:
         network attempt, so an unparseable or disallowed base_url fails fast
         without contacting hostnames the admin did not intend to reach.
       operationId: adminTestService
+      x-status: planned
       security:
         - bearerAuth: []
       responses:
@@ -2445,6 +2451,7 @@ paths:
         crypto_box_seal output, and the owner's client converts either kind
         the same way.
       operationId: listPendingSealed
+      x-status: planned
       security:
         - bearerAuth: []
       responses:
@@ -2630,20 +2637,22 @@ components:
           description: The text of this segment
     Health:
       type: object
+      description: >-
+        The body both servers satisfy: `status` is required. A server may add the
+        optional fields below (whisper-server sends both).
       required:
         - status
-        - forwarding_to
-        - uptime
+      additionalProperties: true
       properties:
         status:
           type: string
           description: The health status ("ok", "degraded", etc.)
         forwarding_to:
           type: string
-          description: The upstream service being forwarded to
+          description: Optional. The upstream service being forwarded to
         uptime:
           type: string
-          description: How long the service has been running
+          description: Optional. How long the service has been running
     RegisterRequest:
       type: object
       required:

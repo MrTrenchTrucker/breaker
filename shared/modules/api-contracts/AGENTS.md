@@ -17,7 +17,7 @@ request/response types (ADR-017): the single contract both the Android client (`
   ways in the Kotlin type); `POST` 202 status is `queued` only. `result` is
   set exactly when status is `done` (enforced both ways in the Kotlin type,
   like `error`).
-- `GET /health` — `{ status, forwarding_to, uptime }`
+- `GET /health` — `{ status }`; `forwarding_to` and `uptime` are optional (whisper-server sends both)
 - (v1.1) `POST /v1/audio/transcriptions/stream` — SSE partial segments
 
 There is no synchronous 200-with-body variant — every transcription is a job.
