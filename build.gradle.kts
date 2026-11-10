@@ -16,3 +16,10 @@ plugins {
     alias(libs.plugins.android.library) apply false
     alias(libs.plugins.kotlin.jvm) apply false
 }
+
+// Every module applies the shared test-input helper (data-driven, see
+// gradle/test-reads-repo-files.gradle.kts). Entries set by each module are
+// repo-root-relative paths resolved against the root project directory.
+subprojects {
+    apply(from = rootProject.file("gradle/test-reads-repo-files.gradle.kts"))
+}

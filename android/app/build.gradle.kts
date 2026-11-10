@@ -89,3 +89,21 @@ dependencies {
 
     testImplementation(libs.junit)
 }
+
+// Test-read repo files declared as Gradle inputs (helper: gradle/test-reads-repo-files.gradle.kts,
+// applied from the root build; paths are relative to the repository root).
+extra["repoFileInputs"] = listOf(
+    "settings.gradle.kts",
+    "android/app/build.gradle.kts",
+    "android/app/src/main/AndroidManifest.xml",
+    "android/modules/commit/accessibility/build.gradle.kts",
+    "android/modules/commit/accessibility/src/main/AndroidManifest.xml",
+    "android/modules/stt-server/src/main/kotlin/dev/breaker/dictation/stt/server/FailureSentences.kt",
+    "docs/brand/breaker-icon.svg",
+    "docs/brand/breaker-mic-tile.svg",
+    "docs/brand/breaker-logo-dark.svg",
+    "docs/brand/breaker-logo-light.svg",
+)
+extra["repoFolderInputs"] = listOf(
+    "android/modules",
+)

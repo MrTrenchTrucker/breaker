@@ -39,3 +39,9 @@ dependencies {
 
     testImplementation(libs.junit)
 }
+
+// Test-read repo files declared as Gradle inputs (helper: gradle/test-reads-repo-files.gradle.kts,
+// applied from the root build; paths are relative to the repository root).
+extra["repoFolderInputs"] = listOf(
+    "android/app",
+)

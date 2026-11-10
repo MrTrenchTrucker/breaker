@@ -47,3 +47,9 @@ tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
         events("passed", "skipped", "failed")
     }
 }
+
+// Test-read repo files declared as Gradle inputs (helper: gradle/test-reads-repo-files.gradle.kts,
+// applied from the root build; paths are relative to the repository root).
+extra["repoFileInputs"] = listOf(
+    "shared/modules/format-prompts/prompts/format-v2.md",
+)
