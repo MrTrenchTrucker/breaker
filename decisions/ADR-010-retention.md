@@ -17,7 +17,7 @@ Failed jobs auto-retry 3× at 10 s. Admins can clear the store per-user or for
 all users; each user can delete their own transcriptions one-by-one or
 delete-all.
 
-**Precise rule (phone and server identical):** a transcription expires when its `created_at` instant is more than 90 days (90 x 24 h) before the purge's current instant. A row exactly at the cutoff is kept. Both sides compute on UTC instants, with no time zone and no calendar months, so the phone and the server always agree on which rows are gone. "3 months" in this ADR and in F28 means this rule.
+**Precise rule:** a transcription expires when its clock instant (phone: `created_at`; server: `stored_at_ms`, the time of the row's last write) is more than 90 days (90 x 24 h) before the purge's current instant. A row exactly at the cutoff is kept. Both sides compute on UTC instants, with no time zone and no calendar months. The two sides use the same window but not the same rows: the server expires a row at the same time as the phone or later, never earlier. "3 months" in this ADR and in F28 means this rule.
 
 ## Reasons
 - Bounded storage, minimal audio exposure, user control over their own data.
