@@ -2,6 +2,7 @@ package dev.breaker.server.syncapi.auth
 
 import dev.breaker.server.syncapi.accounts.AccountStore
 import dev.breaker.server.syncapi.accounts.SaltLookup
+import dev.breaker.server.syncapi.escapeJsonString
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
@@ -42,8 +43,11 @@ internal fun Application.authSaltRoute(store: AccountStore) {
                 is SaltLookup.Found -> {
                     val saltB64 = Base64.getEncoder().encodeToString(result.salt)
                     val kdf = result.kdf
+                    val saltText = escapeJsonString(saltB64)
                     call.respondText(
-                        """{"salt":"$saltB64","kdf_params":{"memory_kib":${kdf.memoryKib},"iterations":${kdf.iterations},"parallelism":${kdf.parallelism}},"kdf_version":${result.kdfVersion}}""",
+                        "{\"salt\":" + saltText + ",\"kdf_params\":{\"memory_kib\":" + kdf.memoryKib +
+                            ",\"iterations\":" + kdf.iterations + ",\"parallelism\":" + kdf.parallelism +
+                            "},\"kdf_version\":" + result.kdfVersion + "}",
                         ContentType.Application.Json,
                         HttpStatusCode.OK,
                     )

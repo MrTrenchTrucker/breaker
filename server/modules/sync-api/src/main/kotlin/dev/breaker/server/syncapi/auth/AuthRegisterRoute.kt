@@ -4,6 +4,7 @@ import dev.breaker.server.syncapi.accounts.AccountStore
 import dev.breaker.server.syncapi.accounts.AuthVerifier
 import dev.breaker.server.syncapi.accounts.KdfParams
 import dev.breaker.server.syncapi.accounts.RegisterResult
+import dev.breaker.server.syncapi.escapeJsonString
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
@@ -26,12 +27,14 @@ internal sealed class RegisterResponse {
 
     data class Created(val username: String, val role: String) : RegisterResponse() {
         override val status: HttpStatusCode = HttpStatusCode.Created
-        override val body: String = """{"username":"$username","role":"$role"}"""
+        override val body: String =
+            "{\"username\":" + escapeJsonString(username) + ",\"role\":" + escapeJsonString(role) + "}"
     }
 
     data class BadRequest(val message: String) : RegisterResponse() {
         override val status: HttpStatusCode = HttpStatusCode.BadRequest
-        override val body: String = """{"error":"invalid_field","message":"$message"}"""
+        override val body: String =
+            "{\"error\":\"invalid_field\",\"message\":" + escapeJsonString(message) + "}"
     }
 
     object Conflict : RegisterResponse() {

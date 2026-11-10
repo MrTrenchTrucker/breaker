@@ -1,6 +1,7 @@
 package dev.breaker.server.syncapi.auth
 
 import dev.breaker.server.syncapi.accounts.StoredKeys
+import dev.breaker.server.syncapi.escapeJsonString
 import dev.breaker.server.syncapi.transcriptions.formatInstantMs
 import java.util.Base64
 
@@ -11,7 +12,19 @@ import java.util.Base64
  * for every key member and 0 for key_version. Login and the reset completion answer with it.
  */
 internal fun buildLoginResponse(role: String, sessionText: String, keys: StoredKeys): String {
-    return """{"token":"$sessionText","role":"$role","wrapped_dek":${bytesMember(keys.wrappedDek)},"wrapped_box_privkey":${bytesMember(keys.wrappedBoxPrivkey)},"box_pubkey":${bytesMember(keys.boxPubkey)},"key_version":${keys.keyVersion},"prev_wrapped_dek":${bytesMember(keys.prevWrappedDek)},"reset_at":${instantMember(keys.resetAtMs)},"rekeyed_at":${instantMember(keys.rekeyedAtMs)}}"""
+    val token = escapeJsonString(sessionText)
+    val roleText = escapeJsonString(role)
+    val wrappedDek = bytesMember(keys.wrappedDek)
+    val wrappedBoxPrivkey = bytesMember(keys.wrappedBoxPrivkey)
+    val boxPubkey = bytesMember(keys.boxPubkey)
+    val prevWrappedDek = bytesMember(keys.prevWrappedDek)
+    val resetAt = instantMember(keys.resetAtMs)
+    val rekeyedAt = instantMember(keys.rekeyedAtMs)
+    return "{\"token\":" + token + ",\"role\":" + roleText +
+        ",\"wrapped_dek\":" + wrappedDek + ",\"wrapped_box_privkey\":" + wrappedBoxPrivkey +
+        ",\"box_pubkey\":" + boxPubkey + ",\"key_version\":" + keys.keyVersion +
+        ",\"prev_wrapped_dek\":" + prevWrappedDek + ",\"reset_at\":" + resetAt +
+        ",\"rekeyed_at\":" + rekeyedAt + "}"
 }
 
 // The base64 alphabet needs no JSON escaping.
