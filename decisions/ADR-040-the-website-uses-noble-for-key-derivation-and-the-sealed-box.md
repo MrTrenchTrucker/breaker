@@ -1,6 +1,6 @@
 # ADR-040: The website uses noble for key derivation and the sealed box
 
-**Status:** accepted
+**Status:** accepted, amended 2026-11-10 (the measured phone timing replaces the 'a few seconds' expectation)
 **Date:** 2026-11-10
 **Approved by:** the project owner, typed 2026-11-10
 
@@ -35,15 +35,18 @@ The website uses the noble libraries:
 - Plain JavaScript that a person can read. `@noble/ciphers` and `@noble/curves` have an independent audit.
   The authors of `@noble/hashes` list Argon2 as not covered by it.
 - The cost is time, once per sign-in. Argon2id at our setting measured about 0.8 seconds in Node on the
-  project server's CPU; a phone browser is expected to take a few seconds. Opening items afterwards uses
+  project server's CPU; a phone browser took 486 ms (median; noble-hashes 2.4.0, Argon2id at 64 MiB, 3
+  passes, 1 lane: three runs on the project owner's phone, 540, 486 and 483 ms; at 32 MiB, 558, 524 and
+  522 ms; one phone and one browser, no more devices were measured). Opening items afterwards uses
   AES-GCM and is fast. The heavy step does not run on a click.
 - libsodium.js stays a known, checked fallback: the project's own review found it safe to adopt on 2026-11-05.
 
 ## Consequences
 
-- The first web task is a timing of Argon2id on a real phone browser. If it comes out too slow to live
-  with, a new ADR supersedes this one and libsodium.js goes in behind the same wrapper, with the policy
-  line it needs.
+- The first web task is done: Argon2id was timed on a real phone browser (median 486
+  ms at 64 MiB, one phone, one browser). At this speed the decision stands; a slower
+  device would be a reason to reopen it - then a new ADR supersedes this one and
+  libsodium.js goes in behind the same wrapper, with the policy line it needs.
 - The website has no WebAssembly and the policy stays as it is.
 - The sealed box is composed from parts, so its code is pinned to the shared test vector of the phone
   side (`SignInPackageTest`), and a mismatch fails the build.

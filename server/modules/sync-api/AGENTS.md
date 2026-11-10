@@ -373,8 +373,11 @@ A route or job marked Planned, not built below is not installed on main yet.
   killing the schedule or echoing data. `nowMs` is read from the clock at each batch. It starts inside the existing
   sweep job in `SyncApiMain.kt` beside the token sweep and stops inside `stopSweep`, before the database
   closes, exactly once. Live rows only, by `stored_at_ms`, never raises `purged_through`, never touches a
-  delete record or another account. Phone retention tombstones reaching the server stay deferred
-  with the tombstone port.
+  delete record or another account. An account with no live session keeps its delete records until a
+  session exists and pulls; growth is bounded by that account's own expired rows, one delete record per
+  expired row. The job starts one hour after each server start and then every 24 hours; a server
+  restarted more often than hourly never runs it; deploys are rare.
+  Phone retention tombstones reaching the server stay deferred with the tombstone port.
 - **Log policy (F32):** events only, per-user — auth, admin actions, queue
   health. **Never plaintext transcriptions** (T22).
 - **Multi-admin config:** concurrent edits to the transcription service config
