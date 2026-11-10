@@ -44,11 +44,18 @@ internal fun Route.transcriptionRoutes(
 ) {
     post("/v1/audio/transcriptions") {
         // Auth first, before the upload is read: a refused token costs nothing but the header.
-        // The enqueue moves a live session token's expiry (use); a refused token is one plain 401.
-        val account = resolveAccount(call, tokenCheck::use)
-        if (account == null) {
-            respondError(call, HttpStatusCode.Unauthorized, "unauthorized")
-            return@post
+        // The enqueue moves a live session token's expiry (use); a refused token is one plain 401,
+        // an unavailable token check is one plain 503 ("unavailable", error-only body).
+        val account: AuthOutcome.Live = when (val auth = resolveAccount(call, tokenCheck::use)) {
+            is AuthOutcome.Refused -> {
+                respondError(call, HttpStatusCode.Unauthorized, "unauthorized")
+                return@post
+            }
+            is AuthOutcome.Unavailable -> {
+                respondError(call, HttpStatusCode.ServiceUnavailable, "unavailable")
+                return@post
+            }
+            is AuthOutcome.Live -> auth
         }
         // Rate limit after the token check and before the upload is read: a limited request
         // costs nothing but the header. Session tokens are never limited and create no counter.
@@ -114,11 +121,18 @@ internal fun Route.transcriptionRoutes(
 
     get("/v1/jobs/{job_id}") {
         // Auth first: the poll uses the read-only check (peek); a refused token is one plain 401,
-        // the same body as a not-live token, so the caller cannot tell which one happened.
-        val account = resolveAccount(call, tokenCheck::peek)
-        if (account == null) {
-            respondError(call, HttpStatusCode.Unauthorized, "unauthorized")
-            return@get
+        // an unavailable token check is one plain 503 ("unavailable"). The same body as a
+        // not-live token, so the caller cannot tell which refusal happened.
+        val account: AuthOutcome.Live = when (val auth = resolveAccount(call, tokenCheck::peek)) {
+            is AuthOutcome.Refused -> {
+                respondError(call, HttpStatusCode.Unauthorized, "unauthorized")
+                return@get
+            }
+            is AuthOutcome.Unavailable -> {
+                respondError(call, HttpStatusCode.ServiceUnavailable, "unavailable")
+                return@get
+            }
+            is AuthOutcome.Live -> auth
         }
         // Rate limit after the token check and before the job lookup: a limited GET must answer
         // 429 for an unknown job id too. Session tokens are never limited and create no counter.
@@ -168,31 +182,39 @@ internal fun Route.transcriptionRoutes(
     }
 }
 
-private data class Account(val accountId: Long, val token: String, val kind: String)
+/** The outcome of resolving the presented bearer token. `Refused` is one plain 401
+ * (missing header, bad scheme, empty token, not-live token). `Unavailable` is the
+ * token check itself failing: the route answers 503 and touches neither the upload
+ * nor the job store. */
+private sealed class AuthOutcome {
+    data class Live(val accountId: Long, val token: String, val kind: String) : AuthOutcome()
+    object Refused : AuthOutcome()
+    object Unavailable : AuthOutcome()
+}
 
 /**
- * The account the presented token resolves to, or null when the request must be refused.
- * The token comes from the Authorization header as `Bearer <token>`; a missing header, a
- * missing or empty token, a not-live token, and an unavailable check all answer null, so the
- * caller sees one plain 401 and cannot tell which of the four happened.
+ * What the presented token resolves to. The token comes from the Authorization header as
+ * `Bearer <token>`; a missing header, a missing or empty token and a not-live token are all
+ * Refused, so the caller sees one plain 401 and cannot tell which of the three happened. A
+ * check that could not be made is Unavailable.
  */
 private suspend fun resolveAccount(
     call: ApplicationCall,
     op: suspend (String) -> TokenAnswer,
-): Account? {
-    val header = call.request.headers["Authorization"] ?: return null
+): AuthOutcome {
+    val header = call.request.headers["Authorization"] ?: return AuthOutcome.Refused
     // The scheme is "Bearer" (case-insensitive per RFC 9110); the token is everything after
     // it, trimmed. Any other scheme, a missing scheme, or an empty token is refused, so the
     // caller sees one plain 401 and cannot tell which of the four happened.
     val schemeEnd = header.indexOf(' ')
-    if (schemeEnd <= 0) return null
-    if (!header.substring(0, schemeEnd).equals("Bearer", ignoreCase = true)) return null
+    if (schemeEnd <= 0) return AuthOutcome.Refused
+    if (!header.substring(0, schemeEnd).equals("Bearer", ignoreCase = true)) return AuthOutcome.Refused
     val presented = header.substring(schemeEnd + 1).trim()
-    if (presented.isEmpty()) return null
+    if (presented.isEmpty()) return AuthOutcome.Refused
     return when (val answer = op(presented)) {
-        is TokenAnswer.Live -> Account(answer.accountId, presented, answer.kind)
-        is TokenAnswer.NotLive -> null
-        is TokenAnswer.Unavailable -> null
+        is TokenAnswer.Live -> AuthOutcome.Live(answer.accountId, presented, answer.kind)
+        is TokenAnswer.NotLive -> AuthOutcome.Refused
+        is TokenAnswer.Unavailable -> AuthOutcome.Unavailable
     }
 }
 

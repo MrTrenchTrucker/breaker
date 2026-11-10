@@ -105,6 +105,15 @@ paths:
               # The example is the real 500 body (error only); Error schema message is not sent, as for 404.
               example:
                 error: "the upload could not be read"
+        "503":
+          description: "A failed token check (the token service cannot be reached) gets this answer, before the upload is read. The body is fixed and no part of the failure is echoed."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              # The example is the real 503 body (error only); Error schema message is not sent, as for 404.
+              example:
+                error: "unavailable"
   /v1/jobs/{job_id}:
     get:
       summary: Get job status and result
@@ -161,6 +170,15 @@ paths:
               example:
                 error: "unknown or expired"
                 message: "The job id is unknown, or its result has passed its retention window"
+        "503":
+          description: "A failed token check (the token service cannot be reached) gets this answer. The body is fixed and no part of the failure is echoed."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              # The example is the real 503 body (error only); Error schema message is not sent, as for 404.
+              example:
+                error: "unavailable"
         "429":
           description: >-
             Too many requests. Only agent tokens are limited, and only when the admin sets

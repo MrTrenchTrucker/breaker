@@ -76,18 +76,19 @@ internal class TranscriptionAuthTest {
     }
 
     @Test
-    fun `enqueue with an unavailable check is refused with 401`() {
+    fun `enqueue with an unavailable check is refused with 503`() {
         val store = openStore()
         val check = FakeTokenCheck { TokenAnswer.Unavailable }
         withTranscriptionApi(store, tokenCheck = check) { client ->
             val response = client.postBearer("/v1/audio/transcriptions", multipartBody(file = JobFixtures.audio(1), model = "m"), "any-token")
-            assertEquals(401, response.status.value)
-            assertEquals("""{"error":"unauthorized"}""", response.bodyAsText())
+            assertEquals(503, response.status.value)
+            assertEquals("""{"error":"unavailable"}""", response.bodyAsText())
+            assertTrue("nothing is enqueued when the token check is unavailable", store.get(1) == null)
         }
     }
 
     @Test
-    fun `a not-live token and an unavailable check give the same 401 body`() {
+    fun `a not-live token is 401 but an unavailable check is 503`() {
         val store = openStore()
         var notLiveBody = ""
         var unavailableBody = ""
@@ -97,8 +98,8 @@ internal class TranscriptionAuthTest {
         withTranscriptionApi(store, tokenCheck = FakeTokenCheck { TokenAnswer.Unavailable }) { client ->
             unavailableBody = client.postBearer("/v1/audio/transcriptions", multipartBody(file = JobFixtures.audio(1), model = "m"), "any").bodyAsText()
         }
-        assertEquals("one plain 401 body for every auth failure", notLiveBody, unavailableBody)
-        assertEquals("""{"error":"unauthorized"}""", notLiveBody)
+        assertEquals("not-live and unavailable answers differ", """{"error":"unauthorized"}""", notLiveBody)
+        assertEquals("unavailable answers 503 error-only", """{"error":"unavailable"}""", unavailableBody)
     }
 
     // ---- poll auth ----
@@ -146,12 +147,12 @@ internal class TranscriptionAuthTest {
     }
 
     @Test
-    fun `poll with an unavailable check is refused with 401`() {
+    fun `poll with an unavailable check is answered 503`() {
         val store = openStore()
         withTranscriptionApi(store, tokenCheck = FakeTokenCheck { TokenAnswer.Unavailable }) { client ->
             val response = client.get("/v1/jobs/1") { header("Authorization", "Bearer any") }
-            assertEquals(401, response.status.value)
-            assertEquals("""{"error":"unauthorized"}""", response.bodyAsText())
+            assertEquals(503, response.status.value)
+            assertEquals("""{"error":"unavailable"}""", response.bodyAsText())
         }
     }
 
