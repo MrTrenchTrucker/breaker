@@ -360,10 +360,10 @@ class CardMatchesCodeTest {
         assertTrue("the ADR has no '## Reasons' heading after its Decision", decisionEnd > decisionStart)
         val decision = collapsed(adr.substring(decisionStart, decisionEnd))
         val preciseRule = listOf(
-            "**Precise rule (phone and server identical):** a transcription expires when its `created_at` instant " +
-                "is more than 90 days (90 x 24 h) before the purge's current instant. A row exactly at the cutoff " +
-                "is kept.",
-            "Both sides compute on UTC instants, with no time zone and no calendar months,",
+            "**Precise rule:** a transcription expires when its clock instant (phone: `created_at`; server: " +
+                "`stored_at_ms`, the time of the row's last write) is more than 90 days (90 x 24 h) before the " +
+                "purge's current instant. A row exactly at the cutoff is kept.",
+            "Both sides compute on UTC instants, with no time zone and no calendar months.",
             "\"3 months\" in this ADR and in F28 means this rule.",
         )
         for (part in preciseRule) {
