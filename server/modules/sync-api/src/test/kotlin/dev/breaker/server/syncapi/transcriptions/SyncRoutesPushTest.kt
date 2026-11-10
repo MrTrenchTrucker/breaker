@@ -98,7 +98,7 @@ internal class SyncRoutesPushTest : TempDatabaseTest() {
         val listed = SyncRouteTestSupport.getList(tokenStore, store, token)
         assertEquals(
             "sync-api: slash text list body",
-            "{\"items\":[" + SyncRouteTestSupport.pageRecordJson(CLIENT_ID, 1, false, 0, "//8=", "2023-11-14T22:13:20Z") + "],\"next\":\"$accountId-1\",\"more\":false}",
+            "{\"items\":[" + SyncRouteTestSupport.pageRecordJson(CLIENT_ID, 1, false, 0, "//8=", "2023-11-14T22:13:20.000Z") + "],\"next\":\"$accountId-1\",\"more\":false}",
             listed.body,
         )
     }
@@ -218,7 +218,7 @@ internal class SyncRoutesPushTest : TempDatabaseTest() {
         val listed = SyncRouteTestSupport.getList(tokenStore, store, token)
         assertEquals(
             "sync-api: two padding list body",
-            "{\"items\":[" + SyncRouteTestSupport.pageRecordJson(CLIENT_ID, 1, false, 0, "QQ==", "2023-11-14T22:13:20Z") + "],\"next\":\"$accountId-1\",\"more\":false}",
+            "{\"items\":[" + SyncRouteTestSupport.pageRecordJson(CLIENT_ID, 1, false, 0, "QQ==", "2023-11-14T22:13:20.000Z") + "],\"next\":\"$accountId-1\",\"more\":false}",
             listed.body,
         )
     }

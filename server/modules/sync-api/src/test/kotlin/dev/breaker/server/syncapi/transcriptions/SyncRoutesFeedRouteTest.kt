@@ -47,7 +47,7 @@ internal class SyncRoutesFeedRouteTest : TempDatabaseTest() {
         assertEquals("live record status", HttpStatusCode.OK, reply.status)
         assertEquals(
             "live record body",
-            "{\"items\":[" + SyncRouteTestSupport.pageRecordJson(CLIENT_ID, 1, false, 0, ENCRYPTED, "2023-11-14T22:13:20Z") + "],\"next\":\"$accountId-1\",\"more\":false}",
+            "{\"items\":[" + SyncRouteTestSupport.pageRecordJson(CLIENT_ID, 1, false, 0, ENCRYPTED, "2023-11-14T22:13:20.000Z") + "],\"next\":\"$accountId-1\",\"more\":false}",
             reply.body,
         )
     }
@@ -60,7 +60,7 @@ internal class SyncRoutesFeedRouteTest : TempDatabaseTest() {
         assertEquals("delete record status", HttpStatusCode.OK, reply.status)
         assertEquals(
             "delete record body",
-            "{\"items\":[" + SyncRouteTestSupport.pageRecordJson(CLIENT_ID, 2, true, null, null, "2023-11-14T22:13:20Z") + "],\"next\":\"$accountId-2\",\"more\":false}",
+            "{\"items\":[" + SyncRouteTestSupport.pageRecordJson(CLIENT_ID, 2, true, null, null, "2023-11-14T22:13:20.000Z") + "],\"next\":\"$accountId-2\",\"more\":false}",
             reply.body,
         )
     }

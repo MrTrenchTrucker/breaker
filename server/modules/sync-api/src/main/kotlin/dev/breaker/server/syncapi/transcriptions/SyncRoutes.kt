@@ -185,11 +185,11 @@ private fun renderTranscriptionsPage(
     val items = records.map { row ->
         if (row.deleted) {
             "{\"client_id\":${escapeJsonString(row.clientId)},\"change\":${row.change}," +
-                "\"deleted\":true,\"stored_at\":${escapeJsonString(formatStoredAt(row.storedAtMs))}}"
+                "\"deleted\":true,\"stored_at\":${escapeJsonString(formatInstantMs(row.storedAtMs))}}"
         } else {
             "{\"client_id\":${escapeJsonString(row.clientId)},\"change\":${row.change}," +
                 "\"deleted\":false,\"key_version\":${row.keyVersion},\"encrypted\":${escapeJsonString(row.encrypted.toString())},\"stored_at\":" +
-                "${escapeJsonString(formatStoredAt(row.storedAtMs))}}"
+                "${escapeJsonString(formatInstantMs(row.storedAtMs))}}"
         }
     }
     val nextText = if (listHead != null) "$accountId-$next-$listHead" else "$accountId-$next"

@@ -241,8 +241,9 @@ A route or job marked Planned, not built below is not installed on main yet.
   `{"client_id","change","deleted":false,"key_version","encrypted","stored_at"}`; a delete record is
   `{"client_id","change","deleted":true,"stored_at"}` with no key version and no body. `stored_at`
   is the UTC time of the row's last write (for a delete record, of the delete), written as
-  `YYYY-MM-DDTHH:MM:SSZ` (whole seconds). Without `since` the answer holds live rows only. With
-  `since=<account>-<change>` it holds every row (live and deleted) whose change number is above
+  `YYYY-MM-DDTHH:MM:SS.mmmZ` (three millisecond digits, the form of `created_at`). Without `since`
+  the answer holds live rows only. With `since=<account>-<change>` it holds every row (live and
+  deleted) whose change number is above
   `<change>`. A page holds at most 100 records and a running size of 4 MiB (a record counts
   its body length plus 200; a record that alone passes the size is still returned alone). `next`
   is the change of the last record when `more` is true, and the account's head otherwise; the
