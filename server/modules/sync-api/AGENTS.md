@@ -289,7 +289,11 @@ A route or job marked Planned, not built below is not installed on main yet.
   promoted or demoted. The role is read from the account on every call, so a demoted admin's session
   and admin agent tokens stop being admin at once.
 - `GET /v1/admin/health` — admin-only: server health + latest GIT tag.
-  Planned, not built: only the unauthenticated `GET /health`, which answers `{"status":"ok"}`, is installed.
+  Built (adminHealthRoute): 200 with `{"status":"ok","git_tag":...}` for an admin token (401 without a live token, 403 for
+  a non-admin); status is always `ok` (the token check needed the database); `git_tag` is the value of the
+  environment variable `BREAKER_SYNC_API_GIT_TAG` (1 to 64 printable ASCII characters, no spaces), or `unknown`
+  when it is unset. Nothing sets it today: the deploy module is not built. A failing token check is the fixed 503.
+  The unauthenticated `GET /health` answers `{"status":"ok"}` and is unchanged.
 - `GET/PUT /v1/admin/transcription-service` — **admin-only**: read/update the
   configured transcription endpoint (name, base URL, optional API key, enabled) (F26).
   Planned, not built: no such route is installed.

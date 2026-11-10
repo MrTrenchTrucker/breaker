@@ -97,4 +97,75 @@ class SyncApiConfigTest {
     fun `an invalid manifest path text is refused`() {
         assertNamed(refused(mapOf(db to "x.db", manifest to "/data/\u0000release.json")), manifest)
     }
+
+    private val gitTag = SyncApiConfig.ENV_GIT_TAG
+
+    @Test
+    fun `when the git tag env is absent the tag defaults to unknown`() {
+        val config = SyncApiConfig.fromEnv(mapOf(db to "/data/sync.db"))
+        assertEquals("default git tag is unknown", "unknown", config.gitTag)
+    }
+
+    @Test
+    fun `a git tag is accepted as given`() {
+        val config = SyncApiConfig.fromEnv(mapOf(db to "/data/sync.db", gitTag to "v2.3.0-rc1"))
+        assertEquals("git tag", "v2.3.0-rc1", config.gitTag)
+    }
+
+    @Test
+    fun `a git tag of 64 characters is accepted at the upper bound`() {
+        val tag = "a".repeat(64)
+        val config = SyncApiConfig.fromEnv(mapOf(db to "/data/sync.db", gitTag to tag))
+        assertEquals("64-char git tag", tag, config.gitTag)
+    }
+
+    @Test
+    fun `a git tag set but blank is refused`() {
+        assertNamed(refused(mapOf(db to "x.db", gitTag to "")), gitTag)
+        assertNamed(refused(mapOf(db to "x.db", gitTag to "   ")), gitTag)
+    }
+
+    @Test
+    fun `a git tag with a space is refused`() {
+        assertNamed(refused(mapOf(db to "x.db", gitTag to "v1.0 tag")), gitTag)
+    }
+
+    @Test
+    fun `a git tag of 65 characters is refused`() {
+        assertNamed(refused(mapOf(db to "x.db", gitTag to "a".repeat(65))), gitTag)
+    }
+
+    @Test
+    fun `a git tag with a control character is refused`() {
+        assertNamed(refused(mapOf(db to "x.db", gitTag to "v1.0\u0000tag")), gitTag)
+    }
+
+    @Test
+    fun `a git tag may use both ends of the printable range`() {
+        for (tag in listOf("!", "~", "!v1~")) {
+            val config = SyncApiConfig.fromEnv(mapOf(db to "/data/sync.db", gitTag to tag))
+            assertEquals("git tag $tag", tag, config.gitTag)
+        }
+    }
+
+    @Test
+    fun `a git tag with the delete character is refused`() {
+        assertNamed(refused(mapOf(db to "x.db", gitTag to "\u007F")), gitTag)
+        assertNamed(refused(mapOf(db to "x.db", gitTag to "v1\u007Ftag")), gitTag)
+    }
+
+    @Test
+    fun `the git tag is read from the variable named BREAKER_SYNC_API_GIT_TAG`() {
+        val config = SyncApiConfig.fromEnv(mapOf(db to "/data/sync.db", "BREAKER_SYNC_API_GIT_TAG" to "literal-1"))
+        assertEquals("git tag through the literal name", "literal-1", config.gitTag)
+    }
+
+    @Test
+    fun `an empty and a spaces only git tag get the blank message, not the length message`() {
+        val blankMessage = "sync-api: $gitTag is set but blank"
+        val lengthMessage = "sync-api: $gitTag must be 1 to 64 characters"
+        assertEquals("empty tag", blankMessage, refused(mapOf(db to "x.db", gitTag to "")).message)
+        assertEquals("spaces only tag", blankMessage, refused(mapOf(db to "x.db", gitTag to "   ")).message)
+        assertEquals("65 character tag", lengthMessage, refused(mapOf(db to "x.db", gitTag to "a".repeat(65))).message)
+    }
 }

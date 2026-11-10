@@ -68,7 +68,7 @@ fun main() {
         exitProcess(1)
     }
     val publicServer = embeddedServer(CIO, host = config.host, port = config.port) {
-        syncApiModule(accountStore, tokenStore, transcriptionStore, handoffStore, config.manifestFile)
+        syncApiModule(accountStore, tokenStore, transcriptionStore, handoffStore, config.manifestFile, config.gitTag)
     }
     // When the public listener stops, or fails to start, the internal listener stops, then the sweep
     // stops, and then the database closes, exactly once: no token check or sweep can reach a closed

@@ -11,6 +11,7 @@ internal class SyncApiConfig(
     val internalPort: Int,
     val serviceKeyFile: String,
     val manifestFile: String,
+    val gitTag: String,
 ) {
 
     companion object {
@@ -21,6 +22,7 @@ internal class SyncApiConfig(
         const val ENV_INTERNAL_PORT = "BREAKER_SYNC_API_INTERNAL_PORT"
         const val ENV_SERVICE_KEY_FILE = "BREAKER_SYNC_API_SERVICE_KEY_FILE"
         const val ENV_MANIFEST_FILE = "BREAKER_SYNC_API_MANIFEST_FILE"
+        const val ENV_GIT_TAG = "BREAKER_SYNC_API_GIT_TAG"
         const val DEFAULT_HOST = "127.0.0.1"
         private const val DEFAULT_PORT = 8080
         private const val DEFAULT_INTERNAL_HOST = "127.0.0.1"
@@ -42,8 +44,9 @@ internal class SyncApiConfig(
             val dbPath = parseDbPath(env[ENV_DB])
             val serviceKeyFile = parseServiceKeyFile(env[ENV_SERVICE_KEY_FILE], dbPath)
             val manifestFile = parseManifestFile(env[ENV_MANIFEST_FILE])
+            val gitTag = parseGitTag(env[ENV_GIT_TAG])
             refuseSameListener(host, port, internalHost, internalPort)
-            return SyncApiConfig(host, port, dbPath, internalHost, internalPort, serviceKeyFile, manifestFile)
+            return SyncApiConfig(host, port, dbPath, internalHost, internalPort, serviceKeyFile, manifestFile, gitTag)
         }
 
         private fun parseHost(raw: String?): String {
@@ -109,6 +112,19 @@ internal class SyncApiConfig(
             if (raw == null) return ""
             require(raw.isNotBlank()) { "sync-api: $ENV_MANIFEST_FILE is set but blank" }
             refuseInvalidPathText(ENV_MANIFEST_FILE, raw)
+            return raw
+        }
+
+        // The deployed server's git tag: unset means not known ("unknown"), set-but-blank is refused,
+        // and anything outside 1..64 printable ASCII without spaces or control characters is refused
+        // so the value the route answers stays plain. Nothing sets it today (the deploy module is not built).
+        private fun parseGitTag(raw: String?): String {
+            if (raw == null) return "unknown"
+            require(raw.isNotBlank()) { "sync-api: $ENV_GIT_TAG is set but blank" }
+            require(raw.length in 1..64) { "sync-api: $ENV_GIT_TAG must be 1 to 64 characters" }
+            require(raw.all { it in '!'..'~' }) {
+                "sync-api: $ENV_GIT_TAG must be printable ASCII without spaces or control characters"
+            }
             return raw
         }
 
