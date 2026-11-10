@@ -70,7 +70,9 @@ screen, the settings screen and the history screen, the manifest, and the Gradle
   longer switches dictation on. Opening Breaker from its launcher icon switches
   it on again, once for each activity the icon opens; a tap on the icon while
   Breaker is still open does not switch it on.
-- **History sync.** The history store the app exposes is a sync decorator: a save commits
+- **History sync.** A release build keeps sync off: the app exposes the plain history
+  store, nothing is queued, no worker runs and nothing is uploaded. In a debug build the
+  history store the app exposes is a sync decorator: a save commits
   to the history database first, and only then is the row queued for the server; a
   background worker drains the queue after every save, at app start and on a backoff timer,
   and uploads the queued rows with the signed-in session's token. A save that fails never
