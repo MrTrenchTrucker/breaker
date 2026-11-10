@@ -101,7 +101,8 @@ class SttServerEngine internal constructor(
             413 -> return SttResult.failure(SttError.OTHER, FailureSentences.TOO_LARGE)
             400 -> return SttResult.failure(SttError.OTHER, FailureSentences.NO_FILE)
             404 -> return SttResult.failure(SttError.SERVER_UNREACHABLE, FailureSentences.NO_ENDPOINT)
-            429, in 500..599 -> return SttResult.failure(SttError.SERVER_UNREACHABLE, FailureSentences.NOT_TAKING_WORK)
+            429 -> return SttResult.failure(SttError.SERVER_UNREACHABLE, FailureSentences.NOT_TAKING_WORK, retryAfter(posted.headers))
+            in 500..599 -> return SttResult.failure(SttError.SERVER_UNREACHABLE, FailureSentences.NOT_TAKING_WORK)
             else -> return SttResult.failure(SttError.OTHER, FailureSentences.UNEXPECTED_STATUS)
         }
         val accepted = try {
@@ -172,7 +173,11 @@ class SttServerEngine internal constructor(
                 404 -> return SttResult.failure(SttError.OTHER, FailureSentences.JOB_GONE)
                 429, in 500..599 -> {
                     if (!transientTolerated()) {
-                        return SttResult.failure(SttError.SERVER_UNREACHABLE, FailureSentences.NOT_TAKING_WORK)
+                        return SttResult.failure(
+                            SttError.SERVER_UNREACHABLE,
+                            FailureSentences.NOT_TAKING_WORK,
+                            if (reply.status == 429) retryAfter(reply.headers) else null,
+                        )
                     }
                 }
                 else -> return SttResult.failure(SttError.OTHER, FailureSentences.UNEXPECTED_STATUS)
@@ -191,6 +196,19 @@ class SttServerEngine internal constructor(
         ExchangeFailure.isTls(e)
 
     private fun text(bytes: ByteArray): String = String(bytes, Charsets.UTF_8)
+
+    /** Parses a Retry-After header: seconds only, digits only (no sign, no decimals), bounded 1..3600.
+     * Trim spaces/tabs around; several values for the header are ignored; anything else is ignored too.
+     * Returns null when the header is missing, empty, non-digit, out of bounds, or repeated. */
+    private fun retryAfter(headers: Map<String, List<String>>): Int? {
+        val values = headers.entries.firstOrNull { it.key.equals("Retry-After", ignoreCase = true) }?.value ?: return null
+        if (values.size != 1) return null
+        val text = values[0].trim()
+        if (text.isEmpty()) return null
+        if (!text.all { it in '0'..'9' }) return null
+        val seconds = text.toIntOrNull() ?: return null
+        return if (seconds in 1..3600) seconds else null
+    }
 
     private companion object {
         const val NANOS_PER_MS = 1_000_000L

@@ -225,6 +225,26 @@ class JdkServerHttpLoopbackTest {
     }
 
     @Test
+    fun `a 429 error reply comes back with its Retry-After header in the reply headers`() {
+        val body = "slow down"
+        val run = withServer(
+            { _, socket ->
+                send(
+                    socket,
+                    statusHead("HTTP/1.1 429 Too Many Requests", "Retry-After: 30", "Content-Length: ${body.length}"),
+                    ascii(body),
+                )
+            },
+        ) { base -> exchange(request("POST", "$base$ENDPOINT", authHeaders(), ascii("x"))) }
+        assertNull("server side: ${run.record.problem}", run.record.problem)
+        val reply = run.value
+        assertTrue("no reply came back: ${run.failure?.javaClass?.name}", reply != null)
+        assertEquals("status", 429, reply!!.status)
+        val values = reply.headers.entries.firstOrNull { it.key.equals("Retry-After", ignoreCase = true) }?.value
+        assertEquals("the Retry-After values", listOf("30"), values)
+    }
+
+    @Test
     fun `a redirect reply is returned as it came and is not followed`() {
         val run = withServer({ index, socket ->
             if (index == 0) {

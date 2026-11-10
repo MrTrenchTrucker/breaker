@@ -73,7 +73,9 @@ modules implement, and the use cases that run a dictation.
   `microphoneAsked` is bookkeeping: whether the system microphone prompt was shown once. It is not a user setting.
 - `WakeGestureMode` (ALWAYS|KEYBOARD_ONLY|OFF) — the user wake-gesture preference stored in settings
 - `SttRequest`, `SttResult`, `SttSegment`, `AudioFormat` (16 kHz, one channel), and
-  `SttError(LOCAL_MODEL_MISSING, SERVER_UNREACHABLE, TIMEOUT, OTHER)`
+  `SttError(LOCAL_MODEL_MISSING, SERVER_UNREACHABLE, TIMEOUT, OTHER)`. `SttResult.Failure`
+  carries `retryAfterSeconds: Int? = null` — the Retry-After seconds the server asked the
+  client to honor on a 429, null when not asked; it is never inside the detail sentence.
 - `CommitRequest` (never empty) and `CommitOutcome(COMMITTED|COPIED|FAILED)`
 - `CipherText` (ciphertext may be empty; nonce and tag may not), `DataEncryptionKey`,
   `WrappedDek`, `EncryptedText` (its ciphertext string may be empty; whitespace-only is

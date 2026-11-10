@@ -97,15 +97,17 @@ sealed class SttResult {
     }
 
     /**
-     * Transcription failed. [detail] is a short, safe explanation for the user
-     * — it may never contain dictated text.
+     * Transcription failed. [detail] is a short, safe explanation for the user — it may never contain dictated text.
+     * [retryAfterSeconds] is the Retry-After value the server asked the client to honor, in seconds,
+     * or null when the server did not ask for a wait. It is never inside [detail].
      */
-    data class Failure(val error: SttError, val detail: String? = null) : SttResult() {
+    data class Failure(val error: SttError, val detail: String? = null, val retryAfterSeconds: Int? = null) : SttResult() {
         override val isSuccess: Boolean get() = false
     }
 
     companion object {
         /** Build a failure. Engines use this so a failure is one call, not a shape. */
-        fun failure(error: SttError, detail: String? = null): SttResult = Failure(error, detail)
+        fun failure(error: SttError, detail: String? = null, retryAfterSeconds: Int? = null): SttResult =
+            Failure(error, detail, retryAfterSeconds)
     }
 }
