@@ -777,7 +777,7 @@ then installs the APK. Honest note: pairing is superseded by ADR-034; no certifi
 
 **Update mechanism (F20, F21):** the app checks `GET /v1/updates/latest.json`
 **once a day** (and on demand via the admin force-check button). The endpoint
-reads the latest **tagged release from the user's local GIT server**. When a
+reads a **release manifest file** named by `BREAKER_SYNC_API_MANIFEST_FILE`. When a
 newer version exists:
 1. The app notifies the user ("Breaker 1.2.0 is available — update?").
 2. On confirm, it downloads the **signed APK**. For an https address the APK address is trusted by the phone's normal trust. ADR-034 decides that a plain http address is allowed too, because the update host is the configured server. The cleartext switch and the address rule are built; the updater that downloads the APK is not built.
@@ -817,7 +817,7 @@ dedicated **APK signing key** (generated once, stored in a secrets store — nev
 in git, unlike the base repo's plaintext cert [1]). The public key + SHA-256 are
 served on `/v1/updates/latest.json` for client verification.
 
-**Update endpoint:** `sync-api` exposes `GET /v1/updates/latest.json` (sole registered owner per modules.toml/its own AGENTS.md — both `updater` and `web-fe`'s cards explicitly disclaim owning it), which resolves the latest GIT tag and returns version, APK URL, SHA-256, and signature.
+**Update endpoint:** `sync-api` exposes `GET /v1/updates/latest.json` (sole registered owner per modules.toml/its own AGENTS.md — both `updater` and `web-fe`'s cards explicitly disclaim owning it), which reads a release manifest file named by `BREAKER_SYNC_API_MANIFEST_FILE` and returns version, version_code, APK URL, SHA-256, signature, and notes.
 
 ## 16. Security & Threat Model
 

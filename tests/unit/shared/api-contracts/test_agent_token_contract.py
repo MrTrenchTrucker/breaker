@@ -97,9 +97,14 @@ class AgentTokenSecurityTest(unittest.TestCase):
         sec = self.ops["get"].get("security", [])
         self.assertEqual(sec, [{"bearerAuth": []}])
 
-    def test_create_responses_are_exactly_201_401_403(self):
+    def test_create_responses_are_exactly_201_400_401_403_404_409_413_503(self):
         responses = self.ops["post"]["responses"]
-        self.assertEqual(set(responses), {"201", "401", "403"})
+        self.assertEqual(set(responses), {"201", "400", "401", "403", "404", "409", "413", "503"})
+
+    def test_create_400_names_bad_request(self):
+        ex = self.ops["post"]["responses"]["400"]["content"]["application/json"]["example"]
+        self.assertEqual(ex["error"], "bad_request")
+        self.assertIn("Invalid request body", ex["message"])
 
     def test_create_401_names_unauthorized(self):
         ex = self.ops["post"]["responses"]["401"]["content"]["application/json"]["example"]
@@ -111,9 +116,29 @@ class AgentTokenSecurityTest(unittest.TestCase):
         self.assertEqual(ex["error"], "forbidden")
         self.assertIn("Admin role required", ex["message"])
 
-    def test_list_responses_are_exactly_200_401_403(self):
+    def test_create_404_names_account_not_found(self):
+        ex = self.ops["post"]["responses"]["404"]["content"]["application/json"]["example"]
+        self.assertEqual(ex["error"], "not_found")
+        self.assertIn("Account not found", ex["message"])
+
+    def test_create_409_names_conflict_reset_pending(self):
+        ex = self.ops["post"]["responses"]["409"]["content"]["application/json"]["example"]
+        self.assertEqual(ex["error"], "conflict")
+        self.assertIn("waiting for a reset to be completed", ex["message"])
+
+    def test_create_413_names_payload_too_large(self):
+        ex = self.ops["post"]["responses"]["413"]["content"]["application/json"]["example"]
+        self.assertEqual(ex["error"], "payload_too_large")
+        self.assertIn("Request body exceeds maximum allowed size", ex["message"])
+
+    def test_create_503_names_unavailable(self):
+        ex = self.ops["post"]["responses"]["503"]["content"]["application/json"]["example"]
+        self.assertEqual(ex["error"], "unavailable")
+        self.assertIn("The service is unavailable, try again later", ex["message"])
+
+    def test_list_responses_are_exactly_200_401_403_503(self):
         responses = self.ops["get"]["responses"]
-        self.assertEqual(set(responses), {"200", "401", "403"})
+        self.assertEqual(set(responses), {"200", "401", "403", "503"})
 
     def test_list_401_names_unauthorized(self):
         ex = self.ops["get"]["responses"]["401"]["content"]["application/json"]["example"]
@@ -124,6 +149,11 @@ class AgentTokenSecurityTest(unittest.TestCase):
         ex = self.ops["get"]["responses"]["403"]["content"]["application/json"]["example"]
         self.assertEqual(ex["error"], "forbidden")
         self.assertIn("Admin role required", ex["message"])
+
+    def test_list_503_names_unavailable(self):
+        ex = self.ops["get"]["responses"]["503"]["content"]["application/json"]["example"]
+        self.assertEqual(ex["error"], "unavailable")
+        self.assertIn("The service is unavailable, try again later", ex["message"])
 
 
 class AgentTokenCreateContractTest(unittest.TestCase):
