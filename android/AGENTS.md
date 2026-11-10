@@ -41,9 +41,9 @@ upgrade path (ARCHITECTURE section 8). Shake + tap remain the manual fallbacks.
 - `http` - the one HTTP client for server and update-host calls: GET and POST, no redirects, no cache,
   https for any host, plain http only for the configured server
 - `training-client` — record phrase samples, upload, download trained model
-- `updater` — the manifest check and its pure pieces are built but not wired into the app; the
-  daily schedule, the admin force-check, the app wiring, the APK download, the signature check,
-  the install and the rollback are not built
+- `updater` — the update check, the APK download and the signature check are built (pure Kotlin,
+  not wired into the app); the daily scheduler (the pure due check `UpdateSchedule.isDue` is built,
+  nothing calls it), the admin force-check, the app wiring, the install and the rollback are not built
 - `crypto` — client-side key derivation (Argon2id + HKDF), data-key unwrap, AES-256-GCM
   encrypt/decrypt and opening the sign-in package; generating and wrapping the data key and the
   account's X25519 box keypair, and unsealing results to the account, are decided, not built (Phase 19)

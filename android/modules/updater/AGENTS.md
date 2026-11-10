@@ -129,7 +129,7 @@ agents, not required: an outside contributor may write the code themselves
 
 ## Known Gotchas
 - Verify signature + SHA-256 before install; keep previous APK for rollback.
-- The login token reaches this module as `core.AuthService`, wired by `android/app` (ADR-001); it never imports `auth-client`.
+- The update check calls a public route and sends no token. The admin force-check (not built) would need the role through `core.AuthService`, wired by `android/app` (ADR-001); this module never imports `auth-client`.
 - **The signature check (built, `SignatureCheck`, test `SignatureCheckTest`):** the manifest `signature` field is an Ed25519
   signature, as base64, over the ASCII message `breaker-update-v1`, a line feed, the version, a line feed, the
   SHA-256 as lowercase hex, a line feed (nothing else is signed: not the notes and not the URL). Binding the digest

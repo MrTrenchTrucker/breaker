@@ -31,13 +31,11 @@ file.
 
 - The issue list is the source of truth for which modules are free. Our own
   team is building some modules now.
-- Where things stand: **3 of the 31 build modules are built**
-  (`android/modules/core`, `shared/modules/format-prompts`,
-  `shared/modules/ui-tokens`). A 32nd module, `agent-skills/`, holds
-  instructions for AI agents rather than code. The Android
-  app shell is a stub. Every other module is a card, a README and a build
-  file, waiting for code. Next in the build order is **Phase 2** (audio,
-  settings, history) — see `docs/04-build-order.md` for what can be built now.
+- Where things stand: `docs/module-status.json` lists every module and whether
+  it is done; `python3 tools/module_status.py` checks that file against the
+  registry and the tree and prints the counts it measures (they are not typed
+  here, they change with every module). `agent-skills/` holds instructions for
+  AI agents rather than code, so it is one of the not-started rows. See `docs/04-build-order.md` for what can be built now.
   Building is open now; releasing waits for the gates in that file ("Gates and
   releases").
 - Claim a module by commenting on its issue. One module per PR, so claim one
@@ -81,11 +79,11 @@ say in the PR description which one you used.
   `REPO CONSISTENT`.
 - **Structure tests for every module:**
   `python3 -m unittest discover -s tests/contract -t tests/contract`
-  (430 tests today).
-- **Python unit tests** exist for one module so far:
+  (it prints how many tests ran; run it, the number is not typed here).
+- **Python unit tests** exist for many modules, for example:
   `python3 -m unittest discover -s tests/unit/shared/ui-tokens`.
-  Trap: running `discover` on `tests/unit` from the root finds 0 tests — use
-  the exact command in the card. The automated checks run every folder
+  Trap: running `discover` on `tests/unit` from the root finds only a small part of them
+  — use the exact command in the card. The automated checks run every folder
   for you.
 - **Every test run must report more than 0 tests.** A mistyped path or
   pattern runs nothing and still prints `OK`, which looks like a pass.

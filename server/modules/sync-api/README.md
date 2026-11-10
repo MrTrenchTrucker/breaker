@@ -1,6 +1,6 @@
 # sync-api — README
 
-The server's main API: accounts and logins (users, tokens, roles), and syncing transcriptions. The route that changes a role is planned, not built; the update endpoint is built. It keeps every user's data separate from everyone else's (N13). It stores each transcription as an opaque string with its key_version and never opens it; before any key exists the stored text is the development-only form (ADR-006).
+The server's main API: accounts and logins (users, tokens, roles), and syncing transcriptions. The route that changes a role and the update endpoint are both built. It keeps every user's data separate from everyone else's (N13). It stores each transcription as an opaque string with its key_version and never opens it; before any key exists the stored text is the development-only form (ADR-006).
 
 ## What is in the module today
 
@@ -12,8 +12,8 @@ The server's main API: accounts and logins (users, tokens, roles), and syncing t
   key_version), and a push body is at most 1 MiB.
 - A versioned database schema, migrated to the current version when the server starts.
 
-The account HTTP routes (register, salt, login, logout), the admin routes that create, list and revoke an agent token, that end a session and that
-read and flip the wrong-password limit, the two internal token-check routes and the three transcription routes
+The account HTTP routes (register, salt, login, logout), the admin routes that create, list and revoke an agent token, that end a session, that
+change an account's admin role, that read the admin-only server health (`GET /v1/admin/health`: the status and the configured git tag, "unknown" when unset; the unauthenticated `GET /health` is a different route), and that read and flip the wrong-password limit, the two internal token-check routes and the three transcription routes
 (POST /v1/sync, GET /v1/transcriptions, DELETE /v1/transcriptions/{client_id}) are installed. The rest of what
 the card lists is not built yet. Built: `POST /v1/admin/reset-account` (an admin, with a session or an
 admin-scoped agent token, resets one account in one transaction: the verifier is replaced with random bytes

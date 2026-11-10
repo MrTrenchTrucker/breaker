@@ -236,9 +236,24 @@
       "path": "android/modules/updater",
       "items": [
         {
-          "item": "android_updater (its own code)",
+          "item": "update check (manifest fetch, decode, update decision, pure due check)",
           "status": "DONE",
-          "evidence": "9 code files, 9 test files"
+          "evidence": "UpdateCheck, ManifestFetch, ManifestJson, UpdateDecision, UpdateSchedule.isDue with tests in android/modules/updater"
+        },
+        {
+          "item": "APK download (same-origin, streamed, SHA-256 verified)",
+          "status": "DONE",
+          "evidence": "ApkDownload.kt and ApkDownloadTest.kt (PR 532)"
+        },
+        {
+          "item": "update signature check (Ed25519 over version and digest, pinned key list)",
+          "status": "DONE",
+          "evidence": "SignatureCheck.kt and SignatureCheckTest.kt (PR 534)"
+        },
+        {
+          "item": "install, rollback, daily scheduler and app wiring",
+          "status": "NOT_STARTED",
+          "evidence": "the updater card says they are not built; nothing in android/app calls the updater"
         }
       ]
     },
@@ -395,8 +410,8 @@
   ],
   "summary": {
     "live": 35,
-    "done": 30,
-    "partial": 1,
+    "done": 29,
+    "partial": 2,
     "not_started": 4,
     "containers": 4,
     "retired": 1

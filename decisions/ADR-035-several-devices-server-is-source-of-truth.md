@@ -97,6 +97,7 @@ On 2026-11-01 the project owner confirmed the design and ordered this update: "B
   column on the session row is built (migration 4); the app now sends the platform's manufacturer and model as the name and the device list is
   built on the server (`GET /v1/auth/devices`) and in the phone's auth service, with no screen yet. Today the app has no pull, and the password sign-in is
   unchanged.
+  Update 2026-11-10: the pull runs only when sync is on (debuggable build only).
 - **Changes-since feed.** Built on the server: the cursor is a server-assigned change number, unique to the
   account and strictly increasing on every row write (insert, replace and delete). It is sent as an opaque
   string and is exclusive: the client asks for the changes after N. It is not the stored time, and stored_at

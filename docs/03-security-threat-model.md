@@ -16,8 +16,11 @@ received a **clean bill of health**:
 - Provenance: two real developers over 6.5 months, complete license text.
 - Apache-2.0 explicitly permits the fork.
 
-**Caveat:** the code was never built or run — compilation and runtime behavior
-are **unverified**. Phase 0 includes a build + smoke-test gate.
+**Caveat:** when this review was written the code had never been built or run: compilation
+and runtime behavior were **unverified**. Phase 0 includes a build + smoke-test gate. Today the
+code is built and its tests run in GitHub CI on every pull request and on pushes to `main` and
+`module/` branches; the smoke-test half of the Phase 0 gate is not passed (`docs/04-build-order.md`,
+Gates and releases, says "Not passed").
 
 ## The four fixes (Phase 0, in order of importance)
 
