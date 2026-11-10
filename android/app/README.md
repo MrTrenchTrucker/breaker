@@ -70,6 +70,11 @@ screen, the settings screen and the history screen, the manifest, and the Gradle
   longer switches dictation on. Opening Breaker from its launcher icon switches
   it on again, once for each activity the icon opens; a tap on the icon while
   Breaker is still open does not switch it on.
+- **History sync.** The history store the app exposes is a sync decorator: a save commits
+  to the history database first, and only then is the row queued for the server; a
+  background worker drains the queue after every save, at app start and on a backoff timer,
+  and uploads the queued rows with the signed-in session's token. A save that fails never
+  reaches the queue, and a refused enqueue never undoes the save.
 
 **Debug builds only.** The debug source set (`android/app/src/debug/`) holds the Home mic probe: an exported broadcast receiver for the action `dev.breaker.debug.MIC` and a not-exported start provider, which push a mic state or trigger a Home redraw through the overlay's public `ScreenMicProbe` interface and log under `BreakerMicProbe`; they never start a take. The release build holds none of it, and the diagnostic parts in main (the `ScreenMicProbe` interface, the log sink and the touch-down and route log lines in `ScreenMicProbeKit`, the `HomeHostView` probe log lines) are removed before release. The host click decision in `ScreenMicProbeKit` is production code and stays.
 
