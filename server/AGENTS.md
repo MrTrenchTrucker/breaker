@@ -14,7 +14,7 @@ container**, reachable over the VPN — Breaker does not modify it.
 **The gap:** nothing today exposes an OpenAI-shaped, queued,
 multi-user-safe `/v1/audio/transcriptions`. Phase 4 closes it by building
 Breaker's own `whisper-server` container, which forwards to the
-admin-configured service (default: the Whisper X container above).
+operator-configured service (the address is required: there is no default target).
 
 **Formatting:** the app's `format` module reuses the existing
 `/v1/chat/completions` endpoint with the strict prompt from
@@ -40,8 +40,13 @@ admin-configured service (default: the Whisper X container above).
   finished JSON text once `status: "done"` (via the FIFO queue → configured
   service).
 - Service bound to VPN interface only (not 0.0.0.0).
-- API key required; TLS verified; no plaintext key in logs.
-- Ciphertext only at rest (F24); no plaintext transcriptions in logs (F32).
+- A valid token is required on every route that needs one, and the server modules call each
+  other with a service key; no plaintext token or key in logs. Breaker serves plain HTTP; TLS is
+  the admin's choice (ADR-034).
+- Target, not built (F24, Phase 19): ciphertext only at rest for every account that has finished its
+  key bootstrap. Today the phone pushes key_version 0 plaintext rows and no app code calls
+  /v1/auth/keys; older plaintext rows stay until they are migrated (ADR-006). No plaintext
+  transcriptions in logs (F32).
 
 ## Owns
 Local Server services: transcription, sync, web, training, deploy.

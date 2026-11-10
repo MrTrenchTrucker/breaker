@@ -46,7 +46,7 @@ Every request names its own connect timeout, read timeout and reply cap. Nothing
 | Client | Connect | Read | Reply cap |
 |---|---|---|---|
 | stt-server (`ServerLimits.kt`) | 1_500 ms | 10_000 ms post, 5_000 ms poll | 4 MiB (`ServerHttp.kt`) |
-| updater (not built) | 10_000 ms | 15_000 ms manifest, 30_000 ms APK | 65_536 bytes manifest, 268_435_456 bytes APK |
+| updater (`ManifestFetch.kt`) | 5_000 ms | 10_000 ms manifest | 262_144 bytes manifest; the APK download (30_000 ms read, 268_435_456 bytes) is decided, not built |
 | stt-ondevice (`DownloadLimits.kt`) | caller-supplied, default 15_000 ms | caller-supplied, default 30_000 ms | caller-supplied, per model |
 
 - Timeouts: 1 to 600_000 ms each (`CallLimits.MAX_TIMEOUT_MS`).
@@ -55,6 +55,6 @@ Every request names its own connect timeout, read timeout and reply cap. Nothing
 
 There is no whole-call deadline; a caller that needs one wraps the call. The module does not own the meaning of a call or any JSON, the server address, tokens or sessions, or retry and queueing.
 
-This module does not take over the code of the existing clients (stt-server, updater, stt-ondevice). Each of them moves here on its own, later, one at a time. sync has no HTTP client today, so there is nothing of sync to move. The `AuthHttp` port of auth-client maps onto `send`.
+This module does not take over the code of the existing clients (stt-server, stt-ondevice). Each of them moves here on its own, later, one at a time. The updater's manifest check was written on this module from the start. sync has no HTTP client today, so there is nothing of sync to move. The `AuthHttp` port of auth-client maps onto `send`.
 
 Full module card: `AGENTS.md` in this folder.

@@ -100,8 +100,9 @@ treats it as 32 zero bytes) over the 32-byte Argon2id output, then Expand with
 each exactly 32 bytes, the page sends exactly 32 verifier bytes, and how they
 are written on the wire (base64 or hex) is decided in api-contracts. The
 registration form enforces a 12-character minimum password and
-warns further on common/weak ones (ADR-006) — libsodium.js runs the
-sealed-box unseal (ADR-018) the same way. The server never receives the
+warns further on common/weak ones (ADR-006) — the sealed-box unseal (ADR-018) is
+decided, not built: ADR-040 chooses the noble libraries for it, `signin-crypto.js` is a stub that throws
+today, and libsodium.js is vendored and pinned but never served. The server never receives the
 password or the KEK over the wire — but see the honest limit below, which is
 not the same limit Android gets. Shared spec + test vectors in api-contracts
 (R21).
@@ -130,7 +131,7 @@ surfaces it as tampering rather than silently accepting it or re-bootstrapping
 over it.
 
 **On login, the browser also converts any pending sealed agent-token results
-(ADR-018):** it lists `GET /v1/sync/pending-sealed`, unseals each with the
+(ADR-018; planned, not built: the pending-sealed route does not exist yet):** it lists `GET /v1/sync/pending-sealed`, unseals each with the
 (just-unwrapped) box private key, re-encrypts the plaintext under the DEK,
 and uploads it via the ordinary sync path with the pending record's id as the
 client id, at the account's current `key_version` — a genuinely new record,
@@ -239,8 +240,8 @@ The sign-in page `signin.html`, with its entry script `js/signin-page.js`. The p
 ## Test Locations
 - Unit (Kotlin/Ktor, ADR-017): `server/modules/web-fe/src/test/kotlin/`, created with the module's first code. Run: `./gradlew :server:modules:web-fe:test` once this module's build file applies the Kotlin plugin (today it applies `base` only, so there is no test task yet).
 - Contract: `tests/contract/test_web_fe_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_web_fe_contract.py`
-- JavaScript (AES-GCM layer): `server/modules/web-fe/src/test/js/aesgcm.test.mjs`. Run: `node --test server/modules/web-fe/src/test/js/*.test.mjs` (name the files, never the folder: newer node versions run nothing for a folder; needs node 20.19.0 or newer).
-- JavaScript (sign-in page logic): `signin-link.test.mjs`, `signin.test.mjs`, `signin-flow.test.mjs`, `signin-edge.test.mjs`, `signin-net.test.mjs`, `signin-logout.test.mjs`, `signin-page.test.mjs` and `signin-wire.test.mjs` in the same test folder as `aesgcm.test.mjs`, run by the same command as the line above. The fixtures for them are in `signin-fixtures.mjs` and `signin-page-fixtures.mjs`, helpers and not test files. With the AES-GCM tests the runner counts 258 passing tests.
+- JavaScript (AES-GCM layer): `server/modules/web-fe/src/test/js/aesgcm.test.mjs`. Run: `python3 -m unittest discover -s tests/unit/web_fe` (the runner assembles the web-libs test tree first; `node --test` alone in the source tree fails to find the vendored libraries; needs node 20.19.0 or newer).
+- JavaScript (sign-in page logic): `signin-link.test.mjs`, `signin.test.mjs`, `signin-flow.test.mjs`, `signin-edge.test.mjs`, `signin-net.test.mjs`, `signin-logout.test.mjs`, `signin-page.test.mjs` and `signin-wire.test.mjs` in the same test folder as `aesgcm.test.mjs`, run by the same command as the line above. The fixtures for them are in `signin-fixtures.mjs` and `signin-page-fixtures.mjs`, helpers and not test files. With the AES-GCM tests and the three devices test files (`devices-net.test.mjs`, `devices.test.mjs`, `devices-view.test.mjs`, 61 tests) the runner counts 319 passing tests, the number it pins.
 - Runner: `tests/unit/web_fe/test_aesgcm_js.py` runs those tests, fails (never skips) when node is missing or older than 20.19.0, and pins the number of passing tests. Run: `python3 -m unittest discover -s tests/unit/web_fe`
 - Pins: `tests/contract/web_fe_aesgcm_pins.py` (collected by `test_web_fe_contract.py`) pins the hashes of the four vendored files, the folder contents, the imports of `aesgcm.js` and the NOTICE entry. `tests/contract/web_fe_signin_pins.py` (collected by `test_web_fe_contract.py`) pins the sign-in source files: the imports of `signin.js` and of `signin-link.js`, the forbidden tokens, banned words, short code tags, digit and hex runs, ASCII only, long base64-looking literals, the line cap, the test file names and the sha256 of `aesgcm.js`. `tests/contract/web_fe_signin_page_pins.py` (collected by `test_web_fe_contract.py`) pins the sign-in page files with `check_signin_page_sources`: the html rules, the css rules, the forbidden tokens of the page and network files, the crypto stub, and the repo text scan of the new files; every rule has a firing control.
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.

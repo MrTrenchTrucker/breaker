@@ -13,6 +13,8 @@ defines these independently.
 - `format-prompts` — strict non-destructive formatting prompts for the server LLM
 - `ui-tokens` — Trucking design tokens (colors light/dark, type, spacing,
   breakpoints) shared by the web FE + Android app
+- `web-libs` — grouping module for the web-client crypto libraries vendored into the
+  website (noble-ciphers, noble-hashes, noble-curves, libsodium); owns no files itself
 
 **Convention:** changes here require updating BOTH consumers (app + server).
 

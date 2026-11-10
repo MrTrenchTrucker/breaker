@@ -20,8 +20,7 @@ import kotlin.math.sin
  * Deterministic JUnit proof for [ShakeDetector]: synthetic samples only, a fresh detector
  * per test, exact fire counts asserted. No clock waits, no order or core-count dependence.
  *
- * Test method names are the contract: they map 1:1 to the registry's `expected_red` ids
- * exactly (that file is the authority). Fire counts are the pinned behaviour of the
+ * Each test name says the behaviour it pins. Fire counts are the pinned behaviour of the
  * detector; each input is a fixed deterministic signal with a known expected count.
  */
 class ShakeDetectorTest {
