@@ -36,6 +36,7 @@ dependencies {
     implementation(project(":android:modules:core"))
     implementation(project(":android:modules:http"))
     implementation(project(":shared:modules:api-contracts"))
+    implementation(libs.bouncycastle.bcprov)
 
     testImplementation(libs.junit)
 }
