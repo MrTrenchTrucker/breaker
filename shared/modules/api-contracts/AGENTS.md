@@ -6,7 +6,7 @@ The OpenAPI 3 spec for the endpoint groups that exist today (jobs, auth, sync, a
 request/response types (ADR-017): the single contract both the Android client (`stt-server`) and the server
 (`whisper-server`) implement.
 
-**Build phase:** in parts, each before the phase that needs it. First the transcription-job contract (`POST /v1/audio/transcriptions`, `GET /v1/jobs/{job_id}`, `GET /health`), needed by `whisper-server` (Phase 4) and `stt-server` (Phase 5); auth and sync before Phase 11 (`auth-client`, `sync`, `sync-api`); updates with its phase (the manifest path is in the spec and served by sync-api) and training with its phase; the encryption fields with Phase 19, and the key_version 0 sync body codec with its test vectors now (ADR-006, amended 2026-10-21). **Shipped so far:** the job group (part 1), the auth group (part 2: register, salt, login, logout, keys, change-password, complete-reset and the sign-in hand-off), the sync group and the admin group; the updates group has shipped since (the manifest path), and the remaining group, training, is a later part. Needs first: `shared`.
+**Build phase:** in parts, each before the phase that needs it. First the transcription-job contract (`POST /v1/audio/transcriptions`, `GET /v1/jobs/{job_id}`, `GET /health`), needed by `whisper-server` (Phase 4) and `stt-server` (Phase 5); auth and sync before Phase 11 (`auth-client`, `sync`, `sync-api`); updates with its phase (the manifest path is in the spec and served by sync-api) and training with its phase; the encryption fields with Phase 19, and the key_version 0 sync body codec with its test vectors now (ADR-006, amended 2026-10-21). **Shipped so far:** the job group (part 1), the auth group (part 2: register, salt, login, logout, keys, change-password, complete-reset and the sign-in hand-off), the sync group and the admin group (the transcription-service and test-service operations are still planned); the updates group has shipped since (the manifest path), and the remaining group, training, is a later part. Needs first: `shared`.
 
 **Endpoints:**
 - `POST /v1/audio/transcriptions` — multipart form: `file`, `model`, `language`
@@ -223,7 +223,7 @@ There is no synchronous 200-with-body variant — every transcription is a job.
   result is erased - until then it sits in `whisper-server`'s SQLite store in plaintext, the
   same store the still-queued audio uses (ADR-010).
 - **updates** - `GET /v1/updates/latest.json`
-  In the spec (body only): the path is in `openapi.yaml` with the six-field `UpdateManifest` body (`version`, `version_code`, `apk_url`, `sha256`, `signature`, `notes`); the server does not serve it yet; auth and statuses are open (ADR-011).
+  In the spec (body only): the path is in `openapi.yaml` with the six-field `UpdateManifest` body (`version`, `version_code`, `apk_url`, `sha256`, `signature`, `notes`); sync-api serves it from a release manifest file (a public route today); the auth question stays open (ADR-011).
 - **admin** — roles, health, transcription-service, test-service,
   agent-tokens, **end-session** (`DELETE /v1/admin/sessions/{id}`, ADR-036),
   **reset-account** (F31, ADR-018 — replaces the earlier
