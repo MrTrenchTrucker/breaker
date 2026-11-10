@@ -1852,7 +1852,6 @@ paths:
         Admin-only, unauthenticated-health-safe. Reports the in-process status
         (ready, starting up, degraded) and the released GIT tag that built it.
       operationId: adminHealth
-      x-status: planned
       security:
         - bearerAuth: []
       responses:
@@ -1883,6 +1882,15 @@ paths:
               example:
                 error: "forbidden"
                 message: "Admin role required"
+        "503":
+          description: Unavailable (token check failure)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
   /v1/admin/transcription-service:
     get:
       summary: Read the configured transcription service

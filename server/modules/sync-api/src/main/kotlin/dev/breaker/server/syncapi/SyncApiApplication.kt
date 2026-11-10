@@ -6,6 +6,7 @@ import dev.breaker.server.syncapi.admin.adminListAgentTokensRoute
 import dev.breaker.server.syncapi.admin.adminResetAccountRoute
 import dev.breaker.server.syncapi.admin.adminClearStoreRoute
 import dev.breaker.server.syncapi.admin.adminEndSessionRoute
+import dev.breaker.server.syncapi.admin.adminHealthRoute
 import dev.breaker.server.syncapi.admin.adminSetRoleRoute
 import dev.breaker.server.syncapi.admin.adminRevokeAgentTokenRoute
 import dev.breaker.server.syncapi.admin.adminWrongPwLimitRoute
@@ -36,6 +37,7 @@ internal fun Application.syncApiModule(
     transcriptionStore: TranscriptionStore,
     handoffStore: HandoffStore,
     manifestFile: String = "",
+    gitTag: String = "",
 ) {
     routing {
         // The health route must stay free of authentication and of any data access:
@@ -61,6 +63,7 @@ internal fun Application.syncApiModule(
         adminEndSessionRoute(tokenStore)
         adminSetRoleRoute(tokenStore, accountStore)
         adminWrongPwLimitRoute(tokenStore, accountStore.settings)
+        adminHealthRoute(tokenStore, gitTag)
         syncRoutes(tokenStore, transcriptionStore)
     }
 }
