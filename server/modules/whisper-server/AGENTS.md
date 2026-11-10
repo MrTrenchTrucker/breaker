@@ -4,8 +4,9 @@
 
 Breaker's OWN server container: `/v1/audio/transcriptions` (async enqueue) +
 FIFO queue worker + `/v1/jobs/{job_id}` (poll), **forwarding** audio to the
-admin-configured downstream transcription service (F26/ADR-008). Default
-forwarding target: the existing Whisper X container over a VPN, unmodified.
+operator-configured downstream transcription service (F26/ADR-008). The
+forwarding target is `BREAKER_WHISPER_FORWARDER_URL`: required, with no
+default, so the module never picks Whisper X by itself.
 Do NOT build a new transcription engine — this module never runs Whisper
 itself; it queues, shapes the contract, and proxies.
 
@@ -202,7 +203,7 @@ agents, not required: an outside contributor may write the code themselves
   itself; the queue worker owns the retry schedule (three retries after the first call, four attempts in all, 10 s apart).
 - It asks the downstream for `verbose_json` (`response_format=verbose_json`).
 - `TranscriptionResponse` reads a plain-text body as the text, with no segments and an empty language.
-- The request timeout defaults to 60 s and is admin-set (`DownstreamConfig.requestTimeout`); it
+- The request timeout is 60 s, set in `DownstreamConfig.requestTimeout`; the operator has no setting for it. It
   bounds how long a long audio upload may take, so a stuck downstream cannot hold the worker.
 - Failure messages are fixed strings: they never contain the downstream URL or the API key.
 - A 2xx answer whose content type is not JSON is refused before parsing, so the plain-text branch

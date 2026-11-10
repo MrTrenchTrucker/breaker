@@ -131,8 +131,8 @@ agents, not required: an outside contributor may write the code themselves
   and its download URLs follow a moving branch.
 - The Gradle boundary check requires a consumer to name the
   `project(":shared:modules:model-registry")` edge, because this module now has
-  code and applies an artifact plugin (`java-library`); `settings` and
-  `stt-ondevice` name it.
+  code and applies an artifact plugin (`java-library`); `app`, `settings`
+  and `stt-ondevice` name it.
 - `base` and `medium` are non-streaming Whisper assets: optional, higher
   accuracy, slower. The app cannot run a non-streaming model yet; that support
   is stt-ondevice's (Phase 3, not built). A registry entry is metadata — it

@@ -15,7 +15,7 @@ no more, no fewer)
 
 ## Owns
 
-The twelve vendored files above. Does not edit them; replaces them only by an
+The eleven vendored files above. Does not edit them; replaces them only by an
 exact copy of a newer release with pin hashes updated in the same change.
 
 ## Does Not Own
@@ -54,5 +54,6 @@ no file outside the listed set.
 - Upstream files carry trailing whitespace; do not edit them. .gitattributes
   handles strict-apply (git apply --check --whitespace=error).
 - The abstract closure is 8 files (238,631 bytes) plus ed25519.js and utils.js;
-  all are needed because ed25519.js statically imports them all.
+  all are needed: ed25519.js statically imports seven of the eight abstract
+  files and utils.js directly, and fft.js comes in through frost.js.
 

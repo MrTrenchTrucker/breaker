@@ -2,7 +2,7 @@
 
 **Status:** on main. Session-token auth is wired into the transcription routes (enqueue uses `use`, poll uses `peek`, a refused token is one plain 401, an unreachable token check a plain 503); the card lists the module's surface.
 
-Breaker's own transcription service on the server. The phone sends audio to it, it queues each job in order, and it forwards the audio to whichever speech-to-text service the admin has set up (by default an existing Whisper X service). It never runs a speech model itself. Callers get a job id and poll for the result.
+Breaker's own transcription service on the server. The phone sends audio to it, it queues each job in order, and it forwards the audio to whichever speech-to-text service the operator has set up (the address is required, there is no default). It never runs a speech model itself. Callers get a job id and poll for the result.
 
 The job store, the queue worker, the forwarder, the HTTP front and the runnable entry point (`WhisperServer.kt`, `WhisperConfig.kt`) are all on main. See the card.
 

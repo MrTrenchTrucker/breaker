@@ -126,12 +126,14 @@ a status line (downloading or failed) uses ModelSentences
 words, and is blank once the model is ready (there is no ready sentence). The app asks for no permission at run time in app code;
 the requests live in ui's screen.
 
+When there is no live session, Home shows a quiet notice with a way to sign in (ADR-033); nothing forces the user anywhere and the app keeps working offline.
+
 ## What is not built yet
 
 These are the main parts still not built in the app; the Known Gotchas section
 of `AGENTS.md` lists the smaller open items.
 
-- The sign-in start is built (the link, the browser and the return link); the exchange of the returned code for a session, and the sealed keys and the session it stores, are built; the website page that sends the return link is built, but its derivation, box key and sealing steps are stubs, so it cannot complete a hand-off yet, and the app sends its device name. The sign-in session. The server engine is wired to the real engine, but it needs a signed-in session before it can reach a server: until sign-in plugs one in, the key is not set, the engine says so, and nothing is sent. Planned (ADR-033), not built: when there is no live session, Home shows a quiet notice with a way to sign in; nothing forces the user anywhere and the app keeps working offline.
+- The sign-in start is built (the link, the browser and the return link); the exchange of the returned code for a session, and the sealed keys and the session it stores, are built; the website page that sends the return link is built, but its derivation, box key and sealing steps are stubs, so it cannot complete a hand-off yet, and the app sends its device name. The sign-in session. The server engine is wired to the real engine, but it needs a signed-in session before it can reach a server: until sign-in plugs one in, the key is not set, the engine says so, and nothing is sent.
   on-device engine with its recognizer, its model store and the download are
   built; the recognizer has run on a phone in test builds.
 - The spoken phrases. The phrases module detects the wake and send phrases in
