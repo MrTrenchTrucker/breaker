@@ -6,19 +6,27 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The launcher hands the settings view the app's own settings store as its argument.
+ * The launcher hands the settings view the app's own settings store, wrapped by the probe refresher.
  *
- * The settings view keeps its settings in that store, so the launcher must pass the
- * app's store itself, not a copy and not another object. The rule reads the real launcher
- * activity with comments and literal text removed by the shared scanner. Each sample is the
- * real text with one edit, and the rule must fire on it.
+ * The settings view keeps its settings in that store, so the launcher must pass the app's store
+ * itself (inside the decorator that refreshes the connectivity probe after a changed server address),
+ * not a copy and not another object. Two rules read the real launcher with comments and literal text
+ * removed by the shared scanner: the view is called with the decorator, and the decorator is built
+ * over `app.settingsStore` with the root's background refresh as its callback. Each sample is the real
+ * text with one edit, and the rule must fire on it.
  */
 internal class SettingsStoreGateTest {
 
     private val activity: String = "kotlin/dev/breaker/dictation/SettingsLauncherActivity.kt"
 
-    /** The createSettingsView call, with the app's store as its second argument. */
-    private val rule = Regex("""\bcreateSettingsView\s*\(\s*activity\s*,\s*app\s*\.\s*settingsStore\s*,""")
+    /** The createSettingsView call, with the refreshing store as its second argument. */
+    private val rule = Regex("""\bcreateSettingsView\s*\(\s*activity\s*,\s*refreshing\s*,""")
+
+    /** The refreshing store: built over the app's store, calling the root's background refresh. */
+    private val decoratorRule = Regex(
+        """\bval\s+refreshing\s*=\s*ProbeRefreshingSettingsStore\s*\(\s*delegate\s*=\s*app\s*\.\s*settingsStore\s*,\s*""" +
+            """onServerUrlChanged\s*=\s*\{\s*app\s*\.\s*compositionRoot\s*\.\s*refreshProbeInBackground\s*\(\s*\)\s*\}\s*,?\s*\)""",
+    )
 
     /** [old] replaced by [new] at its first place; fails by name when it is not there. */
     private fun edit(text: String, old: String, new: String): String {
@@ -33,22 +41,39 @@ internal class SettingsStoreGateTest {
     }
 
     @Test
-    fun `the settings view is handed the app's settings store on the real launcher`() {
+    fun `the settings view is handed the refreshing store on the real launcher`() {
         assertTrue("app: the launcher source was read as empty", codeOf().isNotBlank())
-        assertTrue("app: the launcher does not pass settings = app.settingsStore to createSettingsView", rule.containsMatchIn(codeOf()))
+        assertTrue("app: the launcher does not pass refreshing to createSettingsView", rule.containsMatchIn(codeOf()))
     }
 
     @Test
-    fun `a settings view call without the app's store, with another value or with an empty object is caught`() {
-        assertFalse("app: the store argument is missing", rule.containsMatchIn(codeOf("activity,\n            app.settingsStore,", "activity,\n            ,")))
-        assertFalse("app: the store argument is another value", rule.containsMatchIn(codeOf("activity,\n            app.settingsStore,", "activity,\n            app.armedSwitch,")))
-        assertFalse("app: the store argument is an empty object", rule.containsMatchIn(codeOf("activity,\n            app.settingsStore,", "activity,\n            EmptySettings(),")))
+    fun `the refreshing store is built over the app's settings store with the root's background refresh`() {
+        assertTrue("app: refreshing is not built over app.settingsStore with the root refresh", decoratorRule.containsMatchIn(codeOf()))
     }
 
     @Test
-    fun `spacing and a trailing comment do not change the store argument`() {
-        assertTrue(rule.containsMatchIn(codeOf("activity,\n            app.settingsStore,", "activity,\n            app . settingsStore ,")))
-        assertTrue(rule.containsMatchIn(codeOf("activity,\n            app.settingsStore,", "activity,\n            app.settingsStore, // the store")))
+    fun `a settings view call without the store, with another value or with an empty object is caught`() {
+        assertFalse("app: the store argument is missing", rule.containsMatchIn(codeOf("activity,\n            refreshing,", "activity,\n            ,")))
+        assertFalse("app: the store argument is another value", rule.containsMatchIn(codeOf("activity,\n            refreshing,", "activity,\n            app.armedSwitch,")))
+        assertFalse("app: the store argument is the bare app store", rule.containsMatchIn(codeOf("activity,\n            refreshing,", "activity,\n            app.settingsStore,")))
+        assertFalse("app: the store argument is an empty object", rule.containsMatchIn(codeOf("activity,\n            refreshing,", "activity,\n            EmptySettings(),")))
+    }
+
+    @Test
+    fun `a refreshing store over another store, an empty object or a dead callback is caught`() {
+        assertFalse("app: the delegate is another value", decoratorRule.containsMatchIn(codeOf("delegate = app.settingsStore,", "delegate = app.armedSwitch,")))
+        assertFalse("app: the delegate is an empty object", decoratorRule.containsMatchIn(codeOf("delegate = app.settingsStore,", "delegate = EmptySettings(),")))
+        assertFalse("app: the callback does nothing", decoratorRule.containsMatchIn(codeOf("{ app.compositionRoot.refreshProbeInBackground() }", "{ }")))
+        assertFalse("app: the callback calls another function", decoratorRule.containsMatchIn(codeOf("refreshProbeInBackground()", "sessionLive")))
+        assertFalse("app: the decorator is not built", decoratorRule.containsMatchIn(codeOf("ProbeRefreshingSettingsStore(", "NoRefreshStore(")))
+    }
+
+    @Test
+    fun `spacing and a trailing comment do not change the rules`() {
+        assertTrue(rule.containsMatchIn(codeOf("activity,\n            refreshing,", "activity,\n            refreshing ,")))
+        assertTrue(rule.containsMatchIn(codeOf("activity,\n            refreshing,", "activity,\n            refreshing, // the store")))
+        assertTrue(decoratorRule.containsMatchIn(codeOf("delegate = app.settingsStore,", "delegate = app . settingsStore ,")))
+        assertTrue(decoratorRule.containsMatchIn(codeOf("delegate = app.settingsStore,", "delegate = app.settingsStore, // the store")))
     }
 
     @Test

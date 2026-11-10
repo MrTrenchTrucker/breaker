@@ -10,6 +10,7 @@ import dev.breaker.dictation.ui.createSettingsView
 import dev.breaker.dictation.wiring.BreakerSwitchAdapter
 import dev.breaker.dictation.wiring.HomeScreenMic
 import dev.breaker.dictation.wiring.HomeTakeWiring
+import dev.breaker.dictation.wiring.ProbeRefreshingSettingsStore
 import dev.breaker.dictation.wiring.Rebuilt
 import dev.breaker.dictation.wiring.StoreModelReady
 import dev.breaker.dictation.wiring.formatTime
@@ -75,10 +76,14 @@ internal fun buildSettingsRebuilt(
     modelReady: StoreModelReady,
     downloadLine: () -> String?,
 ): Rebuilt<android.view.View> {
+    val refreshing = ProbeRefreshingSettingsStore(
+        delegate = app.settingsStore,
+        onServerUrlChanged = { app.compositionRoot.refreshProbeInBackground() },
+    )
     return Rebuilt {
         createSettingsView(
             activity,
-            app.settingsStore,
+            refreshing,
             modelReady = { modelReady.isReady() },
             downloadLine = downloadLine,
             onThemeChanged = dev.breaker.dictation.wiring.repaintOnThemeChange(activity, app.settingsStore),

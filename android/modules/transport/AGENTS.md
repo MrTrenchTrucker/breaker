@@ -26,7 +26,8 @@ imports `DictateUseCase` or a sibling module.
 the server address) - but only if that answer was measured, so a refresh that
 finds no free slot or a still-parked lookup caches nothing. It is not on the
 core port, so only the holder of the concrete probe (`android/app`) can call
-it.
+it. The app calls it after a saved change of the server address, for the dictation
+probe only.
 
 **Public types** — this list is the module's registry line, kept in the same
 order and spelling:

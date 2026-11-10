@@ -33,7 +33,7 @@ internal class LauncherScrollGateTest {
         Rule(name, file) { Regex(first).findAll(it).count() == 1 && Regex(second).findAll(it).count() == 1 }
 
     private val rules: List<Rule> = listOf(
-        rx("SETTINGS_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "activity", """\bcreateSettingsView\s*\(\s*activity\s*,\s*app\s*\.\s*settingsStore\s*,\s*modelReady\s*=\s*\{\s*modelReady\s*\.\s*isReady\s*\(\s*\)\s*\}\s*,\s*downloadLine\s*=\s*downloadLine\s*,\s*onThemeChanged\s*=\s*dev\s*\.\s*breaker\s*\.\s*dictation\s*\.\s*wiring\s*\.\s*repaintOnThemeChange\s*\(\s*activity\s*,\s*app\s*\.\s*settingsStore\s*\)\s*,\s*onDownloadModel\s*=\s*\{\s*app\s*\.\s*tileHost\s*\.\s*requestDownload\s*\(\s*\)\s*\}\s*,?\s*\)"""),
+        rx("SETTINGS_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "activity", """\bcreateSettingsView\s*\(\s*activity\s*,\s*refreshing\s*,\s*modelReady\s*=\s*\{\s*modelReady\s*\.\s*isReady\s*\(\s*\)\s*\}\s*,\s*downloadLine\s*=\s*downloadLine\s*,\s*onThemeChanged\s*=\s*dev\s*\.\s*breaker\s*\.\s*dictation\s*\.\s*wiring\s*\.\s*repaintOnThemeChange\s*\(\s*activity\s*,\s*app\s*\.\s*settingsStore\s*\)\s*,\s*onDownloadModel\s*=\s*\{\s*app\s*\.\s*tileHost\s*\.\s*requestDownload\s*\(\s*\)\s*\}\s*,?\s*\)"""),
         rx("MODEL_READY_IS_A_LIVE_PROVIDER", "activity", """\bmodelReady\s*=\s*\{\s*modelReady\s*\.\s*isReady\s*\(\s*\)\s*\}""", 3),
         // downloadLine = { downloadSentence } appears twice: once for createFirstRunView and once passed
         // through buildSettingsRebuilt to createSettingsView
@@ -70,7 +70,7 @@ internal class LauncherScrollGateTest {
         Sample("SETTINGS_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "downloadLine = downloadLine,", "downloadLine = { null },"),
         Sample("SETTINGS_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "createSettingsView(\n            activity,", "createSettingsView(\n            null,"),
         Sample("SETTINGS_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "onDownloadModel = { app.tileHost.requestDownload() }", "onDownloadModel = { }"),
-        Sample("SETTINGS_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "app.settingsStore,\n            modelReady = { modelReady.isReady() },", "app.settingsStore,\n            modelReady = { true },"),
+        Sample("SETTINGS_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "refreshing,\n            modelReady = { modelReady.isReady() },", "refreshing,\n            modelReady = { true },"),
         Sample("MODEL_READY_IS_A_LIVE_PROVIDER", "modelReady = { modelReady.isReady() },\n            downloadLine", "modelReady = { true },\n            downloadLine"),
         Sample("MODEL_READY_IS_A_LIVE_PROVIDER", "modelReady = { modelReady.isReady() },\n            downloadLine", "modelReady = { modelReady.isReady().also { } },\n            downloadLine"),
         Sample("DOWNLOAD_LINE_IS_A_LIVE_PROVIDER", "downloadLine = { downloadSentence }", "downloadLine = { null }"),
@@ -140,7 +140,7 @@ internal class LauncherScrollGateTest {
         Quiet("activity", "private var downloadSentence: String? = null", "private var downloadSentence: String? = null // the line"),
         Quiet("activity", "onDownloadModel = { app.tileHost.requestDownload() }", "onDownloadModel = {\n            app.tileHost.requestDownload()\n        }"),
         Quiet("activity", "ScrollView(activity)", "ScrollView(  activity  )"),
-        Quiet("activity", "app.settingsStore,\n            modelReady = { modelReady.isReady() },", "app.settingsStore,\n            modelReady = { modelReady.isReady() }, // live"),
+        Quiet("activity", "refreshing,\n            modelReady = { modelReady.isReady() },", "refreshing,\n            modelReady = { modelReady.isReady() }, // live"),
         Quiet("activity", "downloadLine = downloadLine,\n            onThemeChanged = dev.breaker.dictation.wiring.repaintOnThemeChange(activity, app.settingsStore),", "downloadLine = downloadLine,\n            onThemeChanged = dev.breaker.dictation.wiring.repaintOnThemeChange(activity, app.settingsStore), // live"),
         Quiet("insets", "fun paddingFor(bars: Insets, cutout: Insets): Padding", "fun paddingFor(  bars: Insets, cutout: Insets  ): Padding"),
         Quiet("insets", "left = maxOf(bars.left, cutout.left)", "left = maxOf(bars.left, cutout.left) // max"),
