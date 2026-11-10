@@ -1,6 +1,6 @@
 # format — README
 
-**Status:** in progress by the maintainers' team (issue #15). This branch is the module's main PR; it stays open until the module is complete.
+**Status:** built and tested; the app wires only the rule-based formatter today (see below).
 
 Turns raw dictation into clean, structured text (F8). It has two formatters, one that asks the server's language model and a simple rule-based one that runs on the phone. Both are built and tested, but the app wires only the rule-based one today, for every dictation. Formatting never changes the meaning and never adds content (N9).
 

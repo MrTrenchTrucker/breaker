@@ -60,9 +60,14 @@
       "path": "android/modules/commit/accessibility",
       "items": [
         {
-          "item": "android_commit_accessibility (its own code)",
+          "item": "insert text by ACTION_SET_TEXT with the merge rules and refusals",
           "status": "DONE",
-          "evidence": "6 code files, 34 test files"
+          "evidence": "commit/accessibility card: built with tests"
+        },
+        {
+          "item": "ACTION_PASTE (named in Owns; the decision on it is open)",
+          "status": "NOT_STARTED",
+          "evidence": "modules.toml Owns and the card Purpose: not built"
         }
       ]
     },
@@ -82,9 +87,14 @@
       "path": "android/modules/crypto",
       "items": [
         {
-          "item": "android_crypto (its own code)",
+          "item": "key derivation (Argon2id + HKDF), data-key unwrap, AES-256-GCM encrypt/decrypt, sign-in package open",
           "status": "DONE",
-          "evidence": "7 code files, 9 test files"
+          "evidence": "crypto card Status: built list; KdfImpl.kt, CryptoServiceImpl.kt with tests"
+        },
+        {
+          "item": "generate and wrap the data key and the account's box keypair; unseal results to the account (Phase 19)",
+          "status": "NOT_STARTED",
+          "evidence": "crypto card lines 11-13 and 125: decided, not built; no generateDek, wrapDek, unsealAndReencrypt in the code"
         }
       ]
     },
@@ -115,9 +125,14 @@
       "path": "android/modules/history",
       "items": [
         {
-          "item": "android_history (its own code)",
+          "item": "store, 90-day TTL purge, tombstone writes, pull sink",
           "status": "DONE",
-          "evidence": "10 code files, 61 test files"
+          "evidence": "history card; SqliteHistoryStore.kt with tests"
+        },
+        {
+          "item": "tombstone expiry sweep (purgeExpiredTombstones is only called from tests)",
+          "status": "NOT_STARTED",
+          "evidence": "history card lines 61-64: no shipped code calls it; the 90-day tombstone window is deferred"
         }
       ]
     },
@@ -137,9 +152,14 @@
       "path": "android/modules/overlay",
       "items": [
         {
-          "item": "android_overlay (its own code)",
+          "item": "floating tile, ScreenMic drawing, state colours, level meter, position rules",
           "status": "DONE",
-          "evidence": "49 code files, 106 test files"
+          "evidence": "overlay card: built with tests"
+        },
+        {
+          "item": "Home ScreenMic X and check do not answer a tap while recording (open blocker); window-ownership check (T4)",
+          "status": "NOT_STARTED",
+          "evidence": "overlay card 137 (blocker, cause not found) and 86-87 (T4 not built)"
         }
       ]
     },
@@ -192,9 +212,14 @@
       "path": "android/modules/sync",
       "items": [
         {
-          "item": "android_sync (its own code)",
+          "item": "push queue, pull chain, cursor and merge (sync is on only in a debuggable build)",
           "status": "DONE",
-          "evidence": "22 code files, 54 test files"
+          "evidence": "sync card: PullCycle, QueuedSyncService, wiring behind syncAllowed"
+        },
+        {
+          "item": "delivery of pending sealed agent-token results (ADR-018); sending local deletes to the server",
+          "status": "NOT_STARTED",
+          "evidence": "sync card line 122 and README 27; the only uploader is POST (SyncHttpUploader.kt), nothing calls the DELETE route"
         }
       ]
     },
@@ -225,9 +250,14 @@
       "path": "android/ui",
       "items": [
         {
-          "item": "android_ui (its own code)",
+          "item": "screens, tokens use, Home, Settings, History, auth screen view and model",
           "status": "DONE",
-          "evidence": "118 code files, 187 test files"
+          "evidence": "ui card: built list, ui tests"
+        },
+        {
+          "item": "auth screen text input and submit",
+          "status": "NOT_STARTED",
+          "evidence": "ui card 26 and 187: no text input, the submit control refuses; AuthHostView.kt"
         }
       ]
     },
@@ -273,9 +303,14 @@
       "path": "server/modules/sync-api",
       "items": [
         {
-          "item": "server_sync_api (its own code)",
+          "item": "accounts, tokens, sessions, sync push and change feed, roles, reset, keys, change-password, store clear, retention purge, admin health, updates route",
           "status": "DONE",
-          "evidence": "87 code files, 216 test files"
+          "evidence": "sync-api card: built routes, mounted in SyncApiApplication.kt, with tests"
+        },
+        {
+          "item": "pending-sealed table and route, reset and re-key side effects, transcription-service config routes",
+          "status": "NOT_STARTED",
+          "evidence": "sync-api card: Planned, not built; no such route or table in src/main"
         }
       ]
     },
@@ -306,9 +341,14 @@
       "path": "server/modules/whisper-server",
       "items": [
         {
-          "item": "server_whisper (its own code)",
+          "item": "job queue, FIFO worker, job API, result retention, token check, rate limit, forwarder, health",
           "status": "DONE",
-          "evidence": "27 code files, 51 test files"
+          "evidence": "whisper-server card: built; tests in src/test"
+        },
+        {
+          "item": "sealed copy of agent-token results for the owner's box key; SRT/VTT output and word timestamps",
+          "status": "NOT_STARTED",
+          "evidence": "whisper-server card lines 91-106 and 19-21: planned, not built; no seal code in src/main"
         }
       ]
     },
@@ -317,9 +357,14 @@
       "path": "shared/modules/api-contracts",
       "items": [
         {
-          "item": "shared_api_contracts (its own code)",
+          "item": "OpenAPI spec for the auth, sync, jobs, updates and admin groups, with Kotlin types and conformance tests",
           "status": "DONE",
-          "evidence": "45 code files, 18 test files"
+          "evidence": "api-contracts card: shipped groups; spec and Kotlin types with tests"
+        },
+        {
+          "item": "training paths and types (Owns names training; none exists in the spec)",
+          "status": "NOT_STARTED",
+          "evidence": "api-contracts card 234-235: planned, not built; no training path in openapi.yaml"
         }
       ]
     },
@@ -410,8 +455,8 @@
   ],
   "summary": {
     "live": 35,
-    "done": 29,
-    "partial": 2,
+    "done": 20,
+    "partial": 11,
     "not_started": 4,
     "containers": 4,
     "retired": 1

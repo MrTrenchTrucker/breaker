@@ -5,6 +5,9 @@ NOT_STARTED, never left out of the denominator. Two kinds of entry are listed ap
   * retired: an entry with status = "dead";
   * containers: an entry that has other entries below its folder AND no source or test file of its own
     (android, server, shared, shared_web_libs): it only groups its children, which are rows of their own.
+A row is DONE only when EVERYTHING its own Owns names is built, with tests (ruling 2026-11-10). A part named
+in Owns that is missing, blocked or only decided makes it PARTIAL. Other modules, later phases, device-only
+proofs and app wiring do not count against a row.
 The containers list is DERIVED from the tree, so a container that gets code, or a no-code module that is
 not a container (it has no children), cannot be moved in or out of the count by editing the file.
 
