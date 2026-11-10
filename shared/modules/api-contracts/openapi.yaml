@@ -1761,7 +1761,6 @@ paths:
         assigns the admin role to a fresh account so it can bootstrap; revoke
         it to demote a former admin back to user.
       operationId: adminSetRole
-      x-status: planned
       security:
         - bearerAuth: []
       requestBody:
@@ -1801,6 +1800,51 @@ paths:
               example:
                 error: "forbidden"
                 message: "Admin role required"
+        "400":
+          description: Bad request (the body is not exactly one JSON object with string `username` and boolean `admin`)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "bad_request"
+                message: "Invalid request body"
+        "404":
+          description: Account not found (also for a user name that is not valid)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "not_found"
+                message: "Account not found"
+        "409":
+          description: Conflict (the last admin cannot be demoted)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "conflict"
+                message: "The last admin cannot be demoted"
+        "413":
+          description: Request entity too large. The body is over 4096 bytes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "payload_too_large"
+                message: "Request body exceeds maximum allowed size"
+        "503":
+          description: A storage failure gets this answer. The body is fixed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
   /v1/admin/health:
     get:
       summary: Read the admin service health and git tag
