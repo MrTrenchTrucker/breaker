@@ -99,6 +99,7 @@ class SttServerEngine internal constructor(
             202 -> Unit
             401, 403 -> return SttResult.failure(SttError.OTHER, FailureSentences.KEY_REFUSED)
             413 -> return SttResult.failure(SttError.OTHER, FailureSentences.TOO_LARGE)
+            400 -> return SttResult.failure(SttError.OTHER, FailureSentences.NO_FILE)
             404 -> return SttResult.failure(SttError.SERVER_UNREACHABLE, FailureSentences.NO_ENDPOINT)
             429, in 500..599 -> return SttResult.failure(SttError.SERVER_UNREACHABLE, FailureSentences.NOT_TAKING_WORK)
             else -> return SttResult.failure(SttError.OTHER, FailureSentences.UNEXPECTED_STATUS)

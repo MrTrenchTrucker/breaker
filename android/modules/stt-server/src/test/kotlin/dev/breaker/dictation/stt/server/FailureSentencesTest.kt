@@ -23,6 +23,7 @@ class FailureSentencesTest {
         FailureSentences.NO_ENDPOINT,
         FailureSentences.NOT_TAKING_WORK,
         FailureSentences.UNEXPECTED_STATUS,
+        FailureSentences.NO_FILE,
         FailureSentences.JOB_GONE,
         FailureSentences.BAD_ANSWER,
         FailureSentences.UNREACHABLE,
