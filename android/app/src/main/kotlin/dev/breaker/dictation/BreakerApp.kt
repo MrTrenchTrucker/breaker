@@ -20,6 +20,7 @@ import dev.breaker.dictation.service.AndroidMicPermission
 import dev.breaker.dictation.service.AndroidServiceLauncher
 import dev.breaker.dictation.service.DictationNotification
 import dev.breaker.dictation.service.DictationServiceController
+import dev.breaker.dictation.sync.PullTransport
 import dev.breaker.dictation.sync.QueuedSyncService
 import dev.breaker.dictation.sync.SyncUploader
 import dev.breaker.dictation.transport.TcpConnectivityProbe
@@ -31,6 +32,7 @@ import dev.breaker.dictation.wiring.SyncWorker
 import dev.breaker.dictation.wiring.SyncingHistoryStore
 import dev.breaker.dictation.wiring.appMicSource
 import dev.breaker.dictation.wiring.appTextCommitter
+import dev.breaker.dictation.wiring.pullTransport
 import dev.breaker.dictation.wiring.syncAllowed
 import java.io.File
 
@@ -78,6 +80,8 @@ class BreakerApp : android.app.Application() {
             applicationContext,
             uploader = syncUploader,
             probe = syncProbe,
+            pullTransport = pullTransportForSync,
+            pullSink = if (syncOn) history else null,
         )
     }
 
@@ -96,6 +100,12 @@ class BreakerApp : android.app.Application() {
             limits = CallLimits(10_000, 30_000, 1_048_576L),
             addressedSession = compositionRoot.addressedSession,
         )
+    }
+
+    /** The pull transport: the same pieces the uploader uses, wired only when sync is on. */
+    private val pullTransportForSync: PullTransport? by lazy {
+        if (syncOn) pullTransport(settingsStore, compositionRoot.addressedSession)
+        else null
     }
 
     /** One serial background thread for sync drains; the scheduler arms the delayed re-runs on it. */

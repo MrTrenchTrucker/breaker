@@ -29,6 +29,9 @@ internal class SyncReleaseGateWiringTest {
     private val startCall: String = "if (syncOn) syncWorker.onStart()"
     private val stopCall: String = "if (syncOn) syncWorker.stop()"
     private val storeGetter: String = "if (syncOn) decoratedHistoryStore else history"
+    private val pullTransportCall: String = "if (syncOn) pullTransport(settingsStore, compositionRoot.addressedSession)"
+    private val pullSinkArg: String = "pullSink = if (syncOn) history else null"
+    private val pullTransportArg: String = "pullTransport = pullTransportForSync"
 
     private val rules: List<Rule> = listOf(
         Rule("SYNC_ON_IS_THE_RUNTIME_DEBUGGABLE_DECISION",
@@ -39,6 +42,12 @@ internal class SyncReleaseGateWiringTest {
         Rule("SYNC_WORKER_STOP_IS_CALLED_ONCE", """\bsyncWorker\s*\.\s*stop\b"""),
         Rule("HISTORY_STORE_IS_PLAIN_UNLESS_SYNC_ON",
             """\bval\s+historyStore\s*:\s*HistoryStore\s+get\s*\(\s*\)\s*=\s*if\s*\(\s*syncOn\s*\)\s*decoratedHistoryStore\s+else\s+history\b"""),
+        Rule("PULL_TRANSPORT_IS_UNDER_SYNC_ON",
+            """\bif\s*\(\s*syncOn\s*\)\s*pullTransport\s*\(\s*settingsStore\s*,\s*compositionRoot\s*\.\s*addressedSession\s*\)"""),
+        Rule("PULL_SINK_IS_UNDER_SYNC_ON",
+            """\bpullSink\s*=\s*if\s*\(\s*syncOn\s*\)\s*history\s+else\s+null\b"""),
+        Rule("PULL_TRANSPORT_IS_PASSED_TO_THE_QUEUE",
+            """\bpullTransport\s*=\s*pullTransportForSync\b"""),
         Rule("SYNC_WORKER_HAS_FOUR_REFERENCES", """\bsyncWorker\b""", times = 4),
         Rule("DECORATED_STORE_HAS_TWO_REFERENCES", """\bdecoratedHistoryStore\b""", times = 2),
     )
@@ -64,6 +73,14 @@ internal class SyncReleaseGateWiringTest {
         Sample("SYNC_WORKER_HAS_FOUR_REFERENCES", "worker = syncWorker)", "worker = syncWorker)\n        syncWorker.onSave()"),
         Sample("DECORATED_STORE_HAS_TWO_REFERENCES", storeGetter, "if (syncOn) decoratedHistoryStore else decoratedHistoryStore"),
         Sample("DECORATED_STORE_HAS_TWO_REFERENCES", "private val syncOn: Boolean by lazy {", "private val other = decoratedHistoryStore\n    private val syncOn: Boolean by lazy {"),
+        Sample("PULL_TRANSPORT_IS_UNDER_SYNC_ON", pullTransportCall, "pullTransport(settingsStore, compositionRoot.addressedSession)"),
+        Sample("PULL_TRANSPORT_IS_UNDER_SYNC_ON", pullTransportCall, "if (!syncOn) pullTransport(settingsStore, compositionRoot.addressedSession)"),
+        Sample("PULL_TRANSPORT_IS_UNDER_SYNC_ON", pullTransportCall, "if (true) pullTransport(settingsStore, compositionRoot.addressedSession)"),
+        Sample("PULL_SINK_IS_UNDER_SYNC_ON", pullSinkArg, "pullSink = history"),
+        Sample("PULL_SINK_IS_UNDER_SYNC_ON", pullSinkArg, "pullSink = if (syncOn) null else history"),
+        Sample("PULL_SINK_IS_UNDER_SYNC_ON", pullSinkArg, "pullSink = if (!syncOn) history else null"),
+        Sample("PULL_TRANSPORT_IS_PASSED_TO_THE_QUEUE", pullTransportArg, "pullTransport = null"),
+        Sample("PULL_TRANSPORT_IS_PASSED_TO_THE_QUEUE", pullTransportArg, "pullSink = history"),
     )
 
     private val quiet: List<Quiet> = listOf(
@@ -74,6 +91,11 @@ internal class SyncReleaseGateWiringTest {
         Quiet(decide, "syncAllowed( applicationInfo . flags )"),
         Quiet("private val syncOn: Boolean by lazy {", "/* syncWorker decoratedHistoryStore */ private val syncOn: Boolean by lazy {"),
         Quiet("\"start-up purge failed\"", "\"start-up purge failed syncWorker.onStart() decoratedHistoryStore\""),
+        Quiet(pullTransportCall, "if ( syncOn )   pullTransport ( settingsStore , compositionRoot . addressedSession )"),
+        Quiet(pullSinkArg, "pullSink = if ( syncOn )   history   else   null"),
+        Quiet(pullTransportArg, "pullTransport =   pullTransportForSync"),
+        Quiet("private val pullTransportForSync: PullTransport? by lazy {",
+            "/* pullTransport(settingsStore, compositionRoot.addressedSession) pullSink = if (syncOn) history else null */ private val pullTransportForSync: PullTransport? by lazy {"),
     )
 
     private fun edit(text: String, old: String, new: String): String {

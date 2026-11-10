@@ -1,13 +1,14 @@
 package dev.breaker.dictation.sync
 
 /**
- * The storage the queue sits on.
+ * The storage the queue sits on. It is also the pull cursor store and the queue probe the
+ * pull merge reads: pullCursor/savePullCursor/clearPullCursor and isQueued/queuedIds.
  *
  * [QueuedSyncService] holds the rules: what is sent, in what order, and when a
  * row is removed. This interface holds only the rows. A row is returned as it is
  * stored, and no method here decides whether a row can be pushed.
  */
-internal interface SyncQueueDatabase {
+internal interface SyncQueueDatabase : PullCursorPort, QueueProbe {
 
     /**
      * Add one row under [clientId].
@@ -73,29 +74,29 @@ internal interface SyncQueueDatabase {
 
     /** True when a row with [clientId] is in the queue table.
      * Parked rows count: a parked row is still queued. */
-    fun isQueued(clientId: String): Boolean
+    override fun isQueued(clientId: String): Boolean
 
     /** The client ids of every queue row, parked or not, oldest first (by seq).
      * No text is read, nothing is changed. */
-    fun queuedIds(): List<String>
+    override fun queuedIds(): List<String>
 
     /**
      * Reads the stored cursor text of the last complete pull, or null when there is none.
      * The text is returned as stored: it is opaque and is never judged or parsed here.
      */
-    fun pullCursor(): String?
+    override fun pullCursor(): String?
 
     /**
      * Stores the cursor text, replacing the one that is there, so the store always holds
      * at most one. The text is stored as it is given, byte for byte.
      */
-    fun savePullCursor(cursor: String)
+    override fun savePullCursor(cursor: String)
 
     /**
      * Removes the stored cursor text, or none when there is none. It touches only the
      * cursor table, never the queue.
      */
-    fun clearPullCursor()
+    override fun clearPullCursor()
 
     /**
      * Run [block] as one all-or-nothing unit.

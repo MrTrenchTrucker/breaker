@@ -5,6 +5,7 @@ import dev.breaker.dictation.core.model.SyncReport
 import dev.breaker.dictation.core.model.Transcription
 import dev.breaker.dictation.core.model.TranscriptionSource
 import dev.breaker.dictation.core.port.ConnectivityProbe
+import dev.breaker.dictation.core.port.PullSink
 import dev.breaker.dictation.core.port.SyncService
 import dev.breaker.shared.api.SyncPush
 import dev.breaker.shared.api.sync.SyncBody
@@ -52,7 +53,21 @@ class QueuedSyncService internal constructor(
     private val database: SyncQueueDatabase,
     private val uploader: SyncUploader,
     private val probe: ConnectivityProbe,
+    private val pullTransport: PullTransport? = null,
+    private val pullSink: PullSink? = null,
 ) : SyncService {
+
+    /**
+     * Runs one pull cycle after a finished drain, or null when the app did not wire both halves.
+     * Built over this service's own database (it is the cursor store and the queue probe), the
+     * app's pull transport and the app's PullSink. run() swallows every exception: a failing
+     * pull changes neither the stored cursor nor this drain's report, and the next drain retries.
+     */
+    public val pullTrigger: PullTrigger? =
+        if (pullTransport != null && pullSink != null) {
+            val cycle = PullCycle(pullTransport, database, PullApplier(pullSink, database))
+            PullTrigger { try { cycle.run() } catch (t: Throwable) {} }
+        } else null
 
     private val drain = Mutex()
 
@@ -177,7 +192,12 @@ class QueuedSyncService internal constructor(
                 }
                 next = database.nextAfter(entry.seq)
             }
-            return SyncReport(pushed, skipped, parked)
+            val report = SyncReport(pushed, skipped, parked)
+            // The pull rides the same drain mutex: it runs only on the normal return path,
+            // after the drain loop and before the lock is given back. A failing pull changes
+            // neither this report nor the drain outcome; the next drain retries the pull.
+            pullTrigger?.run()
+            return report
         } finally {
             drain.unlock()
         }
@@ -227,6 +247,14 @@ class QueuedSyncService internal constructor(
             context: Context,
             uploader: SyncUploader,
             probe: ConnectivityProbe,
-        ): QueuedSyncService = QueuedSyncService(SqliteSyncQueueDatabase(context), uploader, probe)
+            pullTransport: PullTransport? = null,
+            pullSink: PullSink? = null,
+        ): QueuedSyncService = QueuedSyncService(
+            database = SqliteSyncQueueDatabase(context),
+            uploader = uploader,
+            probe = probe,
+            pullTransport = pullTransport,
+            pullSink = pullSink,
+        )
     }
 }
