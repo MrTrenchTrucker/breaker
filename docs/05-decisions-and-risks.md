@@ -116,8 +116,8 @@ key-handling code is downloaded from the server on every login, so a
 compromised server can serve a version that captures the password or the DEK
 directly — no guessing needed (ADR-006). Protection (where it applies) is
 the password's strength times Argon2id cost, not an absolute guarantee, and
-this repo ships no rate limiting or account-enumeration defense (auth
-hardening is explicitly out of scope, above; ADR-036 adds one exception, a wrong-password limit on sign-in: after 5 wrong passwords an account waits 15 minutes, built on the server). Password change re-keys every
+this repo ships only two rate limits and no account-enumeration defense
+(auth hardening is explicitly out of scope, above): the optional per-agent-token request limit of the transcription server (off unless the admin sets a cap) and the wrong-password limit on sign-in of ADR-036 (after 5 wrong passwords an account waits 15 minutes, built on the server). Per-address limits on the open sync-api routes are proposed in ADR-041, not built. Password change re-keys every
 time — a new DEK, a new box keypair, and a new `key_version` that the client
 re-encrypts and replaces the account's own records up to — so it bounds, but
 does not erase, exposure from an old database/backup copy that still holds a

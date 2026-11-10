@@ -91,5 +91,6 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-038](ADR-038-permanent-refusal-parks-the-row.md) | Permanent refusal parks the row | accepted by the manager; built; 409 is decided in ADR-039 |
 | [ADR-039](ADR-039-a-409-on-the-sync-push.md) | What a 409 on the sync push should do | accepted by the manager; no code now |
 | [ADR-040](ADR-040-the-website-uses-noble-for-key-derivation-and-the-sealed-box.md) | The website uses noble for key derivation and the sealed box | accepted; first task is a phone timing |
+| [ADR-041](ADR-041-rate-limits-on-the-open-sync-api-routes.md) | Rate limits on the open sync-api routes, keyed by source address | proposed; no code, numbers come from a measurement |
 
-Next free number: **ADR-040**.
+Next free number: **ADR-042**.
