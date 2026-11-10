@@ -5,14 +5,16 @@ paid Whisper Flow — a **phone app + self-hosted server** that turns speech int
 Whisper Flow-style formatted text, with CB-slang voice control.
 
 **Status on main:** this summary describes the target system, not only what is
-built today. Not built yet: the updater, `deploy`, server `training` and the
-phone's `training-client` (each holds only a card, a README and a build file);
-the web front end beyond its sign-in page (no history view, APK or model
-hosting, or admin panel); encryption of synced text (sync still pushes at
-`key_version` 0, Phase 19); on the server, the updates, admin-roles,
-transcription-service, clear-store and agent-token create routes and the
-3-month retention purge; and wiring the sync queue and the server formatter
-into the app. `docs/04-build-order.md` and each module card say what every
+built today. Not built yet: `deploy`, server `training` and the phone's
+`training-client` (each holds only a card, a README and a build file); most of the
+updater (its update check, APK download and signature check are built; the
+daily scheduler (only the pure due check exists), the install, the rollback and the app wiring are not); the web front end
+beyond its sign-in page (no history view, APK or model hosting, or admin panel);
+encryption of synced text (sync still pushes at `key_version` 0, Phase 19); on the
+server, the transcription-service route; and wiring the server formatter into the
+app (the sync queue is wired, but only in a debuggable build). The server's updates,
+admin-roles, clear-store and agent-token create routes and its 90-day retention
+purge are built. `docs/04-build-order.md` and each module card say what every
 piece does today.
 
 **Server-first (primary):** transcription AND formatting run on Local Server — the

@@ -536,11 +536,12 @@ client id atomically replaces the stored record rather than being treated as
 a duplicate push (ADR-006). No data loss on offline dictation. Auth via user
 token (section 12).
 
-**Several devices (ADR-035): server side built, phone pull not built:** the server is the source of
+**Several devices (ADR-035): server side built, phone pull built behind the debug-only sync switch:** the server is the source of
 truth for an account's transcriptions. Each device pushes its queue, then pulls
 the rows the other devices recorded. A delete on any device reaches every
 device, and a device applies a pulled delete through the history module. The
-phone's sync module gains the pull; nothing of it is built yet.
+phone's sync module has the pull (`PullCycle` and its wiring in the app), but it runs only when the
+sync switch is on, which is only in a debuggable build: release builds have sync off.
 
 **Web FE (F15):** a Debian container website where the user logs in and views /
 searches / copies their transcriptions from any device on the VPN. Data is
@@ -780,7 +781,7 @@ then installs the APK. Honest note: pairing is superseded by ADR-034; no certifi
 reads a **release manifest file** named by `BREAKER_SYNC_API_MANIFEST_FILE`. When a
 newer version exists:
 1. The app notifies the user ("Breaker 1.2.0 is available — update?").
-2. On confirm, it downloads the **signed APK**. For an https address the APK address is trusted by the phone's normal trust. ADR-034 decides that a plain http address is allowed too, because the update host is the configured server. The cleartext switch and the address rule are built; the updater that downloads the APK is not built.
+2. On confirm, it downloads the **signed APK**. For an https address the APK address is trusted by the phone's normal trust. ADR-034 decides that a plain http address is allowed too, because the update host is the configured server. The cleartext switch and the address rule are built, and so are the update check, the APK download with its SHA-256 check and the signature check; the install, the schedule and the app wiring are not built.
 3. It verifies the APK **signature + SHA-256** (published on the endpoint).
 4. Android installs over the existing app — same package ID + signature →
    treated as an update, **data/settings preserved**.

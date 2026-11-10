@@ -3,7 +3,7 @@
 ## Purpose
 
 Auth (users, roles, agent tokens), sync, updates, retention, store clear, log policy. The server API surface for Breaker: auth (users, tokens, **roles**) and
-transcription sync. The route that changes a role is planned, not built; the update endpoint is built.
+transcription sync. The route that changes a role and the update endpoint are both built.
 Multi-user isolation is enforced here (N13).
 A route or job marked Planned, not built below is not installed on main yet.
 
@@ -461,7 +461,8 @@ and returns the account's wrapped keys, its current `key_version`, and
 computes a version itself — it advances `key_version` only when it accepts a
 bootstrap (`/v1/auth/keys`) or a `change-password`, by exactly one, and
 never lowers it). Transcriptions from an account that has
-completed its bootstrap are stored as **ciphertext only** (T17); a Phase
+completed its bootstrap are meant to be stored as **ciphertext only** (T17: this module stores
+any standard-base64 string the client sends, and no client completes the bootstrap yet); a Phase
 11–18 account that has not yet had its first Phase-19-or-later login still
 has its transcriptions stored as **plaintext** (`key_version` 0) here until
 that login's migration runs, and any account's own records can sit at more
@@ -501,7 +502,7 @@ completes it by rotating the DEK at the account's next password change
 ## Invariants
 - First registered account is admin; second is user (F22).
 - Admin can promote/demote; users cannot self-promote (T16).
-  Planned, not built: the roles route does not exist yet.
+  Built: `POST /v1/admin/roles` (see its entry above).
 - User A cannot read user B's transcriptions (N13 test).
 - Sync retries don't duplicate (N12 test).
 - `/v1/updates/latest.json` answers from the manifest file only: no path or no
