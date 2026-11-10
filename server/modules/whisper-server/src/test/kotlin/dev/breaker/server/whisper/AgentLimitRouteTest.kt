@@ -195,4 +195,32 @@ internal class AgentLimitRouteTest {
         }
         closeAll()
     }
+
+    @Test
+    fun `an unavailable check answers 503 and creates no rate-limit counter`() {
+        val store = openStore()
+        val limit = AgentRateLimit(2, MutableClock(JobFixtures.START))
+        // Phase 1: Unavailable check with token tok-same -> 503 twice, no counter created.
+        val unavailApi = TranscriptionApi(store, {}, tokenCheck = FakeTokenCheck { TokenAnswer.Unavailable }, limit = limit)
+        testApplication {
+            application { unavailApi.install(this) }
+            assertEquals("unavailable answers 503 on enqueue", 503,
+                client.postBearer("/v1/audio/transcriptions", newBody(), "tok-same").status.value)
+            assertEquals("unavailable answers 503 on poll too", 503,
+                client.get("/v1/jobs/1") { header("Authorization", "Bearer tok-same") }.status.value)
+            assertEquals("no counter created by Unavailable requests", 0, limit.size())
+        }
+        // Phase 2: Live check with the SAME token -> full quota (2 allowed, 3rd refused).
+        val liveApi = TranscriptionApi(store, {}, tokenCheck = FakeTokenCheck { TokenAnswer.Live(1L, "agent") }, limit = limit)
+        testApplication {
+            application { liveApi.install(this) }
+            assertEquals("live token keeps full quota after Unavailable: 1st is 202", 202,
+                client.postBearer("/v1/audio/transcriptions", newBody(), "tok-same").status.value)
+            assertEquals("live token keeps full quota after Unavailable: 2nd is 202", 202,
+                client.postBearer("/v1/audio/transcriptions", newBody(), "tok-same").status.value)
+            assertEquals("live token keeps full quota after Unavailable: 3rd is 429", 429,
+                client.postBearer("/v1/audio/transcriptions", newBody(), "tok-same").status.value)
+        }
+        closeAll()
+    }
 }

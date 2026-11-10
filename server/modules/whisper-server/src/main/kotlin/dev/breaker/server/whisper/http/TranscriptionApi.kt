@@ -9,7 +9,8 @@ import io.ktor.server.routing.routing
 
 /**
  * A TokenCheck that answers Unavailable for every call: when no check is wired, the front
- * refuses every authenticated request (fail closed), it never falls through to an owner path.
+ * refuses every authenticated request with 503 (error-only body "unavailable"): fail closed, it
+ * never falls through to an owner path.
  */
 internal object FailClosedTokenCheck : TokenCheck {
     override suspend fun use(token: String): TokenAnswer = TokenAnswer.Unavailable

@@ -36,7 +36,7 @@ itself; it queues, shapes the contract, and proxies.
   exists as its own container instead of as a patch to Whisper X (F23).
 - Health: `GET /health` → `{ status: "ok", forwarding_to: "...", uptime }`, unauthenticated. `uptime` is the running time rendered as `HhMmSs` (for example `1h2m3s`), measured from a monotonic clock (`System.nanoTime`), so a wall-clock step cannot change it. `forwarding_to` is the configured downstream reduced to scheme + host + port only (no path, userinfo, query or fragment, any of which can carry a token); it is the literal `unparseable` when the URL is not http or https, has no host, or has a port that is not 1-65535. `forwarding_to` is computed once at startup by `buildTranscriptionApi`; `uptime` is rendered on each request from the start mark taken at startup.
 
-**Build phase:** Phase 4; it can start right after Phase 0. The token check client (`HttpTokenCheck`, `http/HttpTokenCheck.kt`) is built and wired into both transcription routes; the two internal token-check routes it calls are built in `sync-api`. The enqueue route (`POST /v1/audio/transcriptions`) resolves the caller's account with `HttpTokenCheck.use` (which moves a live session token's expiry) before reading the upload; the poll route (`GET /v1/jobs/{job_id}`) uses the read-only `peek` check. A missing, not-live, unavailable, or foreign-scheme token is refused with one plain 401, and a job is owned by the account the token resolves to, so a foreign account's job id answers the same 404 as a missing id. This module asks sync-api over HTTP whether a token is live and fails closed when it cannot (ARCHITECTURE R31, ADR-015). Requires the two config vars `BREAKER_WHISPER_SYNC_API_URL` and `BREAKER_WHISPER_SYNC_API_SERVICE_KEY`. Needs first: `api-contracts`.
+**Build phase:** Phase 4; it can start right after Phase 0. The token check client (`HttpTokenCheck`, `http/HttpTokenCheck.kt`) is built and wired into both transcription routes; the two internal token-check routes it calls are built in `sync-api`. The enqueue route (`POST /v1/audio/transcriptions`) resolves the caller's account with `HttpTokenCheck.use` (which moves a live session token's expiry) before reading the upload; the poll route (`GET /v1/jobs/{job_id}`) uses the read-only `peek` check. A missing, not-live or foreign-scheme token is refused with one plain 401, an unavailable token check answers 503 (`{"error":"unavailable"}`), and a job is owned by the account the token resolves to, so a foreign account's job id answers the same 404 as a missing id. This module asks sync-api over HTTP whether a token is live and fails closed when it cannot (ARCHITECTURE R31, ADR-015). Requires the two config vars `BREAKER_WHISPER_SYNC_API_URL` and `BREAKER_WHISPER_SYNC_API_SERVICE_KEY`. Needs first: `api-contracts`.
 
 ## Invariants
 - Correct JSON for a known test WAV (golden transcript match).
@@ -44,7 +44,7 @@ itself; it queues, shapes the contract, and proxies.
   Planned, not built: this invariant waits for the SRT, VTT and word timestamp output.
 - Two concurrent requests don't corrupt state (queue works).
 - Existing `/v1/chat/completions` behavior unchanged (regression).
-- A missing, not-live, unavailable or foreign-scheme token is refused with one plain 401 and nothing is enqueued; a foreign account's job id answers the same 404 as a missing id.
+- A missing, not-live or foreign-scheme token is refused with one plain 401 and nothing is enqueued; an unavailable token check answers 503 (`{"error":"unavailable"}`, error-only) before the upload is read; a foreign account's job id answers the same 404 as a missing id.
 
 - two concurrent requests serialize
 - order preserved
@@ -72,8 +72,9 @@ concurrent requests would contend. A queue serializes jobs:
   `POST /v1/audio/transcriptions` and `GET /v1/jobs/{job_id}` answer 429 with a `Retry-After`
   header in whole seconds (rounded up, at least 1), before the upload is read and before the job
   lookup. One counter per token serves both routes; it lives in memory under a SHA-256 of the
-  presented token (never the token), so a restart resets it. A token that fails the check is 401
-  first and is never counted. The code is `http/AgentRateLimit.kt`, the check is in
+  presented token (never the token), so a restart resets it. A token that fails the token check
+  is 401 first and is never counted; an unavailable token check answers 503 and creates no
+  counter. The code is `http/AgentRateLimit.kt`, the check is in
   `TranscriptionRoutes.kt` and the setting is in `WhisperConfig.kt`.
 - **Result retention (ADR-018):** a completed job's `result` stays fetchable for `RESULT_WINDOW_MS` after the job finished (default 10 minutes, set by `BREAKER_WHISPER_RESULT_TTL_S`, at most 24 hours); every `GET /v1/jobs/{job_id}` inside that window returns the same result, and after the window the result is erased and the answer is `404` (unknown or expired). Until then the result sits here in **plaintext**, same as the queued audio does before the job finishes.
 
@@ -209,7 +210,7 @@ agents, not required: an outside contributor may write the code themselves
 
 ## Token check client
 - `TokenCheck` is the port that asks sync-api over HTTP whether a presented token is live: `use` (moves a session token's expiry) and `peek` (read only). `HttpTokenCheck` is the adapter: it POSTs to `/internal/v1/token/use` or `/internal/v1/token/peek`, with the service key in `X-Service-Key` and the presented token in `X-Presented-Token`.
-- The answer is `Live(accountId)` for a 200 whose body parses as `"account_id":N` with N a whole number of 1 to 18 digits followed by optional white space and then a comma or closing brace; `NotLive` for a 401; and `Unavailable` for anything else (403, 5xx, a 200 without a clean account number, 19+ digits, `12abc`, `7.5`, `-3`, a refused connection, a timeout). The caller refuses the request on `Unavailable`.
+- The answer is `Live(accountId)` for a 200 whose body parses as `"account_id":N` with N a whole number of 1 to 18 digits followed by optional white space and then a comma or closing brace; `NotLive` for a 401; and `Unavailable` for anything else (403, 5xx, a 200 without a clean account number, 19+ digits, `12abc`, `7.5`, `-3`, a refused connection, a timeout). The caller answers 503 on `Unavailable` and enqueues nothing.
 - A token that is empty, or holds a character outside visible ASCII, is answered `NotLive` without a call.
 - The call is bounded: 3 s to connect and 5 s in total, and the 5 s cover the answer body as well as the headers; the answer body is read up to 4096 bytes, more is `Unavailable`. Every failure of the call except a cancel of the caller is `Unavailable`. When the total deadline fires, the body subscriber cancels itself and closes the connection so the exchange is not left open (BUILT). The token and the key are never logged or put in an error text.
 

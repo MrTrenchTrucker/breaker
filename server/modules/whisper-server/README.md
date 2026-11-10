@@ -18,7 +18,7 @@ unknown id gives the same `404`. Audio is erased on completion (ADR-010), unchan
 
 The `model` part is optional and ignored - the configured downstream model serves every job today; per-request model selection is a later schema change. These routes require a caller session token in the `Authorization: Bearer` header; a missing, not-live, unavailable, or foreign-scheme token is refused with one plain 401, and each job is owned by the account the token resolves to.
 
-**Token check (built).** Jobs are owned by the account of the caller's session token, and a missing, unknown, revoked or expired token is refused with one plain 401 and nothing enqueued. The module asks sync-api over HTTP whether the presented token is live (`ARCHITECTURE.md` R31, ADR-015): the enqueue moves the token's expiry via `use`, polls and the result fetch use the read-only `peek` check, and when sync-api cannot be reached the request is refused (fail closed) and nothing is enqueued.
+**Token check (built).** Jobs are owned by the account of the caller's session token, and a missing, unknown, revoked or expired token is refused with one plain 401 and nothing enqueued. The module asks sync-api over HTTP whether the presented token is live (`ARCHITECTURE.md` R31, ADR-015): the enqueue moves the token's expiry via `use`, polls and the result fetch use the read-only `peek` check, and when sync-api cannot be reached the request is refused with a plain 503 (fail closed) and nothing is enqueued.
 
 **Agent-token request limit (built, optional).** Off unless
 `BREAKER_WHISPER_AGENT_RATE_LIMIT_PER_MIN` is set to a whole number from 1 to 10000. An agent token

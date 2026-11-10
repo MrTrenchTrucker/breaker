@@ -1,5 +1,5 @@
 """Contract pins for POST /v1/audio/transcriptions: the response status
-set, the 400/500 rows referencing the Error schema with error-only
+set, the 400/500/503 rows referencing the Error schema with error-only
 examples, and the Error schema itself.
 
 Run: python3 -m unittest tests.unit.shared.api-contracts.test_transcriptions_statuses_pin
@@ -24,7 +24,7 @@ import yaml_subset
 
 SPEC_PATH = os.path.join(ROOT, "shared", "modules", "api-contracts", "openapi.yaml")
 TRANSCRIPTIONS_PATH = "/v1/audio/transcriptions"
-EXPECTED_STATUSES = {"202", "400", "401", "413", "429", "500"}
+EXPECTED_STATUSES = {"202", "400", "401", "413", "429", "500", "503"}
 _ERROR_SCHEMA = "#/components/schemas/Error"
 
 
@@ -56,7 +56,7 @@ def _schema_of(status):
 
 
 class TranscriptionsStatusesPinTest(unittest.TestCase):
-    """Pins the response status set and the 400/500 Error rows."""
+    """Pins the response status set and the 400/500/503 Error rows."""
 
     def test_post_operation_exists(self):
         """Catches a missing path or wrong method."""
@@ -67,7 +67,7 @@ class TranscriptionsStatusesPinTest(unittest.TestCase):
         """Catches a missing, extra, or renamed response status.
 
         Red on a deliberate break: remove any row, or add an extra row
-        (for example a 503), and this set no longer matches. Green on
+        (for example a 418), and this set no longer matches. Green on
         the correct spec.
         """
         actual = set(_responses().keys())
@@ -120,6 +120,29 @@ class TranscriptionsStatusesPinTest(unittest.TestCase):
         self.assertEqual(
             example.get("error"), "the file part is required",
             "400 example error text",
+        )
+
+    def test_503_refs_error(self):
+        """The 503 row (a failed token check) references the Error schema."""
+        schema = _schema_of("503")
+        self.assertEqual(
+            schema.get("$ref"), _ERROR_SCHEMA,
+            "503 schema must be Error",
+        )
+
+    def test_503_example_is_error_only_unavailable(self):
+        """The 503 example carries only 'error', the text the code sends."""
+        example = (
+            _responses()["503"]
+            .get("content", {})
+            .get("application/json", {})
+            .get("example", {})
+        )
+        self.assertEqual(
+            set(example.keys()), {"error"}, "503 example must be error-only",
+        )
+        self.assertEqual(
+            example.get("error"), "unavailable", "503 example error text",
         )
 
     def test_500_refs_error(self):
