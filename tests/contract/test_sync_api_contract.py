@@ -9,6 +9,7 @@ import unittest
 
 import contract_support
 from sync_api_main_wiring_pins import SyncApiMainWiringPinsTest  # noqa: F401  (start-up wiring pin, collected here)
+from sync_api_expiry_scheduler_pins import SyncApiExpirySchedulerPinsTest  # noqa: F401  (expiry scheduler source pins, collected here)
 
 
 class ServerModulesSyncApiContractTest(contract_support.ModuleContractTest):

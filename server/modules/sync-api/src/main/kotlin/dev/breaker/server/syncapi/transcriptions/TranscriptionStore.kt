@@ -166,6 +166,20 @@ internal class TranscriptionStore(
             }
         }
 
+    /** One batch of expiry: turns live rows of [accountId] older than [ttlMs] (strict, by
+     *  stored_at_ms vs nowMs - ttlMs) into delete records, oldest first, at most [batchCap] rows,
+     *  in one transaction on this store's connection. Returns how many rows were marked. The TTL
+     *  value is a parameter: the caller (the scheduler) decides it and passes only
+     *  TranscriptionPurge.RETENTION_TTL_MS. */
+    internal suspend fun expireBatch(
+        accountId: Long,
+        ttlMs: Long,
+        nowMs: Long,
+        batchCap: Int,
+    ): Int = db.transaction<Int> { connection ->
+        TranscriptionPurge.expireDueOn(this, connection, accountId, ttlMs, nowMs, batchCap)
+    }
+
     private fun readAccountKeyVersion(connection: Connection, accountId: Long): Int? =
         connection.prepareStatement(SELECT_ACCOUNT_KEY_VERSION_SQL).use { statement ->
             statement.setLong(1, accountId)
