@@ -8,12 +8,12 @@ at OUR server, signing key secured (never git) [1].
 
 **Build phase:** Phase 16. Needs first: `core` (on main) and the Phase 15 git-pull deploy pipeline (`server/modules/deploy`), because the update endpoint reads its tagged releases.
 
-**Status on main:** nine pieces are built, all internal, pure Kotlin, with tests in `src/test/kotlin`: the
+**Status on main:** ten pieces are built, all internal, pure Kotlin, with tests in `src/test/kotlin`: the
 due decision `UpdateSchedule.isDue(lastCheckAtMs, nowMs)`, the version order `UpdateOrder.isNewer`, the
 APK digest check `ApkDigest.matches` (and `matchesDigest`, over a digest that was computed while the
 bytes streamed), the update decision `UpdateDecision.of` plus its manifest mapper `ReleaseMapper.toRelease`,
 the check itself (`ManifestFetch`, `ManifestJson`, `UpdateCheck`, through the app's one HTTP client,
-`android/modules/http`), the download of the APK (`ApkDownload`, below) and the signature check (`SignatureCheck`, below). A manifest that offers a newer
+`android/modules/http`), the download of the APK (`ApkDownload`, below), the signature check (`SignatureCheck`, below) and the verify step that joins them (`UpdateVerification`, below). A manifest that offers a newer
 code but has a blank field is reported as unusable, not hidden. Nothing else in this module is built: no
 install, no rollback, no schedule, and no class implements the `core.UpdateChecker` port
 yet (its install and rollback are not built); the wiring in `android/app` is owed. Everything below except
@@ -142,5 +142,12 @@ agents, not required: an outside contributor may write the code themselves
   the canonical base64 of exactly 64 bytes, an empty list of keys, and a signature no listed key accepts; a key that is
   not 32 bytes never matches. It uses the Bouncy Castle light API (`bcprov`, as the crypto module does), no provider.
   The private key is never in git and never on the server; signing is an offline release step. The tests make their
-  own keys. Not built: the app wiring that holds the pinned key, and the runtime order download, digest, signature,
-  install.
+  own keys. Not built: the app wiring that holds the pinned key, and the install.
+- **The verify step (built):** `UpdateVerification` joins the download and the signature check in the ruled order.
+  It takes the two steps as functions (so a test can fake them), runs the download first, and answers
+  `UpdateVerificationResult.Ready(file)` or `Refused(reason)`. A refused download answers its own reason and the
+  signature check is never called. The signature check gets the manifest's version, digest and signature exactly as
+  given; if it refuses, the downloaded file is deleted (best effort: a file that cannot be deleted changes no answer)
+  and its reason is returned. `Ready` is returned only when both steps passed. Any exception from either step, an
+  interrupt included, becomes the one fixed sentence `UpdateVerificationReasons.UNEXPECTED`, and the file is deleted
+  if the signature step threw. No install, no Android classes, no app wiring: nothing calls it yet.
