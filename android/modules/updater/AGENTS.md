@@ -8,14 +8,37 @@ at OUR server, signing key secured (never git) [1].
 
 **Build phase:** Phase 16. Needs first: `core` (on main) and the Phase 15 git-pull deploy pipeline (`server/modules/deploy`), because the update endpoint reads its tagged releases.
 
-**Status on main:** four pieces are built, all internal, pure Kotlin, with tests in `src/test/kotlin`: the
+**Status on main:** seven pieces are built, all internal, pure Kotlin, with tests in `src/test/kotlin`: the
 due decision `UpdateSchedule.isDue(lastCheckAtMs, nowMs)`, the version order `UpdateOrder.isNewer`, the
-APK digest check `ApkDigest.matches`, and the update decision `UpdateDecision.of` plus its manifest mapper
-`ReleaseMapper.toRelease`. A manifest that offers a newer code but has a blank field is reported as unusable,
-not hidden. Nothing else in this module is built: no checker, no download, no
-signature check, no install, no rollback; the port wiring is owed. Everything below except those four
-pieces is the target design, planned, not built. The `core.UpdateChecker` port is on main in core; the
-server route `GET /v1/updates/latest.json` is built on the server and reads a manifest file (see the sync-api card).
+APK digest check `ApkDigest.matches`, the update decision `UpdateDecision.of` plus its manifest mapper
+`ReleaseMapper.toRelease`, and the check itself: `ManifestFetch` (asks the server for
+`GET /v1/updates/latest.json` through the app's one HTTP client, `android/modules/http`), `ManifestJson`
+(reads the six fields) and `UpdateCheck` (compares the version code and returns a `core.UpdateCheckResult`).
+A manifest that offers a newer code but has a blank field is reported as unusable, not hidden. Nothing else
+in this module is built: no download, no signature check, no install, no rollback, no schedule, and no
+class implements the `core.UpdateChecker` port yet (its install and rollback are not built); the wiring in
+`android/app` is owed. Everything below except those pieces is the target design, planned, not built. The
+server route `GET /v1/updates/latest.json` is built on the server and reads a manifest file (see the
+sync-api card).
+
+**The check (built):** `UpdateCheck.check()` blocks, so the caller runs it off the UI thread, and it never
+throws. `ManifestFetch` sends one GET to the configured server address plus `/v1/updates/latest.json`
+(one trailing `/` of the address dropped, a path kept) with the header `Accept` only: the route is
+public, so no token or key goes with it. Timeouts 5 s connect and 10 s read, reply cap 262 144 bytes. The
+http module decides whether the address may be called (plain http is allowed for the configured server
+only, ADR-034). Answers: 200 with a manifest, read by `ManifestJson`; 404 with the server's own
+`not_found` error is no release yet, which is up to date; any other status (a redirect is never followed),
+a 404 from anything else, an unreadable 200, a connection problem or a refusal by the http module is a
+failed check. A failed check carries one of the fixed sentences of `CheckReasons`; none holds the address,
+a status text, a body or an exception message. `ManifestJson` is strict (UTF-8, one object, no duplicate
+key, no text after it, `version_code` a plain whole number of 1 to 18 digits, at least 1) and ignores
+members it does not know, so a field the server adds later does not break an older phone. The installed
+version code and name are read from the app on every check.
+
+**Requirement for the download step (not built):** `apk_url` is untrusted text from the manifest and this
+module does not check it. The download may only fetch from the configured server address (same scheme,
+host and port as the server address) through the http module's address rule, never from another host, and
+never follow a redirect.
 
 ## Owns
 Daily update check + admin force-check, signed APK verify, rollback.
@@ -59,13 +82,14 @@ Daily update check + admin force-check, signed APK verify, rollback.
 - android (registered in modules.toml)
 - android_core (registered in modules.toml)
 - shared_api_contracts (registered in modules.toml)
+- android_http (registered in modules.toml)
 
 ## Does Not Own
 - Update endpoint (server/sync-api)
 - APK signing (server/deploy)
 
 ## Test Locations
-- Unit (Kotlin): `android/modules/updater/src/test/kotlin/` (`UpdateScheduleTest`, `UpdateOrderTest`, `ApkDigestTest`, `UpdateDecisionTest`, `ReleaseMapperTest`). Run: `./gradlew :android:modules:updater:test`
+- Unit (Kotlin): `android/modules/updater/src/test/kotlin/` (`UpdateScheduleTest`, `UpdateOrderTest`, `ApkDigestTest`, `UpdateDecisionTest`, `ReleaseMapperTest`, `ManifestJsonTest`, `ManifestFetchTest`, `UpdateCheckTest`). Run: `./gradlew :android:modules:updater:test`
 - Contract: `tests/contract/test_updater_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_updater_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 

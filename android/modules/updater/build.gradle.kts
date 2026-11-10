@@ -2,7 +2,7 @@
 //
 // Card: android/modules/updater/AGENTS.md   Registry: modules.toml [module.android_updater]
 // Owns: Daily update check + admin force-check, signed APK verify, rollback.
-// Depends on: android, android_core
+// Depends on: android, android_core, android_http
 // Cross-module calls go through the core ports or the app's own
 // dependency wiring; this module never reaches into a sibling's code.
 //
@@ -34,6 +34,7 @@ kotlin {
 
 dependencies {
     implementation(project(":android:modules:core"))
+    implementation(project(":android:modules:http"))
     implementation(project(":shared:modules:api-contracts"))
 
     testImplementation(libs.junit)
