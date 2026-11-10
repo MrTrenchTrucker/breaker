@@ -54,7 +54,7 @@ internal class JdkServerHttp(
                 connection.outputStream.use { it.write(body) }
             }
 
-            val reply = readReply(connection)
+            val reply = readReply(connection, connection.headerFields)
 
             if (abort.isAborted) {
                 throw IOException("aborted")
@@ -65,14 +65,14 @@ internal class JdkServerHttp(
         }
     }
 
-    private fun readReply(connection: HttpURLConnection): ServerReply {
+    private fun readReply(connection: HttpURLConnection, headerFields: Map<String, List<String>>?): ServerReply {
         val status = connection.responseCode
         if (status in 200..299) {
-            return ServerReply(status, readCapped(connection.inputStream, connection.contentLengthLong))
+            return ServerReply(status, readCapped(connection.inputStream, connection.contentLengthLong), headerFields ?: emptyMap())
         }
         // The JDK drops the error body of a 401 sent with a fixed-length body, but the Content-Length header stays.
-        val errorBody = connection.errorStream ?: return ServerReply(status, ByteArray(0))
-        return ServerReply(status, readCapped(errorBody, connection.contentLengthLong))
+        val errorBody = connection.errorStream ?: return ServerReply(status, ByteArray(0), headerFields ?: emptyMap())
+        return ServerReply(status, readCapped(errorBody, connection.contentLengthLong), headerFields ?: emptyMap())
     }
 
     /**

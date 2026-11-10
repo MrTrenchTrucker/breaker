@@ -68,7 +68,7 @@ The job-queue mechanics (enqueue, poll, backoff) stay behind this port, so
 | POST 413 | `OTHER`, too large |
 | POST 400 | `OTHER`, no recording (the in-repo server sends it for an empty or missing file part) |
 | POST 404 | `SERVER_UNREACHABLE`, no endpoint (the in-repo server never sends it) |
-| POST 429, 5xx | `SERVER_UNREACHABLE`, not taking work (429 and 500 are sent by the in-repo server) |
+| POST 429, 5xx | `SERVER_UNREACHABLE`, not taking work (429 and 500 are sent by the in-repo server); a 429 also carries the server's Retry-After on the failure (`SttResult.Failure.retryAfterSeconds`): seconds only, digits only, 1 to 3600, a single value, else null; the engine never waits for it and the sentence holds no number |
 | POST any other status | `OTHER`, unexpected status |
 | poll 200, `done` | success with text, segments and language |
 | poll 200, `failed` | `OTHER`, the job's failure text, cleaned |
@@ -76,7 +76,7 @@ The job-queue mechanics (enqueue, poll, backoff) stay behind this port, so
 | poll 200, unreadable or wrong fields | `OTHER`, bad answer |
 | poll 401, 403 | `OTHER`, key refused |
 | poll 404 | `OTHER`, job gone |
-| poll 429, 5xx, or a lost connection | counted as transient; up to 3 in a row are tolerated, and the next one ends the call with that failure |
+| poll 429, 5xx, or a lost connection | counted as transient; up to 3 in a row are tolerated, and the next one ends the call with that failure (a 429 ending the call carries its Retry-After as above; a 5xx never does) |
 | read timeout | counted as transient; up to 3 in a row are tolerated, and the next one ends the call as `TIMEOUT` |
 | budget used up, or 600 polls without `done` | `TIMEOUT` |
 | TLS failure | `SERVER_UNREACHABLE`, at once, never retried |

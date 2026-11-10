@@ -27,8 +27,8 @@ internal class ScriptedHttp(
 
     /** One scripted answer. */
     sealed class Step {
-        /** Answers with [status] and [bodyText]. */
-        class Reply(val status: Int, val bodyText: String) : Step()
+        /** Answers with [status] and [bodyText], plus optional [headers] (each header may have several values). */
+        class Reply(val status: Int, val bodyText: String, val headers: Map<String, List<String>> = emptyMap()) : Step()
 
         /** Throws [error] from the exchange. */
         class Throw(val error: Throwable) : Step()
@@ -58,7 +58,7 @@ internal class ScriptedHttp(
             throw AssertionError("ScriptedHttp has no step left for request number ${index + 1}")
         }
         return when (val step = script[index]) {
-            is Step.Reply -> ServerReply(step.status, step.bodyText.toByteArray(Charsets.UTF_8))
+            is Step.Reply -> ServerReply(step.status, step.bodyText.toByteArray(Charsets.UTF_8), step.headers)
             is Step.Throw -> throw step.error
             is Step.Stall -> stall(step, abort)
             is Step.ReplyAfter -> {

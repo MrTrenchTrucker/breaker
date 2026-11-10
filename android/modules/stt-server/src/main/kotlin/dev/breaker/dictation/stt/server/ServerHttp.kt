@@ -28,8 +28,8 @@ internal class ServerRequest(
     override fun toString(): String = "ServerRequest(method=$method, bodyBytes=${body?.size ?: 0})"
 }
 
-/** One answer from the server: the status and the whole body, already read and no larger than [MAX_REPLY_BYTES]. */
-internal class ServerReply(val status: Int, val body: ByteArray)
+/** One answer from the server: the status and the whole body, already read and no larger than [MAX_REPLY_BYTES], plus the reply headers (each header may have several values). */
+internal class ServerReply(val status: Int, val body: ByteArray, val headers: Map<String, List<String>> = emptyMap())
 
 /**
  * A reply body was larger than [MAX_REPLY_BYTES].
