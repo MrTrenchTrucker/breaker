@@ -44,6 +44,7 @@ open class AppLayoutGateRules {
         "wiring/KeysClearingSessionVault.kt",
         "host/ServiceRefusalNotice.kt",
         "wiring/SyncHttpUploader.kt", "wiring/SyncScheduler.kt", "wiring/SyncWorker.kt", "wiring/SyncingHistoryStore.kt",
+        "wiring/PullHttpTransport.kt",
     )
 
     /** Main files that are the layer over the platform and name Android types. */

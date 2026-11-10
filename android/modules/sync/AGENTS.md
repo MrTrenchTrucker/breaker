@@ -14,6 +14,7 @@ The offline-first sync queue on the phone, and the idempotent push (F13, N12) of
 
 - `QueuedSyncService` implements `core.SyncService` (`enqueue`, `pushPending`). Build it with `QueuedSyncService.create(context, uploader, probe)`. `pendingCount()`, `parkedCount()`, `parkedReason(clientId)` and `close()` are public too. `pendingCount()` leaves parked rows out.
 - `SyncUploader`: `fun upload(push: SyncPush): UploadOutcome`. `UploadOutcome` has `CONFIRMED`, `UNREACHABLE` and `FAILED`, in that order. An uploader reports a refusal about the row itself by throwing `PermanentRefusalException(status, reason)`; only status 400 and 413 park the row (ADR-038).
+- `PullTransport`: `fun fetch(request: PullRequest): PullTransportResult`, the seam the app implements for the pull. `PullTransportResult` is `Answered(status, body)` for any HTTP answer, the status and the body text exactly as received, or `Unreachable` when the server could not be reached; an implementation never throws for those. `PullRequest` is public only for its `path()` and `query()`; its factories stay internal, so the app cannot build one.
 - The push and the body types come from api-contracts: `dev.breaker.shared.api.SyncPush` and `dev.breaker.shared.api.sync` (`SyncBody`, `SyncBodyCodec`, `SyncBodyException`, `SyncSource`). The module calls `SyncBodyCodec` and never writes the wire form by hand (ADR-017).
 
 **Queue:**
@@ -23,7 +24,7 @@ The offline-first sync queue on the phone, and the idempotent push (F13, N12) of
 
 **Uploader:** the app supplies it. A class that implements `SyncUploader` also needs api-contracts on its own classpath (the app declares it when it wires). It sends the `SyncPush` to `POST /v1/sync` with the user's token and answers `CONFIRMED`, `UNREACHABLE` or `FAILED`, or throws `PermanentRefusalException` for a 400 or 413. This module has no HTTP client.
 
-**Pull transport and loop (internal):** `PullTransport` is the seam the app is to implement (answered or unreachable, never throws for those) and `PullLoop.run` drives page after page with six outcomes: `Ok`, `BadCursor`, `Gone` (a 410), `Other`, `Unreachable` and `Refused`. No-progress (next equals the cursor just sent, or a page with more true holds no records) and the page cap of 1000 each end as Refused. Nothing is stored and nothing is handed to history. Nothing calls it yet.
+**Pull transport and loop:** `PullTransport` is the public seam the app implements (answered or unreachable, never throws for those; see Public Interface) and `PullLoop.run` (internal) drives page after page with six outcomes: `Ok`, `BadCursor`, `Gone` (a 410), `Other`, `Unreachable` and `Refused`. No-progress (next equals the cursor just sent, or a page with more true holds no records) and the page cap of 1000 each end as Refused. Nothing is stored and nothing is handed to history. Nothing calls it yet.
 
 **Pull run (internal):** `PullRun.run` applies the list-again-once rule: a 400 or a 410 on a stored cursor drops it and lists again without since, once, and a second refusal ends as `Refused`; with no stored cursor a refusal ends as `Refused` at once. `fullList` is true only for a pull that listed from scratch, and a refused first attempt leaves none of its records in the result. It stores nothing and hands nothing to history. Nothing calls it yet.
 

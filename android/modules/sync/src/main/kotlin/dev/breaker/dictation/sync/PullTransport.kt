@@ -8,16 +8,16 @@ package dev.breaker.dictation.sync
  * or the connection failed. It never throws for those: an exception from a
  * transport is a bug and propagates.
  *
- * All types here are internal: the app cannot implement an interface that
- * mentions an internal type yet. The wiring piece decides what is published.
+ * The three types the app needs are public: this interface, [PullTransportResult] and
+ * [PullRequest] (only its path and its query). The rest of the pull stays internal.
  */
-internal fun interface PullTransport {
+fun interface PullTransport {
     /** Send [request] and say what happened. */
     fun fetch(request: PullRequest): PullTransportResult
 }
 
 /** One answer from a transport. */
-internal sealed class PullTransportResult {
+sealed class PullTransportResult {
     /** The server answered: [status] and [body] exactly as received. */
     class Answered(val status: Int, val body: String) : PullTransportResult()
     /** The server could not be reached or the connection failed. */
