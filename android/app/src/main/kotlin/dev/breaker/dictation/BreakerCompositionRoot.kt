@@ -180,6 +180,20 @@ class BreakerCompositionRoot(
     /** The stored server address, read on every call. The connectivity probe reads the same provider. */
     private val serverUrl: () -> String = { settingsStore.load().serverUrl }
 
+    /** The connectivity probe of the dictation path: one instance, shared by [refreshProbeInBackground] and the dictation component. */
+    private val probe: TcpConnectivityProbe = TcpConnectivityProbe(
+        serverUrlProvider = serverUrl,
+        clock = SystemClockAdapter,
+    )
+
+    /**
+     * Re-probes the configured server now, replacing a cached answer, on the root's own background
+     * (the one sign-in uses): the probe dials, so it never runs on the caller's thread in the app.
+     */
+    fun refreshProbeInBackground() {
+        background.submit { probe.refresh() }
+    }
+
     /** The sealed account keys file, built on first use. */
     private val credentialVault: CredentialVault by lazy {
         CredentialFileVault(credentialsFile(filesDir), AesSessionSeal(CREDENTIAL_VAULT_PURPOSE, keySupplier))
@@ -248,10 +262,7 @@ class BreakerCompositionRoot(
             history = historyStore,
             clock = SystemClockAdapter,
             ids = UuidIdSource(),
-            probe = TcpConnectivityProbe(
-                serverUrlProvider = serverUrl,
-                clock = SystemClockAdapter,
-            ),
+            probe = this.probe,
             localEngine = OnDeviceSttEngine(ModelLoader(store = modelStore, factory = RECOGNIZER_FACTORY)),
             serverEngine = serverEngineFactory(serverTarget),
             localFormatter = RuleBasedFormatter(),
