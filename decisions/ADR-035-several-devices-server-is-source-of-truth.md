@@ -1,10 +1,10 @@
 # ADR-035: Several devices per account; the server is the source of truth
 
 **Status:** accepted; the sync routes and the change feed are built on the server; the phone's pull and
-merge pieces are built and not wired: PullRun (#441), PullSink (#442), applyRemoteRow (#444), retainOnly
+merge pieces are built and wired: PullRun (#441), PullSink (#442), applyRemoteRow (#444), retainOnly
 (#445), the pull cursor store (#446), isQueued/queuedIds (#447), PullApplier (#448) and PullCycle (#450);
-the clear-store write is built too (#449). The wiring of the pull is decided, not built: no shipped code
-builds a PullCycle or a PullApplier or implements the pull transport, so the app does not start a pull. The
+the clear-store write is built too (#449). The pull is wired (#521): when sync is on, the app runs a pull
+after each push drain; release builds have sync off, so no pull runs there. The
 phone's side of the sign-in hand-off is built; the purge is built on the server; the points still open are
 under To be designed
 **Date:** 2026-11-01
@@ -35,7 +35,7 @@ On 2026-11-01 the project owner confirmed the design and ordered this update: "B
 4. **Deletes go everywhere.** A delete on any device leaves a tombstone that is pushed. Built on the server:
    the row is marked deleted, keeps its id, client id and change number, loses its body, and is carried in
    the same change feed as the rows. A delete record is purged once every live user session of the account
-   has pulled past it. On the phone (decided, not built): a device that pulls a delete applies it through
+   has pulled past it. On the phone (built, #521): a device that pulls a delete applies it through
    `applyRemoteDelete`; a row deleted anywhere does not come back from another device.
 5. **Encryption is unchanged (ADR-006).** Each device encrypts before it pushes. The server stores and returns sealed rows only and never holds the DEK, the KEK or the password.
 6. **A new device gets its keys from the website sign-in, sealed for that device.** Built on the phone: the
@@ -90,10 +90,10 @@ On 2026-11-01 the project owner confirmed the design and ordered this update: "B
   /v1/transcriptions/{client_id}`, the store delete, the `resave` mark on a push, and the plain list that
   leaves deleted rows out are built too. The `since` parameter, the page object, the 400 answer and the 410
   answer of `GET /v1/transcriptions` are built. The write of the pulled number and the purge of delete records
-  are built on the server. Not built: the wiring of the pull. Built and not wired: PullRun (#441), PullSink
+  are built on the server. Built and wired (#521): PullRun (#441), PullSink
   (#442), applyRemoteRow (#444), retainOnly (#445), the pull cursor store (#446), isQueued/queuedIds (#447),
-  PullApplier (#448) and PullCycle (#450). The clear-store write (#449) is built and mounted on the server. No shipped code builds a PullCycle
-  or a PullApplier or implements the pull transport, so the app does not start a pull. The device name
+  PullApplier (#448) and PullCycle (#450). The clear-store write (#449) is built and mounted on the server.
+  When sync is on, the app runs a pull after each push drain; release builds have sync off. The device name
   column on the session row is built (migration 4); the app now sends the platform's manufacturer and model as the name and the device list is
   built on the server (`GET /v1/auth/devices`) and in the phone's auth service, with no screen yet. Today the app has no pull, and the password sign-in is
   unchanged.
@@ -142,8 +142,8 @@ on the server. The word "feed" means the answer of `GET /v1/transcriptions` when
 The Decision above says what the phone's pull does. This section records the details decided afterwards,
 all of them Decided. PullRun (#441), PullSink (#442), applyRemoteRow (#444), retainOnly (#445), the pull
 cursor store (#446), isQueued/queuedIds (#447), PullApplier (#448) and PullCycle (#450) are built. The
-wiring of the pull is decided, not built: no shipped code builds a PullCycle or a PullApplier or implements
-the pull transport, so the app does not start a pull.
+pull is wired (#521): when sync is on, the app runs a pull after each push drain; release builds have sync
+off, so no pull runs there.
 
 - **The port.** A new core port in core/port, one interface that history implements and sync calls,
   wired by the app; history stays the ONLY writer of the local store; sync never gets the whole history

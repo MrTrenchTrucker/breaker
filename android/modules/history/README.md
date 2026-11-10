@@ -36,7 +36,7 @@ A purge records one for each expired row it removes, and `delete` records one
 when it removed a row; `delete` of an id this device does not hold leaves none.
 A delete made elsewhere (the web FE, another device) has an entry point,
 `applyRemoteDelete`, the PullSink call this store implements, which records a
-tombstone even when this device held no such row; no shipped code calls it yet.
+tombstone even when this device held no such row; the sync module's PullApplier calls it.
 
 Tombstones are written and kept. No shipped code reads or sweeps them yet,
 because the port that lets sync reach them is deferred to a later phase; until
@@ -51,15 +51,15 @@ anywhere does not come back; the case of reviving a row from another device is l
 nothing is lost because the server keeps the row). The check and the write are one
 transaction, and the store reads a tombstone only for that refusal.
 
-Built and not wired (ADR-035): the sync module's `PullApplier` calls `applyRemoteRow` and
-`applyRemoteDelete` after each pull, but no shipped code starts a pull yet; an id waiting unsent in the
-sync push queue is skipped by sync before it calls, because the queue is sync's and history cannot see it.
+Built and wired (ADR-035, #521): the sync module's `PullApplier` calls `applyRemoteRow` and
+`applyRemoteDelete` after each pull; the app starts a pull after each push drain when sync is on (release
+builds have sync off); an id waiting unsent in the sync push queue is skipped by sync before it calls, because the queue is sync's and history cannot see it.
 Both parts of the delete merge are built: a local delete followed by a local save of the same id
 clears the local tombstone, so the row is live again; and a remote delete is applied even if this device
 saved the same id again, and a remote tombstone is held across a local re-save, because the server wins
 for a delete made on another device.
-History stays the only module that writes the local store; no shipped code calls the PullSink
-methods yet. `retainOnly`, the PullSink call for the prune after a full list, removes every
+History stays the only module that writes the local store; the sync module's PullApplier calls
+the PullSink methods. `retainOnly`, the PullSink call for the prune after a full list, removes every
 local row whose id is not in the set it is given, in one transaction, writes no tombstone and
 answers how many rows it removed; a row removed that way returns with the next incremental
 pull; the sync module will call it only after a finished full list.

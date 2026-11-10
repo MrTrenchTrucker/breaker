@@ -135,7 +135,7 @@ code.
   tombstone in the same transaction as the row, so the row is live again and nothing is pending for it. A tombstone
   recorded by a REMOTE delete (`applyRemoteDelete`) is held across a local re-save, because the server wins for a
   delete made on another device: built. The sync merge that consumes it is PullApplier (sync/PullApplier.kt), built
-  and not wired (ADR-035). A tombstone
+  and wired (ADR-035, #521). A tombstone
   recorded by the age sweep is held across a local re-save too; the held cases are pinned by the store's tests.
 
 - Keep the store at one per process, shared through the app's wiring. Each `create()`
