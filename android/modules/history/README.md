@@ -24,8 +24,10 @@ Three layers:
 The **ADR-010 precise rule**: a transcription expires when its `created_at`
 instant is more than 90 days (90 x 24 h) before the purge's current instant. A
 row exactly at the cutoff is kept. The rule is computed on UTC instants, with no
-time zone and no calendar months. By design the phone and the server both use
-it; the repository has no server retention code yet.
+time zone and no calendar months. The server uses the same 90-day window but its
+own clock, the time of a row's last write, so it expires a row at the same time as
+the phone or later, never earlier. The server's expiry job is ruled in ADR-035 and
+is not built; the repository has no server retention code yet.
 
 ## Tombstones
 
