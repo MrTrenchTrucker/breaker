@@ -1,5 +1,6 @@
 package dev.breaker.server.syncapi.auth
 
+import dev.breaker.server.syncapi.escapeJsonString
 import dev.breaker.server.syncapi.handoff.HandoffStore
 import dev.breaker.server.syncapi.handoff.RedeemResult
 import dev.breaker.server.syncapi.handoff.StartResult
@@ -76,8 +77,9 @@ internal fun Application.authHandoffRoutes(handoffStore: HandoffStore, tokenStor
                     }
                     when (val start = started) {
                         is StartResult.Started -> {
+                            val codeText = escapeJsonString(start.code)
                             call.respondText(
-                                """{"code":"${start.code}"}""",
+                                """{"code":$codeText}""",
                                 ContentType.Application.Json,
                                 HttpStatusCode.Created,
                             )
@@ -339,5 +341,11 @@ private fun isValidDeviceName(name: String): Boolean {
 }
 
 private fun buildExchangeResponse(result: RedeemResult.Redeemed): String {
-    return """{"token":"${result.sessionToken}","role":"${result.role.dbValue}","key_version":${result.keyVersion},"sealed_package":"${Base64.getEncoder().encodeToString(result.sealedPackage)}","username":"${result.username}","account_id":${result.accountId}}"""
+    val token = escapeJsonString(result.sessionToken)
+    val roleText = escapeJsonString(result.role.dbValue)
+    val sealedPackage = escapeJsonString(Base64.getEncoder().encodeToString(result.sealedPackage))
+    val username = escapeJsonString(result.username)
+    return "{\"token\":" + token + ",\"role\":" + roleText +
+        ",\"key_version\":" + result.keyVersion + ",\"sealed_package\":" + sealedPackage +
+        ",\"username\":" + username + ",\"account_id\":" + result.accountId + "}"
 }

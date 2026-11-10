@@ -1,5 +1,6 @@
 package dev.breaker.server.syncapi.transcriptions
 
+import dev.breaker.server.syncapi.escapeJsonString
 import dev.breaker.server.syncapi.tokens.ResolvedToken
 import dev.breaker.server.syncapi.tokens.TokenKind
 import dev.breaker.server.syncapi.tokens.TokenStore
@@ -183,12 +184,14 @@ private fun renderTranscriptionsPage(
 ): String {
     val items = records.map { row ->
         if (row.deleted) {
-            "{\"client_id\":\"${row.clientId}\",\"change\":${row.change},\"deleted\":true,\"stored_at\":\"${formatStoredAt(row.storedAtMs)}\"}"
+            "{\"client_id\":${escapeJsonString(row.clientId)},\"change\":${row.change}," +
+                "\"deleted\":true,\"stored_at\":${escapeJsonString(formatStoredAt(row.storedAtMs))}}"
         } else {
-            "{\"client_id\":\"${row.clientId}\",\"change\":${row.change},\"deleted\":false,\"key_version\":${row.keyVersion},\"encrypted\":\"${row.encrypted}\",\"stored_at\":\"${formatStoredAt(row.storedAtMs)}\"}"
+            "{\"client_id\":${escapeJsonString(row.clientId)},\"change\":${row.change}," +
+                "\"deleted\":false,\"key_version\":${row.keyVersion},\"encrypted\":${escapeJsonString(row.encrypted.toString())},\"stored_at\":" +
+                "${escapeJsonString(formatStoredAt(row.storedAtMs))}}"
         }
     }
     val nextText = if (listHead != null) "$accountId-$next-$listHead" else "$accountId-$next"
-    return "{\"items\":[${items.joinToString(",")}],\"next\":\"$nextText\",\"more\":$more}"
+    return "{\"items\":[${items.joinToString(",")}],\"next\":${escapeJsonString(nextText)},\"more\":$more}"
 }
-

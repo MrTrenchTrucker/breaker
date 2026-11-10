@@ -1,5 +1,6 @@
 package dev.breaker.server.syncapi.transcriptions
 
+import dev.breaker.server.syncapi.escapeJsonString
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
@@ -17,8 +18,14 @@ private const val MESSAGE_ABOVE_ACCOUNT: String = "key_version is above the acco
 private const val MESSAGE_LOWER_REFUSED: String = "A lower key_version is refused for this client_id"
 private const val MESSAGE_CLIENT_ID_REFUSED: String = "client id is not a lowercase canonical UUID"
 
-internal suspend fun ApplicationCall.respondSyncError(status: HttpStatusCode, error: String, message: String) {
-    respondText("""{"error":"$error","message":"$message"}""", ContentType.Application.Json, status)
+internal suspend fun ApplicationCall.respondSyncError(
+    status: HttpStatusCode,
+    error: String,
+    message: String,
+) {
+    val errorText = escapeJsonString(error)
+    val messageText = escapeJsonString(message)
+    respondText("""{"error":$errorText,"message":$messageText}""", ContentType.Application.Json, status)
 }
 
 internal suspend fun ApplicationCall.respondSessionRequired() {

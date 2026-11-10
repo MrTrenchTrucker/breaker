@@ -1,5 +1,6 @@
 package dev.breaker.server.syncapi.servicecheck
 
+import dev.breaker.server.syncapi.escapeJsonString
 import dev.breaker.server.syncapi.tokens.ResolvedToken
 import dev.breaker.server.syncapi.tokens.TokenStore
 import io.ktor.http.ContentType
@@ -32,15 +33,18 @@ internal suspend fun answer(call: ApplicationCall, resolved: ResolvedToken?) {
         refuse(call, HttpStatusCode.Unauthorized, "not_live")
         return
     }
+    val kindText = escapeJsonString(resolved.kind.dbValue)
+    val roleText = escapeJsonString(resolved.role.dbValue)
     call.respondText(
-        """{"account_id":${resolved.accountId},"kind":"${resolved.kind.dbValue}","role":"${resolved.role.dbValue}"}""",
+        """{"account_id":${resolved.accountId},"kind":$kindText,"role":$roleText}""",
         ContentType.Application.Json,
         HttpStatusCode.OK,
     )
 }
 
 internal suspend fun refuse(call: ApplicationCall, status: HttpStatusCode, error: String) {
-    call.respondText("""{"error":"$error"}""", ContentType.Application.Json, status)
+    val errorText = escapeJsonString(error)
+    call.respondText("""{"error":$errorText}""", ContentType.Application.Json, status)
 }
 
 // The two internal routes that whisper-server calls. They are mounted only on the internal
