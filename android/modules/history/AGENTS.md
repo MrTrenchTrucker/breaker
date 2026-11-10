@@ -49,8 +49,8 @@ that have expired under the **ADR-010 precise rule** (TTL). The phone and the
 server use the same 90 x 24 h window but a different clock (phone: `created_at`
 inside the encrypted body; server: `stored_at_ms`, the time of the last write), so
 the server expires a row at the same time or later, never earlier. The server's
-expiry job is ruled in ADR-035 and is not built; the repository has no server
-retention code yet. The "3-month" TTL on the Owns line means that precise rule: 90 x 24
+expiry job is built (ADR-035; a daily job in the sync-api module, live rows only,
+by `stored_at_ms`). The "3-month" TTL on the Owns line means that precise rule: 90 x 24
 hours, per ADR-010.
 
 **Tombstones:** every delete of a stored row leaves a tombstone for sync to
@@ -114,7 +114,7 @@ code.
 
 ## Known Gotchas
 - TTL + tombstones must stay consistent with server retention (F28); by design both follow the ADR-010 precise rule.
-  The repository has no server retention code yet; the server's expiry job is ruled in ADR-035, not built.
+  The server's expiry job is built (ADR-035, sync-api module): the same window on the server's clock.
 - The app builds the store once per process (`BreakerApp`, lazy `SqliteHistoryStore.create`) and runs `purgeExpired()` once
   at start, off the main thread and through `PurgeGuard` (see Purpose); a purge failure is logged, not thrown. The window is the fixed 90 days of ADR-010.
 - NOT REPRODUCED (a defect report): a phone test of APK 8 found the history gone after an update. An in-place 6 to 8

@@ -26,8 +26,8 @@ instant is more than 90 days (90 x 24 h) before the purge's current instant. A
 row exactly at the cutoff is kept. The rule is computed on UTC instants, with no
 time zone and no calendar months. The server uses the same 90-day window but its
 own clock, the time of a row's last write, so it expires a row at the same time as
-the phone or later, never earlier. The server's expiry job is ruled in ADR-035 and
-is not built; the repository has no server retention code yet.
+the phone or later, never earlier. The server's expiry job is built (ADR-035; a daily
+job in the sync-api module, live rows only, by `stored_at_ms`).
 
 ## Tombstones
 
@@ -51,13 +51,13 @@ anywhere does not come back; the case of reviving a row from another device is l
 nothing is lost because the server keeps the row). The check and the write are one
 transaction, and the store reads a tombstone only for that refusal.
 
-Planned (ADR-035, not built): the sync module will call `applyRemoteRow` and
-`applyRemoteDelete` after each pull; an id waiting unsent in the sync push queue is skipped
-by sync before it calls, because the queue is sync's and history cannot see it. Of the
-delete merge, one part is built: a local delete followed by a local save of the same id
-clears the local tombstone, so the row is live again. The rest is decided and not built: a
-remote delete is applied even if this device saved the same id again, and a remote tombstone
-is held across a local re-save, because the server wins for a delete made on another device.
+Built and not wired (ADR-035): the sync module's `PullApplier` calls `applyRemoteRow` and
+`applyRemoteDelete` after each pull, but no shipped code starts a pull yet; an id waiting unsent in the
+sync push queue is skipped by sync before it calls, because the queue is sync's and history cannot see it.
+Both parts of the delete merge are built: a local delete followed by a local save of the same id
+clears the local tombstone, so the row is live again; and a remote delete is applied even if this device
+saved the same id again, and a remote tombstone is held across a local re-save, because the server wins
+for a delete made on another device.
 History stays the only module that writes the local store; no shipped code calls the PullSink
 methods yet. `retainOnly`, the PullSink call for the prune after a full list, removes every
 local row whose id is not in the set it is given, in one transaction, writes no tombstone and
