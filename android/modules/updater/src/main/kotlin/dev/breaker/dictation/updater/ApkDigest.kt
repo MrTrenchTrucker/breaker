@@ -18,7 +18,12 @@ internal object ApkDigest {
         } catch (e: NoSuchAlgorithmException) {
             return false
         }
-        val computed = toHex(digest.digest(bytes))
+        return matchesDigest(digest.digest(bytes), expectedHex)
+    }
+
+    /** True when [digest] (already-computed SHA-256 bytes) equals [expectedHex] (lowercase hex), case-insensitive. A malformed or wrong-length [expectedHex] is false; this never throws. The empty array is a valid input. */
+    fun matchesDigest(digest: ByteArray, expectedHex: String): Boolean {
+        val computed = toHex(digest)
         return computed.equals(expectedHex, ignoreCase = true)
     }
 

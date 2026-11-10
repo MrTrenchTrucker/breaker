@@ -36,6 +36,20 @@ class ApkDigestTest {
     }
 
     @Test
+    fun `matchesDigest matches already-computed digest bytes`() {
+        val digest = java.security.MessageDigest.getInstance("SHA-256").digest("abc".toByteArray())
+        assertTrue("android_updater: matchesDigest on abc",
+            ApkDigest.matchesDigest(digest, ABC_SHA256))
+    }
+
+    @Test
+    fun `matchesDigest is case-insensitive`() {
+        val digest = java.security.MessageDigest.getInstance("SHA-256").digest("abc".toByteArray())
+        assertTrue("android_updater: matchesDigest upper case",
+            ApkDigest.matchesDigest(digest, ABC_SHA256.uppercase()))
+    }
+
+    @Test
     fun `empty expected is false`() {
         assertFalse("android_updater: empty expected is false",
             ApkDigest.matches(byteArrayOf(), ""))
