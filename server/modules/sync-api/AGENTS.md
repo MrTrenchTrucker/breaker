@@ -598,7 +598,9 @@ The HTTP surface. `syncApiModule` installs the public routes: `/v1/auth/*`, `/v1
   with its fixed message; 409 above the account; 409 for a lower version of a stored client
   id; the largest key_version reaches the account check); `SyncRoutesListTest.kt` (an empty
   list; the row shape with the injected clock time; oldest first; one account never sees
-  another account's rows; 503 for a stored time that cannot be formatted);
+  another account's rows; 503 for a stored time that cannot be formatted;
+  renderedPageEqualsPullPageFixture renders the route page and asserts body equals
+  PullPageFixture.PAGE exactly);
   `SyncRoutesAuthTest.kt` (401 with no token, an unknown, malformed, revoked or expired
   session token, or a Basic scheme with a live token; 403 for an agent token on both routes;
   401 for a revoked agent token; a session token as the control);
