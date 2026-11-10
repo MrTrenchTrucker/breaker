@@ -125,7 +125,8 @@ On 2026-11-01 the project owner confirmed the design and ordered this update: "B
 The Decision above says what the feed is for. This section records the details that were decided afterwards,
 each with its reason. They are decided, not built, except where it says built. Built on the server: the change
 number, the cursor, the answer, the delete record, and the push of a deleted id with its resave mark. Not
-built: clear-store, the phone side. The write of the pulled number and the purge of delete records are built
+built: the phone side of clear-store (the server route is built), and the rest of the
+phone side. The write of the pulled number and the purge of delete records are built
 on the server. The word "feed" means the answer of `GET /v1/transcriptions` when the client sends `since`.
 
 - **The change number.** Each account has one counter, kept on the account row. Every write of a transcription row (insert, replace, delete) takes the next number of that account. Reason: one counter that only goes up means a purge can never lower it, so a number is never handed out twice. The migration numbers the rows that already exist 1 to N in id order, per account. This part is built (migration 5).
