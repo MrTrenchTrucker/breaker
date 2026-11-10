@@ -8,14 +8,14 @@ at OUR server, signing key secured (never git) [1].
 
 **Build phase:** Phase 16. Needs first: `core` (on main) and the Phase 15 git-pull deploy pipeline (`server/modules/deploy`), because the update endpoint reads its tagged releases.
 
-**Status on main:** eight pieces are built, all internal, pure Kotlin, with tests in `src/test/kotlin`: the
+**Status on main:** nine pieces are built, all internal, pure Kotlin, with tests in `src/test/kotlin`: the
 due decision `UpdateSchedule.isDue(lastCheckAtMs, nowMs)`, the version order `UpdateOrder.isNewer`, the
 APK digest check `ApkDigest.matches` (and `matchesDigest`, over a digest that was computed while the
 bytes streamed), the update decision `UpdateDecision.of` plus its manifest mapper `ReleaseMapper.toRelease`,
 the check itself (`ManifestFetch`, `ManifestJson`, `UpdateCheck`, through the app's one HTTP client,
-`android/modules/http`), and the download of the APK (`ApkDownload`, below). A manifest that offers a newer
+`android/modules/http`), the download of the APK (`ApkDownload`, below) and the signature check (`SignatureCheck`, below). A manifest that offers a newer
 code but has a blank field is reported as unusable, not hidden. Nothing else in this module is built: no
-signature check, no install, no rollback, no schedule, and no class implements the `core.UpdateChecker` port
+install, no rollback, no schedule, and no class implements the `core.UpdateChecker` port
 yet (its install and rollback are not built); the wiring in `android/app` is owed. Everything below except
 those pieces is the target design, planned, not built. The server route `GET /v1/updates/latest.json` is
 built on the server and reads a manifest file (see the sync-api card).
@@ -47,7 +47,7 @@ is missing are refused before a byte is stored. The body streams into a `.part` 
 the SHA-256 is computed on the way (the APK is never held in memory), and only when it equals the manifest
 digest is the `.part` file moved over the destination in one atomic move. On every other path (a mismatch, a
 short or dropped body, the cap, any error) the `.part` file is deleted and an old destination is left as it
-was. No signature check and no install: a downloaded file is only as trusted as its digest.
+was. The download does not check the signature (`SignatureCheck`, below, is the separate step) and installs nothing.
 
 ## Owns
 Daily update check + admin force-check, signed APK verify, rollback.
@@ -130,3 +130,17 @@ agents, not required: an outside contributor may write the code themselves
 ## Known Gotchas
 - Verify signature + SHA-256 before install; keep previous APK for rollback.
 - The login token reaches this module as `core.AuthService`, wired by `android/app` (ADR-001); it never imports `auth-client`.
+- **The signature check (built, `SignatureCheck`, test `SignatureCheckTest`):** the manifest `signature` field is an Ed25519
+  signature, as base64, over the ASCII message `breaker-update-v1`, a line feed, the version, a line feed, the
+  SHA-256 as lowercase hex, a line feed (nothing else is signed: not the notes and not the URL). Binding the digest
+  binds the exact APK bytes; binding the version stops a replay of an older signed APK as new. This is the earlier,
+  separate check from the one Android makes at install-over: a fooled or hacked update server must not be able to hand
+  the phone a file it accepts. `SignatureCheck(pinnedKeys)` takes a list of raw 32-byte public keys (a list of one now;
+  rotation later means an app that carries two) and `verify(version, sha256, signature)` answers `Verified` or
+  `Refused(reason)` with a fixed sentence of `SignatureCheckReasons` that holds no key, signature, version or digest. It
+  refuses a blank version or one with a control character, a digest that is not 64 hex digits, a signature that is not
+  the canonical base64 of exactly 64 bytes, an empty list of keys, and a signature no listed key accepts; a key that is
+  not 32 bytes never matches. It uses the Bouncy Castle light API (`bcprov`, as the crypto module does), no provider.
+  The private key is never in git and never on the server; signing is an offline release step. The tests make their
+  own keys. Not built: the app wiring that holds the pinned key, and the runtime order download, digest, signature,
+  install.
