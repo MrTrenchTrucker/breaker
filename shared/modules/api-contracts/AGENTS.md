@@ -280,6 +280,18 @@ OpenAPI spec (openapi.yaml); Kotlin request and response types
   `tests/unit/shared/api-contracts/test_username_vectors.py` checks the table
   against the pattern in `openapi.yaml` and against the Kotlin literal copy in the
   sync-api tests; each side of the system checks the same table.
+- Pull page vectors: `examples/pull_page_vectors.json` holds one pull page (one live
+  row, one delete row, stored_at in .mmmZ form). The stdlib test
+  `tests/unit/shared/api-contracts/test_pull_page_fixture.py` checks the JSON equals
+  both Kotlin literal copies:
+  `server/modules/sync-api/src/test/kotlin/dev/breaker/server/syncapi/transcriptions/PullPageFixture.kt`
+  and
+  `android/modules/sync/src/test/kotlin/dev/breaker/dictation/sync/PullPageFixture.kt`;
+  the server test SyncRoutesListTest.renderedPageEqualsPullPageFixture renders the
+  route page and asserts body equals PullPageFixture.PAGE exactly; the android tests
+  PullPageDecoderRefusalsTest (decoding and applying PullPageFixture) and
+  PullApplierTest (a delete with whole-second storedAt is unreadable) read it too;
+  each side of the system checks the same page text.
 - Contract: `tests/contract/test_api_contracts_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_api_contracts_contract.py`
 - Sign-in hand-off: the stdlib test `tests/unit/shared/api-contracts/test_signin_handoff_contract.py`
   pins the two hand-off paths, their statuses, the field sets and patterns of the four hand-off schemas,
