@@ -66,7 +66,7 @@ internal open class TokenStore(
 
     // No production route calls this yet. A pending owner gets no token, the same as for a session; the
     // check comes before the scope check, so a pending owner is refused whatever scope is asked for.
-    suspend fun issueAgent(
+    open suspend fun issueAgent(
         ownerAccountId: Long,
         scope: AgentScope,
         label: String,
@@ -96,6 +96,61 @@ internal open class TokenStore(
             }
         }
     }
+
+    // Every live agent token of every account, oldest first: the admin list. A revoked row
+    // (revoked_at_ms set) stays in the table but never appears here. The row's id, label and
+    // scope come straight from the tokens row and the owner name from the accounts row — never
+    // the token value or its hash.
+    open suspend fun listAgentTokens(): List<AgentTokenRow> =
+        db.transaction<List<AgentTokenRow>> { connection ->
+            connection.prepareStatement(SELECT_AGENT_TOKENS_SQL).use { statement ->
+                statement.executeQuery().use { rows ->
+                    val found = ArrayList<AgentTokenRow>()
+                    while (rows.next()) {
+                        val id = rows.getLong(1)
+                        val label = rows.getString(2)
+                        val ownerUsername = rows.getString(3)
+                        val scope = AgentScope.fromDb(rows.getString(4))
+                        val expiresAtMsRaw = rows.getLong(5)
+                        // wasNull() reflects the last column read, so it must be checked before
+                        // any other column is read.
+                        val expiresAtMs = if (rows.wasNull()) null else expiresAtMsRaw
+                        found.add(
+                            AgentTokenRow(
+                                id = id,
+                                label = label,
+                                ownerUsername = ownerUsername,
+                                scope = scope,
+                                expiresAtMs = expiresAtMs,
+                            )
+                        )
+                    }
+                    found
+                }
+            }
+        }
+
+    // The canonical display name of one account (the raw `username` column), or null when no
+    // account has this id.
+    suspend fun usernameOf(accountId: Long): String? =
+        db.transaction<String?> { connection ->
+            connection.prepareStatement(SELECT_USERNAME_SQL).use { statement ->
+                statement.setLong(1, accountId)
+                statement.executeQuery().use { rows ->
+                    if (rows.next()) rows.getString(1) else null
+                }
+            }
+        }
+
+    // The id of the account with this folded name, or null: the owner lookup of the create
+    // route. Mirrors AccountStore.accountIdOfFolded; the route only sees this store.
+    suspend fun accountIdOfFolded(folded: String): Long? =
+        db.transaction<Long?> { connection ->
+            connection.prepareStatement(SELECT_ACCOUNT_ID_OF_FOLDED_SQL).use { statement ->
+                statement.setString(1, folded)
+                statement.executeQuery().use { rows -> if (rows.next()) rows.getLong(1) else null }
+            }
+        }
 
     suspend fun resolve(presented: String): ResolvedToken? {
         val secret = TokenSecret.parse(presented) ?: return null
@@ -500,6 +555,16 @@ internal open class TokenStore(
 
         const val SELECT_PULLED_CHANGE_SQL = "SELECT last_pulled_change FROM tokens WHERE id = ?"
 
+        const val SELECT_AGENT_TOKENS_SQL =
+            "SELECT t.id, t.label, a.username, t.scope, t.expires_at_ms FROM tokens t " +
+                "JOIN accounts a ON a.id = t.account_id " +
+                "WHERE t.kind = 'agent' AND t.revoked_at_ms IS NULL " +
+                "ORDER BY t.id ASC"
+
+        const val SELECT_USERNAME_SQL = "SELECT username FROM accounts WHERE id = ?"
+
+        const val SELECT_ACCOUNT_ID_OF_FOLDED_SQL = "SELECT id FROM accounts WHERE username_lower = ?"
+
         // Counts the live user sessions of the account, how many of them hold a number, and the lowest
         // number. The three live conditions are the ones of SESSION_LIVE_SQL, written out again here.
         // COUNT skips NULL, so the second count shows a session without a number. MIN alone would skip it.
@@ -510,3 +575,15 @@ internal open class TokenStore(
                 "AND (expires_at_ms IS NULL OR expires_at_ms <= created_at_ms + " + MAX_SESSION_LIFETIME_MS + ")"
     }
 }
+
+/**
+ * One row the admin list returns: id, label, owner name, scope, expiry. Never the token value
+ * or its hash.
+ */
+internal data class AgentTokenRow(
+    val id: Long,
+    val label: String,
+    val ownerUsername: String,
+    val scope: AgentScope,
+    val expiresAtMs: Long?,
+)
