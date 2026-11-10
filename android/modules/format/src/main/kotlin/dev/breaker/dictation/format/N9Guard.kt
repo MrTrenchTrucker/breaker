@@ -15,19 +15,31 @@ internal object N9Guard {
 
     /**
      * Contraction stems for the n't forms above. The n't forms are counted straight from the
-     * lower-cased RAW text with this regex (straight ' and curly ’ apostrophes both match) —
-     * tokenize() splits at the apostrophe ("don't" -> "don","t") so it cannot be used here.
-     * One regex match = one protected contraction token.
+     * lower-cased RAW text with this regex, after every apostrophe look-alike was read as the
+     * plain apostrophe (see [APOSTROPHES]). tokenize() splits at the apostrophe ("don't" ->
+     * "don","t") so it cannot be used here. One regex match = one protected contraction token.
      */
     private val CONTRACTION_REGEX = Regex(
-        "\\b(doesn|didn|haven|hasn|hadn|wouldn|shouldn|couldn|mustn|needn|weren|wasn|aren|isn|won|can|don)['’]t\\b"
+        "\\b(doesn|didn|haven|hasn|hadn|wouldn|shouldn|couldn|mustn|needn|weren|wasn|aren|isn|won|can|don)'t\\b"
     )
+
+    /**
+     * Characters that stand for an apostrophe in typed or dictated text, besides the plain one:
+     * the curly ones (U+2018, U+2019, U+201B), the prime (U+2032), the modifier letter apostrophe
+     * (U+02BC), the acute accent (U+00B4), the grave accent (U+0060) and the fullwidth apostrophe
+     * (U+FF07). Each is read as the plain apostrophe before anything is counted, so a negation
+     * written with any of them is protected like "don't".
+     */
+    private const val APOSTROPHES: String = "‘’‛′ʼ´`＇"
 
     fun accepts(rawText: String, candidate: String): Boolean {
         if (candidate.isBlank()) return false
         if (candidate.length > 4 * rawText.length + 64) return false
-        val rawTokens = tokenize(rawText)
-        val candTokens = tokenize(candidate)
+        if (hasForbiddenCharacter(candidate)) return false
+        val raw = readApostrophes(rawText)
+        val cand = readApostrophes(candidate)
+        val rawTokens = tokenize(raw)
+        val candTokens = tokenize(cand)
         val rawSet = rawTokens.toSet()
         var nonDigitCandidateCount = 0
         for (t in candTokens) {
@@ -37,15 +49,46 @@ internal object N9Guard {
             if (!allDigits) nonDigitCandidateCount++
         }
         val rawWords = rawTokens.count { t -> !t.all { it.isDigit() } }
-        return nonDigitCandidateCount >= rawWords / 2
-            && protectedTokensSatisfied(rawText, candidate)
-            && digitTokensSatisfied(rawText, candidate)
+        return nonDigitCandidateCount >= requiredWords(rawWords)
+            && protectedTokensSatisfied(raw, cand)
+            && digitTokensSatisfied(raw, cand)
+    }
+
+    /**
+     * How many non-number words a candidate must keep: at least half of the raw words, and at
+     * least one whenever the raw has any, so a reply of punctuation alone never passes for a
+     * short transcript (half of one word is zero by integer division).
+     */
+    private fun requiredWords(rawWords: Int): Int = if (rawWords == 0) 0 else maxOf(1, rawWords / 2)
+
+    /**
+     * True when the candidate holds a character that is no text: a control character other than
+     * tab, line feed and carriage return, or a surrogate half with no partner. The word count
+     * skips both, so without this check a reply could carry them past the guard.
+     */
+    private fun hasForbiddenCharacter(text: String): Boolean {
+        var i = 0
+        while (i < text.length) {
+            val cp = text.codePointAt(i)
+            i += Character.charCount(cp)
+            if (cp in 0xD800..0xDFFF) return true
+            if (Character.isISOControl(cp) && cp != '\n'.code && cp != '\t'.code && cp != '\r'.code) return true
+        }
+        return false
+    }
+
+    /** [text] with every apostrophe look-alike of [APOSTROPHES] replaced by the plain apostrophe. */
+    private fun readApostrophes(text: String): String {
+        val out = StringBuilder(text.length)
+        for (c in text) out.append(if (APOSTROPHES.indexOf(c) >= 0) '\'' else c)
+        return out.toString()
     }
 
     /**
      * Protected-token rule: every protected token must appear in the candidate at a count >= its
      * count in the raw text, or the guard refuses (returns false, the caller then falls back to
-     * the raw text exactly, as today).
+     * the raw text exactly, as today). Only the count is checked, not the place: a word that
+     * moves inside the reply is not caught.
      */
     private fun protectedTokensSatisfied(rawText: String, candidate: String): Boolean {
         val rawCounts = protectedCounts(rawText)
@@ -91,12 +134,17 @@ internal object N9Guard {
         return true
     }
 
+    // Words are runs of letters and digits, read by code point so a letter outside the Basic
+    // Multilingual Plane (a surrogate pair) counts as a letter, not as two boundaries.
     private fun tokenize(text: String): List<String> {
         val tokens = mutableListOf<String>()
         val sb = StringBuilder()
-        for (c in text) {
-            if (Character.isLetterOrDigit(c)) {
-                sb.append(c)
+        var i = 0
+        while (i < text.length) {
+            val cp = text.codePointAt(i)
+            i += Character.charCount(cp)
+            if (Character.isLetterOrDigit(cp)) {
+                sb.appendCodePoint(cp)
             } else if (sb.isNotEmpty()) {
                 tokens.add(sb.toString().lowercase(Locale.ROOT))
                 sb.setLength(0)
