@@ -39,3 +39,18 @@ dependencies {
     // Test-only: runs HistorySql on the desktop SQLite; never shipped.
     testImplementation(libs.sqlite.jdbc)
 }
+
+// Test-read repo files declared as Gradle inputs (helper: gradle/test-reads-repo-files.gradle.kts,
+// applied from the root build; paths are relative to the repository root).
+extra["repoFileInputs"] = listOf(
+    "android/app/build.gradle.kts",
+    "gradle/libs.versions.toml",
+    "build.gradle.kts",
+    "android/ui/build.gradle.kts",
+    "android/modules/core/build.gradle.kts",
+    "android/modules/history/build.gradle.kts",
+    "android/modules/history/AGENTS.md",
+    "modules.toml",
+    "decisions/ADR-010-retention.md",
+    "server/modules/sync-api/AGENTS.md",
+)

@@ -16,3 +16,5 @@ class AndroidContractTest(contract_support.ModuleContractTest):
 
 if __name__ == "__main__":
     unittest.main()
+
+from gradle_inputs_pins import GradleInputsContractTest  # noqa: F401  (test-read files declared as Gradle inputs, collected here)
