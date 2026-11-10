@@ -208,8 +208,8 @@ used across the docs, and they do not share one counter:
   mitigations".
 - **R** = Risk — `docs/05-decisions-and-risks.md` "Risks" table.
 - **D** = Decision — the short ADR-style write-ups in
-  `docs/05-decisions-and-risks.md` "Decisions (ADR-style)" (mirrored in
-  `ARCHITECTURE.md` §18). Several also have a fuller write-up as their own
+  `docs/05-decisions-and-risks.md` "Decisions (ADR-style)" (`ARCHITECTURE.md`
+  §18 points to it). Several also have a fuller write-up as their own
   `decisions/ADR-NNN-*.md` file. The D numbers and the ADR numbers are two
   separate series: D7 is not ADR-007. Docs always cite an ADR by its number
   and name, never by matching it to a D number.

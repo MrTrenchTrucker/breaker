@@ -205,6 +205,24 @@ art). A digital Cobra-style LED bar meter fills above the floating mic while
 recording; state colors: **green** = sent (copy confirmed), **orange** = server
 failed → local fallback, **red** = complete failure (F36).
 
+**D34 — Sessions expire 30 days after last use.**
+sliding; admin revoke stays; agent tokens keep their own expiry (ADR-031).
+
+**D35 — Superseded by ADR-034: the server makes its own certificate; the one-time sign-in pairs the phone with it.**
+ADR-034 decides plain HTTP; TLS is the admin's choice via any reverse proxy. The pairing is dropped with ADR-032 (not built).
+
+**D36 — Signed out = a quiet notice on Home, nothing forced.**
+the app keeps working offline (ADR-033).
+
+**D37 — whisper-server asks sync-api whether a token is live.**
+over HTTP, fail closed, internal route with a service key made at first start (ADR-015, amended; R31).
+
+**D38 — Breaker serves plain HTTP; TLS is the admin's choice.**
+any reverse proxy in front if https is wanted; the app will accept http and https addresses and show one quiet line in settings on plain http; ADR-034 decides it and supersedes ADR-032; built: cleartext is permitted and plain http is accepted for the configured server only; not built: the quiet settings line, the address setter and the settings screen.
+
+**D39 — Several devices; the server is the source of truth.**
+each device pushes, then pulls; a delete reaches every device; a new device gets its keys sealed from the website sign-in (ADR-035; hand-off routes built on server, website sealing not built).
+
 ## Risks
 
 | # | Risk | Impact | Mitigation |
@@ -236,9 +254,10 @@ failed → local fallback, **red** = complete failure (F36).
 | R25 | **Retention deletion surprises users** | Low | 3-month TTL warned in UI; admin override via store management (F28/F29) |
 | R26 | **Model licensing blocks hosting** | Med | Fallback: direct upstream download with pinned checksums [2] |
 | R27 | **CPU training infeasible** | Low | GPU via Local Inference (D26) |
-| R28 | **Admin-scoped agent token leaked** | Med | Scoped tokens, revocation, audit (F31, T19) |
+| R28 | **Admin-scoped agent token leaked** | Med | Scoped tokens, revocation, audit (F31, T19, ADR-018); a leaked admin-scoped token can trigger an account reset (it wipes the account's keys and transcriptions and never sets the password itself) |
 | R29 | **Account deletion data loss** | Med | Destructive + irreversible; confirmation + type-to-confirm + clear warning (F33) |
 | R30 | **Last-admin lockout** | Low | Prevented by rule: last admin cannot delete or be demoted (F33) |
+| R31 | **How whisper-server learns that a token is live — RULED and BUILT. The client and the sync-api routes are built and used by both job routes** | — | Jobs are to be owned by the token's account, and a missing, unknown, revoked or expired token refused with nothing enqueued, under the same expiry rule as sync-api (ADR-031). The maintainers ruled that whisper-server asks sync-api over HTTP (ADR-015, amended): the enqueue is the use that moves a session token's expiry; polls and the result fetch use a read-only check with the same live rule; if sync-api cannot be reached the request is refused with a plain 503 (nothing enqueued; amended 2026-11-10, a refused token stays a plain 401) and the phone falls back to on-device; the sync-api route is internal only, never on the VPN-facing interface, protected by a service key the server stack makes for itself at first start; a revoke never lags. Rejected: a shared database file, the token code as a shared library, a self-contained signed token. Where the route listens and where the key is kept belong to the deploy design and are not decided here. Today the job API checks no token and every job has one fixed owner. |
 
 ## Deferred / out of scope (user decisions)
 - **Auth hardening** (brute-force protection, refresh) — the VPN perimeter is the
