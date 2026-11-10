@@ -3,8 +3,8 @@
 ## Purpose
 
 Auth (users, roles, agent tokens), sync, updates, retention, store clear, log policy. The server API surface for Breaker: auth (users, tokens, **roles**) and
-transcription sync. The route that changes a role and the update endpoint are planned, not built. Multi-user isolation is enforced
-here (N13).
+transcription sync. The route that changes a role is planned, not built; the update endpoint is built.
+Multi-user isolation is enforced here (N13).
 A route or job marked Planned, not built below is not installed on main yet.
 
 **Endpoints (see shared/api-contracts):**
@@ -358,7 +358,7 @@ A route or job marked Planned, not built below is not installed on main yet.
   transaction per account, so a failure on one account answers 503 and leaves the accounts already
   cleared cleared. The reset path (`deleteAllOn`) is separate and leaves no delete records. BUILT.
 - Retention: transcriptions TTL = **3 months** (ADR-010 precise rule); purge job enforces it (F28).
-  Ruled in ADR-035; the logic is built, the schedule and its wiring are not. `TranscriptionPurge.expireDueOn`
+  Ruled in ADR-035; the logic and the schedule are built. `TranscriptionPurge.expireDueOn`
   turns the live rows of one account older than the TTL (`RETENTION_TTL_MS`, 90 x 24 h, by `stored_at_ms`,
   a row exactly at the cutoff is kept) into delete records, oldest first, at most a batch cap per call,
   on the caller's connection inside the caller's transaction, and returns how many it did. Each takes a
