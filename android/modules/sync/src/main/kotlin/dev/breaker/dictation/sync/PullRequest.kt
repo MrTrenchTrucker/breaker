@@ -1,19 +1,20 @@
 package dev.breaker.dictation.sync
 
-/** An internal request description: the path and the optional `since`. */
-internal class PullRequest private constructor(
+/** One pull request: the path and the optional `since`. Only [path] and [query] are public; the
+ * factories belong to the pull loop and the module's own code. */
+class PullRequest private constructor(
     /** The optional `since` query value; null for the first request. */
-    val since: String?,
+    internal val since: String?,
 ) {
 
     companion object {
         private const val PATH = "/v1/transcriptions"
 
         /** The first request: no `since`. */
-        fun first(): PullRequest = PullRequest(null)
+        internal fun first(): PullRequest = PullRequest(null)
 
         /** A later request: keeps [cursor] exactly as given, but refuses an empty text. */
-        fun after(cursor: String): PullRequest {
+        internal fun after(cursor: String): PullRequest {
             if (cursor.isEmpty()) {
                 throw IllegalArgumentException("after: an empty cursor is not a cursor")
             }
