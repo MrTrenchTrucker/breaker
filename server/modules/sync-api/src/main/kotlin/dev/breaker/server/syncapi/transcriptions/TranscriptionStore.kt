@@ -112,7 +112,7 @@ internal class TranscriptionStore(
             marked
         }
 
-    private fun markDeleted(
+    internal fun markDeleted(
         connection: Connection,
         accountId: Long,
         clientId: String,
@@ -183,7 +183,7 @@ internal class TranscriptionStore(
             }
         }
 
-    private fun bumpChangeSeq(connection: Connection, accountId: Long): Long {
+    internal fun bumpChangeSeq(connection: Connection, accountId: Long): Long {
         val updated = connection.prepareStatement(BUMP_CHANGE_SEQ_SQL).use { statement ->
             statement.setLong(1, accountId)
             statement.executeUpdate()

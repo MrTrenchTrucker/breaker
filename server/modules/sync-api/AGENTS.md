@@ -339,12 +339,15 @@ A route or job marked Planned, not built below is not installed on main yet.
   transaction per account, so a failure on one account answers 503 and leaves the accounts already
   cleared cleared. The reset path (`deleteAllOn`) is separate and leaves no delete records. BUILT.
 - Retention: transcriptions TTL = **3 months** (ADR-010 precise rule); purge job enforces it (F28).
-  Ruled in ADR-035, not built: a scheduled daily job walks live rows older than the TTL by
-  `stored_at_ms` and turns each into a delete record (new change number, body cleared, deleted set).
-  One transaction per account with a batch cap (value set when built). Live rows only. The job
-  never raises `purged_through`: only the floor purge does. Logic lives next to
-  `TranscriptionPurge`. Wiring is Router's slot, behind the pull chain. Phone retention tombstones
-  reaching the server stay deferred with the tombstone port.
+  Ruled in ADR-035; the logic is built, the schedule and its wiring are not. `TranscriptionPurge.expireDueOn`
+  turns the live rows of one account older than the TTL (`RETENTION_TTL_MS`, 90 x 24 h, by `stored_at_ms`,
+  a row exactly at the cutoff is kept) into delete records, oldest first, at most a batch cap per call,
+  on the caller's connection inside the caller's transaction, and returns how many it did. Each takes a
+  new change number through `markDeleted` (body cleared, deleted set, `stored_at_ms` = now), and
+  `PrevKeyRule` runs once for the batch. It never raises `purged_through` (only the floor purge does)
+  and never touches a delete record or another account. The daily schedule, the cap value and the wiring
+  are Router's slot, behind the pull chain. Phone retention tombstones reaching the server stay deferred
+  with the tombstone port.
 - **Log policy (F32):** events only, per-user — auth, admin actions, queue
   health. **Never plaintext transcriptions** (T22).
 - **Multi-admin config:** concurrent edits to the transcription service config
