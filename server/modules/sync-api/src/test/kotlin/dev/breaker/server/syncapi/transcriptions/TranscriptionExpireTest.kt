@@ -55,9 +55,9 @@ internal class TranscriptionExpireTest : TempDatabaseTest() {
         assertEquals("sync-api: setup push $n at v$keyVersion", PushResult.Stored, result)
     }
 
-    private fun expire(accountId: Long, nowMs: Long, batchCap: Int): Int =
+    private fun expire(accountId: Long, nowMs: Long, batchCap: Int, ttlMs: Long = TTL): Int =
         inTransaction(temp) { connection ->
-            TranscriptionPurge.expireDueOn(store, connection, accountId, TTL, nowMs, batchCap)
+            TranscriptionPurge.expireDueOn(store, connection, accountId, ttlMs, nowMs, batchCap)
         }
 
     private fun liveRowsOf(accountId: Long): Long = inTransaction(temp) { connection ->
@@ -367,5 +367,21 @@ internal class TranscriptionExpireTest : TempDatabaseTest() {
         assertEquals("sync-api: change_seq unchanged", head, changeSeqOf(alice))
         assertEquals("sync-api: change_no unchanged", head, changeNoOf(alice, clientId(0)))
         assertEquals("sync-api: stored_at_ms unchanged", T0, storedAtMsOf(alice, clientId(0)))
+    }
+
+    // 15. ttlMs below one throws IllegalArgumentException and writes nothing.
+    @Test
+    fun `expireDueOn refuses a ttl below one`() {
+        push(alice, 0)
+        val head = changeSeqOf(alice)
+        TestDatabases.expectFailure<IllegalArgumentException>("ttl 0") {
+            expire(alice, T0 + TTL + 1, 10, ttlMs = 0)
+        }
+        TestDatabases.expectFailure<IllegalArgumentException>("ttl -100") {
+            expire(alice, T0 + TTL + 1, 10, ttlMs = -100)
+        }
+        assertEquals("nothing written", head, changeSeqOf(alice))
+        assertEquals("row still live", 0, deletedOf(alice, clientId(0)))
+        assertEquals("no delete record", 0L, deletedRowsOf(alice))
     }
 }
