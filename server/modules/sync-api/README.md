@@ -46,7 +46,8 @@ switch (migration 7, `server_settings`, `ServerSettingsStore`, read live on ever
 stored integer 0 is off, off = no counting, no refusing, stored attempts kept), the admin route that flips it,
 the drop of the row at registration, the hook `AccountStore.clearAttempts` and the sweep every five minutes).
 The sign-in hand-off (migration 4, the code store, the sweep, the revoke rule and the start and exchange
-routes) is built; the website page and the app wiring are not. The change number and the delete flag are built
+routes) is built; the app wiring is built; the website page is built, but its derivation, box key and
+sealing steps are stubs, so it cannot complete a hand-off yet. The change number and the delete flag are built
 in the store (migration 5); the DELETE route is built; the read side of the feed (the since parameter, the
 page object, the 400 and the 410) is built; the pulled number and the purge of delete records are built. The
 table of pending-sealed results, which the reset will also have to clear, does not exist yet.
