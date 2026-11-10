@@ -13,7 +13,7 @@ import dev.breaker.dictation.core.model.Transcription
  * the store refused it because the device holds a tombstone for that id, of any reason; nothing is
  * stored then and the tombstone stays.
  *
- * Nothing calls these yet and nothing wires them; the app does that later. History implements them
+ * PullApplier calls these and the app wires it (#521). History implements them
  * and stays the only writer of the local store.
  */
 interface PullSink {

@@ -9,7 +9,7 @@ import dev.breaker.shared.api.sync.SyncBodyException
 import dev.breaker.shared.api.sync.SyncSource
 
 /** Applies one pull result to the PullSink port: deletes always, live rows unless queued,
- * and one prune after a finished full list. Nothing calls it yet. The incremental pull
+ * and one prune after a finished full list. PullCycle calls it. The incremental pull
  * that follows a prune is made by PullCycle. */
 internal class PullApplier(
     private val sink: PullSink,

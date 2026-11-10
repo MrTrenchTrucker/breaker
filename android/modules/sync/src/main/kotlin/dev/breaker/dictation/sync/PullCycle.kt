@@ -3,7 +3,7 @@ package dev.breaker.dictation.sync
 /**
  * Runs one pull cycle in order: read the stored cursor, pull, apply, and only then save.
  * After a finished full list one more pull runs from the list's cursor; a second refusal
- * of the stored cursor clears it. At most two pull runs; nothing calls it yet.
+ * of the stored cursor clears it. At most two pull runs; QueuedSyncService runs it after each push drain.
  */
 internal class PullCycle(
     private val transport: PullTransport,
