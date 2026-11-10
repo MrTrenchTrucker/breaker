@@ -1095,7 +1095,7 @@ See `docs/04-build-order.md`. Summary:
       whisper-server asks sync-api over HTTP (ADR-015, amended): the enqueue is
       the use that moves a session token's expiry; polls and the result fetch
       use a read-only check with the same live rule; if sync-api cannot be
-      reached the request is refused with the same plain 401 as a not-live token (nothing enqueued; amended 2026-11-03, was 503) and the phone falls back
+      reached the request is refused with a plain 503 (nothing enqueued; amended 2026-11-10, a refused token stays a plain 401) and the phone falls back
       to on-device; the sync-api route is internal only, never on the
       VPN-facing interface, protected by a service key the server stack makes
       for itself at first start; a revoke never lags. Rejected: a shared
