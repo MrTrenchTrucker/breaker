@@ -108,6 +108,14 @@ agents, not required: an outside contributor may write the code themselves
 - The client id must be a lowercase canonical UUID. The app's id source (`UuidIdSource`) mints one. A transcription with any other id is skipped on every drain.
 - The Android SQLite adapter, `SqliteSyncQueueDatabase`, cannot run on a JVM. Its tests read its source text and check it against `SyncQueueSql`.
 - The module imports no auth or crypto module. Modules talk through core ports or the app's wiring (ADR-001). The app supplies the uploader, which carries the user token.
+- Known limits of the pull (sync is off in release builds, so none of these runs there; each is to be fixed before sync is turned on):
+  - The pull runs inside the drain lock, after the drain loop (`QueuedSyncService.pushPending`). A push that arrives during a pull
+    returns at once with nothing sent, so a long full list (up to `PullLoop.MAX_PAGES` pages) skips pushes until it ends. One hung
+    read ends the pull as unreachable after the 30 s read timeout.
+  - The app's `SyncingHistoryStore.save` commits the save and then enqueues it: two steps. A pull that applies a row with the same id
+    between them finds no queued row (`isQueued` is false) and replaces the fresh save.
+  - `PullLoop.run` keeps the records of every page in memory and nothing is applied until the last page has arrived. A refusal or an
+    unreachable server on page N drops pages 1 to N-1, and the next pull starts again.
 
 ## Not Built Yet
 - Tombstones for deleted records (a separate sync path, not in the body).

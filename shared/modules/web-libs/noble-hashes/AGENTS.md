@@ -52,7 +52,6 @@ no file outside the listed set.
 
 - Upstream files carry trailing whitespace; do not edit them. .gitattributes
   handles strict-apply (git apply --check --whitespace=error).
-- sha2.js IS vendored — needed by ed25519.js in noble-curves (cross-module
-  reference recorded here for clarity; noble-curves carries its own copy of
-  what it needs through its own tarball closure).
+- sha2.js IS vendored — needed by ed25519.js in noble-curves, which imports
+  '@noble/hashes/sha2.js' and is served the copy in this module (noble-curves does not vendor its own).
 

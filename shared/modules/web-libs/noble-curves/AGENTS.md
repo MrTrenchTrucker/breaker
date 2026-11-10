@@ -10,7 +10,7 @@ copies, pinned by hash. Used by web-fe's sealed box (ADR-040).
 ## Files
 
 ed25519.js, utils.js, LICENSE, and abstract/{curve,edwards,fft,frost,
-hash-to-curve,modular,montgomery,oprf}.{js} — 12 files total (exactly these;
+hash-to-curve,modular,montgomery,oprf}.{js} — 11 files total (exactly these;
 no more, no fewer)
 
 ## Owns
@@ -53,6 +53,6 @@ no file outside the listed set.
 
 - Upstream files carry trailing whitespace; do not edit them. .gitattributes
   handles strict-apply (git apply --check --whitespace=error).
-- The abstract closure is 10 files (291,910 bytes) plus ed25519.js and utils.js;
+- The abstract closure is 8 files (238,631 bytes) plus ed25519.js and utils.js;
   all are needed because ed25519.js statically imports them all.
 

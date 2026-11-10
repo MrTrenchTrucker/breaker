@@ -51,6 +51,7 @@ no file outside the listed set.
 
 - Upstream files carry trailing whitespace; do not edit them. .gitattributes
   handles strict-apply (git apply --check --whitespace=error).
-- chacha.js is NOT vendored — aesgcm.js imports only aes.js and utils.js; the
-  other five files ship because they are part of the closure aes.js needs.
+- chacha.js is NOT vendored — aesgcm.js imports only aes.js and utils.js; aes.js
+  itself needs only _polyval.js and utils.js, and the other three files (salsa.js, _arx.js, _poly1305.js)
+  ship for the sealed box's XSalsa20-Poly1305 half (ADR-040).
 

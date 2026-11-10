@@ -21,7 +21,7 @@ Unmodified copies, pinned by hash. Used by web-fe's key derivation (ADR-040).
 ## Source
 
 Tarball hashes-2.4.0.tgz, sha256
-e83378266b0d1f455014fd3f973da4f3. blake1.js, blake3.js, eskdf.js,
+e1946149b780017b2564fcc092cb01c04e1d7f20627d0296c17da8868f4436dc. blake1.js, blake3.js, eskdf.js,
 index.js, legacy.js, pbkdf2.js, scrypt.js, sha3-addons.js, sha3.js, webcrypto.js
 are NOT vendored — not imported by the closure the page needs.
 
