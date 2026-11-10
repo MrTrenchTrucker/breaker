@@ -1,6 +1,8 @@
 package dev.breaker.server.syncapi
 
 import dev.breaker.server.syncapi.accounts.AccountStore
+import dev.breaker.server.syncapi.admin.adminCreateAgentTokenRoute
+import dev.breaker.server.syncapi.admin.adminListAgentTokensRoute
 import dev.breaker.server.syncapi.admin.adminResetAccountRoute
 import dev.breaker.server.syncapi.admin.adminClearStoreRoute
 import dev.breaker.server.syncapi.admin.adminEndSessionRoute
@@ -53,6 +55,8 @@ internal fun Application.syncApiModule(
         authLogoutRoute(tokenStore)
         authDevicesRoute(tokenStore)
         adminRevokeAgentTokenRoute(tokenStore)
+        adminCreateAgentTokenRoute(tokenStore)
+        adminListAgentTokensRoute(tokenStore)
         adminEndSessionRoute(tokenStore)
         adminWrongPwLimitRoute(tokenStore, accountStore.settings)
         syncRoutes(tokenStore, transcriptionStore)
