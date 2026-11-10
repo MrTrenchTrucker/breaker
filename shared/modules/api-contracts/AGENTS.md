@@ -127,8 +127,8 @@ There is no synchronous 200-with-body variant — every transcription is a job.
   one at the old head, gets **410** from `GET /v1/transcriptions` and the client does a full
   resync. A pending account cannot log in (the 401 of a wrong verifier, not counted); `salt`
   answers as for any account; `keys` and `change-password` answer **409** (above). An admin who
-  resets their own account revokes their own token. The pending-sealed rows of ADR-018 are planned,
-  not built: that table does not exist yet.
+  resets their own account revokes their own token. The pending-sealed table of ADR-018 exists (migration 10) and
+  its read route is built, but a reset does not clear it yet and nothing writes it.
 - **auth — logout (ADR-018)** — `POST /v1/auth/logout`, bearer token only, no request body: revokes
   ONLY the presented token. → **204 No Content** | **401** `ApiError` for a missing, unknown or
   already-revoked token (nothing beyond "not a valid session" is disclosed). There is no standalone

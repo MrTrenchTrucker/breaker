@@ -41,10 +41,10 @@ internal class SchemaV9MigrationTest : TempDatabaseTest() {
     }
 
     @Test
-    fun `migration 9 applies to a fresh database and ends at user_version 9 with reset_pending reset_codes and its index`() {
+    fun `migration 9 applies to a fresh database and adds reset_pending reset_codes and its index`() {
         val temp = openTemp()
         inTransaction(temp) { connection ->
-            assertEquals("sync-api: fresh database user_version", 9, TestDatabases.userVersion(connection))
+            assertEquals("sync-api: fresh database user_version", 10, TestDatabases.userVersion(connection))
             val columns = TestDatabases.strings(connection, "SELECT name FROM pragma_table_info('accounts')")
             assertTrue("sync-api: accounts column reset_pending is missing: $columns", "reset_pending" in columns)
             val codeColumns = TestDatabases.strings(connection, "SELECT name FROM pragma_table_info('reset_codes')")
@@ -83,7 +83,7 @@ internal class SchemaV9MigrationTest : TempDatabaseTest() {
         val second = reopen(first)
 
         inTransaction(second) { connection ->
-            assertEquals("sync-api: user_version after the upgrade", 9, TestDatabases.userVersion(connection))
+            assertEquals("sync-api: user_version after the upgrade", 10, TestDatabases.userVersion(connection))
             assertEquals(
                 "sync-api: the account row is kept with its id",
                 listOf(aliceId),
