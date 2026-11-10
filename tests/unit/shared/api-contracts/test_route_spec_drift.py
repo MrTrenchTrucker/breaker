@@ -90,7 +90,6 @@ def _collect_spec_routes() -> set[tuple[str, str]]:
 # DRIFT = spec and code disagree and the card does not say planned
 #   (reason "drift found 11-10, fix pending"; entry in DRIFT.md).
 ALLOW_LIST: dict[tuple[str, str], str] = {
-    ("POST", "/v1/admin/roles"): "UNBUILT: sync-api AGENTS.md:285 'Planned, not built: no roles route is installed.'",
     ("GET", "/v1/admin/health"): "UNBUILT: sync-api AGENTS.md:286-287 'GET /v1/admin/health ... Planned, not built: only the unauthenticated GET /health ... is installed.'",
     ("POST", "/v1/admin/test-service"): "UNBUILT: sync-api AGENTS.md:291-293 'POST /v1/admin/test-service ... Planned, not built: no such route is installed.'",
     ("GET", "/v1/admin/transcription-service"): "UNBUILT: sync-api AGENTS.md:289-290 'GET/PUT /v1/admin/transcription-service ... Planned, not built: no such route is installed.'",

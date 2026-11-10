@@ -282,7 +282,12 @@ A route or job marked Planned, not built below is not installed on main yet.
   body rebuilt from the six fields in that order. The release tool that writes the
   file is not built.
 - `POST /v1/admin/roles` — **admin-only**: assign/revoke admin on another account.
-  Planned, not built: no roles route is installed.
+  Built (adminSetRole): the body is exactly `username` (a string) and `admin` (true or false), nothing
+  else; the answer is 200 with the stored username and the new role (asking for the role the account
+  already has is a 200 that changes nothing); an unknown or invalid name is 404; a demotion that would
+  leave no admin is 409, decided in the same statement that writes the role; a pending account may be
+  promoted or demoted. The role is read from the account on every call, so a demoted admin's session
+  and admin agent tokens stop being admin at once.
 - `GET /v1/admin/health` — admin-only: server health + latest GIT tag.
   Planned, not built: only the unauthenticated `GET /health`, which answers `{"status":"ok"}`, is installed.
 - `GET/PUT /v1/admin/transcription-service` — **admin-only**: read/update the

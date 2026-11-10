@@ -317,6 +317,43 @@ internal class AccountStore(
         attempts.clear(UsernameRules.fold(username))
     }
 
+    /**
+     * Sets the admin role of the account with this folded name, in ONE transaction. A promotion
+     * always succeeds. A demotion succeeds only while another admin remains: the UPDATE itself
+     * carries the count, so the check and the write are one atomic unit under the write lock the
+     * enclosing transaction holds. An account that already has the asked role is answered as
+     * updated (idempotent) and not written. The stored username (as registered) is returned.
+     */
+    suspend fun setAdminRole(folded: String, admin: Boolean): UpdateRoleResult =
+        db.transaction<UpdateRoleResult> { connection ->
+            val current = connection.prepareStatement(SELECT_NAME_AND_ROLE_SQL).use { statement ->
+                statement.setString(1, folded)
+                statement.executeQuery().use { rows ->
+                    if (rows.next()) Pair(rows.getString(1), Role.fromDb(rows.getString(2))) else null
+                }
+            }
+            if (current == null) {
+                UpdateRoleResult.NoSuchAccount
+            } else {
+                val target = if (admin) Role.ADMIN else Role.USER
+                if (current.second == target) {
+                    UpdateRoleResult.Updated(current.first, target)
+                } else {
+                    val changed = connection.prepareStatement(if (admin) PROMOTE_SQL else DEMOTE_SQL).use { statement ->
+                        statement.setString(1, folded)
+                        statement.executeUpdate()
+                    }
+                    if (changed == 1) {
+                        UpdateRoleResult.Updated(current.first, target)
+                    } else {
+                        // The role was read in this same transaction, so only the admin count can stop a demotion.
+                        check(!admin) { "sync-api: the role promotion changed no row" }
+                        UpdateRoleResult.LastAdmin
+                    }
+                }
+            }
+        }
+
     private fun readAccountRow(connection: Connection, folded: String): AccountRow? =
         connection.prepareStatement(SELECT_VERIFIER_SQL).use { statement ->
             statement.setString(1, folded)
@@ -355,6 +392,15 @@ internal class AccountStore(
         const val SELECT_VERIFIER_SQL =
             "SELECT id, role, verifier_algo, verifier_iters, verifier_salt, verifier_hash, reset_pending " +
                 "FROM accounts WHERE username_lower = ?"
+
+        const val SELECT_NAME_AND_ROLE_SQL = "SELECT username, role FROM accounts WHERE username_lower = ?"
+
+        const val PROMOTE_SQL = "UPDATE accounts SET role = 'admin' WHERE username_lower = ? AND role = 'user'"
+
+        // The last admin stays: the count is inside the statement, not read in a separate step.
+        const val DEMOTE_SQL =
+            "UPDATE accounts SET role = 'user' WHERE username_lower = ? AND role = 'admin' " +
+                "AND (SELECT COUNT(*) FROM accounts WHERE role = 'admin') > 1"
 
         const val SELECT_ALL_ACCOUNT_IDS_SQL = "SELECT id FROM accounts ORDER BY id"
 
