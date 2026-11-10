@@ -66,6 +66,7 @@ The job-queue mechanics (enqueue, poll, backoff) stay behind this port, so
 | POST 202 | go on and poll |
 | POST 401, 403 | `OTHER`, key refused |
 | POST 413 | `OTHER`, too large |
+| POST 400 | `OTHER`, no recording (the in-repo server sends it for an empty or missing file part) |
 | POST 404 | `SERVER_UNREACHABLE`, no endpoint (the in-repo server never sends it) |
 | POST 429, 5xx | `SERVER_UNREACHABLE`, not taking work (429 and 500 are sent by the in-repo server) |
 | POST any other status | `OTHER`, unexpected status |

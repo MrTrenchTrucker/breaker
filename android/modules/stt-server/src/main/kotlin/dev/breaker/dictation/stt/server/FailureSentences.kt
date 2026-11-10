@@ -13,6 +13,7 @@ internal object FailureSentences {
     const val REQUEST_NOT_USABLE = "The recording could not be prepared for the server."
     const val KEY_REFUSED = "The server refused the key."
     const val TOO_LARGE = "The recording is too large for the server."
+    const val NO_FILE = "The server did not receive a recording."
     const val NO_ENDPOINT = "The server does not offer transcription."
     const val NOT_TAKING_WORK = "The server is not taking work right now."
     const val UNEXPECTED_STATUS = "The server sent an answer that was not expected."

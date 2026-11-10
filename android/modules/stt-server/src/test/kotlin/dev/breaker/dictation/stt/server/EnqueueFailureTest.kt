@@ -59,8 +59,12 @@ class EnqueueFailureTest {
         assertEnqueueStatus(418, SttError.OTHER, FailureSentences.UNEXPECTED_STATUS)
 
     @Test
-    fun `a 400 on enqueue is an unexpected status failure`() =
-        assertEnqueueStatus(400, SttError.OTHER, FailureSentences.UNEXPECTED_STATUS)
+    fun `a 400 on enqueue is a missing recording failure`() =
+        assertEnqueueStatus(400, SttError.OTHER, FailureSentences.NO_FILE)
+
+    @Test
+    fun `a 400 on enqueue keeps the server text out of the sentence`() =
+        assertEnqueueStatusBody(400, "{\"error\":\"the file part is required\",\"LEAK-MARKER\":\"$KEY\"}", SttError.OTHER, FailureSentences.NO_FILE)
 
     @Test
     fun `an enqueue answer that is not JSON is a bad answer`() =
@@ -118,6 +122,12 @@ class EnqueueFailureTest {
 
     private fun assertEnqueueStatus(status: Int, error: SttError, sentence: String) {
         val (result, sent) = once(listOf(reply(status, "")))
+        assertEquals(SttResult.Failure(error, sentence), result)
+        assertEquals(1, sent.size)
+    }
+
+    private fun assertEnqueueStatusBody(status: Int, body: String, error: SttError, sentence: String) {
+        val (result, sent) = once(listOf(reply(status, body)))
         assertEquals(SttResult.Failure(error, sentence), result)
         assertEquals(1, sent.size)
     }
