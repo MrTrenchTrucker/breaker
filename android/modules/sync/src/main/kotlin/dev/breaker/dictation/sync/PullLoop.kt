@@ -20,10 +20,36 @@ internal sealed class PullOutcome {
     class Refused(val reason: String) : PullOutcome()
 }
 
-/** Runs one pull: page after page until the last page or a stop. */
+/** Runs one pull: page after page, starting at [startCursor], until the last page or a stop. */
 internal object PullLoop {
     /** A page cap so a hostile server cannot make the pull loop forever. */
     const val MAX_PAGES: Int = 1000
+
+    /** Two decimal parts: <account_id>-<change>, digits only. */
+    private val INCREMENTAL_CURSOR = Regex("^[0-9]+-[0-9]+$")
+
+    /**
+     * Refuses a page whose [next] is not strictly past the [cursor] just sent, for incremental
+     * cursors only. Returns the Refused outcome when the rule fires, null otherwise. The account
+     * parts are compared as text and the change parts as Long, so a 19-digit change number never
+     * truncates. A cursor whose account differs is hostile (a page of another account's cursor).
+     */
+    private fun refuseUnlessCursorAdvanced(cursor: String?, next: String): PullOutcome.Refused? {
+        if (cursor == null) return null
+        if (!INCREMENTAL_CURSOR.matches(cursor) || !INCREMENTAL_CURSOR.matches(next)) return null
+        val cursorParts = cursor.split("-")
+        val nextParts = next.split("-")
+        if (cursorParts[0] != nextParts[0]) {
+            return PullOutcome.Refused("no progress: the page's next names another account")
+        }
+        val cursorChange = cursorParts[1].toLongOrNull()
+        val nextChange = nextParts[1].toLongOrNull()
+        if (cursorChange == null || nextChange == null) return null
+        if (nextChange <= cursorChange) {
+            return PullOutcome.Refused("no progress: the page's next is not past the cursor just sent")
+        }
+        return null
+    }
 
     /** Ask [transport] for page after page, starting at [startCursor], until
      * the last page or a stop. Returns one [PullOutcome].
@@ -63,6 +89,7 @@ internal object PullLoop {
                                     "no progress: the page's next equals the cursor just sent"
                                 )
                             }
+                            refuseUnlessCursorAdvanced(cursor, page.next)?.let { return it }
                             if (page.items.isEmpty()) {
                                 return PullOutcome.Refused(
                                     "no progress: a page with more true holds no records"
