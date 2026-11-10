@@ -14,8 +14,7 @@ The server's main API: accounts and logins (users, tokens, roles), and syncing t
 
 The account HTTP routes (register, salt, login, logout), the admin routes that create, list and revoke an agent token, that end a session, that
 change an account's admin role, that read the admin-only server health (`GET /v1/admin/health`: the status and the configured git tag, "unknown" when unset; the unauthenticated `GET /health` is a different route), and that read and flip the wrong-password limit, the two internal token-check routes and the three transcription routes
-(POST /v1/sync, GET /v1/transcriptions, DELETE /v1/transcriptions/{client_id}) are installed. The rest of what
-the card lists is not built yet. Built: `POST /v1/admin/reset-account` (an admin, with a session or an
+(POST /v1/sync, GET /v1/transcriptions, DELETE /v1/transcriptions/{client_id}) are installed. Also built: `POST /v1/admin/reset-account` (an admin, with a session or an
 admin-scoped agent token, resets one account in one transaction: the verifier is replaced with random bytes
 and the account is marked reset-pending, the keys, tokens, sign-in codes and transcriptions are deleted,
 `reset_at` is set, `key_version` is kept, every earlier incremental feed cursor gets 410 (a list cursor is never 410), and one one-time reset code is

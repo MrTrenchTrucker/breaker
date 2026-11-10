@@ -395,8 +395,7 @@ agents, not required: an outside contributor may write the code themselves
   to 1818 MB. This has not been measured on a device.
 - Engine behaviour not changed yet: the decode catch policy names two `Error` types and not others; a recognizer release
   that throws replaces the result; the engine and the loader keep two sets of user sentences that
-  have drifted apart; a model the loader could not start is shown as "could not transcribe"; the
-  wrong-family sentence names a model family the code does not check; `loadedModelId` in the
+  have drifted apart; a model the loader could not start is shown as "could not transcribe"; `loadedModelId` in the
   diagnostics is not cleared after a refusal; diagnostics on a closed engine reads on the caller's
   thread; one salvaged test duplicates another.
 - The download side (`HttpModelFetcher`), the unpack side (`ModelExtractor`) and the native adapter

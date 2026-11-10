@@ -26,7 +26,7 @@ attempt in memory at a time: a secret text, its challenge and an X25519 key pair
 the sign-in link, reads the return link, and passes a valid return code to a receiver with
 the attempt. The attempt lives in memory only (no Keystore, no file, no settings, no log), and
 core stores, logs and sends none of it. A Kotlin String cannot be wiped, so the secret is kept
-as bytes and read only through a copy; the exchange request, built later, is to make its String
+as bytes and read only through a copy; the exchange request (in the auth client) makes its String
 at the moment of the call and nowhere else.
 
 Run the tests with `./gradlew :android:modules:core:test`.

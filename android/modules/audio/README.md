@@ -39,8 +39,8 @@ mono audio, in the form the downstream consumers need.
   the list by its session id. If the list cannot be read, the watcher reports nothing.
 - **Resampling.** `AudioResampler` converts the device's sample rate to the
   16 kHz mono the rest of the pipeline is specified in.
-- **Voice activity detection.** `EnergyVad` trims leading and trailing silence
-  so what reaches the engine is speech.
+- **Voice activity detection.** `EnergyVad` can trim leading and trailing silence, but it is not
+  applied to a take today: no core port lets the dictate use case call it yet.
 - **Noise suppression.** `NoiseSuppressor` is the port, with
   `PassThroughNoiseSuppressor` for no processing and `AdaptiveGateSuppressor`
   for a level-driven gate.
