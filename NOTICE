@@ -46,15 +46,54 @@ Vendored code and dependencies:
      No font file is included in this repository.
 
 6. @noble/ciphers 2.4.0
-  - Upstream: git+https://github.com/paulmillr/noble-ciphers.git
-  - License: MIT
-  - Copyright: The MIT License (MIT)
-    Copyright (c) 2022 Paul Miller (https://paulmillr.com)
-    Copyright (c) 2016 Thomas Pornin <pornin@bolet.org>
-  - The four vendor files (aes.js, utils.js, _polyval.js, LICENSE) are unmodified copies from the upstream repository.
+   - Upstream: git+https://github.com/paulmillr/noble-ciphers.git
+   - License: MIT
+   - Copyright: The MIT License (MIT)
+     Copyright (c) 2022 Paul Miller (https://paulmillr.com)
+     Copyright (c) 2016 Thomas Pornin <pornin@bolet.org>
+   - The vendored files (aes.js, salsa.js, _arx.js, _poly1305.js, _polyval.js,
+     utils.js, LICENSE) are unmodified copies from the upstream repository.
+   - Served path: shared/modules/web-libs/noble-ciphers/ is copied into
+     build/web/js/vendor/noble-ciphers/ by web-fe's copyWebLibs Copy task
+     (hooked to assemble). aesgcm.js imports ./vendor/noble-ciphers/aes.js and
+     ./vendor/noble-ciphers/utils.js at runtime.
 
+7. @noble/hashes 2.4.0
+   - Upstream: git+https://github.com/paulmillr/noble-hashes.git
+   - License: MIT
+   - Copyright: The MIT License (MIT)
+     Copyright (c) 2022 Paul Miller (https://paulmillr.com)
+   - The vendored files (argon2.js, blake2.js, hkdf.js, hmac.js, _u64.js,
+     utils.js, _blake.js, _md.js, sha2.js, LICENSE) are unmodified copies from
+     the upstream repository.
+   - Served path: shared/modules/web-libs/noble-hashes/ is copied into
+     build/web/js/vendor/noble-hashes/ by web-fe's copyWebLibs Copy task.
 
-7. openapi-generator-cli 7.26.0
+8. @noble/curves 2.4.0
+   - Upstream: git+https://github.com/paulmillr/noble-curves.git
+   - License: MIT
+   - Copyright: The MIT License (MIT)
+     Copyright (c) 2022 Paul Miller (https://paulmillr.com)
+   - The vendored files (ed25519.js, utils.js, LICENSE +
+     abstract/{curve,edwards,fft,frost,hash-to-curve,modular,montgomery,
+     oprf}.js) are unmodified copies from the upstream repository.
+   - Served path: shared/modules/web-libs/noble-curves/ is copied into
+     build/web/js/vendor/noble-curves/ by web-fe's copyWebLibs Copy task.
+
+9. libsodium 0.8.4 (wrappers-sumo + sumo pair)
+   - Upstream: https://github.com/jedisct1/libsodium-wrappers-sumo
+               (libsodium-wrappers-sumo-0.8.4.tgz)
+               https://github.com/jedisct1/libsodium-sumo
+               (libsodium-sumo-0.8.4.tgz)
+   - License: ISC
+   - The vendored files (libsodium-sumo.mjs, libsodium-wrappers.mjs, LICENSE)
+     are unmodified copies from the upstream tarballs.
+   - Served path: NONE — vendored and pinned only, never copied to a served
+     path. CSP script-src 'self' carries no wasm-unsafe-eval (ADR-040).
+     libsodium-wrappers.mjs imports "libsodium-sumo" by bare specifier and is
+     not self-contained; serving it needs a new ADR.
+
+10. openapi-generator-cli 7.26.0
    - Upstream: OpenAPI Generator (openapitools/openapi-generator), Apache
      License 2.0. No openapi-generator-cli source files are copied into this
      repository or distributed with Breaker; it is a build-time CI tool only,

@@ -1,0 +1,5 @@
+name: shared_web_libs_noble_curves
+version: 2.4.0
+source_tarball: curves-2.4.0.tgz
+source_tarball_sha256: 55279c71b0201d6c0e58d0206d15825359e02a3932f326ba7b7909ac2d334aa9
+licence: MIT

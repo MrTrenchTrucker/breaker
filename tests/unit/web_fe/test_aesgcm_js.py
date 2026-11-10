@@ -2,7 +2,9 @@
 
 - Runs `node --version`, prints it, parses major AND minor
 - FAILS (never skips) if node absent or older than 20.19.0
-- Runs `node --test` on the *.test.mjs files of the src/test/js folder (named, never the folder) with subprocess
+- Runs the web-fe node tests through tools/assemble_weblibs_test_tree.py, which assembles a temp tree with the
+  build-output layout (the vendored libraries live in shared/modules/web-libs) and runs `node --test` on the
+  named *.test.mjs files there
 - Fails unless run reports exactly N tests passed and 0 failed (N pinned)
 - Stub proofs: stub node in temp dir printing v20.18.0 -> runner fails;
   stub printing v18.0.0 -> runner fails; stub printing v20.19.0 -> passes;
@@ -13,6 +15,7 @@ import glob
 import os
 import re
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -53,11 +56,14 @@ def _test_files(test_dir):
     return sorted(glob.glob(os.path.join(test_dir, "*.test.mjs")))
 
 
+HELPER = os.path.join(ROOT, "tools", "assemble_weblibs_test_tree.py")
+
+
 def node_test_counts(test_dir):
     files = _test_files(test_dir)
     if not files:
         return None
-    result = _run(["node", "--test"] + files)
+    result = _run([sys.executable, HELPER])
     output = result.stdout + result.stderr
     return parse_node_test_counts(output)
 
@@ -115,7 +121,7 @@ class TestNodeAesGcmJsRunner(unittest.TestCase):
         )
 
     def test_node_test_runner_pins_count(self):
-        """Run `node --test` on src/test/js; fail unless exactly N passed, 0 failed."""
+        """Run the web-fe node tests in the assembled tree; fail unless exactly N passed, 0 failed."""
         test_dir = os.path.join(ROOT, "server", "modules", "web-fe", "src", "test", "js")
         self.assertTrue(os.path.isdir(test_dir), f"test directory not found: {test_dir}")
         counts = node_test_counts(test_dir)

@@ -1,0 +1,7 @@
+name: shared_web_libs_libsodium
+version: 0.8.4
+source_tarball_1: libsodium-sumo-0.8.4.tgz
+source_tarball_1_sha256: c51e7573c7b048acd07ec7b8677640208e9c00e0ab11416d3895bf6e299e5f7e
+source_tarball_2: libsodium-wrappers-sumo-0.8.4.tgz
+source_tarball_2_sha256: 858ad2910255d9b6c3527d6b7e8bcfcd98917a495ad2c97775bf2bfede13dfaf
+licence: ISC
