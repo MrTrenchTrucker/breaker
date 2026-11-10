@@ -15,7 +15,7 @@ APK digest check `ApkDigest.matches`, and the update decision `UpdateDecision.of
 not hidden. Nothing else in this module is built: no checker, no download, no
 signature check, no install, no rollback; the port wiring is owed. Everything below except those four
 pieces is the target design, planned, not built. The `core.UpdateChecker` port is on main in core; the
-server route `GET /v1/updates/latest.json` is planned, not built (see the sync-api card).
+server route `GET /v1/updates/latest.json` is built on the server and reads a manifest file (see the sync-api card).
 
 ## Owns
 Daily update check + admin force-check, signed APK verify, rollback.

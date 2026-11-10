@@ -272,9 +272,15 @@ A route or job marked Planned, not built below is not installed on main yet.
   directly — both are equally well-formed `crypto_box_seal` output, and the
   owner's client converts either kind the same way.
   Planned, not built: the pending-sealed table and this route do not exist yet (the route is defined in openapi.yaml only).
-- `GET /v1/updates/latest.json` — latest tagged release from the local GIT
-  server: `{ version, apk_url, sha256, signature, notes }` (F20/F21).
-  Planned, not built: no updates route is installed.
+- `GET /v1/updates/latest.json` — the update manifest FILE read from the path in
+  `BREAKER_SYNC_API_MANIFEST_FILE`: `{ version, version_code, apk_url, sha256,
+  signature, notes }` (F20/F21, ADR-011). **Built**, public, no session.
+  The variable unset, or no file at the path: 404 not_found, "No release yet". A
+  file that is there but unusable (a folder, over 65,536 bytes, not UTF-8, not one
+  JSON object, a missing, blank or mistyped field, a version_code below 1): 503
+  unavailable, a fixed body that echoes nothing of the file. A valid file: 200, the
+  body rebuilt from the six fields in that order. The release tool that writes the
+  file is not built.
 - `POST /v1/admin/roles` — **admin-only**: assign/revoke admin on another account.
   Planned, not built: no roles route is installed.
 - `GET /v1/admin/health` — admin-only: server health + latest GIT tag.
@@ -465,8 +471,9 @@ completes it by rotating the DEK at the account's next password change
   Planned, not built: the roles route does not exist yet.
 - User A cannot read user B's transcriptions (N13 test).
 - Sync retries don't duplicate (N12 test).
-- `/v1/updates/latest.json` reflects the latest GIT tag.
-  Planned, not built: the route does not exist yet.
+- `/v1/updates/latest.json` answers from the manifest file only: no path or no
+  file is 404, an unusable file is 503, a valid file is 200 with the six fields
+  rebuilt (test: UpdatesRouteTest).
 - `POST /v1/auth/keys` rejects a second call once an account has keys — a
   keyless account can only get keys once per reset (ADR-006, ADR-018).
 - A reset leaves an account fully keyless and token-less until

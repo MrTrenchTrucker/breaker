@@ -2445,6 +2445,24 @@ paths:
                 sha256: "the sha256 of the APK"
                 signature: "the signature of the APK"
                 notes: "Latest release"
+        "404":
+          description: No release yet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "not_found"
+                message: "No release yet"
+        "503":
+          description: "The manifest file is there but unusable (a folder, too large, not UTF-8, not the six fields). The body is fixed and no part of the file is echoed."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
   /health:
     get:
       summary: Health check

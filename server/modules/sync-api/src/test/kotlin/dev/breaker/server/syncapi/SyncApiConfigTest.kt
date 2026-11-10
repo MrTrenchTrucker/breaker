@@ -72,4 +72,29 @@ class SyncApiConfigTest {
         assertNamed(refused(mapOf(db to "")), db)
         assertNamed(refused(mapOf(db to "  ")), db)
     }
+
+    private val manifest = SyncApiConfig.ENV_MANIFEST_FILE
+
+    @Test
+    fun `when the manifest env is absent the manifest file path is empty string`() {
+        val config = SyncApiConfig.fromEnv(mapOf(db to "/data/sync.db"))
+        assertEquals("default manifest path is empty", "", config.manifestFile)
+    }
+
+    @Test
+    fun `a manifest path is accepted as given`() {
+        val config = SyncApiConfig.fromEnv(mapOf(db to "/data/sync.db", manifest to "/data/release.json"))
+        assertEquals("manifest path", "/data/release.json", config.manifestFile)
+    }
+
+    @Test
+    fun `a manifest path set but blank is refused`() {
+        assertNamed(refused(mapOf(db to "x.db", manifest to "")), manifest)
+        assertNamed(refused(mapOf(db to "x.db", manifest to "   ")), manifest)
+    }
+
+    @Test
+    fun `an invalid manifest path text is refused`() {
+        assertNamed(refused(mapOf(db to "x.db", manifest to "/data/\u0000release.json")), manifest)
+    }
 }

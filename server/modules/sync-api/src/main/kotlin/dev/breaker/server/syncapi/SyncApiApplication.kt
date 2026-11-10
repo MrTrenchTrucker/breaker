@@ -19,6 +19,7 @@ import dev.breaker.server.syncapi.handoff.HandoffStore
 import dev.breaker.server.syncapi.tokens.TokenStore
 import dev.breaker.server.syncapi.transcriptions.TranscriptionStore
 import dev.breaker.server.syncapi.transcriptions.syncRoutes
+import dev.breaker.server.syncapi.updates.updatesRoute
 import io.ktor.http.ContentType
 import io.ktor.server.application.Application
 import io.ktor.server.application.call
@@ -31,6 +32,7 @@ internal fun Application.syncApiModule(
     tokenStore: TokenStore,
     transcriptionStore: TranscriptionStore,
     handoffStore: HandoffStore,
+    manifestFile: String = "",
 ) {
     routing {
         // The health route must stay free of authentication and of any data access:
@@ -38,6 +40,7 @@ internal fun Application.syncApiModule(
         get("/health") {
             call.respondText("""{"status":"ok"}""", ContentType.Application.Json)
         }
+        updatesRoute(manifestFile)
         authRegisterRoute(accountStore)
         authSaltRoute(accountStore)
         authLoginRoute(accountStore, tokenStore)
