@@ -5,3 +5,7 @@
 *.bat text eol=crlf
 *.jar binary
 *.png binary
+
+# Vendored libraries under web-libs carry upstream trailing whitespace;
+# do not touch them. git apply --check --whitespace=error must pass on them.
+shared/modules/web-libs/** -whitespace
