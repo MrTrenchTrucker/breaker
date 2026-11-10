@@ -364,9 +364,17 @@ A route or job marked Planned, not built below is not installed on main yet.
   on the caller's connection inside the caller's transaction, and returns how many it did. Each takes a
   new change number through `markDeleted` (body cleared, deleted set, `stored_at_ms` = now), and
   `PrevKeyRule` runs once for the batch. It never raises `purged_through` (only the floor purge does)
-  and never touches a delete record or another account. The daily schedule, the cap value and the wiring
-  are Router's slot, behind the pull chain. Phone retention tombstones reaching the server stay deferred
-  with the tombstone port. A TTL or a batch cap below one is refused.
+  and never touches a delete record or another account. A TTL or a batch cap below one is refused.
+  **Built (server, this module):** `ExpiryScheduler` runs once a day (`START_DELAY` after start, then every
+  `INTERVAL` = 24 h, injectable clock so tests run instantly), walks every account from `accountIds()`,
+  calls `expireDueOn` with **only** `RETENTION_TTL_MS` as ttl, a named `BATCH_CAP` (500 rows per batch,
+  one batch = one transaction), repeats an account while a batch comes back full up to
+  `MAX_BATCHES_PER_ACCOUNT_PER_RUN` (10), catches one account's failure and logs only its class name without
+  killing the schedule or echoing data. `nowMs` is read from the clock at each batch. It starts inside the existing
+  sweep job in `SyncApiMain.kt` beside the token sweep and stops inside `stopSweep`, before the database
+  closes, exactly once. Live rows only, by `stored_at_ms`, never raises `purged_through`, never touches a
+  delete record or another account. Phone retention tombstones reaching the server stay deferred
+  with the tombstone port.
 - **Log policy (F32):** events only, per-user — auth, admin actions, queue
   health. **Never plaintext transcriptions** (T22).
 - **Multi-admin config:** concurrent edits to the transcription service config

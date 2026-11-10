@@ -9,6 +9,7 @@ import dev.breaker.server.syncapi.reset.ResetStore
 import dev.breaker.server.syncapi.servicecheck.ServiceKeyFile
 import dev.breaker.server.syncapi.tokens.TokenStore
 import dev.breaker.server.syncapi.transcriptions.TranscriptionStore
+import dev.breaker.server.syncapi.transcriptions.ExpiryScheduler
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.embeddedServer
 import java.nio.file.Paths
@@ -44,13 +45,15 @@ fun main() {
         System.err.println(e.message)
         exitProcess(2)
     }
-    // One job runs two sweeps: the hand-off sweep deletes expired sign-in codes and expired reset codes
-    // (at boot, then every minute) and the attempt sweep deletes dead wrong-password rows (at boot, then every five
-    // minutes). Cancelling the job stops both. It starts once the stores exist and stops in
-    // shutdownInOrder, before the database closes.
+    // One job runs three sweeps: the hand-off sweep deletes expired sign-in codes and expired reset
+    // codes (at boot, then every minute), the attempt sweep deletes dead wrong-password rows (at boot,
+    // then every five minutes), and the expiry scheduler turns transcriptions older than the retention
+    // TTL into delete records (once a day). Cancelling the job stops all three. It starts once the
+    // stores exist and stops in shutdownInOrder, before the database closes.
     val sweepJob = CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
         launch { runHandoffSweep(handoffStore, resetStore) }
         launch { runSigninAttemptSweep(accountStore.attempts) }
+        launch { ExpiryScheduler.runExpiryScheduler(transcriptionStore, accountStore) }
     }
     // The internal listener starts first and carries only the token-check routes.
     val internalServer = embeddedServer(CIO, host = config.internalHost, port = config.internalPort) {
