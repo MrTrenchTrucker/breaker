@@ -173,6 +173,15 @@ the pull transport, so the app does not start a pull.
   again; the REMOTE tombstone is held across a local re-save. This is not the local rule: a local delete
   then a local save clears the LOCAL tombstone.
 
+- **A pulled delete record for an id waiting unsent in the push queue.** The delete wins on the phone, as in the
+  rule above: the row goes and the REMOTE tombstone is written. The pull never touches the push queue, so the
+  queue entry stays. The server decides what that entry does: a push of an id that is already deleted is answered
+  204 with no write and no change number, the queue counts 204 as confirmed and drops the entry, so the waiting
+  edit does not bring the row back. The one exception is an entry that carries the `resave` mark (the phone
+  deleted that id itself and then saved it again): its push does revive the row on the server, which is the local
+  rule at work, and the next pull gives the row back to the phone. Decided by the manager inside this
+  architecture; the project owner has not seen it and may overrule it.
+
 - **Not decided here.** New-device keys (question 3) and the key_version 1 pulled row (question 4) stay
   later work.
 
