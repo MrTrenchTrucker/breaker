@@ -1,0 +1,426 @@
+{
+  "modules": [
+    {
+      "name": "agent_skills",
+      "path": "agent-skills",
+      "items": [
+        {
+          "item": "agent_skills (its own code)",
+          "status": "NOT_STARTED",
+          "evidence": "0 code files, 0 test files"
+        }
+      ]
+    },
+    {
+      "name": "android_app",
+      "path": "android/app",
+      "items": [
+        {
+          "item": "android_app (its own code)",
+          "status": "DONE",
+          "evidence": "120 code files, 280 test files"
+        }
+      ]
+    },
+    {
+      "name": "android_audio",
+      "path": "android/modules/audio",
+      "items": [
+        {
+          "item": "android_audio (its own code)",
+          "status": "DONE",
+          "evidence": "21 code files, 62 test files"
+        }
+      ]
+    },
+    {
+      "name": "android_auth_client",
+      "path": "android/modules/auth-client",
+      "items": [
+        {
+          "item": "android_auth_client (its own code)",
+          "status": "DONE",
+          "evidence": "19 code files, 58 test files"
+        }
+      ]
+    },
+    {
+      "name": "android_commit",
+      "path": "android/modules/commit",
+      "items": [
+        {
+          "item": "android_commit (its own code)",
+          "status": "DONE",
+          "evidence": "12 code files, 25 test files"
+        }
+      ]
+    },
+    {
+      "name": "android_commit_accessibility",
+      "path": "android/modules/commit/accessibility",
+      "items": [
+        {
+          "item": "android_commit_accessibility (its own code)",
+          "status": "DONE",
+          "evidence": "6 code files, 34 test files"
+        }
+      ]
+    },
+    {
+      "name": "android_core",
+      "path": "android/modules/core",
+      "items": [
+        {
+          "item": "android_core (its own code)",
+          "status": "DONE",
+          "evidence": "44 code files, 48 test files"
+        }
+      ]
+    },
+    {
+      "name": "android_crypto",
+      "path": "android/modules/crypto",
+      "items": [
+        {
+          "item": "android_crypto (its own code)",
+          "status": "DONE",
+          "evidence": "7 code files, 9 test files"
+        }
+      ]
+    },
+    {
+      "name": "android_format",
+      "path": "android/modules/format",
+      "items": [
+        {
+          "item": "android_format (its own code)",
+          "status": "DONE",
+          "evidence": "4 code files, 11 test files"
+        }
+      ]
+    },
+    {
+      "name": "android_gesture",
+      "path": "android/modules/gesture",
+      "items": [
+        {
+          "item": "android_gesture (its own code)",
+          "status": "DONE",
+          "evidence": "4 code files, 1 test files"
+        }
+      ]
+    },
+    {
+      "name": "android_history",
+      "path": "android/modules/history",
+      "items": [
+        {
+          "item": "android_history (its own code)",
+          "status": "DONE",
+          "evidence": "10 code files, 61 test files"
+        }
+      ]
+    },
+    {
+      "name": "android_http",
+      "path": "android/modules/http",
+      "items": [
+        {
+          "item": "android_http (its own code)",
+          "status": "DONE",
+          "evidence": "11 code files, 13 test files"
+        }
+      ]
+    },
+    {
+      "name": "android_overlay",
+      "path": "android/modules/overlay",
+      "items": [
+        {
+          "item": "android_overlay (its own code)",
+          "status": "DONE",
+          "evidence": "49 code files, 106 test files"
+        }
+      ]
+    },
+    {
+      "name": "android_phrases",
+      "path": "android/modules/phrases",
+      "items": [
+        {
+          "item": "android_phrases (its own code)",
+          "status": "DONE",
+          "evidence": "2 code files, 5 test files"
+        }
+      ]
+    },
+    {
+      "name": "android_settings",
+      "path": "android/modules/settings",
+      "items": [
+        {
+          "item": "android_settings (its own code)",
+          "status": "DONE",
+          "evidence": "6 code files, 21 test files"
+        }
+      ]
+    },
+    {
+      "name": "android_stt_ondevice",
+      "path": "android/modules/stt-ondevice",
+      "items": [
+        {
+          "item": "android_stt_ondevice (its own code)",
+          "status": "DONE",
+          "evidence": "32 code files, 109 test files"
+        }
+      ]
+    },
+    {
+      "name": "android_stt_server",
+      "path": "android/modules/stt-server",
+      "items": [
+        {
+          "item": "android_stt_server (its own code)",
+          "status": "DONE",
+          "evidence": "14 code files, 28 test files"
+        }
+      ]
+    },
+    {
+      "name": "android_sync",
+      "path": "android/modules/sync",
+      "items": [
+        {
+          "item": "android_sync (its own code)",
+          "status": "DONE",
+          "evidence": "22 code files, 54 test files"
+        }
+      ]
+    },
+    {
+      "name": "android_training_client",
+      "path": "android/modules/training-client",
+      "items": [
+        {
+          "item": "android_training_client (its own code)",
+          "status": "NOT_STARTED",
+          "evidence": "0 code files, 0 test files"
+        }
+      ]
+    },
+    {
+      "name": "android_transport",
+      "path": "android/modules/transport",
+      "items": [
+        {
+          "item": "android_transport (its own code)",
+          "status": "DONE",
+          "evidence": "6 code files, 31 test files"
+        }
+      ]
+    },
+    {
+      "name": "android_ui",
+      "path": "android/ui",
+      "items": [
+        {
+          "item": "android_ui (its own code)",
+          "status": "DONE",
+          "evidence": "118 code files, 187 test files"
+        }
+      ]
+    },
+    {
+      "name": "android_updater",
+      "path": "android/modules/updater",
+      "items": [
+        {
+          "item": "android_updater (its own code)",
+          "status": "DONE",
+          "evidence": "9 code files, 9 test files"
+        }
+      ]
+    },
+    {
+      "name": "server_deploy",
+      "path": "server/modules/deploy",
+      "items": [
+        {
+          "item": "server_deploy (its own code)",
+          "status": "NOT_STARTED",
+          "evidence": "0 code files, 0 test files"
+        }
+      ]
+    },
+    {
+      "name": "server_sync_api",
+      "path": "server/modules/sync-api",
+      "items": [
+        {
+          "item": "server_sync_api (its own code)",
+          "status": "DONE",
+          "evidence": "87 code files, 216 test files"
+        }
+      ]
+    },
+    {
+      "name": "server_training",
+      "path": "server/modules/training",
+      "items": [
+        {
+          "item": "server_training (its own code)",
+          "status": "NOT_STARTED",
+          "evidence": "0 code files, 0 test files"
+        }
+      ]
+    },
+    {
+      "name": "server_web_fe",
+      "path": "server/modules/web-fe",
+      "items": [
+        {
+          "item": "server_web_fe (its own code)",
+          "status": "PARTIAL",
+          "evidence": "11 code files, 14 test files"
+        }
+      ]
+    },
+    {
+      "name": "server_whisper",
+      "path": "server/modules/whisper-server",
+      "items": [
+        {
+          "item": "server_whisper (its own code)",
+          "status": "DONE",
+          "evidence": "27 code files, 51 test files"
+        }
+      ]
+    },
+    {
+      "name": "shared_api_contracts",
+      "path": "shared/modules/api-contracts",
+      "items": [
+        {
+          "item": "shared_api_contracts (its own code)",
+          "status": "DONE",
+          "evidence": "45 code files, 18 test files"
+        }
+      ]
+    },
+    {
+      "name": "shared_format_prompts",
+      "path": "shared/modules/format-prompts",
+      "items": [
+        {
+          "item": "shared_format_prompts (its own code)",
+          "status": "DONE",
+          "evidence": "1 code files, 3 test files"
+        }
+      ]
+    },
+    {
+      "name": "shared_model_registry",
+      "path": "shared/modules/model-registry",
+      "items": [
+        {
+          "item": "shared_model_registry (its own code)",
+          "status": "DONE",
+          "evidence": "1 code files, 2 test files"
+        }
+      ]
+    },
+    {
+      "name": "shared_ui_tokens",
+      "path": "shared/modules/ui-tokens",
+      "items": [
+        {
+          "item": "shared_ui_tokens (its own code)",
+          "status": "DONE",
+          "evidence": "1 code files, 4 test files"
+        }
+      ]
+    },
+    {
+      "name": "shared_web_libs_libsodium",
+      "path": "shared/modules/web-libs/libsodium",
+      "items": [
+        {
+          "item": "shared_web_libs_libsodium (its own code)",
+          "status": "DONE",
+          "evidence": "2 code files, 0 test files"
+        }
+      ]
+    },
+    {
+      "name": "shared_web_libs_noble_ciphers",
+      "path": "shared/modules/web-libs/noble-ciphers",
+      "items": [
+        {
+          "item": "shared_web_libs_noble_ciphers (its own code)",
+          "status": "DONE",
+          "evidence": "6 code files, 0 test files"
+        }
+      ]
+    },
+    {
+      "name": "shared_web_libs_noble_curves",
+      "path": "shared/modules/web-libs/noble-curves",
+      "items": [
+        {
+          "item": "shared_web_libs_noble_curves (its own code)",
+          "status": "DONE",
+          "evidence": "10 code files, 0 test files"
+        }
+      ]
+    },
+    {
+      "name": "shared_web_libs_noble_hashes",
+      "path": "shared/modules/web-libs/noble-hashes",
+      "items": [
+        {
+          "item": "shared_web_libs_noble_hashes (its own code)",
+          "status": "DONE",
+          "evidence": "9 code files, 0 test files"
+        }
+      ]
+    }
+  ],
+  "retired": [
+    {
+      "name": "android_commit_ime",
+      "path": "android/modules/commit/ime",
+      "reason": "modules.toml status = \"dead\""
+    }
+  ],
+  "summary": {
+    "live": 35,
+    "done": 30,
+    "partial": 1,
+    "not_started": 4,
+    "containers": 4,
+    "retired": 1
+  },
+  "containers": [
+    {
+      "name": "android",
+      "path": "android",
+      "reason": "no source or test files of its own; its children are separate rows"
+    },
+    {
+      "name": "server",
+      "path": "server",
+      "reason": "no source or test files of its own; its children are separate rows"
+    },
+    {
+      "name": "shared",
+      "path": "shared",
+      "reason": "no source or test files of its own; its children are separate rows"
+    },
+    {
+      "name": "shared_web_libs",
+      "path": "shared/modules/web-libs",
+      "reason": "no source or test files of its own; its children are separate rows"
+    }
+  ]
+}
