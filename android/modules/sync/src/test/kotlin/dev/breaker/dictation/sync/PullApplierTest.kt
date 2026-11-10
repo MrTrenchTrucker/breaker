@@ -228,6 +228,20 @@ class PullApplierTest {
         assertEquals("android_sync: accept control: parseable deletes", 1, report2.deleted)
     }
 
+    /** A failure here means a whole-second storedAt on a delete (no fraction digits) is read as a
+     * time: PullApplier takes deleted_at from stored_at, and parseCreatedAt needs exactly three
+     * fraction digits, so the record counts unreadable and reaches no sink call. */
+    @Test
+    fun `a delete with whole-second storedAt is unreadable`() {
+        val sink = RecordingPullSink()
+        val probe = RecordingQueueProbe()
+        val record = aRecord(clientD, deleted = true, storedAt = "2023-11-14T22:13:20Z")
+        val report = applier(sink, probe).apply(anOkResult(record, fullList = false))
+        assertEquals("android_sync: whole-second storedAt counts unreadable", 1, report.unreadable)
+        assertEquals("android_sync: whole-second storedAt reaches no sink", emptyList<String>(), sink.deleteIds())
+        assertEquals("android_sync: whole-second storedAt counts no delete", 0, report.deleted)
+    }
+
     /** A failure here means a key version 1 live row counts unreadable and calls nothing. */
     @Test
     fun `a key version 1 live row is unreadable`() {

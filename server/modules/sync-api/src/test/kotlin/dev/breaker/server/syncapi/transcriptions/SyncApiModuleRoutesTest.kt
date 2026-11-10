@@ -65,7 +65,7 @@ internal class SyncApiModuleRoutesTest : TempDatabaseTest() {
             assertEquals("sync-api: module list status", HttpStatusCode.OK, listed.status)
             assertEquals(
                 "sync-api: module list body",
-                "{\"items\":[" + SyncRouteTestSupport.pageRecordJson(CLIENT_ID, 1, false, 0, ENCRYPTED, "2023-11-14T22:13:20Z") + "],\"next\":\"$accountId-1\",\"more\":false}",
+                "{\"items\":[" + SyncRouteTestSupport.pageRecordJson(CLIENT_ID, 1, false, 0, ENCRYPTED, "2023-11-14T22:13:20.000Z") + "],\"next\":\"$accountId-1\",\"more\":false}",
                 listed.bodyAsText(),
             )
         }

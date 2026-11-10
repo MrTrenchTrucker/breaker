@@ -25,7 +25,7 @@ import org.junit.Test
 internal class SyncRoutesPullPurgeTest : TempDatabaseTest() {
 
     private companion object {
-        const val STORED_AT = "2023-11-14T22:13:20Z"
+        const val STORED_AT = "2023-11-14T22:13:20.000Z"
     }
 
     private lateinit var temp: TempDatabase

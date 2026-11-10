@@ -38,7 +38,7 @@ import org.junit.Test
 internal class SyncApiPullEndToEndTest : TempDatabaseTest() {
 
     private companion object {
-        const val ROW_STORED_AT = "2023-11-14T22:13:20Z"
+        const val ROW_STORED_AT = "2023-11-14T22:13:20.000Z"
         const val THIRD_CLIENT_ID = "2c1e" + "6f70-8a3b-4e5f-" + "9a0b-" + "3c4d5e" + "6f7a8b"
         const val ROW_COUNT_SQL = "SELECT COUNT(*) FROM transcriptions WHERE account_id = ? AND deleted = 1"
         const val ALICE_SEED = 1

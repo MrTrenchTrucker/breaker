@@ -27,7 +27,7 @@ import org.junit.Test
 internal class SyncRoutesPullGuardTest : TempDatabaseTest() {
 
     private companion object {
-        const val STORED_AT = "2023-11-14T22:13:20Z"
+        const val STORED_AT = "2023-11-14T22:13:20.000Z"
         const val CREATE_TRIGGER_SQL =
             "CREATE TRIGGER forced_purge_failure BEFORE DELETE ON transcriptions " +
                 "WHEN OLD.deleted = 1 BEGIN SELECT RAISE(ABORT, 'forced'); END"

@@ -52,8 +52,8 @@ internal class SyncRoutesFeedTest : TempDatabaseTest() {
         assertEquals(
             "since null body",
             "{\"items\":[" +
-                SyncRouteTestSupport.pageRecordJson(CLIENT_ID, 1, false, 0, ENCRYPTED, "2023-11-14T22:13:20Z") + "," +
-                SyncRouteTestSupport.pageRecordJson(OTHER_CLIENT_ID, 2, false, 0, OTHER_ENCRYPTED, "2023-11-14T22:13:20Z") +
+                SyncRouteTestSupport.pageRecordJson(CLIENT_ID, 1, false, 0, ENCRYPTED, "2023-11-14T22:13:20.000Z") + "," +
+                SyncRouteTestSupport.pageRecordJson(OTHER_CLIENT_ID, 2, false, 0, OTHER_ENCRYPTED, "2023-11-14T22:13:20.000Z") +
             "],\"next\":\"$accountId-2\",\"more\":false}",
             reply.body,
         )
@@ -80,8 +80,8 @@ internal class SyncRoutesFeedTest : TempDatabaseTest() {
         assertEquals(
             "since zero body",
             "{\"items\":[" +
-                SyncRouteTestSupport.pageRecordJson(CLIENT_ID, 1, false, 0, ENCRYPTED, "2023-11-14T22:13:20Z") + "," +
-                SyncRouteTestSupport.pageRecordJson(OTHER_CLIENT_ID, 2, false, 0, OTHER_ENCRYPTED, "2023-11-14T22:13:20Z") +
+                SyncRouteTestSupport.pageRecordJson(CLIENT_ID, 1, false, 0, ENCRYPTED, "2023-11-14T22:13:20.000Z") + "," +
+                SyncRouteTestSupport.pageRecordJson(OTHER_CLIENT_ID, 2, false, 0, OTHER_ENCRYPTED, "2023-11-14T22:13:20.000Z") +
             "],\"next\":\"$accountId-2\",\"more\":false}",
             reply.body,
         )
@@ -97,7 +97,7 @@ internal class SyncRoutesFeedTest : TempDatabaseTest() {
         assertEquals(
             "since N includes delete body",
             "{\"items\":[" +
-                SyncRouteTestSupport.pageRecordJson(CLIENT_ID, 2, true, null, null, "2023-11-14T22:13:20Z") +
+                SyncRouteTestSupport.pageRecordJson(CLIENT_ID, 2, true, null, null, "2023-11-14T22:13:20.000Z") +
             "],\"next\":\"$accountId-2\",\"more\":false}",
             reply.body,
         )
@@ -138,7 +138,7 @@ internal class SyncRoutesFeedTest : TempDatabaseTest() {
         assertTrue("alice does not see bob's row", !reply.body.contains(OTHER_CLIENT_ID))
         assertEquals(
             "cross-account body",
-            "{\"items\":[" + SyncRouteTestSupport.pageRecordJson(CLIENT_ID, 1, false, 0, ENCRYPTED, "2023-11-14T22:13:20Z") + "],\"next\":\"$accountId-1\",\"more\":false}",
+            "{\"items\":[" + SyncRouteTestSupport.pageRecordJson(CLIENT_ID, 1, false, 0, ENCRYPTED, "2023-11-14T22:13:20.000Z") + "],\"next\":\"$accountId-1\",\"more\":false}",
             reply.body,
         )
     }

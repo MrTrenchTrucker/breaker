@@ -246,4 +246,25 @@ class PullPageDecoderRefusalsTest {
         assertEquals("control decodes", 1, page.items.size)
         assertEquals("control encrypted", marker, page.items[0].encrypted)
     }
+
+    /** A failure here means the fixture text on this side does not decode as the shared page: the
+     * delete row at ...123Z and the live row at ...250Z both decode, and PullApplier applies the
+     * delete with deletedAt == 1_700_000_000_123L. */
+    @Test
+    fun `decoding and applying PullPageFixture matches the shared vector`() {
+        val page = PullPageDecoder.decode(PullPageFixture.PAGE)
+        assertEquals("fixture page has two items", 2, page.items.size)
+        assertEquals("fixture next", "1-3", page.next)
+        val live = page.items.single { !it.deleted }
+        assertEquals("fixture live row client id", "0f9c4d1e-6a2b-4c3d-9e8f-1a2b3c4d5e6f", live.clientId)
+        assertEquals("fixture live row storedAt", "2023-11-14T22:13:20.250Z", live.storedAt)
+        val del = page.items.single { it.deleted }
+        assertEquals("fixture delete row storedAt", "2023-11-14T22:13:20.123Z", del.storedAt)
+        val sink = RecordingPullSink()
+        val report = PullApplier(sink, RecordingQueueProbe()).apply(
+            PullRunResult(PullOutcome.Ok(listOf(del), page.next), false))
+        assertEquals("applier counts one delete", 1, report.deleted)
+        assertEquals("applier delete deletedAt is the fixture fraction",
+            1_700_000_000_123L, sink.deletes.single().deletedAt)
+    }
 }

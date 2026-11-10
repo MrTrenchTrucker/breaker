@@ -2238,7 +2238,7 @@ paths:
                     deleted: false
                     key_version: 0
                     encrypted: "eyJ2IjoxLCJ0ZXh0IjoiaGVsbG8gZnJvbSB0aGUgcGhvbmUiLCJzb3VyY2UiOiJsb2NhbCIsIm1vZGVsIjoiYmFzZS5lbiIsImR1cmF0aW9uX21zIjoxNTAwLCJjcmVhdGVkX2F0IjoiMjAyNi0xMC0xMVQxMjowMDowMC4wMDBaIn0="
-                    stored_at: "2026-10-11T12:00:05Z"
+                    stored_at: "2026-10-11T12:00:05.000Z"
                 next: "7-42"
                 more: true
         "400":
@@ -2906,7 +2906,7 @@ components:
             which is not built. Absent on delete records.
         stored_at:
           type: string
-          description: When the server stored the row (RFC 3339); for a delete record, the time of the delete write
+          description: When the server stored the row (UTC, always three millisecond digits, same form as created_at); for a delete record, the time of the delete write
       description: "A live record has client_id, change, deleted false, key_version, encrypted and stored_at. A delete record has client_id, change, deleted true and stored_at, and no key_version and no encrypted; key_version and encrypted are required when deleted is false and absent when deleted is true."
     PendingSealed:
       type: object

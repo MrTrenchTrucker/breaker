@@ -65,7 +65,7 @@ internal class SyncRoutesListTest : TempDatabaseTest() {
         assertEquals("sync-api: list status", HttpStatusCode.OK, reply.status)
         assertEquals(
             "sync-api: list body",
-            "{\"items\":[" + SyncRouteTestSupport.pageRecordJson(CLIENT_ID, 1, false, 0, ENCRYPTED, "2023-11-14T22:13:20Z") + "],\"next\":\"$aliceId-1\",\"more\":false}",
+            "{\"items\":[" + SyncRouteTestSupport.pageRecordJson(CLIENT_ID, 1, false, 0, ENCRYPTED, "2023-11-14T22:13:20.000Z") + "],\"next\":\"$aliceId-1\",\"more\":false}",
             reply.body,
         )
     }
@@ -78,7 +78,7 @@ internal class SyncRoutesListTest : TempDatabaseTest() {
         assertEquals("sync-api: delete record status", HttpStatusCode.OK, reply.status)
         assertEquals(
             "sync-api: delete record body",
-            "{\"items\":[" + SyncRouteTestSupport.pageRecordJson(CLIENT_ID, 2, true, null, null, "2023-11-14T22:13:20Z") + "],\"next\":\"$aliceId-2\",\"more\":false}",
+            "{\"items\":[" + SyncRouteTestSupport.pageRecordJson(CLIENT_ID, 2, true, null, null, "2023-11-14T22:13:20.000Z") + "],\"next\":\"$aliceId-2\",\"more\":false}",
             reply.body,
         )
     }
@@ -94,9 +94,9 @@ internal class SyncRoutesListTest : TempDatabaseTest() {
         assertEquals(
             "sync-api: oldest first body",
             "{\"items\":[" +
-                SyncRouteTestSupport.pageRecordJson(PUSHED_FIRST, 1, false, 0, ENCRYPTED, "2023-11-14T22:13:20Z") + "," +
-                SyncRouteTestSupport.pageRecordJson(PUSHED_SECOND, 2, false, 0, ENCRYPTED, "2023-11-15T22:13:20Z") + "," +
-                SyncRouteTestSupport.pageRecordJson(PUSHED_THIRD, 3, false, 0, ENCRYPTED, "2023-11-16T22:13:20Z") +
+                SyncRouteTestSupport.pageRecordJson(PUSHED_FIRST, 1, false, 0, ENCRYPTED, "2023-11-14T22:13:20.000Z") + "," +
+                SyncRouteTestSupport.pageRecordJson(PUSHED_SECOND, 2, false, 0, ENCRYPTED, "2023-11-15T22:13:20.000Z") + "," +
+                SyncRouteTestSupport.pageRecordJson(PUSHED_THIRD, 3, false, 0, ENCRYPTED, "2023-11-16T22:13:20.000Z") +
             "],\"next\":\"$aliceId-3\",\"more\":false}",
             reply.body,
         )
@@ -116,14 +116,14 @@ internal class SyncRoutesListTest : TempDatabaseTest() {
         val aliceList = SyncRouteTestSupport.getList(tokenStore, store, aliceToken)
         assertEquals(
             "sync-api: alice sees only her own row",
-            "{\"items\":[" + SyncRouteTestSupport.pageRecordJson(CLIENT_ID, 1, false, 0, ENCRYPTED, "2023-11-14T22:13:20Z") + "],\"next\":\"$aliceId-1\",\"more\":false}",
+            "{\"items\":[" + SyncRouteTestSupport.pageRecordJson(CLIENT_ID, 1, false, 0, ENCRYPTED, "2023-11-14T22:13:20.000Z") + "],\"next\":\"$aliceId-1\",\"more\":false}",
             aliceList.body,
         )
         assertFalse("sync-api: alice must not see bob's client id", aliceList.body.contains(OTHER_CLIENT_ID))
         val bobList = SyncRouteTestSupport.getList(tokenStore, store, bobToken)
         assertEquals(
             "sync-api: bob sees only his own row",
-            "{\"items\":[" + SyncRouteTestSupport.pageRecordJson(OTHER_CLIENT_ID, 1, false, 0, OTHER_ENCRYPTED, "2023-11-14T22:13:20Z") + "],\"next\":\"${bob.accountId}-1\",\"more\":false}",
+            "{\"items\":[" + SyncRouteTestSupport.pageRecordJson(OTHER_CLIENT_ID, 1, false, 0, OTHER_ENCRYPTED, "2023-11-14T22:13:20.000Z") + "],\"next\":\"${bob.accountId}-1\",\"more\":false}",
             bobList.body,
         )
     }
@@ -134,5 +134,21 @@ internal class SyncRoutesListTest : TempDatabaseTest() {
         val reply = SyncRouteTestSupport.getList(tokenStore, store, aliceToken)
         assertEquals("sync-api: unformattable stored time status", HttpStatusCode.ServiceUnavailable, reply.status)
         assertEquals("sync-api: unformattable stored time body", SyncRouteTestSupport.UNAVAILABLE_BODY, reply.body)
+    }
+
+    /** A failure here means the rendered page is not PullPageFixture.PAGE: the delete row at ...123 ms and
+     * the live row at ...250 ms must both render with three fraction digits. The clock only moves
+     * forward: the delete (change 2) is made at +123 ms, the live push (change 3) at +250 ms. */
+    @Test
+    fun renderedPageEqualsPullPageFixture() {
+        assertEquals("sync-api: the fixture next is 1-3, so alice must be account 1", 1L, aliceId)
+        clock.set(TokenFixtures.START.plusMillis(123L))
+        SyncRouteTestSupport.postSync(tokenStore, store, aliceToken, SyncRouteTestSupport.pushBody(OTHER_CLIENT_ID, "0", OTHER_ENCRYPTED))
+        SyncRouteTestSupport.deleteTranscription(tokenStore, store, aliceToken, OTHER_CLIENT_ID)
+        clock.set(TokenFixtures.START.plusMillis(250L))
+        SyncRouteTestSupport.postSync(tokenStore, store, aliceToken, SyncRouteTestSupport.pushBody(CLIENT_ID, "0", ENCRYPTED))
+        val reply = SyncRouteTestSupport.getPage(tokenStore, store, aliceToken, "$aliceId-1")
+        assertEquals("sync-api: rendered page status", HttpStatusCode.OK, reply.status)
+        assertEquals("sync-api: rendered page equals fixture exactly", PullPageFixture.PAGE, reply.body)
     }
 }
