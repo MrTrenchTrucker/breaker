@@ -88,6 +88,7 @@ internal object TranscriptionPurge {
         batchCap: Int,
     ): Int {
         require(batchCap >= 1) { "sync-api: batch cap must be >= 1, got $batchCap" }
+        require(ttlMs > 0) { "sync-api: ttl must be > 0, got $ttlMs" }
         val cutoff = nowMs - ttlMs
         val rows = connection.prepareStatement(EXPIRE_TTL_SQL).use { statement ->
             statement.setLong(1, accountId)

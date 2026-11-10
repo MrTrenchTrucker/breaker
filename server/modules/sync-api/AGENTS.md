@@ -347,7 +347,7 @@ A route or job marked Planned, not built below is not installed on main yet.
   `PrevKeyRule` runs once for the batch. It never raises `purged_through` (only the floor purge does)
   and never touches a delete record or another account. The daily schedule, the cap value and the wiring
   are Router's slot, behind the pull chain. Phone retention tombstones reaching the server stay deferred
-  with the tombstone port.
+  with the tombstone port. A TTL or a batch cap below one is refused.
 - **Log policy (F32):** events only, per-user — auth, admin actions, queue
   health. **Never plaintext transcriptions** (T22).
 - **Multi-admin config:** concurrent edits to the transcription service config
