@@ -1652,6 +1652,51 @@ paths:
               example:
                 error: "forbidden"
                 message: "Admin role required"
+        "400":
+          description: Bad request (malformed body, missing field, bad scope or expiry)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "bad_request"
+                message: "Invalid request body"
+        "404":
+          description: Account not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "not_found"
+                message: "Account not found"
+        "409":
+          description: Conflict (owner waiting on a reset)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "conflict"
+                message: "The account is waiting for a reset to be completed"
+        "413":
+          description: Payload too large
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "payload_too_large"
+                message: "Request body exceeds maximum allowed size"
+        "503":
+          description: Unavailable (store failure)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
     get:
       summary: List agent tokens
       description: >-
@@ -1698,6 +1743,15 @@ paths:
               example:
                 error: "forbidden"
                 message: "Admin role required"
+        "503":
+          description: Unavailable (store failure)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
   /v1/admin/roles:
     post:
       summary: Set an account's admin role

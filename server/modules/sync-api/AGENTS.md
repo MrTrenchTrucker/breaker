@@ -291,9 +291,22 @@ A route or job marked Planned, not built below is not installed on main yet.
 - `POST /v1/admin/test-service` — **admin-only**: probe the configured endpoint,
   return reachable/unreachable. URL validation (T20).
   Planned, not built: no such route is installed.
-- `POST /v1/admin/agent-tokens` — **admin-only**: create scoped token (name,
-  optional expiry, owner account). `DELETE /v1/admin/agent-tokens/{id}` — revoke (F27).
-  Planned, not built: the create route; only the revoke (`DELETE`) is installed.
+- `POST /v1/admin/agent-tokens` — **admin-only**: create a scoped token (name,
+  optional expiry, owner account). `GET /v1/admin/agent-tokens` — **admin-only**: list
+  the live agent tokens. `DELETE /v1/admin/agent-tokens/{id}` — revoke (F27).
+  **Built**: POST and GET (`AdminCreateAgentTokenRoute.kt`, `AdminListAgentTokensRoute.kt`;
+  the store calls are `issueAgent`, `listAgentTokens` and `usernameOf`). Admin means a
+  session token of an admin or an admin-scoped agent token. The order of POST: bearer
+  token (401 when missing or dead), admin role (403), body size cap (413), body shape
+  (400), the owner account (404 when unknown), then the store; GET stops after the admin
+  role and reads the store. A store failure on either is the fixed 503, with no
+  exception text. POST takes `name`, `owner_username` and an optional `scope` (default
+  `transcribe`; `admin` only for an admin owner, else 400) and an optional `expires_at`
+  (an instant in the future, else 400). An owner waiting on a reset answers 409. It
+  answers 201 with the token value, once. GET answers every live agent token of every
+  account, oldest first, each with `id`, `name`, `owner_username`, `scope` and `expires_at`:
+  a revoked token never appears, an expired token that was not revoked does, and no
+  token value or hash is ever sent.
 - `DELETE /v1/admin/sessions/{id}` — **admin-only**: end one session of any account by its id (ADR-036). BUILT.
 - Agent auth: `Authorization: Bearer <agent-token>` on `POST
   /v1/audio/transcriptions` + `GET /v1/jobs/{id}` — same FIFO queue, results to
