@@ -15,3 +15,27 @@
 plugins {
     base
 }
+
+// Vendored web libraries (libsodium pair vendored + pinned but NOT copied to
+// any served path — CSP script-src 'self' has no wasm-unsafe-eval, ADR-040;
+// serving libsodium needs a new ADR). Copy exactly the three noble sub-modules
+// from shared/modules/web-libs into build/web/js/vendor/. Hooked to assemble
+// so the copy runs at assemble time, not processResources (web-fe applies only
+// the base plugin and has no processResources of its own).
+val webLibs = rootProject.layout.projectDirectory.dir("shared/modules/web-libs")
+
+val copyWebLibs = tasks.register<Copy>("copyWebLibs") {
+    group = "build"
+    description = "Copy the vendored noble libraries into the served vendor tree"
+    into(layout.buildDirectory.dir("web/js/vendor"))
+    for (lib in listOf("noble-ciphers", "noble-hashes", "noble-curves")) {
+        from(webLibs.dir(lib)) {
+            exclude("VERSION", "README.md", "AGENTS.md", "build.gradle.kts")
+            into(lib)
+        }
+    }
+}
+
+tasks.named("assemble") {
+    dependsOn(copyWebLibs)
+}

@@ -23,3 +23,12 @@ regexes = ['''^(eyJ2IjoxLCJ0ZXh0IjoiaGVsbG8gZnJvbSB0aGUgcGhvbmUiLCJzb3VyY2UiOiJs
 description = "Published sha256 of the pinned openapi-generator-cli 7.26.0 jar (Maven Central), not a secret"
 regexTarget = "match"
 regexes = ['''OPENAPI_GENERATOR_SHA256: "1760050094997b9cc790cc1350be095f15da8c08a996b184d3eadc4ccda5e35e"''']
+
+[[allowlists]]
+description = "Vendored libsodium-wrappers.mjs (unmodified upstream file, sha256-pinned by a contract test): lists of function names that look like keys, not secrets"
+paths = ['''shared/modules/web-libs/libsodium/libsodium-wrappers\.mjs''']
+
+[[allowlists]]
+description = "Published sha256 of the vendored libsodium-sumo.mjs, in its pin test, not a secret"
+regexTarget = "match"
+regexes = ['''libsodium-sumo\.mjs", "4c94708f7e78eac7a32b29e2ce0ff96f4bd599d78c129f27bf8a061e20776c8c"''']

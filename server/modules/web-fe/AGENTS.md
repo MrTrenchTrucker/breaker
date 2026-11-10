@@ -48,7 +48,7 @@ The planned address of the sign-in page is `<server>/signin.html#challenge=<43>&
 account's data key (60 bytes: nonce 12, ciphertext 32, tag 16, AES-256-GCM under the 32-byte key,
 empty associated data) and seals and opens records (nonce 12, tag 16, associated data given by the
 caller as bytes). It uses the vendored copies of @noble/ciphers 2.4.0 in
-`src/main/resources/web/js/vendor/noble-ciphers/` (four files, never edited, pinned by hash).
+`shared/modules/web-libs/noble-ciphers/` (seven files, never edited, pinned by hash).
 The sign-in page logic is two ES modules with no page around them: `signin-link.js` (pure helpers for the
 link fragment, the base64 forms and the password bytes) and `signin.js` (the flow from the sign-in link to
 the return link). In `signin.js` every crypto step is an injected function (`getSalt`, `derive`, `login`,
@@ -229,6 +229,7 @@ The sign-in page `signin.html`, with its entry script `js/signin-page.js`. The p
 - server (registered in modules.toml)
 - server_sync_api (registered in modules.toml)
 - shared_ui_tokens (registered in modules.toml)
+- shared_web_libs (registered in modules.toml)
 
 ## Does Not Own
 - API logic (sync-api)
@@ -275,7 +276,8 @@ agents, not required: an outside contributor may write the code themselves
   nonces per data key, ADR-006) is decided there and is NOT built here.
 - Wipe limit (sign-in page): the password bytes, the derived KEK and verifier, the DEK, the box private key, the package and the app key copy are Uint8Arrays that are zero-filled after use and on pagehide (`wipeAll`). This is a limit, not a guarantee: the JavaScript garbage collector and copies made inside libraries cannot be wiped by the page, so a secret may outlive the zero-fill in memory. Nothing is stored in localStorage, sessionStorage, IndexedDB, a cookie or the URL; the one-time code and the sealed package are not secrets and are not wiped.
 - Page limits (sign-in page): the typed password is a JavaScript string, so it cannot be zero-filled; the page clears the password field after each run and on pagehide. The session token is a string too, so the run drops it and does not wipe it. The form stays disabled until `signin-crypto.js` is replaced by the real functions. The logout runs once per run, after a session token exists: on success just before the redirect, and on every later failure. Its request is fire and forget: it is not awaited and its answer is never read, so a slow or failed logout never holds up the redirect.
-- Never edit the files in `vendor/noble-ciphers/`; replace them only by a new exact copy of a newer
+- Never edit the vendored noble-ciphers files under `shared/modules/web-libs/noble-ciphers/`;
+  replace them only by a new exact copy of a newer
   release, with the hashes in the pins updated in the same change.
 - Two devices racing to convert the same pending sealed record is harmless:
   sync dedupes on the (client id, `key_version`) pair, so the second upload

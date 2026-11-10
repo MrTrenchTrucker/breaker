@@ -10,7 +10,7 @@ The sign-in page of the website (ADR-036) needs two things its crypto stub does 
 password into a key with Argon2id at the phone's setting (64 MiB, 3 passes, 1 lane), and open
 the sealed box that carries the key package from the phone (ADR-018: `crypto_box_seal`, X25519, the
 package `0x01 || DEK || boxPriv`). AES-256-GCM is already there: `aesgcm.js` uses the vendored
-`@noble/ciphers` 2.4.0 (`server/modules/web-fe/src/main/resources/web/js/vendor/noble-ciphers/`).
+`@noble/ciphers` 2.4.0 (`shared/modules/web-libs/noble-ciphers/`).
 
 Two libraries could supply the rest. `@noble/hashes`, `@noble/curves` and `@noble/ciphers` are plain
 JavaScript. libsodium.js 0.8.4 is the libsodium C library built to WebAssembly. The noble parts were

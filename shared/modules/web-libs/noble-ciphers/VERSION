@@ -1,0 +1,5 @@
+name: shared_web_libs_noble_ciphers
+version: 2.4.0
+source_tarball: ciphers-2.4.0.tgz
+source_tarball_sha256: 4a398bcc280c8742d474f9162f6d3c153e52ab1078e8ab592b4720410fb3c3e9
+licence: MIT

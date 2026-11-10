@@ -1,0 +1,5 @@
+name: shared_web_libs_noble_hashes
+version: 2.4.0
+source_tarball: hashes-2.4.0.tgz
+source_tarball_sha256: e1946149b780017b2564fcc092cb01c04e1d7f20627d0296c17da8868f4436dc
+licence: MIT
