@@ -46,7 +46,10 @@ that publishes no artifact.
 
 - Contract: `tests/contract/test_web_libs_contract.py`. Run:
   `python3 -m unittest discover -s tests/contract -t tests/contract -p test_web_libs_contract.py`
-  Collected pins live in `tests/contract/web_libs_pins.py`.
+  Collected pins live in `tests/contract/web_libs_pins.py`. The pin test DISCOVERS the library folders under this one
+  (`library_folder_problems`): a folder with no pin rows, a pin row with no folder, a folder with no `VERSION`, or a
+  `VERSION` whose `name` is not `shared_web_libs_` plus the folder name (dashes as underscores) fails it, so a new
+  library cannot be added unpinned.
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
 ## Test Requirement
