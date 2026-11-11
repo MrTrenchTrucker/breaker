@@ -250,4 +250,61 @@ class SqliteHistoryStoreOnSqliteTest {
         assertEquals(listOf("n", "m", "r", "q", "a"), store.list(10).map { it.id })
         assertEquals(listOf("n", "m"), store.list(2).map { it.id })
     }
+
+    @Test
+    fun `on real SQL pendingTombstoneIds returns USER tombstones only`() {
+        sqlite.exec(HistorySql.INSERT_OR_REPLACE_TOMBSTONE, "u-1", 1_000L, "user")
+        sqlite.exec(HistorySql.INSERT_OR_REPLACE_TOMBSTONE, "r-1", 2_000L, "retention")
+        sqlite.exec(HistorySql.INSERT_OR_REPLACE_TOMBSTONE, "m-1", 3_000L, "remote")
+
+        assertEquals(listOf("u-1"), typed().pendingTombstoneIds(1000))
+    }
+
+    @Test
+    fun `on real SQL paging walks every USER tombstone exactly once and never the RETENTION one`() {
+        repeat(2_500) { i ->
+            sqlite.exec(HistorySql.INSERT_OR_REPLACE_TOMBSTONE, "u-${i.toString().padStart(5, '0')}", i.toLong(), "user")
+        }
+        sqlite.exec(HistorySql.INSERT_OR_REPLACE_TOMBSTONE, "r-99999", 999_999L, "retention")
+
+        val pageSize = 1000
+        val collected = mutableListOf<String>()
+        var page = typed().pendingTombstoneIds(pageSize)
+        var pages = 1
+        collected.addAll(page)
+        while (page.size == pageSize && pages < 12) {
+            page = typed().pendingTombstoneIdsAfter(page.last(), pageSize)
+            collected.addAll(page)
+            pages++
+        }
+
+        val expected = (2_499 downTo 0).map { "u-${it.toString().padStart(5, '0')}" }
+        assertEquals("every USER tombstone, exactly once, id descending", expected, collected)
+        assertTrue("no RETENTION tombstone is ever paged", "r-99999" !in collected)
+    }
+
+    @Test
+    fun `clearAllTombstones removes tombstones of every reason (HIST_07)`() {
+        // One tombstone of each delete reason, recorded at ordinary times: the
+        // clear must leave none of them, for any reason.
+        sqlite.exec(HistorySql.INSERT_OR_REPLACE_TOMBSTONE, "t-user", 1_000L, "user")
+        sqlite.exec(HistorySql.INSERT_OR_REPLACE_TOMBSTONE, "t-retention", 2_000L, "retention")
+        sqlite.exec(HistorySql.INSERT_OR_REPLACE_TOMBSTONE, "t-remote", 3_000L, "remote")
+
+        typed().clearAllTombstones()
+
+        assertEquals(emptyList<Tombstone>(), typed().pendingTombstones(10))
+    }
+
+    @Test
+    fun `clearAllTombstones removes a tombstone recorded at the largest possible deleted_at (HIST_12)`() {
+        // A tombstone recorded at the largest possible deleted_at. A clear that
+        // bounds its removal by recorded_at (deleted_at < Long.MAX_VALUE) misses
+        // it, so the clear must not apply a recorded_at cutoff at all.
+        sqlite.exec(HistorySql.INSERT_OR_REPLACE_TOMBSTONE, "t-far-future", Long.MAX_VALUE, "user")
+
+        typed().clearAllTombstones()
+
+        assertEquals(emptyList<Tombstone>(), typed().pendingTombstones(10))
+    }
 }

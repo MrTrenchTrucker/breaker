@@ -20,4 +20,13 @@ interface SyncService {
 
     /** Queue [transcription] for the next push. */
     fun enqueue(transcription: Transcription)
+
+    /** Queue the deletion of the transcription [clientId] for the next push.
+     *
+     * Removes any queued row of that id (parked or not) first, then inserts the delete row at the
+     * tail: the delete always wins, so a save of the same id that is still queued is removed first
+     * and the delete entry is sent even if the save was never pushed. Idempotent in count, not in
+     * place: a second enqueueDelete keeps one delete row but moves it to the tail.
+     */
+    fun enqueueDelete(clientId: String)
 }

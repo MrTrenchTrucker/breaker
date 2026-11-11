@@ -163,14 +163,77 @@ class PullCursorMigrationTest {
         assertEquals("android_sync: the cursor table must still hold no row", 0L, cursorRowCount(secondSqlite))
     }
 
-    /** A failure here means the 1 to 3 chain loses a row, a seq, or the cursor table. */
+    /** Creates a version 3 store: the queue table with parked_reason, three rows, and the
+     * middle row parked with a reason. No kind column yet: it is what a v3 store holds
+     * before the v3 to v4 migration adds it.
+     */
+    private fun createVersionThreeStore() {
+        val c = openRawConnection()
+        c.createStatement().use { statement ->
+            statement.execute(
+                "CREATE TABLE IF NOT EXISTS " + SyncQueueSql.TABLE_QUEUE + " (" +
+                    "seq INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "client_id TEXT NOT NULL UNIQUE, " +
+                    "text TEXT NOT NULL, " +
+                    "source TEXT NOT NULL, " +
+                    "model TEXT NOT NULL, " +
+                    "duration_ms INTEGER NOT NULL, " +
+                    "created_at INTEGER NOT NULL, " +
+                    "parked_reason TEXT)"
+            )
+        }
+        insertRow(c, clientId(1), "first text", "local", "small.en", 1_200L, 100L)
+        insertRow(c, clientId(2), "second text", "server", "large-v3", 4_500L, 200L)
+        insertRow(c, clientId(3), "third text", "local", "small.en", 1_200L, 300L)
+        c.prepareStatement("UPDATE " + SyncQueueSql.TABLE_QUEUE + " SET parked_reason = ? WHERE client_id = ?").use { statement ->
+            statement.setString(1, "refused")
+            statement.setString(2, clientId(2))
+            statement.executeUpdate()
+        }
+    }
+
+    /** The kind column of the queue table on the open module handle, by column name. */
+    private fun kindColumnKind(s: DesktopSqlite): String? =
+        s.query("PRAGMA table_info(" + SyncQueueSql.TABLE_QUEUE + ")").firstOrNull { it[1] == "kind" }?.let { it[2] as String }
+
+    /** A failure here means the migration touches a queue row, drops a parked state, or leaves kind without its default. */
     @Test
-    fun `a version one store keeps every row through the two migrations`() {
+    fun `a version three store keeps every row and kind defaults to save`() {
+        createVersionThreeStore()
+
+        val c = openRawConnection()
+        c.prepareStatement(SyncQueueSql.MIGRATE_V3_TO_V4).executeUpdate()
+        val sqlite = openModule()
+        val db = JdbcSyncQueueDatabase(sqlite)
+
+        assertEquals("android_sync: the migration added the kind column", "TEXT", kindColumnKind(sqlite))
+        assertEquals("android_sync: the parked row keeps its parked reason", "refused", db.parkedReason(clientId(2)))
+        assertEquals("android_sync: the parked count is unchanged", 1, db.parkedCount())
+        assertEquals("android_sync: the live count is unchanged", 2, db.count())
+        assertEquals("android_sync: every row survived the migration in its order", listOf(clientId(1), clientId(2), clientId(3)), db.queuedIds())
+        assertEquals("android_sync: the head keeps its seq", 1L, db.head()!!.seq)
+        val kinds = sqlite.query("SELECT kind FROM " + SyncQueueSql.TABLE_QUEUE + " ORDER BY seq").map { it[0] as String }
+        assertEquals("android_sync: kind defaults to save on every migrated row", listOf("save", "save", "save"), kinds)
+    }
+
+    /** A failure here means the migration is not idempotent-safe: the onUpgrade chain a phone takes
+     * straight from 1 to 4 runs every migration in order and ends at schema version 4. */
+    @Test
+    fun `a version one store goes through the chained migrations to version four`() {
         createVersionOneStore()
 
         val c = openRawConnection()
         c.prepareStatement(SyncQueueSql.MIGRATE_V1_TO_V2).executeUpdate()
         c.prepareStatement(SyncQueueSql.MIGRATE_V2_TO_V3).executeUpdate()
+        c.prepareStatement(SyncQueueSql.MIGRATE_V3_TO_V4).executeUpdate()
+        // S10: after the full chain the cursor table exists and holds no row (a fresh migration
+        // must not carry a stale cursor). Check it on the raw connection before DesktopSqlite
+        // recreates the schema.
+        val cursorRows = c.prepareStatement("SELECT COUNT(*) FROM " + SyncQueueSql.TABLE_PULL_CURSOR).executeQuery().use { rs ->
+            rs.next()
+            rs.getLong(1)
+        }
+        assertEquals("android_sync: the full chain leaves an existing, empty cursor table", 0L, cursorRows)
         val sqlite = openModule()
         val db = JdbcSyncQueueDatabase(sqlite)
 
@@ -179,9 +242,15 @@ class PullCursorMigrationTest {
         assertEquals(
             "android_sync: all three rows survive the chain in their order",
             listOf(clientId(1), clientId(2), clientId(3)),
-            db.drainQueuedIds(),
+            db.queuedIds(),
         )
         assertNull("android_sync: the cursor must be empty after the chain", db.pullCursor())
-        assertEquals("android_sync: the cursor table must hold no row", 0L, cursorRowCount(sqlite))
+        var entry = db.head()
+        val kinds = ArrayList<String>()
+        while (entry != null) {
+            kinds.add(entry.kind)
+            entry = db.nextAfter(entry.seq)
+        }
+        assertEquals("android_sync: kind defaults to save on every row after the chain", listOf("save", "save", "save"), kinds)
     }
 }

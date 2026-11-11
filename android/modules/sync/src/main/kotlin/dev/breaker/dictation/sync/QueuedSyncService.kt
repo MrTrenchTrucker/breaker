@@ -70,7 +70,6 @@ class QueuedSyncService internal constructor(
         } else null
 
     private val drain = Mutex()
-
     /**
      * Queue [transcription] for the next push and return once it is committed.
      *
@@ -98,7 +97,7 @@ class QueuedSyncService internal constructor(
                     durationMs = transcription.durationMs,
                     createdAtMs = transcription.createdAt,
                 )
-            } else {
+            } else if (!database.replaceQueuedDeleteWithSave(clientId = transcription.id, text = transcription.text, source = source, model = transcription.model, durationMs = transcription.durationMs, createdAtMs = transcription.createdAt)) {
                 database.insertIfAbsent(
                     clientId = transcription.id,
                     text = transcription.text,
@@ -106,42 +105,53 @@ class QueuedSyncService internal constructor(
                     model = transcription.model,
                     durationMs = transcription.durationMs,
                     createdAtMs = transcription.createdAt,
+                    kind = SyncQueueSql.KIND_SAVE,
                 )
             }
         }
     }
 
     /**
+     * Queue the deletion of [clientId] for the next push and return once it is committed.
+     *
+     * Rule 2: a save of the same id that is still queued is removed first, so the
+     * delete always wins - the delete entry is sent even if the save was never pushed.
+     * The delete row carries kind delete and empty text. The code removes any queued
+     * row of that id (parked or not) first, then inserts the delete row at the tail:
+     * a second enqueueDelete keeps one delete row but moves it to the tail, and the
+     * drain sends the delete exactly once. A storage exception propagates unchanged
+     * and leaves no partial row.
+     */
+    override fun enqueueDelete(clientId: String) {
+        database.transaction {
+            // Remove the queued SAVE of this id first (rule 2), then insert the delete row.
+            database.remove(clientId)
+            database.insertDeleteIfAbsent(clientId)
+        }
+    }
+
+    /**
      * Send what is queued, oldest first, and report what left the phone.
      *
-     * [SyncReport.pushed] counts the rows the uploader confirmed and the queue
-     * removed in this call. [SyncReport.failed] counts the rows skipped in this
-     * call, plus one when the call stopped on [UploadOutcome.FAILED] or on an
-     * uploader that threw. An unreachable server, an empty queue and a busy call
-     * report 0 failed. A drain that finds the server unreachable does not walk the
-     * rows, so it counts no skipped row either.
-     *
-     * A row that cannot be pushed is skipped. Its stored source is not local or
-     * server, its client id is not a lowercase canonical UUID, or the codec refuses
-     * its body. A skipped row is never removed and never ends the drain. Each drain
+     * [SyncReport.pushed] counts the rows the uploader confirmed and the queue removed in this
+     * call; [SyncReport.failed] counts the rows skipped in this call, plus one when the call
+     * stopped on [UploadOutcome.FAILED] or on an uploader that threw. An unreachable server, an
+     * empty queue and a busy call report 0 failed. A row that cannot be pushed is skipped (its
+     * stored source is not local or server, its client id is not a lowercase canonical UUID, or
+     * the codec refuses its body): it is never removed and never ends the drain, and each drain
      * that reaches it counts it again.
      *
-     * A permanent refusal about the row itself (400 or 413) parks the row: it stays
-     * in the store, is never retried, and the drain moves on to the next row. The
-     * row's reason is stored, capped at [PermanentRefusalException.REASON_MAX_LENGTH]
-     * characters, and never contains row text. [SyncReport.parked] counts the rows
-     * parked IN THIS DRAIN; the total parked is [parkedCount].
+     * A permanent refusal about the row itself (400 or 413) parks the row: it stays, is never
+     * retried, and the drain moves on. Its reason is stored, capped at
+     * [PermanentRefusalException.REASON_MAX_LENGTH], and never contains row text;
+     * [SyncReport.parked] counts the rows parked IN THIS DRAIN, the total is [parkedCount]. A
+     * non-permanent refusal (401, 403, 429, 503, ...) stops the drain with FAILED, nothing
+     * parked; a 429 puts its Retry-After seconds on the report.
      *
-     * Known gap: [UploadOutcome.FAILED] stops the drain and keeps the row at the head
-     * of the queue. A 409 cannot occur today (no client uploads keys, ADR-039): it keeps
-     * today's behaviour, FAILED.
-     *
-     * The drain walks only the rows queued when it started. The highest seq is read
-     * once, after the probe answers and before the first row. A row queued during
-     * the drain, including one queued from inside the uploader, has a greater seq,
-     * is neither sent nor counted, and waits for the next drain. An exception from
-     * the probe or from the database propagates, no report is returned, and the drain lock is
-     * released. An exception from the uploader counts as [UploadOutcome.FAILED].
+     * The drain walks only the rows queued when it started. The highest seq is read once, after
+     * the probe answers and before the first row; a row queued during the drain waits for the
+     * next drain. An exception from the probe or the database propagates and no report is
+     * returned; an exception from the uploader counts as [UploadOutcome.FAILED].
      */
     override fun pushPending(): SyncReport {
         if (!drain.tryLock()) return SyncReport(0, 0)
@@ -156,45 +166,63 @@ class QueuedSyncService internal constructor(
             while (next != null) {
                 val entry: QueueEntry = next
                 if (entry.seq > bound) break
-                val push = buildPush(entry)
-                if (push == null) {
-                    skipped++
-                } else {
-                    val outcome = try {
-                        uploader.upload(push)
-                    } catch (e: PermanentRefusalException) {
-                        if (!PermanentRefusalException.isPermanentRefusal(e.status)) {
-                            // A refusal about this row that is not permanent (401, 403, 409,
-                            // 429, 503, ...): today's behaviour, nothing parked, drain stops.
-                            // A 429 puts its Retry-After seconds on the returned report; no other
-                            // status carries a number.
-                            if (e.status == PermanentRefusalException.RATE_LIMITED_429) {
-                                retryAfterSeconds = e.retryAfterSeconds
-                            }
-                            UploadOutcome.FAILED
-                        } else {
-                            // A permanent refusal about this row: park it, keep its reason,
+                val outcome = try {
+                    if (entry.kind == SyncQueueSql.KIND_DELETE) {
+                        try {
+                            uploader.delete(entry.clientId)
+                        } catch (e: PermanentRefusalException) {
+                            if (!PermanentRefusalException.isPermanentRefusal(e.status)) throw e
+                            // A permanent refusal about this delete row: park it, keep its reason,
                             // count it in this drain's parked count, and move on to the next row.
                             database.transaction {
-                                database.parkRow(
-                                    entry.clientId, PermanentRefusalException.capReason(e.reason)
-                                )
+                                database.parkRow(entry.clientId, PermanentRefusalException.capReason(e.reason))
                             }
                             parked++
                             next = database.nextAfter(entry.seq)
                             continue
                         }
-                    } catch (e: Exception) {
-                        UploadOutcome.FAILED
-                    }
-                    when (outcome) {
-                        UploadOutcome.CONFIRMED -> {
-                            database.transaction { database.remove(entry.clientId) }
-                            pushed++
+                    } else {
+                        val push = buildPush(entry)
+                        if (push == null) {
+                            skipped++
+                            next = database.nextAfter(entry.seq)
+                            continue
                         }
-                        UploadOutcome.UNREACHABLE -> return SyncReport(pushed, skipped, parked)
-                        UploadOutcome.FAILED -> return SyncReport(pushed, skipped + 1, parked, retryAfterSeconds)
+                        try {
+                            uploader.upload(push)
+                        } catch (e: PermanentRefusalException) {
+                            if (PermanentRefusalException.isPermanentRefusal(e.status)) {
+                                // A permanent refusal about this row: park it, keep its reason,
+                                // count it in this drain's parked count, and move on to the next row.
+                                database.transaction {
+                                    database.parkRow(
+                                        entry.clientId, PermanentRefusalException.capReason(e.reason)
+                                    )
+                                }
+                                parked++
+                                next = database.nextAfter(entry.seq)
+                                continue
+                            }
+                            // A refusal about this row that is not permanent (401, 403, 409, 429,
+                            // 503, ...): today's behaviour, nothing parked, drain stops. A 429 puts
+                            // its Retry-After seconds on the returned report; no other status does.
+                            if (e.status == PermanentRefusalException.RATE_LIMITED_429) {
+                                retryAfterSeconds = e.retryAfterSeconds
+                            }
+                            UploadOutcome.FAILED
+                        }
                     }
+                } catch (e: Exception) {
+                    // An exception from the uploader (or a delete that threw) counts as FAILED.
+                    UploadOutcome.FAILED
+                }
+                when (outcome) {
+                    UploadOutcome.CONFIRMED -> {
+                        database.transaction { database.removeSeq(entry.seq) }
+                        pushed++
+                    }
+                    UploadOutcome.UNREACHABLE -> return SyncReport(pushed, skipped, parked)
+                    UploadOutcome.FAILED -> return SyncReport(pushed, skipped + 1, parked, retryAfterSeconds)
                 }
                 next = database.nextAfter(entry.seq)
             }
@@ -208,6 +236,11 @@ class QueuedSyncService internal constructor(
             drain.unlock()
         }
     }
+    /** True when a row with [clientId] is in the queue (parked rows count). */
+    fun isQueued(clientId: String): Boolean = database.isQueued(clientId)
+
+    /** Remove every row from the queue, parked or not. */
+    fun clearAll() = database.transaction { database.clearAll() }
 
     /** How many rows are parked (marked as permanently refused) in this store. */
     fun parkedCount(): Int = database.parkedCount()
@@ -217,7 +250,8 @@ class QueuedSyncService internal constructor(
      * or there is no such row.
      */
     fun parkedReason(clientId: String): String? = database.parkedReason(clientId)
-
+    fun isDeleteQueued(clientId: String): Boolean = database.isDeleteQueued(clientId)
+    fun clearPullCursor() = database.clearPullCursor()
     /**
      * The push for [entry], or null when the entry must be skipped. A skipped
      * entry is not sent, not removed and not counted here.

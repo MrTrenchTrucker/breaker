@@ -44,6 +44,8 @@ then the tombstone table only grows, and they stay internal to this module. The
 module defines a 90-day tombstone window, measured from the delete. That is a
 module design choice; the spec sets no tombstone lifetime.
 
+The start-up backfill reads `pendingTombstoneIds(limit)`, which returns only USER-reason tombstones: `RETENTION` is the phone's own 90-day age-out and the server handles its own retention, and `REMOTE` is a delete the server already processed, so neither is pushed as a delete. When more than `limit` are pending, the app pages through them with `pendingTombstoneIdsAfter(lastId, limit)`; both order by `id DESC`, so the walk queues every USER tombstone exactly once and stops when a page comes back short.
+
 Pulled rows (ADR-035): `applyRemoteRow`, the PullSink call, stores one pulled live row, one
 row per id, replacing a held row. It refuses the row, stores nothing and answers false when
 this device holds a tombstone for that id, of any reason; the tombstone stays (a row deleted

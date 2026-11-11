@@ -9,6 +9,7 @@ import dev.breaker.dictation.core.port.HistoryStore
 import dev.breaker.dictation.core.port.PullSink
 import dev.breaker.dictation.core.port.SyncService
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -48,6 +49,7 @@ class SyncingHistoryStoreTest {
         val deletes = mutableListOf<String>()
         val appliedRows = mutableListOf<Transcription>()
         var saveThrows: Throwable? = null
+        var deleteReturns = true
 
         override fun save(t: Transcription) {
             order += "save"
@@ -64,7 +66,7 @@ class SyncingHistoryStoreTest {
         override fun delete(id: String): Boolean {
             order += "delete"
             deletes += id
-            return true
+            return deleteReturns
         }
 
         override fun applyRemoteRow(row: Transcription): Boolean {
@@ -92,6 +94,16 @@ class SyncingHistoryStoreTest {
             order += "enqueue"
             enqueueThrows?.let { throw it }
             enqueued += t
+        }
+
+        /** Records every delete the decorator asks the queue to send. */
+        val enqueuedDeletes = mutableListOf<String>()
+        var enqueueDeleteThrows: Throwable? = null
+
+        override fun enqueueDelete(clientId: String) {
+            order += "enqueueDelete"
+            enqueueDeleteThrows?.let { throw it }
+            enqueuedDeletes += clientId
         }
 
         override fun pushPending(): SyncReport {
@@ -196,16 +208,46 @@ class SyncingHistoryStoreTest {
     }
 
     @Test
-    fun `list and delete pass through and never enqueue`() {
+    fun `list passes through and never enqueues`() {
         val inner = FakeHistoryStore()
         val service = FakeSyncService()
         val store = storeWith(inner = inner, service = service)
-        val t = transcription("t-6")
         assertEquals(emptyList<Transcription>(), store.list(5))
-        assertTrue(store.delete(t.id))
         assertEquals(listOf(5), inner.lists)
+        assertTrue("list never enqueues", service.enqueued.isEmpty() && service.enqueuedDeletes.isEmpty())
+    }
+
+    @Test
+    fun `delete commits the tombstone first and then enqueues a delete`() {
+        val inner = FakeHistoryStore()
+        val service = FakeSyncService(inner.order)
+        val store = storeWith(inner = inner, service = service)
+        val t = transcription("t-8")
+        assertTrue("delete returns true when a row was removed", store.delete(t.id))
+        assertEquals("the tombstone is committed before the delete is queued",
+            listOf("delete", "enqueueDelete"), inner.order)
         assertEquals(listOf(t.id), inner.deletes)
-        assertTrue("list and delete never enqueue", service.enqueued.isEmpty())
+        assertEquals("the queue receives a delete entry for the id", listOf(t.id), service.enqueuedDeletes)
+    }
+
+    @Test
+    fun `a delete for an unknown id enqueues nothing`() {
+        val inner = FakeHistoryStore().apply { deleteReturns = false }
+        val service = FakeSyncService(inner.order)
+        val store = storeWith(inner = inner, service = service)
+        assertFalse("delete returns false when nothing was removed", store.delete("t-9"))
+        assertTrue("nothing was queued for an unknown id", service.enqueuedDeletes.isEmpty())
+    }
+
+    @Test
+    fun `when enqueueDelete throws, the delete still stands and nothing escapes`() {
+        val inner = FakeHistoryStore()
+        val boom = Corruption("the queue refused the row")
+        val service = FakeSyncService().apply { enqueueDeleteThrows = boom }
+        val store = storeWith(inner = inner, service = service)
+        store.delete("t-10") // no exception escapes
+        assertTrue("the delete reached the inner store", inner.deletes.contains("t-10"))
+        assertTrue("the enqueueDelete failure did not escape the delete", service.enqueuedDeletes.isEmpty())
     }
 
     @Test

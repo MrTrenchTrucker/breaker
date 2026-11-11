@@ -26,6 +26,7 @@ internal class JdbcSyncQueueDatabase(private val sqlite: DesktopSqlite) : SyncQu
         model: String,
         durationMs: Long,
         createdAtMs: Long,
+        kind: String,
     ): Boolean =
         sqlite.exec(
             SyncQueueSql.INSERT_IF_ABSENT,
@@ -35,6 +36,19 @@ internal class JdbcSyncQueueDatabase(private val sqlite: DesktopSqlite) : SyncQu
             model,
             durationMs,
             createdAtMs,
+            kind,
+        ) > 0
+
+    override fun insertDeleteIfAbsent(clientId: String): Boolean =
+        sqlite.exec(
+            SyncQueueSql.INSERT_IF_ABSENT,
+            clientId,
+            "",
+            "local",
+            "",
+            0L,
+            0L,
+            SyncQueueSql.KIND_DELETE,
         ) > 0
 
     override fun head(): QueueEntry? =
@@ -48,6 +62,12 @@ internal class JdbcSyncQueueDatabase(private val sqlite: DesktopSqlite) : SyncQu
 
     override fun remove(clientId: String): Boolean = sqlite.exec(SyncQueueSql.DELETE_BY_CLIENT_ID, clientId) > 0
 
+    override fun removeSeq(seq: Long): Boolean = sqlite.exec(SyncQueueSql.DELETE_BY_SEQ, seq.toString()) > 0
+
+    override fun clearAll() {
+        sqlite.exec(SyncQueueSql.DELETE_ALL_QUEUE)
+    }
+
     override fun count(): Int = (sqlite.query(SyncQueueSql.COUNT_QUEUE).single()[0] as Long).toInt()
 
     override fun parkedCount(): Int = (sqlite.query(SyncQueueSql.COUNT_PARKED).single()[0] as Long).toInt()
@@ -58,12 +78,28 @@ internal class JdbcSyncQueueDatabase(private val sqlite: DesktopSqlite) : SyncQu
     override fun resaveRow(clientId: String, text: String, source: String, model: String, durationMs: Long, createdAtMs: Long): Boolean =
         sqlite.exec(SyncQueueSql.RESAVE_ROW, text, source, model, durationMs, createdAtMs, clientId) > 0
 
+    override fun replaceQueuedDeleteWithSave(
+        clientId: String,
+        text: String,
+        source: String,
+        model: String,
+        durationMs: Long,
+        createdAtMs: Long,
+    ): Boolean = sqlite.exec(
+        SyncQueueSql.REPLACE_QUEUED_DELETE_WITH_SAVE,
+        text, source, model, durationMs, createdAtMs, clientId,
+    ) > 0
+
     override fun parkedReason(clientId: String): String? =
         sqlite.query(SyncQueueSql.PARKED_REASON, clientId).firstOrNull()?.get(0) as? String
 
     /** True when a row with [clientId] is in the queue table. Parked rows count. */
     override fun isQueued(clientId: String): Boolean =
         sqlite.query(SyncQueueSql.IS_QUEUED, clientId).firstOrNull() != null
+
+    /** True when a delete of [clientId] is queued; a save of the same id is not. */
+    override fun isDeleteQueued(clientId: String): Boolean =
+        sqlite.query(SyncQueueSql.IS_DELETE_QUEUED, clientId).firstOrNull() != null
 
     /** The client ids of every queue row, parked or not, oldest first (by seq). */
     override fun queuedIds(): List<String> =
@@ -110,6 +146,7 @@ internal class JdbcSyncQueueDatabase(private val sqlite: DesktopSqlite) : SyncQu
             model = row[4] as String,
             durationMs = row[5] as Long,
             createdAtMs = row[6] as Long,
+            kind = row[7] as String,
         )
 }
 

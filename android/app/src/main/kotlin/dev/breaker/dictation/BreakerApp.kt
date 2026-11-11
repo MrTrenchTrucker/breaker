@@ -2,6 +2,7 @@ package dev.breaker.dictation
 
 import android.util.Log
 import dev.breaker.dictation.audio.MicSource
+import kotlinx.coroutines.launch
 import dev.breaker.dictation.core.port.HistoryStore
 import dev.breaker.dictation.core.port.ConnectivityProbe
 import dev.breaker.dictation.core.port.SettingsStore
@@ -30,6 +31,9 @@ import dev.breaker.dictation.wiring.FileOffStore
 import dev.breaker.dictation.wiring.SyncHttpUploader
 import dev.breaker.dictation.wiring.SyncWorker
 import dev.breaker.dictation.wiring.SyncingHistoryStore
+import dev.breaker.dictation.wiring.backfillAllUserTombstones
+import dev.breaker.dictation.wiring.boundedPush
+import dev.breaker.dictation.wiring.finishClearIfNeeded
 import dev.breaker.dictation.wiring.appMicSource
 import dev.breaker.dictation.wiring.appTextCommitter
 import dev.breaker.dictation.wiring.pullTransport
@@ -133,6 +137,38 @@ class BreakerApp : android.app.Application() {
     /** The app's history: the plain store in release, the decorated store in debug. */
     val historyStore: HistoryStore get() = if (syncOn) decoratedHistoryStore else history
 
+    /** Clear the sync queue and the history tombstones together: one call site, used by sign-out. */
+    internal fun clearQueueAndTombstones() {
+        setClearMarker()
+        syncService.clearAll()
+        history.clearAllTombstones()
+        syncService.clearPullCursor()
+        clearClearMarker()
+    }
+
+    private val CLEAR_MARKER_FILE_NAME = "signout-clear-marker"
+
+    private fun clearMarkerFile(): File = File(filesDir, CLEAR_MARKER_FILE_NAME)
+
+    /** Set first: a start-up that finds this flag set finishes the clear and skips the backfill. */
+    private fun setClearMarker() {
+        clearMarkerFile().writeText("")
+    }
+
+    private fun clearClearMarker() {
+        clearMarkerFile().delete()
+    }
+
+    private fun clearMarkerIsSet(): Boolean = clearMarkerFile().exists()
+
+    /** Best-effort push of pending deletes before sign-out, bounded to 5 s. pushPending runs on its
+     * own worker thread with Future.get(5, SECONDS); on timeout it is abandoned and sign-out moves
+     * on, so a hanging push never blocks sign-out. Swallows every outcome so a timeout, a failure
+     * or an exception never blocks or fails sign-out. */
+    internal fun signOutPush() {
+        boundedPush({ syncService.pushPending() }, 5_000)
+    }
+
     /**
      * Switches the microphone service on and off. Built on first use, after the
      * application context exists.
@@ -194,11 +230,40 @@ class BreakerApp : android.app.Application() {
         scheduleAppStartPurge(
             purgeScope,
             purge = {
-                runGuardedStartPurge(
+                // Crash-safe sign-out clear: if a previous sign-out died mid-clear, finish the clear
+                // (queue + tombstones + pull cursor) and remove the marker, then skip the backfill
+                // this start so no delete is re-queued over a tombstone being cleared.
+                val clearFinished = finishClearIfNeeded(
+                    clearMarkerIsSet = ::clearMarkerIsSet,
+                    clearQueue = { syncService.clearAll() },
+                    clearTombstones = { history.clearAllTombstones() },
+                    clearPullCursor = { syncService.clearPullCursor() },
+                    clearMarker = ::clearClearMarker,
+                )
+                // Start-up purge + backfill, in one port-taking function: the guard decides the purge,
+                // and the backfill runs only when sync is on and no clear just finished. The logic
+                // lives in runStartUpAfterClear so a test can drive it; a source pin holds this call.
+                runStartUpAfterClear(
+                    clearFinished = clearFinished,
+                    syncOn = syncOn,
                     now = SystemClockAdapter.nowEpochMillis(),
                     autoTimeOn = automaticTimeOn.isOn(),
-                    store = purgeBookkeeping,
+                    purgeStore = purgeBookkeeping,
                     purge = { history.purgeExpired() },
+                    backfill = {
+                        purgeScope.launch {
+                            try {
+                                backfillAllUserTombstones(
+                                    pendingIds = { limit -> history.pendingTombstoneIds(limit) },
+                                    pendingIdsAfter = { lastId, limit -> history.pendingTombstoneIdsAfter(lastId, limit) },
+                                    isDeleteQueued = { syncService.isDeleteQueued(it) },
+                                    enqueueDelete = { syncService.enqueueDelete(it) },
+                                )
+                            } catch (e: Exception) {
+                                // Swallowed: retried on the next start.
+                            }
+                        }
+                    },
                 )
             },
             onFailure = { e -> Log.w("BreakerApp", "start-up purge failed", e) },

@@ -97,3 +97,21 @@ internal val syncSchedulerExecutor: java.util.concurrent.ScheduledExecutorServic
 /** The sync scheduler: the scheduled executor over a sync drain thread the caller supplies. */
 internal fun syncScheduler(background: Background): SyncScheduler =
     ScheduledSyncScheduler(executor = syncSchedulerExecutor, background = background)
+
+/**
+ * Runs [block] on its own daemon thread called [name] and waits at most [timeoutMillis] for it.
+ *
+ * The thread is never the JVM common pool: a hung block must not starve later work, which a shared
+ * pool with parallelism = cores - 1 would do. On timeout the block is abandoned — it keeps running
+ * on its own daemon thread and the caller moves on. Every outcome is swallowed; the caller learns
+ * only that the block finished or that the bound elapsed. This is the one place a bounded push is
+ * run, so the thread type stays in this file.
+ */
+internal fun runBoundedOnOwnThread(name: String, timeoutMillis: Long, block: () -> Unit) {
+    val worker = Thread(Runnable { block() }, name).apply { isDaemon = true; start() }
+    try {
+        worker.join(timeoutMillis)
+    } catch (_: InterruptedException) {
+        // The caller was interrupted: the block keeps running on its own daemon thread.
+    }
+}

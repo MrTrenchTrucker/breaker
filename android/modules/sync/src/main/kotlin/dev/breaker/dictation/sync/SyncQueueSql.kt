@@ -14,8 +14,8 @@ internal object SyncQueueSql {
     /** The cursor table, in the same file as the queue. */
     const val TABLE_PULL_CURSOR: String = "sync_pull_cursor"
 
-    /** Bumped only when a statement below changes in a way that needs a migration. Version 3 adds the cursor table. */
-    const val SCHEMA_VERSION: Int = 3
+    /** Bumped only when a statement below changes in a way that needs a migration. Version 4 adds the kind column to the queue. Version 3 added the cursor table. */
+    const val SCHEMA_VERSION: Int = 4
 
     /** The name the database is opened under, inside the app-private directory. */
     const val DATABASE_NAME: String = "breaker_sync.db"
@@ -29,17 +29,25 @@ internal object SyncQueueSql {
      * `source` holds the wire text, "local" or "server". The queue checks it
      * before it sends the row. `created_at` is the epoch millisecond at which the
      * transcription was made, in UTC.
+     * `kind` is "save" or "delete": whether the row is a transcription to push or
+     * a transcription id to delete. Existing rows are backfilled "save" by the
+     * v3 to v4 migration; new rows get "save" from the default.
      */
     const val CREATE_QUEUE: String =
-        "CREATE TABLE IF NOT EXISTS $TABLE_QUEUE (" +
-            "seq INTEGER PRIMARY KEY AUTOINCREMENT, " +
-            "client_id TEXT NOT NULL UNIQUE, " +
-            "text TEXT NOT NULL, " +
-            "source TEXT NOT NULL, " +
-            "model TEXT NOT NULL, " +
-            "duration_ms INTEGER NOT NULL, " +
-            "created_at INTEGER NOT NULL, " +
-            "parked_reason TEXT)"
+         "CREATE TABLE IF NOT EXISTS $TABLE_QUEUE (" +
+             "seq INTEGER PRIMARY KEY AUTOINCREMENT, " +
+             "client_id TEXT NOT NULL UNIQUE, " +
+             "text TEXT NOT NULL, " +
+             "source TEXT NOT NULL, " +
+             "model TEXT NOT NULL, " +
+             "duration_ms INTEGER NOT NULL, " +
+             "created_at INTEGER NOT NULL, " +
+             "kind TEXT NOT NULL DEFAULT 'save', " +
+             "parked_reason TEXT)"
+
+    /** The kind of a queue row: "save" (a transcription to push) or "delete" (an id to delete). */
+    const val KIND_SAVE: String = "save"
+    const val KIND_DELETE: String = "delete"
 
     /**
      * The cursor table: one row at most, enforced by the CHECK on id, and no
@@ -55,17 +63,18 @@ internal object SyncQueueSql {
     val CREATE_ALL: List<String> = listOf(CREATE_QUEUE, CREATE_PULL_CURSOR)
 
     /** The columns of a queue row, in the order the SELECT statements return them. */
-    const val QUEUE_COLUMNS: String = "seq, client_id, text, source, model, duration_ms, created_at"
+    const val QUEUE_COLUMNS: String = "seq, client_id, text, source, model, duration_ms, created_at, kind"
 
     /**
      * `INSERT OR IGNORE`: with the `UNIQUE` client id, the same id queued twice
      * leaves the first copy and drops the second. The bind order is client_id,
-     * text, source, model, duration_ms, created_at. seq is assigned by the table.
+     * text, source, model, duration_ms, created_at, kind. seq is assigned by the
+     * table. A save insert passes [KIND_SAVE]; a delete insert passes [KIND_DELETE].
      */
     const val INSERT_IF_ABSENT: String =
         "INSERT OR IGNORE INTO $TABLE_QUEUE " +
-            "(client_id, text, source, model, duration_ms, created_at) " +
-            "VALUES (?, ?, ?, ?, ?, ?)"
+            "(client_id, text, source, model, duration_ms, created_at, kind) " +
+            "VALUES (?, ?, ?, ?, ?, ?, ?)"
 
     /**
      * Resave a parked row: clear its parked reason and refresh its values, keeping
@@ -113,6 +122,21 @@ internal object SyncQueueSql {
      */
     const val DELETE_BY_CLIENT_ID: String = "DELETE FROM $TABLE_QUEUE WHERE client_id = ?"
 
+    /** Removes the one row with [seq], bound as text because the Android rawQuery takes only strings,
+     * like the nextAfter bind. True when a row was removed. */
+    const val DELETE_BY_SEQ: String = "DELETE FROM $TABLE_QUEUE WHERE seq = ?"
+
+    /** Replaces a queued DELETE of [client_id] with a save: kind, text, source, model, duration_ms,
+     * created_at. The row keeps its seq. Parked rows are never matched: a parked row's kind is 'save',
+     * so its parked_reason is untouched and it stays parked. */
+    const val REPLACE_QUEUED_DELETE_WITH_SAVE: String =
+        "UPDATE $TABLE_QUEUE " +
+            "SET kind = 'save', text = ?, source = ?, model = ?, duration_ms = ?, created_at = ? " +
+            "WHERE client_id = ? AND kind = 'delete'"
+
+    /** True when a row with [client_id] and kind 'delete' exists. One bind at index 1. */
+    const val IS_DELETE_QUEUED: String = "SELECT 1 FROM $TABLE_QUEUE WHERE client_id = ? AND kind = 'delete' LIMIT 1"
+
     /** How many rows are queued and not parked, waiting to be sent. Parked rows are excluded. */
     const val COUNT_QUEUE: String = "SELECT COUNT(*) FROM $TABLE_QUEUE WHERE parked_reason IS NULL"
 
@@ -128,6 +152,13 @@ internal object SyncQueueSql {
      * running it twice is harmless.
      */
     const val MIGRATE_V2_TO_V3: String = CREATE_PULL_CURSOR
+
+    /**
+     * Migration from schema version 3 to 4: adds the kind column to the queue.
+     * Existing rows are backfilled with the default 'save'. Running it twice would
+     * fail on a duplicate column, so onUpgrade only ever runs it once per store.
+     */
+    const val MIGRATE_V3_TO_V4: String = "ALTER TABLE $TABLE_QUEUE ADD COLUMN kind TEXT NOT NULL DEFAULT 'save'"
 
     /** Marks the row queued under [client_id] as parked, storing [reason]. */
     const val PARK_ROW: String = "UPDATE $TABLE_QUEUE SET parked_reason = ? WHERE client_id = ?"
@@ -161,4 +192,7 @@ internal object SyncQueueSql {
      * only, never the queue table.
      */
     const val CLEAR_PULL_CURSOR: String = "DELETE FROM $TABLE_PULL_CURSOR"
+
+    /** Removes every row from the queue table, parked or not. */
+    const val DELETE_ALL_QUEUE: String = "DELETE FROM $TABLE_QUEUE"
 }

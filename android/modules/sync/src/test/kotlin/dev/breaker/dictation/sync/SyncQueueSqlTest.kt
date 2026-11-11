@@ -237,17 +237,20 @@ class SyncQueueSqlTest {
         val columns = sqlite.query("PRAGMA table_info(${SyncQueueSql.TABLE_QUEUE})")
         assertEquals(
             "android_sync: column names in order",
-            listOf("seq", "client_id", "text", "source", "model", "duration_ms", "created_at", "parked_reason"),
+            listOf("seq", "client_id", "text", "source", "model", "duration_ms", "created_at", "kind", "parked_reason"),
             columns.map { it[1] },
         )
         assertEquals(
             "android_sync: column types in order",
-            listOf("INTEGER", "TEXT", "TEXT", "TEXT", "TEXT", "INTEGER", "INTEGER", "TEXT"),
+            listOf("INTEGER", "TEXT", "TEXT", "TEXT", "TEXT", "INTEGER", "INTEGER", "TEXT", "TEXT"),
             columns.map { it[2] },
         )
-        assertEquals("android_sync: only seq is the primary key", listOf(1L, 0L, 0L, 0L, 0L, 0L, 0L, 0L), columns.map { it[5] })
-        assertEquals("android_sync: every column after seq except the parked reason is NOT NULL", List(5) { 1L }, columns.drop(1).take(5).map { it[3] })
-        assertEquals("android_sync: the parked reason is the one nullable column", 0L, columns.last()[3])
+        assertEquals("android_sync: only seq is the primary key", listOf(1L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L), columns.map { it[5] })
+        assertEquals("android_sync: client_id through duration_ms are NOT NULL", List(5) { 1L }, columns.drop(1).take(5).map { it[3] })
+        val kindIndex = columns.indexOfFirst { it[1] == "kind" }
+        assertEquals("android_sync: kind is NOT NULL", 1L, columns[kindIndex][3])
+        val parkedIndex = columns.indexOfFirst { it[1] == "parked_reason" }
+        assertEquals("android_sync: parked_reason is the one nullable column", 0L, columns[parkedIndex][3])
         val indexes = sqlite.query("PRAGMA index_list(${SyncQueueSql.TABLE_QUEUE})")
         assertEquals("android_sync: the table must have exactly one index, the unique one", 1, indexes.size)
         assertEquals("android_sync: that index must be unique", 1L, indexes[0][2])

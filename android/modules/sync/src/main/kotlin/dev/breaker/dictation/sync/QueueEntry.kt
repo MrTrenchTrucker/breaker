@@ -23,6 +23,8 @@ internal class QueueEntry(
     val model: String,
     val durationMs: Long,
     val createdAtMs: Long,
+    /** "save" (a transcription to push) or "delete" (an id to delete). Defaults to "save". */
+    val kind: String = "save",
 ) {
 
     override fun toString(): String =

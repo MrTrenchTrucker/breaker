@@ -63,9 +63,13 @@ internal fun buildHomeEntry(
             settings = app.settingsStore,
             sessionLive = { app.compositionRoot.sessionLive.liveNow() },
             onSignIn = onSignIn,
-            onSignOut = signOutAction(app.compositionRoot.authService, app.compositionRoot.sessionLive) {
-                (homeView() as? dev.breaker.dictation.ui.HomeControl)?.refresh() ?: Unit
-            },
+            onSignOut = signOutAction(
+                authService = app.compositionRoot.authService,
+                sessionLive = app.compositionRoot.sessionLive,
+                clearAll = { app.clearQueueAndTombstones() },
+                refresh = { (homeView() as? dev.breaker.dictation.ui.HomeControl)?.refresh() ?: Unit },
+                pushForSignout = { app.signOutPush() },
+            ),
         )
     }
 }

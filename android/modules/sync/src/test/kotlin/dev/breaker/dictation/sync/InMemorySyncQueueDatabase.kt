@@ -99,6 +99,7 @@ internal class InMemorySyncQueueDatabase(private val log: CallLog = CallLog()) :
         model: String,
         durationMs: Long,
         createdAtMs: Long,
+        kind: String,
     ): Boolean {
         log.add("insert")
         insertsInsideTransaction.add(insideTransaction)
@@ -106,7 +107,19 @@ internal class InMemorySyncQueueDatabase(private val log: CallLog = CallLog()) :
         plannedInsert = null
         if (planned != null && !planned.afterWriting) throw planned.cause
         val added = entries.none { it.clientId == clientId }
-        if (added) entries.add(QueueEntry(nextSeq++, clientId, text, source, model, durationMs, createdAtMs))
+        if (added) entries.add(QueueEntry(nextSeq++, clientId, text, source, model, durationMs, createdAtMs, kind))
+        if (planned != null) throw planned.cause
+        return added
+    }
+
+    override fun insertDeleteIfAbsent(clientId: String): Boolean {
+        log.add("insertDelete")
+        insertsInsideTransaction.add(insideTransaction)
+        val planned = plannedInsert
+        plannedInsert = null
+        if (planned != null && !planned.afterWriting) throw planned.cause
+        val added = entries.none { it.clientId == clientId }
+        if (added) entries.add(QueueEntry(nextSeq++, clientId, "", "local", "", 0L, 0L, SyncQueueSql.KIND_DELETE))
         if (planned != null) throw planned.cause
         return added
     }
@@ -129,6 +142,12 @@ internal class InMemorySyncQueueDatabase(private val log: CallLog = CallLog()) :
 
     override fun tailSeq(): Long = entries.maxOfOrNull { it.seq } ?: 0L
 
+    override fun clearAll() {
+        log.add("clearAll")
+        entries.clear()
+        parkedReasons.clear()
+    }
+
     override fun remove(clientId: String): Boolean {
         log.add("remove")
         removeCalls++
@@ -140,6 +159,21 @@ internal class InMemorySyncQueueDatabase(private val log: CallLog = CallLog()) :
         entries.removeAll { it.clientId == clientId }
         val removed = entries.size < before
         if (removed) parkedReasons.remove(clientId)
+        if (planned != null) throw planned.cause
+        return removed
+    }
+
+    override fun removeSeq(seq: Long): Boolean {
+        log.add("remove")
+        removesInsideTransaction.add(insideTransaction)
+        val planned = plannedRemove
+        plannedRemove = null
+        if (planned != null && !planned.afterWriting) throw planned.cause
+        val client = entries.firstOrNull { it.seq == seq }?.clientId
+        val before = entries.size
+        entries.removeAll { it.seq == seq }
+        val removed = entries.size < before
+        if (removed) client?.let { parkedReasons.remove(it) }
         if (planned != null) throw planned.cause
         return removed
     }
@@ -164,7 +198,21 @@ internal class InMemorySyncQueueDatabase(private val log: CallLog = CallLog()) :
         val idx = entries.indexOfFirst { it.clientId == clientId }
         if (idx < 0 || clientId !in parkedReasons) return false
         parkedReasons.remove(clientId)
-        entries[idx] = QueueEntry(entries[idx].seq, clientId, text, source, model, durationMs, createdAtMs)
+        entries[idx] = QueueEntry(entries[idx].seq, clientId, text, source, model, durationMs, createdAtMs, entries[idx].kind)
+        return true
+    }
+
+    override fun replaceQueuedDeleteWithSave(
+        clientId: String,
+        text: String,
+        source: String,
+        model: String,
+        durationMs: Long,
+        createdAtMs: Long,
+    ): Boolean {
+        val idx = entries.indexOfFirst { it.clientId == clientId && it.kind == SyncQueueSql.KIND_DELETE }
+        if (idx < 0) return false
+        entries[idx] = QueueEntry(entries[idx].seq, clientId, text, source, model, durationMs, createdAtMs, SyncQueueSql.KIND_SAVE)
         return true
     }
 
@@ -172,6 +220,10 @@ internal class InMemorySyncQueueDatabase(private val log: CallLog = CallLog()) :
 
     /** True when a row with [clientId] is in the queue table. Parked rows count. */
     override fun isQueued(clientId: String): Boolean = entries.any { it.clientId == clientId }
+
+    /** True when a delete of [clientId] is queued; a save of the same id is not. */
+    override fun isDeleteQueued(clientId: String): Boolean =
+        entries.any { it.clientId == clientId && it.kind == SyncQueueSql.KIND_DELETE }
 
     override fun pullCursor(): String? = cursor
 

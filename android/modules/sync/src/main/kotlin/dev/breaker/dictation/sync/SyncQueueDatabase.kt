@@ -14,7 +14,8 @@ internal interface SyncQueueDatabase : PullCursorPort, QueueProbe {
      * Add one row under [clientId].
      *
      * [source] is the wire text of the source, "local" or "server". [createdAtMs]
-     * is the epoch millisecond at which the transcription was made.
+     * is the epoch millisecond at which the transcription was made. [kind] is the
+     * row kind, [SyncQueueSql.KIND_SAVE] or [SyncQueueSql.KIND_DELETE].
      *
      * True when a row was added. False when the id was already queued: the first
      * copy stays and the new one is dropped.
@@ -26,7 +27,15 @@ internal interface SyncQueueDatabase : PullCursorPort, QueueProbe {
         model: String,
         durationMs: Long,
         createdAtMs: Long,
+        kind: String = SyncQueueSql.KIND_SAVE,
     ): Boolean
+
+    /** Insert one delete row under [clientId]: kind [SyncQueueSql.KIND_DELETE], empty text.
+     *
+     * True when a row was added. False when the id was already queued: the first
+     * copy stays and the new one is dropped.
+     */
+    fun insertDeleteIfAbsent(clientId: String): Boolean
 
     /** The row with the lowest seq, or null when the queue is empty. */
     fun head(): QueueEntry?
@@ -39,6 +48,28 @@ internal interface SyncQueueDatabase : PullCursorPort, QueueProbe {
 
     /** Remove the row queued under [clientId]. True when a row was removed. */
     fun remove(clientId: String): Boolean
+
+    /** Remove the row with [seq]: the row this drain itself read, never a row another step queued.
+     * True when a row was removed. */
+    fun removeSeq(seq: Long): Boolean
+
+    /** Replace a queued DELETE of [clientId] with a save carrying [text], [source], [model],
+     * [durationMs] and [createdAtMs]; the row keeps its seq. True when a delete row was replaced.
+     * Parked rows are never matched: a parked row's kind is 'save'. */
+    fun replaceQueuedDeleteWithSave(
+        clientId: String,
+        text: String,
+        source: String,
+        model: String,
+        durationMs: Long,
+        createdAtMs: Long,
+    ): Boolean
+
+    /** True when a delete of [clientId] is queued; a save of the same id is not. */
+    fun isDeleteQueued(clientId: String): Boolean
+
+    /** Remove every row from the queue, parked or not. */
+    fun clearAll()
 
     /** How many rows are queued and not parked, waiting to be sent. Parked rows are excluded. */
     fun count(): Int

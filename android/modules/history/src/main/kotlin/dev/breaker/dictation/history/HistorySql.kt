@@ -143,6 +143,28 @@ internal object HistorySql {
         LIMIT ?
     """.trimIndent()
 
+    /**
+     * USER-reason tombstones only, by id descending: the backfill's one total
+     * order, shared by page 1 and every page after it.
+     */
+    val SELECT_NEWEST_TOMBSTONES_USER: String = """
+        SELECT id, deleted_at, reason FROM $TABLE_TOMBSTONES
+        WHERE reason = 'user'
+        ORDER BY id DESC
+        LIMIT ?
+    """.trimIndent()
+
+    /**
+     * The next page of USER tombstones: ids strictly below [lastId], by id
+     * descending, so a keyset walk never repeats or skips one.
+     */
+    val SELECT_NEWEST_TOMBSTONES_USER_AFTER: String = """
+        SELECT id, deleted_at, reason FROM $TABLE_TOMBSTONES
+        WHERE reason = 'user' AND id < ?
+        ORDER BY id DESC
+        LIMIT ?
+    """.trimIndent()
+
     /** Does a tombstone of any reason exist for [id]? Read by id only. */
     val SELECT_TOMBSTONE_BY_ID: String = "SELECT 1 FROM $TABLE_TOMBSTONES WHERE id = ?"
 

@@ -78,10 +78,30 @@ internal class InMemoryHistoryDatabase : HistoryDatabase {
         )
         .take(limit)
 
+    override fun newestUserTombstones(limit: Int): List<Tombstone.StoredRow> = tombstones.values
+        .filter { it.reason == Tombstone.Reason.USER.stored }
+        .sortedWith(Utf8TextOrder.byId<Tombstone.StoredRow> { it.id }.reversed())
+        .take(limit)
+
+    override fun newestUserTombstonesAfter(lastId: String, limit: Int): List<Tombstone.StoredRow> {
+        val byId = Utf8TextOrder.byId<Tombstone.StoredRow> { it.id }
+        return tombstones.values
+            .filter { it.reason == Tombstone.Reason.USER.stored }
+            .filter { byId.compare(it, Tombstone.StoredRow(lastId, 0, "")) < 0 }
+            .sortedWith(byId.reversed())
+            .take(limit)
+    }
+
     override fun deleteTombstonesRecordedBefore(cutoff: Long): Int {
         val doomed = tombstones.values.filter { RetentionBoundary.isExpired(it.deletedAt, cutoff) }
         doomed.forEach { tombstones.remove(it.id) }
         return doomed.size
+    }
+
+    override fun deleteAllTombstones(): Int {
+        val n = tombstones.size
+        tombstones.clear()
+        return n
     }
 
     // The match is on both the id and the stored word, the same word putTombstone
