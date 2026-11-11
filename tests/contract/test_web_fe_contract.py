@@ -17,6 +17,7 @@ class ServerModulesWebFeContractTest(contract_support.ModuleContractTest):
 from web_fe_aesgcm_pins import WebFeAesGcmPinsTest  # noqa: F401  (AES-GCM layer pins, collected here)
 from web_fe_signin_pins import WebFeSigninPinsTest  # noqa: F401  (sign-in page pins, collected here)
 from web_fe_signin_page_pins import WebFeSigninPagePinsTest  # noqa: F401  (sign-in page shell pins, collected here)
+from web_fe_signin_kdf_pins import WebFeSigninKdfPinsTest  # noqa: F401  (key derivation wrapper pins, collected here)
 
 
 if __name__ == "__main__":

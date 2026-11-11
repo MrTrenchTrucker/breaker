@@ -39,6 +39,8 @@ RUNNER_FILES = sorted([
     "signin-wire.test.mjs",
     "signin-net.test.mjs",
     "signin-logout.test.mjs",
+    "signin-crypto.test.mjs",
+    "signin-kdf.test.mjs",
     "devices-net.test.mjs",
     "devices.test.mjs",
     "devices-view.test.mjs",

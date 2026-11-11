@@ -26,8 +26,8 @@ NODE_VERSION_RE = re.compile(r"^v(\d+)\.(\d+)")
 NODE_MIN_MAJOR = 20
 NODE_MIN_MINOR = 19
 # The count of the whole src/test/js suite, pinned so a dropped test file is caught.
-# 319 = 258 on the base tree + 6 devices-net + 33 devices flow + 22 devices view.
-PASSED_COUNT = 319
+# 362 = 319 on the base tree (258 + 6 devices-net + 33 devices flow + 22 devices view) + 34 in signin-kdf.test.mjs + 9 in signin-crypto.test.mjs.
+PASSED_COUNT = 362
 
 
 def _run(args, env=None):
