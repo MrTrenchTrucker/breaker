@@ -66,7 +66,7 @@ internal fun Application.syncApiModule(
         authChangePasswordRoute(accountStore, tokenStore)
         adminResetAccountRoute(tokenStore, accountStore)
         adminClearStoreRoute(tokenStore, accountStore, transcriptionStore)
-        authCompleteResetRoute(accountStore, tokenStore)
+        authCompleteResetRoute(accountStore, tokenStore, counterStore)
         authHandoffRoutes(handoffStore, tokenStore)
         authLogoutRoute(tokenStore)
         authDevicesRoute(tokenStore)

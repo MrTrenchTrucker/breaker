@@ -71,6 +71,46 @@ internal suspend fun enforceLimits(
     return if (result is RateLimitResult.Refused) result else null
 }
 
+/**
+ * The rule for a route that counts FAILURES only (complete-reset), over four small ports so a test can play
+ * every failure: the switch read, the source address, the read-only cap check and the failure count. On a
+ * failing request it peeks the cap: over it, the refusal comes back and nothing is counted; otherwise one
+ * failure is counted and the request goes on. A store error never blocks a user (ADR-041): a failed switch
+ * read, a failed cap check or a failed count lets the request through; a cancellation is never swallowed.
+ */
+internal suspend fun enforceFailureCap(
+    switchOn: suspend () -> Boolean,
+    addressOf: () -> String,
+    peekOver: suspend (String) -> RateLimitResult.Refused?,
+    countFailure: suspend (String) -> Unit,
+): RateLimitResult.Refused? {
+    val on = try {
+        switchOn()
+    } catch (cancellation: kotlinx.coroutines.CancellationException) {
+        throw cancellation
+    } catch (_: Exception) {
+        false
+    }
+    if (!on) return null
+    val address = addressOf()
+    val refused = try {
+        peekOver(address)
+    } catch (cancellation: kotlinx.coroutines.CancellationException) {
+        throw cancellation
+    } catch (_: Exception) {
+        null
+    }
+    if (refused != null) return refused
+    try {
+        countFailure(address)
+    } catch (cancellation: kotlinx.coroutines.CancellationException) {
+        throw cancellation
+    } catch (_: Exception) {
+        // fail open: a failed count never changes the answer
+    }
+    return null
+}
+
 /** Answers a 429 with Retry-After (whole seconds, min 1, max 3600) and the fixed JSON body. */
 internal suspend fun respondRateLimited(call: ApplicationCall, refused: RateLimitResult.Refused) {
     val retryAfter = (refused.retryAfterSeconds.coerceAtLeast(1)).coerceAtMost(MAX_RETRY_AFTER_SECONDS)
