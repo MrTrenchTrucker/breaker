@@ -5,7 +5,7 @@
 Git-pull deploy, docker-compose, certs, APK signing, VPN bind, volumes, NOTICE. Wire Breaker's own containers (whisper-server, sync-api, web-fe, training) to Local Server, securely —
 and ship updates.
 
-**Status on main:** nothing in this module is built. The folder holds this card, the README and a build file (`DeployScripts` is only a name in the build file's first comment and in the registry). No `vpn-bind.sh`, `git-pull.sh`, `apk-signing/` or docker-compose file exists anywhere in the tree, there is no `scripts/` or `auth/` folder in this module, and the licensing notice is the repository root `NOTICE`, not a file of this module. Everything below (the Components, Persistence, Signing key custody, the Update pipeline, the sherpa-onnx placement and the Invariants) is the target design, planned, not built. The decisions already made are that Breaker has no certificate handling and serves plain HTTP on the Local Server (ADR-034).
+**Status on main:** three helper scripts and their tests are built; the rest of the module is not. `scripts/health-check.sh` makes one GET per URL it is given and prints `URL ok`, `bad-status N`, `bad-body` or `unreachable` (ok means HTTP 200 and a body with `"status":"ok"` anywhere in it; the body is never printed, no redirect is followed, exit 0 / 1 / 2). `scripts/release-tags.sh latest|previous` picks a release tag from a tag list on stdin or `--tags-file`: only `MAJOR.MINOR.PATCH` with an optional leading `v` counts, the order is numeric, anything else is ignored (exit 0, 3 for none, 2 for usage). `scripts/backup-data.py` makes a consistent online backup of the sync-api and whisper-server SQLite files with the sqlite3 backup API into `OUT/<UTC stamp>/` (files 0600, directories 0700), checks each copy (integrity and the tables the server needs), never overwrites a stamp and refuses an `--out` inside a data directory; `--verify DIR` re-checks a backup directory and looks only at `*.bak` files (a `.bak.FAILED` or `.bak.partial` file is ignored). No deploy step runs any of them: they are tools to run by hand or from a cron. Restoring is a manual copy of a `.bak` over the database with the server stopped; that is not built and not tested. Not built: `vpn-bind.sh`, `git-pull.sh`, `apk-signing/`, `auth/`, the docker-compose file; the licensing notice is the repository root `NOTICE`, not a file of this module. The rest of this card (the other Components, Persistence, Signing key custody, the Update pipeline, the sherpa-onnx placement and the Invariants) is the target design, planned, not built. The decisions already made are that Breaker has no certificate handling and serves plain HTTP on the Local Server (ADR-034).
 
 **Components:**
 - `vpn-bind.sh` — verify/bind endpoints to the VPN interface only.
@@ -19,7 +19,7 @@ and ship updates.
   build, sign, serve (F19). Rollback = deploy previous tag.
 - `NOTICE` — server-side copy of the licensing notice (XIAOMI sherpa-onnx +
   OpenWhispr authors + modifications statement) for any shipped artifacts.
-- `scripts/` — install, update, rollback, health-check.
+- `scripts/` — install, update, rollback, health-check. Built so far: `health-check.sh`, `release-tags.sh` and `backup-data.py` (see Status on main); install, update and rollback are not.
 - **Persistence (F31):** all server data (DB, models, config, signing key)
   lives on **docker volumes / disk** — nothing in ephemeral container layers, so
   recovery via an admin-scoped token is always possible.
@@ -48,7 +48,7 @@ network-isolated (VPN-only bind).
 Git-pull deploy, docker-compose, certs, APK signing, VPN bind, volumes, NOTICE.
 
 ## Public Interface
-None yet: this module has no code. `DeployScripts` is the planned name of its scripts.
+Three command-line helpers under `scripts/`: `health-check.sh`, `release-tags.sh` and `backup-data.py` (usage in each file's header). No code of another module imports them. `DeployScripts` stays the planned name of the whole set when the rest exists.
 
 ## Depends On
 - server (registered in modules.toml)
@@ -58,7 +58,7 @@ None yet: this module has no code. `DeployScripts` is the planned name of its sc
 - TLS and certificates: Breaker serves plain HTTP; an admin who wants https puts a reverse proxy in front (ADR-034).
 
 ## Test Locations
-- Unit (Python): `tests/unit/server/deploy/`, created with the module's first code. Run: `python3 -m unittest discover -s tests/unit/server/deploy`
+- Unit (Python): `tests/unit/server/deploy/` (`test_health_check.py`, `test_release_tags.py`, `test_backup_data.py`). Run: `python3 -m unittest discover -s tests/unit/server/deploy`
 - Contract: `tests/contract/test_deploy_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_deploy_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
