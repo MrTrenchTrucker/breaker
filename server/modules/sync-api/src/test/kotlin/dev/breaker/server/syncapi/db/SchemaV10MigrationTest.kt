@@ -32,7 +32,7 @@ internal class SchemaV10MigrationTest : TempDatabaseTest() {
     fun `migration 10 applies to a fresh database with the pending_sealed columns and its index`() {
         val temp = openTemp()
         inTransaction(temp) { connection ->
-            assertEquals("sync-api: fresh database user_version", 10, TestDatabases.userVersion(connection))
+            assertEquals("sync-api: fresh database user_version", 11, TestDatabases.userVersion(connection))
             assertEquals(
                 "sync-api: pending_sealed columns",
                 listOf("id", "account_id", "sealed_box", "created_at"),
@@ -55,7 +55,7 @@ internal class SchemaV10MigrationTest : TempDatabaseTest() {
         }
         val second = reopen(first)
         inTransaction(second) { connection ->
-            assertEquals("sync-api: user_version after the upgrade", 10, TestDatabases.userVersion(connection))
+            assertEquals("sync-api: user_version after the upgrade", 11, TestDatabases.userVersion(connection))
             assertEquals(
                 "sync-api: the account row is kept with its id",
                 listOf(aliceId),
@@ -188,7 +188,7 @@ internal class SchemaV10MigrationTest : TempDatabaseTest() {
     @Test
     fun `migration 10 adds exactly one table and removes none`() {
         val before = inTransaction(openTemp(versionsOneToNine)) { connection -> TestDatabases.tableNames(connection) }
-        val after = inTransaction(openTemp()) { connection -> TestDatabases.tableNames(connection) }
+        val after = inTransaction(openTemp(Migrations.ALL.take(10))) { connection -> TestDatabases.tableNames(connection) }
         assertEquals("sync-api: the added tables", listOf("pending_sealed"), after.filter { it !in before })
         assertEquals("sync-api: the removed tables", emptyList<String>(), before.filter { it !in after })
     }

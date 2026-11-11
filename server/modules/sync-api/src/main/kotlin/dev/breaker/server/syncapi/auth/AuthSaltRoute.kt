@@ -1,6 +1,7 @@
 package dev.breaker.server.syncapi.auth
 
 import dev.breaker.server.syncapi.accounts.AccountStore
+import dev.breaker.server.syncapi.accounts.RateLimitCounterStore
 import dev.breaker.server.syncapi.accounts.SaltLookup
 import dev.breaker.server.syncapi.escapeJsonString
 import io.ktor.http.ContentType
@@ -12,18 +13,25 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import java.util.Base64
 
-/**
- * Installs `POST /v1/auth/salt` on this application.
- *
- * The route looks up an account by username and returns its salt and KDF parameters.
- * No decoy: an unknown username gets an honest "no such account" (ADR-006).
- *
- * Hand-written JSON — no serialization library, no api-contracts import.
- * Wire names match openapi.yaml exactly.
- */
-internal fun Application.authSaltRoute(store: AccountStore) {
+/** Salt rate-limit caps (constants, source: ADR-041). */
+internal const val SALT_PER_ADDRESS: Int = 60
+internal const val SALT_GLOBAL: Int = 1200
+
+/** Installs `POST /v1/auth/salt` on this application. */
+internal fun Application.authSaltRoute(
+    store: AccountStore,
+    // Null means no limit: the module passes the real store; a test of the route alone can leave it out.
+    counterStore: RateLimitCounterStore? = null,
+) {
     routing {
         post("/v1/auth/salt") {
+            if (counterStore != null) {
+                val refused = checkRateLimits(call, counterStore, store.settings, "salt", SALT_PER_ADDRESS, SALT_GLOBAL)
+                if (refused != null) {
+                    respondRateLimited(call, refused)
+                    return@post
+                }
+            }
             val body = call.receiveAuthBody() ?: return@post
             val username = extractUsername(body)
             if (username == null) {

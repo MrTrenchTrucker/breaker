@@ -12,7 +12,7 @@ internal class SchemaV7MigrationTest : TempDatabaseTest() {
     fun `migration 7 applies to a fresh database and creates server_settings`() {
         val temp = openTemp()
         inTransaction(temp) { connection ->
-            assertEquals("sync-api: fresh database user_version", 10, TestDatabases.userVersion(connection))
+            assertEquals("sync-api: fresh database user_version", 11, TestDatabases.userVersion(connection))
             val tables = TestDatabases.tableNames(connection)
             assertTrue("sync-api: server_settings table is missing: $tables", "server_settings" in tables)
             val columns = names(connection, "SELECT name FROM pragma_table_info('server_settings')")
@@ -60,7 +60,7 @@ internal class SchemaV7MigrationTest : TempDatabaseTest() {
         val second = reopen(first)
 
         inTransaction(second) { connection ->
-            assertEquals("sync-api: user_version after the upgrade", 10, TestDatabases.userVersion(connection))
+            assertEquals("sync-api: user_version after the upgrade", 11, TestDatabases.userVersion(connection))
             assertEquals(
                 "sync-api: every account row is kept",
                 listOf(1L),

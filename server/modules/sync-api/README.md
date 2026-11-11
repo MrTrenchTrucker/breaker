@@ -43,7 +43,7 @@ tokens never revoked; the account's hand-off codes left alone). The
 wrong-password limit is built (its failure counting, the locked answer, 423 with Retry-After, the on/off
 switch (migration 7, `server_settings`, `ServerSettingsStore`, read live on every attempt, default on, only a
 stored integer 0 is off, off = no counting, no refusing, stored attempts kept), the admin route that flips it,
-the drop of the row at registration, the hook `AccountStore.clearAttempts` and the sweep every five minutes).
+the drop of the row at registration, the hook `AccountStore.clearAttempts` and the sweep every five minutes). Register and salt are also rate limited per source address (10 and 60 a minute, with a backstop for all addresses together; 429 with Retry-After; one admin switch, `GET` and `PUT /v1/admin/rate-limits`); complete-reset and the sync push are not limited yet.
 The sign-in hand-off (migration 4, the code store, the sweep, the revoke rule and the start and exchange
 routes) is built; the app wiring is built; the website page is built, but its derivation, box key and
 sealing steps are stubs, so it cannot complete a hand-off yet. The change number and the delete flag are built

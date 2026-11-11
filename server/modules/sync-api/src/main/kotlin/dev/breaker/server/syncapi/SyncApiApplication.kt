@@ -10,6 +10,8 @@ import dev.breaker.server.syncapi.admin.adminHealthRoute
 import dev.breaker.server.syncapi.admin.adminSetRoleRoute
 import dev.breaker.server.syncapi.admin.adminRevokeAgentTokenRoute
 import dev.breaker.server.syncapi.admin.adminWrongPwLimitRoute
+import dev.breaker.server.syncapi.accounts.RateLimitCounterStore
+import dev.breaker.server.syncapi.admin.adminRateLimitsRoute
 import dev.breaker.server.syncapi.auth.authChangePasswordRoute
 import dev.breaker.server.syncapi.auth.authCompleteResetRoute
 import dev.breaker.server.syncapi.auth.authDevicesRoute
@@ -42,6 +44,7 @@ internal fun Application.syncApiModule(
     gitTag: String = "",
 ) {
     val pendingSealedStore = PendingSealedStore(accountStore.db)
+    val counterStore = RateLimitCounterStore(accountStore.db, accountStore.clock)
     routing {
         // The health route must stay free of authentication and of any data access:
         // a monitor must be able to call it when the database or the login is broken.
@@ -49,8 +52,8 @@ internal fun Application.syncApiModule(
             call.respondText("""{"status":"ok"}""", ContentType.Application.Json)
         }
         updatesRoute(manifestFile)
-        authRegisterRoute(accountStore)
-        authSaltRoute(accountStore)
+        authRegisterRoute(accountStore, counterStore)
+        authSaltRoute(accountStore, counterStore)
         authLoginRoute(accountStore, tokenStore)
         authKeysRoute(accountStore, tokenStore)
         authChangePasswordRoute(accountStore, tokenStore)
@@ -66,6 +69,7 @@ internal fun Application.syncApiModule(
         adminEndSessionRoute(tokenStore)
         adminSetRoleRoute(tokenStore, accountStore)
         adminWrongPwLimitRoute(tokenStore, accountStore.settings)
+        adminRateLimitsRoute(tokenStore, accountStore.settings)
         adminHealthRoute(tokenStore, gitTag)
         syncRoutes(tokenStore, transcriptionStore)
         pendingSealedRoute(tokenStore, pendingSealedStore)
