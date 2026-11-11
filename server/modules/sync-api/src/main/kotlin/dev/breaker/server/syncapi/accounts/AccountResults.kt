@@ -24,6 +24,9 @@ internal sealed class RegisterIfOpenResult {
     data class InvalidField(val field: String) : RegisterIfOpenResult()
 
     object Closed : RegisterIfOpenResult()
+
+    /** The install code was missing or did not match the install-code file. */
+    object InstallCodeInvalid : RegisterIfOpenResult()
 }
 
 internal sealed class SaltLookup {

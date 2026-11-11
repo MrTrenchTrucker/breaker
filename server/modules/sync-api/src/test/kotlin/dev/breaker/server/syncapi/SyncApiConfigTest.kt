@@ -168,4 +168,30 @@ class SyncApiConfigTest {
         assertEquals("spaces only tag", blankMessage, refused(mapOf(db to "x.db", gitTag to "   ")).message)
         assertEquals("65 character tag", lengthMessage, refused(mapOf(db to "x.db", gitTag to "a".repeat(65))).message)
     }
+
+    private val installCodeFile = SyncApiConfig.ENV_INSTALL_CODE_FILE
+
+    @Test
+    fun `the install code file defaults to install-code next to the database`() {
+        assertEquals("sync-api: default", "install-code", SyncApiConfig.fromEnv(mapOf(db to "x.db")).installCodeFile)
+        assertEquals("sync-api: default beside a path", "/data/install-code", SyncApiConfig.fromEnv(mapOf(db to "/data/sync.db")).installCodeFile)
+    }
+
+    @Test
+    fun `an install code file path set in the environment is kept as written`() {
+        val config = SyncApiConfig.fromEnv(mapOf(db to "/data/sync.db", installCodeFile to "/keys/first-admin"))
+        assertEquals("sync-api: explicit", "/keys/first-admin", config.installCodeFile)
+    }
+
+    @Test
+    fun `an install code file that is set but blank, or has a NUL character, is refused and named`() {
+        for (bad in listOf("", "   ", "a\u0000b")) {
+            assertNamed(refused(mapOf(db to "/data/sync.db", installCodeFile to bad)), installCodeFile)
+        }
+    }
+
+    @Test
+    fun `the install code setting has its exact name`() {
+        assertEquals("sync-api: the name", "BREAKER_SYNC_API_INSTALL_CODE_FILE", installCodeFile)
+    }
 }

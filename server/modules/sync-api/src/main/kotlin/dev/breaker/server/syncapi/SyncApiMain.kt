@@ -1,6 +1,7 @@
 package dev.breaker.server.syncapi
 
 import dev.breaker.server.syncapi.accounts.AccountStore
+import dev.breaker.server.syncapi.accounts.InstallCode
 import dev.breaker.server.syncapi.accounts.RateLimitCounterStore
 import dev.breaker.server.syncapi.accounts.runRateLimitCounterSweep
 import dev.breaker.server.syncapi.accounts.runSigninAttemptSweep
@@ -14,6 +15,7 @@ import dev.breaker.server.syncapi.transcriptions.TranscriptionStore
 import dev.breaker.server.syncapi.transcriptions.ExpiryScheduler
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.embeddedServer
+import java.nio.file.Files
 import java.nio.file.Paths
 import java.security.SecureRandom
 import kotlin.system.exitProcess
@@ -34,7 +36,26 @@ fun main() {
     }
     // Opening the file also brings the schema up to the current version.
     val db = SqliteDatabase.open(config.dbPath)
-    val accountStore = AccountStore(db)
+    val accountStore = AccountStore(db, installCodeFile = config.installCodeFile)
+
+    // Install code: while zero accounts exist the file is required. Create it atomically
+    // owner-only on first start, or refuse to start when an existing file is unreadable,
+    // empty or the wrong length. With accounts present the code is moot and the start
+    // must not fail.
+    val accountCount = accountStore.accountCount()
+    if (accountCount == 0L) {
+        val installCodePath = Paths.get(config.installCodeFile)
+        val existed = Files.exists(installCodePath)
+        try {
+            InstallCode.loadOrCreate(installCodePath, SecureRandom())
+        } catch (e: IllegalStateException) {
+            db.close()
+            System.err.println(e.message)
+            exitProcess(2)
+        }
+        // Logged once: only when this start made the file. A restart that finds it says nothing.
+        if (!existed) System.err.println("sync-api: install code generated")
+    }
     val counterStore = RateLimitCounterStore(db, accountStore.clock)
     val tokenStore = TokenStore(db)
     val transcriptionStore = TranscriptionStore(db)

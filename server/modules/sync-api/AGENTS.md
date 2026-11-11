@@ -29,6 +29,14 @@ A route or job marked Planned, not built below is not installed on main yet.
   unchanged (store-level tests that register more than one account keep
   passing) and the rule lives in the route path through
   `AccountStore.registerIfOpen`.
+- First-admin install code (ADR-043 slice C): while no account exists the server start makes a 43 character
+  URL-safe code in the `install-code` file next to the database (`BREAKER_SYNC_API_INSTALL_CODE_FILE`
+  changes the path; set but blank is refused), mode 0600 set at creation, and prints one notice line, never the
+  code. A start that finds a file with a bad length, bad characters or group or other permissions refuses to
+  run. The first registration must carry `install_code`: a missing code and a wrong code answer the same 400
+  `invalid_field`, and a wrong code costs no password hash. The code is compared in the register transaction as
+  well as before the hash. Once an account exists the field is ignored and the file is deleted after the first
+  account commits (best effort).
 - `GET/PUT /v1/admin/registration-open` - **admin-only**: read and flip the
   `registration_open` switch (server_settings key, integer 0/1). GET answers
   `{"enabled":true}` or `{"enabled":false}`; PUT accepts exactly one member,
