@@ -70,6 +70,15 @@ say in the PR description which one you used.
 
 - **Build everything and run every Kotlin test:**
   `./gradlew --no-daemon build`
+- **Which checks a pull request runs:** the `checks` workflow runs `check`
+  (the unit tests and the lint) for every module that the change touches, and every module that uses them,
+  followed through the `depends_on` links in `modules.toml` and through the
+  Gradle builds that read files of a changed module. Pushes to `main` and
+  `module/**`, and the nightly run, build everything. A change to a Gradle
+  build file, the workflow, `modules.toml` or the planner itself also builds
+  everything. To see the plan for your branch before you push, run
+  `python3 tools/affected_checks.py --explain`; the base defaults to the
+  merge-base with `origin/main`, and `--base <sha> --head <sha>` covers any range.
 - **The maintainers' check** (forces a clean rebuild — run this before
   opening a PR):
   `./gradlew --no-daemon --no-build-cache --rerun-tasks build`
