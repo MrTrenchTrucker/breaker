@@ -55,7 +55,7 @@ Gates and releases, says "Not passed").
 |---|--------|------------|
 | T1 | **Model swap** — malicious/poisoned model file | SHA-256 pins in `shared/model-registry`; verify before load |
 | T2 | **API key exfiltration** | Key via the device Keystore (planned, not built): the settings file never holds the key, and the reference goes through a Keystore port; never logged |
-| T3 | **VPN exposure** — server reachable by other members of the VPN | Bind to the VPN interface; API key; plain HTTP on Local Server; TLS only if an admin adds a reverse proxy (ADR-034) |
+| T3 | **VPN exposure** - server reachable by other members of the VPN | Bind to the VPN interface or a private-network address only; never a public address and never 0.0.0.0 / :: (ADR-042). API key; plain HTTP on Local Server; TLS only if an admin adds a reverse proxy (ADR-034) |
 | T4 | **Overlay spoofing** — another app fakes our tile | Verify window ownership; tap-only tile |
 | T5 | **Mic abuse** — another app records while we hold mic | Explicit per-session mic permission; recording indicator |
 | T6 | **Audio interception on wire** | No TLS in Breaker (ADR-034): on a network without a VPN, plain http is readable by anyone on that network, a known and accepted risk; an admin may add TLS with any reverse proxy; the quiet settings line that names this risk is decided and not built |
