@@ -14,11 +14,11 @@ import java.nio.file.StandardCopyOption
  * nothing more. This class never reads, stores or returns a secret; it only
  * records which reference is currently active so that survives a restart. A
  * caller may legitimately log its contents, compare it for equality or persist
- * it elsewhere without leaking anything sensitive. The secret this reference
- * resolves against — the platform `Keystore` referenced by
- * [dev.breaker.dictation.core.model.AppSettings] — is **not built and not
- * verified**, so nothing here should be read as a claim that a key is kept
- * safe on the device. That proof comes with the work that would implement it.
+ * it elsewhere without leaking anything sensitive. No secret sits behind this
+ * reference, by design: the phone holds no service API key (ADR-008). Its secrets
+ * are the session token and the account keys, which the app's vaults seal under the
+ * Android Keystore key; that this key behaves on a real device is not verified, and
+ * nothing here claims it.
  *
  * **Persistence.** A reference is written as one UTF-8 line to a temp file
  * named after the live file (`<name>.tmp`) in the same folder, then moved over

@@ -141,9 +141,9 @@ of `AGENTS.md` lists the smaller open items.
   heard words, but the app does not use it yet, and no spoken off word is built.
   PLANNED: a `PhraseSendHandler` in the wiring owns the spoken Send (ADR-004); it
   needs an app edge to the phrases module that is not in the registry yet.
-- The secret-resolving device Keystore. The app keeps only the reference to the
-  credential (`FileCredentialRefHolder`), never a secret; the Keystore that
-  resolves the reference is not built and not verified.
+- A device check of the sealed vaults. The session and credential vaults are sealed under an Android
+  Keystore key in code, and that is not verified on a device. No secret sits behind the credential
+  reference (`FileCredentialRefHolder`), by design: the phone holds no service API key (ADR-008).
 
 The real microphone (`appMicSource(audioManager)` in `wiring/AndroidSwaps.kt`,
 which returns `AndroidMicSource.create`), the first-run view (`createFirstRunView` in the ui module),

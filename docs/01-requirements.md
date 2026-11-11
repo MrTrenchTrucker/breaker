@@ -17,8 +17,8 @@
 - **F8** Whisper Flow-style formatting: numbered lists, punctuation, filler removal.
 - **F9** The send phrase "And I'm Gone" is **excluded** from the transcription
   (audio trimmed at phrase onset).
-- **F10** Settings: mode, model size, server URL/API key, voice phrases on/off,
-  shake on/off, formatting on/off, tile position, language.
+- **F10** Settings: mode, model size, server URL (the phone holds no service API key, ADR-008),
+  voice phrases on/off, shake on/off, formatting on/off, tile position, language.
 - **F11** On first open, the app shows a short welcome (its content is not fixed
   here), then asks for each permission it needs (microphone, display over other
   apps, notifications, accessibility service) on a screen of its own that says

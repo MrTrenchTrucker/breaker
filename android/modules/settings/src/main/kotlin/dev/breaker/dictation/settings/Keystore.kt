@@ -21,11 +21,10 @@ package dev.breaker.dictation.settings
  * propagates.
  *
  * **This port cannot receive or return a secret.** There is no method here that
- * takes one or hands one back; only a reference moves through it. The component
- * that would hold a secret and resolve a reference against it — the device
- * Keystore — is **not implemented and not verified yet**, and nothing here
- * should be read as a claim that a key is safe on the device. The tests that
- * would prove that come with that work.
+ * takes one or hands one back; only a reference moves through it.
+ * No component holds a secret behind it, by design (ADR-008: the phone holds no
+ * service API key), so nothing here should be read as a claim that a key is safe
+ * on the device.
  *
  * **No class under `src/main` implements this port yet.**
  * `SettingsNoFallbackTest` proves that, and it proves it by **scanning the
