@@ -95,5 +95,7 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-042](ADR-042-network-model-vpn-or-private-bind.md) | Network model — VPN or private bind only, ordered server addresses | accepted; no code enforces it yet |
 | [ADR-043](ADR-043-registration-lock-and-first-admin-install-code.md) | Registration lock — first account is admin, install code required | accepted; registration switch and install code not built yet |
 | [ADR-044](ADR-044-service-status.md) | Service status route - signed-in users see which services are up | accepted; no code implements /v1/status yet |
+| [ADR-045](ADR-045-permission-revoke-on-foreground-return.md) | Re-check permission state on return to foreground; treat kill-on-revoke as a fresh start | proposed, not yet accepted (proposal date 2026-11-11) |
+| [ADR-046](ADR-046-app-depends-on-android-phrases.md) | App depends on android_phrases  -  registry edge added with the PhraseSendHandler code | proposed, not yet accepted (proposal date 2026-11-11) |
 
-Next free number: **ADR-045**.
+Next free number: **ADR-047**.
