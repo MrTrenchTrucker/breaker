@@ -176,7 +176,8 @@ The switch for the ui module: `wiring/BreakerSwitchAdapter.kt` implements the sw
 ## Does Not Own
 - Screen implementations (ui)
 - Domain logic (core)
-- The secret-resolving device Keystore (not built and not verified; the app's `FileCredentialRefHolder` holds only the reference)
+- A secret-resolving device Keystore (none exists, by design: the phone holds no service API key,
+  ADR-008; the app's `FileCredentialRefHolder` holds only the reference)
 - Loading models and decoding speech (the on-device speech module's work; the app composes its engine over a store)
 - The tile window itself (the overlay module's work)
 - The shake detection and the sensor registration (the gesture module's work); the app wires the module's `ShakeHandle` and owns only the `ShakeGesture` mapping in `AndroidSwaps.kt`
@@ -260,10 +261,11 @@ code.
 - The Home menu has a History item, and the app opens the history screen through one function (`openHistory`) that the Home menu and the notification route both call. The settings column holds only the settings view, with no History button, and the `ui` settings screen has no History entry.
 - The big mic on Home is wired: a tap on it reaches `HomeTakeAdapter.onTap()` (`wiring/HomeTakeAdapter.kt`) through `HomeTakeWiring` (`wiring/HomeTakeWiring.kt`), and the take's line and state are drawn on Home through `HomeControl` (`showLine` and `showRecording`); the recording look shows while the take records.
 - A switch-on that the Home card refuses is not shown: the card's tap calls `switchOn()` and ignores the answer (`HomeHostView.kt`), where the first-run view shows its refusal through `ModelStepControl.showSwitchRefused`. A refused switch-on from the launcher icon is shown on Home's status line, never on the settings screen (`SettingsLauncherActivity.kt`, onResume).
-- `FileCredentialRefHolder` holds a credential *reference*, never a secret. The
-  platform `Keystore` that would resolve the reference against a secret is **not
-  built and not verified**; nothing in this module is a claim that a key is kept
-  safe on the device.
+- `FileCredentialRefHolder` holds a credential *reference*, never a secret, and no secret sits
+  behind it, by design (ADR-008: the phone holds no service API key). The phone's secrets are the
+  session token and the account keys, sealed under an Android Keystore key in code
+  (`KeystoreSessionKey`, `AesSessionSeal`). That the key behaves on a real device (hardware
+  backing, survival of a restart) is **not verified** on a device.
 - The first-run flow shows on a phone with no speech model; the settings screen shows on the Settings item of the Home menu. The app asks for no permission at run time (the first-run flow does).
 - **NOT VERIFIED on a device** (the microphone service and its arming, ADR-022 as amended): that the armed service survives the app going to the background and records on a tile tap while another app is in front; that the notification action restarts it after a kill; whether Android 14 and later let the tile start a microphone service when it is not armed (the platform documentation lists no overlay window as an exemption, so the app arms the service while it is visible and does not rely on the overlay); the exact time allowed between `startForegroundService` and `startForeground`; the quiet notification when POST_NOTIFICATIONS is denied; the microphone privacy indicator.
 - A refusal that happens inside the service (Android 14 and later may refuse the microphone type only there) shows `ServiceSentences.ARM_REFUSED` in two places. First, as a plain notice on the same channel and id as the ongoing one: the app title, the sentence as its one text line, the same tap, no action and not ongoing. It is posted only when `DictationNotification.notificationsPermitted` says the user permits notifications, and it stays until the user dismisses it. Second, the same sentence is held in memory by `BreakerApp.refusalHold` and taken by the launcher activity's `onResume` after `refresh()`, then routed to Home's status line through `HomeControl.showLine`. A refused switch-on from the launcher icon is shown the same way. The floating tile does not show it, because the tile is hidden in the same main-thread pass that would show it. Tested by: `ServiceStartHandlerRefusedTest`, `ServiceRefusalNoticeTest`, `IconLaunchRefusedTest`, `NotificationTakenGateTest`, `PlatformNotificationGateTest`, `RefusalWiringGateTest`, and the ui `SwitchRefusedNoticeTest`.

@@ -26,8 +26,8 @@ implementation:
   list (id, size, URL, SHA-256) and a lookup by id. No download or verify logic
   lives here; that is `stt-ondevice`'s.
 
-**Keys:** mode, model_size, server_url, api_key (Android Keystore, encrypted at
-rest — T2) *(the device Keystore is not built yet — see Known Gotchas)*,
+**Keys:** mode, model_size, server_url, api_key (the credential reference only, kept by the
+Keystore port; no secret sits behind it, by design, see Known Gotchas),
 wake_gesture_mode (the older wake_gesture_enabled key is still read, never written),
 tile_position, language, preload_model,
 formatting_enabled, theme_mode, microphone_asked.
@@ -46,11 +46,10 @@ narrower band than Home; every screen must use the one gutter, applied once, and
 ## Invariants
 - Settings persist across restarts.
 - A save that fails leaves the previous settings file as it was, or no file when there was none. If the failure is in the file steps, the keystore is not told the new reference. If it is in the keystore step, the file is put back and the previous reference is restored, subject to the limit in the Known Gotchas.
-- API key stored via Keystore, never in plaintext/logs. Both halves of that are
-  stated apart on purpose: routing the reference through the `Keystore` port, and
-  the settings file never carrying the key, are built and tested; what is not
-  built is any device Keystore behind the port.
-  *(the device Keystore is not built yet — see Known Gotchas)*
+- The credential reference is kept by the `Keystore` port, never in plaintext or logs. The phone
+  holds no service API key (ADR-008), so no secret sits behind the reference, by design. Routing the
+  reference through the `Keystore` port, and the settings file never carrying it, are built and
+  tested.
 - Model registry parsed; invalid SHA-256 blocks model load. *(Built in `stt-ondevice`: `ModelIntegrity` computes the SHA-256 of the archive, and `ModelLoader` refuses and deletes a model that fails it.)*
 
 ## Depends On
@@ -102,17 +101,15 @@ agents, not required: an outside contributor may write the code themselves
   mandatory the moment it does. `ModelCatalog` reads the registry through it,
   and the edge stays `implementation(...)` — the registry's types never appear
   in this module's public signatures, so nothing outside needs the edge.
-- The device Keystore is **not implemented and not verified** yet. Nothing in
-  this module has been run against Android Keystore; the port carries the credential
-  *reference* only and has no method that can receive or return a secret. The
-  instrumented test that will verify a hardware-backed key is a later change — it
-  belongs in `androidTest`, not `src/test`, and it is the only place that claim can
-  honestly be made.
+- No secret sits behind the `Keystore` port, by design (ADR-008: the phone holds no service API key).
+  The port carries the credential *reference* only and has no method that can receive or return a
+  secret. Nothing in this module has been run against the Android Keystore; that the app's sealed
+  vaults behave on a real device is a claim of the app card, and only a test in `androidTest` can
+  make it honestly.
 - A reference's durability **across a real process restart is NOT VERIFIED**. What the
   unit tests prove is narrower: that the store routes the reference through the
   `Keystore` port and never writes it to the settings file. A fake port lives in the
-  same process, so it cannot prove survival across process death — that is the platform
-  Keystore's job, and it arrives with the device implementation.
+  same process, so it cannot prove survival across process death; only a run on a device can.
 - The settings file holds **ten** of the card's eleven keys. `api_key` is deliberately
   absent: the credential reference travels through the `Keystore` port, never through
   `java.util.Properties`. A reader counting keys will find one short and that is

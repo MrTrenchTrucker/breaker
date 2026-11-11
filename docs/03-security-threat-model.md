@@ -46,7 +46,8 @@ Gates and releases, says "Not passed").
 
 ## Assets
 - A1. Audio recordings (privacy-critical). · A2. Transcription history. ·
-  A3. API key for Local Server. · A4. Model files (integrity-critical). ·
+  A3. Account session token and account keys (the phone holds no service API key, ADR-008).
+  A4. Model files (integrity-critical).
   A5. Phone mic + overlay privileges.
 
 ## Threats & mitigations
@@ -54,7 +55,7 @@ Gates and releases, says "Not passed").
 | # | Threat | Mitigation |
 |---|--------|------------|
 | T1 | **Model swap** — malicious/poisoned model file | SHA-256 pins in `shared/model-registry`; verify before load |
-| T2 | **API key exfiltration** | Key via the device Keystore (planned, not built): the settings file never holds the key, and the reference goes through a Keystore port; never logged |
+| T2 | **Session token and account-key exfiltration** | The phone holds no service API key (ADR-008). The session token and the account keys are sealed under an Android Keystore key in app-private storage and are not included in backups (ADR-035, ADR-036); not verified on a device. The settings credential reference holds no secret, by design |
 | T3 | **VPN exposure** - server reachable by other members of the VPN | Bind to the VPN interface or a private-network address only; never a public address and never 0.0.0.0 / :: (ADR-042). API key; plain HTTP on Local Server; TLS only if an admin adds a reverse proxy (ADR-034) |
 | T4 | **Overlay spoofing** — another app fakes our tile | Verify window ownership; tap-only tile |
 | T5 | **Mic abuse** — another app records while we hold mic | Explicit per-session mic permission; recording indicator |
@@ -96,7 +97,7 @@ Items tagged **[Phase 0–8]** are what the Phase 9 gate blocks on — they must
 - [ ] Gradle dependency audit clean **[Phase 0–8]**
 - [ ] Model SHA-256 verification path tested (tamper test) **[Phase 3]**
 - [ ] No unexpected network calls (packet capture during local-mode dictation) **[Phase 0–8]**
-- [ ] API key not present in logs/backups **[Phase 4–8]**
+- [ ] Session token and account keys not present in logs/backups **[Phase 4-8]**
 - [ ] Overlay window ownership verified **[Phase 6]**
 - [ ] Mic permission flow reviewed **[Phase 2]**
 - [ ] Base code compiled + smoke-tested (Security Review caveat closed) **[Phase 0]**
