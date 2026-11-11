@@ -92,5 +92,7 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-039](ADR-039-a-409-on-the-sync-push.md) | What a 409 on the sync push should do | accepted by the manager; no code now |
 | [ADR-040](ADR-040-the-website-uses-noble-for-key-derivation-and-the-sealed-box.md) | The website uses noble for key derivation and the sealed box | accepted; first task is a phone timing |
 | [ADR-041](ADR-041-rate-limits-on-the-open-sync-api-routes.md) | Rate limits on the open sync-api routes, keyed by source address | proposed; no code, numbers come from a measurement |
+| [ADR-042](ADR-042-network-model-vpn-or-private-bind.md) | Network model — VPN or private bind only, ordered server addresses | accepted; no code enforces it yet |
+| [ADR-043](ADR-043-registration-lock-and-first-admin-install-code.md) | Registration lock — first account is admin, install code required | accepted; registration switch and install code not built yet |
 
-Next free number: **ADR-042**.
+Next free number: **ADR-044**.
