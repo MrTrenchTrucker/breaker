@@ -176,22 +176,22 @@ class AppSyncWiringPinsTest(unittest.TestCase):
         )
 
     def test_worker_is_built_with_the_live_pending_count(self):
-        """The worker sees live rows only: the queue count less the parked rows (ADR-038).
+        """The worker sees live rows only: pendingCount() already leaves parked rows out (ADR-038).
 
-        A queue holding only parked rows must read 0, otherwise the worker arms a
-        15-minute retry for ever for rows the server refused for good.
+        A queue holding only parked rows must read 0 via pendingCount() alone, otherwise the
+        worker arms a 15-minute retry for ever for rows the server refused for good.
         """
         code = self._code()
         self.assertIn(
-            "pendingCount = { syncService.pendingCount() - syncService.parkedCount() }",
-            code,
-            "wiring pin: SyncWorker must be built with the live pending count "
-            "(`pendingCount = { syncService.pendingCount() - syncService.parkedCount() }`)",
-        )
-        self.assertNotIn(
             "pendingCount = { syncService.pendingCount() }",
             code,
-            "wiring pin: the worker must not count parked rows as pending",
+            "wiring pin: SyncWorker must be built with the live pending count "
+            "(`pendingCount = { syncService.pendingCount() }`)",
+        )
+        self.assertNotIn(
+            "pendingCount = { syncService.pendingCount() - syncService.parkedCount() }",
+            code,
+            "wiring pin: the worker must not subtract parked rows twice",
         )
 
     def test_on_start_is_called_exactly_once(self):
