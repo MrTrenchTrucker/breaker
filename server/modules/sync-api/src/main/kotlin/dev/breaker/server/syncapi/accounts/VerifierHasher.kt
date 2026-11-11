@@ -14,7 +14,7 @@ internal open class VerifierHasher(
         require(iterations >= 1) { "sync-api: the verifier hasher needs at least one iteration" }
     }
 
-    fun hashNew(verifier: AuthVerifier): StoredVerifier {
+    open fun hashNew(verifier: AuthVerifier): StoredVerifier {
         val salt = ByteArray(SALT_BYTES)
         random.nextBytes(salt)
         return StoredVerifier(ALGO, iterations, salt, derive(verifier, salt, iterations))

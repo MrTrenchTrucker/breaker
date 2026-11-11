@@ -2465,6 +2465,116 @@ paths:
               example:
                 error: "unavailable"
                 message: "The service is unavailable, try again later"
+  /v1/admin/registration-open:
+    get:
+      summary: Read whether registration is open
+      description: >-
+        Admin-only. Reports whether new accounts may register (default closed
+        once an account exists). With the switch off, the register route answers
+        403 registration_closed unless it is the first account ever. The switch
+        is read live on every attempt.
+      operationId: adminGetRegistrationOpen
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Registration-open state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegistrationOpen"
+              example:
+                enabled: false
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing token"
+        "403":
+          description: Forbidden (non-admin)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "forbidden"
+                message: "Admin role required"
+        "503":
+          description: "A storage failure while the caller is checked or the switch is read gets this answer. The body is fixed and no part of the failure is echoed."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
+    put:
+      summary: Turn registration open or closed
+      description: >-
+        Admin-only. Set whether new accounts may register. Default closed once
+        an account exists; only an explicit on allows more registrations. The
+        first account ever is always allowed and becomes admin. The body holds
+        exactly one member, enabled, a boolean.
+      operationId: adminSetRegistrationOpen
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegistrationOpen"
+            example:
+              enabled: true
+      responses:
+        "200":
+          description: Registration-open state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegistrationOpen"
+              example:
+                enabled: true
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "bad_request"
+                message: "enabled must be true or false"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing token"
+        "403":
+          description: Forbidden (non-admin)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "forbidden"
+                message: "Admin role required"
+        "503":
+          description: "A storage failure while the caller is checked or the switch is set or read back gets this answer. The body is fixed and no part of the failure is echoed."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
   /v1/transcriptions:
     get:
       summary: Pull the account's transcriptions
@@ -3397,6 +3507,14 @@ components:
         enabled:
           type: boolean
           description: Whether sign-in is locked after five wrong passwords (default on)
+    RegistrationOpen:
+      type: object
+      required:
+        - enabled
+      properties:
+        enabled:
+          type: boolean
+          description: Whether new accounts may register once an account exists (default off)
     RateLimits:
       type: object
       required:

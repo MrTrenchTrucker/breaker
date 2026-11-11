@@ -17,7 +17,27 @@ A route or job marked Planned, not built below is not installed on main yet.
   the same bounds in both directions (memory 64 to 256 MiB, iterations 3 to
   10, parallelism 1 to 4), a `kdf_version` other than 1, and an
   `auth_verifier` that is not exactly 32 bytes, before it hashes it (the wire
-  encoding, base64 or hex, is decided in api-contracts).
+  encoding, base64 or hex, is decided in api-contracts). **Once an account
+  exists, registration is closed unless the `registration_open` admin switch
+  is on**: the register route answers 403
+  `{"error":"registration_closed","message":"Registration is closed."}`
+  (the 403 comes before the username-taken 409, and no PBKDF2 hash runs on a
+  closed server). Default after upgrade on a server that has accounts =
+  CLOSED; the admin opens it with `PUT /v1/admin/registration-open`. The
+  closed check runs in the same insert transaction as the account insert, so
+  it cannot race with the first-admin rule; `AccountStore.register` itself is
+  unchanged (store-level tests that register more than one account keep
+  passing) and the rule lives in the route path through
+  `AccountStore.registerIfOpen`.
+- `GET/PUT /v1/admin/registration-open` - **admin-only**: read and flip the
+  `registration_open` switch (server_settings key, integer 0/1). GET answers
+  `{"enabled":true}` or `{"enabled":false}`; PUT accepts exactly one member,
+  `enabled`, the literal `true` or `false`, anything else answers 400
+  `bad_request` "enabled must be true or false"; both answer 200 with the
+  read-back stored state. Mirror of `admin/AdminWrongPwLimitRoute.kt`:
+  bearer 401 -> admin 403 -> body cap 413 -> body shape 400 -> fixed 503 on a
+  store failure -> read-back state. Admin scope only: 401 no session, 403
+  non-admin and agent tokens.
 - `POST /v1/auth/salt` — `{username} -> {salt, kdf_params, kdf_version}`.
   **No decoy**: an unknown username gets an honest "no such account" (ADR-006
   — account discovery sits inside the VPN perimeter, docs/01/05).

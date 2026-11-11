@@ -11,6 +11,21 @@ internal sealed class RegisterResult {
     data class InvalidField(val field: String) : RegisterResult()
 }
 
+/** Result of [AccountStore.registerIfOpen]: the closed variant is returned when the
+ * registration-open switch is off and an account already exists. */
+internal sealed class RegisterIfOpenResult {
+    data class Registered(val accountId: Long, val role: Role) : RegisterIfOpenResult()
+
+    object UsernameTaken : RegisterIfOpenResult()
+
+    object KdfOutOfBounds : RegisterIfOpenResult()
+
+    /** [field] is "username", "salt" or "kdf_version". */
+    data class InvalidField(val field: String) : RegisterIfOpenResult()
+
+    object Closed : RegisterIfOpenResult()
+}
+
 internal sealed class SaltLookup {
     class Found(salt: ByteArray, val kdf: KdfParams, val kdfVersion: Int) : SaltLookup() {
         private val saltBytes: ByteArray = salt.copyOf()
