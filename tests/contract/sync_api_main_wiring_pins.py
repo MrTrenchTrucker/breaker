@@ -42,3 +42,83 @@ class SyncApiMainWiringPinsTest(unittest.TestCase):
             "config.manifestFile", args,
             "SyncApiMain.kt must pass config.manifestFile to syncApiModule; the arguments are %r" % args,
         )
+
+    def _install_code_block(self):
+        with open(MAIN, encoding="utf-8") as fh:
+            code = _scan_kotlin(fh.read(), keep_strings=False)
+        guard = "if (accountCount == 0L)"
+        start = code.index(guard)
+        brace = code.index("{", start)
+        end = _close_of(code, brace)
+        return code[start:end]
+
+    def test_install_code_guard_is_account_count_zero_long(self):
+        """install-code guard compares accountCount with 0L exactly once."""
+        block = self._install_code_block()
+        self.assertEqual(
+            block.count("accountCount == 0L"),
+            1,
+            "install-code guard must compare accountCount with 0L exactly once",
+        )
+
+    def test_install_code_existed_is_captured_before_load_or_create(self):
+        """existed is captured before loadOrCreate is called."""
+        block = self._install_code_block()
+        existed = block.index("val existed = Files.exists(")
+        created = block.index("InstallCode.loadOrCreate(")
+        self.assertLess(
+            existed,
+            created,
+            "existed must be captured before loadOrCreate is called",
+        )
+
+    def test_install_code_notice_is_gated_on_not_existed(self):
+        """the created-notice is gated on if (!existed) exactly once."""
+        block = self._install_code_block()
+        self.assertEqual(
+            block.count("if (!existed)"),
+            1,
+            "the install-code notice must be gated on if (!existed) exactly once",
+        )
+
+    def test_install_code_load_or_create_is_inside_the_guard(self):
+        """loadOrCreate is called exactly once inside the zero-account guard."""
+        block = self._install_code_block()
+        self.assertEqual(
+            block.count("InstallCode.loadOrCreate("),
+            1,
+            "loadOrCreate must be called exactly once inside the zero-account guard",
+        )
+
+    def test_install_code_catch_closes_db_before_exit_process_two(self):
+        """the install-code catch closes db then exits 2, each exactly once."""
+        block = self._install_code_block()
+        catch = "catch (e: IllegalStateException)"
+        cstart = block.index(catch)
+        cbrace = block.index("{", cstart)
+        cend = _close_of(block, cbrace)
+        catch_body = block[cbrace + 1:cend]
+        self.assertEqual(
+            catch_body.count("db.close()"),
+            1,
+            "the install-code catch must close the database exactly once",
+        )
+        self.assertEqual(
+            catch_body.count("exitProcess(2)"),
+            1,
+            "the install-code catch must exit with 2 exactly once",
+        )
+        self.assertLess(
+            catch_body.index("db.close()"),
+            catch_body.index("exitProcess(2)"),
+            "db.close() must run before exitProcess(2)",
+        )
+
+    def test_install_code_load_or_create_is_inside_the_try(self):
+        """loadOrCreate is inside the try, not before it."""
+        block = self._install_code_block()
+        try_idx = block.index("try {")
+        catch_idx = block.index("catch (e: IllegalStateException)")
+        load_idx = block.index("InstallCode.loadOrCreate(")
+        self.assertGreater(load_idx, try_idx, "loadOrCreate must be inside the try")
+        self.assertLess(load_idx, catch_idx, "loadOrCreate must be inside the try, before the catch")
