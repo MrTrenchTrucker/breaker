@@ -65,6 +65,29 @@ internal class RateLimitCounterStore(
     internal suspend fun checkPair(route: String, address: String, perAddressCap: Int, globalCap: Int): RateLimitResult =
         attempt(route, listOf(Key(address, perAddressCap), Key(GLOBAL_ADDRESS, globalCap)).distinctBy { it.address })
 
+    /** Read-only: returns Refused if either the per-address or the global counter is over its cap, without counting anything. */
+    suspend fun peekOverCap(route: String, address: String, perAddressCap: Int, globalCap: Int): RateLimitResult.Refused? {
+        val nowMs = clock.millis()
+        return db.transaction<RateLimitResult.Refused?> { connection ->
+            val addressRow = readRow(connection, route, address)
+            val refused = checkCaps(nowMs, addressRow, perAddressCap)
+            if (refused != null) return@transaction refused
+            val globalRow = readRow(connection, route, GLOBAL_ADDRESS)
+            return@transaction checkCaps(nowMs, globalRow, globalCap)
+        }
+    }
+
+    /** Counts one failure for both the per-address key and the global backstop key. Does not check caps. */
+    suspend fun countFailure(route: String, address: String) {
+        val nowMs = clock.millis()
+        db.transaction<Unit> { connection ->
+            val addressRow = readRow(connection, route, address)
+            writeOrUpdate(connection, route, address, addressRow, nowMs)
+            val globalRow = readRow(connection, route, GLOBAL_ADDRESS)
+            writeOrUpdate(connection, route, GLOBAL_ADDRESS, globalRow, nowMs)
+        }
+    }
+
     private class Key(val address: String, val cap: Int)
 
     private suspend fun attempt(route: String, keys: List<Key>): RateLimitResult {

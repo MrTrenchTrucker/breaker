@@ -1,6 +1,7 @@
 package dev.breaker.server.syncapi.auth
 
 import io.ktor.http.HttpStatusCode
+import java.time.Duration
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -19,6 +20,8 @@ internal class AuthCompleteResetRouteBodyTest : ResetRouteTestBase() {
         val before = stateOf(2L)
         for ((label, text) in cases) {
             assertAnswer(label, postTo(completePath, null, text), status, body)
+            // A failing post counts toward the per-address limit: each case gets its own window.
+            clock.advance(Duration.ofSeconds(61))
         }
         assertEquals("sync-api: the refused bodies changed the account", before, stateOf(2L))
         assertEquals("sync-api: the code was spent", HttpStatusCode.OK, postComplete("Alice", code).status)
