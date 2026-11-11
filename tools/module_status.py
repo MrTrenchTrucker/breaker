@@ -8,6 +8,8 @@ NOT_STARTED, never left out of the denominator. Two kinds of entry are listed ap
 A row is DONE only when EVERYTHING its own Owns names is built, with tests (ruling 2026-11-10). A part named
 in Owns that is missing, blocked or only decided makes it PARTIAL. Other modules, later phases, device-only
 proofs and app wiring do not count against a row.
+A row whose items are ALL NOT_STARTED must hold no code, test or script file of its own (child-module folders
+excluded); a docs-only folder (AGENTS.md, README.md) stays allowed.
 The containers list is DERIVED from the tree, so a container that gets code, or a no-code module that is
 not a container (it has no children), cannot be moved in or out of the count by editing the file.
 
@@ -28,6 +30,9 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 STATUSES = ("DONE", "PARTIAL", "NOT_STARTED")
 CODE_SUFFIXES = {".kt", ".java", ".py", ".js", ".mjs", ".ts", ".css", ".html"}
+# A NOT_STARTED row must hold no code or test file of its own; scripts (.sh) count there too.
+# derive_containers() keeps the shorter CODE_SUFFIXES.
+NOT_STARTED_SUFFIXES = CODE_SUFFIXES | {".sh"}
 SKIPPED_DIRS = {".git", ".gradle", "build", "node_modules", "__pycache__"}
 
 
@@ -39,7 +44,7 @@ def read_status(root: Path) -> dict:
     return json.loads((root / "docs" / "module-status.json").read_text())
 
 
-def own_code_files(root: Path, name: str, registry: dict) -> list[str]:
+def own_code_files(root: Path, name: str, registry: dict, suffixes: set[str] = CODE_SUFFIXES) -> list[str]:
     """Source and test files under the entry's folder that belong to no other entry's folder."""
     others = {e["path"].rstrip("/") for n, e in registry.items() if n != name}
     base = root / registry[name]["path"]
@@ -47,7 +52,7 @@ def own_code_files(root: Path, name: str, registry: dict) -> list[str]:
     for current, dirs, files in os.walk(base):
         rel = Path(current).relative_to(root).as_posix()
         dirs[:] = [d for d in dirs if d not in SKIPPED_DIRS and f"{rel}/{d}" not in others]
-        found += [f"{rel}/{f}" for f in files if Path(f).suffix in CODE_SUFFIXES]
+        found += [f"{rel}/{f}" for f in files if Path(f).suffix in suffixes]
     return sorted(found)
 
 
@@ -119,6 +124,11 @@ def check(status: dict, registry: dict, root: Path) -> list[str]:
             problems.append(f"path mismatch for {name}: registry={live[name]} status={row.get('path')}")
         if not row.get("items"):
             problems.append(f"{name} has no items")
+        if row_status(row) == "NOT_STARTED":
+            owned = own_code_files(root, name, registry, NOT_STARTED_SUFFIXES)
+            if owned:
+                more = f" (and {len(owned) - 1} more)" if len(owned) > 1 else ""
+                problems.append(f"{name} is NOT_STARTED but its folder holds code or test files: {owned[0]}{more}")
         for item in row.get("items", []):
             if item.get("status") not in STATUSES:
                 problems.append(f"{name}: status {item.get('status')!r} is not one of {STATUSES}")

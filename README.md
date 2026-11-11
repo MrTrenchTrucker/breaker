@@ -25,6 +25,7 @@ nesting-doll model. Every level is documented the same complete way:
 | Glossary | `docs/08-glossary.md` | Plain-language definitions of the terms these docs use. |
 | Style guide | `docs/09-style-guide.md` | Colours, lettering, logo and how each piece of the app is drawn; logo files in `docs/brand/`. |
 | Consistency checker | `tools/check_repo.py` | Fails if the tree drifts from the registry. Run it after any structural change. |
+| Module status | `tools/module_status.py` | Checks `docs/module-status.json` against the registry and the tree and prints the counts; a module marked NOT_STARTED must hold no code, test or script file. |
 | Repo gate | `tools/gate.py` | One command that runs every test tier (check_repo, contract, unit, Gradle build, JUnit counts, NUL check, orphan check) and fails loudly: `python3 tools/gate.py`. `--skip-gradle` is a local shortcut that never reads as a pass. |
 
 ## How agents work here

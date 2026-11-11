@@ -292,9 +292,14 @@
       "path": "server/modules/deploy",
       "items": [
         {
-          "item": "server_deploy (its own code)",
+          "item": "four helper scripts with tests (backup-data.py, health-check.sh, release-tags.sh, vpn-bind.sh; tests under tests/unit/server/deploy)",
+          "status": "DONE",
+          "evidence": "scripts/backup-data.py, scripts/health-check.sh, scripts/release-tags.sh, scripts/vpn-bind.sh; tests/unit/server/deploy/{test_backup_data,test_health_check,test_release_tags,test_vpn_bind}.py"
+        },
+        {
+          "item": "git-pull deploy, compose file, APK signing, auth key rotation",
           "status": "NOT_STARTED",
-          "evidence": "0 code files, 0 test files"
+          "evidence": "deploy card Status: not built; git-pull.sh, compose file, APK signing and auth key rotation do not exist"
         }
       ]
     },
@@ -456,8 +461,8 @@
   "summary": {
     "live": 35,
     "done": 20,
-    "partial": 11,
-    "not_started": 4,
+    "partial": 12,
+    "not_started": 3,
     "containers": 4,
     "retired": 1
   },
