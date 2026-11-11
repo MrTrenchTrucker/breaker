@@ -81,12 +81,15 @@ private suspend fun handleRegisterBody(
 
     val expectedKeys = setOf("username", "salt", "kdf_params", "kdf_version", "auth_verifier")
     val actualKeys = json.entries.keys
-    if (actualKeys.size != expectedKeys.size || !actualKeys.containsAll(expectedKeys)) {
-        val extra = actualKeys - expectedKeys
-        val missing = expectedKeys - actualKeys
-        if (extra.isNotEmpty()) {
-            return RegisterResponse.BadRequest("unknown field")
-        }
+    // All five required keys must be present. An extra field is rejected unless it is
+    // exactly "install_code": the field is tolerated (and ignored) after the first
+    // account exists, so a client that always sends it must not get "unknown field".
+    val extra = actualKeys - expectedKeys - setOf("install_code")
+    if (extra.isNotEmpty()) {
+        return RegisterResponse.BadRequest("unknown field")
+    }
+    val missing = expectedKeys - actualKeys
+    if (missing.isNotEmpty()) {
         return RegisterResponse.BadRequest("missing field: ${missing.first()}")
     }
 
@@ -179,15 +182,28 @@ private suspend fun handleRegisterBody(
         return null
     }
 
+    // The install code is only required when zero accounts exist. Extract it from the
+    // body (tolerated and ignored otherwise). Nothing about it is logged and it never
+    // appears in an error body.
+    val installCode = when (val v = json.entries["install_code"]) {
+        is Json.Str -> v.value
+        else -> null
+    }
+
     val result = when (val guarded = call.guardedStoreCall {
-        store.registerIfOpen(username, saltBytes, kdf, kdfVersion, verifier)
+        store.registerIfOpen(username, saltBytes, kdf, kdfVersion, verifier, installCode)
     }) {
         is StoreCall.Done -> guarded.value
         StoreCall.Failed -> return null
     }
 
     return when (result) {
-        is RegisterIfOpenResult.Registered -> RegisterResponse.Created(username, result.role.dbValue)
+        is RegisterIfOpenResult.Registered -> {
+            // The install code is consumed by the first account existing; delete the
+            // file best-effort after the commit (outside the transaction).
+            store.deleteInstallCodeFile()
+            RegisterResponse.Created(username, result.role.dbValue)
+        }
         RegisterIfOpenResult.UsernameTaken -> RegisterResponse.Conflict
         RegisterIfOpenResult.KdfOutOfBounds -> RegisterResponse.BadRequest("kdf_params out of bounds")
         is RegisterIfOpenResult.InvalidField -> RegisterResponse.BadRequest("invalid field: ${result.field}")
@@ -195,6 +211,7 @@ private suspend fun handleRegisterBody(
             call.respondText(REGISTRATION_CLOSED_BODY, ContentType.Application.Json, HttpStatusCode.Forbidden)
             return null
         }
+        RegisterIfOpenResult.InstallCodeInvalid -> RegisterResponse.BadRequest("invalid field")
     }
 }
 
@@ -203,7 +220,7 @@ private fun intOrNull(value: Long): Int? =
     if (value >= Int.MIN_VALUE.toLong() && value <= Int.MAX_VALUE.toLong()) value.toInt() else null
 
 // ---------------------------------------------------------------------------
-// Hand-written JSON parser — no kotlinx.serialization, no Gson, no Jackson.
+// Hand-written JSON parser - no kotlinx.serialization, no Gson, no Jackson.
 // ---------------------------------------------------------------------------
 
 private class JsonParseException(message: String) : Exception(message)

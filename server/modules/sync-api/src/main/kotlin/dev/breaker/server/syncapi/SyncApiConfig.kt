@@ -13,6 +13,7 @@ internal class SyncApiConfig(
     val manifestFile: String,
     val gitTag: String,
     val whisperHealthUrl: String,
+    val installCodeFile: String,
 ) {
 
     companion object {
@@ -25,11 +26,13 @@ internal class SyncApiConfig(
         const val ENV_MANIFEST_FILE = "BREAKER_SYNC_API_MANIFEST_FILE"
         const val ENV_GIT_TAG = "BREAKER_SYNC_API_GIT_TAG"
         const val ENV_WHISPER_HEALTH_URL = "BREAKER_WHISPER_HEALTH_URL"
+        const val ENV_INSTALL_CODE_FILE = "BREAKER_SYNC_API_INSTALL_CODE_FILE"
         const val DEFAULT_HOST = "127.0.0.1"
         private const val DEFAULT_PORT = 8080
         private const val DEFAULT_INTERNAL_HOST = "127.0.0.1"
         private const val DEFAULT_INTERNAL_PORT = 8081
         private const val SERVICE_KEY_FILE_NAME = "service-key"
+        private const val INSTALL_CODE_FILE_NAME = "install-code"
 
         private const val MIN_PORT = 1
         private const val MAX_PORT = 65535
@@ -48,8 +51,16 @@ internal class SyncApiConfig(
             val manifestFile = parseManifestFile(env[ENV_MANIFEST_FILE])
             val gitTag = parseGitTag(env[ENV_GIT_TAG])
             val whisperHealthUrl = parseWhisperHealthUrl(env[ENV_WHISPER_HEALTH_URL])
+            val installCodeFile = parseInstallCodeFile(env[ENV_INSTALL_CODE_FILE], dbPath)
             refuseSameListener(host, port, internalHost, internalPort)
-            return SyncApiConfig(host, port, dbPath, internalHost, internalPort, serviceKeyFile, manifestFile, gitTag, whisperHealthUrl)
+            return SyncApiConfig(host, port, dbPath, internalHost, internalPort, serviceKeyFile, manifestFile, gitTag, whisperHealthUrl, installCodeFile)
+        }
+
+        private fun parseInstallCodeFile(raw: String?, dbPath: String): String {
+            if (raw == null) return Paths.get(dbPath).resolveSibling(INSTALL_CODE_FILE_NAME).toString()
+            require(raw.isNotBlank()) { "sync-api: $ENV_INSTALL_CODE_FILE is set but blank" }
+            refuseInvalidPathText(ENV_INSTALL_CODE_FILE, raw)
+            return raw
         }
 
         private fun parseHost(raw: String?): String {

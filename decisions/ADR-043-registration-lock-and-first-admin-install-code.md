@@ -67,8 +67,9 @@ from silently opening registration to the network when it is upgraded.
 - Checking registration-open inside the insert transaction closes the race
 where two concurrent first registrations could both succeed.
 - Requiring an install code for the first admin means the first account can
-only be created by someone who can read the server's data directory log — the
-admin who controls the host — not by anyone who can reach the register route.
+only be created by someone who can read the server's data directory (the
+install-code file) — the admin who controls the host — not by anyone who can
+reach the register route.
 
 ## Consequences
 
@@ -79,8 +80,9 @@ ordering; zero accounts => first registration always allowed (becomes admin);
 once an account exists => 403 {"error":"registration_closed"} unless switch on;
 default after upgrade on a server with accounts = closed; check in the same
 transaction as the insert; install code generated at first start, 0600 in the
-data dir, logged once, required in the first registration body, consumed in
-the same transaction; reset flow untouched; client field + first-run screen
+data dir (one notice line is printed, never the code; the project owner reads
+the file), required in the first registration body, consumed in the same
+transaction; reset flow untouched; client field + first-run screen
 under To be designed.
 
 Rules out: registration open by default on an upgraded server that already has
@@ -96,3 +98,17 @@ switch, the default-closed upgrade behaviour, the install code, and the
 transactional check. The wrong-pw-limit route (AdminWrongPwLimitRoute.kt,
 ServerSettingsStore) is the exact code shape to mirror — nothing in it
 changes.
+
+Update 2026-11-11 (slice C built): the install code is made at the first start
+while no account exists: 43 URL-safe characters from 32 random bytes, in the file
+`install-code` next to the database (BREAKER_SYNC_API_INSTALL_CODE_FILE changes the
+path), created with mode 0600 at creation. A start that finds a bad file (wrong
+length, wrong characters, group or other permissions) refuses to run. The start
+prints one line, "sync-api: install code generated", the first time and never the
+code. The project owner learns the code by reading the `install-code` file in the
+data folder on the host (for example with `cat`); nothing else shows it. This
+replaces "logged once" above, because the sync-api never writes a secret to a log. The first registration must send
+`install_code`; a missing code and a wrong code get the same 400, and a wrong code
+costs no password hash. Once an account exists the field is ignored, and the file
+is deleted after the first account commits (best effort). The client field and the
+first-run screen stay under To be designed.

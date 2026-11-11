@@ -19,6 +19,8 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.nio.file.Files
+import java.nio.file.attribute.PosixFilePermissions
 import java.util.Base64
 
 internal class AuthRegisterRouteTest : TempDatabaseTest() {
@@ -367,6 +369,96 @@ internal class AuthRegisterRouteTest : TempDatabaseTest() {
                 contentType(ContentType.Application.Json)
             }
             assertEquals(HttpStatusCode.Conflict, response.status)
+        }
+    }
+
+    // ---- the install code on the route (ADR-043 slice C)
+
+    private val rightCode = "R".repeat(43)
+
+    private fun withCodeStore(text: String = rightCode, openSwitch: Boolean = false): AccountStore {
+        val path = temp.directory.resolve("install-code")
+        Files.writeString(path, text)
+        Files.setPosixFilePermissions(path, PosixFilePermissions.fromString("rw-------"))
+        val coded = AccountStore(temp.db, AccountFixtures.fastHasher(), AccountFixtures.fixedClock, installCodeFile = path.toString())
+        runBlocking { coded.settings.setRegistrationOpenEnabled(openSwitch) }
+        return coded
+    }
+
+    private fun withMember(body: String, member: String): String = body.dropLast(1) + ",$member}"
+
+    private suspend fun io.ktor.server.testing.ApplicationTestBuilder.postRegister(body: String) =
+        client.post("/v1/auth/register") {
+            setBody(body)
+            contentType(ContentType.Application.Json)
+        }
+
+    @Test
+    fun `the first account without a code and with a wrong code get the same 400 and nothing is stored`() = runBlocking {
+        val coded = withCodeStore()
+        testApplication {
+            application { routing { authRegisterRoute(coded) } }
+            val missing = postRegister(registerBody())
+            val wrong = postRegister(withMember(registerBody(), "\"install_code\":\"${"W".repeat(43)}\""))
+            val notText = postRegister(withMember(registerBody(), "\"install_code\":123"))
+            assertEquals("sync-api: missing", HttpStatusCode.BadRequest, missing.status)
+            assertEquals("sync-api: wrong", HttpStatusCode.BadRequest, wrong.status)
+            assertEquals("sync-api: not a string", HttpStatusCode.BadRequest, notText.status)
+            val missingBody = missing.bodyAsText()
+            assertEquals("sync-api: one body for a wrong code", missingBody, wrong.bodyAsText())
+            assertEquals("sync-api: one body for a non text code", missingBody, notText.bodyAsText())
+            assertTrue("sync-api: the invalid_field error", missingBody.contains("invalid_field"))
+            assertTrue("sync-api: the file must still exist", Files.exists(temp.directory.resolve("install-code")))
+            val fine = postRegister(withMember(registerBody(), "\"install_code\":\"$rightCode\""))
+            assertEquals("sync-api: the right code still works, so nothing was consumed", HttpStatusCode.Created, fine.status)
+        }
+    }
+
+    @Test
+    fun `the right code creates the admin, is not echoed and the code file is deleted`() = runBlocking {
+        val coded = withCodeStore()
+        testApplication {
+            application { routing { authRegisterRoute(coded) } }
+            val response = postRegister(withMember(registerBody(), "\"install_code\":\"$rightCode\""))
+            assertEquals("sync-api: status", HttpStatusCode.Created, response.status)
+            assertEquals("sync-api: body", """{"username":"alice","role":"admin"}""", response.bodyAsText())
+        }
+        assertFalse("sync-api: the used code file is gone", Files.exists(temp.directory.resolve("install-code")))
+    }
+
+    @Test
+    fun `a wrong code answer never holds the code that was sent or the one on disk`() = runBlocking {
+        val coded = withCodeStore()
+        testApplication {
+            application { routing { authRegisterRoute(coded) } }
+            val sent = "S".repeat(43)
+            val body = postRegister(withMember(registerBody(), "\"install_code\":\"$sent\"")).bodyAsText()
+            assertFalse("sync-api: the sent code is not echoed", body.contains(sent.take(8)))
+            assertFalse("sync-api: the stored code is not leaked", body.contains(rightCode.take(8)))
+        }
+    }
+
+    @Test
+    fun `after the first account the install_code member is tolerated and ignored`() = runBlocking {
+        val coded = withCodeStore(openSwitch = true)
+        testApplication {
+            application { routing { authRegisterRoute(coded) } }
+            postRegister(withMember(registerBody("alice"), "\"install_code\":\"$rightCode\""))
+            val withJunk = postRegister(withMember(registerBody("bob"), "\"install_code\":\"${"J".repeat(43)}\""))
+            val without = postRegister(registerBody("carol"))
+            assertEquals("sync-api: a junk code after the first account", HttpStatusCode.Created, withJunk.status)
+            assertEquals("sync-api: no code after the first account", HttpStatusCode.Created, without.status)
+        }
+    }
+
+    @Test
+    fun `another unknown member is still refused as an unknown field`() = runBlocking {
+        val coded = withCodeStore()
+        testApplication {
+            application { routing { authRegisterRoute(coded) } }
+            val response = postRegister(withMember(withMember(registerBody(), "\"install_code\":\"$rightCode\""), "\"extra\":1"))
+            assertEquals("sync-api: status", HttpStatusCode.BadRequest, response.status)
+            assertTrue("sync-api: unknown field", response.bodyAsText().contains("unknown field"))
         }
     }
 }

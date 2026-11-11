@@ -3,10 +3,15 @@ package dev.breaker.server.syncapi.accounts
 import dev.breaker.server.syncapi.db.SqliteDatabase
 import dev.breaker.server.syncapi.db.PendingSealedStoreClear
 import dev.breaker.server.syncapi.settings.ServerSettingsStore
+import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.Paths
+import java.security.MessageDigest
 import java.sql.Connection
 import java.time.Clock
 import java.util.concurrent.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 
 internal class AccountStore(
@@ -14,6 +19,7 @@ internal class AccountStore(
     private val hasher: VerifierHasher = VerifierHasher(),
     internal val clock: Clock = Clock.systemUTC(),
     internal val settings: ServerSettingsStore = ServerSettingsStore(db),
+    internal val installCodeFile: String? = null,
 ) {
     internal val attempts = SigninAttemptStore(db, clock)
 
@@ -63,11 +69,27 @@ internal class AccountStore(
         kdf: KdfParams,
         kdfVersion: Int,
         verifier: AuthVerifier,
+        installCode: String? = null,
     ): RegisterIfOpenResult {
         if (!UsernameRules.isValid(username)) return RegisterIfOpenResult.InvalidField("username")
         if (salt.size != CLIENT_SALT_BYTES) return RegisterIfOpenResult.InvalidField("salt")
         if (kdfVersion != KdfBounds.REQUIRED_KDF_VERSION) return RegisterIfOpenResult.InvalidField("kdf_version")
         if (!kdf.withinBounds()) return RegisterIfOpenResult.KdfOutOfBounds
+
+        // Cheap pre-check before the slow hash: when zero accounts exist, the install
+        // code must be present and match. A wrong code must not cost a full PBKDF2 hash.
+        val zeroAccounts = installCodeFile != null && db.transaction<Long> { connection -> countAccounts(connection) } == 0L
+        if (zeroAccounts) {
+            val expected = readInstallCodeFile()
+            if (expected == null || installCode == null ||
+                !MessageDigest.isEqual(
+                    installCode.toByteArray(Charsets.US_ASCII),
+                    expected.toByteArray(Charsets.US_ASCII),
+                )
+            ) {
+                return RegisterIfOpenResult.InstallCodeInvalid
+            }
+        }
 
         val stored = withContext(Dispatchers.Default) { hasher.hashNew(verifier) }
         val saltCopy = salt.copyOf()
@@ -77,6 +99,20 @@ internal class AccountStore(
             val accountCount = countAccounts(connection)
             val open = readRegistrationOpen(connection)
             if (accountCount >= 1 && !open) return@transaction RegisterIfOpenResult.Closed
+
+            // Verify again inside the transaction (atomic with the insert).
+            if (accountCount == 0L && installCodeFile != null) {
+                val expected = readInstallCodeFile()
+                if (expected == null || installCode == null ||
+                    !MessageDigest.isEqual(
+                        installCode.toByteArray(Charsets.US_ASCII),
+                        expected.toByteArray(Charsets.US_ASCII),
+                    )
+                ) {
+                    return@transaction RegisterIfOpenResult.InstallCodeInvalid
+                }
+            }
+
             val inserted = insertAccount(connection, username, saltCopy, kdf, kdfVersion, stored, createdAtMs)
             when (inserted) {
                 is RegisterResult.Registered -> RegisterIfOpenResult.Registered(inserted.accountId, inserted.role)
@@ -85,6 +121,28 @@ internal class AccountStore(
                 is RegisterResult.InvalidField -> RegisterIfOpenResult.InvalidField(inserted.field)
             }
         }
+    }
+
+    // Reads the install-code file (if configured) and returns its text, or null when
+    // the file is absent, unreadable or malformed. Never throws.
+    internal fun readInstallCodeFile(): String? {
+        val path = installCodeFile ?: return null
+        return try {
+            InstallCode.read(Paths.get(path))
+        } catch (_: IllegalStateException) {
+            null
+        }
+    }
+
+    // Deletes the install-code file best-effort after the first account has been committed.
+    // A filesystem delete cannot roll back, so this runs outside the transaction: if it
+    // fails the file stays and the next start simply ignores it (an account already exists,
+    // so the code is moot - start must not fail).
+    internal fun deleteInstallCodeFile() {
+        val path = installCodeFile ?: return
+        try {
+            Files.deleteIfExists(Paths.get(path))
+        } catch (_: IOException) {}
     }
 
     // Cheap read-only pre-check for the register route: true when an account already
@@ -100,6 +158,12 @@ internal class AccountStore(
         connection.prepareStatement("SELECT count(*) FROM accounts").use { statement ->
             statement.executeQuery().use { rows -> if (rows.next()) rows.getLong(1) else 0L }
         }
+
+    // Public count used by the install-code path and any caller that needs it without
+    // opening its own transaction.
+    internal fun accountCount(): Long = runBlocking {
+        db.transaction<Long> { connection -> countAccounts(connection) }
+    }
 
     // Only a stored non-zero integer reads open; absent, 0 or any other type reads closed.
     private fun readRegistrationOpen(connection: Connection): Boolean =
