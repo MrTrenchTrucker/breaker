@@ -2852,6 +2852,48 @@ paths:
                 status: "ok"
                 forwarding_to: "whisper-server:8080"
                 uptime: "1h23m45s"
+  /v1/status:
+    get:
+      summary: Report which services are up
+      description: >-
+        Readable by any signed-in user. Lists each known service by name with
+        an up/down boolean. names and booleans only -- no versions, addresses
+        or errors. whisper-server appears only when its health URL is
+        configured (BREAKER_WHISPER_HEALTH_URL); unset means it is not listed.
+      operationId: serviceStatus
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Service status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceStatusReply"
+              example:
+                services:
+                  - name: sync-api
+                    up: true
+                  - name: whisper-server
+                    up: false
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing token"
+        "503":
+          description: Unavailable (token check failure)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
 components:
   securitySchemes:
     bearerAuth:
@@ -3474,6 +3516,28 @@ components:
       properties:
         reachable:
           type: boolean
+    ServiceStatus:
+      type: object
+      required:
+        - name
+        - up
+      properties:
+        name:
+          type: string
+          description: The service name
+        up:
+          type: boolean
+          description: Whether the service is up
+    ServiceStatusReply:
+      type: object
+      required:
+        - services
+      properties:
+        services:
+          type: array
+          items:
+            $ref: "#/components/schemas/ServiceStatus"
+          description: The listed services, names and booleans only
     ResetAccountRequest:
       type: object
       required:

@@ -16,7 +16,7 @@ class SyncApiMainWiringTest {
     fun `main hands the configured git tag to the application module`() {
         assertTrue("the source file must exist: ${mainFile.absolutePath}", mainFile.isFile)
         val text = mainFile.readText()
-        val call = "syncApiModule(accountStore, tokenStore, transcriptionStore, handoffStore, config.manifestFile, config.gitTag)"
+        val call = "syncApiModule(accountStore, tokenStore, transcriptionStore, handoffStore, config.manifestFile, config.gitTag, config.whisperHealthUrl)"
         assertEquals("calls that pass the configured git tag", 1, Regex(Regex.escape(call)).findAll(text).count())
         assertEquals("calls of the application module", 1, Regex("syncApiModule\\(").findAll(text).count())
     }

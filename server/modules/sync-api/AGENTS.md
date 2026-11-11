@@ -320,7 +320,22 @@ A route or job marked Planned, not built below is not installed on main yet.
   a non-admin); status is always `ok` (the token check needed the database); `git_tag` is the value of the
   environment variable `BREAKER_SYNC_API_GIT_TAG` (1 to 64 printable ASCII characters, no spaces), or `unknown`
   when it is unset. Nothing sets it today: the deploy module is not built. A failing token check is the fixed 503.
-  The unauthenticated `GET /health` answers `{"status":"ok"}` and is unchanged.
+  The unauthenticated `GET /health` answers `{"status":"ok"}` and is unchanged. The admin health route checks the
+  process and the database only, no other service.
+- `GET /v1/status` - **any signed-in user** (a session or an agent token; no role check, no scope check): which services
+  are up, names and booleans only. Built (`status/StatusRoute.kt`, `status/StatusProbe.kt`): 200 with
+  `{"services":[{"name":"sync-api","up":true},{"name":"whisper-server","up":false}]}`; 401 without a live token; the
+  fixed 503 when the token check fails. sync-api is listed up because it answered. whisper-server is listed only when
+  the environment variable `BREAKER_WHISPER_HEALTH_URL` is set (a plain http or https URL, never taken from a request;
+  a blank or malformed value stops the start with the usual configuration error); unset means it is not listed, so a
+  stack without it never shows "down". The probe is one GET of that URL, 1 second for the connection and 1 second for
+  the answer, no redirect followed, the body never read (it names an address) and only HTTP 200 is up; a refusal, a
+  timeout, any other status or any exception is `"up": false`, never a 500. The answer is cached for about 10 seconds,
+  failures too, and callers who arrive together share one probe, so a user cannot make sync-api hammer whisper-server.
+  Clock and probe are injected ports (`StatusProbe`), so the tests need no socket and no sleep; one wiring test reaches
+  the route through `syncApiModule` and one runs the real probe against a closed local port. NOT built: the rate limit
+  on this route (ADR-041 step c is not on main; the route takes it when that step lands), and the deploy setting (the
+  compose service address of whisper-server, and the internal network, are owed by the deploy slice).
 - `GET/PUT /v1/admin/transcription-service` — **admin-only**: read/update the
   configured transcription endpoint (name, base URL, optional API key, enabled) (F26).
   Planned, not built: no such route is installed.

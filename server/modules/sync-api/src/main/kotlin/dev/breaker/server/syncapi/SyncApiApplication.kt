@@ -11,6 +11,9 @@ import dev.breaker.server.syncapi.admin.adminHealthRoute
 import dev.breaker.server.syncapi.admin.adminSetRoleRoute
 import dev.breaker.server.syncapi.admin.adminRevokeAgentTokenRoute
 import dev.breaker.server.syncapi.admin.adminWrongPwLimitRoute
+import dev.breaker.server.syncapi.status.StatusProbe
+import dev.breaker.server.syncapi.status.probeWhisperHealth
+import dev.breaker.server.syncapi.status.statusRoute
 import dev.breaker.server.syncapi.accounts.RateLimitCounterStore
 import dev.breaker.server.syncapi.admin.adminRateLimitsRoute
 import dev.breaker.server.syncapi.auth.authChangePasswordRoute
@@ -43,8 +46,11 @@ internal fun Application.syncApiModule(
     handoffStore: HandoffStore,
     manifestFile: String = "",
     gitTag: String = "",
+    whisperHealthUrl: String = "",
 ) {
     val pendingSealedStore = PendingSealedStore(accountStore.db)
+    // Unset URL = whisper-server is not listed by the status route.
+    val whisperStatus = if (whisperHealthUrl.isBlank()) null else StatusProbe(whisperHealthUrl, ::probeWhisperHealth, accountStore.clock)
     val counterStore = RateLimitCounterStore(accountStore.db, accountStore.clock)
     routing {
         // The health route must stay free of authentication and of any data access:
@@ -73,6 +79,7 @@ internal fun Application.syncApiModule(
         adminRateLimitsRoute(tokenStore, accountStore.settings)
         adminRegistrationOpenRoute(tokenStore, accountStore.settings)
         adminHealthRoute(tokenStore, gitTag)
+        statusRoute(tokenStore, whisperStatus)
         syncRoutes(tokenStore, transcriptionStore)
         pendingSealedRoute(tokenStore, pendingSealedStore)
     }
