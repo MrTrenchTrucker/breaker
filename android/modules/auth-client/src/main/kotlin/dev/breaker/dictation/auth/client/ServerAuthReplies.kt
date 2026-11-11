@@ -11,17 +11,34 @@ import dev.breaker.shared.api.SaltResponse
  * caught here and reaches the caller unchanged.
  */
 internal object ServerAuthReplies {
-    /** The salt reply: 200 is parsed, 404 means no such account, any other status is a server error. */
+    /**
+     * Reads the Retry-After header of a 429: seconds only, digits only (no sign, no decimal, no
+     * other script), spaces around it trimmed, 1..3600. A missing, repeated, empty, non-numeric or
+     * out-of-range value is no number (null). The header name is matched without regard to case.
+     */
+    internal fun retryAfterSeconds(headers: List<Pair<String, String>>): Int? {
+        val values = headers.filter { it.first.equals("Retry-After", ignoreCase = true) }.map { it.second }
+        if (values.size != 1) return null
+        val text = values[0].trim()
+        if (text.isEmpty()) return null
+        if (!text.all { it in '0'..'9' }) return null
+        val seconds = text.toIntOrNull() ?: return null
+        return if (seconds in 1..3600) seconds else null
+    }
+
+    /** The salt reply: 200 is parsed, 404 means no such account, 429 is rate limited, any other status is a server error. */
     fun salt(reply: AuthHttpReply): SaltResponse = when (reply.status) {
         200 -> parsedSalt(reply)
         404 -> throw AuthFailure(AuthFailureReason.NO_SUCH_ACCOUNT)
+        429 -> throw AuthFailure(AuthFailureReason.RATE_LIMITED, retryAfterSeconds(reply.headers))
         else -> throw AuthFailure(AuthFailureReason.SERVER_ERROR)
     }
 
-    /** The login reply: 200 is parsed, 401 means bad credentials, any other status is a server error. */
+    /** The login reply: 200 is parsed, 401 means bad credentials, 429 is rate limited, any other status is a server error. */
     fun login(reply: AuthHttpReply): LoginResponse = when (reply.status) {
         200 -> parsedLogin(reply)
         401 -> throw AuthFailure(AuthFailureReason.BAD_CREDENTIALS)
+        429 -> throw AuthFailure(AuthFailureReason.RATE_LIMITED, retryAfterSeconds(reply.headers))
         else -> throw AuthFailure(AuthFailureReason.SERVER_ERROR)
     }
 

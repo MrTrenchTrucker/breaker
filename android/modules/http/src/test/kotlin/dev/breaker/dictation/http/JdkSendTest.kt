@@ -22,6 +22,28 @@ class JdkSendTest {
     }
 
     @Test
+    fun `a send reply carries every reply header as one pair per value and leaves out the status line`() {
+        val connection = FakeHttpConnection(200, 2L, CountingBody("ok".toByteArray()))
+        connection.replyHeaders = linkedMapOf<String?, List<String>>(
+            null to listOf("HTTP/1.1 200 OK"),
+            "Retry-After" to listOf("30"),
+            "X-Twice" to listOf("a", "b"),
+        )
+        val reply = transportOver(connection, SeamRecord()).send(getRequest(1_000L))
+        assertEquals(
+            listOf("Retry-After" to "30", "X-Twice" to "a", "X-Twice" to "b"),
+            reply.headers,
+        )
+    }
+
+    @Test
+    fun `a send reply of a connection with no headers has an empty header list`() {
+        val connection = FakeHttpConnection(200, 2L, CountingBody("ok".toByteArray()))
+        val reply = transportOver(connection, SeamRecord()).send(getRequest(1_000L))
+        assertTrue("headers were invented", reply.headers.isEmpty())
+    }
+
+    @Test
     fun `a send refuses an announced length over the cap before any body byte is read`() {
         val body = CountingBody(ByteArray(2_000))
         val connection = FakeHttpConnection(200, 2_000L, body)

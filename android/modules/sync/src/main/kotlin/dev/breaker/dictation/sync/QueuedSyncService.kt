@@ -151,6 +151,7 @@ class QueuedSyncService internal constructor(
             var pushed = 0
             var skipped = 0
             var parked = 0
+            var retryAfterSeconds: Int? = null
             var next: QueueEntry? = database.head()
             while (next != null) {
                 val entry: QueueEntry = next
@@ -165,6 +166,11 @@ class QueuedSyncService internal constructor(
                         if (!PermanentRefusalException.isPermanentRefusal(e.status)) {
                             // A refusal about this row that is not permanent (401, 403, 409,
                             // 429, 503, ...): today's behaviour, nothing parked, drain stops.
+                            // A 429 puts its Retry-After seconds on the returned report; no other
+                            // status carries a number.
+                            if (e.status == PermanentRefusalException.RATE_LIMITED_429) {
+                                retryAfterSeconds = e.retryAfterSeconds
+                            }
                             UploadOutcome.FAILED
                         } else {
                             // A permanent refusal about this row: park it, keep its reason,
@@ -187,12 +193,12 @@ class QueuedSyncService internal constructor(
                             pushed++
                         }
                         UploadOutcome.UNREACHABLE -> return SyncReport(pushed, skipped, parked)
-                        UploadOutcome.FAILED -> return SyncReport(pushed, skipped + 1, parked)
+                        UploadOutcome.FAILED -> return SyncReport(pushed, skipped + 1, parked, retryAfterSeconds)
                     }
                 }
                 next = database.nextAfter(entry.seq)
             }
-            val report = SyncReport(pushed, skipped, parked)
+            val report = SyncReport(pushed, skipped, parked, retryAfterSeconds)
             // The pull rides the same drain mutex: it runs only on the normal return path,
             // after the drain loop and before the lock is given back. A failing pull changes
             // neither this report nor the drain outcome; the next drain retries the pull.

@@ -36,6 +36,6 @@ internal class AuthHttpAdapter(
             limits = limits,
         )
         val reply = transport.send(call)
-        return AuthHttpReply(reply.status, reply.body)
+        return AuthHttpReply(reply.status, reply.body, reply.headers)
     }
 }

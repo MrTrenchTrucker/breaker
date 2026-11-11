@@ -30,6 +30,10 @@ class AuthHttpRequest(
  * One answer from the server: the status and the whole body. [toString] prints only the status,
  * because the body can carry a token or a record.
  */
-class AuthHttpReply(val status: Int, val body: ByteArray) {
+class AuthHttpReply(
+    val status: Int,
+    val body: ByteArray,
+    val headers: List<Pair<String, String>> = emptyList(),
+) {
     override fun toString(): String = "AuthHttpReply(status=$status)"
 }
