@@ -1,5 +1,7 @@
 package dev.breaker.server.syncapi.db
 
+import java.sql.Connection
+
 // The pending-sealed store: one row per still-sealed agent-token job result awaiting
 // the owner's unseal and re-upload. Reads only; no write path is built yet (the
 // whisper-server -> sync-api transport is undecided, Phase 19/20). A row is opaque to
@@ -41,3 +43,14 @@ internal data class PendingSealedRow(
     val sealedBox: String,
     val createdAt: String,
 )
+
+// Write path: deletes the pending_sealed rows of [accountId] on the caller's
+// connection, inside the caller's transaction. No own transaction (nesting
+// deadlocks the single write lane). Mirrors TranscriptionPurge.deleteAllOn.
+internal object PendingSealedStoreClear {
+    fun deleteAllOn(connection: Connection, accountId: Long): Int =
+        connection.prepareStatement("DELETE FROM pending_sealed WHERE account_id = ?").use { statement ->
+            statement.setLong(1, accountId)
+            statement.executeUpdate()
+        }
+}

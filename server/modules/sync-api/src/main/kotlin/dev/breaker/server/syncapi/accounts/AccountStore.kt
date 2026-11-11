@@ -1,6 +1,7 @@
 package dev.breaker.server.syncapi.accounts
 
 import dev.breaker.server.syncapi.db.SqliteDatabase
+import dev.breaker.server.syncapi.db.PendingSealedStoreClear
 import dev.breaker.server.syncapi.settings.ServerSettingsStore
 import java.sql.Connection
 import java.time.Clock
@@ -87,6 +88,7 @@ internal class AccountStore(
                 statement.executeUpdate()
             }
             if (changed == 1) {
+                PendingSealedStoreClear.deleteAllOn(connection, accountId)
                 connection.prepareStatement("SELECT key_version FROM accounts WHERE id = ?").use { statement ->
                     statement.setLong(1, accountId)
                     statement.executeQuery().use { rows ->

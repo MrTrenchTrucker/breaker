@@ -2,6 +2,7 @@ package dev.breaker.server.syncapi.reset
 
 import dev.breaker.server.syncapi.accounts.AccountStore
 import dev.breaker.server.syncapi.accounts.Role
+import dev.breaker.server.syncapi.db.PendingSealedStoreClear
 import dev.breaker.server.syncapi.tokens.TokenSecret
 import dev.breaker.server.syncapi.tokens.TokenStore
 import dev.breaker.server.syncapi.transcriptions.TranscriptionPurge
@@ -43,6 +44,7 @@ internal class ResetStore(
                 overwriteAccount(connection, accountId, fresh, nowMs)
                 tokens.revokeAllForAccountOn(connection, accountId)
                 TranscriptionPurge.deleteAllOn(connection, accountId)
+                PendingSealedStoreClear.deleteAllOn(connection, accountId)
                 accounts.attempts.clearOn(connection, foldedName)
                 replaceCode(connection, accountId, codeHash, nowMs)
                 ResetAccountResult.Reset(codeText.reveal())
