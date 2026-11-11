@@ -33,5 +33,7 @@ both the Android client (`stt-server`) and the server (`whisper-server`) impleme
   - `POST /v1/admin/clear-store` — clear the transcription store for one user or all users (confirm required)
   - `GET /v1/admin/wrong-pw-limit` - read whether sign-in is locked after five wrong passwords (admin only; built on the server)
   - `PUT /v1/admin/wrong-pw-limit` - turn the wrong-password limit on or off (admin only; built on the server)
+  - `GET /v1/admin/rate-limits` - read whether the rate limits on register and salt are on (admin only; built on the server)
+  - `PUT /v1/admin/rate-limits` - turn those limits on or off (admin only; built on the server)
 
 Full module card: `AGENTS.md` in this folder.

@@ -29,7 +29,7 @@ internal class MigrationsTest : TempDatabaseTest() {
                 Migrations.ALL.last().version,
                 TestDatabases.userVersion(connection),
             )
-            assertEquals("sync-api: fresh database user_version", 10, TestDatabases.userVersion(connection))
+            assertEquals("sync-api: fresh database user_version", 11, TestDatabases.userVersion(connection))
             assertEquals(
                 "sync-api: accounts and tokens tables missing after the migrations",
                 listOf("accounts", "tokens"),
@@ -54,7 +54,7 @@ internal class MigrationsTest : TempDatabaseTest() {
                 Migrations.ALL.last().version,
                 TestDatabases.userVersion(connection),
             )
-            assertEquals("sync-api: user version after reopen", 10, TestDatabases.userVersion(connection))
+            assertEquals("sync-api: user version after reopen", 11, TestDatabases.userVersion(connection))
             assertEquals(
                 "sync-api: stored account lost or duplicated by a second migrate",
                 listOf(1L),

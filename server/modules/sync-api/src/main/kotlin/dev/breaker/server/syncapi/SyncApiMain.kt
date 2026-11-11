@@ -1,6 +1,8 @@
 package dev.breaker.server.syncapi
 
 import dev.breaker.server.syncapi.accounts.AccountStore
+import dev.breaker.server.syncapi.accounts.RateLimitCounterStore
+import dev.breaker.server.syncapi.accounts.runRateLimitCounterSweep
 import dev.breaker.server.syncapi.accounts.runSigninAttemptSweep
 import dev.breaker.server.syncapi.db.SqliteDatabase
 import dev.breaker.server.syncapi.handoff.HandoffStore
@@ -33,6 +35,7 @@ fun main() {
     // Opening the file also brings the schema up to the current version.
     val db = SqliteDatabase.open(config.dbPath)
     val accountStore = AccountStore(db)
+    val counterStore = RateLimitCounterStore(db, accountStore.clock)
     val tokenStore = TokenStore(db)
     val transcriptionStore = TranscriptionStore(db)
     val handoffStore = HandoffStore(db, tokenStore)
@@ -53,6 +56,7 @@ fun main() {
     val sweepJob = CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
         launch { runHandoffSweep(handoffStore, resetStore) }
         launch { runSigninAttemptSweep(accountStore.attempts) }
+        launch { runRateLimitCounterSweep(counterStore) }
         launch { ExpiryScheduler.runExpiryScheduler(transcriptionStore, accountStore) }
     }
     // The internal listener starts first and carries only the token-check routes.

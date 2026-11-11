@@ -20,4 +20,16 @@ class SyncApiMainWiringTest {
         assertEquals("calls that pass the configured git tag", 1, Regex(Regex.escape(call)).findAll(text).count())
         assertEquals("calls of the application module", 1, Regex("syncApiModule\\(").findAll(text).count())
     }
+
+    // A source pin, not a behaviour test: the sweep itself is tested on its own; this only keeps main from dropping the launch.
+    @Test
+    fun `main launches the rate limit counter sweep`() {
+        assertTrue("the source file must exist: ${mainFile.absolutePath}", mainFile.isFile)
+        val text = mainFile.readText()
+        assertEquals(
+            "the sweep is launched once with the counter store",
+            1,
+            Regex("launch \\{ runRateLimitCounterSweep\\(counterStore\\) \\}").findAll(text).count(),
+        )
+    }
 }

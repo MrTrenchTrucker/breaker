@@ -3,18 +3,34 @@ package dev.breaker.server.syncapi.auth
 import dev.breaker.server.syncapi.accounts.AccountStore
 import dev.breaker.server.syncapi.accounts.AuthVerifier
 import dev.breaker.server.syncapi.accounts.KdfParams
+import dev.breaker.server.syncapi.accounts.RateLimitCounterStore
 import dev.breaker.server.syncapi.accounts.RegisterResult
 import dev.breaker.server.syncapi.escapeJsonString
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respondText
-import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
+import io.ktor.server.routing.Route
 import java.util.Base64
 
-internal fun Route.authRegisterRoute(store: AccountStore) {
+/** Rate-limit caps (constants, source: ADR-041). */
+internal const val REGISTER_PER_ADDRESS: Int = 10
+internal const val REGISTER_GLOBAL: Int = 120
+
+internal fun Route.authRegisterRoute(
+    store: AccountStore,
+    // Null means no limit: the module passes the real store; a test of the route alone can leave it out.
+    counterStore: RateLimitCounterStore? = null,
+) {
     post("/v1/auth/register") {
+        if (counterStore != null) {
+            val refused = checkRateLimits(call, counterStore, store.settings, "register", REGISTER_PER_ADDRESS, REGISTER_GLOBAL)
+            if (refused != null) {
+                respondRateLimited(call, refused)
+                return@post
+            }
+        }
         val body = call.receiveAuthBody() ?: return@post
         val response = handleRegisterBody(call, store, body) ?: return@post
         call.respondText(response.body, ContentType.Application.Json, response.status)
