@@ -229,6 +229,9 @@ The server container binds either the VPN interface address or a private-network
 **D41 — Registration lock — first account is admin, install code required.**
 An admin-scoped `registration_open` switch (`GET`/`PUT /v1/admin/registration-open`, mirroring `/v1/admin/wrong-pw-limit`) gates registration: with zero accounts the first registration is always allowed and becomes the admin; once an account exists the register route answers `403 {"error":"registration_closed"}` unless the switch is on; after an upgrade on a server that already has accounts the default is closed. The check runs in the same transaction as the account insert. The first admin requires an install code generated at first start (written `0600` to the data dir, logged once, required in the first registration body). Admin-minted invites (slice D) come later only if the project owner wants them. Decided in ADR-043 (proposed).
 
+**D42 - Service status route.**
+`GET /v1/status` answers `{"services":[{"name":"sync-api","up":true},{"name":"whisper-server","up":false}, ...]}` - service names plus up/down only, no versions/addresses/errors; readable by any signed-in user (not admin-only), rate limited like the other routes (numbers from the ADR-041 measurement). whisper-server state comes from sync-api probing whisper-server's own `/health` (one env setting for the URL, unset = not listed, 1 s timeout, only 200 is up, body never read, about 10 s cache); the admin health route checks no service. Phone Home shows one plain strings.xml line: `All services are up.` / `Transcription is down.` / `Server not reachable.`; the app asks at front and ~every 2h while open, no background scheduler, no new permission. Admin web banner shows while a service is down, since when. No ntfy/webhook/notifier. Decided in ADR-044 (proposed).
+
 ## Risks
 
 | # | Risk | Impact | Mitigation |

@@ -94,5 +94,6 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-041](ADR-041-rate-limits-on-the-open-sync-api-routes.md) | Rate limits on the open sync-api routes, keyed by source address | proposed; no code, numbers come from a measurement |
 | [ADR-042](ADR-042-network-model-vpn-or-private-bind.md) | Network model — VPN or private bind only, ordered server addresses | accepted; no code enforces it yet |
 | [ADR-043](ADR-043-registration-lock-and-first-admin-install-code.md) | Registration lock — first account is admin, install code required | accepted; registration switch and install code not built yet |
+| [ADR-044](ADR-044-service-status.md) | Service status route - signed-in users see which services are up | accepted; no code implements /v1/status yet |
 
-Next free number: **ADR-044**.
+Next free number: **ADR-045**.
