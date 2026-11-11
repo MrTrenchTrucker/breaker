@@ -169,9 +169,9 @@ A route or job marked Planned, not built below is not installed on main yet.
   `key_version` by one, and records `rekeyed_at` (the time of the change, in epoch milliseconds
   from the injected clock); this module does not need
   to tell "an ordinary change" and "the change after a reset" apart, it just
-  accepts the new wrapped/plain values for the fields it owns. Planned, not built: it also deletes
-  any pending-sealed row still sealed to the `box_pubkey` it just replaced (the pending-sealed store
-  is not built). The rules of this route, in order (`auth/AuthChangePasswordRoute.kt`,
+  accepts the new wrapped/plain values for the fields it owns. It also deletes, in the same
+  transaction, any pending-sealed row of the account that was sealed to the `box_pubkey` it just replaced.
+  The rules of this route, in order (`auth/AuthChangePasswordRoute.kt`,
   `auth/ChangePasswordBody.kt`, `passwordchange/PasswordChangeStore.kt`). (1) The token is resolved
   first: a missing, malformed, unknown, revoked or expired token is 401, and a failed token check is
   503. (2) An agent token is 403 (the same body as `POST /v1/sync`) before the body is read. (3) A body
@@ -499,7 +499,7 @@ not an offline-guessing case at all: it logs the holder in immediately and
 lets them call `change-password`, though `change-password` now also requires
 `old_auth_verifier` in the body, so a token alone (without the raw verifier)
 is not enough to rotate keys. An admin/agent-scoped reset destroys the
-account's old transcriptions outright (and, once that store exists, its pending-sealed rows) rather than
+account's old transcriptions outright (and its pending-sealed rows) rather than
 pretending to recover them, and bounds — rather than eliminates — whoever
 completes it by rotating the DEK at the account's next password change
 (R20, ADR-018).
@@ -522,10 +522,10 @@ completes it by rotating the DEK at the account's next password change
   verifier, counted like any wrong try), never partially, and `keys` and `change-password` answer 409.
 - After a reset every earlier feed cursor, also one at the old head, is 410; the next push of the
   account takes a change number above `purged_through`.
-- Planned, not built (the table exists since migration 10, but a reset does not touch it yet): a reset also clears the
-  account's pending-sealed rows, so `GET /v1/sync/pending-sealed` never returns a row sealed to a
-  box key the reset just deleted; an ordinary re-key (`change-password`) clears the same way for
-  whatever `box_pubkey` it just replaced.
+- A reset also clears the account's pending-sealed rows in its own transaction, so
+  `GET /v1/sync/pending-sealed` never returns a row sealed to a box key the reset just deleted; an ordinary
+  re-key (`change-password`) clears the same way for whatever `box_pubkey` it just replaced, and the first
+  key store after a reset (`POST /v1/auth/keys`, only when it stores keys) clears too. A refused call clears nothing.
 - An account has at most one live reset code; the code is stored only as a SHA-256 hash, is single
   use, and is dead at its expiry instant (24 hours after it was made).
 - `register`, `change-password` and `complete-reset` never accept

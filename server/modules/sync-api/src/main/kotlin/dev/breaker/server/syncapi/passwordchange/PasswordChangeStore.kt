@@ -5,6 +5,7 @@ import dev.breaker.server.syncapi.accounts.KdfParams
 import dev.breaker.server.syncapi.accounts.KeySizes
 import dev.breaker.server.syncapi.accounts.PrevKeyRule
 import dev.breaker.server.syncapi.accounts.StoredVerifier
+import dev.breaker.server.syncapi.db.PendingSealedStoreClear
 import dev.breaker.server.syncapi.tokens.TokenStore
 import java.sql.Connection
 
@@ -122,6 +123,7 @@ internal class PasswordChangeStore(private val accounts: AccountStore, private v
         if (state.prevHeld) return PasswordChangeResult.PreviousUnfinished
         // Step 4: one UPDATE writes every column as sent.
         writeAccount(connection, accountId, request)
+        PendingSealedStoreClear.deleteAllOn(connection, accountId)
         // Step 5: the previous-key rule, after the write.
         PrevKeyRule.clearIfNoOldRows(connection, accountId)
         // Step 6: every other session ends, this one and the agent tokens stay, hand-off codes go.
