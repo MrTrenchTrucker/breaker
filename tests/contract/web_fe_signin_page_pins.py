@@ -1,6 +1,6 @@
 """Source pins for the web FE sign-in page shell.
 
-Covers the html, the css, the crypto stub, the two page modules and the new
+Covers the html, the css, the crypto module, the two page modules and the new
 test-side files. Not a `test_*.py` file on purpose: the contract-file
 bijection counts every `tests/contract/test_*.py` as one module's contract
 test. Collected through `test_web_fe_contract.py`.
@@ -207,6 +207,14 @@ def no_import(key, text):
     return [key + ": import statement"] if re.search(r"^\s*import\b|\bfrom\s*['\"]|\bimport\s*\(", text, re.M) else []
 
 
+def crypto_import(key, text):
+    paths = re.findall(r"^\s*import\b[^'\"]*['\"]([^'\"]+)['\"]", text, re.M)
+    statements = len(re.findall(r"^\s*import\b", text, re.M))
+    dynamic = re.search(r"\bimport\s*\(", text)
+    ok = statements == 1 and paths == ["./signin-kdf.js"] and not dynamic
+    return [] if ok else [key + ": %d import statements, paths %s" % (statements, ", ".join(paths) or "none")]
+
+
 def crypto_available(key, text):
     ok = "available = false" in text and not re.search(r"\bavailable\s*=\s*true", text)
     return [] if ok else [key + ": available is not false"]
@@ -221,7 +229,7 @@ def crypto_exports(key, text):
 
 def crypto_throws(key, text):
     count = text.count("new Error('not available')")
-    return [] if count == 3 else [key + ": %d not available throws" % count]
+    return [] if count == 2 else [key + ": %d not available throws" % count]
 
 
 def forbidden(key, text):
@@ -317,7 +325,7 @@ RULES = [
     ("css_focus_and_touch", _file(CSS, css_focus_and_touch), CSS, ":focus-visible", ":focus-within"),
     ("crypto_lines", _file(CRYPTO, crypto_lines), CRYPTO, "export const available = false;",
      "export const available = false;" + "\n//" * 30),
-    ("crypto_no_import", _file(CRYPTO, no_import), CRYPTO, "export const available = false;",
+    ("crypto_no_import", _file(CRYPTO, crypto_import), CRYPTO, "export const available = false;",
      "import { x } from './x.js';\nexport const available = false;"),
     ("crypto_available", _file(CRYPTO, crypto_available), CRYPTO, "export const available = false;",
      "export const available = true;"),
@@ -387,8 +395,9 @@ GOOD_TOKENS = ":root {\n" + "\n".join(
                                         "color-primary", "color-trim", "font-body", "radius",
                                         "touch-target-min")) + "\n}\n"
 GOOD_CRYPTO = "\n".join([
+    "import { stretch } from './signin-kdf.js';",
     "export const available = false;",
-    "export function derive() { throw new Error('not available'); }",
+    "export async function derive(password, salt, kdf) { try { return await stretch(password, salt, kdf); } catch { return null; } }",
     "export function boxPublicKey() { throw new Error('not available'); }",
     "export function seal() { throw new Error('not available'); }",
 ]) + "\n"
