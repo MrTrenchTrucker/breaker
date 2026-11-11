@@ -9,6 +9,10 @@ on:
   pull_request:
   push:
     branches: [main, "module/**"]
+  # Nightly: the whole build, so a change the planner skips is still built at least daily.
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -57,6 +61,9 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full history: the planner diffs the pull request base and head commits.
+          fetch-depth: 0
       - name: Gradle wrapper is the published one
         uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
       - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
@@ -72,24 +79,63 @@ jobs:
           cache: gradle
       - name: Android SDK platform 36
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0" > /dev/null
+      - name: Plan the Gradle tasks
+        id: plan
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -eo pipefail
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            # The explanation goes into this log: every module, why it is in the plan.
+            python3 tools/affected_checks.py --base "$BASE_SHA" --head "$HEAD_SHA" --explain
+            MODE=$(python3 tools/affected_checks.py --base "$BASE_SHA" --head "$HEAD_SHA" --mode)
+            TASKS=$(python3 tools/affected_checks.py --base "$BASE_SHA" --head "$HEAD_SHA" --gradle)
+            TESTS=$(python3 tools/affected_checks.py --base "$BASE_SHA" --head "$HEAD_SHA" --test-projects)
+          else
+            # Pushes to main and module branches, the nightly run and manual runs build everything.
+            MODE=full
+            TASKS=build
+            TESTS=
+          fi
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+          echo "tasks=$TASKS" >> "$GITHUB_OUTPUT"
+          echo "test_projects=$TESTS" >> "$GITHUB_OUTPUT"
       - name: Clean build, every Kotlin test
+        if: steps.plan.outputs.mode != 'none'
+        env:
+          TASKS: ${{ steps.plan.outputs.tasks }}
         # --rerun-tasks forced every task to re-execute even though a fresh
         # checkout has nothing to skip anyway; dropped along with
         # --no-build-cache now that the Gradle cache above can actually help
         # across runs. --no-daemon stays: nothing benefits from daemon reuse
         # on an ephemeral runner.
-        run: ./gradlew --no-daemon build
+        run: |
+          read -r -a planned <<< "$TASKS"
+          ./gradlew --no-daemon "${planned[@]}"
       - name: Kotlin tests ran and passed
+        env:
+          MODE: ${{ steps.plan.outputs.mode }}
+          TEST_PROJECTS: ${{ steps.plan.outputs.test_projects }}
         run: |
           python3 - <<'EOF'
-          import glob, sys, xml.etree.ElementTree as ET
+          import glob, os, sys, xml.etree.ElementTree as ET
           total = bad = 0
           for f in glob.glob("**/build/test-results/**/TEST-*.xml", recursive=True):
               s = ET.parse(f).getroot()
               total += int(s.get("tests", 0))
               bad += int(s.get("failures", 0)) + int(s.get("errors", 0))
           print(f"Kotlin tests: {total} run, {bad} failed")
-          sys.exit(1 if total == 0 or bad else 0)
+          mode = os.environ.get("MODE", "full")
+          planned = os.environ.get("TEST_PROJECTS", "").split()
+          print(f"plan mode: {mode}; planned projects with Kotlin tests: {len(planned)}")
+          # Zero tests is allowed only when no planned project has tests: a none plan, or a plan
+          # of modules without test sources. A full run plans every tested project, so zero fails.
+          if total == 0 and (mode == "full" or planned):
+              print("::error::Kotlin tests ran 0 tests, but the plan has projects with Kotlin tests")
+              sys.exit(1)
+          sys.exit(1 if bad else 0)
           EOF
 
   web-fe-node:
