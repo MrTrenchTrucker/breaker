@@ -8,6 +8,7 @@ import dev.breaker.dictation.http.HttpTransport
 import dev.breaker.dictation.http.HttpRefusal
 import dev.breaker.dictation.http.BytesReply
 import dev.breaker.dictation.sync.PermanentRefusalException
+import dev.breaker.shared.api.sync.SyncBodyCodec
 import dev.breaker.dictation.sync.SyncUploader
 import dev.breaker.dictation.sync.UploadOutcome
 import dev.breaker.shared.api.SyncPush
@@ -113,6 +114,42 @@ internal class SyncHttpUploader(
         400 -> "bad_request"
         413 -> "payload_too_large"
         else -> "refused"
+    }
+
+    /** Delete the transcription [clientId] with `DELETE /v1/transcriptions/{clientId}`. */
+    override fun delete(clientId: String): UploadOutcome {
+        // Guard the client id like the save path does: an invalid id is never sent.
+        if (!SyncBodyCodec.isClientId(clientId)) {
+            return UploadOutcome.FAILED
+        }
+        val session = addressedSession()
+        if (session == null || session.base.isBlank()) {
+            // No addressed session for this call: nothing is sent and nothing is deleted. The
+            // row stays queued and the drain stops - a session failure is transient, not a row
+            // refusal, and this does not sign the user out or touch the vault or the session layer.
+            return UploadOutcome.FAILED
+        }
+        val call = CallRequest(
+            method = CallMethod.DELETE,
+            url = session.base + "/v1/transcriptions/" + clientId,
+            headers = listOf(
+                "Authorization" to "Bearer " + session.session.token,
+            ),
+            body = null,
+            limits = limits,
+        )
+        return try {
+            val reply: BytesReply = transport.send(call)
+            mapReply(reply.status, reply.headers)
+        } catch (e: HttpRefusal) {
+            // A refusal is not evidence that the server was unreachable, and the row itself was
+            // not refused here (that is 400/413): the entry stays queued and the drain stops.
+            UploadOutcome.FAILED
+        } catch (e: IOException) {
+            // A connection problem means the server could not be reached: nothing is wrong with
+            // the row. UNREACHABLE stops the drain quietly and keeps the entry.
+            UploadOutcome.UNREACHABLE
+        }
     }
 
     /** Writes the SyncPush envelope: exactly client_id, key_version, encrypted, plus resave only when non-null. */

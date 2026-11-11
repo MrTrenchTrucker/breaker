@@ -16,4 +16,11 @@ class SyncReportRetryAfterTest {
     fun `a report keeps the number it is given`() {
         assertEquals("android_core: the given number", 45, SyncReport(0, 1, 0, 45).retryAfterSeconds)
     }
+
+    /** CORE_R2: a report built without parked has zero parked, not one. */
+    @Test
+    fun `a report built without parked has zero parked`() {
+        assertEquals("android_core: default parked is zero", 0, SyncReport(1, 0).parked)
+        assertEquals("android_core: default parked is zero with a retry-after", 0, SyncReport(0, 1, retryAfterSeconds = 45).parked)
+    }
 }

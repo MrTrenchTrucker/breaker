@@ -6,17 +6,18 @@ import org.junit.Test
 
 /**
  * The cursor calls of the phone adapter, checked on its source text, the way the existing source
- * test checks the queue calls. The adapter cannot run on a JVM, so what it binds, reads and
- * migrates is read out of the file: comments blanked, string literals kept. Each check is a pure
- * function from source text to violations; it runs on short samples first, where a wrong one must
- * be reported and a correct one must not, and then on the real file. The queue statements and the
- * old onUpgrade branch are covered by the existing source test; this file covers the cursor side
- * only.
+ * test checks the queue calls. The adapter cannot run on a JVM, so what it binds, reads and clears
+ * is read out of the file: comments blanked, string literals kept. Each check is a pure function
+ * from source text to violations; it runs on short samples first, where a wrong one must be
+ * reported and a correct one must not, and then on the real file. The queue statements are covered
+ * by the queue source test; the migration dispatch is covered by SyncQueueMigratorSourceTest (it
+ * moved out of this adapter when onUpgrade delegates to runOnUpgrade). This file covers the cursor
+ * side only.
  */
 class PullCursorSourceTest {
 
     private val cursorRefs = listOf(
-        "SELECT_PULL_CURSOR", "SAVE_PULL_CURSOR", "CLEAR_PULL_CURSOR", "MIGRATE_V2_TO_V3",
+        "SELECT_PULL_CURSOR", "SAVE_PULL_CURSOR", "CLEAR_PULL_CURSOR",
     )
     private val bind = Regex("\\b(bindString|bindLong)\\s*\\(\\s*(\\d+)\\s*,\\s*([^()]*?)\\s*\\)")
 
@@ -58,47 +59,7 @@ class PullCursorSourceTest {
         return if (index == "0") emptyList() else listOf("pullCursor reads getString($index), the select returns the text at 0")
     }
 
-    private fun upgradeProblems(source: String): List<String> {
-        val text = code(source)
-        val problems = mutableListOf<String>()
-        val v23 = text.contains("oldVersion == 2 && newVersion == 3")
-        val v13 = text.contains("oldVersion == 1 && newVersion == 3")
-        if (!v23) problems += "onUpgrade has no branch for old version 2 to 3"
-        if (!v13) problems += "onUpgrade has no branch for old version 1 to 3"
-        if (v23 && !text.contains("db.execSQL(SyncQueueSql.MIGRATE_V2_TO_V3)")) {
-            problems += "the 2 to 3 branch does not run MIGRATE_V2_TO_V3"
-        }
-        val v13At = text.indexOf("oldVersion == 1 && newVersion == 3")
-        if (v13At >= 0) {
-            val close = text.indexOf('}', v13At)
-            if (close < 0) {
-                problems += "the 1 to 3 branch is never closed"
-            } else {
-                val branch = text.substring(v13At, close)
-                val v1To2 = branch.indexOf("db.execSQL(SyncQueueSql.MIGRATE_V1_TO_V2)")
-                val v2To3 = branch.indexOf("db.execSQL(SyncQueueSql.MIGRATE_V2_TO_V3)")
-                if (v1To2 < 0) problems += "the 1 to 3 branch never runs MIGRATE_V1_TO_V2"
-                if (v2To3 < 0) problems += "the 1 to 3 branch never runs MIGRATE_V2_TO_V3"
-                if (v1To2 >= 0 && v2To3 >= 0 && v1To2 > v2To3) {
-                    problems += "the 1 to 3 branch runs the migrations in the wrong order"
-                }
-            }
-        }
-        return problems
-    }
-
     // ---- samples ----
-
-    private fun upgradeSample(branches: List<String>) =
-        "class H {\n    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {\n        when {\n" +
-            branches.joinToString("\n") { "            $it" } +
-            "\n            else -> { }\n        }\n    }\n\n    override fun close() = h.close()\n}\n"
-
-    private val goodBranches = listOf(
-        "oldVersion == 1 && newVersion == 2 -> db.execSQL(SyncQueueSql.MIGRATE_V1_TO_V2)",
-        "oldVersion == 2 && newVersion == 3 -> db.execSQL(SyncQueueSql.MIGRATE_V2_TO_V3)",
-        "oldVersion == 1 && newVersion == 3 -> {\n                db.execSQL(SyncQueueSql.MIGRATE_V1_TO_V2)\n                db.execSQL(SyncQueueSql.MIGRATE_V2_TO_V3)\n            }",
-    )
 
     // ---- tests ----
 
@@ -160,29 +121,6 @@ class PullCursorSourceTest {
             "android_sync: pullCursor must read the text at column 0",
             emptyList<String>(),
             cursorReadProblems(AdapterSource.load()),
-        )
-    }
-
-    /** A failure here means a phone that upgrades straight to this app gets no cursor table, or runs the migrations in the wrong order. */
-    @Test
-    fun `the adapter upgrades every old version to the schema version`() {
-        assertQuiet("a correct sample", upgradeProblems(upgradeSample(goodBranches)))
-        val noV23 = upgradeSample(goodBranches.take(1) + listOf(goodBranches[2]))
-        assertFires("the missing 2 to 3 branch", upgradeProblems(noV23), "no branch for old version 2 to 3")
-        val noV13 = upgradeSample(goodBranches.take(2))
-        assertFires("the missing 1 to 3 branch", upgradeProblems(noV13), "no branch for old version 1 to 3")
-        val oneMigration = upgradeSample(
-            listOf(goodBranches[0], goodBranches[1], "oldVersion == 1 && newVersion == 3 -> {\n                db.execSQL(SyncQueueSql.MIGRATE_V2_TO_V3)\n            }"),
-        )
-        assertFires("the 1 to 3 branch without the first migration", upgradeProblems(oneMigration), "never runs MIGRATE_V1_TO_V2")
-        val swapped = upgradeSample(
-            listOf(goodBranches[0], goodBranches[1], "oldVersion == 1 && newVersion == 3 -> {\n                db.execSQL(SyncQueueSql.MIGRATE_V2_TO_V3)\n                db.execSQL(SyncQueueSql.MIGRATE_V1_TO_V2)\n            }"),
-        )
-        assertFires("the 1 to 3 branch in the wrong order", upgradeProblems(swapped), "wrong order")
-        assertEquals(
-            "android_sync: onUpgrade must handle the old versions with the right migrations in order",
-            emptyList<String>(),
-            upgradeProblems(AdapterSource.load()),
         )
     }
 }

@@ -3,6 +3,8 @@ package dev.breaker.dictation.sync
 import dev.breaker.dictation.core.model.SyncReport
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
@@ -234,5 +236,86 @@ class QueuedSyncServiceDrainTest {
         assertEquals("android_sync: the drain must stop at the failed removal", listOf(clientId(1)), rig.uploadedIds())
         assertEquals("android_sync: both entries must stay", listOf(clientId(1), clientId(2)), rig.database.queuedIds())
         assertEquals("android_sync: the failed removal must roll back", 1, rig.database.rollbacks)
+    }
+
+    /** B2: the drain removes its own row by seq, so a delete queued mid-drain survives this drain and is sent on the next drain. */
+    @Test
+    fun `the drain removes its own row by seq and a delete queued mid-drain is sent on the next drain`() {
+        rig.uploader.script(UploadOutcome.CONFIRMED)
+        rig.uploader.deleteScript(UploadOutcome.CONFIRMED)
+        rig.uploader.onUpload = { sent -> rig.service.enqueueDelete(sent.clientId) }
+        rig.service.enqueue(aTranscription(clientId(8), text = "the save"))
+
+        val report = rig.push()
+
+        assertEquals("android_sync: the save confirms and the drain stops at its bound", SyncReport(1, 0, 0), report)
+        assertEquals("android_sync: the delete queued mid-drain is still queued", listOf(clientId(8)), rig.database.queuedIds())
+        assertEquals("android_sync: the surviving row is still a delete", SyncQueueSql.KIND_DELETE, rig.database.queued().single().kind)
+
+        val second = rig.push()
+        assertEquals("android_sync: the next drain sends the delete", SyncReport(1, 0, 0), second)
+        assertEquals("android_sync: the delete went to DELETE, not POST", listOf(clientId(8)), rig.uploader.deleted)
+        assertTrue("android_sync: nothing is left queued", rig.database.queuedIds().isEmpty())
+    }
+
+    /** SYNC_13: a delete row inserted via insertDeleteIfAbsent reads back kind delete, and the drain
+     * sends DELETE, not an empty save. */
+    @Test
+    fun `a queued delete row reads back kind delete and the drain sends DELETE, not an empty save`() {
+        rig.uploader.deleteScript(UploadOutcome.CONFIRMED)
+        rig.service.enqueueDelete(clientId(7))
+
+        assertEquals("android_sync: the delete row reads back kind delete",
+            SyncQueueSql.KIND_DELETE, rig.database.queued().single().kind)
+        assertEquals("android_sync: one delete row is queued", listOf(clientId(7)), rig.database.queuedIds())
+
+        val report = rig.push()
+
+        assertEquals("android_sync: the delete is confirmed", SyncReport(1, 0, 0), report)
+        assertEquals("android_sync: the drain sent DELETE, not a save upload", listOf(clientId(7)), rig.uploader.deleted)
+        assertTrue("android_sync: no save was uploaded", rig.uploader.received.isEmpty())
+        assertTrue("android_sync: the delete row is gone", rig.database.queuedIds().isEmpty())
+    }
+
+    /** SYNC_R2_B6: a delete answered with a non-permanent refusal (401, 409, 429, 503) stops the drain
+     * with FAILED and does not park the row. */
+    @Test
+    fun `a non-permanent refusal on a delete stops the drain and parks nothing`() {
+        for (status in listOf(401, 409, 429, 503)) {
+            val r = ServiceRig()
+            r.service.enqueueDelete(clientId(61))
+            r.uploader.thenThrowDelete(PermanentRefusalException(status, "refused $status"))
+
+            val report = r.push()
+
+            assertEquals("android_sync: status $status stops the drain with FAILED", SyncReport(0, 1, 0), report)
+            assertEquals("android_sync: status $status: the delete was attempted once", listOf(clientId(61)), r.uploader.deleted)
+            assertTrue("android_sync: status $status: nothing was uploaded", r.uploader.received.isEmpty())
+            assertEquals("android_sync: status $status: nothing is parked", 0, r.service.parkedCount())
+            assertNull("android_sync: status $status: no parked reason", r.database.parkedReason(clientId(61)))
+            assertEquals("android_sync: status $status: the row stays queued", listOf(clientId(61)), r.database.queuedIds())
+        }
+    }
+
+    /** SYNC_R2_B6, other side: a delete answered with a permanent refusal (400, 413) is parked and
+     * the drain goes on to the next row. */
+    @Test
+    fun `a permanent refusal on a delete parks it and the drain goes on`() {
+        for (status in listOf(400, 413)) {
+            val r = ServiceRig()
+            r.service.enqueueDelete(clientId(61))
+            r.service.enqueue(aTranscription(clientId(62), text = "behind the delete"))
+            r.uploader.thenThrowDelete(PermanentRefusalException(status, "refused $status"))
+            r.uploader.script(UploadOutcome.CONFIRMED)
+
+            val report = r.push()
+
+            assertEquals("android_sync: status $status parks the delete and sends the save", SyncReport(1, 0, 1), report)
+            assertEquals("android_sync: status $status: delete attempted, save uploaded", listOf(clientId(62)), r.uploadedIds())
+            assertEquals("android_sync: status $status: the delete went to DELETE", listOf(clientId(61)), r.uploader.deleted)
+            assertEquals("android_sync: status $status: one row parked", 1, r.service.parkedCount())
+            assertEquals("android_sync: status $status: the parked row stays and the save is gone", listOf(clientId(61)), r.database.queuedIds())
+            assertEquals("android_sync: status $status: the parked reason", "refused $status", r.database.parkedReason(clientId(61)))
+        }
     }
 }

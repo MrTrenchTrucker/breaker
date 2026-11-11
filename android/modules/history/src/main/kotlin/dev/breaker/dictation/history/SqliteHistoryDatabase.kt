@@ -117,12 +117,57 @@ internal class SqliteHistoryDatabase(
                 }
             }
 
+    override fun newestUserTombstones(limit: Int): List<Tombstone.StoredRow> =
+        helper.readableDatabase
+            .rawQuery(HistorySql.SELECT_NEWEST_TOMBSTONES_USER, arrayOf(limit.toString()))
+            .use { cursor ->
+                buildList {
+                    while (cursor.moveToNext()) {
+                        val id = cursor.getString(0)
+                        val deletedAt = cursor.getLong(1)
+                        val reason = cursor.getString(2)
+                        add(Tombstone.StoredRow(id = id, deletedAt = deletedAt, reason = reason))
+                    }
+                }
+            }
+
+    override fun newestUserTombstonesAfter(lastId: String, limit: Int): List<Tombstone.StoredRow> =
+        helper.readableDatabase
+            .rawQuery(
+                HistorySql.SELECT_NEWEST_TOMBSTONES_USER_AFTER,
+                arrayOf(lastId, limit.toString()),
+            )
+            .use { cursor ->
+                buildList {
+                    while (cursor.moveToNext()) {
+                        val id = cursor.getString(0)
+                        val deletedAt = cursor.getLong(1)
+                        val reason = cursor.getString(2)
+                        add(Tombstone.StoredRow(id = id, deletedAt = deletedAt, reason = reason))
+                    }
+                }
+            }
+
     override fun deleteTombstonesRecordedBefore(cutoff: Long): Int =
         helper.writableDatabase.delete(
             HistorySql.TABLE_TOMBSTONES,
             HistorySql.DELETED_AT_STRICTLY_BEFORE_WHERE,
             arrayOf<String?>(cutoff.toString()),
         )
+
+    // Remove every tombstone by its id and the exact word stored as its reason,
+    // so nothing is screened out by a recorded_at cutoff: a tombstone recorded
+    // at Long.MAX_VALUE goes like any other, of any reason. This reuses the
+    // adapter's existing id-and-reason delete( call site, so the reader's pin
+    // of four delete( calls still holds.
+    override fun deleteAllTombstones(): Int {
+        var removed = 0
+        newestTombstones(Int.MAX_VALUE).forEach { row ->
+            val reason = Tombstone.Reason.fromStored(row.reason) ?: return@forEach
+            removed += deleteTombstoneByIdAndReason(row.id, reason)
+        }
+        return removed
+    }
 
     override fun allIds(): List<String> =
         helper.readableDatabase.rawQuery(HistorySql.SELECT_ALL_IDS, emptyArray()).use { cursor ->

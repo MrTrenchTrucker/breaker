@@ -145,7 +145,10 @@ class CardMatchesCodeTest {
         val publicMethods = store.declaredMethods
             .filter { Modifier.isPublic(it.modifiers) && !it.isSynthetic && '$' !in it.name }
         assertEquals(
-            sortedSetOf("applyRemoteDelete", "applyRemoteRow", "delete", "list", "purgeExpired", "retainOnly", "save"),
+            sortedSetOf(
+                "applyRemoteDelete", "applyRemoteRow", "clearAllTombstones", "delete", "list",
+                "pendingTombstoneIds", "pendingTombstoneIdsAfter", "purgeExpired", "retainOnly", "save",
+            ),
             publicMethods.map { it.name }.toSortedSet(),
         )
         val purges = publicMethods.filter { it.name == "purgeExpired" }
@@ -153,6 +156,14 @@ class CardMatchesCodeTest {
         val purge = purges.single()
         assertEquals("purgeExpired() takes nothing: the clock decides when", 0, purge.parameterCount)
         assertEquals(PurgeReport::class.java, purge.returnType)
+
+        val pending = publicMethods.filter { it.name == "pendingTombstoneIds" }
+        assertEquals("exactly one public pendingTombstoneIds", 1, pending.size)
+        val pendingIds = pending.single()
+        assertEquals("pendingTombstoneIds(limit) takes the limit and returns the ids", 1, pendingIds.parameterCount)
+
+        val clearAll = publicMethods.filter { it.name == "clearAllTombstones" }
+        assertEquals("exactly one public clearAllTombstones", 1, clearAll.size)
 
         val create = SqliteHistoryStore.Companion::class.java.declaredMethods
             .filter { Modifier.isPublic(it.modifiers) && it.name == "create" }

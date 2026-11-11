@@ -106,9 +106,11 @@ class ParkedRowMigrationTest {
         }
     }
 
-    /** Runs the ALTER TABLE migration statement from SyncQueueSql on the store. */
+    /** Runs the full old-to-new migration chain on the store. */
     private fun runMigration(connection: Connection) {
         connection.prepareStatement(SyncQueueSql.MIGRATE_V1_TO_V2).executeUpdate()
+        connection.prepareStatement(SyncQueueSql.MIGRATE_V2_TO_V3).executeUpdate()
+        connection.prepareStatement(SyncQueueSql.MIGRATE_V3_TO_V4).executeUpdate()
     }
 
     /** All rows survive the migration with their seq, text and order. */

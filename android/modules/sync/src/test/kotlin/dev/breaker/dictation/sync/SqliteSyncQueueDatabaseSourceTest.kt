@@ -17,22 +17,25 @@ class SqliteSyncQueueDatabaseSourceTest {
     private val sqlWord = Regex("\\b(INSERT|DELETE|SELECT|CREATE|UPDATE|DROP)\\b", RegexOption.IGNORE_CASE)
     private val sqlRefs = listOf(
         "INSERT_IF_ABSENT", "SELECT_HEAD", "SELECT_NEXT_AFTER", "SELECT_TAIL_SEQ", "DELETE_BY_CLIENT_ID",
-        "COUNT_QUEUE", "COUNT_PARKED", "CREATE_ALL", "DATABASE_NAME", "SCHEMA_VERSION", "MIGRATE_V1_TO_V2",
+        "COUNT_QUEUE", "COUNT_PARKED", "CREATE_ALL", "DATABASE_NAME", "SCHEMA_VERSION",
     )
     private val bind = Regex("\\b(bindString|bindLong)\\s*\\(\\s*(\\d+)\\s*,\\s*([^()]*?)\\s*\\)")
     private val propertyOf = mapOf(
         "client_id" to "clientId", "text" to "text", "source" to "source", "model" to "model",
-        "duration_ms" to "durationMs", "created_at" to "createdAtMs",
+        "duration_ms" to "durationMs", "created_at" to "createdAtMs", "kind" to "kind",
     )
     private val longProperties = setOf("durationMs", "createdAtMs")
-    private val read = Regex("\\b(\\w+)\\s*=\\s*cursor\\s*\\.\\s*(getLong|getString)\\s*\\(\\s*(\\d+)\\s*\\)")
+    private val read = Regex("""\b(\w+)\s*=\s*cursor\s*\.\s*(getLong|getString)\s*\(\s*(\d+)\s*\)""")
     private val readOf = mapOf(
         "seq" to "seq=getLong", "client_id" to "clientId=getString", "text" to "text=getString",
         "source" to "source=getString", "model" to "model=getString", "duration_ms" to "durationMs=getLong",
-        "created_at" to "createdAtMs=getLong",
+        "created_at" to "createdAtMs=getLong", "kind" to "kind=getString",
     )
     private val sixColumns = listOf("client_id", "text", "source", "model", "duration_ms", "created_at")
-    private val sevenColumns = listOf("seq") + sixColumns
+    /** The queue's select columns now: seq plus the six stored fields plus kind. */
+    private val allQueueColumns = listOf("seq") + sixColumns + listOf("kind")
+    /** The seven non-seq columns insertIfAbsent binds, in statement order. */
+    private val bindColumns = sixColumns + listOf("kind")
     private val nextCall = Regex("readOne\\s*\\(\\s*SyncQueueSql\\s*\\.\\s*SELECT_NEXT_AFTER\\s*,\\s*arrayOf\\s*\\(\\s*seq\\s*\\.\\s*toString\\s*\\(\\s*\\)\\s*\\)\\s*\\)")
     private val tailCall = Regex("rawQuery\\s*\\(\\s*SyncQueueSql\\s*\\.\\s*SELECT_TAIL_SEQ\\s*,\\s*emptyArray\\(\\)\\s*\\)[\\s\\S]*?getLong\\s*\\(\\s*0\\s*\\)")
 
@@ -142,7 +145,7 @@ class SqliteSyncQueueDatabaseSourceTest {
     // ---- samples ----
 
     private val goodBinds = listOf(
-        "bindString(1, clientId)", "bindString(2, text)", "bindString(3, source)", "bindString(4, model)", "bindLong(5, durationMs)", "bindLong(6, createdAtMs)",
+        "bindString(1, clientId)", "bindString(2, text)", "bindString(3, source)", "bindString(4, model)", "bindLong(5, durationMs)", "bindLong(6, createdAtMs)", "bindString(7, kind)",
     )
 
     private fun insertSample(binds: List<String>) =
@@ -159,7 +162,7 @@ class SqliteSyncQueueDatabaseSourceTest {
 
     private val goodReads = listOf(
         "seq = cursor.getLong(0)", "clientId = cursor.getString(1)", "text = cursor.getString(2)", "source = cursor.getString(3)",
-        "model = cursor.getString(4)", "durationMs = cursor.getLong(5)", "createdAtMs = cursor.getLong(6)",
+        "model = cursor.getString(4)", "durationMs = cursor.getLong(5)", "createdAtMs = cursor.getLong(6)", "kind = cursor.getString(7)",
     )
 
     private fun withSource(expression: String) = goodReads.take(3) + listOf(expression) + goodReads.drop(4)
@@ -195,17 +198,17 @@ class SqliteSyncQueueDatabaseSourceTest {
     /** A failure here means a bind in insertIfAbsent moved, changed kind or was dropped, so a value would be stored in the wrong column. */
     @Test
     fun `insert binds the six columns in the order of the statement`() {
-        assertQuiet("a correct sample", bindProblems(insertSample(goodBinds), sixColumns))
+        assertQuiet("a correct sample", bindProblems(insertSample(goodBinds), bindColumns))
         val swapped = goodBinds.take(4) + listOf("bindLong(5, createdAtMs)", "bindLong(6, durationMs)")
-        assertFires("bind 5 and 6 swapped", bindProblems(insertSample(swapped), sixColumns), "binds are")
+        assertFires("bind 5 and 6 swapped", bindProblems(insertSample(swapped), bindColumns), "binds are")
         val wrongKind = goodBinds.take(4) + listOf("bindString(5, durationMs)", goodBinds[5])
-        assertFires("bindString on a long column", bindProblems(insertSample(wrongKind), sixColumns), "binds are")
-        assertFires("a missing bind", bindProblems(insertSample(goodBinds.take(5)), sixColumns), "binds are")
-        assertFires("a statement with reordered columns", bindProblems(insertSample(goodBinds), listOf("text", "client_id") + sixColumns.drop(2)), "binds are")
+        assertFires("bindString on a long column", bindProblems(insertSample(wrongKind), bindColumns), "binds are")
+        assertFires("a missing bind", bindProblems(insertSample(goodBinds.take(5)), bindColumns), "binds are")
+        assertFires("a statement with reordered columns", bindProblems(insertSample(goodBinds), listOf("text", "client_id") + bindColumns.drop(2)), "binds are")
         assertFires("no function", bindProblems("class A {}", sixColumns), "found no bind calls")
-        assertQuiet("a bind in a comment", bindProblems("// s.bindLong(9, x)\n" + insertSample(goodBinds), sixColumns))
+        assertQuiet("a bind in a comment", bindProblems("// s.bindLong(9, x)\n" + insertSample(goodBinds), bindColumns))
         val adapter = AdapterSource.load()
-        assertEquals("android_sync: the statement's column list changed", sixColumns, insertColumns(SyncQueueSql.INSERT_IF_ABSENT))
+        assertEquals("android_sync: the statement's column list changed", sixColumns + listOf("kind"), insertColumns(SyncQueueSql.INSERT_IF_ABSENT))
         assertEquals("android_sync: insertIfAbsent must bind in this order", goodBinds, bindsOf(adapter))
         assertEquals("android_sync: binds must agree with the statement", emptyList<String>(), bindProblems(adapter, insertColumns(SyncQueueSql.INSERT_IF_ABSENT)))
     }
@@ -224,11 +227,14 @@ class SqliteSyncQueueDatabaseSourceTest {
         assertFires("File(", storageProblems(good + "val f = File(dir, n)\n"), "File")
         assertFires("an absolute path", storageProblems(good + "val p = \"/sdcard/q.db\"\n"), "absolute path literal")
         assertEquals("android_sync: the database name is the identity of the queue file, so renaming it strands queued entries on the phone", "breaker_sync.db", SyncQueueSql.DATABASE_NAME)
-        assertEquals("android_sync: a schema version change needs a migration in onUpgrade, and this pin must change with it", 3, SyncQueueSql.SCHEMA_VERSION)
+        assertEquals("android_sync: a schema version change needs a migration in onUpgrade, and this pin must change with it", 4, SyncQueueSql.SCHEMA_VERSION)
         assertEquals("android_sync: the adapter must open the private fixed name", emptyList<String>(), storageProblems(AdapterSource.load()))
         val adapter = AdapterSource.load()
-        assertTrue("android_sync: onUpgrade must handle old version 1", adapter.contains("oldVersion == 1 && newVersion == 2"))
-        assertTrue("android_sync: onUpgrade must run the migration constant", adapter.contains("db.execSQL(SyncQueueSql.MIGRATE_V1_TO_V2)"))
+        // The migration step logic lives in SyncQueueMigrator.runOnUpgrade, which the shipped
+        // onUpgrade delegates to, so the JVM migration tests (MigrationColumnsTest) drive the real
+        // code. This pin holds the adapter to that one code path: it must delegate, not keep its own
+        // copy of the step logic.
+        assertTrue("android_sync: onUpgrade must delegate to the shared migration dispatch", adapter.contains("runOnUpgrade(db::execSQL, oldVersion, newVersion)"))
     }
 
     /** A failure here means the adapter can commit a block that threw, or never commit one that finished, or leave a transaction open. */
@@ -252,20 +258,20 @@ class SqliteSyncQueueDatabaseSourceTest {
     /** A failure here means readEntry reads a cursor column at the wrong position, so a field of the entry would hold another column's value. */
     @Test
     fun `the adapter reads the columns in the order of the select`() {
-        assertQuiet("a correct sample", readProblems(entrySample(goodReads), sevenColumns))
+        assertQuiet("a correct sample", readProblems(entrySample(goodReads), allQueueColumns))
         val swapped = goodReads.take(1) + listOf(goodReads[2], goodReads[1]) + goodReads.drop(3)
-        assertFires("positions 1 and 2 swapped", readProblems(entrySample(swapped), sevenColumns), "readEntry reads")
+        assertFires("positions 1 and 2 swapped", readProblems(entrySample(swapped), allQueueColumns), "readEntry reads")
         val wrongKind = goodReads.take(5) + listOf("durationMs = cursor.getString(5)", goodReads[6])
-        assertFires("getString on a long column", readProblems(entrySample(wrongKind), sevenColumns), "readEntry reads")
+        assertFires("getString on a long column", readProblems(entrySample(wrongKind), allQueueColumns), "readEntry reads")
         assertFires("a reordered select", readProblems(entrySample(goodReads), listOf("seq", "text", "client_id") + sixColumns.drop(2)), "readEntry reads")
         val unnamed = goodReads.take(1) + listOf("cursor.getString(1)") + goodReads.drop(2)
-        assertFires("an unnamed argument", readProblems(entrySample(unnamed), sevenColumns), "readEntry reads")
-        assertFires("no function", readProblems("class A {}", sevenColumns), "found no cursor reads")
+        assertFires("an unnamed argument", readProblems(entrySample(unnamed), allQueueColumns), "readEntry reads")
+        assertFires("no function", readProblems("class A {}", allQueueColumns), "found no cursor reads")
         val columns = SyncQueueSql.QUEUE_COLUMNS.split(',').map { it.trim() }
-        assertEquals("android_sync: the select's column list changed", sevenColumns, columns)
+        assertEquals("android_sync: the select's column list changed", allQueueColumns, columns)
         assertEquals(
             "android_sync: readEntry must read these positions",
-            listOf("seq=getLong(0)", "clientId=getString(1)", "text=getString(2)", "source=getString(3)", "model=getString(4)", "durationMs=getLong(5)", "createdAtMs=getLong(6)"),
+            listOf("seq=getLong(0)", "clientId=getString(1)", "text=getString(2)", "source=getString(3)", "model=getString(4)", "durationMs=getLong(5)", "createdAtMs=getLong(6)", "kind=getString(7)"),
             readsOf(AdapterSource.load()),
         )
         assertEquals("android_sync: reads must agree with the select", emptyList<String>(), readProblems(AdapterSource.load(), columns))

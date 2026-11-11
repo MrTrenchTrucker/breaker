@@ -58,6 +58,19 @@ internal interface HistoryDatabase {
     fun newestTombstones(limit: Int): List<Tombstone.StoredRow>
 
     /**
+     * USER-reason tombstone rows, id descending, at most [limit] of them,
+     * exactly as they are stored: page 1 of the backfill's keyset walk.
+     */
+    fun newestUserTombstones(limit: Int): List<Tombstone.StoredRow>
+
+    /**
+     * USER-reason tombstone rows with an id strictly below [lastId], id
+     * descending, at most [limit] of them: the next page of the walk, which
+     * covers every USER tombstone exactly once.
+     */
+    fun newestUserTombstonesAfter(lastId: String, limit: Int): List<Tombstone.StoredRow>
+
+    /**
      * Drop every tombstone recorded strictly before [cutoff].
      *
      * Never reached from the transcription purge. A tombstone that a delete
@@ -65,6 +78,9 @@ internal interface HistoryDatabase {
      * is how a deleted transcription comes back.
      */
     fun deleteTombstonesRecordedBefore(cutoff: Long): Int
+
+    /** Drop every tombstone. Returns how many went. */
+    fun deleteAllTombstones(): Int
 
     /**
      * Drop the tombstone held for [id], but only when its stored reason is

@@ -78,9 +78,44 @@ internal class JdbcHistoryDatabase(private val sqlite: DesktopSqlite) : HistoryD
             )
         }
 
+    override fun newestUserTombstones(limit: Int): List<Tombstone.StoredRow> =
+        sqlite.query(HistorySql.SELECT_NEWEST_TOMBSTONES_USER, limit.toString()).map { row ->
+            Tombstone.StoredRow(
+                id = row[0] as String,
+                deletedAt = row[1] as Long,
+                reason = row[2] as String,
+            )
+        }
+
+    override fun newestUserTombstonesAfter(lastId: String, limit: Int): List<Tombstone.StoredRow> =
+        sqlite.query(
+            HistorySql.SELECT_NEWEST_TOMBSTONES_USER_AFTER,
+            lastId,
+            limit.toString(),
+        ).map { row ->
+            Tombstone.StoredRow(
+                id = row[0] as String,
+                deletedAt = row[1] as Long,
+                reason = row[2] as String,
+            )
+        }
+
     override fun deleteTombstonesRecordedBefore(cutoff: Long): Int {
         val statement = AdapterStatements.deleteTombstonesRecordedBefore
         return sqlite.delete(statement.table, statement.where, cutoff.toString())
+    }
+
+    // Clears every tombstone by id and the exact stored reason, with no
+    // recorded_at cutoff: a tombstone recorded at Long.MAX_VALUE goes like any
+    // other, of any reason, mirroring the adapter's deleteAllTombstones.
+    override fun deleteAllTombstones(): Int {
+        var removed = 0
+        val statement = AdapterStatements.deleteTombstoneByIdAndReason
+        sqlite.query(HistorySql.SELECT_NEWEST_TOMBSTONES, Int.MAX_VALUE.toString()).forEach { row ->
+            val reason = Tombstone.Reason.fromStored(row[2] as String) ?: return@forEach
+            removed += sqlite.delete(statement.table, statement.where, row[0] as String, reason.stored)
+        }
+        return removed
     }
 
     // The table and the WHERE come from the adapter's own source, through

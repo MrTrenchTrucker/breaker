@@ -33,6 +33,7 @@ internal class SqliteSyncQueueDatabase(context: Context) : SyncQueueDatabase {
         model: String,
         durationMs: Long,
         createdAtMs: Long,
+        kind: String,
     ): Boolean =
         helper.writableDatabase.compileStatement(SyncQueueSql.INSERT_IF_ABSENT).use { statement ->
             statement.bindString(1, clientId)
@@ -41,6 +42,20 @@ internal class SqliteSyncQueueDatabase(context: Context) : SyncQueueDatabase {
             statement.bindString(4, model)
             statement.bindLong(5, durationMs)
             statement.bindLong(6, createdAtMs)
+            statement.bindString(7, kind)
+            // executeInsert returns -1 when OR IGNORE skipped the row.
+            statement.executeInsert() != -1L
+        }
+
+    override fun insertDeleteIfAbsent(clientId: String): Boolean =
+        helper.writableDatabase.compileStatement(SyncQueueSql.INSERT_IF_ABSENT).use { statement ->
+            statement.bindString(1, clientId)
+            statement.bindString(2, "")
+            statement.bindString(3, "local")
+            statement.bindString(4, "")
+            statement.bindLong(5, 0L)
+            statement.bindLong(6, 0L)
+            statement.bindString(7, SyncQueueSql.KIND_DELETE)
             // executeInsert returns -1 when OR IGNORE skipped the row.
             statement.executeInsert() != -1L
         }
@@ -58,6 +73,12 @@ internal class SqliteSyncQueueDatabase(context: Context) : SyncQueueDatabase {
     override fun remove(clientId: String): Boolean =
         helper.writableDatabase.compileStatement(SyncQueueSql.DELETE_BY_CLIENT_ID).use { statement ->
             statement.bindString(1, clientId)
+            statement.executeUpdateDelete() > 0
+        }
+
+    override fun removeSeq(seq: Long): Boolean =
+        helper.writableDatabase.compileStatement(SyncQueueSql.DELETE_BY_SEQ).use { statement ->
+            statement.bindString(1, seq.toString())
             statement.executeUpdateDelete() > 0
         }
 
@@ -114,6 +135,28 @@ internal class SqliteSyncQueueDatabase(context: Context) : SyncQueueDatabase {
             statement.executeUpdateDelete() > 0
         }
 
+    override fun replaceQueuedDeleteWithSave(
+        clientId: String,
+        text: String,
+        source: String,
+        model: String,
+        durationMs: Long,
+        createdAtMs: Long,
+    ): Boolean = helper.writableDatabase.compileStatement(SyncQueueSql.REPLACE_QUEUED_DELETE_WITH_SAVE).use { statement ->
+        statement.bindString(1, text)
+        statement.bindString(2, source)
+        statement.bindString(3, model)
+        statement.bindLong(4, durationMs)
+        statement.bindLong(5, createdAtMs)
+        statement.bindString(6, clientId)
+        statement.executeUpdateDelete() > 0
+    }
+
+    override fun isDeleteQueued(clientId: String): Boolean =
+        helper.readableDatabase.rawQuery(SyncQueueSql.IS_DELETE_QUEUED, arrayOf(clientId)).use { cursor ->
+            cursor.moveToFirst()
+        }
+
     override fun pullCursor(): String? =
         helper.readableDatabase.rawQuery(SyncQueueSql.SELECT_PULL_CURSOR, emptyArray()).use { cursor ->
             if (cursor.moveToFirst()) cursor.getString(0) else null
@@ -129,6 +172,9 @@ internal class SqliteSyncQueueDatabase(context: Context) : SyncQueueDatabase {
     override fun clearPullCursor() {
         helper.writableDatabase.execSQL(SyncQueueSql.CLEAR_PULL_CURSOR)
     }
+
+    override fun clearAll() =
+        helper.writableDatabase.execSQL(SyncQueueSql.DELETE_ALL_QUEUE)
 
     override fun <T> transaction(block: () -> T): T {
         val database = helper.writableDatabase
@@ -160,6 +206,7 @@ internal class SqliteSyncQueueDatabase(context: Context) : SyncQueueDatabase {
             model = cursor.getString(4),
             durationMs = cursor.getLong(5),
             createdAtMs = cursor.getLong(6),
+            kind = cursor.getString(7),
         )
 
     private class SyncQueueOpenHelper(context: Context) :
@@ -170,18 +217,10 @@ internal class SqliteSyncQueueDatabase(context: Context) : SyncQueueDatabase {
         }
 
         override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-            when {
-                oldVersion == 1 && newVersion == 2 -> db.execSQL(SyncQueueSql.MIGRATE_V1_TO_V2)
-                oldVersion == 2 && newVersion == 3 -> db.execSQL(SyncQueueSql.MIGRATE_V2_TO_V3)
-                oldVersion == 1 && newVersion == 3 -> {
-                    db.execSQL(SyncQueueSql.MIGRATE_V1_TO_V2)
-                    db.execSQL(SyncQueueSql.MIGRATE_V2_TO_V3)
-                }
-                else -> {
-                    // No other upgrade paths exist yet. The queue table is never dropped here: it holds
-                    // transcriptions that have not been sent yet.
-                }
-            }
+            // One code path: the shipped onUpgrade delegates to the migration dispatch that the
+            // JVM tests drive through the twin (runOnUpgrade). The step logic lives there, not in
+            // this file, so a JVM test exercises exactly the code that ships.
+            runOnUpgrade(db::execSQL, oldVersion, newVersion)
         }
     }
 }

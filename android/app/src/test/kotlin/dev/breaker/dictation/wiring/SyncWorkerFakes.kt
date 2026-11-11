@@ -67,6 +67,10 @@ internal class FakeSyncService(private val blocking: Boolean = true) : SyncServi
         // Not used by the worker.
     }
 
+    override fun enqueueDelete(clientId: String) {
+        // Not used by the worker.
+    }
+
     val callCount: Int get() = gates.size
 
     private fun gate(n: Int): Gate =

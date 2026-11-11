@@ -195,6 +195,33 @@ class SqliteHistoryStore internal constructor(
         }
     }
 
+    /** The ids of the USER tombstones waiting to travel, id descending, for the app's start-up backfill: page 1. */
+    fun pendingTombstoneIds(limit: Int): List<String> {
+        require(limit >= 0) { "limit cannot be negative: $limit" }
+        if (limit == 0) return emptyList()
+        return userTombstoneIds(database.newestUserTombstones(limit))
+    }
+
+    /** The next page of USER tombstones: ids below [lastId], id descending, for the backfill's keyset walk. */
+    fun pendingTombstoneIdsAfter(lastId: String, limit: Int): List<String> {
+        require(limit >= 0) { "limit cannot be negative: $limit" }
+        if (limit == 0) return emptyList()
+        return userTombstoneIds(database.newestUserTombstonesAfter(lastId, limit))
+    }
+
+    private fun userTombstoneIds(rows: List<Tombstone.StoredRow>): List<String> =
+        rows.mapNotNull { row ->
+            if (row.toTombstoneOrNull() == null) {
+                report("history tombstone ${row.id} has an unknown reason '${row.reason}'; it stays stored")
+                null
+            } else {
+                row.toTombstone().id
+            }
+        }
+
+    /** Delete every tombstone: sign-out clears the queue and the tombstones together. */
+    fun clearAllTombstones() = database.transaction { database.deleteAllTombstones() }
+
     /**
      * Apply a delete that was made elsewhere — on the web front end, or on
      * another device — and keep a tombstone so the delete still reaches

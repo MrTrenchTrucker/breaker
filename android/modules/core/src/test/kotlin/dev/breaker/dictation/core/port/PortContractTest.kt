@@ -272,6 +272,7 @@ class PortContractTest {
             override fun enqueue(transcription: Transcription) {
                 queue += transcription
             }
+            override fun enqueueDelete(clientId: String) {}
         }
         sync.enqueue(aTranscription(source = TranscriptionSource.SERVER))
         assertEquals(dev.breaker.dictation.core.model.SyncReport(1, 0), sync.pushPending())

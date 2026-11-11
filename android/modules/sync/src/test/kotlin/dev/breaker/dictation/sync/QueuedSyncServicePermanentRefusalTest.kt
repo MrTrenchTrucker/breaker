@@ -261,4 +261,29 @@ class QueuedSyncServicePermanentRefusalTest {
 
         assertEquals("android_sync: one row parked, then the drain stopped quietly", SyncReport(0, 0, 1), report)
     }
+
+    /** B6: a delete answered 400 parks like a save; the drain goes on and a later save still pushes. */
+    @Test
+    fun `a delete answered 400 is parked and the next row still drains`() {
+        rig.uploader.thenThrowDelete(PermanentRefusalException(400, "bad_request"))
+        rig.uploader.script(UploadOutcome.CONFIRMED)
+        rig.service.enqueueDelete(clientId(8))
+        rig.service.enqueue(aTranscription(clientId(9), text = "the later save"))
+
+        val report = rig.push()
+
+        assertEquals("android_sync: the delete parks and the save confirms", SyncReport(1, 0, 1), report)
+        assertEquals("android_sync: the delete was attempted once", listOf(clientId(8)), rig.uploader.deleted)
+        assertEquals("android_sync: the later save was uploaded", listOf(clientId(9)), rig.uploadedIds())
+        assertEquals("android_sync: the parked delete stays in the store", listOf(clientId(8)), rig.database.queuedIds())
+        assertEquals("android_sync: the parked reason is kept", "bad_request", rig.database.parkedReason(clientId(8)))
+        assertEquals("android_sync: one row is parked", 1, rig.database.parkedCount())
+
+        rig.uploader.script(UploadOutcome.CONFIRMED)
+        rig.service.enqueue(aTranscription(clientId(7), text = "another save"))
+        val second = rig.push()
+        assertEquals("android_sync: the drain did not stop; a later save pushes", SyncReport(1, 0, 0), second)
+        assertEquals("android_sync: only the parked delete remains", listOf(clientId(8)), rig.database.queuedIds())
+        assertEquals("android_sync: no live rows left", 0, rig.service.pendingCount())
+    }
 }

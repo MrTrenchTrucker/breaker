@@ -5,6 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -124,5 +125,55 @@ class QueuedSyncServiceEnqueueTest {
         assertEquals("android_sync: one entry confirmed, then the server went away", SyncReport(1, 0), report)
         assertEquals("android_sync: one confirmed push leaves 1 queued", 1, rig.service.pendingCount())
         assertEquals("android_sync: the entry left must be the second", listOf(clientId(2)), rig.database.queuedIds())
+    }
+
+    /** B3 (a): a save of an id queued as a delete replaces the delete and is uploaded as a save. */
+    @Test
+    fun `a save replaces a queued delete of the same id and is uploaded as a save`() {
+        rig.uploader.deleteScript(UploadOutcome.CONFIRMED)
+        rig.uploader.script(UploadOutcome.CONFIRMED)
+        rig.service.enqueueDelete(clientId(8))
+        rig.service.enqueue(aTranscription(clientId(8), text = "saved after the delete"))
+
+        val report = rig.push()
+
+        assertEquals("android_sync: one row, the save, is confirmed", SyncReport(1, 0, 0), report)
+        assertEquals("android_sync: the save was uploaded, not the delete", listOf(clientId(8)), rig.uploadedIds())
+        assertTrue("android_sync: no delete was sent", rig.uploader.deleted.isEmpty())
+        assertEquals(
+            "android_sync: the saved text is what went up", "saved after the delete", rig.uploadedBodies().single().text,
+        )
+        assertTrue("android_sync: nothing is left queued", rig.database.queuedIds().isEmpty())
+    }
+
+    /** B3 (b): a delete of an id queued as a save still removes the save and is sent (rule 2, unchanged). */
+    @Test
+    fun `a delete of a queued save still removes the save and is sent`() {
+        rig.uploader.script(UploadOutcome.CONFIRMED)
+        rig.uploader.deleteScript(UploadOutcome.CONFIRMED)
+        rig.service.enqueue(aTranscription(clientId(9), text = "saved first"))
+        rig.service.enqueueDelete(clientId(9))
+
+        val report = rig.push()
+
+        assertEquals("android_sync: the delete confirms and the save is gone", SyncReport(1, 0, 0), report)
+        assertTrue("android_sync: the save was never uploaded", rig.uploader.received.isEmpty())
+        assertEquals("android_sync: the delete was sent", listOf(clientId(9)), rig.uploader.deleted)
+        assertTrue("android_sync: nothing is left queued", rig.database.queuedIds().isEmpty())
+    }
+
+    /** A4: a second enqueueDelete keeps one delete row but moves it to the tail. */
+    @Test
+    fun `a second enqueueDelete keeps one delete row and moves it to the tail`() {
+        rig.service.enqueueDelete(clientId(81))
+        rig.service.enqueueDelete(clientId(82))
+        rig.service.enqueueDelete(clientId(81))
+
+        assertEquals("android_sync: one delete row per id, the re-enqueued one moves to the tail",
+            listOf(clientId(82), clientId(81)), rig.database.queuedIds())
+        assertEquals("android_sync: one delete row per id", 2, rig.service.pendingCount())
+        val tail = rig.database.queued().last()
+        assertEquals("android_sync: the re-enqueued delete moved to the tail", clientId(81), tail.clientId)
+        assertEquals("android_sync: the tail row is a delete", SyncQueueSql.KIND_DELETE, tail.kind)
     }
 }
