@@ -68,7 +68,7 @@ internal class SyncHttpUploader(
         )
         return try {
             val reply: BytesReply = transport.send(call)
-            mapReply(reply.status)
+            mapReply(reply.status, reply.headers)
         } catch (e: HttpRefusal) {
             // A refusal is the module saying the request or the reply broke one of its rules. It is
             // not evidence that the server was unreachable (HttpTransport.kt:9-14), so it is not
@@ -82,14 +82,30 @@ internal class SyncHttpUploader(
         }
     }
 
-    private fun mapReply(status: Int): UploadOutcome = when (status) {
+    private fun mapReply(status: Int, headers: List<Pair<String, String>>): UploadOutcome = when (status) {
         204 -> UploadOutcome.CONFIRMED
         400 -> throw PermanentRefusalException(400, reasonFor(status))
         401 -> UploadOutcome.FAILED
         403 -> UploadOutcome.FAILED
         409 -> UploadOutcome.FAILED // ADR-039 Option 4: row stays queued, drain stops
         413 -> throw PermanentRefusalException(413, reasonFor(status))
+        429 -> throw PermanentRefusalException(429, reasonFor(status), retryAfterSeconds = retryAfterSeconds(headers))
         else -> UploadOutcome.FAILED
+    }
+
+    /**
+     * Reads the Retry-After header of a 429: seconds only, digits only (no sign, no decimal, no
+     * other script), spaces around it trimmed, 1..3600. A missing, repeated, empty, non-numeric or
+     * out-of-range value is no number (null). The header name is matched without regard to case.
+     */
+    private fun retryAfterSeconds(headers: List<Pair<String, String>>): Int? {
+        val values = headers.filter { it.first.equals("Retry-After", ignoreCase = true) }.map { it.second }
+        if (values.size != 1) return null
+        val text = values[0].trim()
+        if (text.isEmpty()) return null
+        if (!text.all { it in '0'..'9' }) return null
+        val seconds = text.toIntOrNull() ?: return null
+        return if (seconds in 1..3600) seconds else null
     }
 
     /** The server's short error word for a permanent refusal, from SyncResponses.kt: never the row body. */

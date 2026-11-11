@@ -16,6 +16,7 @@ class AuthFailureTest {
         AuthFailureReason.SERVER_ERROR to "The server could not complete the request.",
         AuthFailureReason.UNREADABLE_REPLY to "The server's reply could not be read.",
         AuthFailureReason.BAD_SERVER_ADDRESS to "The server address must start with http:// or https://.",
+        AuthFailureReason.RATE_LIMITED to "Too many requests. Try again later.",
     )
 
     @Test
@@ -26,7 +27,7 @@ class AuthFailureTest {
     }
 
     @Test
-    fun `the failure has exactly nine reasons one for each account outcome`() {
+    fun `the failure has exactly ten reasons one for each account outcome`() {
         assertEquals(
             "the failure reasons changed",
             listOf(
@@ -39,6 +40,7 @@ class AuthFailureTest {
                 "SERVER_ERROR",
                 "UNREADABLE_REPLY",
                 "BAD_SERVER_ADDRESS",
+                "RATE_LIMITED",
             ),
             AuthFailureReason.entries.map { it.name },
         )
@@ -64,5 +66,18 @@ class AuthFailureTest {
         for (case in sentences) {
             assertEquals("the failure lost its reason", case.first, AuthFailure(case.first).reason)
         }
+    }
+
+    @Test
+    fun `a rate limited failure carries retryAfterSeconds from the header`() {
+        val ex = AuthFailure(AuthFailureReason.RATE_LIMITED, 30)
+        assertEquals(AuthFailureReason.RATE_LIMITED, ex.reason)
+        assertEquals(30, ex.retryAfterSeconds)
+    }
+
+    @Test
+    fun `a failure without retryAfterSeconds defaults to null`() {
+        val ex = AuthFailure(AuthFailureReason.SERVER_ERROR)
+        assertNull("retryAfterSeconds defaults to null", ex.retryAfterSeconds)
     }
 }

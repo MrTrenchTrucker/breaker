@@ -43,10 +43,10 @@ class FakeAuthHttp : AuthHttp {
     /** Runs with each request before its answer is given. */
     var beforeSend: (AuthHttpRequest) -> Unit = { }
 
-    /** Queues a reply with [status] and the body text [body]. */
-    fun answer(status: Int, body: String = "") {
+    /** Queues a reply with [status] and the body text [body], optionally carrying reply headers. */
+    fun answer(status: Int, body: String = "", headers: List<Pair<String, String>> = emptyList()) {
         val bytes = body.toByteArray(Charsets.UTF_8)
-        answers.addLast { AuthHttpReply(status, bytes) }
+        answers.addLast { AuthHttpReply(status, bytes, headers) }
     }
 
     /** Queues a failure to reach the server for the next call. */

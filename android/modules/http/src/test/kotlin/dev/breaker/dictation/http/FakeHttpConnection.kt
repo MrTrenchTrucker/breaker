@@ -22,6 +22,7 @@ internal class FakeHttpConnection(
 ) : HttpURLConnection(URL(FAKE_URL)) {
     var errorBody: InputStream? = null
     var location: String? = null
+    var replyHeaders: Map<String?, List<String>> = emptyMap()
     var connectFails = false
     val sentBody = ByteArrayOutputStream()
     var fixedLength = -1
@@ -48,6 +49,8 @@ internal class FakeHttpConnection(
     override fun getErrorStream(): InputStream? = if (status >= 400) errorBody else null
 
     override fun getHeaderField(name: String?): String? = if (name == "Location") location else null
+
+    override fun getHeaderFields(): Map<String?, List<String>> = replyHeaders
 
     override fun getContentType(): String? = "application/octet-stream"
 

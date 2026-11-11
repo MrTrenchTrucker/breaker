@@ -10,15 +10,20 @@ enum class AuthFailureReason {
     SERVER_UNREACHABLE,
     SERVER_ERROR,
     UNREADABLE_REPLY,
-    BAD_SERVER_ADDRESS
+    BAD_SERVER_ADDRESS,
+    RATE_LIMITED,
 }
 
 /**
  * A refused or failed account call. The message is the fixed sentence for its reason, and no
- * cause is attached. A key-derivation refusal is never wrapped in this type; it passes through
- * unchanged.
+ * sentence carries any input. [retryAfterSeconds] is the Retry-After value the server asked the
+ * client to honor, in seconds, or null when the server did not ask for a wait. It is never inside
+ * [message]. A key-derivation refusal is never wrapped in this type; it passes through unchanged.
  */
-class AuthFailure(val reason: AuthFailureReason) : RuntimeException(sentenceFor(reason))
+class AuthFailure(
+    val reason: AuthFailureReason,
+    val retryAfterSeconds: Int? = null,
+) : RuntimeException(sentenceFor(reason))
 
 private fun sentenceFor(reason: AuthFailureReason): String = when (reason) {
     AuthFailureReason.BAD_CREDENTIALS -> "The username or password was not accepted."
@@ -30,4 +35,5 @@ private fun sentenceFor(reason: AuthFailureReason): String = when (reason) {
     AuthFailureReason.SERVER_ERROR -> "The server could not complete the request."
     AuthFailureReason.UNREADABLE_REPLY -> "The server's reply could not be read."
     AuthFailureReason.BAD_SERVER_ADDRESS -> "The server address must start with http:// or https://."
+    AuthFailureReason.RATE_LIMITED -> "Too many requests. Try again later."
 }

@@ -74,6 +74,16 @@ class AuthHttpAdapterTest {
     }
 
     @Test
+    fun `the reply headers pass through as the same pairs`() {
+        val fake = FakeTransport()
+        val adapter = adapterWith(fake)
+        val headers = listOf("Retry-After" to "30", "X-Twice" to "a", "X-Twice" to "b")
+        fake.reply = BytesReply(429, ByteArray(0), headers)
+        val reply = adapter.send(AuthHttpRequest("GET", "https://x", emptyList(), null))
+        assertEquals(headers, reply.headers)
+    }
+
+    @Test
     fun `an HttpRefusal and an IOException propagate as the same instance`() {
         val fake = FakeTransport()
         val adapter = adapterWith(fake)

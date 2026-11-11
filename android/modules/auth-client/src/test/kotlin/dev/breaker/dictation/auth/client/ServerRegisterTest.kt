@@ -195,4 +195,22 @@ class ServerRegisterTest {
         assertEquals("Bearer tok-reg", headerValue(rig.http.requests[2], "Authorization"))
         assertNull(rig.vault.stored)
     }
+
+    /** A 429 on register gives RATE_LIMITED carrying retryAfterSeconds. */
+    @Test
+    fun `a 429 on register gives RATE_LIMITED carrying retryAfterSeconds`() {
+        val rig = Rig()
+        rig.http.answer(
+            429,
+            "",
+            headers = listOf("Retry-After" to "60"),
+        )
+        val thrown = assertThrows(AuthFailure::class.java) {
+            rig.service().register("ada", testPassword())
+        }
+        assertEquals(AuthFailureReason.RATE_LIMITED, thrown.reason)
+        assertEquals(60, thrown.retryAfterSeconds)
+        assertEquals(1, rig.http.requests.size)
+        assertNull(rig.vault.stored)
+    }
 }

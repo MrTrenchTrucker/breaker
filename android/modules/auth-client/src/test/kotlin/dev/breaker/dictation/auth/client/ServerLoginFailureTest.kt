@@ -4,6 +4,7 @@ import dev.breaker.dictation.core.model.KdfRefusal
 import dev.breaker.dictation.core.model.KdfRefused
 import java.io.IOException
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -45,6 +46,92 @@ class ServerLoginFailureTest {
         rig.http.answer(404)
         assertEquals(AuthFailureReason.NO_SUCH_ACCOUNT, loginReason(rig))
         assertEquals(1, rig.http.requests.size)
+    }
+
+    /** A 429 on the salt request gives RATE_LIMITED carrying retryAfterSeconds. */
+    @Test
+    fun `a 429 on salt gives RATE_LIMITED carrying retryAfterSeconds`() {
+        val rig = Rig()
+        rig.http.answer(
+            429,
+            "",
+            headers = listOf("Retry-After" to "30"),
+        )
+        val thrown = assertThrows(AuthFailure::class.java) {
+            rig.service().login("ada", testPassword())
+        }
+        assertEquals(AuthFailureReason.RATE_LIMITED, thrown.reason)
+        assertEquals(30, thrown.retryAfterSeconds)
+        assertEquals(1, rig.http.requests.size)
+        assertNull(rig.vault.stored)
+    }
+
+    /** A 429 on salt with a bad header carries null retryAfterSeconds. */
+    @Test
+    fun `a 429 on salt with bad Retry-After gives RATE_LIMITED with null`() {
+        val rig = Rig()
+        rig.http.answer(
+            429,
+            "",
+            headers = listOf("Retry-After" to "not-a-number"),
+        )
+        val thrown = assertThrows(AuthFailure::class.java) {
+            rig.service().login("ada", testPassword())
+        }
+        assertEquals(AuthFailureReason.RATE_LIMITED, thrown.reason)
+        assertNull(thrown.retryAfterSeconds)
+    }
+
+    /** A 429 on login gives RATE_LIMITED carrying retryAfterSeconds. */
+    @Test
+    fun `a 429 on login gives RATE_LIMITED carrying retryAfterSeconds`() {
+        val rig = Rig()
+        rig.answerSaltOk()
+        rig.http.answer(
+            429,
+            "",
+            headers = listOf("Retry-After" to "90"),
+        )
+        val thrown = assertThrows(AuthFailure::class.java) {
+            rig.service().login("ada", testPassword())
+        }
+        assertEquals(AuthFailureReason.RATE_LIMITED, thrown.reason)
+        assertEquals(90, thrown.retryAfterSeconds)
+        assertEquals(2, rig.http.requests.size)
+        assertNull(rig.vault.stored)
+    }
+
+    /** A 500 on salt stays SERVER_ERROR even with a Retry-After header. */
+    @Test
+    fun `a 500 on salt is SERVER_ERROR even with Retry-After`() {
+        val rig = Rig()
+        rig.http.answer(
+            500,
+            "",
+            headers = listOf("Retry-After" to "30"),
+        )
+        val thrown = assertThrows(AuthFailure::class.java) {
+            rig.service().login("ada", testPassword())
+        }
+        assertEquals(AuthFailureReason.SERVER_ERROR, thrown.reason)
+        assertNull(thrown.retryAfterSeconds)
+    }
+
+    /** A 401 on login stays BAD_CREDENTIALS even with a Retry-After header. */
+    @Test
+    fun `a 401 on login is BAD_CREDENTIALS even with Retry-After`() {
+        val rig = Rig()
+        rig.answerSaltOk()
+        rig.http.answer(
+            401,
+            "",
+            headers = listOf("Retry-After" to "30"),
+        )
+        val thrown = assertThrows(AuthFailure::class.java) {
+            rig.service().login("ada", testPassword())
+        }
+        assertEquals(AuthFailureReason.BAD_CREDENTIALS, thrown.reason)
+        assertNull(thrown.retryAfterSeconds)
     }
 
     @Test

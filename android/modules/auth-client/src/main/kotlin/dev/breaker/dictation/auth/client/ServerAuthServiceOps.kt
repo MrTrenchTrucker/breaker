@@ -153,6 +153,7 @@ internal class ServerAuthServiceOps(
         when (reply.status) {
             201 -> Unit
             409 -> throw AuthFailure(AuthFailureReason.USERNAME_TAKEN)
+            429 -> throw AuthFailure(AuthFailureReason.RATE_LIMITED, ServerAuthReplies.retryAfterSeconds(reply.headers))
             else -> throw AuthFailure(AuthFailureReason.SERVER_ERROR)
         }
     }

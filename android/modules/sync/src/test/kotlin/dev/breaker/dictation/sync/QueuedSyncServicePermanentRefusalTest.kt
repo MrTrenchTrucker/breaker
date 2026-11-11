@@ -2,6 +2,7 @@ package dev.breaker.dictation.sync
 
 import dev.breaker.dictation.core.model.SyncReport
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -124,12 +125,60 @@ class QueuedSyncServicePermanentRefusalTest {
     @Test
     fun `a 429 is not permanent and keeps the row queued`() {
         rig.queue(clientId(1), clientId(2))
+        rig.uploader.thenThrow(PermanentRefusalException(429, "rate limited", retryAfterSeconds = 45))
+
+        val report = rig.push()
+
+        assertEquals(
+            "android_sync: 429 is transient: one failure, no park, the number rides the report",
+            SyncReport(0, 1, 0, 45),
+            report,
+        )
+        assertEquals("android_sync: both rows stay queued", listOf(clientId(1), clientId(2)), rig.database.queuedIds())
+        assertEquals("android_sync: no row is parked", 0, rig.database.parkedCount())
+    }
+
+    /** A 429 whose Retry-After was no number carries none, and the rows stay queued. */
+    @Test
+    fun `a 429 without a number carries none and the rows stay queued`() {
+        rig.queue(clientId(1), clientId(2))
         rig.uploader.thenThrow(PermanentRefusalException(429, "rate limited"))
 
         val report = rig.push()
 
-        assertEquals("android_sync: 429 is transient: one failure, no park", SyncReport(0, 1, 0), report)
+        assertEquals("android_sync: one failure and no number", SyncReport(0, 1, 0, null), report)
+        assertNull("android_sync: no wait asked", report.retryAfterSeconds)
         assertEquals("android_sync: both rows stay queued", listOf(clientId(1), clientId(2)), rig.database.queuedIds())
+    }
+
+    /** Only a 429 carries a number: a 503 whose exception holds one still reports none. */
+    @Test
+    fun `a 503 carries no retryAfterSeconds on the report`() {
+        rig.queue(clientId(1))
+        rig.uploader.thenThrow(PermanentRefusalException(503, "storage failure", retryAfterSeconds = 45))
+
+        val report = rig.push()
+
+        assertEquals("android_sync: the drain stops with one failure", 1, report.failed)
+        assertNull("android_sync: only a 429 carries a number", report.retryAfterSeconds)
+    }
+
+    /** A PermanentRefusalException carries retryAfterSeconds. */
+    @Test
+    fun `a PermanentRefusalException carries retryAfterSeconds`() {
+        val ex = PermanentRefusalException(429, "rate limited", retryAfterSeconds = 45)
+        assertEquals(429, ex.status)
+        assertEquals(45, ex.retryAfterSeconds)
+        assertEquals("rate limited", ex.reason)
+    }
+
+    /** A PermanentRefusalException built without retryAfterSeconds defaults to null. */
+    @Test
+    fun `a PermanentRefusalException without retryAfterSeconds defaults to null`() {
+        val ex = PermanentRefusalException(400, "bad body")
+        assertEquals(400, ex.status)
+        assertNull(ex.retryAfterSeconds)
+        assertEquals("bad body", ex.reason)
     }
 
     /** The reason is stored truncated to the cap (200 chars), never carrying row text. */

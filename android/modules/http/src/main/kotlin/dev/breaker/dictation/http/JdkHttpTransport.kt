@@ -44,10 +44,20 @@ class JdkHttpTransport internal constructor(
             HttpRules.checkAnnouncedLength(announced, cap)
             val reader = CappedBody(sourceOf(connection, status), cap, announced) {}
             val bytes = reader.use { it.readAll() }
-            return BytesReply(status, bytes)
+            return BytesReply(status, bytes, replyHeaders(connection))
         } finally {
             connection.disconnect()
         }
+    }
+
+    /** Every reply header as one (name, value) pair per value. The status line has no name and is left out. */
+    private fun replyHeaders(connection: HttpURLConnection): List<Pair<String, String>> {
+        val pairs = ArrayList<Pair<String, String>>()
+        for ((name, values) in connection.headerFields) {
+            if (name == null) continue
+            for (value in values) pairs.add(name to value)
+        }
+        return pairs
     }
 
     override fun open(request: CallRequest): StreamReply {
