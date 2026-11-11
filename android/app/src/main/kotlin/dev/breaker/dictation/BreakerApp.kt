@@ -122,7 +122,7 @@ class BreakerApp : android.app.Application() {
             background = syncBackground,
             scheduler = syncScheduler(syncBackground),
             sessionGate = { compositionRoot.addressedSession()?.session },
-            pendingCount = { syncService.pendingCount() - syncService.parkedCount() },
+            pendingCount = { syncService.pendingCount() },
         )
     }
 
