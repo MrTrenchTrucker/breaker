@@ -206,6 +206,126 @@ class SyntheticWorldTest(unittest.TestCase):
         (self.root / "grp" / "data.json").write_text("{}\n")
         self.assertEqual(self.problems(), [])
 
+    def test_not_started_with_only_docs_allowed_on_temp_tree(self):
+        root = Path(self._tmp.name)
+        (root / "modules.toml").write_text('[module.mod]\npath = "mod"\n')
+        (root / "docs").mkdir()
+        status = {"modules": [_row("mod", "mod", "NOT_STARTED")], "containers": [], "retired": [], "summary": {}}
+        status["summary"] = module_status.counts(status)
+        (root / "docs" / "module-status.json").write_text(json.dumps(status))
+        registry = {"mod": {"path": "mod"}}
+        (root / "mod").mkdir()
+        (root / "mod" / "AGENTS.md").write_text("card\n")
+        (root / "mod" / "README.md").write_text("readme\n")
+        (root / "mod" / "build.gradle.kts").write_text("plugins {}\n")
+        self.assertEqual(module_status.check(
+            json.loads((root / "docs" / "module-status.json").read_text()), registry, root), [])
+
+    def test_not_started_refused_on_kt(self):
+        root = Path(self._tmp.name)
+        (root / "modules.toml").write_text('[module.mod]\npath = "mod"\n')
+        (root / "docs").mkdir()
+        status = {"modules": [_row("mod", "mod", "NOT_STARTED")], "containers": [], "retired": [], "summary": {}}
+        status["summary"] = module_status.counts(status)
+        (root / "docs" / "module-status.json").write_text(json.dumps(status))
+        registry = {"mod": {"path": "mod"}}
+        (root / "mod").mkdir()
+        (root / "mod" / "thing.kt").write_text("class T\n")
+        problems = module_status.check(status, registry, root)
+        self.assertTrue(any("mod is NOT_STARTED but its folder holds code or test files: mod/thing.kt" in p for p in problems),
+                        f"expected RED on .kt, got {problems}")
+
+    def test_not_started_refused_on_py(self):
+        root = Path(self._tmp.name)
+        (root / "modules.toml").write_text('[module.mod]\npath = "mod"\n')
+        (root / "docs").mkdir()
+        status = {"modules": [_row("mod", "mod", "NOT_STARTED")], "containers": [], "retired": [], "summary": {}}
+        status["summary"] = module_status.counts(status)
+        (root / "docs" / "module-status.json").write_text(json.dumps(status))
+        registry = {"mod": {"path": "mod"}}
+        (root / "mod").mkdir()
+        (root / "mod" / "thing.py").write_text("x = 1\n")
+        problems = module_status.check(status, registry, root)
+        self.assertTrue(any("mod is NOT_STARTED but its folder holds code or test files: mod/thing.py" in p for p in problems),
+                        f"expected RED on .py, got {problems}")
+
+    def test_not_started_refused_on_sh(self):
+        root = Path(self._tmp.name)
+        (root / "modules.toml").write_text('[module.mod]\npath = "mod"\n')
+        (root / "docs").mkdir()
+        status = {"modules": [_row("mod", "mod", "NOT_STARTED")], "containers": [], "retired": [], "summary": {}}
+        status["summary"] = module_status.counts(status)
+        (root / "docs" / "module-status.json").write_text(json.dumps(status))
+        registry = {"mod": {"path": "mod"}}
+        (root / "mod").mkdir()
+        (root / "mod" / "thing.sh").write_text("#!/bin/sh\n")
+        problems = module_status.check(status, registry, root)
+        self.assertTrue(any("mod is NOT_STARTED but its folder holds code or test files: mod/thing.sh" in p for p in problems),
+                        f"expected RED on .sh, got {problems}")
+
+    def test_not_started_refused_on_test_file(self):
+        root = Path(self._tmp.name)
+        (root / "modules.toml").write_text('[module.mod]\npath = "mod"\n')
+        (root / "docs").mkdir()
+        status = {"modules": [_row("mod", "mod", "NOT_STARTED")], "containers": [], "retired": [], "summary": {}}
+        status["summary"] = module_status.counts(status)
+        (root / "docs" / "module-status.json").write_text(json.dumps(status))
+        registry = {"mod": {"path": "mod"}}
+        (root / "mod").mkdir()
+        (root / "mod" / "thing_test.py").write_text("def test_x():\n    pass\n")
+        problems = module_status.check(status, registry, root)
+        self.assertTrue(any("mod is NOT_STARTED but its folder holds code or test files: mod/thing_test.py" in p for p in problems),
+                        f"expected RED on test file, got {problems}")
+
+    def test_partial_row_with_code_untouched(self):
+        root = Path(self._tmp.name)
+        (root / "modules.toml").write_text('[module.mod]\npath = "mod"\n')
+        (root / "docs").mkdir()
+        status = {"modules": [_row("mod", "mod", "PARTIAL")], "containers": [], "retired": [], "summary": {}}
+        status["summary"] = module_status.counts(status)
+        (root / "docs" / "module-status.json").write_text(json.dumps(status))
+        registry = {"mod": {"path": "mod"}}
+        (root / "mod").mkdir()
+        (root / "mod" / "thing.kt").write_text("class T\n")
+        self.assertEqual(module_status.check(status, registry, root), [])
+
+    def test_not_started_rule_does_not_count_a_childs_files_but_counts_the_entrys_own(self):
+        root = Path(self._tmp.name)
+        registry = {"mod": {"path": "mod"}, "mod_kid": {"path": "mod/kid"}}
+        (root / "mod" / "kid").mkdir(parents=True)
+        (root / "mod" / "kid" / "thing.kt").write_text("class T\n")
+        suffixes = module_status.NOT_STARTED_SUFFIXES
+        self.assertEqual(module_status.own_code_files(root, "mod", registry, suffixes), [])
+        (root / "mod" / "own.sh").write_text("echo hi\n")
+        self.assertEqual(module_status.own_code_files(root, "mod", registry, suffixes), ["mod/own.sh"])
+        self.assertEqual(module_status.own_code_files(root, "mod", registry), [], "container rule keeps CODE_SUFFIXES")
+
+    def test_not_started_refused_on_a_test_file_in_a_nested_test_folder(self):
+        root = Path(self._tmp.name)
+        (root / "modules.toml").write_text('[module.mod]\npath = "mod"\n')
+        (root / "docs").mkdir()
+        status = {"modules": [_row("mod", "mod", "NOT_STARTED")], "containers": [], "retired": [], "summary": {}}
+        status["summary"] = module_status.counts(status)
+        (root / "docs" / "module-status.json").write_text(json.dumps(status))
+        (root / "mod" / "src" / "test" / "kotlin").mkdir(parents=True)
+        (root / "mod" / "src" / "test" / "kotlin" / "FooTest.kt").write_text("class FooTest\n")
+        problems = module_status.check(status, {"mod": {"path": "mod"}}, root)
+        self.assertTrue(any("mod is NOT_STARTED but its folder holds code or test files: mod/src/test/kotlin/FooTest.kt" in p
+                            for p in problems), problems)
+
+    def test_not_started_message_names_the_first_file_and_counts_the_rest(self):
+        root = Path(self._tmp.name)
+        (root / "modules.toml").write_text('[module.mod]\npath = "mod"\n')
+        (root / "docs").mkdir()
+        status = {"modules": [_row("mod", "mod", "NOT_STARTED")], "containers": [], "retired": [], "summary": {}}
+        status["summary"] = module_status.counts(status)
+        (root / "docs" / "module-status.json").write_text(json.dumps(status))
+        (root / "mod").mkdir()
+        (root / "mod" / "a.py").write_text("x = 1\n")
+        (root / "mod" / "b.sh").write_text("echo b\n")
+        problems = module_status.check(status, {"mod": {"path": "mod"}}, root)
+        self.assertEqual(problems, ["mod is NOT_STARTED but its folder holds code or test files: mod/a.py (and 1 more)"])
+
     def test_a_sibling_folder_whose_name_starts_with_the_same_text_is_not_a_child(self):
         root = self.root / "sib"
         (root / "a" / "mod").mkdir(parents=True)
