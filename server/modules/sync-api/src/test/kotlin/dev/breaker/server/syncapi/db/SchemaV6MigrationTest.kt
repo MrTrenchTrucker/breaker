@@ -12,7 +12,7 @@ internal class SchemaV6MigrationTest : TempDatabaseTest() {
     fun `a fresh database ends at the latest version with the signin_attempts table`() {
         val temp = openTemp()
         inTransaction(temp) { connection ->
-            assertEquals("sync-api: fresh database user_version", 9, TestDatabases.userVersion(connection))
+            assertEquals("sync-api: fresh database user_version", 10, TestDatabases.userVersion(connection))
             val tables = TestDatabases.tableNames(connection)
             assertTrue("sync-api: signin_attempts table is missing: $tables", "signin_attempts" in tables)
             val columns = names(connection, "SELECT name FROM pragma_table_info('signin_attempts')")
@@ -77,7 +77,7 @@ internal class SchemaV6MigrationTest : TempDatabaseTest() {
         val second = reopen(first)
 
         inTransaction(second) { connection ->
-            assertEquals("sync-api: user_version after the upgrade", 9, TestDatabases.userVersion(connection))
+            assertEquals("sync-api: user_version after the upgrade", 10, TestDatabases.userVersion(connection))
             assertEquals(
                 "sync-api: every account row is kept",
                 listOf(1L),

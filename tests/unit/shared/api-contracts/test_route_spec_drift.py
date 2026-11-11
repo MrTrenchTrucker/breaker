@@ -93,7 +93,6 @@ ALLOW_LIST: dict[tuple[str, str], str] = {
     ("POST", "/v1/admin/test-service"): "UNBUILT: sync-api AGENTS.md:291-293 'POST /v1/admin/test-service ... Planned, not built: no such route is installed.'",
     ("GET", "/v1/admin/transcription-service"): "UNBUILT: sync-api AGENTS.md:289-290 'GET/PUT /v1/admin/transcription-service ... Planned, not built: no such route is installed.'",
     ("PUT", "/v1/admin/transcription-service"): "UNBUILT: sync-api AGENTS.md:289-290 (see GET entry above).",
-    ("GET", "/v1/sync/pending-sealed"): "UNBUILT: sync-api AGENTS.md:274 'Planned, not built: the pending-sealed table and this route do not exist yet (the route is defined in openapi.yaml only).'",
 }
 
 

@@ -19,8 +19,10 @@ import dev.breaker.server.syncapi.auth.authLoginRoute
 import dev.breaker.server.syncapi.auth.authLogoutRoute
 import dev.breaker.server.syncapi.auth.authRegisterRoute
 import dev.breaker.server.syncapi.auth.authSaltRoute
+import dev.breaker.server.syncapi.db.PendingSealedStore
 import dev.breaker.server.syncapi.handoff.HandoffStore
 import dev.breaker.server.syncapi.tokens.TokenStore
+import dev.breaker.server.syncapi.transcriptions.pendingSealedRoute
 import dev.breaker.server.syncapi.transcriptions.TranscriptionStore
 import dev.breaker.server.syncapi.transcriptions.syncRoutes
 import dev.breaker.server.syncapi.updates.updatesRoute
@@ -39,6 +41,7 @@ internal fun Application.syncApiModule(
     manifestFile: String = "",
     gitTag: String = "",
 ) {
+    val pendingSealedStore = PendingSealedStore(accountStore.db)
     routing {
         // The health route must stay free of authentication and of any data access:
         // a monitor must be able to call it when the database or the login is broken.
@@ -65,5 +68,6 @@ internal fun Application.syncApiModule(
         adminWrongPwLimitRoute(tokenStore, accountStore.settings)
         adminHealthRoute(tokenStore, gitTag)
         syncRoutes(tokenStore, transcriptionStore)
+        pendingSealedRoute(tokenStore, pendingSealedStore)
     }
 }
