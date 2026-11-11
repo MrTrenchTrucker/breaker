@@ -7,3 +7,5 @@ the upstream publishes), and a CI check refuses any entry with a missing or malf
 Status: `models.yaml` holds four entries: `small` and `tiny` (streaming Zipformer, English) and `base` and `medium` (non-streaming Whisper, English; the app cannot run a non-streaming model yet). The generator `tools/gen_model_registry.py`, the committed generated Kotlin and the tests are in the tree. The hosted copies (F30, D25) are not built: every entry has `hosted: false`.
 
 Full module card, including how to run its tests: `AGENTS.md` in this folder.
+
+Proof line for the scoped pull request checks; to be discarded.
