@@ -15,6 +15,7 @@ class SharedModulesWebLibsContractTest(contract_support.ModuleContractTest):
 
 
 from web_libs_pins import WebLibsPinsTest  # noqa: F401  (lib pin table, collected here)
+from web_libs_pins import LibraryFolderProblemsTempTreeTest  # noqa: F401  (the folder check on temporary trees, collected here)
 from weblibs_copy_mapping import WebLibsCopyMappingTest  # noqa: F401  (copy task vs helper table, collected here)
 
 

@@ -15,7 +15,9 @@ the three noble sub-modules and exclude libsodium.
 import hashlib
 import os
 import re
+import tempfile
 import unittest
+from unittest import mock
 
 import contract_support
 
@@ -80,6 +82,59 @@ SUB_MODULE_FILES = [
 LIBSODIUM_IMPORT = 'from"libsodium-sumo"'
 
 
+def _discovered_folders(weblibs):
+    """The folder names directly under [weblibs], sorted: a folder is a library. Files, build and .gradle are not."""
+    if not os.path.isdir(weblibs):
+        return []
+    return sorted(
+        entry for entry in os.listdir(weblibs)
+        if os.path.isdir(os.path.join(weblibs, entry)) and entry not in ("build", ".gradle")
+    )
+
+
+def _version_name(version_path):
+    """The value of the `name:` line of a VERSION file, or None when it has no such line."""
+    with open(version_path, encoding="utf-8") as handle:
+        for line in handle.read().splitlines():
+            key, separator, value = line.partition(":")
+            if separator and key.strip() == "name":
+                return value.strip()
+    return None
+
+
+def library_folder_problems(root, pin_table):
+    """The problems of the web-libs tree under [root], as text; an empty list means the tree is clean.
+
+    The folders are DISCOVERED, never taken from the table: pin_table is a sequence of (folder, [(file, sha256), ...]).
+    Reported: a folder with no pin row, a pin row with no folder, a pin row with no files, a folder with no VERSION,
+    a VERSION whose name is not `shared_web_libs_` plus the folder name with dashes as underscores, and a missing
+    web-libs folder. Pure: it reads files and writes nothing, so it runs on the real tree and on temporary trees.
+    """
+    weblibs = os.path.join(root, "shared", "modules", "web-libs")
+    if not os.path.isdir(weblibs):
+        return ["web-libs folder is missing"]
+    pinned = {name: files for name, files in pin_table}
+    discovered = _discovered_folders(weblibs)
+    problems = []
+    for name in sorted(pinned):
+        if name not in discovered:
+            problems.append("dangling pin: %s (no folder)" % name)
+        if not pinned[name]:
+            problems.append("pin row without files: %s" % name)
+    for folder in discovered:
+        if folder not in pinned:
+            problems.append("unpinned folder: %s (no pin rows)" % folder)
+        version_path = os.path.join(weblibs, folder, "VERSION")
+        if not os.path.isfile(version_path):
+            problems.append("missing VERSION: %s" % folder)
+            continue
+        expected = "shared_web_libs_" + folder.replace("-", "_")
+        found = _version_name(version_path)
+        if found != expected:
+            problems.append("bad VERSION name: %s (expected '%s', found '%s')" % (folder, expected, found))
+    return problems
+
+
 class WebLibsPinsTest(unittest.TestCase):
     """Pin table rows: one test per (sub-module, file) pair, plus folder
     exactness, VERSION vs tarball sha256, and the copy-task pin."""
@@ -123,7 +178,8 @@ class WebLibsPinsTest(unittest.TestCase):
                 expected_names.add((sub_module, name))
 
         seen = set()
-        for sub_module, _files in SUB_MODULE_FILES:
+        # The folders are DISCOVERED, so an extra folder's files fail as unexpected below.
+        for sub_module in _discovered_folders(WEBLIBS):
             sub_dir = self._sub_dir(sub_module)
             for dirpath, dirnames, filenames in os.walk(sub_dir):
                 dirnames[:] = [d for d in dirnames if d not in ("build", ".gradle")]
@@ -147,6 +203,12 @@ class WebLibsPinsTest(unittest.TestCase):
         self.assertFalse(
             missing, f"web-libs sub-module missing file(s): {sorted(missing)}"
         )
+
+    # -- the folders are discovered, and each is pinned and has its VERSION --
+
+    def test_every_library_folder_is_pinned_and_has_its_version(self):
+        problems = library_folder_problems(ROOT, SUB_MODULE_FILES)
+        self.assertEqual(problems, [], "web-libs tree has problems: %s" % problems)
 
     # ── VERSION: name + version + tarball sha256 match the cards ──────
 
@@ -281,3 +343,95 @@ class WebLibsPinsTest(unittest.TestCase):
                     text = fh.read().decode("utf-8", errors="replace")
                 hit = work_item.search(text)
                 self.assertIsNone(hit, f"{os.path.relpath(full, ROOT)} contains a work-item id: {hit and hit.group(0)}")
+
+
+class LibraryFolderProblemsTempTreeTest(unittest.TestCase):
+    """library_folder_problems on temporary trees: every problem is reported by name, a clean tree reports none.
+
+    Collected through test_web_libs_contract.py, which imports this class. Nothing under the repository is touched.
+    """
+
+    PINNED = [("alpha-lib", [("a.js", "00")])]
+    GOOD = "name: shared_web_libs_alpha_lib\nversion: 1.0.0\n"
+
+    def _problems(self, folders, table=PINNED, loose=(), make_root=True):
+        """[folders] maps a folder name to its VERSION text, or to None for a folder with no VERSION file."""
+        with tempfile.TemporaryDirectory() as tmp:
+            if make_root:
+                weblibs = os.path.join(tmp, "shared", "modules", "web-libs")
+                os.makedirs(weblibs)
+                for folder, version in folders.items():
+                    os.makedirs(os.path.join(weblibs, folder))
+                    if version is not None:
+                        with open(os.path.join(weblibs, folder, "VERSION"), "w", encoding="utf-8") as handle:
+                            handle.write(version)
+                for name in loose:
+                    with open(os.path.join(weblibs, name), "w", encoding="utf-8") as handle:
+                        handle.write("x")
+            return library_folder_problems(tmp, table)
+
+    def test_a_clean_tree_reports_nothing(self):
+        self.assertEqual(self._problems({"alpha-lib": self.GOOD}), [])
+
+    def test_a_folder_with_no_pin_row_is_reported(self):
+        got = self._problems({"alpha-lib": self.GOOD, "beta-lib": "name: shared_web_libs_beta_lib\n"})
+        self.assertEqual(got, ["unpinned folder: beta-lib (no pin rows)"])
+
+    def test_a_folder_with_no_pin_row_and_no_version_is_reported_twice(self):
+        got = self._problems({"alpha-lib": self.GOOD, "beta-lib": None})
+        self.assertEqual(got, ["unpinned folder: beta-lib (no pin rows)", "missing VERSION: beta-lib"])
+
+    def test_a_pin_row_with_no_folder_is_reported(self):
+        self.assertEqual(self._problems({}), ["dangling pin: alpha-lib (no folder)"])
+
+    def test_a_pin_row_with_no_files_is_reported(self):
+        got = self._problems({"alpha-lib": self.GOOD}, table=[("alpha-lib", [])])
+        self.assertEqual(got, ["pin row without files: alpha-lib"])
+
+    def test_a_folder_with_no_version_is_reported(self):
+        self.assertEqual(self._problems({"alpha-lib": None}), ["missing VERSION: alpha-lib"])
+
+    def test_a_version_with_the_wrong_name_is_reported(self):
+        got = self._problems({"alpha-lib": "name: wrong\nversion: 1\n"})
+        self.assertEqual(got, ["bad VERSION name: alpha-lib (expected 'shared_web_libs_alpha_lib', found 'wrong')"])
+
+    def test_the_version_name_must_match_exactly_not_by_prefix(self):
+        got = self._problems({"alpha-lib": "name: shared_web_libs_alpha_lib_evil\n"})
+        self.assertEqual(
+            got,
+            ["bad VERSION name: alpha-lib (expected 'shared_web_libs_alpha_lib', found 'shared_web_libs_alpha_lib_evil')"],
+        )
+
+    def test_a_version_without_a_name_line_is_reported(self):
+        got = self._problems({"alpha-lib": "xname: shared_web_libs_alpha_lib\nversion: 1\n"})
+        self.assertEqual(got, ["bad VERSION name: alpha-lib (expected 'shared_web_libs_alpha_lib', found 'None')"])
+
+    def test_blanks_around_the_name_key_and_value_are_tolerated(self):
+        version = "  name  :   shared_web_libs_alpha_lib   \nversion: 1.0.0\n"
+        self.assertEqual(self._problems({"alpha-lib": version}), [])
+
+    def test_two_dangling_pins_are_reported_in_sorted_order(self):
+        table = [("zeta-lib", [("z.js", "00")]), ("alpha-lib", [("a.js", "00")])]
+        got = self._problems({}, table=table)
+        self.assertEqual(got, ["dangling pin: alpha-lib (no folder)", "dangling pin: zeta-lib (no folder)"])
+
+    def test_build_and_gradle_folders_and_loose_files_are_not_libraries(self):
+        folders = {"alpha-lib": self.GOOD, "build": None, ".gradle": None}
+        self.assertEqual(self._problems(folders, loose=("AGENTS.md", "README.md")), [])
+
+    def test_a_missing_web_libs_folder_is_reported(self):
+        self.assertEqual(self._problems({}, make_root=False), ["web-libs folder is missing"])
+
+    def test_the_discovered_folders_are_sorted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for name in ("zeta", "alpha", "build", ".gradle"):
+                os.makedirs(os.path.join(tmp, name))
+            with open(os.path.join(tmp, "loose.txt"), "w", encoding="utf-8") as handle:
+                handle.write("x")
+            self.assertEqual(_discovered_folders(tmp), ["alpha", "zeta"])
+            self.assertEqual(_discovered_folders(os.path.join(tmp, "absent")), [])
+
+    def test_the_order_does_not_depend_on_the_file_system(self):
+        with mock.patch.object(os, "listdir", return_value=["zeta", "alpha"]):
+            with mock.patch.object(os.path, "isdir", return_value=True):
+                self.assertEqual(_discovered_folders("anywhere"), ["alpha", "zeta"])
