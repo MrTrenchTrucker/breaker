@@ -54,4 +54,4 @@ Honesty: the code accepts plain http for the configured server only (the address
 - Whether and how the app trusts a user-installed certificate authority for the server address only.
 - How Android's cleartext block is lifted for the configured server only, given the server address is typed at run time.
 
-Update 2026-11-10 (ADR-041, proposed): the server reads the client address from the socket peer, and reads `X-Forwarded-For` only for proxies on an admin-set trusted-proxy list (default empty). Behind a proxy the admin has not listed, all clients share one per-address limit. The text above is unchanged: TLS is still the admin's choice through a reverse proxy.
+Update 2026-11-11 (ADR-042, proposed): the server container binds either the VPN interface address or a private-network address (RFC 1918 IPv4, 100.64.0.0/10, fd00::/8 ULA, loopback), never a public address and never 0.0.0.0 / ::; vpn-bind.sh refuses a public address even with --allow-private. TLS remains the admin's reverse-proxy choice. The bind rule is independent of ADR-034's plain-HTTP decision above.

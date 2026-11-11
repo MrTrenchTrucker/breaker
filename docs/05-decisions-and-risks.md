@@ -223,6 +223,12 @@ any reverse proxy in front if https is wanted; the app will accept http and http
 **D39 — Several devices; the server is the source of truth.**
 each device pushes, then pulls; a delete reaches every device; a new device gets its keys sealed from the website sign-in (ADR-035; hand-off routes built on server, website sealing not built).
 
+**D40 — Network model — VPN or private bind only; ordered server addresses.**
+The server container binds either the VPN interface address or a private-network address (RFC 1918 IPv4, 100.64.0.0/10, fd00::/8 ULA, loopback) — never a public address and never 0.0.0.0 / ::. `vpn-bind.sh` refuses a public address even with `--allow-private`. The phone app keeps one ordered list of 1–3 server addresses (home first, road second), probes each in turn, uses the first that answers, and remembers the last good one. TLS is the admin's reverse-proxy choice (ADR-034). Decided in ADR-042 (proposed).
+
+**D41 — Registration lock — first account is admin, install code required.**
+An admin-scoped `registration_open` switch (`GET`/`PUT /v1/admin/registration-open`, mirroring `/v1/admin/wrong-pw-limit`) gates registration: with zero accounts the first registration is always allowed and becomes the admin; once an account exists the register route answers `403 {"error":"registration_closed"}` unless the switch is on; after an upgrade on a server that already has accounts the default is closed. The check runs in the same transaction as the account insert. The first admin requires an install code generated at first start (written `0600` to the data dir, logged once, required in the first registration body). Admin-minted invites (slice D) come later only if the project owner wants them. Decided in ADR-043 (proposed).
+
 ## Risks
 
 | # | Risk | Impact | Mitigation |
