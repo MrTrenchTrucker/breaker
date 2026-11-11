@@ -86,7 +86,9 @@ admins.
 - F8. Whisper Flow-style formatting: numbered lists, punctuation, filler removal.
 - F9. The send phrase "And I'm Gone" is excluded from the transcription (audio
       trimmed at phrase onset).
-- F10. Settings: mode, model size, server URL/API key, voice phrases on/off,
+- F10. Settings: mode, model size, **one server URL/API key today** (F10 holds
+      the single configured address; the ordered 1-3 server-address list is
+      ADR-042, decided, not built), voice phrases on/off,
       shake on/off, formatting on/off, tile position, language.
 - F11. On first open, the app shows a short welcome (its content is not fixed
       here), then asks for each permission it needs (microphone, display over
@@ -371,8 +373,8 @@ accounts, plus any agent tokens (F27), needs one caller at a time, not a race.
 `/v1/chat/completions` LLM with a strict formatting prompt (temperature 0,
 plain-text output, structured/JSON mode off) → formatted text.
 
-**Transport:** HTTPS over a VPN, TLS + API key + user token. Short timeouts
-(connect 1.5 s) so an unreachable server is found fast.
+**Transport:** Plain HTTP; TLS is the admin's choice through a reverse proxy
+(ADR-034). Short timeouts (connect 1.5 s) so an unreachable server is found fast.
 
 **FIFO transcription queue (F23):** the transcription service is CPU-bound, so
 concurrent requests would contend. A queue serializes jobs:
@@ -534,7 +536,8 @@ it is reachable — **even if dictation ran in local-only mode**. Idempotent
 the same pair is a no-op, and a re-key's higher `key_version` at the same
 client id atomically replaces the stored record rather than being treated as
 a duplicate push (ADR-006). No data loss on offline dictation. Auth via user
-token (section 12).
+token (section 12). **Release APKs: sync is off until Phase 19** (debug-only
+sync switch, section 11).
 
 **Several devices (ADR-035): server side built, phone pull built behind the debug-only sync switch:** the server is the source of
 truth for an account's transcriptions. Each device pushes its queue, then pulls
@@ -622,7 +625,9 @@ shows a quiet notice with a way to sign in.
 is **admin by default**. Admins can: assign/revoke admin on other accounts,
 trigger an immediate update check on their own device (Home menu → About → Check for updates — the same daily-poll endpoint, called on demand; this is not a push to other users' devices), and see server health. Users have
 isolated data and no admin powers. Roles are stored server-side and enforced by
-the API (N13).
+the API (N13). **Registration stays closed after the first account** - decided
+in ADR-043 (registration_open switch, default closed once any account exists),
+not built yet.
 
 **Encryption by default (F24):** every transcription is encrypted at rest with a
 per-user key — the server stores **ciphertext only**, so a passive reader of
@@ -806,8 +811,16 @@ local GIT server** on deploy. Tagged releases → build → serve. Rollback = de
 previous tag.
 
 **Containers:** each service is a container; the web-fe is a **Debian-based**
-container. Every public listener binds to the VPN interface only. Internal listeners (the token-check routes) bind to loopback or the stack's internal network only,
-never the VPN interface. Breaker serves plain HTTP; TLS is the admin's choice through a reverse proxy in front of it (ADR-034).
+**Bind rule:** the server container binds either the VPN interface address or
+a private-network address (RFC 1918 IPv4 - 10/8, 172.16/12, 192.168/16 - the
+100.64/10 carrier-grade NAT block, fd00::/8 IPv6 ULA, or loopback 127.0.0.1 / ::1).
+It never binds a public address, and it never binds 0.0.0.0 / ::. (ADR-042.)
+Nothing in the server enforces this yet: sync-api binds whatever `BREAKER_SYNC_API_HOST` names
+(default 127.0.0.1), whisper-server binds 127.0.0.1 by default, and `vpn-bind.sh`, the verify-only
+check, is not built.
+Internal listeners (the token-check routes) bind to loopback or the stack's
+internal network only, never the VPN interface. Breaker serves plain HTTP; TLS
+is the admin's choice through a reverse proxy in front of it (ADR-034).
 API keys + user tokens never in git.
 
 **Mirror:** after a GitHub main merge, sync the private mirror's `main` only; a full mirror
