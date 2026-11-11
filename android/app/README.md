@@ -133,8 +133,9 @@ When there is no live session, Home shows a quiet notice with a way to sign in (
 These are the main parts still not built in the app; the Known Gotchas section
 of `AGENTS.md` lists the smaller open items.
 
-- The sign-in start is built (the link, the browser and the return link); the exchange of the returned code for a session, and the sealed keys and the session it stores, are built; the website page that sends the return link is built, but its derivation, box key and sealing steps are stubs, so it cannot complete a hand-off yet, and the app sends its device name. The sign-in session. The server engine is wired to the real engine, but it needs a signed-in session before it can reach a server: until sign-in plugs one in, the key is not set, the engine says so, and nothing is sent.
-  on-device engine with its recognizer, its model store and the download are
+- The sign-in start is built (the link, the browser and the return link); the exchange of the returned code for a session, and the sealed keys and the session it stores, are built; the website page that sends the return link is built, but its derivation, box key and sealing steps are stubs, so it cannot complete a hand-off yet, and the app sends its device name.
+- The server engine is wired to the real engine, but it needs a signed-in session before it can reach a server: until sign-in plugs one in, the key is not set, the engine says so, and nothing is sent.
+- The on-device engine with its recognizer, its model store and the download are
   built; the recognizer has run on a phone in test builds.
 - The spoken phrases. The phrases module detects the wake and send phrases in
   heard words, but the app does not use it yet, and no spoken off word is built.
