@@ -4,6 +4,7 @@ import dev.breaker.server.syncapi.accounts.AccountStore
 import dev.breaker.server.syncapi.accounts.AuthVerifier
 import dev.breaker.server.syncapi.accounts.KdfParams
 import dev.breaker.server.syncapi.accounts.RateLimitCounterStore
+import dev.breaker.server.syncapi.accounts.RegisterIfOpenResult
 import dev.breaker.server.syncapi.accounts.RegisterResult
 import dev.breaker.server.syncapi.escapeJsonString
 import io.ktor.http.ContentType
@@ -13,6 +14,10 @@ import io.ktor.server.response.respondText
 import io.ktor.server.routing.post
 import io.ktor.server.routing.Route
 import java.util.Base64
+
+/** The fixed 403 body for a closed registration. `error` + `message` only. */
+private const val REGISTRATION_CLOSED_BODY =
+    """{"error":"registration_closed","message":"Registration is closed."}"""
 
 /** Rate-limit caps (constants, source: ADR-041). */
 internal const val REGISTER_PER_ADDRESS: Int = 10
@@ -163,18 +168,33 @@ private suspend fun handleRegisterBody(
 
     val kdf = KdfParams(memoryKib, iterations, parallelism)
 
+    // Cheap read-only pre-check: when an account exists and the switch is not on, answer
+    // 403 before the slow hash so no PBKDF2 runs on a closed server.
+    val closed = when (val guarded = call.guardedStoreCall { store.registrationClosedNow() }) {
+        is StoreCall.Done -> guarded.value
+        StoreCall.Failed -> return null
+    }
+    if (closed) {
+        call.respondText(REGISTRATION_CLOSED_BODY, ContentType.Application.Json, HttpStatusCode.Forbidden)
+        return null
+    }
+
     val result = when (val guarded = call.guardedStoreCall {
-        store.register(username, saltBytes, kdf, kdfVersion, verifier)
+        store.registerIfOpen(username, saltBytes, kdf, kdfVersion, verifier)
     }) {
         is StoreCall.Done -> guarded.value
         StoreCall.Failed -> return null
     }
 
     return when (result) {
-        is RegisterResult.Registered -> RegisterResponse.Created(username, result.role.dbValue)
-        RegisterResult.UsernameTaken -> RegisterResponse.Conflict
-        RegisterResult.KdfOutOfBounds -> RegisterResponse.BadRequest("kdf_params out of bounds")
-        is RegisterResult.InvalidField -> RegisterResponse.BadRequest("invalid field: ${result.field}")
+        is RegisterIfOpenResult.Registered -> RegisterResponse.Created(username, result.role.dbValue)
+        RegisterIfOpenResult.UsernameTaken -> RegisterResponse.Conflict
+        RegisterIfOpenResult.KdfOutOfBounds -> RegisterResponse.BadRequest("kdf_params out of bounds")
+        is RegisterIfOpenResult.InvalidField -> RegisterResponse.BadRequest("invalid field: ${result.field}")
+        RegisterIfOpenResult.Closed -> {
+            call.respondText(REGISTRATION_CLOSED_BODY, ContentType.Application.Json, HttpStatusCode.Forbidden)
+            return null
+        }
     }
 }
 

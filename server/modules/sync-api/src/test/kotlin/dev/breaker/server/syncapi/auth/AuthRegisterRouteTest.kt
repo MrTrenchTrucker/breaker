@@ -30,6 +30,10 @@ internal class AuthRegisterRouteTest : TempDatabaseTest() {
     fun setup() {
         temp = openTemp()
         store = AccountFixtures.newStore(temp)
+        // Existing route tests register more than one account through the route;
+        // keep them passing unchanged: open registration in the fixture. New tests
+        // for the closed rule close it themselves.
+        runBlocking { store.settings.setRegistrationOpenEnabled(true) }
     }
 
     // -- helpers -----------------------------------------------------------

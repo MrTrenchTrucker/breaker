@@ -50,6 +50,68 @@ internal class AccountStore(
         }
     }
 
+    // Registers one account in ONE transaction, with the registration-closed rule
+    // decided inside that same transaction on this connection: counts accounts on
+    // this connection and reads the registration_open row on this connection (plain
+    // SQL, no nested transaction, no ServerSettingsStore call inside). Zero accounts
+    // -> always allowed (first account becomes admin). One or more accounts -> allowed
+    // only when the switch is explicitly on, else Closed. The hash runs before the
+    // transaction (as in register), but the route must not reach it when closed.
+    suspend fun registerIfOpen(
+        username: String,
+        salt: ByteArray,
+        kdf: KdfParams,
+        kdfVersion: Int,
+        verifier: AuthVerifier,
+    ): RegisterIfOpenResult {
+        if (!UsernameRules.isValid(username)) return RegisterIfOpenResult.InvalidField("username")
+        if (salt.size != CLIENT_SALT_BYTES) return RegisterIfOpenResult.InvalidField("salt")
+        if (kdfVersion != KdfBounds.REQUIRED_KDF_VERSION) return RegisterIfOpenResult.InvalidField("kdf_version")
+        if (!kdf.withinBounds()) return RegisterIfOpenResult.KdfOutOfBounds
+
+        val stored = withContext(Dispatchers.Default) { hasher.hashNew(verifier) }
+        val saltCopy = salt.copyOf()
+        val createdAtMs = clock.millis()
+        return db.transaction<RegisterIfOpenResult> { connection ->
+            // Authoritative count and switch read, on this connection, inside the insert transaction.
+            val accountCount = countAccounts(connection)
+            val open = readRegistrationOpen(connection)
+            if (accountCount >= 1 && !open) return@transaction RegisterIfOpenResult.Closed
+            val inserted = insertAccount(connection, username, saltCopy, kdf, kdfVersion, stored, createdAtMs)
+            when (inserted) {
+                is RegisterResult.Registered -> RegisterIfOpenResult.Registered(inserted.accountId, inserted.role)
+                RegisterResult.UsernameTaken -> RegisterIfOpenResult.UsernameTaken
+                RegisterResult.KdfOutOfBounds -> RegisterIfOpenResult.KdfOutOfBounds
+                is RegisterResult.InvalidField -> RegisterIfOpenResult.InvalidField(inserted.field)
+            }
+        }
+    }
+
+    // Cheap read-only pre-check for the register route: true when an account already
+    // exists and the switch is not explicitly on (absent reads closed), so the route can
+    // answer 403 before the slow hash. The authoritative check is registerIfOpen's own.
+    suspend fun registrationClosedNow(): Boolean {
+        return db.transaction<Boolean> { connection ->
+            countAccounts(connection) >= 1 && !readRegistrationOpen(connection)
+        }
+    }
+
+    private fun countAccounts(connection: Connection): Long =
+        connection.prepareStatement("SELECT count(*) FROM accounts").use { statement ->
+            statement.executeQuery().use { rows -> if (rows.next()) rows.getLong(1) else 0L }
+        }
+
+    // Only a stored non-zero integer reads open; absent, 0 or any other type reads closed.
+    private fun readRegistrationOpen(connection: Connection): Boolean =
+        connection.prepareStatement(
+            "SELECT int_value, typeof(int_value) FROM server_settings WHERE setting_key = ?",
+        ).use { statement ->
+            statement.setString(1, ServerSettingsStore.REGISTRATION_OPEN_KEY)
+            statement.executeQuery().use { rows ->
+                if (rows.next()) rows.getString(2) == "integer" && rows.getLong(1) != 0L else false
+            }
+        }
+
     // No decoy for an unknown name: the answer for a missing account is a plain
     // NoSuchAccount, by design, and the caller decides what the outside world sees.
     suspend fun saltFor(username: String): SaltLookup {

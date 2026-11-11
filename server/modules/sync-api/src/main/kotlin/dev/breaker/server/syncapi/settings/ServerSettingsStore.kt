@@ -7,6 +7,7 @@ internal class ServerSettingsStore(private val db: SqliteDatabase) {
     companion object {
         private const val WRONG_PW_LIMIT_KEY = "wrong_pw_limit"
         private const val RATE_LIMITS_KEY = "rate_limits_enabled"
+        internal const val REGISTRATION_OPEN_KEY = "registration_open"
     }
 
     suspend fun wrongPwLimitEnabled(): Boolean {
@@ -66,6 +67,40 @@ internal class ServerSettingsStore(private val db: SqliteDatabase) {
                     "ON CONFLICT(setting_key) DO UPDATE SET int_value = excluded.int_value",
             ).use { statement ->
                 statement.setString(1, RATE_LIMITS_KEY)
+                statement.setInt(2, value)
+                statement.executeUpdate()
+            }
+        }
+    }
+
+    // Whether registration is open. Absent (or 0) reads closed; only a stored non-zero
+    // integer reads open. Default after upgrade on a server that has accounts = CLOSED.
+    suspend fun registrationOpen(): Boolean {
+        return db.transaction<Boolean> { connection ->
+            connection.prepareStatement(
+                "SELECT int_value, typeof(int_value) FROM server_settings WHERE setting_key = ?",
+            ).use { statement ->
+                statement.setString(1, REGISTRATION_OPEN_KEY)
+                statement.executeQuery().use { rows ->
+                    if (rows.next()) {
+                        // Only a non-zero integer reads open; absent, 0, or any other type reads closed.
+                        rows.getString(2) == "integer" && rows.getLong(1) != 0L
+                    } else {
+                        false
+                    }
+                }
+            }
+        }
+    }
+
+    suspend fun setRegistrationOpenEnabled(enabled: Boolean) {
+        db.transaction<Unit> { connection ->
+            val value = if (enabled) 1 else 0
+            connection.prepareStatement(
+                "INSERT INTO server_settings (setting_key, int_value) VALUES (?, ?) " +
+                    "ON CONFLICT(setting_key) DO UPDATE SET int_value = excluded.int_value",
+            ).use { statement ->
+                statement.setString(1, REGISTRATION_OPEN_KEY)
                 statement.setInt(2, value)
                 statement.executeUpdate()
             }
