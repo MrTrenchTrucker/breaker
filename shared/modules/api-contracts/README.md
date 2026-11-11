@@ -35,5 +35,6 @@ both the Android client (`stt-server`) and the server (`whisper-server`) impleme
   - `PUT /v1/admin/wrong-pw-limit` - turn the wrong-password limit on or off (admin only; built on the server)
   - `GET /v1/admin/rate-limits` - read whether the rate limits on register and salt are on (admin only; built on the server)
   - `PUT /v1/admin/rate-limits` - turn those limits on or off (admin only; built on the server)
+  - `GET /v1/status` - which services are up, names and up/down only (any signed-in user; built on the server)
 
 Full module card: `AGENTS.md` in this folder.

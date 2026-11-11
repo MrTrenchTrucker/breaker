@@ -12,6 +12,7 @@ internal class SyncApiConfig(
     val serviceKeyFile: String,
     val manifestFile: String,
     val gitTag: String,
+    val whisperHealthUrl: String,
 ) {
 
     companion object {
@@ -23,6 +24,7 @@ internal class SyncApiConfig(
         const val ENV_SERVICE_KEY_FILE = "BREAKER_SYNC_API_SERVICE_KEY_FILE"
         const val ENV_MANIFEST_FILE = "BREAKER_SYNC_API_MANIFEST_FILE"
         const val ENV_GIT_TAG = "BREAKER_SYNC_API_GIT_TAG"
+        const val ENV_WHISPER_HEALTH_URL = "BREAKER_WHISPER_HEALTH_URL"
         const val DEFAULT_HOST = "127.0.0.1"
         private const val DEFAULT_PORT = 8080
         private const val DEFAULT_INTERNAL_HOST = "127.0.0.1"
@@ -45,8 +47,9 @@ internal class SyncApiConfig(
             val serviceKeyFile = parseServiceKeyFile(env[ENV_SERVICE_KEY_FILE], dbPath)
             val manifestFile = parseManifestFile(env[ENV_MANIFEST_FILE])
             val gitTag = parseGitTag(env[ENV_GIT_TAG])
+            val whisperHealthUrl = parseWhisperHealthUrl(env[ENV_WHISPER_HEALTH_URL])
             refuseSameListener(host, port, internalHost, internalPort)
-            return SyncApiConfig(host, port, dbPath, internalHost, internalPort, serviceKeyFile, manifestFile, gitTag)
+            return SyncApiConfig(host, port, dbPath, internalHost, internalPort, serviceKeyFile, manifestFile, gitTag, whisperHealthUrl)
         }
 
         private fun parseHost(raw: String?): String {
@@ -126,6 +129,47 @@ internal class SyncApiConfig(
                 "sync-api: $ENV_GIT_TAG must be printable ASCII without spaces or control characters"
             }
             return raw
+        }
+
+        // The whisper health URL: unset means whisper-server is not listed (not
+        // an error). A set-but-blank value is refused; anything that is not a
+        // plain http or https URL refuses the start with a config error, no
+        // silent fallback.
+        private fun parseWhisperHealthUrl(raw: String?): String {
+            if (raw == null) return ""
+            require(raw.isNotBlank()) { "sync-api: $ENV_WHISPER_HEALTH_URL is set but blank" }
+            require(isValidHttpUrl(raw)) { "sync-api: $ENV_WHISPER_HEALTH_URL must be a plain http or https URL" }
+            return raw
+        }
+
+        // A plain http or https URL: scheme, authority (host[:port]), optional path,
+        // query or fragment. Userinfo and a bare authority without a host are not
+        // accepted here; the deploy supplies a real stack-internal address.
+        private fun isValidHttpUrl(text: String): Boolean {
+            if (!text.startsWith("http://", ignoreCase = true) &&
+                !text.startsWith("https://", ignoreCase = true)) {
+                return false
+            }
+            val schemeEnd = text.indexOf("://") + 3
+            var authorityEnd = schemeEnd
+            while (authorityEnd < text.length && text[authorityEnd] != '/' &&
+                   text[authorityEnd] != '?' && text[authorityEnd] != '#') {
+                authorityEnd++
+            }
+            val authority = text.substring(schemeEnd, authorityEnd)
+            // Userinfo (user:password@host) is refused: the value is logged nowhere, but a secret has no place in a URL setting.
+            if (authority.contains('@')) return false
+            val hostPort = authority
+            if (hostPort.isEmpty() || hostPort == "[]") return false
+            val host = if (hostPort.startsWith("[")) {
+                val close = hostPort.indexOf(']')
+                if (close < 0) return false
+                hostPort.substring(0, close + 1)
+            } else {
+                val colon = hostPort.indexOf(':')
+                if (colon < 0) hostPort else hostPort.substring(0, colon)
+            }
+            return host.isNotEmpty()
         }
 
         // A path text the file system rejects (a NUL character, for example) is refused with a fresh message.

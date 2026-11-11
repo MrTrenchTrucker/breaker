@@ -179,7 +179,7 @@ There is no synchronous 200-with-body variant — every transcription is a job.
   Login also answers **503** `unavailable` (the fixed body, never a 500) for a storage failure in
   the credential check, the key read or the session issue.
   Built on the server: login also answers **423** (locked after five wrong
-  passwords, with Retry-After in whole seconds), and `GET` and `PUT /v1/admin/wrong-pw-limit` read and set the switch. Register and salt also answer **429** with Retry-After (whole seconds, 1 to 3600) when a source address is over its limit, and `GET` and `PUT /v1/admin/rate-limits` (the `RateLimits` schema, Kotlin type `RateLimits`) read and set the one switch for those limits.
+  passwords, with Retry-After in whole seconds), and `GET` and `PUT /v1/admin/wrong-pw-limit` read and set the switch. Register and salt also answer **429** with Retry-After (whole seconds, 1 to 3600) when a source address is over its limit, and `GET` and `PUT /v1/admin/rate-limits` (the `RateLimits` schema, Kotlin type `RateLimits`) read and set the one switch for those limits. `GET /v1/status` (any signed-in user) answers `ServiceStatusReply`, a list of `ServiceStatus` (name and up), built on the server.
 - **sync** — **user session token only on every endpoint in this group, an
   agent token is refused.** `POST /v1/sync` (idempotent push, dedupe on the
   **(client id, `key_version`)** pair — not on client id alone, and not a

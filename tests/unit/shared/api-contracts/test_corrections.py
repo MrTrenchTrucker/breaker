@@ -46,7 +46,7 @@ class Correction1RefusalTest(unittest.TestCase):
             os.unlink(fname)
 
     def test_refusal_on_missing_package(self):
-        """A file without a package declaration is refused with file and line."""
+        """A refusal must name the file and line number."""
         with tempfile.NamedTemporaryFile(mode='w', suffix='.kt', delete=False) as f:
             f.write("data class Foo(\n    val x: Int\n)\n")
             fname = f.name
@@ -59,25 +59,10 @@ class Correction1RefusalTest(unittest.TestCase):
 
 
 class Correction2QuoteFirewallTest(unittest.TestCase):
-    """Correction 2: Quote firewall - a declaration inside a string literal is not read.
-
-    The live case is a multi-line raw string literal (triple-quoted) inside
-    the constructor: the line-anchored parameter reader only ever sees a
-    line that starts a declaration, so the firewall's single-line coverage
-    is vacuous on one-line strings and the raw-string form is the case that
-    falsifies it.
-    """
+    """Correction 2: Quote firewall - a declaration inside Kotlin string literal is not read."""
 
     def test_quote_firewall_raw_string(self):
-        """A declaration inside a multi-line raw string literal must not be read.
-
-        The declaration line sits on its own line inside a triple-quoted
-        string inside the constructor. Without the quote firewall (the
-        blanking of string literals in the reader's prepare step), the
-        line-anchored parameter reader matches the inner line and 'hidden'
-        appears in the fields; with the firewall the literal is blanked
-        first and only the real parameters remain.
-        """
+        """A declaration inside a multi-line raw string literal must not be read."""
         with tempfile.NamedTemporaryFile(mode='w', suffix='.kt', delete=False) as f:
             f.write(
                 'package test\n\n'
@@ -190,7 +175,7 @@ class Correction6PathSetEqualityTest(unittest.TestCase):
     def test_path_set_equality(self):
         """Paths in the spec are exactly the three endpoints (no more, no less)."""
         paths = self.spec.get("paths", {})
-        expected_paths = {"/v1/audio/transcriptions", "/v1/jobs/{job_id}", "/health", "/v1/auth/register", "/v1/auth/salt", "/v1/auth/login", "/v1/auth/logout", "/v1/auth/devices", "/v1/auth/devices/{id}", "/v1/auth/devices/sign-out-all", "/v1/admin/agent-tokens/{id}", "/v1/admin/sessions/{id}", "/v1/admin/agent-tokens", "/v1/sync", "/v1/transcriptions", "/v1/transcriptions/{client_id}", "/v1/sync/pending-sealed", "/v1/admin/roles", "/v1/admin/health", "/v1/admin/transcription-service", "/v1/admin/test-service", "/v1/admin/reset-account", "/v1/admin/clear-store", "/v1/auth/handoff/start", "/v1/auth/handoff/exchange", "/v1/admin/wrong-pw-limit", "/v1/admin/rate-limits", "/v1/admin/registration-open", "/v1/auth/keys", "/v1/auth/change-password", "/v1/auth/complete-reset", "/v1/updates/latest.json"}
+        expected_paths = {"/v1/audio/transcriptions", "/v1/jobs/{job_id}", "/health", "/v1/auth/register", "/v1/auth/salt", "/v1/auth/login", "/v1/auth/logout", "/v1/auth/devices", "/v1/auth/devices/{id}", "/v1/auth/devices/sign-out-all", "/v1/admin/agent-tokens/{id}", "/v1/admin/sessions/{id}", "/v1/admin/agent-tokens", "/v1/sync", "/v1/transcriptions", "/v1/transcriptions/{client_id}", "/v1/sync/pending-sealed", "/v1/admin/roles", "/v1/admin/health", "/v1/admin/transcription-service", "/v1/admin/test-service", "/v1/admin/reset-account", "/v1/admin/clear-store", "/v1/auth/handoff/start", "/v1/auth/handoff/exchange", "/v1/admin/wrong-pw-limit", "/v1/admin/rate-limits", "/v1/admin/registration-open", "/v1/status", "/v1/auth/keys", "/v1/auth/change-password", "/v1/auth/complete-reset", "/v1/updates/latest.json"}
         self.assertEqual(set(paths.keys()), expected_paths,
                          "Paths must be exactly the union of base and admin-group paths")
 
