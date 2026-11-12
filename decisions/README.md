@@ -97,5 +97,6 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-044](ADR-044-service-status.md) | Service status route - signed-in users see which services are up | accepted; the server route GET /v1/status is built, the phone Home line is not |
 | [ADR-045](ADR-045-permission-revoke-on-foreground-return.md) | Re-check permission state on return to foreground; treat kill-on-revoke as a fresh start | accepted |
 | [ADR-046](ADR-046-app-depends-on-android-phrases.md) | App depends on android_phrases  -  registry edge added with the PhraseSendHandler code | accepted |
+| [ADR-047](ADR-047-phone-30-days-server-3-months.md) | The phone keeps 30 days of transcriptions and delete notes, the server keeps 3 months | accepted |
 
-Next free number: **ADR-047**.
+Next free number: **ADR-048**.

@@ -119,6 +119,11 @@ On 2026-11-01 the project owner confirmed the design and ordered this update: "B
   A device whose session expired signs in again and does a full resync, so it never needs old delete records;
   the full resync is decided, not built (phone). The sync routes and the transcriptions table were built
   first, as their own piece of work, before the cursor.
+- **The phone's own tombstone has a 30-day life** (it narrows point 4 for one case), the same 30 days after
+  which an idle session ends (ADR-031). A phone drops its own tombstone 30 days after the delete, once the
+  start-up walk has queued a delete for every tombstone it holds; a delete that never reached the server can
+  then be undone by a later pull, until that row reaches the 3-month retention on the server (F28). A delete
+  that reached the server stays guarded by the server's delete record, which is purged only by the floor rule.
 - **Still to be designed** (before any of it is built): the merge when a pulled row and a local unsent edit share a client id; the encoding of the keys inside the sealed package.
 
 ## Decided details of the changes-since feed (sync 1B)

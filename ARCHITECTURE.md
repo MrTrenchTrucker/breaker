@@ -145,7 +145,8 @@ admins.
       owner **logs in** on any device (not merely "online" — conversion
       happens at login, and only the device that logs in first converts it).
       No Android app needed.
-- F28. **Data retention:** transcriptions auto-delete after **3 months**; audio
+- F28. **Data retention:** transcriptions auto-delete after **3 months** on the server
+      and **30 days** on the phone (its delete notes too, one 30-day window); audio
       files delete immediately once transcription returns (success or final
       failure); failed transcriptions auto-retry **3× at 10 s intervals**.
 - F29. **Admin store management:** the admin panel can clear the transcription
@@ -581,8 +582,7 @@ values) live in `shared/ui-tokens`:
   state: **green** = sent (copy confirmed), **orange** = server failed → local
   fallback succeeded, **red** = complete failure. Full spec in `docs/07`.
 
-**Retention (F28):** transcriptions auto-delete after **3 months** (server and
-phone). The admin panel can clear the store per-user or for **all users** (F29).
+**Retention (F28):** transcriptions auto-delete after **3 months** on the server and **30 days** on the phone; the phone keeps 30 days of its own delete notes (tombstones) too, sharing one 30-day window. The admin panel can clear the store per-user or for **all users** (F29).
 Deletes are meant to propagate via tombstones so the phone and web FE stay consistent
 (decided, not built on the phone).
 
