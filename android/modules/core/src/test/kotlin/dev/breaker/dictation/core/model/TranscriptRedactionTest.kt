@@ -1,6 +1,8 @@
 package dev.breaker.dictation.core.model
 
 import dev.breaker.dictation.core.port.CommitOutcomeResult
+import dev.breaker.dictation.core.port.OlderBound
+import dev.breaker.dictation.core.port.OlderResult
 import dev.breaker.dictation.core.testing.aTranscription
 import dev.breaker.dictation.core.usecase.SendResult
 import java.io.File
@@ -131,6 +133,13 @@ class TranscriptRedactionTest {
     }
 
     @Test
+    fun `an older page prints its row count, skipped count and next bound but not its rows`() {
+        val page = OlderResult.Page(listOf(carrying()), 2, OlderBound(1_700_000_100_000L, 42L), true)
+
+        assertRedacted("Page", page, "1 rows", "skipped=2", "1700000100000-42", "more=true")
+    }
+
+    @Test
     fun `a failed dictation result holds a session that can carry a transcription and prints none of it`() {
         // It has no text of its own, so it has no override: it prints its session, and the session
         // is where the redaction happens. This pins that delegation.
@@ -195,6 +204,7 @@ class TranscriptRedactionTest {
             "SendResult" to (SendResult::class.java to listOf("session=", "outcome=")),
             "HeardWord" to (HeardWord::class.java to listOf("text=")),
             "WordUpdate" to (WordUpdate::class.java to listOf("words=")),
+            "OlderResult.Page" to (OlderResult.Page::class.java to listOf("rows=")),
         )
         assertEquals("this table must cover exactly the types that override toString", overridesToString, labelsOfTheHoldingProperty.keys)
 
@@ -222,6 +232,7 @@ class TranscriptRedactionTest {
         "SendResult",
         "HeardWord",
         "WordUpdate",
+        "OlderResult.Page",
     )
 
     /**
@@ -247,6 +258,8 @@ class TranscriptRedactionTest {
         "AppSettings" to "settings; the key is a reference, never the credential",
         "EncryptedText" to "the sealed form of a transcript: ciphertext, nonce and tag, not readable text",
         "KdfParams" to "five numbers, no text",
+        "OlderBound" to "a stored time in milliseconds and a change number",
+        "OlderResult.Busy" to "a wait in seconds, or none",
     )
 
     private val declaration = Regex("""^(\s*)(?:(?:public|internal|private|protected)\s+)?data\s+class\s+(\w+)""")
