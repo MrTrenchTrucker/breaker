@@ -238,6 +238,7 @@ class DictateUseCase(
                     model = config.modelSize,
                     durationMs = request.durationMs,
                     createdAt = clock.nowEpochMillis(),
+                    serverPathFailed = route.fallback,
                 )
                 DictationResult.Success(transcribing.withTranscription(transcription), transcription)
             }
@@ -250,13 +251,13 @@ class DictateUseCase(
      */
     private fun route(mode: SttMode): Route =
         when (mode) {
-            SttMode.LOCAL -> Route(localEngine, TranscriptionSource.LOCAL)
-            SttMode.SERVER -> Route(serverEngine, TranscriptionSource.SERVER)
+            SttMode.LOCAL -> Route(localEngine, TranscriptionSource.LOCAL, false)
+            SttMode.SERVER -> Route(serverEngine, TranscriptionSource.SERVER, false)
             SttMode.AUTO ->
                 if (probe.isServerReachable()) {
-                    Route(serverEngine, TranscriptionSource.SERVER)
+                    Route(serverEngine, TranscriptionSource.SERVER, false)
                 } else {
-                    Route(localEngine, TranscriptionSource.LOCAL)
+                    Route(localEngine, TranscriptionSource.LOCAL, true)
                 }
         }
 
@@ -343,6 +344,10 @@ class DictateUseCase(
         return frames
     }
 
-    /** An engine plus the source its transcripts are recorded as. */
-    private data class Route(val engine: SttEngine, val source: TranscriptionSource)
+    /**
+     * An engine plus the source its transcripts are recorded as. [fallback] is
+     * true only for the auto probe-down: the phone transcribed because the
+     * probe found no server, which is the fact the tile shows as SENT_LOCAL.
+     */
+    private data class Route(val engine: SttEngine, val source: TranscriptionSource, val fallback: Boolean)
 }

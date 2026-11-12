@@ -8,7 +8,8 @@ internal sealed class TakeEnd {
     object Back : TakeEnd()
     /** A blank text: nothing is sent or saved, and the armed tile shows the nothing heard notice. */
     object NothingHeard : TakeEnd()
-    class Sent(val outcome: CommitOutcome) : TakeEnd()
+    /** The text was committed or copied. [localFallback] marks the phone-model fallback text. */
+    class Sent(val outcome: CommitOutcome, val localFallback: Boolean = false) : TakeEnd()
     class Failure(val sentence: String) : TakeEnd()
 }
 
@@ -43,7 +44,7 @@ internal class TakeFinisher(private val take: TakePort) {
         }
         return when {
             sent == null -> TakeEnd.Failure(RunnerSentences.COULD_NOT_FINISH)
-            sent.outcome.isSuccess -> TakeEnd.Sent(sent.outcome.outcome)
+            sent.outcome.isSuccess -> TakeEnd.Sent(sent.outcome.outcome, ready.transcription.serverPathFailed)
             else -> TakeEnd.Failure(sent.outcome.detail?.takeIf { it.isNotBlank() } ?: RunnerSentences.COULD_NOT_FINISH)
         }
     }

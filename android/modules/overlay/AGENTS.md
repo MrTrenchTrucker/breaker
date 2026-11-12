@@ -114,7 +114,7 @@ get darker and are flat, and white in the dark theme. They sit on the dark body.
 **Look & feel (F36):**
 - **Built:** the eight states, the level meter in the grille and the expanded tile, as described below, the CB mic drawn
   from path data with its glowing outline, and the armed ring pulse (one platform animator, see Invariants; the app drives
-  nothing). **Not built yet:** the app's pushing of the fallback state (`SENT_LOCAL`); the app pushes `SENT` after a commit and after a clipboard-only commit. Each line below says which it is.
+  nothing). The app pushes `SENT_LOCAL` for a committed or copied fallback text and `SENT` after a commit and after a clipboard-only commit. Each line below says which it is.
 - The tile IS the **CB mic** (the approved art, drawn from path data) - built. The favicon art from `shared/ui-tokens`
   is not used.
 - **Level meter** (the six grille slots of the mic) fills with audio level while the mic is recording - built: six
@@ -129,8 +129,6 @@ get darker and are flat, and white in the dark theme. They sit on the dark body.
   the warning outline and pulses slowly (the busy pulse, same as MIC_BUSY); the app's description is the only cue.
 
 **Not built yet:**
-- The app's pushing of `SENT_LOCAL`: nothing in the app or ui main code pushes it. The app pushes `SENT` after a commit and
-  after a clipboard-only commit (`CommitOutcome.COMMITTED` and `COPIED`, `TileStateMap.kt`).
 - Words on the tile of its own, sound or haptics, the window-ownership check (T4), the
   audio capture and the audio-level feed (the app's), the foreground service (the app's), asking the user for the
   overlay permission (the app's), and any gesture or phrase code.
