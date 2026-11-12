@@ -7,7 +7,8 @@
 
 Four routes of the sync API can be called without an account that has earned anything: `POST /v1/auth/register`,
 `POST /v1/auth/salt`, `POST /v1/auth/complete-reset` and `POST /v1/sync` (this last one needs a session, but nothing
-limits how often a session pushes). None has a rate limit. What one caller can make the server do is bounded only
+limits how often a session pushes). Rate limits now exist on register, salt and complete-reset per source address
+(see the Updates of 2026-11-11); sync is limited per account. What one caller can make the server do is bounded only
 by the body caps (4096 bytes on the three auth routes, 1 MiB on a push). Register runs one PBKDF2-HMAC-SHA256 hash at
 600,000 iterations per request. Complete-reset runs one slow hash per request that carries a right code. Salt answers
 for any name and tells an unknown name from a known one (ADR-006).
@@ -44,7 +45,7 @@ of the decision.
    refusal is HTTP 429 with a `Retry-After` header in whole seconds (1 to 3600) and a fixed JSON body that holds no
    key and no address. 423 stays reserved for the sign-in lock. The phone side already reads a 429's `Retry-After`
    for transcription; the sign-in, register and salt calls of the auth client still answer a generic server error for
-   any other status and need their own step.
+   any other status and need their own step [built since: see the Update of 2026-11-11 (phone)].
 7. **Hazard tests come with every limit**: one test per limit that goes red when the limit is removed, plus the
    denial-switch test: one address flooding salt must not stop a different address from registering or signing
    in. A design with only a global limit would fail that test.
@@ -79,3 +80,7 @@ of the decision.
 
 Update 2026-11-11 (trusted proxies, built): the trusted-proxy list is ONE environment setting, `BREAKER_TRUSTED_PROXIES`, not an admin setting: IPv4 or IPv6 literals or CIDR blocks, at most 20 entries, default empty (trust none), read at start; a bad value, a prefix length of 0 or a host name stops the start. A remotely editable trust list would be an attack surface, and there is no admin page yet; an admin route may follow when one exists. The key of a request is the socket peer, unless the peer is listed: then it is the right-most `X-Forwarded-For` entry that is not itself listed, written in its normalised form (an IPv4 mapped IPv6 address is its IPv4 address). A header that cannot be read (an entry that is not an IP literal, more than 20 entries, an entry over 45 characters) never decides a key: the peer does. Behind an unlisted proxy every client looks like the proxy. No migration.
 Update 2026-11-11 (sync push, built): `POST /v1/sync` is limited per ACCOUNT, not per address: route `sync`, key `acct:<account id>`, 600 pushes in the fixed 60 second window, checked after the session check and before the body is read, with the same switch, failure rule and refusal as the other limits. There is NO global counter on this route: one busy account must not stall every other account (decision 7), which is the one exception to decision 2's backstop. The number 600 is a bound on a replaying phone (a push per queued row); only a measurement of a real replay could change it.
+Update 2026-11-11 (register, built): `POST /v1/auth/register` is limited per source address (counted under the route name `register`), 10 per fixed 60 second window, plus a global backstop of 120 per 60 seconds under the same admin switch. The same switch, failure rule and refusal apply (429 + Retry-After 1..3600 + fixed JSON body). The number 10 derives from the PBKDF2 measurement: one register costs one 600k-iteration hash (about 0.1 s on one core), so 10/min uses under 2% of one core and an honest person registering a few times never reaches it.
+Update 2026-11-11 (salt, built): `POST /v1/auth/salt` is limited per source address (route name `salt`), 60 per fixed 60 second window, plus a global backstop of 1200 per 60 seconds under the same admin switch. Salt does no slow hash; the limit protects the database and enumeration speed, not CPU.
+Update 2026-11-11 (complete-reset, built): `POST /v1/auth/complete-reset` counts FAILED codes per source address only (route name `complete-reset`), 10 failed per fixed 60 second window, plus a global backstop of 120 failed per 60 seconds. A right code is never counted and never refused (it proceeds to the slow hash). Complete-reset is never keyed on the account name.
+Update 2026-11-11 (phone, built): the phone's auth client reads a 429 and its Retry-After header as a rate-limited failure for register (ServerAuthServiceOps.kt line 202 in android/modules/auth-client), salt (ServerAuthReplies.kt line 33), sign-in (line 41) and the keys upload (line 53), so the step that Decision 6 named for the sign-in, register and salt calls is built. The auth client has no call for complete-reset.
