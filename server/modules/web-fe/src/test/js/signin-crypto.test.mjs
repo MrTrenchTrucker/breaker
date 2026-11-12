@@ -23,12 +23,12 @@ test('the facade exports exactly available, derive, boxPublicKey and seal', () =
   assert.deepEqual(Object.keys(facade).sort(), ['available', 'boxPublicKey', 'derive', 'seal']);
 });
 
-test('boxPublicKey throws an Error with the message not available', () => {
-  assert.throws(() => facade.boxPublicKey(), (err) => err instanceof Error && err.message === 'not available');
+test('boxPublicKey of no argument returns null', () => {
+  assert.strictEqual(facade.boxPublicKey(), null);
 });
 
-test('seal throws an Error with the message not available', () => {
-  assert.throws(() => facade.seal(), (err) => err instanceof Error && err.message === 'not available');
+test('seal of no arguments returns null', () => {
+  assert.strictEqual(facade.seal(), null);
 });
 
 test('derive gives the main vector kek and verifier', async () => {

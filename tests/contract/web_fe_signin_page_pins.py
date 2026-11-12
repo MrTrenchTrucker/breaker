@@ -211,7 +211,7 @@ def crypto_import(key, text):
     paths = re.findall(r"^\s*import\b[^'\"]*['\"]([^'\"]+)['\"]", text, re.M)
     statements = len(re.findall(r"^\s*import\b", text, re.M))
     dynamic = re.search(r"\bimport\s*\(", text)
-    ok = statements == 1 and paths == ["./signin-kdf.js"] and not dynamic
+    ok = statements == 3 and paths == ["./signin-kdf.js", "./vendor/noble-curves/ed25519.js", "./signin-seal.js"] and not dynamic
     return [] if ok else [key + ": %d import statements, paths %s" % (statements, ", ".join(paths) or "none")]
 
 
@@ -229,7 +229,7 @@ def crypto_exports(key, text):
 
 def crypto_throws(key, text):
     count = text.count("new Error('not available')")
-    return [] if count == 2 else [key + ": %d not available throws" % count]
+    return [] if count == 0 else [key + ": %d not available throws, expected none, seal is the facade" % count]
 
 
 def forbidden(key, text):
@@ -331,7 +331,9 @@ RULES = [
      "export const available = true;"),
     ("crypto_exports", _file(CRYPTO, crypto_exports), CRYPTO, "export const available = false;",
      "export const available = false;\nexport const extra = 1;"),
-    ("crypto_throws", _file(CRYPTO, crypto_throws), CRYPTO, "throw new Error('not available');", "return null;"),
+    ("crypto_throws", _file(CRYPTO, crypto_throws), CRYPTO,
+     "export function seal(plaintext, recipientPublic, ephemeralPrivate) { return sealBox(plaintext, recipientPublic, ephemeralPrivate); }",
+     "export function seal() { throw new Error('not available'); }"),
     ("page_forbidden", _file(PAGE, forbidden), PAGE, "export const PAGE_MESSAGES",
      "x.innerHTML = 1;\nexport const PAGE_MESSAGES"),
     ("page_imports", _file(PAGE, page_imports), PAGE, "import { createSignin } from './signin.js';",
@@ -396,10 +398,17 @@ GOOD_TOKENS = ":root {\n" + "\n".join(
                                         "touch-target-min")) + "\n}\n"
 GOOD_CRYPTO = "\n".join([
     "import { stretch } from './signin-kdf.js';",
+    "import { x25519 } from './vendor/noble-curves/ed25519.js';",
+    "import { seal as sealBox } from './signin-seal.js';",
     "export const available = false;",
     "export async function derive(password, salt, kdf) { try { return await stretch(password, salt, kdf); } catch { return null; } }",
-    "export function boxPublicKey() { throw new Error('not available'); }",
-    "export function seal() { throw new Error('not available'); }",
+    "export function boxPublicKey(boxKey) {",
+    "  try {",
+    "    if (!(boxKey instanceof Uint8Array) || boxKey.length !== 32) return null;",
+    "    return x25519.getPublicKey(boxKey);",
+    "  } catch { return null; }",
+    "}",
+    "export function seal(plaintext, recipientPublic, ephemeralPrivate) { return sealBox(plaintext, recipientPublic, ephemeralPrivate); }",
 ]) + "\n"
 GOOD_PAGE = "\n".join([
     "import * as cryptoModule from './signin-crypto.js';",

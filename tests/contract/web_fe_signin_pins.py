@@ -39,11 +39,16 @@ RUNNER_FILES = sorted([
     "signin-wire.test.mjs",
     "signin-net.test.mjs",
     "signin-logout.test.mjs",
+    "signin-box-aad.test.mjs",
+    "signin-box.test.mjs",
     "signin-crypto.test.mjs",
+    "signin-e2e.test.mjs",
     "signin-kdf.test.mjs",
+    "signin-seal.test.mjs",
     "devices-net.test.mjs",
     "devices.test.mjs",
     "devices-view.test.mjs",
+    "noble-curves-served.test.mjs",
 ])
 LINE_CAP = 300
 ALLOWED_IMPORTS = {SIGNIN: ("./aesgcm.js", "./signin-link.js"), LINK: ()}
@@ -73,10 +78,10 @@ ALPHABET_RE = re.compile(r"[A-Z]{26}|[a-z]{26}")
 FROM_RE = re.compile(r"""\bfrom\s*['"]([^'"]+)['"]""")
 BARE_RE = re.compile(r"""^\s*import\s*['"]([^'"]+)['"]""", re.MULTILINE)
 STATEMENT_RE = re.compile(r"\bimport\b")
-# sha256 of aesgcm.js on the base commit, written in pieces of six characters.
+# sha256 of aesgcm.js with the optional AAD, written in pieces of six characters.
 AESGCM_SHA256 = "".join([
-    "195de0", "dabd0a", "c6db0f", "bc43ab", "724395", "d601cd",
-    "c7c851", "f154b0", "dbc4e3", "8874e3", "d05c",
+    "78e8a0", "488baa", "d3c03d", "55f85d", "309827", "1602b4",
+    "2b0454", "c02f9a", "43dcdf", "d6b4da", "1b37",
 ])
 
 
