@@ -1,6 +1,7 @@
 package dev.breaker.server.syncapi.accounts
 
 import dev.breaker.server.syncapi.db.SqliteDatabase
+import io.ktor.http.HttpHeaders
 import io.ktor.server.application.ApplicationCall
 import java.sql.Connection
 import java.time.Clock
@@ -40,8 +41,12 @@ internal class RateLimitCounterStore(
     private val db: SqliteDatabase,
     private val clock: Clock,
     private val maxRows: Int = DEFAULT_MAX_ROWS,
-    // The seam for the source address: by default the socket peer. A test passes its own to play several callers.
-    private val peerOf: (ApplicationCall) -> String = { call -> call.request.local.remoteAddress },
+    trustedProxies: TrustedProxies = TrustedProxies.empty,
+    // The seam for the source address: by default the socket peer, or the client the X-Forwarded-For header names
+    // when the peer is a listed proxy (xffKey). A test passes its own to play several callers.
+    private val peerOf: (ApplicationCall) -> String = { call ->
+        xffKey(call.request.local.remoteAddress, forwardedFor(call), trustedProxies)
+    },
 ) {
     companion object {
         // One fixed 60 000 ms window for every limit.
@@ -51,7 +56,7 @@ internal class RateLimitCounterStore(
         const val GLOBAL_ADDRESS: String = "*"
     }
 
-    /** The source address of [call]: the socket peer, never a header (the seam [peerOf] aside). */
+    /** The source address of [call]: the socket peer, or the client a listed proxy forwarded for (see [xffKey]). */
     internal fun peerAddress(call: ApplicationCall): String = peerOf(call)
 
     /** One check of the single key ([route], [address]) against [cap]: counts it, or refuses it. */
@@ -196,3 +201,7 @@ internal class RateLimitCounterStore(
         }
     }
 }
+
+// Every X-Forwarded-For header line of the call, in order; empty when the header is absent.
+private fun forwardedFor(call: ApplicationCall): List<String> =
+    call.request.headers.getAll(HttpHeaders.XForwardedFor) ?: emptyList()

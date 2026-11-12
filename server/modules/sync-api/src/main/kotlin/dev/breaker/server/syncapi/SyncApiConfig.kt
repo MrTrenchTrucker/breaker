@@ -1,5 +1,7 @@
 package dev.breaker.server.syncapi
 
+import dev.breaker.server.syncapi.accounts.TrustedProxies
+import dev.breaker.server.syncapi.accounts.parseTrustedProxies
 import java.nio.file.InvalidPathException
 import java.nio.file.Paths
 
@@ -14,6 +16,7 @@ internal class SyncApiConfig(
     val gitTag: String,
     val whisperHealthUrl: String,
     val installCodeFile: String,
+    val trustedProxies: TrustedProxies,
 ) {
 
     companion object {
@@ -27,6 +30,7 @@ internal class SyncApiConfig(
         const val ENV_GIT_TAG = "BREAKER_SYNC_API_GIT_TAG"
         const val ENV_WHISPER_HEALTH_URL = "BREAKER_WHISPER_HEALTH_URL"
         const val ENV_INSTALL_CODE_FILE = "BREAKER_SYNC_API_INSTALL_CODE_FILE"
+        const val ENV_TRUSTED_PROXIES = "BREAKER_TRUSTED_PROXIES"
         const val DEFAULT_HOST = "127.0.0.1"
         private const val DEFAULT_PORT = 8080
         private const val DEFAULT_INTERNAL_HOST = "127.0.0.1"
@@ -52,8 +56,9 @@ internal class SyncApiConfig(
             val gitTag = parseGitTag(env[ENV_GIT_TAG])
             val whisperHealthUrl = parseWhisperHealthUrl(env[ENV_WHISPER_HEALTH_URL])
             val installCodeFile = parseInstallCodeFile(env[ENV_INSTALL_CODE_FILE], dbPath)
+            val trustedProxies = parseTrustedProxies(env[ENV_TRUSTED_PROXIES])
             refuseSameListener(host, port, internalHost, internalPort)
-            return SyncApiConfig(host, port, dbPath, internalHost, internalPort, serviceKeyFile, manifestFile, gitTag, whisperHealthUrl, installCodeFile)
+            return SyncApiConfig(host, port, dbPath, internalHost, internalPort, serviceKeyFile, manifestFile, gitTag, whisperHealthUrl, installCodeFile, trustedProxies)
         }
 
         private fun parseInstallCodeFile(raw: String?, dbPath: String): String {

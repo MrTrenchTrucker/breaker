@@ -1,6 +1,7 @@
 package dev.breaker.server.syncapi
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -193,5 +194,48 @@ class SyncApiConfigTest {
     @Test
     fun `the install code setting has its exact name`() {
         assertEquals("sync-api: the name", "BREAKER_SYNC_API_INSTALL_CODE_FILE", installCodeFile)
+    }
+
+    private val trusted = SyncApiConfig.ENV_TRUSTED_PROXIES
+
+    @Test
+    fun `when trusted proxies env is absent the list is empty`() {
+        val config = SyncApiConfig.fromEnv(mapOf(db to "/data/sync.db"))
+        assertEquals("empty trusted list", 0, config.trustedProxies.entries.size)
+    }
+
+    @Test
+    fun `trusted proxies are parsed comma separated with spaces ignored`() {
+        val config = SyncApiConfig.fromEnv(mapOf(db to "/data/sync.db", trusted to "10.0.0.0/8, 172.16.0.0/12,192.0.2.1"))
+        assertEquals("three entries", 3, config.trustedProxies.entries.size)
+        assertTrue("a listed block", config.trustedProxies.contains(java.net.InetAddress.getByName("10.200.1.1")))
+        assertTrue("a second block", config.trustedProxies.contains(java.net.InetAddress.getByName("172.31.255.255")))
+        assertTrue("a literal", config.trustedProxies.contains(java.net.InetAddress.getByName("192.0.2.1")))
+        assertFalse("an address outside every entry", config.trustedProxies.contains(java.net.InetAddress.getByName("172.32.0.1")))
+    }
+
+    @Test
+    fun `every malformed trusted proxy entry is refused naming the variable`() {
+        val bad = listOf("not-an-ip", "999.1.1.1", "10.0.0.0/33", "10.0.0.0/-1", "10.0.0.0/0", "::zzzz", "1.2.3.4:8080")
+        for (value in bad) {
+            assertNamed(refused(mapOf(db to "x.db", trusted to value)), trusted)
+        }
+    }
+
+    @Test
+    fun `more than 20 trusted proxy entries is refused naming the variable`() {
+        val many = List(21) { "10.0.0.$it" }.joinToString(",")
+        assertNamed(refused(mapOf(db to "x.db", trusted to many)), trusted)
+    }
+
+    @Test
+    fun `an entry longer than 45 characters is refused naming the variable`() {
+        assertNamed(refused(mapOf(db to "x.db", trusted to "a".repeat(46))), trusted)
+    }
+
+    @Test
+    fun `blank trusted proxies env is accepted as empty`() {
+        val config = SyncApiConfig.fromEnv(mapOf(db to "/data/sync.db", trusted to "   "))
+        assertEquals("blank trusted list is empty", 0, config.trustedProxies.entries.size)
     }
 }
