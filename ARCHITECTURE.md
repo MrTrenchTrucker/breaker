@@ -876,8 +876,10 @@ smoke-test gate [1].
 - T25. **Offline password guessing (Android)** — the auth verifier hash and the wrapped
       DEK are both offline-guessable at one Argon2id run per guess (ADR-006
       parameters), for **Android**, whose key-handling code is in a signed
-      APK the server cannot change. No rate limiting or account-enumeration
-      defense is implemented: brute-force protection is explicitly out of
+      APK the server cannot change. No account-enumeration defense is
+      implemented beyond the per-address rate limits on the open sync-api
+      routes (ADR-041, Updates of 2026-11-11), and brute-force protection
+      is explicitly out of
       scope (docs/01, docs/05 — read as covering enumeration too, though
       neither list names it; session expiry is not out of scope any more,
       ADR-031) and T18's per-user rate
