@@ -25,6 +25,7 @@ import dev.breaker.dictation.sync.PullTransport
 import dev.breaker.dictation.sync.QueuedSyncService
 import dev.breaker.dictation.sync.SyncUploader
 import dev.breaker.dictation.transport.TcpConnectivityProbe
+import dev.breaker.dictation.wiring.olderRowsTransport
 import dev.breaker.dictation.wiring.ArmedSwitch
 import dev.breaker.dictation.wiring.Background
 import dev.breaker.dictation.wiring.FileOffStore
@@ -129,6 +130,9 @@ class BreakerApp : android.app.Application() {
 
     /** One decision, read once: is sync allowed in this build. Release = false, debug = true. */
     private val syncOn: Boolean by lazy { syncAllowed(applicationInfo.flags) }
+
+    /** Older rows (Load more): null unless sync is on; built through OlderRowsWiring.kt. */
+    private val olderHistory by lazy { olderRowsTransport(syncOn, settingsStore, compositionRoot.addressedSession, syncService, syncWorker) }
 
     /** The store every save caller reaches: the real store wrapped by the sync decorator. */
     private val decoratedHistoryStore: SyncingHistoryStore by lazy {
