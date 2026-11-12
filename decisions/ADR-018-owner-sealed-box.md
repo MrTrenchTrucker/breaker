@@ -1,6 +1,6 @@
 # ADR-018: Owner sealed box for agent-token job results; account reset
 
-**Status:** accepted, amended 2026-10-20 (the hand-off from whisper-server to sync-api has no transport yet)
+**Status:** accepted, amended 2026-10-20 (the hand-off from whisper-server to sync-api has no transport yet), built-status update 2026-11-11
 **Date:** 2026-09-30
 
 ## Context
@@ -327,10 +327,32 @@ records the gap so nobody builds against an edge that does not exist.
   whisper-server code on its work branch
   imports nothing from `sync-api`; its `SourceScanTest` forbids
   `dev.breaker.server.syncapi`.
-- The registry edge `server_whisper -> server_sync_api` that `modules.toml`
-  still lists at main is DROPPED by the approved plan; the registry change is
-  made with the whisper-server code, not in this documentation change.
+- The registry edge `server_whisper -> server_sync_api` is not listed at main:
+  `modules.toml` line 202 gives `server_whisper` only `server` and
+  `shared_api_contracts`. The approved plan drops that edge, so no registry
+  change is owed.
 - How the sealed copy travels from `whisper-server` to the pending-sealed
   store (an HTTP call to a sync-api route, a shared store, or something else),
   and any new edge it needs, is decided by a new ADR when Phase 19/20 is
   ordered. Until then the rest of this ADR stands unchanged.
+
+## Update 2026-11-11 (what is built)
+
+The server half of the pending-sealed store is built; the phone half is built in one module and
+not wired into the app. What exists on main, each line re-read:
+- The table and the route: migration 10 (`server/modules/sync-api/.../db/SchemaV10.kt` line 3),
+  the store (`PendingSealedStore.kt` line 15) and the route `GET /v1/sync/pending-sealed`
+  (`transcriptions/PendingSealedRoute.kt` line 35), mounted in `SyncApiApplication.kt` (lines 53
+  and 86).
+- The account's pending_sealed rows are deleted by a reset (`reset/ResetStore.kt` line 47), by a
+  key store (`accounts/AccountStore.kt` line 217) and by a password change
+  (`passwordchange/PasswordChangeStore.kt` line 126).
+- The phone has the account key service with the data key, the box keypair, the wrap and the
+  unseal and re-encrypt (`android/modules/crypto/.../AccountKeyServiceImpl.kt` lines 83, 93, 104
+  and 174), and the conversion pass of the pending-sealed results in `android/modules/sync`
+  (`PendingConversion.kt`, `PendingSealedDecoder.kt`, `PendingSealedTransport.kt`), taken by
+  `QueuedSyncService` as an optional parameter that defaults to none (`QueuedSyncService.kt` lines
+  56 and 84).
+- NOT built: the app's pending transport and the wiring flip (the sync card, Not Built Yet, says
+  so), and the hand-off from `whisper-server` to this store, which this ADR still leaves to a
+  new ADR when Phase 19/20 is ordered.

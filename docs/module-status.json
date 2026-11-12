@@ -92,9 +92,24 @@
           "evidence": "crypto card Status: built list; KdfImpl.kt, CryptoServiceImpl.kt with tests"
         },
         {
-          "item": "generate and wrap the data key and the account's box keypair; unseal results to the account (Phase 19)",
-          "status": "NOT_STARTED",
-          "evidence": "crypto card lines 11-13 and 125: decided, not built; no generateDek, wrapDek, unsealAndReencrypt in the code"
+          "item": "generate the data key (generateDataKey)",
+          "status": "DONE",
+          "evidence": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/AccountKeyServiceImpl.kt:83; android/modules/crypto/src/test/kotlin/dev/breaker/dictation/crypto/AccountKeyGenerationTest.kt:41-59"
+        },
+        {
+          "item": "generate the box keypair (generateBoxKeyPair)",
+          "status": "DONE",
+          "evidence": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/AccountKeyServiceImpl.kt:93; android/modules/crypto/AGENTS.md lines 124-126"
+        },
+        {
+          "item": "wrap the data key (wrapDek)",
+          "status": "DONE",
+          "evidence": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/AccountKeyServiceImpl.kt:104; android/modules/crypto/src/test/kotlin/dev/breaker/dictation/crypto/KeyWrapSizeGapTest.kt:46-60"
+        },
+        {
+          "item": "unseal results sealed to the account (unsealAndReencrypt)",
+          "status": "DONE",
+          "evidence": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/AccountKeyServiceImpl.kt:174; android/modules/crypto/src/test/kotlin/dev/breaker/dictation/crypto/AccountKeyUnsealTest.kt:25-411"
         }
       ]
     },
@@ -217,9 +232,14 @@
           "evidence": "sync card: PullCycle, QueuedSyncService, wiring behind syncAllowed"
         },
         {
-          "item": "delivery of pending sealed agent-token results (ADR-018); sending local deletes to the server",
-          "status": "NOT_STARTED",
-          "evidence": "sync card line 122 and README 27; the only uploader is POST (SyncHttpUploader.kt), nothing calls the DELETE route"
+          "item": "send local deletes to the server (DELETE route)",
+          "status": "DONE",
+          "evidence": "android/modules/sync/src/main/kotlin/dev/breaker/dictation/sync/SyncUploader.kt:41 (the delete port), android/app/src/main/kotlin/dev/breaker/dictation/wiring/SyncHttpUploader.kt:120 (the HTTP DELETE call), android/modules/sync/src/main/kotlin/dev/breaker/dictation/sync/QueuedSyncService.kt:189 (the drain calls uploader.delete for a DELETE row), server route server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncRoutes.kt:107; tested in android/modules/sync/src/test/kotlin/dev/breaker/dictation/sync/QueuedSyncServiceDeletePushTest.kt"
+        },
+        {
+          "item": "pending-sealed conversion on the phone: the decoder, the transport port and the conversion pass (ADR-018)",
+          "status": "DONE",
+          "evidence": "android/modules/sync/src/main/kotlin/dev/breaker/dictation/sync/PendingConversion.kt, android/modules/sync/src/main/kotlin/dev/breaker/dictation/sync/PendingSealedDecoder.kt and android/modules/sync/src/main/kotlin/dev/breaker/dictation/sync/PendingSealedTransport.kt, taken by QueuedSyncService as an optional parameter (android/modules/sync/src/main/kotlin/dev/breaker/dictation/sync/QueuedSyncService.kt:56 and :84); unit tested. The app's pending transport and the wiring flip (Phases 19 and 20) are app wiring and later phases, which the ruling does not count against this row; android/modules/sync/AGENTS.md line 129 records them as not built (pendingTransport defaults to null, android/modules/sync/src/main/kotlin/dev/breaker/dictation/sync/QueuedSyncService.kt:56)"
         }
       ]
     },
@@ -313,9 +333,14 @@
           "evidence": "sync-api card: built routes, mounted in SyncApiApplication.kt, with tests"
         },
         {
-          "item": "pending-sealed table and route, reset and re-key side effects, transcription-service config routes",
-          "status": "NOT_STARTED",
-          "evidence": "sync-api card: Planned, not built; no such route or table in src/main"
+          "item": "pending-sealed table and route",
+          "status": "DONE",
+          "evidence": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV10.kt:3 (migration 10 pending_sealed table), server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/PendingSealedStore.kt:15 (store class), server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/PendingSealedRoute.kt:35 (GET /v1/sync/pending-sealed route), mounted at server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiApplication.kt:53,86"
+        },
+        {
+          "item": "reset and re-key side effects",
+          "status": "DONE",
+          "evidence": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/reset/ResetStore.kt:47 (a reset clears the account's pending_sealed rows), server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt:217 (a key store does the same) and server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/passwordchange/PasswordChangeStore.kt:126 (a password change does the same)"
         }
       ]
     },
@@ -460,8 +485,8 @@
   ],
   "summary": {
     "live": 35,
-    "done": 20,
-    "partial": 12,
+    "done": 23,
+    "partial": 9,
     "not_started": 3,
     "containers": 4,
     "retired": 1
