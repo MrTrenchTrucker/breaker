@@ -132,7 +132,7 @@ class BreakerApp : android.app.Application() {
     private val syncOn: Boolean by lazy { syncAllowed(applicationInfo.flags) }
 
     /** Older rows (Load more): null unless sync is on; built through OlderRowsWiring.kt. */
-    private val olderHistory by lazy { olderRowsTransport(syncOn, settingsStore, compositionRoot.addressedSession, syncService, syncWorker) }
+    val olderHistory by lazy { olderRowsTransport(syncOn, settingsStore, compositionRoot.addressedSession, syncService, syncWorker) }
 
     /** The store every save caller reaches: the real store wrapped by the sync decorator. */
     private val decoratedHistoryStore: SyncingHistoryStore by lazy {

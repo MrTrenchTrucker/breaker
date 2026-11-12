@@ -189,7 +189,7 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         if (historyShown) return
         historyShown = true
         val app = applicationContext as BreakerApp
-        val historyView = dev.breaker.dictation.ui.createHistoryView(this, app.historyStore, app.settingsStore)
+        val historyView = dev.breaker.dictation.ui.createHistoryView(this, app.historyStore, app.settingsStore, app.olderHistory)
         setContentView(historyView)
         applyInsets(historyView)
         registerBack()
