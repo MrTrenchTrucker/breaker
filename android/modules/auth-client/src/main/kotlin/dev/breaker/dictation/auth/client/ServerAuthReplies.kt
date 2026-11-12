@@ -42,6 +42,19 @@ internal object ServerAuthReplies {
         else -> throw AuthFailure(AuthFailureReason.SERVER_ERROR)
     }
 
+    /**
+     * The keys upload reply: 200 gives the new key version, 409 gives null (the account already has keys
+     * or waits for a reset, so the caller logs in again), 429 is rate limited, 400, 401, 403 and 413 are
+     * a refused upload, any other status is a server error.
+     */
+    fun keys(reply: AuthHttpReply): Int? = when (reply.status) {
+        200 -> parsedKeys(reply)
+        409 -> null
+        429 -> throw AuthFailure(AuthFailureReason.RATE_LIMITED, retryAfterSeconds(reply.headers))
+        400, 401, 403, 413 -> throw AuthFailure(AuthFailureReason.KEY_UPLOAD_REFUSED)
+        else -> throw AuthFailure(AuthFailureReason.SERVER_ERROR)
+    }
+
     /** The session for a parsed login reply. A blank token or an unknown role is an unreadable reply. */
     fun session(username: String, login: LoginResponse): AuthSession {
         if (login.token.isBlank()) throw AuthFailure(AuthFailureReason.UNREADABLE_REPLY)
@@ -76,6 +89,13 @@ internal object ServerAuthReplies {
         try {
             AuthDecoder.parseLogin(text(reply))
         } catch (malformedLogin: AuthDecodeException) {
+            throw AuthFailure(AuthFailureReason.UNREADABLE_REPLY)
+        }
+
+    private fun parsedKeys(reply: AuthHttpReply): Int =
+        try {
+            AuthDecoder.parseKeysReply(text(reply))
+        } catch (malformedKeys: AuthDecodeException) {
             throw AuthFailure(AuthFailureReason.UNREADABLE_REPLY)
         }
 

@@ -258,8 +258,15 @@ OpenAPI spec (openapi.yaml); Kotlin request and response types
   app and by the server services (ADR-017). A Python-tier conformance test keeps
   them identical to the spec.
 - Sync body codec, package `dev.breaker.shared.api.sync`: `SyncBodyCodec` encodes
-  and decodes the R1 body and the key_version 0 `encrypted` text. It sits in a
+  and decodes the R1 body and the key_version 0 `encrypted` text, and
+  `decodeStrictServerBody` reads the R1 body of a sealed agent-token result. It sits in a
   subpackage, outside the Python reader's scan of this folder.
+- Record frame, package `dev.breaker.shared.api.sync`: `RecordFrame` joins and splits the `encrypted`
+  text of a record at key_version 1 or higher (standard padded base64 of the 12-byte nonce, the
+  ciphertext and the 16-byte tag, at least 28 decoded bytes; `join`, `split` and `RecordFrameParts`)
+  and builds its associated data (`aad`: the UTF-8 client id, a newline byte, the decimal key version).
+  It holds no cryptography and no key. A refusal is a `SyncBodyException` whose message is the
+  refusal family only (`base64`, `frame`, `client_id` or `key_version`).
 
 ## Depends On
 - shared (registered in modules.toml)
@@ -280,6 +287,25 @@ OpenAPI spec (openapi.yaml); Kotlin request and response types
   `tests/unit/shared/api-contracts/test_username_vectors.py` checks the table
   against the pattern in `openapi.yaml` and against the Kotlin literal copy in the
   sync-api tests; each side of the system checks the same table.
+- Crypto vectors: `examples/crypto_vectors.json` holds the shared crypto vectors (KDF,
+  wrapped data key, X25519, sealed boxes), made by independent oracles, proved by the phone
+  (`CryptoVectorFileTest`, with the Kotlin literal copy `CryptoVectorData.kt` in
+  `android/modules/crypto`) and by `tests/unit/shared/api-contracts/test_crypto_vectors.py`;
+  the website's tests read the same file.
+- Sealed body vectors: `examples/sealed_body_vectors.json` holds the bodies for
+  `SyncBodyCodec.decodeStrictServerBody`, which accepts only an R1 body with the six keys in the
+  exact order v, text, source, model, duration_ms, created_at, v 1 and source exactly server
+  (duplicate keys, trailing data, a BOM and non-UTF-8 bytes are refused; the refusal message is the
+  family only); `decodeBody` is unchanged. The Kotlin literal copy is `SealedBodyVectorData.kt`;
+  `SyncBodyStrictServerTest` (Kotlin) and `tests/unit/shared/api-contracts/test_sealed_body_vectors.py`
+  (stdlib oracle) prove it.
+- Record frame vectors: `examples/record_frame_vectors.json` holds the frames (the base64 of nonce,
+  ciphertext and tag), the refusals of `join` and `split` (an alphabet or padding defect, a base64 text
+  that is not the canonical encoding of its bytes, fewer than 28 decoded bytes, a nonce or tag of the wrong
+  size) and the associated data of a record. The Kotlin literal copy is `RecordFrameVectorData.kt`;
+  `RecordFrameTest` (Kotlin) and `tests/unit/shared/api-contracts/test_record_frame_vectors.py` (stdlib
+  oracle, written without any Kotlin code) prove it, and `RecordFrameRoundTripTest` in
+  `android/modules/crypto` runs the frame through the real service.
 - Pull page vectors: `examples/pull_page_vectors.json` holds one pull page (one live
   row, one delete row, stored_at in .mmmZ form). The stdlib test
   `tests/unit/shared/api-contracts/test_pull_page_fixture.py` checks the JSON equals

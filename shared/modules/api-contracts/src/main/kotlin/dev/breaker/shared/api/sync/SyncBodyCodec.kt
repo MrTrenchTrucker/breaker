@@ -16,6 +16,7 @@ object SyncBodyCodec {
 
     private const val MAX_DURATION_MS: Long = 9007199254740991L
     private val KNOWN_KEYS = setOf("v", "text", "source", "model", "duration_ms", "created_at")
+    private val STRICT_KEY_ORDER = listOf("v", "text", "source", "model", "duration_ms", "created_at")
     private val DURATION_RE = Regex("0|[1-9][0-9]{0,15}")
     private val CLIENT_ID_RE = Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 
@@ -51,6 +52,22 @@ object SyncBodyCodec {
         val crText = (crRaw as? JsonValue.Str)?.value ?: refuse(SyncBodyFamily.TYPE)
         val createdAtMs = parseCreatedAtMs(crText)
         return SyncBody(textValue, source, modelValue, durationMs, createdAtMs)
+    }
+
+    /**
+     * Decodes the R1 body of a sealed agent-token result. It accepts only a body that decodeBody
+     * accepts, whose six keys are in the exact order v, text, source, model, duration_ms,
+     * created_at, and whose source is exactly server. The checks run in this order: everything
+     * decodeBody checks, then the key order, then the source, so a body with both defects is
+     * refused as key_order. decodeBody itself is not changed. Every refusal is a SyncBodyException
+     * whose message is the refusal family only, never any text of the body.
+     */
+    fun decodeStrictServerBody(bytes: ByteArray): SyncBody {
+        val body = decodeBody(bytes)
+        val members = SyncBodyScanner(decodeUtf8Strict(bytes)).parseDocument()
+        if (members.keys.toList() != STRICT_KEY_ORDER) refuse(SyncBodyFamily.KEY_ORDER)
+        if (body.source != SyncSource.SERVER) refuse(SyncBodyFamily.SOURCE)
+        return body
     }
 
     /** The key_version 0 `encrypted` string for a body: padded standard base64 of the body bytes, no line breaks. */
@@ -111,7 +128,7 @@ object SyncBodyCodec {
         }
     }
 
-    private fun decodeBase64Strict(text: String): ByteArray {
+    internal fun decodeBase64Strict(text: String): ByteArray {
         if (text.isEmpty()) refuse(SyncBodyFamily.BASE64)
         val values = IntArray(text.length)
         var n = 0

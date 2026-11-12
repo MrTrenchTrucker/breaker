@@ -10,7 +10,7 @@ What ships:
   sessions, update releases. The values that hold dictated text print their ids and
   lengths, never the text.
 - `port/` — the interfaces feature modules implement: speech engines, the audio
-  source, the text committer, stores, the connectivity probe, crypto, sync and
+  source, the text committer, stores, the connectivity probe, crypto, the record keys (`RecordKeys`, five members, with its `SealedRecord`), sync and
   updates. The full list, with signatures, is on the module card.
 - `usecase/` — `DictateUseCase` (audio to formatted text, routing between the
   on-device and server engines), `SendUseCase` (put the text where the user is

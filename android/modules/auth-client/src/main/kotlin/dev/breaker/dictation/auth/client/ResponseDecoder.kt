@@ -90,6 +90,20 @@ internal object AuthDecoder {
         }
     }
 
+    /** Keys reply: one object holding only key_version, a whole number from 1 to Int.MAX_VALUE. */
+    fun parseKeysReply(body: String): Int {
+        val value = JsonValue.parse(body)
+        if (value !is JsonValue.Obj) throw AuthDecodeException("TYPE", "expected a JSON object body")
+        if (value.map.size != 1) {
+            throw AuthDecodeException("TYPE", "the keys reply must hold exactly one member")
+        }
+        val version = ObjReader(value.map).long("key_version")
+        if (version < 1L || version > Int.MAX_VALUE.toLong()) {
+            throw AuthDecodeException("TYPE", "the key version is out of range")
+        }
+        return version.toInt()
+    }
+
     private fun requireMixedNull(a: String?, b: String?, c: String?) {
         val present = listOfNotNull(a, b, c).count { it != null }
         if (present != 0 && present != 3) throw AuthDecodeException("NULL_KEYS", "wrapped keys must be null together or all present")

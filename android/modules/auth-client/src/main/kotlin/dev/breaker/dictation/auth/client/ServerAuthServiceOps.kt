@@ -4,8 +4,10 @@ import dev.breaker.dictation.core.model.AuthSession
 import dev.breaker.dictation.core.model.KdfParams
 import dev.breaker.dictation.core.model.KdfRefusal
 import dev.breaker.dictation.core.model.KdfRefused
+import dev.breaker.dictation.core.model.KeyEncryptionKey
 import dev.breaker.dictation.core.port.KeyDerivation
 import dev.breaker.shared.api.LoginRequest
+import dev.breaker.shared.api.LoginResponse
 import dev.breaker.shared.api.RegisterRequest
 import dev.breaker.shared.api.SaltRequest
 import dev.breaker.shared.api.SaltResponse
@@ -20,6 +22,7 @@ internal class ServerAuthServiceOps(
     private val saltSource: () -> ByteArray,
     private val jsonHeaders: List<Pair<String, String>>,
     private val registerParams: KdfParams,
+    private val keyPorts: AccountKeyPorts? = null,
 ) {
 
     internal fun doRegister(username: String, password: CharArray): AuthSession {
@@ -29,12 +32,12 @@ internal class ServerAuthServiceOps(
         if (!AccountRules.isLongEnough(password)) throw AuthFailure(AuthFailureReason.WEAK_PASSWORD)
         val salt = saltSource()
         if (salt.size != AccountRules.SALT_BYTES) throw KdfRefused(KdfRefusal.BAD_SALT_LENGTH)
-        val session = withVerifier(password, salt, registerParams) { verifier ->
+        val session = withDerived(password, salt, registerParams) { verifier, kek ->
             postRegister(registerUrl, username, salt, verifier)
-            loginWith(base, username, verifier)
+            settleKeys(base, username, verifier, kek, salt, loginReply(base, username, verifier))
         }
         revokePrevious()
-        store(base, session)
+        storeSession(base, session)
         return session
     }
 
@@ -51,9 +54,11 @@ internal class ServerAuthServiceOps(
             AccountRules.OUTPUT_LENGTH,
             reply.kdfVersion,
         )
-        val session = withVerifier(password, salt, params) { verifier -> loginWith(base, username, verifier) }
+        val session = withDerived(password, salt, params) { verifier, kek ->
+            settleKeys(base, username, verifier, kek, salt, loginReply(base, username, verifier))
+        }
         revokePrevious()
-        store(base, session)
+        storeSession(base, session)
         return session
     }
 
@@ -116,13 +121,21 @@ internal class ServerAuthServiceOps(
         return loaded
     }
 
-    /** Derives the keys once, runs [block] with the base64 text of the verifier, then wipes the keys. */
-    private fun <T> withVerifier(password: CharArray, salt: ByteArray, params: KdfParams, block: (String) -> T): T {
+    /**
+     * Derives the keys once, runs [block] with the base64 text of the verifier and the key-encryption
+     * key of that same derivation, then wipes both. The key-encryption key must not be kept by [block].
+     */
+    private fun <T> withDerived(
+        password: CharArray,
+        salt: ByteArray,
+        params: KdfParams,
+        block: (String, KeyEncryptionKey) -> T,
+    ): T {
         val keys = keyDerivation.deriveKeys(password, salt, params)
         return try {
             val raw = keys.authVerifier.copyBytes()
             try {
-                block(Base64.getEncoder().encodeToString(raw))
+                block(Base64.getEncoder().encodeToString(raw), keys.kek)
             } finally {
                 raw.fill(0)
             }
@@ -131,10 +144,43 @@ internal class ServerAuthServiceOps(
         }
     }
 
-    private fun loginWith(base: String, username: String, verifier: String): AuthSession {
+    private fun loginReply(base: String, username: String, verifier: String): LoginResponse {
         val url = resolve(base, AccountRules.LOGIN_PATH)
         val body = RequestEncoder.encodeLogin(LoginRequest(username, verifier))
-        return ServerAuthReplies.session(username, ServerAuthReplies.login(jsonPost(url, body)))
+        return ServerAuthReplies.login(jsonPost(url, body))
+    }
+
+    /**
+     * Sets up or opens the account keys inside the derivation that made [kek], then returns the
+     * session. With no key ports it is only the session check, as before. With them the session is
+     * validated first, the key step runs, and any failure after the server issued a token sends one
+     * best-effort logout of the newest token and stores nothing here.
+     */
+    private fun settleKeys(
+        base: String,
+        username: String,
+        verifier: String,
+        kek: KeyEncryptionKey,
+        salt: ByteArray,
+        first: LoginResponse,
+    ): AuthSession {
+        val ports = keyPorts ?: return ServerAuthReplies.session(username, first)
+        val session = ServerAuthReplies.session(username, first)
+        var current = first.token
+        try {
+            val settled = AccountKeyFlow(ports).settle(
+                kek,
+                salt,
+                first,
+                upload = { bearer, body -> bearerKeysPost(base, bearer, body) },
+                relogin = { loginReply(base, username, verifier).also { current = it.token } },
+                dropToken = { token -> bestEffortLogout(resolve(base, AccountRules.LOGOUT_PATH), token) },
+            )
+            return if (settled === first) session else ServerAuthReplies.session(username, settled)
+        } catch (failure: Exception) {
+            bestEffortLogout(resolve(base, AccountRules.LOGOUT_PATH), current)
+            throw failure
+        }
     }
 
     private fun postSalt(url: String, username: String): SaltResponse {
@@ -185,6 +231,27 @@ internal class ServerAuthServiceOps(
             body.fill(0)
         }
 
+    /**
+     * The keys upload: a POST with the bearer of the new token. The body holds wrapped keys and is
+     * zeroed on every path, then the reply is mapped by [ServerAuthReplies.keys].
+     */
+    private fun bearerKeysPost(base: String, bearer: String, body: ByteArray): Int? {
+        try {
+            val url = resolve(base, AccountRules.KEYS_PATH)
+            val headers = jsonHeaders + listOf("Authorization" to "Bearer $bearer")
+            val reply = try {
+                http.send(AuthHttpRequest("POST", url, headers, body))
+            } catch (unreachable: IOException) {
+                throw AuthFailure(AuthFailureReason.SERVER_UNREACHABLE)
+            } catch (portFailure: RuntimeException) {
+                throw AuthFailure(AuthFailureReason.SERVER_ERROR)
+            }
+            return ServerAuthReplies.keys(reply)
+        } finally {
+            body.fill(0)
+        }
+    }
+
     /** The logout request is best effort: its reply is not read, and a failure of the port is ignored. */
     private fun bestEffortLogout(url: String, bearer: String) {
         try {
@@ -208,6 +275,24 @@ internal class ServerAuthServiceOps(
                 saveFailure.addSuppressed(clearFailure)
             }
             bestEffortLogout(resolve(base, AccountRules.LOGOUT_PATH), session.token)
+            throw saveFailure
+        }
+    }
+
+    /**
+     * Stores the session as [store] does. If that fails, the account keys the key step stored are
+     * cleared too, in their own try so a failure of the clearing is only added to the first failure,
+     * which is rethrown. With no key ports it is exactly [store].
+     */
+    private fun storeSession(base: String, session: AuthSession) {
+        try {
+            store(base, session)
+        } catch (saveFailure: Exception) {
+            try {
+                keyPorts?.credentials?.wipeAll()
+            } catch (wipeFailure: Exception) {
+                saveFailure.addSuppressed(wipeFailure)
+            }
             throw saveFailure
         }
     }

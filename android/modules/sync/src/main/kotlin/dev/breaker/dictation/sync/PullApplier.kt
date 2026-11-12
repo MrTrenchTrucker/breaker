@@ -3,6 +3,7 @@ package dev.breaker.dictation.sync
 import dev.breaker.dictation.core.model.Transcription
 import dev.breaker.dictation.core.model.TranscriptionSource
 import dev.breaker.dictation.core.port.PullSink
+import dev.breaker.dictation.core.port.RecordKeys
 import dev.breaker.shared.api.TranscriptionRecord
 import dev.breaker.shared.api.sync.SyncBodyCodec
 import dev.breaker.shared.api.sync.SyncBodyException
@@ -14,6 +15,7 @@ import dev.breaker.shared.api.sync.SyncSource
 internal class PullApplier(
     private val sink: PullSink,
     private val queue: QueueProbe,
+    private val keys: RecordKeys? = null,
 ) {
 
     /** Applies [result] and returns the counts of what happened. */
@@ -49,7 +51,7 @@ internal class PullApplier(
                     continue
                 }
                 val body = try {
-                    PulledRowBody.read(record)
+                    PulledRowBody.read(record, keys)
                 } catch (failure: PulledRowException) {
                     unreadable++
                     continue

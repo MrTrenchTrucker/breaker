@@ -1,0 +1,198 @@
+{
+  "version": 1,
+  "kdf": [
+    {
+      "name": "v1-main",
+      "password_utf8": "correct horse battery staple",
+      "salt_hex": "000102030405060708090a0b0c0d0e0f",
+      "memory_kib": 65536,
+      "iterations": 3,
+      "parallelism": 1,
+      "output_length": 32,
+      "kdf_version": 1,
+      "argon2id_hex": "0d1a3c6523c8f06e4e0af9c515aa5b5448cfebd6838f2d52c3d8b6ef8ddc3c2e",
+      "kek_hex": "76a6b3fae64de941e43727dc27e4a5ffa76edf3419397ea82e4e8a0efafe733e",
+      "verifier_hex": "1de335d09f78dc3756cedc0468908cda3c406eb1c28dd9a220c5a94320116a6b"
+    },
+    {
+      "name": "v2-composed",
+      "password_utf8": "caf\u00e9",
+      "salt_hex": "101112131415161718191a1b1c1d1e1f",
+      "memory_kib": 65536,
+      "iterations": 3,
+      "parallelism": 1,
+      "output_length": 32,
+      "kdf_version": 1,
+      "argon2id_hex": "fc711035f0842d8457a49821412dd7b5cb177b60dc8d6d4f7a958df34c47e927",
+      "kek_hex": "72f9ce458994fcd7beb55f1fa4d305997ca289a542915db54f2300b40040db04",
+      "verifier_hex": "d19a9dfc73751af0e7106f60ff33ef0d6ef38ab6970e3bf5ea1345f29d4983fd",
+      "note": "the password is normalised to NFC before it becomes UTF-8"
+    },
+    {
+      "name": "v2-decomposed",
+      "password_utf8": "cafe\u0301",
+      "salt_hex": "101112131415161718191a1b1c1d1e1f",
+      "memory_kib": 65536,
+      "iterations": 3,
+      "parallelism": 1,
+      "output_length": 32,
+      "kdf_version": 1,
+      "argon2id_hex": "fc711035f0842d8457a49821412dd7b5cb177b60dc8d6d4f7a958df34c47e927",
+      "kek_hex": "72f9ce458994fcd7beb55f1fa4d305997ca289a542915db54f2300b40040db04",
+      "verifier_hex": "d19a9dfc73751af0e7106f60ff33ef0d6ef38ab6970e3bf5ea1345f29d4983fd",
+      "note": "same bytes as v2-composed after NFC"
+    },
+    {
+      "name": "v3-alt-params",
+      "password_utf8": "breaker unit test three",
+      "salt_hex": "101112131415161718191a1b1c1d1e1f",
+      "memory_kib": 131072,
+      "iterations": 4,
+      "parallelism": 1,
+      "output_length": 32,
+      "kdf_version": 1,
+      "argon2id_hex": "448cd664f1186c5925617160b2ea8fb4100d713bdda1cce9722f9b29001ac410",
+      "kek_hex": "5afc922cafa44ad28538317144cdbacf3d85fea4988b4af65785da0edd53d84a",
+      "verifier_hex": "d9d46aab9b89cc743a6cecc1aadd955d76bf3129d72757cf7a50f818364d0070"
+    }
+  ],
+  "wrap": [
+    {
+      "name": "dek-under-kek",
+      "wrapper_key_hex": "606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f",
+      "nonce_hex": "505152535455565758595a5b",
+      "aad_hex": "",
+      "plain_hex": "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf",
+      "wrapped_hex": "505152535455565758595a5b1670836a23272861670f4b8880fea5ddf8df78bf762a7dd9d720276bff5548c816a0ea33ec2e3894c48925288484c5d6",
+      "note": "AES-256-GCM, empty associated data, wrapped = nonce(12) + ciphertext(32) + tag(16)"
+    },
+    {
+      "name": "box-private-key-under-dek",
+      "wrapper_key_hex": "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf",
+      "nonce_hex": "707172737475767778797a7b",
+      "aad_hex": "627265616b65722d626f782d707269766b65792d7631",
+      "plain_hex": "77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a",
+      "wrapped_hex": "707172737475767778797a7b77f2b78b327d9601cabd76ddc9796263080bde7c4b8082e4a87a140efc0ced42d45bbaaad49c07d0344dccd320f38af6",
+      "note": "AES-256-GCM, aad = ASCII breaker-box-privkey-v1, wrapped = nonce + ciphertext + tag"
+    },
+    {
+      "name": "previous-dek-under-new-dek",
+      "wrapper_key_hex": "c0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedf",
+      "nonce_hex": "808182838485868788898a8b",
+      "aad_hex": "627265616b65722d707265762d64656b2d7631",
+      "plain_hex": "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf",
+      "wrapped_hex": "808182838485868788898a8ba5017f7ec6bab010191ca75989c30cc7cb4a4bc4cd019a718a1b9e9e11a81e1910c575837eccc4ce59f7a04fe57d7a05",
+      "note": "AES-256-GCM, aad = ASCII breaker-prev-dek-v1, wrapped = nonce + ciphertext + tag"
+    }
+  ],
+  "wrap_refusals": [
+    {
+      "name": "box-blob-with-empty-aad",
+      "wrapper_key_hex": "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf",
+      "wrapped_hex": "707172737475767778797a7b77f2b78b327d9601cabd76ddc9796263080bde7c4b8082e4a87a140efc0ced42d45bbaaad49c07d0344dccd320f38af6",
+      "aad_hex": "",
+      "note": "the box key blob must not open with an empty associated data"
+    },
+    {
+      "name": "box-blob-with-prev-dek-aad",
+      "wrapper_key_hex": "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf",
+      "wrapped_hex": "707172737475767778797a7b77f2b78b327d9601cabd76ddc9796263080bde7c4b8082e4a87a140efc0ced42d45bbaaad49c07d0344dccd320f38af6",
+      "aad_hex": "627265616b65722d707265762d64656b2d7631",
+      "note": "the box key blob must not open in the previous-key slot"
+    },
+    {
+      "name": "box-blob-with-other-purpose",
+      "wrapper_key_hex": "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf",
+      "wrapped_hex": "707172737475767778797a7b77f2b78b327d9601cabd76ddc9796263080bde7c4b8082e4a87a140efc0ced42d45bbaaad49c07d0344dccd320f38af6",
+      "aad_hex": "627265616b65722d626f782d707269766b65792d7632",
+      "note": "a different purpose string must not open it"
+    },
+    {
+      "name": "prev-dek-blob-with-empty-aad",
+      "wrapper_key_hex": "c0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedf",
+      "wrapped_hex": "808182838485868788898a8ba5017f7ec6bab010191ca75989c30cc7cb4a4bc4cd019a718a1b9e9e11a81e1910c575837eccc4ce59f7a04fe57d7a05",
+      "aad_hex": "",
+      "note": "the previous key blob must not open with an empty associated data"
+    },
+    {
+      "name": "prev-dek-blob-with-box-aad",
+      "wrapper_key_hex": "c0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedf",
+      "wrapped_hex": "808182838485868788898a8ba5017f7ec6bab010191ca75989c30cc7cb4a4bc4cd019a718a1b9e9e11a81e1910c575837eccc4ce59f7a04fe57d7a05",
+      "aad_hex": "627265616b65722d626f782d707269766b65792d7631",
+      "note": "the previous key blob must not open in the box key slot"
+    }
+  ],
+  "x25519": [
+    {
+      "name": "rfc7748-6.1-alice",
+      "private_hex": "77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a",
+      "public_hex": "8520f0098930a754748b7ddcb43ef75a0dbf3a0d26381af4eba4a98eaa9b4e6a"
+    },
+    {
+      "name": "rfc7748-6.1-bob",
+      "private_hex": "5dab087e624a8a4b79e17f8b83800ee66f3bb1292618b6fd1c2f8b27ff88e0eb",
+      "public_hex": "de9edb7d7b7dc1b4d35b61c2ece435373f8343c85b78674dadfc7e146f882b4f"
+    }
+  ],
+  "seal": [
+    {
+      "name": "r1-server-body",
+      "recipient_private_hex": "77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a",
+      "recipient_public_hex": "8520f0098930a754748b7ddcb43ef75a0dbf3a0d26381af4eba4a98eaa9b4e6a",
+      "ephemeral_private_hex": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
+      "ephemeral_public_hex": "79a631eede1bf9c98f12032cdeadd0e7a079398fc786b88cc846ec89af85a51a",
+      "nonce_hex": "45e2b0f304da99237104818c4002f63ae2bd841694b96127",
+      "plain_hex": "7b2276223a312c2274657874223a2268656c6c6f2066726f6d2074686520747275636b222c22736f75726365223a22736572766572222c226d6f64656c223a22736d616c6c222c226475726174696f6e5f6d73223a313530302c22637265617465645f6174223a22323032362d31312d31315431323a30303a30302e3030305a227d",
+      "box_hex": "79a631eede1bf9c98f12032cdeadd0e7a079398fc786b88cc846ec89af85a51a59fdf41439c20a05976472b39314a6be7641ee803db9c97c3e27173389b0b6f00bd66edc0b50d393da9e25f3e61414c580f954a67f32b1de7ae4d610ffbd5bd23e2fb850577a46358a7eac6c699e664879df27752614d52ce01b76448b0106435e5dfd01d5cfd78738b25571dcb6a446d2aba1b1bea0cf93c45da2b951ce3886e1ba74476c9d14cb8684e2b77c9b61485446",
+      "note": "sealed R1 body, source server, six keys in order; the box opens to the plain bytes"
+    },
+    {
+      "name": "r1-source-local-body",
+      "recipient_private_hex": "77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a",
+      "recipient_public_hex": "8520f0098930a754748b7ddcb43ef75a0dbf3a0d26381af4eba4a98eaa9b4e6a",
+      "ephemeral_private_hex": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
+      "ephemeral_public_hex": "79a631eede1bf9c98f12032cdeadd0e7a079398fc786b88cc846ec89af85a51a",
+      "nonce_hex": "45e2b0f304da99237104818c4002f63ae2bd841694b96127",
+      "plain_hex": "7b2276223a312c2274657874223a2268656c6c6f2066726f6d2074686520747275636b222c22736f75726365223a226c6f63616c222c226d6f64656c223a22736d616c6c222c226475726174696f6e5f6d73223a313530302c22637265617465645f6174223a22323032362d31312d31315431323a30303a30302e3030305a227d",
+      "box_hex": "79a631eede1bf9c98f12032cdeadd0e7a079398fc786b88cc846ec89af85a51a871cee233ebb5d34232b3adb343d1a4f7641ee803db9c97c3e27173389b0b6f00bd66edc0b50d393da9e25f3e61414c580f954a67f32b1de7ae4d610ffbd5bcd343eaf590774487a8875ad6527867e1967d32a75681adb6af11c6551960707726c43ac19decbd28724bc1460cbb2b157d3909fa4e8b8d783c65fa6a24dce249ae1df1144649714c18c84fca97c9b0b300b",
+      "note": "a valid box whose R1 body says source local: the box opens, the R1 reader refuses it"
+    },
+    {
+      "name": "signin-package-65",
+      "recipient_private_hex": "77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a",
+      "recipient_public_hex": "8520f0098930a754748b7ddcb43ef75a0dbf3a0d26381af4eba4a98eaa9b4e6a",
+      "ephemeral_private_hex": "5dab087e624a8a4b79e17f8b83800ee66f3bb1292618b6fd1c2f8b27ff88e0eb",
+      "ephemeral_public_hex": "de9edb7d7b7dc1b4d35b61c2ece435373f8343c85b78674dadfc7e146f882b4f",
+      "nonce_hex": "b2a704a1a14c37803db63c5a7d61d7cb5a747ae80e4dd541",
+      "plain_hex": "01a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f",
+      "box_hex": "de9edb7d7b7dc1b4d35b61c2ece435373f8343c85b78674dadfc7e146f882b4f3124ee690835f8cf75de4624f58773198a0f27776325ee1ed94af982a25a913fea50b002ff209b31b62e26f186b4651c7885e0cf887657a82815f9d0ee0d571b76e0b45d0da729904a37358181d281f897",
+      "note": "sign-in package: 0x01, data key, box private key; 113 byte box; ephemeral key is bob"
+    }
+  ],
+  "seal_refusals": [
+    {
+      "name": "r1-server-body-wrong-recipient",
+      "recipient_private_hex": "5dab087e624a8a4b79e17f8b83800ee66f3bb1292618b6fd1c2f8b27ff88e0eb",
+      "box_hex": "79a631eede1bf9c98f12032cdeadd0e7a079398fc786b88cc846ec89af85a51a59fdf41439c20a05976472b39314a6be7641ee803db9c97c3e27173389b0b6f00bd66edc0b50d393da9e25f3e61414c580f954a67f32b1de7ae4d610ffbd5bd23e2fb850577a46358a7eac6c699e664879df27752614d52ce01b76448b0106435e5dfd01d5cfd78738b25571dcb6a446d2aba1b1bea0cf93c45da2b951ce3886e1ba74476c9d14cb8684e2b77c9b61485446",
+      "note": "the r1-server-body box offered to another recipient key must be refused"
+    },
+    {
+      "name": "r1-server-body-flipped-bit",
+      "recipient_private_hex": "77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a",
+      "box_hex": "79a631eede1bf9c98f12032cdeadd0e7a079398fc786b88cc846ec89af85a51a59fdf41439c20a05976472b39314a6be7641ee803db9c97c3e27173388b0b6f00bd66edc0b50d393da9e25f3e61414c580f954a67f32b1de7ae4d610ffbd5bd23e2fb850577a46358a7eac6c699e664879df27752614d52ce01b76448b0106435e5dfd01d5cfd78738b25571dcb6a446d2aba1b1bea0cf93c45da2b951ce3886e1ba74476c9d14cb8684e2b77c9b61485446",
+      "note": "r1-server-body with bit 0 of byte 60 flipped must be refused"
+    },
+    {
+      "name": "signin-package-wrong-recipient",
+      "recipient_private_hex": "5dab087e624a8a4b79e17f8b83800ee66f3bb1292618b6fd1c2f8b27ff88e0eb",
+      "box_hex": "de9edb7d7b7dc1b4d35b61c2ece435373f8343c85b78674dadfc7e146f882b4f3124ee690835f8cf75de4624f58773198a0f27776325ee1ed94af982a25a913fea50b002ff209b31b62e26f186b4651c7885e0cf887657a82815f9d0ee0d571b76e0b45d0da729904a37358181d281f897",
+      "note": "the signin-package-65 box offered to another recipient key must be refused"
+    },
+    {
+      "name": "signin-package-flipped-bit",
+      "recipient_private_hex": "77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a",
+      "box_hex": "de9edb7d7b7dc1b4d35b61c2ece435373f8343c85b78674dadfc7e146f882b4f3124ee690835f8cf75de4624f58773198a0f27776325ee1ed94af982a25a913fea50b002ff209b31b62e26f186b4651c7885e0cf887657a82815f9d0ee0d571b76e0b45d0ca729904a37358181d281f897",
+      "note": "signin-package-65 with bit 0 of byte 100 flipped must be refused"
+    }
+  ]
+}

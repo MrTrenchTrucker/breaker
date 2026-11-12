@@ -8,16 +8,16 @@ password, generates and wraps the per-user DEK, encrypts/decrypts
 transcriptions with AES-256-GCM, generates the owner's X25519 box keypair,
 and unseals agent-token results sealed to it — all locally. Nothing here ever
 sends the password, the KEK, or a plaintext DEK off the device.
-Generating the data key and the box keypair, and wrapping them, is decided, not built (Phase 19): see the Build phase line below.
+Generating and wrapping the data key and the box keypair, and unsealing results sealed to the account (`unsealAndReencrypt`), are built here (`AccountKeyServiceImpl`). The app's use of these operations is decided, not built (Phase 19): see the Build phase line below.
 
-**Build phase:** Phase 11 builds key derivation (`deriveKeys`). BUILT for the sign-in work: unwrapping the data key with a key-encryption key, AES-256-GCM encrypt and decrypt with associated data, nonces from a secure random source, and opening a sign-in package (a sealed box) with the one-time private key, and making the one-time sign-in secret and key pair in memory (SignInStarterImpl). Decided, not built (Phase 19): generating the data key and the box keypair, wrapping a new data key, wrapping the box private key, unwrapping the box private key from its own wrapped form, and unsealing results sealed to the account (`unsealAndReencrypt`). Not this module's work, and built in the app: the phone's stored keys. After a website sign-in the app keeps the plain data key and box private key in memory only while in use and, at rest, only as a blob sealed under an Android Keystore key (a file of its own, behind the core `CredentialVault` port); it never stores the server-wrapped forms. This module holds no Keystore code. Needs first: `core` (on main).
+**Build phase:** Phase 11 builds key derivation (`deriveKeys`). BUILT for the sign-in work: unwrapping the data key with a key-encryption key, AES-256-GCM encrypt and decrypt with associated data, nonces from a secure random source, and opening a sign-in package (a sealed box) with the one-time private key, and making the one-time sign-in secret and key pair in memory (SignInStarterImpl). BUILT in the account key service (`AccountKeyServiceImpl`): generating the data key and the box keypair, wrapping a new data key, wrapping and unwrapping the box private key, wrapping and unwrapping the previous data key, the box public key check, and unsealing a sealed agent result and encrypting it again (`unsealAndReencrypt`), re-encrypting a record under a new data key (`reencrypt`), and sealing and opening opaque record bytes (`encryptBytes`, `decryptBytes`). Decided, not built (Phase 19): the app's use of the account key operations. Not this module's work, and built in the app: the phone's stored keys. After a website sign-in the app keeps the plain data key and box private key in memory only while in use and, at rest, only as a blob sealed under an Android Keystore key (a file of its own, behind the core `CredentialVault` port); it never stores the server-wrapped forms. This module holds no Keystore code. Needs first: `core` (on main).
 
 ## Owns
 Client-side key derivation (Argon2id + HKDF), DEK generation/wrap/unwrap,
 AES-256-GCM encrypt/decrypt, X25519 box keypair generation, sealed-box
 unsealing.
 
-## Public Interface `core.CryptoService` port with its implementation `CryptoServiceImpl`, and `KdfImpl`, the `core.KeyDerivation` implementation.
+## Public Interface `core.CryptoService` port with its implementation `CryptoServiceImpl`, the `core.AccountKeyService` port (including the bytes-level `encryptBytes` and `decryptBytes`) with its implementation `AccountKeyServiceImpl`, and `KdfImpl`, the `core.KeyDerivation` implementation.
 
 **Key flow:**
 1. **Registration:** the client derives one Argon2id output from the
@@ -93,8 +93,10 @@ unsealing.
   password; its encoded bytes are wiped) and the caller's CharArray is never
   changed; there is no function that returns the KEK alone, so nothing that
   computes the auth verifier without the password can also produce the KEK.
-- `generateDek() -> Dek` / `wrapDek(dek, kek) -> WrappedDek` (decided, not built:
-  generating a data key and wrapping a new one are later work)
+- `generateDataKey() -> DataEncryptionKey` and `wrapDek(dek, kek, salt) -> WrappedDek`
+  (built, `core.AccountKeyService`): the data key is 32 bytes from the secure random
+  source; the wrap has the same ONE byte form as `unwrapDek` below, with its nonce from
+  the nonce source.
 - `unwrapDek(wrappedDek, kek) -> DataEncryptionKey` (built). The wrapped data key has ONE byte form,
   so that the website page builds the same bytes: 60 raw bytes (not base64),
   nonce(12) || ciphertext(32) || tag(16), AES-256-GCM under the key-encryption key, with
@@ -119,21 +121,44 @@ unsealing.
   bytes; its own test is to OPEN that box with the secret key and get the 65 bytes, and
   to do its own seal-then-open round trip.
 - `SignInStarterImpl` - the `SignInStarter` port of core. `begin()` takes 32 random bytes for the secret text and 32 more for the X25519 private key, in that order, from one secure random source (the source is a constructor parameter, so tests can feed known bytes). The secret text is the base64url of the first 32 bytes without padding: 43 characters, canonical. The challenge is the base64url of the SHA-256 of the text's ASCII bytes, not of the decoded bytes. The public key is the X25519 public key of the private key. A Kotlin String cannot be wiped: the secret text exists as a String only while it is built, and the exchange request makes its String at the moment of the call and nowhere else. The attempt lives in memory only: no Keystore, no file, no settings, no log.
-- `generateBoxKeypair() -> {boxPubkey, boxPrivkey}` /
-  `wrapBoxPrivkey(boxPrivkey, dek) -> WrappedBoxPrivkey` /
-  `unwrapBoxPrivkey(wrapped, dek) -> boxPrivkey` (decided, not built: this module does
-  not yet generate, wrap or unwrap the account's box key pair)
-- `unsealAndReencrypt(sealedBox, boxPrivkey, dek) -> {ciphertext, nonce, tag}` (decided,
-  not built). This is the libsodium `crypto_box_seal` open, immediately followed by an
-  ordinary `encrypt`, applied to results sealed to the account. This module never seals
-  (that happens server-side in `whisper-server`, ADR-018); it only opens.
+- `generateBoxKeyPair() -> BoxKeyPair`, `wrapBoxPrivateKey(boxPrivateKey, dek)`,
+  `unwrapBoxPrivateKey(wrapped, dek)`, `wrapPreviousDek(previousDek, newDek)`,
+  `unwrapPreviousDek(wrapped, newDek)` and `verifyBoxPublicKey(boxPrivateKey, publicKey)`
+  (built, `core.AccountKeyService`). Each wrapped box key and each wrapped previous key is
+  60 raw bytes, AES-256-GCM, with a nonce from the nonce source only and its own purpose
+  string as associated data (see Invariants); a blob offered in the other slot is refused.
+  `verifyBoxPublicKey` recomputes the X25519 public key from the private key and compares
+  it in constant time; a difference is a refusal, never a silent replacement.
+- `unsealAndReencrypt(sealed, boxPrivateKey, dek, aad) -> CipherText` (built,
+  `core.AccountKeyService`). This is the libsodium `crypto_box_seal` open, immediately followed
+  by an ordinary AES-256-GCM encrypt, applied to results sealed to the account. The order: the
+  box size cap, the data key size, the open, the plaintext cap of 524288 bytes, the strict R1
+  body check (key order, source server), then one nonce and the AES-256-GCM encryption of the
+  SAME validated bytes under `dek` with `aad`. The plaintext is zeroed on every path, the nonce
+  source is never asked on a refusal, and every failure is the one plain `CryptoRefused`. This
+  module never seals (that happens server-side in `whisper-server`, ADR-018); it only opens.
+- `reencrypt(cipherText, oldDek, oldAad, newDek, newAad) -> CipherText` (built,
+  `core.AccountKeyService`). Opens a record under the old data key and encrypts the SAME plaintext
+  bytes under the new data key, with no String and no re-serialising. The order: the ciphertext
+  cap of 524288 bytes, the two key sizes (32), the nonce (12) and tag (16) sizes, the open (the tag
+  is checked first), then one nonce, asked only after the open, and the encryption. The associated
+  data is opaque bytes and there is no R1 body check. The plaintext is zeroed on every path, the
+  nonce source is never asked on a refusal, and every failure is the one plain `CryptoRefused`.
+- `encryptBytes(plain, dek, aad) -> CipherText` and `decryptBytes(cipherText, dek, aad) -> ByteArray`
+  (built, `core.AccountKeyService`, bodies in `RecordBytes.kt`). AES-256-GCM over opaque bytes with
+  no String and no body check. `encryptBytes`: the plaintext cap of 524288 bytes, the key size (32),
+  then exactly one nonce (12 bytes), then the seal; the caller's `plain` is never written and the
+  sealed copy is zeroed. `decryptBytes`: the ciphertext cap, the key (32), nonce (12) and tag (16)
+  sizes, then the open (the tag is checked first); it never asks the nonce source, and the returned
+  array belongs to the caller, who wipes it. Every failure is the one plain `CryptoRefused`.
 
 `deriveKeys` implements its own core port, `core.KeyDerivation`;
 `core.CryptoService` is the port the other operations implement, and
-`CryptoServiceImpl` implements it. The port changed once, in the sign-in slice
+`CryptoServiceImpl` implements it. `core.AccountKeyService` is the port for making
+and wrapping the account keys, and `AccountKeyServiceImpl` implements it.
+The port changed once, in the sign-in slice
 (ADR-006, planned items P1 to P4): `unwrapDek` takes the key-encryption key,
 `encrypt` and `decrypt` take the associated data, and `openSignInPackage` was added.
-The operations marked "decided, not built" above are still not built.
 
 **Security notes:**
 - Same Argon2id parameters, HKDF labels, and test vectors as the server and
@@ -158,6 +183,11 @@ The operations marked "decided, not built" above are still not built.
 ## Invariants
 - Round-trip encrypt/decrypt with shared test vectors (interop with web FE
   and, for the sealed box, with the server's libsodium binding).
+- The account's wrapped keys have three forms, each 60 raw bytes under AES-256-GCM: the data key
+  under the key-encryption key with empty associated data, the box private key under the data key
+  with `breaker-box-privkey-v1`, and the previous data key under the new data key with
+  `breaker-prev-dek-v1`. The two purpose strings are in `KeyWrap.kt` and equal the `aad_hex` of
+  the shared vectors.
 - Ciphertext at rest; server cannot decrypt without the password (F24, T17) —
   this is not a claim that the password cannot be guessed offline (T25).
 - Built in the app: a logout, or a failed store, wipes the stored DEK and box private key through the app's session vault that also clears the keys, so a signed-out phone keeps no account keys at rest. A password login only saves its session and does not remove keys a website sign-in stored; only a clear does. Decided, not built (Phase 19): a re-login by password unwrapping the keys again and storing them.
@@ -167,6 +197,7 @@ The operations marked "decided, not built" above are still not built.
 ## Depends On
 - android (registered in modules.toml)
 - android_core (registered in modules.toml)
+- shared_api_contracts (registered in modules.toml)
 
 ## Does Not Own
 - Key wrapping of any kind performed server-side — there is none; the server
@@ -177,6 +208,13 @@ The operations marked "decided, not built" above are still not built.
 
 ## Test Locations
 - Unit (Kotlin): `android/modules/crypto/src/test/kotlin/`, one test class beside each implementation class. Run: `./gradlew :android:modules:crypto:test`
+  The KDF, wrapped-key, X25519 and sealed-box vectors are also in the shared file
+  `shared/modules/api-contracts/examples/crypto_vectors.json`, proved by `CryptoVectorFileTest`
+  and `SealVectorFileTest`.
+- Re-encrypt: `AccountKeyReencryptTest` (Kotlin) and
+  `tests/unit/shared/api-contracts/test_reencrypt_limits.py` (order, cap and zeroing, read as text).
+- Bytes encrypt and decrypt: `AccountKeyBytesTest` (Kotlin) and
+  `tests/unit/shared/api-contracts/test_bytes_limits.py` (order, cap, one nonce request and zeroing, read as text).
 - Contract: `tests/contract/test_crypto_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_crypto_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 

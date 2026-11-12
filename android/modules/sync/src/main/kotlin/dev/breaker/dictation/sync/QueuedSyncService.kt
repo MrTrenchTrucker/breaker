@@ -6,11 +6,9 @@ import dev.breaker.dictation.core.model.Transcription
 import dev.breaker.dictation.core.model.TranscriptionSource
 import dev.breaker.dictation.core.port.ConnectivityProbe
 import dev.breaker.dictation.core.port.PullSink
+import dev.breaker.dictation.core.port.RecordKeys
 import dev.breaker.dictation.core.port.SyncService
-import dev.breaker.shared.api.SyncPush
-import dev.breaker.shared.api.sync.SyncBody
 import dev.breaker.shared.api.sync.SyncBodyCodec
-import dev.breaker.shared.api.sync.SyncBodyException
 import dev.breaker.shared.api.sync.SyncSource
 import kotlinx.coroutines.sync.Mutex
 
@@ -24,15 +22,14 @@ import kotlinx.coroutines.sync.Mutex
  *    committed. A row is removed only after the uploader answered
  *    [UploadOutcome.CONFIRMED]; every other path leaves it queued.
  *
- * 2. **Every push is built the same way.** Each push is built by
- *    [SyncBodyCodec.plainPush] from the stored row, at key_version 0. The body is
- *    the JSON object of the body format (keys v, text, source, model, duration_ms,
- *    created_at), written as padded base64 with no line breaks. Key version 0 has
- *    no cryptography, so the server can read the text. This is the development
- *    form of the sync body (ADR-006).
+ * 2. **Every push is built the same way.** With no RecordKeys port, each push is built by
+ *    [SyncBodyCodec.plainPush] from the stored row, at key_version 0: the body JSON object as padded
+ *    base64, no cryptography, so the server can read the text (ADR-006). With a port, the R1 body
+ *    bytes are sealed by the port at its current key version. A port that cannot seal stops the
+ *    drain: nothing is ever pushed in plain form.
  *
  * 3. **A retry never duplicates.** A retry sends the same client id (the
- *    transcription id) at the same key version, 0. The server dedupes on the pair
+ *    transcription id) at the same key version. The server dedupes on the pair
  *    (client id, key version) (ADR-006), so a resend of a row whose first
  *    confirmation was lost is the same push.
  *
@@ -55,6 +52,8 @@ class QueuedSyncService internal constructor(
     private val probe: ConnectivityProbe,
     private val pullTransport: PullTransport? = null,
     private val pullSink: PullSink? = null,
+    private val recordKeys: RecordKeys? = null,
+    private val pendingTransport: PendingSealedTransport? = null,
 ) : SyncService {
 
     /**
@@ -65,11 +64,26 @@ class QueuedSyncService internal constructor(
      */
     public val pullTrigger: PullTrigger? =
         if (pullTransport != null && pullSink != null) {
-            val cycle = PullCycle(pullTransport, database, PullApplier(pullSink, database))
+            val cycle = PullCycle(pullTransport, database, PullApplier(pullSink, database, recordKeys))
             PullTrigger { try { cycle.run() } catch (t: Throwable) {} }
         } else null
 
     private val drain = Mutex()
+
+    /** The key version the server refused with a 409, read and written only under [drain]. */
+    private val refusedVersion = RefusedKeyVersion()
+
+    /** The push side of the drain: builds and sends one push row and says how the drain goes on. */
+    private val pushRow = PushRow(database, uploader, recordKeys, refusedVersion)
+
+    /** The re-seal pass that runs after the pull, or null without a pull transport or a port. */
+    private val migration: RecordMigration? = if (pullTransport != null && recordKeys != null)
+        RecordMigration(pullTransport, database, uploader, recordKeys, refusedVersion) else null
+
+    /** The pending-sealed conversion that runs after the migration, or null without a transport or a port. */
+    private val pendingConversion: PendingConversion? = if (pendingTransport != null && recordKeys != null)
+        PendingConversion(pendingTransport, database, uploader, recordKeys, refusedVersion) else null
+
     /**
      * Queue [transcription] for the next push and return once it is committed.
      *
@@ -90,22 +104,15 @@ class QueuedSyncService internal constructor(
             val parked = database.parkedReason(transcription.id)
             if (parked != null) {
                 database.resaveRow(
-                    clientId = transcription.id,
-                    text = transcription.text,
-                    source = source,
-                    model = transcription.model,
-                    durationMs = transcription.durationMs,
+                    clientId = transcription.id, text = transcription.text, source = source,
+                    model = transcription.model, durationMs = transcription.durationMs,
                     createdAtMs = transcription.createdAt,
                 )
             } else if (!database.replaceQueuedDeleteWithSave(clientId = transcription.id, text = transcription.text, source = source, model = transcription.model, durationMs = transcription.durationMs, createdAtMs = transcription.createdAt)) {
                 database.insertIfAbsent(
-                    clientId = transcription.id,
-                    text = transcription.text,
-                    source = source,
-                    model = transcription.model,
-                    durationMs = transcription.durationMs,
-                    createdAtMs = transcription.createdAt,
-                    kind = SyncQueueSql.KIND_SAVE,
+                    clientId = transcription.id, text = transcription.text, source = source,
+                    model = transcription.model, durationMs = transcription.durationMs,
+                    createdAtMs = transcription.createdAt, kind = SyncQueueSql.KIND_SAVE,
                 )
             }
         }
@@ -148,10 +155,19 @@ class QueuedSyncService internal constructor(
      * non-permanent refusal (401, 403, 429, 503, ...) stops the drain with FAILED, nothing
      * parked; a 429 puts its Retry-After seconds on the report.
      *
-     * The drain walks only the rows queued when it started. The highest seq is read once, after
-     * the probe answers and before the first row; a row queued during the drain waits for the
-     * next drain. An exception from the probe or the database propagates and no report is
-     * returned; an exception from the uploader counts as [UploadOutcome.FAILED].
+     * [UploadOutcome.FAILED] stops the drain and keeps the row at the head of the queue, and so
+     * does a 409. With a port, a 409 is also remembered by key version: each later drain stops
+     * at once (one failure, no seal, no upload) until the port reports another version.
+     *
+     * The drain walks only the rows queued when it started. The highest seq is read
+     * once, after the probe answers and before the first row. A row queued during
+     * the drain, including one queued from inside the uploader, has a greater seq,
+     * is neither sent nor counted, and waits for the next drain. An exception from
+     * the probe or from the database propagates, no report is returned, and the drain lock is
+     * released. An exception from the uploader counts as [UploadOutcome.FAILED].
+     *
+     * A delete row never consults the key port: it goes to the uploader's delete whatever the
+     * port holds.
      */
     override fun pushPending(): SyncReport {
         if (!drain.tryLock()) return SyncReport(0, 0)
@@ -166,8 +182,9 @@ class QueuedSyncService internal constructor(
             while (next != null) {
                 val entry: QueueEntry = next
                 if (entry.seq > bound) break
-                val outcome = try {
-                    if (entry.kind == SyncQueueSql.KIND_DELETE) {
+                val outcome = if (entry.kind == SyncQueueSql.KIND_DELETE) {
+                    // A delete row has no body: it never consults the key port and is never sealed.
+                    try {
                         try {
                             uploader.delete(entry.clientId)
                         } catch (e: PermanentRefusalException) {
@@ -175,50 +192,32 @@ class QueuedSyncService internal constructor(
                             // A permanent refusal about this delete row: park it, keep its reason,
                             // count it in this drain's parked count, and move on to the next row.
                             database.transaction {
-                                database.parkRow(entry.clientId, PermanentRefusalException.capReason(e.reason))
+                                database.parkRow(
+                                    entry.clientId, PermanentRefusalException.capReason(e.reason)
+                                )
                             }
                             parked++
                             next = database.nextAfter(entry.seq)
                             continue
                         }
-                    } else {
-                        val push = buildPush(entry)
-                        if (push == null) {
-                            skipped++
-                            next = database.nextAfter(entry.seq)
-                            continue
-                        }
-                        try {
-                            uploader.upload(push)
-                        } catch (e: PermanentRefusalException) {
-                            if (PermanentRefusalException.isPermanentRefusal(e.status)) {
-                                // A permanent refusal about this row: park it, keep its reason,
-                                // count it in this drain's parked count, and move on to the next row.
-                                database.transaction {
-                                    database.parkRow(
-                                        entry.clientId, PermanentRefusalException.capReason(e.reason)
-                                    )
-                                }
-                                parked++
-                                next = database.nextAfter(entry.seq)
-                                continue
-                            }
-                            // A refusal about this row that is not permanent (401, 403, 409, 429,
-                            // 503, ...): today's behaviour, nothing parked, drain stops. A 429 puts
-                            // its Retry-After seconds on the returned report; no other status does.
-                            if (e.status == PermanentRefusalException.RATE_LIMITED_429) {
-                                retryAfterSeconds = e.retryAfterSeconds
-                            }
-                            UploadOutcome.FAILED
-                        }
+                    } catch (e: Exception) {
+                        // An exception from the uploader (or a delete that threw) counts as FAILED.
+                        UploadOutcome.FAILED
                     }
-                } catch (e: Exception) {
-                    // An exception from the uploader (or a delete that threw) counts as FAILED.
-                    UploadOutcome.FAILED
+                } else when (val step = pushRow.send(entry)) {
+                    is PushRowResult.Done -> { retryAfterSeconds = step.retryAfterSeconds; step.outcome }
+                    PushRowResult.Parked -> { parked++; next = database.nextAfter(entry.seq); continue }
+                    PushRowResult.Skipped -> { skipped++; next = database.nextAfter(entry.seq); continue }
+                    PushRowResult.NoKeys ->
+                        return stopBecausePortHasNoKeys(pushed, skipped, parked, retryAfterSeconds)
+                    PushRowResult.KeyVersionRefused ->
+                        return stopBecauseKeyVersionRefused(pushed, skipped, parked, retryAfterSeconds)
                 }
                 when (outcome) {
                     UploadOutcome.CONFIRMED -> {
                         database.transaction { database.removeSeq(entry.seq) }
+                        // A confirmed delete says nothing about a key version.
+                        if (entry.kind != SyncQueueSql.KIND_DELETE) refusedVersion.clear()
                         pushed++
                     }
                     UploadOutcome.UNREACHABLE -> return SyncReport(pushed, skipped, parked)
@@ -227,10 +226,11 @@ class QueuedSyncService internal constructor(
                 next = database.nextAfter(entry.seq)
             }
             val report = SyncReport(pushed, skipped, parked, retryAfterSeconds)
-            // The pull rides the same drain mutex: it runs only on the normal return path,
-            // after the drain loop and before the lock is given back. A failing pull changes
-            // neither this report nor the drain outcome; the next drain retries the pull.
+            // The pull rides the same drain mutex and runs only on the normal return path, after the loop.
+            // A failing pull changes neither this report nor the drain outcome; the next drain retries it.
             pullTrigger?.run()
+            migration?.pass()
+            pendingConversion?.pass()
             return report
         } finally {
             drain.unlock()
@@ -242,6 +242,15 @@ class QueuedSyncService internal constructor(
     /** Remove every row from the queue, parked or not. */
     fun clearAll() = database.transaction { database.clearAll() }
 
+    /** The migration's numbers so far, or null when no migration is built. */
+    internal fun migrationCounts(): MigrationCounts? = migration?.counts
+
+    /** The pending conversion's numbers so far, or null when none is built. */
+    internal fun pendingCounts(): PendingCounts? = pendingConversion?.counts
+
+    /** The positions of the rows the last pending pass skipped, or null when none is built. */
+    internal fun pendingSkips(): PendingSkips? = pendingConversion?.skips
+
     /** How many rows are parked (marked as permanently refused) in this store. */
     fun parkedCount(): Int = database.parkedCount()
 
@@ -250,22 +259,9 @@ class QueuedSyncService internal constructor(
      * or there is no such row.
      */
     fun parkedReason(clientId: String): String? = database.parkedReason(clientId)
+
     fun isDeleteQueued(clientId: String): Boolean = database.isDeleteQueued(clientId)
     fun clearPullCursor() = database.clearPullCursor()
-    /**
-     * The push for [entry], or null when the entry must be skipped. A skipped
-     * entry is not sent, not removed and not counted here.
-     */
-    private fun buildPush(entry: QueueEntry): SyncPush? {
-        val source = SyncSource.fromWire(entry.source) ?: return null
-        if (!SyncBodyCodec.isClientId(entry.clientId)) return null
-        val body = SyncBody(entry.text, source, entry.model, entry.durationMs, entry.createdAtMs)
-        return try {
-            SyncBodyCodec.plainPush(entry.clientId, body)
-        } catch (e: SyncBodyException) {
-            null
-        }
-    }
 
     /** How many rows are still queued. */
     fun pendingCount(): Int = database.count()
@@ -289,12 +285,16 @@ class QueuedSyncService internal constructor(
             probe: ConnectivityProbe,
             pullTransport: PullTransport? = null,
             pullSink: PullSink? = null,
+            recordKeys: RecordKeys? = null,
+            pendingTransport: PendingSealedTransport? = null,
         ): QueuedSyncService = QueuedSyncService(
             database = SqliteSyncQueueDatabase(context),
             uploader = uploader,
             probe = probe,
             pullTransport = pullTransport,
             pullSink = pullSink,
+            recordKeys = recordKeys,
+            pendingTransport = pendingTransport,
         )
     }
 }
