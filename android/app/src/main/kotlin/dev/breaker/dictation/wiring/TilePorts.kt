@@ -64,6 +64,12 @@ interface TakePort {
     /** Stops listening and turns the audio into text. Blocks. */
     fun finish(): FinishResult
 
+    /**
+     * Stops listening and turns the audio into text, as [finish] does. [trimBeforeMs] is where a spoken
+     * send word began, when there is one. A port that does not override this member ignores the trim.
+     */
+    fun finishTrimmed(trimBeforeMs: Long?): FinishResult = finish()
+
     /** Puts the text where the user is typing; null when there is nothing to send. */
     fun send(): SendResult?
 

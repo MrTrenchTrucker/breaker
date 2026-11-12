@@ -41,6 +41,7 @@ import dev.breaker.dictation.wiring.InlineBackground
 import dev.breaker.dictation.wiring.KeysClearingSessionVault
 import dev.breaker.dictation.wiring.LazyHistoryStore
 import dev.breaker.dictation.wiring.LevelSink
+import dev.breaker.dictation.wiring.PhraseSlot
 import dev.breaker.dictation.wiring.RECOGNIZER_FACTORY
 import dev.breaker.dictation.wiring.SessionLiveState
 import dev.breaker.dictation.wiring.SignInReturnStore
@@ -254,6 +255,7 @@ class BreakerCompositionRoot(
 
     /** Takes a device failure, with the fallback that the take end runs. Set by the tile host. */
     var onDeviceFailure: ((() -> Unit) -> Unit)? = null
+    /** The spoken-send slot, bound to the phrase handler by the tile host. */ val phraseSlot: PhraseSlot = PhraseSlot()
 
     /** The dictation parts, built on first use. */
     val dictation: DictationComponent by lazy {
@@ -275,6 +277,7 @@ class BreakerCompositionRoot(
             onMicTaken = { onMicTaken?.invoke() },
             levelSink = LevelSink { level -> levelSink?.publish(level) },
             onDeviceFailure = { fallback -> onDeviceFailure?.invoke(fallback) ?: fallback() },
+            phrase = phraseSlot,
         )
     }
 }

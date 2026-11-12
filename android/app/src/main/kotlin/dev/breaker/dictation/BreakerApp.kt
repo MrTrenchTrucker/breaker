@@ -28,6 +28,7 @@ import dev.breaker.dictation.transport.TcpConnectivityProbe
 import dev.breaker.dictation.wiring.ArmedSwitch
 import dev.breaker.dictation.wiring.Background
 import dev.breaker.dictation.wiring.FileOffStore
+import dev.breaker.dictation.wiring.PhraseSendHandler
 import dev.breaker.dictation.wiring.SyncHttpUploader
 import dev.breaker.dictation.wiring.SyncWorker
 import dev.breaker.dictation.wiring.SyncingHistoryStore
@@ -204,6 +205,9 @@ class BreakerApp : android.app.Application() {
     internal val armedSwitch: ArmedSwitch by lazy {
         ArmedSwitch(dictationServiceController, FileOffStore(File(filesDir, "dictation-off")))
     }
+
+    /** The spoken-send handler of the tile host, given to the Home take. */
+    internal val phraseHandler: PhraseSendHandler get() = tileHost.phrase
 
     /** The floating tile and the speech model download, built on first use. */
     internal val tileHost: TileHost by lazy {
