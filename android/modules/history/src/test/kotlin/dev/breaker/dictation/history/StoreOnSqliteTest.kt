@@ -160,7 +160,7 @@ class StoreOnSqliteTest {
     @Test
     fun `on real SQL the purge at half past a second keeps the cutoff and removes 1 ms and 100 ms before it`() {
         nowMillis = Instant.parse("2026-06-30T12:00:00.500Z").toEpochMilli()
-        val cutoff = Instant.parse("2026-04-01T12:00:00.500Z").toEpochMilli()
+        val cutoff = Instant.parse("2026-05-31T12:00:00.500Z").toEpochMilli()
         store.save(aTranscription("at", cutoff))
         store.save(aTranscription("before-1", cutoff - 1))
         store.save(aTranscription("before-100", cutoff - 100))
@@ -177,7 +177,7 @@ class StoreOnSqliteTest {
     @Test
     fun `on real SQL the sweep at half past a second keeps the cutoff and drops 1 ms and 100 ms before it`() {
         nowMillis = Instant.parse("2026-06-30T12:00:00.500Z").toEpochMilli()
-        val cutoff = Instant.parse("2026-04-01T12:00:00.500Z").toEpochMilli()
+        val cutoff = Instant.parse("2026-05-31T12:00:00.500Z").toEpochMilli()
         store.applyRemoteDelete("at", deletedAt = cutoff)
         store.applyRemoteDelete("before-1", deletedAt = cutoff - 1)
         store.applyRemoteDelete("before-100", deletedAt = cutoff - 100)

@@ -35,7 +35,7 @@ fun backfillPendingTombstones(
  * The loop lives here so it can be tested without Android; [backfillPendingTombstones] is its
  * single-page form.
  */
-internal fun backfillAllUserTombstones(
+internal fun backfillAllUserTombstonesChecked(
     /** Page 1: the newest [limit] pending tombstone ids, id descending. */
     pendingIds: (limit: Int) -> List<String>,
     /** The next page: ids below [lastId], id descending. */
@@ -46,13 +46,17 @@ internal fun backfillAllUserTombstones(
     enqueueDelete: (clientId: String) -> Unit,
     limit: Int = 1000,
     maxPages: Int = 1000,
-): Int {
+): BackfillWalk {
     var lastId = ""
     var pages = 0
     var queued = 0
+    var complete = false
     while (pages < maxPages) {
         val ids = if (lastId.isEmpty()) pendingIds(limit) else pendingIdsAfter(lastId, limit)
-        if (ids.isEmpty()) break
+        if (ids.isEmpty()) {
+            complete = true
+            break
+        }
         for (id in ids) {
             if (!isDeleteQueued(id)) {
                 enqueueDelete(id)
@@ -64,10 +68,30 @@ internal fun backfillAllUserTombstones(
         // A short page is the last page: keyset pagination returns at most [limit] ids per page,
         // so fewer than [limit] means there is no page after this one. Stopping here avoids one
         // extra lookup that would come back empty.
-        if (ids.size < limit) break
+        if (ids.size < limit) {
+            complete = true
+            break
+        }
     }
-    return queued
+    return BackfillWalk(queued = queued, complete = complete)
 }
+
+/**
+ * What a paged backfill walk did: [queued] deletes were queued, and [complete] is true only when the walk
+ * reached the end of the tombstones (an empty page or a short one). It is false when the page cap stopped the
+ * walk first, even if that happened to be the last page, because the walk cannot tell.
+ */
+internal data class BackfillWalk(val queued: Int, val complete: Boolean)
+
+/** The same walk, answering only how many deletes it queued. */
+internal fun backfillAllUserTombstones(
+    pendingIds: (limit: Int) -> List<String>,
+    pendingIdsAfter: (lastId: String, limit: Int) -> List<String>,
+    isDeleteQueued: (clientId: String) -> Boolean,
+    enqueueDelete: (clientId: String) -> Unit,
+    limit: Int = 1000,
+    maxPages: Int = 1000,
+): Int = backfillAllUserTombstonesChecked(pendingIds, pendingIdsAfter, isDeleteQueued, enqueueDelete, limit, maxPages).queued
 
 /** Runs [push] on its own worker thread and returns once it finishes or [timeoutMillis] elapse.
  *

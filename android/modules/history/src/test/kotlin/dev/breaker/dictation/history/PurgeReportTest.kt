@@ -17,7 +17,7 @@ import org.junit.Test
  */
 class PurgeReportTest {
 
-    private val cutoff = Instant.parse("2026-04-01T12:00:00Z").toEpochMilli()
+    private val cutoff = Instant.parse("2026-05-31T12:00:00Z").toEpochMilli()
 
     private fun refusal(build: () -> PurgeReport): Throwable? = runCatching { build() }.exceptionOrNull()
 

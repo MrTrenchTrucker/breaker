@@ -148,6 +148,7 @@ class CardMatchesCodeTest {
             sortedSetOf(
                 "applyRemoteDelete", "applyRemoteRow", "clearAllTombstones", "delete", "list",
                 "pendingTombstoneIds", "pendingTombstoneIdsAfter", "purgeExpired", "retainOnly", "save",
+                "sweepExpiredTombstones",
             ),
             publicMethods.map { it.name }.toSortedSet(),
         )
@@ -161,6 +162,11 @@ class CardMatchesCodeTest {
         assertEquals("exactly one public pendingTombstoneIds", 1, pending.size)
         val pendingIds = pending.single()
         assertEquals("pendingTombstoneIds(limit) takes the limit and returns the ids", 1, pendingIds.parameterCount)
+
+        val sweeps = publicMethods.filter { it.name == "sweepExpiredTombstones" }
+        assertEquals("exactly one public sweepExpiredTombstones", 1, sweeps.size)
+        assertEquals("sweepExpiredTombstones() takes nothing: the clock decides", 0, sweeps.single().parameterCount)
+        assertEquals("sweepExpiredTombstones() answers how many it dropped", Int::class.javaPrimitiveType, sweeps.single().returnType)
 
         val clearAll = publicMethods.filter { it.name == "clearAllTombstones" }
         assertEquals("exactly one public clearAllTombstones", 1, clearAll.size)

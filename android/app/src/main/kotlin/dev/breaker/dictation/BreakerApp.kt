@@ -32,7 +32,7 @@ import dev.breaker.dictation.wiring.PhraseSendHandler
 import dev.breaker.dictation.wiring.SyncHttpUploader
 import dev.breaker.dictation.wiring.SyncWorker
 import dev.breaker.dictation.wiring.SyncingHistoryStore
-import dev.breaker.dictation.wiring.backfillAllUserTombstones
+import dev.breaker.dictation.wiring.backfillAllUserTombstonesChecked
 import dev.breaker.dictation.wiring.boundedPush
 import dev.breaker.dictation.wiring.finishClearIfNeeded
 import dev.breaker.dictation.wiring.appMicSource
@@ -254,14 +254,22 @@ class BreakerApp : android.app.Application() {
                     autoTimeOn = automaticTimeOn.isOn(),
                     purgeStore = purgeBookkeeping,
                     purge = { history.purgeExpired() },
-                    backfill = {
+                    backfill = { outcome ->
                         purgeScope.launch {
                             try {
-                                backfillAllUserTombstones(
-                                    pendingIds = { limit -> history.pendingTombstoneIds(limit) },
-                                    pendingIdsAfter = { lastId, limit -> history.pendingTombstoneIdsAfter(lastId, limit) },
-                                    isDeleteQueued = { syncService.isDeleteQueued(it) },
-                                    enqueueDelete = { syncService.enqueueDelete(it) },
+                                // The walk and the tombstone sweep run in this one coroutine, the sweep only
+                                // after a complete walk and under the row purge's clock guard.
+                                backfillThenSweep(
+                                    outcome = outcome,
+                                    walk = {
+                                        backfillAllUserTombstonesChecked(
+                                            pendingIds = { limit -> history.pendingTombstoneIds(limit) },
+                                            pendingIdsAfter = { lastId, limit -> history.pendingTombstoneIdsAfter(lastId, limit) },
+                                            isDeleteQueued = { syncService.isDeleteQueued(it) },
+                                            enqueueDelete = { syncService.enqueueDelete(it) },
+                                        )
+                                    },
+                                    sweep = { history.sweepExpiredTombstones() },
                                 )
                             } catch (e: Exception) {
                                 // Swallowed: retried on the next start.

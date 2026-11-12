@@ -19,8 +19,8 @@ import org.junit.Test
  * shows what the store *asks* for. Here the same store runs on
  * [JdbcHistoryDatabase], so the cutoff the rule computes goes through the real
  * statements, bound as text, and the rows that survive are the rows SQLite says
- * survive. The rule is a fixed 90 days (ADR-010 precise rule), so for a purge at
- * 2026-06-30T12:00:00Z the window closes at 2026-04-01T12:00:00Z; both are
+ * survive. The rule is a fixed 30 days (ADR-010 precise rule, phone window of ADR-047), so for a purge at
+ * 2026-06-30T12:00:00Z the window closes at 2026-05-31T12:00:00Z; both are
  * written out here rather than taken from the policy under test.
  *
  * The limit is [DesktopSqlite]'s: the desktop SQLite in the test-only jar, not
@@ -35,7 +35,7 @@ class SqliteHistoryStoreOnSqliteTest {
     private val store: HistoryStore = SqliteHistoryStore(database, clock)
 
     /** The instant the window closes for a purge at [now], in epoch milliseconds. */
-    private val cutoff = Instant.parse("2026-04-01T12:00:00Z").toEpochMilli()
+    private val cutoff = Instant.parse("2026-05-31T12:00:00Z").toEpochMilli()
 
     @After
     fun closeDatabase() = sqlite.close()
@@ -89,6 +89,18 @@ class SqliteHistoryStoreOnSqliteTest {
         assertEquals(cutoff, report.cutoff)
         assertEquals(1, report.dropped)
         assertEquals(listOf("after", "at"), typed().pendingTombstones(10).map { it.id })
+    }
+
+    @Test
+    fun `the public sweep answers how many tombstones it dropped and leaves the newer one`() {
+        typed().applyRemoteDelete("after", deletedAt = cutoff + 1)
+        typed().applyRemoteDelete("before one", deletedAt = cutoff - 1)
+        typed().applyRemoteDelete("before two", deletedAt = cutoff - 2)
+
+        assertEquals(2, typed().sweepExpiredTombstones())
+
+        assertEquals(listOf("after"), typed().pendingTombstones(10).map { it.id })
+        assertEquals("a second sweep finds nothing to drop", 0, typed().sweepExpiredTombstones())
     }
 
     @Test

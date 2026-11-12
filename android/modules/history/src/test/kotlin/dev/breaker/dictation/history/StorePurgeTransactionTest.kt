@@ -21,8 +21,8 @@ class StorePurgeTransactionTest {
     private val database = InMemoryHistoryDatabase()
     private val now = Instant.parse("2026-06-30T12:00:00Z").toEpochMilli()
 
-    /** 2026-04-01T12:00:00Z, written out, so the tests do not take the rule from the code they check. */
-    private val cutoff = Instant.parse("2026-04-01T12:00:00Z").toEpochMilli()
+    /** 2026-05-31T12:00:00Z, written out, so the tests do not take the rule from the code they check. */
+    private val cutoff = Instant.parse("2026-05-31T12:00:00Z").toEpochMilli()
     private val clock = Clock { now }
 
     private fun aTranscription(id: String, createdAt: Long) = Transcription(

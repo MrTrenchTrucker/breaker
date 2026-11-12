@@ -38,12 +38,12 @@ class HistorySqlOnSqliteTest {
     private val sqlite = DesktopSqlite()
 
     /**
-     * 2026-04-01T12:00:00Z as epoch milliseconds: the instant the window closes for a
+     * 2026-05-31T12:00:00Z as epoch milliseconds: the instant the window closes for a
      * purge at 2026-06-30T12:00:00Z. Written as a number, worked out by hand and
-     * checked against Python's `timedelta(days=90)`, so it does not come from the
+     * checked against Python's `timedelta(days=30)`, so it does not come from the
      * code under test.
      */
-    private val cutoff = 1_775_044_800_000L
+    private val cutoff = 1_780_228_800_000L
 
     @After
     fun closeDatabase() = sqlite.close()
@@ -89,7 +89,7 @@ class HistorySqlOnSqliteTest {
 
     @Test
     fun `the cutoff literal is noon UTC on 1 April 2026, which is the policy's cutoff for noon on 30 June`() {
-        assertEquals(Instant.parse("2026-04-01T12:00:00Z").toEpochMilli(), cutoff)
+        assertEquals(Instant.parse("2026-05-31T12:00:00Z").toEpochMilli(), cutoff)
         assertEquals(RetentionPolicy().cutoff(Instant.parse("2026-06-30T12:00:00Z")).toEpochMilli(), cutoff)
     }
 

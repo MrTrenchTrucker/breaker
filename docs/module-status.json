@@ -140,14 +140,14 @@
       "path": "android/modules/history",
       "items": [
         {
-          "item": "store, 90-day TTL purge, tombstone writes, pull sink",
+          "item": "store, 30-day TTL purge, tombstone writes, pull sink",
           "status": "DONE",
           "evidence": "history card; SqliteHistoryStore.kt with tests"
         },
         {
-          "item": "tombstone expiry sweep (purgeExpiredTombstones is only called from tests)",
-          "status": "NOT_STARTED",
-          "evidence": "history card lines 61-64: no shipped code calls it; the 90-day tombstone window is deferred"
+          "item": "tombstone expiry sweep, 30-day window (sweepExpiredTombstones)",
+          "status": "DONE",
+          "evidence": "android/modules/history/src/main/kotlin/dev/breaker/dictation/history/SqliteHistoryStore.kt:174 (the public sweep, window RetentionPolicy.WINDOW) called once at start-up after a complete backfill walk by android/app/src/main/kotlin/dev/breaker/dictation/StartUpSequence.kt:35 and :45 and android/app/src/main/kotlin/dev/breaker/dictation/BreakerApp.kt:258, in a debuggable build with sync on; tested in SqliteHistoryStoreOnSqliteTest, StartUpSweepTest and BackfillWalkTest"
         }
       ]
     },
@@ -485,8 +485,8 @@
   ],
   "summary": {
     "live": 35,
-    "done": 24,
-    "partial": 8,
+    "done": 25,
+    "partial": 7,
     "not_started": 3,
     "containers": 4,
     "retired": 1
