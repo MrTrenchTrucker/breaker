@@ -51,10 +51,12 @@ The start-up backfill reads `pendingTombstoneIds(limit)`, which returns only USE
 
 Pulled rows (ADR-035): `applyRemoteRow`, the PullSink call, stores one pulled live row, one
 row per id, replacing a held row. It refuses the row, stores nothing and answers false when
-this device holds a tombstone for that id, of any reason; the tombstone stays (a row deleted
-anywhere does not come back; the case of reviving a row from another device is left open,
-nothing is lost because the server keeps the row). The check and the write are one
-transaction, and the store reads a tombstone only for that refusal.
+this device holds a tombstone for that id, of any reason, or when the row's `createdAt` is
+strictly older than the retention cutoff (the same cutoff `purgeExpired` applies, strictly
+less than; a row exactly at the cutoff is stored); the tombstone stays (a row deleted anywhere
+does not come back; the case of reviving a row from another device is left open, nothing is
+lost because the server keeps the row). The check and the write are one transaction, and the
+store reads a tombstone only for that refusal.
 
 Built and wired (ADR-035, #521): the sync module's `PullApplier` calls `applyRemoteRow` and
 `applyRemoteDelete` after each pull; the app starts a pull after each push drain when sync is on (release

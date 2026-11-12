@@ -27,12 +27,13 @@ interface PullSink {
     fun applyRemoteDelete(id: String, deletedAt: Long): Boolean
 
     /**
-     * Apply a pulled live row. Returns true when the row was stored, false when the store refused
-     * it because the device holds a tombstone for that id, of any reason; nothing is stored then
-     * and the tombstone stays.
+     * Apply a pulled live row (its id is the client id). Returns true when the row was stored,
+     * false when the store refused it because the device holds a tombstone for that id, of any
+     * reason, or because the row's `createdAt` is strictly older than the retention cutoff (the
+     * same cutoff `purgeExpired` applies). Nothing is stored then and any tombstone stays.
      *
      * @param row the pulled live row (its id is the client id)
-     * @return true when the row was stored, false when refused by a tombstone
+     * @return true when the row was stored, false when refused by a tombstone or by age
      */
     fun applyRemoteRow(row: Transcription): Boolean
 

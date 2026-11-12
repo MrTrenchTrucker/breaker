@@ -43,13 +43,13 @@ internal class StoreApplyRemoteRowOnSqliteTest {
         createdAt = createdAt,
     )
 
-    private fun pulled(id: String, text: String = "pulled text") = aTranscription(
+    private fun pulled(id: String, text: String = "pulled text", createdAt: Long = now) = aTranscription(
         id = id,
         text = text,
         source = TranscriptionSource.SERVER,
         model = "small.en",
         durationMs = 1_200L,
-        createdAt = now,
+        createdAt = createdAt,
     )
 
     @Test
@@ -97,5 +97,26 @@ internal class StoreApplyRemoteRowOnSqliteTest {
         assertEquals(listOf("t-1"), store.list(10).map { it.id })
         assertEquals("second", store.list(10).single { it.id == "t-1" }.text)
         assertEquals(1, typed().count())
+    }
+
+    @Test
+    fun `a pulled row whose createdAt is strictly before the cutoff is refused on real SQL`() {
+        val row = pulled("old-row", createdAt = cutoff - 1)
+        assertFalse(sink().applyRemoteRow(row))
+        assertEquals(0, typed().count())
+    }
+
+    @Test
+    fun `a pulled row created exactly at the cutoff is stored on real SQL`() {
+        val row = pulled("at-cutoff", createdAt = cutoff)
+        assertTrue(sink().applyRemoteRow(row))
+        assertEquals(listOf("at-cutoff"), store.list(10).map { it.id })
+    }
+
+    @Test
+    fun `a pulled row refused by age writes no tombstone so a newer copy of the same id is stored on real SQL`() {
+        assertFalse(sink().applyRemoteRow(pulled("same-id", createdAt = cutoff - 1)))
+        assertTrue(sink().applyRemoteRow(pulled("same-id", createdAt = now)))
+        assertEquals(listOf("same-id"), store.list(10).map { it.id })
     }
 }

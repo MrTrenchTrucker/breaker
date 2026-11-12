@@ -254,10 +254,14 @@ class SqliteHistoryStore internal constructor(
      * (a) a local tombstone of any reason: the row is NOT stored and the tombstone stays; the case
      * of reviving a row from another device is left open, nothing is lost because the server keeps
      * the row.
+     * (a2) a row whose `createdAt` is strictly before the retention cutoff (the same cutoff
+     * `purgeExpired` applies, from `clock.nowEpochMillis()`): the row is NOT stored, no tombstone
+     * is written for it, and the answer is false. A row created exactly at the cutoff is stored.
      * (c) otherwise: store it, one row per id, replacing a held row.
      *
      * Returns true when the row was stored, false when the store refused it because this device
-     * holds a tombstone for that id; nothing is stored then and the tombstone stays.
+     * holds a tombstone for that id or because the row is older than the window; nothing is stored
+     * then and any tombstone stays.
      *
      * The check and the write are one transaction. This store reads a tombstone only for that
      * refusal. Nothing outside the tests calls this yet; rule (b) (an id waiting unsent in the
@@ -265,6 +269,7 @@ class SqliteHistoryStore internal constructor(
      */
     override fun applyRemoteRow(row: Transcription): Boolean = database.transaction {
         if (database.hasTombstone(row.id)) false
+        else if (row.createdAt < retention.cutoff(java.time.Instant.ofEpochMilli(clock.nowEpochMillis())).toEpochMilli()) false
         else {
             database.save(TranscriptionRow.of(row))
             true
