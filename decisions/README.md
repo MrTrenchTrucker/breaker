@@ -68,7 +68,7 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-015](ADR-015-transcription-queue.md) | Async transcription job queue, hosted in Breaker's own whisper-server (not the Whisper X container) | accepted, amended 2026-11-01 |
 | [ADR-016](ADR-016-model-registry-codegen.md) | Model registry compiled to Kotlin; no YAML parsing on the phone | accepted |
 | [ADR-017](ADR-017-server-language.md) | Breaker's server services are written in Kotlin on the JVM | accepted |
-| [ADR-018](ADR-018-owner-sealed-box.md) | Owner sealed box for agent-token job results; account reset | accepted, amended 2026-10-20 |
+| [ADR-018](ADR-018-owner-sealed-box.md) | Owner sealed box for agent-token job results; account reset | accepted, amended 2026-10-20, built-status update 2026-11-11 |
 | [ADR-019](ADR-019-agent-skills-module.md) | Agent skills ship in the repo as their own module | accepted |
 | [ADR-020](ADR-020-ci-concurrency-and-caching.md) | CI runs are deduplicated per commit and cache Gradle dependencies | accepted |
 | [ADR-021](ADR-021-module-build-method.md) | The maintainers' team builds each module through sub-agents that write the code | accepted, amended 2026-10-07, 2026-10-08 and 2026-10-15 |
@@ -94,8 +94,8 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-041](ADR-041-rate-limits-on-the-open-sync-api-routes.md) | Rate limits on the open sync-api routes, keyed by source address | proposed; no code, numbers come from a measurement |
 | [ADR-042](ADR-042-network-model-vpn-or-private-bind.md) | Network model — VPN or private bind only, ordered server addresses | accepted; no code enforces it yet |
 | [ADR-043](ADR-043-registration-lock-and-first-admin-install-code.md) | Registration lock — first account is admin, install code required | accepted; registration switch and install code not built yet |
-| [ADR-044](ADR-044-service-status.md) | Service status route - signed-in users see which services are up | accepted; no code implements /v1/status yet |
-| [ADR-045](ADR-045-permission-revoke-on-foreground-return.md) | Re-check permission state on return to foreground; treat kill-on-revoke as a fresh start | proposed, not yet accepted (proposal date 2026-11-11) |
-| [ADR-046](ADR-046-app-depends-on-android-phrases.md) | App depends on android_phrases  -  registry edge added with the PhraseSendHandler code | proposed, not yet accepted (proposal date 2026-11-11) |
+| [ADR-044](ADR-044-service-status.md) | Service status route - signed-in users see which services are up | accepted; the server route GET /v1/status is built, the phone Home line is not |
+| [ADR-045](ADR-045-permission-revoke-on-foreground-return.md) | Re-check permission state on return to foreground; treat kill-on-revoke as a fresh start | accepted |
+| [ADR-046](ADR-046-app-depends-on-android-phrases.md) | App depends on android_phrases  -  registry edge added with the PhraseSendHandler code | accepted |
 
 Next free number: **ADR-047**.

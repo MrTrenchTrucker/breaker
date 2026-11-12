@@ -46,7 +46,8 @@ upgrade path (ARCHITECTURE section 8). Shake + tap remain the manual fallbacks.
   nothing calls it), the admin force-check, the app wiring, the install and the rollback are not built
 - `crypto` — client-side key derivation (Argon2id + HKDF), data-key unwrap, AES-256-GCM
   encrypt/decrypt and opening the sign-in package; generating and wrapping the data key and the
-  account's X25519 box keypair, and unsealing results to the account, are decided, not built (Phase 19)
+  account's X25519 box keypair, and unsealing results to the account, are built
+  (AccountKeyServiceImpl); the app's use of them is decided, not built (Phase 19)
 
 **UI (F25, F35):** the app consumes `shared/ui-tokens` (Trucking theme —
 white/black/green, light/dark, hard edges, condensed display type) so it looks

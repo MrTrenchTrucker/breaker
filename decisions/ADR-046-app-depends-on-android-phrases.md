@@ -1,6 +1,6 @@
 # ADR-046: App depends on android_phrases  -  registry edge added with the PhraseSendHandler code
 
-**Status:** proposed, not yet accepted (proposal date 2026-11-11)
+**Status:** accepted (2026-11-11)
 **Date:** 2026-11-11
 
 ## Context

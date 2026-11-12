@@ -1,6 +1,6 @@
 # ADR-045: Re-check permission state on return to foreground; treat kill-on-revoke as a fresh start
 
-**Status:** proposed, not yet accepted (proposal date 2026-11-11)
+**Status:** accepted (2026-11-11)
 **Date:** 2026-11-11
 
 ## Context
