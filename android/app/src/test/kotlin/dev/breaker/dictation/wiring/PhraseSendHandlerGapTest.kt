@@ -13,7 +13,7 @@ private class PhraseGapRig {
     val main = ManualMain()
     val streams = PhraseFakeStreams(true)
     val triggers: MutableList<PhraseFakeTrigger> = ArrayList()
-    var startError: RuntimeException? = null
+    var startError: Throwable? = null
     val handler: PhraseSendHandler = PhraseSendHandler(background, main, streams) { _ ->
         PhraseFakeTrigger().also {
             it.startError = startError
@@ -102,6 +102,20 @@ class PhraseSendHandlerGapTest {
         rig.startError = IllegalStateException("the detector refused to start")
         val answer: BeginResult = rig.homePort().begin()
         assertEquals("a phrase detector that failed to start changed the begin answer", BeginResult.Recording, answer)
+        assertEquals("the detector of the failed start was not stopped", 1, rig.triggers.single().stops)
+        assertNull("a failed start left a word stream for the tee", rig.handler.currentStream())
+    }
+
+    /**
+     * Fails when the catch of a linkage error in begun no longer stops the detector of a take whose start
+     * threw one, which leaves a stream open for the tee and the detector listening.
+     */
+    @Test
+    fun `a detector that fails to start with a linkage error is stopped and the take goes on`() {
+        val rig = PhraseGapRig()
+        rig.startError = NoClassDefFoundError("the engine library is missing a class")
+        val answer: BeginResult = rig.homePort().begin()
+        assertEquals("a linkage error from the detector start changed the begin answer", BeginResult.Recording, answer)
         assertEquals("the detector of the failed start was not stopped", 1, rig.triggers.single().stops)
         assertNull("a failed start left a word stream for the tee", rig.handler.currentStream())
     }

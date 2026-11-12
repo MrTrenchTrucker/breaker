@@ -39,7 +39,7 @@ internal class PhraseFakeTrigger : PhraseTrigger {
     private var callback: ((PhraseEvent) -> Unit)? = null
     var stops: Int = 0
         private set
-    var startError: RuntimeException? = null
+    var startError: Throwable? = null
 
     override val isListening: Boolean get() = listening
 
