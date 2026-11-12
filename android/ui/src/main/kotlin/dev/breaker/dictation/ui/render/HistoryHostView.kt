@@ -5,6 +5,7 @@ import android.view.Gravity
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import dev.breaker.dictation.core.port.HistoryStore
+import dev.breaker.dictation.core.port.OlderHistory
 import dev.breaker.dictation.ui.screen.Screen
 import dev.breaker.dictation.ui.screen.ScreenIntent
 import dev.breaker.dictation.ui.screen.home.HomeGeometry
@@ -55,6 +56,7 @@ import kotlinx.coroutines.CoroutineDispatcher
  * @param serial the one queue the model runs its store and clipboard work on.
  * @param theme the colours and sizes the screen is drawn in.
  * @param renderer draws a described screen into views.
+ * @param older the older-rows read port for Load more phase two, or null for one-phase.
  */
 internal class HistoryHostView(
     context: Context,
@@ -65,6 +67,7 @@ internal class HistoryHostView(
     serial: CoroutineDispatcher,
     private val theme: Theme,
     private val renderer: ScreenRenderer,
+    private val older: OlderHistory? = null,
 ) : ScrollView(context) {
     private val asyncHistory = AsyncHistory(
         history,
@@ -73,6 +76,7 @@ internal class HistoryHostView(
         work,
         HistoryScreen(),
         serial,
+        older = older,
         postToMain = { task -> post(Runnable { task() }) },
         draw = ::show,
     )

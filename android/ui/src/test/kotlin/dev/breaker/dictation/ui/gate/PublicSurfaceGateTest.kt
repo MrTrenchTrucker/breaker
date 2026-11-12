@@ -52,7 +52,7 @@ private const val SETTLED_ENTRY =
         "onDownloadModel: () -> Unit, onThemeChanged: (() -> Unit)? = null): android.view.View"
 
 private const val SETTLED_HISTORY = "fun createHistoryView(context: android.content.Context, " +
-    "history: dev.breaker.dictation.core.port.HistoryStore, settings: dev.breaker.dictation.core.port.SettingsStore): android.view.View"
+    "history: dev.breaker.dictation.core.port.HistoryStore, settings: dev.breaker.dictation.core.port.SettingsStore, older: dev.breaker.dictation.core.port.OlderHistory? = null): android.view.View"
 private const val SETTLED_HOW_IT_WORKS = "fun createHowItWorksView(context: android.content.Context, " +
     "settings: dev.breaker.dictation.core.port.SettingsStore): android.view.View"
 private const val SETTLED_ABOUT = "fun createAboutView(context: android.content.Context, " +

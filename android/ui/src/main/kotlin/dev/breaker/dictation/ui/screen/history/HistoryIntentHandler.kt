@@ -2,6 +2,8 @@ package dev.breaker.dictation.ui.screen.history
 
 import dev.breaker.dictation.core.model.Transcription
 import dev.breaker.dictation.core.port.HistoryStore
+import dev.breaker.dictation.core.port.OlderHistory
+import dev.breaker.dictation.core.port.OlderResult
 import dev.breaker.dictation.ui.screen.HistoryActions
 import dev.breaker.dictation.ui.screen.Screen
 import dev.breaker.dictation.ui.screen.ScreenIntent
@@ -14,7 +16,12 @@ import dev.breaker.dictation.ui.screen.ScreenIntent
  * Undo inside it leaves the store as it was. Every store and clipboard call is
  * guarded: an exception is read as a failure and is never shown or passed on.
  *
- * Call it from one thread at a time; it does no locking. AsyncHistory runs it on its serial dispatcher.
+ * Server rows (Load more phase two) are held in a ServerRows delegate: visit-only,
+ * never stored, gone when the view closes. The handler delegates the server phase
+ * to it and only adds the MORE routing and the lookups that search both lists.
+ *
+ * Call it from one thread at a time; it does no locking. AsyncHistory runs it on its
+ * serial dispatcher.
  */
 
 /**
@@ -25,6 +32,7 @@ import dev.breaker.dictation.ui.screen.ScreenIntent
  * @param format the time text each row shows.
  * @param work the scheduler for the Undo windows.
  * @param screen the pure screen.
+ * @param older the older-rows read port, or null when Load more stays one-phase.
  */
 internal class HistoryIntentHandler(
     private val history: HistoryStore,
@@ -32,6 +40,7 @@ internal class HistoryIntentHandler(
     private val format: TimestampFormat,
     private val work: DelayedWork,
     private val screen: HistoryScreen,
+    private val older: OlderHistory? = null,
 ) {
     private var held: List<Transcription> = emptyList()
     private var fullPage: Boolean = false
@@ -40,6 +49,8 @@ internal class HistoryIntentHandler(
     private var notice: HistoryNotice? = null
     private val pending = LinkedHashMap<String, Cancellation>()
     private val opened = LinkedHashSet<String>()
+    /** The server rows of this visit; null when the older-rows port is not offered. */
+    internal val serverRows: ServerRows? = older?.let { ServerRows(initialOfferAllowed = it.available()) }
 
     /**
      * Draws the screen again when a window ends on its own, after its row has been
@@ -51,6 +62,41 @@ internal class HistoryIntentHandler(
     fun current(): Screen {
         reload(shown)
         return draw()
+    }
+
+    /**
+     * Reads the page older than the oldest row on screen from the server. The first call
+     * sends the createdAt of the last held row; later calls send the previous Page.next
+     * unchanged. Nothing is stored.
+     */
+    fun readOlder() {
+        val rows = serverRows ?: return
+        if (!rows.mayRead()) return
+        val bound = rows.firstBound(held)
+        if (bound == null) {
+            rows.readDone()
+            return
+        }
+        val result = try {
+            older?.older(bound)
+        } catch (failure: Exception) {
+            OlderResult.Unavailable
+        }
+        if (result == null) rows.readDone() else serverReadDone(result)
+    }
+
+    /** Handles one older-rows answer: applies the page or sets the notice, never stores. The caller draws. */
+    private fun serverReadDone(result: OlderResult) {
+        val rows = serverRows ?: return
+        val shownNotice = rows.noticeFor(result)
+        when (result) {
+            is OlderResult.Page -> rows.applyPage(result, held.map { it.id }.toSet())
+            OlderResult.NoneOlder -> rows.noMore()
+            is OlderResult.Busy -> { /* notice only; no retry loop */ }
+            else -> { /* failure kinds: notice only */ }
+        }
+        rows.readDone()
+        notice = shownNotice
     }
 
     /**
@@ -75,14 +121,24 @@ internal class HistoryIntentHandler(
     }
 
     /**
-     * Closing the screen deletes every row still waiting out its Undo window, once each. A row
-     * whose delete worked is also left out of the rows held; one the store refused stays in them.
+     * Closing the screen commits every pending deletion once, through the store that owns it:
+     * a held id goes through history.delete, a server id goes through older.delete. A deletion
+     * whose window already ran in windowEnded is not re-sent.
      */
     fun close() {
-        for (id in pending.keys.toList()) {
+        val pendingIds = pending.keys.toList()
+        for (id in pendingIds) {
             pending.remove(id)?.cancel()
-            if (guarded { history.delete(id) }) {
-                held = held.filterNot { it.id == id }
+        }
+        val heldIds = held.map { it.id }.toSet()
+        val serverIds = serverRows?.list.orEmpty().map { it.id }.toSet()
+        for (id in pendingIds) {
+            if (id in heldIds) {
+                if (guarded { history.delete(id) }) {
+                    held = held.filterNot { it.id == id }
+                }
+            } else if (id in serverIds) {
+                guarded { older?.delete(id) == true }
             }
         }
     }
@@ -98,14 +154,17 @@ internal class HistoryIntentHandler(
     }
 
     private fun copy(id: String): Screen {
-        val row = held.firstOrNull { it.id == id && it.id !in pending } ?: return draw()
+        val row = held.firstOrNull { it.id == id && it.id !in pending }
+            ?: serverRows?.list.orEmpty().firstOrNull { it.id == id && it.id !in pending } ?: return draw()
         notice = if (guarded { clipboard.copy(row.text) }) HistoryNotice.COPIED else HistoryNotice.COPY_FAILED
         return draw()
     }
 
     /** Hides the row and opens its window. The store is not touched until the window ends. */
     private fun delete(id: String): Screen {
-        if (id in pending || held.none { it.id == id }) return draw()
+        val heldHas = held.any { it.id == id }
+        val serverHas = serverRows?.list.orEmpty().any { it.id == id }
+        if (id in pending || (!heldHas && !serverHas)) return draw()
         pending[id] = work.schedule(UNDO_WINDOW_MS) { windowEnded(id) }
         return draw()
     }
@@ -116,14 +175,23 @@ internal class HistoryIntentHandler(
         return draw()
     }
 
-    private fun more(): Screen {
+    /** MORE: route by phase. SERVER reads older rows from the server; every other phase is today's local reload. */
+    private fun more(): Screen = when (serverPhase) {
+        LoadMorePhase.SERVER -> {
+            readOlder()
+            draw()
+        }
+        else -> drawLocalMore()
+    }
+
+    private fun drawLocalMore(): Screen {
         if (shown < ROW_CAP) reload(minOf(shown + PAGE_SIZE, ROW_CAP))
         return draw()
     }
 
     /** Opens or closes the row [id] in full. A row not held changes nothing. Draws the screen either way. */
     private fun show(id: String, open: Boolean): Screen {
-        if (held.any { it.id == id }) {
+        if (held.any { it.id == id } || serverRows?.list.orEmpty().any { it.id == id }) {
             if (open) opened.add(id) else opened.remove(id)
         }
         return draw()
@@ -132,13 +200,25 @@ internal class HistoryIntentHandler(
     /**
      * The window for [id] ended: the row is deleted and left out of the rows held, so a re-read
      * that fails cannot bring it back, or put back with a notice if the store refused.
+     * A held row goes through history.delete; a server row goes through older.delete first,
+     * and only if it answers true is the row dropped and remembered.
      */
     private fun windowEnded(id: String) {
         if (pending.remove(id) == null) return
-        if (guarded { history.delete(id) }) {
-            held = held.filterNot { it.id == id }
+        val heldContainedId = held.any { it.id == id }
+        if (heldContainedId) {
+            if (guarded { history.delete(id) }) {
+                held = held.filterNot { it.id == id }
+            } else {
+                notice = HistoryNotice.DELETE_FAILED
+            }
         } else {
-            notice = HistoryNotice.DELETE_FAILED
+            val deleted = guarded { older?.delete(id) == true }
+            if (deleted) {
+                serverRows?.markDeleted(id)
+            } else {
+                notice = HistoryNotice.DELETE_FAILED
+            }
         }
         reload(shown)
         onChange(draw())
@@ -169,18 +249,40 @@ internal class HistoryIntentHandler(
         false
     }
 
-    /** The screen as the rows held and the open windows say it is now. A notice is handed out once. */
+    /**
+     * The screen as the rows held and the open windows say it is now. A notice is handed out once.
+     * Server rows are appended after held rows; a server row whose id is in held is skipped by
+     * ServerRows.applyPage, so no id is drawn twice.
+     */
     private fun draw(): Screen {
+        val serverList = serverRows?.list.orEmpty().map {
+            HistoryRow(it.id, format.format(it.createdAt), it.source, it.text, heldForVisitOnly = true)
+        }
         val state = HistoryState(
-            rows = held.map { HistoryRow(it.id, format.format(it.createdAt), it.source, it.text) },
+            rows = held.map { HistoryRow(it.id, format.format(it.createdAt), it.source, it.text) } + serverList,
             pending = pending.keys.toSet(),
             shown = shown,
             fullPage = fullPage,
             listFailed = listFailed,
             opened = opened.toSet(),
+            serverPhase = serverPhase,
+            serverOfferAllowed = serverRows?.offerAllowed == true,
+            serverRowsShown = serverRows?.count ?: 0,
         )
         val drawn = notice
         notice = null
         return screen.render(state, drawn)
     }
+
+    /** Which phase the Load more button is in: the local list first, the server only once the local list is exhausted. */
+    internal val serverPhase: LoadMorePhase
+        get() {
+            val rows = serverRows ?: return LoadMorePhase.LOCAL
+            if (!rows.offerAllowed) return LoadMorePhase.LOCAL
+            if (fullPage) return LoadMorePhase.LOCAL
+            if (held.isEmpty()) return LoadMorePhase.LOCAL
+            if (rows.count >= SERVER_ROW_CAP) return LoadMorePhase.CAP
+            if (!rows.hasMore) return LoadMorePhase.GONE
+            return LoadMorePhase.SERVER
+        }
 }

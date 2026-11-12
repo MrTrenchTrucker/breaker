@@ -1,6 +1,7 @@
 package dev.breaker.dictation.ui.screen.history
 
 import dev.breaker.dictation.core.port.HistoryStore
+import dev.breaker.dictation.core.port.OlderHistory
 import dev.breaker.dictation.ui.screen.Label
 import dev.breaker.dictation.ui.screen.Screen
 import dev.breaker.dictation.ui.screen.ScreenIntent
@@ -57,9 +58,10 @@ internal class AsyncHistory(
     private val serial: CoroutineDispatcher,
     private val postToMain: (() -> Unit) -> Unit,
     private val draw: (Screen) -> Unit,
+    private val older: OlderHistory? = null,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + serial)
-    private val handler = HistoryIntentHandler(history, clipboard, format, SerialWork(work), screen)
+    private val handler = HistoryIntentHandler(history, clipboard, format, SerialWork(work), screen, older)
     private var generation = 0
     private var attached = true
     private var closed = false

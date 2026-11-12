@@ -26,7 +26,8 @@ class EntrySurfaceTest {
     private val HISTORY_SIGNATURE =
         "fun createHistoryView(context: android.content.Context, " +
             "history: dev.breaker.dictation.core.port.HistoryStore, " +
-            "settings: dev.breaker.dictation.core.port.SettingsStore): android.view.View"
+            "settings: dev.breaker.dictation.core.port.SettingsStore, " +
+            "older: dev.breaker.dictation.core.port.OlderHistory? = null): android.view.View"
 
     /** The public declaration of the auth view builder, written on one line. */
     private val AUTH_VIEW_SIGNATURE =
