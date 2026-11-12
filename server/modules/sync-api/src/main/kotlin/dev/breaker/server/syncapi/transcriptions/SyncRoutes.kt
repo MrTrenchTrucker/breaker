@@ -1,6 +1,10 @@
 package dev.breaker.server.syncapi.transcriptions
 
+import dev.breaker.server.syncapi.accounts.RateLimitCounterStore
+import dev.breaker.server.syncapi.auth.enforceLimits
+import dev.breaker.server.syncapi.auth.respondRateLimited
 import dev.breaker.server.syncapi.escapeJsonString
+import dev.breaker.server.syncapi.settings.ServerSettingsStore
 import dev.breaker.server.syncapi.tokens.ResolvedToken
 import dev.breaker.server.syncapi.tokens.TokenKind
 import dev.breaker.server.syncapi.tokens.TokenStore
@@ -22,10 +26,33 @@ import kotlinx.coroutines.CancellationException
 // first, paged by since). Both take a user session token only: no or unknown token is 401, an agent token is 403.
 // A pull with since sets the session's number; each pull purges the delete records all live sessions passed.
 // A store failure other than cancellation answers 503 with a fixed body; cancellation is rethrown.
-internal fun Application.syncRoutes(tokenStore: TokenStore, transcriptionStore: TranscriptionStore) {
+// POST /v1/sync is limited per account (ADR-041): right after the session check and before the body is read, one
+// counter for the key acct:<account id> (route sync, 600 per 60 s, no global counter), under the same admin switch
+// as the other limits. A switch or counter failure lets the request through; a cancellation is rethrown.
+// Null counterStore or settings means no limit: the module passes both; a test of the route alone can leave them out.
+internal const val SYNC_ROUTE = "sync"
+internal const val SYNC_PER_ACCOUNT: Int = 600
+
+internal fun Application.syncRoutes(
+    tokenStore: TokenStore,
+    transcriptionStore: TranscriptionStore,
+    counterStore: RateLimitCounterStore? = null,
+    settings: ServerSettingsStore? = null,
+) {
     routing {
         post("/v1/sync") {
             val accountId = call.sessionAccountOrRefuse(tokenStore) ?: return@post
+            if (counterStore != null && settings != null) {
+                val refused = enforceLimits(
+                    switchOn = { settings.rateLimitsEnabled() },
+                    addressOf = { "acct:$accountId" },
+                    checkPair = { key -> counterStore.check(SYNC_ROUTE, key, SYNC_PER_ACCOUNT) },
+                )
+                if (refused != null) {
+                    respondRateLimited(call, refused)
+                    return@post
+                }
+            }
             val text = call.receiveSyncBody() ?: return@post
             val body = when (val parsed = parseSyncPush(text)) {
                 is SyncPushParse.Refused -> {
