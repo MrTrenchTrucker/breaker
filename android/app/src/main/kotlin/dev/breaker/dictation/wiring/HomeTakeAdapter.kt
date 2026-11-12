@@ -24,12 +24,17 @@ internal class HomeTakeAdapter(
     private val onFinishResult: (FinishResult?) -> Unit = {},
 ) {
 
+    /** Main thread only: true from the queued finish until its settle or its refuse-catch clears it. */
+    private var finishing: Boolean = false
+
     /**
      * A tap on the mic: the start of a take, or its end. Only a take the Home holds is ended here; the
      * owner is read before the port's state, so a tap with no take the Home holds never reads the port, and
      * a take the tile began goes to begin, and the runner answers its own sentence.
+     * A tap while a finish is queued or running is ignored silently: no begin, no line and no state.
      */
     fun onTap() {
+        if (finishing) return
         if (owner.heldByHome() && take.sessionState == DictationState.RECORDING) finishAndSettle() else beginFromTap()
     }
 
@@ -98,6 +103,7 @@ internal class HomeTakeAdapter(
     private fun finishAndSettle() {
         // Cleared here on the main thread, before the finish runs, so a second tap meanwhile cannot finish it twice.
         owner.settled()
+        finishing = true
         // The take has ended and the local model is transcribing: show the amber SENDING face for the whole
         // transcription, until the settle's IDLE. Pushed on the main thread BEFORE the background submit so it is
         // first in the order: onState(SENDING) is pushed BEFORE the try, so a refused submit runs the catch's IDLE
@@ -114,6 +120,7 @@ internal class HomeTakeAdapter(
                     // The settle still runs; a failed reset must not drop the save/copy decision.
                 }
                 main.post {
+                    finishing = false
                     val line: String = settle.line(finished, saveFailed, HomeSentences.lines)
                     onState(DictationState.IDLE)
                     onLine(line)
@@ -122,6 +129,7 @@ internal class HomeTakeAdapter(
             }
         } catch (e: Exception) {
             // A background that refuses: the take settles at once, as not-converted.
+            finishing = false
             val line: String = settle.line(null, false, HomeSentences.lines)
             onState(DictationState.IDLE)
             onLine(line)
