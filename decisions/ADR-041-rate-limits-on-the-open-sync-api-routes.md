@@ -23,7 +23,7 @@ of the decision.
 ## Decision
 
 1. **The key is the source address.** It is the socket peer. `X-Forwarded-For` is read only when the peer is in an
-   admin-set list of trusted proxies (a new setting, default empty). With an empty list the peer address is used and
+   admin-set list of trusted proxies (a new setting, default empty) [now an environment setting: see the Update of 2026-11-11 (trusted proxies)]. With an empty list the peer address is used and
    the header is ignored. With a list, the key is the right-most entry of the header that is not itself a trusted
    proxy. Behind a proxy the admin has not listed, every client looks like the proxy and the per-address limit behaves
    as one shared limit; the admin card says so.
@@ -64,7 +64,7 @@ of the decision.
 - A counter store is needed. It follows the table of the wrong-password limit: kept in the database so a restart
   does not reset it, one row per key, a fixed cap on rows, the oldest row dropped first, stale rows swept. The
   in-memory map of the transcription server's limit is not a model, because it forgets everything on a restart.
-- A new admin setting (the trusted-proxy list) and an admin switch for the limits are added; the admin card says what
+- A new admin setting (the trusted-proxy list [now an environment setting, see the Update]) and an admin switch for the limits are added; the admin card says what
   they do and what an unlisted proxy means.
 - Behind an unlisted proxy the per-address limit protects the server but treats all clients as one.
 - Build order: the measurement; the counter store with register and salt; complete-reset; sync; the trusted-proxy
@@ -73,6 +73,8 @@ of the decision.
 
 ## To be designed (not decided here)
 
-- Where the trusted-proxy list lives and how the admin edits it.
+- Where the trusted-proxy list lives and how the admin edits it. [Decided: see the Update of 2026-11-11 (trusted proxies).]
 - The numbers (see decision 5).
 - What the sign-in screen says when the server answers 429.
+
+Update 2026-11-11 (trusted proxies, built): the trusted-proxy list is ONE environment setting, `BREAKER_TRUSTED_PROXIES`, not an admin setting: IPv4 or IPv6 literals or CIDR blocks, at most 20 entries, default empty (trust none), read at start; a bad value, a prefix length of 0 or a host name stops the start. A remotely editable trust list would be an attack surface, and there is no admin page yet; an admin route may follow when one exists. The key of a request is the socket peer, unless the peer is listed: then it is the right-most `X-Forwarded-For` entry that is not itself listed, written in its normalised form (an IPv4 mapped IPv6 address is its IPv4 address). A header that cannot be read (an entry that is not an IP literal, more than 20 entries, an entry over 45 characters) never decides a key: the peer does. Behind an unlisted proxy every client looks like the proxy. No migration.

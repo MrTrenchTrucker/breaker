@@ -15,6 +15,7 @@ import dev.breaker.server.syncapi.status.StatusProbe
 import dev.breaker.server.syncapi.status.probeWhisperHealth
 import dev.breaker.server.syncapi.status.statusRoute
 import dev.breaker.server.syncapi.accounts.RateLimitCounterStore
+import dev.breaker.server.syncapi.accounts.TrustedProxies
 import dev.breaker.server.syncapi.admin.adminRateLimitsRoute
 import dev.breaker.server.syncapi.auth.authChangePasswordRoute
 import dev.breaker.server.syncapi.auth.authCompleteResetRoute
@@ -47,11 +48,12 @@ internal fun Application.syncApiModule(
     manifestFile: String = "",
     gitTag: String = "",
     whisperHealthUrl: String = "",
+    trustedProxies: TrustedProxies = TrustedProxies.empty,
 ) {
     val pendingSealedStore = PendingSealedStore(accountStore.db)
     // Unset URL = whisper-server is not listed by the status route.
     val whisperStatus = if (whisperHealthUrl.isBlank()) null else StatusProbe(whisperHealthUrl, ::probeWhisperHealth, accountStore.clock)
-    val counterStore = RateLimitCounterStore(accountStore.db, accountStore.clock)
+    val counterStore = RateLimitCounterStore(accountStore.db, accountStore.clock, trustedProxies = trustedProxies)
     routing {
         // The health route must stay free of authentication and of any data access:
         // a monitor must be able to call it when the database or the login is broken.

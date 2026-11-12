@@ -58,4 +58,6 @@ Set `BREAKER_SYNC_API_HOST` (default `127.0.0.1`), `BREAKER_SYNC_API_PORT` (defa
 
 The internal listener is a second listener, set by BREAKER_SYNC_API_INTERNAL_HOST (default 127.0.0.1) and BREAKER_SYNC_API_INTERNAL_PORT (default 8081). It carries only the two token-check routes that whisper-server calls, never the public listener or the VPN interface. Its service key is made on the first start in the file named by BREAKER_SYNC_API_SERVICE_KEY_FILE (default: service-key next to the database file); delete that file and start again to rotate the key. Transport: Breaker serves plain HTTP on both listeners; TLS is the admin's choice through a reverse proxy in front of it (ADR-034). A refused start names the variable or the path and never prints a key or a value. The card of this module has the full rules.
 
+`BREAKER_TRUSTED_PROXIES` (optional) lists the reverse proxies whose `X-Forwarded-For` header the rate limits may believe: comma separated IP literals or CIDR blocks (no host names), at most 20, default empty (trust none: the key is the socket peer). Behind a proxy that is not listed, every client looks like the proxy. A bad value stops the start.
+
 Full module card, including how to run its tests: `AGENTS.md` in this folder.
