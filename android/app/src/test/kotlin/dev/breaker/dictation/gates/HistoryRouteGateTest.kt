@@ -35,13 +35,13 @@ internal class HistoryRouteGateTest {
         Rule(name, file) { Regex(first).findAll(it).count() == 1 && Regex(second).findAll(it).count() == 1 }
 
     private val rules: List<Rule> = listOf(
-        once2("HISTORY_VIEW_IS_BUILT_ONCE_FROM_THE_APPS_STORE", "activity", """\bcreateHistoryView\b""", """\bcreateHistoryView\s*\(\s*this\s*,\s*app\s*\.\s*historyStore\s*,\s*app\s*\.\s*settingsStore\s*\)"""),
+        once2("HISTORY_VIEW_IS_BUILT_ONCE_FROM_THE_APPS_STORE", "activity", """\bcreateHistoryView\b""", """\bcreateHistoryView\s*\(\s*this\s*,\s*app\s*\.\s*historyStore\s*,\s*app\s*\.\s*settingsStore\s*,\s*app\s*\.\s*olderHistory\s*\)"""),
         rx("NO_OTHER_HISTORY_STORE", "activity", """\b(SqliteHistoryStore|LazyHistoryStore|HistoryStore)\b""", 0),
         rx("THE_MENU_OPENS_HISTORY", "activity", """\bonHistory\s*=\s*\{\s*openHistory\s*\(\s*\)\s*\}"""),
         rx("THE_ROUTE_OPENS_HISTORY_ONLY_ON_A_FRESH_CREATE", "activity", """\bif\s*\(\s*savedInstanceState\s*==\s*null\s*&&\s*NotificationRoute\s*\.\s*opensHistory\s*\(\s*intent\s*\?\s*\.\s*getStringExtra\s*\(\s*NotificationRoute\s*\.\s*EXTRA_ROUTE\s*\)\s*\)\s*\)\s*\{\s*openHistory\s*\(\s*\)\s*\}"""),
         rx("OPEN_HISTORY_HAS_ONE_BODY_AND_TWO_CALLERS", "activity", """\bopenHistory\s*\(\s*\)""", 3),
         rx("NO_ON_NEW_INTENT", "activity", """\bonNewIntent\b""", 0),
-        rx("OPEN_SHOWS_THE_HISTORY_VIEW_AND_REGISTERS_BACK", "activity", """\bprivate\s+fun\s+openHistory\s*\(\s*\)\s*\{\s*if\s*\(\s*historyShown\s*\)\s*return\s+historyShown\s*=\s*true\s+val\s+app\s*=\s*applicationContext\s+as\s+BreakerApp\s+val\s+historyView\s*=\s*dev\s*\.\s*breaker\s*\.\s*dictation\s*\.\s*ui\s*\.\s*createHistoryView\s*\(\s*this\s*,\s*app\s*\.\s*historyStore\s*,\s*app\s*\.\s*settingsStore\s*\)\s+setContentView\s*\(\s*historyView\s*\)\s+applyInsets\s*\(\s*historyView\s*\)\s+registerBack\s*\(\s*\)\s*\}"""),
+        rx("OPEN_SHOWS_THE_HISTORY_VIEW_AND_REGISTERS_BACK", "activity", """\bprivate\s+fun\s+openHistory\s*\(\s*\)\s*\{\s*if\s*\(\s*historyShown\s*\)\s*return\s+historyShown\s*=\s*true\s+val\s+app\s*=\s*applicationContext\s+as\s+BreakerApp\s+val\s+historyView\s*=\s*dev\s*\.\s*breaker\s*\.\s*dictation\s*\.\s*ui\s*\.\s*createHistoryView\s*\(\s*this\s*,\s*app\s*\.\s*historyStore\s*,\s*app\s*\.\s*settingsStore\s*,\s*app\s*\.\s*olderHistory\s*\)\s+setContentView\s*\(\s*historyView\s*\)\s+applyInsets\s*\(\s*historyView\s*\)\s+registerBack\s*\(\s*\)\s*\}"""),
         rx("CLOSE_RETURNS_TO_THE_SETTINGS_COLUMN", "activity", """\bprivate\s+fun\s+closeHistory\s*\(\s*\)\s*\{\s*(?://[^\n]*\n\s*)*if\s*\(\s*!historyShown\s*\)\s*return\s+historyShown\s*=\s*false\s+if\s*\(\s*settingsShown\s*\)\s*\{\s*(?://[^\n]*\n\s*)*setContentView\s*\(\s*settingsScroll\s*\)\s+applyInsets\s*\(\s*settingsScroll\s*\)\s*\}\s*else\s*\{\s*(?://[^\n]*\n\s*)*unregisterBack\s*\(\s*\)\s+setContentView\s*\(\s*homeView\s*\)\s+applyInsets\s*\(\s*homeView\s*!!\s*\)\s*\}\s*\}"""),
                 rx("BACK_ON_33_AND_UP_REGISTERS_A_PLATFORM_CALLBACK_THAT_CLOSES_THE_OVERLAYS", "activity", """\bprivate\s+fun\s+registerBack\s*\(\s*\)\s*\{\s*(?:if\s*\(\s*backCallback\s*!=\s*null\s*\)\s*return\s*)?if\s*\(\s*android\.\s*os\.\s*Build\.\s*VERSION\.\s*SDK_INT\s*>=\s*33\s*\)\s*\{\s*val\s+callback\s*=\s*android\.\s*window\.\s*OnBackInvokedCallback\s*\{\s*when\s*\{\s*infoScreens\.\s*isInfoShown\s*\(\s*\)\s*->\s*infoScreens\.\s*closeInfo\s*\(\s*\)\s*historyShown\s*->\s*closeHistory\s*\(\s*\)\s*settingsShown\s*->\s*closeSettings\s*\(\s*\)\s*\}\s*\}\s*backCallback\s*=\s*callback\s*onBackInvokedDispatcher\.\s*registerOnBackInvokedCallback\s*\(\s*android\.\s*window\.\s*OnBackInvokedDispatcher\.\s*PRIORITY_DEFAULT\s*,\s*callback\s*,?\s*\)\s*\}\s*\}"""),
         rx("BACK_ON_33_AND_UP_UNREGISTERS_THE_CALLBACK", "activity", """\bprivate\s+fun\s+unregisterBack\s*\(\s*\)\s*\{\s*if\s*\(\s*android\s*\.\s*os\s*\.\s*Build\s*\.\s*VERSION\s*\.\s*SDK_INT\s*>=\s*33\s*\)\s*\{\s*backCallback\s*\?\s*\.\s*let\s*\{\s*onBackInvokedDispatcher\s*\.\s*unregisterOnBackInvokedCallback\s*\(\s*it\s*\)\s*\}\s*backCallback\s*=\s*null\s*\}\s*\}"""),
@@ -60,8 +60,10 @@ internal class HistoryRouteGateTest {
     )
 
     private val firing: List<Sample> = listOf(
-        Sample("HISTORY_VIEW_IS_BUILT_ONCE_FROM_THE_APPS_STORE", "createHistoryView(this, app.historyStore, app.settingsStore)", "createHistoryView(this, SqliteHistoryStore.create(this, SystemClockAdapter))"),
-        Sample("HISTORY_VIEW_IS_BUILT_ONCE_FROM_THE_APPS_STORE", "setContentView(historyView)", "setContentView(historyView)\n        createHistoryView(this, app.historyStore)"),
+        Sample("HISTORY_VIEW_IS_BUILT_ONCE_FROM_THE_APPS_STORE", "createHistoryView(this, app.historyStore, app.settingsStore, app.olderHistory)", "createHistoryView(this, SqliteHistoryStore.create(this, SystemClockAdapter))"),
+        Sample("HISTORY_VIEW_IS_BUILT_ONCE_FROM_THE_APPS_STORE", "setContentView(historyView)", "setContentView(historyView)\n        createHistoryView(this, app.historyStore, app.settingsStore, app.olderHistory)"),
+        Sample("HISTORY_VIEW_IS_BUILT_ONCE_FROM_THE_APPS_STORE", "createHistoryView(this, app.historyStore, app.settingsStore, app.olderHistory)", "createHistoryView(this, app.historyStore, app.settingsStore)"),
+        Sample("HISTORY_VIEW_IS_BUILT_ONCE_FROM_THE_APPS_STORE", "createHistoryView(this, app.historyStore, app.settingsStore, app.olderHistory)", "createHistoryView(this, app.historyStore, app.settingsStore, null)"),
         Sample("NO_OTHER_HISTORY_STORE", "private var historyShown: Boolean = false", "private var historyShown: Boolean = false\n    private var spare: HistoryStore? = null"),
         Sample("NO_OTHER_HISTORY_STORE", "private lateinit var settingsColumn: LinearLayout", "private lateinit var settingsColumn: LinearLayout\n    private val spare: LazyHistoryStore? = null"),
         Sample("THE_MENU_OPENS_HISTORY", "onHistory = { openHistory() },", "onHistory = { },"),
@@ -113,7 +115,7 @@ internal class HistoryRouteGateTest {
 
     private val quiet: List<Quiet> = listOf(
         Quiet("activity", "onHistory = { openHistory() },", "onHistory = {\n            openHistory()\n        },"),
-        Quiet("activity", "private fun closeHistory() {", "// openHistory() closeHistory() onNewIntent createHistoryView(this, app.historyStore)\n    private fun closeHistory() {"),
+        Quiet("activity", "private fun closeHistory() {", "// openHistory() closeHistory() onNewIntent createHistoryView(this, app.historyStore, app.settingsStore, app.olderHistory)\n    private fun closeHistory() {"),
         Quiet("activity", "private fun closeHistory() {", "private fun closeHistory() {\n        // onHistory = { openHistory() } is the menu item"),
                 Quiet("activity", "infoScreens.isInfoShown() -> infoScreens.closeInfo()\n            historyShown -> closeHistory()\n            settingsShown -> closeSettings()\n            else -> if ((homeView as? dev.breaker.dictation.ui.HomeControl)?.closeMenu() != true) super.onBackPressed()", "infoScreens.isInfoShown() -> infoScreens.closeInfo()\n            historyShown ->\n                closeHistory()\n            settingsShown -> closeSettings()\n            else -> if ((homeView as? dev.breaker.dictation.ui.HomeControl)?.closeMenu() != true) super.onBackPressed()"),
         Quiet("activity", "if (settingsShown) {", "if ( settingsShown ) {"),
