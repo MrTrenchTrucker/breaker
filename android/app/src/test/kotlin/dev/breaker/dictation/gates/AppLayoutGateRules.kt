@@ -46,6 +46,7 @@ open class AppLayoutGateRules {
         "host/ServiceRefusalNotice.kt",
         "wiring/SyncHttpUploader.kt", "wiring/SyncScheduler.kt", "wiring/SyncWorker.kt", "wiring/SyncingHistoryStore.kt",
         "wiring/PullHttpTransport.kt", "wiring/PullChainWiring.kt",
+        "wiring/OlderRowsTransport.kt", "wiring/OlderRowsWiring.kt",
         "wiring/ProbeRefreshingSettingsStore.kt",
         "wiring/PhraseFeedTap.kt", "wiring/PhraseSendHandler.kt", "wiring/PhraseStreamSource.kt", "wiring/PhraseWiring.kt",
         "wiring/TileSpokenSend.kt",

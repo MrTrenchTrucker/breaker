@@ -48,7 +48,7 @@ internal class SyncReleaseGateWiringTest {
             """\bpullSink\s*=\s*if\s*\(\s*syncOn\s*\)\s*history\s+else\s+null\b"""),
         Rule("PULL_TRANSPORT_IS_PASSED_TO_THE_QUEUE",
             """\bpullTransport\s*=\s*pullTransportForSync\b"""),
-        Rule("SYNC_WORKER_HAS_FOUR_REFERENCES", """\bsyncWorker\b""", times = 4),
+        Rule("SYNC_WORKER_HAS_FIVE_REFERENCES", """\bsyncWorker\b""", times = 5),
         Rule("DECORATED_STORE_HAS_TWO_REFERENCES", """\bdecoratedHistoryStore\b""", times = 2),
     )
 
@@ -69,8 +69,8 @@ internal class SyncReleaseGateWiringTest {
         Sample("HISTORY_STORE_IS_PLAIN_UNLESS_SYNC_ON", storeGetter, "decoratedHistoryStore"),
         Sample("HISTORY_STORE_IS_PLAIN_UNLESS_SYNC_ON", storeGetter, "if (syncOn) history else decoratedHistoryStore"),
         Sample("HISTORY_STORE_IS_PLAIN_UNLESS_SYNC_ON", storeGetter, "if (!syncOn) decoratedHistoryStore else history"),
-        Sample("SYNC_WORKER_HAS_FOUR_REFERENCES", startCall, startCall + "\n        syncWorker.onSave()"),
-        Sample("SYNC_WORKER_HAS_FOUR_REFERENCES", "worker = syncWorker)", "worker = syncWorker)\n        syncWorker.onSave()"),
+        Sample("SYNC_WORKER_HAS_FIVE_REFERENCES", startCall, startCall + "\n        syncWorker.onSave()"),
+        Sample("SYNC_WORKER_HAS_FIVE_REFERENCES", "worker = syncWorker)", "worker = syncWorker)\n        syncWorker.onSave()"),
         Sample("DECORATED_STORE_HAS_TWO_REFERENCES", storeGetter, "if (syncOn) decoratedHistoryStore else decoratedHistoryStore"),
         Sample("DECORATED_STORE_HAS_TWO_REFERENCES", "private val syncOn: Boolean by lazy {", "private val other = decoratedHistoryStore\n    private val syncOn: Boolean by lazy {"),
         Sample("PULL_TRANSPORT_IS_UNDER_SYNC_ON", pullTransportCall, "pullTransport(settingsStore, compositionRoot.addressedSession)"),
