@@ -18,6 +18,9 @@ from web_fe_aesgcm_pins import WebFeAesGcmPinsTest  # noqa: F401  (AES-GCM layer
 from web_fe_signin_pins import WebFeSigninPinsTest  # noqa: F401  (sign-in page pins, collected here)
 from web_fe_signin_page_pins import WebFeSigninPagePinsTest  # noqa: F401  (sign-in page shell pins, collected here)
 from web_fe_signin_kdf_pins import WebFeSigninKdfPinsTest  # noqa: F401  (key derivation wrapper pins, collected here)
+from web_fe_signin_box_pins import WebFeSigninBoxPinsTest  # noqa: F401  (box public key pins, collected here)
+from web_fe_box_aad_pins import WebFeBoxAadPinsTest  # noqa: F401  (box purpose AAD pins, collected here)
+from web_fe_signin_seal_pins import WebFeSigninSealPinsTest  # noqa: F401  (signin seal source pins, collected here)
 
 
 if __name__ == "__main__":

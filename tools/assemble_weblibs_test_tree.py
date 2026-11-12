@@ -10,6 +10,9 @@ web-libs move. It:
   2. Copies each noble sub-module's files from shared/modules/web-libs/
      <lib>/ into <temp>/main/resources/web/js/vendor/<lib>/, excluding
      metadata files (AGENTS.md, README.md, VERSION, build.gradle.kts).
+     Sub-folders are copied too (noble-curves/abstract/). The served
+     noble-curves copy is rewritten by REWRITES below: four import paths
+     change, and the pinned sources do not.
      libsodium is NEVER copied — it is vendored + pinned but never served
      (ADR-040 CSP has no wasm-unsafe-eval).
   3. Runs `node --test` on every test/js/*.test.mjs file (named, never the folder) in the temp tree.
@@ -50,18 +53,69 @@ COPY_MAPPING = [
 
 METADATA = {"AGENTS.md", "README.md", "VERSION", "build.gradle.kts"}
 
+# The served noble-curves copy: exactly these four import paths are rewritten.
+# The pinned sources in shared/modules/web-libs/noble-curves/ stay unmodified.
+# The twin table is nobleCurvesRewrites in server/modules/web-fe/build.gradle.kts.
+REWRITE_LIB = "noble-curves"
+REWRITES = [
+    ("utils.js",
+     "import { abytes as abytes_, anumber as anumber_, bytesToHex as bytesToHex_, concatBytes as concatBytes_, hexToBytes as hexToBytes_, isBytes as isBytes_, randomBytes as randomBytes_, } from '@noble/hashes/utils.js';",
+     "import { abytes as abytes_, anumber as anumber_, bytesToHex as bytesToHex_, concatBytes as concatBytes_, hexToBytes as hexToBytes_, isBytes as isBytes_, randomBytes as randomBytes_, } from '../noble-hashes/utils.js';"),
+    ("ed25519.js",
+     "import { sha512 } from '@noble/hashes/sha2.js';",
+     "import { sha512 } from '../noble-hashes/sha2.js';"),
+    ("ed25519.js",
+     "import { abytes, concatBytes, hexToBytes } from '@noble/hashes/utils.js';",
+     "import { abytes, concatBytes, hexToBytes } from '../noble-hashes/utils.js';"),
+    ("abstract/frost.js",
+     "import { utf8ToBytes } from '@noble/hashes/utils.js';",
+     "import { utf8ToBytes } from '../../noble-hashes/utils.js';"),
+]
+
+
+def apply_rewrites(texts):
+    """Return a NEW dict: texts with every REWRITES `before` replaced by its `after`.
+
+    texts maps rel_path -> str (decoded UTF-8, newlines untouched). Each `before`
+    must occur exactly once in its file, else ValueError names the file and the
+    count. A file named by no tuple comes back unchanged. No file access.
+    """
+    out = dict(texts)
+    for rel_path, before, after in REWRITES:
+        text = out.get(rel_path, "")
+        count = text.count(before)
+        if count != 1:
+            raise ValueError("%s: rewrite line found %d times, expected 1" % (rel_path, count))
+        out[rel_path] = text.replace(before, after)
+    return out
+
+
+def _read_text(path):
+    with open(path, "rb") as fh:
+        return fh.read().decode("utf-8")
+
+
+def _write_text(path, text):
+    with open(path, "wb") as fh:
+        fh.write(text.encode("utf-8"))
+
 
 def _vendor_files(sub_module):
-    """List of files to copy from a sub-module, excluding metadata."""
+    """Relative paths (forward slashes) of the files to copy from a sub-module.
+
+    Sub-folders are walked, so noble-curves/abstract/ is copied too. Metadata
+    files are skipped at any depth.
+    """
     src = os.path.join(WEBLIBS, sub_module)
     files = []
-    for entry in sorted(os.listdir(src)):
-        if entry in METADATA:
-            continue
-        full = os.path.join(src, entry)
-        if os.path.isfile(full):
-            files.append(entry)
-    return files
+    for dirpath, dirnames, filenames in os.walk(src):
+        dirnames.sort()
+        for name in sorted(filenames):
+            if name in METADATA:
+                continue
+            rel = os.path.relpath(os.path.join(dirpath, name), src)
+            files.append(rel.replace(os.sep, "/"))
+    return sorted(files)
 
 
 def assemble_and_run():
@@ -73,15 +127,25 @@ def assemble_and_run():
         shutil.copytree(WEB_SRC, web_dst)
         shutil.copytree(TEST_SRC, test_dst)
 
-        # 2. Copy noble files into vendor/<lib>/ (never libsodium).
+        # 2. Copy noble files into vendor/<lib>/ (never libsodium). The served
+        #    REWRITE_LIB files get the REWRITES table applied, byte-exact text.
         for sub_module, vendor_lib in COPY_MAPPING:
             vendor_dst = os.path.join(web_dst, "js", "vendor", vendor_lib)
-            os.makedirs(vendor_dst, exist_ok=True)
-            for fname in _vendor_files(sub_module):
-                shutil.copy2(
-                    os.path.join(WEBLIBS, sub_module, fname),
-                    os.path.join(vendor_dst, fname),
+            served = {}
+            if sub_module == REWRITE_LIB:
+                named = sorted({p for p, _before, _after in REWRITES})
+                served = apply_rewrites(
+                    {p: _read_text(os.path.join(WEBLIBS, sub_module, *p.split("/")))
+                     for p in named}
                 )
+            for rel in _vendor_files(sub_module):
+                src = os.path.join(WEBLIBS, sub_module, *rel.split("/"))
+                dst = os.path.join(vendor_dst, *rel.split("/"))
+                os.makedirs(os.path.dirname(dst), exist_ok=True)
+                if rel in served:
+                    _write_text(dst, served[rel])
+                else:
+                    shutil.copy2(src, dst)
 
         # 3. Run node --test there.
         # Explicit file names: newer node versions run nothing when given a folder.

@@ -79,6 +79,7 @@ Vendored code and dependencies:
      oprf}.js) are unmodified copies from the upstream repository.
    - Served path: shared/modules/web-libs/noble-curves/ is copied into
      build/web/js/vendor/noble-curves/ by web-fe's copyWebLibs Copy task.
+   - Served copy: the served copy of noble-curves has four import-path rewrites (bare `@noble/hashes/...` paths become relative paths); the vendored sources above are unmodified copies, pinned by sha256.
 
 9. libsodium 0.8.4 (wrappers-sumo + sumo pair)
    - Upstream: https://github.com/jedisct1/libsodium-wrappers-sumo

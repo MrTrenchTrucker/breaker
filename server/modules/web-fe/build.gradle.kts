@@ -24,6 +24,20 @@ plugins {
 // the base plugin and has no processResources of its own).
 val webLibs = rootProject.layout.projectDirectory.dir("shared/modules/web-libs")
 
+// The served noble-curves copy gets exactly four import-path rewrites: a bare
+// @noble/hashes path becomes a relative path. The sources are not changed.
+// The twin table is REWRITES in tools/assemble_weblibs_test_tree.py, and the
+// two must hold the same four lines. The copy task below applies this table.
+val nobleCurvesRewrites = listOf(
+    Triple("utils.js", "import { abytes as abytes_, anumber as anumber_, bytesToHex as bytesToHex_, concatBytes as concatBytes_, hexToBytes as hexToBytes_, isBytes as isBytes_, randomBytes as randomBytes_, } from '@noble/hashes/utils.js';", "import { abytes as abytes_, anumber as anumber_, bytesToHex as bytesToHex_, concatBytes as concatBytes_, hexToBytes as hexToBytes_, isBytes as isBytes_, randomBytes as randomBytes_, } from '../noble-hashes/utils.js';"),
+    Triple("ed25519.js", "import { sha512 } from '@noble/hashes/sha2.js';", "import { sha512 } from '../noble-hashes/sha2.js';"),
+    Triple("ed25519.js", "import { abytes, concatBytes, hexToBytes } from '@noble/hashes/utils.js';", "import { abytes, concatBytes, hexToBytes } from '../noble-hashes/utils.js';"),
+    Triple("abstract/frost.js", "import { utf8ToBytes } from '@noble/hashes/utils.js';", "import { utf8ToBytes } from '../../noble-hashes/utils.js';")
+)
+
+// Captured here, not inside doLast: project state read at execution time is refused by the configuration cache.
+val nobleCurvesServedDir = layout.buildDirectory.dir("web/js/vendor/noble-curves")
+
 val copyWebLibs = tasks.register<Copy>("copyWebLibs") {
     group = "build"
     description = "Copy the vendored noble libraries into the served vendor tree"
@@ -32,6 +46,17 @@ val copyWebLibs = tasks.register<Copy>("copyWebLibs") {
         from(webLibs.dir(lib)) {
             exclude("VERSION", "README.md", "AGENTS.md", "build.gradle.kts")
             into(lib)
+        }
+    }
+    doLast {
+        for ((rel, before, after) in nobleCurvesRewrites) {
+            val target = File(nobleCurvesServedDir.get().asFile, rel)
+            val text = target.readText(Charsets.UTF_8)
+            val count = text.split(before).size - 1
+            if (count != 1) {
+                throw GradleException("served noble-curves copy of $rel has $count matches for a rewrite line, expected 1")
+            }
+            target.writeText(text.replace(before, after), Charsets.UTF_8)
         }
     }
 }

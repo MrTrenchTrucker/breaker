@@ -6,6 +6,10 @@ import {
   parseFragment, passwordToBytes, decodeBase64Padded, encodeBase64Padded, isCode, wipeBytes,
 } from './signin-link.js';
 
+// The purpose of the box private key blob, as ASCII bytes. It is built from parts, so the whole text is in no one literal.
+const BOX_PURPOSE_PARTS = Object.freeze(['breaker', 'box', 'privkey', 'v1']);
+const BOX_KEY_PURPOSE = new TextEncoder().encode(BOX_PURPOSE_PARTS.join('-'));
+
 // One plain sentence per result code. A locked answer with a usable wait uses lockedMessage instead.
 export const MESSAGES = Object.freeze({
   bad_link: 'This sign-in link is not valid, so start the sign-in again from the app.',
@@ -96,7 +100,7 @@ function lockedMessage(retryAfter) {
 function unwrapKeys(cur, kek, wrappedDek, wrappedBox) {
   try {
     const dek = keep(cur, createCipher(kek).unwrapDek(wrappedDek));
-    const boxKey = keep(cur, createCipher(dek).unwrapDek(wrappedBox));
+    const boxKey = keep(cur, createCipher(dek).unwrapDek(wrappedBox, BOX_KEY_PURPOSE));
     return { dek, boxKey };
   } catch {
     return stop('keys_refused');

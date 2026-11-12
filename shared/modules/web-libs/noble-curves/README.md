@@ -2,6 +2,7 @@
 
 @noble/curves 2.4.0 vendored into shared/modules/web-libs/noble-curves.
 Unmodified copies, pinned by hash. Used by web-fe's sealed box (ADR-040).
+The served copy has four import-path rewrites (bare @noble/hashes paths become relative paths); the sources here stay unmodified.
 
 ## Files
 

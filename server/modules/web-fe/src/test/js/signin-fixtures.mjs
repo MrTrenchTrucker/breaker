@@ -3,6 +3,7 @@
 import { createCipher } from '../../main/resources/web/js/aesgcm.js';
 import { encodeBase64Padded } from '../../main/resources/web/js/signin-link.js';
 import { createSignin } from '../../main/resources/web/js/signin.js';
+import { WRAP_VECTORS } from './signin-vectors.mjs';
 
 export const patterned = (base, size) => Uint8Array.from({ length: size }, (_, i) => (base + i) & 255);
 
@@ -36,8 +37,15 @@ EXPECTED_PACKAGE.set(BOX_KEY, 33);
 
 export const GOOD_KDF = { memory_kib: 65536, iterations: 3, parallelism: 1 };
 
-export function wrapped(key, plain) {
-  return createCipher(key, { random: () => patterned(0x50, 12) }).wrapDek(plain);
+// The box key purpose AAD, decoded from the shared vector file. Never typed here.
+const BOX_ENTRY_NAME = ['box', 'private', 'key', 'under', 'dek'].join('-');
+const BOX_AAD = Uint8Array.from(
+  WRAP_VECTORS.find((row) => row.name === BOX_ENTRY_NAME).aadHex.match(/../g),
+  (pair) => parseInt(pair, 16),
+);
+
+export function wrapped(key, plain, aad = new Uint8Array(0)) {
+  return createCipher(key, { random: () => patterned(0x50, 12) }).wrapDek(plain, aad);
 }
 
 export function saltAnswer(body = {}) {
@@ -54,7 +62,7 @@ export function loginAnswer(body = {}) {
     body: {
       token: sessionText,
       wrapped_dek: encodeBase64Padded(wrapped(KEK, DEK)),
-      wrapped_box_privkey: encodeBase64Padded(wrapped(DEK, BOX_KEY)),
+      wrapped_box_privkey: encodeBase64Padded(wrapped(DEK, BOX_KEY, BOX_AAD)),
       box_pubkey: encodeBase64Padded(BOX_PUB),
       ...body,
     },

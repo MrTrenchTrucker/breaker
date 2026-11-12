@@ -50,3 +50,4 @@ The website uses the noble libraries:
 - The website has no WebAssembly and the policy stays as it is.
 - The sealed box is composed from parts, so its code is pinned to the shared test vector of the phone
   side (`SignInPackageTest`), and a mismatch fails the build.
+  Update 2026-11-11: the SOURCES of noble-curves stay unmodified and pinned by sha256; the SERVED copy has four specifier rewrites (bare `@noble/hashes/...` paths become relative paths), and the served files are pinned by sha256 too.

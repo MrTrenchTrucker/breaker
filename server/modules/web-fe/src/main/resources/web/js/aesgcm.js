@@ -141,13 +141,13 @@ function createCipher(key, options = {}) {
     }
   }
 
-  function wrapDek(dek) {
-    // wrapDek(dek) takes NO aad argument. Wrapped key is under EMPTY AAD always.
+  function wrapDek(dek, aad = new Uint8Array(0)) {
+    // wrapDek(dek, aad) takes an optional aad, empty by default; each call gets a new empty array.
     if (!dek || !(dek instanceof Uint8Array) || dek.length !== 32) {
       throw new AesGcmRefused('AES-GCM refused');
     }
 
-    const sealed = seal(dek, new Uint8Array(0)); // empty AAD always
+    const sealed = seal(dek, aad); // the AAD is optional, empty by default
     const wrapped = new Uint8Array(60);
     wrapped.set(sealed.nonce, 0);
     wrapped.set(sealed.ciphertext, 12);
@@ -155,8 +155,8 @@ function createCipher(key, options = {}) {
     return wrapped;
   }
 
-  function unwrapDek(wrapped) {
-    // unwrapDek(wrapped) takes NO aad argument
+  function unwrapDek(wrapped, aad = new Uint8Array(0)) {
+    // unwrapDek(wrapped, aad) takes an optional aad, empty by default; each call gets a new empty array.
     if (!wrapped || !(wrapped instanceof Uint8Array) || wrapped.length !== 60) {
       throw new AesGcmRefused('AES-GCM refused');
     }
@@ -167,7 +167,7 @@ function createCipher(key, options = {}) {
     const tag = new Uint8Array(wrapped.subarray(44, 60));
 
     const record = { nonce, ciphertext, tag };
-    const dek = open(record, new Uint8Array(0)); // empty AAD always
+    const dek = open(record, aad); // the AAD is optional, empty by default
     return dek;
   }
 
