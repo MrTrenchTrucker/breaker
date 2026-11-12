@@ -258,30 +258,31 @@ internal class ScreenMicView(
                 val y = event.getY(index)
                 interpreter.down(x, y)
                 gesture.begin(x, y, model.shape)
-                ScreenMicProbeKit.downLog(model.shape, model.state, x, y, height)
+                ScreenMicProbeKit.downLog(event.eventTime, model.shape, model.state, x, y, height)
+                if (model.shape == TileShape.RECORDING) ScreenMicProbeKit.touchMapLog(event.eventTime, screenLocation(), x, y, height)
             }
             MotionEvent.ACTION_UP -> {
                 val index = event.findPointerIndex(activePointerId)
                 val wasTap = if (index >= 0) {
+                    ScreenMicProbeKit.upLog(event.eventTime, model.shape, model.state, event.getX(index), event.getY(index), height)
                     interpreter.up(event.getX(index), event.getY(index)) == TouchEvent.Tap
                 } else false
                 activePointerId = -1
                 if (wasTap) {
-                    route()
+                    ScreenMicProbeKit.route(this, event.eventTime)
                 }
             }
             MotionEvent.ACTION_CANCEL -> {
                 activePointerId = -1
                 interpreter.cancel()
+                ScreenMicProbeKit.cancelLog(event.eventTime, model.shape, model.state)
             }
         }
         return true
     }
 
-    /** Run what a tap means for the state and for the part of the view the finger went down on. */
-    private fun route() {
-        ScreenMicProbeKit.route(this)
-    }
+    /** The view's top-left corner on the screen, for the probe's touch-map line. */
+    private fun screenLocation(): IntArray = IntArray(2).also { getLocationOnScreen(it) }
 
     /** The accessibility provider backing this view: one host node plus, while recording, two clickable virtual children. */
     override fun getAccessibilityNodeProvider(): AccessibilityNodeProvider = ScreenMicNodeProvider(this)
