@@ -15,6 +15,8 @@ import dev.breaker.dictation.overlay.TileState
  * After a send the tile shows [TileState.SENT] ([lastCommit] committed or copied) until the next
  * begin, cancel, tap or switch-off. A text that only reached the clipboard also shows SENT, because
  * the clipboard confirmation is what tells the user. A commit that failed shows [TileState.FAILED].
+ * A commit of text the phone model produced after the server path failed shows
+ * [TileState.SENT_LOCAL] — the orange warning that the text came from the fallback.
  * With no commit to show, the runner's [session] decides.
  */
 fun tileStateFor(
@@ -24,13 +26,15 @@ fun tileStateFor(
     lastFailed: Boolean,
     lastCommit: CommitOutcome?,
     micBusy: Boolean = false,
+    localFallback: Boolean = false,
 ): TileState {
     if (!armed) return TileState.IDLE
     if (micBusy) return TileState.MIC_BUSY
     if (sendPushed) return TileState.SENDING
     if (lastFailed) return TileState.FAILED
     return when (lastCommit) {
-        CommitOutcome.COMMITTED, CommitOutcome.COPIED -> TileState.SENT
+        CommitOutcome.COMMITTED, CommitOutcome.COPIED ->
+            if (localFallback) TileState.SENT_LOCAL else TileState.SENT
         CommitOutcome.FAILED -> TileState.FAILED
         null -> when (session) {
             DictationState.RECORDING, DictationState.TRANSCRIBING -> TileState.RECORDING

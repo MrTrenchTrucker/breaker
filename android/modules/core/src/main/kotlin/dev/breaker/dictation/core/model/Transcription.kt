@@ -25,6 +25,10 @@ enum class TranscriptionSource { LOCAL, SERVER }
  * [durationMs] and [createdAt] are plain millisecond counts — epoch
  * milliseconds for the latter — so this type carries no clock or calendar type
  * into the domain.
+ *
+ * [serverPathFailed] is transient: true only when the auto routing fell back to
+ * the phone model because the probe found no server. It is never persisted in
+ * history and never carried in the sync body; both drop it at their mapping.
  */
 data class Transcription(
     val id: String,
@@ -33,6 +37,7 @@ data class Transcription(
     val model: String,
     val durationMs: Long,
     val createdAt: Long,
+    val serverPathFailed: Boolean = false,
 ) {
     init {
         require(id.isNotBlank()) { "A transcription needs a non-blank id" }

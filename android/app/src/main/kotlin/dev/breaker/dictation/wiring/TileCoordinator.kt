@@ -38,9 +38,9 @@ class TileCoordinator(
     private var sendPushed: Boolean = false
     private var lastFailed: Boolean = false
     private var lastCommit: CommitOutcome? = null
+    private var lastLocalFallback: Boolean = false
     private var beginPending: Boolean = false
     private val micTakeHold = MicTakeHold { sendPushed = true; yield.onTakeMicTaken() }
-
 
 
     private var pushed: TileState = TileState.IDLE
@@ -84,9 +84,9 @@ class TileCoordinator(
     fun onBegin() {
         if (failureBarrier()) return
         if (!armed || (!tileShown && !tileShowGuard.isClosed) || beginPending || yield.yieldRunning() ||
-            (pushed != TileState.ARMED && pushed != TileState.SENT && pushed != TileState.MIC_BUSY)) return
-        val wasSent: Boolean = pushed == TileState.SENT
-        lastCommit = null
+            (pushed != TileState.ARMED && pushed != TileState.SENT && pushed != TileState.SENT_LOCAL && pushed != TileState.MIC_BUSY)) return
+        val wasSent: Boolean = pushed == TileState.SENT || pushed == TileState.SENT_LOCAL
+        lastCommit = null; lastLocalFallback = false
         if (tileShowGuard.onBegin { shown -> tileShown = (shown == TileShow.SHOWN); if (shown == TileShow.SHOWN) push() } || !tileShown) return
         if (!portCalls.isModelReady()) {
             if (wasSent) push()
@@ -123,7 +123,7 @@ class TileCoordinator(
         micTakeHold.clear()
         lastFailed = false
         sendPushed = false
-        lastCommit = null
+        lastCommit = null; lastLocalFallback = false
         guarded { tile.clearNotice() }
         // The runner is still recording until the cancel below has run, so the session is given here.
         push(DictationState.IDLE)
@@ -145,7 +145,7 @@ class TileCoordinator(
 
     /** The tile was tapped while it is off or failed: clear the failure and open the launcher. */
     fun onTap() {
-        if (armed && (pushed == TileState.MIC_BUSY || pushed == TileState.SENT)) {
+        if (armed && (pushed == TileState.MIC_BUSY || pushed == TileState.SENT || pushed == TileState.SENT_LOCAL)) {
             onBegin()
             return
         }
@@ -229,7 +229,7 @@ class TileCoordinator(
         // A tile that was off has no take: the one cancel queued when it went off may not have run yet.
         val session: DictationState = if (armed) portCalls.sessionNow() else DictationState.IDLE
         armed = true
-        lastCommit = null
+        lastCommit = null; lastLocalFallback = false
         val shown: TileShow = try {
             tile.show()
         } catch (e: Exception) {
@@ -255,7 +255,7 @@ class TileCoordinator(
         tileShown = false
         heldHide.clearOnSwitchOff(); keyboardTile.releaseRaised()
         reevaluation.cancel()
-        lastCommit = null
+        lastCommit = null; lastLocalFallback = false
         push()
         micTakeHold.clear()
         yield.disarmCleared()
@@ -278,21 +278,21 @@ class TileCoordinator(
         when (end) {
             is TakeEnd.Back -> push()
             is TakeEnd.NothingHeard -> { push(); guarded { tile.showNotice(RunnerSentences.NOTHING_HEARD) } }
-            is TakeEnd.Sent -> { lastCommit = end.outcome; push(); guarded { tile.clearNotice() } }
+            is TakeEnd.Sent -> { lastCommit = end.outcome; lastLocalFallback = end.localFallback; push(); guarded { tile.clearNotice() } }
             is TakeEnd.Failure -> fail(end.sentence)
         }
     }
     private fun fail(sentence: String) {
         sendPushed = false
         lastFailed = true
-        lastCommit = null
+        lastCommit = null; lastLocalFallback = false
         push()
         // A notice is cleared by a state change, so it is shown after the state.
         guarded { tile.showNotice(sentence) }
     }
     private fun push(session: DictationState = portCalls.sessionNow()) {
         val state: TileState = tileStateFor(
-            armed, session, sendPushed, lastFailed, lastCommit, yield.micBusy.get())
+            armed, session, sendPushed, lastFailed, lastCommit, yield.micBusy.get(), lastLocalFallback)
         pushed = state
         guarded { tile.setState(state) }
         if (heldHide.applyWhenIdle(inFlight())) { guarded { tile.hide() }; tileShown = false; keyboardTile.releaseRaised() }
