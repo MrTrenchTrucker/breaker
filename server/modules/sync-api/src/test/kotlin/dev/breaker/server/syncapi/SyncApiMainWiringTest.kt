@@ -32,4 +32,18 @@ class SyncApiMainWiringTest {
             Regex("launch \\{ runRateLimitCounterSweep\\(counterStore\\) \\}").findAll(text).count(),
         )
     }
+
+    // A source pin, not a behaviour test: the lookup the internal listener answers with is the box PUBLIC key of the
+    // stored keys, asked from the account store, and the wrapped private key is never named in this file. The lookup
+    // itself is tested against a real store in SyncApiMainKeyLookupTest.
+    @Test
+    fun `main hands the internal listener the box public key lookup and never names the wrapped private key`() {
+        assertTrue("the source file must exist: ${mainFile.absolutePath}", mainFile.isFile)
+        val text = mainFile.readText()
+        val call = "internalModule(tokenStore, serviceKey) { accountStore.keysFor(it)?.boxPubkey }"
+        assertEquals("calls that pass the box public key lookup", 1, Regex(Regex.escape(call)).findAll(text).count())
+        assertEquals("calls of the internal module", 1, Regex("internalModule\\(").findAll(text).count())
+        assertEquals("reads of the stored keys", 1, Regex("keysFor\\(").findAll(text).count())
+        assertTrue("the wrapped private key must never appear in the main file", !text.contains("wrappedBoxPrivkey"))
+    }
 }

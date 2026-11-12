@@ -82,7 +82,7 @@ fun main() {
     }
     // The internal listener starts first and carries only the token-check routes.
     val internalServer = embeddedServer(CIO, host = config.internalHost, port = config.internalPort) {
-        internalModule(tokenStore, serviceKey)
+        internalModule(tokenStore, serviceKey) { accountStore.keysFor(it)?.boxPubkey }
     }
     try {
         internalServer.start(wait = false)

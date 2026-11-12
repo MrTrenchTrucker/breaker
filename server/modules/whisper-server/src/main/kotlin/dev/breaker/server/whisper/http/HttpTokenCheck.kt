@@ -7,6 +7,7 @@ import java.net.http.HttpRequest
 import java.net.http.HttpRequest.BodyPublishers
 import java.net.http.HttpResponse
 import java.time.Duration
+import java.util.Base64
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -33,6 +34,7 @@ internal class HttpTokenCheck(
 
     private val accountIdRegex = Regex("\"account_id\"\\s*:\\s*(\\d{1,18})\\s*[,}]")
     private val kindRegex = Regex("\"kind\"\\s*:\\s*\"([^\"]+)\"")
+    private val boxPubkeyRegex = Regex("\"box_pubkey\"\\s*:\\s*\"([^\"]+)\"")
 
     override suspend fun use(token: String): TokenAnswer =
         check("/internal/v1/token/use", token)
@@ -69,7 +71,8 @@ internal class HttpTokenCheck(
                         val match = body?.let { accountIdRegex.find(it) }
                             ?: return@withContext TokenAnswer.Unavailable
                         val kind = body?.let { kindRegex.find(it) }?.groupValues?.get(1) ?: "session"
-                        TokenAnswer.Live(match.groupValues[1].toLong(), kind)
+                        val boxPubkey = body?.let { boxPubkeyRegex.find(it) }?.groupValues?.get(1)?.takeIf { isBoxPubkey(it) }
+                        TokenAnswer.Live(match.groupValues[1].toLong(), kind, boxPubkey)
                     }
                     401 -> TokenAnswer.NotLive
                     else -> TokenAnswer.Unavailable
@@ -94,3 +97,13 @@ internal class HttpTokenCheck(
             continuation.invokeOnCancellation { future.cancel(true) }
         }
 }
+
+private const val BOX_PUBKEY_BYTES = 32
+
+// A box public key is exactly 32 bytes of standard base64; any other text is no key.
+private fun isBoxPubkey(text: String): Boolean =
+    try {
+        Base64.getDecoder().decode(text).size == BOX_PUBKEY_BYTES
+    } catch (_: IllegalArgumentException) {
+        false
+    }
