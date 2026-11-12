@@ -1,6 +1,9 @@
 package dev.breaker.dictation.sync
 
-/** The result of applying one pull result to the PullSink port. */
+/**
+ * The result of applying one pull result to the PullSink port. [refusedByTombstone] counts every live
+ * row the store refused: a tombstone held for its id, or a row older than the phone's window.
+ */
 internal class ApplyReport(
     val stored: Int,
     val refusedByTombstone: Int,

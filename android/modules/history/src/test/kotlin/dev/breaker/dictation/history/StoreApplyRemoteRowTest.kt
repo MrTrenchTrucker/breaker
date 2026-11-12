@@ -11,11 +11,11 @@ internal class StoreApplyRemoteRowTest : SqliteHistoryStoreTestBase() {
 
     private val sink: PullSink = typed()
 
-    private fun pulled(id: String, text: String = "pulled text") = aTranscription(
+    private fun pulled(id: String, text: String = "pulled text", createdAt: Long = nowMillis) = aTranscription(
         id = id,
         text = text,
         source = TranscriptionSource.SERVER,
-        createdAt = nowMillis,
+        createdAt = createdAt,
     )
 
     @Test
@@ -101,5 +101,29 @@ internal class StoreApplyRemoteRowTest : SqliteHistoryStoreTestBase() {
         val listed = store.list(10).associate { it.id to it.source }
         assertEquals(TranscriptionSource.LOCAL, listed["local-1"])
         assertEquals(TranscriptionSource.SERVER, listed["server-1"])
+    }
+
+    @Test
+    fun `a pulled row whose createdAt is strictly before the cutoff is refused and not stored`() {
+        val cutoff = nowMillis - java.time.Duration.ofDays(30).toMillis()
+        val row = pulled("old-row", createdAt = cutoff - 1)
+        assertFalse(sink.applyRemoteRow(row))
+        assertEquals(0, typed().count())
+    }
+
+    @Test
+    fun `a pulled row created exactly at the cutoff is stored`() {
+        val cutoff = nowMillis - java.time.Duration.ofDays(30).toMillis()
+        val row = pulled("at-cutoff", createdAt = cutoff)
+        assertTrue(sink.applyRemoteRow(row))
+        assertEquals(listOf("at-cutoff"), store.list(10).map { it.id })
+    }
+
+    @Test
+    fun `a pulled row refused by age writes no tombstone so a newer copy of the same id is stored`() {
+        val cutoff = nowMillis - java.time.Duration.ofDays(30).toMillis()
+        assertFalse(sink.applyRemoteRow(pulled("same-id", createdAt = cutoff - 1)))
+        assertTrue(sink.applyRemoteRow(pulled("same-id", createdAt = nowMillis)))
+        assertEquals(listOf("same-id"), store.list(10).map { it.id })
     }
 }
