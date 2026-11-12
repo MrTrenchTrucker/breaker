@@ -19,7 +19,7 @@ internal class StoreApplyRemoteRowOnSqliteTest {
     private val now = Instant.parse("2026-06-30T12:00:00Z").toEpochMilli()
     private val clock = Clock { now }
     private val store: HistoryStore = SqliteHistoryStore(database, clock)
-    private val cutoff = Instant.parse("2026-04-01T12:00:00Z").toEpochMilli()
+    private val cutoff = Instant.parse("2026-05-31T12:00:00Z").toEpochMilli()
 
     @After
     fun closeDatabase() = sqlite.close()

@@ -18,7 +18,7 @@
 | `gesture` | `android/modules/gesture/` | Shake-to-wake (accelerometer) |
 | `overlay` | `android/modules/overlay/` | Floating tile = CB mic glyph + LED bar meter |
 | `commit` | `android/modules/commit/` | CommitService: accessibility text insert + clipboard fallback |
-| `history` | `android/modules/history/` | SQLite history + 3-month TTL + tombstones |
+| `history` | `android/modules/history/` | SQLite history + 30-day TTL + tombstones |
 | `settings` | `android/modules/settings/` | Settings persistence + model registry access |
 | `sync` | `android/modules/sync/` | Offline-first sync queue (idempotent push) |
 | `auth-client` | `android/modules/auth-client/` | Login/register, token storage, roles/scopes |

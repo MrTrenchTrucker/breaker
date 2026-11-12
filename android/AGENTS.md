@@ -34,7 +34,7 @@ upgrade path (ARCHITECTURE section 8). Shake + tap remain the manual fallbacks.
 - `gesture` — shake-to-wake (accelerometer)
 - `overlay` — floating tile (WindowManager)
 - `commit` — CommitService: accessibility insert + clipboard fallback
-- `history` — SQLite transcription history + 3-month TTL + tombstones
+- `history` - SQLite transcription history + 30-day TTL + tombstones
 - `settings` — settings persistence
 - `sync` — offline-first sync queue (idempotent push)
 - `auth-client` — login/register, token storage (the vault port is here, the Android Keystore sealed file is built in the app), roles/scopes

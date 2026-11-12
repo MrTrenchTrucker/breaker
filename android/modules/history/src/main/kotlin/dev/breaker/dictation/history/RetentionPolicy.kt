@@ -6,17 +6,17 @@ import java.time.Instant
 /**
  * When a transcription stops being kept (F28), by the ADR-010 precise rule.
  *
- * The window is a **fixed 90 days**: 90 x 24 hours, counted backwards from the
- * current instant. There is no time zone in it and no calendar month: the
- * cutoff is [WINDOW] subtracted from an [Instant], and nothing else. By design
- * the phone and the server both compute the cutoff from UTC instants with this
- * same 90-day rule, so each can work out the same cutoff from the same instant
- * with nothing but a standard library. "3 months" in the requirements means
- * this rule.
+ * The window is a **fixed 30 days** on the phone (ADR-047): 30 x 24 hours,
+ * counted backwards from the current instant. There is no time zone in it and
+ * no calendar month: the cutoff is [WINDOW] subtracted from an [Instant], and
+ * nothing else. The server keeps transcriptions for 3 months by its own rule
+ * (90 x 24 hours, ADR-010), so the two windows differ: the phone keeps the
+ * newest 30 days and asks the server for older rows. "3 months" in the
+ * requirements is the server's rule.
  *
  * The rule is fixed on purpose, and this class takes nothing to configure it. A
- * window a caller could pass in is a window the phone and the server could
- * disagree about.
+ * window a caller could pass in is a window that could drift from the pinned
+ * rule.
  *
  * The boundary is a half-open interval and is spelled out here because getting
  * it wrong is how history loses data:
@@ -59,18 +59,15 @@ internal class RetentionPolicy {
      * A tombstone is the record that a row was deleted so the delete can reach
      * the other devices and the server. It is measured from the moment of the
      * delete, not from when the text was created, and it is kept for the same
-     * [WINDOW]: long enough that a device offline for the whole window still
-     * learns about the delete instead of keeping a copy forever. That 90-day
-     * tombstone window, measured from the delete, is a design choice of this
-     * module: the spec sets a lifetime for transcriptions and none for
-     * tombstones. Tombstone expiry is a separate, explicit call: the
-     * transcription purge writes tombstones for the rows it removes but never
-     * expires them.
+     * [WINDOW]: 30 days, the project owner's ruling (ADR-047), the same 30 days
+     * after which an idle session ends (ADR-031). Tombstone expiry is a
+     * separate, explicit call: the transcription purge writes tombstones for
+     * the rows it removes but never expires them.
      */
     fun tombstoneCutoff(now: Instant): Instant = cutoff(now)
 
     companion object {
-        /** F28: transcriptions are kept for 90 days, exactly 90 x 24 hours. */
-        val WINDOW: Duration = Duration.ofDays(90)
+        /** ADR-047: the phone keeps transcriptions for 30 days, exactly 30 x 24 hours (the server keeps 3 months). */
+        val WINDOW: Duration = Duration.ofDays(30)
     }
 }

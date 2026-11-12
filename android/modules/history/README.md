@@ -22,12 +22,12 @@ Three layers:
 ## Retention
 
 The **ADR-010 precise rule**: a transcription expires when its `created_at`
-instant is more than 90 days (90 x 24 h) before the purge's current instant. A
-row exactly at the cutoff is kept. The rule is computed on UTC instants, with no
-time zone and no calendar months. The server uses the same 90-day window but its
-own clock, the time of a row's last write, so it expires a row at the same time as
-the phone or later, never earlier. The server's expiry job is built (ADR-035; a daily
-job in the sync-api module, live rows only, by `stored_at_ms`).
+instant is more than 30 days (30 x 24 h) before the purge's current instant (the
+phone's window, ADR-047). A row exactly at the cutoff is kept. The rule is computed on
+UTC instants, with no time zone and no calendar months. The server keeps rows for
+3 months (90 x 24 h, ADR-010) on its own clock, the time of a row's last write, so it
+always keeps a row longer than the phone does. The server's expiry job is built
+(ADR-035; a daily job in the sync-api module, live rows only, by `stored_at_ms`).
 
 ## Tombstones
 
@@ -38,13 +38,16 @@ A delete made elsewhere (the web FE, another device) has an entry point,
 `applyRemoteDelete`, the PullSink call this store implements, which records a
 tombstone even when this device held no such row; the sync module's PullApplier calls it.
 
-Tombstones are written and kept. No shipped code reads or sweeps them yet,
-because the port that lets sync reach them is deferred to a later phase; until
-then the tombstone table only grows, and they stay internal to this module. The
-module defines a 90-day tombstone window, measured from the delete. That is a
-module design choice; the spec sets no tombstone lifetime.
+Tombstones are written and kept for sync to carry: the sync queue pushes each one
+as a delete row, and the start-up backfill, described below, queues a delete for every
+tombstone that has none. The tombstone type stays internal to this module.
+`sweepExpiredTombstones()` drops the tombstones recorded more than 30 days before now,
+measured from the delete: the project owner's ruling (ADR-047), the same window as the
+transcriptions and the same 30 days as the idle sign-out of ADR-031. The app calls it
+once at start-up, only when sync is on, and only after the backfill walked every
+tombstone to the end.
 
-The start-up backfill reads `pendingTombstoneIds(limit)`, which returns only USER-reason tombstones: `RETENTION` is the phone's own 90-day age-out and the server handles its own retention, and `REMOTE` is a delete the server already processed, so neither is pushed as a delete. When more than `limit` are pending, the app pages through them with `pendingTombstoneIdsAfter(lastId, limit)`; both order by `id DESC`, so the walk queues every USER tombstone exactly once and stops when a page comes back short.
+The start-up backfill reads `pendingTombstoneIds(limit)`, which returns only USER-reason tombstones: `RETENTION` is the phone's own 30-day age-out and the server handles its own retention, and `REMOTE` is a delete the server already processed, so neither is pushed as a delete. When more than `limit` are pending, the app pages through them with `pendingTombstoneIdsAfter(lastId, limit)`; both order by `id DESC`, so the walk queues every USER tombstone exactly once and stops when a page comes back short.
 
 Pulled rows (ADR-035): `applyRemoteRow`, the PullSink call, stores one pulled live row, one
 row per id, replacing a held row. It refuses the row, stores nothing and answers false when

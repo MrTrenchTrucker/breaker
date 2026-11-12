@@ -31,7 +31,7 @@ class StoreResaveClearsUserTombstoneTest {
     private val clock = Clock { nowMillis }
 
     /** The instant the retention window closes for a purge at [now]. */
-    private val cutoff = Instant.parse("2026-04-01T12:00:00Z").toEpochMilli()
+    private val cutoff = Instant.parse("2026-05-31T12:00:00Z").toEpochMilli()
 
     private fun aTranscription(id: String, createdAt: Long = now) = Transcription(
         id = id,

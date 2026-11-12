@@ -136,7 +136,7 @@ class PurgeGuardTest {
         val store = store()
         val now = 2_000_000_000_000L
         store.recordLastPurgeAt(now - 10 * MS_PER_DAY)
-        val cutoff = now - 90 * MS_PER_DAY
+        val cutoff = now - 30 * MS_PER_DAY
         val purge = PurgeFake(purged = 4, tombstoned = 4)
 
         val outcome = runGuardedStartPurge(now = now, autoTimeOn = autoTime(true), store = store, purge = { purge.run(cutoff) })

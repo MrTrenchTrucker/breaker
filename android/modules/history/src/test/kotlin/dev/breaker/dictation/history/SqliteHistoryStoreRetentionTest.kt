@@ -273,13 +273,13 @@ internal class SqliteHistoryStoreRetentionTest : SqliteHistoryStoreTestBase() {
         assertFalse(database.isOpen)
     }
 
-    // ── the retention rule is a fixed 90 days, written out as instants ────
+    // -- the retention rule is a fixed 30 days, written out as instants --
 
     @Test
-    fun `the purge uses a fixed 90 days, on absolute instants`() {
+    fun `the purge uses a fixed 30 days, on absolute instants`() {
         // Literal instants, not taken from the policy under test. The clock reads
-        // 2026-06-30T12:00:00Z, so the window closes at 2026-04-01T12:00:00Z.
-        val cutoff = Instant.parse("2026-04-01T12:00:00Z").toEpochMilli()
+        // 2026-06-30T12:00:00Z, so the window closes at 2026-05-31T12:00:00Z.
+        val cutoff = Instant.parse("2026-05-31T12:00:00Z").toEpochMilli()
         store.save(aTranscription(id = "after", createdAt = cutoff + 1))
         store.save(aTranscription(id = "at", createdAt = cutoff))
         store.save(aTranscription(id = "before", createdAt = cutoff - 1))
@@ -295,8 +295,8 @@ internal class SqliteHistoryStoreRetentionTest : SqliteHistoryStoreTestBase() {
     }
 
     @Test
-    fun `the tombstone sweep uses the same 90 days, measured from the delete`() {
-        val cutoff = Instant.parse("2026-04-01T12:00:00Z").toEpochMilli()
+    fun `the tombstone sweep uses the same 30 days, measured from the delete`() {
+        val cutoff = Instant.parse("2026-05-31T12:00:00Z").toEpochMilli()
         typed().applyRemoteDelete("before", deletedAt = cutoff - 1)
         typed().applyRemoteDelete("at", deletedAt = cutoff)
         typed().applyRemoteDelete("after", deletedAt = cutoff + 1)
@@ -337,7 +337,7 @@ internal class SqliteHistoryStoreRetentionTest : SqliteHistoryStoreTestBase() {
 
     @Test
     fun `an empty transcription is purged and tombstoned like any other, and kept at the cutoff`() {
-        val cutoff = Instant.parse("2026-04-01T12:00:00Z").toEpochMilli()
+        val cutoff = Instant.parse("2026-05-31T12:00:00Z").toEpochMilli()
         store.save(aTranscription(id = "silent-old", text = "", createdAt = cutoff - 1))
         store.save(aTranscription(id = "silent-edge", text = "", createdAt = cutoff))
 

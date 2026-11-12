@@ -166,6 +166,13 @@ class SqliteHistoryStore internal constructor(
      */
     internal fun purgeExpiredTombstones(): TombstonePurgeReport = purgeExpiredTombstones(clock.nowEpochMillis())
 
+    /**
+     * Drops the tombstones recorded before the tombstone window and answers how many it dropped. Public for the
+     * app's start-up path, which calls it only after a complete tombstone backfill and under the same clock guard
+     * as the row purge ([purgeExpired]); that is its only shipped caller.
+     */
+    fun sweepExpiredTombstones(): Int = purgeExpiredTombstones().dropped
+
     /** [purgeExpiredTombstones] against an explicit [now] in epoch milliseconds. */
     internal fun purgeExpiredTombstones(now: Long): TombstonePurgeReport {
         val cutoff = retention.tombstoneCutoff(java.time.Instant.ofEpochMilli(now)).toEpochMilli()

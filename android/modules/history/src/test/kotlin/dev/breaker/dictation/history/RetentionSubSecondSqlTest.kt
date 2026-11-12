@@ -35,7 +35,7 @@ class RetentionSubSecondSqlTest {
     @Test
     fun `the retention select takes the rows before a sub-second cutoff and keeps the one at it`() {
         val cutoff = policy.cutoff(now).toEpochMilli()
-        assertEquals("the cutoff, worked out by hand", 1_775_044_800_500L, cutoff)
+        assertEquals("the cutoff, worked out by hand", 1_780_228_800_500L, cutoff)
         saveRow("a-100ms-before", cutoff - 100)
         saveRow("b-1ms-before", cutoff - 1)
         saveRow("c-at-cutoff", cutoff)
@@ -49,7 +49,7 @@ class RetentionSubSecondSqlTest {
     @Test
     fun `the shipped delete of rows removes the same two and keeps the one at a sub-second cutoff`() {
         val cutoff = policy.cutoff(now).toEpochMilli()
-        assertEquals("the cutoff, worked out by hand", 1_775_044_800_500L, cutoff)
+        assertEquals("the cutoff, worked out by hand", 1_780_228_800_500L, cutoff)
         saveRow("a-100ms-before", cutoff - 100)
         saveRow("b-1ms-before", cutoff - 1)
         saveRow("c-at-cutoff", cutoff)
@@ -68,7 +68,7 @@ class RetentionSubSecondSqlTest {
     @Test
     fun `the tombstone sweep drops the tombstones before its window and keeps the one at it`() {
         val cutoff = policy.tombstoneCutoff(now).toEpochMilli()
-        assertEquals("the tombstone cutoff, worked out by hand", 1_775_044_800_500L, cutoff)
+        assertEquals("the tombstone cutoff, worked out by hand", 1_780_228_800_500L, cutoff)
         saveTombstone("a-100ms-before", cutoff - 100)
         saveTombstone("b-1ms-before", cutoff - 1)
         saveTombstone("c-at-cutoff", cutoff)

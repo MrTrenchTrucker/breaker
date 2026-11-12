@@ -12,7 +12,7 @@ import org.junit.Test
  *
  * Every other purge test runs at a whole-second now, so a store that truncated now to seconds
  * before taking the cutoff would pass them all. Here the clock reads 12:00:00.500, the cutoff is
- * 2026-04-01T12:00:00.500, and a row 1 ms or 100 ms before it is on the purged side of the
+ * 2026-05-31T12:00:00.500, and a row 1 ms or 100 ms before it is on the purged side of the
  * boundary only if the half second is kept.
  */
 class StoreSubSecondTest {
@@ -21,7 +21,7 @@ class StoreSubSecondTest {
     private val now = Instant.parse("2026-06-30T12:00:00.500Z").toEpochMilli()
 
     /** Written out, not taken from the policy under test. */
-    private val cutoff = Instant.parse("2026-04-01T12:00:00.500Z").toEpochMilli()
+    private val cutoff = Instant.parse("2026-05-31T12:00:00.500Z").toEpochMilli()
     private val store = SqliteHistoryStore(database, Clock { now })
 
     private fun aTranscription(id: String, createdAt: Long) = Transcription(
