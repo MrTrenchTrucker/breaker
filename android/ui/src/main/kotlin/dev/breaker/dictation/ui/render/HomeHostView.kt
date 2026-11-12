@@ -1,6 +1,7 @@
 package dev.breaker.dictation.ui.render
 
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import android.view.Gravity
 import android.view.View
@@ -207,6 +208,7 @@ internal class HomeHostView(
      */
     private fun draw(state: HomeState) {
         this.state = state
+        probeLogged("draw ${SystemClock.uptimeMillis()}")
         val screen = handler.show(state)
         drawn = screen
         show(screen)
@@ -294,6 +296,7 @@ internal class HomeHostView(
 
     override fun onWindowFocusChanged(hasWindowFocus: Boolean) {
         super.onWindowFocusChanged(hasWindowFocus)
+        probeLogged("windowFocus ${SystemClock.uptimeMillis()} ${if (hasWindowFocus) "focused" else "unfocused"}")
         if (hasWindowFocus) {
             // Drawn again on focus: the switch, the model and the transcript may
             // have changed while the view was off screen.
@@ -371,7 +374,7 @@ internal class HomeHostView(
      * the window height left after the system bars (ADR-026).
      */
     private fun attachMicSlot(root: View) {
-        probeLogged("attachMicSlot re-parent recording=true")
+        probeLogged("attachMicSlot re-parent ${SystemClock.uptimeMillis()} recording=true")
         val slot = findTagged(root, HomeNodeIds.MIC) ?: return
         val parent = slot.parent as? ViewGroup ?: return
         val index = parent.indexOfChild(slot)
