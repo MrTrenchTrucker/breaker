@@ -66,6 +66,11 @@ private val PADDING_SITES = listOf(
         1,
         "the one inset of the address text input, one small space step on each side",
     ),
+    PaddingSite(
+        "render/AuthFieldView.kt",
+        1,
+        "the one inset of the user name box and the password box, one small space step on each side",
+    ),
 )
 
 /** A call of setPadding, or of one of its relatives. */
@@ -183,7 +188,7 @@ class GutterRuleTest {
         val present = LAYER_SOURCES.map { it.first }.toSet()
         val missing = PADDING_SITES.map { it.file }.filterNot { it in present }
         assertEquals("pinned files that are not in the layer: $missing", emptyList<String>(), missing)
-        assertEquals("the pinned total of setPadding calls", 5, PADDING_SITES.sumOf { it.calls })
+        assertEquals("the pinned total of setPadding calls", 6, PADDING_SITES.sumOf { it.calls })
     }
 
     @Test

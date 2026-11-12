@@ -1,36 +1,39 @@
 package dev.breaker.dictation.ui.render
 
 import android.content.Context
+import android.view.ViewGroup
+import android.widget.FrameLayout
+import android.widget.LinearLayout
 import android.widget.ScrollView
 import dev.breaker.dictation.ui.AuthControl
-import dev.breaker.dictation.ui.render.ScreenRenderer
-import dev.breaker.dictation.ui.render.openForBleed
 import dev.breaker.dictation.ui.screen.Action
 import dev.breaker.dictation.ui.screen.Box
-import dev.breaker.dictation.ui.screen.ScreenIntent
-import dev.breaker.dictation.ui.screen.TypeRole
 import dev.breaker.dictation.ui.screen.Label
 import dev.breaker.dictation.ui.screen.Screen
+import dev.breaker.dictation.ui.screen.ScreenIntent
+import dev.breaker.dictation.ui.screen.Space
+import dev.breaker.dictation.ui.screen.TypeRole
 import dev.breaker.dictation.ui.screen.auth.AuthIntentHandler
 import dev.breaker.dictation.ui.screen.auth.AuthNodeIds
 import dev.breaker.dictation.ui.screen.auth.AuthState
 import dev.breaker.dictation.ui.screen.auth.AuthTexts
+import dev.breaker.dictation.ui.screen.auth.submitThenWipe
 import dev.breaker.dictation.ui.theme.PaletteSlot
 import dev.breaker.dictation.ui.theme.Theme
 
 /*
  * The view the app puts on the display for the auth screen.
  *
- * It renders the kit nodes only, because this phase carries the state-driven surface, not input:
- * there is no real text field to type into and no platform timer here. The username field stays
- * blank until the submit control runs; the password field is drawn as dots, never from typed text;
- * the register/login face toggles the choice; and the busy/refused/weak-warning line follows the
- * state. The host draws the tree the handler holds, dispatches each tap into it, and keeps no copy
- * of the password past submit. No typed input reaches the app here: the submit control hands an
- * empty array, so its answer is Refused until a typing slice lands on the screen.
+ * It holds two real text boxes, one for the user name and one for the password, built once and kept
+ * in a column between three holders. A redraw replaces only what the kit draws in the holders (the
+ * captions, the face toggle, the submit control and the state line) and never touches the two boxes,
+ * so a face toggle keeps the typed text. The submit control copies the user name into the handler,
+ * takes the typed password as a new array, hands it to the handler, and then always wipes the
+ * password box, whether the answer was a refusal or not. The user name stays. The array handed over
+ * is never reused by this view: the handler zeroes it and the callback gets its own copy.
  *
  * Everything here runs on the main thread: taps, attachment and focus changes. There is no thread,
- * no posted work and no lock; a change replaces the whole child rather than editing rows in place.
+ * no posted work and no lock.
  */
 internal class AuthHostView(
     context: Context,
@@ -41,19 +44,49 @@ internal class AuthHostView(
     /** The state last drawn, carried into the next drawing so taps read what is on screen. */
     private var drawn: AuthState = handler.current()
 
+    private val density: Float = context.resources.displayMetrics.density
+    private val column = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+    private val topHolder = FrameLayout(context)
+    private val userField = UsernameEntryView(context, theme, AuthTexts.USERNAME_LABEL)
+    private val middleHolder = FrameLayout(context)
+    private val passField = PasswordEntryView(context, theme, AuthTexts.PASSWORD_CAPTION)
+    private val bottomHolder = FrameLayout(context)
 
     init {
+        column.addView(topHolder)
+        column.addView(userField, inputParams())
+        column.addView(middleHolder)
+        column.addView(passField, inputParams())
+        column.addView(bottomHolder)
+        addView(column)
         openForBleed()
         show(drawn)
     }
 
-    /** Replaces the child with [state], keeping scroll position and redrawing from the state held. */
+    /** Full width, as tall as the box, with one step S of the scale below it. */
+    private fun inputParams(): LinearLayout.LayoutParams =
+        LinearLayout.LayoutParams(MATCH, WRAP).apply {
+            bottomMargin = (spaceDp(theme.metrics, Space.S) * density).toInt()
+        }
+
+    /** Redraws the three kit segments from [state], keeping the scroll position and both text boxes. */
     private fun show(state: AuthState) {
         val held = scrollY
-        removeAllViews()
-        addView(renderer.render(Screen("auth", titleOf(state), buildList { add(buildAuthState(state)) }), theme, ::onIntent))
+        val title = titleOf(state)
+        place(topHolder, title, topSegment())
+        place(middleHolder, title, middleSegment())
+        place(bottomHolder, title, bottomSegment(state))
         setBackgroundColor(theme.color(PaletteSlot.BACKGROUND).argb)
         scrollTo(0, held)
+    }
+
+    /** Replaces what [holder] shows with the freshly rendered [segment]. */
+    private fun place(holder: FrameLayout, title: String, segment: Box) {
+        holder.removeAllViews()
+        holder.addView(
+            renderer.render(Screen("auth", title, listOf(segment)), theme, ::onIntent),
+            FrameLayout.LayoutParams(MATCH, WRAP),
+        )
     }
 
     /** The screen's title from the state: idle caption, refused/warning line, or busy word. */
@@ -80,10 +113,14 @@ internal class AuthHostView(
         }
     }
 
-    /** The submit control hands an empty password array to the handler, then redraws from the face now held. */
+    /**
+     * Hands the typed user name and password to the handler, in this order, then wipes the password
+     * box, also when the submit callback throws, and redraws from the state the handler holds. The
+     * array is not read or changed here after the handler has it.
+     */
     private fun submitNow() {
-        val password = CharArray(0)
-        handler.submit(password)
+        handler.username = userField.typedName()
+        submitThenWipe(passField.takeTyped(), handler::submit) { passField.wipeTyped() }
         drawn = handler.current()
         show(drawn)
     }
@@ -108,26 +145,52 @@ internal class AuthHostView(
     private val renderer get() = ScreenRenderer(context)
 }
 
-/** Builds the tree for [state]: the page background, the two fields, the face row and the submit control. */
-private fun buildAuthState(state: AuthState): Box {
+/** The layout size that fills the width. */
+private const val MATCH = ViewGroup.LayoutParams.MATCH_PARENT
+
+/** The layout size that wraps the content. */
+private const val WRAP = ViewGroup.LayoutParams.WRAP_CONTENT
+
+/** The kit nodes above the user name box: the idle caption and the user name caption. */
+private fun topSegment(): Box = Box(
+    id = "auth.top",
+    background = PaletteSlot.BACKGROUND,
+    children = listOf(
+        Label("auth.idle", AuthTexts.IDLE, TypeRole.BODY, PaletteSlot.TEXT),
+        Label("auth.username", AuthTexts.USERNAME_LABEL, TypeRole.BODY, PaletteSlot.TEXT_MUTED),
+    ),
+)
+
+/** The kit node between the two boxes: the password caption. */
+private fun middleSegment(): Box = Box(
+    id = "auth.middle",
+    background = PaletteSlot.BACKGROUND,
+    children = listOf(
+        Label("auth.password", AuthTexts.PASSWORD_CAPTION, TypeRole.BODY, PaletteSlot.TEXT_MUTED),
+    ),
+)
+
+/** The kit nodes below the password box: the face toggle, the submit control and the state line. */
+private fun bottomSegment(state: AuthState): Box {
     val register = state.register
     return Box(
-        id = "auth",
+        id = "auth.bottom",
         background = PaletteSlot.BACKGROUND,
         children = buildList {
-            add(Label("auth.idle", AuthTexts.IDLE, TypeRole.BODY, PaletteSlot.TEXT))
-            add(Label("auth.username", AuthTexts.USERNAME_LABEL, TypeRole.BODY, PaletteSlot.TEXT_MUTED))
-            add(Label("auth.password", AuthTexts.PASSWORD_CAPTION, TypeRole.BODY, PaletteSlot.TEXT_MUTED))
             if (register) {
-                add(Action("face.register", AuthTexts.FACE_REGISTER, intent = ScreenIntent.Setup(AuthNodeIds.FACE_REGISTER)))
+                val face = ScreenIntent.Setup(AuthNodeIds.FACE_REGISTER)
+                add(Action("face.register", AuthTexts.FACE_REGISTER, intent = face))
             } else {
-                add(Action("face.login", AuthTexts.FACE_LOGIN, intent = ScreenIntent.Setup(AuthNodeIds.FACE_LOGIN)))
+                val face = ScreenIntent.Setup(AuthNodeIds.FACE_LOGIN)
+                add(Action("face.login", AuthTexts.FACE_LOGIN, intent = face))
             }
             val submitText = if (register) AuthTexts.SUBMIT_REGISTER else AuthTexts.SUBMIT_LOGIN
             add(Action("submit", submitText, intent = ScreenIntent.Setup(AuthNodeIds.SUBMIT)))
             when (state) {
-                is AuthState.Refused -> add(Label("auth.line", AuthTexts.REFUSED, TypeRole.BODY, PaletteSlot.TEXT_MUTED))
-                is AuthState.Warning -> add(Label("auth.line", AuthTexts.WEAK_WARNING, TypeRole.BODY, PaletteSlot.ACCENT))
+                is AuthState.Refused ->
+                    add(Label("auth.line", AuthTexts.REFUSED, TypeRole.BODY, PaletteSlot.TEXT_MUTED))
+                is AuthState.Warning ->
+                    add(Label("auth.line", AuthTexts.WEAK_WARNING, TypeRole.BODY, PaletteSlot.ACCENT))
                 else -> {}
             }
         },

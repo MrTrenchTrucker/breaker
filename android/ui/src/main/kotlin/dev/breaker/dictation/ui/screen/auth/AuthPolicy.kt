@@ -24,6 +24,12 @@ internal object AuthPolicy {
     private const val MIN_LENGTH: Int = 12
 
     /**
+     * The longest user name the screen accepts, copied from the auth client's account rules
+     * because this module cannot import it; a contract test keeps both equal.
+     */
+    internal const val USERNAME_MAX_CHARS: Int = 64
+
+    /**
      * The fixed common-password entries, each carried as its own char array rather than a string
      * literal copied at runtime; no copy of the typed password is made from them, which is what
      * keeps the comparison free of any un-zeroable text.
