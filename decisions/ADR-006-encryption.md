@@ -352,3 +352,15 @@ The opening side of the sign-in package is built. The package is an anonymous se
 The website page has its own AES-GCM layer, built in the web-fe module and not yet used by any page. It seals and opens with the vendored @noble/ciphers 2.4.0 AES-256-GCM: a fresh CSPRNG nonce per message, and a running plaintext total per cipher object strictly below 64 GiB. These guards live inside one page load; the limit across page loads (2 to the power 32 random nonces per data key, set out above) stays decided, not built.
 
 Still decided, not built: sealing a package (the website page does that, and the phone never seals); generating the DEK and the box key pair; wrapping a new DEK and wrapping the box private key, and unwrapping the box private key from its own wrapped form; unsealing agent-token results and re-encrypting them under the DEK (ADR-018); the first-login key bootstrap, the re-key on every password change, the plaintext to ciphertext data migration and the `key_version` handling in sync, all described above. Those items stay decided, not built until their own code lands.
+
+Update 2026-11-11: two associated-data strings are fixed for the wrapped keys. The box private key is
+wrapped under the data key with the associated data `breaker-box-privkey-v1`, and the previous data key
+(`prev_wrapped_dek`) is wrapped under the new data key with `breaker-prev-dek-v1`; each is the ASCII bytes
+of the text. Each wrap is 60 raw bytes (nonce 12, ciphertext 32, tag 16), AES-256-GCM, with the nonce from
+a CSPRNG only. The data key wrapped under the key-encryption key keeps the empty associated data stated
+above. Both blobs sit under the same key and have the same size, so without the two strings a blob in the
+wrong slot would open without error. The strings are in the shared vector table as `aad_hex`.
+The unsealing of agent-token results (P5) now reads the sealed plaintext with one strict R1 reader of the
+shared contract, so the crypto module has a module edge to the shared api-contracts module (an interface
+change, authorized on 2026-11-11). The reader checks the key order and refuses any source but server before
+the plaintext is re-encrypted. Built.

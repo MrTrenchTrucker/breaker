@@ -32,3 +32,13 @@ paths = ['''shared/modules/web-libs/libsodium/libsodium-wrappers\.mjs''']
 description = "Published sha256 of the vendored libsodium-sumo.mjs, in its pin test, not a secret"
 regexTarget = "match"
 regexes = ['''libsodium-sumo\.mjs", "4c94708f7e78eac7a32b29e2ce0ff96f4bd599d78c129f27bf8a061e20776c8c"''']
+
+[[allowlists]]
+description = "JCA cipher transformation name in the account key wrap (AES/GCM/NoPadding): a public algorithm name, not a secret"
+regexTarget = "match"
+regexes = ['''KEY_WRAP_TRANSFORMATION = "AES/GCM/NoPadding"''']
+
+[[allowlists]]
+description = "Record frame AAD refusal test vectors (key version 0 and -1): a test label and a made-up client id, not secrets"
+regexTarget = "match"
+regexes = ['''key-version-(0|minus-1)", "3f2a9c1e-7b4d-4e86-a1c5-9d0e2b7f6a48''']

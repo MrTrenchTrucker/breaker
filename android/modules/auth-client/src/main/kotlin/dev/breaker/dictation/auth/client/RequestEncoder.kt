@@ -87,6 +87,25 @@ internal object RequestEncoder {
     }
 
     /**
+     * The body of the first key upload: the members wrapped_dek, wrapped_box_privkey and box_pubkey,
+     * in that order, each as standard padded base64. The base64 text is a String and cannot be zeroed.
+     */
+    fun encodeKeys(wrappedDek: ByteArray, wrappedBoxPrivkey: ByteArray, boxPubkey: ByteArray): ByteArray {
+        val encoder = java.util.Base64.getEncoder()
+        val body = buildString {
+            append("{")
+            append("\"wrapped_dek\":")
+            append(jsonStr(encoder.encodeToString(wrappedDek)))
+            append(",\"wrapped_box_privkey\":")
+            append(jsonStr(encoder.encodeToString(wrappedBoxPrivkey)))
+            append(",\"box_pubkey\":")
+            append(jsonStr(encoder.encodeToString(boxPubkey)))
+            append("}")
+        }
+        return body.encodeToByteArray()
+    }
+
+    /**
      * The body of the hand-off exchange: the members code and secret, then device_name only when
      * [deviceName] is not null. Every string goes through the same escaping as the other bodies.
      */

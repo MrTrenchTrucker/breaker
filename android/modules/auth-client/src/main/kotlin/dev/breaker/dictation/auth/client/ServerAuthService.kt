@@ -18,12 +18,17 @@ import kotlin.concurrent.withLock
  * request is zeroed after it is sent. [currentAddressedSession] returns the address read now and
  * the session together; a caller that needs both uses it instead of pairing [currentSession] with
  * an address read at another moment.
+ *
+ * With [keyPorts], a login and a register also set up or open the account keys inside the one key
+ * derivation, store the keys before the session, and, when a step fails after the token was
+ * issued, log that token out and store nothing. A null [keyPorts] means no key handling.
  */
 class ServerAuthService(
     private val baseUrl: () -> String,
     private val http: AuthHttp,
     private val keyDerivation: KeyDerivation,
     private val vault: SessionVault,
+    private val keyPorts: AccountKeyPorts? = null,
     private val saltSource: () -> ByteArray = AccountRules::secureSalt,
 ) : AuthService {
     // the four calls block on the caller's thread and the port methods are not suspend, so a coroutines Mutex would need runBlocking at each site
@@ -34,7 +39,9 @@ class ServerAuthService(
         AccountRules.OUTPUT_LENGTH, AccountRules.KDF_VERSION,
     )
 
-    private val ops = ServerAuthServiceOps(baseUrl, http, keyDerivation, vault, saltSource, jsonHeaders, registerParams)
+    private val ops = ServerAuthServiceOps(
+        baseUrl, http, keyDerivation, vault, saltSource, jsonHeaders, registerParams, keyPorts,
+    )
 
     override fun register(username: String, password: CharArray): AuthSession =
         try {

@@ -25,6 +25,9 @@ internal object SyncBodyFamily {
     const val TRAILING = "trailing"
     const val CLIENT_ID = "client_id"
     const val SYNTAX = "syntax"
+    const val KEY_ORDER = "key_order"
+    const val FRAME = "frame"
+    const val KEY_VERSION = "key_version"
 }
 
 internal fun refuse(family: String): Nothing =

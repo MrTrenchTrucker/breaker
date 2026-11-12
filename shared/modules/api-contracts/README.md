@@ -37,4 +37,8 @@ both the Android client (`stt-server`) and the server (`whisper-server`) impleme
   - `PUT /v1/admin/rate-limits` - turn those limits on or off (admin only; built on the server)
   - `GET /v1/status` - which services are up, names and up/down only (any signed-in user; built on the server)
 
+Kotlin helper for the sync body in package `dev.breaker.shared.api.sync`: `RecordFrame` joins and splits
+the `encrypted` text of a record at key_version 1 or higher and builds its associated data (no
+cryptography; vectors in `examples/record_frame_vectors.json`).
+
 Full module card: `AGENTS.md` in this folder.

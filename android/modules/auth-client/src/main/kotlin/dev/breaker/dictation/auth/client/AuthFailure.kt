@@ -12,6 +12,10 @@ enum class AuthFailureReason {
     UNREADABLE_REPLY,
     BAD_SERVER_ADDRESS,
     RATE_LIMITED,
+    KEYS_UNREADABLE,
+    PUBLIC_KEY_MISMATCH,
+    KEY_UPLOAD_REFUSED,
+    KEY_STORE_FAILED,
 }
 
 /**
@@ -36,4 +40,8 @@ private fun sentenceFor(reason: AuthFailureReason): String = when (reason) {
     AuthFailureReason.UNREADABLE_REPLY -> "The server's reply could not be read."
     AuthFailureReason.BAD_SERVER_ADDRESS -> "The server address must start with http:// or https://."
     AuthFailureReason.RATE_LIMITED -> "Too many requests. Try again later."
+    AuthFailureReason.KEYS_UNREADABLE -> "The account keys could not be opened."
+    AuthFailureReason.PUBLIC_KEY_MISMATCH -> "The stored account key does not match its public key."
+    AuthFailureReason.KEY_UPLOAD_REFUSED -> "The account keys could not be set up."
+    AuthFailureReason.KEY_STORE_FAILED -> "The account keys could not be stored on this phone."
 }

@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "note": "Record frames: the base64 of nonce, ciphertext, tag, and the associated data of a record.",
+  "frames": [
+    {"name": "empty-ciphertext", "nonce_hex": "000102030405060708090a0b", "ciphertext_hex": "", "tag_hex": "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf", "encrypted": "AAECAwQFBgcICQoLoKGio6SlpqeoqaqrrK2urw=="},
+    {"name": "one-byte-ciphertext", "nonce_hex": "000102030405060708090a0b", "ciphertext_hex": "41", "tag_hex": "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf", "encrypted": "AAECAwQFBgcICQoLQaChoqOkpaanqKmqq6ytrq8="},
+    {"name": "ciphertext-17-bytes", "nonce_hex": "000102030405060708090a0b", "ciphertext_hex": "0000000000000000000000000000000000", "tag_hex": "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf", "encrypted": "AAECAwQFBgcICQoLAAAAAAAAAAAAAAAAAAAAAACgoaKjpKWmp6ipqqusra6v"},
+    {"name": "ciphertext-100-bytes", "nonce_hex": "000102030405060708090a0b", "ciphertext_hex": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000", "tag_hex": "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf", "encrypted": "AAECAwQFBgcICQoLAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKChoqOkpaanqKmqq6ytrq8="},
+    {"name": "all-ff-bytes", "nonce_hex": "ffffffffffffffffffffffff", "ciphertext_hex": "ffff", "tag_hex": "ffffffffffffffffffffffffffffffff", "encrypted": "////////////////////////////////////////"},
+    {"name": "plus-and-slash", "nonce_hex": "fbefbefbefbefbefbefbefbe", "ciphertext_hex": "", "tag_hex": "ffffffffffffffffffffffffffffffff", "encrypted": "++++++++++++++++/////////////////////w=="}
+  ],
+  "join_refusals": [
+    {"name": "nonce-11-bytes", "nonce_hex": "000102030405060708090a", "ciphertext_hex": "41", "tag_hex": "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf", "family": "frame"},
+    {"name": "nonce-13-bytes", "nonce_hex": "000102030405060708090a0b0c", "ciphertext_hex": "41", "tag_hex": "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf", "family": "frame"},
+    {"name": "tag-15-bytes", "nonce_hex": "000102030405060708090a0b", "ciphertext_hex": "41", "tag_hex": "a0a1a2a3a4a5a6a7a8a9aaabacadae", "family": "frame"},
+    {"name": "tag-17-bytes", "nonce_hex": "000102030405060708090a0b", "ciphertext_hex": "41", "tag_hex": "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0", "family": "frame"}
+  ],
+  "split_refusals": [
+    {"name": "empty-text", "input": "", "family": "base64"},
+    {"name": "url-safe-minus", "input": "AAECAwQFBgcICQoLoKGio6SlpqeoqaqrrK2-rw==", "family": "base64"},
+    {"name": "url-safe-underscore", "input": "AAECAwQFBgcICQoLoKGio6SlpqeoqaqrrK2_rw==", "family": "base64"},
+    {"name": "equals-in-the-middle", "input": "AAECAwQFBgcICQoL=KGio6SlpqeoqaqrrK2urw==", "family": "base64"},
+    {"name": "space-inside", "input": "AAECAwQFBgcICQoL oKGio6SlpqeoqaqrrK2urw==", "family": "base64"},
+    {"name": "line-feed-inside", "input": "AAECAwQFBgcICQoL\noKGio6SlpqeoqaqrrK2urw==", "family": "base64"},
+    {"name": "missing-padding", "input": "AAECAwQFBgcICQoLoKGio6SlpqeoqaqrrK2urw", "family": "base64"},
+    {"name": "one-extra-equals", "input": "AAECAwQFBgcICQoLQaChoqOkpaanqKmqq6ytrq8==", "family": "base64"},
+    {"name": "three-equals", "input": "AAECAwQFBgcICQoLoKGio6SlpqeoqaqrrK2urw===", "family": "base64"},
+    {"name": "27-decoded-bytes", "input": "AAECAwQFBgcICQoLoKGio6SlpqeoqaqrrK2u", "family": "frame"},
+    {"name": "12-decoded-bytes", "input": "AAECAwQFBgcICQoL", "family": "frame"},
+    {"name": "non-canonical-28-bytes", "input": "AAECAwQFBgcICQoLoKGio6SlpqeoqaqrrK2urx==", "family": "base64"},
+    {"name": "non-canonical-29-bytes", "input": "AAECAwQFBgcICQoLQaChoqOkpaanqKmqq6ytrq9=", "family": "base64"}
+  ],
+  "aad": [
+    {"name": "client-a-version-1", "client_id": "3f2a9c1e-7b4d-4e86-a1c5-9d0e2b7f6a48", "key_version": 1, "hex": "33663261396331652d376234642d346538362d613163352d3964306532623766366134380a31"},
+    {"name": "client-a-version-2", "client_id": "3f2a9c1e-7b4d-4e86-a1c5-9d0e2b7f6a48", "key_version": 2, "hex": "33663261396331652d376234642d346538362d613163352d3964306532623766366134380a32"},
+    {"name": "client-a-version-10", "client_id": "3f2a9c1e-7b4d-4e86-a1c5-9d0e2b7f6a48", "key_version": 10, "hex": "33663261396331652d376234642d346538362d613163352d3964306532623766366134380a3130"},
+    {"name": "client-b-version-1", "client_id": "c6a1e4b0-52d9-4f37-8b1a-e07c93d5a2f6", "key_version": 1, "hex": "63366131653462302d353264392d346633372d386231612d6530376339336435613266360a31"},
+    {"name": "client-b-version-max-int", "client_id": "c6a1e4b0-52d9-4f37-8b1a-e07c93d5a2f6", "key_version": 2147483647, "hex": "63366131653462302d353264392d346633372d386231612d6530376339336435613266360a32313437343833363437"}
+  ],
+  "aad_refusals": [
+    {"name": "key-version-0", "client_id": "3f2a9c1e-7b4d-4e86-a1c5-9d0e2b7f6a48", "key_version": 0, "family": "key_version"},
+    {"name": "key-version-minus-1", "client_id": "3f2a9c1e-7b4d-4e86-a1c5-9d0e2b7f6a48", "key_version": -1, "family": "key_version"},
+    {"name": "uppercase-uuid", "client_id": "3F2A9C1E-7B4D-4E86-A1C5-9D0E2B7F6A48", "key_version": 1, "family": "client_id"},
+    {"name": "uuid-in-braces", "client_id": "{3f2a9c1e-7b4d-4e86-a1c5-9d0e2b7f6a48}", "key_version": 1, "family": "client_id"},
+    {"name": "35-characters", "client_id": "3f2a9c1e-7b4d-4e86-a1c5-9d0e2b7f6a4", "key_version": 1, "family": "client_id"},
+    {"name": "37-characters", "client_id": "3f2a9c1e-7b4d-4e86-a1c5-9d0e2b7f6a480", "key_version": 1, "family": "client_id"},
+    {"name": "empty-client-id", "client_id": "", "key_version": 1, "family": "client_id"},
+    {"name": "bad-client-id-and-bad-version", "client_id": "", "key_version": 0, "family": "client_id"}
+  ]
+}

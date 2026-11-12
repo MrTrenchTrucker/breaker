@@ -45,6 +45,30 @@ modules implement, and the use cases that run a dictation.
   the additional authenticated data as a byte array, which binds a text to its record.
   `toEncryptedText` is unchanged. A refused operation throws `CryptoRefused` and returns
   no partial result.
+- `AccountKeyService` - twelve methods that make and wrap the account keys; the crypto module
+  implements it, and the caller hands in the key-encryption key, as for `CryptoService`.
+  `generateDataKey()` and `generateBoxKeyPair()` make a new data key and a new box key pair.
+  `wrapDek(dek, kek, salt)` seals the data key under the key-encryption key with empty
+  associated data. `wrapBoxPrivateKey(boxPrivateKey, dek)` and `unwrapBoxPrivateKey(wrapped,
+  dek)` seal and open the box private key under the data key. `wrapPreviousDek(previousDek,
+  newDek)` and `unwrapPreviousDek(wrapped, newDek)` seal and open the previous data key under
+  the new one. `verifyBoxPublicKey(boxPrivateKey, publicKey)` recomputes the public key and
+  compares it in constant time; it returns when they match and throws `CryptoRefused` when
+  they differ. `unsealAndReencrypt(sealed, boxPrivateKey, dek, aad)` opens a `SealedAgentResult`
+  with the box private key, accepts only an R1 body with source server of at most 524288
+  bytes, and encrypts the same plaintext bytes again under the data key with the caller's
+  associated data; it returns a `CipherText` and throws `CryptoRefused` on any failure. Each
+  wrapped box key and each wrapped previous key is bound to its purpose, so
+  the wrong blob in the wrong slot is refused. A refused operation returns no partial result.
+  `reencrypt(cipherText, oldDek, oldAad, newDek, newAad)` opens a `CipherText` under the old data
+  key and encrypts the same plaintext bytes again under the new one with one fresh nonce; it
+  checks no body format, and it throws `CryptoRefused` on any failure.
+  `encryptBytes(plain, dek, aad)` and `decryptBytes(cipherText, dek, aad)` seal and open opaque
+  bytes under the data key with the caller's associated data, with no String and no body format
+  check. `encryptBytes` returns a `CipherText` with one fresh nonce and never writes the caller's
+  array; `decryptBytes` returns the one opened array, which the caller owns and wipes, and asks no
+  nonce. Each refuses a plaintext or ciphertext above 524288 bytes, and throws `CryptoRefused` on any
+  failure.
 - `KeyDerivation` - `deriveKeys(password: CharArray, salt, kdfParams)`: derives the
   key-encryption key and the auth verifier in one call and returns both as
   `DerivedKeys`; the password travels as a CharArray that the caller wipes (the
@@ -57,6 +81,7 @@ modules implement, and the use cases that run a dictation.
 - DefaultHandoffReceiver - the default receiver (the app wires its own): it wipes the attempt, returns NOT_FINISHED and touches nothing else.
 - `CredentialVault` - `saveKeys(keys, keyVersion)`, `readKeys()`, `wipeAll()`: where the account keys are kept on the phone; keys only, the session is kept by the auth client's session vault. `saveKeys` copies what it is given and replaces any earlier keys; `readKeys` returns a new `StoredAccountKeys` on every call, or null when nothing is stored or it cannot be read; `wipeAll` is safe when empty. The app implements it, as CredentialFileVault, with a sealed file.
 - `PullSink` - `applyRemoteRow(row)`, `applyRemoteDelete(id, deletedAt)`, `retainOnly(keep)`: where the sync module hands what it pulled to the module that owns the local store. The row is one pulled live row as a `Transcription` (its id is the client id), and the answer is true when the row was stored, false when the store refused it because the device holds a tombstone for that id. The delete is a delete record from the pull: the id is the client id, deletedAt is the time of the delete in epoch milliseconds, and the answer is true when the device held a row to remove; a tombstone is kept either way. `retainOnly` takes the set of ids to keep after a full list (the ids of every page of that list plus the ids still waiting in the push queue), removes every other local row without leaving a tombstone, and answers how many rows it removed. History implements it and the app wires it, so sync never gets the whole `HistoryStore` and history stays the only writer of the local store. Only the sync module's PullApplier calls it, and the app builds that only when sync is on (a debuggable build).
+- `RecordKeys` - `currentKeyVersion()`, `seal(clientId, body)`, `open(clientId, keyVersion, encrypted)`, `reseal(clientId, keyVersion, encrypted)`, `convertSealed(clientId, sealedBox)`: the keys behind the sync records, seen from the sync module. `currentKeyVersion()` is 0 when the phone holds no keys, is read afresh on every call and never throws. `seal` takes the R1 body bytes and returns a `SealedRecord` at the current key version, or null when it cannot seal. `open` returns the R1 body bytes, or null when it cannot open (no keys, no key of that version, a bad frame, a tag that does not match). Neither throws for those and neither says why. `reseal` takes the record as the server holds it (key version 0 means the plain padded base64 of the R1 body, which the port strict-decodes and refuses when the lenient body decoder would refuse it) and returns it sealed at the current key version, or null for every failure (no keys, no key of that version, bad text, a tag that does not match, a plaintext over 524288 bytes); the plaintext never leaves the port. `convertSealed` takes an agent result that was sealed to the owner's box key (the box key stays in the port) and returns it sealed at the current key version, or null for every failure (no keys, a bad box, the wrong key, a body that is not a valid server R1 body, a plaintext over 524288 bytes); it never throws for those and never says why; the caller owns the box bytes and wipes them after the call. The port has five members and is complete for this phase. The key, nonce and associated data stay behind the port. Core has no implementation.
 - `SyncService` — `pushPending()`, `enqueue(Transcription)`, `enqueueDelete(String)`
 - `UpdateChecker` — `check(force)`, `install(release)`, `rollback()`
 - `Clock` — `nowEpochMillis()`, and `IdSource` — `newId()`, so the domain never reads
@@ -92,7 +117,20 @@ modules implement, and the use cases that run a dictation.
   sealed for one sign-in: any non-empty byte array, handled the same way, with no fixed
   length. `AccountKeys(dek, boxPrivateKey)` is the pair a package opens to, and its
   `wipe()` wipes both
+- `SealedAgentResult` - a sealed box of an agent-token result: any non-empty byte array, with no
+  size limit in core. A plain class: the bytes are copied in, `copyBytes()` returns a new copy on
+  every call, `size` is readable without a copy so the opener can check a size cap first, and
+  `toString` prints the size only.
+- `SealedRecord(keyVersion, encrypted)` - one record sealed for the server: a key version of at least 1 and a text that is not blank (both refused with an IllegalArgumentException). A plain class, not a data class: `toString` prints the key version and the length of the text, never the text.
 - `StoredAccountKeys(keys, keyVersion)` - the account keys as the key store holds them, with their version (zero or more, checked before anything is copied). A plain class: it builds its own copy of both keys, `wipe()` zeroes that copy and never the caller's arrays, and `toString` prints a fixed text with no key and no version.
+- `BoxKeyPair(privateKey, publicKey)` - the account's box key pair: a `BoxPrivateKey` and a
+  public key of exactly 32 bytes. A plain class: the public key is copied in and
+  `copyPublicKey()` returns a new copy on every call; `wipe()` zeroes the private key only;
+  `toString` prints a fixed text with no key byte.
+- `WrappedBoxPrivateKey` and `WrappedPreviousDek` - the box private key sealed under the data
+  key, and the previous data key sealed under the new one. Each is 60 raw bytes when well
+  formed, but the type only refuses an empty array; the crypto module judges the size. They are
+  separate types so one cannot be put in the other's slot. `toString` prints the size only.
 - `CryptoRefused` - the one plain refusal of a cryptographic operation: an
   IllegalArgumentException with a fixed message, no reason and no byte. It lives in core
   so that callers that see only core can catch it
