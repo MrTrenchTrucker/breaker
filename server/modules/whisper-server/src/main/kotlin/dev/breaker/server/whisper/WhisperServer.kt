@@ -4,6 +4,7 @@ import dev.breaker.server.whisper.config.WhisperConfig
 import dev.breaker.server.whisper.db.SqliteDatabase
 import dev.breaker.server.whisper.http.HttpTokenCheck
 import dev.breaker.server.whisper.http.AgentRateLimit
+import dev.breaker.server.whisper.http.UserRateLimit
 import dev.breaker.server.whisper.http.TranscriptionApi
 import dev.breaker.server.whisper.http.WhisperEngine
 import dev.breaker.server.whisper.jobs.JobStore
@@ -148,6 +149,12 @@ internal fun buildTranscriptionApi(
     val rateLimit = config.agentRateLimitPerMin?.let { cap ->
         AgentRateLimit(cap, Clock.systemUTC())
     }
+    // The optional per-account rate limit: off when BREAKER_WHISPER_USER_RATE_LIMIT_PER_MIN is unset
+    // (userRateLimitPerMin == null), otherwise a fixed 60 s window per account, applied to session
+    // and agent tokens alike.
+    val userRateLimit = config.userRateLimitPerMin?.let { cap ->
+        UserRateLimit(cap, Clock.systemUTC())
+    }
     return TranscriptionApi(
         store,
         wakeWorker,
@@ -155,6 +162,7 @@ internal fun buildTranscriptionApi(
         uptime = uptime,
         tokenCheck = tokenCheck,
         limit = rateLimit,
+        userLimit = userRateLimit,
     )
 }
 

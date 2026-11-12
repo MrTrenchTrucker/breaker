@@ -80,11 +80,13 @@ paths:
                 message: "File exceeds maximum allowed size"
         "429":
           description: >-
-            Too many requests. Only agent tokens are limited, and only when the admin sets
-            BREAKER_WHISPER_AGENT_RATE_LIMIT_PER_MIN: more requests than that number from one
-            token inside a fixed 60 second window. Both routes share one counter per token. A
-            token that fails the check is 401 first and is never counted. Retry-After says how
-            long to wait.
+            Too many requests. Agent tokens are limited by
+            BREAKER_WHISPER_AGENT_RATE_LIMIT_PER_MIN and all live tokens (session and agent)
+            are limited by BREAKER_WHISPER_USER_RATE_LIMIT_PER_MIN: more requests than that
+            number from one token (agent limit) or one account (user limit, this route only)
+            inside a fixed 60 second window. The agent limit shares one counter per token
+            between both routes. A token that fails the check is 401 first and is never
+            counted. Retry-After says how long to wait.
           headers:
             Retry-After:
               description: Whole seconds left in the window, rounded up, minimum 1

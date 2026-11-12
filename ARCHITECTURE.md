@@ -862,7 +862,10 @@ smoke-test gate [1].
       Argon2id cost — that is the honest limit of ADR-006, not a gap unique to this
       threat (F24).
 - T18. **Queue abuse / DoS** — FIFO worker and job size caps are built;
-      per-user rate limits are planned, not built.
+      per-user rate limits are built (T18): `BREAKER_WHISPER_USER_RATE_LIMIT_PER_MIN`
+      optional, off when absent, whole number 1..10000, fixed 60 s window per account,
+      429 with `Retry-After` before the upload is read (`UserRateLimit.kt`,
+      `TranscriptionRoutes.kt`, `WhisperConfig.kt` in the whisper-server module).
 - T19. **Agent token leakage** — scoped, revocable tokens (F27). An optional per-token
       request limit is built in whisper-server: off unless the admin sets it.
 - T20. **SSRF via transcription service config** — admin-only config; URL
