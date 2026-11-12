@@ -58,6 +58,8 @@ class DictationComponent(
      * the take end runs; without a handler the fallback runs at once.
      */
     private val onDeviceFailure: ((() -> Unit) -> Unit)? = null,
+    /** The spoken-send slot: its word stream is offered each microphone frame, and each end of a take stops its detector. */
+    private val phrase: PhraseSlot = PhraseSlot(),
 ) : AutoCloseable {
 
     private val runnerHolder = AtomicReference<DictationRunner?>(null)
@@ -85,10 +87,11 @@ class DictationComponent(
         val built = DictationRunner(
             dictate,
             SendUseCase(committer, history),
-            LevelTap(
+            PhraseFeedTap(LevelTap(
                 MicCapture(
                     reporting,
                     onTakeEnded = { failure ->
+                        if (failure != null) phrase.onTakeEnded()
                         when {
                             failure == null -> {}  // a user stop or a stop without a failure is not a take end
                             (failure as? MicSourceException)?.reason == MicSourceException.Reason.MICROPHONE_TAKEN ->
@@ -105,13 +108,13 @@ class DictationComponent(
                     },
                 ),
                 levelSink,
-            ),
+            ), { phrase.currentStream() }),
             controller,
             reporting,
         )
         runnerHolder.set(built)
         runner = built
-        controller.setEndedListener { runnerHolder.get()?.onServiceEnded() }
+        controller.setEndedListener { runnerHolder.get()?.onServiceEnded(); phrase.onTakeEnded() }
     }
 
     /**
@@ -120,6 +123,7 @@ class DictationComponent(
      */
     override fun close() {
         if (!closed.compareAndSet(false, true)) return
+        phrase.onTakeEnded()
         try {
             runner.cancel()
         } catch (e: Exception) {

@@ -138,9 +138,8 @@ of `AGENTS.md` lists the smaller open items.
 - The on-device engine with its recognizer, its model store and the download are
   built; the recognizer has run on a phone in test builds.
 - The spoken phrases. The phrases module detects the wake and send phrases in
-  heard words, but the app does not use it yet, and no spoken off word is built.
-  PLANNED: a `PhraseSendHandler` in the wiring owns the spoken Send (ADR-004); it
-  needs an app edge to the phrases module that is not in the registry yet.
+  heard words. The app wires it: `PhraseSendHandler` in the wiring owns the spoken Send (ADR-004),
+  which is off, because no phrase stream is provided yet. No spoken off word is built.
 - A device check of the sealed vaults. The session and credential vaults are sealed under an Android
   Keystore key in code, and that is not verified on a device. No secret sits behind the credential
   reference (`FileCredentialRefHolder`), by design: the phone holds no service API key (ADR-008).

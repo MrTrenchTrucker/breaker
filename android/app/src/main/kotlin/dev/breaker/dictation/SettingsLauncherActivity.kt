@@ -77,6 +77,7 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
             modelReady = { modelReady.isReady() },
             onFinishResult = { result ->
                 onFinishResultFor(app.compositionRoot.sessionLive, result) },
+            phrase = app.phraseHandler,
         )
         val mic = createHomeMic(this, takeWiring)
         homeRebuilt = buildHomeEntry(

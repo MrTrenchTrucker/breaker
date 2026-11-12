@@ -47,6 +47,8 @@ open class AppLayoutGateRules {
         "wiring/SyncHttpUploader.kt", "wiring/SyncScheduler.kt", "wiring/SyncWorker.kt", "wiring/SyncingHistoryStore.kt",
         "wiring/PullHttpTransport.kt", "wiring/PullChainWiring.kt",
         "wiring/ProbeRefreshingSettingsStore.kt",
+        "wiring/PhraseFeedTap.kt", "wiring/PhraseSendHandler.kt", "wiring/PhraseStreamSource.kt", "wiring/PhraseWiring.kt",
+        "wiring/TileSpokenSend.kt",
     )
 
     /** Main files that are the layer over the platform and name Android types. */

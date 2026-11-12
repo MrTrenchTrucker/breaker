@@ -36,10 +36,12 @@ internal class HomeTakeWiring(
     private val main: MainPost,
     private val modelReady: () -> Boolean,
     private val onFinishResult: (FinishResult?) -> Unit = {},
+    /** The app's spoken-send handler; null leaves the Home take without a spoken send. */
+    private val phrase: PhraseSendHandler? = null,
 ) {
     private var home: HomeControl? = null
 
-    private val port: LazyTakePort = LazyTakePort { OwnedTakePort(take(), owner, TakeOwnerKind.HOME) }
+    private val port: LazyTakePort = LazyTakePort { homeSpokenTake(OwnedTakePort(take(), owner, TakeOwnerKind.HOME), phrase, ::onSpokenSend) }
 
     /**
      * The listener the armed switch notifies: it re-pushes the derived mic face from the port's own
@@ -155,6 +157,13 @@ internal class HomeTakeWiring(
     }
 
     /**
+     * A spoken send: the Home's own send, run on main. It ends only a take that Home holds, and it never begins one.
+     */
+    internal fun onSpokenSend() {
+        main.post { adapter.onSend() }
+    }
+
+    /**
      * Gives the Home screen to the wiring once it is shown. Main thread only. A screen attached while the
      * Home holds a recording take shows the recording look, so a rebuilt screen does not show the take as idle.
      */
@@ -174,6 +183,8 @@ private class LazyTakePort(supplier: () -> TakePort) : TakePort {
     override fun begin(): BeginResult = port.begin()
 
     override fun finish(): FinishResult = port.finish()
+
+    override fun finishTrimmed(trimBeforeMs: Long?): FinishResult = port.finishTrimmed(trimBeforeMs)
 
     override fun send(): SendResult? = port.send()
 

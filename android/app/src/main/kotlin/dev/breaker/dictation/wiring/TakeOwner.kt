@@ -87,6 +87,11 @@ internal class OwnedTakePort(
         return inner.finish()
     }
 
+    override fun finishTrimmed(trimBeforeMs: Long?): FinishResult {
+        owner.settled()
+        return inner.finishTrimmed(trimBeforeMs)
+    }
+
     override fun send(): SendResult? {
         owner.settled()
         return inner.send()

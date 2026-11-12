@@ -82,6 +82,7 @@ dependencies {
     implementation(project(":android:modules:auth-client"))
     implementation(project(":android:modules:http"))
     implementation(project(":android:modules:sync"))
+    implementation(project(":android:modules:phrases"))
     implementation(project(":shared:modules:api-contracts"))
     runtimeOnly(project(":android:modules:commit:accessibility"))
     implementation(libs.kotlinx.coroutines.core)
