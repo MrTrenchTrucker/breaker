@@ -1650,6 +1650,26 @@ paths:
               example:
                 error: "payload_too_large"
                 message: "Request body exceeds maximum allowed size"
+        "429":
+          description: >-
+            Too many pushes from this account inside the fixed 60 second window
+            (600 in a window). The check comes after the session check and before
+            the body is read. The body is fixed and holds no number, key or
+            address; Retry-After says how long to wait. A refused request is not counted.
+          headers:
+            Retry-After:
+              description: Whole seconds left in the window, rounded up, minimum 1, at most 3600
+              schema:
+                type: integer
+                minimum: 1
+                maximum: 3600
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "rate_limited"
+                message: "Too many requests."
         "503":
           description: A storage failure or a failed session check gets this answer. The body is fixed and no part of the failure is echoed.
           content:

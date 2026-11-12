@@ -82,7 +82,7 @@ internal fun Application.syncApiModule(
         adminRegistrationOpenRoute(tokenStore, accountStore.settings)
         adminHealthRoute(tokenStore, gitTag)
         statusRoute(tokenStore, whisperStatus)
-        syncRoutes(tokenStore, transcriptionStore)
+        syncRoutes(tokenStore, transcriptionStore, counterStore, accountStore.settings)
         pendingSealedRoute(tokenStore, pendingSealedStore)
     }
 }
