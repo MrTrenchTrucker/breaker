@@ -138,6 +138,10 @@ internal class TranscriptionStore(
             TranscriptionPageReader.read(connection, accountId, since, listHead)
         }
 
+    /** One page of the account's live rows older than [bound], newest first (see TranscriptionOlderReader). */
+    suspend fun older(accountId: Long, bound: OlderBound): OlderPage =
+        db.transaction<OlderPage> { connection -> TranscriptionOlderReader.read(connection, accountId, bound) }
+
     /**
      * One pull of the feed for a user session, in one transaction, in this order: the page is read;
      * a Gone page returns at once and writes nothing; with a since, the session's number is set (the

@@ -131,6 +131,8 @@ internal fun Application.syncRoutes(
             }
         }
 
+        olderRoute(tokenStore, transcriptionStore, counterStore, settings)
+
         delete("/v1/transcriptions/{client_id}") {
             val accountId = call.sessionAccountOrRefuse(tokenStore) ?: return@delete
             val clientId = call.parameters["client_id"] ?: ""

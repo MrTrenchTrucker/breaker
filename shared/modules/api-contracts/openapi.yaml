@@ -2729,6 +2729,141 @@ paths:
               example:
                 error: "unavailable"
                 message: "The service is unavailable, try again later"
+  /v1/transcriptions/older:
+    get:
+      summary: Pull the account's older transcriptions
+      description: >-
+        Read the authenticated account's own live transcriptions that are strictly
+        older than a stored time, newest first. Read only: it writes nothing, it does
+        not change the session's pull number and it purges nothing. The bound is
+        older_than = <ms> for rows stored before that millisecond, or
+        older_than = <ms>-<change> for rows whose stored time and change number
+        together come before that pair, so a row stored in the same millisecond with
+        a lower change number is included. Each answer is one fixed page of at most
+        50 rows and at most 4 MiB of text (a row counts its encrypted length plus
+        200, and a row that alone passes the size is still returned alone). There is
+        NO limit parameter. Repeat with older_than set to next while more is true.
+        A row stored at exactly the bound is not returned. A bound in the future gives
+        all live rows. A bound at or below every row gives an empty page whose next is
+        the bound itself. Deleted rows are never returned, and every record has
+        deleted false. Rows past the server retention of 90 days are already gone and
+        are not returned. The 50 rows and the 4 MiB are chosen from the cost of one
+        page; they are not measured.
+      operationId: listOlderTranscriptions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: older_than
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: "^[0-9]{1,15}(-[0-9]{1,19})?$"
+          description: >
+            Required. `<ms>` (a stored time in milliseconds) or `<ms>-<change>`
+            (that time and a change number). A missing, empty or malformed value is 400.
+      responses:
+        "200":
+          description: >
+            The account's older live records as one page, newest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: >-
+                  One page of the older live records of this account, newest first. The records use
+                  the live record shape of TranscriptionRecord, and deleted is always false. The
+                  cursor is a stored time and a change number, not an account cursor, so
+                  TranscriptionPage does not describe it.
+                required:
+                  - items
+                  - next
+                  - more
+                properties:
+                  items:
+                    type: array
+                    description: Live records, newest first; each has client_id, change, deleted false, key_version, encrypted and stored_at
+                    items:
+                      $ref: "#/components/schemas/TranscriptionRecord"
+                  next:
+                    type: string
+                    description: >-
+                      The bound for the next page, sent back as older_than. It matches the same form
+                      as older_than. When more is true it is the stored time and change of the last
+                      record returned, written as <ms>-<change>. On an empty page it is the request's
+                      own bound, rendered back in plain decimal.
+                  more:
+                    type: boolean
+                    description: True when older live records remain; repeat with older_than set to next
+              example:
+                items:
+                  - client_id: "0f9c4d1e-6a2b-4c3d-9e8f-1a2b3c4d5e6f"
+                    change: 7
+                    deleted: false
+                    key_version: 0
+                    encrypted: "eyJ2IjoxLCJ0ZXh0IjoiaGVsbG8gZnJvbSB0aGUgcGhvbmUiLCJzb3VyY2UiOiJsb2NhbCIsIm1vZGVsIjoiYmFzZS5lbiIsImR1cmF0aW9uX21zIjoxNTAwLCJjcmVhdGVkX2F0IjoiMjAyNi0xMC0xMVQxMjowMDowMC4wMDBaIn0="
+                    stored_at: "2026-10-11T12:00:05.000Z"
+                next: "1000-7"
+                more: true
+        "400":
+          description: >-
+            Bad or missing `older_than`: no value, or not matching the pattern. The message is
+            fixed and never echoes the input.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "bad_request"
+                message: "older_than must be a stored time in milliseconds, or that time and a change number joined by a dash"
+        "401":
+          description: Missing or invalid user session token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unauthorized"
+                message: "Invalid or missing user session token"
+        "403":
+          description: Forbidden - a valid token of the wrong kind
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "forbidden"
+                message: "User session token required; an agent token is refused"
+        "429":
+          description: >-
+            Too many reads from this account inside the fixed 60 second window (30 in a
+            window). The check comes after the session check and before the bound is read,
+            so a malformed bound counts. The body is fixed and holds no number, key or
+            address; Retry-After says how long to wait. A refused request is not counted,
+            and a 401 or 403 is never counted.
+          headers:
+            Retry-After:
+              description: Whole seconds left in the window, rounded up, minimum 1, at most 3600
+              schema:
+                type: integer
+                minimum: 1
+                maximum: 3600
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "rate_limited"
+                message: "Too many requests."
+        "503":
+          description: A storage failure, a stored time that cannot be formatted, or a failed session check gets this answer. The body is fixed and no part of the failure is echoed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "unavailable"
+                message: "The service is unavailable, try again later"
   /v1/transcriptions/{client_id}:
     delete:
       summary: Delete a transcription
