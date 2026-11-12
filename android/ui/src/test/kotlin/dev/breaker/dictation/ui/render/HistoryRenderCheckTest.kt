@@ -62,7 +62,7 @@ private val LOGGING = Regex("""\b(?:Log|Timber)\.|\bprint(?:ln)?\(|\bSystem\.(?:
 
 /** The settled signature of the entry that builds the history view, as its code spells it, across its lines. */
 private val SETTLED_SIGNATURE = Regex(
-    """fun createHistoryView\(\s*context: android\.content\.Context,\s*history: dev\.breaker\.dictation\.core\.port\.HistoryStore,\s*settings: dev\.breaker\.dictation\.core\.port\.SettingsStore\s*,\s*\): android\.view\.View \{""",
+    """fun createHistoryView\(\s*context: android\.content\.Context,\s*history: dev\.breaker\.dictation\.core\.port\.HistoryStore,\s*settings: dev\.breaker\.dictation\.core\.port\.SettingsStore\s*,\s*older: dev\.breaker\.dictation\.core\.port\.OlderHistory\?\s*=\s*null\s*,\s*\): android\.view\.View \{""",
 )
 
 /** The code of [relative] in the main tree, with comments and string literals removed. */
@@ -139,7 +139,7 @@ class HistoryRenderCheckTest {
             "storedTheme(settings, isNightMode(context.resources.configuration.uiMode))",
             "AndroidClipboard(context)",
             "HistoryDispatcher.serial",
-            "HistoryHostView(context, history, AndroidClipboard(context), format, work, HistoryDispatcher.serial, theme, ScreenRenderer(context))",
+            "HistoryHostView(context, history, AndroidClipboard(context), format, work, HistoryDispatcher.serial, theme, ScreenRenderer(context), older)",
             "work.bind(host.scheduler())",
         )) {
             assertTrue("history: createHistoryView does not contain: $step", body.contains(step))

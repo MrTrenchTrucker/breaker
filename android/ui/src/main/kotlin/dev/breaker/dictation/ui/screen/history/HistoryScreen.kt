@@ -122,19 +122,40 @@ internal class HistoryScreen {
                     gapBefore()
                     add(if (row.id in state.pending) undoBlock(row.id) else rowBlock(row, row.id in state.opened))
                 }
-                if (state.fullPage && state.shown >= ROW_CAP) {
-                    gapBefore()
-                    add(Label(LIMIT_ID, HistoryTexts.LIMIT_NOTE, TypeRole.BODY, PaletteSlot.TEXT_MUTED))
-                } else if (state.fullPage) {
-                    gapBefore()
-                    add(
-                        Action(
-                            id = MORE_ID,
-                            text = HistoryTexts.BUTTON_LOAD_MORE,
-                            intent = ScreenIntent.History(HistoryActions.MORE),
-                            kit = KitLook.OUTLINED,
-                        ),
-                    )
+                // Load more, the limit note or nothing, by phase: LOCAL is the phone-only rule as it always was.
+                when (state.serverPhase) {
+                    LoadMorePhase.GONE -> { /* the button went away for the visit; draw nothing */ }
+                    LoadMorePhase.CAP -> {
+                        gapBefore()
+                        add(Label(LIMIT_ID, HistoryTexts.SERVER_CAP_NOTE, TypeRole.BODY, PaletteSlot.TEXT_MUTED))
+                    }
+                    LoadMorePhase.LOCAL -> {
+                        if (state.fullPage && state.shown >= ROW_CAP) {
+                            gapBefore()
+                            add(Label(LIMIT_ID, HistoryTexts.LIMIT_NOTE, TypeRole.BODY, PaletteSlot.TEXT_MUTED))
+                        } else if (state.fullPage) {
+                            gapBefore()
+                            add(
+                                Action(
+                                    id = MORE_ID,
+                                    text = HistoryTexts.BUTTON_LOAD_MORE,
+                                    intent = ScreenIntent.History(HistoryActions.MORE),
+                                    kit = KitLook.OUTLINED,
+                                ),
+                            )
+                        }
+                    }
+                    LoadMorePhase.SERVER -> {
+                        gapBefore()
+                        add(
+                            Action(
+                                id = MORE_ID,
+                                text = HistoryTexts.BUTTON_LOAD_MORE,
+                                intent = ScreenIntent.History(HistoryActions.MORE),
+                                kit = KitLook.OUTLINED,
+                            ),
+                        )
+                    }
                 }
                 add(BottomStripes(STRIPES_ID, plain = true))
             },

@@ -1,12 +1,12 @@
 package dev.breaker.dictation.ui.screen.history
 
-/*
- * The words the history screen shows.
- *
- * Every sentence the user reads on that screen is one of these. The only other
- * text drawn is the time of a row, which is written by the phone's own formatter,
- * and the transcriptions themselves.
- */
+/* The words the history screen shows.
+
+Every sentence the user reads on that screen is one of these. The only other
+text drawn is the time of a row, which is written by the phone's own formatter,
+and the transcriptions themselves. All sentences are plain ASCII, capitalised,
+and end with a full stop.
+*/
 
 /** The words of the history screen, in plain ASCII. */
 internal object HistoryTexts {
@@ -31,6 +31,15 @@ internal object HistoryTexts {
     const val NOTICE_LIST_FAILED = "Could not load history."
     const val BUTTON_UNDO = "Undo"
     const val LIMIT_NOTE = "Showing the 300 most recent."
+    const val SERVER_CAP_NOTE = "That is as many older rows as this screen shows."
     const val BUTTON_SHOW_ALL = "Show all"
     const val BUTTON_HIDE = "Hide"
+    /** Server read: no live session. */
+    const val NOTICE_SIGNED_OUT = "Sign in again."
+    /** Server read: not allowed or unreachable. */
+    const val NOTICE_SERVER_UNAVAILABLE = "Could not reach the server."
+    /** Server read: rate limited. */
+    const val NOTICE_SERVER_BUSY = "Try again in a minute."
+    /** Server read: a page where nothing could be opened but more exists. */
+    const val NOTICE_SERVER_EMPTY_MORE = "Could not load older rows."
 }

@@ -93,6 +93,7 @@ fun createSettingsView(
  * @param context the context the views are built with, normally an activity's.
  * @param history the store the app owns, through which every read and delete goes.
  * @param settings the store the app owns, through which the stored theme is read.
+ * @param older the older-rows read port for Load more phase two, or null to keep Load more one-phase.
  * @return a view that shows the history and can be put in a layout as it stands.
  */
 // The parameter types are written out in full, for the same reason as above.
@@ -100,11 +101,12 @@ fun createHistoryView(
     context: android.content.Context,
     history: dev.breaker.dictation.core.port.HistoryStore,
     settings: dev.breaker.dictation.core.port.SettingsStore,
+    older: dev.breaker.dictation.core.port.OlderHistory? = null,
 ): android.view.View {
     val theme = storedTheme(settings, isNightMode(context.resources.configuration.uiMode))
     val format = LocalizedTimestampFormat(context.resources.configuration.locales[0], ZoneId.systemDefault())
     val work = LateDelayedWork()
-    val host = HistoryHostView(context, history, AndroidClipboard(context), format, work, HistoryDispatcher.serial, theme, ScreenRenderer(context))
+    val host = HistoryHostView(context, history, AndroidClipboard(context), format, work, HistoryDispatcher.serial, theme, ScreenRenderer(context), older)
     work.bind(host.scheduler())
     return host
 }
