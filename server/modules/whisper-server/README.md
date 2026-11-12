@@ -25,4 +25,12 @@ The `model` part is optional and ignored - the configured downstream model serve
 that sends more requests than that inside a fixed 60 second window gets 429 with a `Retry-After`
 header; both routes share one counter per token, kept in memory. A session token is never limited.
 
+**Per-account rate limit (built, optional).** Off unless
+`BREAKER_WHISPER_USER_RATE_LIMIT_PER_MIN` is set to a whole number from 1 to 10000. A live token of
+any kind (session or agent) is counted against its account: more requests than that number from one
+account inside a fixed 60 second window get 429 with a `Retry-After` header before the upload is
+read. Only the upload route, POST /v1/audio/transcriptions, counts against it, one counter per account kept in
+memory; a poll of a job is never counted and never refused by it. The per-account check runs after
+the per-agent-token check, so a request refused by T19 uses no account slot. A restart resets the counters.
+
 Breaker serves plain HTTP; TLS is the admin's choice through a reverse proxy in front of it (ADR-034).

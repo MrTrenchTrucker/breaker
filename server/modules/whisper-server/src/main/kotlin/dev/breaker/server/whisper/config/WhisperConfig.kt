@@ -15,6 +15,10 @@ package dev.breaker.server.whisper.config
  * - BREAKER_WHISPER_AGENT_RATE_LIMIT_PER_MIN: optional, off when absent; a present value must
  *   parse to a whole number in 1..10000 (requests per minute per agent token); blank, zero,
  *   negative, non-number or above 10000 refuses at start naming the variable
+  * - BREAKER_WHISPER_USER_RATE_LIMIT_PER_MIN: optional, off when absent; a present value must
+    parse to a whole number in 1..10000 (requests per minute per account, applied to
+    session and agent tokens alike); blank, zero, negative, non-number or above 10000
+    refuses at start naming the variable
  *
  * Parsing rules:
  * - Missing/bad BREAKER_WHISPER_PORT refuses with a message naming BREAKER_WHISPER_PORT
@@ -30,6 +34,9 @@ package dev.breaker.server.whisper.config
  * - Missing BREAKER_WHISPER_AGENT_RATE_LIMIT_PER_MIN means the rate limit is off; a present but
  *   blank/non-number/zero/negative/above-10000 value refuses with a message naming
  *   BREAKER_WHISPER_AGENT_RATE_LIMIT_PER_MIN
+ * - Missing BREAKER_WHISPER_USER_RATE_LIMIT_PER_MIN means the rate limit is off; a present but
+ *   blank/non-number/zero/negative/above-10000 value refuses with a message naming
+ *   BREAKER_WHISPER_USER_RATE_LIMIT_PER_MIN
  */
 data class WhisperConfig(
     val bindAddress: String,
@@ -38,6 +45,7 @@ data class WhisperConfig(
     val forwarderBaseUrl: String,
     val resultTtlSeconds: Int = DEFAULT_RESULT_TTL_SECONDS,
     val agentRateLimitPerMin: Int? = null,
+    val userRateLimitPerMin: Int? = null,
     val syncApiBaseUrl: String = "",
     val syncApiServiceKey: String = "",
 ) {
@@ -50,12 +58,15 @@ data class WhisperConfig(
         const val ENV_SYNC_API_URL = "BREAKER_WHISPER_SYNC_API_URL"
         const val ENV_SYNC_API_SERVICE_KEY = "BREAKER_WHISPER_SYNC_API_SERVICE_KEY"
         const val ENV_AGENT_RATE_LIMIT = "BREAKER_WHISPER_AGENT_RATE_LIMIT_PER_MIN"
+        const val ENV_USER_RATE_LIMIT = "BREAKER_WHISPER_USER_RATE_LIMIT_PER_MIN"
         const val DEFAULT_HOST = "127.0.0.1"
         const val DEFAULT_RESULT_TTL_SECONDS = 600
         private const val MIN_RESULT_TTL_SECONDS = 1
         private const val MAX_RESULT_TTL_SECONDS = 86_400
         private const val MIN_AGENT_RATE_LIMIT = 1
         private const val MAX_AGENT_RATE_LIMIT = 10_000
+        private const val MIN_USER_RATE_LIMIT = 1
+        private const val MAX_USER_RATE_LIMIT = 10_000
 
         private const val MIN_PORT = 1
         private const val MAX_PORT = 65535
@@ -133,6 +144,27 @@ data class WhisperConfig(
                 parsed
             }
 
+            val userRateLimitRaw = env[ENV_USER_RATE_LIMIT]
+            val userRateLimitPerMin = if (userRateLimitRaw == null) {
+                null
+            } else {
+                val parsed = userRateLimitRaw.toIntOrNull()
+                    ?: throw IllegalStateException(
+                "$ENV_USER_RATE_LIMIT is not a number: $userRateLimitRaw"
+            )
+                if (parsed < MIN_USER_RATE_LIMIT) {
+                    throw IllegalStateException(
+                        "$ENV_USER_RATE_LIMIT must be at least $MIN_USER_RATE_LIMIT: $userRateLimitRaw"
+                    )
+                }
+                if (parsed > MAX_USER_RATE_LIMIT) {
+                    throw IllegalStateException(
+                        "$ENV_USER_RATE_LIMIT must be at most $MAX_USER_RATE_LIMIT: $userRateLimitRaw"
+                    )
+                }
+                parsed
+            }
+
             val syncApiUrl = env[ENV_SYNC_API_URL]
                 ?.takeIf { it.isNotBlank() }
                 ?: throw IllegalStateException("$ENV_SYNC_API_URL is not set")
@@ -156,6 +188,7 @@ data class WhisperConfig(
                 forwarderUrl,
                 resultTtlSeconds,
                 agentRateLimitPerMin = agentRateLimitPerMin,
+                userRateLimitPerMin = userRateLimitPerMin,
                 syncApiBaseUrl = syncApiUrl,
                 syncApiServiceKey = syncApiServiceKey,
             )

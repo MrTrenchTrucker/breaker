@@ -63,8 +63,14 @@ concurrent requests would contend. A queue serializes jobs:
   worker never starts the next job until the active one returns.
 - `GET /v1/jobs/{job_id}` → `{ status: queued|processing|done|failed, result }`.
 - Jobs persist in SQLite → restart-safe (no queued audio lost).
-- No priority in v1; the job size cap is built, per-user rate limits are planned (T18).
-  Built: the upload size cap (413 above the audio limit). Planned, not built: per-user rate limits.
+- No priority in v1; the job size cap is built, per-user rate limits are built (T18).
+  Built: the upload size cap (413 above the audio limit). Built: per-user rate limits
+  (`BREAKER_WHISPER_USER_RATE_LIMIT_PER_MIN`, optional, off when absent, whole number
+  1..10000, fixed 60 s window per account keyed by accountId, 429 with `Retry-After`
+  before the upload is read; counters in memory, reset on restart).
+  The code is `http/UserRateLimit.kt`, the check is in `TranscriptionRoutes.kt` (POST
+  only, runs after the T19 check so a T19-refused request uses no account slot) and the
+  setting is in `WhisperConfig.kt`.
 - **Agent-token request limit (T19), built and optional.** Off unless
   `BREAKER_WHISPER_AGENT_RATE_LIMIT_PER_MIN` is set to a whole number from 1 to 10000; a blank,
   zero, negative, text or larger value refuses the start and names the variable. Only a live

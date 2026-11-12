@@ -25,6 +25,7 @@ class TranscriptionApi internal constructor(
     private val uptime: () -> String = { "0h0m0s" },
     private val tokenCheck: TokenCheck = FailClosedTokenCheck,
     private val limit: AgentRateLimit? = null,
+    private val userLimit: UserRateLimit? = null,
 ) {
     fun install(app: Application) {
         app.routing {
@@ -36,6 +37,7 @@ class TranscriptionApi internal constructor(
                 uptime,
                 tokenCheck,
                 limit,
+                userLimit,
             )
         }
     }

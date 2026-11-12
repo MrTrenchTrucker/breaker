@@ -41,6 +41,7 @@ internal fun Route.transcriptionRoutes(
     uptime: () -> String = { "0h0m0s" },
     tokenCheck: TokenCheck = FailClosedTokenCheck,
     limit: AgentRateLimit? = null,
+    userLimit: UserRateLimit? = null,
 ) {
     post("/v1/audio/transcriptions") {
         // Auth first, before the upload is read: a refused token costs nothing but the header.
@@ -57,8 +58,9 @@ internal fun Route.transcriptionRoutes(
             }
             is AuthOutcome.Live -> auth
         }
-        // Rate limit after the token check and before the upload is read: a limited request
-        // costs nothing but the header. Session tokens are never limited and create no counter.
+        // Per-agent-token limit (T19): only agent tokens are counted; session tokens are
+        // never limited and create no counter. It runs BEFORE the per-account check so a
+        // request refused by T19 uses no account slot.
         if (account.kind == "agent") {
             limit?.let { lim ->
                 val result = lim.allow(account.token)
@@ -67,6 +69,17 @@ internal fun Route.transcriptionRoutes(
                     respondError(call, HttpStatusCode.TooManyRequests, "rate limit exceeded")
                     return@post
                 }
+            }
+        }
+        // Per-account rate limit before the upload is read: a limited request costs nothing
+        // but the header. Applies to every live account (session and agent alike), keyed by
+        // accountId, not by token. Off when userLimit is unset.
+        userLimit?.let { lim ->
+            val result = lim.allow(account.accountId)
+            if (result is UserLimitResult.Refused) {
+                call.response.headers.append("Retry-After", result.retryAfterSeconds.toString())
+                respondError(call, HttpStatusCode.TooManyRequests, "rate limit exceeded")
+                return@post
             }
         }
         var readAudio: ByteArray? = null
@@ -134,8 +147,8 @@ internal fun Route.transcriptionRoutes(
             }
             is AuthOutcome.Live -> auth
         }
-        // Rate limit after the token check and before the job lookup: a limited GET must answer
-        // 429 for an unknown job id too. Session tokens are never limited and create no counter.
+        // Per-agent-token limit (T19): only agent tokens are counted; session tokens are
+        // never limited and create no counter.
         if (account.kind == "agent") {
             limit?.let { lim ->
                 val result = lim.allow(account.token)
