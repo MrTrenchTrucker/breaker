@@ -46,9 +46,11 @@ internal class AuthIntentHandler(
     /**
      * Runs [AuthPolicy.rate] on [password], updates the state machine, and calls [onSubmit]
      * exactly once. A too-short password stays Refused with no callback; a weak or ok password
-     * moves to Warning or Busy; either way the passed in char array is zero-filled afterwards.
+     * moves to Warning or Busy; either way the char array the caller passed in is zero-filled
+     * afterwards. The callback does not get that array: it receives its own copy, made at the
+     * moment it fires, and owns it, so the callback may keep it past this call and must zero it.
      * While a submit is in flight (Busy or Warning) a second submit changes nothing and fires
-     * no callback; the zero-fill still runs.
+     * no callback; the zero-fill of the caller array still runs.
      */
     fun submit(password: CharArray) {
         try {
@@ -76,11 +78,19 @@ internal class AuthIntentHandler(
     }
 
     /**
-     * Calls [onSubmit] once. The zero-fill of the passed in char array happens in the caller's
-     * finally, whether this returns or throws, so no copy of the password can survive past submit.
+     * Calls [onSubmit] once with its own copy of [password], made here and nowhere else. The
+     * zero-fill of the array the caller passed in happens in the caller's finally, whether this
+     * returns or throws. The callback owns the copy and zeroes it; if the callback throws, the
+     * copy is zero-filled here and the same failure is rethrown.
      */
     private fun onSubmitOnce(username: String, password: CharArray, register: Boolean) {
-        onSubmit(username, password, register)
+        val own = password.copyOf()
+        try {
+            onSubmit(username, own, register)
+        } catch (failure: Throwable) {
+            own.fill('\u0000')
+            throw failure
+        }
     }
 
     /** Moves the state back to idle on the same face after a submit has finished. */

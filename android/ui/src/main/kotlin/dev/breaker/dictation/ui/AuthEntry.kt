@@ -14,17 +14,18 @@ import dev.breaker.dictation.ui.theme.storedTheme
  * The app owns the activity, the manifest entry and the settings store; this module owns no window
  * and no storage. What is built here is held by the returned view, which is what lets the whole
  * module ship without an activity of its own and without a reference that outlives the window it was
- * made for. This screen carries only the state-driven surface: it never types, wires nothing beyond
- * the callback passed in, and keeps no password past submit.
+ * made for. This screen has a real user name box and a real password box, wires nothing beyond the
+ * callback passed in, and keeps no password past submit: the password box is wiped at every submit.
  */
 
 /**
  * Builds the auth screen as a view for [context].
  *
- * The screen shows a username field, a masked password field, the register/login choice, the
- * busy/refused/weak-warning line and the submit control. The app hands in the answer that runs when
- * the user submits: it gets the username and password (the password as an array it can zero) and the
- * chosen face. What is built here is held by the returned view; no platform timer drives this phase.
+ * The screen shows a username box the user types in, a masked password box the user types in, the
+ * register/login choice, the busy/refused/weak-warning line and the submit control. The app hands in
+ * the answer that runs when the user submits: it gets the typed username and password (the password
+ * as an array it owns and must zero) and the chosen face. What is built here is held by the returned
+ * view; no platform timer drives this screen.
  *
  * @param context the context the views are built with, normally an activity's.
  * @param settings the shared store, through which this screen reads its one stored value.

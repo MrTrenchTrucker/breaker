@@ -276,8 +276,8 @@
         },
         {
           "item": "auth screen text input and submit",
-          "status": "NOT_STARTED",
-          "evidence": "ui card 26 and 187: no text input, the submit control refuses; AuthHostView.kt"
+          "status": "DONE",
+          "evidence": "ui card auth invariant and Known Gotchas; AuthIntentHandlerOwnershipTest, AuthSubmitStepTest, AuthInputViewRulesTest, AuthHostViewRulesTest; not run on a device"
         }
       ]
     },
@@ -485,8 +485,8 @@
   ],
   "summary": {
     "live": 35,
-    "done": 23,
-    "partial": 9,
+    "done": 24,
+    "partial": 8,
     "not_started": 3,
     "containers": 4,
     "retired": 1
