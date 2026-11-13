@@ -278,6 +278,7 @@ FloatingTile (via create), FloatingTile.setImeProbe, ShowResult, TileState, Scre
   there.
 - Placement math and clamping (`TilePlacementTest`): fractions to pixels and back on screens that do not start at
   0,0, round half up, all four edges, a zero movable range, a tile larger than the area, an inverted pixel box refused and an empty one accepted.
+- The mic keeps its touch (`TouchHoldTest`, `ScreenMicHoldWiringGateTest`): while a finger is down the mic asks its parent, with `requestDisallowInterceptTouchEvent`, to leave the touch alone (the Home page scrolls, and a long press that drifts a little was read as a scroll, which cancelled the hold on the X and on the check); `TouchHold` asks on the down, gives the touch back once on the lift or the cancel, and asks nothing for a release without a press. The tests run a made-up scroll container against the hold, and the gate pins the one `hold` field of `ScreenMic.kt`, the ask before the interpreter in the down branch, and the release in the up and cancel branches.
 - Tap versus drag (`TouchInterpreterTest`, `TouchInterpreterGestureTest`): the touch slop as a straight-line distance, exactly the slop is still a
   tap, the first drag step carries the whole distance from the down point, the sub-pixel remainder is carried, a
   drag that returns to its start is still a drag, a cancel with and without a drag, signs in all four directions, a
