@@ -826,10 +826,7 @@ API keys + user tokens never in git.
 **Mirror:** after a GitHub main merge, sync the private mirror's `main` only; a full mirror
 force-resets its `module/*` branches holding unpushed work.
 
-**APK signing:** the deploy pipeline signs each tagged release's APK with a
-dedicated **APK signing key** (generated once, stored in a secrets store — never
-in git, unlike the base repo's plaintext cert [1]). The public key + SHA-256 are
-served on `/v1/updates/latest.json` for client verification.
+**APK signing:** a release uses two keys, never one. (a) The Android APK signing certificate signs the APK; it is what Android checks when an update installs over an installed app. None exists yet, no release-signed APK exists (debug builds only), and the key must exist before the first public release APK. (b) The Ed25519 update-manifest key signs the update manifest, which the app verifies itself; android/modules/updater SignatureCheck pins a list of raw 32-byte public keys. Keys are generated once, out of band, by the project owner; the build host never holds a private key; a signing step takes the key as a temporary file from the owner's vault and wipes it. Procedure in the Release keys subsection of the deploy card. The public key is to be pinned in the app (not built yet); the manifest carries only the digest and the signature.
 
 **Update endpoint:** `sync-api` exposes `GET /v1/updates/latest.json` (sole registered owner per modules.toml/its own AGENTS.md — both `updater` and `web-fe`'s cards explicitly disclaim owning it), which reads a release manifest file named by `BREAKER_SYNC_API_MANIFEST_FILE` and returns version, version_code, APK URL, SHA-256, signature, and notes.
 
