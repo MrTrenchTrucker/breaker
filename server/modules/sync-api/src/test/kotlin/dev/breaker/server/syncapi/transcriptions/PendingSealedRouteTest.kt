@@ -22,7 +22,7 @@ import org.junit.Before
 import org.junit.Test
 
 // GET /v1/sync/pending-sealed: a user session only, the owner's own rows, created_at then id order, an empty
-// store answers [], the fixed 503 on a failure. Nothing writes the table yet, so the tests insert rows directly.
+// store answers [], the fixed 503 on a failure. The tests insert rows directly.
 internal class PendingSealedRouteTest : TempDatabaseTest() {
 
     private class Reply(val status: HttpStatusCode, val body: String, val contentType: String? = null)

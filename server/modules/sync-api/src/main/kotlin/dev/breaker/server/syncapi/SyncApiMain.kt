@@ -5,6 +5,7 @@ import dev.breaker.server.syncapi.accounts.InstallCode
 import dev.breaker.server.syncapi.accounts.RateLimitCounterStore
 import dev.breaker.server.syncapi.accounts.runRateLimitCounterSweep
 import dev.breaker.server.syncapi.accounts.runSigninAttemptSweep
+import dev.breaker.server.syncapi.db.PendingSealedStore
 import dev.breaker.server.syncapi.db.SqliteDatabase
 import dev.breaker.server.syncapi.handoff.HandoffStore
 import dev.breaker.server.syncapi.handoff.runHandoffSweep
@@ -58,6 +59,7 @@ fun main() {
     }
     val counterStore = RateLimitCounterStore(db, accountStore.clock)
     val tokenStore = TokenStore(db)
+    val pendingSealedStore = PendingSealedStore(db)
     val transcriptionStore = TranscriptionStore(db)
     val handoffStore = HandoffStore(db, tokenStore)
     val resetStore = ResetStore(accountStore, tokenStore)
@@ -82,7 +84,7 @@ fun main() {
     }
     // The internal listener starts first and carries only the token-check routes.
     val internalServer = embeddedServer(CIO, host = config.internalHost, port = config.internalPort) {
-        internalModule(tokenStore, serviceKey) { accountStore.keysFor(it)?.boxPubkey }
+        internalModule(tokenStore, serviceKey, pendingSealedStore = pendingSealedStore) { accountStore.keysFor(it)?.boxPubkey }
     }
     try {
         internalServer.start(wait = false)
