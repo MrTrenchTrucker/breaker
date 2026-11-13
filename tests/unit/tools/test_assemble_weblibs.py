@@ -140,5 +140,43 @@ class T27Utf8RoundTrip(unittest.TestCase):
         self.assertIn(multibyte.encode("utf-8"), written)
 
 
+class T28CopyMappingPinned(unittest.TestCase):
+    """T28: COPY_MAPPING pair names are pinned literally - a changed pair name is red.
+
+    Expected values are written out literally, never read from the module's own table:
+    a test that reads the table it checks can never be red.
+    """
+
+    def test_copy_mapping_pair_names_are_exactly(self):
+        expected = [
+            ("noble-ciphers", "noble-ciphers"),
+            ("noble-hashes", "noble-hashes"),
+            ("noble-curves", "noble-curves"),
+        ]
+        self.assertEqual(helper.COPY_MAPPING, expected)
+
+
+class T29MetadataPinned(unittest.TestCase):
+    """T29: METADATA set is pinned literally - a changed entry is red."""
+
+    def test_metadata_set_is_exactly(self):
+        expected = {"AGENTS.md", "README.md", "VERSION", "build.gradle.kts"}
+        self.assertEqual(helper.METADATA, expected)
+
+
+class T30RewriteTargetPinned(unittest.TestCase):
+    """T30: REWRITES `after` target paths are pinned literally - a changed target is red."""
+
+    def test_rewrite_after_values_are_exactly(self):
+        expected = [
+            "import { abytes as abytes_, anumber as anumber_, bytesToHex as bytesToHex_, concatBytes as concatBytes_, hexToBytes as hexToBytes_, isBytes as isBytes_, randomBytes as randomBytes_, } from '../noble-hashes/utils.js';",
+            "import { sha512 } from '../noble-hashes/sha2.js';",
+            "import { abytes, concatBytes, hexToBytes } from '../noble-hashes/utils.js';",
+            "import { utf8ToBytes } from '../../noble-hashes/utils.js';",
+        ]
+        actual = [after for _rel, _before, after in helper.REWRITES]
+        self.assertEqual(actual, expected)
+
+
 if __name__ == "__main__":
     unittest.main()

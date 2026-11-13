@@ -385,5 +385,21 @@ class RealTreeTest(unittest.TestCase):
         self.assertEqual(live, counted)
 
 
+class T31StatusesPinned(unittest.TestCase):
+    """T31: STATUSES tuple is pinned literally - an added status word is red."""
+
+    def test_statuses_tuple_is_exactly(self):
+        expected = ("DONE", "PARTIAL", "NOT_STARTED")
+        self.assertEqual(module_status.STATUSES, expected)
+
+
+class T32CodeSuffixesPinned(unittest.TestCase):
+    """T32: CODE_SUFFIXES set is pinned literally - a removed suffix is red."""
+
+    def test_code_suffixes_set_is_exactly(self):
+        expected = {".kt", ".java", ".py", ".js", ".mjs", ".ts", ".css", ".html"}
+        self.assertEqual(module_status.CODE_SUFFIXES, expected)
+
+
 if __name__ == "__main__":
     unittest.main()
