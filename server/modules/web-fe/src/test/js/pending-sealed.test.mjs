@@ -340,6 +340,20 @@ test('an encrypt answer of null skips the row and nothing is uploaded', async ()
   assert.equal(uploads, 0);
 });
 
+test('an encrypt answer of undefined skips the row and nothing is uploaded', async () => {
+  let uploads = 0;
+  const flow = flowOf({
+    rows: [rowOf('rec-1')],
+    unseal: async () => new Uint8Array([1]),
+    encrypt: async () => undefined,
+    upload: async () => { uploads += 1; return 'CONFIRMED'; },
+  });
+  const result = await flow.run('tok', new Uint8Array(32), 2, renderOf().render);
+  assert.equal(result.skipped, 1);
+  assert.equal(result.converted, 0);
+  assert.equal(uploads, 0);
+});
+
 test('a fetch that throws is a list failure, not a thrown run', async () => {
   const { render, messages } = renderOf();
   const flow = createPendingSealed({
