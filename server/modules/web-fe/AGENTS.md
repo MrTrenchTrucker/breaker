@@ -125,7 +125,10 @@ not the same limit Android gets. Shared spec + test vectors in api-contracts
 (R21).
 
 **First-login key bootstrap (ADR-006, once per account, here or on
-Android):** when login returns `wrapped_dek: null`, this page generates a
+Android; decided, not built in this module yet: today the page stops at its
+"keyless" sentence when login returns `wrapped_dek: null`, and nothing here
+calls `POST /v1/auth/keys`, which the server has):** when login returns
+`wrapped_dek: null`, this page generates a
 256-bit DEK, wraps it with the freshly derived KEK, generates an X25519 box
 keypair, wraps the box private key with the (unwrapped) DEK — **not** the
 KEK — and uploads all of it via `POST /v1/auth/keys`. This is the same
