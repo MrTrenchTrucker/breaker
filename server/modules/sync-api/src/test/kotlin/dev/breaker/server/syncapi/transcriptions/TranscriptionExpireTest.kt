@@ -209,6 +209,41 @@ internal class TranscriptionExpireTest : TempDatabaseTest() {
         assertEquals("clientId(4) live", 0, deletedOf(alice, clientId(4)))
     }
 
+    // 18. batch cap expires the OLDEST by stored_at_ms, not by insertion/client-id order.
+    //     Pushes clientId(0), (1), (2) in that order, then reverses stored_at_ms by SQL so
+    //     clientId(2) is OLDEST and clientId(0) is NEWEST, all older than the TTL. expire(alice,
+    //     T0 + 2 * TTL, 2) must expire clientId(2) and clientId(1) (oldest first) and keep
+    //     clientId(0) (the newest) live. Without ORDER BY stored_at_ms, id the query returns
+    //     insertion order (clientId(0), clientId(1)) and the newest row dies instead - the
+    //     ORDER BY mutant is caught red.
+    @Test
+    fun `expireDueOn expires oldest by stored_at_ms not insertion order`() {
+        push(alice, 0)
+        clock.advance(Duration.ofMillis(1))
+        push(alice, 1)
+        clock.advance(Duration.ofMillis(1))
+        push(alice, 2)
+        val head = changeSeqOf(alice)
+        // Reverse ages by stored_at_ms: clientId(2) oldest, clientId(1) middle, clientId(0) newest.
+        inTransaction(temp) { connection ->
+            connection.prepareStatement("UPDATE transcriptions SET stored_at_ms = ? WHERE account_id = ? AND client_id = ?").use { s ->
+                s.setLong(1, T0); s.setLong(2, alice); s.setString(3, clientId(2)); s.executeUpdate()
+            }
+            connection.prepareStatement("UPDATE transcriptions SET stored_at_ms = ? WHERE account_id = ? AND client_id = ?").use { s ->
+                s.setLong(1, T0 + 1); s.setLong(2, alice); s.setString(3, clientId(1)); s.executeUpdate()
+            }
+            connection.prepareStatement("UPDATE transcriptions SET stored_at_ms = ? WHERE account_id = ? AND client_id = ?").use { s ->
+                s.setLong(1, T0 + 2); s.setLong(2, alice); s.setString(3, clientId(0)); s.executeUpdate()
+            }
+        }
+        val marked = expire(alice, T0 + 2 * TTL, 2)
+        assertEquals("return 2", 2, marked)
+        assertEquals("oldest row deleted", 1, deletedOf(alice, clientId(2)))
+        assertEquals("middle row deleted", 1, deletedOf(alice, clientId(1)))
+        assertEquals("newest row live", 0, deletedOf(alice, clientId(0)))
+        assertEquals("change_seq = head + 2", head + 2, changeSeqOf(alice))
+    }
+
     // 5. Change numbers advance by the count of expired rows.
     @Test
     fun `expireDueOn change numbers advance by the count`() {
