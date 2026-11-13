@@ -27,7 +27,7 @@ NODE_MIN_MAJOR = 20
 NODE_MIN_MINOR = 19
 # The count of the whole src/test/js suite, pinned so a dropped test file is caught.
 # 449 = 319 base (258 + 6 devices-net + 33 devices flow + 22 devices view) + 34 signin-kdf + 9 signin-crypto + 8 noble-curves-served + 9 signin-box + 12 signin-box-aad + 20 signin-seal + 9 signin-e2e + 25 pending-sealed flow + 4 pending-sealed-net.
-PASSED_COUNT = 449
+PASSED_COUNT = 450
 
 
 def _run(args, env=None):
