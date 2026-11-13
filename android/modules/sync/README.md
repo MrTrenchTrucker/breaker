@@ -24,21 +24,25 @@ The module has no HTTP client. The app supplies the `SyncUploader` and the `Conn
 
 The drain runs only while the app process is alive: the scheduler and its backoff timer live in memory, and nothing is in flight when the process dies. The queue is durable in SQLite, so nothing is lost - a saved transcription waits there until the next drain. When the enqueue throws, the text is saved and the row is not queued, and nothing queues it later.
 
+## Built: the pull and the deletes (ADR-035)
+
+The pull (ADR-035) is wired. `QueuedSyncService` builds a `PullTrigger` when the app gives it both a
+`PullTransport` and a `PullSink` (the app's `wiring/PullChainWiring.kt` builds `PullHttpTransport`),
+and `pushPending` runs one pull cycle after a finished drain, under the same drain mutex. PullRun
+(sync/PullRun.kt, #441) runs one pull (a 410 lists again once); PullSink (core/port/PullSink.kt, #442)
+is the port history implements, with applyRemoteRow (#444), applyRemoteDelete (#442) and retainOnly
+(#445) in history/SqliteHistoryStore.kt; the pull cursor store (#446) and isQueued/queuedIds (#447) in
+sync/SyncQueueDatabase.kt; PullApplier (sync/PullApplier.kt, #448); PullCycle (sync/PullCycle.kt,
+#450), which reads the stored cursor, pulls, applies, then saves the cursor, and pulls once more after
+a full list. A failing pull never crashes the worker and never saves a cursor; the next drain retries.
+A local delete goes by the DELETE route, and a save after the phone's own delete carries `resave` on
+its first push.
+
+Code anchors on main: `sync/PullCycle.kt:14`, `sync/PullRun.kt:28`, `sync/PullLoop.kt:57`, `sync/PullApplier.kt:15` (a pulled delete reaches history's `applyRemoteDelete` at `:46`, before the `isQueued` check at `:49`), the cursor store and `isQueued` in `sync/SyncQueueDatabase.kt:108,112,115-121`, and the queued delete row at `sync/SqliteSyncQueueDatabase.kt:58`, which the drain sends with `uploader.delete` (`sync/QueuedSyncService.kt:185-189`).
+
 ## Not built yet
 
-- Sending tombstones for deleted records.
 - The real port adapter in the app, the app's pending transport and the wiring flip (ADR-018). The own-record migration and re-key pass and the sync half of the pending-sealed conversion are built (see How it works).
-- WIRED (ADR-035): the pull. `QueuedSyncService` builds a `PullTrigger` when the app gives it both a
-  `PullTransport` and a `PullSink` (the app's `wiring/PullChainWiring.kt` builds `PullHttpTransport`),
-  and `pushPending` runs one pull cycle after a finished drain, under the same drain mutex. PullRun
-  (sync/PullRun.kt, #441) runs one pull (a 410 lists again once); PullSink (core/port/PullSink.kt, #442)
-  is the port history implements, with applyRemoteRow (#444), applyRemoteDelete (#442) and retainOnly
-  (#445) in history/SqliteHistoryStore.kt; the pull cursor store (#446) and isQueued/queuedIds (#447) in
-  sync/SyncQueueDatabase.kt; PullApplier (sync/PullApplier.kt, #448); PullCycle (sync/PullCycle.kt,
-  #450), which reads the stored cursor, pulls, applies, then saves the cursor, and pulls once more after
-  a full list. A failing pull never crashes the worker and never saves a cursor; the next drain retries.
-  A local delete goes by the DELETE route, and a save after the phone's own delete carries `resave` on
-  its first push.
 
 ## Build and test
 
