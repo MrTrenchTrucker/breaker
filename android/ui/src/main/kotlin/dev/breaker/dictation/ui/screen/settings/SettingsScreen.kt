@@ -2,6 +2,7 @@ package dev.breaker.dictation.ui.screen.settings
 
 import dev.breaker.dictation.core.model.AppSettings
 import dev.breaker.dictation.core.model.SttMode
+import dev.breaker.dictation.ui.screen.Action
 import dev.breaker.dictation.ui.screen.BottomStripes
 import dev.breaker.dictation.ui.screen.Label
 import dev.breaker.dictation.ui.screen.Node
@@ -11,9 +12,11 @@ import dev.breaker.dictation.ui.screen.Space
 import dev.breaker.dictation.ui.screen.Spacer
 import dev.breaker.dictation.ui.screen.TypeRole
 import dev.breaker.dictation.ui.screen.titleBar
+import dev.breaker.dictation.ui.screen.home.HomeActions
 import dev.breaker.dictation.ui.theme.PaletteSlot
 import dev.breaker.dictation.ui.theme.ThemeState
 import dev.breaker.dictation.core.model.WakeGestureMode
+import dev.breaker.dictation.ui.screen.KitLook
 
 /*
  * The settings screen, described as nodes and nothing else.
@@ -52,7 +55,7 @@ internal class SettingsScreen {
      * The title bar comes first, then the blocks in reading order, each block set
      * apart by a spacer named by its size, and the brand stripes last.
      */
-    fun render(settings: AppSettings?, theme: ThemeState, notice: Notice?, model: ModelRow = ModelRow.READY): Screen =
+    fun render(settings: AppSettings?, theme: ThemeState, notice: Notice?, model: ModelRow = ModelRow.READY, signedOut: Boolean = false): Screen =
         Screen(
             id = SCREEN_ID,
             title = TITLE,
@@ -68,6 +71,11 @@ internal class SettingsScreen {
                     add(switchesBlock(settings))
                     add(Spacer(SettingsIds.GAP_VALUES, Space.XL))
                     add(valuesBlock(settings, model))
+                }
+                if (signedOut) {
+                    add(Spacer(SettingsIds.GAP_SIGNED_OUT, Space.L))
+                    add(Label(SettingsIds.SIGNED_OUT, SettingsTexts.SIGNED_OUT, TypeRole.BODY, PaletteSlot.TEXT))
+                    add(Action(SettingsIds.SIGN_IN, SettingsTexts.SIGN_IN, intent = ScreenIntent.Home(HomeActions.SIGN_IN), kit = KitLook.TEXT))
                 }
                 add(BottomStripes(SettingsIds.STRIPE_ID, plain = true))
             },

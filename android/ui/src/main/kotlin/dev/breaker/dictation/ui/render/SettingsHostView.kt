@@ -14,6 +14,7 @@ import dev.breaker.dictation.ui.screen.settings.ModelRow
 import dev.breaker.dictation.ui.screen.settings.Rendered
 import dev.breaker.dictation.ui.screen.settings.SettingsIds
 import dev.breaker.dictation.ui.screen.settings.SettingsIntentHandler
+import dev.breaker.dictation.ui.screen.home.HomeActions
 import dev.breaker.dictation.ui.theme.PaletteSlot
 import dev.breaker.dictation.ui.theme.ThemeController
 import dev.breaker.dictation.ui.theme.Themes
@@ -45,6 +46,8 @@ import dev.breaker.dictation.ui.theme.Themes
  * @param modelReady answers whether the speech model is on the phone right now.
  * @param downloadLine answers the sentence to show under the model download, or null.
  * @param onDownloadModel asks the app to download the speech model.
+ * @param sessionLive answers whether the session is live; the signed-out block shows when not.
+ * @param onSignIn asks the app to start signing in; called when the signed-out block's Sign in is tapped.
  */
 internal class SettingsHostView(
     context: Context,
@@ -54,6 +57,8 @@ internal class SettingsHostView(
     private val modelReady: () -> Boolean,
     private val downloadLine: () -> String?,
     private val onDownloadModel: () -> Unit,
+    private val sessionLive: () -> Boolean,
+    private val onSignIn: () -> Unit,
 ) : ScrollView(context), DownloadControl {
     /**
      * The single redraw path.
@@ -97,8 +102,12 @@ internal class SettingsHostView(
     /** The speech model row and the screen as the handler draws them now. */
     private fun refreshed(): Rendered {
         handler.showing(rowNow())
+        handler.showingSignedOut(signedOut())
         return handler.current()
     }
+
+    /** Whether the signed-out block should show, re-read on every drawing. */
+    private fun signedOut(): Boolean = !sessionLive()
 
     /** The speech model row as it stands: whether the model is ready, and the sentence for a download. */
     private fun rowNow(): ModelRow = ModelRow(ready = modelReady(), line = downloadLine())
@@ -119,15 +128,18 @@ internal class SettingsHostView(
      * Acts on [intent] and draws the result.
      *
      * Back goes to the activity, which closes the screen the way its own Back does.
-     * The download button asks the app to download the model. Any other intent goes
-     * to the handler, and the screen it answers is drawn.
+     * The download button asks the app to download the model. The signed-out block's
+     * Sign in intent is intercepted here and answered with [onSignIn]; every other
+     * intent goes to the handler, and the screen it answers is drawn.
      */
     private fun onIntent(intent: ScreenIntent) {
         when {
             intent == ScreenIntent.Back -> (context as? android.app.Activity)?.onBackPressed()
             intent is ScreenIntent.Setup && intent.action == SettingsIds.DOWNLOAD_ACTION -> onDownloadModel()
+            intent is ScreenIntent.Home && intent.action == HomeActions.SIGN_IN -> onSignIn()
             else -> {
                 handler.showing(rowNow())
+                handler.showingSignedOut(signedOut())
                 show(handler.handle(intent))
             }
         }

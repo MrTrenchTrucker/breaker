@@ -210,7 +210,7 @@ sliding; admin revoke stays; agent tokens keep their own expiry (ADR-031).
 **D35 — Superseded by ADR-034: the server makes its own certificate; the one-time sign-in pairs the phone with it.**
 ADR-034 decides plain HTTP; TLS is the admin's choice via any reverse proxy. The pairing is dropped with ADR-032 (not built).
 
-**D36 — Signed out = a quiet notice on Home, nothing forced.**
+**D36 — Signed out = a quiet notice on the Settings tab, nothing forced.**
 the app keeps working offline (ADR-033).
 
 **D37 — whisper-server asks sync-api whether a token is live.**

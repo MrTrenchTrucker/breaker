@@ -75,9 +75,17 @@ internal class SettingsIntentHandler(
     /** The speech model row to draw with the next screen; the host sets it before it asks for a screen. */
     private var model: ModelRow = ModelRow.READY
 
+    /** Whether the signed-out block should show; set by the host on each drawing. */
+    private var signedOut: Boolean = false
+
     /** Sets the speech model row that the screens drawn from now on show. */
     fun showing(row: ModelRow) {
         model = row
+    }
+
+    /** Sets whether the signed-out block is drawn. */
+    fun showingSignedOut(signedOut: Boolean) {
+        this.signedOut = signedOut
     }
 
     /** The screen as it stands now, without acting on anything. */
@@ -184,7 +192,7 @@ internal class SettingsIntentHandler(
      */
     private fun render(): Rendered =
         Rendered(
-            screen = screen.render(known, themes.state, notice, model),
+            screen = screen.render(known, themes.state, notice, model, signedOut = signedOut),
             theme = Themes.of(themes.state.shown),
         )
 }

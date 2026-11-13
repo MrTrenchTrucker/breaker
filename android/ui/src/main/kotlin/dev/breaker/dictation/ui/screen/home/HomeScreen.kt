@@ -59,10 +59,6 @@ internal class HomeScreen(private val format: TimestampFormat = TimestampFormat 
             add(Label(HomeNodeIds.MIC_HINT, HomeTexts.TAP_HINT, TypeRole.BODY, PaletteSlot.TEXT_MUTED, align = TextAlign.CENTER))
             add(Spacer(HomeNodeIds.GAP_TRANSCRIPT, Space.L))
             add(transcript(state))
-            if (!state.sessionLive) {
-                add(Label(HomeNodeIds.SIGNED_OUT, HomeTexts.SIGNED_OUT, TypeRole.BODY, PaletteSlot.TEXT))
-                add(Action(HomeNodeIds.SIGN_IN, HomeTexts.SIGN_IN, intent = ScreenIntent.Home(HomeActions.SIGN_IN), kit = KitLook.TEXT))
-            }
             state.notice?.let { add(Label(HomeNodeIds.NOTICE, it, TypeRole.BODY, PaletteSlot.TEXT)) }
             state.line?.let { add(Label(HomeNodeIds.LINE, it, TypeRole.BODY, PaletteSlot.TEXT)) }
             if (state.confirmSignOut) {
@@ -277,7 +273,6 @@ internal object HomeNodeIds {
     const val DRAWER_ABOUT = "home.drawer.item.about"
     const val DRAWER_SIGN_OUT = "home.drawer.item.signout"
     const val DRAWER_STRIPES = "home.drawer.stripe"
-    const val SIGNED_OUT = "home.signedout.notice"
     const val SIGN_IN = "home.signedout.signin"
     const val CONFIRM_BLOCK = "home.confirm.block"
     const val CONFIRM_QUESTION = "home.confirm.question"

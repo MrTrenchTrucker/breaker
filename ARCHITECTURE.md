@@ -616,8 +616,8 @@ again. Agent tokens keep their own optional expiry (F27).
 
 **Signed out (ADR-033):** when there is no live session (a fresh install, an
 expired or revoked session, or a key the server refused) nothing forces the
-user anywhere. The app keeps working offline exactly as it does today, and Home
-shows a quiet notice with a way to sign in.
+user anywhere. The app keeps working offline exactly as it does today, and the
+Settings tab shows a quiet notice with a way to sign in.
 
 **Onboarding:** register → download APK → sign in (on the Breaker website, which hands the login to the app: ADR-036, planned, not built) → train phrases → grant permissions → enable high-power mode → GTG.
 

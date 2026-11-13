@@ -41,8 +41,8 @@
 ## Step 4 — First-run onboarding
 1. **Register** (username + password) — one time. You stay signed in while you use
    the app: after 30 days without using it the session ends and you sign in
-   again (ADR-031). The app keeps working offline either way, and Home shows a
-   quiet notice with a way to sign in when you are signed out (ADR-033).
+   again (ADR-031). The app keeps working offline either way, and the Settings
+   tab shows a quiet notice with a way to sign in when you are signed out (ADR-033).
 2. **Grant permissions** (F11): after a short welcome, the app asks for the
    microphone, display over other apps, notifications and the accessibility
    service, one screen each — approve all.
@@ -113,7 +113,7 @@
 | Symptom | Fix |
 |---------|-----|
 | "Connection not private" | Trust the server (Step 1) |
-| Home shows a quiet notice with a way to sign in | You have not signed in yet, or your session ended (30 days without use, or an admin ended it). Sign in again from the notice; the app still works offline |
+| Settings shows a quiet notice with a way to sign in | You have not signed in yet, or your session ended (30 days without use, or an admin ended it). Sign in again from the notice; the app still works offline |
 | APK won't install | Enable "Install unknown apps" for your browser (Step 2) |
 | Wake phrase not responding | Train your phrases (Step 4.4); check mic permission |
 | Text goes to the clipboard instead of the field | The accessibility service is off or restricted (Step 4.5), or the field is a password field (never filled, by design) |

@@ -79,6 +79,7 @@ internal fun buildSettingsRebuilt(
     app: BreakerApp,
     modelReady: StoreModelReady,
     downloadLine: () -> String?,
+    onSignIn: () -> Unit,
 ): Rebuilt<android.view.View> {
     val refreshing = ProbeRefreshingSettingsStore(
         delegate = app.settingsStore,
@@ -92,6 +93,8 @@ internal fun buildSettingsRebuilt(
             downloadLine = downloadLine,
             onThemeChanged = dev.breaker.dictation.wiring.repaintOnThemeChange(activity, app.settingsStore),
             onDownloadModel = { app.tileHost.requestDownload() },
+            sessionLive = { app.compositionRoot.sessionLive.liveNow() },
+            onSignIn = onSignIn,
         )
     }
 }
