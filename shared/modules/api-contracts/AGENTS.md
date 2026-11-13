@@ -128,7 +128,9 @@ There is no synchronous 200-with-body variant — every transcription is a job.
   resync. A pending account cannot log in (the 401 of a wrong verifier, not counted); `salt`
   answers as for any account; `keys` and `change-password` answer **409** (above). An admin who
   resets their own account revokes their own token. The pending-sealed table of ADR-018 exists (migration 10) and
-  its read route is built, but a reset does not clear it yet and nothing writes it.
+  its read route is built, and a reset, a password change and the first key store after a reset clear the account's
+  rows in it. Its write path, the service-key route `POST /internal/v1/pending-sealed` on the internal listener (not
+  in this spec), is built in sync-api; whisper-server does not call it yet.
 - **auth — logout (ADR-018)** — `POST /v1/auth/logout`, bearer token only, no request body: revokes
   ONLY the presented token. → **204 No Content** | **401** `ApiError` for a missing, unknown or
   already-revoked token (nothing beyond "not a valid session" is disclosed). There is no standalone
