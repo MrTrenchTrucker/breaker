@@ -276,7 +276,7 @@ class BooleanTest(unittest.TestCase):
     def test_tamper_verified_with_a_digit_is_refused(self):
         planted = replace_once(
             ts.single_entry_yaml("small"),
-            "tamper_verified: false", "tamper_verified: 0")
+            "tamper_verified: true", "tamper_verified: 0")
         msg = ts.refuses(planted)
         self.assertIn("tamper_verified", msg)
 

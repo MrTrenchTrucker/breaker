@@ -55,7 +55,7 @@ the license check result (R26).
 **Build phase:** Before Phase 2: `settings` (Phase 2) and `stt-ondevice` (Phase 3) both depend on it. Needs first: nothing beyond `shared`.
 
 ## Invariants
-- Every entry has a sha256. The download and verify path is stt-ondevice's: its loader tests load an archive that does not match its pin and see the load refused. `tamper_verified` stays false for an entry until the tamper test has been run against that entry's real archive, and all four entries are false today. The per-entry test `RegistryTamperTest` in stt-ondevice loops `ModelRegistry.ALL` and proves each registry pin refuses a mismatched archive, an unlisted pin and an archive name listed with another digest, against a stand-in file; no flag flips from it.
+- Every entry has a sha256. The download and verify path is stt-ondevice's: its loader tests load an archive that does not match its pin and see the load refused. `tamper_verified` stays false for an entry until the tamper test has been run against that entry's real archive, and all four entries are true today: the opt-in `RealArchiveTamperTest` in stt-ondevice (skipped unless `BREAKER_REAL_MODELS_DIR` names a folder that holds the real archives) was run on 2026-11-13 against all four, accepted each real archive and refused a copy of it with one flipped byte. The per-entry test `RegistryTamperTest` in stt-ondevice loops `ModelRegistry.ALL` and proves each registry pin refuses a mismatched archive, an unlisted pin and an archive name listed with another digest, against a stand-in file; it flips no flag.
 - Every entry has a license field (R8).
 - URLs pinned to specific releases (no floating "latest").
 - Registry versioned; app refuses unknown model ids.
