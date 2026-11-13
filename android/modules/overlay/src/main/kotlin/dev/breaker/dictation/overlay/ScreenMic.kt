@@ -92,6 +92,8 @@ internal class ScreenMicView(
     internal val model = TileModel()
     private var theme: ThemeMode = initialTheme
     private val interpreter = TouchInterpreter(slopPx)
+    /** Asks the parents (the Home page scrolls) to leave a held touch to the mic: down asks, up and cancel give it back. */
+    private val hold = TouchHold { disallow -> parent?.requestDisallowInterceptTouchEvent(disallow) }
     internal val gesture = TileGesture()
     private val density: Float = context.resources.displayMetrics.density
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeCap = Paint.Cap.ROUND }
@@ -256,12 +258,14 @@ internal class ScreenMicView(
                 activePointerId = event.getPointerId(index)
                 val x = event.getX(index)
                 val y = event.getY(index)
+                hold.down()
                 interpreter.down(x, y)
                 gesture.begin(x, y, model.shape)
                 ScreenMicProbeKit.downLog(event.eventTime, model.shape, model.state, x, y, height)
                 if (model.shape == TileShape.RECORDING) ScreenMicProbeKit.touchMapLog(event.eventTime, screenLocation(), x, y, height)
             }
             MotionEvent.ACTION_UP -> {
+                hold.release()
                 val index = event.findPointerIndex(activePointerId)
                 val wasTap = if (index >= 0) {
                     ScreenMicProbeKit.upLog(event.eventTime, model.shape, model.state, event.getX(index), event.getY(index), height)
@@ -273,6 +277,7 @@ internal class ScreenMicView(
                 }
             }
             MotionEvent.ACTION_CANCEL -> {
+                hold.release()
                 activePointerId = -1
                 interpreter.cancel()
                 ScreenMicProbeKit.cancelLog(event.eventTime, model.shape, model.state)
