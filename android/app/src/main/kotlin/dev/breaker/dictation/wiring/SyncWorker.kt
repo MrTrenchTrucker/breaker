@@ -121,7 +121,7 @@ class SyncWorker(
                 val next = failures.get() + 1
                 failures.set(next)
                 lastFailedToken.set(token)
-                arm(delayFor(next))
+                arm(maxDelayMs(delayFor(next), report.retryAfterSeconds))
             }
             report.pushed > 0 -> {                       // confirmed drain: reset the backoff
                 failures.set(0)
@@ -165,3 +165,7 @@ class SyncWorker(
             else -> 900_000
         }
 }
+
+/** The wait after a failed drain: the backoff step, or the server's Retry-After when that is longer. */
+internal fun maxDelayMs(backoffStepMs: Long, retryAfterSeconds: Int?): Long =
+    maxOf(backoffStepMs, (retryAfterSeconds ?: 0).toLong() * 1000L)
