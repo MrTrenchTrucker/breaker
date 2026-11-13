@@ -272,7 +272,7 @@ path = "server/modules/deploy"
 owns = "Git-pull deploy, docker-compose, APK signing, VPN bind, volumes, NOTICE. No certificate handling in Breaker; TLS is the admin's choice through any reverse proxy (ADR-034)."
 does_not_own = "Application logic of other server modules; TLS and certificates (the admin's reverse proxy, ADR-034)."
 depends_on = ["server"]
-public = "Three command-line helpers under scripts/: health-check.sh, release-tags.sh, backup-data.py. DeployScripts stays the planned name of the whole set."
+public = "Five command-line helpers under scripts/: health-check.sh, release-tags.sh, backup-data.py, vpn-bind.sh and git-pull.sh. DeployScripts stays the planned name of the whole set."
 card = "server/modules/deploy/AGENTS.md"
 
 [module.shared]
