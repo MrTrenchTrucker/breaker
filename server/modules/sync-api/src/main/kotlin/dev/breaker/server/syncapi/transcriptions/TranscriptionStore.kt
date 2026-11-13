@@ -1,6 +1,7 @@
 package dev.breaker.server.syncapi.transcriptions
 
 import dev.breaker.server.syncapi.accounts.PrevKeyRule
+import dev.breaker.server.syncapi.db.PendingSealedStoreDelete
 import dev.breaker.server.syncapi.db.SqliteDatabase
 import dev.breaker.server.syncapi.tokens.TokenStore
 import java.sql.Connection
@@ -26,7 +27,7 @@ internal class TranscriptionStore(
             // A client cannot be ahead of its account, whatever rows it already holds. This is
             // checked before the row lookup, so a stored row cannot be replaced by a push above
             // the account's key version.
-            if (keyVersion > accountKeyVersion) {
+            val result = if (keyVersion > accountKeyVersion) {
                 PushResult.RefusedAboveAccount
             } else {
                 val stored = readStoredRow(connection, accountId, clientId)
@@ -63,6 +64,17 @@ internal class TranscriptionStore(
                     PushResult.Replaced
                 }
             }
+            // Delete-on-sync: when the push landed (stored, replaced, or the no-op of a record already
+            // held, a deleted one too), the pending-sealed row with this client id goes in this same
+            // transaction, on this connection. A throw rolls the whole push back and the route's
+            // existing catch answers the fixed 503. A refused push never deletes. The when has no
+            // else, so a new outcome must be decided here.
+            when (result) {
+                PushResult.Stored, PushResult.NoOp, PushResult.Replaced ->
+                    PendingSealedStoreDelete.deleteOneOn(connection, accountId, clientId)
+                PushResult.RefusedAboveAccount, PushResult.RefusedLower -> Unit
+            }
+            result
         }
     }
 

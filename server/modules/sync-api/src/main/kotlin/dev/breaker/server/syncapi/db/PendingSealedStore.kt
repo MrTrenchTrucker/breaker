@@ -13,9 +13,10 @@ import java.sql.PreparedStatement
 // writer inserted directly — both are equally well-formed crypto_box_seal output, and the
 // owner's client converts either kind the same way.
 
-// Rows one account may hold. The server deletes no pending row when a synced record lands (not built),
-// so this cap is what bounds the table per account; delete-on-sync must land before the cap can strand
-// a user whose rows are never freed.
+// Rows one account may hold. POST /v1/sync deletes the account's pending row with that client id in the same
+// transaction as the push that lands (PendingSealedStoreDelete), so a converted row is freed at once. A row the
+// owner never converts stays until a reset, a password change or the first key store clears it, and this cap is
+// what bounds the table per account meanwhile.
 internal const val PENDING_PER_ACCOUNT_MAX: Int = 100
 
 // The most DECODED sealed bytes one row may hold, so that what the owner re-uploads fits POST /v1/sync.
@@ -115,9 +116,20 @@ internal data class PendingSealedRow(
     val createdAt: String,
 )
 
-// Write path: deletes the pending_sealed rows of [accountId] on the caller's
-// connection, inside the caller's transaction. No own transaction (nesting
-// deadlocks the single write lane). Mirrors TranscriptionPurge.deleteAllOn.
+// Deletes one pending_sealed row of [accountId] with [id] on the caller's connection. Runs in
+// the caller's transaction: no db.transaction of its own, no suspend. Mirrors
+// PendingSealedStoreClear.deleteAllOn. Returns how many rows were deleted (0 or 1).
+internal object PendingSealedStoreDelete {
+    fun deleteOneOn(connection: Connection, accountId: Long, id: String): Int =
+        connection.prepareStatement("DELETE FROM pending_sealed WHERE account_id = ? AND id = ?").use { statement ->
+            statement.setLong(1, accountId)
+            statement.setString(2, id)
+            statement.executeUpdate()
+        }
+}
+
+// Write path: deletes all pending_sealed rows of [accountId] on the caller's connection.
+// Mirrors TranscriptionPurge.deleteAllOn.
 internal object PendingSealedStoreClear {
     fun deleteAllOn(connection: Connection, accountId: Long): Int =
         connection.prepareStatement("DELETE FROM pending_sealed WHERE account_id = ?").use { statement ->
