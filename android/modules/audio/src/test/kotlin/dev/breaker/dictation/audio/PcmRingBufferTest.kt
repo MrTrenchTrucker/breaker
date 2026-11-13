@@ -120,8 +120,11 @@ class PcmRingBufferTest {
                 }
             }
         }
-        // Drain whatever is left, including audio that wrapped the seam.
+        // Drain whatever is left, including audio that wrapped the seam. The drain is bounded: a read
+        // that never empties the buffer has to fail this test, not hang the run.
+        var drainReads = 0
         while (!buffer.isEmpty()) {
+            assertTrue("the drain did not finish within 1000 reads", ++drainReads <= 1_000)
             repeat(buffer.read(scratch, length = 8)) { delivered.add(scratch[it]) }
         }
 
