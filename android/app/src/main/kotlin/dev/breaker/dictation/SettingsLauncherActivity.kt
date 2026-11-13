@@ -103,7 +103,7 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         takeWiring.attach(home as dev.breaker.dictation.ui.HomeControl)
         setContentView(home)
         applyInsets(home)
-        settingsRebuilt = buildSettingsRebuilt(this, app, modelReady, downloadLine = { downloadSentence })
+        settingsRebuilt = buildSettingsRebuilt(this, app, modelReady, downloadLine = { downloadSentence }, onSignIn = { openSignIn() })
         settingsView = settingsRebuilt.current
         val parts = buildSettingsColumn(this, app, settingsView)
         settingsColumn = parts.column

@@ -93,7 +93,7 @@ screens render with ui-tokens; light/dark toggle persists.
   has no setup block and no History button; its sections are the theme, the routing, the two switches (the preload and the formatting), the wake-gesture choice (a three-cell row), the
   server address box, the API key value, and the speech model row.
 
-- Built (ADR-033): Home draws a quiet signed-out notice and a Sign in action while `HomeState.sessionLive` is false, from the reader the app passes in. The tap reports `HomeActions.SIGN_IN` and the host calls the app's answer. This module opens no sign-in screen by itself and nothing here blocks dictation, history or settings when the user is signed out.
+- Built (ADR-033): Settings draws a quiet signed-out notice and a Sign in action while `sessionLive` is false, from the reader the app passes in. The tap reports `HomeActions.SIGN_IN` and the host calls the app's answer. Home no longer draws the block. This module opens no sign-in screen by itself and nothing here blocks dictation, history or settings when the user is signed out.
 
 ## Does Not Own
 - Business logic (core)

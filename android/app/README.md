@@ -126,7 +126,7 @@ a status line (downloading or failed) uses ModelSentences
 words, and is blank once the model is ready (there is no ready sentence). The app asks for no permission at run time in app code;
 the requests live in ui's screen.
 
-When there is no live session, Home shows a quiet notice with a way to sign in (ADR-033); nothing forces the user anywhere and the app keeps working offline.
+When there is no live session, the Settings tab shows a quiet notice with a way to sign in (ADR-033); nothing forces the user anywhere and the app keeps working offline.
 
 ## What is not built yet
 

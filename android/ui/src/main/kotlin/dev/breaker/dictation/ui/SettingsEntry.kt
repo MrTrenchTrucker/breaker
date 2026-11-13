@@ -57,6 +57,8 @@ import java.time.ZoneId
  * @param modelReady answers whether the speech model is on the phone right now.
  * @param downloadLine answers the sentence to show under the model download, or null.
  * @param onDownloadModel asks the app to download the speech model.
+ * @param sessionLive answers whether the session is live, or null for always live; the signed-out block shows when it is not.
+ * @param onSignIn asks the app to start signing in, or null for nothing; called when that block's Sign in is tapped.
  * @return a view that shows the settings and can be put in a layout as it stands.
  */
 // The parameter types are written out in full: this is the one line of this
@@ -69,12 +71,14 @@ fun createSettingsView(
     downloadLine: () -> String?,
     onDownloadModel: () -> Unit,
     onThemeChanged: (() -> Unit)? = null,
+    sessionLive: (() -> Boolean)? = null,
+    onSignIn: (() -> Unit)? = null,
 ): android.view.View {
     val phoneIsDark = isNightMode(context.resources.configuration.uiMode)
     val themes = ThemeController(settings, phoneIsDark)
     bindThemeChanges(themes, onThemeChanged)
     val handler = SettingsIntentHandler(settings, themes, SettingsScreen())
-    return SettingsHostView(context, handler, themes, ScreenRenderer(context), modelReady, downloadLine, onDownloadModel)
+    return SettingsHostView(context, handler, themes, ScreenRenderer(context), modelReady, downloadLine, onDownloadModel, sessionLive ?: ALWAYS_LIVE, onSignIn ?: NO_SIGN_IN)
 }
 
 /**
@@ -159,3 +163,7 @@ fun createAboutView(
     val theme = storedTheme(settings, isNightMode(context.resources.configuration.uiMode))
     return AboutHostView(context, AboutScreen(), theme, ScreenRenderer(context))
 }
+
+// What the entry uses when the app gives no session check or no sign-in callback: signed in, and nothing to start.
+private val ALWAYS_LIVE: () -> Boolean = { true }
+private val NO_SIGN_IN: () -> Unit = {}

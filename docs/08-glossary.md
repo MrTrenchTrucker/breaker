@@ -240,8 +240,8 @@ fallthrough, ever (`ARCHITECTURE.md` §7 "Transport & Fallback", D6;
 
 **Session (token)** — What a sign-in gives the phone. It expires 30 days after
 its last use, and each use moves that date out again; an admin can end it at once
-(ADR-031). When the phone has no live session, Home shows a quiet notice with a
-way to sign in and nothing is forced (ADR-033).
+(ADR-031). When the phone has no live session, the Settings tab shows a quiet notice
+with a way to sign in and nothing is forced (ADR-033).
 
 **sherpa-onnx** — The on-device (fallback) speech-to-text engine, vendored
 from XIAOMI CORPORATION (Apache-2.0), already present in the forked base

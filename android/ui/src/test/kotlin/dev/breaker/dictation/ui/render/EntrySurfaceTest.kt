@@ -20,7 +20,8 @@ class EntrySurfaceTest {
         "fun createSettingsView(context: android.content.Context, " +
             "settings: dev.breaker.dictation.core.port.SettingsStore, " +
             "modelReady: () -> Boolean, downloadLine: () -> String?, " +
-            "onDownloadModel: () -> Unit, onThemeChanged: (() -> Unit)? = null): android.view.View"
+            "onDownloadModel: () -> Unit, onThemeChanged: (() -> Unit)? = null, " +
+            "sessionLive: (() -> Boolean)? = null, onSignIn: (() -> Unit)? = null): android.view.View"
 
     /** The public declaration of the history view, written on one line. */
     private val HISTORY_SIGNATURE =

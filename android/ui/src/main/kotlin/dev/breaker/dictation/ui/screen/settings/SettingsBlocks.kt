@@ -91,6 +91,13 @@ internal object SettingsIds {
     const val API_KEY_LABEL = "settings.apiKey.label"
     const val API_KEY_VALUE = "settings.apiKey.value"
 
+    /** The signed-out block: the notice node id and the sign-in action node id. */
+    const val SIGNED_OUT = "settings.signedout.notice"
+    const val SIGN_IN = "settings.signedout.signin"
+
+    /** The gap spacer before the signed-out block. */
+    const val GAP_SIGNED_OUT = "settings.gap.signedout"
+
     /** The stored keys the two switches write; the screen reads them back when it edits. */
     const val KEY_PRELOAD = "preloadModel"
     const val KEY_WAKE_GESTURE_MODE = "wake_gesture_mode"

@@ -11,7 +11,7 @@ import org.junit.Test
  * the composition root seeds the live flag from the addressed session (the real `sessionLive` lazy), the finish result
  * re-evaluates that flag via `onFinishResultFor(app.compositionRoot.sessionLive, result)`, the createHomeView call wires
  * the notice's liveness (`sessionLive = { app.compositionRoot.sessionLive.liveNow() }`) and routes the sign-in tile back
- * to signing in (`onSignIn = { openSignIn() }`). The gate reads these two source files with comments removed by the shared
+ * to signing in (`onSignIn = { openSignIn() }`). The same two lines are also passed to the Settings view (the signed-out block lives there now), so each rule counts both calls. The gate reads these two source files with comments removed by the shared
  * scanner. Each rule holds on the real file, is broken by at least one edited sample, and stays quiet on harmless edits; an
  * edit whose target text is missing fails by name, so a sample cannot go quiet by a typo. Mirrors AppWiringGateTest's idiom.
  */
@@ -38,8 +38,8 @@ internal class SignedOutWiringGateTest {
     internal val rules: List<Rule> = listOf(
         Rule("SESSIONLIVE_SEEDS_FROM_ADDRESSED_SESSION", root, """\bsessionLive\s*:\s*SessionLiveState\s+by\s+lazy\s*\{\s*sessionLiveState\s*\?\:\s*SessionLiveState\s*\(\s*sessionLiveFrom\s*\(\s*addressedSession\s*\)\s*\)\s*\}"""),
         Rule("FINISH_RESULT_REEVALUATES_LIVE", activity, """\bapp\.compositionRoot\.sessionLive\s*,\s*result\s*\)""" ),
-        Rule("HOMEREAD_LIVENESS_ON_EACH_DRAW", activity, """sessionLive\s*=\s*\{\s*app\.compositionRoot\.sessionLive\.liveNow\s*\(\s*\)\s*\}\s*,\s*onSignIn\s*=\s*onSignIn\s*,"""),
-        Rule("SIGN_IN_TILE_REACHES_THE_SIGN_IN_METHOD", activity, """\bonSignIn\s*=\s*\{\s*openSignIn\s*\(\s*\)\s*,?""" ),
+        Rule("HOMEREAD_LIVENESS_ON_EACH_DRAW", activity, """sessionLive\s*=\s*\{\s*app\.compositionRoot\.sessionLive\.liveNow\s*\(\s*\)\s*\}\s*,\s*onSignIn\s*=\s*onSignIn\s*,""", times = 2),
+        Rule("SIGN_IN_TILE_REACHES_THE_SIGN_IN_METHOD", activity, """\bonSignIn\s*=\s*\{\s*openSignIn\s*\(\s*\)\s*,?""", times = 2),
     )
 
     private val samples: List<Sample> = listOf(

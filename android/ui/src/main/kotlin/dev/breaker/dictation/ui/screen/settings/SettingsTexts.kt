@@ -51,6 +51,10 @@ internal object SettingsTexts {
     const val NOT_SET_TEXT = "(not set)"
     const val HELD_TEXT = "set"
     const val NOT_HELD_TEXT = "not set"
+
+    /** The signed-out block: the notice and the way to sign in. */
+    const val SIGNED_OUT = "You are signed out."
+    const val SIGN_IN = "Sign in"
 }
 
 /** The name shown for a language code: English for "en", and any other code as it is stored. */
