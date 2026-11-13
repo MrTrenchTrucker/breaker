@@ -78,7 +78,7 @@
         {
           "item": "android_core (its own code)",
           "status": "DONE",
-          "evidence": "44 code files, 48 test files"
+          "evidence": "51 code files, 56 test files"
         }
       ]
     },
