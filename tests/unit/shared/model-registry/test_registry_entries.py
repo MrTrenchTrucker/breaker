@@ -69,7 +69,7 @@ class EntryPinsTest(unittest.TestCase):
             "params": "20M",
             "upstream_commit":
                 "be162ecc09bade73063a671fad9d18220149d25b",
-            "tamper_verified": False,
+            "tamper_verified": True,
             # the two fields the round-1 gate found unpinned: neither is
             # rendered into the Kotlin, so only a yaml pin catches a
             # hand-edit. tamper_verified is a promise (true only after the
@@ -88,7 +88,7 @@ class EntryPinsTest(unittest.TestCase):
             "params": "73M",
             "upstream_commit":
                 "59eea950fc76df2453efb57e6c0fd334548e8ffe",
-            "tamper_verified": False,
+            "tamper_verified": True,
 
             "url": "https://api.github.com/repos/k2-fsa/sherpa-onnx"
                    "/releases/assets/196350763",
@@ -102,7 +102,7 @@ class EntryPinsTest(unittest.TestCase):
             "params": "764M",
             "upstream_commit":
                 "251ab4521f354490e8f2c206fbd0b7f3f6b0a7ec",
-            "tamper_verified": False,
+            "tamper_verified": True,
 
             "url": "https://api.github.com/repos/k2-fsa/sherpa-onnx"
                    "/releases/assets/179372814",
