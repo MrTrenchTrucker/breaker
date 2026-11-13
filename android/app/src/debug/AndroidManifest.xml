@@ -7,9 +7,12 @@
 
   The receiver is exported for the debug broadcast that drives the probe. The
   provider holds no data: it starts the probe with the process. It is not
-  exported.
+  exported. The probe log page is an activity with no intent filter, so it adds
+  no launcher icon; the one launcher activity gets the static shortcut that opens
+  it by a merge of one meta-data element.
 -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <application>
         <receiver
             android:name=".probe.MicProbeReceiver"
@@ -22,5 +25,14 @@
             android:name=".probe.MicProbeBootstrap"
             android:authorities="${applicationId}.micprobe"
             android:exported="false" />
+        <activity
+            android:name=".probe.ProbeLogActivity"
+            android:exported="false" />
+        <activity
+            android:name=".SettingsLauncherActivity"
+            android:exported="true"
+            tools:node="merge">
+            <meta-data android:name="android.app.shortcuts" android:resource="@xml/probe_shortcuts" />
+        </activity>
     </application>
 </manifest>

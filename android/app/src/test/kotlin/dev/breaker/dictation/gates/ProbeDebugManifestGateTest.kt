@@ -15,7 +15,10 @@ internal class ProbeDebugManifestGateTest {
 
     private val debugManifest: XmlExpect = XmlExpect(
         name = "manifest",
-        attributes = mapOf("xmlns:android" to XmlTree.ANDROID_NAMESPACE),
+        attributes = mapOf(
+            "xmlns:android" to XmlTree.ANDROID_NAMESPACE,
+            "xmlns:tools" to "http://schemas.android.com/tools",
+        ),
         children = listOf(
             XmlExpect(
                 name = "application",
@@ -47,6 +50,33 @@ internal class ProbeDebugManifestGateTest {
                             "android:name" to ".probe.MicProbeBootstrap",
                             "android:authorities" to "\${applicationId}.micprobe",
                             "android:exported" to "false",
+                        ),
+                        key = "android:name",
+                    ),
+                    XmlExpect(
+                        name = "activity",
+                        attributes = mapOf(
+                            "android:name" to ".probe.ProbeLogActivity",
+                            "android:exported" to "false",
+                        ),
+                        key = "android:name",
+                    ),
+                    XmlExpect(
+                        name = "activity",
+                        attributes = mapOf(
+                            "android:name" to ".SettingsLauncherActivity",
+                            "android:exported" to "true",
+                            "tools:node" to "merge",
+                        ),
+                        children = listOf(
+                            XmlExpect(
+                                name = "meta-data",
+                                attributes = mapOf(
+                                    "android:name" to "android.app.shortcuts",
+                                    "android:resource" to "@xml/probe_shortcuts",
+                                ),
+                                key = "android:name",
+                            ),
                         ),
                         key = "android:name",
                     ),
@@ -116,5 +146,29 @@ internal class ProbeDebugManifestGateTest {
         assertTrue("app: the debug manifest accepted an extra unlisted receiver", XmlAllowList.problems(XmlTree.parse(extraReceiver), debugManifest).isNotEmpty())
         assertTrue("app: the debug manifest accepted a mic receiver that is not exported", XmlAllowList.problems(XmlTree.parse(micNotExported), debugManifest).isNotEmpty())
         assertTrue("app: the debug manifest accepted a mic receiver with the wrong action", XmlAllowList.problems(XmlTree.parse(micWrongAction), debugManifest).isNotEmpty())
+
+        // The probe log activity is required: renaming it makes the manifest wrong.
+        val probeActivityRenamed = XmlSamples.apply(
+            "manifest",
+            text,
+            XmlSample(
+                "the probe log activity renamed",
+                "android:name=\".probe.ProbeLogActivity\"",
+                "android:name=\".probe.ProbeLogOther\"",
+            ),
+        )
+        assertTrue("app: the debug manifest accepted a renamed probe log activity", XmlAllowList.problems(XmlTree.parse(probeActivityRenamed), debugManifest).isNotEmpty())
+
+        // The shortcuts meta-data is required: removing it makes the manifest wrong.
+        val noShortcuts = XmlSamples.apply(
+            "manifest",
+            text,
+            XmlSample(
+                "the shortcuts meta-data removed",
+                "<meta-data android:name=\"android.app.shortcuts\" android:resource=\"@xml/probe_shortcuts\" />\n",
+                "",
+            ),
+        )
+        assertTrue("app: the debug manifest accepted no shortcuts meta-data", XmlAllowList.problems(XmlTree.parse(noShortcuts), debugManifest).isNotEmpty())
     }
 }

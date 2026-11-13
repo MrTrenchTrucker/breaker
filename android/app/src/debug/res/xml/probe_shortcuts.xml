@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="breaker_probe"
+        android:enabled="true"
+        android:shortcutShortLabel="@string/probe_shortcut_label">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="dev.breaker.dictation"
+            android:targetClass="dev.breaker.dictation.probe.ProbeLogActivity" />
+    </shortcut>
+</shortcuts>

@@ -42,6 +42,7 @@ object MicProbeState {
             object : android.app.Application.ActivityLifecycleCallbacks {
                 override fun onActivityResumed(activity: android.app.Activity) {
                     lastResumedActivity = activity
+                    installProbeSink(activity)
                 }
 
                 override fun onActivityDestroyed(activity: android.app.Activity) {

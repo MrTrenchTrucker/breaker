@@ -24,6 +24,10 @@ internal class ProbeReleaseGateTest {
         "ProbeSettingStore",
         "breaker_probe",
         "dev.breaker.dictation.probe",
+        "ProbeLogActivity",
+        "ProbeRingBuffer",
+        "probeTee",
+        "installProbeSink",
     )
 
     private val mainManifest: String = AppSourceFiles.mainFile("AndroidManifest.xml")

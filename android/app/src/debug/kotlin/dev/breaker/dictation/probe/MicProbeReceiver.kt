@@ -73,7 +73,7 @@ class MicProbeReceiver : BroadcastReceiver() {
             }
 
             // Route the mic's touch-path lines to the probe's log, so the down/route/onCancel/onSend lines reach logcat.
-            mic?.probeTouchLog { line -> Log.d(TAG, line) }
+            mic?.probeTouchLog { line -> probeTee(line) }
 
             // (d) Push the requested state through the probe's own state path when a state is given.
             if (stateName != null) mic?.probeSetState(TileState.valueOf(stateName))
