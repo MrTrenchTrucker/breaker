@@ -64,7 +64,7 @@ Daily update check + admin force-check, signed APK verify, rollback.
   (strictly, 86_400_000 ms) have passed. The caller passes `nowMs`; the function reads no clock, no state.
 
 **Update flow:**
-1. Fetch `latest.json` → `{ version, apk_url, sha256, signature, notes }`.
+1. Fetch `latest.json` → `{ version, version_code, apk_url, sha256, signature, notes }`.
 2. If version > installed → notify ("Breaker X.Y.Z available — update?").
 3. On confirm, download the APK from the configured server (a plain http
    address is allowed, ADR-034), then verify **SHA-256** and **signature**

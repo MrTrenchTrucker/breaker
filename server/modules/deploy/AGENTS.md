@@ -11,10 +11,15 @@ and ship updates.
 - `scripts/vpn-bind.sh` - BUILT, verify only: checks that the given ports listen on a listed VPN address, a private-network address (with `--allow-private`) or loopback, never a wildcard or a public address (ADR-042). It does not bind.
 - `tls/` — no longer planned: no certificate handling in Breaker; TLS is the admin's choice through any reverse proxy (ADR-034).
 - `auth/` — API key generation + rotation; key in env/secret file with 0600
-  perms, never in git.
-- `apk-signing/` — **APK signing key** (generated once, stored in a secrets
-  store, never git — unlike the base repo's plaintext cert [1]). Signing step in
-  the build pipeline; public key + SHA-256 published on `/v1/updates/latest.json`.
+  perms, never in git. The sync-api service key already has its rotation:
+  delete the key file and restart, see the sync-api card section Rotation. The
+  whisper-server key comes from its environment.
+- `apk-signing/` — (a) the Android APK signing certificate: what Android checks
+  when an update installs over an installed app; none exists yet, no release-signed
+  APK exists (debug builds only), and the key must exist before the first public
+  release APK. (b) the Ed25519 update-manifest key: the app verifies it itself;
+  android/modules/updater SignatureCheck pins a list of raw 32-byte public keys.
+  Procedure in the Release keys subsection below.
 - `git-pull.sh` — pull the latest **tagged release** from the local GIT server,
   build, sign, serve (F19). Rollback = deploy previous tag.
 - `NOTICE` — server-side copy of the licensing notice (XIAOMI sherpa-onnx +
@@ -23,8 +28,8 @@ and ship updates.
 - **Persistence (F31):** all server data (DB, models, config, signing key)
   lives on **docker volumes / disk** — nothing in ephemeral container layers, so
   recovery via an admin-scoped token is always possible.
-- **Signing key custody:** keep an offline copy of the APK signing key (lost key
-  = unsigned updates).
+- **Signing key custody:** keep an offline copy of the APK signing key (a) above
+  (lost key = unsigned updates).
 
 **Update pipeline (F20/F21):** tagged release → build APK → sign → push to
 web-fe → `/v1/updates/latest.json` updated → clients notified on their daily
@@ -37,6 +42,20 @@ from server audio in the current design [2]. All containers remain
 network-isolated (VPN-only bind).
 
 **Build phase:** Phase 14 (APK serving) and Phase 15 (the git-pull deploy pipeline).
+
+## Release keys
+
+Two release keys exist by design, never one:
+
+(a) The Android APK signing certificate - what Android checks when an update installs over an installed app. None exists yet; no release-signed APK exists (debug builds only); the key must exist before the first public release APK.
+
+(b) The Ed25519 update-manifest key - the app verifies it itself; android/modules/updater SignatureCheck pins a list of raw 32-byte public keys (the app wiring that supplies the list is not built yet, so no key is pinned on main; rotation later means an app that carries two). The public key is to be built into the app, never served by the manifest; the manifest carries only the digest and the signature.
+
+Custody of the real keys is the project owner's call; nothing in the repo names a secrets store. Keys are generated once, out of band, by the project owner; the build host never holds a private key; a signing step takes the key as a temporary file from the owner's vault and wipes it.
+
+Rotation: (b) ship an app that pins both the current and the next key, then sign with the new one; retire the old key in a later app; a key-id field in the manifest comes in the rotation slice, not the first. (a) lineage (apksigner rotate) is the supported path; reinstall is the fallback. No rotation is built in this slice.
+
+The not-built list stays explicit: the app wiring that pins the key, the release tool that writes and signs the manifest, the secrets store (custody not decided), any key-generating script, and the rotation slice.
 
 ## Invariants
 - Port scan from non-VPN interface shows nothing (VPN-only bind, T3).
