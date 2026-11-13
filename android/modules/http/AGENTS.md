@@ -8,7 +8,7 @@ The decision that sets this module is "one HTTP client for server calls": one mo
 
 ## Owns
 
-- GET and POST, with request headers and an optional request body of known length. A body is always sent with a fixed length; there is no chunked upload.
+- GET, POST and DELETE, with request headers and an optional request body of known length. A body is always sent with a fixed length; there is no chunked upload.
 - No redirect following: a 3xx is returned as a reply and never followed.
 - No cache on any request.
 - The address rule, ServerAddressRule: an https address is accepted for any host when its scheme is ASCII and equal to "https" ignoring ASCII case only, it has a host, it holds no whitespace and no control character, and its authority (the text between "://" and the first '/', '?' or '#') has no at sign; a host holding a non-ASCII character is refused (punycode is the caller's job). A plain http address is accepted only for the configured server: the configured address must itself be http, with the same host and the same effective port, a missing port meaning 80; a trailing dot is not stripped, an IPv6 literal is compared as written after ASCII lower-casing, and a port outside 1 to 65535 is refused. Every other address, and every plain http address when no configured server is given, is refused before any connection. Model download hosts stay https only.
@@ -31,9 +31,9 @@ The decision that sets this module is "one HTTP client for server calls": one mo
 ## Public Interface
 
 - interface HttpTransport, with two functions: send(request: CallRequest): BytesReply and open(request: CallRequest): StreamReply. Both throw java.io.IOException.
-- class JdkHttpTransport : HttpTransport, public, with a no-argument constructor (no configured server: every plain http address is refused) and a second constructor that takes a provider, () -> String, of the configured server address. The provider is read on every request, https included, before the header check, and is never kept. It is built on HttpURLConnection only. Built and wired for the sign-in transport only: the app builds it with the stored-address provider in wiring/AuthServiceWiring.kt, while ServerLlmFormatter in the format module still uses the no-argument constructor.
+- class JdkHttpTransport : HttpTransport, public, with a no-argument constructor (no configured server: every plain http address is refused) and a second constructor that takes a provider, () -> String, of the configured server address. The provider is read on every request, https included, before the header check, and is never kept. It is built on HttpURLConnection only. The app builds it with the stored-address provider in the wiring (AuthServiceWiring.kt, PullChainWiring.kt, OlderRowsWiring.kt and BreakerApp.kt), while ServerLlmFormatter in the format module still uses the no-argument constructor.
 - object ServerAddressRule, public, with one function permits(address: String, configuredServer: String): Boolean. It is pure: no network, no state, no logging. It says whether the module may call the address given the configured server address.
-- enum CallMethod { GET, POST }.
+- enum CallMethod { GET, POST, DELETE }.
 - class CallRequest(method: CallMethod, url: String, headers: List<Pair<String, String>>, body: ByteArray?, limits: CallLimits). A GET with a body is refused at construction with IllegalArgumentException. toString prints the method only.
 - class CallLimits(connectTimeoutMs: Int, readTimeoutMs: Int, maxReplyBytes: Long). It has no default values. Its constants are MAX_TIMEOUT_MS = 600_000, MAX_BYTES_REPLY = 16_777_216 (the send call ceiling) and MAX_STREAM_REPLY = 1_073_741_824 (the open call ceiling). Each timeout must be from 1 to MAX_TIMEOUT_MS, and the reply cap from 1 to MAX_STREAM_REPLY. A violation throws IllegalArgumentException with a fixed message that holds no input.
 - The send call also refuses a reply cap above MAX_BYTES_REPLY with IllegalArgumentException, before any connection.

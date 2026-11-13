@@ -55,3 +55,5 @@ Honesty: the code accepts plain http for the configured server only (the address
 - How Android's cleartext block is lifted for the configured server only, given the server address is typed at run time.
 
 Update 2026-11-11 (ADR-042, proposed): the server container binds either the VPN interface address or a private-network address (RFC 1918 IPv4, 100.64.0.0/10, fd00::/8 ULA, loopback), never a public address and never 0.0.0.0 / ::; vpn-bind.sh refuses a public address even with --allow-private. TLS remains the admin's reverse-proxy choice. The bind rule is independent of ADR-034's plain-HTTP decision above.
+
+Update 2026-11-13: the address setter (the ui module's ServerAddressEntry), the settings line about an unencrypted connection and the server address row of the settings screen are built; the Honesty paragraph above predates them. The rest of it stands.
