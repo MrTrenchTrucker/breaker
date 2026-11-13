@@ -81,6 +81,23 @@ internal class ServiceCheckBoxPubkeyTest : TempDatabaseTest() {
         }
     }
 
+    // A key whose standard base64 holds plus and slash: the URL-safe alphabet would print minus and underscore for them.
+    @Test
+    fun `the key is printed in the standard base64 alphabet with plus and slash`() {
+        val token = session().secret.reveal()
+        val plusSlashKey = ByteArray(32) { index -> intArrayOf(0xfb, 0xff, 0xbf)[index % 3].toByte() }
+        val expected = "+/+/+/+/+/+/+/+/+/+/+/+/+/+/+/+/+/+/+/+/+/8="
+        for (path in paths) {
+            val reply = call(path, token) { id -> if (id == userId) plusSlashKey else null }
+            assertEquals("sync-api: status of $path", HttpStatusCode.OK, reply.status)
+            assertEquals(
+                "sync-api: body of $path",
+                "{\"account_id\":$userId,\"kind\":\"session\",\"role\":\"user\",\"box_pubkey\":\"$expected\"}",
+                reply.body,
+            )
+        }
+    }
+
     @Test
     fun `the lookup is asked for the account of the token and no other`() {
         val token = session().secret.reveal()
