@@ -11,10 +11,14 @@ import org.junit.Test
  */
 class BoundarySourceTest {
     @Test
-    fun `the random boundary is 32 lower case hex characters`() {
-        val boundary = BoundarySource.RANDOM.next()
-        assertEquals("a boundary of 128 random bits is 32 hex characters: $boundary", 32, boundary.length)
-        assertTrue("only 0-9 and a-f: $boundary", boundary.all { it in '0'..'9' || it in 'a'..'f' })
+    fun `every random boundary is 32 lower case hex characters`() {
+        // A byte below 0x10 must still be written with two characters, which one boundary shows only
+        // about two times in three: two hundred boundaries show it every time.
+        repeat(200) { n ->
+            val boundary = BoundarySource.RANDOM.next()
+            assertEquals("boundary $n of 128 random bits is 32 hex characters: $boundary", 32, boundary.length)
+            assertTrue("boundary $n holds only 0-9 and a-f: $boundary", boundary.all { it in '0'..'9' || it in 'a'..'f' })
+        }
     }
 
     @Test
