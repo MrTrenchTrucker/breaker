@@ -49,6 +49,8 @@ RUNNER_FILES = sorted([
     "devices.test.mjs",
     "devices-view.test.mjs",
     "noble-curves-served.test.mjs",
+    "pending-sealed.test.mjs",
+    "pending-sealed-net.test.mjs",
 ])
 LINE_CAP = 300
 ALLOWED_IMPORTS = {SIGNIN: ("./aesgcm.js", "./signin-link.js"), LINK: ()}
