@@ -45,6 +45,7 @@ ShakeHandle - the public entry: `ShakeHandle.create(onShake, port: ShakePort)` w
 
 ## Test Locations
 - Unit (Kotlin): `android/modules/gesture/src/test/kotlin/`, created with the module's first code. Run: `./gradlew :android:modules:gesture:test`
+- Unit test files: `ShakeDetectorTest.kt` (fire counts), `ShakeBoundaryTest.kt` (the exact AC term of the first sample and of a capped sample, the gap and cooldown boundaries, the crossing threshold, the handle's second start) and `SensorSourceGateTest.kt` (source rules for `SensorManagerShakeSource`, which has no behaviour test: the sensor type, the rate, what start reports, and that stop unregisters).
 - Contract: `tests/contract/test_gesture_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_gesture_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 
