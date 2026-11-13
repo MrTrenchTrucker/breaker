@@ -2118,8 +2118,8 @@ paths:
         (sessions and agent tokens) and its unredeemed sign-in codes, deletes
         its transcriptions outright, clears its wrong-password row, sets
         reset_at to now and issues a one-time reset code. key_version is kept
-        (it never goes backwards). Pending-sealed rows are planned, not built:
-        that table does not exist yet, so nothing is deleted from it.
+        (it never goes backwards). It also deletes the account's pending-sealed
+        rows, the sealed copies made for the box key it just deleted.
 
         The reset also moves the change feed: change_seq goes up by one and the
         purged floor is set to the new change_seq, so after a reset every
