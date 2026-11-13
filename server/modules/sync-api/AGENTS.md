@@ -84,7 +84,7 @@ A route or job marked Planned, not built below is not installed on main yet.
   a lock never blocks complete-reset.
   A pending account never gets a session, an agent token or a hand-off code: `TokenStore.issueSession` and `TokenStore.issueAgent` read `reset_pending` in the same transaction as the insert and make no row, and a login that meets it in that gap answers the same 401 and counts nothing.
 - The three routes that need no login (`register`, `salt` and `login`) read a request body of at most 4096 bytes: a longer body is refused with `413` and `payload_too_large` before it is parsed, whether its length is declared or not, and nothing is stored. The keys route (below) reads at most 4096 bytes too, with the same refusal.
-- Internal token-check routes (mounted on the internal listener only; written and tested): `POST /internal/v1/token/use` and `POST /internal/v1/token/peek`, called only by whisper-server. Both take no body; the headers are `X-Service-Key` (checked first, in constant time; the key cannot be blank) and `X-Presented-Token`. A wrong or missing key is a 403 `bad_service_key`; with a good key every not-live cause (missing, malformed, oversized, unknown, revoked, expired) is the same 401 `not_live`, and a live token is a 200 with `account_id`, `kind` and `role`, plus `box_pubkey` when the server main wires the account key lookup (it does): the owner's 32-byte box public key as standard padded base64 text, or null for an account with no key yet; a failed lookup leaves the member out and the token check is still answered, and a cancelled one is passed on. `use` is `TokenStore.resolve` (a live session token's expiry moves to now + 30 days); `peek` is the read-only `TokenStore.peek` (the same live rule, nothing written). They are mounted on the internal listener and on no other listener (see the section Internal listener and service key).
+- Internal token-check routes (mounted on the internal listener only; written and tested; the pending-sealed intake route is its own bullet below): `POST /internal/v1/token/use` and `POST /internal/v1/token/peek`, called only by whisper-server. Both take no body; the headers are `X-Service-Key` (checked first, in constant time; the key cannot be blank) and `X-Presented-Token`. A wrong or missing key is a 403 `bad_service_key`; with a good key every not-live cause (missing, malformed, oversized, unknown, revoked, expired) is the same 401 `not_live`, and a live token is a 200 with `account_id`, `kind` and `role`, plus `box_pubkey` when the server main wires the account key lookup (it does): the owner's 32-byte box public key as standard padded base64 text, or null for an account with no key yet; a failed lookup leaves the member out and the token check is still answered, and a cancelled one is passed on. `use` is `TokenStore.resolve` (a live session token's expiry moves to now + 30 days); `peek` is the read-only `TokenStore.peek` (the same live rule, nothing written). They are mounted on the internal listener and on no other listener (see the section Internal listener and service key).
 - `POST /v1/auth/keys` - BUILT. `{wrapped_dek, wrapped_box_privkey, box_pubkey}`,
   accepted only while the account has no keys yet; accepting it sets the
   account's `key_version` to its previous value + 1 (`0` → `1` on a first
@@ -306,9 +306,33 @@ A route or job marked Planned, not built below is not installed on main yet.
   an index on `account_id`; the route answers a user session only (no token or a dead one 401, any agent
   token, an admin scoped one too, 403) with the rows of the token's own account, never one named in the
   request, ordered by `created_at` then `id`, as `[]` when there are none, and the fixed 503 on a failure.
-  No paging and no cap yet: cap or page before the write path is built. **Nothing writes the table yet:**
-  how whisper-server hands a sealed copy over is not decided (see below). The server deletes no pending
-  row when a synced transcription with its client id lands: that part is not built either.
+  No paging and no `LIMIT`, on purpose: the server deletes no pending row when a synced transcription with its
+  client id lands (not built), so a `LIMIT` of N would hide every row after the Nth for good. The table is bounded
+  per account by the insert cap below instead, so the answer holds at most `PENDING_PER_ACCOUNT_MAX` (100) rows of
+  at most `MAX_SEALED_BYTES` (786,368) decoded bytes each, which is about 100 MiB of base64 text at the extreme.
+  **Delete-on-sync is not built and must land before the 100-row cap can strand a user whose rows are never
+  freed.**
+- `POST /internal/v1/pending-sealed` (service-key route, internal listener only; BUILT, `servicecheck/PendingSealedIntakeRoute.kt`
+  and `PendingSealedStore.insert`): the write path of the table. whisper-server does NOT call it yet (that
+  caller is slice 3 and waits for the libsodium decision). The body is exactly `{"account_id", "job_id",
+  "sealed_b64"}`: `account_id` a positive whole number, `job_id` a lowercase canonical UUID (it becomes the row
+  id and later the owner's `client_id`), `sealed_b64` the canonical padded base64 of at least 49 bytes. The text
+  is decoded and encoded again and must come back the same, because the owner's client refuses any other form and
+  such a row would hold one of the account's slots for good. Answers, in this order: a wrong or missing
+  `X-Service-Key` is 403 `bad_service_key` with nothing read or stored; a body over `SYNC_BODY_CAP_BYTES` (1 MiB,
+  by declared length or by the bytes read) is 413 `payload_too_large`; any other bad body is 400 `bad_request`
+  (`{"error":"bad_request"}`); decoded sealed bytes over `MAX_SEALED_BYTES` are 413 with the same body, nothing
+  stored, and one log line with the account id and the size only; then in ONE transaction a missing account is 404
+  `no_such_account`, a job id that is already a row under any account is 200 `{"stored":false}` (nothing changes
+  and nothing says whose row it is), an account that already holds `PENDING_PER_ACCOUNT_MAX` (100) rows is 409
+  `pending_full`, and otherwise the row is stored and the answer is 201 `{"stored":true}`. `created_at` is the
+  server clock through `formatInstantMs`. A store failure other than cancellation is the fixed 503 `unavailable`;
+  cancellation is passed on. `MAX_SEALED_BYTES` is chosen so the owner's re-upload fits `POST /v1/sync`: the owner
+  unseals S sealed bytes to S - 48, encrypts them into a record of S - 20 bytes (12 nonce + 16 tag), the base64
+  of that is 4 times ceil((S - 20) / 3) characters, and the JSON body around it is at most 107 characters (taken
+  as 109); at S = 786,368 that is 1,048,573, at most the 1,048,576 cap, and one byte more is 1,048,577. The wire
+  framing of the record is decided, not built, so this arithmetic follows ADR-006 and is NOT measured against a
+  real client.
 - `GET /v1/updates/latest.json` — the update manifest FILE read from the path in
   `BREAKER_SYNC_API_MANIFEST_FILE`: `{ version, version_code, apk_url, sha256,
   signature, notes }` (F20/F21, ADR-011). **Built**, public, no session.
@@ -669,7 +693,7 @@ Still open. How the key reaches whisper-server is the deploy step's job. whisper
 Auth (users, roles, agent tokens), sync, updates, retention, store clear, log policy.
 
 ## Public Interface
-The HTTP surface. `syncApiModule` installs the public routes: `/v1/auth/*`, `/v1/sync`, `/v1/transcriptions` and `/v1/admin/*`. `internalModule` installs the service-key routes `/internal/v1/token/*` on the internal listener.
+The HTTP surface. `syncApiModule` installs the public routes: `/v1/auth/*`, `/v1/sync`, `/v1/transcriptions` and `/v1/admin/*`. `internalModule` installs the service-key routes `/internal/v1/token/*` on the internal listener, and `/internal/v1/pending-sealed` when it is given a pending-sealed store (the server main gives it one).
 
 ## Depends On
 - server (registered in modules.toml)
@@ -687,6 +711,7 @@ The HTTP surface. `syncApiModule` installs the public routes: `/v1/auth/*`, `/v1
 - Session expiry: `TokenStoreSessionExpiryTest.kt` (a new session stores now + 30 days; a session used on day 29 stays valid and moves forward; unused for 30 days is refused, one second earlier is not; an expired session stays refused after a later try; each use pushes the date out; a session with no expiry gets one at its next use; an agent token is not moved by a use), with `TokenStoreResolveTest.kt` (a session used every day still resolves after ten years) and `TokenStoreIssueTest.kt` (the stored expiry).
 - Internal token check: `tokens/TokenStorePeekTest.kt` (peek gives resolve's answer for a live session and writes nothing; it refuses expired, revoked, unknown and malformed tokens) `servicecheck/ServiceKeyTest.kt` (a blank, empty or whitespace-only key cannot be built; a missing or blank header, a longer, shorter or different key never matches) and `servicecheck/ServiceCheckRoutesTest.kt` (the key is checked first; every not-live cause gives the same 401; the 200 body; use moves a session expiry and peek does not; an agent token is never moved; neither the key nor the token reaches the output or a body; an oversized token is refused). New test class `servicecheck/ServiceCheckCancellationTest.kt` calls internal top-level `serve` directly and proves cancellation propagates instead of becoming 503.
 - Internal listener and key file: `SyncApiConfigInternalTest.kt` (the internal settings and their defaults; the wildcard family refused for the internal host, with and without surrounding spaces; the public wildcard family and the loopback spellings colliding with the internal listener on one port; equal host names colliding; a named public host and a loopback internal host accepted; a NUL character in the database path or the key file path refused with a fresh message), `servicecheck/ServiceKeyFileTest.kt` (a new key with owner-only mode and no newline; the second start returns the same text without rewriting; malformed, too large, group or other readable, and missing-folder refusals name the path and never the key text; keys with underscores or a capital Z accepted; characters just outside the alphabet refused), `servicecheck/ServiceKeyFileRaceTest.kt` (a start that loses the race returns the winner's text, and a winner readable by its group is refused and its text is never returned; no temporary file is left; a leftover temporary file does not block a start; a failed or unsupported link is refused; the key text is in no refusal message), `servicecheck/ServiceCheckSourceScanTest.kt` (no servicecheck source file prints, writes to a system stream, logs or prints a stack trace; the scan reports each token in a text that holds it), `InternalModuleTest.kt` (the two routes with the right key; 403 for a wrong or missing key; 401 for no token; a GET is not 200; the health, auth and admin paths are 404 on the internal listener, and the public listener answers them, as the controls show) and `PublicModuleHasNoInternalRoutesTest.kt` (the two internal routes are 404 on the public listener, with the internal listener as the control). `main` is not covered by unit tests, because it needs sockets.
+- Pending-sealed intake: `db/PendingSealedStoreInsertTest.kt` (a new id is stored with its text and time; a repeated id changes nothing and keeps the first text, also across accounts; a missing account stores nothing; the 100th row is stored and the 101st is refused as full; a duplicate id at 100 is still a duplicate; the cap is per account; a closed database raises; the two limits are 100 and 786,368 and the largest copy fits a sync body, one byte more does not), `servicecheck/PendingSealedIntakeRouteTest.kt` (every status with its whole body: 201, 200 for a repeated id and for another account's id, 404, 409 at the 101st with the 100th still 201, 413 by declared length and by chunked bytes with the exact cap accepted, 413 over `MAX_SEALED_BYTES` with the size logged and exactly `MAX_SEALED_BYTES` stored, 23 bad bodies that are each 400 and store nothing, a wrong or missing key is 403 with the insert never called even on a huge body, a closed database is the fixed 503, a cancelled insert is passed on), `PublicModuleHasNoInternalRoutesTest.kt` (the route is 404 on the public module and on the internal module without a store, and 201 with one) and `SyncApiMainWiringTest.kt` (main builds the store once and passes it in the pinned internal module call), and `PendingSealedOversizeLogWiringTest.kt` (an oversize copy posted through `internalModule` with a real store writes exactly one log record with the account id and the size and no content).
 - Transcriptions (BUILT): under `db/`, `SchemaV3MigrationTest.kt` (a fresh database ends at
   version 3 with the transcriptions table and key_version 0 for a new account; an upgrade
   from version 2 keeps the account at key_version 0). Under `transcriptions/`:
@@ -805,10 +830,11 @@ agents, not required: an outside contributor may write the code themselves
   as the wrapped-key columns even though it is stored plain. The same is true
   of the pending-sealed store: a write path into it is a forged-transcription
   path, not only a redirect path (T26).
-- How `whisper-server` hands a sealed copy to the pending-sealed store is NOT decided, and neither the
-  store nor any write path into it is built. ADR-018's amendment of 2026-10-20 drops the planned
-  whisper-server -> sync-api code edge and chooses no transport; a new ADR decides it when Phase 19/20 is
-  ordered.
+- How `whisper-server` hands a sealed copy to the pending-sealed store is not built on its side: the
+  receiving route `POST /internal/v1/pending-sealed` is built here, and whisper-server does not call it yet.
+  ADR-018's amendment of 2026-10-20 drops the planned whisper-server -> sync-api code edge and chooses no
+  transport; this route is the server end of whatever it chooses, and the caller needs the libsodium decision
+  (slice 3). Delete-on-sync is not built either.
 - `change-password`'s `old_auth_verifier` field is the only thing standing
   between "holds a live session token" and "can replace this account's
   keys" — do not let the Bearer token alone satisfy this endpoint.

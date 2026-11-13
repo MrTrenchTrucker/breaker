@@ -50,7 +50,7 @@ routes) is built; the app wiring is built; the website page is built, but its de
 sealing steps are stubs, so it cannot complete a hand-off yet. The change number and the delete flag are built
 in the store (migration 5); the DELETE route is built; the read side of the feed (the since parameter, the
 page object, the 400 and the 410) is built; the pulled number and the purge of delete records are built. The
-pending-sealed table is built (migration 10); the reset, the password change and the first key store after a reset clear the account's rows in it.
+pending-sealed table is built (migration 10); the reset, the password change and the first key store after a reset clear the account's rows in it. `POST /internal/v1/pending-sealed` (service key, internal listener only) writes it, at most 100 rows per account and 786,368 decoded bytes per row; whisper-server does not call it yet, and deleting a row when its synced record lands is not built.
 
 ## Run it
 

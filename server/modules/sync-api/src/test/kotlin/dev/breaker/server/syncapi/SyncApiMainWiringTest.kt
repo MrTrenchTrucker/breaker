@@ -40,10 +40,20 @@ class SyncApiMainWiringTest {
     fun `main hands the internal listener the box public key lookup and never names the wrapped private key`() {
         assertTrue("the source file must exist: ${mainFile.absolutePath}", mainFile.isFile)
         val text = mainFile.readText()
-        val call = "internalModule(tokenStore, serviceKey) { accountStore.keysFor(it)?.boxPubkey }"
+        val call = "internalModule(tokenStore, serviceKey, pendingSealedStore = pendingSealedStore) { accountStore.keysFor(it)?.boxPubkey }"
         assertEquals("calls that pass the box public key lookup", 1, Regex(Regex.escape(call)).findAll(text).count())
         assertEquals("calls of the internal module", 1, Regex("internalModule\\(").findAll(text).count())
         assertEquals("reads of the stored keys", 1, Regex("keysFor\\(").findAll(text).count())
         assertTrue("the wrapped private key must never appear in the main file", !text.contains("wrappedBoxPrivkey"))
+    }
+
+    // A source pin: the store the intake route writes to is built from the real database, once, and passed in
+    // the internal module call pinned above. The behaviour is tested in PendingSealedIntakeRouteTest.
+    @Test
+    fun `main builds the pending-sealed store once from the database`() {
+        assertTrue("the source file must exist: ${mainFile.absolutePath}", mainFile.isFile)
+        val text = mainFile.readText()
+        assertEquals("stores built", 1, Regex("PendingSealedStore\\(db\\)").findAll(text).count())
+        assertEquals("names of the store: its declaration, the argument name and the argument", 3, Regex("pendingSealedStore\\b").findAll(text).count())
     }
 }

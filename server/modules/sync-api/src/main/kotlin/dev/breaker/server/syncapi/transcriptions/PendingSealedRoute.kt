@@ -22,16 +22,19 @@ import kotlinx.coroutines.CancellationException
 // sees only its OWN rows: the query is WHERE account_id = the token's account, and the
 // account never comes from the request.
 //
-// Ordered created_at ascending then id, so the answer is deterministic. No paging and no
-// cap yet (nothing can fill the table); cap or page before the write path is built.
+// Ordered created_at ascending then id, so the answer is deterministic. No paging and no LIMIT, on purpose:
+// the server deletes no pending row when a synced record lands (not built), so a LIMIT N would hide every row
+// after the Nth for good. The table is bounded per account by the insert cap instead, so the answer holds at
+// most PENDING_PER_ACCOUNT_MAX rows of at most MAX_SEALED_BYTES decoded bytes each (db/PendingSealedStore.kt).
 //
 // Honest limit (T26, ADR-018): this endpoint returns whatever the pending-sealed store
 // holds; it has no way to tell a sealed box whisper-server actually produced from one a
 // database writer inserted directly — both are equally well-formed crypto_box_seal
 // output, and the owner's client converts either kind the same way.
 //
-// Nothing writes the pending_sealed table yet — the write path (whisper-server ->
-// sync-api transport) is undecided (ADR-018 amended 2026-10-20, Phase 19/20).
+// The write path is POST /internal/v1/pending-sealed (servicecheck/PendingSealedIntakeRoute.kt); whisper-server
+// does not call it yet. Delete-on-sync is not built: it must land before the insert cap can strand a user whose
+// rows are never freed.
 internal fun Application.pendingSealedRoute(
     tokenStore: TokenStore,
     pendingSealedStore: PendingSealedStore,
