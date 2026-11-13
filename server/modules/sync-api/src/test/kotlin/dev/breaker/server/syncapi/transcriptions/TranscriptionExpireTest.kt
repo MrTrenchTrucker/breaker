@@ -384,4 +384,31 @@ internal class TranscriptionExpireTest : TempDatabaseTest() {
         assertEquals("row still live", 0, deletedOf(alice, clientId(0)))
         assertEquals("no delete record", 0L, deletedRowsOf(alice))
     }
+
+    // 16. ttlMs = the smallest Long (MIN_VALUE) throws IllegalArgumentException and writes nothing.
+    @Test
+    fun `expireDueOn refuses the smallest possible ttl`() {
+        push(alice, 0)
+        val head = changeSeqOf(alice)
+        TestDatabases.expectFailure<IllegalArgumentException>("ttl Long.MIN_VALUE") {
+            expire(alice, T0 + TTL + 1, 10, ttlMs = Long.MIN_VALUE)
+        }
+        assertEquals("nothing written", head, changeSeqOf(alice))
+        assertEquals("row still live", 0, deletedOf(alice, clientId(0)))
+        assertEquals("no delete record", 0L, deletedRowsOf(alice))
+    }
+
+    // 17. ttlMs = 1: a row older than 1 ms is expired, a row exactly at the cutoff is kept.
+    @Test
+    fun `expireDueOn accepts ttlMs of 1 and expires old rows`() {
+        push(alice, 0)
+        clock.advance(Duration.ofMillis(99))
+        push(alice, 1)
+        val head = changeSeqOf(alice)
+        val marked = expire(alice, T0 + 100, 10, ttlMs = 1)
+        assertEquals("return 1", 1, marked)
+        assertEquals("older row deleted", 1, deletedOf(alice, clientId(0)))
+        assertEquals("cutoff row kept", 0, deletedOf(alice, clientId(1)))
+        assertEquals("change_seq = head + 1", head + 1, changeSeqOf(alice))
+    }
 }
