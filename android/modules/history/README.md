@@ -74,12 +74,13 @@ pull; the sync module will call it only after a finished full list.
 ## Public surface
 
 - `SqliteHistoryStore`, built only through `SqliteHistoryStore.create(context, clock)`.
-  It implements `core.HistoryStore` and `core.PullSink` and exposes `purgeExpired(): PurgeReport`.
+  It implements `core.HistoryStore` and `core.PullSink` and exposes `purgeExpired(): PurgeReport`,
+  `sweepExpiredTombstones(): Int`, `pendingTombstoneIds(limit)`, `pendingTombstoneIdsAfter(lastId, limit)`
+  and `clearAllTombstones()`.
 - `PurgeReport`, what `purgeExpired()` returns.
 
 Everything else is internal, including the store's other methods
-(`count`, `close`, the tombstone sweep and the
-pending-tombstone list). The app calls `purgeExpired()` once at start
+(`count`, `close` and the internal form of the tombstone sweep). The app calls `purgeExpired()` once at start
 (`BreakerApp`), through `PurgeGuard`: it skips the purge for at most 7 days when automatic time is off and over 30 days have
 passed since the last purge.
 
