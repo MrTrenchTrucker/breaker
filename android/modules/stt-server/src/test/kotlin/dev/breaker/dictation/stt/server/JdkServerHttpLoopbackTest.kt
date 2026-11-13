@@ -3,9 +3,14 @@ package dev.breaker.dictation.stt.server
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.InputStream
+import java.net.CacheRequest
+import java.net.CacheResponse
 import java.net.InetAddress
+import java.net.ResponseCache
 import java.net.ServerSocket
 import java.net.Socket
+import java.net.URI
+import java.net.URLConnection
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
@@ -314,6 +319,34 @@ class JdkServerHttpLoopbackTest {
         }) { base -> exchange(request("GET", "$base/big", authHeaders(), null)) }
         assertNull("server side: ${run.record.problem}", run.record.problem)
         assertTrue("a ReplyTooLargeException was expected", run.failure is ReplyTooLargeException)
+    }
+
+    // An Android app may install a platform response cache: the exchange must not read from it or fill it.
+    @Test
+    fun `an exchange never reads or fills the platform response cache`() {
+        val previous = ResponseCache.getDefault()
+        var calls = 0
+        ResponseCache.setDefault(object : ResponseCache() {
+            override fun get(uri: URI?, requestMethod: String?, requestHeaders: MutableMap<String, MutableList<String>>?): CacheResponse? {
+                calls++
+                return null
+            }
+
+            override fun put(uri: URI?, connection: URLConnection?): CacheRequest? {
+                calls++
+                return null
+            }
+        })
+        try {
+            val run = withServer({ _, socket ->
+                send(socket, statusHead("HTTP/1.1 200 OK", "Content-Length: 2"), ascii("{}"))
+            }) { base -> exchange(request("GET", "$base/cache", authHeaders(), null)) }
+            assertNull("server side: ${run.record.problem}", run.record.problem)
+            assertEquals("a 200 reply came back", 200, run.value?.status)
+            assertEquals("the response cache was asked or filled this many times", 0, calls)
+        } finally {
+            ResponseCache.setDefault(previous)
+        }
     }
 
     @Test
