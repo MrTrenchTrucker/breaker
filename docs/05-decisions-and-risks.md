@@ -98,8 +98,12 @@ output from the password and a random salt, and HKDF-splits it (distinct
 labels) into a KEK (never leaves the client) and an auth verifier — the only
 password-derived value the server ever receives, at both register and login.
 The DEK itself, and the ADR-018 box keypair, are generated only at the
-account's first-login key bootstrap, a later phase (ADR-006) — not at
-registration. Argon2id parameters (64 MiB, 3 iterations, parallelism 1) are
+account's first-login key bootstrap (ADR-006) — not at
+registration. The generation code is built (`AccountKeyServiceImpl.kt:83`, `:93` in
+`android/modules/crypto`), and so are the upload route `POST /v1/auth/keys`
+(sync-api `AuthKeysRoute.kt`) and the client call behind `keyPorts`
+(auth-client `ServerAuthServiceOps.kt:240`, path constant `AccountRules.kt:27`); the app does not
+wire the bootstrap yet. Argon2id parameters (64 MiB, 3 iterations, parallelism 1) are
 stored per account with a KDF version, enforced as a floor on both server
 and client, so they can only be raised later at a password change, never
 lowered. The server never generates the DEK, never derives the KEK, and
