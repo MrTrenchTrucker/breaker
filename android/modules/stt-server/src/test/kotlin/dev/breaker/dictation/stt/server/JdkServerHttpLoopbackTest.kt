@@ -295,6 +295,27 @@ class JdkServerHttpLoopbackTest {
         assertOverCap("HTTP/1.1 503 Service Unavailable")
     }
 
+    // The cap is pinned by its value: a reply of exactly 4 MiB comes back whole, one byte more is refused.
+    @Test
+    fun `a 200 reply of exactly four mebibytes is returned whole`() {
+        val size = 4 * 1024 * 1024
+        val run = withServer({ _, socket ->
+            send(socket, statusHead("HTTP/1.1 200 OK", "Content-Length: $size"), ByteArray(size))
+        }) { base -> exchange(request("GET", "$base/big", authHeaders(), null)) }
+        assertNull("server side: ${run.record.problem}", run.record.problem)
+        assertEquals("the whole body came back", size, run.value?.body?.size)
+    }
+
+    @Test
+    fun `a 200 reply of four mebibytes and one byte is refused`() {
+        val size = 4 * 1024 * 1024 + 1
+        val run = withServer({ _, socket ->
+            send(socket, statusHead("HTTP/1.1 200 OK", "Content-Length: $size"), ByteArray(size))
+        }) { base -> exchange(request("GET", "$base/big", authHeaders(), null)) }
+        assertNull("server side: ${run.record.problem}", run.record.problem)
+        assertTrue("a ReplyTooLargeException was expected", run.failure is ReplyTooLargeException)
+    }
+
     @Test
     fun `an abort before the exchange gives an IOException and no reply`() {
         val run = withServer({ _, socket ->
