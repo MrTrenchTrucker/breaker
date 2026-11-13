@@ -6,7 +6,7 @@ Debian container website (client-side decrypt, Trucking UI), APK/model hosting, 
 view/search/copy of the user's transcriptions from any device on the VPN.
 Also hosts the APK for download (F15, F17). No certificate handling in Breaker; TLS is the admin's choice through any reverse proxy (ADR-034).
 
-**What is built today.** The sign-in page (`signin.html`, `css/signin.css` and the scripts under `js/`), the AES-GCM layer and the device list modules; see Built now below. In `js/signin-crypto.js` the key derivation, the box public key and the sealing are all built, but `available` stays false until the last wiring step, so the page disables its form and says that signing in through the website is not available yet. Every other page, route and feature described in this card (Pages, Hosting, Security, Client-side derivation and decryption, the first-login key bootstrap, Search, Responsive, Screens) is planned, not built, unless Built now says otherwise.
+**What is built today.** The sign-in page (`signin.html`, `css/signin.css` and the scripts under `js/`), the AES-GCM layer, the device list modules and the pending-sealed conversion modules; see Built now below. In `js/signin-crypto.js` the key derivation, the box public key and the sealing are all built, but `available` stays false until the last wiring step, so the page disables its form and says that signing in through the website is not available yet. Every other page, route and feature described in this card (Pages, Hosting, Security, Client-side derivation and decryption, the first-login key bootstrap, Search, Responsive, Screens) is planned, not built, unless Built now says otherwise.
 
 **Pages:**
 - **Landing** — Breaker intro + download links: APK, docs.
@@ -65,6 +65,23 @@ DOM part, textContent only). The view builds its own list, message element, one 
 row and a "Sign out all my devices" control behind an in-view confirm step. A device name from the
 server is untrusted text and is written with textContent. How these files reach a browser is still
 the open owner question above, so no page calls `mountDevices` yet; only the module's own tests call it.
+
+**Built now: the pending-sealed conversion module (ADR-018), no page yet.**
+Two ES modules with no page around them: `pending-sealed-net.js` (the one call to the server's own
+route, `GET /v1/sync/pending-sealed`, with the bearer token, no cookies, no cache and no body) and
+`pending-sealed.js` (`createPendingSealed({ unseal, encrypt, upload, fetch })` and its `run(token,
+boxPrivateKey, keyVersion, render)`: every dependency injected, no DOM, no network and no storage of
+its own). For each listed row it decodes the sealed box as strict padded base64, unseals it with the
+box private key it was given, encrypts the plaintext through the injected `encrypt` (told the record
+id and the key version, so the caller can bind them as the AAD of ADR-006), wipes the plaintext as
+soon as `encrypt` has answered, and uploads with the pending record's id as the client id at that
+`key_version`. The answer is a summary of converted, skipped and failed rows. One bad row never
+stops the others: a row that is malformed, that unseal or encrypt refuses, counts as skipped, and an
+upload that is not confirmed or that throws counts as failed. A 401 or 403 on the list stops the run
+as signed out, and any other answer that is not a list is a list failure, never an empty account.
+The opening function (`unseal`) is not built in this module yet, the page does not call the
+conversion, and the wire encoding of the encrypted body is left to the injected `encrypt` and
+`upload`; only the module's own tests call it.
 
 **Hosting:**
 - `/Breaker.apk` — latest signed APK (from the git-pull build).
@@ -131,7 +148,7 @@ surfaces it as tampering rather than silently accepting it or re-bootstrapping
 over it.
 
 **On login, the browser also converts any pending sealed agent-token results
-(ADR-018; planned, not built: the pending-sealed route does not exist yet):** it lists `GET /v1/sync/pending-sealed`, unseals each with the
+(ADR-018; the route is built in sync-api and the conversion module is built here, see Built now above, but no page calls it yet and the opening function is not built):** it lists `GET /v1/sync/pending-sealed`, unseals each with the
 (just-unwrapped) box private key, re-encrypts the plaintext under the DEK,
 and uploads it via the ordinary sync path with the pending record's id as the
 client id, at the account's current `key_version` — a genuinely new record,
@@ -241,6 +258,7 @@ The sign-in page `signin.html`, with its entry script `js/signin-page.js`. The p
 - Unit (Kotlin/Ktor, ADR-017): `server/modules/web-fe/src/test/kotlin/`, created with the module's first code. Run: `./gradlew :server:modules:web-fe:test` once this module's build file applies the Kotlin plugin (today it applies `base` only, so there is no test task yet).
 - Contract: `tests/contract/test_web_fe_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_web_fe_contract.py`
 - JavaScript (AES-GCM layer): `server/modules/web-fe/src/test/js/aesgcm.test.mjs`. Run: `python3 -m unittest discover -s tests/unit/web_fe` (the runner assembles the web-libs test tree first; `node --test` alone in the source tree fails to find the vendored libraries; needs node 20.19.0 or newer).
+- JavaScript (pending-sealed conversion): `pending-sealed.test.mjs` and `pending-sealed-net.test.mjs` in the same test folder as `aesgcm.test.mjs`, run by the same command as the line above.
 - JavaScript (sign-in page logic): `signin-link.test.mjs`, `signin.test.mjs`, `signin-kdf.test.mjs`, `signin-crypto.test.mjs`, `signin-flow.test.mjs`, `signin-edge.test.mjs`, `signin-net.test.mjs`, `signin-logout.test.mjs`, `signin-page.test.mjs` and `signin-wire.test.mjs` in the same test folder as `aesgcm.test.mjs`, run by the same command as the line above. The fixtures for them are in `signin-fixtures.mjs`, `signin-page-fixtures.mjs` and `signin-vectors.mjs`, helpers and not test files. With the AES-GCM tests and the three devices test files (`devices-net.test.mjs`, `devices.test.mjs`, `devices-view.test.mjs`) the runner runs the whole set, and the count of passing tests it must report is pinned in `tests/unit/web_fe/test_aesgcm_js.py`, which is the one place the count lives.
 - Runner: `tests/unit/web_fe/test_aesgcm_js.py` runs those tests, fails (never skips) when node is missing or older than 20.19.0, and pins the number of passing tests. Run: `python3 -m unittest discover -s tests/unit/web_fe`
 - Pins: `tests/contract/web_fe_aesgcm_pins.py` (collected by `test_web_fe_contract.py`) pins the hashes of the seven vendored files, the folder contents, the imports of `aesgcm.js` and the NOTICE entry. `tests/contract/web_fe_signin_pins.py` (collected by `test_web_fe_contract.py`) pins the sign-in source files: the imports of `signin.js` and of `signin-link.js`, the forbidden tokens, banned words, short code tags, digit and hex runs, ASCII only, long base64-looking literals, the line cap, the test file names and the sha256 of `aesgcm.js`. `tests/contract/web_fe_signin_kdf_pins.py` (collected by `test_web_fe_contract.py`) pins `signin-kdf.js`: its imports, its two exports, its two label lines and the join that builds the label text, the forbidden tokens and the line cap. `tests/contract/web_fe_signin_page_pins.py` (collected by `test_web_fe_contract.py`) pins the sign-in page files with `check_signin_page_sources`: the html rules, the css rules, the forbidden tokens of the page and network files, the crypto facade (`available` is false, its exports and the two `not available` throws), and the repo text scan of the new files; every rule has a firing control.
