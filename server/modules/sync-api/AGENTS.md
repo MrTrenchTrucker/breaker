@@ -306,12 +306,16 @@ A route or job marked Planned, not built below is not installed on main yet.
   an index on `account_id`; the route answers a user session only (no token or a dead one 401, any agent
   token, an admin scoped one too, 403) with the rows of the token's own account, never one named in the
   request, ordered by `created_at` then `id`, as `[]` when there are none, and the fixed 503 on a failure.
-  No paging and no `LIMIT`, on purpose: the server deletes no pending row when a synced transcription with its
-  client id lands (not built), so a `LIMIT` of N would hide every row after the Nth for good. The table is bounded
-  per account by the insert cap below instead, so the answer holds at most `PENDING_PER_ACCOUNT_MAX` (100) rows of
-  at most `MAX_SEALED_BYTES` (786,368) decoded bytes each, which is about 100 MiB of base64 text at the extreme.
-  **Delete-on-sync is not built and must land before the 100-row cap can strand a user whose rows are never
-  freed.**
+  No paging and no `LIMIT`, on purpose: a `LIMIT` of N would hide every row after the Nth until the earlier ones
+  are converted. The table is bounded per account by the insert cap below instead, so the answer holds at most
+  `PENDING_PER_ACCOUNT_MAX` (100) rows of at most `MAX_SEALED_BYTES` (786,368) decoded bytes each, which is about
+  100 MiB of base64 text at the extreme. **Delete-on-sync is BUILT:** `POST /v1/sync` deletes the account's pending
+  row whose id is that `client_id` (`DELETE FROM pending_sealed WHERE id = ? AND account_id = ?`) in the SAME
+  transaction as the push, when the push is stored, replaces a record, or is the no-op of a record already held
+  (a deleted record too), and never when the push is refused. A failing delete rolls the push back to the fixed
+  503 and the retry is harmless. `DELETE /v1/transcriptions/{client_id}` does not touch pending rows. So the
+  100-row cap cannot strand a user whose rows get converted; a row the owner never converts stays until a reset,
+  a password change or the first key store clears it, and the cap then makes the intake answer 409 for that account.
 - `POST /internal/v1/pending-sealed` (service-key route, internal listener only; BUILT, `servicecheck/PendingSealedIntakeRoute.kt`
   and `PendingSealedStore.insert`): the write path of the table. whisper-server does NOT call it yet (that
   caller is slice 3 and waits for the libsodium decision). The body is exactly `{"account_id", "job_id",
@@ -420,10 +424,9 @@ A route or job marked Planned, not built below is not installed on main yet.
   keys are gone), tombstones too; the wrong-password row is cleared; and any
   older reset code is replaced by the new one. A failure anywhere rolls all of it back and answers
   the fixed 503. The answer is 200 `{"reset_code": "..."}`. An admin may reset their own account;
-  that revokes the token they called with, so their next call needs a new sign-in. Pending-sealed
-  rows are planned, not built: that table does not exist yet, so the reset deletes nothing from it
-  (when it is built, the reset must delete the unfetched rows sealed to the box key that was
-  cleared).
+  that revokes the token they called with, so their next call needs a new sign-in. The reset also
+  deletes the account's pending-sealed rows, in the same transaction, because they are sealed to the box key
+  that was cleared.
   The reset code: 32 random bytes from `SecureRandom`, shown as 43 URL-safe characters (base64url,
   no padding, 256 bits), single use, 24 hours from the injected clock (dead AT the instant), kept
   only as a SHA-256 hash in `reset_codes`. There is ONE live code per account (the table has one row
@@ -742,6 +745,7 @@ The HTTP surface. `syncApiModule` installs the public routes: `/v1/auth/*`, `/v1
 - Sign-in hand-off (BUILT): under `db/`, `SchemaV4MigrationTest.kt` (a fresh database ends at the latest version with the sign-in code table, its index, the device name column and both triggers; an upgrade from version 3 keeps every row; the length and key checks of the table; a device name only on a session row). Under `handoff/`: `HandoffStoreStartTest.kt` (a started code and its stored hash; the created and expiry times; the cap of five live codes and which one is displaced; expired rows gone at the next start; an unknown account), `HandoffStoreRedeemTest.kt` (the session and package returned; a second redeem, a wrong secret, an expired code and an unknown code all give the one refusal; a code is dead at its expiry instant), `HandoffStoreRedeemGuardTest.kt` (a device name of 0 or 65 characters is refused before any change), `HandoffConcurrencyTest.kt` (two redeems of one code at once give one session), `HandoffSweepTest.kt` (the boot sweep, the 60-second interval, a failing sweep is swallowed),
 `HandoffSweepLogTest.kt` (a failing sweep is logged at WARN with the exception class name only,
 never the message, which can carry a path or a key; a cancellation is never swallowed). Under `tokens/`: `HandoffRevokeTest.kt` (ending an account's sessions deletes its codes and no other account's). `ShutdownOrderTest.kt` pins that the sweep stops after the internal engine and before the database closes. Under `auth/`: `AuthHandoffStartRouteTest.kt` (201 with a code; the fixed 401 and 403 bodies; a 400 for each fault of the body; a non-canonical but pattern-valid package is accepted; 413 over 4096 bytes), `AuthHandoffExchangeRouteTest.kt` (the 200 answer with the account's key_version; the device name rules; the one 401 for every refusal; a wrong secret leaves the code live), `AuthHandoffExchangeMoreTest.kt` (two exchanges at once give one session; the device name is stored; a package comes back as the canonical text of the stored bytes; a second account gets the role user; a code used as a Bearer token gets the 401; the issued session token works), `AuthHandoffExchangeCapTest.kt` (the 4096-byte cap, declared and chunked, on both routes), `AuthHandoffBodyShapeTest.kt` (malformed bodies are a 400 on both routes). Test-only helpers: `HandoffFixtures.kt`, `HandoffRouteTestBase.kt`, `HandoffReply.kt`.
+- Delete-on-sync: `transcriptions/TranscriptionStoreDeleteOnSyncTest.kt` (the pending row is gone after a stored push, a replaced push, the no-op of a deleted record and an identical retried push; a push refused as above the account or as lower keeps it; a push with no pending row stores as before; another account's row with the same id and the account's other rows stay; a trigger that raises on the delete rolls the push back, at store level and at route level, where `POST /v1/sync` answers the fixed 503 with nothing stored and the pending row kept, and the retry then stores and frees the row).
 - Change numbers (BUILT): under `db/`, `SchemaV5MigrationTest.kt` (a fresh database ends at the latest version with the change number columns, the delete flag, the pulled-change column and the unique index, and refuses a negative counter or a delete flag of 2; the unique index refuses a repeated number of one account and accepts it on another; an upgrade from version 4 keeps every row and numbers each account's rows 1 to N in id order). Under `transcriptions/`, `TranscriptionStoreChangeTest.kt` (new client ids take 1, 2, 3 per account, a replace takes the next number, a no-op or a refusal takes none, a push of a deleted row is a no-op), `TranscriptionStoreChangeOrderTest.kt` (the order of refusals; a failed insert after the counter bump rolls the counter back), `TranscriptionStoreChangeConcurrencyTest.kt` (two pushes at once get two different consecutive numbers), `TranscriptionStoreDeleteTest.kt` (delete takes the next number, repeat/unknown takes none, the mark reanimates), `SyncRoutesDeleteRouteTest.kt` (DELETE answers 204/400/401/403/503), `SyncPushBodyResaveTest.kt` (resave parsing), `SyncRoutesPushResaveTest.kt` (resave on the route), `TranscriptionStorePageTest.kt` (the page of the feed: live rows only without since, delete records, the 100-record and size limits, next and more, Gone), `SyncRoutesFeedTest.kt` (the feed routes with the store), `SyncRoutesFeedRouteTest.kt` (the exact page text, the 400, 401, 403, 410 and 503 answers) and `SyncRoutesListTest.kt` (the list answers in the page shape).
 - Pulled number and purge of delete records (BUILT): under `tokens/`, `TokenStorePullNumberTest.kt` (a pull
   stores the smaller of since and head, and only for a session of its own account),
@@ -834,7 +838,7 @@ agents, not required: an outside contributor may write the code themselves
   receiving route `POST /internal/v1/pending-sealed` is built here, and whisper-server does not call it yet.
   ADR-018's amendment of 2026-10-20 drops the planned whisper-server -> sync-api code edge and chooses no
   transport; this route is the server end of whatever it chooses, and the caller needs the libsodium decision
-  (slice 3). Delete-on-sync is not built either.
+  (slice 3).
 - `change-password`'s `old_auth_verifier` field is the only thing standing
   between "holds a live session token" and "can replace this account's
   keys" — do not let the Bearer token alone satisfy this endpoint.
