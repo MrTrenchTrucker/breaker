@@ -1,7 +1,7 @@
 // android/modules/history — HistoryStore.
 //
 // Card: android/modules/history/AGENTS.md   Registry: modules.toml [module.android_history]
-// Owns: SQLite transcription history, 3-month TTL cleanup, tombstones.
+// Owns: SQLite transcription history, 30-day TTL cleanup, tombstones.
 // Depends on: android, android_core
 // Cross-module calls go through the core ports or the app's own
 // dependency wiring; this module never reaches into a sibling's code.

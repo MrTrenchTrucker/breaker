@@ -65,7 +65,12 @@ class ServerDevicesLockTest {
         }
         loginThread.isDaemon = true
 
-        devicesInRequest.await()
+        // A devices() that never sends its request would leave this latch closed for ever and hang the suite:
+        // a bounded wait turns that into a red test with a name.
+        assertTrue(
+            "devices() never sent its request, so it never took the lock",
+            devicesInRequest.await(5, TimeUnit.SECONDS),
+        )
         loginThread.start()
 
         try {
