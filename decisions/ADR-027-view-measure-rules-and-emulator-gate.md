@@ -63,9 +63,9 @@ The gate reviewer owns the emulator (AVD `t36`, API 36 `google_apis`
 x86_64). It lives outside this repository. The emulator cannot record audio
 (no speech model, and the native libraries are arm64 only), so the recording
 states of the mic are proven through a hook in the app's `debug` source set
-that pushes a state into the mic. That hook is PLANNED: it does not exist in
-main yet (`android/app/src/debug` holds only the Home mic probe). Until it
-exists, the recording states are proven on a real phone only.
+that pushes a state into the mic. That hook is built: `MicProbeReceiver` in
+`android/app/src/debug` pushes a state into the mic (`probeSetState` in
+`ScreenMic.kt`).
 
 **R2. Views measure themselves and survive a redraw.**
 - Every custom View in the `ui` render layer (`ui/render/`) overrides
@@ -74,14 +74,17 @@ exists, the recording states are proven on a real phone only.
   separator gets a fixed size in its layout parameters, never `WRAP_CONTENT`
   or `MATCH_PARENT` along the axis a fill pass can stretch. Instances so far:
   `TouchGapView` (defect 3, fixed in main), and the spread-row separator
-  `separatorOf()` in `ScreenRenderer.kt` (the History stretch, OPEN). Also
+  `separatorOf()` in `ScreenRenderer.kt` (the History stretch, fixed in main: it
+  is built from `android.widget.Space`). Also
   OPEN at main: `CardLipView` (`ui/render/BrandArtViews.kt`) is the one View
   subclass under `ui/render/` with no `onMeasure` of its own, and
-  `ScreenRenderer.kt` builds further plain `View(context)` objects (lines 160,
-  235 and 321) that the audit below must check. `placedChild` (lines 135-139)
-  also builds a horizontal Spacer as a plain `View` of a fixed width and
-  `WRAP_CONTENT` height: the same class as `separatorOf()`, so it is on the audit
-  list too (not yet shown safe or unsafe).
+  `ScreenRenderer.kt` still builds plain `View(context)` objects at lines 235
+  (`stripeOf`, a fixed 1 px height) and 321 (the menu icon lines, a fixed width
+  and height), each with a fixed size on the stretch axis; line 160 is now
+  `android.widget.Space`. `placedChild` (lines 135-152) no longer builds a plain
+  `View`: a Spacer node goes to `spacerOf` (line 98), which builds
+  `android.widget.Space` (lines 159-163), and `placedChild` only sets its layout
+  parameters (lines 137-138).
 - A View that is built outside a draw and re-added on a redraw is removed from
   its old parent first (the `attachMicSlot` rule, defect 1).
 - An argument or property that may be unset on some path (`lateinit`, `lazy`)

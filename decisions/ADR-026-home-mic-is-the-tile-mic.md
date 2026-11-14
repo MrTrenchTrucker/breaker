@@ -63,15 +63,15 @@ each other directly.
 
 Amended 2026-10-20 (project owner, 2026-10-20 order). What main
 holds, and what the APK 8 phone test showed is still missing:
-- **Same faces, same signal (OPEN).** Item 1 covers every face, not only
+- **Same faces, same signal (built).** Item 1 covers every face, not only
   recording. When another app holds the microphone the tile shows its red
   circle with a line (`TileState.MIC_BUSY`); after the check it shows its
   sending look (`TileState.SENDING`) while the local transcription runs. The
   Home mic must show the same two faces from the same signal (one source, no
   copy): busy for as long as the tile shows it, and the sending look from the
   end of recording until the result, then idle. At main the Home wiring
-  (`HomeTakeWiring`) pushes only `RECORDING`, `ARMED` and `IDLE` to the Home
-  mic, so both are OPEN.
+  (`HomeTakeWiring`) derives and pushes the busy and sending faces to the Home
+  mic too (`homeMicFace` returns `TileState.MIC_BUSY` and `TileState.SENDING`).
 - **Slot size (built).** The ui module gives the mic a slot of
   `HomeGeometry.slotHeightDp(usable)`, held between 100 and 150 dp
   (`MIC_SLOT_MIN_DP`, `MIC_SLOT_MAX_DP`), and centres the mic in it
@@ -86,8 +86,9 @@ holds, and what the APK 8 phone test showed is still missing:
   screen-reader double tap is routed through the last real touch's stored
   gesture (`ScreenMic.route()`), so after an X or check touch it can reach the
   wrong zone; the route must be decided from the model state alone.
-- **Theme (OPEN, follow-up).** `HomeScreenMic.setTheme` has no caller, so the
-  Home mic follows the phone's light or dark setting, not the stored theme.
+- **Theme (built).** `HomeScreenMic.setTheme` now has callers: the launcher
+  entry passes the shown mode (`onShownMode`) and the activity helpers pass the
+  theme mode.
 - **Three launch defects (fixed in main, PRs #193, #194, #195).** The mic is
   removed from its old parent before each redraw re-adds it; the settings view
   is set before the first-run decision; the top bar's touch gap measures

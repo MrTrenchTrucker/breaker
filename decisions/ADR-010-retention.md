@@ -34,4 +34,4 @@ The project owner ruled that the phone keeps 30 days of transcriptions and 30 da
 
 The Decision above is unchanged. From now on it describes the server's retention (90 x 24 hours on the server's own clock) and the shape of the rule on both sides (UTC instants, no time zone, no calendar months, a row exactly at the cutoff kept). The phone applies the same rule with a window of 30 x 24 hours, so the server always keeps a row longer than the phone does.
 
-Decided, not built: on main the phone still keeps 90 days until the history module change lands (ADR-047).
+Built: on main the phone keeps 30 days (the history module's `RetentionPolicy` sets its window to 30 days, ADR-047).
