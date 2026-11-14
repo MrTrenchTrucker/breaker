@@ -7,8 +7,9 @@
 
 The phone app already probes server reachability (the sync probe /
 refreshProbeInBackground) so it can tell whether it reaches the container at
-all. There is no route that tells the app which services inside the container
-are up or down: no `GET /v1/status` exists on this base. The admin health route
+all. When this ADR was written no route told the app which services inside the container
+were up or down: no `GET /v1/status` existed. It is built now (`StatusRoute.kt:24`, mounted at
+`SyncApiApplication.kt:84`). The admin health route
 (`GET /v1/admin/health`, `AdminHealthRoute.kt:33-57`) always answers
 `{"status":"ok","git_tag":"<tag>"}` - its status is always "ok" and it checks
 no service at all, not whisper-server. So the premise that whisper-server state
@@ -89,8 +90,9 @@ wording beyond the three given lines; the web banner wording and
 implementation; the rate-limit numbers (ADR-041 sets none yet); how "since
 when" is computed for the banner.
 
-Honesty: this ADR records the owner's ruling; no code implements `/v1/status`,
-the phone line, or the web banner on this base. The three strings.xml words are
+Honesty: this ADR records the owner's ruling; the server route `GET /v1/status` is built
+(`StatusRoute.kt:24`); the phone line and the web banner are not built: no shipped phone or web code calls
+`/v1/status` (the only phone-side mention is a doc snippet, `android/modules/http/README.md:12`). The three strings.xml words are
 given verbatim by the ruling; the whisper-server mechanism is ruled in Decision 2;
 the rest of the wording is open.
 

@@ -18,10 +18,10 @@ server to anyone on the network that can reach the host. A public bind also
 defeats the VPN model entirely — the phone could reach the server without the
 VPN, bypassing the network boundary the admin chose.
 
-No bind rule is written down as a decision yet, and nothing enforces one: the
-whisper-server defaults to 127.0.0.1, but sync-api can bind any address through
-its environment. A verify-only helper, vpn-bind.sh, is being built in the
-deploy module; this ADR is the rule it checks.
+No bind rule is written down as a decision yet, and code enforces only part of one: the
+whisper-server defaults to 127.0.0.1, but sync-api can bind its public host to any address through
+its environment (`SyncApiConfig.kt:71-76`). A verify-only helper, vpn-bind.sh, is built in the
+deploy module (`server/modules/deploy/AGENTS.md` L11); this ADR is the rule it checks.
 
 ## Decision
 
@@ -84,7 +84,10 @@ To be designed (not decided here): the probe timeout and what the app shows
 when no address answers; the exact wording of the s6 line and of threat-model
 T3, which the following docs patch decides in the shape this ADR sets.
 
-Honesty: this ADR sets a rule; no code enforces it yet. vpn-bind.sh (a
-verify-only check, not run by any deploy step), the app's address list and its
-probe loop are described here, not built. Nothing in this ADR changes server
+Honesty: this ADR sets a rule, and code enforces only part of it. sync-api refuses a wildcard on the
+internal host (`SyncApiConfig.kt:81`) and refuses a public wildcard only when its port equals the internal
+port (`SyncApiConfig.kt:205`, `:209-211`); the public host is otherwise checked only for blank
+(`SyncApiConfig.kt:71-76`). vpn-bind.sh is built (`server/modules/deploy/AGENTS.md` L11,
+`tests/unit/server/deploy/test_vpn_bind.py`) and no deploy step runs it (`server/modules/deploy/AGENTS.md` L8).
+The app's address list and its probe loop are described here, not built. Nothing in this ADR changes server
 code, phone code or the s6 line.
