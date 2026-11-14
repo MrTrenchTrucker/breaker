@@ -150,6 +150,9 @@ class BudgetBoundTest {
         }
         try {
             assertEquals(BUDGET_USED, engine.transcribe(request()))
+            // A call that ends before the exchange stalls would leave the helper waiting for ever and hang the suite:
+            // this turns that into a red test with a name.
+            assertTrue("the exchange never stalled, so the deadline path never ran", stall.entered.isCompleted)
             runBlocking { helper.join() }
             assertEquals(
                 "the request count read at open time is 1",
@@ -183,6 +186,9 @@ class BudgetBoundTest {
         val engine = engineFor(probe, Timing(ft.clock, ft.sleeper, deadline), ServerLimits(maxTransientPollFailures = 0))
         try {
             assertEquals(BUDGET_USED, engine.transcribe(request()))
+            // A call that ends before the exchange stalls would leave the helper waiting for ever and hang the suite:
+            // this turns that into a red test with a name.
+            assertTrue("the exchange never stalled, so the deadline path never ran", stall.entered.isCompleted)
             runBlocking { helper.join() }
             assertEquals(
                 "the poll request was recorded before the deadline opened",
