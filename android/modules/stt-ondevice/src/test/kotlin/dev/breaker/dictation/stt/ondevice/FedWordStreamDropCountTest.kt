@@ -5,6 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import org.junit.rules.Timeout
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import java.io.File
@@ -17,6 +18,11 @@ import java.io.File
  * (streamOver, modelDir) because they are private there; the timed helpers come from FakeTimedNative.kt.
  */
 class FedWordStreamDropCountTest {
+
+    // Every wait below is on a signal of the fake (open entered, recogniser released). A start that is refused never
+    // opens the fake, so without this net the class would wait for ever: the sibling classes carry the same 20 s net.
+    @get:Rule
+    val safetyNet: Timeout = Timeout.seconds(20)
 
     @get:Rule
     val tmp = TemporaryFolder()
