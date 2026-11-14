@@ -4,8 +4,9 @@
 **Date:** 2026-10-20
 **Approved by:** the project owner (2026-10-20 order)
 
-This is an approved design. It is PLANNED: none of the code below exists in
-main yet. It carries out ADR-004 (two phrases, audio trimmed at the send-phrase
+This is an approved design. It is built: `PhraseSendHandler` is in main
+(`wiring/PhraseSendHandler.kt`, wired in `BreakerApp.kt` and `TileHost.kt`, with
+`PhraseSendHandlerTest.kt`). It carries out ADR-004 (two phrases, audio trimmed at the send-phrase
 onset) and keeps ADR-022's microphone-sharing rules.
 
 ## Context
@@ -13,10 +14,11 @@ The parts exist but are not connected. The `phrases` module has
 `PhraseDetector` (`start(onPhrase)`, `stop()`), which reports where the send
 phrase began. The `stt-ondevice` module has `FedWordStream.feed(samples)`. The
 app's take code already accepts a trim point:
-`DictationRunner.finish(trimBeforeMs: Long? = null)`. The app module does not
-depend on `android_phrases` (its `depends_on` in `modules.toml` does not list
-it), so nothing in the app can start the detector today, and no class decides
-when a spoken send ends a take.
+`DictationRunner.finish(trimBeforeMs: Long? = null)`. When this was approved the
+app module did not depend on `android_phrases`, so nothing in the app could
+start the detector and no class decided when a spoken send ends a take. It now
+does: `modules.toml` lists `android_phrases` in the app module's `depends_on`,
+and `PhraseSendHandler` decides when a spoken send ends a take.
 
 The detector's callback runs on the word-stream thread, while every take
 begin, cancel and finish runs on the single take worker (`TileHost.takeWorker`,
