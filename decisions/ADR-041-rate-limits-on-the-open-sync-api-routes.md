@@ -1,6 +1,6 @@
 # ADR-041: Rate limits on the open sync-api routes, keyed by source address
 
-**Status:** proposed
+**Status:** accepted (built). Accepted by the project owner on 2026-11-14; the limits are code constants and may be tuned later.
 **Date:** 2026-11-10
 
 ## Context
@@ -70,7 +70,7 @@ of the decision.
 - Behind an unlisted proxy the per-address limit protects the server but treats all clients as one.
 - Build order: the measurement; the counter store with register and salt; complete-reset; sync; the trusted-proxy
   setting; the auth client's handling of a 429. Each step has its own review.
-- `docs/03` T18 and `docs/05` R19 stay "planned, not built" until the first limit lands.
+- `docs/03` T18 and `docs/05` R19 describe the whisper-server per-user limit; the sync-api limits are in the Updates of this ADR.
 
 ## To be designed (not decided here)
 

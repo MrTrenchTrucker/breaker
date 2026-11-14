@@ -1,6 +1,6 @@
 # ADR-036: Sign-in from the website hands the login to the app
 
-**Status:** accepted, amended 2026-11-02 (how the wrong-password limit works); decided, built on the server and on the phone (the exchange, the key package and the stored keys and session), not built on the website; the wrong-password limit is built on the server (counting, the locked answer, the admin switch and its route, the drop at registration, the clear hook and the sweep), and the admin reset, the completion of a reset and the password change that call the hook are built on the server too, while the phone and website sides are not built; the points still open are under To be designed
+**Status:** accepted, amended 2026-11-02 (how the wrong-password limit works); decided, built on the server and on the phone (the exchange, the key package and the stored keys and session), built on the website but switched off (`js/signin-page.js`, `js/signin-crypto.js:4`); the wrong-password limit is built on the server (counting, the locked answer, the admin switch and its route, the drop at registration, the clear hook and the sweep), and the admin reset, the completion of a reset and the password change that call the hook are built on the server too, while the phone side is not built (no 423 answer in `android/modules/auth-client`) and the website side is built (`js/signin.js:177`, `js/signin-net.js:32`); the points still open are under To be designed
 **Date:** 2026-11-01
 **Approved by:** the project owner, 2026-11-01
 
@@ -68,7 +68,8 @@ migration 4 (the sign-in code table, its index, the device name column and the t
 sweep, and the revoke rule are built on the server. Built on the phone too: making the key pair, calling
 the exchange route, opening the package, storing the keys and the session, and one best-effort logout when
 the store fails after the server issued a session. Built on the server: the device list and the two
-sign-out routes for the person's own devices. Built on the phone: the app's device name (the platform's manufacturer and model, cleaned to 1 to 64 code points, sent with the finish). Not built: the website page. The
+sign-out routes for the person's own devices. Built on the phone: the app's device name (the platform's manufacturer and model, cleaned to 1 to 64 code points, sent with the finish). Built, switched off: the website sign-in page (`js/signin-page.js`; its form stays off while `available` is false,
+`js/signin-crypto.js:4`). The
 wrong-password limit is built on the server (see the amendment below, What is built). Encoding decisions stay
 under To be designed.
 
@@ -104,7 +105,8 @@ under To be designed.
 
 ### What is built
 
-Built on the server: the table and the counting, the locked answer, the admin switch and its route, the drop of the row at registration, the clear hook that the resets call, and the sweep (at boot and every five minutes). The admin reset, the completion of a reset and the password change are built on the server and call the hook. Not built: the phone and website sides.
+Built on the server: the table and the counting, the locked answer, the admin switch and its route, the drop of the row at registration, the clear hook that the resets call, and the sweep (at boot and every five minutes). The admin reset, the completion of a reset and the password change are built on the server and call the hook. Not built: the phone side (no 423 answer in `android/modules/auth-client`). Built on the website: the locked answer
+(`js/signin.js:177`, `js/signin-net.js:32`).
 
 ## To be designed (not decided here)
 

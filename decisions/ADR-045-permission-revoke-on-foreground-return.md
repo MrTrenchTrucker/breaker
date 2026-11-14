@@ -28,8 +28,8 @@ already re-checks `permissionGranted()` on `arm()`/`coldStart()`/`adopt()` (L77,
 
 1. On return to foreground / launcher visible, re-check both permission states (RECORD_AUDIO via
    `isRecordAudioGranted()`; SYSTEM_ALERT_WINDOW via `canDrawOverlays()`), and surface a clear refusal
-   sentence on Home when either is missing  -  the refusal sentence already names the permission per
-   AGENTS.md L296.
+   sentence on Home when either is missing  -  the microphone refusal sentence names its
+   permission (`ServiceTypes.kt:62`).
 2. Treat a kill-on-revoke as a fresh start: the service controller re-checks `permissionGranted()` on
    `arm()`/`coldStart()`/`adopt()` (already done at DictationServiceController.kt L77, L112-114), and the
    tile port re-checks `canDrawOverlays()` on `show()` (already done at TileController.kt L89-91).

@@ -47,8 +47,10 @@ On 2026-11-01 the project owner confirmed the design and ordered this update: "B
    A failed store or a logout clears both, each in its own try; an unreadable answer or a package
    that does not open leaves the stores as they were and at most logs out. Built on the server:
    the start and exchange routes
-   (`AuthHandoffRoutes.kt`), the code store and the sweep. Not built: the website page (its crypto is a
-   stub, `web-fe` `js/signin-crypto.js`), and the phone's pull. The app's device name is built (the platform's manufacturer and model, cleaned to 1 to 64 code points). When the app starts the sign-in hand-off, it makes a fresh X25519 key pair in memory for
+   (`AuthHandoffRoutes.kt`), the code store and the sweep. Built, switched off: the website sign-in page (`web-fe` `js/signin-page.js`) with its key derivation, key pair and
+   sealing (`js/signin-kdf.js:54`, `js/signin-crypto.js:11`, `js/signin-seal.js:36`); its form stays off while `available` is
+   false (`js/signin-crypto.js:4`). Built on the phone: the pull (`QueuedSyncService.kt:65-68`, `PullCycle.kt`,
+   `PullApplier.kt:46-51`), which runs only when sync is on. The app's device name is built (the platform's manufacturer and model, cleaned to 1 to 64 code points). When the app starts the sign-in hand-off, it makes a fresh X25519 key pair in memory for
    that one sign-in and sends the public half with its sign-in challenge. The pair and the app's one-time
    secret are dropped at the code exchange, or when the sign-in is abandoned. The person types the password
    once, on the website. The website page derives the KEK in the browser (ADR-006's web path), unwraps the
@@ -71,7 +73,8 @@ On 2026-11-01 the project owner confirmed the design and ordered this update: "B
 ## Consequences
 
 - **Trust boundary, named:** the hand-off rests on the website page doing what it should, which ADR-006 already names for the web path: anyone who can change the page the browser loads can change what it does with the password. On plain http (ADR-034) that includes anyone on the network path who can tamper with the page in transit. This is the risk ADR-034 already accepts for plain http, and the admin closes it with https.
-- **Modules whose cards and READMEs change:** `android_sync` (pull, cursor, merge hand-off), `android_history` (receiving pulled rows; `applyRemoteDelete` wired), `server_sync_api` (changes-since pull, delete records kept until pulled, sealed key package at the code exchange, the wrong-password limit), `server_web_fe` (sealing the keys in the page), `android_auth_client` (key pair, opening the package). `ARCHITECTURE.md` section 12 and the sync section are updated to match. Each card marks these items as planned, not built.
+- **Modules whose cards and READMEs change:** `android_sync` (pull, cursor, merge hand-off), `android_history` (receiving pulled rows; `applyRemoteDelete` wired), `server_sync_api` (changes-since pull, delete records kept until pulled, sealed key package at the code exchange, the wrong-password limit), `server_web_fe` (sealing the keys in the page), `android_auth_client` (key pair, opening the package). `ARCHITECTURE.md` section 12 and the sync section are updated to match. Each card marks its items built or planned: the pull is marked built (`android/modules/sync/AGENTS.md:128-130`), and the
+  sync-api card marks each part BUILT or planned (`server/modules/sync-api/AGENTS.md:474`).
 - **Sync stays development-only.** As ADR-006 (amended 2026-10-01) says, sync is development-only until Phase 19. Nothing in this decision changes that: no release build turns multi-device sync on before encryption by default ships.
 - **ADR-006 is amended** by point 6: a device may receive its keys sealed from the website instead of deriving the KEK itself (see the amendment at the end of ADR-006).
 - **Built so far, and what is not.** Of the sign-in hand-off, `CryptoService.openSignInPackage` (with its
@@ -80,7 +83,8 @@ On 2026-11-01 the project owner confirmed the design and ordered this update: "B
   table, its index, the device name column and the triggers), the code store and sweep, and the revoke rule
   are built. Built on the phone: making the key pair, calling the exchange route, opening the package, and
   storing the keys and then the session (both cleared together on a failure or a logout). Built on the server:
-  the device list and the two sign-out routes for the person's own devices. Built on the phone: the app's device name (the platform's manufacturer and model, cleaned to 1 to 64 code points). Not built: the website page. The wrong-password limit is built on the server
+  the device list and the two sign-out routes for the person's own devices. Built on the phone: the app's device name (the platform's manufacturer and model, cleaned to 1 to 64 code points). Built, switched off: the website sign-in page (`web-fe` `js/signin-page.js`); its form stays off while `available` is
+  false (`js/signin-crypto.js:4`). The wrong-password limit is built on the server
   (ADR-036). Of the sync work on the server, the push route `POST /v1/sync`, the plain pull route `GET
   /v1/transcriptions` and the transcriptions table are built, and so is the store layer of the changes-since
   feed: migration 5 (the change counter on the account row, the change number on every transcription row, the
@@ -198,7 +202,8 @@ off, so no pull runs there.
 
 The manager decided on 2026-11-07 that the changes-since feed has TWO cursor
 kinds. Both are server-assigned and opaque; the client stores one and sends it
-back as `since`, never builds one. Decided, not built (server).
+back as `since`, never builds one. Built on the server: the cursor (`FeedCursor.kt`: the two kinds are described at
+lines 5-7, the list cursor is at line 14).
 Decided by the manager inside the opaque-cursor rule; the project owner has not seen it and may overrule it.
 
 - **The defect.** A first list (no `since`) returns the oldest 100 live rows

@@ -1,4 +1,4 @@
-# ADR-033: Signed out is a quiet notice on Home, and nothing is forced
+# ADR-033: Signed out is a quiet notice in Settings, and nothing is forced
 
 **Status:** accepted
 **Date:** 2026-11-01
@@ -26,4 +26,4 @@ Rules in: the signed-out behaviour above. Where it lives: the Settings screen in
 
 Rules out: any text that says the app opens on a sign-in screen, or that dictation stops without a session.
 
-Not decided here: the exact words, the exact place on Home, and what dictation does with a server key the server refused (it keeps its own sentence today).
+Not decided here: the exact words, the exact place in Settings, and what dictation does with a server key the server refused (it keeps its own sentence today).
