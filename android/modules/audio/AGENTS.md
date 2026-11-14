@@ -25,7 +25,6 @@ order and spelling:
 - `Pcm16WavEncoder`
 - `MicSource`
 - `MicSourceException`
-- `MicSourceException.Reason`
 - `NoiseSuppressor`
 - `PassThroughNoiseSuppressor`
 - `AdaptiveGateSuppressor`
