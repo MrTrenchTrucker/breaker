@@ -92,8 +92,11 @@ internal object SocketTcpConnector : TcpConnector {
      * Classifies a single connection attempt. Exhaustive rather than folded into
      * a bare catch-all so that an unexpected I/O failure is deliberately a
      * [ProbeOutcome.NO_NETWORK] and can never be mistaken for a success.
+     *
+     * Visible to this module's tests only: [connect] answers a bare boolean, so
+     * the classification can be read from nowhere else.
      */
-    private fun attempt(address: InetAddress, port: Int, timeoutMillis: Int): ProbeOutcome {
+    internal fun attempt(address: InetAddress, port: Int, timeoutMillis: Int): ProbeOutcome {
         val socket = Socket()
         return try {
             socket.connect(InetSocketAddress(address, port), timeoutMillis)
