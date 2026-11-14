@@ -29,7 +29,11 @@ The project owner, 2026-11-12, asked whether the phone's delete notes need to li
 
 ## Status of the build
 
-DECIDED, NOT BUILT. On main the phone still keeps 90 days. The work comes in four chunks: the docs (this ADR, the ADR-010 amendment, F28, the ADR-035 consequence), the history module (the 30 day window, the tombstone sweep, the pull refusal), a server read route for older rows, and the client and the button.
+BUILT on main: the phone keeps 30 days (`RetentionPolicy.kt:71`), the tombstone cutoff follows it
+(`SqliteHistoryStore.kt:178`), a pulled row older than the window is refused (`SqliteHistoryStore.kt:272`),
+the server older-rows route is mounted (`SyncRoutes.kt:134`) and the history screen has the Load more button
+(`HistoryTexts.kt:25`, `HistoryScreen.kt:141`) with the older-rows port at `HistoryHostView.kt:70`. The older
+rows come live only when sync is on (`BreakerApp.kt:135`). The work was planned in four chunks: the docs (this ADR, the ADR-010 amendment, F28, the ADR-035 consequence), the history module (the 30 day window, the tombstone sweep, the pull refusal), a server read route for older rows, and the client and the button.
 
 ## Not decided here
 

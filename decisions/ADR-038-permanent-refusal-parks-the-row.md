@@ -31,8 +31,9 @@ finds no 422. If a later version adds it, the table below must be revisited.
 is never deleted, is never retried, and the queue moves on to the next row.
 4. **SyncReport shows how many rows are parked.** The reason of each stays in the store
 and is readable through a read method (rule 7). Nothing is lost silently.
-5. **No code is built by this ADR.** The permanent-refusal path is planned, not built.
-A later RC writes the code.
+5. **The permanent-refusal path is built** (see "Decided in the code step"): a 400 or 413 parks the row
+(`PushRow.kt:62-68` parks it, `PermanentRefusal.kt:31-32` makes 400 and 413 the only permanent statuses;
+`QueuedSyncService.kt:151` says so in its KDoc).
 6. **On disk: a new column plus a reason text on the queue row.** The code step carries
 the store migration and a test on an old-format store.
 7. **SyncReport gains one additive count field with a default.** No existing caller

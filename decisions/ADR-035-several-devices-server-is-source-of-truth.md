@@ -95,8 +95,8 @@ On 2026-11-01 the project owner confirmed the design and ordered this update: "B
   PullApplier (#448) and PullCycle (#450). The clear-store write (#449) is built and mounted on the server.
   When sync is on, the app runs a pull after each push drain; release builds have sync off. The device name
   column on the session row is built (migration 4); the app now sends the platform's manufacturer and model as the name and the device list is
-  built on the server (`GET /v1/auth/devices`) and in the phone's auth service, with no screen yet. Today the app has no pull, and the password sign-in is
-  unchanged.
+  built on the server (`GET /v1/auth/devices`) and in the phone's auth service, with no screen yet. The app pulls after each push drain when sync is on
+  (`QueuedSyncService.kt:67`), and the password sign-in is unchanged.
   Update 2026-11-10: the pull runs only when sync is on (debuggable build only).
 - **Changes-since feed.** Built on the server: the cursor is a server-assigned change number, unique to the
   account and strictly increasing on every row write (insert, replace and delete). It is sent as an opaque
@@ -105,10 +105,11 @@ On 2026-11-01 the project owner confirmed the design and ordered this update: "B
   its id, client id and change number, loses its body and is marked deleted, and rows and deletes come in
   one feed in change order. A delete record is purged once every live session of the account has pulled past
   it (built on the server).
-  **Decided, not built (phone):** the client stores the cursor and sends it back as a `since` query parameter
-  on `GET /v1/transcriptions`. Client-id dedupe stays as a second guard; it is not built on the phone, which
-  pulls nothing yet, and the local history keeps one row per id with `INSERT OR REPLACE`.
-  **Decided, not built (phone):** A remote delete is applied even if this device saved the same id again.
+  **Built on the phone:** the client stores the cursor (`SqliteSyncQueueDatabase.kt:160-172`) and sends it back
+  as a `since` query parameter (`PullRequest.kt:29`) on `GET /v1/transcriptions`. Client-id dedupe stays as a
+  second guard, and the local history keeps one row per id with `INSERT OR REPLACE`.
+  **Built on the phone:** a remote delete is always applied, even if this device saved the same id again
+  (`PullApplier.kt:38-46`).
   **Built on the phone:** A local delete followed
   by a local save of the same id clears the local tombstone, so the row is live again.
   **Device name:** the session row has a nullable device name, and that column is built (migration 4). The
@@ -117,14 +118,15 @@ On 2026-11-01 the project owner confirmed the design and ordered this update: "B
   it yet. There is no devices table: the device list has one row per session, with a last-seen date derived from the session's
   expiry.
   A device whose session expired signs in again and does a full resync, so it never needs old delete records;
-  the full resync is decided, not built (phone). The sync routes and the transcriptions table were built
+  the full resync is built on the phone (`PullApplier.kt:79-83`). The sync routes and the transcriptions table were built
   first, as their own piece of work, before the cursor.
 - **The phone's own tombstone has a 30-day life** (it narrows point 4 for one case), the same 30 days after
   which an idle session ends (ADR-031). A phone drops its own tombstone 30 days after the delete, once the
   start-up walk has queued a delete for every tombstone it holds; a delete that never reached the server can
   then be undone by a later pull, until that row reaches the 3-month retention on the server (F28). A delete
   that reached the server stays guarded by the server's delete record, which is purged only by the floor rule.
-- **Still to be designed** (before any of it is built): the merge when a pulled row and a local unsent edit share a client id; the encoding of the keys inside the sealed package.
+- **Merge built (sync 1C):** a pulled row whose id is still unsent in the push queue is skipped, the local edit
+  wins (`PullApplier.kt:49-51`). **Still to be designed:** the encoding of the keys inside the sealed package.
 
 ## Decided details of the changes-since feed (sync 1B)
 
@@ -140,7 +142,7 @@ on the server. The word "feed" means the answer of `GET /v1/transcriptions` when
 - **The answer.** The answer is an object `{items, next, more}`. A page holds at most 100 records and 4 MiB, and one record always fits. There is no limit parameter. The client asks again with `since` set to `next` for as long as `more` is true. With no `since` the answer holds live rows only, and the head is read in the same transaction as the rows. Reason: fixed limits keep one answer small, and a client that loops on `next` always ends at the head. Built on server.
 - **The delete record.** A delete record holds the client id, its change number, `deleted` true and the stored time of the delete. It has no key version and no body. A delete is sent by `DELETE /v1/transcriptions/{client_id}`. That route answers 204 for an applied delete, a repeat and an unknown id, so a queued delete is never refused for good. An applied delete takes a NEW change number, so every other device sees it after its last pull. The tombstone in point 4 is the phone's local mark of a delete, and the call that carries it to the server is this route. Built on server.
 - **The purge.** The purge runs inside the pull and nowhere else. A delete record leaves only by the floor rule: the floor is the lowest pulled number over the account's live session rows, and a record at or below the floor goes, because every live device has seen it. A session that never sent `since` has no pulled number and holds the purge until it ends (30 days idle, sign-out or revoke). The website page must send `since` set to `next` on every call after its first list, so it stops holding the purge. A pull stores the smaller of `since` and the head as the session's number, never a number above the head. Reason: a bad cursor can then never let the purge pass records a device did not receive.
-- **Who makes delete records.** Two writes make delete records: a clear-store write, and the server's scheduled TTL expiry job. The job turns each live row older than the TTL (by `stored_at_ms`, the time of the row's last write) into a delete record: a new change number, body cleared, deleted set. It runs on a daily schedule and not inside a pull, selects live rows only, and never raises `purged_through`: only the floor purge does. (amended 2026-11-10: An account with no live session keeps its delete records until a session exists and pulls; growth is bounded by that account's own expired rows, one delete record per expired row. The job starts one hour after each server start and then every 24 hours; a server restarted more often than hourly never runs it; deploys are rare.) Reason for delete records and not a silent drop: a device that pulls with `since` would keep a silently dropped row and could push it back with a fresh `stored_at`, which would renew the TTL, while a delete record rides the rule that a push of an already deleted id is answered 204 with no write. A reset of the account drops the rows outright and revokes every session, so no cursor survives it and no delete record is needed. After a full list (no `since`), the phone removes the local rows that are not in the answer and are not waiting in its own push queue. Reason: a phone that was revoked and signed in again would otherwise keep rows the server dropped. Decided, not built.
+- **Who makes delete records.** Two writes make delete records: a clear-store write, and the server's scheduled TTL expiry job. The job turns each live row older than the TTL (by `stored_at_ms`, the time of the row's last write) into a delete record: a new change number, body cleared, deleted set. It runs on a daily schedule and not inside a pull, selects live rows only, and never raises `purged_through`: only the floor purge does. (amended 2026-11-10: An account with no live session keeps its delete records until a session exists and pulls; growth is bounded by that account's own expired rows, one delete record per expired row. The job starts one hour after each server start and then every 24 hours; a server restarted more often than hourly never runs it; deploys are rare.) Reason for delete records and not a silent drop: a device that pulls with `since` would keep a silently dropped row and could push it back with a fresh `stored_at`, which would renew the TTL, while a delete record rides the rule that a push of an already deleted id is answered 204 with no write. A reset of the account drops the rows outright and revokes every session, so no cursor survives it and no delete record is needed. After a full list (no `since`), the phone removes the local rows that are not in the answer and are not waiting in its own push queue. Reason: a phone that was revoked and signed in again would otherwise keep rows the server dropped. Decided; the phone prune is built (`retainOnly`, `PullApplier.kt:79-83`, `SqliteHistoryStore.kt:284-290`).
 - **A push of a deleted id.** A push of a client id that is already deleted is answered 204 with no write and no change number. The one exception is the optional boolean `resave` on the push body. The phone sets it only on the first push of an id that the phone itself deleted and then saved again, and never on a retry. Reason: the real stale case is a lost 204 that is retried after another device deleted the row, and bringing the row back would break point 4, which says a row deleted anywhere does not come back from another device. The mark keeps the other rule, that a local save after a local delete makes the row live again. Built on server.
 
 ## Decided details of the phone pull (sync 1C)

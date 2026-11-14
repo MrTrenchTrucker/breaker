@@ -11,35 +11,37 @@ ADR-038 parks a row the server refuses for good (a 400 or 413 about the row itse
 row, and every row behind it waits. ADR-038 names this as its own remaining gap and leaves it to
 this ADR.
 
-`POST /v1/sync` answers 409 in two ways. `SyncResponses.kt:44` (`respondAboveAccount`) sends
+`POST /v1/sync` answers 409 in two ways. `SyncResponses.kt:51` (`respondAboveAccount`) sends
 "key_version is above the account's current key_version" when the pushed key version is above the
-account's current one. `SyncResponses.kt:48` (`respondLowerRefused`) sends "A lower key_version is
+account's current one. `SyncResponses.kt:55` (`respondLowerRefused`) sends "A lower key_version is
 refused for this client_id" when the same client id is stored at a higher key version, or a
 brand-new client id is below the account's current key version. Both are mapped at
-`SyncRoutes.kt:47-48`. The store raises them at `TranscriptionStore.kt:29-35` and
-`TranscriptionStore.kt:48-49` and `TranscriptionStore.kt:57-58`.
+`SyncRoutes.kt:75-76`. The store raises them at `TranscriptionStore.kt:31` (above account) and
+`TranscriptionStore.kt:36`, `:50` and `:59` (lower).
 
 `POST /v1/auth/keys` IS built on the server (`AuthKeysRoute.kt`). It calls `AccountStore.storeKeys`
 at `AuthKeysRoute.kt:50`, which raises `key_version` from 0 to 1 at `AccountStore.kt:316`. But no
 client calls `/v1/auth/keys` today. The web FE's `signin-net.js` calls only `/v1/auth/salt`,
 `/v1/auth/login`, `/v1/auth/handoff/start` and `/v1/auth/logout`. The Android auth-client's
-`ServerAuthService` does only register, login and logout. The crypto module has no upload-keys
-function. The docs describe the keys call as planned for Phase 19
+`ServerAuthService` does register, login, logout and devices (`ServerAuthService.kt:75`); the keys upload
+exists (`ServerAuthServiceOps.kt:238`) but the app wires no key ports, so no client calls it. The crypto
+module has no upload-keys function. The docs describe the keys call as planned for Phase 19
 (`android/modules/auth-client/AGENTS.md:8`). So an account can reach key_version 1 on the server,
 but in practice none does today, and a 409 on `POST /v1/sync` cannot occur until a client that calls
 `/v1/auth/keys` is built.
 
-The phone pushes every row at `key_version` 0 (`SyncBodyCodec.plainPush` at `SyncBodyCodec.kt:66`,
-called from `QueuedSyncService.kt:156`). If an account were at key_version 1 and the phone pushed a
+The phone pushes every row at `key_version` 0 (`SyncBodyCodec.plainPush` at `SyncBodyCodec.kt:83`,
+called from `PlainPush.kt:18`). If an account were at key_version 1 and the phone pushed a
 brand-new client id at 0, the store would answer RefusedLower (409) at
-`TranscriptionStore.kt:34-35`. If the phone pushed a stored client id at 0 while the account holds
-it at 1, the store would also answer RefusedLower at `TranscriptionStore.kt:57-58`. Either way the
-drain gets `UploadOutcome.FAILED` and stops at that row (`QueuedSyncService.kt:136`), and every row
+`TranscriptionStore.kt:36`. If the phone pushed a stored client id at 0 while the account holds
+it at 1, the store would also answer RefusedLower at `TranscriptionStore.kt:59`. Either way the
+drain gets `UploadOutcome.FAILED` and stops at that row (`QueuedSyncService.kt:224`), and every row
 behind it waits.
 
-`SyncReport` (`android/modules/core/src/main/kotlin/dev/breaker/dictation/core/model/Sync.kt:10`)
-has only `pushed` and `failed`. It has no parked field. ADR-038 added one additive `parked` count
-field as approved once by the project leader; a second field needs the same approval.
+`SyncReport` (`android/modules/core/src/main/kotlin/dev/breaker/dictation/core/model/Sync.kt:10-15`)
+has `pushed`, `failed`, `parked` (L13) and `retryAfterSeconds` (L15). ADR-038 added the one additive
+`parked` count field as approved once by the project leader; `retryAfterSeconds` was added without an ADR
+approval (none is recorded in decisions/).
 
 The drain's KDoc and the sync card (Known Gotchas) say that a 409 is not covered by ADR-038 and
 stops the drain at its row.
