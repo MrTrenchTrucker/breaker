@@ -17,8 +17,8 @@ comes through the same check the admin health route already uses does not hold
 on this base; Decision 2 gives the mechanism that is ruled instead.
 
 The project owner ruled out ntfy, webhook and any third-party notifier.
-Service status is instead exposed as a light route on the server, a single line
-on the phone Home screen, and a banner on the admin web page.
+Service status is instead exposed as a light route on the server (built: `StatusRoute.kt:24`), with a single line
+on the phone Home screen and a banner on the admin web page (both planned, not built).
 
 ## Decision
 
@@ -26,9 +26,9 @@ on the phone Home screen, and a banner on the admin web page.
 `{"services":[{"name":"sync-api","up":true},{"name":"whisper-server","up":false},
  ...]}` - service names plus up/down only. No versions, no addresses, no
 errors. It is readable by any signed-in user (not admin-only), token-checked
-like the other routes (401 for a dead/missing/malformed token), rate limited
-like the other routes (the numbers come from the ADR-041 measurement, not from
-this ADR). The admin health route stays admin-only and detailed.
+like the other routes (401 for a dead/missing/malformed token), not rate limited
+(`StatusRoute.kt:23-46` has no limit check; the ADR-041 limits cover register, salt, complete-reset, sync and the older-rows pull, `OlderRoute.kt:44`).
+Whether it should be is not decided here. The admin health route stays admin-only and detailed.
 
 2. **whisper-server state.** The admin health route checks no service, whisper-server
 included (it answers ok whenever an admin token resolves), so the route does not

@@ -8,8 +8,9 @@
 
 Today a row the server refuses for good blocks the whole push queue. The uploader
 answers FAILED, the drain stops at that row, counts one failure, and every row behind
-it waits forever. `android/modules/sync/AGENTS.md` lines 84 and 85 say "until a later
-permanent-refusal path exists", and line 93 says "Not Built Yet".
+it waits forever. `android/modules/sync/AGENTS.md` once said, at lines 84 and 85, "until a later
+permanent-refusal path exists"; that sentence is gone (the path is built:
+`SyncQueueSql.kt:46` `parked_reason`, Decision 5).
 `QueuedSyncService.kt` KDoc "Known gap" lines 99-101 name the same gap. Nothing in the
 phone code tells a permanent refusal from a transient failure.
 

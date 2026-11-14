@@ -46,7 +46,8 @@ Rules in: plain HTTP on the server side; TLS is the admin's choice via a reverse
 
 Rules out: a certificate authority for the admin to run; installing a certificate on the phone by hand as the normal route; a QR code or pairing step for sign-in; any module owning TLS or making certificates.
 
-Honesty: the code accepts plain http for the configured server only (the address rule in the http module, the check of the server engine, and cleartext permitted in the base network config with the manifest in agreement). The address setter, the settings line about an unencrypted connection and the settings screen are decided, not built. Nothing of ADR-032 was built either.
+Honesty: the code accepts plain http for the configured server only (the address rule in the http module, the check of the server engine, and cleartext permitted in the base network config with the manifest in agreement). The address setter (`SettingsScreen.kt:147`), the settings line about an unencrypted connection
+(`SettingsBlocks.kt:221-226`) and the settings screen (`SettingsBlocks.kt:214`) are built. Nothing of ADR-032 was built either.
 
 ## To be designed (not decided here)
 

@@ -20,7 +20,7 @@ brand-new client id is below the account's current key version. Both are mapped 
 `TranscriptionStore.kt:36`, `:50` and `:59` (lower).
 
 `POST /v1/auth/keys` IS built on the server (`AuthKeysRoute.kt`). It calls `AccountStore.storeKeys`
-at `AuthKeysRoute.kt:50`, which raises `key_version` from 0 to 1 at `AccountStore.kt:316`. But no
+at `AuthKeysRoute.kt:50`, which raises `key_version` from 0 to 1 in `STORE_KEYS_SQL` (`AccountStore.kt:506-508`). But no
 client calls `/v1/auth/keys` today. The web FE's `signin-net.js` calls only `/v1/auth/salt`,
 `/v1/auth/login`, `/v1/auth/handoff/start` and `/v1/auth/logout`. The Android auth-client's
 `ServerAuthService` does register, login, logout and devices (`ServerAuthService.kt:75`); the keys upload
