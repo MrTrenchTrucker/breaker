@@ -17,6 +17,7 @@ class AuthFailureTest {
         AuthFailureReason.UNREADABLE_REPLY to "The server's reply could not be read.",
         AuthFailureReason.BAD_SERVER_ADDRESS to "The server address must start with http:// or https://.",
         AuthFailureReason.RATE_LIMITED to "Too many requests. Try again later.",
+        AuthFailureReason.NAME_LOCKED to "Too many wrong tries. Try again later.",
         AuthFailureReason.KEYS_UNREADABLE to "The account keys could not be opened.",
         AuthFailureReason.PUBLIC_KEY_MISMATCH to "The stored account key does not match its public key.",
         AuthFailureReason.KEY_UPLOAD_REFUSED to "The account keys could not be set up.",
@@ -30,9 +31,9 @@ class AuthFailureTest {
         }
     }
 
-    // Re-pointed: the pin lists all fourteen entries of AuthFailureReason, in the enum order.
+    // Re-pointed: the pin lists all fifteen entries of AuthFailureReason, in the enum order.
     @Test
-    fun `the failure has exactly fourteen reasons one for each account outcome`() {
+    fun `the failure has exactly fifteen reasons one for each account outcome`() {
         assertEquals(
             "the failure reasons changed",
             listOf(
@@ -46,6 +47,7 @@ class AuthFailureTest {
                 "UNREADABLE_REPLY",
                 "BAD_SERVER_ADDRESS",
                 "RATE_LIMITED",
+                "NAME_LOCKED",
                 "KEYS_UNREADABLE",
                 "PUBLIC_KEY_MISMATCH",
                 "KEY_UPLOAD_REFUSED",

@@ -58,4 +58,14 @@ class ServerOnlyTooManyCarriesRetryAfterTest {
         assertEquals(AuthFailureReason.USERNAME_TAKEN, thrown.reason)
         assertNull("android_auth_client: a 409 carries no number", thrown.retryAfterSeconds)
     }
+
+    @Test
+    fun `a 423 on login is a locked name with no number even when the header is present`() {
+        val rig = Rig()
+        rig.answerSaltOk()
+        rig.http.answer(423, "", headers = asked)
+        val thrown = assertThrows(AuthFailure::class.java) { rig.service().login("ada", testPassword()) }
+        assertEquals(AuthFailureReason.NAME_LOCKED, thrown.reason)
+        assertNull("android_auth_client: a locked answer carries no number", thrown.retryAfterSeconds)
+    }
 }

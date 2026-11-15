@@ -72,7 +72,7 @@ internal class AuthHostView(
     /** Redraws the three kit segments from [state], keeping the scroll position and both text boxes. */
     private fun show(state: AuthState) {
         val held = scrollY
-        val title = titleOf(state)
+        val title = state.line()
         place(topHolder, title, topSegment())
         place(middleHolder, title, middleSegment())
         place(bottomHolder, title, bottomSegment(state))
@@ -87,14 +87,6 @@ internal class AuthHostView(
             renderer.render(Screen("auth", title, listOf(segment)), theme, ::onIntent),
             FrameLayout.LayoutParams(MATCH, WRAP),
         )
-    }
-
-    /** The screen's title from the state: idle caption, refused/warning line, or busy word. */
-    private fun titleOf(state: AuthState): String = when (state) {
-        is AuthState.Idle -> AuthTexts.IDLE
-        is AuthState.Refused -> AuthTexts.REFUSED
-        is AuthState.Warning -> AuthTexts.WEAK_WARNING
-        is AuthState.Busy -> AuthTexts.BUSY
     }
 
     /** Dispatches a setup action into the handler, redraws it, and handles submit. */
@@ -133,6 +125,12 @@ internal class AuthHostView(
     /** The app's submit attempt has finished; the view returns to idle keeping the same face. */
     override fun submitted(register: Boolean) {
         drawn = handler.submitted()
+        show(drawn)
+    }
+
+    /** The app's submit was refused with [text]; the state carries the line and the view draws it. */
+    override fun refused(register: Boolean, text: String) {
+        drawn = handler.refused(register, text)
         show(drawn)
     }
 
@@ -188,9 +186,9 @@ private fun bottomSegment(state: AuthState): Box {
             add(Action("submit", submitText, intent = ScreenIntent.Setup(AuthNodeIds.SUBMIT)))
             when (state) {
                 is AuthState.Refused ->
-                    add(Label("auth.line", AuthTexts.REFUSED, TypeRole.BODY, PaletteSlot.TEXT_MUTED))
+                    add(Label("auth.line", state.line(), TypeRole.BODY, PaletteSlot.TEXT_MUTED))
                 is AuthState.Warning ->
-                    add(Label("auth.line", AuthTexts.WEAK_WARNING, TypeRole.BODY, PaletteSlot.ACCENT))
+                    add(Label("auth.line", state.line(), TypeRole.BODY, PaletteSlot.ACCENT))
                 else -> {}
             }
         },

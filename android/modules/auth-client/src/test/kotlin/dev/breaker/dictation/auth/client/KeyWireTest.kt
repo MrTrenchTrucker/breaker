@@ -90,9 +90,9 @@ class KeyWireTest {
     }
 
     @Test
-    fun `all fourteen reasons have distinct non empty sentences`() {
+    fun `every reason has its own non empty sentence`() {
         val reasons = AuthFailureReason.values()
-        assertEquals("number of reasons", 14, reasons.size)
+        assertEquals("number of reasons", 15, reasons.size)
         val sentences = reasons.map { AuthFailure(it).message ?: "" }
         assertTrue("an empty sentence: " + sentences, sentences.all { it.isNotBlank() })
         assertEquals("distinct sentences", sentences.size, sentences.toSet().size)

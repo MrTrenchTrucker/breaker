@@ -68,6 +68,14 @@ interface AuthControl {
 
     /** The app's submit attempt has finished; the view returns to idle keeping the same face. */
     fun submitted(register: Boolean)
+
+    /**
+     * The app's submit was refused with [text]; the view shows that line on the [register] face.
+     * The default returns to idle, so a control that shows no line keeps the old behaviour.
+     */
+    fun refused(register: Boolean, text: String) {
+        submitted(register)
+    }
 }
 
 /** What the view from [createSignInStartView] answers to the app. */

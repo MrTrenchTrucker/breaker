@@ -99,6 +99,13 @@ internal class AuthIntentHandler(
         return state
     }
 
+    /** Moves the state to refused with [text] on the [register] face, carrying the app's line. */
+    fun refused(register: Boolean, text: String): AuthState {
+        this.register = register
+        state = AuthState.Refused(register, text)
+        return state
+    }
+
     /** The shake surface the current state carries, for the masked-then-shaken look. */
     fun shakeMs(): Long? = state.shakeMs
 
