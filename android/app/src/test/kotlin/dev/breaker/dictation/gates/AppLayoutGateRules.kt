@@ -18,7 +18,7 @@ open class AppLayoutGateRules {
 
     /** Main files that touch no Android type, by path below the package folder. */
     protected val plainFiles: Set<String> = setOf(
-        "AppStartPurge.kt", "BreakerCompositionRoot.kt", "FileCredentialRefHolder.kt", "PurgeScope.kt", "SystemClockAdapter.kt", "AutomaticTimeOn.kt", "PurgeBookkeepingStore.kt", "PurgeGuard.kt", "StartUpSequence.kt",
+        "AppStartPurge.kt", "BreakerCompositionRoot.kt", "FileCredentialRefHolder.kt", "PurgeScope.kt", "SystemClockAdapter.kt", "AutomaticTimeOn.kt", "PurgeBookkeepingStore.kt", "PurgeGuard.kt", "StartUpSequence.kt", "ServiceStatusHomeWire.kt",
         "service/DictationServiceController.kt", "service/NotificationRoute.kt", "service/ReportingMicSource.kt",
         "service/ServiceStartDecision.kt", "service/ServiceStartHandler.kt", "service/ServiceTypes.kt",
         "wiring/DictationComponent.kt", "wiring/DictationRunner.kt", "wiring/Insets.kt", "wiring/LazyHistoryStore.kt", "wiring/FirstRunDoneStore.kt",
@@ -45,6 +45,7 @@ open class AppLayoutGateRules {
         "wiring/KeysClearingSessionVault.kt",
         "host/ServiceRefusalNotice.kt",
         "wiring/SyncHttpUploader.kt", "wiring/SyncScheduler.kt", "wiring/SyncWorker.kt", "wiring/SyncingHistoryStore.kt",
+        "wiring/ServiceStatusAsker.kt", "wiring/ServiceStatusJson.kt", "wiring/ServiceStatusProbe.kt", "wiring/ServiceStatusSchedule.kt", "wiring/ServiceStatusHome.kt",
         "wiring/PullHttpTransport.kt", "wiring/PullChainWiring.kt",
         "wiring/OlderRowsTransport.kt", "wiring/OlderRowsWiring.kt",
         "wiring/ProbeRefreshingSettingsStore.kt",

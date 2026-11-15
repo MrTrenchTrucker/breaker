@@ -52,6 +52,15 @@ internal class FakeDelayedPost : DelayedPost {
 
     /** The posts that are neither cancelled nor run. */
     fun live(): Int = posts.count { !it.cancelled && !it.fired }
+
+    /**
+     * Runs the newest post even when it is cancelled or already run: a callback that was not taken
+     * back in time, which is what a pause that failed to cancel would leave behind.
+     */
+    fun fireStale() {
+        val post = posts.lastOrNull() ?: throw IllegalStateException("no post to fire")
+        post.block()
+    }
 }
 
 internal class NoticeClearingTilePortTest {

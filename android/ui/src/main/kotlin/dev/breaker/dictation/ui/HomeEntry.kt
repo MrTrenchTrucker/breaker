@@ -143,6 +143,16 @@ interface HomeControl {
      */
     fun closeMenu(): Boolean = false
 
+    /**
+     * Shows the service-status line for the answer the app gives: [services] is the reply's names
+     * and up/down (null when there is no reply), [failed] says the ask itself failed, and [asked]
+     * says the app asked at all. The words are this module's, so the app never writes them; there
+     * is no line when [asked] is false or the reply lists nothing to report.
+     */
+    fun showServiceStatus(services: List<Pair<String, Boolean>>?, failed: Boolean, asked: Boolean) {
+        showLine(serviceStatusLine(services, failed, asked))
+    }
+
     /** The words the app hands the Home mic, read from the screen's own texts so they exist once. */
     companion object {
         /** What a screen reader reads for the idle mic. */
