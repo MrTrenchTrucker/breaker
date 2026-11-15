@@ -94,6 +94,7 @@ screens render with ui-tokens; light/dark toggle persists.
   server address box, the API key value, and the speech model row.
 
 - Built (ADR-033): Settings draws a quiet signed-out notice and a Sign in action while `sessionLive` is false, from the reader the app passes in. The tap reports `HomeActions.SIGN_IN` and the host calls the app's answer. Home no longer draws the block. This module opens no sign-in screen by itself and nothing here blocks dictation, history or settings when the user is signed out.
+- Built (ADR-044): the Home screen shows one service-status line, and only when there is one. `HomeControl.showServiceStatus(services, failed, asked)` takes the app's plain facts - the reply's names and up/down, whether the ask itself failed and whether it asked at all - and `serviceStatusLine` turns them into the one line through `decideServiceStatus` and the words in `ServiceStatusTexts`; the app never writes the line. No line (null, never an empty string and never a placeholder) when the app did not ask or the reply lists nothing to report. Not built: the admin web banner of ADR-044.
 
 ## Does Not Own
 - Business logic (core)

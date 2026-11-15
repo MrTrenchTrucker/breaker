@@ -153,6 +153,7 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         super.onResume()
         val app = applicationContext as BreakerApp
         app.tileHost.setDownloadListener(this)
+        app.serviceStatusHome().onResume(homeView as? dev.breaker.dictation.ui.HomeControl)
         when {
             firstRunShown -> downloadControlOf(true, firstRunView, settingsView)?.refresh()
             settingsShown -> downloadControlOf(false, firstRunView, settingsView)?.refresh()
@@ -169,6 +170,7 @@ class SettingsLauncherActivity : android.app.Activity(), ModelDownloadNotice {
         super.onPause()
         val app = applicationContext as BreakerApp
         app.tileHost.setDownloadListener(null)
+        app.serviceStatusHome().onPause()
     }
     override fun onDestroy() {
         homeLevelSink?.let { (applicationContext as BreakerApp).tileHost.removeHomeLevelSink(it) }

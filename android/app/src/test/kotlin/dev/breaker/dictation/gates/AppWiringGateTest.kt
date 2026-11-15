@@ -69,7 +69,7 @@ internal class AppWiringGateTest {
         Rule("COMPONENT_GETS_SERVICE_CONTROLLER", root, """\bcontroller\s*=\s*serviceController(?=\s*[,)])"""),
         Rule("ONRESUME_REGISTERS_THE_DOWNLOAD_LISTENER", activity, """\boverride\s+fun\s+onResume\s*\(\s*\)\s*\{\s*super\s*\.\s*onResume\s*\(\s*\)\s*val\s+app\s*=\s*applicationContext\s+as\s+BreakerApp\s+app\s*\.\s*tileHost\s*\.\s*setDownloadListener\s*\(\s*this\s*\)\s*"""),
         Rule("ONRESUME_REGISTERS_THE_DOWNLOAD_LISTENER_AND_REFRESHES", activity, """\boverride\s+fun\s+onResume\s*\(\s*\)\s*\{\s*super\s*\.\s*onResume\s*\(\s*\)\s*val\s+app\s*=\s*applicationContext\s+as\s+BreakerApp\s+app\s*\.\s*tileHost\s*\.\s*setDownloadListener\s*\(\s*this\s*\)[\s\S]*?\bsettingsShown\s*->\s*downloadControlOf\s*\(\s*false\s*,\s*firstRunView\s*,\s*settingsView\s*\)\s*\?\.\s*refresh\s*\(\s*\)"""),
-        Rule("ONPAUSE_CLEARS_THE_DOWNLOAD_LISTENER", activity, """\boverride\s+fun\s+onPause\s*\(\s*\)\s*\{\s*super\s*\.\s*onPause\s*\(\s*\)\s*val\s+app\s*=\s*applicationContext\s+as\s+BreakerApp\s+app\s*\.\s*tileHost\s*\.\s*setDownloadListener\s*\(\s*null\s*\)\s*\}"""),
+        Rule("ONPAUSE_CLEARS_THE_DOWNLOAD_LISTENER", activity, """\boverride\s+fun\s+onPause\s*\(\s*\)\s*\{\s*super\s*\.\s*onPause\s*\(\s*\)\s*val\s+app\s*=\s*applicationContext\s+as\s+BreakerApp\s+app\s*\.\s*tileHost\s*\.\s*setDownloadListener\s*\(\s*null\s*\)\s*app\s*\.\s*serviceStatusHome\s*\(\s*\)\s*\.\s*onPause\s*\(\s*\)\s*\}"""),
         Rule("TILE_HOST_WIRES_ONCLOSE_REQUESTED", host, """\bonCloseRequested\s*=\s*\{\s*toCoordinator\s*\{\s*it\s*\.\s*onCloseRequested\s*\(\s*\)\s*\}\s*\}"""),
     )
 
