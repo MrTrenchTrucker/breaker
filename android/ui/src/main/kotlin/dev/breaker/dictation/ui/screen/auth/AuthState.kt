@@ -36,6 +36,17 @@ internal sealed class AuthState {
         else -> null
     }
 
+    /**
+     * The line the screen shows for this state: the text a refusal carries when it is set, and the
+     * fixed words otherwise. The `when` is exhaustive over the sealed type.
+     */
+    fun line(): String = when (this) {
+        is Idle -> AuthTexts.IDLE
+        is Refused -> text.ifBlank { AuthTexts.REFUSED }
+        is Warning -> AuthTexts.WEAK_WARNING
+        is Busy -> AuthTexts.BUSY
+    }
+
     /** A state's own label, which never names a password or carries the typed text. */
     final override fun toString(): String = when (this) {
         is Idle -> "Idle(register=$register)"

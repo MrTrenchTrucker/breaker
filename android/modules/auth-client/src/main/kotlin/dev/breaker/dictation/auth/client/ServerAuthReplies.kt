@@ -34,10 +34,11 @@ internal object ServerAuthReplies {
         else -> throw AuthFailure(AuthFailureReason.SERVER_ERROR)
     }
 
-    /** The login reply: 200 is parsed, 401 means bad credentials, 429 is rate limited, any other status is a server error. */
+    /** The login reply: 200 is parsed, 401 means bad credentials, 423 is a locked name, 429 is rate limited, any other status is a server error. */
     fun login(reply: AuthHttpReply): LoginResponse = when (reply.status) {
         200 -> parsedLogin(reply)
         401 -> throw AuthFailure(AuthFailureReason.BAD_CREDENTIALS)
+        423 -> throw AuthFailure(AuthFailureReason.NAME_LOCKED)
         429 -> throw AuthFailure(AuthFailureReason.RATE_LIMITED, retryAfterSeconds(reply.headers))
         else -> throw AuthFailure(AuthFailureReason.SERVER_ERROR)
     }

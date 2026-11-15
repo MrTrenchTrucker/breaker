@@ -1,6 +1,7 @@
 package dev.breaker.dictation.wiring
 
 import dev.breaker.dictation.BreakerCompositionRoot
+import dev.breaker.dictation.auth.client.AuthFailure
 import dev.breaker.dictation.core.port.AuthService
 import dev.breaker.dictation.core.port.SettingsStore
 import dev.breaker.dictation.host.MainLooperPost
@@ -19,9 +20,10 @@ import dev.breaker.dictation.ui.AuthControl
  *
  * Takes a Background so the service call runs off the main thread: [main] posts only the updates that follow. On
  * success it sets the state live and posts submitted(register); on any Exception it sets the state not live and
- * posts submitted(register) so the view returns to idle on the same face; the failure never reaches the user as a
- * crash. The array the view hands over is passed straight to the service, copied or stored nowhere. [onSettled]
- * is told the new live state after each submit settles, on the main post.
+ * posts submitted(register) so the view returns to idle on the same face, or refused(register, line) when the
+ * failure carries a line of its own; the failure never reaches the user as a crash. The array the view hands over
+ * is passed straight to the service, copied or stored nowhere. [onSettled] is told the new live state after each
+ * submit settles, on the main post.
  */
 internal class SignInSubmitHandler(
     private val authService: AuthService,
@@ -38,17 +40,20 @@ internal class SignInSubmitHandler(
     fun submit(username: String, password: CharArray, register: Boolean) {
         background.submit {
             var live = false
+            var line: String? = null
             try {
                 if (register) authService.register(username, password) else authService.login(username, password)
                 live = true
             } catch (failure: Exception) {
-                // The failure never reaches the user as a crash; the state and the view settle on the main post.
+                // The failure never reaches the user as a crash; a locked name carries its line to the view.
+                if (failure is AuthFailure) line = shownLineFor(failure)
             } finally {
                 password.fill('\u0000')
             }
             main.post {
                 state.setLive(live)
-                authControl?.submitted(register)
+                val refused = line
+                if (refused != null) authControl?.refused(register, refused) else authControl?.submitted(register)
                 onSettled?.invoke(live)
             }
         }
