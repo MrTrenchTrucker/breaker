@@ -6,7 +6,7 @@ Daily update check + admin force-check, signed APK verify, rollback. Keep Breake
 install signed APKs. A proper rebuild of the deleted in-app updater [1]: pointed
 at OUR server, signing key secured (never git) [1].
 
-**Build phase:** Phase 16. Needs first: `core` (on main) and the Phase 15 git-pull deploy pipeline (`server/modules/deploy`), because the update endpoint reads its tagged releases.
+**Build phase:** Phase 16. Needs first: `core` (on main) and the Phase 15 git-pull deploy pipeline (`server/modules/deploy`), because the update endpoint reads a release manifest file that the release process writes (ADR-011, amendment of 2026-11-10).
 
 **Status on main:** eleven pieces are built, all internal, pure Kotlin, with tests in `src/test/kotlin`: the
 due decision `UpdateSchedule.isDue(lastCheckAtMs, nowMs)`, the version order `UpdateOrder.isNewer`, the

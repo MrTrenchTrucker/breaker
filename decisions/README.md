@@ -91,8 +91,8 @@ existing ADR can then change: amended in place, or superseded by a new one.
 | [ADR-038](ADR-038-permanent-refusal-parks-the-row.md) | Permanent refusal parks the row | accepted by the manager; built; 409 is decided in ADR-039 |
 | [ADR-039](ADR-039-a-409-on-the-sync-push.md) | What a 409 on the sync push should do | accepted by the manager; no code now |
 | [ADR-040](ADR-040-the-website-uses-noble-for-key-derivation-and-the-sealed-box.md) | The website uses noble for key derivation and the sealed box | accepted; first task is a phone timing |
-| [ADR-041](ADR-041-rate-limits-on-the-open-sync-api-routes.md) | Rate limits on the open sync-api routes, keyed by source address | proposed; no code, numbers come from a measurement |
-| [ADR-042](ADR-042-network-model-vpn-or-private-bind.md) | Network model — VPN or private bind only, ordered server addresses | accepted; no code enforces it yet |
+| [ADR-041](ADR-041-rate-limits-on-the-open-sync-api-routes.md) | Rate limits on the open sync-api routes, keyed by source address | accepted (built); the limits are code constants and may be tuned later |
+| [ADR-042](ADR-042-network-model-vpn-or-private-bind.md) | Network model — VPN or private bind only, ordered server addresses | accepted; code enforces part of it |
 | [ADR-043](ADR-043-registration-lock-and-first-admin-install-code.md) | Registration lock — first account is admin, install code required | accepted; registration switch and install code not built yet |
 | [ADR-044](ADR-044-service-status.md) | Service status route - signed-in users see which services are up | accepted; the server route GET /v1/status is built, the phone Home line is not |
 | [ADR-045](ADR-045-permission-revoke-on-foreground-return.md) | Re-check permission state on return to foreground; treat kill-on-revoke as a fresh start | accepted |

@@ -469,7 +469,7 @@ ends it.
 - **OPEN defects (ADR-026):** X and check not tappable while recording (blocker); Home lacks
   the tile's mic-busy and sending faces (same signal required); late transcript on Home;
   Settings narrower than Home on the phone (not reproduced on the emulator); Home mic ignores the stored theme (`setTheme` has no caller).
-- **Spoken Send (F5, ADR-029), PLANNED:** app class `PhraseSendHandler` alone owns detector
+- **Spoken Send (F5, ADR-029), BUILT (off):** app class `PhraseSendHandler` alone owns detector
   start/stop, the audio tee and the one-Send-per-take gate; a hit submits `finish(trimBeforeMs)`
   to the take worker. The app -> phrases edge lands with that code.
 
@@ -529,7 +529,7 @@ Show all / Hide (the first-card stretch is fixed in main: the render layer's emp
 OPEN robustness defect H: a stored history row whose `source` is neither `local` nor `server`
 makes `TranscriptionRow` throw `MappingFailure`, which crashes the activity at launch; where such a row
 comes from is unknown.
-**On-phone data (ADR-028, proposed):** model, settings and history are app-private; an update
+**On-phone data (ADR-028, accepted):** model, settings and history are app-private; an update
 must keep all three. An in-place 6 to 8 update keeps them (emulator test); APKs 1-5 had different signing keys, so 5 to 6 needed an uninstall (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`); APKs 6, 7 and 8 share certificate a8225bc3. The project owner's loss is not reproduced. An uninstall removes everything (project owner, ADR-028 Decision 2); the manifest change that stops Auto Backup restoring data is BUILT (`allowBackup=false` and rules files that exclude every domain).
 
 **Sync (F13):** a sync queue pushes pending transcriptions to the server whenever
@@ -620,7 +620,7 @@ expired or revoked session, or a key the server refused) nothing forces the
 user anywhere. The app keeps working offline exactly as it does today, and the
 Settings tab shows a quiet notice with a way to sign in.
 
-**Onboarding:** register → download APK → sign in (on the Breaker website, which hands the login to the app: ADR-036, planned, not built) → train phrases → grant permissions → enable high-power mode → GTG.
+**Onboarding:** register → download APK → sign in (on the Breaker website, which hands the login to the app: ADR-036, built, switched off) → train phrases → grant permissions → enable high-power mode → GTG.
 
 **Roles (F22):** two roles — `admin` and `user`. The **first account to register**
 is **admin by default**. Admins can: assign/revoke admin on other accounts,
