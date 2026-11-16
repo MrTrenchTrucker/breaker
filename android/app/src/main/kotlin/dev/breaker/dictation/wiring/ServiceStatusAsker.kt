@@ -24,7 +24,7 @@ sealed interface ServiceStatusAnswer {
  *
  * This app supplies [ServiceStatusProbe] over the existing HttpTransport, and a test supplies a
  * fake. The port returns [ServiceStatusAnswer], never a sentence: the sentence belongs to the home
- * screen (the S-1 decision), and the asker must not be the one that writes it.
+ * screen, which owns the words by the decision taken when this port was drawn, and the asker must not be the one that writes it.
  */
 fun interface ServiceStatusAsker {
     /** Asks once and returns the answer. It never throws: a failed ask is [ServiceStatusAnswer.Failed]. */

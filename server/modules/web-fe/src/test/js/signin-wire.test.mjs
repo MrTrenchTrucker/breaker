@@ -10,7 +10,6 @@ import {
 } from './signin-fixtures.mjs';
 
 const SIGNED_IN = 'Signed in. Returning to the app.';
-const LOCKED_90 = 'The account is locked after too many wrong tries, so try again in 90 seconds.';
 const ROUTES = ['/v1/auth/salt', '/v1/auth/login', '/v1/auth/handoff/start', '/v1/auth/logout'];
 
 // Mounts the page with the real network and the real flow, runs one submit, and returns the mounted page.
@@ -91,9 +90,10 @@ test('a 401 at login gives the generic message and no logout', async () => {
   assert.deepEqual(m.loc.replaced, []);
 });
 
-test('a 423 with Retry-After text 90 shows 90 seconds', async () => {
+test('a 423 with Retry-After text 90 still shows only the plain locked sentence', async () => {
   const m = await run({ '/v1/auth/login': async () => response(423, null, '90') });
-  assert.equal(m.els['signin-status'].textContent, LOCKED_90);
+  assert.equal(m.els['signin-status'].textContent, MESSAGES.locked);
+  assert.equal(/[0-9]/.test(m.els['signin-status'].textContent), false);
   assert.deepEqual(m.calls.map((call) => call.url), ['/v1/auth/salt', '/v1/auth/login']);
 });
 

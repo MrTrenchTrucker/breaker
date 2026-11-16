@@ -41,8 +41,8 @@ test('getSalt sends the exact POST with no authorization and returns status and 
   assert.deepEqual(answer, { status: 200, body: { salt: 'abc' } });
 });
 
-test('login sends the username and the verifier and passes the Retry-After text through', async () => {
-  const { fetchFn, calls } = recordingFetch(fakeResponse({ status: 423, text: '{"error":"locked"}', retryAfter: '30' }));
+test('login sends the username and the verifier and ignores a Retry-After header of 90', async () => {
+  const { fetchFn, calls } = recordingFetch(fakeResponse({ status: 423, text: '{"error":"locked"}', retryAfter: '90' }));
   const answer = await createNet(fetchFn).login(usernameText, verifierText);
   assert.equal(calls[0].url, '/v1/auth/login');
   assert.equal(calls[0].init.method, 'POST');
@@ -50,20 +50,21 @@ test('login sends the username and the verifier and passes the Retry-After text 
   assert.equal(calls[0].init.credentials, 'omit');
   assert.equal(calls[0].init.cache, 'no-store');
   assert.equal(calls[0].init.body, JSON.stringify({ username: usernameText, auth_verifier: verifierText }));
-  assert.deepEqual(answer, { status: 423, body: { error: 'locked' }, retryAfter: '30' });
+  assert.deepEqual(answer, { status: 423, body: { error: 'locked' } });
+  assert.equal('retryAfter' in answer, false);
 });
 
-test('login gives a null Retry-After when the header is absent', async () => {
+test('login returns exactly status and body when the Retry-After header is absent', async () => {
   const { fetchFn } = recordingFetch(fakeResponse({ text: '{"token":"t"}' }));
   const answer = await createNet(fetchFn).login(usernameText, verifierText);
-  assert.equal(answer.retryAfter, null);
-  assert.deepEqual(answer, { status: 200, body: { token: 't' }, retryAfter: null });
+  assert.deepEqual(answer, { status: 200, body: { token: 't' } });
+  assert.equal('retryAfter' in answer, false);
 });
 
 test('getSalt and login give a null body when the response is not JSON', async () => {
   const net = createNet(recordingFetch(fakeResponse({ status: 500, text: 'plain words' })).fetchFn);
   assert.deepEqual(await net.getSalt(usernameText), { status: 500, body: null });
-  assert.deepEqual(await net.login(usernameText, verifierText), { status: 500, body: null, retryAfter: null });
+  assert.deepEqual(await net.login(usernameText, verifierText), { status: 500, body: null });
 });
 
 test('startHandoff sends exactly the two keys and the bearer token', async () => {

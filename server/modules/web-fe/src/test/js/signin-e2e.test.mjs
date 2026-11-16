@@ -115,7 +115,7 @@ function setup(changes = {}) {
     login: async (username, verifierBase64) => {
       rec.login.push({ username, verifierBase64 });
       rec.log.push('login');
-      return { status: 200, retryAfter: null, body: replyBody(changes) };
+      return { status: 200, body: replyBody(changes) };
     },
     boxPublicKey: async (boxPrivateKey) => {
       rec.log.push('box');

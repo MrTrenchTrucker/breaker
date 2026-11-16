@@ -57,7 +57,7 @@ behavior on purpose, confirm the test fails and says why, then restore the code.
 
 ## Known Gotchas
 - `SealVectorData.kt` is a literal copy of the `seal`/`seal_refusals` rows of
-  `CryptoVectorData.kt`; the Python oracle (S-4) proves the copy equals
+  `CryptoVectorData.kt`; the Python oracle written to compare this copy with the JSON proves the copy equals
   `examples/crypto_vectors.json`. Do not reformat a hex string.
 - The module cannot import `CryptoRefused` (android/modules/core); the phone wrapper maps
   `SealRefused` back.

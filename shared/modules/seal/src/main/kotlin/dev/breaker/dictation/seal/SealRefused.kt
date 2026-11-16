@@ -8,6 +8,6 @@ package dev.breaker.dictation.seal
  * `CryptoRefused` (android/modules/core) and carries its own plain refusal instead. It is
  * one plain refusal on purpose: it carries no reason, so a caller cannot learn which check
  * failed, and its message never contains a key, a byte or any text that was protected.
- * The phone's thin `SealedBoxOpener` wrapper maps it back to `CryptoRefused` (S-3).
+ * The phone's thin `SealedBoxOpener` wrapper maps it back to `CryptoRefused`, the mapping that wrapper was added to do.
  */
 class SealRefused : IllegalArgumentException("Sealed box operation refused")
