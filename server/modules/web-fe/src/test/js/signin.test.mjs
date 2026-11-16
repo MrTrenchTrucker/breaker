@@ -94,7 +94,7 @@ test('two runs in a row do not share state', async () => {
   const { signin, rec } = readySignin({
     login: async () => {
       logins += 1;
-      return logins === 1 ? loginAnswer() : { status: 401, retryAfter: null, body: null };
+      return logins === 1 ? loginAnswer() : { status: 401, body: null };
     },
   });
   assert.deepEqual(await signin.run(makeInput()), { ok: true });

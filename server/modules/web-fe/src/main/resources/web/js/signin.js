@@ -10,7 +10,7 @@ import {
 const BOX_PURPOSE_PARTS = Object.freeze(['breaker', 'box', 'privkey', 'v1']);
 const BOX_KEY_PURPOSE = new TextEncoder().encode(BOX_PURPOSE_PARTS.join('-'));
 
-// One plain sentence per result code. A locked answer with a usable wait uses lockedMessage instead.
+// One plain sentence per result code. Every result code has one plain sentence, and a locked answer always uses MESSAGES.locked.
 export const MESSAGES = Object.freeze({
   bad_link: 'This sign-in link is not valid, so start the sign-in again from the app.',
   bad_credentials: 'The username or the password is not right.',
@@ -86,15 +86,6 @@ function sameBytes(a, b) {
   let diff = 0;
   for (let i = 0; i < a.length; i += 1) diff |= a[i] ^ b[i];
   return diff === 0;
-}
-
-// Shows the wait only when Retry-After is text of digits, a whole number and at least one second.
-function lockedMessage(retryAfter) {
-  if (typeof retryAfter !== 'string' || !/^[0-9]+$/.test(retryAfter)) return MESSAGES.locked;
-  const seconds = Number(retryAfter);
-  if (!Number.isSafeInteger(seconds) || seconds < 1) return MESSAGES.locked;
-  const unit = seconds === 1 ? 'second' : 'seconds';
-  return 'The account is locked after too many wrong tries, so try again in ' + seconds + ' ' + unit + '.';
 }
 
 function unwrapKeys(cur, kek, wrappedDek, wrappedBox) {
@@ -174,7 +165,7 @@ export function createSignin(deps) {
     checkOpen(cur);
     const status = field(answer, 'status');
     if (status === 401) stop('bad_credentials');
-    if (status === 423) stop('locked', lockedMessage(field(answer, 'retryAfter')));
+    if (status === 423) stop('locked');
     const body = field(answer, 'body') || {};
     if (status !== 200 || typeof body.token !== 'string' || body.token === '') stop('network');
     cur.token = body.token;

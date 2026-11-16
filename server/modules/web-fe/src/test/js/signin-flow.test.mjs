@@ -17,14 +17,9 @@ async function refused(overrides, code, input = makeInput()) {
   return { result, rec, input };
 }
 
-async function lockedWith(retryAfter) {
-  const { signin } = readySignin({ login: async () => ({ status: 423, retryAfter, body: null }) });
-  return signin.run(makeInput());
-}
-
 test('salt route 404 gives bad credentials with the same message as a 401 login', async () => {
   const salt = await refused({ getSalt: async () => ({ status: 404, body: null }) }, 'bad_credentials');
-  const login = await refused({ login: async () => ({ status: 401, retryAfter: null, body: null }) }, 'bad_credentials');
+  const login = await refused({ login: async () => ({ status: 401, body: null }) }, 'bad_credentials');
   assert.equal(salt.result.message, login.result.message);
   assert.equal(salt.rec.derive.length, 0);
   assert.equal(login.rec.seal.length, 0);
@@ -98,35 +93,15 @@ test('derive answer with a missing verifier gives derive refused and zeroes the 
   assert.equal(rec.login.length, 0);
 });
 
-test('423 with retry after 90 shows 90 seconds', async () => {
-  const result = await lockedWith('90');
-  assert.equal(result.code, 'locked');
-  assert.equal(result.message, 'The account is locked after too many wrong tries, so try again in 90 seconds.');
-});
-
-test('423 with retry after 1 shows 1 second', async () => {
-  const result = await lockedWith('1');
-  assert.equal(result.message, 'The account is locked after too many wrong tries, so try again in 1 second.');
-});
-
-for (const [name, retryAfter] of [['zero', '0'], ['text', 'soon'], ['a fraction', '1.5'], ['no header', null]]) {
-  test('423 with retry after ' + name + ' shows the locked message without a number', async () => {
-    const result = await lockedWith(retryAfter);
-    assert.equal(result.code, 'locked');
-    assert.equal(result.message, MESSAGES.locked);
-    assert.equal(/[0-9]/.test(result.message), false);
-  });
-}
-
 test('login 401 gives bad credentials and the derive has run but nothing after it', async () => {
-  const { rec } = await refused({ login: async () => ({ status: 401, retryAfter: null, body: null }) }, 'bad_credentials');
+  const { rec } = await refused({ login: async () => ({ status: 401, body: null }) }, 'bad_credentials');
   assert.equal(rec.derive.length, 1);
   assert.equal(rec.box.length, 0);
   assert.equal(rec.seal.length, 0);
 });
 
 test('login status 500 gives network', async () => {
-  await refused({ login: async () => ({ status: 500, retryAfter: null, body: null }) }, 'network');
+  await refused({ login: async () => ({ status: 500, body: null }) }, 'network');
 });
 
 test('login that throws gives network', async () => {
@@ -262,21 +237,6 @@ test('a refusal at the handoff start wipes every key array', async () => {
   for (const ref of [...rec.kekRefs, ...rec.verifierRefs, ...rec.boxRefs, ...rec.sealRefs]) {
     assert.equal(isZero(ref), true);
   }
-});
-
-test('423 with retry after given as a number shows the locked message without a number', async () => {
-  const result = await lockedWith(90);
-  assert.equal(result.message, MESSAGES.locked);
-});
-
-test('423 with retry after in hex text shows the locked message without a number', async () => {
-  const result = await lockedWith('0x1A');
-  assert.equal(result.message, MESSAGES.locked);
-});
-
-test('423 with a retry after value too large to count shows no number', async () => {
-  const result = await lockedWith('9'.repeat(20));
-  assert.equal(result.message, MESSAGES.locked);
 });
 
 test('salt answer with status 200 and no body gives bad credentials', async () => {

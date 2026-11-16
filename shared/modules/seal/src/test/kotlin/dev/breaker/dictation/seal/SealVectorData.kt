@@ -3,7 +3,7 @@ package dev.breaker.dictation.seal
 // Literal vectors for the sealed box: the `seal` and `seal_refusals` rows of
 // examples/crypto_vectors.json, copied exactly from the phone's CryptoVectorData.kt.
 // The VALUES are the same: same names, same hex. Hex is lower case. The Python oracle
-// (tests/unit/shared/api-contracts/test_seal_vectors.py, S-4) proves this copy equals the JSON.
+// (tests/unit/shared/api-contracts/test_seal_vectors.py, the oracle added to check this copy) proves this copy equals the JSON.
 
 internal class SealVector(
     val name: String,

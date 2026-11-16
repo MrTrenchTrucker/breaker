@@ -65,7 +65,7 @@ test('login status 401 with a token body never calls logout', () =>
   assertNoLogout({ login: async () => ({ ...loginAnswer(), status: 401 }) }, 'bad_credentials'));
 
 test('login status 423 with a token body never calls logout', () =>
-  assertNoLogout({ login: async () => ({ ...loginAnswer(), status: 423, retryAfter: '30' }) }, 'locked'));
+  assertNoLogout({ login: async () => ({ ...loginAnswer(), status: 423 }) }, 'locked'));
 
 test('login status 500 with a token body never calls logout', () =>
   assertNoLogout({ login: async () => ({ ...loginAnswer(), status: 500 }) }, 'network'));

@@ -58,7 +58,6 @@ export function saltAnswer(body = {}) {
 export function loginAnswer(body = {}) {
   return {
     status: 200,
-    retryAfter: null,
     body: {
       token: sessionText,
       wrapped_dek: encodeBase64Padded(wrapped(KEK, DEK)),

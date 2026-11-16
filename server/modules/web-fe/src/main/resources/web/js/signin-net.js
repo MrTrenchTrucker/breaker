@@ -29,8 +29,7 @@ export function createNet(fetchFn) {
 
   async function login(username, verifierBase64) {
     const response = await post('/v1/auth/login', { username, auth_verifier: verifierBase64 });
-    const retryAfter = response.headers.get('Retry-After') ?? null;
-    return { status: response.status, body: await readBody(response), retryAfter };
+    return { status: response.status, body: await readBody(response) };
   }
 
   async function startHandoff(challenge, sealedBase64, token) {
