@@ -1,11 +1,9 @@
 package dev.breaker.dictation.wiring
 
 import dev.breaker.dictation.auth.client.AddressedSession
-import dev.breaker.dictation.core.model.AppSettings
 import dev.breaker.dictation.core.model.AuthSession
 import dev.breaker.dictation.core.model.TokenScope
 import dev.breaker.dictation.core.model.UserRole
-import dev.breaker.dictation.core.port.SettingsStore
 import dev.breaker.dictation.http.BytesReply
 import dev.breaker.dictation.http.CallLimits
 import dev.breaker.dictation.http.CallMethod
@@ -20,7 +18,7 @@ import java.io.IOException
 
 /**
  * The pull wiring test: PullChainWiring.pullTransport builds PullHttpTransport from the same
- * pieces the sync uploader uses (JdkHttpTransport over settingsStore.load().serverUrl, the pull
+ * pieces the sync uploader uses (JdkHttpTransport over the effective address provider, the pull
  * CallLimits, one addressed session per call). BreakerApp.kt itself never names PullHttpTransport,
  * so the pull-transport gate test stays green.
  */
@@ -53,14 +51,9 @@ class PullChainWiringTest {
             throw UnsupportedOperationException("open is not used by the pull wiring")
     }
 
-    private fun settingsStore(serverUrl: String): SettingsStore = object : SettingsStore {
-        override fun load() = AppSettings(serverUrl = serverUrl)
-        override fun save(settings: AppSettings) {}
-    }
-
     private fun wired(transport: FakeTransport, base: String = BASE,
                       supplier: () -> AddressedSession? = { session(base) }): PullHttpTransport =
-        pullTransport(settingsStore(base), supplier, transport) as PullHttpTransport
+        pullTransport({ base }, supplier, transport) as PullHttpTransport
 
     private fun answered(result: PullTransportResult): PullTransportResult.Answered {
         assertTrue("android_app: expected Answered, got a different result", result is PullTransportResult.Answered)

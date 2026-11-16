@@ -19,7 +19,6 @@ import dev.breaker.dictation.core.model.WakeGestureMode
 import dev.breaker.dictation.ui.screen.TextAlign
 import dev.breaker.dictation.ui.screen.TrimStripe
 import dev.breaker.dictation.ui.screen.TypeRole
-import dev.breaker.dictation.ui.screen.ValueField
 import dev.breaker.dictation.ui.screen.onboarding.SetupTexts
 import dev.breaker.dictation.ui.theme.PaletteSlot
 import dev.breaker.dictation.ui.theme.ThemeState
@@ -87,6 +86,12 @@ internal object SettingsIds {
     const val SERVER_LABEL = "settings.server.label"
     const val SERVER_FIELD = "settings.server.field"
     const val PLAIN_HTTP_LINE = "settings.server.plainHttp"
+
+    /** The action names of a server row's controls, used in their node ids. */
+    const val SERVER_ACTION_REMOVE = "remove"
+    const val SERVER_ACTION_MOVE_UP = "up"
+    const val SERVER_ACTION_MOVE_DOWN = "down"
+
     const val API_KEY_ROW = "settings.apiKey"
     const val API_KEY_LABEL = "settings.apiKey.label"
     const val API_KEY_VALUE = "settings.apiKey.value"
@@ -188,47 +193,18 @@ internal fun wakeGestureBlock(held: AppSettings): Box = Box(
 )
 
 /**
- * The model and server block: the speech model row, the server address as a
- * field, and the API key as a row that says only whether a key is held.
+ * The model and server block: the speech model row, the server address rows in
+ * stored order with their row controls, and the API key as a row that says only
+ * whether a key is held.
  */
-internal fun valuesBlock(held: AppSettings, model: ModelRow): Box = Box(
+internal fun valuesBlock(held: AppSettings, model: ModelRow, rowCount: Int): Box = Box(
     id = SettingsIds.VALUES_BLOCK,
     background = PaletteSlot.BACKGROUND,
     gap = Space.S,
     children = listOf(
         sectionLabel(SettingsIds.VALUES_HEADING, SettingsTexts.VALUES_HEADING),
         modelRow(held, model),
-        Box(
-            id = SettingsIds.SERVER_ROW,
-            background = PaletteSlot.BACKGROUND,
-            gap = Space.S,
-            children = buildList<Node> {
-                add(
-                    bodyLabel(
-                        SettingsIds.SERVER_LABEL,
-                        SettingsTexts.SERVER_ROW_LABEL,
-                        PaletteSlot.TEXT_MUTED,
-                    ),
-                )
-                add(
-                    ValueField(
-                        id = SettingsIds.SERVER_FIELD,
-                        text = serverText(held),
-                        muted = !held.hasServerUrl,
-                        entryKey = ServerAddressEntry.KEY,
-                    ),
-                )
-                if (ServerAddressEntry.isPlainHttp(held.serverUrl)) {
-                    add(
-                        bodyLabel(
-                            SettingsIds.PLAIN_HTTP_LINE,
-                            SettingsTexts.PLAIN_HTTP_HELP,
-                            PaletteSlot.TEXT_MUTED,
-                        ),
-                    )
-                }
-            },
-        ),
+        serverAddressBlock(held, rowCount),
         Box(
             id = SettingsIds.API_KEY_ROW,
             background = PaletteSlot.BACKGROUND,
@@ -330,15 +306,6 @@ private fun switchRow(id: String, label: String, help: String, key: String, curr
         on = current,
         intent = ScreenIntent.SetSetting(key, (!current).toString()),
     )
-
-/**
- * The stored server address, or the words for none.
- *
- * Whitespace is not an address, so a field holding only spaces reads the same as an
- * empty one.
- */
-private fun serverText(held: AppSettings): String =
-    if (held.hasServerUrl) held.serverUrl else SettingsTexts.NOT_SET_TEXT
 
 /**
  * Whether a key is held, and nothing about which one.

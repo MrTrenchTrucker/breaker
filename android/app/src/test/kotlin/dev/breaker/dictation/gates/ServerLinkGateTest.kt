@@ -19,6 +19,7 @@ import org.junit.Test
 internal class ServerLinkGateTest {
 
     private val rootPath: String = "kotlin/dev/breaker/dictation/BreakerCompositionRoot.kt"
+    private val addressPath: String = "kotlin/dev/breaker/dictation/EffectiveAddress.kt"
 
     private class Rule(val name: String, val holds: (Stripped) -> Boolean)
 
@@ -33,7 +34,8 @@ internal class ServerLinkGateTest {
 
     private val rules: List<Rule> = listOf(
         Rule("SETTINGS_ADDRESS_READ_ONCE") {
-            count(it.code, """\bsettingsStore\s*\.\s*load\s*\(\s*\)\s*\.\s*serverUrl\b""") == 1
+            count(it.code, """\bsettingsStore\s*\.\s*load\s*\(\s*\)\s*\.\s*serverUrl\b""") == 0 &&
+                has(it.code, """\bval\s+serverUrl\s*:\s*\(\)\s*->\s*String\s*=\s*\{\s*effectiveServerUrl\s*\(\s*settingsStore\s*\.\s*load\s*\(\s*\)\s*\)\s*\{\s*address\s*->\s*probe\s*\.\s*cachedAnswer\s*\(\s*address\s*\)\s*==\s*true\s*\}\s*\}""")
         },
         Rule("PROBE_TAKES_THE_SHARED_ADDRESS") { has(it.code, """\bserverUrlProvider\s*=\s*serverUrl\s*,""") },
         Rule("ENGINE_TAKES_THE_SHARED_ADDRESS_AND_THE_KEY") {
@@ -74,8 +76,8 @@ internal class ServerLinkGateTest {
     private val firing: Map<String, List<Pair<String, String>>> = mapOf(
         "SETTINGS_ADDRESS_READ_ONCE" to listOf(
             "serverUrlProvider = serverUrl," to "serverUrlProvider = { settingsStore.load().serverUrl },",
-            "private val serverUrl: () -> String = { settingsStore.load().serverUrl }" to
-                "private val serverUrl: () -> String = { \"https://example.invalid\" }",
+            "val serverUrl: () -> String = {\n        effectiveServerUrl(settingsStore.load()) { address -> probe.cachedAnswer(address) == true }\n    }" to
+                "internal val serverUrl: () -> String = { \"https://example.invalid\" }",
         ),
         "PROBE_TAKES_THE_SHARED_ADDRESS" to listOf(
             "serverUrlProvider = serverUrl," to "serverUrlProvider = fixedUrl,",
@@ -100,13 +102,13 @@ internal class ServerLinkGateTest {
         ),
         "NO_PLACEHOLDER_SERVER_SLOT" to listOf(
             engineLine to "serverEngine = UnavailableSttEngine(SttError.OTHER, \"x\")",
-            "private val serverUrl: () -> String = { settingsStore.load().serverUrl }" to
-                "private val SERVER_UNAVAILABLE_DETAIL = \"x\"\n    private val serverUrl: () -> String = { settingsStore.load().serverUrl }",
+            "val serverUrl: () -> String = {\n        effectiveServerUrl(settingsStore.load()) { address -> probe.cachedAnswer(address) == true }\n    }" to
+                "private val SERVER_UNAVAILABLE_DETAIL = \"x\"\n    internal val serverUrl: () -> String = {\n        effectiveServerUrl(settingsStore.load()) { address -> probe.cachedAnswer(address) == true }\n    }",
         ),
         "NO_SCHEME_IN_THE_ROOT" to listOf(
             DECL to DECL + "\n    private val scheme = \"https://\"",
-            "private val serverUrl: () -> String = { settingsStore.load().serverUrl }" to
-                "private val serverUrl: () -> String = { settingsStore.load().serverUrl.replace(\"http://\", \"https://\") }",
+            "val serverUrl: () -> String = {\n        effectiveServerUrl(settingsStore.load()) { address -> probe.cachedAnswer(address) == true }\n    }" to
+                "val serverUrl: () -> String = { effectiveServerUrl(settingsStore.load()) { address -> probe.cachedAnswer(address) == true }.replace(\"http://\", \"https://\") }",
         ),
         "ROOT_LITERALS_ARE_THE_FILE_NAMES_ONLY" to listOf(
             "\"models\"" to "\"models-folder\"",
@@ -117,14 +119,14 @@ internal class ServerLinkGateTest {
     /** Edits that change nothing a rule reads: spacing, comments and literal text. */
     private val quiet: List<Pair<String, String>> = listOf(
         "serverUrlProvider = serverUrl," to "serverUrlProvider =\n                    serverUrl,",
-        "private val serverUrl: () -> String = { settingsStore.load().serverUrl }" to
-            "private val serverUrl: () -> String =\n        { settingsStore.load().serverUrl }",
+        "val serverUrl: () -> String = {\n        effectiveServerUrl(settingsStore.load()) { address -> probe.cachedAnswer(address) == true }\n    }" to
+            "val serverUrl: () -> String =\n        { effectiveServerUrl(settingsStore.load()) { address -> probe.cachedAnswer(address) == true } }",
         DECL to DECL + " // SttServerEngine( UnavailableSttEngine \"https://",
         DECL to DECL.replace(" }", " /* sessionToken NO_SESSION */ }"),
         DECL to DECL + " // sessionToken NO_SESSION currentSession(",
     )
 
-    private fun rootText(): String = AppSourceFiles.mainFile(rootPath)
+    private fun rootText(): String = AppSourceFiles.mainFile(rootPath) + "\n" + AppSourceFiles.mainFile(addressPath)
 
     private fun codeOf(text: String): Stripped = AppSourceFiles.strip(text)
 

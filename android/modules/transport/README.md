@@ -13,6 +13,13 @@ So a dictation never waits on the server.
 The probe contacts the configured Local Server and nothing else, so there is no
 cloud path to fall through to.
 
+`ProbeSelection.select(entries, lastGood, answers)` is the pure order policy for
+a stored list of addresses: ask entry 1, then 2, then 3, and use the first that
+answers; when none answers, use the last good address if there is one, else
+entry 1. The last good address is never tried ahead of the list, so a phone
+back home returns to the home address even when the road address still answers.
+It holds no sockets, no clock and no state.
+
 Which engine actually runs is core's decision, not this module's. Core's
 dictation use case reads the probe's answer, tries the server first and falls
 back to the phone's own engine, and owns the clear refusal when local mode is

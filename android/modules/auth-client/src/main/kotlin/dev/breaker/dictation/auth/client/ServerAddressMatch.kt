@@ -1,14 +1,20 @@
 package dev.breaker.dictation.auth.client
 
 /**
- * Says whether two server addresses name the same server. Pure: no state, no logging and no
- * trim. The texts are only normalised for the comparison; neither text is changed.
+ * Says whether two server addresses name the same server, and whether one address is a member of
+ * a list of them. Pure: no state, no logging and no trim. The texts are only normalised for the
+ * comparison; neither text is changed.
  *
  * Same server means: the scheme equal without ASCII case, the authority (host and port) equal
  * without ASCII case, and everything after the authority exactly equal. One trailing slash on
  * each text is ignored. A text without a scheme and an authority, with an empty host before the
  * port, or with user info, never matches. A text with a backslash, whitespace or a control
  * character never matches, and an empty text matches nothing.
+ *
+ * Membership ([oneOf]) is the same rule applied to every entry: a record made at any address of
+ * the list is a record for this server, and one made at an address outside the list is not. It
+ * inherits every refusal of [same], so a path in another case or a second trailing slash is
+ * still another server.
  */
 internal object ServerAddressMatch {
     private const val SCHEME_END = "://"
@@ -23,6 +29,15 @@ internal object ServerAddressMatch {
             equalIgnoringAsciiCase(first.authority, second.authority) &&
             first.rest == second.rest
     }
+
+    /**
+     * True when [stored] is the same server as any one of [entries], compared with [same].
+     *
+     * This is the form used when the configuration holds a list of addresses for one server: a
+     * stored record is valid at whichever of them is in force. An empty list, or a list whose
+     * every entry [same] refuses, matches nothing.
+     */
+    fun oneOf(stored: String, entries: List<String>): Boolean = entries.any { same(stored, it) }
 
     /** The three parts of an address: scheme, authority and the rest from the first slash on. */
     private class Parts(val scheme: String, val authority: String, val rest: String)

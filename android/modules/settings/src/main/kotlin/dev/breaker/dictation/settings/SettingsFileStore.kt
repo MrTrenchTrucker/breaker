@@ -70,10 +70,10 @@ class SettingsFileStore internal constructor(
         this(file, keystore, AtomicFileReplace::write, AtomicFileReplace::move)
 
     /**
-     * The stored settings, or core's defaults for the ten file-backed keys when
+     * The stored settings, or core's defaults for the fourteen file-backed keys when
      * nothing is stored yet.
      *
-     * A missing [file] yields core's defaults for those ten keys *and* the
+     * A missing [file] yields core's defaults for those keys *and* the
      * reference the [keystore] port remembers — the file cannot supply the
      * reference, so the port does, on this path and on every other one. A
      * present but damaged file is read key by key: an unparsable value, one
@@ -293,6 +293,23 @@ class SettingsFileStore internal constructor(
                 restoreAfterKeystoreFailure(previousBytes, refKnown, previousRef, failure)
                 throw failure
             }
+        }
+    }
+
+    /**
+     * Records the last good address under the same lock [save] takes.
+     *
+     * The read and the write are one serialised step, so a user save that lands while the
+     * probe thread is writing the last good address cannot be overwritten by a stale read:
+     * the lock orders the two, and the save this makes changes only `serverLastGood`. The
+     * write goes through [save] on purpose, so the file format, the atomic move and the
+     * keystore handling are exactly the ones a full save uses.
+     */
+    override fun recordServerLastGood(address: String) {
+        synchronized(AtomicFileReplace.lock) {
+            val current = load()
+            if (current.serverLastGood == address) return
+            save(current.copy(serverLastGood = address))
         }
     }
 

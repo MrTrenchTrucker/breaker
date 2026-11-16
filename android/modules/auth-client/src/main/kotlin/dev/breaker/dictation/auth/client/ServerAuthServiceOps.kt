@@ -23,6 +23,7 @@ internal class ServerAuthServiceOps(
     private val jsonHeaders: List<Pair<String, String>>,
     private val registerParams: KdfParams,
     private val keyPorts: AccountKeyPorts? = null,
+    private val serverAddresses: () -> List<String> = { listOf(baseUrl()) },
 ) {
 
     internal fun doRegister(username: String, password: CharArray): AuthSession {
@@ -66,21 +67,21 @@ internal class ServerAuthServiceOps(
         val stored = readThenClear()
         val base = baseUrl()
         val record = stored?.let { SessionRecord.decode(it) } ?: return
-        if (!ServerAddressMatch.same(record.server, base)) return
+        if (!ServerAddressMatch.oneOf(record.server, serverAddresses())) return
         val url = AccountRules.endpoint(base, AccountRules.LOGOUT_PATH) ?: return
         bestEffortLogout(url, record.session.token)
     }
 
     /**
      * The device list read. The record is loaded and the address is read once, inside the lock;
-     * the request is sent only when a readable record exists and the address read now is the same
-     * server as the stored one. Nothing is stored and the vault is never cleared.
+     * the request is sent only when a readable record exists and the stored address is one of the
+     * configured server addresses. Nothing is stored and the vault is never cleared.
      */
     internal fun doDevices(): List<DeviceRow>? {
         val stored = loadOrNull() ?: return null
         val record = SessionRecord.decode(stored) ?: return null
         val base = baseUrl()
-        if (!ServerAddressMatch.same(record.server, base)) return null
+        if (!ServerAddressMatch.oneOf(record.server, serverAddresses())) return null
         val url = AccountRules.endpoint(base, AccountRules.DEVICES_PATH) ?: return null
         val reply = bearerGet(url, record.session.token)
         return ServerAuthReplies.devices(reply)

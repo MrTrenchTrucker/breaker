@@ -19,12 +19,12 @@ import org.junit.Test
 internal class ProbeRefreshWiringGateTest {
 
     private val root: String = "kotlin/dev/breaker/dictation/BreakerCompositionRoot.kt"
+    private val addressFile: String = "kotlin/dev/breaker/dictation/EffectiveAddress.kt"
 
     private class Rule(val name: String, val holds: (String) -> Boolean)
 
     private val probeDeclaration = Regex(
-        """\bprivate\s+val\s+probe\s*:\s*TcpConnectivityProbe\s*=\s*TcpConnectivityProbe\s*""" +
-            """\(\s*serverUrlProvider\s*=\s*serverUrl\s*,\s*clock\s*=\s*SystemClockAdapter\s*,?\s*\)""",
+        """\bval\s+probe\s*:\s*TcpConnectivityProbe\s*=\s*TcpConnectivityProbe\s*\(\s*serverUrlProvider\s*=\s*serverUrl\s*,\s*clock\s*=\s*clock\s*,\s*serverAddressProvider\s*=\s*\{[\s\S]*?\},\s*recordLastGood\s*=\s*\{[\s\S]*?\}(?:\s*,)?\s*\)""",
     )
     private val dictationUsesIt = Regex("""\bprobe\s*=\s*this\s*\.\s*probe\s*,""")
     private val refreshOnBackground = Regex(
@@ -43,7 +43,7 @@ internal class ProbeRefreshWiringGateTest {
     private class Sample(val rule: String, val old: String, val new: String)
 
     private val samples: List<Sample> = listOf(
-        Sample("PROBE_IS_BUILT_ONCE_OVER_THE_SAVED_ADDRESS", "serverUrlProvider = serverUrl,\n        clock = SystemClockAdapter,\n    )\n", "serverUrlProvider = { \"\" },\n        clock = SystemClockAdapter,\n    )\n"),
+        Sample("PROBE_IS_BUILT_ONCE_OVER_THE_SAVED_ADDRESS", "serverUrlProvider = serverUrl,\n        clock = clock,\n        serverAddressProvider = { settingsStore.load().serverAddressList() },\n        recordLastGood = { persistServerLastGood(settingsStore, it) },\n    )\n", "serverUrlProvider = { \"\" },\n        clock = clock,\n        serverAddressProvider = { settingsStore.load().serverAddressList() },\n        recordLastGood = { persistServerLastGood(settingsStore, it) },\n    )\n"),
         Sample("PROBE_IS_BUILT_ONCE_OVER_THE_SAVED_ADDRESS", "probe = this.probe,", "probe = TcpConnectivityProbe(serverUrlProvider = serverUrl, clock = SystemClockAdapter),"),
         Sample("DICTATION_COMPONENT_GETS_THAT_PROBE", "probe = this.probe,", "probe = otherProbe,"),
         Sample("REFRESH_RUNS_THE_PROBES_REFRESH_ON_THE_ROOTS_BACKGROUND", "background.submit { probe.refresh() }", "probe.refresh()"),
@@ -64,7 +64,9 @@ internal class ProbeRefreshWiringGateTest {
     }
 
     private fun codeOf(sample: Sample? = null): String {
-        val text = AppSourceFiles.mainFile(root)
+        // The probe is built in EffectiveAddress.kt; the root keeps the refresh and hands
+        // the probe to the dictation component. Both files are one wiring, so both are read.
+        val text = AppSourceFiles.mainFile(root) + "\n" + AppSourceFiles.mainFile(addressFile)
         return AppSourceFiles.strip(if (sample == null) text else edit(text, sample.old, sample.new)).code
     }
 

@@ -68,6 +68,12 @@ import kotlinx.coroutines.sync.withLock
  * the server is there, and choosing what to do about that answer belongs to the
  * domain.
  *
+ * **An ordered list, asked in list order.** [serverAddressProvider] supplies the stored
+ * addresses entry 1 first, read fresh on every refresh. [refresh] asks them IN ORDER and stops
+ * at the first that answers, so entry 1 wins whenever it answers; the entry that answered is
+ * handed to [recordLastGood]. The last good address is never tried ahead of the list - it is
+ * the caller's start value and no-answer fallback, and this class never reads it.
+ *
  * @param serverUrlProvider supplies the configured server address, read fresh
  *   on every probe so an edit takes effect without rebuilding this object. It
  *   is deliberately the narrowest thing that can supply the answer: a supplier
@@ -75,12 +81,18 @@ import kotlinx.coroutines.sync.withLock
  * @param clock the time source for the cache window.
  * @param resolver turns a host name into addresses.
  * @param connector performs the connection.
+ * @param serverAddressProvider supplies the ordered stored addresses, entry 1 first. The
+ *   default is the single configured address, so a caller that has no list is unchanged.
+ * @param recordLastGood receives the entry that answered, so the caller can persist it as
+ *   the next start value. The default records nothing.
  */
 class TcpConnectivityProbe internal constructor(
     private val serverUrlProvider: () -> String,
     private val clock: Clock,
     private val resolver: HostResolver,
     private val connector: TcpConnector,
+    private val serverAddressProvider: () -> List<String> = { listOf(serverUrlProvider()) },
+    private val recordLastGood: (String) -> Unit = {},
 ) : ConnectivityProbe {
 
     /**
@@ -93,7 +105,9 @@ class TcpConnectivityProbe internal constructor(
     constructor(
         serverUrlProvider: () -> String,
         clock: Clock,
-    ) : this(serverUrlProvider, clock, SystemHostResolver, SocketTcpConnector)
+        serverAddressProvider: () -> List<String> = { listOf(serverUrlProvider()) },
+        recordLastGood: (String) -> Unit = {},
+    ) : this(serverUrlProvider, clock, SystemHostResolver, SocketTcpConnector, serverAddressProvider, recordLastGood)
 
     /** One immutable entry, published as a whole: two separate fields could be read torn. */
     @Volatile
@@ -117,11 +131,57 @@ class TcpConnectivityProbe internal constructor(
     }
 
     /**
-     * Re-probes now, ignoring any cached answer, and caches the fresh result.
+     * Answers whether one stored entry [address] is reachable, on the same terms as
+     * [isServerReachable]: a measured answer inside [CACHE_TTL_MS] is served without a dial,
+     * a cold one dials under [CONNECT_TIMEOUT_MS] and is cached.
+     *
+     * This is the per-entry question [ProbeSelection] asks while it walks the stored list in
+     * order, and it is deliberately about the address it is GIVEN: it never reads
+     * [serverUrlProvider], so the selection's order is the caller's and the last good address
+     * is never tried ahead of the list. An entry this probe cannot turn into a connection
+     * answers false without touching the network, exactly as [isServerReachable] does.
+     */
+    fun isReachable(address: String): Boolean {
+        val target = targetFor(address) ?: return false
+        freshEntryFor(target)?.let { return it.reachable }
+        return probeAndStore(target, allowFreshCache = true)
+    }
+
+    /**
+     * Answers from the CACHE ONLY, and never dials.
+     *
+     * This is the answer source a READ of the effective address must use. [isReachable] dials
+     * when the cache is cold, which is right for a caller that can afford to wait and wrong for
+     * every reader of the address: auth, hand-off, sync, status and the sign-in browser all read
+     * it, on whatever thread they happen to be on, and a cold cache would put up to
+     * [CONNECT_TIMEOUT_MS] per entry of socket work under them - on the main thread, which
+     * Android refuses outright.
+     *
+     * Returns the measured answer for [address] when one is inside [CACHE_TTL_MS], and **null**
+     * when nothing has been measured, when the entry has expired, or when [address] cannot be
+     * turned into a connection. Null means "no answer": the selection falls through to the next
+     * entry, then to the last good address, then to entry 1. Only [refresh] produces answers, so
+     * a read can never create one.
+     */
+    fun cachedAnswer(address: String): Boolean? {
+        val target = targetFor(address) ?: return null
+        return freshEntryFor(target)?.reachable
+    }
+
+    /**
+     * Re-probes the stored addresses now, ignoring any cached answer, in list order, and
+     * caches the fresh results.
      *
      * Useful after the user changes the server address or after a failure worth
      * retrying immediately. Like [isServerReachable], it answers false rather
      * than throwing for the same four server-side failures.
+     *
+     * **The list is asked IN ORDER and the first entry that answers wins.** Every entry this
+     * call dials is dialled for real - this is the one caller that reaches [probeAndStore]
+     * with `allowFreshCache = false`, so a cached answer never short-circuits it - and the
+     * winner is handed to [recordLastGood]. An entry that cannot be turned into a connection
+     * is skipped without a dial. When no entry answers, nothing is recorded: a refresh must
+     * not write a last good address it never measured.
      *
      * This is the one caller that reaches [probeAndStore] with `allowFreshCache
      * = false`, so a cached answer — however fresh — never short-circuits it;
@@ -135,8 +195,19 @@ class TcpConnectivityProbe internal constructor(
      * lookup returns is a real probe and really dials.
      */
     fun refresh(): Boolean {
-        val target = target() ?: return false
-        return probeAndStore(target, allowFreshCache = false)
+        val entries = try {
+            serverAddressProvider()
+        } catch (_: RuntimeException) {
+            null
+        } ?: return false
+        for (entry in entries) {
+            val target = targetFor(entry) ?: continue
+            if (probeAndStore(target, allowFreshCache = false)) {
+                recordLastGood(entry)
+                return true
+            }
+        }
+        return false
     }
 
     /**
@@ -388,6 +459,32 @@ class TcpConnectivityProbe internal constructor(
         } catch (_: RuntimeException) {
             return null
         } ?: return null
+        return targetFor(raw)
+    }
+
+    /**
+     * Parses one address - the configured one or a stored entry - and validates it.
+     *
+     * Returns null for anything this probe must not turn into a connection:
+     * a blank value, an unsupported scheme, and syntactically broken input all
+     * answer "not reachable" without touching the network.
+     *
+     * **This method does not throw, and [isServerReachable]/[isReachable]/[refresh] rely on
+     * that.** Every parse helper is bounds-safe by construction, and the load-bearing case is
+     * [parsePort]'s `text.toIntOrNull()`, whose null-returning parse is what
+     * stops a [NumberFormatException] escaping. Replacing that with
+     * [Integer.parseInt], a regex, or a URI/IDN parse makes this method throw
+     * again - at which point a throw out of [isServerReachable], [isReachable] or [refresh] is
+     * a caller-visible crash on the dictation path, so either restore a catch
+     * at the caller or keep the parse null-returning. Note what must NOT be
+     * added here: [Clock.nowEpochMillis] is deliberately outside every catch,
+     * because a throwing clock is a caller defect that propagates rather than a
+     * healthy server being reported unreachable behind a false.
+     *
+     * [target] is the configured-address path and adds the catch around [serverUrlProvider];
+     * [serverAddressProvider] is caught in [refresh].
+     */
+    private fun targetFor(raw: String): Target? {
         val trimmed = raw.trim()
 
         val schemeEnd = trimmed.indexOf(SCHEME_SEPARATOR)

@@ -135,6 +135,10 @@ internal class SetupIntentHandler(
             is ScreenIntent.SetThemeMode,
             is ScreenIntent.History,
             is ScreenIntent.Home,
+            is ScreenIntent.AddServerAddress,
+            is ScreenIntent.RemoveServerAddress,
+            is ScreenIntent.MoveServerAddressUp,
+            is ScreenIntent.MoveServerAddressDown,
             -> SetupNotice.NOT_ACCEPTED
             // The set-up screen has no back arrow. A Back draws the held screen again, keeping any pinned
             // refusal, and leaves no new notice; it returns before the pin is cleared below.

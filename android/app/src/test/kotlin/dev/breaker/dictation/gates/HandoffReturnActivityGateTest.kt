@@ -150,15 +150,15 @@ internal class HandoffReturnActivityGateTest {
 
     private val fileRules: List<FileRule> = listOf(
         FileRule("LAUNCHER_RESUME_TAKES_THE_RETURN_STATE", launcher, """\bsignInStart\.screen\.onResume\(\s*app\.compositionRoot\.signInReturnStore\.take\(\)\s*\)"""),
-        FileRule("SERVER_LAMBDA_READS_THE_STORED_ADDRESS", browser, """createSignInStartView\(activity, app\.settingsStore, \{\s*app\.settingsStore\.load\(\)\.serverUrl\s*\}"""),
+        FileRule("SERVER_LAMBDA_READS_THE_STORED_ADDRESS", browser, """createSignInStartView\(activity, app\.settingsStore, \{\s*app\.compositionRoot\.serverUrl\(\)\s*\}"""),
         FileRule("ROOT_BUILDS_THE_STARTER_WITH_NO_ARGUMENT", root, """SignInHolder\(\s*SignInStarterImpl\(\s*\)\s*\)"""),
     )
 
     private val fileFiring: List<FileSample> = listOf(
         FileSample("LAUNCHER_RESUME_TAKES_THE_RETURN_STATE", "signInStart.screen.onResume(app.compositionRoot.signInReturnStore.take())", "signInStart.screen.onResume(null)"),
         FileSample("LAUNCHER_RESUME_TAKES_THE_RETURN_STATE", "signInStart.screen.onResume(app.compositionRoot.signInReturnStore.take())", "signInStart.screen.onResume(app.compositionRoot.signInReturnStore.peek())"),
-        FileSample("SERVER_LAMBDA_READS_THE_STORED_ADDRESS", "{ app.settingsStore.load().serverUrl }, { screen", "{ \"\" }, { screen"),
-        FileSample("SERVER_LAMBDA_READS_THE_STORED_ADDRESS", "{ app.settingsStore.load().serverUrl }, { screen", "{ app.settingsStore.load().serverUrl.trim() }, { screen"),
+        FileSample("SERVER_LAMBDA_READS_THE_STORED_ADDRESS", "{ app.compositionRoot.serverUrl() }, { screen", "{ \"\" }, { screen"),
+        FileSample("SERVER_LAMBDA_READS_THE_STORED_ADDRESS", "{ app.compositionRoot.serverUrl() }, { screen", "{ app.compositionRoot.serverUrl().trim() }, { screen"),
         FileSample("ROOT_BUILDS_THE_STARTER_WITH_NO_ARGUMENT", "SignInHolder(SignInStarterImpl())", "SignInHolder(SignInStarterImpl(entropy = { ByteArray(32) }))"),
         FileSample("ROOT_BUILDS_THE_STARTER_WITH_NO_ARGUMENT", "SignInHolder(SignInStarterImpl())", "SignInHolder(SignInStarterImpl(null))"),
     )

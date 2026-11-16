@@ -1,15 +1,14 @@
 package dev.breaker.dictation.wiring
 
 import dev.breaker.dictation.auth.client.AddressedSession
-import dev.breaker.dictation.core.port.SettingsStore
 import dev.breaker.dictation.http.CallLimits
 import dev.breaker.dictation.http.HttpTransport
 import dev.breaker.dictation.http.JdkHttpTransport
 import dev.breaker.dictation.sync.PullTransport
 
 /**
- * Builds the app's [PullTransport]: GET /v1/transcriptions over JdkHttpTransport to the stored
- * server URL, with the user's token from one addressed session per call.
+ * Builds the app's [PullTransport]: GET /v1/transcriptions over JdkHttpTransport to the effective
+ * server address, with the user's token from one addressed session per call.
  *
  * It lives in its own file so BreakerApp.kt can wire the pull without ever naming PullHttpTransport
  * (the pull-transport gate test pins that BreakerApp.kt and BreakerCompositionRoot.kt do not name it).
@@ -19,15 +18,16 @@ import dev.breaker.dictation.sync.PullTransport
  * stops a page when its running size passes 4 MiB (ADR-035), so one full page is a little under
  * 4 MiB of text; the cap adds margin and stays under CallLimits.MAX_BYTES_REPLY.
  *
- * The address and the token are read ONCE per call, from [addressedSession], and neither is kept.
+ * The address comes from [serverUrl], read on every request, and the token from [addressedSession];
+ * neither is kept.
  */
 internal fun pullTransport(
-    settingsStore: SettingsStore,
+    serverUrl: () -> String,
     addressedSession: () -> AddressedSession?,
     transport: HttpTransport? = null,
 ): PullTransport =
     PullHttpTransport(
-        transport = transport ?: JdkHttpTransport({ settingsStore.load().serverUrl }),
+        transport = transport ?: JdkHttpTransport(serverUrl),
         limits = CallLimits(10_000, 30_000, 5_242_880L),
         addressedSession = addressedSession,
     )

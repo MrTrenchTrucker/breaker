@@ -21,12 +21,14 @@ import dev.breaker.dictation.ui.screen.KitLook
 /*
  * The settings screen, described as nodes and nothing else.
  *
- * This class holds no store, no cached settings and no state of its own. Both of
- * its functions are pure: [render] turns the settings it is handed into a tree,
- * and [editFor] turns an intent into the one-field change that intent asks for,
- * or into null when the intent is not one this screen offers. Keeping it pure is
- * what lets a plain JVM test read every text and every id the screen can put on
- * a display, with no device and no Android framework class.
+ * This class holds no store and no cached settings. [render] turns the settings
+ * it is handed into a tree, and [editFor] turns an intent into the change that
+ * intent asks for, or into null when the intent is not one this screen offers.
+ * The one piece of state it keeps is the draft row count [askedRows], which the
+ * add and remove row controls change and which is not a setting: a row the
+ * person adds is a draft of the screen, drawn as an empty field, and is not
+ * stored until it is filled. Keeping that count here is what lets the rows a
+ * person adds and removes survive a redraw without writing them.
  *
  * Values are read from the settings argument only. When that argument is null
  * the settings have not been read successfully, so no value block is drawn at all:
@@ -45,6 +47,15 @@ internal data class ModelRow(val ready: Boolean, val line: String?) {
 
 /** The settings shown on screen, and the changes it is willing to make. */
 internal class SettingsScreen {
+    /**
+     * The row count the person has asked for, or null to follow the stored list.
+     *
+     * Null is the default: the screen draws as many rows as are stored, at least
+     * the one row of a blank install. A number is a draft the person made by
+     * adding or removing a row, and it is never written to the settings.
+     */
+    private var askedRows: Int? = null
+
     /**
      * Builds the tree for the settings in [settings].
      *
@@ -70,7 +81,7 @@ internal class SettingsScreen {
                     add(Spacer(SettingsIds.GAP_SWITCHES, Space.L))
                     add(switchesBlock(settings))
                     add(Spacer(SettingsIds.GAP_VALUES, Space.XL))
-                    add(valuesBlock(settings, model))
+                    add(valuesBlock(settings, model, askedRows ?: storedRowCount(settings)))
                 }
                 if (signedOut) {
                     add(Spacer(SettingsIds.GAP_SIGNED_OUT, Space.L))
@@ -82,27 +93,35 @@ internal class SettingsScreen {
         )
 
     /**
-     * The one-field change [intent] asks for, or null when this screen does not
-     * offer it.
+     * The change [intent] asks for, or null when this screen does not offer it.
      *
-     * Only the three boolean switches, the routing mode, the wake-gesture mode and the
-     * server address are accepted, because those are the only settings this screen
-     * offers a control for. A routing mode is matched by its exact enum name and a
-     * boolean by the two literals [Boolean.toString] produces, so a name in another
-     * case and a word that is not a boolean are both refused rather than guessed at.
-     * A server address is checked by [ServerAddressEntry], and an address it refuses
-     * gives null. The appearance is not a setting of this screen: its intents belong
-     * to the theme controller.
+     * Only the three boolean switches, the routing mode, the wake-gesture mode,
+     * the server address rows and the row actions are accepted, because those
+     * are the only settings this screen offers a control for. A routing mode is
+     * matched by its exact enum name and a boolean by the two literals
+     * [Boolean.toString] produces, so a name in another case and a word that is
+     * not a boolean are both refused rather than guessed at. A server address is
+     * checked by [ServerAddressEntry], and an address it refuses gives null. The
+     * appearance is not a setting of this screen: its intents belong to the
+     * theme controller.
      *
-     * The returned function is a copy of its argument with one field changed and
-     * every other field left as found. It reads nothing, writes nothing and does
-     * not throw.
+     * The returned function is a copy of its argument with the fields the intent
+     * names changed and every other field left as found. It reads nothing and
+     * writes nothing; a change the model refuses throws
+     * [IllegalArgumentException], which the writer reads as a refusal. The two
+     * row actions are the exception: they change the screen's draft row count
+     * and return the settings exactly as they were, so the write path stores
+     * nothing for them.
      */
     fun editFor(intent: ScreenIntent): ((AppSettings) -> AppSettings)? = when (intent) {
         is ScreenIntent.SetRoutingMode -> routingEdit(intent.mode)
         is ScreenIntent.SetSetting -> wakeModeEdit(intent.key, intent.value)
             ?: booleanEdit(intent.key, intent.value)
             ?: serverAddressEdit(intent.key, intent.value)
+        is ScreenIntent.AddServerAddress -> addServerAddressRowEdit(intent.index)
+        is ScreenIntent.RemoveServerAddress -> removeServerAddressRowEdit()
+        is ScreenIntent.MoveServerAddressUp -> moveServerAddressRow(intent.index, up = true)
+        is ScreenIntent.MoveServerAddressDown -> moveServerAddressRow(intent.index, up = false)
         ScreenIntent.ToggleTheme,
         ScreenIntent.UseSystemTheme,
         is ScreenIntent.SetThemeMode,
@@ -141,13 +160,39 @@ internal class SettingsScreen {
             .takeIf { key == SettingsIds.KEY_WAKE_GESTURE_MODE }
 
     /**
-     * The server address [value] names, as a change of that one field, or null when the key is not the
-     * address key or the address is refused. The stored text is the one [ServerAddressEntry] returns.
+     * The server address [value] names for the row [key] belongs to, as a change of
+     * the stored list, or null when the key is no row's key or the address is refused.
+     * Row 1 is the address key the screen always used; the other rows carry their own
+     * stored key, so a row's typing keeps every other row where it is.
      */
     private fun serverAddressEdit(key: String, value: String): ((AppSettings) -> AppSettings)? {
-        if (key != ServerAddressEntry.KEY) return null
-        val stored = ServerAddressEntry.accepted(value) ?: return null
-        return { settings -> settings.copy(serverUrl = stored) }
+        val index = SERVER_ROW_KEYS.indexOf(key)
+        if (index < 0) return null
+        return serverAddressRowEdit(index, value)
+    }
+
+    /**
+     * The draft row change an Add asks for, as a change that writes nothing.
+     *
+     * A row the person adds is a draft of the screen, so [AppSettings] is
+     * returned exactly as it was: the write path reads the store, compares the
+     * two and saves nothing. The new count is the count the control was drawn
+     * with, which is the stored count while no draft is held.
+     */
+    private fun addServerAddressRowEdit(index: Int): (AppSettings) -> AppSettings = { held ->
+        askedRows = addServerAddressRow(askedRows ?: index.coerceIn(1, SERVER_ROW_LIMIT))
+        held
+    }
+
+    /**
+     * The draft row change a Remove asks for, as a change that writes nothing.
+     *
+     * The count falls to one and no further, so the blank install keeps its one
+     * row; the stored list is left as it was until a row is filled.
+     */
+    private fun removeServerAddressRowEdit(): (AppSettings) -> AppSettings = { held ->
+        askedRows = removeServerAddressRow(askedRows ?: storedRowCount(held))
+        held
     }
 
     /** The message for a change that did not take effect, or nothing when there is none. */

@@ -57,6 +57,18 @@ data class TilePosition(val x: Float, val y: Float) {
  * on-device model, the model preloaded so a wake phrase can start a dictation
  * within a second, formatting on, the theme following the phone
  * ([ThemeMode.SYSTEM]), the tile centred, and the microphone prompt not yet shown.
+ *
+ * [serverUrl] is entry 1 of [serverAddresses]: it stays a stored field so every
+ * existing reader and every positional construction is unchanged, and the codec
+ * keeps the two equal on write. [serverAddresses] is the ordered list (1-3)
+ * whose order is probe priority; [serverLastGood] is the address that answered
+ * most recently, written by the probe thread and read as the start value before
+ * the first probe finishes. Both default to empty, which is the blank install.
+ *
+ * The two address fields may not disagree: when the list is not empty its first
+ * entry IS [serverUrl], and the init block refuses any construction that says
+ * otherwise. Without that, a writer that set only `serverUrl` would have the
+ * edit silently dropped by the codec, which prefers the list.
  */
 data class AppSettings(
     val mode: SttMode = SttMode.AUTO,
@@ -70,11 +82,22 @@ data class AppSettings(
     val formattingEnabled: Boolean = true,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val microphoneAsked: Boolean = false,
+    /** The ordered server addresses, entry 1 first; [serverUrl] is entry 1. */
+    val serverAddresses: List<String> = listOf(),
+    /** The address that answered last, or blank when none has. */
+    val serverLastGood: String = "",
 ) {
     init {
         require(modelSize.isNotBlank()) { "modelSize cannot be blank" }
         require(language.isNotBlank()) { "language cannot be blank" }
+        require(serverAddresses.isEmpty() || serverAddresses.first() == serverUrl) {
+            "serverUrl must be the first entry of serverAddresses"
+        }
     }
+
+    /** The list to store, entry 1 first. A caller with only [serverUrl] set is the one-entry list. */
+    fun serverAddressList(): List<String> =
+        serverAddresses.ifEmpty { listOfNotNull(serverUrl.takeIf { it.isNotBlank() }) }
 
     /** True when a server address has been configured at all. */
     val hasServerUrl: Boolean

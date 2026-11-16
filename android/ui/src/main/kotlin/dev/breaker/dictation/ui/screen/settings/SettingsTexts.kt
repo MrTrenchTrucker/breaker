@@ -47,6 +47,12 @@ internal object SettingsTexts {
     const val API_KEY_LABEL = "API key"
     const val LANGUAGE_ENGLISH = "English"
 
+    /** The server address rows: the add control and each row's remove and move controls. Words are provisional. */
+    const val SERVER_ROW_ADD = "Add address"
+    const val SERVER_ROW_REMOVE = "Remove"
+    const val SERVER_ROW_MOVE_UP = "Move up"
+    const val SERVER_ROW_MOVE_DOWN = "Move down"
+
     /** What a row says when it holds no value: no address, or a key that is not held. */
     const val NOT_SET_TEXT = "(not set)"
     const val HELD_TEXT = "set"

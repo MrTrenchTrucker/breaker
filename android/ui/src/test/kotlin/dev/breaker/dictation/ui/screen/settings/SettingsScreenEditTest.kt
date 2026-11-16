@@ -5,6 +5,7 @@ import dev.breaker.dictation.core.model.WakeGestureMode
 import dev.breaker.dictation.core.model.SttMode
 import dev.breaker.dictation.ui.screen.ScreenIntent
 import dev.breaker.dictation.ui.testing.NONDEFAULT
+import dev.breaker.dictation.ui.testing.SINGLE
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -71,7 +72,7 @@ class SettingsScreenEditTest {
     @Test
     fun `a change is a copy of the settings handed in, not the defaults`() {
         val otherUrl = "https://other.example.invalid"
-        val held = NONDEFAULT.copy(language = "fr", serverUrl = otherUrl, preloadModel = true)
+        val held = SINGLE.copy(language = "fr", serverUrl = otherUrl, preloadModel = true)
         val changed = applied(ScreenIntent.SetSetting("preloadModel", "false"), held)
         assertEquals(held.copy(preloadModel = false), changed)
         assertEquals("fr", changed?.language)

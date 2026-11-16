@@ -8,6 +8,7 @@ import dev.breaker.dictation.ui.screen.ScreenIntent
 import dev.breaker.dictation.ui.screen.ValueField
 import dev.breaker.dictation.ui.screen.flatten
 import dev.breaker.dictation.ui.testing.NONDEFAULT
+import dev.breaker.dictation.ui.testing.SINGLE
 import dev.breaker.dictation.ui.theme.ThemeState
 import dev.breaker.shared.tokens.ThemeMode as ShownThemeMode
 import org.junit.Assert.assertEquals
@@ -34,7 +35,7 @@ class SettingsServerAddressScreenTest {
 
     @Test
     fun `the server row is an input keyed server_url that shows the stored address`() {
-        val s = screen.render(NONDEFAULT.copy(serverUrl = "https://box.example"), themeOf(), null)
+        val s = screen.render(SINGLE.copy(serverUrl = "https://box.example"), themeOf(), null)
         val field = fieldOf(s)
         assertEquals("server_url", field.entryKey)
         assertEquals("https://box.example", field.text)
@@ -43,7 +44,7 @@ class SettingsServerAddressScreenTest {
 
     @Test
     fun `an empty address shows the words for not set and is muted and still keyed`() {
-        val s = screen.render(NONDEFAULT.copy(serverUrl = ""), themeOf(), null)
+        val s = screen.render(SINGLE.copy(serverUrl = ""), themeOf(), null)
         val field = fieldOf(s)
         assertEquals("(not set)", field.text)
         assertTrue("the words for not set are muted", field.muted)
@@ -59,13 +60,18 @@ class SettingsServerAddressScreenTest {
     fun `an accepted address is the one changed field and every other field is kept`() {
         val edit = screen.editFor(ScreenIntent.SetSetting("server_url", "https://box.example"))
         assertNotNull("an accepted address gives a change", edit)
-        assertEquals(NONDEFAULT.copy(serverUrl = "https://box.example"), edit?.invoke(NONDEFAULT))
+        // A single address is `serverUrl` alone: the canonical form keeps the list
+        // empty until there are two entries.
+        assertEquals(
+            SINGLE.copy(serverUrl = "https://box.example"),
+            edit?.invoke(SINGLE),
+        )
     }
 
     @Test
     fun `a blank address gives a change that clears the stored address`() {
         val edit = screen.editFor(ScreenIntent.SetSetting("server_url", "  "))
-        assertEquals(NONDEFAULT.copy(serverUrl = ""), edit?.invoke(NONDEFAULT))
+        assertEquals(SINGLE.copy(serverUrl = ""), edit?.invoke(SINGLE))
     }
 
     @Test
@@ -84,7 +90,7 @@ class SettingsServerAddressScreenTest {
 
     @Test
     fun `the plain http line id exists once and carries the approved words`() {
-        val s = screen.render(NONDEFAULT.copy(serverUrl = "http://box.example"), themeOf(), null)
+        val s = screen.render(SINGLE.copy(serverUrl = "http://box.example"), themeOf(), null)
         val found = nodesOf(s).filter { it.id == "settings.server.plainHttp" }
         assertEquals("the line id is the literal settings.server.plainHttp, once", 1, found.size)
         assertEquals("settings.server.plainHttp", SettingsIds.PLAIN_HTTP_LINE)
@@ -96,13 +102,13 @@ class SettingsServerAddressScreenTest {
 
     @Test
     fun `the settings screen draws the plain http line only for a plain http address`() {
-        val plain = screen.render(NONDEFAULT.copy(serverUrl = "http://box.example"), themeOf(), null)
+        val plain = screen.render(SINGLE.copy(serverUrl = "http://box.example"), themeOf(), null)
         assertTrue(nodesOf(plain).any { it.id == SettingsIds.PLAIN_HTTP_LINE })
-        val secure = screen.render(NONDEFAULT.copy(serverUrl = "https://box.example"), themeOf(), null)
+        val secure = screen.render(SINGLE.copy(serverUrl = "https://box.example"), themeOf(), null)
         assertFalse(nodesOf(secure).any { it.id == SettingsIds.PLAIN_HTTP_LINE })
-        val none = screen.render(NONDEFAULT.copy(serverUrl = ""), themeOf(), null)
+        val none = screen.render(SINGLE.copy(serverUrl = ""), themeOf(), null)
         assertFalse(nodesOf(none).any { it.id == SettingsIds.PLAIN_HTTP_LINE })
-        val refused = screen.render(NONDEFAULT.copy(serverUrl = "ftp://box.example"), themeOf(), null)
+        val refused = screen.render(SINGLE.copy(serverUrl = "ftp://box.example"), themeOf(), null)
         assertFalse(nodesOf(refused).any { it.id == SettingsIds.PLAIN_HTTP_LINE })
     }
 

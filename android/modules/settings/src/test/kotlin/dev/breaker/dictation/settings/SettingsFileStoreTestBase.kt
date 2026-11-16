@@ -14,7 +14,7 @@ import java.util.Properties
 /**
  * The on-disk contract these tests assume, in one place.
  *
- * The file is a `java.util.Properties` document keyed by the ten keys below;
+ * The file is a `java.util.Properties` document keyed by the fourteen keys below;
  * `api_key` is deliberately NOT among them (see `SettingsKeystoreRefTest`).
  * `Properties.store()` writes a timestamp comment first and is an unordered
  * hashtable, so nothing here compares whole-file bytes or key order.
@@ -22,6 +22,10 @@ import java.util.Properties
 internal const val KEY_MODE = "mode"
 internal const val KEY_MODEL_SIZE = "model_size"
 internal const val KEY_SERVER_URL = "server_url"
+internal const val KEY_SERVER_ADDRESS_1 = "server_address_1"
+internal const val KEY_SERVER_ADDRESS_2 = "server_address_2"
+internal const val KEY_SERVER_ADDRESS_3 = "server_address_3"
+internal const val KEY_SERVER_LAST_GOOD = "server_last_good"
 internal const val KEY_WAKE_GESTURE_MODE = "wake_gesture_mode"
 internal const val KEY_WAKE_GESTURE_ENABLED = "wake_gesture_enabled"
 internal const val KEY_TILE_POSITION = "tile_position"
@@ -32,13 +36,17 @@ internal const val KEY_THEME_MODE = "theme_mode"
 internal const val KEY_MICROPHONE_ASKED = "microphone_asked"
 
 /**
- * Every key a saved settings file carries: the nine settings keys and the
- * microphone prompt flag. Nothing else is allowed.
+ * Every key a saved settings file carries: the eleven settings keys, the three
+ * server-address entries and the last-good address. Nothing else is allowed.
  */
-internal val THE_TEN_KEYS: Set<String> = setOf(
+internal val THE_WRITTEN_KEYS: Set<String> = setOf(
     KEY_MODE,
     KEY_MODEL_SIZE,
     KEY_SERVER_URL,
+    KEY_SERVER_ADDRESS_1,
+    KEY_SERVER_ADDRESS_2,
+    KEY_SERVER_ADDRESS_3,
+    KEY_SERVER_LAST_GOOD,
     KEY_WAKE_GESTURE_MODE,
     KEY_TILE_POSITION,
     KEY_LANGUAGE,

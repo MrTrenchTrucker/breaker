@@ -175,6 +175,18 @@ internal sealed class ScreenIntent {
     /** Change the setting named [key] to [value], given as text. */
     data class SetSetting(val key: String, val value: String) : ScreenIntent()
 
+    /** Insert a blank server address row at [index], entry 1 first; the row the person then fills. */
+    data class AddServerAddress(val index: Int) : ScreenIntent()
+
+    /** Remove the server address row at [index]; the last remaining row is never removed. */
+    data class RemoveServerAddress(val index: Int) : ScreenIntent()
+
+    /** Move the server address row at [index] one place towards entry 1. */
+    data class MoveServerAddressUp(val index: Int) : ScreenIntent()
+
+    /** Move the server address row at [index] one place away from entry 1. */
+    data class MoveServerAddressDown(val index: Int) : ScreenIntent()
+
     /** Do the step of the setup walk-through named by [action], such as opening a page or switching on. */
     data class Setup(val action: String) : ScreenIntent()
 

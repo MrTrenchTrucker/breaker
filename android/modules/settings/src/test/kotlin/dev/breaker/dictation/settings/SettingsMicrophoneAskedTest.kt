@@ -91,11 +91,11 @@ class SettingsMicrophoneAskedTest : SettingsFileStoreTestBase() {
     }
 
     @Test
-    fun `the codec lists the new key among the keys it writes and writes ten`() {
+    fun `the codec lists the new key among the keys it writes and writes fourteen`() {
         val written = SettingsPropertiesCodec.writtenKeys()
 
         assertTrue("microphone_asked is not among the written keys: $written", written.contains("microphone_asked"))
-        assertEquals("the number of written keys", 10, written.size)
+        assertEquals("the number of written keys", 14, written.size)
     }
 
     @Test

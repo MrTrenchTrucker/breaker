@@ -17,7 +17,7 @@ modules implement, and the use cases that run a dictation.
 - `TextCommitter` — `commit(CommitRequest): CommitOutcomeResult` (accessibility insert or clipboard)
 - `CommitOutcomeResult` — the value `TextCommitter` returns: the outcome plus a short reason
 - `HistoryStore` — `save(Transcription)`, `list(limit)`, `delete(id)`
-- `SettingsStore` — `load()`, `save(AppSettings)`
+- `SettingsStore` — `load()`, `save(AppSettings)`, `recordServerLastGood(address)`
 - `ConnectivityProbe` — `isServerReachable(): Boolean` (TTL-cached)
 - `PhraseTrigger` — `start(onPhrase)`, `stop()`, `isListening`; the callback gets a
   `PhraseEvent`. `PhraseEvent.Wake` carries nothing: the capture starts after the wake
@@ -95,8 +95,12 @@ modules implement, and the use cases that run a dictation.
   (IDLE|ARMED|RECORDING|TRANSCRIBING|SENDING|ERROR), and `DictationResult` (Success|Failure)
 - `AppSettings(mode: AUTO|LOCAL|SERVER, modelSize, serverUrl, apiKeyRef,
   wakeGestureMode, tilePosition, language, preloadModel, formattingEnabled,
-  themeMode: SYSTEM|LIGHT|DARK, microphoneAsked)`, `SttMode`, `ThemeMode`, `TilePosition`
+  themeMode: SYSTEM|LIGHT|DARK, microphoneAsked, serverAddresses, serverLastGood)`,
+  `SttMode`, `ThemeMode`, `TilePosition`
   `microphoneAsked` is bookkeeping: whether the system microphone prompt was shown once. It is not a user setting.
+  `serverUrl` is entry 1 of `serverAddresses`, the ordered 1-3 list whose order is probe priority;
+  `serverLastGood` is the address that answered last, written by the probe thread. The two new fields
+  sit LAST so positional construction still compiles.
 - `WakeGestureMode` (ALWAYS|KEYBOARD_ONLY|OFF) — the user wake-gesture preference stored in settings
 - `SttRequest`, `SttResult`, `SttSegment`, `AudioFormat` (16 kHz, one channel), and
   `SttError(LOCAL_MODEL_MISSING, SERVER_UNREACHABLE, TIMEOUT, OTHER)`. `SttResult.Failure`

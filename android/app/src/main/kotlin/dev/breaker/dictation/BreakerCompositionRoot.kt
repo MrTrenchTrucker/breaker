@@ -76,18 +76,16 @@ import javax.crypto.SecretKey
  * keystore and exposed under the core port type; the history store; the [modelStore] that holds
  * the downloaded speech models; and the [dictation] parts.
  *
- * The history store can be handed in as a supplier. The root then exposes a [LazyHistoryStore]
- * over it, so reading the settings or the keystore never builds the database. A store handed in as
- * a value is exposed as it is.
+ * The history store can be handed in as a supplier; the root then exposes a [LazyHistoryStore] over it,
+ * so reading the settings or the keystore never builds the database. A store handed in as a value is exposed.
  *
  * The on-device engine is the real one over [modelStore], with the real recognizer from the swap point in
  * `Swaps.kt`. The text committer has no default: the app hands in the real one, made by appTextCommitter in
- * AndroidSwaps.kt. The microphone defaults to the unavailable placeholder from the swap point in `Swaps.kt`,
- * whose open fails with a plain sentence. The app hands in the real microphone, made by appMicSource(audioManager)
- * in AndroidSwaps.kt, and a microphone can be handed in through [micSource]. The server engine is the real
- * [SttServerEngine] over one provider: the engine's address and key come from one read of the addressed
- * session for each request. A session at the saved address gives its token as the key; otherwise the
- * engine answers that the key is not set. Both formatter slots take the rule-based formatter.
+ * AndroidSwaps.kt. The microphone defaults to the unavailable placeholder from `Swaps.kt`, whose open fails
+ * with a plain sentence; the app hands in the real one, made by appMicSource(audioManager), and a microphone
+ * can be handed in through [micSource]. The server engine is the real [SttServerEngine] over one provider:
+ * the engine's address and key come from one read of the addressed session for each request, and both
+ * formatter slots take the rule-based formatter.
  *
  * The auth service is built on first use, never at construction: the three factories (transport, key
  * derivation, session key) are called only then, and the service reads the stored server address on
@@ -178,14 +176,14 @@ class BreakerCompositionRoot(
         background,
     )
 
-    /** The stored server address, read on every call. The connectivity probe reads the same provider. */
-    private val serverUrl: () -> String = { settingsStore.load().serverUrl }
+    /** The effective address and its probe, built once: see [EffectiveAddress]. */
+    private val effectiveAddress = EffectiveAddress(settingsStore, SystemClockAdapter)
+
+    /** The effective server address, read on every call. */
+    internal val serverUrl: () -> String get() = effectiveAddress.serverUrl
 
     /** The connectivity probe of the dictation path: one instance, shared by [refreshProbeInBackground] and the dictation component. */
-    private val probe: TcpConnectivityProbe = TcpConnectivityProbe(
-        serverUrlProvider = serverUrl,
-        clock = SystemClockAdapter,
-    )
+    internal val probe: TcpConnectivityProbe get() = effectiveAddress.probe
 
     /**
      * Re-probes the configured server now, replacing a cached answer, on the root's own background
