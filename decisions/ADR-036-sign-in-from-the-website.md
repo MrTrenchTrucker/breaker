@@ -1,6 +1,6 @@
 # ADR-036: Sign-in from the website hands the login to the app
 
-**Status:** accepted, amended 2026-11-02 (how the wrong-password limit works); decided, built on the server and on the phone (the exchange, the key package and the stored keys and session), built on the website but switched off (`js/signin-page.js`, `js/signin-crypto.js:4`); the wrong-password limit is built on the server (counting, the locked answer, the admin switch and its route, the drop at registration, the clear hook and the sweep), and the admin reset, the completion of a reset and the password change that call the hook are built on the server too, while the phone side is not built (no 423 answer in `android/modules/auth-client`) and the website side is built (`js/signin.js:177`, `js/signin-net.js:32`); the points still open are under To be designed
+**Status:** accepted, amended 2026-11-02 (how the wrong-password limit works); decided, built on the server and on the phone (the exchange, the key package and the stored keys and session), built on the website but switched off (`js/signin-page.js`, `js/signin-crypto.js:4`); the wrong-password limit is built on the server (counting, the locked answer, the admin switch and its route, the drop at registration, the clear hook and the sweep), and the admin reset, the completion of a reset and the password change that call the hook are built on the server too, while the phone side is built (a 423 on login answers `NAME_LOCKED`, `ServerAuthReplies.kt:41`, which shows the fixed sentence and reads no header) and the website side is built (`js/signin.js:177`, `js/signin-net.js:32`); the points still open are under To be designed
 **Date:** 2026-11-01
 **Approved by:** the project owner, 2026-11-01
 
@@ -83,7 +83,7 @@ under To be designed.
 
 **How the count works.** The count is five wrong tries in a row. A partial count of one to four with no wrong try for 15 minutes counts as zero. A right password deletes the row. An expired lock is treated as no row.
 
-**The locked answer.** The fifth wrong try answers the plain 401 and starts the wait. The locked answer is 423 with Retry-After and starts at the sixth try inside the wait. Retry-After is a whole number of seconds, up to the next whole second, minimum 1, while the body text speaks of minutes. A right password inside the wait is refused with the same locked answer and changes nothing.
+**The locked answer.** The fifth wrong try answers the plain 401 and starts the wait. The locked answer is 423 with one fixed body sentence, `Too many wrong tries. Try again later.`, and no Retry-After header, and starts at the sixth try inside the wait. It carries no number and no wait time, so it does not tell a caller how much of the wait is left (changed 2026-11-16: it used to carry a Retry-After header and a wait in minutes). A right password inside the wait is refused with the same locked answer and changes nothing.
 
 **Clearing.** A password change clears the row. An admin reset of the account clears the row.
 
@@ -105,7 +105,7 @@ under To be designed.
 
 ### What is built
 
-Built on the server: the table and the counting, the locked answer, the admin switch and its route, the drop of the row at registration, the clear hook that the resets call, and the sweep (at boot and every five minutes). The admin reset, the completion of a reset and the password change are built on the server and call the hook. Not built: the phone side (no 423 answer in `android/modules/auth-client`). Built on the website: the locked answer
+Built on the server: the table and the counting, the locked answer, the admin switch and its route, the drop of the row at registration, the clear hook that the resets call, and the sweep (at boot and every five minutes). The admin reset, the completion of a reset and the password change are built on the server and call the hook. Built on the phone: the 423 on login answers `NAME_LOCKED` (`ServerAuthReplies.kt:41`, test `ServerLoginNameLockedTest`), which shows the fixed sentence and reads no header. Built on the website: the locked answer
 (`js/signin.js:177`, `js/signin-net.js:32`).
 
 ## To be designed (not decided here)
