@@ -12,11 +12,22 @@ request/response types (ADR-017): the single contract both the Android client (`
 - `POST /v1/audio/transcriptions` — multipart form: `file`, `model`, `language`
   → 202 `{ job_id, status: "queued" }` | 400 missing or empty upload | 401 unauth | 413 too large | 429 rate limited | 500 upload unreadable
 - `GET /v1/jobs/{job_id}` → `{ status: queued|processing|done|failed, result:
-  { text, segments[], language } | null, error: string | null }` — `error`
+  { text, segments[], language, words? } | null, error: string | null }` — `error`
   is the failure reason, set exactly when status is `failed` (enforced both
   ways in the Kotlin type); `POST` 202 status is `queued` only. `result` is
   set exactly when status is `done` (enforced both ways in the Kotlin type,
-  like `error`).
+  like `error`). `words` is optional and holds `[{ word, start, end }]` with
+  times in seconds; the server includes it only when its word timestamp setting
+  is on and the transcription service returned words, otherwise it is absent
+  (`val words: List<Word>? = null` in the Kotlin type). The phone's decoder reads
+  only `segments` and ignores `words`.
+- `GET /v1/jobs/{job_id}?format=json|srt|vtt` — an absent or `json` value
+  answers the JSON body above; `srt` answers a done result as SubRip under
+  `application/x-subrip` and `vtt` as WebVTT under `text/vtt`; on a job that is
+  not done, or that failed, a valid `srt` or `vtt` answers the same JSON status
+  body. Any other value, the empty one included, answers 400
+  `{"error":"unknown format"}` for any job that exists; the token, rate limit and
+  unknown or expired job answers (401, 429, 404) come first.
 - `GET /health` — `{ status }`; `forwarding_to` and `uptime` are optional (whisper-server sends both)
 - (v1.1) `POST /v1/audio/transcriptions/stream` — SSE partial segments
 
