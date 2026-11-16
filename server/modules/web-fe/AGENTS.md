@@ -96,6 +96,8 @@ this browser first saw the service down, not from the server's own start of the 
 How these files reach a browser is still the open owner question above, so no page calls
 them yet; only the modules' own tests call them.
 
+**Built now: the admin panel client modules, no page yet.** Four sets of three ES modules, each set with no page around it. The users modules (`admin-users-net.js`, `admin-users.js`, `admin-users-view.js`) set or clear a person's admin role and reset an account, showing the returned one-time code once for the admin to hand over out of band. The agent token modules (`admin-tokens-net.js`, `admin-tokens.js`, `admin-tokens-view.js`) list, create and revoke scoped tokens, showing a new token once. The store modules (`admin-store-net.js`, `admin-store.js`, `admin-store-view.js`) clear one user's transcription store or every user's. The settings modules (`admin-settings-net.js`, `admin-settings.js`, `admin-settings-view.js`) read and set the three on/off settings. Every call carries the bearer token passed in, with no cookies, no cache and no retry, and a rejected call is answered with one fixed network sentence rather than thrown into the page. The destructive actions carry an in-view confirm that names its target and sends nothing before it is used. A secret is written with `textContent` into one element and cleared by its dismiss control. Each set keeps every sentence on screen in one frozen exported table and has its own node tests. How these files reach a browser is still the open owner question above, so no page calls them yet; only the modules' own tests call them.
+
 **Hosting:**
 - `/Breaker.apk` — latest signed APK (from the git-pull build).
 - Published SHA-256 for the APK on the download page (tamper check).

@@ -100,7 +100,7 @@ The four words, once: **Built** means the module's code and tests are on `main` 
 | `android/modules/crypto` | 11 | Partly built | Key handling and opening sealed results are in; the account key service is not wired into the app. |
 | `android/modules/sync` | 11 | Built | Sync is built and sends plaintext; encrypted sync is built in parts and is not switched on. |
 | `server/modules/sync-api` | 11 | Built |  |
-| `server/modules/web-fe` | 12 | Partly built | The sign-in page and the device list are built; the sign-in form stays off until the browser can run the crypto; the admin status banner modules are built with node tests, and no page shows them yet. |
+| `server/modules/web-fe` | 12 | Partly built | The sign-in page and the device list are built; the sign-in form stays off until the browser can run the crypto; the admin status banner modules and the admin panel client modules (users, agent tokens, store clear, settings) are built with node tests, and no page shows any of them yet. |
 | `android/modules/training-client` | 13 | Not built | Not started: only a card. |
 | `server/modules/training` | 13 | Not built | Not started: only a card. |
 | `server/modules/deploy` | 14 | Partly built | Five helper scripts are built (pull, health check, backup, release tags, address check); the build, sign and serve steps and the compose file are not. |
