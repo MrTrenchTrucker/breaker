@@ -114,7 +114,7 @@ internal class AuthChangePasswordRouteAuthTest : AuthChangePasswordRouteTestBase
         val before = snapshotOf(id)
         val locked = postChangeFull(session, validChangeBody())
         assertEquals("sync-api: status of the sixth request", HttpStatusCode.Locked, locked.status)
-        assertEquals("sync-api: Retry-After of the sixth request", "900", locked.retryAfter)
+        assertTrue("no Retry-After header on a locked name", locked.retryAfter.isNullOrBlank())
         assertEquals("sync-api: body of the sixth request", lockedBody, locked.body)
         assertUnchanged(id, before, "the locked request")
         val login = loginAs("alice", oldVerifierBytes)

@@ -97,7 +97,7 @@ internal abstract class AuthChangePasswordRouteTestBase : AuthKeysRouteTestBase(
     protected val newKdf = KdfParams(131072, 4, 2)
 
     protected val oldVerifierWrongBody = """{"error":"unauthorized","message":"Invalid old verifier"}"""
-    protected val lockedBody = """{"error":"locked","message":"Too many wrong tries. Try again in 15 minutes."}"""
+    protected val lockedBody = """{"error":"locked","message":"Too many wrong tries. Try again later."}"""
     protected val noKeysBody = """{"error":"conflict","message":"The account has no keys"}"""
     protected val versionBody = """{"error":"conflict","message":"key_version is not the account's current key_version plus one"}"""
     protected val unfinishedBody = """{"error":"conflict","message":"A previous re-key is unfinished"}"""

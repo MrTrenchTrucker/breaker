@@ -36,7 +36,7 @@ def _load_spec():
 
 
 class Login423LockedAnswerTest(unittest.TestCase):
-    """POST /v1/auth/login answers locked, 423 with Retry-After, after the 5th wrong try."""
+    """POST /v1/auth/login answers locked, 423 without a header, after the 5th wrong try."""
 
     def setUp(self):
         self.spec = _load_spec()
@@ -50,18 +50,13 @@ class Login423LockedAnswerTest(unittest.TestCase):
         responses = self.login.get("responses", {})
         self.assertIn("423", responses, "login must carry a 423 locked answer")
 
-    def test_login_423_has_retry_after_header(self):
+    def test_login_423_has_no_retry_after_header(self):
         responses = self.login.get("responses", {})
         resp423 = responses.get("423", {})
-        headers = resp423.get("headers", {})
-        self.assertIn("Retry-After", headers, "423 response must carry a Retry-After header")
-        ra = headers["Retry-After"]
-        self.assertEqual(ra.get("schema", {}).get("type"), "integer",
-                         "Retry-After schema must be integer")
-        self.assertEqual(ra.get("schema", {}).get("minimum"), "1",
-                         "Retry-After minimum must be 1")
-        self.assertIn("seconds", ra.get("description", ""),
-                      "Retry-After description must say seconds")
+        headers = resp423.get("headers", None)
+        self.assertIsNone(headers, "423 response must not carry any header")
+        self.assertNotIn("Retry-After", {},
+                         "423 must not tell the caller how long to wait")
 
     def test_login_423_body_is_locked_error(self):
         responses = self.login.get("responses", {})
@@ -73,8 +68,8 @@ class Login423LockedAnswerTest(unittest.TestCase):
         example = app_json.get("example", {})
         self.assertEqual(example.get("error"), "locked",
                          "423 example error must be locked")
-        self.assertIn("Too many wrong tries", example.get("message", ""),
-                      "423 example message must name too many wrong tries")
+        self.assertEqual(example.get("message"), "Too many wrong tries. Try again later.",
+                         "423 example message must be exactly the fixed sentence")
 
     def test_login_401_unchanged(self):
         responses = self.login.get("responses", {})
@@ -85,6 +80,35 @@ class Login423LockedAnswerTest(unittest.TestCase):
                          "401 error must stay unauthorized")
         self.assertEqual(example.get("message"), "Invalid username or verifier",
                          "401 message must stay byte for byte")
+
+    def test_login_423_description_names_no_header(self):
+        desc = self.login.get("description", "")
+        self.assertIn("no Retry-After header: it carries no number or wait", desc,
+                      "login 423 description must say the locked answer carries no header, number or wait")
+        self.assertNotIn("Retry-After in seconds", desc,
+                         "login 423 description must not name a Retry-After in seconds")
+
+    def test_change_password_423_description_names_no_header(self):
+        cp = self.spec.get("paths", {}).get("/v1/auth/change-password", {}).get("post", {})
+        desc = cp.get("description", "")
+        self.assertIn("A locked name gets the locked answer (423", desc,
+                      "change-password description must name the locked 423 answer")
+        self.assertIn("with no Retry-After header; the caller gets no number and no wait", desc,
+                      "change-password 423 description must say no header, no number, no wait")
+        self.assertNotIn("Retry-After in whole seconds", desc,
+                         "change-password 423 description must not name a timed Retry-After")
+
+    def test_423_example_message_is_fixed_sentence(self):
+        for path, method in ((LOGIN_PATH, "post"), ("/v1/auth/change-password", "post")):
+            resp = (self.spec.get("paths", {}).get(path, {})
+                    .get(method, {}).get("responses", {}).get("423", {}))
+            example = resp.get("content", {}).get("application/json", {}).get("example", {})
+            self.assertEqual(example.get("error"), "locked",
+                             path + " 423 example error must be locked")
+            self.assertEqual(example.get("message"), "Too many wrong tries. Try again later.",
+                             path + " 423 example message must be exactly the fixed sentence")
+            self.assertNotIn("Try again in 15 minutes", example.get("message", ""),
+                             path + " 423 example must not carry the old minutes sentence")
 
     def test_login_description_names_wrong_pw_limit_route(self):
         desc = self.login.get("description", "")

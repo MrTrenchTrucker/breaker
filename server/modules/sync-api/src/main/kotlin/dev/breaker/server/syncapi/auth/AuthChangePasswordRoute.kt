@@ -97,7 +97,7 @@ internal fun Application.authChangePasswordRoute(accountStore: AccountStore, tok
                     return@post
                 }
                 is VerifyResult.Locked -> {
-                    call.respondLocked(proof.secondsRemaining)
+                    call.respondLocked()
                     return@post
                 }
             }

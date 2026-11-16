@@ -7,7 +7,6 @@ import dev.breaker.server.syncapi.tokens.IssueResult
 import dev.breaker.server.syncapi.tokens.TokenStore
 import dev.breaker.server.syncapi.transcriptions.respondUnavailable
 import io.ktor.http.ContentType
-import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCall
@@ -120,7 +119,7 @@ internal fun Application.authLoginRoute(accountStore: AccountStore, tokenStore: 
                     )
                 }
                 is VerifyResult.Locked -> {
-                    call.respondLocked(result.secondsRemaining)
+                    call.respondLocked()
                 }
             }
         }
@@ -128,14 +127,12 @@ internal fun Application.authLoginRoute(accountStore: AccountStore, tokenStore: 
 }
 
 /**
- * Answers 423 for a locked name: the Retry-After header in whole seconds and a body that says the
- * wait in whole minutes, at least one. Login and change-password both answer a locked name with it.
+ * Answers 423 for a locked name with the fixed sentence, disclosing nothing about how long. Login and
+ * change-password both answer a locked name with it.
  */
-internal suspend fun ApplicationCall.respondLocked(secondsRemaining: Long) {
-    response.headers.append(HttpHeaders.RetryAfter, secondsRemaining.toString())
-    val minutes = ((secondsRemaining + 59) / 60).coerceAtLeast(1)
+internal suspend fun ApplicationCall.respondLocked() {
     respondText(
-        """{"error":"locked","message":"Too many wrong tries. Try again in $minutes minutes."}""",
+        """{"error":"locked","message":"Too many wrong tries. Try again later."}""",
         ContentType.Application.Json,
         HttpStatusCode.Locked,
     )

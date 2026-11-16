@@ -38,7 +38,7 @@ internal class AuthLoginPendingLockTest : ResetRouteTestBase() {
     }
 
     @Test
-    fun `five wrong logins answer 401 and a sixth answers 423 with Retry-After 900 for six names`() {
+    fun `five wrong logins answer 401 and a sixth answers 423 without Retry-After for six names`() {
         val adminText = startAdmin()
         pendingAccount(adminText, "Alice", 2)
         pendingAccount(adminText, "Carol", 4)
@@ -56,7 +56,7 @@ internal class AuthLoginPendingLockTest : ResetRouteTestBase() {
             }
             val sixth = loginWithHeaders(name, wrongVerifierBytes)
             assertAnswer("sixth try", sixth.reply, HttpStatusCode.Locked, lockedBody)
-            assertEquals("sync-api: Retry-After of the sixth try", "900", sixth.retryAfter)
+            assertTrue("no Retry-After header on a locked name", sixth.retryAfter.isNullOrBlank())
         }
     }
 
