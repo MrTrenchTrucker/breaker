@@ -35,8 +35,9 @@ and ship updates.
   (lost key = unsigned updates).
 
 **Update pipeline (F20/F21):** tagged release → build APK → sign → push to
-web-fe → `/v1/updates/latest.json` updated → clients notified on their daily
-check (or admin force-check).
+web-fe → the release step writes the release manifest file that
+`/v1/updates/latest.json` reads (that writer is not built yet; ADR-011 amendment
+of 2026-11-10) → clients notified on their daily check (or admin force-check).
 
 **sherpa-onnx placement (Security Review mitigation 3) [2]:** sherpa-onnx stays **OFF
 Local Server's network-exposed path** — server transcription uses the existing
