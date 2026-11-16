@@ -71,38 +71,40 @@ GitHub, its issue list is the live version of this table. The parent folders
 `android/`, `server/` and `shared/` hold no feature code of their own and
 aren't listed.
 
-| Module | Build phase | Status |
-|---|---|---|
-| `agent-skills` | — | Shipped (instructions for AI agents, no code) |
-| `android/modules/core` | — | Built |
-| `shared/modules/format-prompts` | — | Built |
-| `shared/modules/ui-tokens` | — | Built |
-| `shared/modules/seal` | — | Built |
-| `android/app` | 1 | In progress (maintainers) |
-| `android/ui` | 1 | In progress (maintainers) |
-| `android/modules/audio` | 2 | In progress (maintainers) |
-| `android/modules/history` | 2 | In progress (maintainers) |
-| `android/modules/settings` | 2 | In progress (maintainers) |
-| `shared/modules/model-registry` | before 2 | In progress (maintainers) |
-| `android/modules/stt-ondevice` | 3 | In progress (maintainers) |
-| `shared/modules/api-contracts` | — | In progress (maintainers) |
-| `server/modules/whisper-server` | 4 | Open |
-| `android/modules/stt-server` | 5 | Open |
-| `android/modules/transport` | 5 | Open |
-| `android/modules/gesture` | 6 | Open |
-| `android/modules/overlay` | 6 | Open |
-| `android/modules/commit` | 7 | Open |
-| `android/modules/format` | 8 | Open |
-| `android/modules/phrases` | 10 | Open |
-| `android/modules/auth-client` | 11 | Open |
-| `android/modules/crypto` | 11 | Open |
-| `android/modules/sync` | 11 | Open |
-| `server/modules/sync-api` | 11 | Open |
-| `server/modules/web-fe` | 12 | Open |
-| `android/modules/training-client` | 13 | Open |
-| `server/modules/training` | 13 | Open |
-| `server/modules/deploy` | 14 | Open |
-| `android/modules/updater` | 16 | Open |
+The four words, once: **Built** means the module's code and tests are on `main` and the app or server uses it; **Built, switched off** means the same, but a switch keeps it off; **Partly built** means part of what the module is meant to do is not on `main` yet, or the app does not use it yet; **Not built** means there is no code of its own yet.
+
+| Module | Build phase | Status | Notes |
+|---|---|---|---|
+| `agent-skills` | — | Built (instructions for AI agents, no code) | Instructions only, no code, so the status tool counts it as not started. |
+| `android/modules/core` | — | Built |  |
+| `shared/modules/format-prompts` | — | Built |  |
+| `shared/modules/ui-tokens` | — | Built |  |
+| `shared/modules/seal` | — | Built |  |
+| `android/app` | 1 | Built |  |
+| `android/ui` | 1 | Built |  |
+| `android/modules/audio` | 2 | Partly built | Voice-activity detection and noise suppression exist but are not switched on. |
+| `android/modules/history` | 2 | Built |  |
+| `android/modules/settings` | 2 | Built |  |
+| `shared/modules/model-registry` | before 2 | Built |  |
+| `android/modules/stt-ondevice` | 3 | Built |  |
+| `shared/modules/api-contracts` | — | Partly built | The sync, auth and transcription contracts are built; the training endpoints are not in the spec yet. |
+| `server/modules/whisper-server` | 4 | Partly built | The transcription queue works; sealing a copy of a result for its owner is not built. |
+| `android/modules/stt-server` | 5 | Built |  |
+| `android/modules/transport` | 5 | Built |  |
+| `android/modules/gesture` | 6 | Built |  |
+| `android/modules/overlay` | 6 | Partly built | The floating tile works; one open bug: the mic's cancel and confirm marks on Home do not answer a tap while recording, and the check that the tile window is still ours is not built. |
+| `android/modules/commit` | 7 | Built |  |
+| `android/modules/format` | 8 | Built |  |
+| `android/modules/phrases` | 10 | Built, switched off | Spoken send is built but off: nothing feeds it spoken words yet. |
+| `android/modules/auth-client` | 11 | Built |  |
+| `android/modules/crypto` | 11 | Partly built | Key handling and opening sealed results are in; the account key service is not wired into the app. |
+| `android/modules/sync` | 11 | Built | Sync is built and sends plaintext; encrypted sync is built in parts and is not switched on. |
+| `server/modules/sync-api` | 11 | Built |  |
+| `server/modules/web-fe` | 12 | Partly built | The sign-in page and the device list are built; the sign-in form stays off until the browser can run the crypto; the admin status banner modules are built with node tests, and no page shows them yet. |
+| `android/modules/training-client` | 13 | Not built | Not started: only a card. |
+| `server/modules/training` | 13 | Not built | Not started: only a card. |
+| `server/modules/deploy` | 14 | Partly built | Five helper scripts are built (pull, health check, backup, release tags, address check); the build, sign and serve steps and the compose file are not. |
+| `android/modules/updater` | 16 | Partly built | The module and its tests exist; the app does not use it yet. |
 
 ## Contributing
 
