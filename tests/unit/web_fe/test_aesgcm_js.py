@@ -29,7 +29,9 @@ NODE_MIN_MINOR = 19
 # 449 = 319 base (258 + 6 devices-net + 33 devices flow + 22 devices view) + 34 signin-kdf + 9 signin-crypto + 8 noble-curves-served + 9 signin-box + 12 signin-box-aad + 20 signin-seal + 9 signin-e2e + 25 pending-sealed flow + 4 pending-sealed-net.
 # 484 = 450 base + 6 status-net + 28 status-banner.
 # 475 = 484 - 9 (the tests of the locked wait, removed with the Retry-After read).
-PASSED_COUNT = 475
+# 637 = 475 + 35 users + 54 tokens + 33 store + 40 settings (measured on the
+# assembled whole set, not computed from the file counts).
+PASSED_COUNT = 637
 
 
 def _run(args, env=None):
