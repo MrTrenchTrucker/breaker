@@ -1,6 +1,4 @@
-package dev.breaker.dictation.crypto
-
-import dev.breaker.dictation.core.model.CryptoRefused
+package dev.breaker.dictation.seal
 
 /** The key length HSalsa20 takes, in bytes. */
 private const val HSALSA20_KEY_BYTES = 32
@@ -60,12 +58,12 @@ private fun hsalsaQuarterRound(x: IntArray, a: Int, b: Int, c: Int, d: Int) {
  * laid out as the Salsa20 specification has it: word 0, 5, 10 and 15 hold the four
  * constants, words 1-4 and 11-14 hold the key, and words 6-9 hold the 16-byte input.
  *
- * Throws [CryptoRefused] when [key] is not 32 bytes or [input16] is not 16 bytes. The
+ * Throws [SealRefused] when [key] is not 32 bytes or [input16] is not 16 bytes. The
  * caller's arrays are left untouched, a new 32-byte array is returned every call, and the
  * working state is zeroed before this function returns.
  */
 internal fun hsalsa20(key: ByteArray, input16: ByteArray): ByteArray {
-    if (key.size != HSALSA20_KEY_BYTES || input16.size != HSALSA20_INPUT_BYTES) throw CryptoRefused()
+    if (key.size != HSALSA20_KEY_BYTES || input16.size != HSALSA20_INPUT_BYTES) throw SealRefused()
     val x = IntArray(16)
     try {
         x[0] = SIGMA_0

@@ -10,12 +10,14 @@ and unseals agent-token results sealed to it — all locally. Nothing here ever
 sends the password, the KEK, or a plaintext DEK off the device.
 Generating and wrapping the data key and the box keypair, and unsealing results sealed to the account (`unsealAndReencrypt`), are built here (`AccountKeyServiceImpl`). The app's use of these operations is decided, not built (Phase 19): see the Build phase line below.
 
-**Build phase:** Phase 11 builds key derivation (`deriveKeys`). BUILT for the sign-in work: unwrapping the data key with a key-encryption key, AES-256-GCM encrypt and decrypt with associated data, nonces from a secure random source, and opening a sign-in package (a sealed box) with the one-time private key, and making the one-time sign-in secret and key pair in memory (SignInStarterImpl). BUILT in the account key service (`AccountKeyServiceImpl`): generating the data key and the box keypair, wrapping a new data key, wrapping and unwrapping the box private key, wrapping and unwrapping the previous data key, the box public key check, and unsealing a sealed agent result and encrypting it again (`unsealAndReencrypt`), re-encrypting a record under a new data key (`reencrypt`), and sealing and opening opaque record bytes (`encryptBytes`, `decryptBytes`). Decided, not built (Phase 19): the app's use of the account key operations. Not this module's work, and built in the app: the phone's stored keys. After a website sign-in the app keeps the plain data key and box private key in memory only while in use and, at rest, only as a blob sealed under an Android Keystore key (a file of its own, behind the core `CredentialVault` port); it never stores the server-wrapped forms. This module holds no Keystore code. Needs first: `core` (on main).
+**Build phase:** Phase 11 builds key derivation (`deriveKeys`). BUILT for the sign-in work: unwrapping the data key with a key-encryption key, AES-256-GCM encrypt and decrypt with associated data, nonces from a secure random source, and opening a sign-in package (a sealed box) with the one-time private key, and making the one-time sign-in secret and key pair in memory (SignInStarterImpl). BUILT in the account key service (`AccountKeyServiceImpl`): generating the data key and the box keypair, wrapping a new data key, wrapping and unwrapping the box private key, wrapping and unwrapping the previous data key, the box public key check, and unsealing a sealed agent result and encrypting it again (`unsealAndReencrypt`), re-encrypting a record under a new data key (`reencrypt`), and sealing and opening opaque record bytes (`encryptBytes`, `decryptBytes`). Decided, not built (Phase 19): the app's use of the account key operations. The sealed-box open itself now lives in `shared/modules/seal` (`SealedBox.open`); this module holds the thin `SealedBoxOpener` wrapper that maps its `SealRefused` to `CryptoRefused`. Not this module's work, and built in the app: the phone's stored keys. After a website sign-in the app keeps the plain data key and box private key in memory only while in use and, at rest, only as a blob sealed under an Android Keystore key (a file of its own, behind the core `CredentialVault` port); it never stores the server-wrapped forms. This module holds no Keystore code. Needs first: `core` (on main).
 
 ## Owns
 Client-side key derivation (Argon2id + HKDF), DEK generation/wrap/unwrap,
-AES-256-GCM encrypt/decrypt, X25519 box keypair generation, sealed-box
-unsealing.
+AES-256-GCM encrypt/decrypt, X25519 box keypair generation, and the phone's
+thin mapping wrapper over the shared sealed-box open. The sealed-box open itself
+(HSalsa20, `SealedBox.open`, `SealedBox.seal`) lives in `shared/modules/seal`;
+this module only maps its `SealRefused` to `CryptoRefused`.
 
 ## Public Interface `core.CryptoService` port with its implementation `CryptoServiceImpl`, the `core.AccountKeyService` port (including the bytes-level `encryptBytes` and `decryptBytes`) with its implementation `AccountKeyServiceImpl`, and `KdfImpl`, the `core.KeyDerivation` implementation.
 
@@ -198,6 +200,7 @@ The port changed once, in the sign-in slice
 - android (registered in modules.toml)
 - android_core (registered in modules.toml)
 - shared_api_contracts (registered in modules.toml)
+- shared_seal (registered in modules.toml)
 
 ## Does Not Own
 - Key wrapping of any kind performed server-side — there is none; the server

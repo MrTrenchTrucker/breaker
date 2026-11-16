@@ -31,6 +31,7 @@ dependencies {
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.cio)
     implementation(project(":shared:modules:api-contracts"))
+    implementation(project(":shared:modules:seal"))
     testImplementation(libs.junit)
     testImplementation(libs.ktor.server.test.host)
 }

@@ -17,20 +17,20 @@ import org.junit.Test
 class AccountKeyUnsealOversizedKeyTest : CryptoServiceTestFixture() {
     private val aad = aadFor(clientA, 1)
 
-    /** Counts its calls and hands the body back as it is. */
-    private class CountingCipher : BodyCipher {
+    /** Counts its calls and hands the box back as it is. */
+    private class CountingOpener : BoxOpener {
         var calls = 0
 
-        override fun apply(subkey: ByteArray, nonce24: ByteArray, body: ByteArray): ByteArray {
+        override fun open(box: ByteArray, recipientPrivateKey: ByteArray): ByteArray {
             calls++
-            return body
+            return box
         }
     }
 
     private fun assertRefusedBeforeAnyWork(keySize: Int) {
         val nonces = CountingNonces(nonceOne)
-        val cipher = CountingCipher()
-        val service = AccountKeyServiceImpl(nonces, { size -> ByteArray(size) }, SealedBoxOpener(cipher))
+        val opener = CountingOpener()
+        val service = AccountKeyServiceImpl(nonces, { size -> ByteArray(size) }, SealedBoxOpener(opener))
         val longKey = DataEncryptionKey(ByteArray(keySize) { 1 })
 
         val thrown = assertThrows(
@@ -47,7 +47,7 @@ class AccountKeyUnsealOversizedKeyTest : CryptoServiceTestFixture() {
 
         assertEquals("crypto unseal: refusal message for $keySize bytes", CryptoRefused().message, thrown.message)
         assertEquals("crypto unseal: no nonce is asked for a key of $keySize bytes", 0, nonces.calls)
-        assertEquals("crypto unseal: the box is not opened for a key of $keySize bytes", 0, cipher.calls)
+        assertEquals("crypto unseal: the box is not opened for a key of $keySize bytes", 0, opener.calls)
     }
 
     @Test

@@ -43,6 +43,7 @@
 | `model-registry` | `shared/modules/model-registry/` | Model sizes, immutable release-asset URLs, checksum.txt, licenses |
 | `format-prompts` | `shared/modules/format-prompts/` | Strict non-destructive formatting prompts for the server LLM |
 | `ui-tokens` | `shared/modules/ui-tokens/` | Trucking design tokens (colors, type, spacing, breakpoints) |
+| `seal` | `shared/modules/seal/` | Sealed box (libsodium crypto_box_seal) opener and sealer: HSalsa20, SealedBox.open and SealedBox.seal. |
 
 ## agent-skills/ — set up AI agents to work here
 | Module | Path | Job |
