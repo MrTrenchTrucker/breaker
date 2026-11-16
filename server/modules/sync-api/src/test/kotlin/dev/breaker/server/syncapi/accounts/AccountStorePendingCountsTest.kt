@@ -87,11 +87,11 @@ internal class AccountStorePendingCountsTest : TempDatabaseTest() {
     }
 
     @Test
-    fun `five wrong tries on a pending name lock it so the sixth answers Locked for 900 seconds`() {
+    fun `five wrong tries on a pending name lock it so the sixth answers Locked`() {
         val alice = register("alice", 1)
         markPending(alice)
         repeat(5) { assertEquals("sync-api: try before the lock", VerifyResult.Rejected, verify("alice", 5)) }
-        assertEquals("sync-api: the sixth try", VerifyResult.Locked(900L), verify("alice", 5))
+        assertEquals("sync-api: the sixth try", VerifyResult.Locked, verify("alice", 5))
     }
 
     @Test
@@ -104,7 +104,7 @@ internal class AccountStorePendingCountsTest : TempDatabaseTest() {
         markPending(carol)
         val names = listOf("alice", "bob", "carol", "brenda", "ghost", "nobody")
         val rejectedFive = List<VerifyResult>(5) { VerifyResult.Rejected }
-        val expected: List<VerifyResult> = rejectedFive + VerifyResult.Locked(900L)
+        val expected: List<VerifyResult> = rejectedFive + VerifyResult.Locked
         for ((index, name) in names.withIndex()) {
             val answers = (1..6).map { verify(name, 5) }
             assertEquals("sync-api: six answers for name $index", expected, answers)
@@ -133,7 +133,7 @@ internal class AccountStorePendingCountsTest : TempDatabaseTest() {
         repeat(5) { verify("alice", 5) }
         markPending(alice)
         hasher.matchesCalls = 0
-        assertEquals("sync-api: locked pending name", VerifyResult.Locked(900L), verify("alice", 5))
+        assertEquals("sync-api: locked pending name", VerifyResult.Locked, verify("alice", 5))
         assertEquals("sync-api: hash calls", 0, hasher.matchesCalls)
     }
 

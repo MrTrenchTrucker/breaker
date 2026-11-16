@@ -44,5 +44,5 @@ internal sealed class SaltLookup {
 internal sealed class VerifyResult {
     data class Verified(val accountId: Long, val role: Role) : VerifyResult()
     object Rejected : VerifyResult()
-    data class Locked(val secondsRemaining: Long) : VerifyResult()
+    object Locked : VerifyResult()
 }

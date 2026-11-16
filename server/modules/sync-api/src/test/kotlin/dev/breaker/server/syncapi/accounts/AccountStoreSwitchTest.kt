@@ -102,8 +102,6 @@ internal class AccountStoreSwitchTest : TempDatabaseTest() {
         runBlocking { settings.setWrongPwLimitEnabled(true) }
         val resultOn = runBlocking { store.verify("alice", AccountFixtures.verifier(1)) }
         assertTrue("right password with switch on is Locked again", resultOn is VerifyResult.Locked)
-        val locked = (resultOn as VerifyResult.Locked).secondsRemaining
-        assertTrue("locked again at same instant", locked > 0L)
         assertEquals("locked_until unchanged", lockedBefore, attemptOf(store, "alice")!!.lockedUntilMs)
     }
 

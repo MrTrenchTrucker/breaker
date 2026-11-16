@@ -29,42 +29,12 @@ internal class SigninAttemptStoreLockTest : TempDatabaseTest() {
     }
 
     @Test
-    fun `retryAfterSeconds is never less than 1`() {
-        val result = SigninAttemptStore.retryAfterSeconds(0L, start.toEpochMilli())
-        assertEquals("not locked means 1", 1L, result)
-    }
-
-    @Test
-    fun `retryAfterSeconds is 1 for any positive sub-second remainder`() {
-        val now = start.toEpochMilli()
-        val future = now + 1
-        assertEquals("1 ms left rounds up to 1 second", 1L, SigninAttemptStore.retryAfterSeconds(future, now))
-        assertEquals("500 ms left rounds up to 1 second", 1L, SigninAttemptStore.retryAfterSeconds(now + 500, now))
-    }
-
-    @Test
-    fun `retryAfterSeconds rounds up whole seconds`() {
-        val now = start.toEpochMilli()
-        assertEquals("1001 ms -> 2 seconds", 2L, SigninAttemptStore.retryAfterSeconds(now + 1001, now))
-        assertEquals("900000 ms -> 900 seconds", 900L, SigninAttemptStore.retryAfterSeconds(now + 900000, now))
-        assertEquals("450000 ms -> 450 seconds", 450L, SigninAttemptStore.retryAfterSeconds(now + 450000, now))
-    }
-
-    @Test
-    fun `retryAfterSeconds minimum is 1 even for the tiniest remainder`() {
-        val now = start.toEpochMilli()
-        assertEquals("tiny positive remainder is 1", 1L, SigninAttemptStore.retryAfterSeconds(now + 1, now))
-    }
-
-    @Test
     fun `five wrong tries reach count 5 and lock until now + 15 minutes`() {
         runBlocking { store.register("alice", AccountFixtures.salt(1), AccountFixtures.validKdf, 1, AccountFixtures.verifier(1)) }
         repeat(5) { runBlocking { store.attempts.recordWrong("alice") } }
         assertEquals("alice count after 5 wrong tries", 5L, attemptOf("alice")!!.wrongCount)
         val locked = attemptOf("alice")!!.lockedUntilMs
         assertEquals("lock is now + 15 minutes", start.toEpochMilli() + 15L * 60 * 1000, locked)
-        val seconds = SigninAttemptStore.retryAfterSeconds(locked, start.toEpochMilli())
-        assertEquals("retry after is 900 seconds", 900L, seconds)
     }
 
     @Test

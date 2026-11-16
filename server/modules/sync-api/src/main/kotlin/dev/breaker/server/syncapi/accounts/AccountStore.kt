@@ -366,7 +366,7 @@ internal class AccountStore(
             0L
         }
         if (until > 0L) {
-            return VerifyResult.Locked(SigninAttemptStore.retryAfterSeconds(until, clock.millis()))
+            return VerifyResult.Locked
         }
 
         val row = db.transaction<AccountRow?> { connection -> readAccountRow(connection, folded) }
