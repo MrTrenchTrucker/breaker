@@ -99,7 +99,7 @@
 
 ## Updates
 
-> Planned, not built: this whole section (ADR-011). Main holds only the rule that decides when a check is due; there is no daily check, notification, force-check button or APK verification yet.
+> Planned, not built: this whole section (ADR-011). Nothing here is wired into the app, so no user gets a daily check, a notification, a force-check button or an install today; built and tested but not wired are the updater module's internal pieces (due decision, version order, digest check, update decision, check, APK download, signature check, verify step, daily-check gate).
 
 - Breaker checks for updates **once a day** automatically. When a new tagged
   release is available you'll get a notification: **"Breaker X.Y.Z is available —
