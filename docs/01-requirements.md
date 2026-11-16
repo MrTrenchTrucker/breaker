@@ -38,7 +38,7 @@
 - **F19** **Deploy:** the Breaker server stack pulls the latest tagged version from
   the user's local GIT server.
 - **F20** **Daily update check:** the app checks once a day for a newer tagged
-  release (from the local GIT server) and notifies the user when one is available.
+  release (the update endpoint reads a release manifest file) and notifies the user when one is available.
 - **F21** **Force check (admin):** the first registered user is admin and has a
   force-check button that triggers an immediate update check.
 - **F22** **Registration + roles:** the web FE shows a registration card on first

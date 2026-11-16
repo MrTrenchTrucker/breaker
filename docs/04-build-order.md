@@ -57,7 +57,7 @@ ever meets development data.
 - Phase 10 (phrases) can be spiked in parallel with Phase 6 (gesture) — same
   audio pipeline, complementary triggers.
 - Phase 16 (updater) depends on Phase 15 (git-pull deploy) — the update endpoint
-  reads GIT tags. Phase 17 (roles) depends on Phase 11 (auth).
+  reads a release manifest file. Phase 17 (roles) depends on Phase 11 (auth).
 - Phase 18 is absorbed into Phase 4 (no separate queue-wrapping step — Phase 4
   ships the queue directly; see the Phase 4 row).
 - Phase 19 (encryption, part 2) touches sync (11), web-fe (12), and the

@@ -32,8 +32,9 @@ agent lanes (Bug Hunt, Orchestration, Coding) can build each piece independently
 **Target device:** Samsung Galaxy S25 Ultra (16 GB RAM) — `small` model on-device,
 `medium` possible. **Power:** high-power mode, phone plugged in (battery non-issue).
 
-**Updates & admin:** the app checks **once a day** for newer tagged releases from
-the local GIT server, with a **force-check button** for admins. The **first
+**Updates & admin:** the app checks **once a day** for newer tagged releases (the
+update endpoint reads a release manifest file, `BREAKER_SYNC_API_MANIFEST_FILE`),
+with a **force-check button** for admins. The **first
 account to register** on the web FE is **admin by default** and can assign other
 admins.
 
@@ -117,7 +118,7 @@ admins.
 - F19. **Deploy:** the Breaker server stack pulls the latest tagged version from the
       user's local GIT server.
 - F20. **Daily update check:** the app checks once a day for a newer tagged release
-      (from the local GIT server) and notifies the user when one is available.
+      (the update endpoint reads a release manifest file) and notifies the user when one is available.
 - F21. **Force check (admin):** the first registered user is admin and has a
       force-check button that triggers an immediate update check.
 - F22. **Registration + roles:** the web FE shows a registration card on first
@@ -270,7 +271,7 @@ admins.
 │  sync-api ── /v1/sync (push/pull transcriptions) + /v1/auth (users, tokens)   │
 │  web-fe ── Debian container: website (view/search/copy) + APK hosting         │
 │  training ── per-user voice phrase model training container                   │
-│  deploy ── git pull (latest tagged from local GIT) · docker-compose · certs   │
+│  deploy ── git pull (latest tagged from local GIT) · docker-compose           │
 └────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -815,9 +816,10 @@ previous tag.
 a private-network address (RFC 1918 IPv4 - 10/8, 172.16/12, 192.168/16 - the
 100.64/10 carrier-grade NAT block, fd00::/8 IPv6 ULA, or loopback 127.0.0.1 / ::1).
 It never binds a public address, and it never binds 0.0.0.0 / ::. (ADR-042.)
-Nothing in the server enforces this yet: sync-api binds whatever `BREAKER_SYNC_API_HOST` names
-(default 127.0.0.1), whisper-server binds 127.0.0.1 by default, and `vpn-bind.sh`, the verify-only
-check, is not built.
+The server enforces part of this: sync-api refuses a wildcard on the internal host, and refuses
+a public wildcard only when its port equals the internal port, but otherwise binds whatever
+`BREAKER_SYNC_API_HOST` names (default 127.0.0.1); whisper-server binds 127.0.0.1 by default.
+`vpn-bind.sh`, the verify-only check, is built; no deploy step runs it.
 Internal listeners (the token-check routes) bind to loopback or the stack's
 internal network only, never the VPN interface. Breaker serves plain HTTP; TLS
 is the admin's choice through a reverse proxy in front of it (ADR-034).

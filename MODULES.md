@@ -37,8 +37,8 @@ issues. Default mode = `server-primary`.
 
 ## Updates & admin
 
-- The app checks **once a day** for newer tagged releases (local GIT server) and
-  notifies the user; admins have a **force-check button** (F20, F21).
+- The app checks **once a day** for newer tagged releases (the update endpoint reads a
+  release manifest file) and notifies the user; admins have a **force-check button** (F20, F21).
 - The **first account to register** on the web FE is **admin by default** and can
   assign other admins (F22).
 - Updates are **signed APKs** verified by signature + SHA-256 before install
