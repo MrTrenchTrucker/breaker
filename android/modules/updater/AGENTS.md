@@ -8,14 +8,14 @@ at OUR server, signing key secured (never git) [1].
 
 **Build phase:** Phase 16. Needs first: `core` (on main) and the Phase 15 git-pull deploy pipeline (`server/modules/deploy`), because the update endpoint reads its tagged releases.
 
-**Status on main:** ten pieces are built, all internal, pure Kotlin, with tests in `src/test/kotlin`: the
+**Status on main:** eleven pieces are built, all internal, pure Kotlin, with tests in `src/test/kotlin`: the
 due decision `UpdateSchedule.isDue(lastCheckAtMs, nowMs)`, the version order `UpdateOrder.isNewer`, the
 APK digest check `ApkDigest.matches` (and `matchesDigest`, over a digest that was computed while the
 bytes streamed), the update decision `UpdateDecision.of` plus its manifest mapper `ReleaseMapper.toRelease`,
 the check itself (`ManifestFetch`, `ManifestJson`, `UpdateCheck`, through the app's one HTTP client,
-`android/modules/http`), the download of the APK (`ApkDownload`, below), the signature check (`SignatureCheck`, below) and the verify step that joins them (`UpdateVerification`, below). A manifest that offers a newer
+`android/modules/http`), the download of the APK (`ApkDownload`, below), the signature check (`SignatureCheck`, below), the verify step that joins them (`UpdateVerification`, below) and the daily-check gate (`ScheduledUpdateCheck`, below). A manifest that offers a newer
 code but has a blank field is reported as unusable, not hidden. Nothing else in this module is built: no
-install, no rollback, no schedule, and no class implements the `core.UpdateChecker` port
+install, no rollback, no timer, nothing wired, and no class implements the `core.UpdateChecker` port
 yet (its install and rollback are not built); the wiring in `android/app` is owed. Everything below except
 those pieces is the target design, planned, not built. The server route `GET /v1/updates/latest.json` is
 built on the server and reads a manifest file (see the sync-api card).
@@ -151,3 +151,4 @@ agents, not required: an outside contributor may write the code themselves
   and its reason is returned. `Ready` is returned only when both steps passed. Any exception from either step, an
   interrupt included, becomes the one fixed sentence `UpdateVerificationReasons.UNEXPECTED`, and the file is deleted
   if the signature step threw. No install, no Android classes, no app wiring: nothing calls it yet.
+- **The daily-check gate (built):** `ScheduledUpdateCheck(runCheck, lastCheckAtMs, recordCheckAtMs, nowMs)` joins the due decision, one check and the record of the check time. It reads the clock once per call, answers null when the check is neither due nor forced (the check is not called and nothing is recorded), runs the check when it is due or when force is passed, and records the time of that call only when the answer is up to date or available. Never throws: an exception from the clock, the stored time or the check answers the fixed sentence `CheckReasons.UNFINISHED`, and a recorder that throws after a real answer changes no answer. No timer, no install, no rollback, no app wiring: nothing calls it yet.
