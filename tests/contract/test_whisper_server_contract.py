@@ -121,5 +121,45 @@ class ServerModulesWhisperServerContractTest(contract_support.ModuleContractTest
         )
 
 
+    def test_a_commented_out_gradle_edge_is_not_a_dependency(self):
+        """`depends_on` is proven by a LIVE `project(":…")` edge, not by its text.
+
+        The registry and the Gradle build are compared as sets; a commented-out edge still
+        contains the text, so it used to satisfy the bijection while this module could not
+        compile against the seal module.
+        """
+        text = '    // implementation(project(":shared:modules:seal"))\n'
+        assert contract_support._project_dependencies_in(text) == set(), (
+            "a commented-out project() edge must not count as a declared dependency"
+        )
+
+    def test_a_block_commented_out_gradle_edge_is_not_a_dependency(self):
+        text = '/*\n    implementation(project(":shared:modules:seal"))\n*/\n'
+        assert contract_support._project_dependencies_in(text) == set(), (
+            "a block-commented project() edge must not count as a declared dependency"
+        )
+
+    def test_a_trailing_comment_leaves_the_live_edge_visible(self):
+        text = '    implementation(project(":shared:modules:seal")) // moved here\n'
+        assert contract_support._project_dependencies_in(text) == {":shared:modules:seal"}, (
+            "stripping comments must not hide a live edge that merely carries a trailing comment"
+        )
+
+    def test_a_line_commented_out_settings_include_is_not_an_include(self):
+        assert contract_support._settings_includes_in(
+            'include(":shared")\n// include(":web-fe")\n'
+        ) == {":shared"}, "a commented-out include must not count as one"
+
+    def test_the_real_seal_edge_is_declared_by_this_build_file(self):
+        """Green on the tip: the edge this module actually compiles against."""
+        declared = contract_support._project_dependencies(
+            os.path.join("server", "modules", "whisper-server", "build.gradle.kts")
+        )
+        assert ":shared:modules:seal" in declared, (
+            f"whisper-server must wire the shared seal module with a live project() edge, "
+            f"got {sorted(declared)}"
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

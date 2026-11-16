@@ -1,516 +1,532 @@
 {
-  "modules": [
+ "modules": [
+  {
+   "name": "agent_skills",
+   "path": "agent-skills",
+   "items": [
     {
-      "name": "agent_skills",
-      "path": "agent-skills",
-      "items": [
-        {
-          "item": "agent_skills (its own code)",
-          "status": "NOT_STARTED",
-          "evidence": "0 code files, 0 test files"
-        }
-      ]
-    },
-    {
-      "name": "android_app",
-      "path": "android/app",
-      "items": [
-        {
-          "item": "android_app (its own code)",
-          "status": "DONE",
-          "evidence": "120 code files, 280 test files"
-        }
-      ]
-    },
-    {
-      "name": "android_audio",
-      "path": "android/modules/audio",
-      "items": [
-        {
-          "item": "android_audio (its own code)",
-          "status": "DONE",
-          "evidence": "21 code files, 62 test files"
-        }
-      ]
-    },
-    {
-      "name": "android_auth_client",
-      "path": "android/modules/auth-client",
-      "items": [
-        {
-          "item": "android_auth_client (its own code)",
-          "status": "DONE",
-          "evidence": "19 code files, 58 test files"
-        }
-      ]
-    },
-    {
-      "name": "android_commit",
-      "path": "android/modules/commit",
-      "items": [
-        {
-          "item": "android_commit (its own code)",
-          "status": "DONE",
-          "evidence": "12 code files, 25 test files"
-        }
-      ]
-    },
-    {
-      "name": "android_commit_accessibility",
-      "path": "android/modules/commit/accessibility",
-      "items": [
-        {
-          "item": "insert text by ACTION_SET_TEXT with the merge rules and refusals",
-          "status": "DONE",
-          "evidence": "commit/accessibility card: built with tests"
-        },
-        {
-          "item": "ACTION_PASTE (named in Owns; the decision on it is open)",
-          "status": "NOT_STARTED",
-          "evidence": "modules.toml Owns and the card Purpose: not built"
-        }
-      ]
-    },
-    {
-      "name": "android_core",
-      "path": "android/modules/core",
-      "items": [
-        {
-          "item": "android_core (its own code)",
-          "status": "DONE",
-          "evidence": "51 code files, 56 test files"
-        }
-      ]
-    },
-    {
-      "name": "android_crypto",
-      "path": "android/modules/crypto",
-      "items": [
-        {
-          "item": "key derivation (Argon2id + HKDF), data-key unwrap, AES-256-GCM encrypt/decrypt, sign-in package open",
-          "status": "DONE",
-          "evidence": "crypto card Status: built list; KdfImpl.kt, CryptoServiceImpl.kt with tests"
-        },
-        {
-          "item": "generate the data key (generateDataKey)",
-          "status": "DONE",
-          "evidence": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/AccountKeyServiceImpl.kt:83; android/modules/crypto/src/test/kotlin/dev/breaker/dictation/crypto/AccountKeyGenerationTest.kt:41-59"
-        },
-        {
-          "item": "generate the box keypair (generateBoxKeyPair)",
-          "status": "DONE",
-          "evidence": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/AccountKeyServiceImpl.kt:93; android/modules/crypto/AGENTS.md lines 124-126"
-        },
-        {
-          "item": "wrap the data key (wrapDek)",
-          "status": "DONE",
-          "evidence": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/AccountKeyServiceImpl.kt:104; android/modules/crypto/src/test/kotlin/dev/breaker/dictation/crypto/KeyWrapSizeGapTest.kt:46-60"
-        },
-        {
-          "item": "unseal results sealed to the account (unsealAndReencrypt)",
-          "status": "DONE",
-          "evidence": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/AccountKeyServiceImpl.kt:174; android/modules/crypto/src/test/kotlin/dev/breaker/dictation/crypto/AccountKeyUnsealTest.kt:25-411"
-        }
-      ]
-    },
-    {
-      "name": "android_format",
-      "path": "android/modules/format",
-      "items": [
-        {
-          "item": "android_format (its own code)",
-          "status": "DONE",
-          "evidence": "4 code files, 11 test files"
-        }
-      ]
-    },
-    {
-      "name": "android_gesture",
-      "path": "android/modules/gesture",
-      "items": [
-        {
-          "item": "android_gesture (its own code)",
-          "status": "DONE",
-          "evidence": "4 code files, 1 test files"
-        }
-      ]
-    },
-    {
-      "name": "android_history",
-      "path": "android/modules/history",
-      "items": [
-        {
-          "item": "store, 30-day TTL purge, tombstone writes, pull sink",
-          "status": "DONE",
-          "evidence": "history card; SqliteHistoryStore.kt with tests"
-        },
-        {
-          "item": "tombstone expiry sweep, 30-day window (sweepExpiredTombstones)",
-          "status": "DONE",
-          "evidence": "android/modules/history/src/main/kotlin/dev/breaker/dictation/history/SqliteHistoryStore.kt:174 (the public sweep, window RetentionPolicy.WINDOW) called once at start-up after a complete backfill walk by android/app/src/main/kotlin/dev/breaker/dictation/StartUpSequence.kt:35 and :45 and android/app/src/main/kotlin/dev/breaker/dictation/BreakerApp.kt:258, in a debuggable build with sync on; tested in SqliteHistoryStoreOnSqliteTest, StartUpSweepTest and BackfillWalkTest"
-        }
-      ]
-    },
-    {
-      "name": "android_http",
-      "path": "android/modules/http",
-      "items": [
-        {
-          "item": "android_http (its own code)",
-          "status": "DONE",
-          "evidence": "11 code files, 13 test files"
-        }
-      ]
-    },
-    {
-      "name": "android_overlay",
-      "path": "android/modules/overlay",
-      "items": [
-        {
-          "item": "floating tile, ScreenMic drawing, state colours, level meter, position rules",
-          "status": "DONE",
-          "evidence": "overlay card: built with tests"
-        },
-        {
-          "item": "Home ScreenMic X and check do not answer a tap while recording (open blocker); window-ownership check (T4)",
-          "status": "NOT_STARTED",
-          "evidence": "overlay card 137 (blocker, cause not found) and 86-87 (T4 not built)"
-        }
-      ]
-    },
-    {
-      "name": "android_phrases",
-      "path": "android/modules/phrases",
-      "items": [
-        {
-          "item": "android_phrases (its own code)",
-          "status": "DONE",
-          "evidence": "2 code files, 5 test files"
-        }
-      ]
-    },
-    {
-      "name": "android_settings",
-      "path": "android/modules/settings",
-      "items": [
-        {
-          "item": "android_settings (its own code)",
-          "status": "DONE",
-          "evidence": "6 code files, 21 test files"
-        }
-      ]
-    },
-    {
-      "name": "android_stt_ondevice",
-      "path": "android/modules/stt-ondevice",
-      "items": [
-        {
-          "item": "android_stt_ondevice (its own code)",
-          "status": "DONE",
-          "evidence": "32 code files, 109 test files"
-        }
-      ]
-    },
-    {
-      "name": "android_stt_server",
-      "path": "android/modules/stt-server",
-      "items": [
-        {
-          "item": "android_stt_server (its own code)",
-          "status": "DONE",
-          "evidence": "14 code files, 28 test files"
-        }
-      ]
-    },
-    {
-      "name": "android_sync",
-      "path": "android/modules/sync",
-      "items": [
-        {
-          "item": "push queue, pull chain, cursor and merge (sync is on only in a debuggable build)",
-          "status": "DONE",
-          "evidence": "sync card: PullCycle, QueuedSyncService, wiring behind syncAllowed"
-        },
-        {
-          "item": "send local deletes to the server (DELETE route)",
-          "status": "DONE",
-          "evidence": "android/modules/sync/src/main/kotlin/dev/breaker/dictation/sync/SyncUploader.kt:41 (the delete port), android/app/src/main/kotlin/dev/breaker/dictation/wiring/SyncHttpUploader.kt:120 (the HTTP DELETE call), android/modules/sync/src/main/kotlin/dev/breaker/dictation/sync/QueuedSyncService.kt:189 (the drain calls uploader.delete for a DELETE row), server route server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncRoutes.kt:107; tested in android/modules/sync/src/test/kotlin/dev/breaker/dictation/sync/QueuedSyncServiceDeletePushTest.kt"
-        },
-        {
-          "item": "pending-sealed conversion on the phone: the decoder, the transport port and the conversion pass (ADR-018)",
-          "status": "DONE",
-          "evidence": "android/modules/sync/src/main/kotlin/dev/breaker/dictation/sync/PendingConversion.kt, android/modules/sync/src/main/kotlin/dev/breaker/dictation/sync/PendingSealedDecoder.kt and android/modules/sync/src/main/kotlin/dev/breaker/dictation/sync/PendingSealedTransport.kt, taken by QueuedSyncService as an optional parameter (android/modules/sync/src/main/kotlin/dev/breaker/dictation/sync/QueuedSyncService.kt:56 and :84); unit tested. The app's pending transport and the wiring flip (Phases 19 and 20) are app wiring and later phases, which the ruling does not count against this row; android/modules/sync/AGENTS.md line 129 records them as not built (pendingTransport defaults to null, android/modules/sync/src/main/kotlin/dev/breaker/dictation/sync/QueuedSyncService.kt:56)"
-        }
-      ]
-    },
-    {
-      "name": "android_training_client",
-      "path": "android/modules/training-client",
-      "items": [
-        {
-          "item": "android_training_client (its own code)",
-          "status": "NOT_STARTED",
-          "evidence": "0 code files, 0 test files"
-        }
-      ]
-    },
-    {
-      "name": "android_transport",
-      "path": "android/modules/transport",
-      "items": [
-        {
-          "item": "android_transport (its own code)",
-          "status": "DONE",
-          "evidence": "6 code files, 31 test files"
-        }
-      ]
-    },
-    {
-      "name": "android_ui",
-      "path": "android/ui",
-      "items": [
-        {
-          "item": "screens, tokens use, Home, Settings, History, auth screen view and model",
-          "status": "DONE",
-          "evidence": "ui card: built list, ui tests"
-        },
-        {
-          "item": "auth screen text input and submit",
-          "status": "DONE",
-          "evidence": "ui card auth invariant and Known Gotchas; AuthIntentHandlerOwnershipTest, AuthSubmitStepTest, AuthInputViewRulesTest, AuthHostViewRulesTest; not run on a device"
-        }
-      ]
-    },
-    {
-      "name": "android_updater",
-      "path": "android/modules/updater",
-      "items": [
-        {
-          "item": "update check (manifest fetch, decode, update decision, pure due check)",
-          "status": "DONE",
-          "evidence": "UpdateCheck, ManifestFetch, ManifestJson, UpdateDecision, UpdateSchedule.isDue with tests in android/modules/updater"
-        },
-        {
-          "item": "APK download (same-origin, streamed, SHA-256 verified)",
-          "status": "DONE",
-          "evidence": "ApkDownload.kt and ApkDownloadTest.kt (PR 532)"
-        },
-        {
-          "item": "update signature check (Ed25519 over version and digest, pinned key list)",
-          "status": "DONE",
-          "evidence": "SignatureCheck.kt and SignatureCheckTest.kt (PR 534)"
-        },
-        {
-          "item": "install, rollback, daily scheduler and app wiring",
-          "status": "NOT_STARTED",
-          "evidence": "the updater card says they are not built; nothing in android/app calls the updater"
-        }
-      ]
-    },
-    {
-      "name": "server_deploy",
-      "path": "server/modules/deploy",
-      "items": [
-        {
-          "item": "five helper scripts with tests (backup-data.py, git-pull.sh, health-check.sh, release-tags.sh, vpn-bind.sh; tests under tests/unit/server/deploy)",
-          "status": "DONE",
-          "evidence": "scripts/backup-data.py, scripts/git-pull.sh, scripts/health-check.sh, scripts/release-tags.sh, scripts/vpn-bind.sh; tests/unit/server/deploy/{test_backup_data,test_git_pull,test_health_check,test_release_tags,test_vpn_bind}.py"
-        },
-        {
-          "item": "git-pull build, sign and serve steps, compose file, APK signing, auth key rotation",
-          "status": "NOT_STARTED",
-          "evidence": "deploy card Status: not built; only the pull step exists (scripts/git-pull.sh); the build, sign and serve steps, the compose file, APK signing and auth key rotation do not exist"
-        }
-      ]
-    },
-    {
-      "name": "server_sync_api",
-      "path": "server/modules/sync-api",
-      "items": [
-        {
-          "item": "accounts, tokens, sessions, sync push and change feed, roles, reset, keys, change-password, store clear, retention purge, admin health, updates route",
-          "status": "DONE",
-          "evidence": "sync-api card: built routes, mounted in SyncApiApplication.kt, with tests"
-        },
-        {
-          "item": "pending-sealed table and route",
-          "status": "DONE",
-          "evidence": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV10.kt:3 (migration 10 pending_sealed table), server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/PendingSealedStore.kt:15 (store class), server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/PendingSealedRoute.kt:35 (GET /v1/sync/pending-sealed route), mounted at server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiApplication.kt:53,86"
-        },
-        {
-          "item": "reset and re-key side effects",
-          "status": "DONE",
-          "evidence": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/reset/ResetStore.kt:47 (a reset clears the account's pending_sealed rows), server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt:217 (a key store does the same) and server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/passwordchange/PasswordChangeStore.kt:126 (a password change does the same)"
-        }
-      ]
-    },
-    {
-      "name": "server_training",
-      "path": "server/modules/training",
-      "items": [
-        {
-          "item": "server_training (its own code)",
-          "status": "NOT_STARTED",
-          "evidence": "0 code files, 0 test files"
-        }
-      ]
-    },
-    {
-      "name": "server_web_fe",
-      "path": "server/modules/web-fe",
-      "items": [
-        {
-          "item": "server_web_fe (its own code)",
-          "status": "PARTIAL",
-          "evidence": "11 code files, 14 test files"
-        }
-      ]
-    },
-    {
-      "name": "server_whisper",
-      "path": "server/modules/whisper-server",
-      "items": [
-        {
-          "item": "job queue, FIFO worker, job API, result retention, token check, rate limit, forwarder, health",
-          "status": "DONE",
-          "evidence": "whisper-server card: built; tests in src/test"
-        },
-        {
-          "item": "sealed copy of agent-token results for the owner's box key; SRT/VTT output and word timestamps",
-          "status": "NOT_STARTED",
-          "evidence": "whisper-server card lines 91-106 and 19-21: planned, not built; no seal code in src/main"
-        }
-      ]
-    },
-    {
-      "name": "shared_api_contracts",
-      "path": "shared/modules/api-contracts",
-      "items": [
-        {
-          "item": "OpenAPI spec for the auth, sync, jobs, updates and admin groups, with Kotlin types and conformance tests",
-          "status": "DONE",
-          "evidence": "api-contracts card: shipped groups; spec and Kotlin types with tests"
-        },
-        {
-          "item": "training paths and types (Owns names training; none exists in the spec)",
-          "status": "NOT_STARTED",
-          "evidence": "api-contracts card 234-235: planned, not built; no training path in openapi.yaml"
-        }
-      ]
-    },
-    {
-      "name": "shared_format_prompts",
-      "path": "shared/modules/format-prompts",
-      "items": [
-        {
-          "item": "shared_format_prompts (its own code)",
-          "status": "DONE",
-          "evidence": "1 code files, 3 test files"
-        }
-      ]
-    },
-    {
-      "name": "shared_model_registry",
-      "path": "shared/modules/model-registry",
-      "items": [
-        {
-          "item": "shared_model_registry (its own code)",
-          "status": "DONE",
-          "evidence": "1 code files, 2 test files"
-        }
-      ]
-    },
-    {
-      "name": "shared_ui_tokens",
-      "path": "shared/modules/ui-tokens",
-      "items": [
-        {
-          "item": "shared_ui_tokens (its own code)",
-          "status": "DONE",
-          "evidence": "1 code files, 4 test files"
-        }
-      ]
-    },
-    {
-      "name": "shared_web_libs_libsodium",
-      "path": "shared/modules/web-libs/libsodium",
-      "items": [
-        {
-          "item": "shared_web_libs_libsodium (its own code)",
-          "status": "DONE",
-          "evidence": "2 code files, 0 test files"
-        }
-      ]
-    },
-    {
-      "name": "shared_web_libs_noble_ciphers",
-      "path": "shared/modules/web-libs/noble-ciphers",
-      "items": [
-        {
-          "item": "shared_web_libs_noble_ciphers (its own code)",
-          "status": "DONE",
-          "evidence": "6 code files, 0 test files"
-        }
-      ]
-    },
-    {
-      "name": "shared_web_libs_noble_curves",
-      "path": "shared/modules/web-libs/noble-curves",
-      "items": [
-        {
-          "item": "shared_web_libs_noble_curves (its own code)",
-          "status": "DONE",
-          "evidence": "10 code files, 0 test files"
-        }
-      ]
-    },
-    {
-      "name": "shared_web_libs_noble_hashes",
-      "path": "shared/modules/web-libs/noble-hashes",
-      "items": [
-        {
-          "item": "shared_web_libs_noble_hashes (its own code)",
-          "status": "DONE",
-          "evidence": "9 code files, 0 test files"
-        }
-      ]
+     "item": "agent_skills (its own code)",
+     "status": "NOT_STARTED",
+     "evidence": "0 code files, 0 test files"
     }
-  ],
-  "retired": [
-    {
-      "name": "android_commit_ime",
-      "path": "android/modules/commit/ime",
-      "reason": "modules.toml status = \"dead\""
-    }
-  ],
-  "summary": {
-    "live": 35,
-    "done": 25,
-    "partial": 7,
-    "not_started": 3,
-    "containers": 4,
-    "retired": 1
+   ]
   },
-  "containers": [
+  {
+   "name": "android_app",
+   "path": "android/app",
+   "items": [
     {
-      "name": "android",
-      "path": "android",
-      "reason": "no source or test files of its own; its children are separate rows"
-    },
-    {
-      "name": "server",
-      "path": "server",
-      "reason": "no source or test files of its own; its children are separate rows"
-    },
-    {
-      "name": "shared",
-      "path": "shared",
-      "reason": "no source or test files of its own; its children are separate rows"
-    },
-    {
-      "name": "shared_web_libs",
-      "path": "shared/modules/web-libs",
-      "reason": "no source or test files of its own; its children are separate rows"
+     "item": "android_app (its own code)",
+     "status": "DONE",
+     "evidence": "120 code files, 280 test files"
     }
-  ]
+   ]
+  },
+  {
+   "name": "android_audio",
+   "path": "android/modules/audio",
+   "items": [
+    {
+     "item": "android_audio (its own code)",
+     "status": "DONE",
+     "evidence": "21 code files, 62 test files"
+    }
+   ]
+  },
+  {
+   "name": "android_auth_client",
+   "path": "android/modules/auth-client",
+   "items": [
+    {
+     "item": "android_auth_client (its own code)",
+     "status": "DONE",
+     "evidence": "19 code files, 58 test files"
+    }
+   ]
+  },
+  {
+   "name": "android_commit",
+   "path": "android/modules/commit",
+   "items": [
+    {
+     "item": "android_commit (its own code)",
+     "status": "DONE",
+     "evidence": "12 code files, 25 test files"
+    }
+   ]
+  },
+  {
+   "name": "android_commit_accessibility",
+   "path": "android/modules/commit/accessibility",
+   "items": [
+    {
+     "item": "insert text by ACTION_SET_TEXT with the merge rules and refusals",
+     "status": "DONE",
+     "evidence": "commit/accessibility card: built with tests"
+    },
+    {
+     "item": "ACTION_PASTE (named in Owns; the decision on it is open)",
+     "status": "NOT_STARTED",
+     "evidence": "modules.toml Owns and the card Purpose: not built"
+    }
+   ]
+  },
+  {
+   "name": "android_core",
+   "path": "android/modules/core",
+   "items": [
+    {
+     "item": "android_core (its own code)",
+     "status": "DONE",
+     "evidence": "51 code files, 56 test files"
+    }
+   ]
+  },
+  {
+   "name": "android_crypto",
+   "path": "android/modules/crypto",
+   "items": [
+    {
+     "item": "key derivation (Argon2id + HKDF), data-key unwrap, AES-256-GCM encrypt/decrypt, sign-in package open",
+     "status": "DONE",
+     "evidence": "crypto card Status: built list; KdfImpl.kt, CryptoServiceImpl.kt with tests"
+    },
+    {
+     "item": "generate the data key (generateDataKey)",
+     "status": "DONE",
+     "evidence": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/AccountKeyServiceImpl.kt:83; android/modules/crypto/src/test/kotlin/dev/breaker/dictation/crypto/AccountKeyGenerationTest.kt:41-59"
+    },
+    {
+     "item": "generate the box keypair (generateBoxKeyPair)",
+     "status": "DONE",
+     "evidence": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/AccountKeyServiceImpl.kt:93; android/modules/crypto/AGENTS.md lines 124-126"
+    },
+    {
+     "item": "wrap the data key (wrapDek)",
+     "status": "DONE",
+     "evidence": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/AccountKeyServiceImpl.kt:104; android/modules/crypto/src/test/kotlin/dev/breaker/dictation/crypto/KeyWrapSizeGapTest.kt:46-60"
+    },
+    {
+     "item": "unseal results sealed to the account (unsealAndReencrypt)",
+     "status": "DONE",
+     "evidence": "android/modules/crypto/src/main/kotlin/dev/breaker/dictation/crypto/AccountKeyServiceImpl.kt:174; android/modules/crypto/src/test/kotlin/dev/breaker/dictation/crypto/AccountKeyUnsealTest.kt:25-411"
+    }
+   ]
+  },
+  {
+   "name": "android_format",
+   "path": "android/modules/format",
+   "items": [
+    {
+     "item": "android_format (its own code)",
+     "status": "DONE",
+     "evidence": "4 code files, 11 test files"
+    }
+   ]
+  },
+  {
+   "name": "android_gesture",
+   "path": "android/modules/gesture",
+   "items": [
+    {
+     "item": "android_gesture (its own code)",
+     "status": "DONE",
+     "evidence": "4 code files, 1 test files"
+    }
+   ]
+  },
+  {
+   "name": "android_history",
+   "path": "android/modules/history",
+   "items": [
+    {
+     "item": "store, 30-day TTL purge, tombstone writes, pull sink",
+     "status": "DONE",
+     "evidence": "history card; SqliteHistoryStore.kt with tests"
+    },
+    {
+     "item": "tombstone expiry sweep, 30-day window (sweepExpiredTombstones)",
+     "status": "DONE",
+     "evidence": "android/modules/history/src/main/kotlin/dev/breaker/dictation/history/SqliteHistoryStore.kt:174 (the public sweep, window RetentionPolicy.WINDOW) called once at start-up after a complete backfill walk by android/app/src/main/kotlin/dev/breaker/dictation/StartUpSequence.kt:35 and :45 and android/app/src/main/kotlin/dev/breaker/dictation/BreakerApp.kt:258, in a debuggable build with sync on; tested in SqliteHistoryStoreOnSqliteTest, StartUpSweepTest and BackfillWalkTest"
+    }
+   ]
+  },
+  {
+   "name": "android_http",
+   "path": "android/modules/http",
+   "items": [
+    {
+     "item": "android_http (its own code)",
+     "status": "DONE",
+     "evidence": "11 code files, 13 test files"
+    }
+   ]
+  },
+  {
+   "name": "android_overlay",
+   "path": "android/modules/overlay",
+   "items": [
+    {
+     "item": "floating tile, ScreenMic drawing, state colours, level meter, position rules",
+     "status": "DONE",
+     "evidence": "overlay card: built with tests"
+    },
+    {
+     "item": "Home ScreenMic X and check do not answer a tap while recording (open blocker); window-ownership check (T4)",
+     "status": "NOT_STARTED",
+     "evidence": "overlay card 137 (blocker, cause not found) and 86-87 (T4 not built)"
+    }
+   ]
+  },
+  {
+   "name": "android_phrases",
+   "path": "android/modules/phrases",
+   "items": [
+    {
+     "item": "android_phrases (its own code)",
+     "status": "DONE",
+     "evidence": "2 code files, 5 test files"
+    }
+   ]
+  },
+  {
+   "name": "android_settings",
+   "path": "android/modules/settings",
+   "items": [
+    {
+     "item": "android_settings (its own code)",
+     "status": "DONE",
+     "evidence": "6 code files, 21 test files"
+    }
+   ]
+  },
+  {
+   "name": "android_stt_ondevice",
+   "path": "android/modules/stt-ondevice",
+   "items": [
+    {
+     "item": "android_stt_ondevice (its own code)",
+     "status": "DONE",
+     "evidence": "32 code files, 109 test files"
+    }
+   ]
+  },
+  {
+   "name": "android_stt_server",
+   "path": "android/modules/stt-server",
+   "items": [
+    {
+     "item": "android_stt_server (its own code)",
+     "status": "DONE",
+     "evidence": "14 code files, 28 test files"
+    }
+   ]
+  },
+  {
+   "name": "android_sync",
+   "path": "android/modules/sync",
+   "items": [
+    {
+     "item": "push queue, pull chain, cursor and merge (sync is on only in a debuggable build)",
+     "status": "DONE",
+     "evidence": "sync card: PullCycle, QueuedSyncService, wiring behind syncAllowed"
+    },
+    {
+     "item": "send local deletes to the server (DELETE route)",
+     "status": "DONE",
+     "evidence": "android/modules/sync/src/main/kotlin/dev/breaker/dictation/sync/SyncUploader.kt:41 (the delete port), android/app/src/main/kotlin/dev/breaker/dictation/wiring/SyncHttpUploader.kt:120 (the HTTP DELETE call), android/modules/sync/src/main/kotlin/dev/breaker/dictation/sync/QueuedSyncService.kt:189 (the drain calls uploader.delete for a DELETE row), server route server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/SyncRoutes.kt:107; tested in android/modules/sync/src/test/kotlin/dev/breaker/dictation/sync/QueuedSyncServiceDeletePushTest.kt"
+    },
+    {
+     "item": "pending-sealed conversion on the phone: the decoder, the transport port and the conversion pass (ADR-018)",
+     "status": "DONE",
+     "evidence": "android/modules/sync/src/main/kotlin/dev/breaker/dictation/sync/PendingConversion.kt, android/modules/sync/src/main/kotlin/dev/breaker/dictation/sync/PendingSealedDecoder.kt and android/modules/sync/src/main/kotlin/dev/breaker/dictation/sync/PendingSealedTransport.kt, taken by QueuedSyncService as an optional parameter (android/modules/sync/src/main/kotlin/dev/breaker/dictation/sync/QueuedSyncService.kt:56 and :84); unit tested. The app's pending transport and the wiring flip (Phases 19 and 20) are app wiring and later phases, which the ruling does not count against this row; android/modules/sync/AGENTS.md line 129 records them as not built (pendingTransport defaults to null, android/modules/sync/src/main/kotlin/dev/breaker/dictation/sync/QueuedSyncService.kt:56)"
+    }
+   ]
+  },
+  {
+   "name": "android_training_client",
+   "path": "android/modules/training-client",
+   "items": [
+    {
+     "item": "android_training_client (its own code)",
+     "status": "NOT_STARTED",
+     "evidence": "0 code files, 0 test files"
+    }
+   ]
+  },
+  {
+   "name": "android_transport",
+   "path": "android/modules/transport",
+   "items": [
+    {
+     "item": "android_transport (its own code)",
+     "status": "DONE",
+     "evidence": "6 code files, 31 test files"
+    }
+   ]
+  },
+  {
+   "name": "android_ui",
+   "path": "android/ui",
+   "items": [
+    {
+     "item": "screens, tokens use, Home, Settings, History, auth screen view and model",
+     "status": "DONE",
+     "evidence": "ui card: built list, ui tests"
+    },
+    {
+     "item": "auth screen text input and submit",
+     "status": "DONE",
+     "evidence": "ui card auth invariant and Known Gotchas; AuthIntentHandlerOwnershipTest, AuthSubmitStepTest, AuthInputViewRulesTest, AuthHostViewRulesTest; not run on a device"
+    }
+   ]
+  },
+  {
+   "name": "android_updater",
+   "path": "android/modules/updater",
+   "items": [
+    {
+     "item": "update check (manifest fetch, decode, update decision, pure due check)",
+     "status": "DONE",
+     "evidence": "UpdateCheck, ManifestFetch, ManifestJson, UpdateDecision, UpdateSchedule.isDue with tests in android/modules/updater"
+    },
+    {
+     "item": "APK download (same-origin, streamed, SHA-256 verified)",
+     "status": "DONE",
+     "evidence": "ApkDownload.kt and ApkDownloadTest.kt (PR 532)"
+    },
+    {
+     "item": "update signature check (Ed25519 over version and digest, pinned key list)",
+     "status": "DONE",
+     "evidence": "SignatureCheck.kt and SignatureCheckTest.kt (PR 534)"
+    },
+    {
+     "item": "install, rollback, daily scheduler and app wiring",
+     "status": "NOT_STARTED",
+     "evidence": "the updater card says they are not built; nothing in android/app calls the updater"
+    }
+   ]
+  },
+  {
+   "name": "server_deploy",
+   "path": "server/modules/deploy",
+   "items": [
+    {
+     "item": "five helper scripts with tests (backup-data.py, git-pull.sh, health-check.sh, release-tags.sh, vpn-bind.sh; tests under tests/unit/server/deploy)",
+     "status": "DONE",
+     "evidence": "scripts/backup-data.py, scripts/git-pull.sh, scripts/health-check.sh, scripts/release-tags.sh, scripts/vpn-bind.sh; tests/unit/server/deploy/{test_backup_data,test_git_pull,test_health_check,test_release_tags,test_vpn_bind}.py"
+    },
+    {
+     "item": "git-pull build, sign and serve steps, compose file, APK signing, auth key rotation",
+     "status": "NOT_STARTED",
+     "evidence": "deploy card Status: not built; only the pull step exists (scripts/git-pull.sh); the build, sign and serve steps, the compose file, APK signing and auth key rotation do not exist"
+    }
+   ]
+  },
+  {
+   "name": "server_sync_api",
+   "path": "server/modules/sync-api",
+   "items": [
+    {
+     "item": "accounts, tokens, sessions, sync push and change feed, roles, reset, keys, change-password, store clear, retention purge, admin health, updates route",
+     "status": "DONE",
+     "evidence": "sync-api card: built routes, mounted in SyncApiApplication.kt, with tests"
+    },
+    {
+     "item": "pending-sealed table and route",
+     "status": "DONE",
+     "evidence": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/SchemaV10.kt:3 (migration 10 pending_sealed table), server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/db/PendingSealedStore.kt:15 (store class), server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/transcriptions/PendingSealedRoute.kt:35 (GET /v1/sync/pending-sealed route), mounted at server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/SyncApiApplication.kt:53,86"
+    },
+    {
+     "item": "reset and re-key side effects",
+     "status": "DONE",
+     "evidence": "server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/reset/ResetStore.kt:47 (a reset clears the account's pending_sealed rows), server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/accounts/AccountStore.kt:217 (a key store does the same) and server/modules/sync-api/src/main/kotlin/dev/breaker/server/syncapi/passwordchange/PasswordChangeStore.kt:126 (a password change does the same)"
+    }
+   ]
+  },
+  {
+   "name": "server_training",
+   "path": "server/modules/training",
+   "items": [
+    {
+     "item": "server_training (its own code)",
+     "status": "NOT_STARTED",
+     "evidence": "0 code files, 0 test files"
+    }
+   ]
+  },
+  {
+   "name": "server_web_fe",
+   "path": "server/modules/web-fe",
+   "items": [
+    {
+     "item": "server_web_fe (its own code)",
+     "status": "PARTIAL",
+     "evidence": "11 code files, 14 test files"
+    }
+   ]
+  },
+  {
+   "name": "server_whisper",
+   "path": "server/modules/whisper-server",
+   "items": [
+    {
+     "item": "job queue, FIFO worker, job API, result retention, token check, rate limit, forwarder, health",
+     "status": "DONE",
+     "evidence": "whisper-server card: built; tests in src/test"
+    },
+    {
+     "item": "sealed copy of agent-token results for the owner's box key; SRT/VTT output and word timestamps",
+     "status": "NOT_STARTED",
+     "evidence": "whisper-server card lines 91-106 and 19-21: planned, not built; no seal code in src/main"
+    }
+   ]
+  },
+  {
+   "name": "shared_api_contracts",
+   "path": "shared/modules/api-contracts",
+   "items": [
+    {
+     "item": "OpenAPI spec for the auth, sync, jobs, updates and admin groups, with Kotlin types and conformance tests",
+     "status": "DONE",
+     "evidence": "api-contracts card: shipped groups; spec and Kotlin types with tests"
+    },
+    {
+     "item": "training paths and types (Owns names training; none exists in the spec)",
+     "status": "NOT_STARTED",
+     "evidence": "api-contracts card 234-235: planned, not built; no training path in openapi.yaml"
+    }
+   ]
+  },
+  {
+   "name": "shared_seal",
+   "path": "shared/modules/seal",
+   "items": [
+    {
+     "item": "HSalsa20 and the sealed-box opener SealedBox.open, with its own SealRefused",
+     "status": "DONE",
+     "evidence": "shared/modules/seal/src/main/kotlin/dev/breaker/dictation/seal/HSalsa20.kt and SealedBox.kt; moved from android/modules/crypto"
+    },
+    {
+     "item": "the sealer SealedBox.seal (S-2b)",
+     "status": "DONE",
+     "evidence": "shared/modules/seal/src/main/kotlin/dev/breaker/dictation/seal/SealedBox.kt:220 (seal), EphemeralSource.kt; the crypto tests moved into the module"
+    }
+   ]
+  },
+  {
+   "name": "shared_format_prompts",
+   "path": "shared/modules/format-prompts",
+   "items": [
+    {
+     "item": "shared_format_prompts (its own code)",
+     "status": "DONE",
+     "evidence": "1 code files, 3 test files"
+    }
+   ]
+  },
+  {
+   "name": "shared_model_registry",
+   "path": "shared/modules/model-registry",
+   "items": [
+    {
+     "item": "shared_model_registry (its own code)",
+     "status": "DONE",
+     "evidence": "1 code files, 2 test files"
+    }
+   ]
+  },
+  {
+   "name": "shared_ui_tokens",
+   "path": "shared/modules/ui-tokens",
+   "items": [
+    {
+     "item": "shared_ui_tokens (its own code)",
+     "status": "DONE",
+     "evidence": "1 code files, 4 test files"
+    }
+   ]
+  },
+  {
+   "name": "shared_web_libs_libsodium",
+   "path": "shared/modules/web-libs/libsodium",
+   "items": [
+    {
+     "item": "shared_web_libs_libsodium (its own code)",
+     "status": "DONE",
+     "evidence": "2 code files, 0 test files"
+    }
+   ]
+  },
+  {
+   "name": "shared_web_libs_noble_ciphers",
+   "path": "shared/modules/web-libs/noble-ciphers",
+   "items": [
+    {
+     "item": "shared_web_libs_noble_ciphers (its own code)",
+     "status": "DONE",
+     "evidence": "6 code files, 0 test files"
+    }
+   ]
+  },
+  {
+   "name": "shared_web_libs_noble_curves",
+   "path": "shared/modules/web-libs/noble-curves",
+   "items": [
+    {
+     "item": "shared_web_libs_noble_curves (its own code)",
+     "status": "DONE",
+     "evidence": "10 code files, 0 test files"
+    }
+   ]
+  },
+  {
+   "name": "shared_web_libs_noble_hashes",
+   "path": "shared/modules/web-libs/noble-hashes",
+   "items": [
+    {
+     "item": "shared_web_libs_noble_hashes (its own code)",
+     "status": "DONE",
+     "evidence": "9 code files, 0 test files"
+    }
+   ]
+  }
+ ],
+ "retired": [
+  {
+   "name": "android_commit_ime",
+   "path": "android/modules/commit/ime",
+   "reason": "modules.toml status = \"dead\""
+  }
+ ],
+ "summary": {
+  "live": 36,
+  "done": 26,
+  "partial": 7,
+  "not_started": 3,
+  "containers": 4,
+  "retired": 1
+ },
+ "containers": [
+  {
+   "name": "android",
+   "path": "android",
+   "reason": "no source or test files of its own; its children are separate rows"
+  },
+  {
+   "name": "server",
+   "path": "server",
+   "reason": "no source or test files of its own; its children are separate rows"
+  },
+  {
+   "name": "shared",
+   "path": "shared",
+   "reason": "no source or test files of its own; its children are separate rows"
+  },
+  {
+   "name": "shared_web_libs",
+   "path": "shared/modules/web-libs",
+   "reason": "no source or test files of its own; its children are separate rows"
+  }
+ ]
 }

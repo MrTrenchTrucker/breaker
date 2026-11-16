@@ -35,6 +35,7 @@ kotlin {
 dependencies {
     implementation(project(":android:modules:core"))
     implementation(project(":shared:modules:api-contracts"))
+    implementation(project(":shared:modules:seal"))
     implementation(libs.bouncycastle.bcprov)
 
     testImplementation(libs.junit)

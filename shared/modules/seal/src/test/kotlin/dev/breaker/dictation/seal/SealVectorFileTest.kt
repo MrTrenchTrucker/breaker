@@ -1,6 +1,5 @@
-package dev.breaker.dictation.crypto
+package dev.breaker.dictation.seal
 
-import dev.breaker.dictation.core.model.CryptoRefused
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -11,15 +10,15 @@ import org.junit.Test
 
 /**
  * Proves the shared sealed box vectors (the same values as the seal and seal_refusals sections of
- * examples/crypto_vectors.json, copied in [CryptoVectorData]) against [SealedBoxOpener] and
- * [SignInPackage]. Every box was made by libsodium and opened by libsodium before it was written.
- * The website proves the same file, so the two sides agree.
+ * examples/crypto_vectors.json, copied in [SealVectorData]) against [SealedBox]. Every box was
+ * made by libsodium and opened by libsodium before it was written. The website proves the same
+ * file, so the two sides agree.
  */
-class SealVectorFileTest : CryptoServiceTestFixture() {
-    private fun sealNamed(name: String): SealVector = CryptoVectorData.seal.single { it.name == name }
+class SealVectorFileTest {
+    private fun sealNamed(name: String): SealVector = SealVectorData.seal.single { it.name == name }
 
     private fun openBox(box: String, recipientPrivate: String): ByteArray =
-        SealedBoxOpener().open(hex(box), hex(recipientPrivate))
+        SealedBox().open(hex(box), hex(recipientPrivate))
 
     /** The number of bits in which two arrays of the same size differ. */
     private fun differingBits(a: ByteArray, b: ByteArray): Int {
@@ -32,7 +31,7 @@ class SealVectorFileTest : CryptoServiceTestFixture() {
     /** A failure means a sealed box does not open to its plain bytes, or is not shaped as sealed. */
     @Test
     fun `every seal vector opens to its plain bytes and is shaped as a sealed box`() {
-        for (v in CryptoVectorData.seal) {
+        for (v in SealVectorData.seal) {
             val opened = openBox(v.boxHex, v.recipientPrivateHex)
             assertArrayEquals("seal vector ${v.name}: plain bytes", hex(v.plainHex), opened)
 
@@ -47,18 +46,22 @@ class SealVectorFileTest : CryptoServiceTestFixture() {
         }
     }
 
-    /** A failure means the sign-in package box no longer opens to the two keys it holds. */
+    /**
+     * A failure means the sign-in package vector does not open to the 65-byte package body.
+     * The phone's `SignInPackage.parse` is not reproduced here: it is phone code and this module
+     * must not import it. This pins the bytes that parse reads: version 1, then the 32-byte data
+     * key, then the 32-byte box private key.
+     */
     @Test
-    fun `the sign-in package vector opens to the data key and the box private key`() {
+    fun `the sign-in package vector opens to the 65 byte package body`() {
         val v = sealNamed("signin-package-65")
         val plain = hex(v.plainHex)
         assertEquals("seal vector ${v.name}: plain size", 65, plain.size)
+        assertEquals("seal vector ${v.name}: package version", 1, plain[0].toInt() and 0xFF)
+        assertEquals("seal vector ${v.name}: data key first byte", 0xA0.toByte(), plain[1])
+        assertEquals("seal vector ${v.name}: box private key first byte", 0x30.toByte(), plain[33])
 
-        val keys = SignInPackage.parse(openBox(v.boxHex, v.recipientPrivateHex))
-
-        assertArrayEquals("seal vector ${v.name}: data key", plain.copyOfRange(1, 33), keys.dek.bytes)
-        val boxKey = keys.boxPrivateKey.copyBytes()
-        assertArrayEquals("seal vector ${v.name}: box key", plain.copyOfRange(33, 65), boxKey)
+        assertArrayEquals("seal vector ${v.name}: opened bytes", plain, openBox(v.boxHex, v.recipientPrivateHex))
     }
 
     /**
@@ -77,11 +80,11 @@ class SealVectorFileTest : CryptoServiceTestFixture() {
     /** A failure means a refusal box opened, failed another way, or carried a cause. */
     @Test
     fun `every seal refusal is the one plain refusal with no cause`() {
-        for (r in CryptoVectorData.sealRefusals) {
-            val e = assertThrows("seal refusal ${r.name}: must be refused", CryptoRefused::class.java) {
+        for (r in SealVectorData.sealRefusals) {
+            val e = assertThrows("seal refusal ${r.name}: must be refused", SealRefused::class.java) {
                 openBox(r.boxHex, r.recipientPrivateHex)
             }
-            assertEquals("seal refusal ${r.name}: message", CryptoRefused().message, e.message)
+            assertEquals("seal refusal ${r.name}: message", SealRefused().message, e.message)
             assertNull("seal refusal ${r.name}: cause", e.cause)
         }
     }
@@ -89,17 +92,17 @@ class SealVectorFileTest : CryptoServiceTestFixture() {
     /** A failure means a row was dropped from the seal table or from the refusal table. */
     @Test
     fun `the seal tables keep their row counts`() {
-        assertEquals("seal vector rows", 3, CryptoVectorData.seal.size)
-        assertEquals("seal refusal rows", 4, CryptoVectorData.sealRefusals.size)
+        assertEquals("seal vector rows", 3, SealVectorData.seal.size)
+        assertEquals("seal refusal rows", 4, SealVectorData.sealRefusals.size)
     }
 
     /** A failure means a refusal is not what its name says: another recipient, or one flipped bit. */
     @Test
     fun `each seal refusal is a wrong recipient or exactly one flipped bit of a seal box`() {
-        for (r in CryptoVectorData.sealRefusals) {
+        for (r in SealVectorData.sealRefusals) {
             val box = hex(r.boxHex)
             if (r.name.endsWith("-wrong-recipient")) {
-                val owners = CryptoVectorData.seal.filter { it.boxHex == r.boxHex }
+                val owners = SealVectorData.seal.filter { it.boxHex == r.boxHex }
                 assertEquals("seal refusal ${r.name}: seal entries with the same box", 1, owners.size)
                 assertNotEquals(
                     "seal refusal ${r.name}: recipient key equals the entry's own",
@@ -107,7 +110,7 @@ class SealVectorFileTest : CryptoServiceTestFixture() {
                     r.recipientPrivateHex,
                 )
             } else if (r.name.endsWith("-flipped-bit")) {
-                val owners = CryptoVectorData.seal.filter {
+                val owners = SealVectorData.seal.filter {
                     it.boxHex.length == r.boxHex.length && differingBits(hex(it.boxHex), box) == 1
                 }
                 assertEquals("seal refusal ${r.name}: seal entries one bit away", 1, owners.size)
@@ -120,5 +123,11 @@ class SealVectorFileTest : CryptoServiceTestFixture() {
                 throw AssertionError("seal refusal ${r.name}: its name must end in a known kind")
             }
         }
+    }
+
+    /** Reads hex text, which must have an even length. */
+    private fun hex(text: String): ByteArray {
+        require(text.length % 2 == 0) { "hex text must have an even length" }
+        return ByteArray(text.length / 2) { i -> text.substring(2 * i, 2 * i + 2).toInt(16).toByte() }
     }
 }

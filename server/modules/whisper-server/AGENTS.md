@@ -120,6 +120,7 @@ TranscriptionApi, QueueWorker
 ## Depends On
 - server (registered in modules.toml)
 - shared_api_contracts (registered in modules.toml)
+- shared_seal (registered in modules.toml)
 
 ## Does Not Own
 - The configured transcription service itself
@@ -130,6 +131,7 @@ TranscriptionApi, QueueWorker
 - Unit (Kotlin/Ktor, ADR-017): `server/modules/whisper-server/src/test/kotlin/`, created with the module's first code. Run: `./gradlew :server:modules:whisper-server:test`.
 - Token check client: `server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/http/HttpTokenCheckTest.kt` runs `HttpTokenCheck` against a local fake server on 127.0.0.1: live, not live, unavailable (403, 500, no account number, refused connection, timeout), both paths and both headers, an empty or non-ASCII token never sent, a blank address or key refused, and nothing printed.
 - Token check client, bounded answer: `server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/http/HttpTokenCheckBoundTest.kt` runs `HttpTokenCheck` against fake servers that send too many bytes, exactly 4096 bytes, headers and then a body held back past the total timeout, a partial answer then a held body, a normal answer and a 401, and a closed port. `server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/http/HttpTokenCheckSocketCloseTest.kt` runs `HttpTokenCheck` against a dribbling fake server and asserts that when the total deadline fires the body subscriber cancels itself and closes the socket so the exchange is not left open (BUILT). `server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/http/HttpTokenCheckEarlyStopTest.kt` runs `HttpTokenCheck` against a fake server that answers 200 with Content-Length 100 MB then writes 1024-byte chunks with a 1 ms pause, and asserts that when the client cancels at the 4096-byte cap the server's write fails with IOException, the answer is Unavailable, and the chunk count at the failed write is below 1500 (a cap raised a thousand times would need about 4000).
+- Sealed-box fence: `server/modules/whisper-server/src/test/kotlin/dev/breaker/server/whisper/SealedBoxOpenFenceTest.kt` scans `src/main` and fails if any main file calls `SealedBox.open` (the server seals a copy for the owner, it never opens one), with a control that shows the scan reports the token and stays quiet on `SealedBox.seal`.
 - Contract: `tests/contract/test_whisper_server_contract.py`. Run: `python3 -m unittest discover -s tests/contract -t tests/contract -p test_whisper_server_contract.py`
 - Every run must report more than 0 tests. A mistyped path or pattern runs nothing and still prints OK.
 

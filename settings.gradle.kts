@@ -91,6 +91,7 @@ include(":server:modules:whisper-server")
 // ── shared contracts ────────────────────────────────────────────────────────
 include(":shared")
 include(":shared:modules:api-contracts")
+include(":shared:modules:seal")
 include(":shared:modules:format-prompts")
 include(":shared:modules:model-registry")
 include(":shared:modules:ui-tokens")

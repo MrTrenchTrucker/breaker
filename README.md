@@ -77,6 +77,7 @@ aren't listed.
 | `android/modules/core` | — | Built |
 | `shared/modules/format-prompts` | — | Built |
 | `shared/modules/ui-tokens` | — | Built |
+| `shared/modules/seal` | — | Built |
 | `android/app` | 1 | In progress (maintainers) |
 | `android/ui` | 1 | In progress (maintainers) |
 | `android/modules/audio` | 2 | In progress (maintainers) |

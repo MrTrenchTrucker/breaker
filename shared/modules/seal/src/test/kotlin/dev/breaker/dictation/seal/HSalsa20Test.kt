@@ -1,6 +1,5 @@
-package dev.breaker.dictation.crypto
+package dev.breaker.dictation.seal
 
-import dev.breaker.dictation.core.model.CryptoRefused
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
@@ -51,7 +50,7 @@ class HSalsa20Test {
         val actual = hsalsa20(sharedSecret, ByteArray(16))
 
         assertArrayEquals(
-            "crypto module: hsalsa20 must equal libsodium crypto_box_beforenm for the same shared secret",
+            "shared_seal: hsalsa20 must equal libsodium crypto_box_beforenm for the same shared secret",
             beforenmExpected,
             actual,
         )
@@ -63,7 +62,7 @@ class HSalsa20Test {
         val actual = hsalsa20(naclCoreKey, naclCoreInput)
 
         assertArrayEquals(
-            "crypto module: hsalsa20 must reproduce the published NaCl HSalsa20 vector",
+            "shared_seal: hsalsa20 must reproduce the published NaCl HSalsa20 vector",
             naclCoreOutput,
             actual,
         )
@@ -72,20 +71,20 @@ class HSalsa20Test {
     @Test
     fun `hsalsa20 refuses a key that is not 32 bytes`() {
         for (size in intArrayOf(0, 31, 33)) {
-            val e = assertThrows("crypto module: a key of $size bytes must be refused", CryptoRefused::class.java) {
+            val e = assertThrows("shared_seal: a key of $size bytes must be refused", SealRefused::class.java) {
                 hsalsa20(ByteArray(size), ByteArray(16))
             }
-            assertEquals("crypto module: the refusal must be the plain one", CryptoRefused().message, e.message)
+            assertEquals("shared_seal: the refusal must be the plain one", SealRefused().message, e.message)
         }
     }
 
     @Test
     fun `hsalsa20 refuses an input that is not 16 bytes`() {
         for (size in intArrayOf(0, 15, 17)) {
-            val e = assertThrows("crypto module: an input of $size bytes must be refused", CryptoRefused::class.java) {
+            val e = assertThrows("shared_seal: an input of $size bytes must be refused", SealRefused::class.java) {
                 hsalsa20(ByteArray(32), ByteArray(size))
             }
-            assertEquals("crypto module: the refusal must be the plain one", CryptoRefused().message, e.message)
+            assertEquals("shared_seal: the refusal must be the plain one", SealRefused().message, e.message)
         }
     }
 
@@ -97,9 +96,9 @@ class HSalsa20Test {
 
         val actual = hsalsa20(key, input)
 
-        assertEquals("crypto module: hsalsa20 must return 32 bytes", 32, actual.size)
-        assertArrayEquals("crypto module: hsalsa20 must not change the key it is given", naclCoreKey, key)
-        assertArrayEquals("crypto module: hsalsa20 must not change the input it is given", naclCoreInput, input)
+        assertEquals("shared_seal: hsalsa20 must return 32 bytes", 32, actual.size)
+        assertArrayEquals("shared_seal: hsalsa20 must not change the key it is given", naclCoreKey, key)
+        assertArrayEquals("shared_seal: hsalsa20 must not change the input it is given", naclCoreInput, input)
     }
 
     /** Joins the parts, drops the underscores that keep every digit run short, and reads hex. */

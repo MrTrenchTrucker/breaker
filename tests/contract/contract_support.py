@@ -155,13 +155,34 @@ def _gradle_path(path):
 def _settings_includes():
     with open(os.path.join(ROOT, "settings.gradle.kts"), encoding="utf-8") as fh:
         text = fh.read()
-    return set(re.findall(r'include\("(:[^"]+)"\)', text))
+    return _settings_includes_in(text)
+
+
+def _strip_gradle_comments(text):
+    """Build-file text with its comments removed, so a commented-out edge cannot count as one.
+
+    Both comment forms are stripped: `/* ... */` blocks first (they may span lines),
+    then `//` to end of line. A `depends_on` claim has to be PROVEN by a live
+    `project(":…")` edge, and a commented-out edge still contains the text.
+    """
+    without_blocks = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
+    return re.sub(r"//[^\n]*", "", without_blocks)
+
+
+def _project_dependencies_in(text):
+    """Gradle project paths declared by build-file TEXT, comments stripped first."""
+    return set(re.findall(r'project\("(:[^"]+)"\)', _strip_gradle_comments(text)))
 
 
 def _project_dependencies(rel):
     """Gradle project paths a module's build file declares as dependencies."""
     with open(os.path.join(ROOT, rel), encoding="utf-8") as fh:
-        return set(re.findall(r'project\("(:[^"]+)"\)', fh.read()))
+        return _project_dependencies_in(fh.read())
+
+
+def _settings_includes_in(text):
+    """The `include("…")` paths of settings text, comments stripped first."""
+    return set(re.findall(r'include\("(:[^"]+)"\)', _strip_gradle_comments(text)))
 
 
 # ── what may be depended on ──────────────────────────────────────────────

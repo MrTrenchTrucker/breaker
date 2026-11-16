@@ -1,6 +1,5 @@
-package dev.breaker.dictation.crypto
+package dev.breaker.dictation.seal
 
-import dev.breaker.dictation.core.model.CryptoRefused
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -11,14 +10,14 @@ import org.junit.Assert.fail
 import org.junit.Test
 
 /**
- * Tests for [SealedBoxOpener], which opens a libsodium `crypto_box_seal` box.
+ * Tests for [SealedBox], which opens a libsodium `crypto_box_seal` box.
  *
  * The four boxes are REAL `crypto_box_seal` output made by libsodium (PyNaCl 1.6.2) to a fixed
  * recipient key pair, and each was opened by libsodium's own `crypto_box_seal_open` before it
  * was written here. The message in each is the bytes (i * 7 + 3) mod 256, so the expected
  * message is built here from that rule and not from the box.
  *
- * Every refusal is checked three ways: it is the one plain [CryptoRefused], it has no cause
+ * Every refusal is checked three ways: it is the one plain [SealRefused], it has no cause
  * that could carry a byte of the box or the key, and the body cipher was never called, which
  * is how these tests show that the tag is checked before any plaintext byte is made.
  */
@@ -110,31 +109,31 @@ class SealedBoxOpenerTest {
     }
 
     /** Opens [box] with [opener]; a refusal fails the test with a message that says what broke. */
-    private fun openOrFail(label: String, box: ByteArray, opener: SealedBoxOpener): ByteArray =
+    private fun openOrFail(label: String, box: ByteArray, opener: SealedBox): ByteArray =
         try {
             opener.open(box, recipientPrivateKey)
-        } catch (refused: CryptoRefused) {
-            fail("crypto module: the $label box was refused but must open")
+        } catch (refused: SealRefused) {
+            fail("shared_seal: the $label box was refused but must open")
             throw refused
         }
 
     private fun assertOpens(label: String, box: ByteArray, expected: ByteArray) {
-        val actual = openOrFail(label, box, SealedBoxOpener())
+        val actual = openOrFail(label, box, SealedBox())
 
-        assertArrayEquals("crypto module: the $label box must open to its message", expected, actual)
+        assertArrayEquals("shared_seal: the $label box must open to its message", expected, actual)
     }
 
     /** One refusal: the plain exception, no cause, and the body cipher never reached. */
     private fun assertRefused(what: String, box: ByteArray, key: ByteArray = recipientPrivateKey) {
         val recorder = RecordingBodyCipher()
 
-        val e = assertThrows("crypto module: $what must be refused", CryptoRefused::class.java) {
-            SealedBoxOpener(recorder).open(box, key)
+        val e = assertThrows("shared_seal: $what must be refused", SealRefused::class.java) {
+            SealedBox(recorder).open(box, key)
         }
 
-        assertEquals("crypto module: $what must give the plain refusal", CryptoRefused().message, e.message)
-        assertNull("crypto module: $what must not carry a cause", e.cause)
-        assertEquals("crypto module: $what must not reach the body cipher", 0, recorder.calls)
+        assertEquals("shared_seal: $what must give the plain refusal", SealRefused().message, e.message)
+        assertNull("shared_seal: $what must not carry a cause", e.cause)
+        assertEquals("shared_seal: $what must not reach the body cipher", 0, recorder.calls)
     }
 
     // --- real boxes open byte for byte ---------------------------------------------------------
@@ -142,7 +141,7 @@ class SealedBoxOpenerTest {
     /** A failure means the empty-message box, exactly 48 bytes, did not open: the length rule is off by one. */
     @Test
     fun `a real sealed box of an empty message opens at exactly 48 bytes`() {
-        assertEquals("crypto module: the empty-message box must be 48 bytes", 48, boxLen0.size)
+        assertEquals("shared_seal: the empty-message box must be 48 bytes", 48, boxLen0.size)
 
         assertOpens("empty", boxLen0, message(0))
     }
@@ -168,10 +167,10 @@ class SealedBoxOpenerTest {
         val box = boxLen64.copyOf()
         val key = recipientPrivateKey.copyOf()
 
-        SealedBoxOpener().open(box, key)
+        SealedBox().open(box, key)
 
-        assertArrayEquals("crypto module: open must not change the box", boxLen64, box)
-        assertArrayEquals("crypto module: open must not change the key", recipientPrivateKey, key)
+        assertArrayEquals("shared_seal: open must not change the box", boxLen64, box)
+        assertArrayEquals("shared_seal: open must not change the key", recipientPrivateKey, key)
     }
 
     // --- the body cipher runs once for a good box and never for a bad one ----------------------
@@ -181,10 +180,10 @@ class SealedBoxOpenerTest {
     fun `a good box reaches the body cipher exactly once`() {
         val recorder = RecordingBodyCipher()
 
-        val opened = openOrFail("64 byte", boxLen64, SealedBoxOpener(recorder))
+        val opened = openOrFail("64 byte", boxLen64, SealedBox(recorder))
 
-        assertArrayEquals("crypto module: the good box must open through the recording cipher", message(64), opened)
-        assertEquals("crypto module: the good box must reach the body cipher once", 1, recorder.calls)
+        assertArrayEquals("shared_seal: the good box must open through the recording cipher", message(64), opened)
+        assertEquals("shared_seal: the good box must reach the body cipher once", 1, recorder.calls)
     }
 
     // --- refusals ------------------------------------------------------------------------------
@@ -257,15 +256,15 @@ class SealedBoxOpenerTest {
      */
     @Test
     fun `the all zero check sees a single set byte at any position`() {
-        assertTrue("crypto module: 32 zero bytes must count as all zero", sealedAllZero(ByteArray(32)))
+        assertTrue("shared_seal: 32 zero bytes must count as all zero", sealedAllZero(ByteArray(32)))
         for (i in 0 until 32) {
             val bytes = ByteArray(32)
             bytes[i] = 1
-            assertFalse("crypto module: a set byte at position $i must not count as all zero", sealedAllZero(bytes))
+            assertFalse("shared_seal: a set byte at position $i must not count as all zero", sealedAllZero(bytes))
         }
         val negative = ByteArray(32)
         negative[31] = 0x80.toByte()
-        assertFalse("crypto module: a negative byte must not count as all zero", sealedAllZero(negative))
+        assertFalse("shared_seal: a negative byte must not count as all zero", sealedAllZero(negative))
     }
 
     /** The same, with the ephemeral key 1, another low-order point. */
