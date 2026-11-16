@@ -8,5 +8,6 @@ package dev.breaker.shared.api
 data class TranscriptionResult(
     val text: String,
     val segments: List<Segment>,
-    val language: String
+    val language: String,
+    val words: List<Word>? = null
 )
