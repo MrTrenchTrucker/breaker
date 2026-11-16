@@ -32,7 +32,44 @@ internal object TranscriptionResponse {
             parseSegments(json, segmentsIdx)
         } else emptyList()
 
-        return ParsedTranscription(text, segments, language)
+        val wordsIdx = root["words"]
+        val words = if (wordsIdx != null && json[wordsIdx] == '[') {
+            parseWords(json, wordsIdx)
+        } else emptyList()
+
+        return ParsedTranscription(text = text, segments = segments, language = language, words = words)
+    }
+
+    private fun parseWords(json: String, startIdx: Int): List<TranscriptionWord> {
+        val words = mutableListOf<TranscriptionWord>()
+        var i = startIdx + 1
+        while (i < json.length) {
+            i = skipWs(json, i)
+            if (i >= json.length) break
+            val c = json[i]
+            if (c == ']') break
+            if (c == '{') {
+                val wordFields = fields(json, i)
+                if (wordFields != null) {
+                    val wordIdx = wordFields["word"]
+                    val startIdx = wordFields["start"]
+                    val endIdx = wordFields["end"]
+                    if (wordIdx != null && startIdx != null && endIdx != null) {
+                        val wordResult = readString(json, wordIdx)
+                        val start = readNumber(json, startIdx)
+                        val end = readNumber(json, endIdx)
+                        if (wordResult != null && start != null && end != null) {
+                            words.add(TranscriptionWord(wordResult.first, start, end))
+                        }
+                    }
+                }
+                val after = skipValue(json, i)
+                i = if (after != null) after else break
+            } else {
+                i++
+            }
+        }
+        return words
     }
 
     private fun parseSegments(json: String, startIdx: Int): List<TranscriptionSegment> {
@@ -192,8 +229,11 @@ internal object TranscriptionResponse {
 
 data class TranscriptionSegment(val start: Double, val end: Double, val text: String)
 
+data class TranscriptionWord(val word: String, val start: Double, val end: Double)
+
 data class ParsedTranscription(
     val text: String,
     val segments: List<TranscriptionSegment> = emptyList(),
-    val language: String? = null
+    val language: String? = null,
+    val words: List<TranscriptionWord> = emptyList()
 )

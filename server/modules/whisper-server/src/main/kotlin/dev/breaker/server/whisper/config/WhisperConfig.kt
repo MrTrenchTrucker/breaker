@@ -15,10 +15,12 @@ package dev.breaker.server.whisper.config
  * - BREAKER_WHISPER_AGENT_RATE_LIMIT_PER_MIN: optional, off when absent; a present value must
  *   parse to a whole number in 1..10000 (requests per minute per agent token); blank, zero,
  *   negative, non-number or above 10000 refuses at start naming the variable
-  * - BREAKER_WHISPER_USER_RATE_LIMIT_PER_MIN: optional, off when absent; a present value must
-    parse to a whole number in 1..10000 (requests per minute per account, applied to
-    session and agent tokens alike); blank, zero, negative, non-number or above 10000
-    refuses at start naming the variable
+ * - BREAKER_WHISPER_USER_RATE_LIMIT_PER_MIN: optional, off when absent; a present value must
+ *   parse to a whole number in 1..10000 (requests per minute per account, applied to
+ *   session and agent tokens alike); blank, zero, negative, non-number or above 10000
+ *   refuses at start naming the variable
+ * - BREAKER_WHISPER_WORD_TIMESTAMPS: optional, default false; a present value must be true or
+ *   false (trimmed, case-insensitive); anything else refuses at start naming the variable
  *
  * Parsing rules:
  * - Missing/bad BREAKER_WHISPER_PORT refuses with a message naming BREAKER_WHISPER_PORT
@@ -37,6 +39,8 @@ package dev.breaker.server.whisper.config
  * - Missing BREAKER_WHISPER_USER_RATE_LIMIT_PER_MIN means the rate limit is off; a present but
  *   blank/non-number/zero/negative/above-10000 value refuses with a message naming
  *   BREAKER_WHISPER_USER_RATE_LIMIT_PER_MIN
+ * - Missing BREAKER_WHISPER_WORD_TIMESTAMPS defaults to false; a present value other than true or
+ *   false refuses with a message naming BREAKER_WHISPER_WORD_TIMESTAMPS
  */
 data class WhisperConfig(
     val bindAddress: String,
@@ -48,6 +52,7 @@ data class WhisperConfig(
     val userRateLimitPerMin: Int? = null,
     val syncApiBaseUrl: String = "",
     val syncApiServiceKey: String = "",
+    val wordTimestamps: Boolean = false,
 ) {
     companion object {
         const val ENV_HOST = "BREAKER_WHISPER_HOST"
@@ -59,6 +64,7 @@ data class WhisperConfig(
         const val ENV_SYNC_API_SERVICE_KEY = "BREAKER_WHISPER_SYNC_API_SERVICE_KEY"
         const val ENV_AGENT_RATE_LIMIT = "BREAKER_WHISPER_AGENT_RATE_LIMIT_PER_MIN"
         const val ENV_USER_RATE_LIMIT = "BREAKER_WHISPER_USER_RATE_LIMIT_PER_MIN"
+        const val ENV_WORD_TIMESTAMPS = "BREAKER_WHISPER_WORD_TIMESTAMPS"
         const val DEFAULT_HOST = "127.0.0.1"
         const val DEFAULT_RESULT_TTL_SECONDS = 600
         private const val MIN_RESULT_TTL_SECONDS = 1
@@ -165,6 +171,19 @@ data class WhisperConfig(
                 parsed
             }
 
+            val wordTimestampsRaw = env[ENV_WORD_TIMESTAMPS]
+            val wordTimestamps = if (wordTimestampsRaw == null) {
+                false
+            } else {
+                when (wordTimestampsRaw.trim().lowercase()) {
+                    "true" -> true
+                    "false" -> false
+                    else -> throw IllegalStateException(
+                        "$ENV_WORD_TIMESTAMPS must be true or false: $wordTimestampsRaw"
+                    )
+                }
+            }
+
             val syncApiUrl = env[ENV_SYNC_API_URL]
                 ?.takeIf { it.isNotBlank() }
                 ?: throw IllegalStateException("$ENV_SYNC_API_URL is not set")
@@ -191,6 +210,7 @@ data class WhisperConfig(
                 userRateLimitPerMin = userRateLimitPerMin,
                 syncApiBaseUrl = syncApiUrl,
                 syncApiServiceKey = syncApiServiceKey,
+                wordTimestamps = wordTimestamps,
             )
         }
     }

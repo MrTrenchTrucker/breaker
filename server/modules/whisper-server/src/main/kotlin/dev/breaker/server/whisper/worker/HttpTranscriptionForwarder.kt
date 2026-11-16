@@ -16,13 +16,14 @@ import java.util.concurrent.CompletionStage
 import java.util.concurrent.Flow
 import java.util.concurrent.CompletableFuture
 
-// Admin-configurable: URL, API key, model, timeouts.
+// Admin-configurable: URL, API key, model, timeouts, word timestamps.
 data class DownstreamConfig(
     val baseUrl: String,
     val apiKey: String? = null,
     val model: String = "whisper-1",
     val connectTimeout: Duration = Duration.ofSeconds(10),
     val requestTimeout: Duration = Duration.ofSeconds(60),
+    val wordTimestamps: Boolean = false,
 ) {
     override fun toString(): String =
         "DownstreamConfig(baseUrl=$baseUrl, apiKey=" +
@@ -147,6 +148,16 @@ class HttpTranscriptionForwarder(
                 append("}")
             }
             append("]")
+            if (parsed.words.isNotEmpty()) {
+                append(",\"words\":[")
+                parsed.words.forEachIndexed { i, word ->
+                    if (i > 0) append(",")
+                    append("{\"word\":")
+                    append(escapeJsonString(word.word))
+                    append(",\"start\":${word.start},\"end\":${word.end}}")
+                }
+                append("]")
+            }
             append(",\"language\":")
             append(escapeJsonString(parsed.language ?: ""))
             append("}")
@@ -182,6 +193,12 @@ class HttpTranscriptionForwarder(
         writer.write("Content-Disposition: form-data; name=\"response_format\"\r\n")
         writer.write("\r\n")
         writer.write("verbose_json\r\n")
+        if (config.wordTimestamps) {
+            writer.write("--$boundary\r\n")
+            writer.write("Content-Disposition: form-data; name=\"timestamp_granularities[]\"\r\n")
+            writer.write("\r\n")
+            writer.write("word\r\n")
+        }
         writer.write("--$boundary--\r\n")
         writer.flush()
         return output.toByteArray()

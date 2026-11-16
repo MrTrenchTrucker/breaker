@@ -159,15 +159,27 @@ internal fun Route.transcriptionRoutes(
                 }
             }
         }
+        // The format is read here but validated only once the job is known: a refused token
+        // still answers 401 and an unknown id still answers 404, so a caller learns nothing
+        // about formats from a job it cannot reach. A job that exists answers 400 for any
+        // value that is not json, srt or vtt, whatever its state; a valid srt or vtt on a job
+        // that is not done answers that job's JSON status body.
+        val format = parseJobFormat(call.request.queryParameters["format"])
         val jobId = call.parameters["job_id"]?.toLongOrNull()
         if (jobId == null) {
             respondError(call, HttpStatusCode.NotFound, UNKNOWN_OR_EXPIRED)
             return@get
         }
-        when (val poll = store.fetch(jobId, account.accountId)) {
-            is JobPoll.NotFound -> {
-                respondError(call, HttpStatusCode.NotFound, UNKNOWN_OR_EXPIRED)
-            }
+        val poll = store.fetch(jobId, account.accountId)
+        if (poll is JobPoll.NotFound || poll is JobPoll.ResultGone) {
+            respondError(call, HttpStatusCode.NotFound, UNKNOWN_OR_EXPIRED)
+            return@get
+        }
+        if (format == null) {
+            respondError(call, HttpStatusCode.BadRequest, "unknown format")
+            return@get
+        }
+        when (poll) {
             is JobPoll.Pending -> {
                 call.respondText("{\"status\":\"${poll.status.dbValue}\",\"result\":null}", ContentType.Application.Json, HttpStatusCode.OK)
             }
@@ -175,11 +187,20 @@ internal fun Route.transcriptionRoutes(
                 call.respondText("{\"status\":\"failed\",\"result\":null,\"error\":${escapeJsonString(poll.error)}}", ContentType.Application.Json, HttpStatusCode.OK)
             }
             is JobPoll.Result -> {
-                call.respondText("{\"status\":\"done\",\"result\":${poll.text}}", ContentType.Application.Json, HttpStatusCode.OK)
+                val rendered = renderJobBody(format, poll.text)
+                if (rendered == null) {
+                    // The stored result cannot be parsed, so no subtitle can be built from
+                    // it; answer the JSON body this route has always answered. A result
+                    // this module wrote always carries a non-blank text, so this cannot
+                    // happen here.
+                    call.respondText(doneResultBody(poll.text), ContentType.Application.Json, HttpStatusCode.OK)
+                } else {
+                    call.respondText(rendered.text, rendered.contentType, HttpStatusCode.OK)
+                }
             }
-            is JobPoll.ResultGone -> {
-                respondError(call, HttpStatusCode.NotFound, UNKNOWN_OR_EXPIRED)
-            }
+            // The two not found states were answered above; this branch is a no-op that keeps
+            // the when exhaustive.
+            else -> Unit
         }
     }
 

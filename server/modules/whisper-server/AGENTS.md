@@ -13,12 +13,25 @@ itself; it queues, shapes the contract, and proxies.
 **API (contract in `shared/api-contracts`):**
 - `POST /v1/audio/transcriptions` — multipart `file` (audio bytes; this module checks no format, the downstream service decides), optional `model` (ignored),
   `language` → `202 { job_id, status: "queued" }`
-- `GET /v1/jobs/{job_id}` → `{ status: queued|processing|done|failed, result:
-  { text, segments[], language } | null }`
+- `GET /v1/jobs/{job_id}?format=json|srt|vtt` → `{ status: queued|processing|done|failed, result:
+  { text, segments[], language } | null }`, plus a `words[]` member in the result when word
+  timestamps are on and the reply carried any. `format=srt` or `format=vtt` on a done job answers a
+  SubRip or WebVTT body (`application/x-subrip; charset=utf-8` or `text/vtt; charset=utf-8`) instead of
+  JSON; on a job that is not done it answers the same JSON status body as without `format`. A value
+  other than `json`, `srt` or `vtt` (case sensitive, an empty one included) answers 400
+  `{"error":"unknown format"}` for any job that exists; the token, rate limit and unknown job answers
+  come first, unchanged.
 - Optional SSE streaming of partial segments (v1.1).
   Planned, not built: no streaming route exists.
 - Output formats (once done): JSON / SRT / VTT; word-level timestamps.
-  Planned, not built: only the JSON result is served; there is no SRT or VTT output and no word-level timestamp.
+  Built: `subtitle/` writes SRT and VTT from the stored segments (one cue per non-empty segment, times
+  rounded half up to the millisecond, hours never wrapped), `worker/` parses the downstream `words`
+  into the result, and `http/JobFormat.kt` renders the requested format on the poll route.
+- Word timestamps are opt-in: `BREAKER_WHISPER_WORD_TIMESTAMPS` is `true` or `false` (trimmed, any
+  case), default `false`; any other value refuses the start and names the variable. When it is on, the
+  forwarder adds the multipart part `timestamp_granularities[]` = `word` to the downstream call, and
+  the stored result gains a `words` member after `segments`; when it is off, or the reply carried no
+  word, the result is byte for byte what it was before.
 
 **Implementation notes:**
 - This module does not load a Whisper model. It forwards the WAV to whatever
@@ -41,8 +54,7 @@ itself; it queues, shapes the contract, and proxies.
 
 ## Invariants
 - Correct JSON for a known test WAV (golden transcript match).
-- Word timestamps present; SRT/VTT output valid.
-  Planned, not built: this invariant waits for the SRT, VTT and word timestamp output.
+- Word timestamps present when the setting is on; SRT/VTT output valid.
 - Two concurrent requests don't corrupt state (queue works).
 - Existing `/v1/chat/completions` behavior unchanged (regression).
 - A missing, not-live or foreign-scheme token is refused with one plain 401 and nothing is enqueued; an unavailable token check answers 503 (`{"error":"unavailable"}`, error-only) before the upload is read; a foreign account's job id answers the same 404 as a missing id.

@@ -196,7 +196,10 @@ fun main() {
     val db = SqliteDatabase.open(config.databasePath)
     val store = buildJobStore(db, config)
     val forwarder = HttpTranscriptionForwarder(
-        DownstreamConfig(baseUrl = config.forwarderBaseUrl)
+        DownstreamConfig(
+            baseUrl = config.forwarderBaseUrl,
+            wordTimestamps = config.wordTimestamps,
+        )
     )
     val worker = QueueWorker(store, forwarder)
     val api = buildTranscriptionApi(store, worker::wake, config, System::nanoTime)
