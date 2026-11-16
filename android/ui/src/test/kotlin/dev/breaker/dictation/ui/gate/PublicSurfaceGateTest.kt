@@ -37,6 +37,16 @@ private const val DOWNLOAD_CONTROL_FILE = "DownloadControl.kt"
 /** The auth entry file, offering two declarations together: the view builder and its control interface. */
 private const val AUTH_ENTRY_FILE = "AuthEntry.kt"
 
+/**
+ * The file of the server address status type. It is offered because the app owns the probe and
+ * hands its answer to this module through `createSettingsView`, so the type has to be visible
+ * across the module boundary. Its name is the only declaration that file offers.
+ */
+private const val SERVER_ADDRESS_STATUS_FILE = "screen/settings/ServerAddressStatusLine.kt"
+
+/** The status type, as written in its file. */
+private const val SETTLED_SERVER_ADDRESS_STATUS = "sealed class ServerAddressStatus"
+
 /** The first declaration allowed to be offered. */
 private const val ENTRY_FUNCTION = "createSettingsView"
 
@@ -50,7 +60,8 @@ private const val SETTLED_ENTRY =
         "settings: dev.breaker.dictation.core.port.SettingsStore, " +
         "modelReady: () -> Boolean, downloadLine: () -> String?, " +
         "onDownloadModel: () -> Unit, onThemeChanged: (() -> Unit)? = null, " +
-        "sessionLive: (() -> Boolean)? = null, onSignIn: (() -> Unit)? = null): android.view.View"
+        "sessionLive: (() -> Boolean)? = null, onSignIn: (() -> Unit)? = null, " +
+        "serverAddressStatus: (() -> dev.breaker.dictation.ui.screen.settings.ServerAddressStatus)? = null): android.view.View"
 
 private const val SETTLED_HISTORY = "fun createHistoryView(context: android.content.Context, " +
     "history: dev.breaker.dictation.core.port.HistoryStore, settings: dev.breaker.dictation.core.port.SettingsStore, older: dev.breaker.dictation.core.port.OlderHistory? = null): android.view.View"
@@ -112,6 +123,7 @@ private val SETTLED_SURFACE = setOf(
     SWITCH_FILE to SETTLED_SWITCH, MODEL_CONTROL_FILE to SETTLED_MODEL_CONTROL, DOWNLOAD_CONTROL_FILE to SETTLED_DOWNLOAD_CONTROL, FIRST_RUN_FILE to SETTLED_FIRST_RUN,
     AUTH_ENTRY_FILE to SETTLED_AUTH_VIEW, AUTH_ENTRY_FILE to SETTLED_AUTH_CONTROL,
     AUTH_ENTRY_FILE to SETTLED_SIGN_IN_VIEW, AUTH_ENTRY_FILE to SETTLED_SIGN_IN_CONTROL,
+    SERVER_ADDRESS_STATUS_FILE to SETTLED_SERVER_ADDRESS_STATUS,
 )
 
 private fun isSettled(offered: List<Pair<String, String>>): Boolean =
@@ -131,10 +143,10 @@ class PublicSurfaceGateTest {
     fun `the entry functions, the switch and the model control are the only declarations offered`() {
         assertEquals(
             "declarations offered outside $ENTRY_FILE, $FIRST_RUN_FILE, $HOME_ENTRY_FILE, $SWITCH_FILE, $MODEL_CONTROL_FILE and $DOWNLOAD_CONTROL_FILE: $OFFERED",
-            setOf(ENTRY_FILE, FIRST_RUN_FILE, HOME_ENTRY_FILE, SWITCH_FILE, MODEL_CONTROL_FILE, DOWNLOAD_CONTROL_FILE, AUTH_ENTRY_FILE),
+            setOf(ENTRY_FILE, FIRST_RUN_FILE, HOME_ENTRY_FILE, SWITCH_FILE, MODEL_CONTROL_FILE, DOWNLOAD_CONTROL_FILE, AUTH_ENTRY_FILE, SERVER_ADDRESS_STATUS_FILE),
             OFFERED.map { it.first }.toSet(),
         )
-        assertEquals("declarations offered: $OFFERED", 14, OFFERED.size)
+        assertEquals("declarations offered: $OFFERED", 15, OFFERED.size)
     }
 
     @Test
@@ -178,7 +190,7 @@ class PublicSurfaceGateTest {
     @Test
     fun `every other file marks its declarations internal or private`() {
         val marked = MAIN_SOURCES
-            .filter { (path, _) -> path != ENTRY_FILE && path != HOME_ENTRY_FILE && path != FIRST_RUN_FILE && path != SWITCH_FILE && path != MODEL_CONTROL_FILE && path != DOWNLOAD_CONTROL_FILE && path != AUTH_ENTRY_FILE }
+            .filter { (path, _) -> path != ENTRY_FILE && path != HOME_ENTRY_FILE && path != FIRST_RUN_FILE && path != SWITCH_FILE && path != MODEL_CONTROL_FILE && path != DOWNLOAD_CONTROL_FILE && path != AUTH_ENTRY_FILE && path != SERVER_ADDRESS_STATUS_FILE }
             .flatMap { (path, text) -> topLevelDeclarationsIn(text).map { path to it } }
         assertTrue("no other file in the module declares anything at the top level", marked.isNotEmpty())
         val unmarked = marked.filterNot { (_, declaration) ->

@@ -33,7 +33,7 @@ internal class LauncherScrollGateTest {
         Rule(name, file) { Regex(first).findAll(it).count() == 1 && Regex(second).findAll(it).count() == 1 }
 
     private val rules: List<Rule> = listOf(
-        rx("SETTINGS_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "activity", """\bcreateSettingsView\s*\(\s*activity\s*,\s*refreshing\s*,\s*modelReady\s*=\s*\{\s*modelReady\s*\.\s*isReady\s*\(\s*\)\s*\}\s*,\s*downloadLine\s*=\s*downloadLine\s*,\s*onThemeChanged\s*=\s*dev\s*\.\s*breaker\s*\.\s*dictation\s*\.\s*wiring\s*\.\s*repaintOnThemeChange\s*\(\s*activity\s*,\s*app\s*\.\s*settingsStore\s*\)\s*,\s*onDownloadModel\s*=\s*\{\s*app\s*\.\s*tileHost\s*\.\s*requestDownload\s*\(\s*\)\s*\}\s*,\s*sessionLive\s*=\s*\{\s*app\s*\.\s*compositionRoot\s*\.\s*sessionLive\s*\.\s*liveNow\s*\(\s*\)\s*\}\s*,\s*onSignIn\s*=\s*onSignIn\s*,?\s*\)"""),
+        rx("SETTINGS_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "activity", """\bcreateSettingsView\s*\(\s*activity\s*,\s*refreshing\s*,\s*modelReady\s*=\s*\{\s*modelReady\s*\.\s*isReady\s*\(\s*\)\s*\}\s*,\s*downloadLine\s*=\s*downloadLine\s*,\s*onThemeChanged\s*=\s*dev\s*\.\s*breaker\s*\.\s*dictation\s*\.\s*wiring\s*\.\s*repaintOnThemeChange\s*\(\s*activity\s*,\s*app\s*\.\s*settingsStore\s*\)\s*,\s*onDownloadModel\s*=\s*\{\s*app\s*\.\s*tileHost\s*\.\s*requestDownload\s*\(\s*\)\s*\}\s*,\s*sessionLive\s*=\s*\{\s*app\s*\.\s*compositionRoot\s*\.\s*sessionLive\s*\.\s*liveNow\s*\(\s*\)\s*\}\s*,\s*onSignIn\s*=\s*onSignIn\s*,\s*serverAddressStatus\s*=\s*\{[^}]*\}\s*,?\s*\)"""),
         rx("MODEL_READY_IS_A_LIVE_PROVIDER", "activity", """\bmodelReady\s*=\s*\{\s*modelReady\s*\.\s*isReady\s*\(\s*\)\s*\}""", 3),
         // downloadLine = { downloadSentence } appears twice: once for createFirstRunView and once passed
         // through buildSettingsRebuilt to createSettingsView
@@ -70,6 +70,7 @@ internal class LauncherScrollGateTest {
         Sample("SETTINGS_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "downloadLine = downloadLine,", "downloadLine = { null },"),
         Sample("SETTINGS_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "createSettingsView(\n            activity,", "createSettingsView(\n            null,"),
         Sample("SETTINGS_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "onDownloadModel = { app.tileHost.requestDownload() }", "onDownloadModel = { }"),
+        Sample("SETTINGS_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "serverAddressStatus = { app.compositionRoot.serverAddressStatus() },", ""),
         Sample("SETTINGS_VIEW_IS_CALLED_WITH_MODEL_READY_AND_DOWNLOAD_LINE", "refreshing,\n            modelReady = { modelReady.isReady() },", "refreshing,\n            modelReady = { true },"),
         Sample("MODEL_READY_IS_A_LIVE_PROVIDER", "modelReady = { modelReady.isReady() },\n            downloadLine", "modelReady = { true },\n            downloadLine"),
         Sample("MODEL_READY_IS_A_LIVE_PROVIDER", "modelReady = { modelReady.isReady() },\n            downloadLine", "modelReady = { modelReady.isReady().also { } },\n            downloadLine"),

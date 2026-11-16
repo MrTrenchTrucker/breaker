@@ -53,6 +53,11 @@ internal object SettingsTexts {
     const val SERVER_ROW_MOVE_UP = "Move up"
     const val SERVER_ROW_MOVE_DOWN = "Move down"
 
+    /** The state of the stored server addresses, drawn under the rows. Words are provisional. */
+    const val SERVER_STATUS_CHECKING = "Checking the server addresses..."
+    const val SERVER_IN_USE_LEAD = "Using "
+    const val SERVER_STATUS_NONE_ANSWERED = "No server address answered. Check that this phone is on the home network or the VPN."
+
     /** What a row says when it holds no value: no address, or a key that is not held. */
     const val NOT_SET_TEXT = "(not set)"
     const val HELD_TEXT = "set"

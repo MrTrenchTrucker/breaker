@@ -52,6 +52,7 @@ internal class AppHostingGateTest {
         Quiet("onCopy = { sentence -> copyToClip(activity, sentence) },", "onCopy = {  sentence  ->  copyToClip(activity, sentence) },"),
         Quiet("app.tileHost.setDownloadListener(this)", "app.tileHost.setDownloadListener(this) // onHowItWorks"),
         Quiet("createSettingsView(", "createSettingsView( // the settings view"),
+        Quiet("serverAddressStatus = { app.compositionRoot.serverAddressStatus() },", "serverAddressStatus = { app.compositionRoot.serverAddressStatus() }, // wired"),
         Quiet("const val ICON_LAUNCH_DONE_KEY: String = \"icon-launch-done\"", "const val ICON_LAUNCH_DONE_KEY: String = \"icon-launch-done\" // the key"),
         Quiet("override fun onStart() {", "// onAbout and onHowItWorks are only words in this comment\n    override fun onStart() {"),
     )

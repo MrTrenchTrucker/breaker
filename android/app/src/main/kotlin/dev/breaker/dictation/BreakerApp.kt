@@ -8,6 +8,7 @@ import dev.breaker.dictation.core.port.SettingsStore
 import dev.breaker.dictation.core.port.TextCommitter
 import dev.breaker.dictation.history.SqliteHistoryStore
 import dev.breaker.dictation.host.OneShotBackground
+import dev.breaker.dictation.host.ProbeStatusRefresh
 import dev.breaker.dictation.host.RefusalHold
 import dev.breaker.dictation.host.SerialBackground
 import dev.breaker.dictation.host.ServiceRefusalNotice
@@ -193,6 +194,11 @@ class BreakerApp : android.app.Application() {
             micSource = realMicSource,
             background = OneShotBackground(),
         )
+    }
+
+    /** One status refresh per Settings open: coalesced, bounded, drawn once on the main thread. */
+    internal val probeStatusRefresh: ProbeStatusRefresh by lazy {
+        ProbeStatusRefresh(refreshProbe = { compositionRoot.probe.refresh() })
     }
 
     /** The on and off switch over the service; a switch-off is kept in a small file of the app. */

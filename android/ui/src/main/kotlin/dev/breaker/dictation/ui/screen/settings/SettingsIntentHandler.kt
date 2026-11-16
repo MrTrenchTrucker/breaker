@@ -78,6 +78,14 @@ internal class SettingsIntentHandler(
     /** Whether the signed-out block should show; set by the host on each drawing. */
     private var signedOut: Boolean = false
 
+    /**
+     * The app's reading of the stored server addresses, or null when no provider was wired.
+     *
+     * The host reads its provider once per drawing and sets the value here, so every part of one
+     * screen draws the same state rather than each asking again.
+     */
+    private var serverAddressStatus: ServerAddressStatus? = null
+
     /** Sets the speech model row that the screens drawn from now on show. */
     fun showing(row: ModelRow) {
         model = row
@@ -86,6 +94,16 @@ internal class SettingsIntentHandler(
     /** Sets whether the signed-out block is drawn. */
     fun showingSignedOut(signedOut: Boolean) {
         this.signedOut = signedOut
+    }
+
+    /**
+     * Sets the app's reading of the stored server addresses for the screens drawn from now on.
+     *
+     * The host calls its provider once per drawing and hands over that value, so the status line
+     * and anything else on one screen describe the same moment.
+     */
+    fun showingServerAddressStatus(status: ServerAddressStatus?) {
+        serverAddressStatus = status
     }
 
     /** The screen as it stands now, without acting on anything. */
@@ -199,7 +217,7 @@ internal class SettingsIntentHandler(
      */
     private fun render(): Rendered =
         Rendered(
-            screen = screen.render(known, themes.state, notice, model, signedOut = signedOut),
+            screen = screen.render(known, themes.state, notice, model, signedOut = signedOut, serverAddressStatus = serverAddressStatus),
             theme = Themes.of(themes.state.shown),
         )
 }

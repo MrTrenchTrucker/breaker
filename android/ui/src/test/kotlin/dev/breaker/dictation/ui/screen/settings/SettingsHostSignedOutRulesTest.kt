@@ -37,6 +37,7 @@ class SettingsHostSignedOutRulesTest {
 
     private val livenessLine = "private fun signedOut(): Boolean = !sessionLive()"
     private val flagCall = "handler.showingSignedOut(signedOut())"
+    private val statusCall = "handler.showingServerAddressStatus(serverAddressStatus?.invoke())"
     private val signInBranch = "intent is ScreenIntent.Home && intent.action == HomeActions.SIGN_IN -> onSignIn()"
 
     private fun livenessProblems(text: String): List<String> =
@@ -47,7 +48,7 @@ class SettingsHostSignedOutRulesTest {
         val body = between(flat(text), "private fun refreshed(): Rendered {", "private fun signedOut()")
         return listOfNotNull(
             "refreshed() does not set the signed-out flag before the handler draws".takeUnless {
-                "handler.showing(rowNow()) $flagCall return handler.current()" in body
+                "handler.showing(rowNow()) $flagCall $statusCall return handler.current()" in body
             },
         )
     }
@@ -81,7 +82,7 @@ class SettingsHostSignedOutRulesTest {
 
     @Test
     fun `the redraw path hands the flag to the handler before it draws`() {
-        val without = editOnce(code, "handler.showing(rowNow()) $flagCall return handler.current()", "handler.showing(rowNow()) return handler.current()")
+        val without = editOnce(code, "handler.showing(rowNow()) $flagCall $statusCall return handler.current()", "handler.showing(rowNow()) return handler.current()")
         assertFires("a redraw without the flag", refreshProblems(without))
         assertEquals("screen: settings host: signed out: the redraw path", emptyList<String>(), refreshProblems(code))
     }
